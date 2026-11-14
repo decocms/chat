@@ -1328,5 +1328,7 @@ test("real RoomShell rejects connected card-A intent after same-ID canonical msg
   h.connectionCallbacks.at(-1)!.onEvent({t:"receipts",receipts:[]});
   current.click();
   expect(h.roomCommands.filter(command=>command.t==="msg").length).toBe(before+1);
-  expect(h.roomCommands.filter(command=>command.t==="msg").at(-1)).toMatchObject({t:"msg",reply_to:1,text:"approve"});
+  const sent=h.roomCommands.filter(command=>command.t==="msg").at(-1);
+  if(!sent||sent.t!=="msg")throw Error("Expected current card reply");
+  expect(sent.reply_to).toBe(1);expect(sent.text).toBe("approve");
 });
