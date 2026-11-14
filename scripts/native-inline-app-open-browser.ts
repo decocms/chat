@@ -522,9 +522,19 @@ export async function auditInlineAppOpen(
             await expect(child).toHaveAttribute("data-outcome", "refused");
             await expect(child).toHaveAttribute("data-origin", "null");
             await quiet();
+            const currentFrame = await widget("mutate_a")
+              .locator("iframe")
+              .elementHandle();
+            assert(currentFrame, "Current app iframe missing");
             result.replacement = {
-              sameElement: await handle.evaluate((node) => node.isConnected),
-              sameWindow: await handle.evaluate(
+              sameElement: await currentFrame.evaluate(
+                (node, original) =>
+                  node instanceof HTMLIFrameElement &&
+                  node.isConnected &&
+                  node === original,
+                handle,
+              ),
+              sameWindow: await currentFrame.evaluate(
                 (node, old) =>
                   node instanceof HTMLIFrameElement &&
                   node.contentWindow === old,
@@ -535,6 +545,7 @@ export async function auditInlineAppOpen(
               direct: await child.getAttribute("data-direct"),
               negotiated: await child.getAttribute("data-negotiated"),
             };
+            await currentFrame.dispose();
             assert(
               result.replacement.sameElement && result.replacement.sameWindow,
             );
