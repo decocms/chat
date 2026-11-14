@@ -122,7 +122,9 @@ export function reduceRoom(
           ((s.files ?? []).some((f) => f.id === event.file.id) ? 0 : 1),
       };
     case "openSide":
-      return (s.files??[]).some(file=>file.id===event.file.id) ? s : {...s,files:[event.file,...(s.files??[])]};
+      return (s.files ?? []).some((file) => file.id === event.file.id)
+        ? s
+        : { ...s, files: [event.file, ...(s.files ?? [])] };
     case "reminders":
       return { ...s, reminders: event.reminders };
     case "decisions":

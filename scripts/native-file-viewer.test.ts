@@ -1,4 +1,4 @@
-import {createSideFileSession} from "../svelte/features/file-viewer/side";
+import { createSideFileSession } from "../svelte/features/file-viewer/side";
 // Pure owners and HTTP stream fixtures; not browser/media/provider acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
@@ -576,37 +576,128 @@ test("validated legacy epic route keeps one entry and Viewer Back/Forward retain
   }
 });
 
-test('beside-chat files follow canonical newest versions without taking Viewer history',async()=>{
- const nav=browser(),timer=manualClock();
- const viewer=createFileViewer({...nav,embedded:true,clock:timer.clock,api:{probe:async()=>({type:'text/markdown',size:2}),text:async()=>({metadata:{type:'text/markdown'},text:'ok',truncated:false})}});
- const side=createSideFileSession(viewer,{current:()=>true,changed(){}});
- const request:RequestRoomCommand=async()=>({ok:true});
- side.sync(room(),request);
- expect(side.open(attachment())).toBe(true);await settle();
- expect(side.target()?.follow).toBe(true);
- side.sync(room({files:[attachment('bb',2),attachment()]}),request);
- expect(side.target()?.id).toBe('bb');
- expect(get(viewer.state).target?.id).toBe('bb');
- const selected=side.target()!; side.select(selected,'aa');
- expect(side.target()?.follow).toBe(false);
- side.sync(room({files:[attachment('cc',3),attachment('bb',2),attachment()]}),request);
- expect(side.target()?.id).toBe('aa');
- expect(get(viewer.state).target?.id).toBe('aa');
- side.select(selected,'cc');expect(side.target()?.id).toBe('aa');
- expect(nav.entries).toHaveLength(1);expect(nav.backs).toBe(0);
- side.close();expect(side.target()).toBeNull();expect(get(viewer.state).open).toBe(false);
- expect(nav.entries).toHaveLength(1);expect(nav.backs).toBe(0);
- side.dispose();
+test("beside-chat files follow canonical newest versions without taking Viewer history", async () => {
+  const nav = browser(),
+    timer = manualClock();
+  const viewer = createFileViewer({
+    ...nav,
+    embedded: true,
+    clock: timer.clock,
+    api: {
+      probe: async () => ({ type: "text/markdown", size: 2 }),
+      text: async () => ({
+        metadata: { type: "text/markdown" },
+        text: "ok",
+        truncated: false,
+      }),
+    },
+  });
+  const side = createSideFileSession(viewer, {
+    current: () => true,
+    changed() {},
+  });
+  const request: RequestRoomCommand = async () => ({ ok: true });
+  side.sync(room(), request);
+  expect(side.open(attachment())).toBe(true);
+  await settle();
+  expect(side.target()?.follow).toBe(true);
+  side.sync(room({ files: [attachment("bb", 2), attachment()] }), request);
+  expect(side.target()?.id).toBe("bb");
+  expect(get(viewer.state).target?.id).toBe("bb");
+  const selected = side.target()!;
+  side.select(selected, "aa");
+  expect(side.target()?.follow).toBe(false);
+  side.sync(
+    room({ files: [attachment("cc", 3), attachment("bb", 2), attachment()] }),
+    request,
+  );
+  expect(side.target()?.id).toBe("aa");
+  expect(get(viewer.state).target?.id).toBe("aa");
+  side.select(selected, "cc");
+  expect(side.target()?.id).toBe("aa");
+  expect(nav.entries).toHaveLength(1);
+  expect(nav.backs).toBe(0);
+  side.close();
+  expect(side.target()).toBeNull();
+  expect(get(viewer.state).open).toBe(false);
+  expect(nav.entries).toHaveLength(1);
+  expect(nav.backs).toBe(0);
+  side.dispose();
 });
-test('beside-chat revocation clears private reads and stale close cannot clear a reentrant replacement',()=>{
- const nav=browser(),timer=manualClock();let allowed=true;
- const viewer=createFileViewer({...nav,embedded:true,clock:timer.clock,api:{probe:async()=>({type:'text/markdown',size:2}),text:async()=>({metadata:{type:'text/markdown'},text:'ok',truncated:false})}});
- const side=createSideFileSession(viewer,{current:()=>allowed,changed(){}});
- const request:RequestRoomCommand=async()=>({ok:true});
- side.sync(room({files:[attachment('bb',2),attachment()]}),request);side.open(attachment());
- let reenter=true;const stop=side.state.subscribe(target=>{if(!target&&reenter){reenter=false;side.open(attachment('bb',2));}});
- side.close();expect(side.target()?.id).toBe('bb');expect(get(viewer.state).target?.id).toBe('bb');
- allowed=false;side.sync(room({members:[]}),request);
- expect(side.target()).toBeNull();expect(get(viewer.state).room).toBeNull();expect(get(viewer.state).content).toBeNull();
- side.dispose();expect(side.open(attachment())).toBe(false);stop();
+test("beside-chat revocation clears private reads and stale close cannot clear a reentrant replacement", () => {
+  const nav = browser(),
+    timer = manualClock();
+  let allowed = true;
+  const viewer = createFileViewer({
+    ...nav,
+    embedded: true,
+    clock: timer.clock,
+    api: {
+      probe: async () => ({ type: "text/markdown", size: 2 }),
+      text: async () => ({
+        metadata: { type: "text/markdown" },
+        text: "ok",
+        truncated: false,
+      }),
+    },
+  });
+  const side = createSideFileSession(viewer, {
+    current: () => allowed,
+    changed() {},
+  });
+  const request: RequestRoomCommand = async () => ({ ok: true });
+  side.sync(room({ files: [attachment("bb", 2), attachment()] }), request);
+  side.open(attachment());
+  let reenter = true;
+  const stop = side.state.subscribe((target) => {
+    if (!target && reenter) {
+      reenter = false;
+      side.open(attachment("bb", 2));
+    }
+  });
+  side.close();
+  expect(side.target()?.id).toBe("bb");
+  expect(get(viewer.state).target?.id).toBe("bb");
+  allowed = false;
+  side.sync(room({ members: [] }), request);
+  expect(side.target()).toBeNull();
+  expect(get(viewer.state).room).toBeNull();
+  expect(get(viewer.state).content).toBeNull();
+  side.dispose();
+  expect(side.open(attachment())).toBe(false);
+  stop();
+});
+
+test("Fire metadata-only file reconciles exact later canonical metadata without inventing author", async () => {
+  const nav = browser(),
+    timer = manualClock();
+  const viewer = createFileViewer({
+    ...nav,
+    embedded: true,
+    clock: timer.clock,
+    api: {
+      probe: async () => ({ type: "text/markdown", size: 2 }),
+      text: async () => ({
+        metadata: { type: "text/markdown" },
+        text: "new Fire body",
+        truncated: false,
+      }),
+    },
+  });
+  const side = createSideFileSession(viewer, {
+      current: () => true,
+      changed() {},
+    }),
+    request: RequestRoomCommand = async () => ({ ok: true });
+  side.sync(room(), request);
+  const { author, ...input } = attachment("bb", 2);
+  expect(side.open(input)).toBe(true);
+  expect(get(viewer.state).file).toBeUndefined();
+  expect(side.target()?.follow).toBe(true);
+  side.sync(room({ files: [attachment("bb", 2), attachment()] }), request);
+  await settle();
+  expect(get(viewer.state).file?.author).toBe(author);
+  expect(get(viewer.state).phase).toBe("ready");
+  expect(side.open({ ...attachment("bb", 2), name: "wrong name" })).toBe(false);
+  side.dispose();
 });

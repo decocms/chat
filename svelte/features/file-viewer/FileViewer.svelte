@@ -28,7 +28,7 @@
     onclose?(): void;
   } = $props();
   const view = untrack(() => controller.state);
-  const close = () => onclose ? onclose() : controller.closeUser();
+  const close = () => (onclose ? onclose() : controller.closeUser());
   const text = (key: Parameters<typeof viewerText>[1]) => viewerText(lang, key);
   let csvPage = $state(0);
   const csvText = $derived(
@@ -100,8 +100,14 @@
                 label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
               }))}
               onchange={(event) => {
-                if (event.currentTarget.isConnected && event.currentTarget.dataset.fileVersionTarget === $view.target?.id)
-                  onselect ? onselect(event.currentTarget.value) : controller.select(event.currentTarget.value);
+                if (
+                  event.currentTarget.isConnected &&
+                  event.currentTarget.dataset.fileVersionTarget ===
+                    $view.target?.id
+                )
+                  onselect
+                    ? onselect(event.currentTarget.value)
+                    : controller.select(event.currentTarget.value);
               }}
               class="tw:min-w-0"
             />
@@ -272,18 +278,18 @@
   {/if}
 {/snippet}
 {#if inline}{@render preview()}{:else}
-<Dialog
-  open={$view.open}
-  title={$view.name || "File"}
-  closeLabel={text("close")}
-  fullScreen
-  returnFocus={() => controller.returnFocus()}
-  onOpenChange={(open) => {
-    if (!open) close();
-  }}
->
-{@render preview()}
-</Dialog>{/if}
+  <Dialog
+    open={$view.open}
+    title={$view.name || "File"}
+    closeLabel={text("close")}
+    fullScreen
+    returnFocus={() => controller.returnFocus()}
+    onOpenChange={(open) => {
+      if (!open) close();
+    }}
+  >
+    {@render preview()}
+  </Dialog>{/if}
 
 {#if $view.closingUnconfirmed}<div
     data-vb-native

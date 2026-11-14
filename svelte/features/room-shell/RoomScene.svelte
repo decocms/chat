@@ -187,9 +187,17 @@
       ),
     ),
     agentsView = agentsModule.state;
-  const sideModule = untrack(() => createDeferredModule(()=>import("../file-viewer/SideFilePanel.svelte").then(module=>module.default),{current}));
-  const sideView=sideModule.state;
-  const SideFilePanel=$derived($sideView.component);
+  const sideModule = untrack(() =>
+    createDeferredModule(
+      () =>
+        import("../file-viewer/SideFilePanel.svelte").then(
+          (module) => module.default,
+        ),
+      { current },
+    ),
+  );
+  const sideView = sideModule.state;
+  const SideFilePanel = $derived($sideView.component);
   const viewerModule = untrack(() =>
       createDeferredModule(
         () =>
@@ -356,8 +364,23 @@
       >
         <DocumentPanel {...$view.document} />
       </div>
-      <div class={$geometry.pane === 'view' ? 'tw:flex tw:h-full tw:min-h-0 tw:flex-col' : 'tw:hidden'} hidden={$geometry.pane !== 'view'}>
-        {#if SideFilePanel}<SideFilePanel {...$view.sideFile}/>{:else}<DeferredViewStatus phase={$sideView.phase} lang={services.language} label={services.language === 'en' ? 'File' : 'Arquivo'} retry={()=>{void sideModule.retry();}} {current}/>{/if}
+      <div
+        class={$geometry.pane === "view"
+          ? "tw:flex tw:h-full tw:min-h-0 tw:flex-col"
+          : "tw:hidden"}
+        hidden={$geometry.pane !== "view"}
+      >
+        {#if SideFilePanel}<SideFilePanel
+            {...$view.sideFile}
+          />{:else}<DeferredViewStatus
+            phase={$sideView.phase}
+            lang={services.language}
+            label={services.language === "en" ? "File" : "Arquivo"}
+            retry={() => {
+              void sideModule.retry();
+            }}
+            {current}
+          />{/if}
       </div>
       <div
         use:filesSurface

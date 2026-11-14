@@ -316,7 +316,11 @@ export function createFileViewer(options: {
       return false;
     const parsed = FileTarget.safeParse(input);
     if (!parsed.success) return false;
-    if (!options.embedded && history.deferNavigation(() => open(input, element))) return true;
+    if (
+      !options.embedded &&
+      history.deferNavigation(() => open(input, element))
+    )
+      return true;
     const files = knownViewerFiles(room),
       found = files.find((file) => file.id === input.id);
     if (room.filesAll && !found && input.metadata) return false;

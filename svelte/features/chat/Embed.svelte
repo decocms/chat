@@ -134,49 +134,61 @@
 </script>
 
 <div data-chat-embed class="tw:w-full tw:space-y-2">
-  {#if actions.openSideFile}<header class="tw:flex tw:items-center tw:gap-2 tw:text-sm"><b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
-    {#if compact}<span class="tw:text-xs tw:text-primary">{vb.t('aberto ao lado')}</span>{:else}<Button variant="ghost" onclick={(event)=>{if(active && event.currentTarget.isConnected)actions.openSideFile?.(file);}}>{vb.t('Abrir')}</Button>{/if}
-  </header>{/if}
-  <div hidden={compact} class={compact ? 'tw:hidden' : 'tw:space-y-2'}>
-  {#if !bridgeDenied}{#key frameGeneration}<iframe
-        name={frameName}
-        use:attachFrame
-        sandbox="allow-scripts"
-        loading="lazy"
-        hidden={bridgeFailed}
-        aria-busy={!bridgeReady}
-        title={file.name}
-        {height}
-        class="tw:w-full tw:rounded-control tw:border tw:border-border"
-      ></iframe>{/key}{:else}<p
-      role="alert"
-      class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+  {#if actions.openSideFile}<header
+      class="tw:flex tw:items-center tw:gap-2 tw:text-sm"
     >
-      {vb.t("Você não tem acesso a esta sala.")}
-    </p>{/if}
-  {#if bridgeFailed}<p
-      role="alert"
-      class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-    >
-      {bridgeRevoked
-        ? vb.locale?.startsWith("en")
-          ? "This app document closed. Reopen the app to continue."
-          : "O documento deste app foi fechado. Abra o app de novo para continuar."
-        : vb.t(
-            "Não foi possível iniciar o app. Abra o arquivo para tentar de novo.",
-          )}
-    </p>
-    {#if actions.mountEmbed && !bridgeDenied}{#key frameGeneration}<Snapshot
-          value={frameGeneration}
-          >{#snippet children(generation)}<Button
-              variant="outline"
-              onclick={(event) => retry(event, generation)}
-              >{vb.locale?.startsWith("en")
-                ? "Reopen app"
-                : "Abrir app de novo"}</Button
-            >{/snippet}</Snapshot
-        >{/key}{/if}{/if}
-  </div><a
+      <b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
+      {#if compact}<span class="tw:text-xs tw:text-primary"
+          >{vb.t("aberto ao lado")}</span
+        >{:else}<Button
+          variant="ghost"
+          onclick={(event) => {
+            if (active && event.currentTarget.isConnected)
+              actions.openSideFile?.(file);
+          }}>{vb.t("Abrir")}</Button
+        >{/if}
+    </header>{/if}
+  <div hidden={compact} class={compact ? "tw:hidden" : "tw:space-y-2"}>
+    {#if !bridgeDenied}{#key frameGeneration}<iframe
+          name={frameName}
+          use:attachFrame
+          sandbox="allow-scripts"
+          loading="lazy"
+          hidden={bridgeFailed}
+          aria-busy={!bridgeReady}
+          title={file.name}
+          {height}
+          class="tw:w-full tw:rounded-control tw:border tw:border-border"
+        ></iframe>{/key}{:else}<p
+        role="alert"
+        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+      >
+        {vb.t("Você não tem acesso a esta sala.")}
+      </p>{/if}
+    {#if bridgeFailed}<p
+        role="alert"
+        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+      >
+        {bridgeRevoked
+          ? vb.locale?.startsWith("en")
+            ? "This app document closed. Reopen the app to continue."
+            : "O documento deste app foi fechado. Abra o app de novo para continuar."
+          : vb.t(
+              "Não foi possível iniciar o app. Abra o arquivo para tentar de novo.",
+            )}
+      </p>
+      {#if actions.mountEmbed && !bridgeDenied}{#key frameGeneration}<Snapshot
+            value={frameGeneration}
+            >{#snippet children(generation)}<Button
+                variant="outline"
+                onclick={(event) => retry(event, generation)}
+                >{vb.locale?.startsWith("en")
+                  ? "Reopen app"
+                  : "Abrir app de novo"}</Button
+              >{/snippet}</Snapshot
+          >{/key}{/if}{/if}
+  </div>
+  <a
     href={url}
     onclick={open}
     class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:text-xs tw:text-link tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
@@ -185,36 +197,40 @@
   {#if clipped}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
       {file.name}
     </p>{/if}
-  <div hidden={compact} class={compact ? 'tw:hidden' : undefined}>{#if $question}{#key $question}<Snapshot value={$question}>
-        {#snippet children(intent)}
-          <div
-            role="group"
-            aria-label={vb.t("Confirmar")}
-            class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-3"
-          >
-            <p class="tw:m-0">
-              {vb.t("Este app quer {what}, como você:", { what: intent.what })}
-            </p>
-            <q
-              class="tw:block tw:break-words tw:text-xs tw:text-muted-foreground"
-              >{intent.detail}</q
+  <div hidden={compact} class={compact ? "tw:hidden" : undefined}>
+    {#if $question}{#key $question}<Snapshot value={$question}>
+          {#snippet children(intent)}
+            <div
+              role="group"
+              aria-label={vb.t("Confirmar")}
+              class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-3"
             >
-            <div class="tw:flex tw:flex-wrap tw:gap-2">
-              <Button
-                size="sm"
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected)
-                    consent.choose(intent, true);
-                }}>{vb.t("Permitir")}</Button
-              ><Button
-                size="sm"
-                variant="outline"
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected)
-                    consent.choose(intent, false);
-                }}>{vb.t("Cancelar")}</Button
+              <p class="tw:m-0">
+                {vb.t("Este app quer {what}, como você:", {
+                  what: intent.what,
+                })}
+              </p>
+              <q
+                class="tw:block tw:break-words tw:text-xs tw:text-muted-foreground"
+                >{intent.detail}</q
               >
-            </div>
-          </div>{/snippet}</Snapshot
-      >{/key}{/if}</div>
+              <div class="tw:flex tw:flex-wrap tw:gap-2">
+                <Button
+                  size="sm"
+                  onclick={(event) => {
+                    if (event.currentTarget.isConnected)
+                      consent.choose(intent, true);
+                  }}>{vb.t("Permitir")}</Button
+                ><Button
+                  size="sm"
+                  variant="outline"
+                  onclick={(event) => {
+                    if (event.currentTarget.isConnected)
+                      consent.choose(intent, false);
+                  }}>{vb.t("Cancelar")}</Button
+                >
+              </div>
+            </div>{/snippet}</Snapshot
+        >{/key}{/if}
+  </div>
 </div>

@@ -242,7 +242,10 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     },
   };
   const viewer = createFileViewer(viewerOptions);
-  const side = createSideFileSession(createFileViewer({...viewerOptions, embedded:true}),{current,changed:()=>project("stay")});
+  const side = createSideFileSession(
+    createFileViewer({ ...viewerOptions, embedded: true }),
+    { current, changed: () => project("stay") },
+  );
   const document = createDocumentSession({
     drafts: resources.documents,
     authorizationEpoch: scope.roomGeneration,
@@ -418,12 +421,17 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       layout.takeSheetEntry(),
     );
   }
-  function openSideFile(file:SideFileInput):boolean {
-    if(!current())return false;
-    let opened=false;
-    const captured={...file};
-    const run=()=>{if(current() && side.open(captured)){opened=true;setPane('view',{open:true});}};
-    if(!defer(run))run();
+  function openSideFile(file: SideFileInput): boolean {
+    if (!current()) return false;
+    let opened = false;
+    const captured = { ...file };
+    const run = () => {
+      if (current() && side.open(captured)) {
+        opened = true;
+        setPane("view", { open: true });
+      }
+    };
+    if (!defer(run)) run();
     return opened;
   }
   function openFile(
@@ -599,7 +607,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       );
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
-      side.sync(value,request,fresh);
+      side.sync(value, request, fresh);
       fileIndex.sync(value, fresh);
       apps.sync({ ...value, messages: roomMessages(value) }, fresh);
       if (layout.read().pane === "files" && fresh) void files.load(request);
@@ -795,8 +803,11 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         };
         const actions: ChatActions = {
           ...rich,
-          openSideFile: (file) => { if(owned()) openSideFile(file); },
-          sideFileName: display.pane === 'view' ? side.target()?.name : undefined,
+          openSideFile: (file) => {
+            if (owned()) openSideFile(file);
+          },
+          sideFileName:
+            display.pane === "view" ? side.target()?.name : undefined,
           request: threadRequest,
           reply: (id) => {
             if (owned()) reply(id);
@@ -1118,7 +1129,19 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               if (current() && trigger.isConnected) openFile(file, trigger);
             },
           },
-          sideFile: {owner:side,lang,actions:rich,current,fullscreen:(id:string)=>openFile(id),close:()=>{if(current()){side.close();setPane("doc");}}},
+          sideFile: {
+            owner: side,
+            lang,
+            actions: rich,
+            current,
+            fullscreen: (id: string) => openFile(id),
+            close: () => {
+              if (current()) {
+                side.close();
+                setPane("doc");
+              }
+            },
+          },
           viewer: {
             controller: viewer,
             lang,
@@ -1163,7 +1186,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     const event = value.event,
       canonical = room()!;
     if (event.t === "older") viewport.older(event);
-    else if(event.t === "openSide") openSideFile(event.file);
+    else if (event.t === "openSide") openSideFile(event.file);
     else if (event.t === "doc" && event.stale) document.invalidate(event.epic);
     else if (event.t === "suggestions" && selected().startsWith("pre:")) {
       const old = value.previous?.suggestions[Number(selected().slice(4))];

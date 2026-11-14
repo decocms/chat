@@ -249,9 +249,17 @@ test("live card updates cannot mutate a different room", () => {
   ).toBe(initial);
 });
 
-test('person-targeted openSide contributes only exact validated file metadata without rewriting known versions',()=>{
- const first=file('aa','report.html'), existing=room({files:[first],filesN:1,filesAll:true});
- expect(apply(existing,{t:'openSide',file:{...first,name:'changed'}})).toBe(existing);
- const next=apply(existing,{t:'openSide',file:file('bb','report.html')});
- expect(next.files?.map(item=>item.id)).toEqual(['bb','aa']);expect(next.filesN).toBe(1);expect(next.filesAll).toBe(true);
+test("person-targeted openSide contributes only exact validated file metadata without rewriting known versions", () => {
+  const first = file("aa", "report.html"),
+    existing = room({ files: [first], filesN: 1, filesAll: true });
+  expect(
+    apply(existing, { t: "openSide", file: { ...first, name: "changed" } }),
+  ).toBe(existing);
+  const next = apply(existing, {
+    t: "openSide",
+    file: file("bb", "report.html"),
+  });
+  expect(next.files?.map((item) => item.id)).toEqual(["bb", "aa"]);
+  expect(next.filesN).toBe(1);
+  expect(next.filesAll).toBe(true);
 });
