@@ -62,13 +62,13 @@
           "en": "Fire mode: talk to your Claude live"
         },
         "text": {
-          "pt": "Com a caixa de mensagem vazia, segure espaço (ou o 🎤 por 3 segundos): o seu próprio Claude, com as ferramentas dele, vira Haiku pra responder rápido, e a barra mostra quando a troca terminou. Fale segurando e solte pra mandar: o áudio é transcrito no servidor com as palavras da sala (vibebook, nomes, épicos), e ele responde com um card, um texto curto ou uma página ao lado. Esc sai e ele volta pro modelo de antes.",
-          "en": "With the message box empty, hold Space (or 🎤 for 3 seconds): your own Claude, with its tools, turns into Haiku to answer fast, and the bar shows when the switch is done. Talk while holding and let go to send: the audio is transcribed on the server with the room's words (vibebook, names, epics), and it answers with a card, a short text or a page beside the chat. Esc leaves and it goes back to its model."
+          "pt": "Com a caixa de mensagem vazia, segure espaço (ou o 🎤 por 3 segundos) e já pode falar: o vibebook abre, numa aba nova do herdr, um Claude Haiku só seu e só desta sala, enquanto o seu Claude principal segue com o que estava fazendo. Solte pra mandar: o áudio é transcrito no servidor com as palavras da sala (vibebook, nomes, épicos), e o Haiku responde com um card, um texto curto ou uma página ao lado. Esc fecha o Haiku.",
+          "en": "With the message box empty, hold Space (or 🎤 for 3 seconds) and start talking: vibebook opens, in a new herdr tab, a Haiku Claude of your own just for this room, while your main Claude keeps doing what it was doing. Let go to send: the audio is transcribed on the server with the room's words (vibebook, names, epics), and the Haiku answers with a card, a short text or a page beside the chat. Esc closes the Haiku."
         },
         "image": "changelog/2026-11-14-fire2.webp",
         "alt": {
-          "pt": "Barra do Modo Fire: Haiku 5.5 pronto, com a última fala enviada",
-          "en": "Fire mode bar: Haiku 5.5 ready, with the last thing said"
+          "pt": "Barra do Modo Fire ouvindo enquanto o Haiku abre",
+          "en": "Fire mode bar listening while the Haiku opens"
         }
       },
       {
@@ -137,7 +137,9 @@
         "A ↗ da sala abre o Claude da sala no herdr pelo vibebook (servidor → sua CLI), sem pedir permissão de rede local ao navegador",
         "Digitar no campo de mensagem ficou mais leve: a caixa só muda de altura quando muda de linha, e no celular o espaço não passa mais pelo atalho de ditado (que travava o teclado do iPhone)",
         "Botões de link nos cards apareciam como link sublinhado",
-        "Enviar durante o ditado agora para o 🎤 e não escreve de novo o texto já enviado na caixa"
+        "Enviar durante o ditado agora para o 🎤 e não escreve de novo o texto já enviado na caixa",
+        "O aviso de \"2 Claudes seus ouvindo esta sala\" não conta mais o Haiku do Modo Fire, que é um segundo Claude de propósito",
+        "Um HTML que o Claude sobe abre sozinho ao lado do chat (e um app da sala abre em Apps), sem precisar clicar; um app da sala aparece no chat como uma linha, não desenhado duas vezes"
       ],
       "en": [
         "On phones, a drag from the left edge goes back (epic to room, room to home, in the installed app) instead of replying to the message",
@@ -146,7 +148,9 @@
         "The room's ↗ opens the room's Claude in herdr through vibebook (server → your CLI), without asking the browser for local network permission",
         "Typing in the message box is lighter: the box only resizes when its line count changes, and on phones the space no longer goes through the dictation shortcut (which froze the iPhone keyboard)",
         "Link buttons in cards showed as underlined links",
-        "Sending while dictating now stops the 🎤 and no longer writes the sent text back into the box"
+        "Sending while dictating now stops the 🎤 and no longer writes the sent text back into the box",
+        "The \"2 of your Claudes are listening to this room\" warning no longer counts the Fire mode Haiku, which is a second Claude on purpose",
+        "An HTML your Claude uploads opens beside the chat by itself (and a room app opens in Apps), no click needed; a room app shows in the chat as one row instead of being drawn twice"
       ]
     }
   },

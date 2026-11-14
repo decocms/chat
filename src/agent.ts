@@ -43,7 +43,7 @@ Workflow:
 - When you need your human to pick between options or say yes/no ("do I do it?", which files to delete, which approach), post the question with choices (a yes/no gets e.g. ["Sim, faz", "Não", "Ajustar antes"]) (and multi: true for several): the room shows buttons and their pick arrives as their message replying to yours. Don't ask them to type numbers.
 - Every message from your human gets an ack (doing when you pick it up, done when finished, idle when it needs nothing from you): read_room lists the ones from the last 48h that none of your human's agents acked as unacked, so nothing you skipped stays hidden. A short answer (no work to deliver) goes out as a post with reply_to = their message: that closes your ack; work you deliver gets done: true. Read every new message read_room returns, not only the last few: two can arrive seconds apart. When post returns unread_from_your_human, your human wrote that while you worked: handle it before going on. When you notice you failed (you skipped or ignored a message of your human's, a tool call failed and you gave up, you reported something wrong), call report_issue right away with what happened, then fix it and say so in the room.
 - A request is an epic, almost always: when your human asks you for a piece of work, (1) start_epic for it with 2-5 concrete tasks (each one checkable), (2) post in the epic (thread = its id) how you'll do it in 2-4 lines, or the question that blocks you if something is unclear, (3) unless you asked something, do it right away without waiting for an OK, moving each task to doing and done as you go, (4) post the result with done: true. If the work ships somewhere (deploy, publish, release): once it's out, update_epic prod: "deployed"; then open it in production, check it really works, and update_epic prod: "verified" with prod_note saying what you checked (URL, what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod". With every task done the epic archives itself and shows as finished; if your human writes in it again, it reopens: add the new tasks there and run the same loop. Only quick answers and clarifications stay where they were asked. An epic you worked in archives itself only once every task is done AND the thread has your delivery (done: true) saying what you tested, plus a screenshot when there's something to see (upload it with thread = the epic id); verification that needs a person = a task in review with its owner, which keeps the epic open.
-- Modo Fire: while your human holds space in the app, they talk to you live and you run as Haiku (the herdr runner switched your model; vibebook listen prints their words with a 🔥 line). Answer at once, one post with reply_to = their message, no ack, no read_room, no epic, no plan: a card for numbers/status/tables, short markdown for an answer, an HTML file beside the chat (upload_file + open_file) for a page. To refine what you just drew, fire_card rewrites your card in place; switch format whenever it fits better. Big work (code, repo, deploys): add_task it and say in one line you'll do it once Fire ends.
+- Modo Fire: when your human holds space in the app, the herdr runner opens a separate Haiku Claude in a new tab for that room (VIBEBOOK_FIRE=1): only it wakes for the room while Fire is on (vibebook listen prints their words with a 🔥 line). That Claude answers at once: one post with reply_to = their message, no ack, no read_room, no epic, no plan; a card for numbers/status/tables, short markdown for an answer, an HTML file beside the chat (upload_file + open_file) for a page; fire_card rewrites its card in place, and it can switch format whenever it fits better. Big work (code, repo, deploys): add_task in the right epic for the room's main Claude, which reads the Fire talk once Fire ends.
 - Deploy banner (required): every push to main that deploys, and every CLI publish, gets one native banner in the room's main thread once the build is green: post with thread \"main\" and a card (Card titled \"🚀 No ar · <commit or version>\", one Field per change a person would notice, Actions with a LinkButton to each epic it came from (#e<epic id>) and one to the commit). Not a plain text line.
 - Progress reports: when you work on something that belongs to a room (the repo has a .vibebook file with room_id, or your human said so), the room is the team's live channel. Post short updates with links: starting a task (set_task_status doing), an important commit, a PR ready for review (who should review it; task to review), a deploy or shipped change (task to done), a blocker and who you need. Skip routine steps and WIP pushes.`;
 
@@ -142,7 +142,7 @@ const TOOLS = [
     description: "Listen mode: waits (up to timeout_seconds, max 50) until any of your human's rooms gets a message you haven't read, then returns those rooms. Returns new: [] on timeout; just call it again. Use it in a loop to stay available in the rooms.",
     inputSchema: {
       type: "object",
-      properties: { timeout_seconds: { type: "number", description: "default 25, max 50" }, room_id: { type: "string", description: "only this room (optional)" } },
+      properties: { timeout_seconds: { type: "number", description: "default 25, max 50" }, room_id: { type: "string", description: "only this room (optional)" }, fire: { type: "string", enum: ["only", "skip"], description: "Modo Fire: only = rooms where your human has Fire on (the Fire Claude); skip = leave those rooms for it (every other listener)" } },
     },
   },
   {
@@ -226,7 +226,7 @@ const TOOLS = [
   },
   {
     name: "upload_file",
-    description: "Attach a file to a room (images, PDF, HTML, Markdown, .txt or .csv, up to 10MB; audio up to 50MB), optionally with a message. Pass HTML, Markdown, .txt and .csv as text; binary files as base64. HTML is shown sandboxed: it can't reach vibebook or anyone's session. Never upload secrets.",
+    description: "Attach a file to a room (images, PDF, HTML, Markdown, .txt or .csv, up to 10MB; audio up to 50MB), optionally with a message. Pass HTML, Markdown, .txt and .csv as text; binary files as base64. HTML is shown sandboxed: it can't reach vibebook or anyone's session, and opens beside the chat in your human's open tabs by itself (apps/<name>.html opens as a room app); no open_file or app_open needed. Never upload secrets.",
     inputSchema: {
       type: "object",
       properties: {
@@ -522,6 +522,15 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 /** Modo Fire is on for a membership: turned on in the last 30 min (the app turns it off; this bounds a forgotten one). */
 const fireOn = (at: number | null | undefined) => !!at && Date.now() - at < 30 * 60_000;
+/** An HTML an agent just uploaded opens beside the chat for its human, a room app (apps/<name>.html) in the Apps pane:
+ * Gui asked for the page beside and had to click to see it (#2496). The chat then shows it as one compact row. */
+export async function openMade(env: Env, bookId: string, email: string, f: { id: string; name: string; type: string }) {
+  if (f.type !== "text/html") return;
+  const stub = bookStub(env, bookId);
+  const app = /^apps\/([\w.-]{1,60})\.html$/.exec(f.name)?.[1];
+  if (app) await stub.agentOpenApp(bookId, email, `room/${app}`);
+  else await stub.agentOpenFile(bookId, email, f.id);
+}
 /** Rooms with messages this agent hasn't read (agent_reads vs books.last_msg_id); `since` = only rooms active after it (ms). */
 export const unreadRooms = (db: D1Database, email: string, agent: string, only = "", since = 0) =>
   db
@@ -618,6 +627,9 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const routed = await routerOn(db, me.email);
       for (;;) {
         const r = await unread(only);
+        // Modo Fire: its own Haiku Claude takes the room while it's on; everyone else's cursor stays, so they catch up after.
+        if (a.fire === "only") r.results = r.results.filter((b) => fireOn(b.fire_at));
+        else if (a.fire === "skip") r.results = r.results.filter((b) => !fireOn(b.fire_at));
         // The router (src/router.ts): rooms whose new messages it handled (ignored/answered) don't wake this Claude;
         // its cursor moves past them, and the next check sees nothing new there.
         if (routed && r.results.length) {
@@ -771,6 +783,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
         const tool = str(a.tool).replace(/^apps\//, "").replace(/\.html$/, "");
         if (!/^[\w.-]{1,60}$/.test(tool)) throw new Error("tool is the room app's name: apps/<name>.html → <name>");
         const card = { root: "c", elements: { c: { type: "Card", props: { title: tool }, children: ["t", "a"] }, t: { type: "Text", props: { text: `apps/${tool}.html · app da sala`, style: "muted" } }, a: { type: "Actions", children: ["b"] }, b: { type: "LinkButton", props: { label: `Abrir ${tool}`, url: `#app:room/${tool}` } } } };
+        await bookStub(env, id).agentOpenApp(id, me.email, `room/${tool}`); // opened, not only a button to click (Gui #2496)
         return call("post", { room_id: id, text: str(a.text) || `Abri o app **${tool}**.`, thread: a.thread, card, model: a.model, repo: a.repo }, env, ctx, me, origin);
       }
       const c = await getConn(env, id, str(a.connection_id), me.email);
@@ -778,6 +791,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const app = publicConn(c, me.email).apps.find((x) => x.tool === str(a.tool));
       if (!app) throw new Error(`${c.title} has no app ${str(a.tool)}; call connections for the list`);
       const card = { root: "c", elements: { c: { type: "Card", props: { title: app.title }, children: ["t", "a"] }, t: { type: "Text", props: { text: `${c.title} · ${c.scope === "me" ? `app de ${c.owner.split("@")[0]}` : "app da sala"}`, style: "muted" } }, a: { type: "Actions", children: ["b"] }, b: { type: "LinkButton", props: { label: `Abrir ${app.title}`, url: `#app:${c.id}/${app.tool}` } } } };
+      await bookStub(env, id).agentOpenApp(id, me.email, `${c.id}/${app.tool}`);
       return call("post", { room_id: id, text: str(a.text) || `Abri **${app.title}** (${c.title}).`, thread: a.thread, card, model: a.model, repo: a.repo }, env, ctx, me, origin);
     }
     case "set_room_icon": {
@@ -935,6 +949,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       ctx.waitUntil(track(env, "file_uploaded", { user: me.email, dims: { book: id, type, size: meta.size, agent: true } }));
       // Always posted, so the file shows up in the chat where people (and agents) will look for it.
       const posted = await bookStub(env, id).agentPost(id, me.email, str(a.message), str(a.thread) || "main", [meta.id], str(a.model));
+      if (posted.ok) await openMade(env, id, me.email, meta);
       const file = { id: meta.id, name: meta.name, type, size: meta.size, url: `${origin}/api/books/${id}/files/${meta.id}` };
       return posted.ok ? { ok: true, file, message_id: posted.id } : { ...posted, file, note: "the file is stored in the room's files, but the message was not posted" };
     }

@@ -1459,6 +1459,12 @@ export class Book extends DurableObject<Env> {
       ? { ok: true, opened_in_tabs: tabs.length, note: "your human sees it beside the chat now; uploading a new version with the same name updates it there" }
       : { ok: true, opened_in_tabs: 0, note: "your human doesn't have this room open right now: post the file (or link it) so they find it" };
   }
+  /** app_open / a room app an agent uploaded: opens it in the Apps pane of its human's open tabs (Gui #2496). */
+  agentOpenApp(bookId: string, email: string, ref: string) {
+    this.bind(bookId);
+    const s = JSON.stringify({ t: "openApp", ref } satisfies RoomEvent);
+    for (const ws of this.sockets().filter((w) => this.ctx.getTags(w)[0] === email)) ws.send(s);
+  }
   agentUnpin(bookId: string, id: string) {
     this.bind(bookId);
     return this.pinDel(id);
