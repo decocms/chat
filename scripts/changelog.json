@@ -107,7 +107,8 @@
         "Mensagem enviada com uma página aberta ao lado do chat leva junto qual página você estava vendo, então \"muda isso aqui\" chega no seu Claude com o arquivo certo",
         "Apps dentro do doc ocupam a largura toda do documento",
         "Um épico que já subiu, mas onde você pediu correções depois, mostra \"🚀↻ correções em andamento\" em vez de só \"no ar\"",
-        "Página nova pra quem tem um servidor MCP: como o vibebook diz quem está chamando (X-Vibebook-Identity), como verificar com segurança e um prompt pronto pro seu Claude (/pt/mcp-identity)"
+        "Página nova pra quem tem um servidor MCP: como o vibebook diz quem está chamando (X-Vibebook-Identity), como verificar com segurança e um prompt pronto pro seu Claude (/pt/mcp-identity)",
+        "No celular, o Modo Fire começa arrastando o 🎤 pra cima: fale com o dedo apoiado e solte pra mandar"
       ],
       "en": [
         "The inbox now shows, besides what's waiting on you, the mentions of you and your open tasks (to do, doing, review) across every room — in three sections, with a this-room / all toggle",
@@ -128,7 +129,8 @@
         "A message sent while a page is open beside the chat carries which page you were looking at, so \"change this\" reaches your Claude with the right file",
         "Apps inside the doc take the doc's full width",
         "An epic that shipped, but where you asked for changes afterwards, shows \"🚀↻ changes in progress\" instead of just \"live\"",
-        "New page for MCP server owners: how vibebook says who is calling (X-Vibebook-Identity), how to verify it safely, and a ready prompt for your Claude (/en/mcp-identity)"
+        "New page for MCP server owners: how vibebook says who is calling (X-Vibebook-Identity), how to verify it safely, and a ready prompt for your Claude (/en/mcp-identity)",
+        "On phones, Fire mode starts by sliding 🎤 up: talk with your finger down and let go to send"
       ]
     },
     "fixes": {

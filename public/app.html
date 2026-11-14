@@ -1979,7 +1979,7 @@ const EN = {
   "Pôr no doc": "Put in doc",
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
   "Modo Fire": "Fire mode",
-  "Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
+  "Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · slide up (or hold Space with the box empty) to talk live with your Claude",
   "ouvindo…": "listening…",
   "{m} pronto": "{m} ready",
   "o Haiku não abriu": "the Haiku didn't open",
@@ -3685,7 +3685,7 @@ function renderBook() {
             <button type="button" role="menuitem" id="pollBtn">${icon("chart")} ${t("Criar votação")}</button>
           </div>
           <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/html,.html,.htm,text/markdown,.md,text/plain,.txt,text/csv,.csv,audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.flac" multiple hidden />
-          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
+          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
         </div>
       </form>
     </main>
@@ -3818,9 +3818,21 @@ function renderBook() {
       }, 400);
       fireT = setTimeout(() => { fired = true; cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); stop(); fireHold(); }, 3000);
     });
+    // Phones (Gui #2548: holding 3 s was bad in the PWA): slide up from 🎤 and it's Fire at once; keep the finger down
+    // while you talk, let go to send (WhatsApp's slide-to-lock gesture, upwards).
+    let y0 = 0, swiped = false;
+    mic?.addEventListener("pointerdown", (e) => { y0 = e.clientY; swiped = false; });
+    mic?.addEventListener("pointermove", (e) => {
+      if (swiped || fired || !y0 || y0 - e.clientY < 40) return;
+      swiped = fired = true;
+      box.classList.remove("charging"); clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
+      stop(); fireHold();
+    });
     mic?.addEventListener("pointerup", () => {
       box.classList.remove("charging");
       clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
+      y0 = 0;
+      if (swiped) { swiped = false; return fireRelease(); }
       if (fired) return;
       if (rec) stop(); else start(); // a tap: toggle dictation
     });
