@@ -4,11 +4,11 @@ const en = {
   title: "Fire mode",
   micHint:
     "Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
-  switching: "switching your Claude to Haiku…",
+  switching: "opening your Haiku…",
   ready: "ready",
-  failed: "couldn't switch the model",
-  leaving: "going back to the previous model…",
-  talking: "talking…",
+  failed: "the Haiku didn't open",
+  leaving: "closing the Haiku…",
+  talking: "listening…",
   hold: "hold Space and talk; let go to send · Esc leaves",
   transcribing: "transcribing…",
   sending: "sending…",
@@ -21,7 +21,7 @@ const en = {
   unconfirmed:
     "The message isn't confirmed. Check the conversation before sending it again.",
   restore:
-    "The previous model hasn't been confirmed. Leave Fire again to request restoration.",
+    "The Fire Claude may still be open. Leave Fire again to request closing it.",
 };
 const pt: typeof en = {
   retry: "Tentar mandar de novo",
@@ -29,11 +29,11 @@ const pt: typeof en = {
   title: "Modo Fire",
   micHint:
     "Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude",
-  switching: "trocando teu Claude pro Haiku…",
+  switching: "abrindo teu Haiku…",
   ready: "pronto",
-  failed: "não troquei o modelo",
-  leaving: "voltando pro modelo de antes…",
-  talking: "falando…",
+  failed: "o Haiku não abriu",
+  leaving: "fechando o Haiku…",
+  talking: "ouvindo…",
   hold: "segure espaço e fale; solte pra mandar · Esc sai",
   transcribing: "transcrevendo…",
   sending: "mandando…",
@@ -46,7 +46,7 @@ const pt: typeof en = {
   unconfirmed:
     "A mensagem não foi confirmada. Confira a conversa antes de mandar de novo.",
   restore:
-    "O modelo anterior ainda não foi confirmado. Saia do Fire de novo para pedir a restauração.",
+    "O Claude do Fire pode continuar aberto. Saia do Fire de novo para pedir o fechamento.",
 };
 export const fireCopy = (lang: string | undefined) =>
   lang?.startsWith("en") ? en : pt;
