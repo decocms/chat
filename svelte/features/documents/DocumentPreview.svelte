@@ -9,7 +9,10 @@
   import type { RichActions, RichContext } from "../rich-text/types";
   import Tasks from "../../Tasks.svelte";
   import Mermaid from "./Mermaid.svelte";
-  import { documentBlocks, mermaidSource } from "./preview";
+  import { documentBlocks, documentAppNodes, mermaidSource } from "./preview";
+  import { documentAppMarkers, resizeDocumentApp } from "./appMarkers";
+  import DeferredDocumentApp from "./DeferredDocumentApp.svelte";
+  import Snapshot from "../../lib/ui/Snapshot.svelte";
   let {
     text,
     epic,
@@ -80,8 +83,24 @@
     !!epic || (props.thread === "main" && !!props.room.roomTasks?.length),
   );
   const literal = $derived(nodes.length === 1 && nodes[0].kind === "text");
-  const blocks = $derived(documentBlocks(nodes, hasTasks));
+  const blocks = $derived(documentBlocks(props.apps ? documentAppNodes(nodes, text) : nodes, hasTasks));
+  const appMarkers = $derived(documentAppMarkers(text));
 </script>
+
+{#snippet appSlot(index: number)}
+  {#if props.apps && appMarkers[index]}{#key text}<Snapshot value={{source:text, marker:appMarkers[index]!, target:owner.target(), apps:props.apps}}>
+    {#snippet children(binding)}
+    <DeferredDocumentApp props={props.apps} marker={binding.marker}
+      current={() => current() && owner.target()?.epicId === binding.target?.epicId && text === binding.source}
+      resize={(size) => {
+        if (!current() || !binding.target) return;
+        const next=resizeDocumentApp(binding.source,binding.marker,size);
+        if (next !== null) owner.rewrite(binding.target,binding.source,next);
+      }}
+      open={() => { if(current() && text === binding.source) props.openApp?.(binding.marker); }} />
+    {/snippet}
+  </Snapshot>{/key}{/if}
+{/snippet}
 
 {#snippet taskSlot()}<section data-document-tasks class="tw:my-3">
     <Tasks {...taskProps} thread={epic ?? "main"} />
@@ -128,7 +147,7 @@
             ? "tw:whitespace-pre-wrap tw:break-words"
             : "tw:min-w-0"}
         >
-          <RichNodes nodes={[block.node]} actions={props.actions} {taskSlot} />
+          <RichNodes nodes={[block.node]} {actions} {taskSlot} {appSlot} />
         </div>{/if}{/if}
   {/each}
 </div>

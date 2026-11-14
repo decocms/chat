@@ -1,3 +1,4 @@
+import {documentAppMarkers,resizeDocumentApp,appendDocumentApp} from '../svelte/features/documents/appMarkers';
 // Focused adapter/model fixtures. No Worker, real Yjs transport, renderer CDN or browser acceptance.
 import { afterAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
@@ -860,4 +861,32 @@ test("a new live editor cannot overwrite a retained fallback or prior-view draft
   expect(h.drafts.get(target)?.text).toBe("Retained B");
   expect(get(h.owner.state).recovery).toBe("Retained B");
   h.owner.dispose();
+});
+
+test('document app markers rewrite only the captured occurrence and preserve unrelated source', () => {
+  const source='# Doc\n\n[[app:room/chart|P]]\n\ntext\n[[app:abc/tool]]\n';
+  const markers=documentAppMarkers(source);
+  expect(markers.map(marker=>[marker.connection,marker.tool,marker.size])).toEqual([['room','chart','p'],['abc','tool','m']]);
+  expect(resizeDocumentApp(source,markers[1]!, 'g')).toBe('# Doc\n\n[[app:room/chart|P]]\n\ntext\n[[app:abc/tool|g]]\n');
+  expect(resizeDocumentApp(source.replace('abc/tool','abc/changed'),markers[1]!,'g')).toBeNull();
+  expect(appendDocumentApp('Text\n\n',{connection:'room',tool:'chart'})).toBe('Text\n\n[[app:room/chart|m]]\n');
+  expect(appendDocumentApp('Text',{connection:'room',tool:'bad]]\nwrite'})).toBeNull();
+});
+test('preview app edits retain bounded write uncertainty and refuse stale source or switched target', async () => {
+  const h=setup();
+  const target=h.owner.target()!;
+  const source=get(h.owner.state).text;
+  expect(h.owner.rewrite(target,source,'app marker')).toBe(true);
+  expect(get(h.owner.state).mode).toBe('preview');
+  expect(get(h.owner.state).fallbackPending).toBe(true);
+  expect(h.owner.rewrite(target,source,'second')).toBe(false);
+  h.clock.run(); await settle();
+  expect(h.writes).toContainEqual({t:'doc',text:'app marker',epic:undefined});
+  expect(h.writes).toContainEqual({t:'doc.get',epic:undefined});
+  h.owner.sync({...room(),doc:'app marker'},'main');
+  expect(get(h.owner.state).fallbackPending).toBe(false);
+  h.owner.sync(room(),'epic');
+  expect(h.owner.rewrite(target,'app marker','wrong document')).toBe(false);
+  h.owner.dispose();
+  expect(h.owner.rewrite(target,'app marker','after disposal')).toBe(false);
 });

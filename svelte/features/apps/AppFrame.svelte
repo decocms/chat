@@ -20,7 +20,7 @@
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { appDocumentFrameName } from "../../../shared/appDocumentProtocol";
   const frameName = appDocumentFrameName();
-  let { props }: { props: AppsProps } = $props();
+  let { props, inline = false }: { props: AppsProps; inline?: boolean } = $props();
   const view = untrack(() => props.owner.state),
     requests = createAppRequests();
   let frame: HTMLIFrameElement | undefined = $state(),
@@ -76,8 +76,8 @@
           matchMedia("(prefers-color-scheme: dark)").matches);
     return {
       theme: dark ? "dark" : "light",
-      displayMode: "fullscreen",
-      availableDisplayModes: ["fullscreen"],
+      displayMode: inline ? "inline" : "fullscreen",
+      availableDisplayModes: inline ? ["inline"] : ["fullscreen"],
       containerDimensions: {
         height: Math.round(rect?.height || 0),
         width: Math.round(rect?.width || 0),
@@ -334,7 +334,7 @@
     name={frameName}
     sandbox="allow-scripts allow-forms"
     title={selected?.tool || "App"}
-    class="tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"
+    class={inline ? "tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-background" : "tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"}
     hidden={!!error}
   ></iframe>
 </div>

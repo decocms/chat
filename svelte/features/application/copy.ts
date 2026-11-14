@@ -18,6 +18,9 @@ export const applicationLocale = (
   language: ApplicationLanguage,
 ): ApplicationLocale => (language === "en" ? "en-US" : "pt-BR");
 const EN: Readonly<Record<string, string>> = {
+  "Pôr no doc": "Put in doc",
+  "Tamanho": "Size",
+  "Abrir no painel Apps": "Open in the Apps panel",
   "O que é seu": "What’s yours",
   "Seu Claude": "Your Claude",
   "Tarefas suas e o que espera seu OK. Clique pra abrir.":

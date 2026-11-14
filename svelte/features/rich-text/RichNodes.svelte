@@ -8,7 +8,8 @@
     nodes,
     actions,
     taskSlot,
-  }: { nodes: readonly RichNode[]; actions: RichActions; taskSlot?: Snippet } =
+    appSlot,
+  }: { nodes: readonly RichNode[]; actions: RichActions; taskSlot?: Snippet; appSlot?: Snippet<[number]> } =
     $props();
   let active = true;
   onDestroy(() => {
@@ -182,6 +183,7 @@
           {:else}{@render content(node.children)}{/if}
         </a>{/if}
     {:else if node.documentTaskSlot}{@render taskSlot?.()}
+    {:else if node.documentAppSlot !== undefined && appSlot}{@render appSlot(node.documentAppSlot)}
     {:else if node.namespace === HTML_NS && voidTags.has(node.tag)}<svelte:element
         this={node.tag}
         xmlns={node.namespace}

@@ -1,4 +1,22 @@
 import type { RichNode } from "../rich-text/types";
+import { documentAppMarkers } from "./appMarkers";
+/** Slots are assigned only by the document projection, never by HTML attributes. */
+export function documentAppNodes(nodes: readonly RichNode[], source: string): RichNode[] {
+  const markers = documentAppMarkers(source);
+  let cursor = 0;
+  function walk(values: readonly RichNode[]): RichNode[] {
+    return values.map(node => {
+      if (node.kind === 'element' && node.tag === 'p') {
+        const value = text(node.children).trim();
+        const found = markers.findIndex((marker, index) => index >= cursor &&
+          value.toLowerCase() === `[[app:${marker.connection}/${marker.tool}${/\|[pmg]\]\]$/i.test(value) ? '|'+marker.size : ''}]]`.toLowerCase());
+        if (found >= 0) { cursor=found+1; return {...node, documentAppSlot: found, children: []}; }
+      }
+      return 'children' in node && !(node.kind === 'element' && (node.tag === 'pre' || node.tag === 'code')) ? {...node, children: walk(node.children)} : node;
+    });
+  }
+  return walk(nodes);
+}
 const text = (nodes: readonly RichNode[]): string =>
   nodes
     .map((node) =>

@@ -16,4 +16,5 @@ export type AppsProps = {
   thread: string;
   openLink(url: string): void;
   metric(kind: "spend" | "router", roomOnly: boolean): Promise<unknown>;
+  putInDocument?(target: { connection: string; tool: string }): void;
 };

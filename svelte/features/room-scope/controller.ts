@@ -35,6 +35,7 @@ import {
 import { createRoomMutations } from "../room-sidebar/session";
 import { suggestionIdentity, suggestionAt } from "../room-sidebar/model";
 import { createDocumentSession } from "../documents/session";
+import { appendDocumentApp } from "../documents/appMarkers";
 import { createAppsSession } from "../apps/session";
 import {
   createAppsApi,
@@ -702,6 +703,31 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
         chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
         const revision = ++chatRevision;
+        const appProps: import("../apps/types").AppsProps = {
+            owner: apps,
+            api: appApi,
+            room: { ...value, messages: roomMessages(value) },
+            thread,
+            request,
+            current: () => current() && authority.current(),
+            checkAccess: retryRoom,
+            name,
+            ago,
+            t,
+            lang,
+            openLink: browser.openExternal,
+            metric: (kind, roomOnly) =>
+              appRequests.run((signal) =>
+                guardApp(metrics(kind, scope.roomId, roomOnly, signal)),
+              ),
+            putInDocument: (target) => {
+              if (!owned()) return;
+              const view=get(document.state), documentTarget=document.target();
+              if (!documentTarget) return;
+              const next=appendDocumentApp(view.text,target);
+              if (next !== null && document.rewrite(documentTarget,view.text,next)) setPane('doc',{open:true});
+            },
+          };
         const bridge: ChatBridge = {
           t,
           name,
@@ -1010,6 +1036,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               pane: display.pane,
               onPane: setPane,
               onAuthorize: retryRoom,
+              apps: appProps,
+              openApp: (target) => { if (current()) { apps.open(target); setPane("apps", {open: true}); } },
             },
           },
           toolbar,
@@ -1035,24 +1063,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               if (current()) openFile(file);
             },
           },
-          apps: {
-            owner: apps,
-            api: appApi,
-            room: { ...value, messages: roomMessages(value) },
-            thread,
-            request,
-            current: () => current() && authority.current(),
-            checkAccess: retryRoom,
-            name,
-            ago,
-            t,
-            lang,
-            openLink: browser.openExternal,
-            metric: (kind, roomOnly) =>
-              appRequests.run((signal) =>
-                guardApp(metrics(kind, scope.roomId, roomOnly, signal)),
-              ),
-          },
+          apps: appProps,
           agents: agent
             ? {
                 owner: agent,

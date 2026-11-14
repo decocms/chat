@@ -3,6 +3,7 @@ import type { SendRoomCommand } from "../../../shared/commands";
 import type { PanelProps } from "../../panels";
 import type { RichActions } from "../rich-text/types";
 import type { DocumentTarget } from "./model";
+import type { AppsProps } from "../apps/types";
 export type DocumentPane =
   | "doc"
   | "board"
@@ -48,4 +49,6 @@ export type DocumentProps = {
   onPane(pane: DocumentPane): void;
   onAuthorize(): void;
   onMode?(mode: "preview" | "edit"): void;
+  apps?: AppsProps;
+  openApp?(target: { connection: string; tool: string }): void;
 };

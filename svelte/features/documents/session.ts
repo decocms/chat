@@ -730,7 +730,7 @@ export function createDocumentSession(options: Options) {
     input(text: string) {
       if (
         !active ||
-        value.status !== "fallback" ||
+        (value.status !== "fallback" && value.mode !== "preview") ||
         !value.target ||
         !room ||
         !owner.authorized()
@@ -795,6 +795,18 @@ export function createDocumentSession(options: Options) {
             publish({ fallbackUnconfirmed: true, error: true });
         }, 30000);
       }, 400);
+    },
+    /** Atomic preview edits use this same write owner, never a second provider. */
+    rewrite(expectedTarget: DocumentTarget, expectedSource: string, text: string): boolean {
+      if (!active || !owner.authorized() || !value.target || !room ||
+        targetKey(expectedTarget) !== targetKey(value.target) || value.text !== expectedSource ||
+        (editor && (!value.synced || editor.text() !== expectedSource)) || value.fallbackPending ||
+        value.readPending || value.checkingAccess || value.recovery !== null || value.fallbackUnconfirmed) return false;
+      if (text === expectedSource) return true;
+      if (editor) { localText = text; editor.replace(text); return true; }
+      if (value.mode !== 'preview' && value.status !== 'fallback') return false;
+      owner.input(text);
+      return true;
     },
     recoveryToken(): RecoveryToken | null {
       if (!active || !value.target || value.recovery === null) return null;

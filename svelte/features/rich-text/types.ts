@@ -65,5 +65,6 @@ export type RichNode =
       children: RichNode[];
       task?: boolean;
       documentTaskSlot?: true;
+      documentAppSlot?: number;
       language?: string;
     };
