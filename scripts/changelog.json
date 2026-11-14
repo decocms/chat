@@ -103,7 +103,9 @@
         "🎤: um toque começa a ditar e outro para (sem segurar); segurar 3 segundos liga o Modo Fire",
         "Modo Fire: o 🎤 fica entre a caixa de texto e o Enviar; cada trecho falado vai depois de 0,7 s parado (antes esperava o navegador fechar a frase), com indicador de carregamento já enquanto você fala; segurar o 🎤 no celular não seleciona mais o texto; nas salas de métricas do vibebook o card usa os números de ontem",
         "Modo Fire híbrido: o modelo rápido desenha na hora e cada trecho falado também acorda o seu Claude, que confere com dados de verdade e corrige o card (ferramenta fire_card) ou a página enquanto você fala",
-        "Modo Fire troca de formato no meio: \"faz um html\" sai do card e começa uma página, \"faz um card\" volta pro card; pedidos de infraestrutura e gasto usam os números de produto e de custo de IA"
+        "Modo Fire troca de formato no meio: \"faz um html\" sai do card e começa uma página, \"faz um card\" volta pro card; pedidos de infraestrutura e gasto usam os números de produto e de custo de IA",
+        "Mensagem enviada com uma página aberta ao lado do chat leva junto qual página você estava vendo, então \"muda isso aqui\" chega no seu Claude com o arquivo certo",
+        "Apps dentro do doc ocupam a largura toda do documento"
       ],
       "en": [
         "The inbox now shows, besides what's waiting on you, the mentions of you and your open tasks (to do, doing, review) across every room — in three sections, with a this-room / all toggle",
@@ -120,7 +122,9 @@
         "🎤: one tap starts dictation and another stops it (no holding); holding for 3 seconds turns on Fire mode",
         "Fire mode: the 🎤 sits between the text box and Send; each spoken piece goes after 0.7 s of no change (it used to wait for the browser to close the sentence), with a loading sign while you're still talking; holding the 🎤 on a phone no longer selects text; in vibebook's metrics rooms the card uses yesterday's numbers",
         "Hybrid Fire mode: the fast model draws right away and each spoken piece also wakes your Claude, which checks it with real data and fixes the card (fire_card tool) or the page while you talk",
-        "Fire mode switches format mid-session: \"make an html\" leaves the card for a page, \"make a card\" goes back; asking about infrastructure and spend uses the product and AI-cost numbers"
+        "Fire mode switches format mid-session: \"make an html\" leaves the card for a page, \"make a card\" goes back; asking about infrastructure and spend uses the product and AI-cost numbers",
+        "A message sent while a page is open beside the chat carries which page you were looking at, so \"change this\" reaches your Claude with the right file",
+        "Apps inside the doc take the doc's full width"
       ]
     },
     "fixes": {

@@ -112,7 +112,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS pins (id TEXT PRIMARY KEY, kind TEXT, ref TEXT, title TEXT, author TEXT, ts INTEGER, UNIQUE (kind, ref));
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -1168,6 +1168,7 @@ export class Book extends DurableObject<Env> {
         reply_quote: m.reply_to ? quoted.get(m.reply_to as number) : undefined,
         choices: m.choices ? (JSON.parse(m.choices as string) as { options: string[]; multi: boolean }) : undefined,
         card: m.card ? JSON.parse(m.card as string) : undefined,
+        viewing: m.viewing ? ((f) => (f ? { id: f.id, name: f.name, type: f.type, url: `/api/books/${bookId}/files/${f.id}`, note: "the file open beside the chat when this was written: \"this\"/\"isso\" means it (get_file reads it)" } : undefined))(this.files().find((f) => f.id === m.viewing)) : undefined,
         // The replied message rides inside the text too, not only in reply_quote: a Sonnet read a bare "vc fez isso?"
         // (a reply to "Pode revisar o ledger?") and asked which "isso" (Nov 2026).
         text: ((t: string) => (mine ? t : untrusted(who(m.author as string), t)))(withQuote(quoted.get(m.reply_to as number), (m.text as string) || (m.poll ? `[poll ${m.poll}]` : ""))),
@@ -1850,7 +1851,11 @@ export class Book extends DurableObject<Env> {
           ws.send(JSON.stringify({ t: "blocked", text, reason: secret }));
           return new Refused(`blocked: ${secret}`);
         }
-        this.addMessage(thread, email, text, { files, replyTo: Number(m.reply_to) || undefined });
+        const sent = this.addMessage(thread, email, text, { files, replyTo: Number(m.reply_to) || undefined });
+        // The file open beside the chat when they wrote (Gui #2408): "isso aqui" means that page, so their Claude
+        // gets it with the message (read_room viewing).
+        const viewing = typeof m.viewing === "string" && this.files().some((f) => f.id === m.viewing) ? m.viewing : null;
+        if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
         // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
         if (!answers) this.reopenIfArchived(thread);

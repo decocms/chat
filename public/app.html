@@ -1014,7 +1014,7 @@
   .hcName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; } .hcHead small { color: var(--mute); flex: none; }
   .hcOpen { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); text-decoration: none; font-size: 12px; font-weight: 600; }
   .hcOpen:hover { border-color: var(--accent); }
-  .docApp { margin: 12px 0; } .docApp iframe.embed { width: 100%; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #fff; display: block; }
+  .docApp { margin: 12px 0; width: 100%; } /* the doc's whole width (Gui #2409), not the chat embed's 560px */ .docApp iframe.embed { width: 100%; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #fff; display: block; }
   .daSize { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; flex: none; } .daSize button { border: 0; background: none; padding: 2px 7px; font: 600 11px/1.4 inherit; color: var(--mute); cursor: pointer; } .daSize button.on { background: var(--ink); color: var(--panel); }
   /* Abrir opens beside the chat (Gui 14/11, #2342); full screen is the small icon at the far right. */
   .hcFull { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: var(--mute); } .hcFull:hover { color: var(--ink); background: var(--hover); }
@@ -3981,7 +3981,9 @@ function renderBook() {
     const text = input.value.trim();
     const files = attached.filter((p) => p.meta).map((p) => p.meta.id);
     if (!text && !files.length) return;
-    send({ t: "msg", thread, text, files, reply_to: replyTo?.id });
+    // The page open beside the chat goes with the message (#2408), so "isso aqui" reaches your Claude with what you see.
+    const viewing = sideView && sideView.room === S.id ? (sideView.follow ? fileVersions(sideView.name)[0]?.id || sideView.fid : sideView.fid) : undefined;
+    send({ t: "msg", thread, text, files, reply_to: replyTo?.id, viewing });
     replyTo = null; renderReply();
     attached.forEach((p) => p.url && URL.revokeObjectURL(p.url)); attached = [];
     input.value = ""; input.oninput(); renderTray();
