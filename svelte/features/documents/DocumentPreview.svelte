@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
+  import { get } from "svelte/store";
   import type { PanelProps } from "../../panels";
   import type { DocumentProps } from "./types";
   import RichNodes from "../rich-text/RichNodes.svelte";
@@ -14,6 +15,7 @@
     documentAppMarkers,
     resizeDocumentApp,
     documentAppKey,
+    createDocumentAppAuthority,
   } from "./appMarkers";
   import DeferredDocumentApp from "./DeferredDocumentApp.svelte";
   let {
@@ -93,6 +95,10 @@
     ),
   );
   const appMarkers = $derived(documentAppMarkers(text));
+  const appCurrent = createDocumentAppAuthority(
+    () => get(owner.state).text,
+    current,
+  );
 </script>
 
 {#snippet appSlot(index: number)}
@@ -101,7 +107,7 @@
       props={props.apps}
       marker={appMarkers[index]!}
       source={text}
-      {current}
+      current={appCurrent}
       resize={(source, marker, size) => {
         if (!current()) return;
         const target = owner.target();

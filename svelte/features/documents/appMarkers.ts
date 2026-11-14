@@ -21,9 +21,13 @@ export const documentAppKey = (marker: DocumentAppMarker) =>
 export function documentAppMarkers(source: string): DocumentAppMarker[] {
   const result: DocumentAppMarker[] = [];
   if (!/\[\[app:/i.test(source) || source.length > 100000) return result;
-  const normalized=markdownSourceOffsets(source);
-  let offset = 0, line=0;
-  for (const token of Lexer.lex(normalized.source,{gfm:true,breaks:true})) {
+  const normalized = markdownSourceOffsets(source);
+  let offset = 0,
+    line = 0;
+  for (const token of Lexer.lex(normalized.source, {
+    gfm: true,
+    breaks: true,
+  })) {
     const raw = token.raw;
     const found = token.type === "paragraph" ? marker.exec(raw.trim()) : null;
     if (found)
@@ -43,7 +47,7 @@ export function documentAppMarkers(source: string): DocumentAppMarker[] {
         multiplicity: 0,
       });
     offset += raw.length;
-    line+=raw.split("\n").length-1;
+    line += raw.split("\n").length - 1;
   }
   const counts = new Map<string, number>();
   for (const entry of result) {
@@ -82,4 +86,22 @@ export function appendDocumentApp(
   const line = `[[app:${target.connection}/${target.tool}|m]]`;
   if (!marker.test(line)) return null;
   return `${source.replace(/\s*$/, "")}\n\n${line}\n`;
+}
+
+/** Reads the live owner on every dispatch, including before the next DOM flush. */
+export function createDocumentAppAuthority(
+  readSource: () => string,
+  current: () => boolean,
+) {
+  let checkedSource: string | undefined,
+    keys = new Set<string>();
+  return (key: string) => {
+    if (!current()) return false;
+    const source = readSource();
+    if (source !== checkedSource) {
+      checkedSource = source;
+      keys = new Set(documentAppMarkers(source).map(documentAppKey));
+    }
+    return keys.has(key);
+  };
 }

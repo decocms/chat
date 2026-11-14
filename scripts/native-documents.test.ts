@@ -1,6 +1,7 @@
 import {
   documentAppMarkers,
   documentAppKey,
+  createDocumentAppAuthority,
   resizeDocumentApp,
   appendDocumentApp,
 } from "../svelte/features/documents/appMarkers";
@@ -966,13 +967,53 @@ test("canonical reads during preview writes cannot discard or repeat the pending
   expect(h.drafts.get(target)?.text).toBe("preview mutation");
 });
 
-test('document App raw spans preserve CRLF/lone-CR boundaries and exact original newline bytes',()=>{
- for(const newline of ['\r\n','\r','\n']) {
- const source='Intro'+newline+newline+'[[app:room/demo|m]]'+newline+newline+'tail\r\n';
- const marker=documentAppMarkers(source)[0]!;
- expect(source.slice(marker.start,marker.end).trim()).toBe('[[app:room/demo|m]]');
- const projected=descendants(documentAppNodes(richText(source,'markdown',context('document')),source));
- expect(projected.filter(node=>node.kind==='element' && node.documentAppSlot!==undefined)).toHaveLength(1);
- expect(resizeDocumentApp(source,marker,'g')).toBe(source.replace('demo|m','demo|g'));
- }
+test("document App raw spans preserve CRLF/lone-CR boundaries and exact original newline bytes", () => {
+  for (const newline of ["\r\n", "\r", "\n"]) {
+    const source =
+      "Intro" +
+      newline +
+      newline +
+      "[[app:room/demo|m]]" +
+      newline +
+      newline +
+      "tail\r\n";
+    const marker = documentAppMarkers(source)[0]!;
+    expect(source.slice(marker.start, marker.end).trim()).toBe(
+      "[[app:room/demo|m]]",
+    );
+    const projected = descendants(
+      documentAppNodes(
+        richText(source, "markdown", context("document")),
+        source,
+      ),
+    );
+    expect(
+      projected.filter(
+        (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+      ),
+    ).toHaveLength(1);
+    expect(resizeDocumentApp(source, marker, "g")).toBe(
+      source.replace("demo|m", "demo|g"),
+    );
+  }
+});
+
+test("captured inline App callbacks reject canonical marker replacement before any DOM flush", () => {
+  const h = setup(),
+    source = "[[APP:room/demo|m]]";
+  h.owner.sync({ ...room(), doc: source }, "main");
+  const key = documentAppKey(documentAppMarkers(source)[0]!);
+  const current = createDocumentAppAuthority(
+    () => get(h.owner.state).text,
+    () => h.owner.authorized(),
+  );
+  expect(current(key)).toBe(true);
+  h.owner.sync({ ...room(), doc: "Intro\n\n[[app:room/demo|g]]" }, "main");
+  expect(current(key)).toBe(true);
+  h.owner.sync({ ...room(), doc: "[[app:room/other|m]]" }, "main");
+  expect(current(key)).toBe(false);
+  h.owner.sync({ ...room(), doc: "" }, "main");
+  expect(current(key)).toBe(false);
+  h.owner.dispose();
+  expect(current(key)).toBe(false);
 });

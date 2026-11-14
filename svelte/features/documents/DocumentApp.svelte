@@ -5,6 +5,7 @@
   import { createAppsSession } from "../apps/session";
   import { appIdentity } from "../apps/model";
   import type { AppsProps } from "../apps/types";
+  import { documentAppKey } from "./appMarkers";
   import type { DocumentAppMarker, DocumentAppSize } from "./appMarkers";
   import Button from "../../lib/ui/Button.svelte";
   import Snapshot from "../../lib/ui/Snapshot.svelte";
@@ -19,7 +20,7 @@
     props: AppsProps;
     marker: DocumentAppMarker;
     source: string;
-    current(): boolean;
+    current(key: string): boolean;
     resize(
       source: string,
       marker: DocumentAppMarker,
@@ -28,9 +29,10 @@
     open(): void;
   } = $props();
   let active = true;
+  const markerKey = untrack(() => documentAppKey(marker));
   const owner = untrack(() =>
     createAppsSession(props.api, {
-      current: () => active && current() && props.current(),
+      current: () => active && current(markerKey) && props.current(),
       navigate: props.openLink,
       denied: () => props.owner.revoke(),
     }),
@@ -47,7 +49,7 @@
   const frameProps: AppsProps = $derived({
     ...props,
     owner,
-    current: () => active && current() && props.current(),
+    current: () => active && current(markerKey) && props.current(),
   });
   const identity = $derived(
     $view.room && $view.connections !== null
@@ -61,7 +63,7 @@
   function connected(event: Event) {
     return (
       active &&
-      current() &&
+      current(markerKey) &&
       event.currentTarget instanceof HTMLElement &&
       event.currentTarget.isConnected
     );

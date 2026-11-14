@@ -1,14 +1,16 @@
 <script lang="ts">
   import { onDestroy, untrack, type ComponentProps } from "svelte";
   import type DocumentApp from "./DocumentApp.svelte";
+  import { documentAppKey } from "./appMarkers";
   import { createDeferredModule } from "../deferred-view/module";
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
   let props: ComponentProps<typeof DocumentApp> = $props();
   let active = true;
   const owns = untrack(() => props.current);
+  const markerKey = untrack(() => documentAppKey(props.marker));
   const loader = createDeferredModule(
     () => import("./DocumentApp.svelte").then((module) => module.default),
-    { current: () => active && owns() },
+    { current: () => active && owns(markerKey) },
   );
   const view = loader.state;
   loader.ensure();
@@ -23,7 +25,7 @@
   />{:else}<DeferredViewStatus
     phase={$view.phase}
     label={props.marker.tool}
-    current={() => active && owns()}
+    current={() => active && owns(markerKey)}
     lang={props.props.lang === "en" ? "en" : "pt"}
     retry={() => loader.retry()}
   />{/if}
