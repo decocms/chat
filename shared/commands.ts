@@ -12,6 +12,7 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     text: z.optional(z.string()),
     files: z.optional(z.array(z.string())),
     reply_to: z.optional(z.nullable(num)),
+    viewing: z.optional(z.string()), // the file open beside the chat (#2408)
   }),
   z.object({ t: z.literal("files.get") }),
   z.object({

@@ -727,13 +727,10 @@
   .fireBar[hidden] { display: none; }
   .fireBar .fbSpin { display: none; width: 12px; height: 12px; border: 2px solid color-mix(in srgb, #ff7a1a 30%, transparent); border-top-color: #ff7a1a; border-radius: 50%; animation: ackspin .7s linear infinite; }
   .fireBar.hot .fbSpin { display: inline-block; }
-  .msg.fireCard.hot .vcard { position: relative; overflow: hidden; }
-  .msg.fireCard.hot .vcard::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, #ff7a1a 18%, transparent) 50%, transparent 70%); background-size: 200% 100%; animation: fireSweep 1s linear infinite; pointer-events: none; }
-  @keyframes fireSweep { from { background-position: 150% 0; } to { background-position: -50% 0; } }
-  @media (prefers-reduced-motion: reduce) { .fireBar .fbSpin, .msg.fireCard.hot .vcard::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .fireBar .fbSpin { animation: none; } }
   .fireBar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 6px; border-radius: 10px; background: color-mix(in srgb, #ff7a1a 14%, var(--panel)); border: 1px solid color-mix(in srgb, #ff7a1a 40%, transparent); font-size: 13px; }
+  .fireBar .fbSt { white-space: nowrap; }
   .fireBar .fbTx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fireBar .fbTx i { color: var(--mute); }
-  dialog.fireDlg { width: min(460px, calc(100% - 32px)); } dialog.fireDlg .fIco { font-size: 34px; } dialog.fireDlg ul { margin: 6px 0 16px; padding-left: 18px; line-height: 1.5; color: var(--mute); } dialog.fireDlg ul b { color: var(--ink); }
   .composer.dictating textarea, .composer.dictating input { box-shadow: 0 0 0 2px #d64545; }
   .emojiPop { width: min(340px, calc(100% - 48px)); }
   .emojiPop input { width: 100%; margin-bottom: 6px; }
@@ -1015,7 +1012,7 @@
   .hcName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; } .hcHead small { color: var(--mute); flex: none; }
   .hcOpen { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); text-decoration: none; font-size: 12px; font-weight: 600; }
   .hcOpen:hover { border-color: var(--accent); }
-  .docApp { margin: 12px 0; } .docApp iframe.embed { width: 100%; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #fff; display: block; }
+  .docApp { margin: 12px 0; width: 100%; } /* the doc's whole width (Gui #2409), not the chat embed's 560px */ .docApp iframe.embed { width: 100%; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #fff; display: block; }
   .daSize { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; flex: none; } .daSize button { border: 0; background: none; padding: 2px 7px; font: 600 11px/1.4 inherit; color: var(--mute); cursor: pointer; } .daSize button.on { background: var(--ink); color: var(--panel); }
   /* Abrir opens beside the chat (Gui 14/11, #2342); full screen is the small icon at the far right. */
   .hcFull { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: var(--mute); } .hcFull:hover { color: var(--ink); background: var(--hover); }
@@ -1484,114 +1481,93 @@ const LANG = (document.cookie.match(/(?:^|;\s*)vb_lang=(pt|en)\b/)?.[1]) || (/^p
 document.documentElement.lang = LANG === "en" ? "en" : "pt-BR";
 const LOCALE = LANG === "en" ? "en-US" : "pt-BR";
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition; // dictation in the composer, when the browser has it
-// Modo Fire (Gui 14/11): live transcription; each pause goes at once to POST /api/books/:id/fire, where the fast model
-// applies it to the file open beside the chat (new version, the panel follows); one request at a time, speech that
-// arrives meanwhile joins the next one. Stopping posts the whole transcript with the file as your message, so your
-// own Claude reviews what the fast model did.
-let fireS = null; // { rec, on, chunks, pending, busy, fid, name, n, thread }
-const fireLive = () => !!fireS?.on;
-function fireArm() {
-  let seen = false; try { seen = localStorage.getItem("vb.fireSeen") === "1"; } catch {}
-  if (seen) return fireOn();
-  const d = document.createElement("dialog"); d.className = "fireDlg";
-  d.innerHTML = `<div class="fIco">🔥</div><h3>${t("Modo Fire")}</h3><ul>
-    <li>${t("<b>Ao vivo:</b> o que você fala vai, a cada pausa, direto pra um modelo rápido (Haiku).")}</li>
-    <li>${t("<b>Ele aplica na hora</b> no arquivo aberto ao lado do chat (ou começa uma página nova) e o painel atualiza a cada versão.")}</li>
-    <li>${t("<b>Ao parar</b> (toque no 🎤), a transcrição vai pro chat como mensagem sua, com o arquivo, e o seu Claude confere e melhora.")}</li>
-    <li>${t("O modelo rápido só mexe nesse arquivo. Custa centavos por minuto falado.")}</li></ul>
-    <div class="row" style="justify-content:flex-end;gap:8px"><button type="button" class="ghost" data-x>${t("Cancelar")}</button><button type="button" class="primary" data-go>${t("Ligar o fogo")}</button></div>`;
-  document.body.appendChild(d); d.showModal();
-  d.querySelector("[data-x]").onclick = () => { d.close(); d.remove(); };
-  d.querySelector("[data-go]").onclick = () => { try { localStorage.setItem("vb.fireSeen", "1"); } catch {} d.close(); d.remove(); fireOn(); };
-}
+// Modo Fire (Gui #2448): hold Space with the composer empty (or 🎤 for 3 s) and talk to your own Claude, which the
+// herdr runner on your machine switches to Haiku (POST /api/books/:id/fire → /model haiku; it reports back through
+// /ws-me as fireState). While you hold, the browser's own recognition shows your words; on release the audio goes to
+// Whisper on the Worker (/stt, with the room's words as hints, so "vibebook" and names come out right) and the text is
+// sent as your message, which wakes your Claude with it already in hand. Esc or Sair: back to the model it had.
+let fire = null; // { state, model, note, talking, rec, sr, chunks, said, stream, thread }
+const fireLive = () => !!fire;
 function fireBar(status) {
   const b = document.getElementById("fireBar"); if (!b) return;
-  b.hidden = !fireLive();
-  if (fireLive()) b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span>🔥</span><span class="fbTx">${status ? esc(status) : `<i>${t("ao vivo: fale, a cada pausa eu aplico")}</i>`}</span><button type="button" class="ghost" data-firestop>${t("Parar")}</button>`;
+  b.hidden = !fire;
+  if (!fire) return;
+  const st = fire.state, m = fire.model ? prettyModel(fire.model) : "Haiku";
+  const head = fire.talking ? `🎙 ${t("falando…")}` : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("não troquei o modelo")}` : st === "leaving" ? t("voltando pro modelo de antes…") : t("trocando teu Claude pro Haiku…");
+  const tail = status ?? (fire.talking ? "" : st === "ready" ? t("segure espaço e fale; solte pra mandar · Esc sai") : fire.note || "");
+  b.classList.toggle("hot", st === "switching" || st === "leaving" || !!fire.talking || !!fire.sending);
+  b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span>🔥</span><b class="fbSt">${esc(head)}</b><span class="fbTx">${tail ? esc(tail) : ""}</span><button type="button" class="ghost" data-firestop>${t("Sair do Fire")}</button>`;
   b.querySelector("[data-firestop]")?.addEventListener("click", fireStop);
 }
-function fireOn() {
-  if (!SR || !S) return;
-  fireS = { on: true, chunks: [], pending: "", busy: false, fid: "", name: "", n: 0, thread };
-  document.getElementById("micBtn")?.classList.add("fire");
-  const listen = () => {
-    if (!fireS?.on) return;
-    const rec = new SR(); rec.lang = LOCALE; rec.continuous = true; rec.interimResults = true; fireS.rec = rec;
-    // A piece goes when the browser marks it final, or sooner: when the words in progress stop changing for 0.7 s
-    // (browsers wait 1-2 s of silence to mark a result final; Gui #2378 wanted it faster).
-    let done = 0, stableT = 0;
-    rec.onresult = (ev) => {
-      let interim = "", at = -1;
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        if (i < done) continue;
-        if (ev.results[i].isFinal) { done = i + 1; fireSay(ev.results[i][0].transcript.trim()); }
-        else { if (at < 0) at = i; interim += ev.results[i][0].transcript; }
-      }
-      clearTimeout(stableT);
-      if (!interim.trim()) return;
-      fireHot(true);
-      if (!fireS.busy) fireBar(`… ${interim.trim()}`);
-      const upTo = ev.results.length;
-      stableT = setTimeout(() => { if (fireS?.rec === rec && done <= at) { done = upTo; fireSay(interim.trim()); } }, 700);
-    };
-    rec.onerror = (ev) => { if (ev.error === "not-allowed") { toast(t("O navegador não deixou usar o microfone.")); fireStop(); } };
-    rec.onend = () => setTimeout(listen, 150); // browsers end a session after a silence: keep listening while on
-    try { rec.start(); } catch {}
+function fireSet(on) {
+  return fetch(`/api/books/${S.id}/fire`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ on }) }).then((r) => r.json()).catch(() => ({ ok: false }));
+}
+// From /ws-me: the runner's report (switching | ready | off | failed).
+function fireState(m) {
+  if (!fire || m.book !== S?.id) return;
+  if (m.state === "off") { fire = null; return fireBar(); }
+  fire.state = m.state; if (m.model) fire.model = m.model; fire.note = m.note || "";
+  fireBar();
+}
+async function fireHold() {
+  if (!S || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast(t("Este navegador não grava áudio."));
+  if (!fire) { fire = { state: "switching", model: "", note: "", thread }; fireSet(true).then((r) => { if (!r.ok && fire) { fire.state = "failed"; fire.note = t("sem conexão"); fireBar(); } }); }
+  if (fire.talking) return;
+  fire.talking = true; fire.said = ""; fire.chunks = []; fire.thread = thread; fireBar();
+  try { fire.stream ||= await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { fire.talking = false; toast(t("O navegador não deixou usar o microfone.")); return fireBar(); }
+  if (!fire?.talking) return; // released before the mic opened
+  const rec = new MediaRecorder(fire.stream); fire.rec = rec;
+  rec.ondataavailable = (e) => { if (e.data.size) fire?.chunks.push(e.data); };
+  rec.start();
+  if (SR) { // instant words on screen while the real transcript waits for the release
+    const sr = new SR(); sr.lang = LOCALE; sr.continuous = true; sr.interimResults = true; fire.sr = sr;
+    sr.onresult = (ev) => { if (!fire?.talking) return; fire.said = [...ev.results].map((r) => r[0].transcript).join("").trim(); fireBar(fire.said); };
+    try { sr.start(); } catch {}
+  }
+}
+function fireRelease() {
+  const f = fire; if (!f?.talking) return;
+  f.talking = false; try { f.sr?.stop(); } catch {}
+  const rec = f.rec; f.rec = null;
+  if (!rec) return fireBar();
+  rec.onstop = async () => {
+    const blob = new Blob(f.chunks, { type: rec.mimeType || "audio/webm" });
+    if (blob.size < 2000) return fireBar(); // a tap, not speech
+    f.sending = true; fireBar(f.said ? `${t("transcrevendo")}: ${f.said}` : t("transcrevendo…"));
+    // Whisper follows a prompt written like a transcript better than a word list ("VBbook" with a list, vibebook with this).
+    const hints = `Conversa no vibebook (vibebook.dev), sala ${S.book?.title ?? ""}. Pessoas: ${(S.members || []).map((e) => e.split("@")[0]).join(", ")}. Épicos: ${(S.epics || []).filter((e) => !e.archived).slice(0, 15).map((e) => e.title).join("; ")}.`;
+    let text = "";
+    try {
+      const r = await fetch(`/api/books/${S.id}/stt?lang=${LANG}&prompt=${encodeURIComponent(hints.slice(0, 600))}`, { method: "POST", headers: { "content-type": blob.type }, body: blob }).then((x) => x.json());
+      text = r.ok ? r.text : "";
+    } catch {}
+    text = (text || f.said || "").trim();
+    f.sending = false;
+    if (!text) return fireBar(t("não entendi, fala de novo"));
+    const viewing = sideView && sideView.room === S.id ? (sideView.follow ? fileVersions(sideView.name)[0]?.id || sideView.fid : sideView.fid) : undefined;
+    send({ t: "msg", thread: f.thread || "main", text, viewing });
+    fireBar(`${t("mandei")}: ${text}`);
   };
-  listen(); fireBar();
-}
-// Loading from the first word: the fire bar spins and the live card (or the page beside) shimmers while the person
-// talks and while the fast model works, so something moves before the answer comes back.
-function fireHot(on) {
-  const f = fireS; on = on || !!f?.busy;
-  document.getElementById("fireBar")?.classList.toggle("hot", on);
-  document.querySelectorAll(".msg.fireCard").forEach((x) => x.classList.toggle("hot", on && x.id === `m${f?.cardMsg}`));
-  if (f?.cardMsg) document.getElementById(`m${f.cardMsg}`)?.classList.add("fireCard");
-  document.getElementById(`m${f?.cardMsg}`)?.classList.toggle("hot", on);
-}
-function fireSay(text) {
-  if (!text || !fireS) return;
-  fireS.pending = `${fireS.pending} ${text}`.trim();
-  firePump();
-}
-async function firePump() {
-  const f = fireS; if (!f || f.busy || !f.pending) return;
-  f.busy = true; fireHot(true);
-  const text = f.pending; f.pending = "";
-  const open = sideView && sideView.room === S.id ? (fileVersions(sideView.name)[0]?.id || sideView.fid) : "";
-  fireBar(`${t("aplicando")}: ${text}`);
-  try {
-    const r = await fetch(`/api/books/${S.id}/fire`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, file_id: f.cardMsg ? undefined : open || f.fid || undefined, card_msg: f.cardMsg || undefined, thread: f.thread, history: f.chunks.slice(-10) }) }).then((x) => x.json());
-    if (!r.ok) { fireBar(`⚠ ${r.error || t("falhou")}`); }
-    else if (r.mode === "card") { // a native card in the chat, replaced on every piece
-      f.chunks.push(text); f.cardMsg = r.card_msg; f.fid = ""; f.n++;
-      fireBar(t("v{n} aplicada: {text}", { n: f.n, text }));
-    } else {
-      f.chunks.push(text); f.fid = r.file.id; f.name = r.file.name; f.cardMsg = 0; f.n++; // "faz um html" leaves the card for a page (#2404)
-      if (!r.opened && !(sideView && sideView.room === S.id && sideView.name === r.file.name)) openSide(r.file.id, r.file.name);
-      fireBar(t("v{n} aplicada: {text}", { n: f.n, text }));
-    }
-  } catch { fireBar(`⚠ ${t("sem conexão")}`); }
-  f.busy = false; fireHot(false);
-  if (f.pending) firePump();
-  else if (!f.on) fireEnd(f);
+  try { rec.stop(); } catch {}
 }
 function fireStop() {
-  const f = fireS; if (!f) return;
-  f.on = false; try { f.rec?.stop(); } catch {}
-  document.getElementById("micBtn")?.classList.remove("fire");
-  fireBar();
-  if (!f.busy) fireEnd(f);
+  const f = fire; if (!f) return;
+  f.talking = false; try { f.sr?.stop(); f.rec?.stop(); } catch {}
+  f.stream?.getTracks().forEach((x) => x.stop()); f.stream = null;
+  f.state = "leaving"; fireBar();
+  fireSet(false);
+  setTimeout(() => { if (fire === f && f.state === "leaving") { fire = null; fireBar(); } }, 30_000); // no runner answer: drop the bar anyway
 }
-// The slow pass: the transcript and the file as your message, which wakes your own Claude to review and fix.
-function fireEnd(f) {
-  if (fireS === f) fireS = null;
-  fireBar();
-  if (!f.chunks.length || !(f.fid || f.cardMsg)) return;
-  if (f.cardMsg) return send({ t: "msg", text: t("🔥 Modo Fire: {n} pedido(s) aplicados ao vivo pelo Haiku neste card. Confere e melhora o que ele fez.", { n: f.chunks.length }) + "\n\n" + f.chunks.map((c) => `- ${c}`).join("\n"), thread: f.thread || "main", reply_to: f.cardMsg });
-  const text = t("🔥 Modo Fire: {n} pedido(s) aplicados ao vivo pelo Haiku em {name}. Confere e melhora o que ele fez.", { n: f.chunks.length, name: f.name }) + "\n\n" + f.chunks.map((c) => `- ${c}`).join("\n");
-  send({ t: "msg", text, thread: f.thread || "main", files: [f.fid] });
-}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && fire && !document.querySelector("dialog[open]")) fireStop(); }, true); // capture: the composer's own Esc (cancel reply) stops it
+// Space held anywhere outside a text field also talks (the composer's own handler covers the empty composer).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !S || matchMedia("(pointer: coarse)").matches) return;
+  const el = e.target; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(el.tagName))) return;
+  e.preventDefault(); clearTimeout(fireKeyT); fireKeyT = setTimeout(fireHold, 300);
+});
+document.addEventListener("keyup", (e) => { if (e.key !== " ") return; clearTimeout(fireKeyT); if (fire?.talking) fireRelease(); });
+let fireKeyT = 0;
 const EN = {
   "Dono: {who}": "Owner: {who}",
   "clique pra trocar": "click to change",
@@ -1998,19 +1974,24 @@ const EN = {
   "Pôr este app no doc (sala ou épico aberto)": "Put this app in the doc (room or open epic)",
   "Pôr no doc": "Put in doc",
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
-  "🔥 Modo Fire: {n} pedido(s) aplicados ao vivo pelo Haiku neste card. Confere e melhora o que ele fez.": "🔥 Fire mode: {n} request(s) applied live by Haiku to this card. Review and improve what it did.",
-  "Toque pra ditar (toque de novo pra parar) · segure 3 s pro Modo Fire": "Tap to dictate (tap again to stop) · hold 3 s for Fire mode",
   "Modo Fire": "Fire mode",
-  "<b>Ao vivo:</b> o que você fala vai, a cada pausa, direto pra um modelo rápido (Haiku).": "<b>Live:</b> what you say goes, at every pause, straight to a fast model (Haiku).",
-  "<b>Ele aplica na hora</b> no arquivo aberto ao lado do chat (ou começa uma página nova) e o painel atualiza a cada versão.": "<b>It applies it right away</b> to the file open beside the chat (or starts a new page), and the panel updates with every version.",
-  "<b>Ao parar</b> (toque no 🎤), a transcrição vai pro chat como mensagem sua, com o arquivo, e o seu Claude confere e melhora.": "<b>When you stop</b> (tap 🎤), the transcript goes to the chat as your message, with the file, and your Claude reviews and improves it.",
-  "O modelo rápido só mexe nesse arquivo. Custa centavos por minuto falado.": "The fast model only touches that file. It costs cents per minute of speech.",
-  "Ligar o fogo": "Light it up",
-  "ao vivo: fale, a cada pausa eu aplico": "live: talk, I apply it at every pause",
+  "Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
+  "falando…": "talking…",
+  "{m} pronto": "{m} ready",
+  "não troquei o modelo": "couldn't switch the model",
+  "voltando pro modelo de antes…": "going back to the previous model…",
+  "trocando teu Claude pro Haiku…": "switching your Claude to Haiku…",
+  "segure espaço e fale; solte pra mandar · Esc sai": "hold Space and talk; let go to send · Esc leaves",
+  "Este navegador não grava áudio.": "This browser can't record audio.",
+  "transcrevendo": "transcribing",
+  "transcrevendo…": "transcribing…",
+  "não entendi, fala de novo": "didn't catch that, say it again",
+  "mandei": "sent",
+  "Sair do Fire": "Leave Fire",
+  "Uma versão está no ar; você pediu correções depois": "A version is live; you asked for changes after it",
+  "Uma versão está no ar · correções em andamento": "A version is live · changes in progress",
+  "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.": "You asked for changes after this deploy; the next version isn't out yet.",
   "Parar": "Stop",
-  "aplicando": "applying",
-  "v{n} aplicada: {text}": "v{n} applied: {text}",
-  "🔥 Modo Fire: {n} pedido(s) aplicados ao vivo pelo Haiku em {name}. Confere e melhora o que ele fez.": "🔥 Fire mode: {n} request(s) applied live by Haiku to {name}. Review and improve what it did.",
   "aberto ao lado": "open beside",
   "Abrindo seu Claude no herdr…": "Opening your Claude in herdr…",
   "Não deu agora. Tente de novo.": "Didn't work now. Try again.",
@@ -2519,6 +2500,7 @@ function connectMe() {
     if (m.t === "me" && !(m.msg && m.book && m.book === S?.id)) { clearTimeout(meT); meT = setTimeout(refreshMe, 600); }
     // Only an agents poke refetches this room's agents: a plain message here ({t:"me"}) did too, ~13k fetches a day.
     if (m.t === "agents" && (m.book === "*" || m.book === S?.id)) { clearTimeout(agT); agT = setTimeout(loadRoomAgents, 600); }
+    if (m.t === "fireState") fireState(m);
   };
   meWs.onclose = () => { meWs = null; if (document.visibilityState === "visible") setTimeout(connectMe, Math.min(30_000, 1000 * 2 ** meWsTry++)); };
 }
@@ -3719,7 +3701,7 @@ function renderBook() {
             <button type="button" role="menuitem" id="pollBtn">${icon("chart")} ${t("Criar votação")}</button>
           </div>
           <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/html,.html,.htm,text/markdown,.md,text/plain,.txt,text/csv,.csv,audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.flac" multiple hidden />
-          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar (toque de novo pra parar) · segure 3 s pro Modo Fire")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
+          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
         </div>
       </form>
     </main>
@@ -3828,10 +3810,11 @@ function renderBook() {
       e.preventDefault(); // decided on keyup (a tap) or after 350ms (a hold)
       if (e.repeat) return;
       held = false; pending = true; clearTimeout(holdT);
-      holdT = setTimeout(() => { pending = false; held = true; start(); }, 350);
+      holdT = setTimeout(() => { pending = false; held = true; if (!input.value.trim()) { held = "fire"; fireHold(); } else start(); }, 350);
     });
     input.addEventListener("keyup", (e) => {
       if (e.key !== " " || matchMedia("(pointer: coarse)").matches) return;
+      if (held === "fire") { held = false; fireRelease(); return; }
       if (held) { held = false; stop(); return; }
       if (pending) typeSpace();
     });
@@ -3841,7 +3824,7 @@ function renderBook() {
     mic?.addEventListener("pointerdown", (e) => {
       e.preventDefault(); try { mic.setPointerCapture?.(e.pointerId); } catch {}
       fired = false;
-      if (fireLive()) { fired = true; return fireStop(); }
+      if (fireLive()) { fired = true; return fire.talking ? fireRelease() : fireHold(); }
       const t0 = performance.now();
       box.classList.add("charging");
       showT = setTimeout(() => {
@@ -3849,7 +3832,7 @@ function renderBook() {
         const tick = () => { mic.style.setProperty("--fireP", `${Math.min(100, (performance.now() - t0) / 30)}%`); fireRaf = requestAnimationFrame(tick); };
         tick();
       }, 400);
-      fireT = setTimeout(() => { fired = true; cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); stop(); fireArm(); }, 3000);
+      fireT = setTimeout(() => { fired = true; cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); stop(); fireHold(); }, 3000);
     });
     mic?.addEventListener("pointerup", () => {
       box.classList.remove("charging");
@@ -4000,7 +3983,9 @@ function renderBook() {
     const text = input.value.trim();
     const files = attached.filter((p) => p.meta).map((p) => p.meta.id);
     if (!text && !files.length) return;
-    send({ t: "msg", thread, text, files, reply_to: replyTo?.id });
+    // The page open beside the chat goes with the message (#2408), so "isso aqui" reaches your Claude with what you see.
+    const viewing = sideView && sideView.room === S.id ? (sideView.follow ? fileVersions(sideView.name)[0]?.id || sideView.fid : sideView.fid) : undefined;
+    send({ t: "msg", thread, text, files, reply_to: replyTo?.id, viewing });
     replyTo = null; renderReply();
     attached.forEach((p) => p.url && URL.revokeObjectURL(p.url)); attached = [];
     input.value = ""; input.oninput(); renderTray();
@@ -4633,7 +4618,11 @@ const waitsIn = (t) => myWaits.filter((w) => w.book_id === S?.id && (t === undef
 const waitPill = (th) => waitBadge(waitsIn(th), "wN");
 const asksIn = (th) => asksOf(waitsIn(th)).length;
 // Deploy stage after "Claude fez" (set by agents with update_epic prod): 🚀 no ar, ✓✓ verificado em prod.
-const prodMark = (e) => !e.prod ? "" : e.prod.stage === "verified"
+// A version is out, but the person asked for changes after it (Gui #2459): "no ar" alone read as finished.
+const prodStale = (e) => !!e.prod && !e.archived && allMsgs().some((m) => m.thread === e.id && !m.kind && m.author === S.me && m.ts > e.prod.at);
+const prodMark = (e) => !e.prod ? "" : prodStale(e)
+  ? `<span class="prodMark" title="${t("Uma versão está no ar; você pediu correções depois")}">🚀↻</span>`
+  : e.prod.stage === "verified"
   ? `<span class="prodMark ok" title="${esc(t("Verificado em prod") + (e.prod.note ? `: ${e.prod.note}` : ""))}">✓✓</span>`
   : `<span class="prodMark" title="${t("No ar, falta verificar em prod")}">🚀</span>`;
 // An epic's icon: its owner's face when it has one (a person of the room), else the title's colored initials.
@@ -5386,7 +5375,9 @@ function syncEnd() {
   el.querySelectorAll(".endMark, .prodStage").forEach((x) => x.remove());
   const e = S.epics.find((x) => x.id === thread);
   const p = e?.prod;
-  const stage = !p ? "" : p.stage === "verified"
+  const stage = !p ? "" : prodStale(e)
+    ? `<div class="prodStage"><b>🚀↻ ${t("Uma versão está no ar · correções em andamento")}</b><span>${t("Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.")}</span></div>`
+    : p.stage === "verified"
     ? `<div class="prodStage ok"><b>✓✓ ${t("Verificado em prod")}</b>${p.note ? `<span>${esc(p.note)}</span>` : ""}</div>`
     : `<div class="prodStage"><b>🚀 ${t("No ar")}</b><span>${t("Falta o agent verificar em prod.")}</span></div>`;
   if (e?.archived) el.insertAdjacentHTML("beforeend", `<div class="endMark"><b>✓ ${t("Agent fez")}</b><span>${t("Escreva aqui pra continuar: ele reabre.")}</span></div>`);

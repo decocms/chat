@@ -117,7 +117,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS pins (id TEXT PRIMARY KEY, kind TEXT, ref TEXT, title TEXT, author TEXT, ts INTEGER, UNIQUE (kind, ref));
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -1161,6 +1161,7 @@ export class Book extends DurableObject<Env> {
         reply_quote: m.reply_to ? quoted.get(m.reply_to) : undefined,
         choices_wire: m.choices || undefined,
         card: m.card ? storedCard(m.card, bookId, (kind) => console.warn("book stored projection", kind)) ?? undefined : undefined,
+        viewing: m.viewing ? ((f) => (f ? { id: f.id, name: f.name, type: f.type, url: `/api/books/${bookId}/files/${f.id}`, note: "the file open beside the chat when this was written: \"this\"/\"isso\" means it (get_file reads it)" } : undefined))(this.files().find((f) => f.id === m.viewing)) : undefined,
         // The replied message rides inside the text too, not only in reply_quote: a Sonnet read a bare "vc fez isso?"
         // (a reply to "Pode revisar o ledger?") and asked which "isso" (Nov 2026).
         text: ((t: string) => (mine ? t : untrusted(who(m.author), t)))(withQuote(m.reply_to ? quoted.get(m.reply_to) : undefined, m.text || (m.poll ? `[poll ${m.poll}]` : ""))),
@@ -1496,18 +1497,6 @@ export class Book extends DurableObject<Env> {
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
-  }
-  /** Modo Fire, hybrid (Gui #2384): every piece of live speech, once the fast model applied it, is also posted as the
-   * person's own message tagged `fire` (reply_to = the live card, or the file named in the text). Not quiet, so their
-   * listening Claude wakes and checks it with real tools/data; the app doesn't draw these lines (the card and the
-   * review message already show them). */
-  async firePiece(bookId: string, email: string, thread: string, text: string, ref: { card_msg?: number; file?: { id: string; name: string } }) {
-    this.bind(bookId);
-    if (!(await this.members()).includes(email)) return;
-    if (findSecret(text)) return;
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
-    const at = ref.file ? `\n\n(ao vivo em ${ref.file.name}, file_id ${ref.file.id})` : "";
-    this.addMessage(thread, email, `🔥 ${text.slice(0, 1500)}${at}`, { tag: "fire", replyTo: ref.card_msg });
   }
   async humanPost(bookId: string, email: string, raw: string, thread = "main"): Promise<PostMessageResponse> {
     this.bind(bookId);
@@ -1855,7 +1844,11 @@ export class Book extends DurableObject<Env> {
           ws.send(JSON.stringify({ t: "blocked", text, reason: secret }));
           return new Refused(`blocked: ${secret}`);
         }
-        this.addMessage(thread, email, text, { files, replyTo: Number(m.reply_to) || undefined });
+        const sent = this.addMessage(thread, email, text, { files, replyTo: Number(m.reply_to) || undefined });
+        // The file open beside the chat when they wrote (Gui #2408): "isso aqui" means that page, so their Claude
+        // gets it with the message (read_room viewing).
+        const viewing = typeof m.viewing === "string" && this.files().some((f) => f.id === m.viewing) ? m.viewing : null;
+        if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
         // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
         if (!answers) this.reopenIfArchived(thread);
