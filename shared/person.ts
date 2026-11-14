@@ -9,8 +9,14 @@ export const PersonEventSchemas = {
   }),
   agents: z.object({ t: z.literal("agents"), book: z.string() }),
   focus: z.object({ t: z.literal("focus"), book: z.string() }),
-  fire: z.object({t:z.literal("fire"),book:z.string(),on:z.boolean()}),
-  fireState:z.object({t:z.literal("fireState"),book:z.string(),state:z.string(),model:z.string(),note:z.string()}),
+  fire: z.object({ t: z.literal("fire"), book: z.string(), on: z.boolean() }),
+  fireState: z.object({
+    t: z.literal("fireState"),
+    book: z.string(),
+    state: z.string(),
+    model: z.string(),
+    note: z.string(),
+  }),
 };
 export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.me,

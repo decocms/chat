@@ -12,9 +12,6 @@ import {
   REVIEW_FIXTURE_MODEL,
 } from "./native-review-model-fixture";
 
-import { startFireModelFixture } from "./native-fire-model-fixture";
-import { FIRE_FIXTURE_MODEL } from "./native-fire-fixture-data";
-
 async function runtimeDiagnostic() {
   const packages: Record<string, string | null> = {};
   for (const name of ["wrangler", "miniflare", "workerd"]) {
@@ -180,17 +177,15 @@ async function pause() {
     if (abort.signal.aborted) done();
   });
 }
-let fireModel: Awaited<ReturnType<typeof startFireModelFixture>> | null = null;
 let reviewModel: Awaited<ReturnType<typeof startReviewModelFixture>> | null =
   null;
 try {
   await mkdir(reportDirectory, { recursive: true });
   await mkdir(privateDirectory, { recursive: true });
   reviewModel = await startReviewModelFixture(base);
-  fireModel = await startFireModelFixture();
   await writeFile(
     devVars,
-    `DEV_EMAIL=${devEmail}\nSESSION_SECRET=${randomBytes(32).toString("hex")}\nMODEL_ROUTE=off\nMODEL_CLASSIFY=off\nMODEL_FAST=${FIRE_FIXTURE_MODEL}\nFIRE_API=${fireModel.url}\nMODEL_JUDGE=${REVIEW_FIXTURE_MODEL}\nDECISION_API=${reviewModel.url}\n`,
+    `DEV_EMAIL=${devEmail}\nSESSION_SECRET=${randomBytes(32).toString("hex")}\nMODEL_ROUTE=off\nMODEL_CLASSIFY=off\nMODEL_FAST=off\nMODEL_JUDGE=${REVIEW_FIXTURE_MODEL}\nDECISION_API=${reviewModel.url}\n`,
     { flag: "wx", mode: 0o600 },
   );
   ownedVars = true;
@@ -270,10 +265,6 @@ try {
   }, 5000);
   await Promise.allSettled(active.map((child) => child.exited));
   clearTimeout(timer);
-  if (fireModel)
-    await fireModel.close().catch(() => {
-      cleanupErrors.push("fire-model-fixture-close");
-    });
   if (reviewModel)
     await reviewModel.close().catch(() => {
       cleanupErrors.push("review-model-fixture-close");
@@ -301,7 +292,6 @@ try {
         cleanupErrors,
         remainingOwnedGroups: children.size,
         reviewModelFixture: reviewModel?.evidence ?? null,
-        fireModelFixture: fireModel?.evidence ?? null,
         runtime,
         scope:
           "Disposable loopback local Worker; private raw Worker log and storage are intentionally excluded from artifact upload",

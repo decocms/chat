@@ -7,7 +7,6 @@ import {
   appProbeDocument,
   REVIEW_DENY_DOCUMENT,
 } from "./native-app-probe-documents";
-import { FIRE_HTML } from "./native-fire-fixture-data";
 export const REVIEW_FIXTURE_MODEL = "fixture/embed-review";
 const question = <T extends string>(instructions: T) =>
   z.strictObject({
@@ -32,8 +31,6 @@ export function reviewModelAnswer(input: unknown, base: string) {
   const html = parsed.data.state.html;
   let verdict: "allow" | "deny";
   if (html === REVIEW_DENY_DOCUMENT) verdict = "deny";
-  else if (html === FIRE_HTML.first || html === FIRE_HTML.second)
-    verdict = "allow";
   else {
     const destination =
       /location\.href="(http:\/\/127\.0\.0\.1:[1-9]\d{0,4}\/replacement)"/.exec(

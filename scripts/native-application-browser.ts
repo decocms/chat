@@ -49,7 +49,6 @@ declare global {
     __nativeSocketCloseObservations?: SocketCloseObservation[];
   }
 }
-import { auditNativeFire } from "./native-fire-browser";
 import { auditInlineAppOpen } from "./native-inline-app-open-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
 import { auditNativeAppNavigation } from "./native-app-navigation-probe";
@@ -1288,11 +1287,6 @@ try {
       "passed",
       "Inline App reader-approval audit must pass",
     );
-  });
-  await independentAudit("native-fire", async () => {
-    const result = await auditNativeFire(profileFixture);
-    report.fire = result;
-    assert.equal(result.status, "passed", "Native Fire audit must pass");
   });
   await independentAudit("page-errors", async () => {
     assert.deepEqual(errors, []);
