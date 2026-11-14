@@ -4606,6 +4606,101 @@ describe("native composer ownership and interactions", () => {
     expect(target.querySelector('[data-fire-locked="true"]')).toBeNull();
     expect(disposed).toBe(0); // final data is still owned until recorder onstop/disposal
   });
+  test("the actual Composer microphone node survives hold-to-Fire before an upward lock gesture", async () => {
+    let starts = 0,
+      stops = 0,
+      levels = 0;
+    const { target } = renderComposer(fixture(), {
+      speechFactory: null,
+      mediaFactory: async () => ({
+        type: "audio/webm",
+        start() {
+          starts++;
+        },
+        stop() {
+          stops++;
+        },
+        dispose() {},
+        observeLevel() {
+          levels++;
+          return () => {};
+        },
+      }),
+      fire: {
+        current: () => true,
+        set: async () => {},
+        restore: async () => {},
+        beforeLeave: () => () => {},
+        watch: () => () => {},
+        transcribe: async () => "",
+        sessionLost() {},
+        denyMembership() {},
+      },
+    });
+    const original = target.querySelector<HTMLButtonElement>(
+      'button[aria-label="Ditar mensagem"]',
+    )!;
+    original.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        pointerId: 1,
+        clientY: 100,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 3100));
+    for (let i = 0; i < 12; i++) {
+      await tick();
+      flushSync();
+    }
+    expect(target.querySelector('button[aria-label="Ditar mensagem"]')).toBe(
+      original,
+    );
+    expect(original.isConnected).toBe(true);
+    expect(starts).toBe(1);
+    expect(levels).toBe(0);
+    original.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 1,
+        clientY: 59,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    original.dispatchEvent(
+      new PointerEvent("pointerup", { pointerId: 1, bubbles: true }),
+    );
+    await tick();
+    flushSync();
+    expect(target.querySelector('[data-fire-locked="true"]')).not.toBeNull();
+    expect(levels).toBe(1);
+    expect(starts).toBe(1);
+    expect(stops).toBe(0);
+    original.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        pointerId: 2,
+        clientY: 100,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    original.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 2,
+        clientY: 0,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    original.dispatchEvent(
+      new PointerEvent("pointerup", { pointerId: 2, bubbles: true }),
+    );
+    await tick();
+    flushSync();
+    expect(target.querySelector('[data-fire-locked="true"]')).toBeNull();
+    expect(stops).toBe(1);
+    expect(starts).toBe(1);
+  }, 30000);
   test("native mic capability projects interim text and cancels stale recognition across thread changes", async () => {
     const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
       [];

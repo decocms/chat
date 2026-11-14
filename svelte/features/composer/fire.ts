@@ -481,6 +481,37 @@ export function createFireController(options: {
       /* Recognition is optional preview; recording/Whisper remain authoritative. */
     }
   }
+  function attachLevels(opened: FireCapture, ticket: number, take: number) {
+    if (
+      !recording(ticket, take) ||
+      capture !== opened ||
+      !get(state).locked ||
+      stopLevel
+    )
+      return;
+    const segmenter = createFireSegmentation(clock.now());
+    try {
+      if (!opened.observeLevel) throw Error("Microphone level unavailable");
+      const stop = opened.observeLevel(
+        (level) => {
+          if (
+            recording(ticket, take) &&
+            capture === opened &&
+            get(state).locked &&
+            segmenter.sample(level, clock.now())
+          )
+            release();
+        },
+        () => {
+          if (recording(ticket, take) && capture === opened) haltCapture();
+        },
+      );
+      if (!recording(ticket, take) || capture !== opened) stop();
+      else stopLevel = stop;
+    } catch {
+      if (recording(ticket, take) && capture === opened) haltCapture();
+    }
+  }
   async function hold() {
     if (
       !owned() ||
@@ -609,32 +640,7 @@ export function createFireController(options: {
       );
       if (recording(ticket, take) && !releaseRequested) {
         startPreview(ticket, take);
-        if (get(state).locked) {
-          const segmenter = createFireSegmentation(clock.now());
-          try {
-            if (!opened.observeLevel)
-              throw Error("Microphone level unavailable");
-            const stop = opened.observeLevel(
-              (level) => {
-                if (
-                  recording(ticket, take) &&
-                  capture === opened &&
-                  get(state).locked &&
-                  segmenter.sample(level, clock.now())
-                )
-                  release();
-              },
-              () => {
-                if (recording(ticket, take) && capture === opened)
-                  haltCapture();
-              },
-            );
-            if (!recording(ticket, take) || capture !== opened) stop();
-            else stopLevel = stop;
-          } catch {
-            if (recording(ticket, take) && capture === opened) haltCapture();
-          }
-        }
+        if (get(state).locked) attachLevels(opened, ticket, take);
       }
     } catch {
       if (recording(ticket, take)) {
@@ -795,13 +801,19 @@ export function createFireController(options: {
     lock() {
       if (
         !owned() ||
-        get(state).talking ||
         get(state).phase === "leaving" ||
-        get(state).sending === "unconfirmed"
+        get(state).sending === "unconfirmed" ||
+        get(state).error === "send-refused"
       )
         return;
+      const ticket = session,
+        take = utterance,
+        opened = capture;
       state.update((value) => ({ ...value, locked: true }));
-      if (owned() && get(state).locked) void hold();
+      if (!recording(ticket, take) || !get(state).locked) return;
+      if (get(state).talking) {
+        if (opened && capture === opened) attachLevels(opened, ticket, take);
+      } else void hold();
     },
     unlock() {
       if (!owned() || !get(state).locked) return;
@@ -829,12 +841,19 @@ export function createFireController(options: {
     discard(expected: number) {
       if (!owned() || get(state).intent !== expected) return;
       clearSegments();
+      utterance++;
+      releaseRequested = true;
+      audioLease.cancel();
+      sttLease.cancel();
+      releaseAudio();
       messageLease.cancel();
       pending = null;
       clearTimer("delivery");
       state.update((value) => ({
         ...value,
         sending: "none",
+        talking: false,
+        locked: false,
         text: "",
         error: "",
         intent: ++intent,

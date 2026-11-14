@@ -1088,3 +1088,86 @@ test("explicit discard clears the unsent locked backlog so a fresh utterance can
   f.owner.dispose();
   await settle();
 });
+
+test("discard revokes a delayed stopping recorder as well as the queued backlog before accepting fresh audio", async () => {
+  const h = browserAudioFixture();
+  let now = 0,
+    reads = 0;
+  const f = fixture({
+    capture: h.factory,
+    now: () => now,
+    transcribe: async () => (++reads === 1 ? "uncertain first" : "fresh only"),
+    request: async () => ({ ok: false, error: "timeout" }),
+  });
+  f.owner.lock();
+  await until(() => h.records[0]?.starts === 1 && h.intervals.size === 1);
+  h.records[0].data(new Blob([new Uint8Array(3000)]));
+  h.sample(0.1);
+  now = 801;
+  h.sample(0);
+  await until(() => h.records[1]?.starts === 1);
+  h.records[0].ended();
+  await until(() => get(f.owner.state).sending === "unconfirmed");
+  h.records[1].data(new Blob([new Uint8Array(3000)]));
+  f.owner.discard(get(f.owner.state).intent);
+  expect(h.counts.tracksStopped).toBe(1);
+  h.records[1].ended();
+  await settle();
+  expect(reads).toBe(1);
+  expect(f.commands).toHaveLength(1);
+  await f.owner.hold();
+  h.records[2].data(new Blob([new Uint8Array(3000)]));
+  f.owner.release();
+  h.records[2].ended();
+  await until(() => f.commands.length === 2);
+  expect(reads).toBe(2);
+  expect(
+    f.commands.map((command) => (command.t === "msg" ? command.text : "")),
+  ).toEqual(["uncertain first", "fresh only"]);
+  f.owner.dispose();
+  await settle();
+  expect(f.timer.jobs.size).toBe(0);
+});
+
+test("a held pointer can lock the already recording Fire after three seconds without starting a second recorder, then RMS rolls over", async () => {
+  let now = 0;
+  const f = fixture({ now: () => now });
+  const gesture = createMicrophoneGesture({
+    clock: f.timer.clock,
+    current: () => true,
+    recording: () => false,
+    start() {},
+    stop() {},
+    fireLive: () => f.owner.live(),
+    stopFire: () => f.owner.toggle(),
+    armFire: () => {
+      void f.owner.hold();
+    },
+    lockFire: () => f.owner.lock(),
+    charge() {},
+  });
+  gesture.begin(1, 100);
+  f.timer.advance(3000);
+  await until(() => f.mics[0]?.counts.starts === 1);
+  expect(get(f.owner.state).locked).toBe(false);
+  gesture.move(1, 59);
+  gesture.end(1);
+  expect(get(f.owner.state).locked).toBe(true);
+  expect(f.mics).toHaveLength(1);
+  f.mics[0].chunk();
+  f.mics[0].level(0.1);
+  now = 801;
+  f.mics[0].level(0);
+  await until(() => f.mics[1]?.counts.starts === 1);
+  expect(get(f.owner.state).locked).toBe(true);
+  gesture.begin(2, 100);
+  gesture.move(2, 0);
+  gesture.end(2);
+  await settle();
+  expect(get(f.owner.state).locked).toBe(false);
+  expect(f.mics).toHaveLength(2);
+  gesture.dispose();
+  f.owner.dispose();
+  await settle();
+  expect(f.timer.jobs.size).toBe(0);
+});

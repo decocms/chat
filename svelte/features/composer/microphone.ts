@@ -19,7 +19,9 @@ export function createMicrophoneGesture(options: {
     generation = 0,
     pointer: number | null = null,
     fired = false,
-    startY: number | null = null;
+    startY: number | null = null,
+    lockEligible = false,
+    swiped = false;
   const timers = new Set<unknown>();
   const current = (ticket: number) =>
     active && generation === ticket && options.current();
@@ -31,6 +33,8 @@ export function createMicrophoneGesture(options: {
     generation++;
     pointer = null;
     startY = null;
+    lockEligible = false;
+    swiped = false;
     fired = false;
     clear();
     options.charge(null);
@@ -56,6 +60,8 @@ export function createMicrophoneGesture(options: {
       if (!current(ticket)) return;
       pointer = id;
       startY = y ?? null;
+      lockEligible = !options.fireLive();
+      swiped = false;
       if (options.fireLive()) {
         fired = true;
         options.stopFire();
@@ -76,17 +82,20 @@ export function createMicrophoneGesture(options: {
       const ticket = generation;
       if (
         pointer !== id ||
-        fired ||
+        !lockEligible ||
+        swiped ||
         startY === null ||
         startY - y < 40 ||
         !current(ticket)
       )
         return;
+      const alreadyArmed = fired;
       fired = true;
+      swiped = true;
       clear();
       options.charge(null);
       if (!current(ticket)) return;
-      options.stop();
+      if (!alreadyArmed) options.stop();
       if (current(ticket)) (options.lockFire ?? options.armFire)();
     },
     end(id: number) {

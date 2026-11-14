@@ -750,73 +750,70 @@
         }
       }}
     />
-    {#if speech.supported || fireOwner?.supported}{#key $fireState.session}<Snapshot
-          value={$fireState.session}
-          >{#snippet children(ticket)}
-            <span class="tw:relative tw:inline-flex">
-              {#if charge !== null}<span
-                  role="progressbar"
-                  aria-label={copy.title}
-                  aria-valuemin={0}
-                  aria-valuemax={3000}
-                  aria-valuenow={400 + charge * 500}
-                  class="tw:absolute tw:inset-x-0 tw:bottom-full tw:flex tw:gap-0.5"
-                  >{#each [0, 1, 2, 3, 4, 5] as step}<span
-                      class={step <= charge
-                        ? "tw:h-1 tw:flex-1 tw:rounded-full tw:bg-warning"
-                        : "tw:h-1 tw:flex-1 tw:rounded-full tw:bg-muted"}
-                    ></span>{/each}</span
-                >{/if}
-              <IconButton
-                icon="mic"
-                label={vb.t("Ditar mensagem")}
-                title={copy.micHint}
-                aria-pressed={dictating || $fireState.talking}
-                class={dictating || $fireState.talking
-                  ? "tw:touch-none tw:bg-destructive tw:text-destructive-foreground"
-                  : "tw:touch-none tw:text-muted-foreground"}
-                disabled={!allowed || busy || fireWaiting}
-                onpointerdown={(event) => {
-                  if (
-                    !canInteract(event) ||
-                    (fireOwner && !fireOwner.owns(ticket))
-                  )
-                    return;
-                  event.preventDefault();
-                  try {
-                    event.currentTarget.setPointerCapture?.(event.pointerId);
-                  } catch {}
-                  textarea?.focus();
-                  microphone.begin(event.pointerId, event.clientY);
-                }}
-                onpointermove={(event) => {
-                  if (
-                    canInteract(event) &&
-                    (!fireOwner || fireOwner.owns(ticket))
-                  )
-                    microphone.move(event.pointerId, event.clientY);
-                }}
-                onpointerup={(event) => {
-                  if (event.currentTarget.isConnected)
-                    microphone.end(event.pointerId);
-                }}
-                onpointercancel={() => microphone.cancel()}
-                onlostpointercapture={() => microphone.cancel()}
-                oncontextmenu={(event) => event.preventDefault()}
-                onclick={(event) => {
-                  if (
-                    event.detail !== 0 ||
-                    !canInteract(event) ||
-                    (fireOwner && !fireOwner.owns(ticket))
-                  )
-                    return;
-                  event.preventDefault();
-                  textarea?.focus();
-                  microphone.toggle();
-                }}
-              />
-            </span>{/snippet}</Snapshot
-        >{/key}{/if}
+    {#if speech.supported || fireOwner?.supported}
+      <span class="tw:relative tw:inline-flex">
+        {#if charge !== null}<span
+            role="progressbar"
+            aria-label={copy.title}
+            aria-valuemin={0}
+            aria-valuemax={3000}
+            aria-valuenow={400 + charge * 500}
+            class="tw:absolute tw:inset-x-0 tw:bottom-full tw:flex tw:gap-0.5"
+            >{#each [0, 1, 2, 3, 4, 5] as step}<span
+                class={step <= charge
+                  ? "tw:h-1 tw:flex-1 tw:rounded-full tw:bg-warning"
+                  : "tw:h-1 tw:flex-1 tw:rounded-full tw:bg-muted"}
+              ></span>{/each}</span
+          >{/if}
+        <IconButton
+          icon="mic"
+          label={vb.t("Ditar mensagem")}
+          title={copy.micHint}
+          aria-pressed={dictating || $fireState.talking}
+          class={dictating || $fireState.talking
+            ? "tw:touch-none tw:bg-destructive tw:text-destructive-foreground"
+            : "tw:touch-none tw:text-muted-foreground"}
+          disabled={!allowed || busy || fireWaiting}
+          onpointerdown={(event) => {
+            if (
+              !canInteract(event) ||
+              (fireOwner && !fireOwner.owns($fireState.session))
+            )
+              return;
+            event.preventDefault();
+            try {
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            } catch {}
+            textarea?.focus();
+            microphone.begin(event.pointerId, event.clientY);
+          }}
+          onpointermove={(event) => {
+            if (
+              canInteract(event) &&
+              (!fireOwner || fireOwner.owns($fireState.session))
+            )
+              microphone.move(event.pointerId, event.clientY);
+          }}
+          onpointerup={(event) => {
+            if (event.currentTarget.isConnected)
+              microphone.end(event.pointerId);
+          }}
+          onpointercancel={() => microphone.cancel()}
+          onlostpointercapture={() => microphone.cancel()}
+          oncontextmenu={(event) => event.preventDefault()}
+          onclick={(event) => {
+            if (
+              event.detail !== 0 ||
+              !canInteract(event) ||
+              (fireOwner && !fireOwner.owns($fireState.session))
+            )
+              return;
+            event.preventDefault();
+            textarea?.focus();
+            microphone.toggle();
+          }}
+        />
+      </span>{/if}
     <div class="tw:relative">
       <IconButton
         icon="plus"
