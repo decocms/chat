@@ -6,7 +6,7 @@ import { callTool, createConn, deleteConn, getConn, listConns, publicConn } from
 import { AuthNeeded, signedInTo } from "./mcpauth";
 import { ASK_OPENER } from "./book";
 import { cardOf } from "./card";
-import { LISTEN_FRESH, markListening } from "./person";
+import { LISTEN_FRESH, markListening, poke } from "./person";
 import type { AgentProps } from "./connect";
 import type { Env } from "./index";
 import { checkEmbed, EMBED_MAX, withBridge } from "./embed";
@@ -40,7 +40,7 @@ Workflow:
 - When you need your human to pick between options or say yes/no ("do I do it?", which files to delete, which approach), post the question with choices (a yes/no gets e.g. ["Sim, faz", "Não", "Ajustar antes"]) (and multi: true for several): the room shows buttons and their pick arrives as their message replying to yours. Don't ask them to type numbers.
 - Every message from your human gets an ack (doing when you pick it up, done when finished, idle when it needs nothing from you): read_room lists the ones from the last 48h that none of your human's agents acked as unacked, so nothing you skipped stays hidden. A short answer (no work to deliver) goes out as a post with reply_to = their message: that closes your ack; work you deliver gets done: true. Read every new message read_room returns, not only the last few: two can arrive seconds apart. When post returns unread_from_your_human, your human wrote that while you worked: handle it before going on. When you notice you failed (you skipped or ignored a message of your human's, a tool call failed and you gave up, you reported something wrong), call report_issue right away with what happened, then fix it and say so in the room.
 - A request is an epic, almost always: when your human asks you for a piece of work, (1) start_epic for it with 2-5 concrete tasks (each one checkable), (2) post in the epic (thread = its id) how you'll do it in 2-4 lines, or the question that blocks you if something is unclear, (3) unless you asked something, do it right away without waiting for an OK, moving each task to doing and done as you go, (4) post the result with done: true. If the work ships somewhere (deploy, publish, release): once it's out, update_epic prod: "deployed"; then open it in production, check it really works, and update_epic prod: "verified" with prod_note saying what you checked (URL, what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod". With every task done the epic archives itself and shows as finished; if your human writes in it again, it reopens: add the new tasks there and run the same loop. Only quick answers and clarifications stay where they were asked. An epic you worked in archives itself only once every task is done AND the thread has your delivery (done: true) saying what you tested, plus a screenshot when there's something to see (upload it with thread = the epic id); verification that needs a person = a task in review with its owner, which keeps the epic open.
-- Modo Fire (realtime): a message of your human with realtime: true is a piece of live speech. vibebook's fast model already applied it to the live card it replies to (or the file named in it). Act fast and keep listening: check it against real data with your tools and fix it with fire_card (the whole new card for that message) or a new version of the file (upload_file, same name). No epic, no plan, no chat commentary; ack it idle, or done once you fixed something. Several pieces can arrive at once: handle the newest state once.
+- Modo Fire: while your human holds space in the app, they talk to you live and you run as Haiku (the herdr runner switched your model; vibebook listen prints their words with a 🔥 line). Answer at once, one post with reply_to = their message, no ack, no read_room, no epic, no plan: a card for numbers/status/tables, short markdown for an answer, an HTML file beside the chat (upload_file + open_file) for a page. To refine what you just drew, fire_card rewrites your card in place; switch format whenever it fits better. Big work (code, repo, deploys): add_task it and say in one line you'll do it once Fire ends.
 - Deploy banner (required): every push to main that deploys, and every CLI publish, gets one native banner in the room's main thread once the build is green: post with thread \"main\" and a card (Card titled \"🚀 No ar · <commit or version>\", one Field per change a person would notice, Actions with a LinkButton to each epic it came from (#e<epic id>) and one to the commit). Not a plain text line.
 - Progress reports: when you work on something that belongs to a room (the repo has a .vibebook file with room_id, or your human said so), the room is the team's live channel. Post short updates with links: starting a task (set_task_status doing), an important commit, a PR ready for review (who should review it; task to review), a deploy or shipped change (task to done), a blocker and who you need. Skip routine steps and WIP pushes.`;
 
@@ -384,11 +384,20 @@ const TOOLS = [
   },
   {
     name: "fire_card",
-    description: "Modo Fire: replace the live card of a Fire session of your human (the message a realtime piece replies to) with a whole new card (same catalog as post's card). Use it to fix what the fast model drew: real numbers from your tools, a better layout. Only your human's live Fire cards.",
+    description: "Rewrite a card in place (Modo Fire: draw fast, then refine): the whole new card (same catalog as post's card) for a card message you or your human posted.",
     inputSchema: {
       type: "object",
-      properties: { room_id: { type: "string" }, message_id: { type: "number", description: "the live card message (the realtime piece's reply_to)" }, card: { type: "object", description: "the whole new card spec, as in post" } },
+      properties: { room_id: { type: "string" }, message_id: { type: "number", description: "the card message to rewrite" }, card: { type: "object", description: "the whole new card spec, as in post" } },
       required: ["room_id", "message_id", "card"],
+    },
+  },
+  {
+    name: "fire_state",
+    description: "Modo Fire, for the vibebook herdr runner: report that this Claude's model switch for a room happened (ready = now on Haiku, off = back on its model, failed + note). The app shows it to your human.",
+    inputSchema: {
+      type: "object",
+      properties: { room_id: { type: "string" }, state: { type: "string", enum: ["switching", "ready", "off", "failed"] }, model: { type: "string" }, note: { type: "string" } },
+      required: ["room_id", "state"],
     },
   },
   {
@@ -508,17 +517,19 @@ const rpcError = (id: unknown, code: number, message: string, status = 200) => R
 type Args = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
+/** Modo Fire is on for a membership: turned on in the last 30 min (the app turns it off; this bounds a forgotten one). */
+const fireOn = (at: number | null | undefined) => !!at && Date.now() - at < 30 * 60_000;
 /** Rooms with messages this agent hasn't read (agent_reads vs books.last_msg_id); `since` = only rooms active after it (ms). */
 export const unreadRooms = (db: D1Database, email: string, agent: string, only = "", since = 0) =>
   db
     .prepare(
-      `SELECT b.id, b.title, coalesce(b.last_msg_id, 0) - coalesce(c.last_id, 0) AS n
+      `SELECT b.id, b.title, coalesce(b.last_msg_id, 0) - coalesce(c.last_id, 0) AS n, m.fire_at
        FROM members m JOIN books b ON b.id = m.book_id
        LEFT JOIN agent_reads c ON c.agent = ? AND c.book_id = b.id
        WHERE m.email = ? AND m.archived_at IS NULL AND coalesce(b.last_msg_id, 0) > coalesce(c.last_id, 0) AND b.updated_at > ? ${only ? "AND b.id = ?" : ""} LIMIT 20`,
     )
     .bind(...(only ? [agent, email, since, only] : [agent, email, since]))
-    .all<{ id: string; title: string; n: number }>();
+    .all<{ id: string; title: string; n: number; fire_at: number | null }>();
 
 /**
  * Each connected agent (one MCP session of one person's Claude) has its own read cursor, so two Claudes of the
@@ -609,14 +620,15 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
         if (routed && r.results.length) {
           const keep = [];
           for (const b of r.results) {
-            if (await gate(env, me, b.id).catch((e) => (console.error("router gate", String(e)), true))) keep.push(b);
+            // Modo Fire: the person is talking to this Claude live; no gate (and no Jev latency) in between.
+            if (fireOn(b.fire_at) || await gate(env, me, b.id).catch((e) => (console.error("router gate", String(e)), true))) keep.push(b);
             else await db.prepare(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE agent = ? AND book_id = ?`).bind(b.id, me.agent, b.id).run();
           }
           r.results = keep;
         }
         if (r.results.length) {
           ctx.waitUntil(markDelivered(env, me, r.results));
-          return { new: r.results.map((b) => ({ room_id: b.id, title: b.title, new_messages: b.n, url: `${origin}/b/${b.id}` })), next: "call read_room on these rooms" };
+          return { new: r.results.map((b) => ({ room_id: b.id, title: b.title, new_messages: b.n, url: `${origin}/b/${b.id}`, ...(fireOn(b.fire_at) ? { fire: true } : {}) })), next: "call read_room on these rooms" };
         }
         if (Date.now() + 3000 > deadline) {
           // Quiet for a while: at most once an hour, your human's open tasks you (their Claude) left halfway.
@@ -1042,6 +1054,13 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success) throw new Error("rate limited. Wait a bit.");
       return bookStub(env, id).agentEdit(id, me.email, name, a);
+    }
+    case "fire_state": {
+      const id = await room(), state = str(a.state);
+      if (!["switching", "ready", "off", "failed"].includes(state)) throw new Error("state: switching | ready | off | failed");
+      ctx.waitUntil(poke(env, [me.email], { t: "fireState", book: id, state, model: str(a.model).slice(0, 60), note: str(a.note).slice(0, 200) }));
+      ctx.waitUntil(track(env, "fire_state", { user: me.email, dims: { book: id, state } }));
+      return { ok: true };
     }
     case "fire_card": {
       const id = await room();

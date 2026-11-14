@@ -21,6 +21,7 @@
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "dfed86f52e7740d3bf9311b26b03ac16" }],
   // The landing, editable in deco Studio (site/). Deploy site/ first: cd site && bun run deploy.
   "services": [{ "binding": "SITE", "service": "vibebook-site" }],
+  "ai": { "binding": "AI" },
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "vibebook-files" }],
   "ratelimits": [
     { "name": "AI_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },

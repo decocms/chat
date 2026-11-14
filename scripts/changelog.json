@@ -58,17 +58,17 @@
       },
       {
         "title": {
-          "pt": "Modo Fire: fale e veja a página mudar ao vivo",
-          "en": "Fire mode: talk and watch the page change live"
+          "pt": "Modo Fire: fale com o seu Claude ao vivo",
+          "en": "Fire mode: talk to your Claude live"
         },
         "text": {
-          "pt": "Segure o 🎤 por 3 segundos: ele pega fogo. A cada pausa, o que você falou vai direto pra um modelo rápido, que aplica na página aberta ao lado do chat (ou começa uma nova) em poucos segundos. Ao parar, a transcrição vai pro chat com o arquivo e o seu Claude confere e melhora.",
-          "en": "Hold 🎤 for 3 seconds: it catches fire. At every pause, what you said goes straight to a fast model that applies it to the page open beside the chat (or starts a new one) in a few seconds. When you stop, the transcript goes to the chat with the file and your Claude reviews and improves it."
+          "pt": "Com a caixa de mensagem vazia, segure espaço (ou o 🎤 por 3 segundos): o seu próprio Claude, com as ferramentas dele, vira Haiku pra responder rápido, e a barra mostra quando a troca terminou. Fale segurando e solte pra mandar: o áudio é transcrito no servidor com as palavras da sala (vibebook, nomes, épicos), e ele responde com um card, um texto curto ou uma página ao lado. Esc sai e ele volta pro modelo de antes.",
+          "en": "With the message box empty, hold Space (or 🎤 for 3 seconds): your own Claude, with its tools, turns into Haiku to answer fast, and the bar shows when the switch is done. Talk while holding and let go to send: the audio is transcribed on the server with the room's words (vibebook, names, epics), and it answers with a card, a short text or a page beside the chat. Esc leaves and it goes back to its model."
         },
-        "image": "changelog/2026-11-14-fire.webp",
+        "image": "changelog/2026-11-14-fire2.webp",
         "alt": {
-          "pt": "Roteiro de viagem feito ao vivo, aberto ao lado do chat, com a barra do Modo Fire",
-          "en": "A travel plan made live, open beside the chat, with the Fire mode bar"
+          "pt": "Barra do Modo Fire: Haiku 5.5 pronto, com a última fala enviada",
+          "en": "Fire mode bar: Haiku 5.5 ready, with the last thing said"
         }
       },
       {
@@ -105,7 +105,8 @@
         "Modo Fire híbrido: o modelo rápido desenha na hora e cada trecho falado também acorda o seu Claude, que confere com dados de verdade e corrige o card (ferramenta fire_card) ou a página enquanto você fala",
         "Modo Fire troca de formato no meio: \"faz um html\" sai do card e começa uma página, \"faz um card\" volta pro card; pedidos de infraestrutura e gasto usam os números de produto e de custo de IA",
         "Mensagem enviada com uma página aberta ao lado do chat leva junto qual página você estava vendo, então \"muda isso aqui\" chega no seu Claude com o arquivo certo",
-        "Apps dentro do doc ocupam a largura toda do documento"
+        "Apps dentro do doc ocupam a largura toda do documento",
+        "Um épico que já subiu, mas onde você pediu correções depois, mostra \"🚀↻ correções em andamento\" em vez de só \"no ar\""
       ],
       "en": [
         "The inbox now shows, besides what's waiting on you, the mentions of you and your open tasks (to do, doing, review) across every room — in three sections, with a this-room / all toggle",
@@ -124,7 +125,8 @@
         "Hybrid Fire mode: the fast model draws right away and each spoken piece also wakes your Claude, which checks it with real data and fixes the card (fire_card tool) or the page while you talk",
         "Fire mode switches format mid-session: \"make an html\" leaves the card for a page, \"make a card\" goes back; asking about infrastructure and spend uses the product and AI-cost numbers",
         "A message sent while a page is open beside the chat carries which page you were looking at, so \"change this\" reaches your Claude with the right file",
-        "Apps inside the doc take the doc's full width"
+        "Apps inside the doc take the doc's full width",
+        "An epic that shipped, but where you asked for changes afterwards, shows \"🚀↻ changes in progress\" instead of just \"live\""
       ]
     },
     "fixes": {

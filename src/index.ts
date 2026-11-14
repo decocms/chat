@@ -1,4 +1,3 @@
-import { fire } from "./fire";
 import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api";
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
@@ -46,6 +45,8 @@ export type Env = {
   AGENT_LIMIT: RateLimit;
   EMAIL: SendEmail;
   AI_LIMIT: RateLimit;
+  /** Workers AI: Modo Fire's speech-to-text (Whisper). */
+  AI: Ai;
   UPLOAD_LIMIT: RateLimit;
   FILES: R2Bucket;
   LOGIN_LIMIT: RateLimit;
@@ -140,7 +141,7 @@ const SCHEMA = [
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
-const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`];
+const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`];
 // Only when the schema text changed since the last run (a cold isolate used to send ~60 DDL writes to the primary).
 const schemaKey = (alters: string[]) => { let h = 0; for (const ch of [...SCHEMA, ...alters].join(";")) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return String(h); };
 export const ensureSchema = (db: D1Database) =>
@@ -485,15 +486,38 @@ app.route("/", uploadsApi);
 
 // Files: stored in R2 under <book>/<file>; types, limits and serving headers live in rooms.ts.
 
-// Modo Fire: a piece of live speech applied by a fast model to the file open beside the chat (src/fire.ts).
+// Modo Fire (Gui #2448): holding space turns the person's own Claude into Haiku for live talk. On/off is stored on the
+// membership (members.fire_at, so wait_for_messages tells the listener) and poked to their machine, where the hub hands
+// it to the herdr runner, which types /model into that Claude and reports back with MCP fire_state.
 app.post("/api/books/:id/fire", async (c) => {
   const id = c.req.param("id"), email = c.get("email");
   if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
-  if (!(await c.env.AI_LIMIT.limit({ key: `fire:${email}` })).success) return c.json({ ok: false, error: "rate limited: wait a few seconds" }, 429);
+  const on = !!(await c.req.json<{ on?: boolean }>().catch(() => ({}) as { on?: boolean })).on;
+  await c.env.DB.prepare(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`).bind(on ? Date.now() : null, id, email).run();
+  c.executionCtx.waitUntil(poke(c.env, [email], { t: "fire", book: id, on }));
+  c.executionCtx.waitUntil(track(c.env, on ? "fire_on" : "fire_off", { user: email, dims: { book: id } }));
+  return c.json({ ok: true });
+});
+// Modo Fire's ears: one utterance (what was said while space was held) → Whisper on Workers AI, with the room's words
+// (title, people, epics: `prompt`, sent by the app) as the initial prompt so "vibebook" and names come out right.
+app.post("/api/books/:id/stt", async (c) => {
+  const id = c.req.param("id"), email = c.get("email");
+  if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
+  if (!(await c.env.UPLOAD_LIMIT.limit({ key: `stt:${email}` })).success) return c.json({ ok: false, error: "rate limited: wait a few seconds" }, 429);
+  const buf = await c.req.arrayBuffer();
+  if (!buf.byteLength || buf.byteLength > 4_000_000) return c.json({ ok: false, error: "audio empty or over 4 MB" }, 400);
+  const started = Date.now();
   try {
-    return c.json(await fire(c.env, id, email, await c.req.json().catch(() => ({}))));
+    const out = (await c.env.AI.run("@cf/openai/whisper-large-v3-turbo", {
+      audio: Buffer.from(buf).toString("base64"),
+      language: (c.req.query("lang") || "pt").slice(0, 5),
+      initial_prompt: (c.req.query("prompt") ?? "vibebook").slice(0, 600),
+      vad_filter: true,
+    } as never)) as { text?: string };
+    c.executionCtx.waitUntil(track(c.env, "stt", { user: email, dims: { book: id, ms: Date.now() - started, bytes: buf.byteLength } }));
+    return c.json({ ok: true, text: (out.text ?? "").trim() });
   } catch (e) {
-    return c.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 200) }, 400);
+    return c.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 200) }, 502);
   }
 });
 app.get("/api/books/:id/files/:fid", async (c) => {

@@ -1159,9 +1159,6 @@ export class Book extends DurableObject<Env> {
         // A reminder file's prompt, posted by @vibe, is the instruction of whoever saved the file.
         from_your_human: mine,
         reminder: m.tag === "reminder" || undefined,
-        // Modo Fire: a piece of live speech, already applied by the fast model to the card it replies to (or the file
-        // named in it). Act fast, fix with fire_card / a new file version, no epic.
-        realtime: m.tag === "fire" || undefined,
         to_agent: m.author === email && m.kind !== "agent" ? toAgents((m.text as string) ?? "").join(", ") || undefined : undefined,
         not_for_you: (m.author === email && m.kind !== "agent" && forOther((m.text as string) ?? "")) || undefined,
         reply_to: (m.reply_to as number | null) ?? undefined,
@@ -1500,17 +1497,6 @@ export class Book extends DurableObject<Env> {
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
-  }
-  /** Modo Fire, hybrid (Gui #2384): every piece of live speech, once the fast model applied it, is also posted as the
-   * person's own message tagged `fire` (reply_to = the live card, or the file named in the text). Not quiet, so their
-   * listening Claude wakes and checks it with real tools/data; the app doesn't draw these lines (the card and the
-   * review message already show them). */
-  async firePiece(bookId: string, email: string, thread: string, text: string, ref: { card_msg?: number; file?: { id: string; name: string } }) {
-    this.bind(bookId);
-    if (findSecret(text)) return;
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
-    const at = ref.file ? `\n\n(ao vivo em ${ref.file.name}, file_id ${ref.file.id})` : "";
-    this.addMessage(thread, email, `🔥 ${text.slice(0, 1500)}${at}`, { tag: "fire", replyTo: ref.card_msg });
   }
   async humanPost(bookId: string, email: string, raw: string, thread = "main"): Promise<PostMessageResponse> {
     this.bind(bookId);
