@@ -407,13 +407,15 @@ export const roomApi = accountApi
     const svc=c.get("svc"),id=c.req.param("id");
     if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
     const {on}=c.req.valid("json");
-    await svc.sql(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`,on?Date.now():null,id,c.get("email"));
-    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
     // Completed Fire talk belongs to the dedicated Haiku; other listeners resume after it.
+    // Only an active Fire session hands off cursors. A post-ACK off retry must
+    // not skip ordinary messages received after the first off cleared fire_at.
     if(!on){
-      await svc.sql(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ?`,id,id,c.get("email"));
+      await svc.sql(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ? AND EXISTS (SELECT 1 FROM members WHERE book_id = ? AND email = ? AND fire_at IS NOT NULL)`,id,id,c.get("email"),id,c.get("email"));
       if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
     }
+    await svc.sql(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`,on?Date.now():null,id,c.get("email"));
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
     svc.pokeFire(id,on);svc.track(on?"fire_on":"fire_off",{book:id});
     return c.json(FireResult.parse(ok),200);
   })

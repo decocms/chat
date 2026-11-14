@@ -1228,13 +1228,21 @@ test("runner Fire toggles only the owned membership and rejects the retired spee
     { book: "room", on: true },
     { book: "room", on: false },
   ]);
-  expect(f.writes.slice(0, 2).map((value) => value.values.slice(1))).toEqual([
+  expect(
+    [f.writes[0], f.writes[2]].map((value) => value.values.slice(1)),
+  ).toEqual([
     ["room", "test@example.com"],
     ["room", "test@example.com"],
   ]);
   expect(typeof f.writes[0].values[0]).toBe("number");
-  expect(f.writes[1].values[0]).toBe(null);
-  expect(f.writes[2].values).toEqual(["room", "room", "test@example.com"]);
+  expect(f.writes[2].values[0]).toBe(null);
+  expect(f.writes[1].values).toEqual([
+    "room",
+    "room",
+    "test@example.com",
+    "room",
+    "test@example.com",
+  ]);
   for (const body of [
     {},
     { on: "true" },
@@ -1298,6 +1306,14 @@ test("ending Fire advances only this person's current room cursors and rejects l
       { agent: "other", last_id: 11 },
       { agent: "peer", last_id: 9 },
     ]);
+    // A restore retry after its first HTTP ACK must not skip ordinary messages
+    // which arrived after Fire ended (the runner may still be in its grace).
+    const endedCursors = cursors();
+    db.query("UPDATE books SET last_msg_id=43 WHERE id='room'").run();
+    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
+      200,
+    );
+    expect(cursors()).toEqual(endedCursors);
     db.query("UPDATE agent_reads SET last_id=2 WHERE email=?").run(
       "test@example.com",
     );
@@ -1307,7 +1323,29 @@ test("ending Fire advances only this person's current room cursors and rejects l
       403,
     );
     expect(cursors()).toEqual(beforeRevocation);
-    expect(pokes).toEqual([true, false]);
+    expect(pokes).toEqual([true, false, false]);
+    // Refusal before the cursor statement performs no handoff or notification.
+    db.query("UPDATE members SET fire_at=1").run();
+    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
+      403,
+    );
+    expect(cursors()).toEqual(beforeRevocation);
+    // Membership loss during the cursor await cannot clear Fire or notify the
+    // runner. This does not pretend the completed D1 statement was rolled back.
+    member = true;
+    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
+      403,
+    );
+    expect(db.query("SELECT fire_at FROM members").get()).toEqual({
+      fire_at: 1,
+    });
+    expect(cursors()).toEqual([
+      { agent: "haiku", last_id: 43 },
+      { agent: "opus", last_id: 43 },
+      { agent: "other", last_id: 2 },
+      { agent: "peer", last_id: 9 },
+    ]);
+    expect(pokes).toEqual([true, false, false]);
   } finally {
     db.close();
   }
