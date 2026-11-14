@@ -1,4 +1,5 @@
 import { chatTime, chatDateTime } from "../svelte/features/chat/time";
+import { productionStatuses } from "../svelte/features/chat/production";
 import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../svelte/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
@@ -213,4 +214,73 @@ test("cached full chat timestamp retains browser date/time defaults", () => {
       expect(chatDateTime(locale, ts)).toBe(
         new Date(ts).toLocaleString(locale),
       );
+});
+
+test("production changes cue requires this reader’s later human message in the exact deployed epic", () => {
+  const r = room([]);
+  r.epics = [
+    {
+      id: "e",
+      title: "Epic",
+      tasks: [],
+      prod: { stage: "verified", at: 1000, note: "Verified before" },
+    },
+  ];
+  const own = { ...message(2, "change", "e"), ts: 1001 };
+  for (const incoming of [
+    { ...own, ts: 1000 },
+    { ...own, kind: "agent" },
+    { ...own, author: "other@test" },
+    { ...own, thread: "other" },
+  ]) {
+    r.messages = [incoming];
+    expect(productionStatuses(r).get("e")).toBe("verified");
+  }
+  r.messages = [own];
+  expect(productionStatuses(r).get("e")).toBe("changes");
+  expect(r.epics[0]!.prod?.stage).toBe("verified");
+  expect(r.epics[0]!.prod?.note).toBe("Verified before");
+});
+test("production cue keeps archive/deploy semantics and resets when the next version catches up", () => {
+  const r = room([{ ...message(2, "change", "e"), ts: 2000 }]);
+  r.epics = [
+    {
+      id: "e",
+      title: "Epic",
+      tasks: [],
+      archived: true,
+      prod: { stage: "verified", at: 1000, note: "Verified" },
+    },
+  ];
+  expect(productionStatuses(r).get("e")).toBe("verified");
+  r.epics = [
+    { ...r.epics[0]!, archived: false, prod: { stage: "deployed", at: 1000 } },
+  ];
+  expect(productionStatuses(r).get("e")).toBe("changes");
+  r.epics = [{ ...r.epics[0]!, prod: { stage: "deployed", at: 2000 } }];
+  expect(productionStatuses(r).get("e")).toBe("live");
+  r.epics = [{ ...r.epics[0]!, prod: { stage: "verified" } }];
+  expect(productionStatuses(r).get("e")).toBe("verified");
+  r.epics = [{ ...r.epics[0]!, prod: null }];
+  expect(productionStatuses(r).has("e")).toBe(false);
+});
+test("production cue includes loaded origins but canonical message IDs take precedence", () => {
+  const r = room([
+    { ...message(5, "canonical", "e"), author: "other@test", ts: 3000 },
+  ]);
+  r.epics = [
+    {
+      id: "e",
+      title: "Epic",
+      tasks: [],
+      prod: { stage: "verified", at: 1000 },
+    },
+  ];
+  r.origins = [{ ...message(5, "stale origin duplicate", "e"), ts: 2000 }];
+  expect(productionStatuses(r).get("e")).toBe("verified");
+  r.origins.push({ ...message(6, "origin change", "e"), ts: 2000 });
+  expect(productionStatuses(r).get("e")).toBe("changes");
+  const before = JSON.stringify(r);
+  productionStatuses(r);
+  expect(JSON.stringify(r)).toBe(before);
 });

@@ -12,6 +12,7 @@
   import Button from "./lib/ui/Button.svelte";
   import Avatar from "./lib/ui/Avatar.svelte";
   import NeedsYou from "./features/needs-you/NeedsYou.svelte";
+  import { productionStatuses } from "./features/chat/production";
   let {
     room,
     thread,
@@ -36,6 +37,7 @@
   const footers = $derived(messageFooters(room, thread, now));
   const workers = $derived(threadWorkers(room, thread, now));
   const epic = $derived(room.epics.find((e) => e.id === thread));
+  const production = $derived(productionStatuses(room).get(thread));
 </script>
 
 {#key room.id + ":" + thread}
@@ -156,11 +158,19 @@
         class="tw:mx-3 tw:mt-3 tw:space-y-1 tw:rounded-surface tw:border tw:border-border tw:p-4"
       >
         <p class="tw:m-0 tw:font-medium">
-          {epic.prod.stage === "verified"
-            ? `✓✓ ${vb.t("Verificado em prod")}`
-            : `🚀 ${vb.t("No ar")}`}
+          {production === "changes"
+            ? `🚀↻ ${vb.t("Uma versão está no ar · correções em andamento")}`
+            : epic.prod.stage === "verified"
+              ? `✓✓ ${vb.t("Verificado em prod")}`
+              : `🚀 ${vb.t("No ar")}`}
         </p>
-        {#if epic.prod.stage === "verified" && epic.prod.note}<p
+        {#if production === "changes"}<p
+            class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+          >
+            {vb.t(
+              "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.",
+            )}
+          </p>{:else if epic.prod.stage === "verified" && epic.prod.note}<p
             class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-xs tw:text-muted-foreground"
           >
             {epic.prod.note}

@@ -13,6 +13,7 @@
   import Select from "../../lib/ui/Select.svelte";
   import Tabs from "../../lib/ui/Tabs.svelte";
   import { cn } from "../../lib/ui/utils";
+  import { productionStatuses } from "../chat/production";
   import {
     archivedEpics,
     activeEpics,
@@ -91,6 +92,7 @@
   ];
   const active = $derived(activeEpics(room.epics, thread));
   const archived = $derived(archivedEpics(room.epics, room.messages));
+  const production = $derived(productionStatuses(room));
   const mode = $derived(
     $navigation.archived && archived.length > 0 ? "archived" : "active",
   );
@@ -380,10 +382,17 @@
                   />
                   {#if epic.prod}<span
                       title={vb.t(
-                        epic.prod.stage === "verified"
-                          ? "Verificado em prod"
-                          : "No ar, falta verificar em prod",
-                      )}>{epic.prod.stage === "verified" ? "✓✓" : "🚀"}</span
+                        production.get(epic.id) === "changes"
+                          ? "Uma versão está no ar; você pediu correções depois"
+                          : epic.prod.stage === "verified"
+                            ? "Verificado em prod"
+                            : "No ar, falta verificar em prod",
+                      )}
+                      >{production.get(epic.id) === "changes"
+                        ? "🚀↻"
+                        : epic.prod.stage === "verified"
+                          ? "✓✓"
+                          : "🚀"}</span
                     >{/if}
                   {#if epic.tasks.length}<span
                       class={!selectionDisabled && thread === epic.id

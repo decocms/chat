@@ -1286,6 +1286,50 @@ describe("native Svelte chat", () => {
       },
     };
   }
+  test("native production endcard shows requested corrections without rewriting verified or archived state", async () => {
+    const room = fixture();
+    room.epics = [
+      {
+        id: "e",
+        title: "Deployed",
+        tasks: [],
+        prod: { stage: "verified", at: 1000, note: "Verified deployment" },
+      },
+    ];
+    room.messages = [
+      { ...message(2, "please change it"), author: room.me, kind: null },
+    ];
+    const h = renderChat(room);
+    flushSync();
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).toContain("🚀↻");
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).toContain("correções em andamento");
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).not.toContain("Verified deployment");
+    const archived = {
+      ...room,
+      epics: [{ ...room.epics[0]!, archived: true }],
+    };
+    h.update(archived);
+    await tick();
+    flushSync();
+    expect(h.target.querySelector("[data-chat-end]")?.textContent).toContain(
+      "Agent fez",
+    );
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).toContain("✓✓");
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).toContain("Verified deployment");
+    expect(
+      h.target.querySelector("[data-chat-production]")?.textContent,
+    ).not.toContain("correções em andamento");
+  });
   test("older bare file chips request one canonical index and replace localized fallback with the exact escaped filename", async () => {
     const url = "https://vibebook.test/api/books/abc123/files/aa11";
     const room: Room = {
@@ -2889,6 +2933,37 @@ describe("stable native sidebar integration", () => {
       },
     };
   }
+  test("native epic tree changes cue follows the reader’s canonical post-deploy message and clears for archived epics", async () => {
+    const room = fixture();
+    room.epics = [
+      {
+        id: "e",
+        title: "Deployed",
+        tasks: [],
+        prod: { stage: "verified", at: 1000 },
+      },
+    ];
+    room.messages = [
+      { id: 50, thread: "e", text: "correction", author: room.me, ts: 2000 },
+    ];
+    const h = sidebar(room);
+    flushSync();
+    const row = () => h.target.querySelector('[data-epic-thread="e"]');
+    expect(row()?.textContent).toContain("🚀↻");
+    expect(
+      row()?.querySelector(
+        '[title="Uma versão está no ar; você pediu correções depois"]',
+      ),
+    ).not.toBeNull();
+    h.view.update({
+      ...h.props,
+      room: { ...room, epics: [{ ...room.epics[0]!, archived: true }] },
+    });
+    await tick();
+    flushSync();
+    expect(row()?.textContent).toContain("✓✓");
+    expect(row()?.textContent).not.toContain("🚀↻");
+  });
   test("selected archived epic remains in normal order with an accent bar and readable cue", async () => {
     const room = fixture();
     room.epics = [

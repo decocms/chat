@@ -18,6 +18,12 @@ export const applicationLocale = (
   language: ApplicationLanguage,
 ): ApplicationLocale => (language === "en" ? "en-US" : "pt-BR");
 const EN: Readonly<Record<string, string>> = {
+  "Uma versão está no ar; você pediu correções depois":
+    "A version is live; you asked for changes after it",
+  "Uma versão está no ar · correções em andamento":
+    "A version is live · changes in progress",
+  "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.":
+    "You asked for changes after this deploy; the next version isn’t out yet.",
   "aberto ao lado": "open beside",
   Abrir: "Open",
   "Pôr no doc": "Put in doc",
