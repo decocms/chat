@@ -54,7 +54,6 @@ function fixture(overrides: Partial<ApiServices> = {}) {
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
     isMember: async () => true,
-    pokeFire: () => {},
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
@@ -1212,143 +1211,18 @@ test("focus relay authorizes the requested room before emitting a person-channel
   expect(pokes).toEqual(["owned-room"]);
 });
 
-test("runner Fire toggles only the owned membership and rejects the retired speech contract", async () => {
-  const pokes: unknown[] = [],
-    f = fixture({
-      pokeFire: (book, on) => {
-        pokes.push({ book, on });
-      },
-    });
-  for (const on of [true, false]) {
-    const answer = await f.json("/api/books/room/fire", { on });
-    expect(answer.status).toBe(200);
-    expect(await answer.json()).toEqual({ ok: true });
-  }
-  expect(pokes).toEqual([
-    { book: "room", on: true },
-    { book: "room", on: false },
-  ]);
-  expect(
-    [f.writes[0], f.writes[2]].map((value) => value.values.slice(1)),
-  ).toEqual([
-    ["room", "test@example.com"],
-    ["room", "test@example.com"],
-  ]);
-  expect(typeof f.writes[0].values[0]).toBe("number");
-  expect(f.writes[2].values[0]).toBe(null);
-  expect(f.writes[1].values).toEqual([
-    "room",
-    "room",
-    "test@example.com",
-    "room",
-    "test@example.com",
-  ]);
-  for (const body of [
-    {},
-    { on: "true" },
-    { text: "old model request" },
-    { on: true, extra: "no" },
-    { on: true, padding: "x".repeat(2000) },
-  ])
-    expect((await f.json("/api/books/room/fire", body)).status).toBe(400);
-  const denied = fixture({
-    isMember: async () => false,
-    pokeFire: () => {
-      throw Error("unexpected poke");
-    },
+test("retired Fire endpoint cannot toggle membership or hand off runner cursors", async () => {
+  let transcriptions = 0;
+  let membershipReads = 0;
+  const f = fixture({
+    isMember: async () => { membershipReads++; return true; },
+    transcribe: async () => { transcriptions++; return { ok: true, text: "unexpected" }; },
   });
-  expect((await denied.json("/api/books/room/fire", { on: true })).status).toBe(
-    403,
-  );
-  expect(denied.writes).toEqual([]);
-});
-
-test("ending Fire advances only this person's current room cursors and rejects late membership loss", async () => {
-  const { Database } = await import("bun:sqlite");
-  const db = new Database(":memory:");
-  db.exec(`CREATE TABLE members(book_id TEXT, email TEXT, fire_at INTEGER);
-    CREATE TABLE books(id TEXT, last_msg_id INTEGER);
-    CREATE TABLE agent_reads(book_id TEXT, email TEXT, agent TEXT, last_id INTEGER);
-    INSERT INTO members VALUES('room','test@example.com',NULL);
-    INSERT INTO books VALUES('room',42),('other',99);
-    INSERT INTO agent_reads VALUES
-      ('room','test@example.com','opus',3),
-      ('room','test@example.com','haiku',7),
-      ('room','peer@example.com','peer',9),
-      ('other','test@example.com','other',11);`);
-  try {
-    let member = true;
-    let revokeAfterWrite = false;
-    const pokes: boolean[] = [];
-    const f = fixture({
-      isMember: async () => member,
-      sql: async (query, ...values) => {
-        db.query(query).run(...values);
-        if (revokeAfterWrite) member = false;
-      },
-      pokeFire: (_book, on) => {
-        pokes.push(on);
-      },
-    });
-    const cursors = () =>
-      db.query("SELECT agent,last_id FROM agent_reads ORDER BY agent").all();
-    const initial = cursors();
-    expect((await f.json("/api/books/room/fire", { on: true })).status).toBe(
-      200,
-    );
-    expect(cursors()).toEqual(initial);
-    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
-      200,
-    );
-    expect(cursors()).toEqual([
-      { agent: "haiku", last_id: 42 },
-      { agent: "opus", last_id: 42 },
-      { agent: "other", last_id: 11 },
-      { agent: "peer", last_id: 9 },
-    ]);
-    // A restore retry after its first HTTP ACK must not skip ordinary messages
-    // which arrived after Fire ended (the runner may still be in its grace).
-    const endedCursors = cursors();
-    db.query("UPDATE books SET last_msg_id=43 WHERE id='room'").run();
-    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
-      200,
-    );
-    expect(cursors()).toEqual(endedCursors);
-    db.query("UPDATE agent_reads SET last_id=2 WHERE email=?").run(
-      "test@example.com",
-    );
-    const beforeRevocation = cursors();
-    revokeAfterWrite = true;
-    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
-      403,
-    );
-    expect(cursors()).toEqual(beforeRevocation);
-    expect(pokes).toEqual([true, false, false]);
-    // Refusal before the cursor statement performs no handoff or notification.
-    db.query("UPDATE members SET fire_at=1").run();
-    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
-      403,
-    );
-    expect(cursors()).toEqual(beforeRevocation);
-    // Membership loss during the cursor await cannot clear Fire or notify the
-    // runner. This does not pretend the completed D1 statement was rolled back.
-    member = true;
-    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
-      403,
-    );
-    expect(db.query("SELECT fire_at FROM members").get()).toEqual({
-      fire_at: 1,
-    });
-    expect(cursors()).toEqual([
-      { agent: "haiku", last_id: 43 },
-      { agent: "opus", last_id: 43 },
-      { agent: "other", last_id: 2 },
-      { agent: "peer", last_id: 9 },
-    ]);
-    expect(pokes).toEqual([true, false, false]);
-  } finally {
-    db.close();
-  }
+  for (const body of [{ on: true }, { on: false }, { text: "old live mode" }])
+    expect((await f.json("/api/books/room/fire", body)).status).toBe(404);
+  expect(f.writes).toEqual([]);
+  expect(membershipReads).toBe(0);
+  expect(transcriptions).toBe(0);
 });
 
 test("STT real handlers bound raw audio, gate membership/rate, and validate responses", async () => {
@@ -1439,22 +1313,14 @@ test("STT never publishes a late result after membership loss, while provider er
     }
 });
 
-test("personal runner Fire states are bounded literals and never confuse mode with confirmation", () => {
-  expect(parsePersonEvent('{"t":"fire","book":"room","on":true}')).toEqual({
-    t: "fire",
-    book: "room",
-    on: true,
-  });
-  for (const state of ["switching", "ready", "off", "failed"] as const)
-    expect(
-      parsePersonEvent(JSON.stringify({ t: "fireState", book: "room", state })),
-    ).toEqual({ t: "fireState", book: "room", state });
+test("personal channel ignores retired live Fire events and retains focus/agent notices", () => {
   for (const value of [
-    { t: "fireState", book: "room", state: "anything" },
-    { t: "fire", book: "room", on: 1 },
-    { t: "fireState", book: "room", state: "ready", note: "x".repeat(201) },
-  ])
-    expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+    { t: "fire", book: "room", on: true },
+    { t: "fire", book: "room", on: false },
+    ...["switching", "ready", "off", "failed"].map(state => ({ t: "fireState", book: "room", state })),
+  ]) expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+  for (const t of ["focus", "agents"])
+    expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({ t, book: "room" });
 });
 
 test("binary handlers stop chunked and falsely small-length uploads at their actual byte limits", async () => {

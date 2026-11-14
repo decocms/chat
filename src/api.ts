@@ -1,5 +1,5 @@
 import { requestBytes, RequestBytesError } from "./requestBytes";
-import { FireBody, FireResult, SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
+import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
@@ -11,7 +11,7 @@ import { roomSandbox } from "./sandboxRows";
 // person), whose types are plain wire types. So AppType's declaration (.api-types, `bun run build:api-types`) stays free
 // of Worker and Cloudflare types, and every response is checked against its shared schema type with `satisfies`, so a
 // handler and the schema the client validates with can't drift apart.
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 import * as zm from "zod/mini";
 import { validator } from "hono/validator";
 import type * as z from "zod/mini";
@@ -97,7 +97,6 @@ export type Bind = string | number | null;
 export interface ApiServices {
   /** Is the signed-in person a member of this room? */
   isMember(roomId: string): Promise<boolean>;
-  pokeFire(roomId:string,on:boolean):void;
   allowStt():Promise<boolean>;
   transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
   humanPost(roomId: string, text: string, thread: string): Promise<PostMessageResult>;
@@ -229,12 +228,6 @@ const body = <S extends z.ZodMiniType>(schema: S, error = "bad request") =>
 const ok = { ok: true as const } satisfies OkResult;
 const forbidden = { error: "forbidden" } satisfies ErrorBody;
 
-const boundedFireBody:MiddlewareHandler<ApiCtx>=async(c,next)=>{
-  let bytes:Uint8Array<ArrayBuffer>;
-  try{bytes=await speechAudio(c.req.raw,1024);}catch{return c.json({error:"bad request"} satisfies ErrorBody,400);}
-  c.req.raw=new Request(c.req.raw,{body:bytes});
-  await next();
-};
 const roomPosts = new Hono<ApiCtx>()
   .post(
     "/api/books/:id/post",
@@ -402,22 +395,6 @@ export const roomApi = accountApi
     svc.pokeAgents(id);
     svc.track(on ? "claude_on" : "claude_off", { book: id });
     return c.json({ ok: true as const, claude_on: on } satisfies ClaudeToggleResult, 200);
-  })
-  .post("/api/books/:id/fire", boundedFireBody, body(FireBody), async (c) => {
-    const svc=c.get("svc"),id=c.req.param("id");
-    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
-    const {on}=c.req.valid("json");
-    // Completed Fire talk belongs to the dedicated Haiku; other listeners resume after it.
-    // Only an active Fire session hands off cursors. A post-ACK off retry must
-    // not skip ordinary messages received after the first off cleared fire_at.
-    if(!on){
-      await svc.sql(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ? AND EXISTS (SELECT 1 FROM members WHERE book_id = ? AND email = ? AND fire_at IS NOT NULL)`,id,id,c.get("email"),id,c.get("email"));
-      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
-    }
-    await svc.sql(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`,on?Date.now():null,id,c.get("email"));
-    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
-    svc.pokeFire(id,on);svc.track(on?"fire_on":"fire_off",{book:id});
-    return c.json(FireResult.parse(ok),200);
   })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{
     const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});

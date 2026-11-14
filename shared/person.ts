@@ -9,21 +9,12 @@ export const PersonEventSchemas = {
   }),
   agents: z.object({ t: z.literal("agents"), book: z.string() }),
   focus: z.object({ t: z.literal("focus"), book: z.string() }),
-  fire: z.object({ t: z.literal("fire"), book: z.string(), on: z.boolean() }),
-  fireState: z.object({
-    t: z.literal("fireState"),
-    book: z.string(),
-    state: z.enum(["switching", "ready", "off", "failed"]),
-    model: z.optional(z.string().check(z.maxLength(60))),
-    note: z.optional(z.string().check(z.maxLength(200))),
-  }),
+
 };
 export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.me,
   PersonEventSchemas.agents,
   PersonEventSchemas.focus,
-  PersonEventSchemas.fire,
-  PersonEventSchemas.fireState,
 ]);
 export type PersonEvent = z.infer<typeof PersonEventSchema>;
 /** Accept raw WebSocket event.data only. Binary/non-JSON/unknown notices are ignored. */

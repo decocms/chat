@@ -648,11 +648,6 @@ export const AiSpend = z.object({
 });
 export type AiSpend = z.infer<typeof AiSpend>;
 
-/** Own-Claude Fire switches only this membership's runner mode. */
-export const FireBody = z.strictObject({ on: z.boolean() });
-export type FireBody = z.infer<typeof FireBody>;
-export const FireResult = OkResult;
-export type FireResult = z.infer<typeof FireResult>;
 export const SttQuery = z.object({
   lang: z.optional(z.string()),
   prompt: z.optional(z.string()),

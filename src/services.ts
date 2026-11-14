@@ -102,7 +102,6 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
 export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, req0: Request): ApiServices {
   return {
     isMember: (roomId) => isMember(env.DB, roomId, email),
-    pokeFire: (roomId, on) => ctx.waitUntil(poke(env, [email], {t:"fire",book:roomId,on})),
     allowStt:async()=> (await env.UPLOAD_LIMIT.limit({key:`stt:${email}`})).success,
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
     humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread),
