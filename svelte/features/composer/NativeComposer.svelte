@@ -111,17 +111,16 @@
       if (active) voiceIssue = value;
     },
     ended: () => {
-      void tick().then(() => {
-        if (
+      void focus(
+        undefined,
+        () =>
           !fireConsent &&
           (!fireOwner ||
             ["idle", "complete"].includes(get(fireOwner.state).phase)) &&
           !document.querySelector(
             '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
-          )
-        )
-          void focus();
-      });
+          ),
+      );
     },
   });
   const ownedFirePort = untrack(() => firePort),
@@ -278,9 +277,16 @@
     previews.set(item.id, { file: item.file, url });
     return url;
   }
-  async function focus(at?: number) {
+  async function focus(at?: number, permit?: () => boolean) {
     await tick();
-    if (!active || hidden || !allowed || !textarea?.isConnected) return;
+    if (
+      !active ||
+      hidden ||
+      !allowed ||
+      !textarea?.isConnected ||
+      permit?.() === false
+    )
+      return;
     textarea.focus();
     if (at !== undefined) textarea.setSelectionRange(at, at);
     caret = textarea.selectionStart;

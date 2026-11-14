@@ -4589,6 +4589,52 @@ describe("native composer ownership and interactions", () => {
     expect(engines).toHaveLength(1);
     localStorage.removeItem("vb.fireSeen");
   }, 30000);
+  test("dictation-ended focus respects a dialog opened before either pending focus tick", async () => {
+    for (const afterFirstTick of [false, true]) {
+      const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
+        {
+          lang: "",
+          continuous: false,
+          interimResults: false,
+          onresult: null,
+          onerror: null,
+          onend: null,
+          start() {},
+          stop() {},
+          abort() {},
+        };
+      const { target } = renderComposer(fixture(), {
+        speechFactory: () => rec,
+      });
+      const input = edit(target, "draft");
+      await tick();
+      flushSync();
+      input.focus();
+      target
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Ditar mensagem"]',
+        )!
+        .click();
+      expect(typeof rec.onend).toBe("function");
+      rec.onend?.({});
+      if (afterFirstTick) await tick();
+      const dialog = document.createElement("dialog"),
+        field = document.createElement("input");
+      dialog.open = true;
+      dialog.append(field);
+      document.body.append(dialog);
+      try {
+        field.focus();
+        expect(document.activeElement === field).toBe(true);
+        await tick();
+        flushSync();
+        await tick();
+        expect(document.activeElement === field).toBe(true);
+      } finally {
+        dialog.remove();
+      }
+    }
+  });
   test("Send cancels dictation before dispatch and late recognition never restores the sent draft", async () => {
     const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
       lang: "",

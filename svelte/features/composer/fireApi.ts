@@ -22,23 +22,27 @@ export function createFireApi(fetcher?: FetchLike) {
       { param: { id: encodeURIComponent(roomId) }, json: body },
       { init: { signal, cache: "no-store" } },
     );
-    const raw: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      const error = ErrorBody.safeParse(raw);
-      throw new FireFailure(
-        response.status,
-        response.status === 401 &&
-          error.success &&
-          error.data.error === UNAUTHENTICATED.error,
-        response.status === 403 &&
-          error.success &&
-          error.data.error === "forbidden",
-      );
-    }
-    try {
-      return FireResult.parse(raw);
-    } catch {
-      throw new FireFailure(0);
-    }
+    return readFireResponse(response);
   };
+}
+type FireResponse = { ok: boolean; status: number; json(): Promise<unknown> };
+async function readFireResponse(response: FireResponse) {
+  const raw: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = ErrorBody.safeParse(raw);
+    throw new FireFailure(
+      response.status,
+      response.status === 401 &&
+        error.success &&
+        error.data.error === UNAUTHENTICATED.error,
+      response.status === 403 &&
+        error.success &&
+        error.data.error === "forbidden",
+    );
+  }
+  try {
+    return FireResult.parse(raw);
+  } catch {
+    throw new FireFailure(0);
+  }
 }

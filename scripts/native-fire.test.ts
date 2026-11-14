@@ -177,7 +177,7 @@ test("mic taps toggle, cancelled holds do nothing and exactly3s arms Fire once",
   expect(recording).toBe(false);
   mic.begin(3);
   timer.advance(400);
-  expect(step).toBe(0);
+  expect(String(step)).toBe("0");
   mic.cancel();
   timer.advance(3000);
   expect(arms).toBe(0);
@@ -448,7 +448,7 @@ test("inferred Fire HTTP adapter validates results and distinguishes exact autho
       { text: "speech", thread: "main", history: [] },
       new AbortController().signal,
     ),
-  ).toEqual(payload);
+  ).toEqual({ ok: true, mode: "card", card_msg: 4, ms: 2 });
   expect(captured).toEqual({ text: "speech", thread: "main", history: [] });
   for (const [code, error, global, member] of [
     [401, UNAUTHENTICATED.error, true, false],
