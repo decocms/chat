@@ -293,3 +293,31 @@ sameAs<Equal<IsAny<Conn401["error"]>, false>>(true);
 type GF = NonNullable<ReturnType<typeof globalFailure>>;
 sameAs<Equal<IsAny<GF["error"]>, false>>(true);
 sameAs<Equal<GF["status"], 401 | 403>>(true);
+
+// Live Fire input and output come from the owned Hono route, never a hand-written client DTO.
+sameAs<
+  Equal<
+    InferRequestType<Client["api"]["books"][":id"]["fire"]["$post"]>["json"],
+    import("../../../shared/schemas").FireBody
+  >
+>(true);
+sameAs<
+  Equal<
+    InferResponseType<Client["api"]["books"][":id"]["fire"]["$post"], 200>,
+    import("../../../shared/schemas").FireResult
+  >
+>(true);
+void api.api.books[":id"].fire.$post({
+  param: { id: "room" },
+  json: { text: "spoken", card_msg: 0 },
+});
+// @ts-expect-error speech is text, never an unchecked unknown value
+void api.api.books[":id"].fire.$post({
+  param: { id: "room" },
+  json: { text: 3 },
+});
+// @ts-expect-error history entries are strings
+void api.api.books[":id"].fire.$post({
+  param: { id: "room" },
+  json: { text: "spoken", history: [1] },
+});

@@ -222,3 +222,29 @@ describe("Book room state reducer", () => {
     unsubscribe();
   });
 });
+
+test("msgCard replaces only an existing live card without losing message identity or origins", () => {
+  const initial = room({
+    messages: [{ ...message(2), card: "old" }, message(3)],
+    origins: [{ ...message(2), card: "old" }],
+  });
+  const next = apply(initial, { t: "msgCard", id: 2, card: "new" });
+  expect(next.messages[0]).toEqual({ ...initial.messages[0], card: "new" });
+  expect(next.messages[1]).toEqual(initial.messages[1]);
+  expect(next.origins?.[0].card).toBe("new");
+  expect(initial.messages[0].card).toBe("old");
+  expect(
+    apply(next, { t: "msgCard", id: 99, card: "missing" }).messages,
+  ).toHaveLength(2);
+});
+
+test("live card updates cannot mutate a different room", () => {
+  const initial = room();
+  expect(
+    reduceRoom(
+      initial,
+      { t: "msgCard", id: 2, card: "other room" },
+      "different-room",
+    ),
+  ).toBe(initial);
+});

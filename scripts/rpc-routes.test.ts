@@ -54,6 +54,9 @@ function fixture(overrides: Partial<ApiServices> = {}) {
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
     isMember: async () => true,
+    allowFire: async () => true,
+    fire: async () => ({ ok: true, mode: "card", card_msg: 42, ms: 0 }),
+    pokeFocus: () => {},
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -1068,4 +1071,206 @@ test("room sandbox presence normalizes nullable and malformed SQLite metadata wi
   } finally {
     db.close();
   }
+});
+
+test("Fire inferred route validates input/output and preserves membership/rate/business failures", async () => {
+  const calls: unknown[] = [];
+  const f = fixture({
+    fire: async (room, value) => {
+      calls.push({ room, value });
+      return { ok: true, mode: "card", card_msg: 7, ms: 0 };
+    },
+  });
+  const response = await f.json("/api/books/room/fire", {
+    text: "spoken",
+    history: ["before"],
+    card_msg: 0,
+    thread: "main",
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    ok: true,
+    mode: "card",
+    card_msg: 7,
+    ms: 0,
+  });
+  expect(calls).toEqual([
+    {
+      room: "room",
+      value: {
+        text: "spoken",
+        history: ["before"],
+        card_msg: 0,
+        thread: "main",
+      },
+    },
+  ]);
+  for (const body of [
+    { text: 3 },
+    { text: "x", history: [1] },
+    { text: "x", card_msg: -1 },
+    { text: "x", card_msg: 1.1 },
+  ])
+    expect((await f.json("/api/books/room/fire", body)).status).toBe(400);
+  expect(calls).toHaveLength(1);
+  for (const [svc, status] of [
+    [{ isMember: async () => false }, 403],
+    [{ allowFire: async () => false }, 429],
+  ] as const) {
+    let invoked = false;
+    const denied = fixture({
+      ...svc,
+      fire: async () => {
+        invoked = true;
+        throw Error("must not run");
+      },
+    });
+    expect(
+      (await denied.json("/api/books/room/fire", { text: "x" })).status,
+    ).toBe(status);
+    expect(invoked).toBe(false);
+  }
+  const business = fixture({
+    fire: async () => ({ ok: false, error: "model unavailable" }),
+  });
+  expect(
+    await (await business.json("/api/books/room/fire", { text: "x" })).json(),
+  ).toEqual({ ok: false, error: "model unavailable" });
+  for (const result of [
+    { ok: true, mode: "card", card_msg: 0, ms: 0 },
+    { ok: true, mode: "file", file: { id: "x" }, opened: true, ms: 0 },
+    "<html>",
+  ]) {
+    const invalid = fixture({ fire: async () => result });
+    expect(
+      (await invalid.json("/api/books/room/fire", { text: "x" })).status,
+    ).toBe(400);
+  }
+  const file = {
+    id: "f",
+    name: "live.html",
+    type: "text/html",
+    size: 0,
+    ts: 0,
+  };
+  const made = fixture({
+    fire: async () => ({ ok: true, mode: "file", file, opened: false, ms: 0 }),
+  });
+  expect(
+    await (
+      await made.json("/api/books/room/fire", { text: "x", file_id: "f" })
+    ).json(),
+  ).toEqual({ ok: true, mode: "file", file, opened: false, ms: 0 });
+});
+
+test("personal focus notices retain their validated room and reject malformed wire data", () => {
+  expect(parsePersonEvent('{"t":"focus","book":"room"}')).toEqual({
+    t: "focus",
+    book: "room",
+  });
+  for (const value of [
+    '{"t":"focus","book":1}',
+    '{"t":"focus"}',
+    new Uint8Array([1]),
+  ])
+    expect(parsePersonEvent(value)).toBeNull();
+});
+
+test("new card presentation props survive normalization and bounded runtime DTO validation", async () => {
+  const { cardOf, CardSchema } = await import("../shared/card");
+  const value = cardOf(
+    {
+      root: "c",
+      elements: {
+        c: { type: "Card", children: ["chart", "fields", "link"] },
+        chart: {
+          type: "Chart",
+          props: {
+            labels: ["one", "two"],
+            series: [
+              { name: "first", values: [0, "2"] },
+              { name: "second", values: [3, 4] },
+            ],
+          },
+        },
+        fields: { type: "Fields", children: ["field"] },
+        field: {
+          type: "Field",
+          props: {
+            label: "Errors",
+            value: "0",
+            delta: "-100%",
+            good: "down",
+            trend: "3 · 2 · 0",
+          },
+        },
+        link: {
+          type: "LinkButton",
+          props: { label: "Open", url: "#m1", style: "primary" },
+        },
+      },
+    },
+    "room",
+  );
+  expect(CardSchema.parse(value)).toEqual(value);
+  expect(value.elements.chart.props).toMatchObject({
+    labels: ["one", "two"],
+    series: [
+      { name: "first", values: [0, 2] },
+      { name: "second", values: [3, 4] },
+    ],
+  });
+  expect(value.elements.field.props).toMatchObject({
+    delta: "-100%",
+    good: "down",
+    trend: "3 · 2 · 0",
+  });
+  expect(value.elements.link.props).toMatchObject({ style: "primary" });
+  const chart = value.elements.chart;
+  if (chart.type !== "Chart" || !("series" in chart.props))
+    throw Error("series projection lost");
+  expect(
+    CardSchema.safeParse({
+      ...value,
+      elements: {
+        ...value.elements,
+        chart: {
+          ...chart,
+          props: {
+            ...chart.props,
+            series: [
+              ...chart.props.series,
+              ...chart.props.series,
+              ...chart.props.series,
+            ],
+          },
+        },
+      },
+    }).success,
+  ).toBe(false);
+  expect(
+    CardSchema.safeParse({
+      ...value,
+      elements: {
+        ...value.elements,
+        chart: { ...chart, props: { ...chart.props, labels: ["one"] } },
+      },
+    }).success,
+  ).toBe(false);
+  const old = cardOf(
+    {
+      root: "c",
+      elements: {
+        c: { type: "Card", children: ["chart"] },
+        chart: {
+          type: "Chart",
+          props: { data: [{ label: "zero", value: 0 }] },
+        },
+      },
+    },
+    "room",
+  );
+  expect(old.elements.chart.props).toMatchObject({
+    data: [{ label: "zero", value: 0 }],
+  });
 });

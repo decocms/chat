@@ -6,6 +6,8 @@ import type { Env } from "./index";
 import { aiSpend, growthReport, productReport } from "./reports";
 import { bookStub, storeFile } from "./rooms";
 import { track } from "./track";
+import { recordValue } from "./mcpRequest";
+const usageCost = (usage:unknown) => { const raw = recordValue(usage) ? usage.raw : null; const value = recordValue(raw) ? raw.cost : undefined; const cost = Number(value); return Number.isFinite(cost) ? cost : 0; };
 
 /**
  * Modo Fire (Gui, 14/11, epic "Modo Fire"): the person talks, each pause of their live transcription comes here, and
@@ -39,12 +41,8 @@ async function roomData(env: Env, bookId: string, text: string, history: string[
   return out;
 }
 
-export type FireIn = { text?: unknown; file_id?: unknown; history?: unknown; card_msg?: unknown; thread?: unknown };
-export type FireOut =
-  | { ok: true; mode: "file"; file: { id: string; name: string; type: string; size: number; ts: number }; opened: boolean; ms: number }
-  | { ok: true; mode: "card"; card_msg: number; ms: number }
-  | { ok: false; error: string };
-
+export type { FireBody as FireIn, FireResult as FireOut } from "../shared/schemas";
+import type { FireBody as FireIn, FireResult as FireOut } from "../shared/schemas";
 // The chat's native card catalog (src/card.ts), as the model needs it. A request a card can answer (numbers, a status,
 // a dashboard, a table, a small chart, a checklist) becomes a card drawn by the app instead of an HTML page (Gui 14/11,
 // #2367: "antes de decidir fazer um html, se puder ser resolvido por um json render nativo, tenta isso").
@@ -75,12 +73,12 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
     let card;
     try { card = cardOf(JSON.parse(output.card), bookId); } catch (e) {
       if (fix) throw e;
-      return cardMode(current, String((e as Error)?.message ?? e).slice(0, 300));
+      return cardMode(current, (e instanceof Error ? e.message : String(e)).slice(0, 300));
     }
     const r = await bookStub(env, bookId).fireCard(bookId, email, thread, `🔥 ${output.title}`, card, cardMsg || undefined);
     if (!r.ok) return { ok: false as const, error: r.error };
     await bookStub(env, bookId).firePiece(bookId, email, thread, text, { card_msg: r.id });
-    await track(env, "fire", { user: email, dims: { book: bookId, ms: Date.now() - t0, chars: text.length, mode: "card", cost: Number((usage as { raw?: { cost?: number } }).raw?.cost) || 0, created: !cardMsg } });
+    await track(env, "fire", { user: email, dims: { book: bookId, ms: Date.now() - t0, chars: text.length, mode: "card", cost: usageCost(usage), created: !cardMsg } });
     return { ok: true as const, mode: "card" as const, card_msg: r.id, ms: Date.now() - t0 };
   };
   const fileMode = async (): Promise<FireOut> => {
@@ -108,10 +106,11 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
     const body = out.trim().replace(/^```[\w-]*\n/, "").replace(/\n```$/, "").trim();
     if (!body) return { ok: false, error: "the model returned nothing" };
     const meta = await storeFile(env, bookId, email, type, new TextEncoder().encode(body).buffer as ArrayBuffer, name);
-    const opened = !fid ? (((await bookStub(env, bookId).agentOpenFile(bookId, email, meta.id)) as { opened_in_tabs?: number }).opened_in_tabs ?? 0) > 0 : false;
+    const openedResult = !fid ? await bookStub(env,bookId).agentOpenFile(bookId,email,meta.id) : null;
+    const opened = openedResult !== null && "opened_in_tabs" in openedResult && openedResult.opened_in_tabs > 0;
     const ms = Date.now() - t0;
     await bookStub(env, bookId).firePiece(bookId, email, thread, text, { file: { id: meta.id, name: meta.name } });
-    await track(env, "fire", { user: email, dims: { book: bookId, ms, chars: text.length, size: body.length, cost: Number((usage as { raw?: { cost?: number } }).raw?.cost) || 0, created: !fid } });
+    await track(env, "fire", { user: email, dims: { book: bookId, ms, chars: text.length, size: body.length, cost: usageCost(usage), created: !fid } });
     return { ok: true, mode: "file", file: { id: meta.id, name: meta.name, type, size: meta.size, ts: meta.ts }, opened, ms };
   };
   // Switching format mid-session (Gui #2404: once in a card it never left): "faz um html / uma página" in a card

@@ -373,3 +373,108 @@ test("SQLite answers_ask survives history normalization without admitting malfor
     true,
   );
 });
+
+test("actual open_file validates stored metadata and targets only the requesting person's room tabs", () => {
+  const frames: string[] = [];
+  const mine = { send: (value: string) => frames.push(value) },
+    other = {
+      send: () => {
+        throw Error("private file notice leaked");
+      },
+    };
+  let raw: unknown = file;
+  const args: unknown[][] = [];
+  const receiver = {
+    bind: (id: string) => expect(id).toBe("abcdef"),
+    sql: {
+      exec: (...values: unknown[]) => {
+        args.push(values);
+        return { toArray: () => [raw] };
+      },
+    },
+    sockets: () => [mine, other],
+    ctx: {
+      getTags: (socket: unknown) => [
+        socket === mine ? "member@example.test" : "other@example.test",
+      ],
+    },
+  };
+  expect(
+    invoke("agentOpenFile", receiver, "abcdef", "member@example.test", file.id),
+  ).toMatchObject({ ok: true, opened_in_tabs: 1 });
+  expect(JSON.parse(frames[0])).toEqual({ t: "openSide", file });
+  expect(args[0][1]).toBe(file.id);
+  for (const value of [
+    { ...file, size: "4" },
+    { ...file, author: {} },
+    { ...file, type: null },
+  ]) {
+    raw = value;
+    expect(
+      invoke(
+        "agentOpenFile",
+        receiver,
+        "abcdef",
+        "member@example.test",
+        file.id,
+      ),
+    ).toMatchObject({ ok: false, error: "file metadata unavailable" });
+  }
+  expect(frames).toHaveLength(1);
+  raw = { ...file, type: "application/zip" };
+  expect(
+    invoke("agentOpenFile", receiver, "abcdef", "member@example.test", file.id),
+  ).toMatchObject({ ok: false });
+  expect(frames).toHaveLength(1);
+});
+
+test("actual Fire card updates require owned card and emit the normalized replacement only", async () => {
+  const { cardOf } = await import("../shared/card");
+  const normalized = cardOf(card, "abcdef");
+  let owner = "member@example.test";
+  const writes: unknown[][] = [],
+    events: unknown[] = [];
+  const receiver = {
+    bind: () => {},
+    sql: {
+      exec: (query: string, ...values: unknown[]) => {
+        if (query.startsWith("UPDATE")) writes.push(values);
+        return {
+          toArray: () => [{ author: owner, card: JSON.stringify(normalized) }],
+        };
+      },
+    },
+    broadcast: (value: unknown) => events.push(value),
+  };
+  expect(
+    await invoke(
+      "fireCard",
+      receiver,
+      "abcdef",
+      "member@example.test",
+      "main",
+      "safe speech",
+      normalized,
+      7,
+    ),
+  ).toEqual({ ok: true, id: 7 });
+  expect(writes).toEqual([[JSON.stringify(normalized), 7]]);
+  expect(events).toEqual([
+    { t: "msgCard", id: 7, card: JSON.stringify(normalized) },
+  ]);
+  owner = "other@example.test";
+  expect(
+    await invoke(
+      "fireCard",
+      receiver,
+      "abcdef",
+      "member@example.test",
+      "main",
+      "safe speech",
+      normalized,
+      7,
+    ),
+  ).toMatchObject({ ok: false, error: "not your live card" });
+  expect(writes).toHaveLength(1);
+  expect(events).toHaveLength(1);
+});

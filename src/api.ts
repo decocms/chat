@@ -1,3 +1,4 @@
+import { FireBody, FireResult } from "../shared/schemas";
 import { roomSandbox } from "./sandboxRows";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
@@ -94,6 +95,8 @@ export type Bind = string | number | null;
 export interface ApiServices {
   /** Is the signed-in person a member of this room? */
   isMember(roomId: string): Promise<boolean>;
+  allowFire(): Promise<boolean>;
+  fire(roomId: string, body: FireBody): Promise<unknown>;
   humanPost(roomId: string, text: string, thread: string): Promise<PostMessageResult>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
@@ -387,6 +390,13 @@ export const roomApi = accountApi
     svc.pokeAgents(id);
     svc.track(on ? "claude_on" : "claude_off", { book: id });
     return c.json({ ok: true as const, claude_on: on } satisfies ClaudeToggleResult, 200);
+  })
+  .post("/api/books/:id/fire", body(FireBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" }, 403);
+    if (!(await svc.allowFire())) return c.json({ ok: false as const, error: "rate limited: wait a few seconds" }, 429);
+    try { return c.json(FireResult.parse(await svc.fire(id, c.req.valid("json"))), 200); }
+    catch (error) { return c.json({ ok: false as const, error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }, 400); }
   })
   // ↗ through the person's channel to their CLI hub, which asks the local herdr runner: the page never talks to
   // 127.0.0.1 itself, so the browser's Local Network Access permission isn't needed (Gui, 14/11).

@@ -1445,8 +1445,11 @@ export class Book extends DurableObject<Env> {
    * open; it follows newer versions of the same name, so a Claude can open its first draft and keep uploading. */
   agentOpenFile(bookId: string, email: string, fileId: string) {
     this.bind(bookId);
-    const f = this.sql.exec<{ id: string; name: string; type: string; size: number; author: string; ts: number }>(`SELECT id, name, type, size, author, ts FROM files WHERE id = ?`, fileId).toArray()[0];
-    if (!f) return { ok: false, error: "no such file in this room (file_id from upload_file / read_room files)" };
+    const raw = this.sql.exec(`SELECT id, name, type, size, author, ts FROM files WHERE id = ?`, fileId).toArray()[0];
+    if (!raw) return { ok: false, error: "no such file in this room (file_id from upload_file / read_room files)" };
+    const parsed = AttachmentSchema.safeParse(raw);
+    if (!parsed.success) return { ok: false, error: "file metadata unavailable" };
+    const f = parsed.data;
     if (!/^(text\/html|application\/pdf|text\/markdown|text\/plain|image\/)/.test(f.type)) return { ok: false, error: `can't show ${f.type} beside the chat; html, pdf, markdown, text and images can` };
     const tabs = this.sockets().filter((ws) => this.ctx.getTags(ws)[0] === email);
     const s = JSON.stringify({ t: "openSide", file: f } satisfies RoomEvent);

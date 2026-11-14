@@ -1,5 +1,4 @@
 import { mountAppDocumentFiles, isAppDocumentNavigation } from "./appDocumentFile";
-import { fire } from "./fire";
 import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api";
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
@@ -505,17 +504,6 @@ app.route("/", uploadsApi);
 
 mountAppDocumentFiles(app);
 
-// Modo Fire: a piece of live speech applied by a fast model to the file open beside the chat (src/fire.ts).
-app.post("/api/books/:id/fire", async (c) => {
-  const id = c.req.param("id"), email = c.get("email");
-  if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
-  if (!(await c.env.AI_LIMIT.limit({ key: `fire:${email}` })).success) return c.json({ ok: false, error: "rate limited: wait a few seconds" }, 429);
-  try {
-    return c.json(await fire(c.env, id, email, await c.req.json().catch(() => ({}))));
-  } catch (e) {
-    return c.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 200) }, 400);
-  }
-});
 app.get("/api/books/:id/files/:fid", async (c) => {
   const id = c.req.param("id");
   if (!(await isMember(c.env.DB, id, c.get("email")))) {

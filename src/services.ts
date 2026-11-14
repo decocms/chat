@@ -1,3 +1,4 @@
+import { fire } from "./fire";
 // The services the typed routes (src/api.ts) get, built per request from the Worker's bindings for the signed-in
 // person. This is the one place that knows both Env and ApiServices; the routes and their browser-facing types don't.
 import type { ApiServices } from "./api";
@@ -101,6 +102,8 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
 export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, req0: Request): ApiServices {
   return {
     isMember: (roomId) => isMember(env.DB, roomId, email),
+    allowFire:async()=> (await env.AI_LIMIT.limit({key:`fire:${email}`})).success,
+    fire:(roomId,body)=>fire(env,roomId,email,body),
     humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name),
     fileTypes: FILE_TYPES,

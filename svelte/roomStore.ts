@@ -23,6 +23,14 @@ export function reduceRoom(
           ? s.messages
           : [...s.messages, event.m],
       };
+    case "msgCard":
+      return {
+        ...s,
+        messages: updateMessage(event.id, { card: event.card }),
+        origins: s.origins?.map((message) =>
+          message.id === event.id ? { ...message, card: event.card } : message,
+        ),
+      };
     case "moved":
       return {
         ...s,

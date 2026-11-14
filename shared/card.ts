@@ -202,7 +202,7 @@ const CATALOG: Record<
         const series = p.series.map((item, i) => {
           if (!item || typeof item !== "object" || Array.isArray(item))
             throw Error(`Chart.series[${i}] must be an object`);
-          const values =
+          const values: unknown[] =
             "values" in item && Array.isArray(item.values) ? item.values : [];
           if (values.length !== labels.length)
             throw Error(`Chart.series[${i}].values needs one number per label`);
