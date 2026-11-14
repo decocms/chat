@@ -105,6 +105,8 @@ test("provider defaults stay unchanged and explicit local configuration is exact
     "http://127.0.0.1:0123/api/v1/chat/completions",
     "http://127.0.0.1:1234/api/v1/chat/completions?x=secret",
     "http://127.0.0.1:1234/api/v1/chat/completions#x",
+    "http://127.0.0.1:1234/api/v1/chat/completions\n",
+    "http://127.0.0.1:1234/api/v1/chat/completions\r\n",
     "http://user:key@127.0.0.1:1234/api/v1/chat/completions",
     "http://127.0.0.1:1234/api/v1/chat/%63ompletions",
     "http://127.0.0.1:1234/api/v1/chat/../chat/completions",

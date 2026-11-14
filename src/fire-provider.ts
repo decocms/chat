@@ -16,11 +16,17 @@ export function fireProvider(input: unknown): FireProvider {
   const { DEV_EMAIL, FIRE_API } = parsed.data;
   if (FIRE_API === undefined)
     return { kind: "production", url: PRODUCTION_FIRE_API };
-  const port =
+  const match =
     /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/api\/v1\/chat\/completions$/.exec(
       FIRE_API,
-    )?.[1];
-  if (!DEV_EMAIL?.trim() || !port || Number(port) > 65535)
+    );
+  const port = match?.[1];
+  if (
+    !DEV_EMAIL?.trim() ||
+    match?.[0] !== FIRE_API ||
+    !port ||
+    Number(port) > 65535
+  )
     throw Error("Invalid Fire provider configuration");
   return {
     kind: "local-fixture",
