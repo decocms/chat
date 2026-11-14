@@ -8,14 +8,18 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
-At published source head `9f58378`, the complete integrated actual-Worker browser,
-full source HMR and App transport security workflows pass. [Original safe JSON,
-exact provenance and workflow links](managed-browser/2026-11-14-9f58378/README.md)
-are retained. The repository workflow fails on checked-in preview freshness on
-Linux/macOS; source gates and the production gallery layout job pass. Rebuild and
-commit the preview from the combined source, then rerun the complete workflow.
-The earlier `139573a` checkpoint passed generated-asset consistency but failed
-HMR because the new AI binding triggered Wrangler remote authentication.
+Published source `587de12` passes the full [repository workflow](https://github.com/vibegui/vibebook.dev/actions/runs/43642706919),
+including Linux/macOS source gates, generated-asset consistency and the layout
+job. Its [retained browser result](managed-browser/2026-11-14-587de12-short-viewport/README.md)
+passes the R2 Viewer, all core phases, lifecycle and App audits, but fails four
+short-phone profiles. Eight of twelve profiles pass. The mobile notice-height
+fix is integrated and requires a new actual browser run.
+
+The earlier complete integrated browser, HMR and App transport security workflows
+at `9f58378` pass; [original safe JSON and exact provenance](managed-browser/2026-11-14-9f58378/README.md)
+remain historical evidence, not proof of later revisions. The `139573a`
+checkpoint passed generated-asset consistency but failed HMR because the new AI
+binding triggered Wrangler remote authentication.
 [Explicit local mode and owned child-exit observation](source-hmr-local-worker.md)
 fix the reproduced HMR failure; the managed passing run verifies that fix.
 
@@ -28,6 +32,13 @@ Freshness CI must still be rerun. The [new real-Worker browser run fails in the
 R2 Viewer phase](managed-browser/2026-11-14-649f773-failure/README.md), before the
 expanded twelve-profile audit. That runtime failure and all tablet evidence
 remain open; earlier passing browser runs do not certify this revised source.
+
+The `587de12` follow-up above resolves that earlier R2/freshness failure; its
+separate short-phone failure remains open. Combined source `7bbbf6f` then passes
+a fresh build and all 24 gates on BugMachine, including strict Svelte/backend/
+tooling, actual Composer DOM regressions, the media adapter and structural-sharing
+cases. [The exact source receipt](verification/7bbbf6f-continuous-fire-source.json)
+does not substitute for the currently running complete Worker/browser audit.
 
 The latest complete [performance cohort](performance/2026-11-14-139573a/README.md)
 executes all 32 original trials but fails **11 of 16 budget comparisons**.
@@ -44,8 +55,8 @@ The [native continuous Fire port](native-continuous-fire.md) is integrated at
 serialized queue, and the actual capture adapter shares a resumed stream/level
 source with scoped cleanup. Source review accepted the discard, watchdog and
 long-hold continuation fixes. The merged pure cohort passes 34 tests / 176
-assertions; strict type, actual Composer DOM and real Chromium checks remain
-pending. Both home variants expose Nova UI; native selection uses the atomic
+assertions; strict type and actual Composer DOM gates pass at `7bbbf6f`, while
+the full Chromium audit remains pending. Both home variants expose Nova UI; native selection uses the atomic
 Studio Switch. Fire-off cursor handoff is ported into the typed handler, with
 an actual SQLite regression proving room/account isolation and late-membership
 rejection. All 34 focused RPC tests pass 336 assertions. The independent R2
