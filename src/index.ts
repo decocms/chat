@@ -45,7 +45,7 @@ export type Env = {
   AGENT_LIMIT: RateLimit;
   EMAIL: SendEmail;
   AI_LIMIT: RateLimit;
-  /** Workers AI: Modo Fire's speech-to-text (Whisper). */
+  /** Workers AI: push-to-talk speech-to-text (Whisper). */
   AI: Ai;
   UPLOAD_LIMIT: RateLimit;
   FILES: R2Bucket;
@@ -487,22 +487,7 @@ app.route("/", uploadsApi);
 
 // Files: stored in R2 under <book>/<file>; types, limits and serving headers live in rooms.ts.
 
-// Modo Fire (Gui #2448): holding space turns the person's own Claude into Haiku for live talk. On/off is stored on the
-// membership (members.fire_at, so wait_for_messages tells the listener) and poked to their machine, where the hub hands
-// it to the herdr runner, which types /model into that Claude and reports back with MCP fire_state.
-app.post("/api/books/:id/fire", async (c) => {
-  const id = c.req.param("id"), email = c.get("email");
-  if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
-  const on = !!(await c.req.json<{ on?: boolean }>().catch(() => ({}) as { on?: boolean })).on;
-  await c.env.DB.prepare(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`).bind(on ? Date.now() : null, id, email).run();
-  // Fire ends: the talk was the Fire Haiku's, already answered. Move this person's other Claudes past it, or the main
-  // one woke up to all of it and redid the work (Gui #2524: three Claudes on one question).
-  if (!on) await c.env.DB.prepare(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ?`).bind(id, id, email).run();
-  c.executionCtx.waitUntil(poke(c.env, [email], { t: "fire", book: id, on }));
-  c.executionCtx.waitUntil(track(c.env, on ? "fire_on" : "fire_off", { user: email, dims: { book: id } }));
-  return c.json({ ok: true });
-});
-// Modo Fire's ears: one utterance (what was said while space was held) → Whisper on Workers AI, with the room's words
+// Push-to-talk: one utterance (what was said while space or 🎤 was held) → Whisper on Workers AI, with the room's words
 // (title, people, epics: `prompt`, sent by the app) as the initial prompt so "vibebook" and names come out right.
 app.post("/api/books/:id/stt", async (c) => {
   const id = c.req.param("id"), email = c.get("email");
