@@ -14,7 +14,14 @@ export type SideFileTarget = Readonly<{
   follow: boolean;
   witness: Readonly<SideFileInput>;
 }>;
-const fileWitness=(file:SideFileInput):Readonly<SideFileInput>=>Object.freeze({id:file.id,name:file.name,type:file.type,size:file.size,ts:file.ts});
+const fileWitness = (file: SideFileInput): Readonly<SideFileInput> =>
+  Object.freeze({
+    id: file.id,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    ts: file.ts,
+  });
 /** One owned beside-chat selection. The viewer retains all byte/read/index safeguards. */
 export function createSideFileSession(
   viewer: FileViewer,
@@ -68,7 +75,7 @@ export function createSideFileSession(
       ++revision;
       const versions = fileVersions(room, file.name);
       const target = Object.freeze({
-        witness:fileWitness(file),
+        witness: fileWitness(file),
         roomId: room.id,
         name: file.name,
         id: file.id,
@@ -99,9 +106,21 @@ export function createSideFileSession(
       }
       const target = get(state);
       if (!target) return;
-      const versions=fileVersions(next,target.name),latest=versions[0], knownIndex=versions.findIndex(file=>file.id===target.id);
-      if (target.follow && latest && latest.id !== target.id && (latest.ts>target.witness.ts || (latest.ts===target.witness.ts && knownIndex>0))) {
-        const updated = Object.freeze({ ...target, id: latest.id, witness:fileWitness(latest) });
+      const versions = fileVersions(next, target.name),
+        latest = versions[0],
+        knownIndex = versions.findIndex((file) => file.id === target.id);
+      if (
+        target.follow &&
+        latest &&
+        latest.id !== target.id &&
+        (latest.ts > target.witness.ts ||
+          (latest.ts === target.witness.ts && knownIndex > 0))
+      ) {
+        const updated = Object.freeze({
+          ...target,
+          id: latest.id,
+          witness: fileWitness(latest),
+        });
         state.set(updated);
         if (current() && get(state) === updated) show(updated);
       } else if (
@@ -118,7 +137,12 @@ export function createSideFileSession(
         file = versions.find((file) => file.id === id);
       if (!file) return;
       ++revision;
-      const target = Object.freeze({ ...expected, id, follow: versions[0]?.id === id, witness:fileWitness(file) });
+      const target = Object.freeze({
+        ...expected,
+        id,
+        follow: versions[0]?.id === id,
+        witness: fileWitness(file),
+      });
       state.set(target);
       if (current() && get(state) === target) show(target);
       options.changed();

@@ -669,7 +669,7 @@ test("beside-chat revocation clears private reads and stale close cannot clear a
 });
 
 test("Fire metadata-only file reconciles exact later canonical metadata without inventing author", async () => {
-  const probes:string[]=[];
+  const probes: string[] = [];
   const nav = browser(),
     timer = manualClock();
   const viewer = createFileViewer({
@@ -677,7 +677,10 @@ test("Fire metadata-only file reconciles exact later canonical metadata without 
     embedded: true,
     clock: timer.clock,
     api: {
-      probe: async target => {probes.push(target.id);return { type: "text/markdown", size: 2 };},
+      probe: async (target) => {
+        probes.push(target.id);
+        return { type: "text/markdown", size: 2 };
+      },
       text: async () => ({
         metadata: { type: "text/markdown" },
         text: "new Fire body",
@@ -695,9 +698,12 @@ test("Fire metadata-only file reconciles exact later canonical metadata without 
   expect(side.open(input)).toBe(true);
   expect(get(viewer.state).file).toBeUndefined();
   expect(side.target()?.follow).toBe(true);
-  input.ts=99; // The requested witness is copied, not a mutable caller alias.
-  side.sync(room(),request);
-  side.sync(room({receipts:[{email:"a",who:"Member",read:1,delivered:1}]}),request);
+  input.ts = 99; // The requested witness is copied, not a mutable caller alias.
+  side.sync(room(), request);
+  side.sync(
+    room({ receipts: [{ email: "a", who: "Member", read: 1, delivered: 1 }] }),
+    request,
+  );
   expect(side.target()?.id).toBe("bb");
   expect(side.target()?.witness.ts).toBe(2);
   side.sync(room({ files: [attachment("bb", 2), attachment()] }), request);
@@ -705,11 +711,26 @@ test("Fire metadata-only file reconciles exact later canonical metadata without 
   expect(get(viewer.state).file?.author).toBe(author);
   expect(get(viewer.state).phase).toBe("ready");
   expect(probes).toEqual(["bb"]);
-  side.sync(room({files:[attachment("cc",3),attachment("bb",2),attachment()]}),request);await settle();
+  side.sync(
+    room({ files: [attachment("cc", 3), attachment("bb", 2), attachment()] }),
+    request,
+  );
+  await settle();
   expect(side.target()?.id).toBe("cc");
-  side.select(side.target()!,"aa");
-  side.sync(room({files:[attachment("dd",4),attachment("cc",3),attachment("bb",2),attachment()]}),request);
-  expect(side.target()?.id).toBe("aa");expect(side.target()?.follow).toBe(false);
+  side.select(side.target()!, "aa");
+  side.sync(
+    room({
+      files: [
+        attachment("dd", 4),
+        attachment("cc", 3),
+        attachment("bb", 2),
+        attachment(),
+      ],
+    }),
+    request,
+  );
+  expect(side.target()?.id).toBe("aa");
+  expect(side.target()?.follow).toBe(false);
   expect(side.open({ ...attachment("bb", 2), name: "wrong name" })).toBe(false);
   side.dispose();
 });
