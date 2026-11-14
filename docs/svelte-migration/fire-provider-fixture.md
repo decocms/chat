@@ -1,0 +1,11 @@
+# Isolated Fire provider protocol fixture
+
+SOURCE CHECKPOINT ONLY: this boundary and its actual SDK/HTTP fixtures are authored but UNRUN/unformatted. The complete real-Worker browser phase is a separate pending step. No canonical API, Book, D1, R2, WebSocket, UI or document protocol is mocked or bypassed.
+
+The default Fire model path still constructs the same OpenRouter provider with the configured production key and existing model/settings. Only an explicit trusted `FIRE_API` setting can select the local protocol fixture. It requires a nonempty `DEV_EMAIL` and exactly `http://127.0.0.1:<1..65535>/api/v1/chat/completions`; other hosts, credentials, encoded/normalized paths, queries, fragments and malformed values fail closed before model or room-data HTTP work. No invalid value falls back to OpenRouter.
+
+The local provider uses an inert SDK key and an endpoint-bound transport. It sends only JSON/Accept headers, omits credentials, refuses redirects, bounds request-body bytes to 256KiB and preserves the SDK's real request/structured-response protocol. The SDK needs a callable fetch implementation; its platform properties are preserved by a Proxy while every invocation is intercepted. Real environment keys are never passed into this local provider or forwarded as headers. This is a trusted DEV-only test seam, not a user-selectable endpoint or a production permission.
+
+Tests cover exact configuration refusal, unchanged default transport identity, actual AI SDK generateText/Output.object over loopback HTTP, absence of authorization/cookie/key forwarding, redirect/different-endpoint refusal, and method/content/body-budget rejection before HTTP. Backend helper tests belong only in worker-test type coverage and an isolated Bun test process, so AI module mocks and Worker ambient types cannot contaminate unrelated DOM/tooling cohorts.
+
+The forthcoming strict external test server will answer only bounded, known synthetic Fire prompts and valid OpenRouter structured-output shapes. Simulated model output does not prove real-provider intelligence, speech hardware/service delivery, quality or cost. Production defaults and existing checkEmbed/room/file authority remain unchanged. Original seven core stages, twenty lifecycle cycles, eight profiles and security gates must remain intact when the new browser phase is added.

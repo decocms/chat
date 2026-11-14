@@ -1,4 +1,4 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { fireProvider,createFireModelProvider } from "./fire-provider";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { cardOf } from "./card";
@@ -61,7 +61,8 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
   if (!(await currentMember())) return { ok: false, error: "forbidden" };
   const thread = typeof b.thread === "string" ? b.thread : "main";
   let cardMsg = Number(b.card_msg) || 0;
-  const model = () => createOpenRouter({ apiKey: env.OPENROUTER_API_KEY })(env.MODEL_FAST, { reasoning: { enabled: false, effort: "none" } });
+  const provider = fireProvider(env);
+  const model = () => createFireModelProvider(provider,env.OPENROUTER_API_KEY)(env.MODEL_FAST, { reasoning: { enabled: false, effort: "none" } });
   const data = await roomData(env, bookId, text, history);
   const said = `${data ? `REAL DATA you may use (vibebook's own report, yesterday vs the 7 days before):\n${data}\n\n` : ""}${history.length ? `What they said before, in this session:\n${history.map((h) => `- ${h}`).join("\n")}\n\n` : ""}NEW SPEECH:\n${text}`;
   // One retry with the validator's error (Gui's phone, 14/11: "Chart.data[0].value must be a number" ended the card).
