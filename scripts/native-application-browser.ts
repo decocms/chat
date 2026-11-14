@@ -50,6 +50,7 @@ declare global {
   }
 }
 import { auditNativeFire } from "./native-fire-browser";
+import { auditInlineAppOpen } from "./native-inline-app-open-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
 import { auditNativeAppNavigation } from "./native-app-navigation-probe";
 import { vanillaAppNavigationDriver } from "./app-navigation-ui-driver";
@@ -1279,8 +1280,19 @@ try {
         },
       );
     });
+  await independentAudit("inline-app-reader-approval", async () => {
+    const result = await auditInlineAppOpen(profileFixture);
+    report.inlineAppOpen = result;
+    assert.equal(
+      result.status,
+      "passed",
+      "Inline App reader-approval audit must pass",
+    );
+  });
   await independentAudit("native-fire", async () => {
-    report.fire = await auditNativeFire(profileFixture);
+    const result = await auditNativeFire(profileFixture);
+    report.fire = result;
+    assert.equal(result.status, "passed", "Native Fire audit must pass");
   });
   await independentAudit("page-errors", async () => {
     assert.deepEqual(errors, []);

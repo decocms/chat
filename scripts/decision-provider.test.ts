@@ -68,6 +68,10 @@ test("production endpoint remains exact and only trusted DEV with an exact raw l
       endpoint.replace("/api/", "/%61pi/"),
       endpoint.replace("127.0.0.1", "user:pass@127.0.0.1"),
       ` ${endpoint}`,
+      `${endpoint}\n`,
+      `${endpoint}\r\n`,
+      `${endpoint}\u2028`,
+      `${endpoint}\u2029`,
     ].map((DECISION_API) => ({ DEV_EMAIL: "ci@example.test", DECISION_API })),
   ])
     expect(() => decisionProvider(value)).toThrow(

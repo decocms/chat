@@ -16,11 +16,17 @@ export function decisionProvider(input: unknown): {
   const { DEV_EMAIL, DECISION_API } = parsed.data;
   if (DECISION_API === undefined)
     return { url: PRODUCTION_DECISION_API, kind: "production" };
-  const port =
+  const match =
     /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/api\/alpha\/decisions$/.exec(
       DECISION_API,
-    )?.[1];
-  if (!DEV_EMAIL?.trim() || !port || Number(port) > 65535)
+    );
+  const port = match?.[1];
+  if (
+    !DEV_EMAIL?.trim() ||
+    !port ||
+    match?.[0] !== DECISION_API ||
+    Number(port) > 65535
+  )
     throw Error("Invalid decision provider configuration");
   return { url: DECISION_API, kind: "local-fixture" };
 }
