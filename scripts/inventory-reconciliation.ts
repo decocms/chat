@@ -31,6 +31,7 @@ const inventorySchema = z.looseObject({
 });
 const reviewSchema = z.object({
   key: z.string(),
+  sourceRevision: z.string(),
   sourceHash: z.string(),
   status: z.enum(["source-reviewed", "action-verified"]),
   evidence: z.array(z.string()),
@@ -119,8 +120,10 @@ export function reconcileInventory(input: unknown, ownership: unknown) {
       : owner.files[file] === sourceHash
         ? "module-mapped"
         : "module-changed-pending";
-    const actionStatus =
-      review?.sourceHash === sourceHash ? review.status : "pending";
+    const currentReview =
+      review?.sourceHash === sourceHash &&
+      review.sourceRevision === inventory.sourceRevision;
+    const actionStatus = currentReview ? review.status : "pending";
     reviews.delete(key);
     return {
       key,
@@ -142,7 +145,7 @@ export function reconcileInventory(input: unknown, ownership: unknown) {
         : null,
       actionStatus,
       evidence: actionStatus === "pending" ? [] : (review?.evidence ?? []),
-      staleReview: review && review.sourceHash !== sourceHash ? review : null,
+      staleReview: review && !currentReview ? review : null,
       pendingReason: !owner
         ? "Assign and review this exact source owner"
         : moduleStatus === "module-changed-pending"

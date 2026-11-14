@@ -104,6 +104,7 @@ test("per-action proof requires the exact candidate key, source hash and evidenc
   const reviews = [
     {
       key: first.key,
+      sourceRevision: input.sourceRevision,
       sourceHash: hash,
       status: "action-verified",
       evidence: ["exact-revision/runtime-receipt.json"],
@@ -123,6 +124,11 @@ test("per-action proof requires the exact candidate key, source hash and evidenc
   expect(stale.entries[0].actionStatus).toBe("pending");
   expect(stale.entries[0].staleReview).not.toBeNull();
   expect(stale.f56Status).toBe("pending");
+  input.sourceHashes[0].sha256 = hash;
+  input.sourceRevision = "new-dependency-revision";
+  const differentRevision = reconcileInventory(input, { ...manifest, reviews });
+  expect(differentRevision.entries[0].actionStatus).toBe("pending");
+  expect(differentRevision.entries[0].staleReview).not.toBeNull();
 });
 test("unrecognized categories, missing source identities and ambiguous owner rules are rejected", () => {
   expect(() =>

@@ -17,7 +17,7 @@ Every entry distinguishes:
 - `module-mapped`: source bytes match an attributed module in this snapshot; actions remain pending by default.
 - `module-changed-pending`: an attributed file has different source bytes and needs review refresh.
 - `unknown-pending`: no explicit source owner is assigned.
-- `pending` / `source-reviewed` / `action-verified`: a separate action-review dimension. Explicit action records require the exact candidate key, matching source hash and nonempty evidence. Stale/unmatched reviews are retained for inspection and never promoted. Even a source review does not count as action verification.
+- `pending` / `source-reviewed` / `action-verified`: a separate action-review dimension. Explicit action records require the exact candidate key, matching inventory source revision and source hash, and nonempty evidence. An unchanged function/file cannot replay old runtime proof after dependencies change. Stale/unmatched reviews are retained for inspection and never promoted. Even a source review does not count as action verification.
 
 The report always retains `f56Status: pending`. A module mapping, a candidate count, or an action record supplied by an author cannot automatically grant full-plan acceptance. `source-reviewed` entries remain in `actionPending`. Runtime/provider/manual proof must be inspected at its own exact revision and scope.
 
