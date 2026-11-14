@@ -5839,30 +5839,50 @@ function renderConnApp(el) {
 const textOf = (content) => (Array.isArray(content) ? content.filter((b) => b?.type === "text").map((b) => b.text).join("\n") : "");
 const toolOut = (v) => ({ content: [{ type: "text", text: typeof v === "string" ? v : JSON.stringify(v) }], ...(v && typeof v === "object" ? { structuredContent: v } : {}) });
 // "This app wants to … as you": one question at a time, in the app's own box (above the panel app, under an embed).
-let appAskQ = Promise.resolve();
+const appAskItems = [];
+let appAskActive = null;
+function pumpAppAsk() {
+  if (appAskActive || !appAskItems.length) return;
+  const item = appAskItems.shift();
+  if (item.signal?.aborted || !item.box?.isConnected) return item.finish(false);
+  appAskActive = item;
+  try {
+  const box = item.box;
+  box.hidden = false;
+  box.innerHTML = `<span>${t("Este app quer {what}, como você:", { what: esc(item.what) })}</span><q></q><div><button type="button" class="primary">${t("Permitir")}</button><button type="button" class="ghost">${t("Cancelar")}</button></div>`;
+  box.querySelector("q").textContent = String(item.detail).slice(0, 600);
+  const allow = box.querySelector(".primary"), cancel = box.querySelector(".ghost");
+  const ownsButtons = () => box.querySelector(".primary") === allow && box.querySelector(".ghost") === cancel;
+  item.clear = () => {
+    allow.onclick = null; cancel.onclick = null;
+    if (ownsButtons()) { box.hidden = true; box.innerHTML = ""; }
+  };
+  const done = (value, button) => {
+    if (appAskActive !== item || !button.isConnected || !ownsButtons() || item.signal?.aborted) return;
+    item.finish(value);
+  };
+  allow.onclick = (event) => done(true, event.currentTarget);
+  cancel.onclick = (event) => done(false, event.currentTarget);
+  } catch (error) { item.finish(false, { error }); }
+}
 function appAsk(box, what, detail, signal) {
-  const run = () => new Promise((res) => {
-    if (signal?.aborted || !box?.isConnected) return res(false);
-    box.hidden = false;
-    box.innerHTML = `<span>${t("Este app quer {what}, como você:", { what: esc(what) })}</span><q></q><div><button type="button" class="primary">${t("Permitir")}</button><button type="button" class="ghost">${t("Cancelar")}</button></div>`;
-    box.querySelector("q").textContent = String(detail).slice(0, 600);
-    const allow = box.querySelector(".primary"), cancel = box.querySelector(".ghost");
+  if (signal?.aborted || !box?.isConnected) return Promise.resolve(false);
+  return new Promise((resolve, reject) => {
     let answered = false;
-    const ownsButtons = () => box.querySelector(".primary") === allow && box.querySelector(".ghost") === cancel;
-    const finish = (value) => {
-      if (answered) return;
-      answered = true; signal?.removeEventListener("abort", onAbort);
-      if (ownsButtons()) { box.hidden = true; box.innerHTML = ""; }
-      res(value);
-    };
-    const onAbort = () => finish(false);
-    const done = (value, button) => { if (!button.isConnected || !ownsButtons() || signal?.aborted) return; finish(value); };
-    allow.onclick = (event) => done(true, event.currentTarget);
-    cancel.onclick = (event) => done(false, event.currentTarget);
+    const item = { box, what, detail, signal, clear: null, finish(value, failure) {
+      if (answered) return; answered = true;
+      signal?.removeEventListener("abort", onAbort);
+      const index = appAskItems.indexOf(item);
+      if (index >= 0) appAskItems.splice(index, 1);
+      if (appAskActive === item) { appAskActive = null; item.clear?.(); }
+      item.clear = null; item.box = null; item.what = ""; item.detail = ""; item.signal = null;
+      if (failure) reject(failure.error); else resolve(value); queueMicrotask(pumpAppAsk);
+    } };
+    const onAbort = () => item.finish(false);
     signal?.addEventListener("abort", onAbort, { once: true });
-    if (signal?.aborted) onAbort();
+    appAskItems.push(item);
+    if (signal?.aborted) onAbort(); else queueMicrotask(pumpAppAsk);
   });
-  return (appAskQ = appAskQ.then(run, run));
 }
 // vibebook's tools for room apps: what the page already has (S) and what the person can already do (WS), nothing more.
 const VB_TOOLS = [
@@ -6055,25 +6075,26 @@ function inlineAppOpen(frame, c, a, askBox, current) {
     };
     return false;
   })();
-  return { ready, accepted: () => accepted, dispose: owner.dispose };
+  return { ready, current: owner.current, accepted: () => accepted, dispose: owner.dispose };
 }
 async function mountApp(frame, connection, target, askBox) {
   const c = { ...connection }, a = { ...target };
   const current = appDocumentScope(frame), room = c.id === "room", base = `/api/books/${S.id}/connections/${c.id}`;
   const ask = askBox || (() => document.getElementById("appAsk"));
   const opening = askBox && !room ? inlineAppOpen(frame, c, a, askBox, current) : null;
+  const openingCurrent = () => current() && (!opening || opening.current());
   try {
     if (opening && !await opening.ready) return;
-    if (!current()) return;
+    if (!openingCurrent()) return;
     const { createAppDocumentHost } = await loadAppDocumentHost();
-    if (!current()) return;
+    if (!openingCurrent()) return;
     if (room) {
       const host = makeHost(frame, { ask, reopen: (next) => mountApp(next, c, a, askBox), tool: { name: a.tool, title: a.title }, first: Promise.resolve(toolOut(vbRead())) }, createAppDocumentHost, current);
       hosts.set(frame, host); host.start(); host.loadFile(`/api/books/${S.id}/files/${a.file.id}`);
       return;
     }
     const ui = await api(`${base}/ui?tool=${encodeURIComponent(a.tool)}`);
-    if (!current()) return;
+    if (!openingCurrent()) return;
     const call = (name, args) => {
       if (!current()) return Promise.reject(Error("App document authorization expired"));
       return api(`${base}/call`, { name, arguments: args }).then((r) => r.result);
@@ -6083,7 +6104,7 @@ async function mountApp(frame, connection, target, askBox) {
     const host = makeHost(frame, { ask, call, first, reopen: (next) => mountApp(next, c, a, askBox), tool: ui.tool, base, toolName: a.tool }, createAppDocumentHost, current);
     hosts.set(frame, host); host.start(); host.loadHtml(ui.html);
   } catch (error) {
-    if (!current()) return;
+    if (!openingCurrent()) return;
     const notice = document.createElement("div"); notice.className = "empty"; notice.textContent = error.message;
     frame.replaceWith(notice);
   } finally {

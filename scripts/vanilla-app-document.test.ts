@@ -7,7 +7,7 @@ async function consentFixture() {
     new URL("../public/app.html", import.meta.url),
     "utf8",
   );
-  const start = html.indexOf("let appAskQ = Promise.resolve();");
+  const start = html.indexOf("const appAskItems = [];");
   const end = html.indexOf("// vibebook's tools", start);
   if (start < 0 || end < start)
     throw Error("Actual vanilla consent function not found");
@@ -116,7 +116,7 @@ async function inlineOpenFixture() {
     new URL("../public/app.html", import.meta.url),
     "utf8",
   );
-  const consentStart = html.indexOf("let appAskQ = Promise.resolve();"),
+  const consentStart = html.indexOf("const appAskItems = [];"),
     consentEnd = html.indexOf("// vibebook's tools", consentStart);
   const scopeStart = html.indexOf("function appDocumentScope("),
     scopeEnd = html.indexOf("// Removal is synchronous", scopeStart);
@@ -132,6 +132,15 @@ async function inlineOpenFixture() {
     calls: string[] = [],
     hosts: string[] = [],
     loads: string[] = [];
+  let paused: "SDK" | "ui" | undefined, waiting: Promise<void> | undefined;
+  const pause = (stage: "SDK" | "ui") => {
+    paused = stage;
+    let release!: () => void;
+    waiting = new Promise<void>((done) => {
+      release = done;
+    });
+    return release;
+  };
   const build = new Function(
     "document",
     "AbortController",
@@ -164,6 +173,7 @@ async function inlineOpenFixture() {
     AbortController,
     async (path: string) => {
       calls.push(path);
+      if (path.includes("/ui?") && paused === "ui") await waiting;
       return path.includes("/ui?")
         ? {
             html: "<p>controlled</p>",
@@ -173,6 +183,7 @@ async function inlineOpenFixture() {
     },
     async () => {
       loads.push("SDK");
+      if (paused === "SDK") await waiting;
       return { createAppDocumentHost() {} };
     },
     (_frame: unknown, options: { first: Promise<unknown> }) => {
@@ -203,6 +214,7 @@ async function inlineOpenFixture() {
     hosts,
     loads,
     settle,
+    pause,
     close: () => window.happyDOM.abort(),
   };
 }
@@ -275,6 +287,105 @@ test("actual vanilla explicit panel Open preserves its existing initial call wit
     expect(f.calls.filter((path) => path.includes("/call"))).toHaveLength(1);
     expect(f.hosts).toHaveLength(1);
     expect(f.owner.pending()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test("accepted vanilla inline opening cannot resume a disposed grant after delayed SDK/UI and frame reinsertion", async () => {
+  for (const stage of ["SDK", "ui"] as const) {
+    const f = await inlineOpenFixture();
+    try {
+      const surface = f.surfaces[0]!,
+        release = f.pause(stage);
+      const operation = f.owner.mount(
+        surface.frame,
+        f.connection,
+        f.app,
+        () => surface.ask,
+      );
+      await f.settle();
+      surface.ask.querySelector<HTMLButtonElement>(".primary")!.click();
+      await f.settle();
+      expect(f.loads).toEqual(["SDK"]);
+      surface.frame.remove();
+      f.owner.prune();
+      surface.box.prepend(surface.frame);
+      release();
+      await operation;
+      expect(f.calls.filter((path) => path.includes("/call"))).toEqual([]);
+      expect(f.hosts).toEqual([]);
+      expect(f.owner.pending()).toBe(0);
+    } finally {
+      await f.close();
+    }
+  }
+});
+
+test("queued vanilla B abort settles immediately and unlinks it while A and C keep their own questions", async () => {
+  const { ask, firstBox, secondBox, close } = await consentFixture();
+  const firstAbort = new AbortController(),
+    secondAbort = new AbortController();
+  try {
+    const first = ask(firstBox, "A", "A detail", firstAbort.signal);
+    const second = ask(secondBox, "B", "B detail", secondAbort.signal);
+    const third = ask(secondBox, "C", "C detail");
+    await Promise.resolve();
+    const allowA = firstBox.querySelector("button")!;
+    let secondSettled = false;
+    void second.then(() => {
+      secondSettled = true;
+    });
+    secondAbort.abort();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(secondSettled).toBe(true);
+    expect(await second).toBe(false);
+    expect(firstBox.querySelector("button")).toBe(allowA);
+    expect(firstBox.querySelector("q")?.textContent).toBe("A detail");
+    expect(secondBox.textContent).not.toContain("B detail");
+    allowA.click();
+    expect(await first).toBe(true);
+    await Promise.resolve();
+    expect(secondBox.querySelector("q")?.textContent).toBe("C detail");
+    secondBox.querySelector("button")!.click();
+    expect(await third).toBe(true);
+  } finally {
+    firstAbort.abort();
+    secondAbort.abort();
+    await close();
+  }
+});
+
+test("pruning queued vanilla inline B releases its mount before unanswered A without SDK or calls", async () => {
+  const f = await inlineOpenFixture();
+  try {
+    const first = f.surfaces[0]!,
+      second = f.surfaces[1]!;
+    const a = f.owner.mount(first.frame, f.connection, f.app, () => first.ask);
+    const b = f.owner.mount(
+      second.frame,
+      f.connection,
+      f.app,
+      () => second.ask,
+    );
+    await f.settle();
+    const allowA = first.ask.querySelector("button")!;
+    let settled = false;
+    void b.then(() => {
+      settled = true;
+    });
+    second.frame.remove();
+    f.owner.prune();
+    await f.settle();
+    expect(settled).toBe(true);
+    expect(first.ask.querySelector("button")).toBe(allowA);
+    expect(f.calls).toEqual([]);
+    expect(f.loads).toEqual([]);
+    expect(f.hosts).toEqual([]);
+    first.ask.querySelector<HTMLButtonElement>(".ghost")!.click();
+    await a;
+    await b;
   } finally {
     await f.close();
   }
