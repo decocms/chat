@@ -16,7 +16,7 @@ Pinned source inspected: `wrangler@4.152.0`, `config-schema.json` → `PreviewsC
 | BOOK / DOC_ROOMS / PEOPLE | Same local exported classes, no `script_name`; existing top-level migrations retained | Confirm platform Preview support and isolated namespace creation on actual deployment |
 | Four rate limits | Same limits, separately allocated namespace IDs | Four IDs distinct from production and appropriate for shared staging |
 | EMAIL | Restrict binding to one verified sandbox recipient | Recipient; other login destinations will not work in this restricted preview |
-| AI / model vars | Explicit Workers AI binding, existing model choices; Judge disabled | Approve paid preview usage and independently scoped provider credentials |
+| AI / model vars | Explicit Workers AI binding, existing model choices; Judge disabled | Verify independently scoped provider credentials and preview billing limits |
 | Reporting vars | Empty room lists; no production issue/report room configured | None for the restricted preview |
 | SITE | Omitted; existing main-worker static landing fallback applies | Dedicated staging service if CMS landing parity is needed |
 | Site deco vars | Neither production site nor environment copied | Confirm isolated deco site/environment and preview credentials; merely naming an environment does not provision one |
