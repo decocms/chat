@@ -1,5 +1,26 @@
 # Vanilla and product change ledger
 
+## Current published baseline: `3b86acb` (2026-11-14)
+
+Merged at `2d1b6ae`. The earlier `366450e` repository, browser, App transport
+and HMR workflows pass, with exact reports retained in
+`native-application-browser/2026-11-14-366450e/`. They predate this baseline.
+
+| Main change | Required native parity | Status |
+| --- | --- | --- |
+| `f7d6c79` | Messages carry the actual alongside-file ID to the listener; inline document Apps fill the available document width | Typed stored-message viewing projection preserved. Native composer ownership and width/browser regression port in progress. |
+| `3b86acb` Fire | Own Claude switches through runner; held audio goes to Workers AI transcription; release sends one normal message; Escape restores model; personal notices distinguish switching/ready/off/failed | Old server-model helper and synthetic model browser setup removed. Typed new Fire/STT backend implemented; API declaration and backend compiler checks pass on BugMachine. Native microphone/state/teardown and combined browser evidence pending. |
+| `3b86acb` production cue | A new human request after an epic's deployment shows corrections in progress rather than only live | Native parity required with the new runner port. |
+
+Current performance run `43623490530` completes all 32 original trials but
+fails 12 of 16 original budgets. Four excluded diagnostic trials are separate;
+native desktop diagnostics fail with `cpu-invalid`. No threshold is changed.
+The new inline App reader-approval audit must also pass independently after
+integration. Existing retained checks do not close these newer conditions.
+
+The sections below retain the history and requirements of earlier baselines;
+the published runner design supersedes their server-model Fire flow.
+
 Current-main reconciliation: `cbaf3dfe6a696a887da6640ef45c070a9ac0b5ed`
 includes `8a2d05e`'s cross-room Inbox (waits, held-back mentions and open tasks),
 `GET /api/inbox` and a sidebar trigger above the epic list. The default vanilla
