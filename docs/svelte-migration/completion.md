@@ -19,6 +19,16 @@ HMR because the new AI binding triggered Wrangler remote authentication.
 [Explicit local mode and owned child-exit observation](source-hmr-local-worker.md)
 fix the reproduced HMR failure; the managed passing run verifies that fix.
 
+At `649f773`, fresh preview builds and all repository source gates pass on Linux
+and macOS. The [exact managed source receipt](verification/649f773-managed-source.json)
+records the failed overall freshness step separately. The committed preview is
+refreshed from that run's original Linux build artifact; [the matching asset
+receipt](preview-build-2026-11-14.json) records preserved default-asset hashes.
+Freshness CI must still be rerun. The [new real-Worker browser run fails in the
+R2 Viewer phase](managed-browser/2026-11-14-649f773-failure/README.md), before the
+expanded twelve-profile audit. That runtime failure and all tablet evidence
+remain open; earlier passing browser runs do not certify this revised source.
+
 The latest complete [performance cohort](performance/2026-11-14-139573a/README.md)
 executes all 32 original trials but fails **11 of 16 budget comparisons**.
 Application gzip is 358662 B against a 220947 B limit; fonts are 826876 B against
