@@ -1,3 +1,4 @@
+import { requestBytes, RequestBytesError } from "./requestBytes";
 import { FireBody, FireResult, SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
@@ -266,12 +267,12 @@ const roomPosts = new Hono<ApiCtx>()
       const h = c.req.valid("header");
       const type = h["content-type"].split(";")[0].trim().toLowerCase();
       if (!svc.fileTypes.includes(type)) return c.json({ error: svc.typesError } satisfies ErrorBody, 415);
-      if (Number(c.req.header("content-length") ?? 0) > svc.maxBytes(type)) return c.json({ error: svc.sizeError(type) } satisfies ErrorBody, 413);
       try {
-        const meta = await svc.storeFile(id, type, await c.req.arrayBuffer(), decodeURIComponent(h["x-filename"] ?? ""));
+        const meta = await svc.storeFile(id, type, await requestBytes(c.req.raw, svc.maxBytes(type)), decodeURIComponent(h["x-filename"] ?? ""));
         svc.track("file_uploaded", { book: id, type, size: meta.size });
         return c.json(meta satisfies UploadFileResult, 200);
       } catch (e) {
+        if (e instanceof RequestBytesError) return c.json({ error: svc.sizeError(type) } satisfies ErrorBody, e.reason === "limit" ? 413 : 400);
         return c.json({ error: e instanceof Error ? e.message : String(e) } satisfies ErrorBody, 400);
       }
     },
@@ -699,8 +700,12 @@ export const uploadsApi = meApi
     if (!svc.sameOrigin) return c.json({ error: "bad origin" } satisfies ErrorBody, 403);
     const type = mediaType(c.req.valid("header"));
     if (!AVATAR_TYPES.includes(type)) return c.json({ error: "Use uma imagem PNG, JPEG ou WebP." } satisfies ErrorBody, 415);
-    const bytes = await c.req.arrayBuffer();
-    if (!bytes.byteLength || bytes.byteLength > 1_000_000) return c.json({ error: "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
+    let bytes:ArrayBuffer;
+    try { bytes=await requestBytes(c.req.raw,1_000_000); }
+    catch(error){
+      if(error instanceof RequestBytesError)return c.json({ error: "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
+      throw error;
+    }
     if (!(await svc.allowUpload())) return c.json(slowDown, 429);
     const avatar = await svc.saveAvatar(type, bytes);
     svc.track("avatar_set");
@@ -714,7 +719,16 @@ export const uploadsApi = meApi
     const type = mediaType(c.req.valid("header"));
     try {
       // A JSON body removes the icon; anything else is the image (setRoomIcon checks type and size).
-      const icon = await svc.setRoomIcon(id, type === "application/json" ? null : { type, body: await c.req.arrayBuffer() });
+      let image:{type:string;body:ArrayBuffer}|null=null;
+      if(type==="application/json")await c.req.raw.body?.cancel().catch(()=>{});
+      else {
+        try { image={type,body:await requestBytes(c.req.raw,256_000)}; }
+        catch(error){
+          if(error instanceof RequestBytesError)return c.json({error:"Ícone vazio ou maior que 256KB."} satisfies ErrorBody,400);
+          throw error;
+        }
+      }
+      const icon = await svc.setRoomIcon(id,image);
       svc.track("room_icon", { book: id, set: icon !== null });
       return c.json({ ok: true as const, icon } satisfies RoomIconResult, 200);
     } catch (e) {

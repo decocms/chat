@@ -1,4 +1,5 @@
 import "server-only";
+import { requestBytes, RequestBytesError } from "./requestBytes";
 import * as z from "zod/mini";
 import { STT_AUDIO_MAX, SttResult, type SttQuery } from "../shared/schemas";
 export const WHISPER_MODEL = "@cf/openai/whisper-large-v3-turbo";
@@ -15,36 +16,14 @@ export async function speechAudio(
   request: Request,
   maxBytes = STT_AUDIO_MAX,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const length = request.headers.get("content-length");
-  if (length !== null && (!/^\d+$/.test(length) || Number(length) > maxBytes)) {
-    await request.body?.cancel().catch(() => {});
-    throw new SpeechAudioError();
-  }
-  const reader = request.body?.getReader();
-  if (!reader) throw new SpeechAudioError();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
   try {
-    while (true) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.byteLength;
-      if (size > maxBytes) throw new SpeechAudioError();
-      chunks.push(new Uint8Array(part.value));
-    }
-    if (!size) throw new SpeechAudioError();
-    const output = new Uint8Array(size);
-    let at = 0;
-    for (const chunk of chunks) {
-      output.set(chunk, at);
-      at += chunk.byteLength;
-    }
-    return output;
-  } finally {
-    await reader.cancel().catch(() => {});
-    reader.releaseLock();
+    return new Uint8Array(await requestBytes(request, maxBytes));
+  } catch (error) {
+    if (error instanceof RequestBytesError) throw new SpeechAudioError();
+    throw error;
   }
 }
+
 function audioBase64(audio: Uint8Array) {
   // Complete three-byte groups keep padding confined to the final chunk and
   // bound argument count without importing Node types into the API project.

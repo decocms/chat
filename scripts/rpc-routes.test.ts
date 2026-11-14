@@ -361,8 +361,8 @@ test("binary upload validates metadata, encoded names and limits", async () => {
   expect((await request("text/plain", "large.txt", "large", "5")).status).toBe(
     413,
   );
-  // An absent/incorrect content-length must still hit storage's actual-byte limit.
-  expect((await request("text/plain", "large.txt", "large")).status).toBe(400);
+  // Actual streamed bytes must reject oversize before calling storage, regardless of this header.
+  expect((await request("text/plain", "large.txt", "large")).status).toBe(413);
   expect((await request("text/plain", "%ZZ", "hi")).status).toBe(400);
   expect(f.uploaded).toEqual([
     { room: "room", type: "text/plain", size: 2, name: "a b.txt" },
@@ -1358,4 +1358,119 @@ test("personal runner Fire states are bounded literals and never confuse mode wi
     { t: "fireState", book: "room", state: "ready", note: "x".repeat(201) },
   ])
     expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+});
+
+test("binary handlers stop chunked and falsely small-length uploads at their actual byte limits", async () => {
+  for (const length of [undefined, "1"])
+    for (const item of [
+      {
+        path: "/api/books/room/files",
+        type: "text/plain",
+        maximum: 4,
+        status: 413,
+      },
+      {
+        path: "/api/me/avatar",
+        type: "image/png",
+        maximum: 1_000_000,
+        status: 413,
+      },
+      {
+        path: "/api/books/room/icon",
+        type: "image/png",
+        maximum: 256_000,
+        status: 400,
+      },
+    ]) {
+      let pulls = 0,
+        canceled = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            pulls++;
+            if (pulls === 1) controller.enqueue(new Uint8Array(item.maximum));
+            else if (pulls === 2) controller.enqueue(new Uint8Array([1]));
+            else throw Error("Oversized body must not be drained");
+          },
+          cancel() {
+            canceled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const f = fixture();
+      const response = await f.app.request(item.path, {
+        method: "POST",
+        headers: {
+          "content-type": item.type,
+          ...(length ? { "content-length": length } : {}),
+        },
+        body: stream,
+      });
+      expect(response.status).toBe(item.status);
+      expect(await response.json()).toHaveProperty("error");
+      expect(pulls).toBe(2);
+      expect(canceled).toBe(1);
+      expect(f.uploaded).toHaveLength(0);
+      expect(f.saved).toHaveLength(0);
+    }
+});
+
+test("declared oversized upload is canceled before reading and icon removal does not buffer JSON", async () => {
+  for (const item of [
+    {
+      path: "/api/books/room/files",
+      type: "text/plain",
+      length: "5",
+      status: 413,
+    },
+    {
+      path: "/api/me/avatar",
+      type: "image/png",
+      length: "1000001",
+      status: 413,
+    },
+    {
+      path: "/api/books/room/icon",
+      type: "image/png",
+      length: "256001",
+      status: 400,
+    },
+    {
+      path: "/api/books/room/icon",
+      type: "application/json",
+      length: "999999999",
+      status: 200,
+    },
+  ]) {
+    let pulls = 0,
+      canceled = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull() {
+          pulls++;
+          throw Error("Body must not be read");
+        },
+        cancel() {
+          canceled++;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const f = fixture();
+    const response = await f.app.request(item.path, {
+      method: "POST",
+      headers: { "content-type": item.type, "content-length": item.length },
+      body: stream,
+    });
+    expect(response.status).toBe(item.status);
+    expect(pulls).toBe(0);
+    expect(canceled).toBe(1);
+    if (item.type === "application/json")
+      expect(await response.json()).toEqual({ ok: true, icon: null });
+    else {
+      expect(f.uploaded).toHaveLength(0);
+      expect(f.saved).toHaveLength(0);
+    }
+  }
 });
