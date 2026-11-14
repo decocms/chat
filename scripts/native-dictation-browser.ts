@@ -5,10 +5,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect } from "@playwright/test";
 import type { NativeApplicationAuditFixture } from "./native-application-browser-types";
-import { FireBody, FireResult } from "../shared/schemas";
 
 type MediaSnapshot = {
   streams: number;
+  recorderStarts: number;
+  recorderStops: number;
   activeTracks: number;
   contexts: number;
   totalContexts: number;
@@ -20,12 +21,12 @@ type MediaSnapshot = {
 };
 declare global {
   interface Window {
-    __vbFireGestureMedia?: MediaSnapshot;
+    __vbDictationMedia?: MediaSnapshot;
   }
 }
 /** Call before launching the real cohort. Generated PCM is synthetic fixture
  * input, not a recording, and never included in a server request by this audit. */
-export async function writeFireGestureTone(output: string) {
+export async function writeDictationTone(output: string) {
   await mkdir(output, { recursive: true });
   const rate = 48000,
     frames = rate * 12,
@@ -47,52 +48,46 @@ export async function writeFireGestureTone(output: string) {
       Math.round(Math.sin((i * 2 * Math.PI * 440) / rate) * 32767 * 0.1),
       44 + i * 2,
     );
-  const file = join(output, "fire-continuous-tone.wav");
+  const file = join(output, "dictation-tone.wav");
   await writeFile(file, data);
   return file;
 }
-export const fireGestureBrowserArgs = (toneFile: string) => [
+export const dictationBrowserArgs = (toneFile: string) => [
   "--disable-speech-api",
   "--use-fake-device-for-media-stream",
   "--use-fake-ui-for-media-stream",
   `--use-file-for-fake-audio-capture=${toneFile}`,
 ];
 
-export async function auditNativeFireGesture(
+export async function auditNativeDictation(
   fixture: NativeApplicationAuditFixture,
 ) {
   const report: {
     fixture: string;
     status: string;
     phase: string;
-    fireOn: number;
-    fireOff: number;
+    liveModeRequests: number;
     sttRequests: number;
     messageWrites: number;
     sameButton: boolean;
-    retainedCapture: boolean;
-    afterLock: MediaSnapshot | null;
+    afterStart: MediaSnapshot | null;
     afterCancel: MediaSnapshot | null;
     error: string;
     pageErrors: string[];
-    cleanupFireOff: boolean;
     cleanupErrors: string[];
   } = {
     fixture:
-      "continuous synthetic 440Hz PCM; no quiet window; canceled before20s",
+      "synthetic 440Hz PCM; actual browser microphone capture canceled before transcription",
     status: "running",
     phase: "context",
-    fireOn: 0,
-    fireOff: 0,
+    liveModeRequests: 0,
     sttRequests: 0,
     messageWrites: 0,
     sameButton: false,
-    retainedCapture: false,
-    afterLock: null,
+    afterStart: null,
     afterCancel: null,
     error: "",
     pageErrors: [],
-    cleanupFireOff: false,
     cleanupErrors: [],
   };
   let context:
@@ -105,7 +100,7 @@ export async function auditNativeFireGesture(
   > | null = null;
   const operation = async (name: string, run: () => Promise<void>) => {
     report.phase = name;
-    await fixture.step(`Fire gesture: ${name}`, run);
+    await fixture.step(`Dictation: ${name}`, run);
   };
   try {
     const profile = await fixture.createProfile({
@@ -123,6 +118,8 @@ export async function auditNativeFireGesture(
         contexts: AudioContext[] = [];
       const state: MediaSnapshot = {
         streams: 0,
+        recorderStarts: 0,
+        recorderStops: 0,
         activeTracks: 0,
         contexts: 0,
         totalContexts: 0,
@@ -143,7 +140,7 @@ export async function auditNativeFireGesture(
           get: () => contexts.filter((c) => c.state === "running").length,
         },
       });
-      window.__vbFireGestureMedia = state;
+      window.__vbDictationMedia = state;
       const acquire = navigator.mediaDevices.getUserMedia.bind(
         navigator.mediaDevices,
       );
@@ -152,6 +149,17 @@ export async function auditNativeFireGesture(
         state.streams++;
         tracks.push(...stream.getAudioTracks());
         return stream;
+      };
+      const NativeMediaRecorder = window.MediaRecorder;
+      window.MediaRecorder = class extends NativeMediaRecorder {
+        override start(timeslice?: number) {
+          super.start(timeslice);
+          state.recorderStarts++;
+        }
+        override stop() {
+          super.stop();
+          state.recorderStops++;
+        }
       };
       const NativeAudioContext = window.AudioContext;
       window.AudioContext = class extends NativeAudioContext {
@@ -202,6 +210,7 @@ export async function auditNativeFireGesture(
         request.method() !== "POST"
       )
         return;
+      if (url.pathname === `${pathname}/fire`) report.liveModeRequests++;
       if (url.pathname === `${pathname}/stt`) report.sttRequests++;
       if (url.pathname === `${pathname}/post`) report.messageWrites++;
     });
@@ -227,10 +236,12 @@ export async function auditNativeFireGesture(
     });
     const media = () =>
       page.evaluate(() => {
-        const state = window.__vbFireGestureMedia;
+        const state = window.__vbDictationMedia;
         if (!state) throw Error("Media observer missing");
         return {
           streams: state.streams,
+          recorderStarts: state.recorderStarts,
+          recorderStops: state.recorderStops,
           activeTracks: state.activeTracks,
           contexts: state.contexts,
           totalContexts: state.totalContexts,
@@ -251,6 +262,8 @@ export async function auditNativeFireGesture(
       ).toBeEnabled();
       assert.deepEqual(await media(), {
         streams: 0,
+        recorderStarts: 0,
+        recorderStops: 0,
         activeTracks: 0,
         contexts: 0,
         totalContexts: 0,
@@ -270,88 +283,37 @@ export async function auditNativeFireGesture(
     original = heldButton;
     const box = await mic.boundingBox();
     assert(box);
-    const fireResponse = (on: boolean) =>
-      page.waitForResponse(
-        (response) => {
-          const request = response.request();
-          if (
-            new URL(response.url()).origin !== new URL(fixture.base).origin ||
-            new URL(response.url()).pathname !== `${pathname}/fire` ||
-            request.method() !== "POST"
-          )
-            return false;
-          try {
-            const body = FireBody.safeParse(request.postDataJSON());
-            return body.success && body.data.on === on;
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 10_000 },
-      );
-    const onResponse = fireResponse(true);
-    void onResponse.catch(() => {});
-    await operation("real three-second hold and D1 Fire-on", async () => {
+    await operation("mic tap starts actual browser capture", async () => {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
-      const response = await onResponse;
-      assert.equal(response.status(), 200);
-      FireResult.parse(await response.json());
-      report.fireOn++;
-      await expect(page.locator("[data-native-fire-listening]")).toBeVisible();
+      await page.mouse.up();
       await expect.poll(async () => (await media()).activeTracks).toBe(1);
-    });
-    await operation(
-      "same held button retains real pointer capture",
-      async () => {
-        report.sameButton = await heldButton.evaluate(
-          (node) =>
-            node.isConnected &&
-            node ===
-              document.querySelector('button[aria-label="Dictate message"]'),
-        );
-        report.retainedCapture = await heldButton.evaluate((node) => {
-          const id = window.__vbFireGestureMedia?.pointer;
-          return id !== null && id !== undefined && node.hasPointerCapture(id);
-        });
-        assert(report.sameButton);
-        assert(report.retainedCapture);
-        await page.mouse.move(
-          box.x + box.width / 2,
-          box.y + box.height / 2 - 50,
-          { steps: 4 },
-        );
-        await page.mouse.up();
-        await expect(page.locator('[data-fire-locked="true"]')).toBeVisible();
-        report.afterLock = await media();
-        assert.equal(report.afterLock.streams, 1);
-        assert.equal(report.afterLock.activeTracks, 1);
-        assert.equal(report.afterLock.contexts, 1);
-        await expect.poll(async () => (await media()).runningContexts).toBe(1);
-        await expect
-          .poll(async () => (await media()).voicedSamples)
-          .toBeGreaterThan(0);
-        report.afterLock = await media();
-      },
-    );
-    await operation("Escape releases actual media without STT", async () => {
-      const offResponse = fireResponse(false);
-      void offResponse.catch(() => {});
-      await page.locator("[data-native-composer] textarea").focus();
-      await page.keyboard.press("Escape");
-      const response = await offResponse;
-      assert.equal(response.status(), 200);
-      FireResult.parse(await response.json());
-      report.fireOff++;
-      await expect(page.locator('[data-fire-locked="true"]')).toHaveCount(0);
-      await expect.poll(async () => (await media()).activeTracks).toBe(0);
-      await expect.poll(async () => (await media()).openContexts).toBe(0);
-      report.afterCancel = await media();
+      await expect(mic).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => (await media()).recorderStarts).toBe(1);
+      report.sameButton = await heldButton.evaluate((node) => node.isConnected);
+      assert(report.sameButton);
+      report.afterStart = await media();
+      assert.equal(report.afterStart.streams, 1);
+      assert.equal(report.liveModeRequests, 0);
       assert.equal(report.sttRequests, 0);
       assert.equal(report.messageWrites, 0);
-      assert.deepEqual(report.pageErrors, []);
-      assert.equal(await heldButton.evaluate((node) => node.isConnected), true);
     });
+    await operation(
+      "Escape cancels actual media without sending or transcription",
+      async () => {
+        await page.locator("[data-native-composer] textarea").focus();
+        await page.keyboard.press("Escape");
+        await expect.poll(async () => (await media()).activeTracks).toBe(0);
+        await expect.poll(async () => (await media()).openContexts).toBe(0);
+        report.afterCancel = await media();
+        assert.equal(report.afterCancel.recorderStarts, 1);
+        assert.equal(report.afterCancel.recorderStops, 1);
+        assert.equal(report.liveModeRequests, 0);
+        assert.equal(report.sttRequests, 0);
+        assert.equal(report.messageWrites, 0);
+        assert.deepEqual(report.pageErrors, []);
+      },
+    );
     report.status = "passed";
     report.phase = "complete";
     return report;
@@ -363,22 +325,6 @@ export async function auditNativeFireGesture(
     await original?.dispose().catch(() => {});
     let cleanupError: unknown;
     if (context) {
-      if (report.fireOn > report.fireOff) {
-        try {
-          const response = await context.request.post(
-            `${fixture.base}/api/books/${encodeURIComponent(fixture.roomId)}/fire`,
-            { data: { on: false } },
-          );
-          assert.equal(response.status(), 200);
-          FireResult.parse(await response.json());
-          report.fireOff++;
-          report.cleanupFireOff = true;
-        } catch (error) {
-          report.status = "failed";
-          report.cleanupErrors.push("FireOffCleanupError");
-          cleanupError = error;
-        }
-      }
       try {
         await context.close();
       } catch (error) {
@@ -390,7 +336,7 @@ export async function auditNativeFireGesture(
     }
     await mkdir(fixture.output, { recursive: true });
     await writeFile(
-      join(fixture.output, "native-fire-gesture.json"),
+      join(fixture.output, "native-dictation.json"),
       JSON.stringify(report, null, 2) + "\n",
     );
     if (cleanupError) throw cleanupError;
