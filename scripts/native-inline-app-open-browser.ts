@@ -335,9 +335,15 @@ export async function auditInlineAppOpen(
             const frame = node.querySelector("iframe");
             if (!(frame instanceof HTMLIFrameElement))
               throw Error("Expected current inline iframe");
-            return { card: node.clientWidth, frame: frame.getBoundingClientRect().width };
+            return {
+              card: node.clientWidth,
+              frame: frame.getBoundingClientRect().width,
+            };
           });
-          assert(Math.abs(width.frame - width.card) <= 2, "App iframe must fill its card");
+          assert(
+            Math.abs(width.frame - width.card) <= 2,
+            "App iframe must fill its card",
+          );
         };
         await phase(
           "initial document has no remote execution before reader Allow",
@@ -373,20 +379,32 @@ export async function auditInlineAppOpen(
               await width.focus();
               for (let i = 0; i < 24; i++) await width.press("ArrowLeft");
             }
-            const measureWidth = () => widget("mutate_a").evaluate((node, selector) => {
-              const preview = node.closest(selector);
-              if (!(preview instanceof HTMLElement)) throw Error("Document preview missing");
-              const style = getComputedStyle(preview);
-              return {
-                available: preview.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
-                card: node.getBoundingClientRect().width,
-              };
-            }, variant === "svelte" ? "[data-document-preview]" : "#preview");
-            await expect.poll(async () => (await measureWidth()).available).toBeGreaterThan(560);
-            await expect.poll(async () => {
-              const width = await measureWidth();
-              return Math.abs(width.card - width.available);
-            }).toBeLessThanOrEqual(2);
+            const measureWidth = () =>
+              widget("mutate_a").evaluate(
+                (node, selector) => {
+                  const preview = node.closest(selector);
+                  if (!(preview instanceof HTMLElement))
+                    throw Error("Document preview missing");
+                  const style = getComputedStyle(preview);
+                  return {
+                    available:
+                      preview.clientWidth -
+                      parseFloat(style.paddingLeft) -
+                      parseFloat(style.paddingRight),
+                    card: node.getBoundingClientRect().width,
+                  };
+                },
+                variant === "svelte" ? "[data-document-preview]" : "#preview",
+              );
+            await expect
+              .poll(async () => (await measureWidth()).available)
+              .toBeGreaterThan(560);
+            await expect
+              .poll(async () => {
+                const width = await measureWidth();
+                return Math.abs(width.card - width.available);
+              })
+              .toBeLessThanOrEqual(2);
             result.documentWidth = await measureWidth();
             await quiet();
             assert.deepEqual(meter.initial, {
