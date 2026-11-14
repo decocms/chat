@@ -23,18 +23,15 @@ binding triggered Wrangler remote authentication.
 [Explicit local mode and owned child-exit observation](source-hmr-local-worker.md)
 fix the reproduced HMR failure; the managed passing run verifies that fix.
 
-At `649f773`, fresh preview builds and all repository source gates pass on Linux
-and macOS. The [exact managed source receipt](verification/649f773-managed-source.json)
-records the failed overall freshness step separately. The committed preview is
-refreshed from that run's original Linux build artifact; [the matching asset
+Historical source `649f773` passed preview builds and repository source gates
+on Linux/macOS but failed freshness and the R2 Viewer. The [exact source
+receipt](verification/649f773-managed-source.json) and [failed browser
+JSON](managed-browser/2026-11-14-649f773-failure/README.md) are retained. The
+current preview was refreshed from that run's original build artifact; [the asset
 receipt](preview-build-2026-11-14.json) records preserved default-asset hashes.
-Freshness CI must still be rerun. The [new real-Worker browser run fails in the
-R2 Viewer phase](managed-browser/2026-11-14-649f773-failure/README.md), before the
-expanded twelve-profile audit. That runtime failure and all tablet evidence
-remain open; earlier passing browser runs do not certify this revised source.
+The published `587de12` result above verifies recovery of those two failures.
 
-The `587de12` follow-up above resolves that earlier R2/freshness failure; its
-separate short-phone failure remains open. Combined source `7bbbf6f` then passes
+Combined source `7bbbf6f` passes
 a fresh build and all 24 gates on BugMachine, including strict Svelte/backend/
 tooling, actual Composer DOM regressions, the media adapter and structural-sharing
 cases. [The exact source receipt](verification/7bbbf6f-continuous-fire-source.json)
