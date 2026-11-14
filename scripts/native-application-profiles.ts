@@ -418,7 +418,7 @@ async function keyboardOverlays(
   evidence.keyboard.push(
     "keyboard search open; combobox autofocus; Tab/Shift+Tab contained; Escape closes; exact trigger focus restored",
   );
-  if (profile.width === 390) {
+  if (profile.width <= 900) {
     const layout = page.locator("[data-native-room-layout]");
     await expect(layout).toHaveAttribute("data-sheet", "side");
     await page.keyboard.press("Escape");
@@ -519,7 +519,8 @@ async function applicationGeometry(page: Page) {
   });
 }
 
-/** Eight fresh real-owner contexts. Integrity HTTP reads are explicit audit
+/** Twelve fresh real-owner contexts, including the plan's tablet viewport.
+ * Integrity HTTP reads are explicit audit
  * traffic, not renderer font-transfer/performance receipts. */
 export async function auditNativeApplicationProfiles(
   fixture: NativeApplicationAuditFixture,
@@ -531,7 +532,7 @@ export async function auditNativeApplicationProfiles(
   let fontsVerified = false;
   for (const lang of ["en", "pt"] as const)
     for (const theme of ["light", "dark"] as const)
-      for (const width of [1440, 390] as const) {
+      for (const width of [1440, 768, 390] as const) {
         const profile = { lang, theme, width },
           key = `root-${lang}-${theme}-${width}`;
         const evidence: NativeApplicationProfileEvidence = {
@@ -569,7 +570,7 @@ export async function auditNativeApplicationProfiles(
               page.locator("[data-native-app-navigation]"),
             ).toBeVisible();
             const homeGeometry = await applicationGeometry(page);
-            if (profile.width === 390) {
+            if (profile.width <= 900) {
               assert(
                 homeGeometry.navigation &&
                   homeGeometry.navigation.height > 0 &&
@@ -637,7 +638,7 @@ export async function auditNativeApplicationProfiles(
                 roomGeometry.composer.bottom <= roomGeometry.room.bottom + 1,
               "Composer must remain inside the allocated room viewport",
             );
-            if (profile.width === 390) {
+            if (profile.width <= 900) {
               assert.equal(
                 roomGeometry.navigation?.display,
                 "none",
@@ -651,9 +652,24 @@ export async function auditNativeApplicationProfiles(
               const originalViewport = page.viewportSize();
               if (originalViewport) {
                 try {
-                  await page.setViewportSize({ width: 390, height: 420 });
-                  evidence.applicationLayout.shortViewport =
-                    await applicationGeometry(page);
+                  await page.setViewportSize({
+                    width: profile.width,
+                    height: 420,
+                  });
+                  const shortViewport = await applicationGeometry(page);
+                  evidence.applicationLayout.shortViewport = shortViewport;
+                  assert(
+                    shortViewport.chat && shortViewport.chat.clientHeight > 0,
+                    "Short phone/tablet viewport retains a usable chat region",
+                  );
+                  assert(
+                    shortViewport.room &&
+                      shortViewport.composer &&
+                      shortViewport.composer.bottom <=
+                        shortViewport.room.bottom + 1 &&
+                      shortViewport.room.bottom <= shortViewport.height + 1,
+                    "Short phone/tablet viewport keeps the composer inside the visible room",
+                  );
                 } finally {
                   await page.setViewportSize(originalViewport);
                 }

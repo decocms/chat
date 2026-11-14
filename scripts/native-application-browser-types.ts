@@ -4,7 +4,7 @@ import type { DocumentPane } from "../svelte/features/documents/types";
 export type NativeApplicationProfile = {
   lang: "en" | "pt";
   theme: "light" | "dark";
-  width: 1440 | 390;
+  width: 1440 | 768 | 390;
 };
 /** Only real Worker contexts. No caller may install canonical/API response mocks. */
 export type NativeApplicationAuditFixture = {
