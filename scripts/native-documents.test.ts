@@ -950,6 +950,92 @@ test("App AST slots carry exact legal paragraph spans and stable grants across p
   expect(documentAppKey(moved)).toBe(documentAppKey(original));
   expect(original.start).toBe(hidden.length);
 });
+
+test("App-free preview and task projection consume a frozen sanitized tree without changing its content", () => {
+  const source =
+    "# Safe heading\n\nProse with **bold** and `[[app:room/literal|m]]`.\n\n" +
+    "<script>private-script</script>\n\n[blocked](javascript:alert(1))\n\n" +
+    "## Tarefas\n\n- old task\n\nAfter";
+  const nodes = richText(source, "markdown", context("document"));
+  for (const node of descendants(nodes)) {
+    if (node.kind === "element") Object.freeze(node.attrs);
+    if ("children" in node) Object.freeze(node.children);
+    Object.freeze(node);
+  }
+  Object.freeze(nodes);
+  const before = JSON.stringify(nodes),
+    projected = documentAppNodes(nodes, source),
+    blocks = documentBlocks(projected, true),
+    rendered = descendants(
+      blocks.flatMap((block) => ("node" in block ? [block.node] : [])),
+    );
+  expect(documentAppMarkers(source)).toHaveLength(0);
+  expect(projected === nodes).toBe(true);
+  expect(blocks.filter((block) => "tasks" in block)).toHaveLength(1);
+  expect(
+    rendered.some((node) => node.kind === "element" && node.tag === "strong"),
+  ).toBe(true);
+  expect(
+    rendered.some(
+      (node) =>
+        node.kind === "text" && node.text.includes("[[app:room/literal|m]]"),
+    ),
+  ).toBe(true);
+  expect(rendered.some((node) => node.kind === "link")).toBe(false);
+  expect(
+    rendered.some(
+      (node) => node.kind === "text" && node.text.includes("private-script"),
+    ),
+  ).toBe(false);
+  expect(JSON.stringify(nodes)).toBe(before);
+});
+
+test("nested App projection and later source replacement preserve the session's frozen syntax projection", () => {
+  const session = createRichSession(),
+    source =
+      "# Intro\n\n> [[app:room/demo|m]]\n\n## Tarefas\n\n- old task\n\nTail",
+    nodes = session.render(source, "markdown", context("document"));
+  for (const node of descendants(nodes)) {
+    if (node.kind === "element") Object.freeze(node.attrs);
+    if ("children" in node) Object.freeze(node.children);
+    Object.freeze(node);
+  }
+  Object.freeze(nodes);
+  const before = JSON.stringify(nodes),
+    projected = documentAppNodes(nodes, source),
+    slots = descendants(projected).filter(
+      (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+    ),
+    blocks = documentBlocks(projected, true);
+  expect(slots).toHaveLength(1);
+  expect(slots[0]).toEqual(
+    expect.objectContaining({ tag: "p", documentAppSlot: 0, children: [] }),
+  );
+  expect(blocks.filter((block) => "tasks" in block)).toHaveLength(1);
+  expect(
+    descendants(nodes).some(
+      (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+    ),
+  ).toBe(false);
+  expect(JSON.stringify(nodes)).toBe(before);
+  const nextSource = "# Updated\n\n> ordinary prose\n\nTail",
+    next = documentAppNodes(
+      session.render(nextSource, "markdown", context("document")),
+      nextSource,
+    );
+  expect(
+    descendants(next).some(
+      (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+    ),
+  ).toBe(false);
+  expect(
+    descendants(next).some(
+      (node) => node.kind === "text" && node.text.includes("ordinary prose"),
+    ),
+  ).toBe(true);
+  expect(JSON.stringify(nodes)).toBe(before);
+  session.dispose();
+});
 test("canonical reads during preview writes cannot discard or repeat the pending local edit", async () => {
   const h = setup();
   const target = h.owner.target()!,

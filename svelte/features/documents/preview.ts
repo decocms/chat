@@ -4,11 +4,17 @@ import { documentAppMarkers } from "./appMarkers";
 export function documentAppNodes(
   nodes: readonly RichNode[],
   source: string,
-): RichNode[] {
+): readonly RichNode[] {
   const markers = documentAppMarkers(source);
+  // Renderers and later document projections read this tree; they never mutate
+  // it. Preserve the sanitized input when there is no legal App paragraph.
+  if (!markers.length) return nodes;
   let cursor = 0;
-  function walk(values: readonly RichNode[]): RichNode[] {
-    return values.map((node) => {
+  function walk(values: readonly RichNode[]): RichNode[] | undefined {
+    let result: RichNode[] | undefined;
+    for (let index = 0; index < values.length; index++) {
+      const node = values[index]!;
+      let next = node;
       if (node.kind === "element" && node.tag === "p") {
         const found = markers.findIndex(
           (marker, index) =>
@@ -18,19 +24,26 @@ export function documentAppNodes(
         );
         if (found >= 0) {
           cursor = found + 1;
-          return { ...node, documentAppSlot: found, children: [] };
+          next = { ...node, documentAppSlot: found, children: [] };
         }
       }
-      return "children" in node &&
+      if (
+        next === node &&
+        "children" in node &&
         !(
           node.kind === "element" &&
           (node.tag === "pre" || node.tag === "code")
         )
-        ? { ...node, children: walk(node.children) }
-        : node;
-    });
+      ) {
+        const children = walk(node.children);
+        if (children) next = { ...node, children };
+      }
+      if (next !== node && !result) result = values.slice(0, index);
+      result?.push(next);
+    }
+    return result;
   }
-  return walk(nodes);
+  return walk(nodes) ?? nodes;
 }
 const text = (nodes: readonly RichNode[]): string =>
   nodes
