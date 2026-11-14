@@ -57,7 +57,7 @@ export type InlineAppOpenEvidence = {
     };
     retainedFramesAfterProse?: boolean;
     documentWidth?: { available: number; card: number };
-    failure?: { name: string; phase: string };
+    failure?: { name: string; phase: string; sourceLocations?: string[] };
   }[];
   failure?: { name: string; phase: string };
   cleanupFailure?: "server";
@@ -117,13 +117,16 @@ export async function auditInlineAppOpen(
         page.on("pageerror", (error) =>
           result.pageErrors.push(localBrowserError(error, fixture.base)),
         );
+        result.phase = "reader-identity";
         const me = MeResult.parse(
           await (
             await ownerContext.request.get(`${fixture.base}/api/me?ui=svelte`)
           ).json(),
         );
         assert.equal(me.email, fixture.ownerEmail);
+        result.phase = "reader-oauth";
         const readerAgent = await nativeTestAgent(page, fixture.base);
+        result.phase = "create-room";
         const created = await ownerContext.request.post(
           `${fixture.base}/api/books`,
           {
@@ -134,6 +137,7 @@ export async function auditInlineAppOpen(
         assert(created.ok(), `Create room ${created.status()}`);
         const roomId = CreateRoomResult.parse(await created.json()).id;
         result.roomId = roomId;
+        result.phase = "post-marker";
         const posted = await ownerContext.request.post(
           `${fixture.base}/api/books/${roomId}/messages`,
           { headers: { origin: fixture.base }, data: { text: marker } },
@@ -634,6 +638,7 @@ export async function auditInlineAppOpen(
         result.failure = {
           name: error instanceof Error ? error.name : "UnknownError",
           phase: result.phase,
+          sourceLocations: error instanceof Error ? [...new Set((error.stack ?? "").match(/scripts\/(?:native-inline-app-open-browser|native-test-mcp)\.ts:\d+:\d+/g) ?? [])].slice(0, 5) : [],
         };
       } finally {
         if (counters)
