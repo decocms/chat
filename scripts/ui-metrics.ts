@@ -1725,7 +1725,8 @@ try {
   results.byteSummary = byteSummary;
   const lines = [
     "# Fully native versus vanilla controlled long-room benchmark",
-    `Status: ${results.status}`,
+    `Workload execution: ${results.status}`,
+    `Performance acceptance: ${results.performanceAcceptance}`,
     "",
     `Chromium: ${browser.version()}; ${arch()}; repetitions ${config.repetitions} per variant and device after ${config.warmups} warmup(s); 1440×1000 / 390×844, 4x CPU; fonts ${config.fontPolicy}; exclusive cohort declared ${config.cohortDeclaredExclusive}.`,
     "",
