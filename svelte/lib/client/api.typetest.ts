@@ -294,28 +294,7 @@ type GF = NonNullable<ReturnType<typeof globalFailure>>;
 sameAs<Equal<IsAny<GF["error"]>, false>>(true);
 sameAs<Equal<GF["status"], 401 | 403>>(true);
 
-// Runner Fire and Whisper are inferred from the owned validator chain.
-sameAs<
-  Equal<
-    InferRequestType<Client["api"]["books"][":id"]["fire"]["$post"]>["json"],
-    import("../../../shared/schemas").FireBody
-  >
->(true);
-sameAs<
-  Equal<
-    InferResponseType<Client["api"]["books"][":id"]["fire"]["$post"], 200>,
-    import("../../../shared/schemas").FireResult
-  >
->(true);
-void api.api.books[":id"].fire.$post({
-  param: { id: "room" },
-  json: { on: false },
-});
-void api.api.books[":id"].fire.$post({
-  param: { id: "room" },
-  // @ts-expect-error Fire toggles a boolean; speech text belongs to STT/msg
-  json: { on: "true" },
-});
+// Whisper is inferred from the owned validator chain.
 sameAs<
   Equal<
     InferRequestType<Client["api"]["books"][":id"]["stt"]["$post"]>["query"],

@@ -2,7 +2,7 @@ import type { Room } from "../../../shared/room";
 import type { UploadFileResult, AgentsResult } from "../../../shared/schemas";
 import type { ChatBridge } from "../../chatTypes";
 import type { RequestRoomCommand } from "../../roomConnection";
-import type { ComposerFirePort } from "./fireTypes";
+import type { ComposerVoicePort } from "./voiceTypes";
 import type { FireCaptureFactory } from "./fireAudio";
 import type { SpeechFactory } from "./speech";
 import type { ComposerDrafts } from "./drafts";
@@ -26,7 +26,7 @@ export type ComposerProps = {
   hidden?: boolean;
   speechFactory?: SpeechFactory | null;
   mediaFactory?: FireCaptureFactory | null;
-  fire?: ComposerFirePort;
+  voice?: ComposerVoicePort;
 };
 export type ComposerScope = Readonly<{
   account: string;

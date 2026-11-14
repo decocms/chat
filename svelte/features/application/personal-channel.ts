@@ -1,5 +1,3 @@
-import type { PersonEvent } from "../../../shared/person";
-type FireReport = Extract<PersonEvent, { t: "fireState" }>;
 import { createPersonalConnection } from "../home/connection";
 import type { PersonalSession } from "../home/personal";
 import type { AgentsService } from "../agents/service";
@@ -49,9 +47,6 @@ export function createApplicationPersonalChannel(options: {
   let refreshTimer: unknown | null = null,
     refreshRevision = 0;
   let unlisten = () => {};
-  const fireListeners = new Set<
-    (report: FireReport, room: PersonalChannelRoom) => void
-  >();
   function routeChanged() {
     routeGeneration++;
     refreshRevision++;
@@ -119,16 +114,6 @@ export function createApplicationPersonalChannel(options: {
           if (sameRoom(before, route)) void options.agents.refreshAccount();
         }, 600);
       },
-      onFire(report) {
-        if (!owns()) return;
-        const before = room(),
-          route = routeGeneration;
-        if (!before || report.book !== before.roomId) return;
-        for (const callback of [...fireListeners]) {
-          if (!sameRoom(before, route)) return;
-          if (fireListeners.has(callback)) callback(report, before);
-        }
-      },
       onConnected: () => refresh(true),
       onVisible: () => refresh(false),
     });
@@ -140,13 +125,6 @@ export function createApplicationPersonalChannel(options: {
     owner.start();
   }
   return {
-    onFire(callback: (report: FireReport, room: PersonalChannelRoom) => void) {
-      if (!active) return () => {};
-      fireListeners.add(callback);
-      return () => {
-        fireListeners.delete(callback);
-      };
-    },
     start() {
       if (!active || started) return;
       started = true;
@@ -176,7 +154,6 @@ export function createApplicationPersonalChannel(options: {
       generation++;
       routeChanged();
       unlisten();
-      fireListeners.clear();
       connection?.dispose();
       connection = null;
     },

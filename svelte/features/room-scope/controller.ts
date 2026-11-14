@@ -15,7 +15,7 @@ import type {
 import { createChatViewport, type KeepChat } from "../chat-viewport/controller";
 import { createChatSurface } from "../chat-viewport/surface";
 import { createChatPresentation } from "../chat-viewport/presentation";
-import { createFireApi, FireFailure } from "../composer/fireApi";
+import { createVoiceApi, VoiceFailure } from "../composer/voiceApi";
 import { createNeedsYou } from "../needs-you/session";
 import { createRichFileIndex } from "../rich-text/roomFiles";
 import type { AppsAuthority } from "../apps/authority";
@@ -90,10 +90,10 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     projecting = false,
     projectAgain = false,
     inboxVisible = false;
-  const fireApi = createFireApi(browser.fetcher);
-  const fireLeaving = new Set<() => void>();
-  function leaveFire() {
-    for (const stop of [...fireLeaving]) if (fireLeaving.has(stop)) stop();
+  const voiceApi = createVoiceApi(browser.fetcher);
+  const voiceLeaving = new Set<() => void>();
+  function leaveVoice() {
+    for (const stop of [...voiceLeaving]) if (voiceLeaving.has(stop)) stop();
   }
   const current = () => active && services.active() && services.ownsRoom(scope);
   const frame = () => (current() ? services.rootRoom.read() : null);
@@ -1060,46 +1060,44 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 drafts: resources.composer,
                 request: composerRequestFor(thread),
                 upload,
-                fire: {
+                voice: {
                   current: owned,
-                  restore: (signal) =>
-                    current()
-                      ? fireApi.set(scope.roomId, false, signal)
-                      : Promise.reject(new FireFailure(0)),
                   beforeLeave: (callback) => {
-                    fireLeaving.add(callback);
+                    voiceLeaving.add(callback);
                     return () => {
-                      fireLeaving.delete(callback);
+                      voiceLeaving.delete(callback);
                     };
                   },
-                  set: (on, signal) =>
-                    owned()
-                      ? fireApi.set(scope.roomId, on, signal)
-                      : Promise.reject(new FireFailure(0)),
-                  transcribe: (audio, query, signal) =>
-                    owned()
-                      ? fireApi.transcribe(scope.roomId, audio, query, signal)
-                      : Promise.reject(new FireFailure(0)),
-                  watch: (callback) =>
-                    services.personalChannel.onFire((report, before) => {
-                      if (
-                        owned() &&
-                        before.connection === scope.connection &&
-                        before.account === scope.account &&
-                        report.book === scope.roomId
-                      )
-                        callback(report);
-                    }),
-                  sessionLost: () => {
-                    if (owned()) services.actions.sessionLost();
-                  },
-                  denyMembership: () => {
-                    if (owned())
-                      services.rootRoom.denyMembership(
+                  transcribe: async (audio, signal) => {
+                    if (!owned()) throw new VoiceFailure(0);
+                    const latest = room();
+                    if (!latest) throw new VoiceFailure(0);
+                    const prompt =
+                      `Conversa no vibebook (vibebook.dev), sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${latest.epics
+                        .filter((epic) => !epic.archived)
+                        .slice(0, 15)
+                        .map((epic) => epic.title)
+                        .join("; ")}.`.slice(0, 600);
+                    try {
+                      return await voiceApi.transcribe(
                         scope.roomId,
-                        scope.account,
-                        scope.roomGeneration,
+                        audio,
+                        { lang: locale.split("-")[0] || "pt", prompt },
+                        signal,
                       );
+                    } catch (error) {
+                      if (owned() && error instanceof VoiceFailure) {
+                        if (error.unauthenticated)
+                          services.actions.sessionLost();
+                        else if (error.membershipDenied)
+                          services.rootRoom.denyMembership(
+                            scope.roomId,
+                            scope.account,
+                            scope.roomGeneration,
+                          );
+                      }
+                      throw error;
+                    }
                   },
                 },
                 agents: data?.sandboxes ?? [],
@@ -1308,8 +1306,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function dispose() {
     if (!active || disposing) return;
     disposing = true;
-    leaveFire();
-    fireLeaving.clear();
+    leaveVoice();
+    voiceLeaving.clear();
     active = false;
     richFiles.dispose();
     pendingMessage = null;
@@ -1393,7 +1391,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   if (current()) releaseAgents = services.agents.claimAttachment();
   detachApplication = services.attachRoom(scope, {
     beforeNavigation() {
-      leaveFire();
+      leaveVoice();
       viewer.closeNavigation();
       layout.beforeNavigation();
     },

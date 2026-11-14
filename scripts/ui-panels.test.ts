@@ -4523,184 +4523,76 @@ describe("native composer ownership and interactions", () => {
     );
     expect(sent).toHaveLength(1);
   }, 30_000);
-  test("native mic upward gesture locks Fire beyond pointer release and the next tap stops recording", async () => {
-    let starts = 0,
-      stops = 0,
-      disposed = 0;
+
+  test("ordinary media dictation refines only the current draft and Enter alone sends", async () => {
+    let chunk: (data: Blob) => void = () => {},
+      ended = () => {},
+      reads = 0;
+    let resolve: (text: string) => void = () => {};
+    const commands: RoomCommand[] = [];
     const { target } = renderComposer(fixture(), {
       speechFactory: null,
       mediaFactory: async () => ({
         type: "audio/webm",
-        start() {
-          starts++;
+        start(c, e) {
+          chunk = c;
+          ended = e;
         },
         stop() {
-          stops++;
+          ended();
         },
-        dispose() {
-          disposed++;
-        },
-        observeLevel() {
-          return () => {};
-        },
+        dispose() {},
       }),
-      fire: {
+      voice: {
         current: () => true,
-        set: async () => {},
-        restore: async () => {},
         beforeLeave: () => () => {},
-        watch: () => () => {},
-        transcribe: async () => "",
-        sessionLost() {},
-        denyMembership() {},
+        transcribe: () => {
+          reads++;
+          return new Promise<string>((done) => {
+            resolve = done;
+          });
+        },
+      },
+      request: async (command) => {
+        commands.push(command);
+        return { ok: false, error: "disconnected" };
       },
     });
     const mic = () =>
       target.querySelector<HTMLButtonElement>(
         'button[aria-label="Ditar mensagem"]',
       )!;
-    mic().dispatchEvent(
-      new PointerEvent("pointerdown", {
-        pointerId: 1,
-        clientY: 100,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    mic().dispatchEvent(
-      new PointerEvent("pointermove", {
-        pointerId: 1,
-        clientY: 59,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    mic().dispatchEvent(
-      new PointerEvent("pointerup", {
-        pointerId: 1,
-        clientY: 59,
-        bubbles: true,
-      }),
-    );
-    for (let i = 0; i < 12; i++) {
-      await tick();
-      flushSync();
-    }
-    expect(starts).toBe(1);
-    expect(stops).toBe(0);
-    expect(target.querySelector('[data-fire-locked="true"]')).not.toBeNull();
-    mic().dispatchEvent(
-      new PointerEvent("pointerdown", {
-        pointerId: 2,
-        clientY: 100,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    mic().dispatchEvent(
-      new PointerEvent("pointerup", { pointerId: 2, bubbles: true }),
-    );
+    edit(target, "base");
+    mic().click();
+    await tick();
     await tick();
     flushSync();
-    expect(stops).toBe(1);
-    expect(target.querySelector('[data-fire-locked="true"]')).toBeNull();
-    expect(disposed).toBe(0); // final data is still owned until recorder onstop/disposal
-  });
-  test("the actual Composer microphone node survives hold-to-Fire before an upward lock gesture", async () => {
-    let starts = 0,
-      stops = 0,
-      levels = 0;
-    const { target } = renderComposer(fixture(), {
-      speechFactory: null,
-      mediaFactory: async () => ({
-        type: "audio/webm",
-        start() {
-          starts++;
-        },
-        stop() {
-          stops++;
-        },
-        dispose() {},
-        observeLevel() {
-          levels++;
-          return () => {};
-        },
-      }),
-      fire: {
-        current: () => true,
-        set: async () => {},
-        restore: async () => {},
-        beforeLeave: () => () => {},
-        watch: () => () => {},
-        transcribe: async () => "",
-        sessionLost() {},
-        denyMembership() {},
-      },
-    });
-    const original = target.querySelector<HTMLButtonElement>(
-      'button[aria-label="Ditar mensagem"]',
-    )!;
-    original.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        pointerId: 1,
-        clientY: 100,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 3100));
-    for (let i = 0; i < 12; i++) {
-      await tick();
-      flushSync();
-    }
-    expect(target.querySelector('button[aria-label="Ditar mensagem"]')).toBe(
-      original,
-    );
-    expect(original.isConnected).toBe(true);
-    expect(starts).toBe(1);
-    expect(levels).toBe(0);
-    original.dispatchEvent(
-      new PointerEvent("pointermove", {
-        pointerId: 1,
-        clientY: 59,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    original.dispatchEvent(
-      new PointerEvent("pointerup", { pointerId: 1, bubbles: true }),
-    );
+    expect(mic().getAttribute("aria-pressed")).toBe("true");
+    chunk(new Blob([new Uint8Array(3000)]));
+    mic().click();
+    await tick();
+    await tick();
+    expect(reads).toBe(1);
+    expect(commands).toHaveLength(0);
+    resolve("corrected");
+    await tick();
     await tick();
     flushSync();
-    expect(target.querySelector('[data-fire-locked="true"]')).not.toBeNull();
-    expect(levels).toBe(1);
-    expect(starts).toBe(1);
-    expect(stops).toBe(0);
-    original.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        pointerId: 2,
-        clientY: 100,
+    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
+    expect(input.value).toBe("base corrected");
+    expect(commands).toHaveLength(0);
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
         bubbles: true,
         cancelable: true,
       }),
-    );
-    original.dispatchEvent(
-      new PointerEvent("pointermove", {
-        pointerId: 2,
-        clientY: 0,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    original.dispatchEvent(
-      new PointerEvent("pointerup", { pointerId: 2, bubbles: true }),
     );
     await tick();
-    flushSync();
-    expect(target.querySelector('[data-fire-locked="true"]')).toBeNull();
-    expect(stops).toBe(1);
-    expect(starts).toBe(1);
-  }, 30000);
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({ t: "msg", text: "base corrected" });
+  }, 30_000);
+
   test("native mic capability projects interim text and cancels stale recognition across thread changes", async () => {
     const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
       [];
@@ -4745,9 +4637,7 @@ describe("native composer ownership and interactions", () => {
     expect(starts).toBe(0);
     target
       .querySelector<HTMLButtonElement>('button[aria-label="Ditar mensagem"]')!
-      .dispatchEvent(
-        new PointerEvent("pointerup", { pointerId: 1, bubbles: true }),
-      );
+      .click();
     expect(starts).toBe(1);
     expect(engines[0].lang).toBe("pt-BR");
     engines[0].onresult?.({ results: [[{ transcript: "spoken" }]] });
@@ -4772,120 +4662,7 @@ describe("native composer ownership and interactions", () => {
       "O navegador não deixou usar o microfone.",
     );
   }, 30_000);
-  test("runner Fire Space reuses the recorder and unknown sends cannot start a second capture", async () => {
-    const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
-      [];
-    let captures = 0,
-      stopped = () => {},
-      chunk = (_value: Blob) => {},
-      restores = 0;
-    const commands: RoomCommand[] = [];
-    const { target } = renderComposer(fixture(), {
-      speechFactory: () => {
-        const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
-          {
-            lang: "",
-            continuous: false,
-            interimResults: false,
-            onresult: null,
-            onerror: null,
-            onend: null,
-            start() {},
-            stop() {},
-            abort() {},
-          };
-        engines.push(rec);
-        return rec;
-      },
-      mediaFactory: async () => {
-        captures++;
-        return {
-          type: "audio/webm",
-          start(data, ended) {
-            chunk = data;
-            stopped = ended;
-          },
-          stop() {
-            stopped();
-          },
-          dispose() {},
-        };
-      },
-      request: async (command) => {
-        commands.push(command);
-        return { ok: false, error: "timeout" };
-      },
-      fire: {
-        current: () => true,
-        set: async () => {},
-        restore: async () => {
-          restores++;
-        },
-        beforeLeave: () => () => {},
-        watch: () => () => {},
-        transcribe: async () => "Whisper owned speech",
-        sessionLost() {},
-        denyMembership() {},
-      },
-    });
-    target.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
-    await tick();
-    flushSync();
-    const start = [
-      ...target.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((button) => button.textContent?.trim() === "Modo Fire");
-    expect(!!start).toBe(true);
-    start!.click();
-    for (let i = 0; i < 8; i++) await tick();
-    flushSync();
-    expect(captures).toBe(1);
-    expect(engines).toHaveLength(1);
-    expect(document.querySelector('[role="dialog"]') === null).toBe(true);
-    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
-    input.focus();
-    chunk(new Blob([new Uint8Array(3000)]));
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: " ",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    input.dispatchEvent(
-      new KeyboardEvent("keyup", { key: " ", bubbles: true }),
-    );
-    for (let i = 0; i < 12; i++) await tick();
-    flushSync();
-    expect(captures).toBe(1);
-    expect(engines).toHaveLength(1);
-    expect(commands).toEqual([
-      { t: "msg", text: "Whisper owned speech", thread: "main" },
-    ]);
-    expect(target.textContent).toContain("mensagem não foi confirmada");
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: " ",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    input.dispatchEvent(
-      new KeyboardEvent("keyup", { key: " ", bubbles: true }),
-    );
-    expect(captures).toBe(1);
-    expect(engines).toHaveLength(1);
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Escape",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    flushSync();
-    expect(restores).toBe(1);
-  }, 30000);
+
   test("dictation-ended focus respects a dialog opened before either pending focus tick", async () => {
     for (const afterFirstTick of [false, true]) {
       const rec: import("../svelte/features/composer/speech").SpeechRecognizer =

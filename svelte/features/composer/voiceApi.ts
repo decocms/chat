@@ -1,26 +1,21 @@
 import { client } from "../../lib/client/api";
 import type { FetchLike } from "../../transport";
-import {
-  FireResult,
-  SttResult,
-  ErrorBody,
-  UNAUTHENTICATED,
-} from "../../../shared/schemas";
-export class FireFailure extends Error {
+import { SttResult, ErrorBody, UNAUTHENTICATED } from "../../../shared/schemas";
+export class VoiceFailure extends Error {
   constructor(
     readonly status: number,
     readonly unauthenticated = false,
     readonly membershipDenied = false,
   ) {
-    super("Fire request failed");
+    super("Transcription request failed");
   }
 }
-type FireResponse = { ok: boolean; status: number; json(): Promise<unknown> };
-async function body(response: FireResponse) {
+type VoiceResponse = { ok: boolean; status: number; json(): Promise<unknown> };
+async function body(response: VoiceResponse) {
   const raw: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = ErrorBody.safeParse(raw);
-    throw new FireFailure(
+    throw new VoiceFailure(
       response.status,
       response.status === 401 &&
         error.success &&
@@ -32,21 +27,9 @@ async function body(response: FireResponse) {
   }
   return raw;
 }
-export function createFireApi(fetcher?: FetchLike) {
+export function createVoiceApi(fetcher?: FetchLike) {
   const api = client("/", fetcher).api.books[":id"];
   return {
-    async set(roomId: string, on: boolean, signal: AbortSignal) {
-      const response = await api.fire.$post(
-        { param: { id: encodeURIComponent(roomId) }, json: { on } },
-        { init: { signal, cache: "no-store" } },
-      );
-      try {
-        FireResult.parse(await body(response));
-      } catch (error) {
-        if (error instanceof FireFailure) throw error;
-        throw new FireFailure(0);
-      }
-    },
     async transcribe(
       roomId: string,
       audio: Blob,
@@ -67,8 +50,8 @@ export function createFireApi(fetcher?: FetchLike) {
       try {
         return SttResult.parse(await body(response)).text;
       } catch (error) {
-        if (error instanceof FireFailure) throw error;
-        throw new FireFailure(0);
+        if (error instanceof VoiceFailure) throw error;
+        throw new VoiceFailure(0);
       }
     },
   };
