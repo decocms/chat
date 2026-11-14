@@ -1472,6 +1472,7 @@ test("declared oversized upload is canceled before reading and icon removal does
       expect(f.uploaded).toHaveLength(0);
       expect(f.saved).toHaveLength(0);
     }
+  }
 });
 
 test("agents reads actual SQLite nullable/invalid Claude flags without truthy-string coercion", async () => {
