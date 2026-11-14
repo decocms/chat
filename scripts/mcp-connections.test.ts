@@ -346,3 +346,196 @@ test("malformed nested CSP entries neither widen the policy nor invoke coercion"
   expect(policy).not.toContain("nested.example");
   expect(policy).not.toContain("[object Object]");
 });
+
+test("actual SQLite connection listing isolates malformed rows and projects only runtime-validated public metadata", async () => {
+  const { Database } = await import("bun:sqlite"),
+    { connOps, deleteConn, getConn } = await import("../src/mcpconn"),
+    { ConnectionsResult } = await import("../shared/schemas");
+  const db = new Database(":memory:");
+  db.exec(
+    `CREATE TABLE members(book_id TEXT,email TEXT); CREATE TABLE mcp_grants(email TEXT,resource TEXT); CREATE TABLE mcp_connections(id TEXT,book_id TEXT,owner TEXT,scope TEXT,url TEXT,title TEXT,enc TEXT,iv TEXT,tools TEXT,ctx TEXT,created_at INTEGER); INSERT INTO members VALUES('room','member@example.test'),('room','other@example.test');`,
+  );
+  const put = db.query(
+    "INSERT INTO mcp_connections VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+  );
+  put.run(
+    "valid",
+    "room",
+    "member@example.test",
+    "me",
+    "https://valid.example/mcp",
+    "",
+    null,
+    null,
+    "[]",
+    "{}",
+    0,
+  );
+  put.run(
+    "nullable",
+    "room",
+    "member@example.test",
+    "room",
+    "https://nullable.example/mcp",
+    null,
+    null,
+    null,
+    '[{"name":"kept","_meta":{"ui":{"resourceUri":"ui://screen"}}},{"name":"bad","annotations":null}]',
+    '{"kept":{"text":"context","by":"member@example.test","at":0},"bad":{"text":null}}',
+    null,
+  );
+  put.run(
+    "badurl",
+    "room",
+    "member@example.test",
+    "room",
+    null,
+    "Keep cleanup possible",
+    null,
+    null,
+    "[]",
+    "{}",
+    1,
+  );
+  put.run(
+    "badsecret",
+    "room",
+    "member@example.test",
+    "room",
+    "https://safe.example/mcp",
+    "Bad pair",
+    "enc",
+    null,
+    "[]",
+    "{}",
+    1,
+  );
+  put.run(
+    "badcache",
+    "room",
+    "member@example.test",
+    "room",
+    "https://cache.example/mcp",
+    new Uint8Array([1]),
+    null,
+    null,
+    new Uint8Array([1]),
+    new Uint8Array([1]),
+    "broken",
+  );
+  put.run(
+    "otherprivate",
+    "room",
+    "other@example.test",
+    "me",
+    "https://private.example/mcp",
+    "Private",
+    null,
+    null,
+    "[]",
+    "{}",
+    1,
+  );
+  let broadcasts = 0;
+  const env = {
+    DB: {
+      prepare(sql: string) {
+        return {
+          bind(...values: (string | number | null)[]) {
+            return {
+              all: async () => ({ results: db.query(sql).all(...values) }),
+              first: async () => db.query(sql).get(...values),
+              run: async () => {
+                const result = db.query(sql).run(...values);
+                return { meta: { changes: result.changes } };
+              },
+            };
+          },
+        };
+      },
+    },
+    BOOK: {
+      idFromName: (value: string) => value,
+      get: () => ({
+        connsChanged: async () => {
+          broadcasts++;
+        },
+      }),
+    },
+  };
+  try {
+    const operations: unknown = Reflect.apply(connOps, undefined, [
+      env,
+      { waitUntil() {} },
+      "member@example.test",
+      "https://vibebook.test",
+      async () => {},
+    ]);
+    if (typeof operations !== "object" || operations === null)
+      throw Error("missing actual operations");
+    const list: unknown = Reflect.get(operations, "list");
+    if (typeof list !== "function") throw Error("missing actual listing");
+    const result = ConnectionsResult.parse(
+      await Reflect.apply(list, operations, ["room"]),
+    );
+    expect(result.connections.map((value) => value.id)).toEqual([
+      "nullable",
+      "valid",
+      "badcache",
+    ]);
+    expect(result.connections[0]).toMatchObject({
+      title: "nullable.example",
+      created_at: null,
+      apps: [{ tool: "kept" }],
+      tools: [{ name: "kept" }],
+      context: { kept: { text: "context", by: "member@example.test", at: 0 } },
+    });
+    expect(result.connections[1]).toMatchObject({ title: "", created_at: 0 });
+    expect(result.connections[2]).toMatchObject({
+      title: "cache.example",
+      created_at: null,
+      apps: [],
+      tools: [],
+      context: {},
+    });
+    expect(
+      await Reflect.apply(getConn, undefined, [
+        env,
+        "room",
+        "badurl",
+        "member@example.test",
+      ]),
+    ).toBe(null);
+    expect(
+      await Reflect.apply(getConn, undefined, [
+        env,
+        "room",
+        "otherprivate",
+        "member@example.test",
+      ]),
+    ).toBe(null);
+    await Reflect.apply(deleteConn, undefined, [
+      env,
+      "room",
+      "badurl",
+      "member@example.test",
+    ]);
+    expect(
+      db.query("SELECT id FROM mcp_connections WHERE id='badurl'").get(),
+    ).toBe(null);
+    expect(broadcasts).toBe(1);
+    await expect(
+      Reflect.apply(deleteConn, undefined, [
+        env,
+        "room",
+        "otherprivate",
+        "member@example.test",
+      ]),
+    ).rejects.toThrow("só quem conectou");
+    expect(
+      db.query("SELECT id FROM mcp_connections WHERE id='otherprivate'").get(),
+    ).not.toBe(null);
+  } finally {
+    db.close();
+  }
+});

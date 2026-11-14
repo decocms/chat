@@ -1,3 +1,5 @@
+import { ConnectionDeleteIdentity, connectionRow, type StoredConnection } from "./connectionRows";
+import { Connection, ConnectionsResult } from "../shared/schemas";
 // MCP connections and apps (Nov 2026, F1 of "MCP apps no vibebook"): a room links remote MCP servers (Rituals,
 // anjo.chat's admin, anything speaking Streamable HTTP) and opens their MCP Apps (tools with `_meta.ui.resourceUri`)
 // as a tab of the doc panel.
@@ -24,7 +26,7 @@ import { AuthNeeded, finishAuth, forget, identityJwt, signedInTo, startAuth, tok
 /** Who is looking: every call carries their identity seal, and their own sign-in when the server wants one. */
 export type Who = { email: string; room: string; origin: string };
 
-export type Conn = { id: string; book_id: string; owner: string; scope: "room" | "me"; url: string; title: string; enc: string | null; iv: string | null; tools: string | null; ctx: string | null; created_at: number };
+export type Conn = StoredConnection;
 // A server's tools as it lists them (external input): checked when listed and again when read back from D1, so the
 // public connection answers and the app host only ever see the shape below. Extra keys in annotations/_meta are kept
 // (hosts and apps read more than we name). A tool that doesn't fit is dropped, not trusted.
@@ -35,7 +37,7 @@ const PROTOCOL = "2025-06-18";
 const UI_EXT = "io.modelcontextprotocol/ui";
 const MIME_APP = "text/html;profile=mcp-app";
 
-export const canUse = (c: Conn, email: string) => c.scope === "room" || c.owner === email;
+export const canUse = (c: Pick<Conn,"scope"|"owner">, email: string) => c.scope === "room" || c.owner === email;
 export const uiOf = (t: Tool) => { const u = t._meta?.ui?.resourceUri ?? t._meta?.["ui/resourceUri"]; return typeof u === "string" && u.startsWith("ui://") ? u : null; };
 const modelVisible = (t: Tool) => !t._meta?.ui?.visibility || t._meta.ui.visibility.includes("model");
 const toolsOf = (c: Conn): Tool[] => cachedTools(c.tools);
@@ -49,7 +51,7 @@ const firstLine = (s = "") => s.split("\n")[0].slice(0, 200);
 /** What the app and agents get: no token, no raw URL path (it may carry a key). */
 export function publicConn(c: Conn, email: string, signed?: Set<string>) {
   const tools = toolsOf(c);
-  return {
+  return Connection.parse({
     id: c.id, title: c.title, host: new URL(c.url).host, scope: c.scope, owner: c.owner, mine: c.owner === email, created_at: c.created_at,
     // auth: "token" = the old pasted Bearer (to be removed); "identity" = no secret here, each person signs in on the
     // server when it asks (signed_in tells whether this person already did).
@@ -59,17 +61,19 @@ export function publicConn(c: Conn, email: string, signed?: Set<string>) {
     apps: tools.filter(uiOf).map((t) => ({ tool: t.name, title: t.title || t.annotations?.title || t.name, description: firstLine(t.description), screen: !!t._meta?.ui?.visibility && !t._meta.ui.visibility.includes("model") })).sort((a, b) => Number(b.screen) - Number(a.screen)),
     tools: tools.filter(modelVisible).map((t) => ({ name: t.name, description: firstLine(t.description), read_only: !!t.annotations?.readOnlyHint, app: !!uiOf(t) })),
     context: ctxOf(c),
-  };
+  });
 }
 
 export async function listConns(env: Env, book: string, email: string) {
   // A connection whose owner left the room stops: nobody keeps using the token of someone who isn't here anymore.
-  const r = await env.DB.prepare(`SELECT c.* FROM mcp_connections c JOIN members m ON m.book_id = c.book_id AND m.email = c.owner WHERE c.book_id = ? ORDER BY c.created_at`).bind(book).all<Conn>();
-  return r.results.filter((c) => canUse(c, email));
+  const r = await env.DB.prepare(`SELECT c.* FROM mcp_connections c JOIN members m ON m.book_id = c.book_id AND m.email = c.owner WHERE c.book_id = ? ORDER BY c.created_at`).bind(book).all();
+  return r.results.flatMap((raw) => { const c=connectionRow(raw); if(!c){console.error("connection row unavailable");return [];} return canUse(c,email)?[c]:[]; });
 }
 export async function getConn(env: Env, book: string, id: string, email: string) {
-  const c = await env.DB.prepare(`SELECT c.* FROM mcp_connections c JOIN members m ON m.book_id = c.book_id AND m.email = c.owner WHERE c.id = ? AND c.book_id = ?`).bind(id, book).first<Conn>();
-  return c && canUse(c, email) ? c : null;
+  const c = await env.DB.prepare(`SELECT c.* FROM mcp_connections c JOIN members m ON m.book_id = c.book_id AND m.email = c.owner WHERE c.id = ? AND c.book_id = ?`).bind(id, book).first();
+  if(c===null)return null;
+  const parsed=connectionRow(c);
+  return parsed && canUse(parsed,email)?parsed:null;
 }
 
 // ---- A tiny Streamable HTTP MCP client (JSON or SSE answers). ----
@@ -186,8 +190,11 @@ export async function createConn(env: Env, book: string, email: string, b: { url
   return row && { ...publicConn(row, email), needs_sign_in: needsAuth };
 }
 export async function deleteConn(env: Env, book: string, cid: string, email: string) {
-  const x = await getConn(env, book, cid, email);
-  if (!x) throw new Error("conexão não encontrada");
+  // Cleanup needs only the original owned identity, not executable/display metadata.
+  const raw=await env.DB.prepare(`SELECT c.* FROM mcp_connections c JOIN members m ON m.book_id = c.book_id AND m.email = c.owner WHERE c.id = ? AND c.book_id = ?`).bind(cid,book).first();
+  const parsed=ConnectionDeleteIdentity.safeParse(raw);
+  if(!parsed.success || parsed.data.id!==cid || parsed.data.book_id!==book)throw new Error("conexão não encontrada");
+  const x=parsed.data;
   if (x.owner !== email) throw new Error("só quem conectou pode remover");
   await env.DB.prepare(`DELETE FROM mcp_connections WHERE id = ?`).bind(x.id).run();
   for (const k of sessions.keys()) if (k.startsWith(`${x.id}:`)) sessions.delete(k);
@@ -290,7 +297,7 @@ export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void },
   return {
     async list(room: string) {
       const signed = await signedInTo(env, email);
-      return { connections: (await listConns(env, room, email)).map((x) => publicConn(x, email, signed)) };
+      return ConnectionsResult.parse({ connections: (await listConns(env, room, email)).map((x) => publicConn(x, email, signed)) });
     },
     async create(room: string, b: { url?: string; scope?: string; title?: string; token?: unknown }) {
       if (!(await env.LOGIN_LIMIT.limit({ key: `mcp:${email}` })).success) return { error: "Muitas tentativas. Espera um minuto.", status: 429 } satisfies ConnFail;

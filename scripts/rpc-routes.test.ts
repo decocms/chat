@@ -1472,5 +1472,48 @@ test("declared oversized upload is canceled before reading and icon removal does
       expect(f.uploaded).toHaveLength(0);
       expect(f.saved).toHaveLength(0);
     }
+});
+
+test("agents reads actual SQLite nullable/invalid Claude flags without truthy-string coercion", async () => {
+  const { Database } = await import("bun:sqlite"),
+    db = new Database(":memory:");
+  db.exec("CREATE TABLE membership(claude_on INTEGER)");
+  try {
+    for (const [stored, expected] of [
+      [0, false],
+      [1, true],
+      [null, false],
+      ["0", false],
+      ["false", false],
+    ] as const) {
+      db.exec("DELETE FROM membership");
+      // INTEGER affinity converts TEXT '0' to numeric zero; a CAST expression
+      // models a genuine text scalar returned by legacy/coerced SQL producers.
+      db.query("INSERT INTO membership VALUES(?)").run(stored);
+      const rows =
+        stored === "0"
+          ? db
+              .query(
+                "SELECT CAST(claude_on AS TEXT) AS claude_on FROM membership",
+              )
+              .all()
+          : db.query("SELECT claude_on FROM membership").all();
+      const f = fixture({
+        sqlAll: async (sql) => (sql.includes("SELECT claude_on") ? rows : []),
+      });
+      const response = await f.app.request("/api/books/room/agents");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        claude_on: expected,
+        agents: [],
+        sandboxes: [],
+      });
+    }
+    const denied = fixture({ sqlAll: async () => [] });
+    expect((await denied.app.request("/api/books/room/agents")).status).toBe(
+      403,
+    );
+  } finally {
+    db.close();
   }
 });

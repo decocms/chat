@@ -93,3 +93,5 @@ Author verification: the test/docs formatter passed. The actual pinned dependenc
 suite `bun test scripts/docroom-socket.test.ts` passed four tests / 24 assertions
 with Bun 1.4.4 in 2.89 seconds. No full compiler, Node fixture runtime, real Worker,
 hibernation or browser check ran for this follow-up; those remain separate gates.
+
+The membership `claude_on` assertion and operational/public connection row generics are addressed by the bounded [connection row follow-up](connection-row-boundary.md). Required identities and credential pairs fail closed; display/cache damage is separate from owner deletion. This does not close unrelated D1 generics, token-retirement notification metadata or the complete M1 audit.

@@ -316,7 +316,7 @@ export const Connection = z.object({
   scope: z.enum(["room", "me"]),
   owner: z.string(),
   mine: z.boolean(),
-  created_at: z.number(),
+  created_at: z.nullable(z.number()),
   auth: z.enum(["token", "identity"]),
   signed_in: z.boolean(),
   apps: z.array(ConnectionApp),

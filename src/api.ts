@@ -21,7 +21,7 @@ import {
   type ConnectionCallResult,
   ConnectionContextBody,
   type ConnectionError,
-  type ConnectionsResult,
+  ConnectionsResult,
   ConnectionUiQuery,
   type ConnectionUiResult,
   CreateConnectionBody,
@@ -53,7 +53,7 @@ import {
   type AccessRequestResult,
   type AccessResult,
   ClaudeToggleBody,
-  type ClaudeToggleResult,
+  ClaudeToggleResult,
   DecideRequestBody,
   ArchiveBody,
   ArchivedRoom,
@@ -555,10 +555,13 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // Everyone's cloud sandboxes in this room, as last seen by their owner's list (src/sandbox.ts): they cost money.
     svc.sqlAll(`SELECT id, email, name, state, run_s, rate, disk_rate, checked_at, created_at FROM sandboxes WHERE book_id = ? ORDER BY created_at`, id),
   ]);
-  const me = mine[0] as { claude_on?: number | null } | undefined;
-  if (!me) return c.json(forbidden, 403);
+  const me=zm.object({claude_on:zm.optional(zm.unknown())}).safeParse(mine[0]);
+  if(!me.success)return c.json(forbidden,403);
+  const scalar=me.data.claude_on;
+  const flag=zm.pick(ClaudeToggleResult,{claude_on:true}).safeParse({claude_on:scalar==null||scalar===0?false:scalar===1?true:scalar});
+  if(!flag.success)console.error("membership Claude flag invalid");
   const out: AgentsResult = {
-    claude_on: !!me.claude_on,
+    claude_on: flag.success && flag.data.claude_on,
     sandboxes: sbx.flatMap((row) => { try { return [roomSandbox(row)]; } catch { console.error("room sandbox has invalid identity"); return []; } }),
     agents: rows.map((row) => {
       const a = AgentDbRow.parse(row);
@@ -634,7 +637,7 @@ export const connectionsApi = sandboxApi
   .get("/api/books/:id/connections", async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
-    return c.json((await svc.connections.list(id)) satisfies ConnectionsResult, 200);
+    return c.json(ConnectionsResult.parse(await svc.connections.list(id)), 200);
   })
   .post("/api/books/:id/connections", body(CreateConnectionBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
