@@ -3510,6 +3510,7 @@ function onEvent(ev, id) {
     case "pins": S.pins = ev.pins; renderSide(); renderFiles(); renderApps(); return;
     // Your Claude opened a file for you (MCP open_file): show it beside the chat; it follows newer versions.
     case "openSide": if (!(S.files || []).some((f) => f.id === ev.file.id)) S.files = [ev.file, ...(S.files || [])]; openSide(ev.file.id, ev.file.name); return;
+    case "openApp": cardGo(`#app:${ev.ref}`); return;
     case "error": toast(esc(ev.error || t("falhou"))); return;
     case "receipts": S.receipts = ev.receipts; renderReceipts(); return;
     case "older": {
@@ -5276,7 +5277,12 @@ const kb = (n) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.r
 // An HTML file and an embed are the same thing to the reader: one card, header (name, size, Abrir in the viewer) over
 // the live preview (sandboxed, no network). Before, a file was a chip and an embed a bare frame with a ⤢ on top.
 const htmlCard = (f) => `<div class="embedBox htmlCard" data-hname="${esc(f.name)}"><div class="hcHead">${fileIcon(f)}<span class="hcName">${esc(f.name === "embed.html" ? t("Prévia") : f.name)}</span><small>${kb(f.size)}</small><button type="button" class="hcOpen" data-side="${f.id}" data-name="${esc(f.name)}" title="${t("Abrir ao lado do chat, no lugar do doc")}">${t("Abrir")}</button><a class="hcFull" href="${fileUrl(f)}" ${viewAttrs(f)} title="${t("Abrir em tela cheia")}" aria-label="${t("Abrir em tela cheia")}">${icon("expand", 14)}</a></div><div class="embedWrap"><iframe class="embed" src="${fileUrl(f)}" sandbox="allow-scripts" loading="lazy" title="${esc(f.name)}"></iframe></div></div>`;
-const attHtml = (files) => files?.length ? `<div class="atts">${files.map((f) => f.embed || f.type === "text/html"
+// A room app (apps/<name>.html) is an app, not a page to preview: one row that opens it in Apps. Its live preview in
+// the chat plus the app itself drew the same chart twice (Gui #2496).
+const appRow = (f) => { const n = f.name.slice(5, -5); return `<div class="embedBox htmlCard"><div class="hcHead">${icon("grid", 14)}<span class="hcName">${esc(n)}</span><small>${t("app da sala")}</small><button type="button" class="hcOpen" data-cardgo="#app:room/${esc(n)}">${t("Abrir")}</button></div></div>`; };
+const attHtml = (files) => files?.length ? `<div class="atts">${files.map((f) => !f.embed && f.type === "text/html" && /^apps\/[\w.-]+\.html$/.test(f.name)
+  ? appRow(f)
+  : f.embed || f.type === "text/html"
   ? htmlCard(f)
   : f.type.startsWith("audio/")
   ? `<div class="audioAtt"><audio controls preload="metadata" src="${fileUrl(f)}"></audio><a href="${fileUrl(f)}" target="_blank" rel="noopener" download="${esc(f.name)}">${icon("mic", 14)} ${esc(f.name)} <small>${kb(f.size)}</small></a></div>`

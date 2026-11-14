@@ -6,7 +6,7 @@ import "server-only";
 import { type Context, Hono } from "hono";
 import { cookieLang, reqLang } from "./lang";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { ensureAgent, markDelivered, unreadRooms } from "./agent";
+import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { accessPage, filePage, roomAccess, roomMeta } from "./access";
 import { auth, authServices, EMAIL_RE, identify } from "./auth";
 import type { Book } from "./book";
@@ -295,6 +295,7 @@ app.put("/api/upload/:token", async (c) => {
     const meta = await storeFile(c.env, link.book_id, link.email, link.type, body, link.filename);
     c.executionCtx.waitUntil(track(c.env, "file_uploaded", { user: link.email, dims: { book: link.book_id, type: link.type, size: meta.size, agent: true } }));
     const posted = await bookStub(c.env, link.book_id).agentPost(link.book_id, link.email, link.message, link.thread || "main", [meta.id], link.model);
+    if (posted.ok) await openMade(c.env, link.book_id, link.email, meta);
     if (posted.ok && posted.id)
       await db.prepare(`UPDATE agent_reads SET last_id = ? WHERE agent = ? AND book_id = ? AND last_id >= ?`).bind(posted.id, link.agent, link.book_id, posted.id - 1).run();
     return c.json({ ok: !!posted.ok, file: { name: meta.name, size: meta.size, url: `${new URL(c.req.url).origin}/api/books/${link.book_id}/files/${meta.id}` }, message_id: posted.id, error: posted.ok ? undefined : posted.error });

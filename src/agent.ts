@@ -223,7 +223,7 @@ const TOOLS = [
   },
   {
     name: "upload_file",
-    description: "Attach a file to a room (images, PDF, HTML, Markdown, .txt or .csv, up to 10MB; audio up to 50MB), optionally with a message. Pass HTML, Markdown, .txt and .csv as text; binary files as base64. HTML is shown sandboxed: it can't reach vibebook or anyone's session. Never upload secrets.",
+    description: "Attach a file to a room (images, PDF, HTML, Markdown, .txt or .csv, up to 10MB; audio up to 50MB), optionally with a message. Pass HTML, Markdown, .txt and .csv as text; binary files as base64. HTML is shown sandboxed: it can't reach vibebook or anyone's session, and opens beside the chat in your human's open tabs by itself (apps/<name>.html opens as a room app); no open_file or app_open needed. Never upload secrets.",
     inputSchema: {
       type: "object",
       properties: {
@@ -519,6 +519,15 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 /** Modo Fire is on for a membership: turned on in the last 30 min (the app turns it off; this bounds a forgotten one). */
 const fireOn = (at: number | null | undefined) => !!at && Date.now() - at < 30 * 60_000;
+/** An HTML an agent just uploaded opens beside the chat for its human, a room app (apps/<name>.html) in the Apps pane:
+ * Gui asked for the page beside and had to click to see it (#2496). The chat then shows it as one compact row. */
+export async function openMade(env: Env, bookId: string, email: string, f: { id: string; name: string; type: string }) {
+  if (f.type !== "text/html") return;
+  const stub = bookStub(env, bookId);
+  const app = /^apps\/([\w.-]{1,60})\.html$/.exec(f.name)?.[1];
+  if (app) await stub.agentOpenApp(bookId, email, `room/${app}`);
+  else await stub.agentOpenFile(bookId, email, f.id);
+}
 /** Rooms with messages this agent hasn't read (agent_reads vs books.last_msg_id); `since` = only rooms active after it (ms). */
 export const unreadRooms = (db: D1Database, email: string, agent: string, only = "", since = 0) =>
   db
@@ -771,6 +780,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
         const tool = str(a.tool).replace(/^apps\//, "").replace(/\.html$/, "");
         if (!/^[\w.-]{1,60}$/.test(tool)) throw new Error("tool is the room app's name: apps/<name>.html → <name>");
         const card = { root: "c", elements: { c: { type: "Card", props: { title: tool }, children: ["t", "a"] }, t: { type: "Text", props: { text: `apps/${tool}.html · app da sala`, style: "muted" } }, a: { type: "Actions", children: ["b"] }, b: { type: "LinkButton", props: { label: `Abrir ${tool}`, url: `#app:room/${tool}` } } } };
+        await bookStub(env, id).agentOpenApp(id, me.email, `room/${tool}`); // opened, not only a button to click (Gui #2496)
         return call("post", { room_id: id, text: str(a.text) || `Abri o app **${tool}**.`, thread: a.thread, card, model: a.model, repo: a.repo }, env, ctx, me, origin);
       }
       const c = await getConn(env, id, str(a.connection_id), me.email);
@@ -778,6 +788,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const app = publicConn(c, me.email).apps.find((x) => x.tool === str(a.tool));
       if (!app) throw new Error(`${c.title} has no app ${str(a.tool)}; call connections for the list`);
       const card = { root: "c", elements: { c: { type: "Card", props: { title: app.title }, children: ["t", "a"] }, t: { type: "Text", props: { text: `${c.title} · ${c.scope === "me" ? `app de ${c.owner.split("@")[0]}` : "app da sala"}`, style: "muted" } }, a: { type: "Actions", children: ["b"] }, b: { type: "LinkButton", props: { label: `Abrir ${app.title}`, url: `#app:${c.id}/${app.tool}` } } } };
+      await bookStub(env, id).agentOpenApp(id, me.email, `${c.id}/${app.tool}`);
       return call("post", { room_id: id, text: str(a.text) || `Abri **${app.title}** (${c.title}).`, thread: a.thread, card, model: a.model, repo: a.repo }, env, ctx, me, origin);
     }
     case "set_room_icon": {
@@ -934,6 +945,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       ctx.waitUntil(track(env, "file_uploaded", { user: me.email, dims: { book: id, type, size: meta.size, agent: true } }));
       // Always posted, so the file shows up in the chat where people (and agents) will look for it.
       const posted = await bookStub(env, id).agentPost(id, me.email, str(a.message), str(a.thread) || "main", [meta.id], str(a.model));
+      if (posted.ok) await openMade(env, id, me.email, meta);
       const file = { id: meta.id, name: meta.name, type, size: meta.size, url: `${origin}/api/books/${id}/files/${meta.id}` };
       return posted.ok ? { ok: true, file, message_id: posted.id } : { ...posted, file, note: "the file is stored in the room's files, but the message was not posted" };
     }
