@@ -203,6 +203,7 @@ export async function runDevelopmentProcesses(
         "--no-install",
         "wrangler",
         "dev",
+        "--local",
         "--ip",
         "127.0.0.1",
         "--port",

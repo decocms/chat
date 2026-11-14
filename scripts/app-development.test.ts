@@ -879,6 +879,8 @@ test("startup stages fixed Worker then Vite readiness before declaration watch w
   expect(code).toBe(130);
   expect(commands).toHaveLength(6);
   expect(commands[2]).toContain("wrangler");
+  // AI and other remote-capable bindings must never trigger auth/proxy work.
+  expect(commands[2]).toContain("--local");
   expect(commands[3]).toContain("vite");
   expect(commands[4]).toContain("scripts/app-document-watch.ts");
   expect(commands[5]).toContain("--watch");

@@ -72,7 +72,15 @@ const changes = new Map<string, { before: string; after: string }>();
 const created: string[] = [];
 let browser: Browser | undefined;
 let page: Page | undefined;
-let child: { pid: number; exited: Promise<number> } | undefined;
+type OwnedDevelopmentProcess = { pid: number; exited: Promise<number> };
+let child: OwnedDevelopmentProcess | undefined;
+type OwnedDevelopmentExit = {
+  owner: OwnedDevelopmentProcess;
+  settled: boolean;
+  code: number | null;
+  elapsedMs: number;
+};
+let childExit: OwnedDevelopmentExit | undefined;
 let logFd: number | undefined;
 let launcherStart: string | null = null;
 const shutdowns: { exitCode: number; observedDescendants: number }[] = [];
@@ -95,6 +103,17 @@ const step = (message: string) => {
   steps.push(message);
   console.log(message);
 };
+function requireOwnedDevelopmentRunning(shutdown: boolean) {
+  if (!shutdown && child && childExit?.owner === child && childExit.settled) {
+    result.developmentExit = {
+      code: childExit.code,
+      elapsedMs: childExit.elapsedMs,
+    };
+    throw Error(
+      `Owned dev:app exited before readiness (${childExit.code ?? "unknown"})`,
+    );
+  }
+}
 const poll = async (
   check: () => boolean | Promise<boolean>,
   label: string,
@@ -104,11 +123,16 @@ const poll = async (
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     if (interrupted && !shutdown) throw new Error("HMR harness interrupted");
+    requireOwnedDevelopmentRunning(shutdown);
+    let satisfied = false;
     try {
-      if (await check()) return;
+      satisfied = await check();
     } catch {
       /* Navigation/restart/declaration writes may be transient. */
     }
+    // A process exit is terminal, unlike a transient HTTP/navigation miss.
+    requireOwnedDevelopmentRunning(shutdown);
+    if (satisfied) return;
     await Bun.sleep(200);
   }
   throw new Error(`Timed out: ${label}`);
@@ -181,6 +205,25 @@ async function launch(label: string) {
     stderr: logFd,
     env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
   });
+  const exit: OwnedDevelopmentExit = {
+    owner: child,
+    settled: false,
+    code: null,
+    elapsedMs: 0,
+  };
+  childExit = exit;
+  const began = Date.now();
+  void child.exited.then(
+    (code) => {
+      exit.code = code;
+      exit.elapsedMs = Date.now() - began;
+      exit.settled = true;
+    },
+    () => {
+      exit.elapsedMs = Date.now() - began;
+      exit.settled = true;
+    },
+  );
   launcherStart = identity(child.pid);
   assert(launcherStart, "Launched dev:app identity missing");
   sampler = setInterval(sample, 1000);
@@ -218,6 +261,7 @@ async function stopOwned() {
   );
   shutdowns.push({ exitCode: code, observedDescendants: observed.size });
   child = undefined;
+  childExit = undefined;
   if (logFd !== undefined) closeSync(logFd);
   logFd = undefined;
 }
