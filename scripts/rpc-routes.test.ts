@@ -1215,8 +1215,14 @@ test("retired Fire endpoint cannot toggle membership or hand off runner cursors"
   let transcriptions = 0;
   let membershipReads = 0;
   const f = fixture({
-    isMember: async () => { membershipReads++; return true; },
-    transcribe: async () => { transcriptions++; return { ok: true, text: "unexpected" }; },
+    isMember: async () => {
+      membershipReads++;
+      return true;
+    },
+    transcribe: async () => {
+      transcriptions++;
+      return { ok: true, text: "unexpected" };
+    },
   });
   for (const body of [{ on: true }, { on: false }, { text: "old live mode" }])
     expect((await f.json("/api/books/room/fire", body)).status).toBe(404);
@@ -1317,10 +1323,18 @@ test("personal channel ignores retired live Fire events and retains focus/agent 
   for (const value of [
     { t: "fire", book: "room", on: true },
     { t: "fire", book: "room", on: false },
-    ...["switching", "ready", "off", "failed"].map(state => ({ t: "fireState", book: "room", state })),
-  ]) expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+    ...["switching", "ready", "off", "failed"].map((state) => ({
+      t: "fireState",
+      book: "room",
+      state,
+    })),
+  ])
+    expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
   for (const t of ["focus", "agents"])
-    expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({ t, book: "room" });
+    expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({
+      t,
+      book: "room",
+    });
 });
 
 test("binary handlers stop chunked and falsely small-length uploads at their actual byte limits", async () => {

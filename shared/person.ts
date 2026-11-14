@@ -9,7 +9,6 @@ export const PersonEventSchemas = {
   }),
   agents: z.object({ t: z.literal("agents"), book: z.string() }),
   focus: z.object({ t: z.literal("focus"), book: z.string() }),
-
 };
 export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.me,
