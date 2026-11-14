@@ -45,11 +45,15 @@ Adversarial review found and resolved pending-enable, late-recorder and
 ACK/canonical races. Focused runner tests pass, while real microphone/Whisper
 and dedicated runner hardware remain separate acceptance requirements.
 
-The [targeted real-Worker inline App audit](inline-app-browser/2026-11-14-main-3b86/README.md)
-passes both variants, including OAuth/stock SDK, independent consent, same-frame
-replacement denial and full document width. A complete combined browser rerun,
-including the newer agent-open consent case, and pushed-head CI remain required.
-The passing published `366450e` workflows predate these new ports.
+The [complete combined real-Worker browser cohort](native-application-browser/2026-11-14-43bedea/README.md)
+also passes: core flows, twenty lifecycle cycles, eight profiles and independent
+inline App OAuth/stock SDK/reader-approval/replacement/full-width checks in both
+variants. It includes the newer actual MCP `app_open` reader gate and unchanged
+provider counters before reader approval. Original safe JSON and hashes are
+retained. Pushed-head CI and HMR still need revalidation; real speech, runner
+hardware, production and measured performance acceptance remain open.
+The earlier [targeted App proof](inline-app-browser/2026-11-14-main-3b86/README.md)
+is retained separately and is not substituted for the full cohort.
 
 The [source/build receipt](verification/5a7f2c1-current-main-source.json)
 records the all-24-gate producer of the committed preview at `366450e`.
