@@ -29,20 +29,29 @@ retain the unchanged limits. Execution success is not performance acceptance;
 the runner now makes failed or unverified budgets fail its CI exit code.
 
 [Source HMR passes at `b292537`](https://github.com/vibegui/vibebook.dev/actions/runs/43585067909);
-final-head revalidation remains required. At `d8b99e5`, all repository gates pass
-on Linux and macOS in
-[run 43597320317](https://github.com/vibegui/vibebook.dev/actions/runs/43597320317).
-Its remaining CI failure is stale checked-in preview artifacts. BugMachine also
-independently passes Svelte with zero errors/warnings, tooling and all 110 UI/DOM
-tests. Preview assets must be rebuilt from the final source and checked again.
+final-head revalidation remains required. The later BugMachine checkpoint
+`00e1cf1` passes a fresh native build and all 23 repository gates. Its compact
+generated preview is committed, with the exact producer and preserved default
+asset hashes in [the build receipt](preview-build-2026-11-14.json). This is source
+and build evidence, not a final browser or performance acceptance result.
 
-Main through `12d68b7` is merged at `bb53b6e`, preserving default vanilla,
-router and CLI changes. Its newer in-place room Inbox, mobile edge Back and
-Local Network Access guidance are being reconciled natively and are outside
-the retained earlier browser cohort. Original Studio fonts remain active: the
-inactive CSS-range candidate failed its fidelity matrix. No font or performance
-amendment is assumed. A bounded default textarea sizing change has focused
-handler and synthetic browser checks, without an end-user latency claim.
+Current integration baseline is main `f07d6a2`, merged at `914d399`.
+It adds Fire/dictation, inline document apps, richer cards and new file flows
+after those passing cohorts. Native ports and combined-head verification are
+in progress; [the current ledger](change-ledger.md) records required behavior
+and evidence gaps. Typed runner focus now uses the server relay; only an existing
+permission grant allows optional local folder hints. The in-place Inbox and mobile
+Back ports are implemented but still need the combined final browser cohort.
+Current API declarations generate successfully; backend/UI/tooling checks are
+being reconciled against the new contracts.
+
+Original Studio fonts remain active. Both inactive partition candidates were
+rejected by actual fidelity/transfer evidence, retained under
+[font forensics](font-forensics/2026-11-14-general-core-result.md).
+No font or performance amendment is assumed. The immutable current inventory,
+full source-owner ledger, final assets and acceptance cohorts must be refreshed
+after these new ports land. Incremental implementation and targeted tests do not
+close the migration acceptance conditions.
 
 | Gate | Current evidence | Remaining proof |
 | --- | --- | --- |
