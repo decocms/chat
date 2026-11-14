@@ -73,8 +73,11 @@ export function createFireController(options:{roomId:string;thread:string;room:(
       }
     }catch(error){
       if(!current(ticket))return;
-      if(error instanceof FireFailure&&error.unauthenticated){options.port.sessionLost();return;}
-      if(error instanceof FireFailure&&error.membershipDenied){options.port.denyMembership();return;}
+      if(error instanceof FireFailure&&(error.unauthenticated||error.membershipDenied)){
+        recognitionStop();pending="";state.update(value=>({...value,phase:"unconfirmed",error:"unconfirmed"}));
+        if(current(ticket)){if(error.unauthenticated)options.port.sessionLost();else options.port.denyMembership();}return;
+      }
+      if(error instanceof FireFailure&&error.status===429){state.update(value=>({...value,error:"request"}));return;}
       recognitionStop();pending="";
       state.update(value=>({...value,phase:"unconfirmed",error:"unconfirmed"}));
     }finally{
@@ -104,5 +107,5 @@ export function createFireController(options:{roomId:string;thread:string;room:(
     try{recognition.start();}catch{if(owns()){state.update(value=>({...value,error:"speech"}));stop();}}
   }
   function stop(){if(!current()||get(state).phase!=="live")return;recognitionStop();state.update(value=>({...value,phase:"stopping",interim:""}));if(current())void review(generation);}
-  return{state:readonly(state),owns:(ticket:number)=>current(ticket)&&get(state).session===ticket,sync(){settleReview();},cancel,live:()=>get(state).phase==="live",start(){if(!current()||!options.factory||!["idle","complete"].includes(get(state).phase))return;generation++;const ticket=generation;pending="";chunks=[];file=null;cardId=null;state.set({...initialFireState(),session:ticket,phase:"live"});if(current(ticket)&&get(state).phase==="live")listen(ticket);},stop,dispose};
+  return{state:readonly(state),owns:(ticket:number)=>current(ticket)&&get(state).session===ticket,sync(){if(!current()){if(rec||working||pending||reviewSnapshot||get(state).phase!=="idle")cancel();return;}settleReview();},cancel,live:()=>get(state).phase==="live",start(){if(!current()||!options.factory||!["idle","complete"].includes(get(state).phase))return;generation++;const ticket=generation;pending="";chunks=[];file=null;cardId=null;state.set({...initialFireState(),session:ticket,phase:"live"});if(current(ticket)&&get(state).phase==="live")listen(ticket);},stop,dispose};
 }

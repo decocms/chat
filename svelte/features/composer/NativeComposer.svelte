@@ -90,6 +90,7 @@
       canInteract() &&
       document.activeElement === textarea &&
       !busy &&
+      (!fireOwner || ["idle","complete"].includes(get(fireOwner.state).phase)) &&
       !document.querySelector(
         '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
       ),

@@ -4480,6 +4480,8 @@ describe("native composer ownership and interactions", () => {
           cancelable: true,
         }),
       );
+    expect(starts).toBe(0);
+    target.querySelector<HTMLButtonElement>('button[aria-label="Ditar mensagem"]')!.dispatchEvent(new PointerEvent("pointerup",{pointerId:1,bubbles:true}));
     expect(starts).toBe(1);
     expect(engines[0].lang).toBe("pt-BR");
     engines[0].onresult?.({ results: [[{ transcript: "spoken" }]] });
@@ -4504,6 +4506,23 @@ describe("native composer ownership and interactions", () => {
       "O navegador não deixou usar o microfone.",
     );
   }, 30_000);
+  test("native Fire keeps Hold-Space from starting a second recognizer while live or unconfirmed",async()=>{
+    const engines:import("../svelte/features/composer/speech").SpeechRecognizer[]=[];
+    localStorage.setItem("vb.fireSeen","1");
+    const {target}=renderComposer(fixture(),{speechFactory:()=>{const rec:import("../svelte/features/composer/speech").SpeechRecognizer={lang:"",continuous:false,interimResults:false,onresult:null,onerror:null,onend:null,start(){},stop(){},abort(){}};engines.push(rec);return rec;},fire:{current:()=>true,currentFile:()=>null,openFile(){},sessionLost(){},denyMembership(){},apply:async()=>{throw Error("unknown write");}}});
+    target.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();await tick();flushSync();
+    const start=[...target.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(button=>button.textContent?.trim()==="Modo Fire")!;expect(!!start).toBe(true);start.click();flushSync();expect(engines).toHaveLength(1);expect(target.querySelector("[data-native-fire-bar]")!==null).toBe(true);
+    const input=target.querySelector<HTMLTextAreaElement>("textarea")!;input.focus();input.dispatchEvent(new KeyboardEvent("keydown",{key:" ",bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,400));input.dispatchEvent(new KeyboardEvent("keyup",{key:" ",bubbles:true}));expect(engines).toHaveLength(1);
+    engines[0].onresult?.({resultIndex:0,results:[{0:{transcript:"test piece"},isFinal:true}]});for(let i=0;i<8;i++)await tick();flushSync();expect(target.textContent).toContain("não está confirmada");
+    input.focus();input.dispatchEvent(new KeyboardEvent("keydown",{key:" ",bubbles:true,cancelable:true}));await new Promise(resolve=>setTimeout(resolve,400));input.dispatchEvent(new KeyboardEvent("keyup",{key:" ",bubbles:true}));expect(engines).toHaveLength(1);localStorage.removeItem("vb.fireSeen");
+  },30000);
+  test("Send cancels dictation before dispatch and late recognition never restores the sent draft",async()=>{
+    const rec:import("../svelte/features/composer/speech").SpeechRecognizer={lang:"",continuous:false,interimResults:false,onresult:null,onerror:null,onend:null,start(){},stop(){},abort(){}};
+    const sent:RoomCommand[]=[],room=fixture(),{target,update}=renderComposer(room,{speechFactory:()=>rec,request:async command=>{sent.push(command);return {ok:true};}});
+    const input=edit(target,"base");input.focus();target.querySelector<HTMLButtonElement>('button[aria-label="Ditar mensagem"]')!.click();rec.onresult?.({results:[[{transcript:"spoken"}]]});flushSync();const late=rec.onresult;
+    input.closest("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));for(let i=0;i<8;i++)await tick();expect(sent).toHaveLength(1);const command=sent[0];if(command.t!=="msg")throw Error("message expected");
+    update({...room,messages:[...room.messages,{id:99999,thread:"main",author:room.me,text:command.text||"",ts:1}]});flushSync();expect(input.value).toBe("");late?.({results:[[{transcript:"late after Send"}]]});flushSync();expect(input.value).toBe("");
+  },30000);
   test("native Hold-Space starts only after threshold; contenteditable and unavailable capability remain ordinary", async () => {
     let starts = 0;
     const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
