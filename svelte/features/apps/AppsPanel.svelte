@@ -130,9 +130,16 @@
                 >{pin
                   ? props.t("Desafixar")
                   : props.t("Fixar na lateral")}</Button
-              >{#if props.putInDocument}<Button variant="ghost" onclick={(event) => {
-                if(live(event) && owner.ownsTarget(rendered.target,rendered.revision)) props.putInDocument?.(rendered.target);
-              }}>{props.t("Pôr no doc")}</Button>{/if}<Button
+              >{#if props.putInDocument}<Button
+                  variant="ghost"
+                  onclick={(event) => {
+                    if (
+                      live(event) &&
+                      owner.ownsTarget(rendered.target, rendered.revision)
+                    )
+                      props.putInDocument?.(rendered.target);
+                  }}>{props.t("Pôr no doc")}</Button
+                >{/if}<Button
                 variant="ghost"
                 onclick={(event) => {
                   if (

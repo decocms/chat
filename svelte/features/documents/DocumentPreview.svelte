@@ -83,23 +83,49 @@
     !!epic || (props.thread === "main" && !!props.room.roomTasks?.length),
   );
   const literal = $derived(nodes.length === 1 && nodes[0].kind === "text");
-  const blocks = $derived(documentBlocks(props.apps ? documentAppNodes(nodes, text) : nodes, hasTasks));
+  const blocks = $derived(
+    documentBlocks(
+      props.apps ? documentAppNodes(nodes, text) : nodes,
+      hasTasks,
+    ),
+  );
   const appMarkers = $derived(documentAppMarkers(text));
 </script>
 
 {#snippet appSlot(index: number)}
-  {#if props.apps && appMarkers[index]}{#key text}<Snapshot value={{source:text, marker:appMarkers[index]!, target:owner.target(), apps:props.apps}}>
-    {#snippet children(binding)}
-    <DeferredDocumentApp props={props.apps} marker={binding.marker}
-      current={() => current() && owner.target()?.epicId === binding.target?.epicId && text === binding.source}
-      resize={(size) => {
-        if (!current() || !binding.target) return;
-        const next=resizeDocumentApp(binding.source,binding.marker,size);
-        if (next !== null) owner.rewrite(binding.target,binding.source,next);
-      }}
-      open={() => { if(current() && text === binding.source) props.openApp?.(binding.marker); }} />
-    {/snippet}
-  </Snapshot>{/key}{/if}
+  {#if props.apps && appMarkers[index]}{#key text}<Snapshot
+        value={{
+          source: text,
+          marker: appMarkers[index]!,
+          target: owner.target(),
+          apps: props.apps,
+        }}
+      >
+        {#snippet children(binding)}
+          <DeferredDocumentApp
+            props={props.apps}
+            marker={binding.marker}
+            current={() =>
+              current() &&
+              owner.target()?.epicId === binding.target?.epicId &&
+              text === binding.source}
+            resize={(size) => {
+              if (!current() || !binding.target) return;
+              const next = resizeDocumentApp(
+                binding.source,
+                binding.marker,
+                size,
+              );
+              if (next !== null)
+                owner.rewrite(binding.target, binding.source, next);
+            }}
+            open={() => {
+              if (current() && text === binding.source)
+                props.openApp?.(binding.marker);
+            }}
+          />
+        {/snippet}
+      </Snapshot>{/key}{/if}
 {/snippet}
 
 {#snippet taskSlot()}<section data-document-tasks class="tw:my-3">

@@ -20,7 +20,8 @@
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { appDocumentFrameName } from "../../../shared/appDocumentProtocol";
   const frameName = appDocumentFrameName();
-  let { props, inline = false }: { props: AppsProps; inline?: boolean } = $props();
+  let { props, inline = false }: { props: AppsProps; inline?: boolean } =
+    $props();
   const view = untrack(() => props.owner.state),
     requests = createAppRequests();
   let frame: HTMLIFrameElement | undefined = $state(),
@@ -334,7 +335,9 @@
     name={frameName}
     sandbox="allow-scripts allow-forms"
     title={selected?.tool || "App"}
-    class={inline ? "tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-background" : "tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"}
+    class={inline
+      ? "tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"
+      : "tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"}
     hidden={!!error}
   ></iframe>
 </div>
