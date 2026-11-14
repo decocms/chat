@@ -96,6 +96,9 @@ export function createSpeechController(options: {
   recording: (value: boolean) => void;
   error: (error: string) => void;
   ended: () => void;
+  canHold?:()=>boolean;
+  heldStart?:()=>boolean;
+  heldRelease?:()=>void;
   clock?: SpeechClock;
 }) {
   const clock = options.clock || browserSpeechClock;
@@ -105,6 +108,7 @@ export function createSpeechController(options: {
     hold: unknown | undefined,
     pending = false,
     held = false,
+    heldAlternate = false,
     stopping = false;
   function clearHold() {
     if (hold !== undefined) clock.cancel(hold);
@@ -230,8 +234,8 @@ export function createSpeechController(options: {
     keydown(event: SpeechKey) {
       if (
         !active ||
-        !options.factory ||
-        !options.canStart() ||
+        (!options.factory && !options.canHold?.()) ||
+        (!options.canStart() && !options.canHold?.()) ||
         options.coarse?.()
       )
         return false;
@@ -249,8 +253,10 @@ export function createSpeechController(options: {
       hold = clock.schedule(() => {
         hold = undefined;
         pending = false;
+        const alternate=options.heldStart?.()===true;
         held = true;
-        start();
+        heldAlternate=alternate;
+        if(!heldAlternate)start();
       }, SPEECH_HOLD_MS);
       return true;
     },
@@ -258,7 +264,8 @@ export function createSpeechController(options: {
       if (event.key !== " " || options.coarse?.()) return;
       if (held) {
         held = false;
-        stop();
+        if(heldAlternate){heldAlternate=false;options.heldRelease?.();}
+        else stop();
       } else if (pending) space();
     },
     dispose() {

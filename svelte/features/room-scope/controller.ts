@@ -89,9 +89,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     projecting = false,
     projectAgain = false,
     inboxVisible = false;
-  let fireCardActivity: { thread: string; id: number; hot: boolean } | null =
-    null;
   const fireApi = createFireApi(browser.fetcher);
+  const fireLeaving=new Set<()=>void>();
+  function leaveFire(){for(const stop of [...fireLeaving])if(fireLeaving.has(stop))stop();}
   const current = () => active && services.active() && services.ownsRoom(scope);
   const frame = () => (current() ? services.rootRoom.read() : null);
   const room = () => frame()?.room ?? null;
@@ -739,12 +739,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           owned = () => forThread(thread) && !inboxVisible,
           waits = me()?.waits ?? [],
           display = get(layout.state);
-        if (
-          fireCardActivity?.thread !== thread ||
-          inboxVisible ||
-          display.boardFull
-        )
-          fireCardActivity = null;
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
         chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
         const revision = ++chatRevision;
@@ -823,9 +817,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         };
         const actions: ChatActions = {
           ...rich,
-          fireCard: fireCardActivity
-            ? { id: fireCardActivity.id, hot: fireCardActivity.hot }
-            : undefined,
           openSideFile: (file) => {
             if (owned()) openSideFile(file);
           },
@@ -1066,54 +1057,16 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 request: composerRequestFor(thread),
                 upload,
                 fire: {
-                  current: owned,
-                  apply: (body, signal) => {
-                    if (!owned() || (body.thread ?? "main") !== thread)
-                      return Promise.reject(new FireFailure(0));
-                    return fireApi(scope.roomId, body, signal);
-                  },
-                  currentFile: () => {
-                    if (!owned()) return null;
-                    const target = side.target(),
-                      latest = room();
-                    if (
-                      !target ||
-                      target.roomId !== scope.roomId ||
-                      !latest ||
-                      !owned()
-                    )
-                      return null;
-                    return {
-                      ...target,
-                      id: fileVersions(latest, target.name)[0]?.id ?? target.id,
-                    };
-                  },
-                  openFile: (file) => {
-                    if (owned()) openSideFile(file);
-                  },
-                  sessionLost: () => {
-                    if (owned()) services.actions.sessionLost();
-                  },
-                  denyMembership: () => {
-                    if (owned())
-                      services.rootRoom.denyMembership(
-                        scope.roomId,
-                        scope.account,
-                        scope.roomGeneration,
-                      );
-                  },
-                  activity: (id, hot) => {
-                    if (!owned()) return;
-                    const next = id ? { thread, id, hot } : null;
-                    if (
-                      fireCardActivity?.id === next?.id &&
-                      fireCardActivity?.hot === next?.hot &&
-                      fireCardActivity?.thread === next?.thread
-                    )
-                      return;
-                    fireCardActivity = next;
-                    project("stay");
-                  },
+                  current:owned,
+                  restore:signal=>current()?fireApi.set(scope.roomId,false,signal):Promise.reject(new FireFailure(0)),
+                  beforeLeave:callback=>{fireLeaving.add(callback);return()=>{fireLeaving.delete(callback);};},
+                  set:(on,signal)=>owned()?fireApi.set(scope.roomId,on,signal):Promise.reject(new FireFailure(0)),
+                  transcribe:(audio,query,signal)=>owned()?fireApi.transcribe(scope.roomId,audio,query,signal):Promise.reject(new FireFailure(0)),
+                  watch:callback=>services.personalChannel.onFire((report,before)=>{
+                    if(owned()&&before.connection===scope.connection&&before.account===scope.account&&report.book===scope.roomId)callback(report);
+                  }),
+                  sessionLost:()=>{if(owned())services.actions.sessionLost();},
+                  denyMembership:()=>{if(owned())services.rootRoom.denyMembership(scope.roomId,scope.account,scope.roomGeneration);},
                 },
                 agents: data?.sandboxes ?? [],
                 navigate: (id) => {
@@ -1312,8 +1265,11 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       );
     } else project(event.t === "older" ? true : "stay");
   }
+  let disposing=false;
   function dispose() {
-    if (!active) return;
+    if (!active||disposing) return;
+    disposing=true;
+    leaveFire();fireLeaving.clear();
     active = false;
     richFiles.dispose();
     pendingMessage = null;
@@ -1397,6 +1353,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   if (current()) releaseAgents = services.agents.claimAttachment();
   detachApplication = services.attachRoom(scope, {
     beforeNavigation() {
+      leaveFire();
       viewer.closeNavigation();
       layout.beforeNavigation();
     },

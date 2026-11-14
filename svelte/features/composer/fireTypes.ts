@@ -1,11 +1,12 @@
-import type { FireBody, FireResult } from "../../../shared/schemas";
-export type FireFile = Extract<FireResult, { mode: "file" }>["file"];
+import type { PersonEvent } from "../../../shared/person";
+export type FireReport = Extract<PersonEvent,{t:"fireState"}>;
 export type ComposerFirePort = {
-  apply(body: FireBody, signal: AbortSignal): Promise<FireResult>;
-  current(): boolean;
-  currentFile(): { roomId: string; name: string; id: string } | null;
-  openFile(file: FireFile): void;
-  sessionLost(): void;
-  denyMembership(): void;
-  activity?(cardId: number | null, hot: boolean): void;
+  set(on:boolean,signal:AbortSignal):Promise<void>;
+  transcribe(audio:Blob,query:{lang:string;prompt:string},signal:AbortSignal):Promise<string>;
+  current():boolean;
+  restore(signal:AbortSignal):Promise<void>;
+  beforeLeave(callback:()=>void):()=>void;
+  watch(callback:(report:FireReport)=>void):()=>void;
+  sessionLost():void;
+  denyMembership():void;
 };

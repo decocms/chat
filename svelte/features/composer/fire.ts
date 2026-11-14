@@ -1,486 +1,236 @@
 import { get, writable, readonly } from "svelte/store";
-import type { FireBody } from "../../../shared/schemas";
 import type { Room } from "../../../shared/room";
+import { STT_AUDIO_MAX } from "../../../shared/schemas";
 import { MESSAGE_TEXT_LIMIT } from "../../../shared/composition";
 import { matchingMessage, maxMessageId, type MessageSnapshot } from "./model";
 import type { RequestRoomCommand } from "../../roomConnection";
-import type { ComposerFirePort, FireFile } from "./fireTypes";
+import type { ComposerFirePort } from "./fireTypes";
+import type { FireCapture, FireCaptureFactory } from "./fireAudio";
 import type { SpeechClock, SpeechFactory, SpeechRecognizer } from "./speech";
+import { definiteMessageFailure } from "./drafts";
 import { FireFailure } from "./fireApi";
-import { createAgentLease, AgentLeaseFailure } from "../agents/lease";
-import { record } from "../../../shared/validation";
-export type FirePhase =
-  | "idle"
-  | "live"
-  | "stopping"
-  | "unconfirmed"
-  | "review-pending"
-  | "review-unconfirmed"
-  | "complete";
+import { createAgentLease } from "../agents/lease";
+
 export type FireState = {
-  session: number;
-  phase: FirePhase;
-  busy: boolean;
-  interim: string;
-  applied: number;
-  lastText: string;
-  error: "" | "speech" | "not-allowed" | "request" | "unconfirmed";
-  cardId: number | null;
+  session:number; intent:number;
+  phase:"idle"|"switching"|"ready"|"failed"|"leaving";
+  talking:boolean;
+  sending:"none"|"transcribing"|"message"|"unconfirmed";
+  model:string; note:string; text:string; sent:string;
+  error:""|"unsupported"|"permission"|"recording"|"empty"|"switch"|"restore"|"send-refused"|"unconfirmed";
 };
-export const initialFireState = (): FireState => ({
-  session: 0,
-  phase: "idle",
-  busy: false,
-  interim: "",
-  applied: 0,
-  lastText: "",
-  error: "",
-  cardId: null,
-});
-/** Browser result collections are array-like, not Arrays; parse only the needed values. */
-export function fireSpeechPieces(event: unknown) {
-  if (
-    !record(event) ||
-    typeof event.results !== "object" ||
-    event.results === null
-  )
-    return null;
-  const length: unknown = Reflect.get(event.results, "length"),
-    start: unknown = event.resultIndex;
-  if (
-    typeof length !== "number" ||
-    !Number.isInteger(length) ||
-    length < 0 ||
-    length > 512 ||
-    typeof start !== "number" ||
-    !Number.isInteger(start) ||
-    start < 0 ||
-    start > length
-  )
-    return null;
-  const rows: { text: string; final: boolean }[] = [];
-  let chars = 0;
-  for (let index = 0; index < length; index++) {
-    const row: unknown = Reflect.get(event.results, String(index));
-    if (typeof row !== "object" || row === null) return null;
-    const first: unknown = Reflect.get(row, "0"),
-      final: unknown = Reflect.get(row, "isFinal");
-    if (
-      !record(first) ||
-      typeof first.transcript !== "string" ||
-      typeof final !== "boolean" ||
-      (chars += first.transcript.length) > 65536
-    )
-      return null;
-    rows.push({ text: first.transcript, final });
+export const initialFireState=():FireState=>({session:0,intent:0,phase:"idle",talking:false,sending:"none",model:"",note:"",text:"",sent:"",error:""});
+/** Browser recognition is preview only. The authoritative utterance comes from
+ * Whisper on release, falling back to the owned preview like the upstream app. */
+function preview(event:unknown):string|null {
+  if(typeof event!=="object" || !event || !("results" in event) || typeof event.results!=="object" || !event.results)return null;
+  const length:unknown=Reflect.get(event.results,"length");
+  if(typeof length!=="number"||!Number.isInteger(length)||length<0||length>512)return null;
+  let text="";
+  for(let i=0;i<length;i++){
+    const row:unknown=Reflect.get(event.results,String(i));
+    if(typeof row!=="object"||!row)return null;
+    const first:unknown=Reflect.get(row,"0");
+    if(typeof first!=="object"||!first)return null;
+    const value:unknown=Reflect.get(first,"transcript");
+    if(typeof value!=="string"||(text+=value).length>65536)return null;
   }
-  return { start, rows };
+  return text.trim();
 }
-export function createFireController(options: {
-  roomId: string;
-  thread: string;
-  room: () => Room;
-  locale: string;
-  port: ComposerFirePort;
-  factory?: SpeechFactory;
-  clock: SpeechClock;
-  request: RequestRoomCommand;
-  reviewText: (
-    chunks: readonly string[],
-    file: FireFile | null,
-    cardId: number | null,
-  ) => string;
+export function createFireController(options:{
+  roomId:string; thread:string; room():Room; locale:string;
+  capture?:FireCaptureFactory; factory?:SpeechFactory; clock:SpeechClock;
+  request:RequestRoomCommand; port:ComposerFirePort;
 }) {
-  const account = options.room().me;
-  const state = writable<FireState>(initialFireState()),
-    lease = createAgentLease({ ...options.clock, now: () => Date.now() }),
-    reviewLease = createAgentLease({ ...options.clock, now: () => Date.now() });
-  let active = true,
-    generation = 0,
-    rec: SpeechRecognizer | undefined,
-    pending = "",
-    chunks: string[] = [],
-    file: FireFile | null = null,
-    cardId: number | null = null,
-    restart: unknown,
-    stable: unknown,
-    working = false,
-    reviewSnapshot: MessageSnapshot | null = null,
-    reviewAck = false,
-    reviewTimer: unknown;
-  const current = (ticket = generation) => {
-    const room = options.room();
-    return (
-      active &&
-      ticket === generation &&
-      options.port.current() &&
-      room.id === options.roomId &&
-      room.me === account &&
-      room.members.includes(account) &&
-      (options.thread === "main" ||
-        room.epics.some((epic) => epic.id === options.thread))
-    );
+  const account=options.room().me;
+  const state=writable(initialFireState());
+  const clock={...options.clock,now:()=>Date.now()}, modeLease=createAgentLease(clock), audioLease=createAgentLease(clock), sttLease=createAgentLease(clock), messageLease=createAgentLease(clock);
+  let active=true,session=0,utterance=0,intent=0,capture:FireCapture|null=null,sr:SpeechRecognizer|null=null;
+  let audio:Blob[]=[], bytes=0, releaseRequested=false, restoreTimer:unknown, deliveryTimer:unknown;
+  let pending:{snapshot:MessageSnapshot}|null=null;
+  const owned=()=>{
+    const room=options.room();
+    return active&&options.port.current()&&room.id===options.roomId&&room.me===account&&room.members.includes(account)&&
+      (options.thread==="main"||room.epics.some(epic=>epic.id===options.thread));
   };
-  const clear = (kind: "restart" | "stable") => {
-    const handle = kind === "restart" ? restart : stable;
-    if (handle !== undefined) options.clock.cancel(handle);
-    if (kind === "restart") restart = undefined;
-    else stable = undefined;
-  };
-  function recognitionStop() {
-    clear("restart");
-    clear("stable");
-    const previous = rec;
-    rec = undefined;
-    if (previous) {
-      previous.onresult = previous.onerror = previous.onend = null;
-      try {
-        previous.abort();
-      } catch {}
+  const current=(ticket:number)=>owned()&&ticket===session;
+  const recording=(ticket:number,take:number)=>current(ticket)&&take===utterance;
+  function clearTimer(which:"restore"|"delivery"){
+    const value=which==="restore"?restoreTimer:deliveryTimer;
+    if(value!==undefined)options.clock.cancel(value);
+    if(which==="restore")restoreTimer=undefined;else deliveryTimer=undefined;
+  }
+  function releaseAudio(){
+    const recognition=sr; sr=null;
+    if(recognition){recognition.onresult=recognition.onerror=recognition.onend=null;try{recognition.abort();}catch{}}
+    const previous=capture;capture=null;
+    try{previous?.dispose();}catch{}
+    audio=[];bytes=0;
+  }
+  function failure(error:unknown){
+    if(error instanceof FireFailure){
+      if(error.unauthenticated)options.port.sessionLost();
+      else if(error.membershipDenied)options.port.denyMembership();
     }
   }
-  function cancel() {
-    generation++;
-    recognitionStop();
-    lease.cancel();
-    reviewLease.cancel();
-    pending = "";
-    chunks = [];
-    file = null;
-    cardId = null;
-    working = false;
-    reviewSnapshot = null;
-    reviewAck = false;
-    if (reviewTimer !== undefined) options.clock.cancel(reviewTimer);
-    reviewTimer = undefined;
-    state.set({ ...initialFireState(), session: generation });
+  function settle(){
+    if(!owned()||!pending)return;
+    if(!matchingMessage(options.room(),options.thread,pending.snapshot))return;
+    const text=pending.snapshot.text; pending=null;clearTimer("delivery");
+    state.update(value=>({...value,sending:"none",text:"",sent:text,error:""}));
   }
-  function dispose() {
-    active = false;
-    cancel();
-  }
-  function settleReview() {
-    if (
-      !current() ||
-      !reviewSnapshot ||
-      !reviewAck ||
-      !matchingMessage(options.room(), options.thread, reviewSnapshot)
-    )
-      return;
-    if (reviewTimer !== undefined) options.clock.cancel(reviewTimer);
-    reviewTimer = undefined;
-    reviewSnapshot = null;
-    chunks = [];
-    file = null;
-    cardId = null;
-    state.update((value) => ({ ...value, phase: "complete", error: "" }));
-  }
-  async function review(ticket: number) {
-    if (
-      !current(ticket) ||
-      working ||
-      pending ||
-      get(state).phase !== "stopping"
-    )
-      return;
-    if (!chunks.length || (!file && !cardId)) {
-      state.update((value) => ({ ...value, phase: "complete" }));
-      return;
-    }
-    const text = options.reviewText([...chunks], file, cardId),
-      targetFile = file,
-      targetCard = cardId;
-    reviewSnapshot = {
-      text: text.trim().slice(0, MESSAGE_TEXT_LIMIT),
-      fileIds: targetFile ? [targetFile.id] : [],
-      replyId: targetCard ?? undefined,
-      baseline: maxMessageId(options.room()),
-      revision: generation,
-    };
-    state.update((value) => ({ ...value, phase: "review-pending" }));
-    if (!current(ticket) || get(state).phase !== "review-pending") return;
-    try {
-      const result = await reviewLease.run(() => {
-        if (!current(ticket)) throw new AgentLeaseFailure("cancelled");
-        return options.request({
-          t: "msg",
-          text,
-          thread: options.thread,
-          ...(targetCard
-            ? { reply_to: targetCard }
-            : { files: targetFile ? [targetFile.id] : [] }),
-        });
-      }, 20000);
-      if (!current(ticket)) return;
-      if (!result.ok) {
-        state.update((value) => ({
-          ...value,
-          phase: "review-unconfirmed",
-          error: "unconfirmed",
-        }));
-        return;
-      }
-      reviewAck = true;
-      settleReview();
-      if (current(ticket) && reviewSnapshot) {
-        reviewTimer = options.clock.schedule(() => {
-          reviewTimer = undefined;
-          if (current(ticket) && reviewSnapshot)
-            state.update((value) => ({
-              ...value,
-              phase: "review-unconfirmed",
-              error: "unconfirmed",
-            }));
-        }, 20000);
-      }
-    } catch {
-      if (current(ticket))
-        state.update((value) => ({
-          ...value,
-          phase: "review-unconfirmed",
-          error: "unconfirmed",
-        }));
-    }
-  }
-  async function pump() {
-    const phase = get(state).phase;
-    if (
-      !current() ||
-      working ||
-      !pending ||
-      (phase !== "live" && phase !== "stopping")
-    )
-      return;
-    const ticket = generation,
-      text = pending;
-    pending = "";
-    working = true;
-    state.update((value) => ({
-      ...value,
-      busy: true,
-      interim: "",
-      lastText: text,
-      error: "",
-    }));
-    if (!current(ticket)) {
-      working = false;
-      return;
-    }
-    const open = options.port.currentFile();
-    if (!current(ticket)) {
-      working = false;
-      return;
-    }
-    const body: FireBody = {
-      text,
-      thread: options.thread,
-      history: chunks.slice(-10),
-      ...(cardId
-        ? { card_msg: cardId }
-        : { file_id: open?.roomId === options.roomId ? open.id : file?.id }),
-    };
-    try {
-      const result = await lease.run((signal) => {
-        if (!current(ticket)) throw new AgentLeaseFailure("cancelled");
-        return options.port.apply(body, signal);
-      }, 90000);
-      if (!current(ticket)) return;
-      if (!result.ok) {
-        state.update((value) => ({ ...value, error: "request" }));
-      } else {
-        chunks.push(text);
-        if (result.mode === "card") {
-          cardId = result.card_msg;
-          file = null;
-        } else {
-          file = result.file;
-          cardId = null;
-          const selected = options.port.currentFile();
-          if (!current(ticket)) return;
-          if (
-            !result.opened &&
-            !(
-              selected?.roomId === options.roomId && selected.name === file.name
-            )
-          )
-            options.port.openFile(file);
+  async function post(text:string,ticket:number){
+    if(!current(ticket)||pending)return;
+    const snapshot:MessageSnapshot={text:text.trim().slice(0,MESSAGE_TEXT_LIMIT),fileIds:[],baseline:maxMessageId(options.room()),revision:0};
+    if(!snapshot.text){state.update(value=>({...value,sending:"none",error:"empty"}));return;}
+    const operation={snapshot};pending=operation;
+    state.update(value=>({...value,sending:"message",text:snapshot.text,error:"",intent:++intent}));
+    if(!current(ticket)||pending!==operation)return;
+    try{
+      const result=await messageLease.run(()=>{
+        if(!current(ticket)||pending!==operation)throw Error("Released Fire message");
+        return options.request({t:"msg",text:snapshot.text,thread:options.thread});
+      },20000);
+      if(!current(ticket)||pending!==operation)return;
+      settle();if(pending!==operation)return;
+      if(!result.ok){
+        if(definiteMessageFailure(result.error)){
+          pending=null;state.update(value=>({...value,sending:"none",error:"send-refused"}));return;
         }
-        if (!current(ticket)) return;
-        state.update((value) => ({
-          ...value,
-          applied: chunks.length,
-          cardId,
-          lastText: text,
-        }));
+        // Timeout/disconnect may already have written. No automatic resend.
+        state.update(value=>({...value,sending:"unconfirmed",error:"unconfirmed"}));return;
       }
-    } catch (error) {
-      if (!current(ticket)) return;
-      if (
-        error instanceof FireFailure &&
-        (error.unauthenticated || error.membershipDenied)
-      ) {
-        recognitionStop();
-        pending = "";
-        state.update((value) => ({
-          ...value,
-          phase: "unconfirmed",
-          error: "unconfirmed",
-        }));
-        if (current(ticket)) {
-          if (error.unauthenticated) options.port.sessionLost();
-          else options.port.denyMembership();
-        }
-        return;
-      }
-      if (error instanceof FireFailure && error.status === 429) {
-        state.update((value) => ({ ...value, error: "request" }));
-        return;
-      }
-      recognitionStop();
-      pending = "";
-      state.update((value) => ({
-        ...value,
-        phase: "unconfirmed",
-        error: "unconfirmed",
-      }));
-    } finally {
-      if (current(ticket)) {
-        working = false;
-        state.update((value) => ({ ...value, busy: false }));
-        if (current(ticket)) {
-          if (pending) void pump();
-          else void review(ticket);
-        }
-      }
+      deliveryTimer=options.clock.schedule(()=>{
+        if(current(ticket)&&pending===operation)state.update(value=>({...value,sending:"unconfirmed",error:"unconfirmed"}));
+      },20000);
+    }catch{
+      if(current(ticket)&&pending===operation){settle();if(pending===operation)state.update(value=>({...value,sending:"unconfirmed",error:"unconfirmed"}));}
     }
   }
-  function say(text: string) {
-    if (!current() || get(state).phase !== "live" || !text.trim()) return;
-    pending = `${pending} ${text.trim()}`.trim();
-    void pump();
+  async function transcribe(blob:Blob,said:string,ticket:number,take:number){
+    if(!recording(ticket,take))return;
+    state.update(value=>({...value,talking:false,sending:"transcribing"}));
+    if(!recording(ticket,take))return;
+    const room=options.room();
+    const prompt=`Conversa no vibebook (vibebook.dev), sala ${room.book?.title??""}. Pessoas: ${room.members.map(email=>email.split("@")[0]).join(", ")}. Épicos: ${room.epics.filter(epic=>!epic.archived).slice(0,15).map(epic=>epic.title).join("; ")}.`.slice(0,600);
+    let text="";
+    try{text=await sttLease.run(signal=>options.port.transcribe(blob,{lang:options.locale.startsWith("en")?"en":"pt",prompt},signal),45000);}
+    catch(error){if(recording(ticket,take))failure(error);}
+    if(!recording(ticket,take))return;
+    await post((text||said).trim(),ticket);
   }
-  function listen(ticket: number) {
-    if (!current(ticket) || get(state).phase !== "live" || !options.factory)
-      return;
-    let recognition: SpeechRecognizer;
-    try {
-      recognition = options.factory();
-    } catch {
-      stop();
-      return;
+  function release(){
+    if(!owned()||!get(state).talking)return;
+    releaseRequested=true;
+    state.update(value=>({...value,talking:false}));
+    const currentCapture=capture;
+    if(!currentCapture)return; // Permission may still be pending: never start it after release.
+    try{currentCapture.stop();}catch{releaseAudio();state.update(value=>({...value,error:"recording"}));}
+  }
+  function startPreview(ticket:number,take:number){
+    if(!options.factory)return;
+    try{
+      const recognition=options.factory();sr=recognition;
+      recognition.lang=options.locale;recognition.continuous=true;recognition.interimResults=true;
+      recognition.onresult=event=>{
+        if(!recording(ticket,take)||sr!==recognition||!get(state).talking)return;
+        const text=preview(event);if(text!==null)state.update(value=>({...value,text}));
+      };
+      recognition.onerror=()=>{};recognition.onend=()=>{};recognition.start();
+    }catch{/* Recognition is optional preview; recording/Whisper remain authoritative. */}
+  }
+  async function hold(){
+    if(!owned()||pending||get(state).talking||get(state).sending!=="none"||get(state).phase==="leaving"||get(state).error==="send-refused")return;
+    const factory=options.capture;
+    if(!factory){state.update(value=>({...value,error:"unsupported"}));return;}
+    if(get(state).phase==="idle"){
+      session++; const ticket=session;
+      state.set({...initialFireState(),session,phase:"switching"});
+      if(!current(ticket))return;
+      void modeLease.run(signal=>options.port.set(true,signal),20000).catch(error=>{
+        if(current(ticket)&&get(state).phase==="switching"){failure(error);if(current(ticket))state.update(value=>({...value,phase:"failed",error:"switch"}));}
+      });
     }
-    rec = recognition;
-    let done = 0;
-    const owns = () =>
-      current(ticket) && rec === recognition && get(state).phase === "live";
-    recognition.lang = options.locale;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (event) => {
-      if (!owns()) return;
-      const parsed = fireSpeechPieces(event);
-      if (!parsed) {
-        state.update((value) => ({ ...value, error: "speech" }));
-        stop();
-        return;
-      }
-      let interim = "",
-        at = -1;
-      for (let index = parsed.start; index < parsed.rows.length; index++) {
-        if (index < done) continue;
-        const row = parsed.rows[index];
-        if (row.final) {
-          done = index + 1;
-          say(row.text);
-        } else {
-          if (at < 0) at = index;
-          interim += row.text;
-        }
-      }
-      clear("stable");
-      if (!owns() || !interim.trim()) return;
-      state.update((value) => ({ ...value, interim: interim.trim() }));
-      if (!owns()) return;
-      const upTo = parsed.rows.length;
-      stable = options.clock.schedule(() => {
-        stable = undefined;
-        if (owns() && done <= at) {
-          done = upTo;
-          say(interim);
-        }
-      }, 700);
-    };
-    recognition.onerror = (event) => {
-      if (!owns()) return;
-      state.update((value) => ({
-        ...value,
-        error:
-          record(event) && event.error === "not-allowed"
-            ? "not-allowed"
-            : "speech",
-      }));
-      stop();
-    };
-    recognition.onend = () => {
-      if (!owns()) return;
-      rec = undefined;
-      clear("stable");
-      restart = options.clock.schedule(() => {
-        restart = undefined;
-        listen(ticket);
-      }, 150);
-    };
-    try {
-      recognition.start();
-    } catch {
-      if (owns()) {
-        state.update((value) => ({ ...value, error: "speech" }));
-        stop();
-      }
+    const ticket=session,take=++utterance;
+    releaseRequested=false;audio=[];bytes=0;
+    state.update(value=>({...value,talking:true,text:"",sent:"",error:""}));
+    if(!recording(ticket,take))return;
+    try{
+      const opened=await audioLease.run(()=>factory().then(value=>{
+        if(!recording(ticket,take)||releaseRequested){value.dispose();throw Error("Released audio permission");}
+        return value;
+      }),20000);
+      if(!recording(ticket,take)||releaseRequested){opened.dispose();return;}
+      capture=opened;
+      opened.start(chunk=>{
+        if(!recording(ticket,take)||capture!==opened)return;
+        if((bytes+=chunk.size)>STT_AUDIO_MAX){utterance++;releaseAudio();state.update(value=>({...value,talking:false,error:"recording"}));return;}
+        audio.push(chunk);
+      },()=>{
+        if(!recording(ticket,take)||capture!==opened)return;
+        if(!releaseRequested){releaseAudio();state.update(value=>({...value,talking:false,error:"recording"}));return;}
+        const blob=new Blob(audio,{type:opened.type}),said=get(state).text;
+        releaseAudio();
+        if(blob.size<2000){state.update(value=>({...value,talking:false}));return;}
+        void transcribe(blob,said,ticket,take);
+      },()=>{
+        if(recording(ticket,take)&&capture===opened){utterance++;releaseAudio();state.update(value=>({...value,talking:false,error:"recording"}));}
+      });
+      if(recording(ticket,take)&&!releaseRequested)startPreview(ticket,take);
+    }catch{
+      if(recording(ticket,take)){utterance++;releaseAudio();state.update(value=>({...value,talking:false,error:releaseRequested?"":"permission"}));}
     }
   }
-  function stop() {
-    if (!current() || get(state).phase !== "live") return;
-    recognitionStop();
-    state.update((value) => ({ ...value, phase: "stopping", interim: "" }));
-    if (current()) void review(generation);
+  function suspend(){
+    if(!get(state).talking&&get(state).sending!=="transcribing")return;
+    utterance++;releaseRequested=true;audioLease.cancel();sttLease.cancel();releaseAudio();
+    state.update(value=>({...value,talking:false,sending:value.sending==="transcribing"?"none":value.sending,text:""}));
   }
-  return {
-    state: readonly(state),
-    owns: (ticket: number) => current(ticket) && get(state).session === ticket,
-    sync() {
-      if (!current()) {
-        if (
-          rec ||
-          working ||
-          pending ||
-          reviewSnapshot ||
-          get(state).phase !== "idle"
-        )
-          cancel();
-        return;
-      }
-      settleReview();
-    },
-    cancel,
-    live: () => get(state).phase === "live",
-    start() {
-      if (
-        !current() ||
-        !options.factory ||
-        !["idle", "complete"].includes(get(state).phase)
-      )
-        return;
-      generation++;
-      const ticket = generation;
-      pending = "";
-      chunks = [];
-      file = null;
-      cardId = null;
-      state.set({ ...initialFireState(), session: ticket, phase: "live" });
-      if (current(ticket) && get(state).phase === "live") listen(ticket);
-    },
-    stop,
-    dispose,
+  let restoring=false;
+  function restore(){
+    if(restoring)return;
+    restoring=true;
+    const controller=new AbortController();
+    let settled=false;
+    const finish=(error?:unknown)=>{
+      if(settled)return;settled=true;restoring=false;options.clock.cancel(timer);
+      if(error&&owned()&&get(state).phase==="leaving"){failure(error);if(owned())state.update(value=>({...value,error:"restore"}));}
+    };
+    const timer=options.clock.schedule(()=>{controller.abort();finish(Error("Unconfirmed Fire restoration"));},20000);
+    try{void options.port.restore(controller.signal).then(()=>finish(),error=>finish(error));}
+    catch(error){finish(error);}
+  }
+  function stop(){
+    if(!owned()||get(state).phase==="idle")return;
+    const ticket=session;utterance++;releaseRequested=true;audioLease.cancel();sttLease.cancel();releaseAudio();
+    state.update(value=>({...value,phase:"leaving",talking:false,sending:pending?value.sending:"none",text:pending?value.text:"",error:""}));
+    if(!current(ticket))return;
+    restore();
+    clearTimer("restore");
+    restoreTimer=options.clock.schedule(()=>{
+      if(current(ticket)&&get(state).phase==="leaving")state.update(value=>({...value,error:"restore"}));
+    },30000);
+  }
+  const unwatch=options.port.watch(report=>{
+    if(!owned()||report.book!==options.roomId||get(state).phase==="idle")return;
+    if(report.state==="off"){
+      utterance++;modeLease.cancel();audioLease.cancel();sttLease.cancel();releaseAudio();clearTimer("restore");
+      state.update(value=>({...value,phase:"idle",talking:false,sending:pending?value.sending:"none",model:"",note:"",text:pending?value.text:"",error:pending?value.error:""}));
+    }else if(get(state).phase!=="leaving"&&(report.state==="switching"||report.state==="ready"||report.state==="failed"))
+      state.update(value=>({...value,phase:report.state,model:report.model??value.model,note:report.note??""}));
+  });
+  function cancel(){
+    if(get(state).phase!=="idle")restore();
+    session++;utterance++;releaseRequested=true;modeLease.cancel();audioLease.cancel();sttLease.cancel();messageLease.cancel();
+    releaseAudio();clearTimer("restore");clearTimer("delivery");pending=null;state.set({...initialFireState(),session});
+  }
+  const detachLeaving=options.port.beforeLeave(cancel);
+  return {state:readonly(state),supported:!!options.capture,hold,start:hold,release,stop,suspend,
+    toggle(){if(get(state).talking)release();else void hold();},
+    retry(expected:number){if(owned()&&get(state).intent===expected&&get(state).error==="send-refused")void post(get(state).text,session);},
+    discard(expected:number){if(!owned()||get(state).intent!==expected)return;messageLease.cancel();pending=null;clearTimer("delivery");state.update(value=>({...value,sending:"none",text:"",error:"",intent:++intent}));},
+    live:()=>get(state).phase!=="idle",owns:(ticket:number)=>current(ticket),
+    sync(){if(!owned())cancel();else settle();},cancel,
+    dispose(){if(!active)return;cancel();active=false;unwatch();detachLeaving();},
   };
 }

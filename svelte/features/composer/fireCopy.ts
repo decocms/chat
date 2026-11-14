@@ -1,72 +1,13 @@
-const en = {
-  title: "Fire mode",
-  start: "Light the fire",
-  cancel: "Cancel",
-  stop: "Stop",
-  micHint: "Tap to dictate (tap again to stop) · hold 3 seconds for Fire mode",
-  live: "live: speak; each pause applies your words",
-  applying: "applying",
-  version: "applied",
-  review: "Asking your Claude to review…",
-  stopping: "Finishing the current update…",
-  unconfirmed:
-    "The update is not confirmed. Review the current result before starting again; it may already have applied.",
-  close: "Close this session",
-  failed: "Couldn't apply this piece.",
-  speech: "Couldn't keep listening.",
-  denied: "The browser did not allow the microphone.",
-  intro1:
-    "Live: each pause sends what you say straight to a fast model (Haiku).",
-  intro2:
-    "It updates the file open beside the chat (or starts a new page), and the panel follows each version.",
-  intro3:
-    "When you stop (tap the mic), the transcript goes to the chat as your message with the file, so your Claude can check and improve it.",
-  intro4:
-    "The fast model changes only this file. It costs cents per minute spoken.",
+const en={retry:"Try sending again",discard:"Discard this utterance",title:"Fire mode",micHint:"Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
+  switching:"switching your Claude to Haiku…",ready:"ready",failed:"couldn't switch the model",leaving:"going back to the previous model…",
+  talking:"talking…",hold:"hold Space and talk; let go to send · Esc leaves",transcribing:"transcribing…",sending:"sending…",sent:"sent",leave:"Leave Fire",
+  unsupported:"This browser can't record audio.",permission:"The browser did not allow the microphone.",recording:"Couldn't record this utterance.",empty:"Didn't catch that, say it again.",
+  unconfirmed:"The message isn't confirmed. Check the conversation before sending it again.",restore:"The previous model hasn't been confirmed. Leave Fire again to request restoration.",
 };
-const pt: typeof en = {
-  title: "Modo Fire",
-  start: "Ligar o fogo",
-  cancel: "Cancelar",
-  stop: "Parar",
-  micHint:
-    "Toque pra ditar (toque de novo pra parar) · segure 3 s pro Modo Fire",
-  live: "ao vivo: fale, a cada pausa eu aplico",
-  applying: "aplicando",
-  version: "aplicada",
-  review: "Pedindo pro seu Claude conferir…",
-  stopping: "Terminando a atualização atual…",
-  unconfirmed:
-    "A atualização não está confirmada. Confira o resultado atual antes de começar de novo; ela pode já ter sido aplicada.",
-  close: "Fechar esta sessão",
-  failed: "Não deu pra aplicar este trecho.",
-  speech: "Não deu pra continuar ouvindo.",
-  denied: "O navegador não deixou usar o microfone.",
-  intro1:
-    "Ao vivo: o que você fala vai, a cada pausa, direto pra um modelo rápido (Haiku).",
-  intro2:
-    "Ele aplica na hora no arquivo aberto ao lado do chat (ou começa uma página nova) e o painel atualiza a cada versão.",
-  intro3:
-    "Ao parar (toque no 🎤), a transcrição vai pro chat como mensagem sua, com o arquivo, e o seu Claude confere e melhora.",
-  intro4:
-    "O modelo rápido só mexe nesse arquivo. Custa centavos por minuto falado.",
+const pt:typeof en={retry:"Tentar mandar de novo",discard:"Descartar esta fala",title:"Modo Fire",micHint:"Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude",
+  switching:"trocando teu Claude pro Haiku…",ready:"pronto",failed:"não troquei o modelo",leaving:"voltando pro modelo de antes…",
+  talking:"falando…",hold:"segure espaço e fale; solte pra mandar · Esc sai",transcribing:"transcrevendo…",sending:"mandando…",sent:"mandei",leave:"Sair do Fire",
+  unsupported:"Este navegador não grava áudio.",permission:"O navegador não deixou usar o microfone.",recording:"Não deu pra gravar esta fala.",empty:"não entendi, fala de novo",
+  unconfirmed:"A mensagem não foi confirmada. Confira a conversa antes de mandar de novo.",restore:"O modelo anterior ainda não foi confirmado. Saia do Fire de novo para pedir a restauração.",
 };
-export const fireCopy = (lang: string | undefined) =>
-  lang?.startsWith("en") ? en : pt;
-export function fireReviewText(
-  lang: string | undefined,
-  chunks: readonly string[],
-  fileName: string | undefined,
-  card: boolean,
-) {
-  const english = lang?.startsWith("en"),
-    n = chunks.length;
-  const head = card
-    ? english
-      ? `🔥 Fire mode: ${n} request(s) applied live by Haiku to this card. Review and improve what it did.`
-      : `🔥 Modo Fire: ${n} pedido(s) aplicados ao vivo pelo Haiku neste card. Confere e melhora o que ele fez.`
-    : english
-      ? `🔥 Fire mode: ${n} request(s) applied live by Haiku to ${fileName || ""}. Review and improve what it did.`
-      : `🔥 Modo Fire: ${n} pedido(s) aplicados ao vivo pelo Haiku em ${fileName || ""}. Confere e melhora o que ele fez.`;
-  return head + "\n\n" + chunks.map((text) => `- ${text}`).join("\n");
-}
+export const fireCopy=(lang:string|undefined)=>lang?.startsWith("en")?en:pt;

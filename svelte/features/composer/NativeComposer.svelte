@@ -8,9 +8,9 @@
   } from "./speech";
   import { createMicrophoneGesture } from "./microphone";
   import { createFireController, initialFireState } from "./fire";
-  import { fireCopy, fireReviewText } from "./fireCopy";
+  import { browserFireCapture } from "./fireAudio";
+  import { fireCopy } from "./fireCopy";
   import FireStatus from "./FireStatus.svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { onDestroy, onMount, tick, untrack } from "svelte";
   import type { ComposerProps } from "./types";
@@ -42,6 +42,7 @@
     agents = [],
     hidden = false,
     speechFactory,
+    mediaFactory,
     fire: firePort,
   }: ComposerProps = $props();
   const entry = untrack(() =>
@@ -70,8 +71,8 @@
       : speechFactory || undefined,
   );
   const copy = untrack(() => fireCopy(vb.locale));
-  let charge = $state<number | null>(null),
-    fireConsent = $state<object | null>(null);
+  let charge = $state<number | null>(null);
+  const ownedCaptureFactory=untrack(()=>mediaFactory===undefined?browserFireCapture(window):mediaFactory||undefined);
   const speech = createSpeechController({
     factory: ownedSpeechFactory,
     coarse: () => window.matchMedia("(pointer: coarse)").matches,
@@ -99,11 +100,19 @@
       canInteract() &&
       document.activeElement === textarea &&
       !busy &&
+      !fireWaiting &&
       (!fireOwner ||
-        ["idle", "complete"].includes(get(fireOwner.state).phase)) &&
+        get(fireOwner.state).phase === "idle") &&
       !document.querySelector(
         '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
       ),
+    canHold:()=>canInteract() && !busy && !fireWaiting && !get(entry.state).text.trim() && !!fireOwner?.supported &&
+      document.activeElement===textarea && !document.querySelector('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]'),
+    heldStart:()=>{
+      if(!get(entry.state).text.trim() && fireOwner?.supported){speech.cancel();void fireOwner.hold();return true;}
+      return false;
+    },
+    heldRelease:()=>fireOwner?.release(),
     recording: (value) => {
       if (active) dictating = value;
     },
@@ -114,9 +123,8 @@
       void focus(
         undefined,
         () =>
-          !fireConsent &&
           (!fireOwner ||
-            ["idle", "complete"].includes(get(fireOwner.state).phase)) &&
+            get(fireOwner.state).phase === "idle") &&
           !document.querySelector(
             '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
           ),
@@ -125,78 +133,22 @@
   });
   const ownedFirePort = untrack(() => firePort),
     ownedRequest = untrack(() => request);
-  const fireOwner = untrack(() =>
-    ownedFirePort && ownedSpeechFactory
-      ? createFireController({
-          roomId: room.id,
-          thread,
-          room: () => room,
-          locale: vb.locale || "pt-BR",
-          factory: ownedSpeechFactory,
-          clock: browserSpeechClock,
-          request: (command) => ownedRequest(command),
-          reviewText: (chunks, file, card) =>
-            fireReviewText(vb.locale, chunks, file?.name, !!card),
-          port: {
-            apply: (body, signal) => ownedFirePort.apply(body, signal),
-            current: () => canInteract() && ownedFirePort.current(),
-            currentFile: () => ownedFirePort.currentFile(),
-            openFile: (file) => ownedFirePort.openFile(file),
-            sessionLost: () => ownedFirePort.sessionLost(),
-            denyMembership: () => ownedFirePort.denyMembership(),
-          },
-        })
-      : null,
-  );
-  const fireState = untrack(
-    () => fireOwner?.state ?? readable(initialFireState()),
-  );
-  let lastActivity = "";
-  const releaseActivity = fireState.subscribe((value) => {
-    const hot = value.busy || !!value.interim,
-      key = JSON.stringify([value.cardId, hot]);
-    if (key === lastActivity) return;
-    lastActivity = key;
-    ownedFirePort?.activity?.(value.cardId, hot);
-  });
-  function armFire() {
-    if (
-      !canInteract() ||
-      !fireOwner ||
-      !["idle", "complete"].includes(get(fireOwner.state).phase)
-    )
-      return;
-    speech.cancel();
-    plus = false;
-    let seen = false;
-    try {
-      seen = localStorage.getItem("vb.fireSeen") === "1";
-    } catch {}
-    if (!canInteract()) return;
-    if (seen) fireOwner.start();
-    else fireConsent = {};
+  const fireOwner = untrack(() => ownedFirePort && ownedCaptureFactory
+    ? createFireController({roomId:room.id,thread,room:()=>room,locale:vb.locale||"pt-BR",
+      factory:ownedSpeechFactory,capture:ownedCaptureFactory,clock:browserSpeechClock,
+      request:command=>ownedRequest(command),port:{...ownedFirePort,current:()=>canInteract()&&ownedFirePort.current()},
+    }):null);
+  const fireState=untrack(()=>fireOwner?.state??readable(initialFireState()));
+  function armFire(){
+    if(!canInteract()||!fireOwner)return;
+    speech.cancel();plus=false;void fireOwner.hold();
   }
-  const microphone = createMicrophoneGesture({
-    clock: browserSpeechClock,
-    current: () => canInteract() && !busy && !fireWaiting,
-    recording: () => dictating,
-    start: () => speech.start(),
-    stop: () => speech.stop(),
-    fireLive: () => fireOwner?.live() ?? false,
-    stopFire: () => fireOwner?.stop(),
-    armFire,
-    charge: (value) => {
-      if (active) charge = value;
-    },
+  const microphone=createMicrophoneGesture({clock:browserSpeechClock,current:()=>canInteract()&&!busy&&!fireWaiting,
+    recording:()=>dictating,start:()=>speech.start(),stop:()=>speech.stop(),
+    fireLive:()=>fireOwner?.live()??false,stopFire:()=>fireOwner?.toggle(),armFire,
+    charge:value=>{if(active)charge=value;},
   });
-  const fireWaiting = $derived(
-    [
-      "stopping",
-      "review-pending",
-      "unconfirmed",
-      "review-unconfirmed",
-    ].includes($fireState.phase),
-  );
+  const fireWaiting=$derived($fireState.phase==="leaving" || $fireState.sending!=="none" || $fireState.error==="send-refused");
   const previews = new Map<number, { file: File; url: string }>();
   const allowed = $derived(
     $draft.error !== "draft-limit" &&
@@ -238,7 +190,6 @@
       speech.cancel();
       microphone.cancel();
       fireOwner?.cancel();
-      fireConsent = null;
       plus = false;
       emoji = false;
       poll = false;
@@ -300,8 +251,6 @@
     speech.dispose();
     microphone.dispose();
     fireOwner?.dispose();
-    releaseActivity();
-    ownedFirePort?.activity?.(null, false);
     clearTimeout(blurTimer);
     detachFocus();
     for (const preview of previews.values()) URL.revokeObjectURL(preview.url);
@@ -323,6 +272,7 @@
     if (canInteract()) {
       speech.cancel();
       microphone.cancel();
+      fireOwner?.suspend();
       void entry.submit();
     }
   }
@@ -530,10 +480,30 @@
       )
         plus = false;
     };
+    let outsideHold:ReturnType<typeof setTimeout>|undefined, outsideHeld=false;
+    const cancelOutside=()=>{if(outsideHold!==undefined)clearTimeout(outsideHold);outsideHold=undefined;outsideHeld=false;};
+    const modalOpen=()=>!!document.querySelector('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]');
+    const fireKeydown=(event:KeyboardEvent)=>{
+      if(event.key==="Escape" && canInteract() && !modalOpen()){cancelOutside();microphone.cancel();if(fireOwner?.live())fireOwner.stop();}
+      if(event.key!==" "||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||
+        !canInteract()||busy||fireWaiting||!fireOwner?.supported||window.matchMedia("(pointer: coarse)").matches||modalOpen())return;
+      const target=event.target;
+      if(target instanceof HTMLElement && (target.isContentEditable||/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName)))return;
+      event.preventDefault();cancelOutside();
+      outsideHold=setTimeout(()=>{outsideHold=undefined;if(canInteract()&&!modalOpen()){outsideHeld=true;armFire();}},300);
+    };
+    const fireKeyup=(event:KeyboardEvent)=>{
+      if(event.key!==" ")return;
+      const held=outsideHeld;cancelOutside();if(held)fireOwner?.release();
+    };
+    const visibility=()=>{if(document.visibilityState!=="visible"){cancelOutside();fireOwner?.suspend();}};
     const windowBlur = () => {
       speech.cancel();
-      microphone.cancel();
+      microphone.cancel();cancelOutside();fireOwner?.suspend();
     };
+    document.addEventListener("keydown",fireKeydown,true);
+    document.addEventListener("keyup",fireKeyup);
+    document.addEventListener("visibilitychange",visibility);
     window.addEventListener("blur", windowBlur);
     document.addEventListener("paste", paste);
     document.addEventListener("pointerdown", outside);
@@ -541,6 +511,10 @@
     main?.addEventListener("dragleave", leave);
     main?.addEventListener("drop", drop);
     return () => {
+      cancelOutside();
+      document.removeEventListener("keydown",fireKeydown,true);
+      document.removeEventListener("keyup",fireKeyup);
+      document.removeEventListener("visibilitychange",visibility);
       window.removeEventListener("blur", windowBlur);
       document.removeEventListener("paste", paste);
       document.removeEventListener("pointerdown", outside);
@@ -681,7 +655,7 @@
         }
       }}
     />
-    {#if speech.supported}{#key $fireState.session}<Snapshot
+    {#if speech.supported || fireOwner?.supported}{#key $fireState.session}<Snapshot
           value={$fireState.session}
           >{#snippet children(ticket)}
             <span class="tw:relative tw:inline-flex">
@@ -702,8 +676,8 @@
                 icon="mic"
                 label={vb.t("Ditar mensagem")}
                 title={copy.micHint}
-                aria-pressed={dictating || fireOwner?.live()}
-                class={dictating || fireOwner?.live()
+                aria-pressed={dictating || $fireState.talking}
+                class={dictating || $fireState.talking
                   ? "tw:touch-none tw:bg-destructive tw:text-destructive-foreground"
                   : "tw:touch-none tw:text-muted-foreground"}
                 disabled={!allowed || busy || fireWaiting}
@@ -956,41 +930,3 @@
     bind:open={poll}
   />
 </section>
-
-{#if fireConsent}{#key fireConsent}<Snapshot value={fireConsent}
-      >{#snippet children(intent)}
-        <Dialog
-          open
-          title={copy.title}
-          closeLabel={copy.cancel}
-          onOpenChange={(open) => {
-            if (!open && fireConsent === intent) fireConsent = null;
-          }}
-        >
-          <ul class="tw:m-0 tw:list-disc tw:space-y-2 tw:pl-5">
-            <li>{copy.intro1}</li>
-            <li>{copy.intro2}</li>
-            <li>{copy.intro3}</li>
-            <li>{copy.intro4}</li>
-          </ul>
-          <div class="tw:mt-4 tw:flex tw:justify-end tw:gap-2">
-            <Button
-              variant="ghost"
-              onclick={(event) => {
-                if (event.currentTarget.isConnected && fireConsent === intent)
-                  fireConsent = null;
-              }}>{copy.cancel}</Button
-            ><Button
-              onclick={(event) => {
-                if (!canInteract(event) || fireConsent !== intent) return;
-                fireConsent = null;
-                try {
-                  localStorage.setItem("vb.fireSeen", "1");
-                } catch {}
-                if (canInteract()) fireOwner?.start();
-              }}>{copy.start}</Button
-            >
-          </div>
-        </Dialog>
-      {/snippet}</Snapshot
-    >{/key}{/if}

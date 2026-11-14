@@ -257,3 +257,17 @@ test("disposed document ignores queued timers, connection callbacks and later id
   expect(h.connections[0]!.disposed).toBe(1);
   expect(h.unlistened()).toBe(1);
 });
+
+
+test("runner Fire reports stay on the authenticated room connection and stop across reentrant navigation",()=>{
+  const h=harness();h.owner.start();const seen:string[]=[];
+  const old=h.connections[0].options;
+  const stop=h.owner.onFire((report,before)=>{seen.push(`${before.account}:${report.state}`);h.room({roomId:"bbbbbb",account:"a@test",connection:{}});});
+  h.owner.onFire(()=>{seen.push("unseen next listener");});
+  old.onFire?.({t:"fireState",book:"aaaaaa",state:"ready",model:"haiku",note:""});
+  expect(seen).toEqual(["a@test:ready"]);
+  old.onFire?.({t:"fireState",book:"aaaaaa",state:"off"});expect(seen).toHaveLength(1);
+  stop();h.identity({account:"b@test",revision:1});
+  old.onFire?.({t:"fireState",book:"bbbbbb",state:"ready"});expect(seen).toHaveLength(1);
+  h.owner.dispose();
+});

@@ -4585,85 +4585,37 @@ describe("native composer ownership and interactions", () => {
       "O navegador não deixou usar o microfone.",
     );
   }, 30_000);
-  test("native Fire keeps Hold-Space from starting a second recognizer while live or unconfirmed", async () => {
-    const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
-      [];
-    localStorage.setItem("vb.fireSeen", "1");
-    const { target } = renderComposer(fixture(), {
-      speechFactory: () => {
-        const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
-          {
-            lang: "",
-            continuous: false,
-            interimResults: false,
-            onresult: null,
-            onerror: null,
-            onend: null,
-            start() {},
-            stop() {},
-            abort() {},
-          };
-        engines.push(rec);
-        return rec;
-      },
-      fire: {
-        current: () => true,
-        currentFile: () => null,
-        openFile() {},
-        sessionLost() {},
-        denyMembership() {},
-        apply: async () => {
-          throw Error("unknown write");
-        },
-      },
+  test("runner Fire Space reuses the recorder and unknown sends cannot start a second capture", async () => {
+    const engines: import("../svelte/features/composer/speech").SpeechRecognizer[]=[];
+    let captures=0,stopped=()=>{},chunk=(_value:Blob)=>{},restores=0;
+    const commands:RoomCommand[]=[];
+    const {target}=renderComposer(fixture(),{
+      speechFactory:()=>{const rec:import("../svelte/features/composer/speech").SpeechRecognizer={lang:"",continuous:false,interimResults:false,onresult:null,onerror:null,onend:null,start(){},stop(){},abort(){}};engines.push(rec);return rec;},
+      mediaFactory:async()=>{captures++;return {type:"audio/webm",start(data,ended){chunk=data;stopped=ended;},stop(){stopped();},dispose(){}};},
+      request:async command=>{commands.push(command);return {ok:false,error:"timeout"};},
+      fire:{current:()=>true,set:async()=>{},restore:async()=>{restores++;},beforeLeave:()=>()=>{},watch:()=>()=>{},transcribe:async()=>"Whisper owned speech",sessionLost(){},denyMembership(){}},
     });
-    target.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
-    await tick();
-    flushSync();
-    const start = [
-      ...target.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ].find((button) => button.textContent?.trim() === "Modo Fire")!;
-    expect(!!start).toBe(true);
-    start.click();
-    flushSync();
-    expect(engines).toHaveLength(1);
-    expect(target.querySelector("[data-native-fire-bar]") !== null).toBe(true);
-    const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
-    input.focus();
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: " ",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    input.dispatchEvent(
-      new KeyboardEvent("keyup", { key: " ", bubbles: true }),
-    );
-    expect(engines).toHaveLength(1);
-    engines[0].onresult?.({
-      resultIndex: 0,
-      results: [{ 0: { transcript: "test piece" }, isFinal: true }],
-    });
-    for (let i = 0; i < 8; i++) await tick();
-    flushSync();
-    expect(target.textContent).toContain("não está confirmada");
-    input.focus();
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: " ",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    input.dispatchEvent(
-      new KeyboardEvent("keyup", { key: " ", bubbles: true }),
-    );
-    expect(engines).toHaveLength(1);
-    localStorage.removeItem("vb.fireSeen");
-  }, 30000);
+    target.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();await tick();flushSync();
+    const start=[...target.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(button=>button.textContent?.trim()==="Modo Fire");
+    expect(!!start).toBe(true);start!.click();
+    for(let i=0;i<8;i++)await tick();flushSync();
+    expect(captures).toBe(1);expect(engines).toHaveLength(1);
+    expect(document.querySelector('[role="dialog"]')===null).toBe(true);
+    const input=target.querySelector<HTMLTextAreaElement>("textarea")!;input.focus();
+    chunk(new Blob([new Uint8Array(3000)]));
+    input.dispatchEvent(new KeyboardEvent("keydown",{key:" ",bubbles:true,cancelable:true}));
+    await new Promise(resolve=>setTimeout(resolve,400));
+    input.dispatchEvent(new KeyboardEvent("keyup",{key:" ",bubbles:true}));
+    for(let i=0;i<12;i++)await tick();flushSync();
+    expect(captures).toBe(1);expect(engines).toHaveLength(1);
+    expect(commands).toEqual([{t:"msg",text:"Whisper owned speech",thread:"main"}]);
+    expect(target.textContent).toContain("mensagem não foi confirmada");
+    input.dispatchEvent(new KeyboardEvent("keydown",{key:" ",bubbles:true,cancelable:true}));
+    await new Promise(resolve=>setTimeout(resolve,400));input.dispatchEvent(new KeyboardEvent("keyup",{key:" ",bubbles:true}));
+    expect(captures).toBe(1);expect(engines).toHaveLength(1);
+    input.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}));flushSync();
+    expect(restores).toBe(1);
+  },30000);
   test("dictation-ended focus respects a dialog opened before either pending focus tick", async () => {
     for (const afterFirstTick of [false, true]) {
       const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
