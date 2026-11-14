@@ -116,8 +116,8 @@ const T = {
   toc: l("Nesta página", "On this page"),
   more: l("Quer o detalhe?", "Want the detail?"),
   links: l(
-    `<a href="/pt/how-it-works">Segurança: por que seu Claude continua seu</a> · <a href="/pt/jev">@vibe e Jev</a> · <a href="/pt/herdr">herdr</a> · <a href="/pt/agents">sandboxes</a> · <a href="/pt/connect">conectar outros clientes</a> · <a href="/pt/demo">demo</a>`,
-    `<a href="/en/how-it-works">Security: why your Claude stays yours</a> · <a href="/en/jev">@vibe and Jev</a> · <a href="/en/herdr">herdr</a> · <a href="/en/agents">sandboxes</a> · <a href="/en/connect">other clients</a> · <a href="/en/demo">demo</a>`,
+    `<a href="/pt/how-it-works">Segurança: por que seu Claude continua seu</a> · <a href="/pt/jev">@vibe e Jev</a> · <a href="/pt/herdr">herdr</a> · <a href="/pt/agents">sandboxes</a> · <a href="/pt/mcp-identity">identidade pro seu MCP</a> · <a href="/pt/connect">conectar outros clientes</a> · <a href="/pt/demo">demo</a>`,
+    `<a href="/en/how-it-works">Security: why your Claude stays yours</a> · <a href="/en/jev">@vibe and Jev</a> · <a href="/en/herdr">herdr</a> · <a href="/en/agents">sandboxes</a> · <a href="/en/mcp-identity">identity for your MCP</a> · <a href="/en/connect">other clients</a> · <a href="/en/demo">demo</a>`,
   ),
   cta: l("Criar minha primeira sala", "Create my first room"),
   home: l("Início", "Home"), sec: l("Segurança", "Security"), signin: l("Entrar", "Sign in"),
