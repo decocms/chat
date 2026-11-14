@@ -139,7 +139,7 @@ export async function auditInlineAppOpen(
         );
         assert(posted.ok(), `Post marker ${posted.status()}`);
         PostMessageResult.parse(await posted.json());
-        const remote: ReturnType<typeof server.configure> = server.configure(variant, async () => {
+        const remote: { url: string; counters: InlineCounters } = server.configure(variant, async () => {
           const value = z
             .object({
               messages: z.array(z.object({ text: z.optional(z.string()) })),
@@ -153,7 +153,7 @@ export async function auditInlineAppOpen(
           assert(text === marker, "Actual canonical marker missing");
           return text;
         });
-        const meter = remote.counters;
+        const meter: InlineCounters = remote.counters;
         counters = meter;
         const connResponse: APIResponse = await ownerContext.request.post(
           `${fixture.base}/api/books/${roomId}/connections`,
