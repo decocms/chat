@@ -495,6 +495,9 @@ app.post("/api/books/:id/fire", async (c) => {
   if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
   const on = !!(await c.req.json<{ on?: boolean }>().catch(() => ({}) as { on?: boolean })).on;
   await c.env.DB.prepare(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`).bind(on ? Date.now() : null, id, email).run();
+  // Fire ends: the talk was the Fire Haiku's, already answered. Move this person's other Claudes past it, or the main
+  // one woke up to all of it and redid the work (Gui #2524: three Claudes on one question).
+  if (!on) await c.env.DB.prepare(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ?`).bind(id, id, email).run();
   c.executionCtx.waitUntil(poke(c.env, [email], { t: "fire", book: id, on }));
   c.executionCtx.waitUntil(track(c.env, on ? "fire_on" : "fire_off", { user: email, dims: { book: id } }));
   return c.json({ ok: true });
