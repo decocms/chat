@@ -49,6 +49,7 @@ declare global {
     __nativeSocketCloseObservations?: SocketCloseObservation[];
   }
 }
+import { auditNativeFire } from "./native-fire-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
 import { auditNativeAppNavigation } from "./native-app-navigation-probe";
 import { vanillaAppNavigationDriver } from "./app-navigation-ui-driver";
@@ -1278,6 +1279,9 @@ try {
         },
       );
     });
+  await independentAudit("native-fire", async () => {
+    report.fire = await auditNativeFire(profileFixture);
+  });
   await independentAudit("page-errors", async () => {
     assert.deepEqual(errors, []);
   });
