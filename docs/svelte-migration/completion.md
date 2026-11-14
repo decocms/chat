@@ -8,6 +8,17 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
+Latest combined tested source `bf147df` passes a fresh build, all 24 repository
+gates and the [complete actual-Worker browser cohort](managed-browser/2026-11-14-bf147df/README.md).
+All twelve language/theme/viewport profiles now pass, including usable short-phone
+chat and contained composer. The real Chromium synthetic-input audit verifies
+retained microphone pointer capture, native sampling, explicit Fire-on/off and
+input-track/context cleanup. Twenty lifecycle cycles, native/default document
+collaboration and both variants' App authority/consent audits pass. The
+[exact source receipt](verification/bf147df-continuous-fire-source.json) and
+[preview asset receipt](preview-build-2026-11-14.json) bind the refreshed build
+to this source. Published-head CI revalidation remains required.
+
 Published source `587de12` passes the full [repository workflow](https://github.com/vibegui/vibebook.dev/actions/runs/43642706919),
 including Linux/macOS source gates, generated-asset consistency and the layout
 job. Its [retained browser result](managed-browser/2026-11-14-587de12-short-viewport/README.md)

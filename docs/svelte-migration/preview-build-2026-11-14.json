@@ -1,30 +1,30 @@
 {
-  "sourceRevision": "649f77367198dc45db82ad29dc4f6864207fdb33",
+  "sourceRevision": "bf147df95ac68db2458729ffdd08c9702cc6f6c9",
   "node": "22.23.5",
   "bun": "1.4.4",
-  "archiveSHA256": "099b3ada2f58da10b028c42e4c50fc4ed059017d305c474c7b3fe27665ed9dde",
+  "archiveSHA256": "a6328e1ce7dce55349b051c3dfb407064a75988d91f5cee3af5d5f098bdec109",
   "previewFiles": 85,
   "sha256": {
-    "public/app-svelte.html": "d11bee02ee558c49e0bf04f930de9fca6c8a25f4487f6738ba73a5c53ad46e84",
-    "public/svelte-preview/app.js": "5b652f91b2d9bdd460d77c58e0db3cc24134b1b56c438d2c33021c8c006d0c86",
-    "public/svelte-preview/ui.css": "7660a7649210b6fa1062dbf5ae920fdfbd915dada59bba2bfea8228868d0ac48",
+    "public/app-svelte.html": "40962a1e472a19f939e6ffb3b92d6dc1ab7ed63f3d8efe3740ea56a9e4f9370c",
+    "public/svelte-preview/app.js": "08026d6c26e50309f644fcf21cc669c1ed4dd238a8e0dd3762ba2b48bb0ed414",
+    "public/svelte-preview/ui.css": "915aed05775fa18baf7ef9c71752d084478554d7bdfaa8432307e92b2e9a0c50",
     "public/sw.js": "80559c131cecdc0371262a69cbb70a1c0b8823a578a072459036fa65b9d867b7"
   },
   "defaultAssetsUnchangedByRefresh": {
-    "public/app.html": "1bcb91cb5929a6763c765f910238a242a76c5b1f8ebfa2a84574da186dcb766d",
+    "public/app.html": "1b69b641ca98983800314cf951be7bb5aaca948ccaa3ead092faa36d2e73f6d3",
     "public/svelte/ui.js": "863eaed36b1b8419013a7a07d72aac26a00a90e69ab99fa0a0682803499d22b8"
   },
   "emittedJavaScriptComparison": {
     "before": {
       "files": 84,
-      "rawBytes": 2403494,
-      "separatelyGzippedBytes": 765193,
+      "rawBytes": 2403497,
+      "separatelyGzippedBytes": 765196,
       "newlineCount": 357
     },
     "after": {
       "files": 84,
-      "rawBytes": 2403497,
-      "separatelyGzippedBytes": 765196,
+      "rawBytes": 2409577,
+      "separatelyGzippedBytes": 767284,
       "newlineCount": 357
     },
     "scope": "Entire emitted JS graph, including unrequested lazy entries; same gzip level 6 for each file. Not observed initial transfer, readiness, or a performance-budget result."
