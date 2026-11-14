@@ -381,7 +381,10 @@ export async function openIntegratedSidebar(page: Page) {
     if (await expand.isVisible()) await expand.click();
   }
 }
-export async function openIntegratedPane(page: Page, pane: Exclude<DocumentPane, "view">) {
+export async function openIntegratedPane(
+  page: Page,
+  pane: Exclude<DocumentPane, "view">,
+) {
   await openNativeRoomPane(page, pane);
 }
 async function expectThread(page: Page, roomId: string, thread = "main") {
