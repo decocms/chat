@@ -137,7 +137,8 @@
         "A ↗ da sala abre o Claude da sala no herdr pelo vibebook (servidor → sua CLI), sem pedir permissão de rede local ao navegador",
         "Digitar no campo de mensagem ficou mais leve: a caixa só muda de altura quando muda de linha, e no celular o espaço não passa mais pelo atalho de ditado (que travava o teclado do iPhone)",
         "Botões de link nos cards apareciam como link sublinhado",
-        "Enviar durante o ditado agora para o 🎤 e não escreve de novo o texto já enviado na caixa"
+        "Enviar durante o ditado agora para o 🎤 e não escreve de novo o texto já enviado na caixa",
+        "O aviso de \"2 Claudes seus ouvindo esta sala\" não conta mais o Haiku do Modo Fire, que é um segundo Claude de propósito"
       ],
       "en": [
         "On phones, a drag from the left edge goes back (epic to room, room to home, in the installed app) instead of replying to the message",
@@ -146,7 +147,8 @@
         "The room's ↗ opens the room's Claude in herdr through vibebook (server → your CLI), without asking the browser for local network permission",
         "Typing in the message box is lighter: the box only resizes when its line count changes, and on phones the space no longer goes through the dictation shortcut (which froze the iPhone keyboard)",
         "Link buttons in cards showed as underlined links",
-        "Sending while dictating now stops the 🎤 and no longer writes the sent text back into the box"
+        "Sending while dictating now stops the 🎤 and no longer writes the sent text back into the box",
+        "The \"2 of your Claudes are listening to this room\" warning no longer counts the Fire mode Haiku, which is a second Claude on purpose"
       ]
     }
   },
