@@ -7,6 +7,7 @@ import ts from "typescript";
 import { projectRoot } from "../svelte/build/clientBoundary";
 import { inventoryOutput } from "./inventory-output";
 import { createInventoryCallClassifier } from "./inventory-calls";
+import { inventorySections } from "./inventory-sections";
 
 const destination = join(projectRoot, "docs/svelte-migration");
 const output = inventoryOutput(process.argv.slice(2), projectRoot);
@@ -19,6 +20,7 @@ const sources = [
   "vanilla",
   "service-worker",
 ];
+const publicSources = ["public/app-svelte.html", "public/app.html"];
 type Location = { file: string; line: number };
 type NetworkCall = Location & {
   callee: string;
@@ -46,7 +48,7 @@ async function collect(directory: string) {
   }
 }
 for (const directory of sources) await collect(join(projectRoot, directory));
-files.push(join(projectRoot, "public/app-svelte.html"));
+files.push(...publicSources.map((file) => join(projectRoot, file)));
 
 for (const absolute of files.sort()) {
   const file = relative(projectRoot, absolute);
@@ -75,28 +77,14 @@ for (const absolute of files.sort()) {
           : "inline style candidate",
       });
   }
-  const sections = file.endsWith(".svelte")
-    ? [...full.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(
-        (match) => ({
-          text: match[1]!,
-          offset: match.index + match[0].indexOf(">") + 1,
-        }),
-      )
-    : file.endsWith(".html")
-      ? [...full.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(
-          (match) => ({
-            text: match[1]!,
-            offset: match.index + match[0].indexOf(">") + 1,
-          }),
-        )
-      : [{ text: full, offset: 0 }];
+  const sections = inventorySections(full, file);
   for (const section of sections) {
     const source = ts.createSourceFile(
       file,
       section.text,
       ts.ScriptTarget.Latest,
       true,
-      file.endsWith(".js") ? ts.ScriptKind.JS : ts.ScriptKind.TS,
+      /\.(?:js|html)$/.test(file) ? ts.ScriptKind.JS : ts.ScriptKind.TS,
     );
     const location = (node: ts.Node): Location => ({
       file,
@@ -253,7 +241,7 @@ const inventory = {
   workingTreeDirty:
     execFileSync(
       "git",
-      ["status", "--porcelain", "--", ...sources, "public/app-svelte.html"],
+      ["status", "--porcelain", "--", ...sources, ...publicSources],
       { cwd: projectRoot, encoding: "utf8" },
     ).trim().length > 0,
   sourceFingerprint: createHash("sha256")
