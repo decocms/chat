@@ -167,6 +167,8 @@
       data-room-header
       class={[
         "tw:relative tw:z-30 tw:col-start-2 tw:row-start-1 tw:min-w-0 tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3",
+        $view.mobile &&
+          "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain",
         props.overlayOpen && "tw:hidden",
       ]}
     >

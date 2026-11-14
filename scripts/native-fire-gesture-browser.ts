@@ -11,6 +11,7 @@ type MediaSnapshot = {
   streams: number;
   activeTracks: number;
   contexts: number;
+  totalContexts: number;
   openContexts: number;
   runningContexts: number;
   samples: number;
@@ -74,6 +75,8 @@ export async function auditNativeFireGesture(
     afterCancel: MediaSnapshot | null;
     error: string;
     pageErrors: string[];
+    cleanupFireOff: boolean;
+    cleanupErrors: string[];
   } = {
     fixture:
       "continuous synthetic 440Hz PCM; no quiet window; canceled before20s",
@@ -89,6 +92,8 @@ export async function auditNativeFireGesture(
     afterCancel: null,
     error: "",
     pageErrors: [],
+    cleanupFireOff: false,
+    cleanupErrors: [],
   };
   let context:
     | Awaited<
@@ -120,6 +125,7 @@ export async function auditNativeFireGesture(
         streams: 0,
         activeTracks: 0,
         contexts: 0,
+        totalContexts: 0,
         openContexts: 0,
         runningContexts: 0,
         samples: 0,
@@ -151,8 +157,17 @@ export async function auditNativeFireGesture(
       window.AudioContext = class extends NativeAudioContext {
         constructor(options?: AudioContextOptions) {
           super(options);
-          contexts.push(this);
-          state.contexts++;
+          state.totalContexts++;
+        }
+        override createMediaStreamSource(stream: MediaStream) {
+          const source = super.createMediaStreamSource(stream);
+          // The application's notification chime owns a separate output-only
+          // context. Count every context, but assert cleanup of microphone input.
+          if (!contexts.includes(this)) {
+            contexts.push(this);
+            state.contexts++;
+          }
+          return source;
         }
         override createAnalyser() {
           const analyser = super.createAnalyser(),
@@ -218,6 +233,7 @@ export async function auditNativeFireGesture(
           streams: state.streams,
           activeTracks: state.activeTracks,
           contexts: state.contexts,
+          totalContexts: state.totalContexts,
           openContexts: state.openContexts,
           runningContexts: state.runningContexts,
           samples: state.samples,
@@ -237,6 +253,7 @@ export async function auditNativeFireGesture(
         streams: 0,
         activeTracks: 0,
         contexts: 0,
+        totalContexts: 0,
         openContexts: 0,
         runningContexts: 0,
         samples: 0,
@@ -346,11 +363,28 @@ export async function auditNativeFireGesture(
     await original?.dispose().catch(() => {});
     let cleanupError: unknown;
     if (context) {
+      if (report.fireOn > report.fireOff) {
+        try {
+          const response = await context.request.post(
+            `${fixture.base}/api/books/${encodeURIComponent(fixture.roomId)}/fire`,
+            { data: { on: false } },
+          );
+          assert.equal(response.status(), 200);
+          FireResult.parse(await response.json());
+          report.fireOff++;
+          report.cleanupFireOff = true;
+        } catch (error) {
+          report.status = "failed";
+          report.cleanupErrors.push("FireOffCleanupError");
+          cleanupError = error;
+        }
+      }
       try {
         await context.close();
       } catch (error) {
         report.status = "failed";
         report.error = "ContextCleanupError";
+        report.cleanupErrors.push("ContextCleanupError");
         cleanupError = error;
       }
     }

@@ -628,6 +628,12 @@ export async function auditNativeApplicationProfiles(
                 )
                 .first(),
             ).toBeAttached();
+            // A fresh room document may receive its authenticated room socket
+            // before its independent Me request finishes. Geometry requires the
+            // account navigation too; its mobile surface is intentionally hidden.
+            const navigation = page.locator("[data-native-app-navigation]");
+            if (profile.width > 900) await expect(navigation).toBeVisible();
+            else await expect(navigation).toBeAttached();
             const roomGeometry = await applicationGeometry(page);
             evidence.applicationLayout = {
               home: homeGeometry,
