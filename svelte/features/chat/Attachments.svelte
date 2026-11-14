@@ -5,6 +5,7 @@
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import { kb } from "../../panels";
   import Icon from "../../lib/ui/Icon.svelte";
+  import Button from "../../lib/ui/Button.svelte";
   let {
     roomId,
     files = [],
@@ -59,6 +60,11 @@
           {actions}
           {vb}
         />
+      {:else if file.type === 'text/html' && actions.openSideFile}<div data-html-file-card class="tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-3">
+        <b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
+        {#if actions.sideFileName === file.name}<span class="tw:text-xs tw:text-primary">{vb.t('aberto ao lado')}</span>{:else}<Button variant="ghost" onclick={(event)=>{if(active && event.currentTarget.isConnected)actions.openSideFile?.(file);}}>{vb.t('Abrir')}</Button>{/if}
+        <a href={url(file)} onclick={(event)=>open(event,file)} class="tw:text-xs tw:text-link">{vb.t('Abrir em tela cheia')}</a>
+      </div>
       {:else if file.type.startsWith("audio/")}<div
           class="tw:max-w-full tw:space-y-1"
         >

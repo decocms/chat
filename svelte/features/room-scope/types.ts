@@ -19,6 +19,8 @@ import type { AppsProps } from "../apps/types";
 import type { FileViewer } from "../file-viewer/session";
 import type DocumentToolbar from "../documents/DocumentToolbar.svelte";
 import type FileViewerComponent from "../file-viewer/FileViewer.svelte";
+import type SideFilePanel from "../file-viewer/SideFilePanel.svelte";
+import type { SideFileInput, SideFileTarget } from "../file-viewer/side";
 import type ThreadFiles from "../file-viewer/ThreadFiles.svelte";
 import type AgentsPane from "../agents/AgentsPane.svelte";
 import type AgentBanners from "../agents/AgentBanners.svelte";
@@ -48,6 +50,7 @@ export type RoomScopePresentation = {
   trigger: ComponentProps<typeof AgentTrigger> | null;
   threadFiles: ComponentProps<typeof ThreadFiles>;
   viewer: ComponentProps<typeof FileViewerComponent>;
+  sideFile: ComponentProps<typeof SideFilePanel>;
   chatRevision: number;
   notice: string;
 };
@@ -96,6 +99,8 @@ export type RoomScope = {
       trigger?: HTMLElement,
       label?: string,
     ): boolean;
+    openSideFile(file: SideFileInput): boolean;
+    currentSideFile(): SideFileTarget | null;
     navigateMessage(id: number, thread?: string): void;
     loadOlder(): void;
     retry(): void;

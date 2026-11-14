@@ -50,6 +50,8 @@ export type ChatActions = {
   reply: (id: number) => void;
   navigate: (id: number, thread?: string) => void;
   openFile: (file: Attachment) => void;
+  openSideFile?: (file: Attachment) => void;
+  sideFileName?: string;
 };
 
 /** Real Chat props are also used by source-only tooling tests, which do not compile Svelte declarations. */

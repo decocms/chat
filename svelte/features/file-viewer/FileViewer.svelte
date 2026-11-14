@@ -15,13 +15,20 @@
     lang = "pt",
     actions,
     iosStandalone = false,
+    inline = false,
+    onselect,
+    onclose,
   }: {
     controller: FileViewer;
     lang?: "pt" | "en";
     actions: RichActions;
     iosStandalone?: boolean;
+    inline?: boolean;
+    onselect?(id: string): void;
+    onclose?(): void;
   } = $props();
   const view = untrack(() => controller.state);
+  const close = () => onclose ? onclose() : controller.closeUser();
   const text = (key: Parameters<typeof viewerText>[1]) => viewerText(lang, key);
   let csvPage = $state(0);
   const csvText = $derived(
@@ -55,7 +62,7 @@
     const owned = () => ticket !== undefined && controller.current(ticket);
     const leave = (callback: () => void) => {
       if (!owned()) return;
-      controller.closeUser();
+      close();
       if (!controller.deferNavigation(callback)) callback();
     };
     return {
@@ -72,16 +79,7 @@
   onDestroy(() => controller.closeNavigation());
 </script>
 
-<Dialog
-  open={$view.open}
-  title={$view.name || "File"}
-  closeLabel={text("close")}
-  fullScreen
-  returnFocus={() => controller.returnFocus()}
-  onOpenChange={(open) => {
-    if (!open) controller.closeUser();
-  }}
->
+{#snippet preview()}
   {#if $view.target}
     <div
       data-file-viewer
@@ -96,19 +94,20 @@
             <Select
               aria-label={text("version")}
               value={$view.target.id}
+              data-file-version-target={$view.target.id}
               items={$view.versions.map((file, index) => ({
                 value: file.id,
                 label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
               }))}
               onchange={(event) => {
-                if (event.currentTarget.isConnected)
-                  controller.select(event.currentTarget.value);
+                if (event.currentTarget.isConnected && event.currentTarget.dataset.fileVersionTarget === $view.target?.id)
+                  onselect ? onselect(event.currentTarget.value) : controller.select(event.currentTarget.value);
               }}
               class="tw:min-w-0"
             />
           </label>
         {/if}
-        {#if $view.file}<Button
+        {#if !inline && $view.file}<Button
             variant="outline"
             disabled={$view.pinPending}
             onclick={(event) => {
@@ -187,7 +186,7 @@
               onready={() => controller.ready(operation)}
               onerror={() => controller.mediaError(operation)}
               onclose={() => {
-                if (controller.current(operation)) controller.closeUser();
+                if (controller.current(operation)) close();
               }}
             />
           {:else if $view.content.kind === "markdown" && $view.room && $view.phase === "ready"}<RichContent
@@ -271,7 +270,20 @@
       {/if}
     </div>
   {/if}
-</Dialog>
+{/snippet}
+{#if inline}{@render preview()}{:else}
+<Dialog
+  open={$view.open}
+  title={$view.name || "File"}
+  closeLabel={text("close")}
+  fullScreen
+  returnFocus={() => controller.returnFocus()}
+  onOpenChange={(open) => {
+    if (!open) close();
+  }}
+>
+{@render preview()}
+</Dialog>{/if}
 
 {#if $view.closingUnconfirmed}<div
     data-vb-native

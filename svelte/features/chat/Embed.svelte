@@ -21,6 +21,7 @@
   } = $props();
   let height = $state(320),
     clipped = $state(false);
+  const compact = $derived(actions.sideFileName === file.name);
   let active = true,
     epoch = 0,
     frameGeneration = $state(0),
@@ -133,6 +134,10 @@
 </script>
 
 <div data-chat-embed class="tw:w-full tw:space-y-2">
+  {#if actions.openSideFile}<header class="tw:flex tw:items-center tw:gap-2 tw:text-sm"><b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
+    {#if compact}<span class="tw:text-xs tw:text-primary">{vb.t('aberto ao lado')}</span>{:else}<Button variant="ghost" onclick={(event)=>{if(active && event.currentTarget.isConnected)actions.openSideFile?.(file);}}>{vb.t('Abrir')}</Button>{/if}
+  </header>{/if}
+  <div hidden={compact} class={compact ? 'tw:hidden' : 'tw:space-y-2'}>
   {#if !bridgeDenied}{#key frameGeneration}<iframe
         name={frameName}
         use:attachFrame
@@ -171,7 +176,7 @@
                 : "Abrir app de novo"}</Button
             >{/snippet}</Snapshot
         >{/key}{/if}{/if}
-  <a
+  </div><a
     href={url}
     onclick={open}
     class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:text-xs tw:text-link tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
@@ -180,7 +185,7 @@
   {#if clipped}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
       {file.name}
     </p>{/if}
-  {#if $question}{#key $question}<Snapshot value={$question}>
+  <div hidden={compact} class={compact ? 'tw:hidden' : undefined}>{#if $question}{#key $question}<Snapshot value={$question}>
         {#snippet children(intent)}
           <div
             role="group"
@@ -211,5 +216,5 @@
               >
             </div>
           </div>{/snippet}</Snapshot
-      >{/key}{/if}
+      >{/key}{/if}</div>
 </div>

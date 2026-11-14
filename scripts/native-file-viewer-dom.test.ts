@@ -6,6 +6,7 @@ import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
 import { get } from "svelte/store";
 import type { Room, Attachment } from "../shared/room";
+import { createSideFileSession } from "../svelte/features/file-viewer/side";
 import { createFileViewer } from "../svelte/features/file-viewer/session";
 const environment = new Window({
   url: "https://vibebook.test/b/aaaaaa?ui=svelte",
@@ -81,6 +82,7 @@ plugin({
 const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: FileViewer } =
   await import("../svelte/features/file-viewer/FileViewer.svelte");
+const {default:SideFilePanel}=await import("../svelte/features/file-viewer/SideFilePanel.svelte");
 const file = (id: string, ts = 1): Attachment => ({
   id,
   name: "report.md",
@@ -226,4 +228,25 @@ test("CSV pagination bounds active cells and reports omitted parsed columns with
   expect(
     document.querySelector('[data-file-viewer] a[target="_blank"]'),
   ).not.toBeNull();
+});
+
+test('beside-chat native pane follows versions, rejects old connected controls and preserves fullscreen as a separate intent',async()=>{
+ const owner=createFileViewer({href:()=>location.href,state:()=>window.history.state,history:window.history,embedded:true,api:{probe:async()=>({type:'text/plain',size:2}),text:async target=>({metadata:{type:'text/plain'},text:'version '+target.id,truncated:false})}});
+ owners.push(owner);const side=createSideFileSession(owner,{current:()=>true,changed(){}});
+ const request:import('../svelte/roomConnection').RequestRoomCommand=async()=>({ok:true});
+ side.sync(room([file('aa')]),request);side.open(file('aa'));
+ const target=document.createElement('div');document.body.append(target);const full:string[]=[];
+ const before=window.history.length;
+ instances.push(flushSync(()=>mount(SideFilePanel,{target,props:{owner:side,lang:'en',current:()=>true,actions:{navigate(){},openFile(){}},fullscreen:(id)=>full.push(id),close:()=>side.close()}})));
+ await settle();expect(target.textContent).toContain('version aa');expect(target.querySelector('[role=dialog]')).toBeNull();
+ const oldFull=[...target.querySelectorAll('button')].find(button=>button.textContent?.trim()==='Open fullscreen')!;
+ side.sync(room([file('bb',2),file('aa')]),request);
+ oldFull.click();expect(full).toEqual([]);
+ await settle();expect(target.textContent).toContain('version bb');
+ const fullButton=[...target.querySelectorAll('button')].find(button=>button.textContent?.trim()==='Open fullscreen')!;
+ fullButton.click();expect(full).toEqual(['bb']);
+ const select=target.querySelector('select')!;select.value='aa';select.dispatchEvent(new Event('change',{bubbles:true}));await settle();
+ side.sync(room([file('cc',3),file('bb',2),file('aa')]),request);await settle();
+ expect(target.textContent).toContain('version aa');expect(side.target()?.follow).toBe(false);expect(window.history.length).toBe(before);
+ const close=[...target.querySelectorAll('button')].find(button=>button.textContent?.trim()==='Close')!;close.click();await settle();expect(target.querySelector('[data-side-file]')).toBeNull();side.dispose();
 });

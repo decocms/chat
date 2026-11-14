@@ -18,6 +18,7 @@ import { createRichFileIndex } from "../rich-text/roomFiles";
 import type { AppsAuthority } from "../apps/authority";
 import { createFilesSession } from "../files/session";
 import { createFileChipIndex } from "../rich-text/fileIndex";
+import { createSideFileSession, type SideFileInput } from "../file-viewer/side";
 import { createFileViewer } from "../file-viewer/session";
 import { createFileReadApi, FileReadFailure } from "../file-viewer/api";
 import { knownViewerFiles, sameFile } from "../file-viewer/model";
@@ -229,7 +230,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       throw error;
     }
   };
-  const viewer = createFileViewer({
+  const viewerOptions: Parameters<typeof createFileViewer>[0] = {
     href: browser.href,
     state: browser.historyState,
     history: browser.history,
@@ -239,7 +240,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       probe: (target, signal) => guardRead(readApi.probe(target, signal)),
       text: (target, signal) => guardRead(readApi.text(target, signal)),
     },
-  });
+  };
+  const viewer = createFileViewer(viewerOptions);
+  const side = createSideFileSession(createFileViewer({...viewerOptions, embedded:true}),{current,changed:()=>project("stay")});
   const document = createDocumentSession({
     drafts: resources.documents,
     authorizationEpoch: scope.roomGeneration,
@@ -262,6 +265,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   if (!initialAuthority) {
     document.dispose();
     viewer.dispose();
+    side.dispose();
     viewport.dispose();
     files.dispose();
     disposePinsSession(pins);
@@ -413,6 +417,14 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       },
       layout.takeSheetEntry(),
     );
+  }
+  function openSideFile(file:SideFileInput):boolean {
+    if(!current())return false;
+    let opened=false;
+    const captured={...file};
+    const run=()=>{if(current() && side.open(captured)){opened=true;setPane('view',{open:true});}};
+    if(!defer(run))run();
+    return opened;
   }
   function openFile(
     input: string | Attachment,
@@ -587,6 +599,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       );
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
+      side.sync(value,request,fresh);
       fileIndex.sync(value, fresh);
       apps.sync({ ...value, messages: roomMessages(value) }, fresh);
       if (layout.read().pane === "files" && fresh) void files.load(request);
@@ -782,6 +795,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         };
         const actions: ChatActions = {
           ...rich,
+          openSideFile: (file) => { if(owned()) openSideFile(file); },
+          sideFileName: display.pane === 'view' ? side.target()?.name : undefined,
           request: threadRequest,
           reply: (id) => {
             if (owned()) reply(id);
@@ -1103,6 +1118,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               if (current() && trigger.isConnected) openFile(file, trigger);
             },
           },
+          sideFile: {owner:side,lang,actions:rich,current,fullscreen:(id:string)=>openFile(id),close:()=>{if(current()){side.close();setPane("doc");}}},
           viewer: {
             controller: viewer,
             lang,
@@ -1147,6 +1163,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     const event = value.event,
       canonical = room()!;
     if (event.t === "older") viewport.older(event);
+    else if(event.t === "openSide") openSideFile(event.file);
     else if (event.t === "doc" && event.stale) document.invalidate(event.epic);
     else if (event.t === "suggestions" && selected().startsWith("pre:")) {
       const old = value.previous?.suggestions[Number(selected().slice(4))];
@@ -1215,6 +1232,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     for (const stop of [...embeds]) stop();
     document.dispose();
     viewer.dispose();
+    side.dispose();
     viewport.dispose();
     needsYou.dispose();
     files.dispose();
@@ -1353,6 +1371,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       setPane,
       setThread: pickThread,
       openFile,
+      openSideFile,
+      currentSideFile: () => side.target(),
       navigateMessage,
       loadOlder: () => {
         if (current()) viewport.loadOlder();

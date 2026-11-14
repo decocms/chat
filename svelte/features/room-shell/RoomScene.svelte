@@ -187,6 +187,9 @@
       ),
     ),
     agentsView = agentsModule.state;
+  const sideModule = untrack(() => createDeferredModule(()=>import("../file-viewer/SideFilePanel.svelte").then(module=>module.default),{current}));
+  const sideView=sideModule.state;
+  const SideFilePanel=$derived($sideView.component);
   const viewerModule = untrack(() =>
       createDeferredModule(
         () =>
@@ -219,6 +222,7 @@
     }
     if (documentShown) {
       if ($geometry.pane === "files") void filesModule.ensure();
+      if ($geometry.pane === "view") void sideModule.ensure();
       if ($geometry.pane === "apps") void appsModule.ensure();
       if ($geometry.pane === "decisions") void decisionsModule.ensure();
       if ($geometry.pane === "reminders") void remindersModule.ensure();
@@ -245,6 +249,7 @@
     appsModule.dispose();
     agentsModule.dispose();
     viewerModule.dispose();
+    sideModule.dispose();
     owner.dispose();
     layout.dispose();
     scoped = undefined;
@@ -350,6 +355,9 @@
         hidden={$geometry.pane !== "doc"}
       >
         <DocumentPanel {...$view.document} />
+      </div>
+      <div class={$geometry.pane === 'view' ? 'tw:flex tw:h-full tw:min-h-0 tw:flex-col' : 'tw:hidden'} hidden={$geometry.pane !== 'view'}>
+        {#if SideFilePanel}<SideFilePanel {...$view.sideFile}/>{:else}<DeferredViewStatus phase={$sideView.phase} lang={services.language} label={services.language === 'en' ? 'File' : 'Arquivo'} retry={()=>{void sideModule.retry();}} {current}/>{/if}
       </div>
       <div
         use:filesSurface

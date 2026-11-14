@@ -62,6 +62,8 @@ export function createFileViewer(options: {
   api?: FileReadApi;
   clock?: ViewerClock;
   enqueue?: (callback: () => void) => void;
+  /** A room pane owns navigation externally; reads and version validation stay identical. */
+  embedded?: boolean;
 }) {
   const clock = options.clock ?? viewerClock,
     api = options.api ?? createFileReadApi(),
@@ -314,7 +316,7 @@ export function createFileViewer(options: {
       return false;
     const parsed = FileTarget.safeParse(input);
     if (!parsed.success) return false;
-    if (history.deferNavigation(() => open(input, element))) return true;
+    if (!options.embedded && history.deferNavigation(() => open(input, element))) return true;
     const files = knownViewerFiles(room),
       found = files.find((file) => file.id === input.id);
     if (room.filesAll && !found && input.metadata) return false;
@@ -325,7 +327,7 @@ export function createFileViewer(options: {
     cancelRead();
     cancelIndex();
     indexRequested = false;
-    history.open(input);
+    if (!options.embedded) history.open(input);
     const pinState = pins ? get(pins.state) : null;
     state.set({
       ...blank(),
@@ -473,11 +475,11 @@ export function createFileViewer(options: {
     closeUser() {
       if (!get(state).open) return;
       closed();
-      history.closeUser();
+      if (!options.embedded) history.closeUser();
     },
     closeNavigation() {
       closed();
-      history.closeNavigation();
+      if (!options.embedded) history.closeNavigation();
     },
     consumePop: () => history.consumePop() === "handled",
     deferNavigation: history.deferNavigation,
