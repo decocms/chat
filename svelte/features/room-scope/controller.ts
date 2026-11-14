@@ -925,6 +925,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         };
         const toolbar = {
           owner: document,
+          sideFileName: side.target()?.name,
           room: value,
           pane: display.pane,
           lang,

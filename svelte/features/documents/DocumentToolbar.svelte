@@ -14,6 +14,7 @@
     agentState = "",
     onPane,
     compact = false,
+    sideFileName,
   }: {
     owner: DocumentSession;
     room: Room;
@@ -24,6 +25,7 @@
     agentState?: string;
     onPane(pane: DocumentPane): void;
     compact?: boolean;
+    sideFileName?: string;
   } = $props();
   const view = untrack(() => owner.state),
     en = $derived(lang === "en");
@@ -37,6 +39,7 @@
     { id: "decisions", label: en ? "Decisions" : "Decisões" },
     { id: "reminders", label: en ? "Reminders" : "Lembretes" },
     { id: "agents", label: "Agents" },
+    ...(sideFileName ? [{id:'view' as const,label:en?'Beside chat':'Ao lado'}] : []),
   ]);
   const epic = $derived(
     room.epics.find((epic) => epic.id === $view.target?.epicId),
