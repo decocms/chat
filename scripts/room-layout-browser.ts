@@ -175,10 +175,18 @@ try {
   );
   await expect(page.locator("[data-layout-mounts]")).toHaveText("1");
   checkpoint("desktop/inbox-overlay-retains-board-and-owned-document-width");
-  const retainedWidth = await width();
+  // The document cell is hidden while Board occupies its pane. Measure the
+  // visible pane that currently owns the shared document width.
+  const retainedWidth = await page
+    .locator("[data-room-board]")
+    .evaluate((node) => node.getBoundingClientRect().width);
+  assert(retainedWidth > 0, "The visible Board pane must own a positive width");
   await page.getByRole("button", { name: "Inbox view", exact: true }).click();
   const inboxDocument = page.locator("[data-layout-inbox-document]");
   await expect(inboxDocument).toBeVisible();
+  await expect(slider).toBeHidden();
+  await expect(slider).toBeDisabled();
+  await expect(page.locator("[data-room-board]")).toHaveAttribute("inert", "");
   await expect
     .poll(() =>
       inboxDocument.evaluate((node) => node.getBoundingClientRect().width),
