@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.15";
+var VERSION = "1.6.16";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -533,7 +533,10 @@ function terminalApp() {
 }
 var flog = (m) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}
 `);
+var fireGen = new Map;
 async function fireSwitch(room, on, agent, tools) {
+  const gen = (fireGen.get(room) ?? 0) + 1;
+  fireGen.set(room, gen);
   const report = (state, note = "") => callTool("fire_state", { room_id: room, state, note }, agent, tools).catch(() => {});
   const map = readJson(HERDR, {});
   const e = map[room];
@@ -552,16 +555,27 @@ async function fireSwitch(room, on, agent, tools) {
     }
   };
   if (!on) {
-    if (alive)
-      try {
-        herdr("tab", "close", e.fire_tab);
-      } catch {}
-    save();
     flog(`fire off: ${room}`);
-    return report("off");
+    await report("off");
+    if (!alive)
+      return save();
+    const tabId2 = e.fire_tab, until = Date.now() + 120000;
+    await new Promise((r) => setTimeout(r, 60000));
+    for (;; ) {
+      if (fireGen.get(room) !== gen)
+        return;
+      const p = herdr("pane", "list").panes.find((x) => x.tab_id === tabId2);
+      if (!p || p.agent_status === "idle" || p.agent_status === "done" || Date.now() > until)
+        break;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    try {
+      herdr("tab", "close", tabId2);
+    } catch {}
+    return save();
   }
   if (alive)
-    return report("switching", "Teu Haiku já está aberto; esperando ele ouvir.");
+    return report("ready", "Teu Haiku já estava aberto.");
   await report("switching", "Abrindo um Claude Haiku só pro Fire…");
   const tab = herdr("tab", "create", "--workspace", e.workspace, "--cwd", e.folder, "--label", "\uD83D\uDD25 fire", "--env", "VIBEBOOK_FIRE=1", ...process.env.VIBEBOOK_HOME ? ["--env", `VIBEBOOK_HOME=${process.env.VIBEBOOK_HOME}`] : [], "--no-focus");
   const tabId = tab.tab?.tab_id, pane = tab.root_pane?.pane_id;
@@ -1257,7 +1271,9 @@ ${(all.doc ?? "").slice(0, 2000)}
           for (const m of (all.messages ?? []).slice(-5))
             process.stdout.write(`#${m.id}${m.from_your_human ? " (teu humano)" : ""}: ${(m.text ?? "").replace(/\s+/g, " ").slice(0, 300)}
 `);
-          process.stdout.write(`---
+          process.stdout.write(`--- ferramentas (vibebook call <nome> '{json}'; vibebook describe <nome> mostra os argumentos) ---
+${tools.map((t) => t.name).join(", ")}
+---
 `);
           try {
             writeFileSync(seen, "1");

@@ -143,7 +143,8 @@
         "O aviso de \"2 Claudes seus ouvindo esta sala\" não conta mais o Haiku do Modo Fire, que é um segundo Claude de propósito",
         "Um HTML que o Claude sobe abre sozinho ao lado do chat (e um app da sala abre em Apps), sem precisar clicar; um app da sala aparece no chat como uma linha, não desenhado duas vezes",
         "No Modo Fire, o Haiku recebe primeiro a regra (números e gráfico = card) e a tua fala, e o contexto da sala por último: antes ele cortava a saída e perdia a regra",
-        "Ao sair do Fire, o teu Claude principal não refaz o que o Haiku já respondeu"
+        "Ao sair do Fire, o teu Claude principal não refaz o que o Haiku já respondeu",
+        "Desligar o Fire não fecha mais o Haiku no meio de uma resposta: ele termina, e se o Fire voltar em 1 minuto a mesma aba é reaproveitada"
       ],
       "en": [
         "On phones, a drag from the left edge goes back (epic to room, room to home, in the installed app) instead of replying to the message",
@@ -156,7 +157,8 @@
         "The \"2 of your Claudes are listening to this room\" warning no longer counts the Fire mode Haiku, which is a second Claude on purpose",
         "An HTML your Claude uploads opens beside the chat by itself (and a room app opens in Apps), no click needed; a room app shows in the chat as one row instead of being drawn twice",
         "In Fire mode the Haiku gets the rule (numbers and charts = card) and your words first, the room context last: it used to cut the output and miss the rule",
-        "Leaving Fire, your main Claude no longer redoes what the Haiku already answered"
+        "Leaving Fire, your main Claude no longer redoes what the Haiku already answered",
+        "Turning Fire off no longer closes the Haiku mid-answer: it finishes, and if Fire comes back within a minute the same tab is reused"
       ]
     }
   },
