@@ -39,8 +39,14 @@ execution success nor diagnostics waive acceptance budgets. The original JSON,
 report and module metadata are retained with exact hashes.
 
 Current integration baseline is main `5027d7d`, merged at `b82d9aa`.
-The maintained app now includes swipe-up continuous Fire recording; its native
-port is pending. Fire-off cursor handoff is ported into the typed handler, with
+The [native continuous Fire port](native-continuous-fire.md) is integrated at
+`70ab4a5`: swipe-up locks recording, independent final chunks feed a bounded
+serialized queue, and the actual capture adapter shares a resumed stream/level
+source with scoped cleanup. Source review accepted the discard, watchdog and
+long-hold continuation fixes. The merged pure cohort passes 34 tests / 176
+assertions; strict type, actual Composer DOM and real Chromium checks remain
+pending. Both home variants expose Nova UI; native selection uses the atomic
+Studio Switch. Fire-off cursor handoff is ported into the typed handler, with
 an actual SQLite regression proving room/account isolation and late-membership
 rejection. All 34 focused RPC tests pass 336 assertions. The independent R2
 response helper narrows the actual SDK range union; six focused tests pass 153
