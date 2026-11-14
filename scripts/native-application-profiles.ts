@@ -510,6 +510,7 @@ async function applicationGeometry(page: Page) {
     return {
       width: innerWidth,
       height: innerHeight,
+      documentWidth: document.documentElement.scrollWidth,
       navigation: read("[data-native-app-navigation]"),
       route: read("[data-native-application-route]"),
       room: read("[data-native-room-layout]"),
@@ -570,6 +571,10 @@ export async function auditNativeApplicationProfiles(
               page.locator("[data-native-app-navigation]"),
             ).toBeVisible();
             const homeGeometry = await applicationGeometry(page);
+            assert(
+              homeGeometry.documentWidth <= homeGeometry.width + 1,
+              "Home must fit the phone, tablet and desktop viewport without page overflow",
+            );
             if (profile.width <= 900) {
               assert(
                 homeGeometry.navigation &&
@@ -628,6 +633,10 @@ export async function auditNativeApplicationProfiles(
               home: homeGeometry,
               room: roomGeometry,
             };
+            assert(
+              roomGeometry.documentWidth <= roomGeometry.width + 1,
+              "Room must fit the phone, tablet and desktop viewport without page overflow",
+            );
             assert(
               roomGeometry.chat && roomGeometry.chat.clientHeight > 0,
               "Initial actual Root Chat must have usable height",
