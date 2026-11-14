@@ -44,6 +44,51 @@ export function diagnosticFailure(error: unknown) {
     ? error.code
     : "diagnostic-failed";
 }
+type CPUFailureReason =
+  | "profile-not-object"
+  | "nodes-not-array"
+  | "samples-not-array"
+  | "deltas-not-array"
+  | "sample-delta-count-mismatch"
+  | "node-not-object"
+  | "node-id-invalid"
+  | "node-id-duplicate"
+  | "sample-id-invalid"
+  | "sample-id-unknown"
+  | "delta-not-number"
+  | "delta-not-finite"
+  | "delta-negative"
+  | "delta-not-safe-integer"
+  | "sampled-time-overflow"
+  | "call-frame-invalid";
+type CPUFailureCounts = {
+  nodeCount: number | null;
+  sampleCount: number | null;
+  deltaCount: number | null;
+};
+/** Fixed enum and numeric positions/counts only. Never retain the rejected
+ * node/frame, identifier, delta value, source, function name or profile. */
+class CPUProfileFailure extends MetricsDiagnosticFailure {
+  constructor(
+    readonly reason: CPUFailureReason,
+    readonly counts: Readonly<CPUFailureCounts>,
+    readonly nodeIndex: number | null = null,
+    readonly sampleIndex: number | null = null,
+  ) {
+    super("cpu-invalid");
+  }
+}
+export function diagnosticCPUFailure(error: unknown) {
+  if (!(error instanceof CPUProfileFailure)) return null;
+  return {
+    reason: error.reason,
+    nodeIndex: error.nodeIndex,
+    sampleIndex: error.sampleIndex,
+    nodeCount: error.counts.nodeCount,
+    sampleCount: error.counts.sampleCount,
+    deltaCount: error.counts.deltaCount,
+  };
+}
 export function summarizeHeapSnapshot(value: unknown) {
   if (
     !record(value) ||
@@ -155,14 +200,27 @@ export function summarizeCPUProfile(
   observed: readonly DiagnosticAsset[],
   scripts: ReadonlyMap<string, DiagnosticScript | null> = new Map(),
 ) {
-  if (
-    !record(value) ||
-    !Array.isArray(value.nodes) ||
-    !Array.isArray(value.samples) ||
-    !Array.isArray(value.timeDeltas) ||
-    value.samples.length !== value.timeDeltas.length
-  )
-    throw new MetricsDiagnosticFailure("cpu-invalid");
+  const counts: Readonly<CPUFailureCounts> = Object.freeze({
+    nodeCount:
+      record(value) && Array.isArray(value.nodes) ? value.nodes.length : null,
+    sampleCount:
+      record(value) && Array.isArray(value.samples)
+        ? value.samples.length
+        : null,
+    deltaCount:
+      record(value) && Array.isArray(value.timeDeltas)
+        ? value.timeDeltas.length
+        : null,
+  });
+  if (!record(value)) throw new CPUProfileFailure("profile-not-object", counts);
+  if (!Array.isArray(value.nodes))
+    throw new CPUProfileFailure("nodes-not-array", counts);
+  if (!Array.isArray(value.samples))
+    throw new CPUProfileFailure("samples-not-array", counts);
+  if (!Array.isArray(value.timeDeltas))
+    throw new CPUProfileFailure("deltas-not-array", counts);
+  if (value.samples.length !== value.timeDeltas.length)
+    throw new CPUProfileFailure("sample-delta-count-mismatch", counts);
   const assets = new Map(
     observed
       .filter(
@@ -178,27 +236,42 @@ export function summarizeCPUProfile(
     >(),
     known = new Set<number>();
   let total = 0;
-  for (const node of value.nodes) {
-    if (!record(node) || !safeInteger(node.id) || known.has(node.id))
-      throw new MetricsDiagnosticFailure("cpu-invalid");
+  for (let index = 0; index < value.nodes.length; index++) {
+    const node: unknown = value.nodes[index];
+    if (!record(node))
+      throw new CPUProfileFailure("node-not-object", counts, index);
+    if (!safeInteger(node.id))
+      throw new CPUProfileFailure("node-id-invalid", counts, index);
+    if (known.has(node.id))
+      throw new CPUProfileFailure("node-id-duplicate", counts, index);
     known.add(node.id);
   }
   for (let i = 0; i < value.samples.length; i++) {
     const id: unknown = value.samples[i],
       delta: unknown = value.timeDeltas[i];
-    if (!safeInteger(id) || !known.has(id) || !safeInteger(delta))
-      throw new MetricsDiagnosticFailure("cpu-invalid");
+    if (!safeInteger(id))
+      throw new CPUProfileFailure("sample-id-invalid", counts, null, i);
+    if (!known.has(id))
+      throw new CPUProfileFailure("sample-id-unknown", counts, null, i);
+    if (typeof delta !== "number")
+      throw new CPUProfileFailure("delta-not-number", counts, null, i);
+    if (!Number.isFinite(delta))
+      throw new CPUProfileFailure("delta-not-finite", counts, null, i);
+    if (delta < 0)
+      throw new CPUProfileFailure("delta-negative", counts, null, i);
+    if (!safeInteger(delta))
+      throw new CPUProfileFailure("delta-not-safe-integer", counts, null, i);
     if (!Number.isSafeInteger(total + delta))
-      throw new MetricsDiagnosticFailure("cpu-invalid");
+      throw new CPUProfileFailure("sampled-time-overflow", counts, null, i);
     total += delta;
     const row = times.get(id) ?? { samples: 0, selfTimeMicroseconds: 0 };
     row.samples++;
     row.selfTimeMicroseconds += delta;
     times.set(id, row);
   }
-  const frames = value.nodes.map((node) => {
+  const frames = value.nodes.map((node, index) => {
     if (!record(node) || !safeInteger(node.id) || !record(node.callFrame))
-      throw new MetricsDiagnosticFailure("cpu-invalid");
+      throw new CPUProfileFailure("call-frame-invalid", counts, index);
     const frame = node.callFrame,
       script =
         typeof frame.scriptId === "string" ? scripts.get(frame.scriptId) : null,

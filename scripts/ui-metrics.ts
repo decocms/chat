@@ -45,6 +45,7 @@ import { metricDocumentContent } from "./ui-metrics-document-model";
 import {
   capturePrivateHeap,
   diagnosticFailure,
+  diagnosticCPUFailure,
   diagnosticScript,
   type DiagnosticScript,
   summarizeCPUProfile,
@@ -1514,6 +1515,10 @@ async function run(
   } catch (error) {
     sample.status = "failed";
     sample.failedPhase = phase;
+    if (diagnosticContext) {
+      const failure = diagnosticCPUFailure(error);
+      if (failure) sample.cpuFailure = failure;
+    }
     sample.error = diagnosticContext
       ? diagnosticFailure(error)
       : error instanceof Error
@@ -1808,9 +1813,11 @@ try {
             diagnosticContext = await createTrialContext(device);
             await run(variant, device, shape, 1, false, diagnosticContext);
           } catch (error) {
+            const cpuFailure = diagnosticCPUFailure(error);
             if (diagnosticTrials.length > before) {
               diagnosticTrials[before].status = "unverified";
               diagnosticTrials[before].error = diagnosticFailure(error);
+              if (cpuFailure) diagnosticTrials[before].cpuFailure = cpuFailure;
             } else
               diagnosticTrials.push({
                 variant,
@@ -1824,6 +1831,7 @@ try {
                 diagnosticOnly: true,
                 excludedFromSummaries: true,
                 error: diagnosticFailure(error),
+                ...(cpuFailure ? { cpuFailure } : {}),
               });
           } finally {
             await diagnosticContext?.close().catch(() => {

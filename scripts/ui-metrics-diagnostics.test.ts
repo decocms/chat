@@ -9,6 +9,8 @@ import {
   heapChunkBytes,
   capturePrivateHeap,
   diagnosticFailure,
+  diagnosticCPUFailure,
+  MetricsDiagnosticFailure,
   type HeapDiagnosticPort,
 } from "./ui-metrics-diagnostics";
 const heap = () => ({
@@ -225,4 +227,193 @@ test("private snapshot is summarized and ALWAYS removed, including cap/transport
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("invalid CPU profiles expose only closed reasons and numeric indices/counts", () => {
+  const profile = () => ({
+    nodes: [
+      {
+        id: 1,
+        callFrame: { functionName: "PRIVATE_FN", url: "PRIVATE_TOKEN" },
+      },
+      { id: 2, callFrame: {} },
+    ],
+    samples: [1, 2],
+    timeDeltas: [10, 20],
+  });
+  const rows: {
+    value: unknown;
+    reason: string;
+    nodeIndex?: number;
+    sampleIndex?: number;
+  }[] = [
+    { value: null, reason: "profile-not-object" },
+    {
+      value: { ...profile(), nodes: "PRIVATE_NODES" },
+      reason: "nodes-not-array",
+    },
+    {
+      value: { ...profile(), samples: "PRIVATE_SAMPLES" },
+      reason: "samples-not-array",
+    },
+    {
+      value: { ...profile(), timeDeltas: "PRIVATE_DELTAS" },
+      reason: "deltas-not-array",
+    },
+    {
+      value: { ...profile(), samples: [1] },
+      reason: "sample-delta-count-mismatch",
+    },
+    {
+      value: { ...profile(), nodes: [null] },
+      reason: "node-not-object",
+      nodeIndex: 0,
+    },
+    {
+      value: { ...profile(), nodes: [{ id: "PRIVATE_ID" }] },
+      reason: "node-id-invalid",
+      nodeIndex: 0,
+    },
+    {
+      value: { ...profile(), nodes: [{ id: 1 }, { id: 1 }] },
+      reason: "node-id-duplicate",
+      nodeIndex: 1,
+    },
+    {
+      value: { ...profile(), samples: ["PRIVATE_ID", 2] },
+      reason: "sample-id-invalid",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), samples: [1, 3] },
+      reason: "sample-id-unknown",
+      sampleIndex: 1,
+    },
+    {
+      value: { ...profile(), timeDeltas: ["PRIVATE_TIME", 20] },
+      reason: "delta-not-number",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), timeDeltas: [NaN, 20] },
+      reason: "delta-not-finite",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), timeDeltas: [Infinity, 20] },
+      reason: "delta-not-finite",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), timeDeltas: [10, -1] },
+      reason: "delta-negative",
+      sampleIndex: 1,
+    },
+    {
+      value: { ...profile(), timeDeltas: [0.5, 20] },
+      reason: "delta-not-safe-integer",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), timeDeltas: [Number.MAX_SAFE_INTEGER + 1, 20] },
+      reason: "delta-not-safe-integer",
+      sampleIndex: 0,
+    },
+    {
+      value: { ...profile(), timeDeltas: [Number.MAX_SAFE_INTEGER, 1] },
+      reason: "sampled-time-overflow",
+      sampleIndex: 1,
+    },
+    {
+      value: {
+        ...profile(),
+        nodes: [profile().nodes[0], { id: 2, callFrame: null }],
+      },
+      reason: "call-frame-invalid",
+      nodeIndex: 1,
+    },
+  ];
+  for (const row of rows) {
+    let rejected = false;
+    try {
+      summarizeCPUProfile(row.value, []);
+    } catch (error) {
+      rejected = true;
+      expect(diagnosticFailure(error)).toBe("cpu-invalid");
+      const failure = diagnosticCPUFailure(error);
+      expect(failure).toMatchObject({
+        reason: row.reason,
+        nodeIndex: row.nodeIndex ?? null,
+        sampleIndex: row.sampleIndex ?? null,
+      });
+      expect(Object.keys(failure ?? {}).sort()).toEqual([
+        "deltaCount",
+        "nodeCount",
+        "nodeIndex",
+        "reason",
+        "sampleCount",
+        "sampleIndex",
+      ]);
+      expect(JSON.stringify(failure)).not.toContain("PRIVATE");
+      for (const key of ["nodeCount", "sampleCount", "deltaCount"] as const) {
+        const value = failure?.[key];
+        expect(
+          value === null ||
+            (typeof value === "number" &&
+              Number.isSafeInteger(value) &&
+              value >= 0),
+        ).toBe(true);
+      }
+    }
+    expect(rejected).toBe(true);
+  }
+  try {
+    summarizeCPUProfile({ ...profile(), samples: [1] }, []);
+  } catch (error) {
+    expect(diagnosticCPUFailure(error)).toEqual({
+      reason: "sample-delta-count-mismatch",
+      nodeIndex: null,
+      sampleIndex: null,
+      nodeCount: 2,
+      sampleCount: 1,
+      deltaCount: 2,
+    });
+  }
+  expect(
+    diagnosticCPUFailure(new Error("PRIVATE_REMOTE_EXCEPTION")),
+  ).toBeNull();
+  expect(
+    diagnosticCPUFailure(new MetricsDiagnosticFailure("cpu-invalid")),
+  ).toBeNull();
+});
+
+test("CPU failure detail instrumentation preserves zero/empty valid profiles and summary schema", () => {
+  const empty = summarizeCPUProfile(
+    { nodes: [], samples: [], timeDeltas: [] },
+    [],
+  );
+  expect(empty.sampleCount).toBe(0);
+  expect(empty.sampledMicroseconds).toBe(0);
+  expect(empty.frames).toEqual([]);
+  const result = summarizeCPUProfile(
+    {
+      nodes: [{ id: 1, callFrame: { functionName: "(root)" } }],
+      samples: [1],
+      timeDeltas: [-0],
+      startTime: "PRIVATE_IGNORED",
+    },
+    [],
+  );
+  expect(result.sampleCount).toBe(1);
+  expect(result.sampledMicroseconds).toBe(0);
+  expect(Object.keys(result).sort()).toEqual([
+    "assetMatchedSamples",
+    "frames",
+    "sampleCount",
+    "sampledMicroseconds",
+    "scope",
+    "unattributedSamples",
+  ]);
+  expect(JSON.stringify(result)).not.toContain("PRIVATE");
+  expect(JSON.stringify(result)).not.toContain("reason");
 });
