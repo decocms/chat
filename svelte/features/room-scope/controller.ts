@@ -1,3 +1,4 @@
+import { chatTime } from "../chat/time";
 import { get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
@@ -779,11 +780,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             ...(me()?.name ? { [value.me]: me()!.name! } : {}),
           },
           avatarUrl: (email) => roomAvatar(value, me(), email),
-          hhmm: (ts) =>
-            new Date(ts).toLocaleTimeString(locale, {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+          hhmm: (ts) => chatTime(locale, ts),
           dateTime: (ts) => new Date(ts).toLocaleString(locale),
           waiting: (id) =>
             waits.some(

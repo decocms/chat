@@ -1,3 +1,4 @@
+import { chatTime } from "../svelte/features/chat/time";
 import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../svelte/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
@@ -179,4 +180,22 @@ test("Fire transcript pieces stay canonical while visible rows and receipt place
   expect(footers.has(2)).toBe(false);
   expect(footers.get(1)?.readers).toHaveLength(1);
   expect(r.messages).toEqual([ordinary, fire]);
+});
+
+test("chat time retains browser locale formatting across locale switches and date boundaries", () => {
+  for (const locale of ["en-US", "pt-BR", "en-GB", "pt-BR"])
+    for (const ts of [
+      0,
+      Date.UTC(2026, 2, 8, 6, 59),
+      Date.UTC(2026, 10, 1, 6, 1),
+      -1,
+      NaN,
+      Infinity,
+    ])
+      expect(chatTime(locale, ts)).toBe(
+        new Date(ts).toLocaleTimeString(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      );
 });
