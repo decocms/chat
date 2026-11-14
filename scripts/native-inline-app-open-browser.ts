@@ -140,20 +140,21 @@ export async function auditInlineAppOpen(
         );
         assert(posted.ok(), `Post marker ${posted.status()}`);
         PostMessageResult.parse(await posted.json());
-        const remote: { url: string; counters: InlineCounters } = server.configure(variant, async () => {
-          const value = z
-            .object({
-              messages: z.array(z.object({ text: z.optional(z.string()) })),
-            })
-            .parse(
-              await readerAgent("read_room", { room_id: roomId, all: true }),
-            );
-          const text = value.messages.find(
-            (message) => message.text === marker,
-          )?.text;
-          assert(text === marker, "Actual canonical marker missing");
-          return text;
-        });
+        const remote: { url: string; counters: InlineCounters } =
+          server.configure(variant, async () => {
+            const value = z
+              .object({
+                messages: z.array(z.object({ text: z.optional(z.string()) })),
+              })
+              .parse(
+                await readerAgent("read_room", { room_id: roomId, all: true }),
+              );
+            const text = value.messages.find(
+              (message) => message.text === marker,
+            )?.text;
+            assert(text === marker, "Actual canonical marker missing");
+            return text;
+          });
         const meter: InlineCounters = remote.counters;
         counters = meter;
         const connResponse: APIResponse = await ownerContext.request.post(
