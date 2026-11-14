@@ -71,7 +71,7 @@
 
 <section
   data-document-app
-  class="tw:my-3 tw:overflow-hidden tw:rounded-control tw:border tw:border-border"
+  class="tw:my-3 tw:w-full tw:min-w-0 tw:max-w-none tw:overflow-hidden tw:rounded-control tw:border tw:border-border"
 >
   <header class="tw:flex tw:items-center tw:gap-2 tw:bg-muted tw:px-3 tw:py-2">
     <b class="tw:min-w-0 tw:flex-1 tw:truncate">{marker.tool}</b>

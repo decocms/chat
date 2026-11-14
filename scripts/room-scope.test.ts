@@ -176,3 +176,44 @@ test("Put in doc uses the actual scoped DocumentSession and old thread callbacks
   expect(get(next.document.owner.state).text).toBe(before);
   h.dispose();
 });
+
+test('actual composer submit carries the currently viewed canonical version, including historical selection',async()=>{
+ for(const historical of [false,true]) {
+  const h=await roomScopeFixture();
+  try {
+   const old={id:'aa',name:'page.html',type:'text/html',size:4,ts:1,author:h.room.me};
+   const latest={...old,id:'bb',ts:2};
+   h.room.files=[old];h.publish();h.owner.actions.openSideFile(old);
+   const rendered=get(h.owner.state)!.composer!;
+   h.room.files=[latest,old];h.publish();
+   if(historical){const side=get(h.owner.state)!.sideFile.owner;side.select(side.target()!,'aa');}
+   // The earlier rendered request port reads the current target, not its old projection.
+   await rendered.request({t:'msg',thread:'main',text:'this page'});
+   const sent=h.app.roomCommands.filter(command=>command.t==='msg').at(-1)!;
+   expect(sent.t==='msg' && sent.viewing).toBe(historical?'aa':'bb');
+   const entry=h.resources.composer.entry({account:h.room.me,roomId:h.room.id,thread:'main'});
+   entry.edit('actual submit with viewing');await entry.submit();
+   const submitted=h.app.roomCommands.filter(command=>command.t==='msg').at(-1)!;
+   expect(submitted.t==='msg'&&submitted.viewing).toBe(historical?'aa':'bb');
+  }finally{h.dispose();}
+ }
+});
+test('closing the side file clears viewing and stale or mismatched composer thread ports cannot dispatch',async()=>{
+ const h=await roomScopeFixture();
+ try {
+  const file={id:'aa',name:'page.html',type:'text/html',size:4,ts:1,author:h.room.me};
+  h.room.files=[file];h.publish();h.owner.actions.openSideFile(file);
+  const rendered=get(h.owner.state)!.composer!;
+  get(h.owner.state)!.sideFile.close();
+  await rendered.request({t:'msg',thread:'main',text:'closed context',viewing:'stale'});
+  const sent=h.app.roomCommands.filter(command=>command.t==='msg').at(-1)!;
+  expect(sent.t==='msg'&&sent.viewing).toBeUndefined();
+  const before=h.app.roomCommands.filter(command=>command.t==='msg').length;
+  expect((await rendered.request({t:'msg',thread:'other',text:'wrong thread'})).ok).toBe(false);
+  h.owner.actions.setThread('other');
+  expect((await rendered.request({t:'msg',thread:'main',text:'stale main'})).ok).toBe(false);
+  h.owner.dispose();
+  expect((await rendered.request({t:'msg',thread:'main',text:'departed'})).ok).toBe(false);
+  expect(h.app.roomCommands.filter(command=>command.t==='msg')).toHaveLength(before);
+ }finally{h.dispose();}
+});

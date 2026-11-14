@@ -9,3 +9,9 @@ The side selection follows newest canonical metadata with the same exact name un
 Source fixtures cover newest/historical following, no Viewer history changes, stale/reentrant close, authority loss, and real SideFilePanel DOM controls/fullscreen separation. Formatter, test execution and browser acceptance for this slice are pending at the initial source checkpoint.
 
 Author receipt: Node Prettier on 16 owned paths passed; existing viewer + RoomStore pure suites passed 33 tests / 181 assertions in 3.27s. The new DOM case is source only and was not run locally. Metadata-only Fire output is tested arriving before its exact canonical file metadata, with no invented author and no write retry.
+
+## Alongside-send context (main f7d6c79)
+
+The dedicated Composer request port now captures the current side selection at actual message dispatch, adding its file ID as `viewing`. Both the bank-owned draft submit and mounted Composer use the same account/room/thread-fenced port. A following selection already tracks the latest canonical version through the side owner; selecting history fixes that exact version. Closing the side selection clears context. App tools and other room request ports do not acquire this human Composer metadata.
+
+Source fixtures cover actual draft submission, earlier-rendered request ports after canonical version updates, historical selection, close, wrong thread, navigation and disposal. They do not fabricate an Attachment or duplicate the backend's room-file validation. Execution receipts follow separately.

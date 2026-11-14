@@ -2,6 +2,7 @@ import { chatTime } from "../chat/time";
 import { get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
+import type { RequestRoomCommand } from "../../roomConnection";
 import type { ChatActions, ChatBridge } from "../../chatTypes";
 import type {
   RootRoomSnapshot,
@@ -107,6 +108,18 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   );
   const selected = () => frame()?.thread ?? "main";
   const forThread = (thread: string) => current() && selected() === thread;
+  function composerRequestFor(thread: string): RequestRoomCommand {
+    return (command) => {
+      if (!forThread(thread) || inboxVisible) return failed();
+      if (command.t !== "msg") return request(command);
+      if ((command.thread ?? "main") !== thread) return failed();
+      const target = side.target();
+      return request({
+        ...command,
+        viewing: target?.roomId === scope.roomId ? target.id : undefined,
+      });
+    };
+  }
   const failed = (): Promise<CommandOutcome> =>
     Promise.resolve({ ok: false, error: "disconnected" });
   const request = (command: RoomCommand) =>
@@ -624,7 +637,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           roomId: scope.roomId,
           thread: snapshot.thread,
         })
-        .sync(value, request, upload);
+        .sync(value, composerRequestFor(snapshot.thread), upload);
       lastThread = snapshot.thread;
       lastGeneration = snapshot.snapshotGeneration;
       lastSnapshot = snapshot;
@@ -1050,7 +1063,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 thread,
                 vb: bridge,
                 drafts: resources.composer,
-                request: threadRequest,
+                request: composerRequestFor(thread),
                 upload,
                 fire: {
                   current: owned,
