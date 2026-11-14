@@ -965,3 +965,14 @@ test("canonical reads during preview writes cannot discard or repeat the pending
   h.owner.dispose();
   expect(h.drafts.get(target)?.text).toBe("preview mutation");
 });
+
+test('document App raw spans preserve CRLF/lone-CR boundaries and exact original newline bytes',()=>{
+ for(const newline of ['\r\n','\r','\n']) {
+ const source='Intro'+newline+newline+'[[app:room/demo|m]]'+newline+newline+'tail\r\n';
+ const marker=documentAppMarkers(source)[0]!;
+ expect(source.slice(marker.start,marker.end).trim()).toBe('[[app:room/demo|m]]');
+ const projected=descendants(documentAppNodes(richText(source,'markdown',context('document')),source));
+ expect(projected.filter(node=>node.kind==='element' && node.documentAppSlot!==undefined)).toHaveLength(1);
+ expect(resizeDocumentApp(source,marker,'g')).toBe(source.replace('demo|m','demo|g'));
+ }
+});

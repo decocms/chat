@@ -1,5 +1,6 @@
 import type { AppTarget } from "../apps/model";
 import { Lexer } from "marked";
+import { markdownSourceOffsets } from "../rich-text/sourceOffsets";
 export type DocumentAppSize = "p" | "m" | "g";
 export type DocumentAppMarker = AppTarget & {
   size: DocumentAppSize;
@@ -19,9 +20,10 @@ export const documentAppKey = (marker: DocumentAppMarker) =>
   ]);
 export function documentAppMarkers(source: string): DocumentAppMarker[] {
   const result: DocumentAppMarker[] = [];
-  if (!source.includes("[[app:") || source.length > 100000) return result;
-  let offset = 0;
-  for (const token of Lexer.lex(source)) {
+  if (!/\[\[app:/i.test(source) || source.length > 100000) return result;
+  const normalized=markdownSourceOffsets(source);
+  let offset = 0, line=0;
+  for (const token of Lexer.lex(normalized.source,{gfm:true,breaks:true})) {
     const raw = token.raw;
     const found = token.type === "paragraph" ? marker.exec(raw.trim()) : null;
     if (found)
@@ -35,12 +37,13 @@ export function documentAppMarkers(source: string): DocumentAppMarker[] {
               ? "g"
               : "m",
         occurrence: result.length,
-        line: source.slice(0, offset).split("\n").length - 1,
-        start: offset,
-        end: offset + raw.length,
+        line,
+        start: normalized.offsets[offset]!,
+        end: normalized.offsets[offset + raw.length]!,
         multiplicity: 0,
       });
     offset += raw.length;
+    line+=raw.split("\n").length-1;
   }
   const counts = new Map<string, number>();
   for (const entry of result) {

@@ -1,4 +1,5 @@
 import { Lexer, type Tokens } from "marked";
+import { markdownSourceOffsets } from "./sourceOffsets";
 import {
   Parser,
   Token,
@@ -44,6 +45,7 @@ type KnownToken =
  * No protected/underscore parser methods or HTML serialization/rendering APIs are called.
  */
 export function markdownTree(source: string, documentImages = false) {
+  const normalized = markdownSourceOffsets(source);
   let emitted = 0,
     depth = 0;
   let pending: { tag: string; metadata: MarkdownMetadata } | undefined;
@@ -132,8 +134,8 @@ export function markdownTree(source: string, documentImages = false) {
         sourceOffset === undefined
           ? undefined
           : {
-              sourceStart: sourceOffset,
-              sourceEnd: sourceOffset + raw.raw.length,
+              sourceStart: normalized.offsets[sourceOffset],
+              sourceEnd: normalized.offsets[sourceOffset + raw.raw.length],
             };
       if (sourceOffset !== undefined) sourceOffset += raw.raw.length;
       switch (token.type) {
@@ -266,7 +268,7 @@ export function markdownTree(source: string, documentImages = false) {
     }
     depth--;
   }
-  tokens(Lexer.lex(source, { gfm: true, breaks: true }), false, 0);
+  tokens(Lexer.lex(normalized.source, { gfm: true, breaks: true }), false, 0);
   parser.tokenizer.write("", true);
   return { fragment: parser.getFragment(), metadata };
 }
