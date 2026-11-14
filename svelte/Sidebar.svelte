@@ -266,6 +266,7 @@
     />
     {#snippet agents(email: string)}<AgentPresenceRows
         {presence}
+        self={email === room.me}
         {email}
         t={vb.t}
         name={vb.name}

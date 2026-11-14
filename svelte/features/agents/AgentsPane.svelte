@@ -202,6 +202,7 @@
         class="tw:m-0 tw:font-sans tw:text-base tw:font-semibold tw:tracking-normal"
         >{text("connected")}</Heading
       ><AgentPresenceRows
+        self
         presence={{ agents: presence.mine, sandboxes: [] }}
         email={owner.account}
         t={vb.t}

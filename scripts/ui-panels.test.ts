@@ -2180,6 +2180,7 @@ describe("native Svelte chat", () => {
       file("image", "image/png"),
       file("audio", "audio/mpeg"),
       file("embedded", "text/html", true),
+      { ...file("room-app", "text/html"), name: "apps/demo.html" },
     ];
     const origin = { ...message(7, "Original <request>"), thread: "main" };
     const row = { ...message(8, "Body"), reply_to: 7, files };
@@ -2190,6 +2191,7 @@ describe("native Svelte chat", () => {
     const replied: number[] = [],
       navigated: { id: number; thread?: string }[] = [],
       opened: string[] = [],
+      apps: { connection: string; tool: string }[] = [],
       copied: string[] = [];
     window.navigator.clipboard.writeText = async (text) => {
       copied.push(text);
@@ -2202,6 +2204,7 @@ describe("native Svelte chat", () => {
         reply: (id) => replied.push(id),
         navigate: (id, thread) => navigated.push({ id, thread }),
         openFile: (selected) => opened.push(selected.id),
+        openApp: (target) => apps.push(target),
         mountEmbed: (...args) => {
           mountedEmbeds.push(args);
           return () => {};
@@ -2239,6 +2242,12 @@ describe("native Svelte chat", () => {
     expect(attachments.querySelector("img")?.getAttribute("src")).toContain(
       "/image",
     );
+    const appRow = attachments.querySelector("[data-room-app-row]")!;
+    expect(appRow.textContent).toContain("demo");
+    expect(appRow.querySelector("iframe,a")).toBeNull();
+    appRow.querySelector<HTMLButtonElement>("button")!.click();
+    expect(apps).toEqual([{ connection: "room", tool: "demo" }]);
+    expect(attachments.querySelectorAll("iframe")).toHaveLength(1);
     const iframe = attachments.querySelector("iframe")!;
     expect(mountedEmbeds).toHaveLength(1);
     expect(mountedEmbeds[0][0]).toBe(iframe);
@@ -5879,7 +5888,9 @@ describe("native Apps catalog", () => {
       tools: [],
       context: {},
     };
-    let writes = 0;
+    let writes = 0,
+      uiReads = 0,
+      bridgeLoads = 0;
     const api = {
       list: async () => ({ connections: [connection] }),
       create: async () => {
@@ -5892,7 +5903,10 @@ describe("native Apps catalog", () => {
       remove: async () => ({ ok: true as const }),
       refresh: async () => ({ ok: true as const, connection }),
       signout: async () => ({ ok: true as const }),
-      ui: async () => ({ html: "<p>UI</p>", tool: { name: "screen" } }),
+      ui: async () => {
+        uiReads++;
+        return { html: "<p>UI</p>", tool: { name: "screen" } };
+      },
       call: async () => ({ result: toolOutput("result") }),
       context: async () => ({ ok: true as const }),
     };
@@ -5923,13 +5937,66 @@ describe("native Apps catalog", () => {
       openLink: () => {},
       metric: async () => ({}),
     };
-    const view = mountView("apps", target, { props });
+    const view = mountView("apps", target, {
+      props: {
+        ...props,
+        loadBridge: async () => {
+          bridgeLoads++;
+          throw new Error("Controlled bridge boundary");
+        },
+      },
+    });
     active.push(view);
     peopleCleanups.push(() => owner.dispose());
     await tick();
     flushSync();
-    return { owner, target, canonical, writes: () => writes };
+    return {
+      owner,
+      target,
+      canonical,
+      writes: () => writes,
+      uiReads: () => uiReads,
+      bridgeLoads: () => bridgeLoads,
+    };
   }
+  test("agent-triggered remote panel waits for reader Allow, fences stale connected grants and direct Open needs no second grant", async () => {
+    const h = await appsFixture();
+    const settle = async () => {
+      for (let i = 0; i < 12; i++) {
+        await Promise.resolve();
+        await tick();
+        flushSync();
+      }
+    };
+    const button = (text: string) =>
+      [...h.target.querySelectorAll<HTMLButtonElement>("button")].find(
+        (b) => b.textContent?.trim() === text,
+      )!;
+    const target = { connection: "abcdef123456", tool: "screen" };
+    h.owner.open(target, { requireOpeningConsent: true });
+    await settle();
+    expect(button("Permitir")).toBeDefined();
+    expect(h.bridgeLoads()).toBe(0);
+    expect(h.uiReads()).toBe(0);
+    const old = button("Permitir");
+    h.owner.open(target, { requireOpeningConsent: true });
+    expect(old.isConnected).toBe(true);
+    old.click();
+    await settle();
+    expect(h.bridgeLoads()).toBe(0);
+    button("Cancelar").click();
+    await settle();
+    expect(h.bridgeLoads()).toBe(0);
+    h.owner.reload();
+    await settle();
+    button("Permitir").click();
+    await settle();
+    expect(h.bridgeLoads()).toBe(1);
+    h.owner.open(target);
+    await settle();
+    expect(h.bridgeLoads()).toBe(2);
+    expect(button("Permitir")).toBeUndefined();
+  });
   test("catalog text is escaped and form URL/scope drafts survive canonical catalog refresh", async () => {
     const h = await appsFixture();
     expect(h.target.textContent).toContain("<img src=x onerror=alert(1)>");

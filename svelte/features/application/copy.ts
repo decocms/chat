@@ -156,6 +156,8 @@ const EN: Readonly<Record<string, string>> = {
   "Mover para cima": "Move up",
   "Mover para baixo": "Move down",
   "Sem dono": "No owner",
+  "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
+    "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
   "app da sala": "room app",
   arquivo: "file",
   "Não deu pra abrir agora. Tente de novo.": "Couldn't open it now. Try again.",

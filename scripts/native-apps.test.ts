@@ -612,3 +612,33 @@ test("global unauthenticated401 clears frame authority even through metrics; rem
   expect(authority.current()).toBe(false);
   authority.dispose();
 });
+
+test("agent opening consent is frame-owned, remote-only, retained for retry and cleared by reader selection", async () => {
+  const owner = createAppsSession(api(), {
+    current: () => true,
+    navigate() {},
+  });
+  owner.sync(room());
+  owner.load();
+  await settle();
+  owner.open(
+    { connection: connection.id, tool: "screen" },
+    { requireOpeningConsent: true },
+  );
+  const first = get(owner.state),
+    target = first.target!;
+  expect(first.requireOpeningConsent).toBe(true);
+  owner.reload();
+  expect(get(owner.state).requireOpeningConsent).toBe(true);
+  expect(owner.ownsTarget(target, first.frameRevision)).toBe(false);
+  owner.open({ connection: connection.id, tool: "screen" });
+  expect(get(owner.state).requireOpeningConsent).toBe(false);
+  owner.open(
+    { connection: "room", tool: "demo" },
+    { requireOpeningConsent: true },
+  );
+  expect(get(owner.state).requireOpeningConsent).toBe(false);
+  owner.back();
+  expect(get(owner.state).target).toBeNull();
+  owner.dispose();
+});

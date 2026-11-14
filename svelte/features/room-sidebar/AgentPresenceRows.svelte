@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { Presence } from "./model";
-  import { agentRows, contextPercent } from "./model";
+  import { agentRows, contextPercent, roomListenerCount } from "./model";
   import { agentMark, prettyModel } from "../chat/model";
   import Progress from "../../lib/ui/Progress.svelte";
   let {
     presence,
+    self = false,
     email,
     t,
     name,
@@ -12,12 +13,14 @@
     locale = "pt-BR",
   }: {
     presence: Presence;
+    self?: boolean;
     email: string;
     t: (text: string, vars?: Record<string, string | number>) => string;
     name: (email: string) => string;
     ago: (ts: number) => string;
     locale?: string;
   } = $props();
+  const listeners = $derived(self ? roomListenerCount(presence, email) : 0);
   const rows = $derived(agentRows(presence, email));
   const meter = (percent: number) =>
     percent >= 80
@@ -31,6 +34,16 @@
       : `${Math.round(value / 1000)}k`;
 </script>
 
+{#if listeners > 1}<p
+    data-duplicate-listeners
+    role="status"
+    class="tw:ml-5 tw:text-xs tw:text-warning"
+  >
+    {t(
+      "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
+      { n: listeners },
+    )}
+  </p>{/if}
 {#each rows as agent}
   <div
     data-agent-presence

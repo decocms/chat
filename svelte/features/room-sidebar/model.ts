@@ -67,6 +67,16 @@ export function treeFiles(
     n: Math.max(count, seen.size),
   }));
 }
+/** Dedicated Fire Haiku and all-room listeners are not duplicate room workers. */
+export function roomListenerCount(presence: Presence, email: string) {
+  return presence.agents.filter(
+    (agent) =>
+      agent.email === email &&
+      agent.listening &&
+      !agent.all_rooms &&
+      !/haiku/i.test(agent.who || ""),
+  ).length;
+}
 export function agentRows(presence: Presence, email: string) {
   const seen = new Set<string>();
   return presence.agents
@@ -74,11 +84,15 @@ export function agentRows(presence: Presence, email: string) {
     .sort((a, b) => Number(b.listening) - Number(a.listening))
     .filter((agent) => {
       const id = prettyModel(agent.who) + agent.repo;
+      if (agent.listening) {
+        seen.add(id);
+        return true;
+      }
       if (seen.has(id)) return false;
       seen.add(id);
       return true;
     })
-    .slice(0, 3);
+    .slice(0, Math.max(3, roomListenerCount(presence, email)));
 }
 export function contextPercent(tokens: number, window: number) {
   return Number.isFinite(tokens) && Number.isFinite(window) && window > 0

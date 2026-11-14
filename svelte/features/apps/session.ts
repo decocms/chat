@@ -29,6 +29,7 @@ export function createAppsSession(
     unconfirmed: boolean;
     target: AppTarget | null;
     frameRevision: number;
+    requireOpeningConsent: boolean;
     more: ReadonlySet<string>;
   }>({
     room: null,
@@ -43,6 +44,7 @@ export function createAppsSession(
     unconfirmed: false,
     target: null,
     frameRevision: 0,
+    requireOpeningConsent: false,
     more: new Set(),
   });
   const reads = createAuthOwner(clock),
@@ -71,6 +73,7 @@ export function createAppsSession(
       denied: true,
       connections: null,
       target: null,
+      requireOpeningConsent: false,
       url: "",
       form: false,
       pending: false,
@@ -246,7 +249,7 @@ export function createAppsSession(
       state.update((s) => ({ ...s, unconfirmed: false, error: "" }));
       load();
     },
-    open(target: AppTarget) {
+    open(target: AppTarget, options?: { requireOpeningConsent?: boolean }) {
       if (!current()) return;
       const value = get(state);
       if (!value.room) return;
@@ -255,6 +258,9 @@ export function createAppsSession(
       state.update((s) => ({
         ...s,
         target: { ...target },
+        requireOpeningConsent:
+          target.connection !== "room" &&
+          options?.requireOpeningConsent === true,
         frameRevision: s.frameRevision + 1,
       }));
       if (!known) load();
@@ -264,6 +270,7 @@ export function createAppsSession(
         state.update((s) => ({
           ...s,
           target: null,
+          requireOpeningConsent: false,
           frameRevision: s.frameRevision + 1,
         }));
     },
@@ -300,6 +307,7 @@ export function createAppsSession(
         unconfirmed: false,
         target: null,
         frameRevision: 0,
+        requireOpeningConsent: false,
         more: new Set(),
       });
     },

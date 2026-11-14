@@ -20,8 +20,15 @@
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { appDocumentFrameName } from "../../../shared/appDocumentProtocol";
   const frameName = appDocumentFrameName();
-  let { props, inline = false }: { props: AppsProps; inline?: boolean } =
-    $props();
+  let {
+    props,
+    inline = false,
+    requireOpeningConsent = false,
+  }: {
+    props: AppsProps;
+    inline?: boolean;
+    requireOpeningConsent?: boolean;
+  } = $props();
   const view = untrack(() => props.owner.state),
     requests = createAppRequests();
   let frame: HTMLIFrameElement | undefined = $state(),
@@ -159,7 +166,7 @@
     if (!frame || !selected || !initialKey) return;
     const isRoom = selected.connection === "room";
     try {
-      if (inline && !isRoom) {
+      if ((inline || requireOpeningConsent) && !isRoom) {
         const connection = get(props.owner.state).connections?.find(
           (item) => item.id === selected.connection,
         );

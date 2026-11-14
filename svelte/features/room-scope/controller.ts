@@ -51,6 +51,7 @@ import { createAppRequests } from "../apps/requests";
 import {
   roomApps,
   appRouteHash,
+  appRouteTarget,
   type AppTarget,
   type AppRouteTarget,
 } from "../apps/model";
@@ -498,16 +499,17 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (current()) void fileIndex.load();
     },
   };
-  function openApp(target: AppTarget) {
+  function openApp(target: AppTarget, requireOpeningConsent = false) {
+    const captured = { ...target };
     if (
       !current() ||
       !/^(room|[a-f0-9]{12})$/.test(target.connection) ||
       !/^[\w.-]{1,100}$/.test(target.tool) ||
-      defer(() => openApp(target))
+      defer(() => openApp(captured, requireOpeningConsent))
     )
       return;
     setPane("apps", { open: true });
-    if (current()) apps.open(target);
+    if (current()) apps.open(captured, { requireOpeningConsent });
   }
   function openAppRoute(target: AppRouteTarget) {
     if (
@@ -1246,7 +1248,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       canonical = room()!;
     if (event.t === "older") viewport.older(event);
     else if (event.t === "openSide") openSideFile(event.file);
-    else if (event.t === "doc" && event.stale) document.invalidate(event.epic);
+    else if (event.t === "openApp") {
+      const target = appRouteTarget("#app:" + event.ref);
+      if (target?.tool !== undefined)
+        openApp({ connection: target.connection, tool: target.tool }, true);
+    } else if (event.t === "doc" && event.stale)
+      document.invalidate(event.epic);
     else if (event.t === "suggestions" && selected().startsWith("pre:")) {
       const old = value.previous?.suggestions[Number(selected().slice(4))];
       if (old) {

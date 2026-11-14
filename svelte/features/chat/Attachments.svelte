@@ -53,7 +53,29 @@
     class="tw:mt-2 tw:flex tw:flex-wrap tw:gap-2"
   >
     {#each files as file (file.id)}
-      {#if file.embed}<Embed
+      {#if !file.embed && file.type === "text/html" && /^apps\/[\w.-]+\.html$/.test(file.name)}<div
+          data-room-app-row
+          class="tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-2"
+        >
+          <b class="tw:min-w-0 tw:flex-1 tw:truncate"
+            >{file.name.slice(5, -5)}</b
+          >
+          <span class="tw:text-xs tw:text-muted-foreground"
+            >{vb.t("app da sala")}</span
+          >
+          <Button
+            variant="ghost"
+            disabled={!actions.openApp}
+            onclick={(event) => {
+              if (active && event.currentTarget.isConnected)
+                actions.openApp?.({
+                  connection: "room",
+                  tool: file.name.slice(5, -5),
+                });
+            }}>{vb.t("Abrir")}</Button
+          >
+        </div>
+      {:else if file.embed}<Embed
           url={url(file)}
           {file}
           {messageThread}

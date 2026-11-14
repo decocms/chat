@@ -169,6 +169,7 @@
         >{/if}
       {#if identity && $view.connections !== null}{#key identity + ":" + $view.frameRevision}<AppFrame
             {props}
+            requireOpeningConsent={$view.requireOpeningConsent}
           />{/key}
       {:else if $view.loading || (!$view.error && ($view.connections === null || !props.room.filesAll))}<p
           role="status"

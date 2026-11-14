@@ -8,6 +8,7 @@ import { createRoomMutations } from "../svelte/features/room-sidebar/session";
 import {
   treeFiles,
   agentRows,
+  roomListenerCount,
   contextPercent,
   suggestionAt,
 } from "../svelte/features/room-sidebar/model";
@@ -262,4 +263,33 @@ test("presence coalesces reconnects listening first and clamps untrusted context
   expect(contextPercent(90, 100)).toBe(90);
   expect(contextPercent(200, 100)).toBe(100);
   expect(contextPercent(10, 0)).toBe(0);
+});
+
+test("duplicate room listeners exclude dedicated Fire Haiku and all-room workers, but keep active rows", () => {
+  const agent = {
+    email: "me@test",
+    who: "Claude Opus",
+    repo: null,
+    seen_at: 1,
+    all_rooms: false,
+    context: null,
+    listening: true,
+  };
+  const presence = {
+    sandboxes: [],
+    agents: [
+      agent,
+      { ...agent },
+      { ...agent, who: "Claude Haiku" },
+      { ...agent, all_rooms: true },
+    ],
+  };
+  expect(roomListenerCount(presence, agent.email)).toBe(2);
+  expect(
+    roomListenerCount(
+      { ...presence, agents: [agent, { ...agent, who: "Claude Haiku" }] },
+      agent.email,
+    ),
+  ).toBe(1);
+  expect(agentRows(presence, agent.email).slice(0, 2)).toEqual([agent, agent]);
 });

@@ -279,3 +279,32 @@ test("closing the side file clears viewing and stale or mismatched composer thre
     h.dispose();
   }
 });
+
+test("openApp events select Apps behind navigation guards and remote events require a reader grant", async () => {
+  const h = await roomScopeFixture();
+  h.hold();
+  h.serverEvent({ t: "openApp", ref: "abcdef123456/screen" });
+  expect(get(h.app.services.state).pane).toBe("doc");
+  h.release();
+  expect(get(h.app.services.state).pane).toBe("apps");
+  const owner = get(h.owner.state)!.apps.owner;
+  expect(get(owner.state).target).toEqual({
+    connection: "abcdef123456",
+    tool: "screen",
+  });
+  expect(get(owner.state).requireOpeningConsent).toBe(true);
+  h.serverEvent({ t: "openApp", ref: "room/demo" });
+  expect(get(owner.state).target).toEqual({ connection: "room", tool: "demo" });
+  expect(get(owner.state).requireOpeningConsent).toBe(false);
+  const revision = get(owner.state).frameRevision;
+  for (const ref of ["abcdef123456", "evil/screen", "room/demo/extra"])
+    h.serverEvent({ t: "openApp", ref });
+  expect(get(owner.state).frameRevision).toBe(revision);
+  h.hold();
+  h.serverEvent({ t: "openApp", ref: "abcdef123456/stale" });
+  h.owner.dispose();
+  h.app.services.actions.home();
+  h.release();
+  expect(get(h.owner.state)).toBeNull();
+  h.dispose();
+});
