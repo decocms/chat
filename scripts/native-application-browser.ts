@@ -24,6 +24,7 @@ import type { FetchLike } from "../svelte/transport";
 import type { DocumentPane } from "../svelte/features/documents/types";
 import {
   nativeBrowserFixtures,
+  openNativeRoomPane,
   localBrowserError,
 } from "./native-browser-fixtures";
 import { nativeTestAgent } from "./native-test-mcp";
@@ -380,51 +381,8 @@ export async function openIntegratedSidebar(page: Page) {
     if (await expand.isVisible()) await expand.click();
   }
 }
-export async function openIntegratedPane(
-  page: Page,
-  pane: Exclude<DocumentPane, "view">,
-) {
-  const layout = page.locator("[data-native-room-layout]");
-  const content: Record<Exclude<DocumentPane, "view">, string> = {
-    doc: "[data-native-document]",
-    board: "[data-board-scope]",
-    files: '[data-vb-native="files"]',
-    apps: "[data-native-apps]",
-    agents: "[data-native-agents]",
-    decisions: "[data-decisions-panel]",
-    reminders: "[data-reminders-panel]",
-  };
-  await expect(layout).toBeVisible();
-  const full = page.locator("[data-native-board-toggle]");
-  if ((await full.getAttribute("aria-pressed")) === "true") await full.click();
-  if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    const button = page.locator(
-      `[data-room-peek] [data-document-pane="${pane}"]`,
-    );
-    if (pane === "board") {
-      await full.click();
-      await expect(full).toHaveAttribute("aria-pressed", "true");
-      await expect(page.locator(content.board)).toBeVisible();
-      return;
-    }
-    if (
-      (await layout.getAttribute("data-sheet")) !== "doc" ||
-      (await layout.getAttribute("data-pane")) !== pane
-    )
-      await button.click();
-    await expect(layout).toHaveAttribute("data-sheet", "doc");
-  } else {
-    const button = page.locator(
-      `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
-    );
-    if (!(await button.isVisible()))
-      await page.locator("[data-native-document-toggle]").click();
-    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
-  }
-  await expect(layout).toHaveAttribute("data-pane", pane);
-  // A selected pane or a loading placeholder is not feature readiness. Include
-  // its actual first module load before font/a11y/history assertions continue.
-  await expect(page.locator(content[pane])).toBeVisible();
+export async function openIntegratedPane(page: Page, pane: Exclude<DocumentPane, "view">) {
+  await openNativeRoomPane(page, pane);
 }
 async function expectThread(page: Page, roomId: string, thread = "main") {
   await expect

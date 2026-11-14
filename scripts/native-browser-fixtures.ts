@@ -67,43 +67,48 @@ export async function openNativeRoomPane(
   page: Page,
   pane: Exclude<DocumentPane, "view">,
 ) {
-  const book = page.locator(".book:not(.skel)");
-  await expect(book).toBeAttached({ timeout: 60_000 });
-  const boardToggle = page.locator("#toggleBoard");
-  if ((await boardToggle.getAttribute("aria-pressed")) === "true") {
-    if (await boardToggle.isVisible()) await boardToggle.click();
-    else await expect(boardToggle).toHaveAttribute("aria-pressed", "false"); // Responsive board relocation owns this transition.
-  }
+  const layout = page.locator("[data-native-room-layout]");
+  const content: Record<Exclude<DocumentPane, "view">, string> = {
+    doc: "[data-native-document]",
+    board: "[data-board-scope]",
+    files: '[data-vb-native="files"]',
+    apps: "[data-native-apps]",
+    agents: "[data-native-agents]",
+    decisions: "[data-decisions-panel]",
+    reminders: "[data-reminders-panel]",
+  };
+  await expect(layout).toBeVisible();
+  const full = page.locator("[data-native-board-toggle]");
+  if ((await full.getAttribute("aria-pressed")) === "true") await full.click();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    const peek = page.locator(
-      `#nativeDocumentPeek button[data-document-pane="${pane === "board" ? "doc" : pane}"]`,
+    const button = page.locator(
+      `[data-room-peek] [data-document-pane="${pane}"]`,
     );
-    await expect(peek).toBeVisible({ timeout: 60_000 });
     if (pane === "board") {
-      if ((await book.getAttribute("data-sheet")) !== "doc") await peek.click();
-      const tab = page.locator(
-        '#nativeDocumentToolbar button[data-document-pane="board"]',
-      );
-      await expect(tab).toBeVisible();
-      if ((await book.getAttribute("data-pane")) !== pane) await tab.click();
-    } else if (
-      (await book.getAttribute("data-sheet")) !== "doc" ||
-      (await book.getAttribute("data-pane")) !== pane
+      await full.click();
+      await expect(full).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator(content.board)).toBeVisible();
+      return;
+    }
+    if (
+      (await layout.getAttribute("data-sheet")) !== "doc" ||
+      (await layout.getAttribute("data-pane")) !== pane
     )
-      await peek.click();
-    await expect(book).toHaveAttribute("data-sheet", "doc");
+      await button.click();
+    await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
-    if ((await book.getAttribute("class"))?.split(/\s+/).includes("nodoc"))
-      await page.locator("#toggleDoc").click();
-    const tab = page.locator(
-      `#nativeDocumentToolbar button[data-document-pane="${pane}"]`,
+    const button = page.locator(
+      `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
     );
-    await expect(tab).toBeVisible({ timeout: 60_000 });
-    if ((await book.getAttribute("data-pane")) !== pane) await tab.click();
+    if (!(await button.isVisible()))
+      await page.locator("[data-native-document-toggle]").click();
+    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
   }
-  await expect(book).toHaveAttribute("data-pane", pane);
+  await expect(layout).toHaveAttribute("data-pane", pane);
+  // A selected pane or a loading placeholder is not feature readiness. Include
+  // its actual first module load before font/a11y/history assertions continue.
+  await expect(page.locator(content[pane])).toBeVisible();
 }
-
 /** Preview-mode AST slot, never the retained hidden legacy #tasks placeholder. */
 export function nativeTaskRegion(page: Page, name = "Tasks") {
   return page
