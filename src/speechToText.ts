@@ -1,6 +1,5 @@
 import "server-only";
 import * as z from "zod/mini";
-import { Buffer } from "node:buffer";
 import { STT_AUDIO_MAX, SttResult, type SttQuery } from "../shared/schemas";
 export const WHISPER_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const WhisperOutput = z.object({
@@ -46,9 +45,17 @@ export async function speechAudio(
     reader.releaseLock();
   }
 }
+function audioBase64(audio: Uint8Array) {
+  // Complete three-byte groups keep padding confined to the final chunk and
+  // bound argument count without importing Node types into the API project.
+  let output = "";
+  for (let at = 0; at < audio.length; at += 24576)
+    output += btoa(String.fromCharCode(...audio.subarray(at, at + 24576)));
+  return output;
+}
 function whisperInput(audio: Uint8Array, query: SttQuery) {
   return {
-    audio: Buffer.from(audio).toString("base64"),
+    audio: audioBase64(audio),
     language: (query.lang || "pt").slice(0, 5),
     initial_prompt: (query.prompt ?? "vibebook").slice(0, 600),
     vad_filter: true,
