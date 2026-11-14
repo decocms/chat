@@ -183,13 +183,19 @@
     fireLive: () => fireOwner?.live() ?? false,
     stopFire: () => fireOwner?.toggle(),
     armFire,
+    lockFire: () => {
+      if (!canInteract() || !fireOwner) return;
+      speech.cancel();
+      plus = false;
+      fireOwner.lock();
+    },
     charge: (value) => {
       if (active) charge = value;
     },
   });
   const fireWaiting = $derived(
     $fireState.phase === "leaving" ||
-      $fireState.sending !== "none" ||
+      (!$fireState.locked && $fireState.sending !== "none") ||
       $fireState.error === "send-refused",
   );
   const previews = new Map<number, { file: File; url: string }>();
@@ -781,7 +787,14 @@
                     event.currentTarget.setPointerCapture?.(event.pointerId);
                   } catch {}
                   textarea?.focus();
-                  microphone.begin(event.pointerId);
+                  microphone.begin(event.pointerId, event.clientY);
+                }}
+                onpointermove={(event) => {
+                  if (
+                    canInteract(event) &&
+                    (!fireOwner || fireOwner.owns(ticket))
+                  )
+                    microphone.move(event.pointerId, event.clientY);
                 }}
                 onpointerup={(event) => {
                   if (event.currentTarget.isConnected)

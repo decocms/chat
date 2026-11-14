@@ -79,3 +79,14 @@ describe("explicit per-URL preview selection", () => {
     expect(preview).not.toContain('src="/svelte/ui.js"');
   });
 });
+
+test("the home Nova UI choice preserves the exact local navigation context and has no global preference", () => {
+  const source =
+    "https://vibebook.dev/app?filter=active&q=caf%C3%A9&ui=svelte#recent";
+  const previous = uiNavigationUrl(source, source, "vanilla");
+  expect(previous).toBe("/app?filter=active&q=caf%C3%A9#recent");
+  expect(uiNavigationUrl(previous, source, "svelte")).toBe(
+    "/app?filter=active&q=caf%C3%A9&ui=svelte#recent",
+  );
+  expect(uiVariant("https://vibebook.dev/app")).toBe("vanilla");
+});

@@ -5,6 +5,7 @@ import type {
   ComposerFirePort,
   FireReport,
 } from "../svelte/features/composer/fireTypes";
+import { createFireCaptureFactory } from "../svelte/features/composer/fireAudio";
 import type {
   FireCapture,
   FireCaptureFactory,
@@ -27,7 +28,8 @@ async function until(ready: () => boolean) {
 }
 function microphone() {
   let ended = () => {},
-    chunk = (_value: Blob) => {};
+    chunk = (_value: Blob) => {},
+    level = (_value: number) => {};
   const counts = { starts: 0, stops: 0, disposed: 0 };
   const capture: FireCapture = {
     type: "audio/webm",
@@ -35,6 +37,12 @@ function microphone() {
       counts.starts++;
       chunk = data;
       ended = stop;
+    },
+    observeLevel(sample) {
+      level = sample;
+      return () => {
+        level = () => {};
+      };
     },
     stop() {
       counts.stops++;
@@ -49,11 +57,13 @@ function microphone() {
     counts,
     chunk: (size = 3000) => chunk(new Blob([new Uint8Array(size)])),
     ended: () => ended(),
+    level: (value: number) => level(value),
   };
 }
 function fixture(
   options: {
     capture?: FireCaptureFactory;
+    now?: () => number;
     transcribe?: ComposerFirePort["transcribe"];
     request?: (command: RoomCommand) => Promise<CommandOutcome>;
   } = {},
@@ -84,7 +94,7 @@ function fixture(
     thread: "main",
     room: () => room,
     locale: "en-US",
-    clock: timer.clock,
+    clock: { ...timer.clock, now: options.now },
     capture:
       options.capture ??
       (async () => {
@@ -598,4 +608,483 @@ test("canonical before ACK cannot finish or accept a refused identical operation
     );
     f.owner.dispose();
   }
+});
+
+test("swipe-up locks once at forty pixels and pointer release does not toggle dictation", () => {
+  const timer = manualClock();
+  let locks = 0,
+    starts = 0,
+    stops = 0,
+    live = false;
+  const gesture = createMicrophoneGesture({
+    clock: timer.clock,
+    current: () => true,
+    recording: () => false,
+    start: () => {
+      starts++;
+    },
+    stop: () => {
+      stops++;
+    },
+    fireLive: () => live,
+    stopFire: () => {
+      live = false;
+    },
+    armFire: () => {},
+    lockFire: () => {
+      locks++;
+      live = true;
+    },
+    charge() {},
+  });
+  gesture.begin(1, 100);
+  gesture.move(2, 0);
+  gesture.move(1, 61);
+  expect(locks).toBe(0);
+  gesture.move(1, 60);
+  gesture.move(1, 0);
+  gesture.end(1);
+  timer.advance(4000);
+  expect([locks, starts, stops]).toEqual([1, 0, 1]);
+  gesture.begin(2, 100);
+  gesture.end(2);
+  expect(live).toBe(false);
+  gesture.begin(3, 0);
+  gesture.cancel();
+  gesture.move(3, -100);
+  expect(locks).toBe(1);
+  gesture.dispose();
+  expect(timer.jobs.size).toBe(0);
+});
+
+test("locked Fire rolls over on actual voiced silence, records during Whisper, and serializes distinct segments through canonical acknowledgement", async () => {
+  let now = 0;
+  const first = deferred<string>(),
+    second = deferred<string>();
+  const reads: Blob[] = [];
+  const f = fixture({
+    now: () => now,
+    transcribe: async (blob) => {
+      reads.push(blob);
+      return reads.length === 1 ? first.promise : second.promise;
+    },
+  });
+  f.owner.lock();
+  await until(() => f.mics.length === 1 && f.mics[0].counts.starts === 1);
+  expect(get(f.owner.state).locked).toBe(true);
+  f.mics[0].level(0);
+  now = 1000;
+  f.mics[0].level(0);
+  expect(f.mics[0].counts.stops).toBe(0);
+  f.mics[0].chunk(3000);
+  f.mics[0].level(0.03);
+  now = 1800;
+  f.mics[0].level(0);
+  expect(f.mics[0].counts.stops).toBe(0);
+  now = 1801;
+  f.mics[0].level(0);
+  await until(
+    () =>
+      f.mics.length === 2 &&
+      f.mics[1].counts.starts === 1 &&
+      reads.length === 1,
+  );
+  expect(get(f.owner.state).talking).toBe(true);
+  f.mics[1].chunk(4000);
+  f.mics[1].level(0.04);
+  now = 2602;
+  f.mics[1].level(0);
+  await until(() => f.mics.length === 3);
+  expect(reads).toHaveLength(1);
+  first.resolve("first segment");
+  await until(() => f.commands.length === 1);
+  expect(reads).toHaveLength(1);
+  f.canonical("first segment");
+  await until(() => reads.length === 2);
+  expect(reads.map((blob) => blob.size)).toEqual([3000, 4000]);
+  second.resolve("second segment");
+  await until(() => f.commands.length === 2);
+  f.canonical("second segment");
+  f.owner.unlock();
+  await settle();
+  expect(get(f.owner.state).locked).toBe(false);
+  expect(get(f.owner.state).talking).toBe(false);
+  f.owner.dispose();
+  await settle();
+  expect(f.timer.jobs.size).toBe(0);
+});
+
+test("locked recorder keeps its own final data while a newer recorder is active and teardown fences late events", async () => {
+  const captures: ReturnType<typeof microphone>[] = [];
+  const stopped: (() => void)[] = [];
+  let now = 0;
+  const f = fixture({
+    now: () => now,
+    capture: async () => {
+      const mic = microphone(),
+        original = mic.capture.start;
+      mic.capture.start = (chunk, ended, failed) =>
+        original(
+          chunk,
+          () => {
+            stopped.push(ended);
+          },
+          failed,
+        );
+      captures.push(mic);
+      return mic.capture;
+    },
+  });
+  f.owner.lock();
+  await until(() => captures.length === 1 && captures[0].counts.starts === 1);
+  captures[0].chunk(2100);
+  captures[0].level(0.1);
+  now = 20001;
+  captures[0].level(0.1);
+  await until(() => captures.length === 2 && captures[1].counts.starts === 1);
+  captures[0].chunk(900);
+  stopped.shift()!();
+  await until(() => f.commands.length === 1);
+  expect(get(f.owner.state).talking).toBe(true);
+  f.leave();
+  captures[1].chunk();
+  captures[1].ended();
+  await settle();
+  expect(f.commands).toHaveLength(1);
+  expect(get(f.owner.state).locked).toBe(false);
+  f.owner.dispose();
+  expect(f.timer.jobs.size).toBe(0);
+});
+
+test("release publication cannot attach an old stopping recorder or its timer to a reentrant new locked session", async () => {
+  const f = fixture();
+  f.owner.lock();
+  await until(() => f.mics.length === 1 && f.mics[0].counts.starts === 1);
+  let replace = false;
+  const unwatch = f.owner.state.subscribe((value) => {
+    if (!replace && value.locked && !value.talking) {
+      replace = true;
+      f.owner.cancel();
+      f.owner.lock();
+    }
+  });
+  f.mics[0].chunk();
+  f.owner.release();
+  await until(() => f.mics.length === 2 && f.mics[1].counts.starts === 1);
+  expect(f.mics[0].counts.disposed).toBe(1);
+  expect(f.mics[0].counts.stops).toBe(0);
+  f.mics[0].ended();
+  f.timer.advance(21000);
+  await settle();
+  expect(f.commands).toHaveLength(0);
+  expect(get(f.owner.state).locked).toBe(true);
+  expect(get(f.owner.state).error).toBe("");
+  unwatch();
+  f.owner.dispose();
+  await settle();
+  expect(f.timer.jobs.size).toBe(0);
+});
+
+/** Native effects ports for the actual factory, not a mirrored capture owner. */
+function browserAudioFixture(
+  options: {
+    resume?: () => Promise<boolean>;
+    stream?: () => Promise<{ getTracks(): { stop(): void }[] }>;
+  } = {},
+) {
+  let streams = 0,
+    tracksStopped = 0,
+    contexts = 0,
+    contextsClosed = 0,
+    resumes = 0,
+    level = 0;
+  const intervals = new Map<number, () => void>();
+  let timer = 0;
+  const records: {
+    data: (blob: Blob) => void;
+    ended: () => void;
+    failed: () => void;
+    starts: number;
+    disposed: number;
+  }[] = [];
+  const factory = createFireCaptureFactory({
+    stream:
+      options.stream ??
+      (async () => {
+        streams++;
+        return {
+          getTracks: () => [
+            {
+              stop() {
+                tracksStopped++;
+              },
+            },
+          ],
+        };
+      }),
+    recorder() {
+      const rec = {
+        data: (_blob: Blob) => {},
+        ended: () => {},
+        failed: () => {},
+        starts: 0,
+        disposed: 0,
+      };
+      records.push(rec);
+      return {
+        type: "audio/webm",
+        start(
+          data: (value: Blob) => void,
+          ended: () => void,
+          failed: () => void,
+        ) {
+          rec.starts++;
+          rec.data = data;
+          rec.ended = ended;
+          rec.failed = failed;
+        },
+        stop() {},
+        dispose() {
+          rec.disposed++;
+        },
+      };
+    },
+    levels() {
+      contexts++;
+      return {
+        resume: async () => {
+          resumes++;
+          return options.resume ? options.resume() : true;
+        },
+        sample: () => level,
+        close: async () => {
+          contextsClosed++;
+        },
+      };
+    },
+    interval(run: () => void) {
+      const id = ++timer;
+      intervals.set(id, run);
+      return id;
+    },
+    clearInterval(id: number) {
+      intervals.delete(id);
+    },
+  });
+  return {
+    factory,
+    records,
+    intervals,
+    get counts() {
+      return { streams, tracksStopped, contexts, contextsClosed, resumes };
+    },
+    sample(value: number) {
+      level = value;
+      for (const run of [...intervals.values()]) run();
+    },
+  };
+}
+
+test("actual capture adapter reuses one microphone and resumed level source across owned locked recorder handoffs", async () => {
+  const resume = deferred<boolean>(),
+    h = browserAudioFixture({ resume: () => resume.promise });
+  const first = await h.factory();
+  let samples = 0,
+    oldData = 0;
+  first.start(
+    () => {
+      oldData++;
+    },
+    () => {},
+    () => {},
+  );
+  first.observeLevel?.(() => {
+    samples++;
+  });
+  expect(h.intervals.size).toBe(0);
+  expect(h.counts.resumes).toBe(1);
+  resume.resolve(true);
+  await settle();
+  h.sample(0.1);
+  expect(samples).toBe(1);
+  const second = await h.factory();
+  second.start(
+    () => {},
+    () => {},
+    () => {},
+  );
+  second.observeLevel?.(() => {
+    samples++;
+  });
+  first.dispose();
+  await settle();
+  h.records[0].data(new Blob(["late"]));
+  h.sample(0.1);
+  expect(oldData).toBe(0);
+  expect(samples).toBe(2);
+  expect(h.counts).toEqual({
+    streams: 1,
+    tracksStopped: 0,
+    contexts: 1,
+    contextsClosed: 0,
+    resumes: 2,
+  });
+  h.factory.release?.();
+  await settle();
+  expect(h.counts.tracksStopped).toBe(1);
+  expect(h.counts.contextsClosed).toBe(1);
+  expect(h.intervals.size).toBe(0);
+  h.records[1].ended();
+  h.sample(0.1);
+  expect(samples).toBe(2);
+});
+
+test("actual pool stops tracks on final unlocked onstop before a pending Whisper or message acknowledgement", async () => {
+  const h = browserAudioFixture(),
+    transcript = deferred<string>();
+  const f = fixture({
+    capture: h.factory,
+    transcribe: () => transcript.promise,
+  });
+  await f.owner.hold();
+  h.records[0].data(new Blob([new Uint8Array(3000)]));
+  f.owner.release();
+  expect(h.counts.tracksStopped).toBe(0);
+  h.records[0].ended();
+  await settle();
+  expect(h.counts.tracksStopped).toBe(1);
+  expect(get(f.owner.state).sending).toBe("transcribing");
+  transcript.resolve("finished");
+  await until(() => f.commands.length === 1);
+  expect(h.counts.tracksStopped).toBe(1);
+  expect(get(f.owner.state).sending).toBe("message");
+  f.owner.dispose();
+  await settle();
+  expect(f.timer.jobs.size).toBe(0);
+});
+
+test("actual pool resumes neither sampling nor old callbacks after release and permits a fresh permission request after rejection", async () => {
+  const resume = deferred<boolean>(),
+    h = browserAudioFixture({ resume: () => resume.promise });
+  const opened = await h.factory();
+  let samples = 0;
+  opened.start(
+    () => {},
+    () => {},
+    () => {},
+  );
+  opened.observeLevel?.(() => {
+    samples++;
+  });
+  h.factory.release?.();
+  resume.resolve(true);
+  await settle();
+  expect(h.intervals.size).toBe(0);
+  expect(samples).toBe(0);
+  expect(h.counts.tracksStopped).toBe(1);
+  const permission = deferred<{ getTracks(): { stop(): void }[] }>();
+  let calls = 0,
+    stopped = 0;
+  const late = browserAudioFixture({
+    stream: () => {
+      calls++;
+      return calls === 1 ? Promise.reject(Error("denied")) : permission.promise;
+    },
+  });
+  await expect(late.factory()).rejects.toThrow("denied");
+  const result = late.factory().then(
+    () => false,
+    () => true,
+  );
+  expect(calls).toBe(2);
+  late.factory.release?.();
+  permission.resolve({
+    getTracks: () => [
+      {
+        stop() {
+          stopped++;
+        },
+      },
+    ],
+  });
+  expect(await result).toBe(true);
+  expect(stopped).toBe(1);
+  expect(late.records).toHaveLength(0);
+});
+
+test("failed suspended AudioContext resume halts the owned locked recorder and releases its actual stream", async () => {
+  const h = browserAudioFixture({ resume: async () => false }),
+    f = fixture({ capture: h.factory });
+  f.owner.lock();
+  await until(() => get(f.owner.state).error === "recording");
+  expect(get(f.owner.state).locked).toBe(false);
+  expect(get(f.owner.state).talking).toBe(false);
+  expect(h.counts.tracksStopped).toBe(1);
+  expect(h.intervals.size).toBe(0);
+  f.owner.dispose();
+  await settle();
+});
+
+test("an ending recorder watchdog fully stops the next active capture and cannot leave a locked microphone running", async () => {
+  const h = browserAudioFixture();
+  let now = 0;
+  const f = fixture({ capture: h.factory, now: () => now });
+  f.owner.lock();
+  await until(() => h.records[0]?.starts === 1 && h.intervals.size === 1);
+  h.records[0].data(new Blob([new Uint8Array(3000)]));
+  h.sample(0.1);
+  now = 801;
+  h.sample(0);
+  await until(() => h.records.length === 2 && h.records[1].starts === 1);
+  f.timer.advance(20000);
+  await settle();
+  expect(get(f.owner.state).locked).toBe(false);
+  expect(get(f.owner.state).talking).toBe(false);
+  expect(get(f.owner.state).error).toBe("recording");
+  expect(h.counts.tracksStopped).toBe(1);
+  expect(h.intervals.size).toBe(0);
+  h.records[0].ended();
+  h.records[1].data(new Blob([new Uint8Array(3000)]));
+  h.records[1].ended();
+  await settle();
+  expect(f.commands).toHaveLength(0);
+  f.owner.dispose();
+  await settle();
+});
+
+test("explicit discard clears the unsent locked backlog so a fresh utterance cannot replay old audio", async () => {
+  const first = deferred<string>();
+  let now = 0,
+    reads = 0;
+  const f = fixture({
+    now: () => now,
+    transcribe: async () => (++reads === 1 ? first.promise : "fresh only"),
+    request: async () => ({ ok: false, error: "timeout" }),
+  });
+  f.owner.lock();
+  await until(() => f.mics[0]?.counts.starts === 1);
+  f.mics[0].chunk();
+  f.mics[0].level(0.1);
+  now = 801;
+  f.mics[0].level(0);
+  await until(() => f.mics[1]?.counts.starts === 1);
+  f.mics[1].chunk();
+  f.mics[1].level(0.1);
+  now = 1602;
+  f.mics[1].level(0);
+  await until(() => f.mics[2]?.counts.starts === 1);
+  first.resolve("uncertain first");
+  await until(() => get(f.owner.state).sending === "unconfirmed");
+  const intent = get(f.owner.state).intent;
+  f.owner.discard(intent);
+  await f.owner.hold();
+  f.mics.at(-1)!.chunk();
+  f.owner.release();
+  await until(() => f.commands.length === 2);
+  expect(reads).toBe(2);
+  expect(
+    f.commands.map((command) => (command.t === "msg" ? command.text : "")),
+  ).toEqual(["uncertain first", "fresh only"]);
+  f.owner.dispose();
+  await settle();
 });

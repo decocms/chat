@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack, tick } from "svelte";
+  import UiSwitch from "../home/UiSwitch.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Button from "../../lib/ui/Button.svelte";
   import Input from "../../lib/ui/Input.svelte";
@@ -85,6 +86,7 @@
       class="tw:flex-1 tw:font-sans tw:text-2xl tw:font-semibold tw:tracking-normal tw:text-primary tw:no-underline"
       >vibebook</a
     >
+    <UiSwitch {lang} />
     <div aria-label={text("language")} class="tw:flex tw:gap-1">
       <Button
         variant="ghost"

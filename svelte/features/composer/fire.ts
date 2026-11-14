@@ -8,6 +8,7 @@ import type { ComposerFirePort } from "./fireTypes";
 import type { FireCapture, FireCaptureFactory } from "./fireAudio";
 import type { SpeechClock, SpeechFactory, SpeechRecognizer } from "./speech";
 import { definiteMessageFailure } from "./drafts";
+import { createFireSegmentation } from "./fireSegmentation";
 import { FireFailure } from "./fireApi";
 import { createAgentLease } from "../agents/lease";
 
@@ -16,6 +17,7 @@ export type FireState = {
   intent: number;
   phase: "idle" | "switching" | "ready" | "failed" | "leaving";
   talking: boolean;
+  locked: boolean;
   sending: "none" | "transcribing" | "message" | "unconfirmed";
   model: string;
   note: string;
@@ -37,6 +39,7 @@ export const initialFireState = (): FireState => ({
   intent: 0,
   phase: "idle",
   talking: false,
+  locked: false,
   sending: "none",
   model: "",
   note: "",
@@ -82,13 +85,16 @@ export function createFireController(options: {
   locale: string;
   capture?: FireCaptureFactory;
   factory?: SpeechFactory;
-  clock: SpeechClock;
+  clock: SpeechClock & { now?(): number };
   request: RequestRoomCommand;
   port: ComposerFirePort;
 }) {
   const account = options.room().me;
   const state = writable(initialFireState());
-  const clock = { ...options.clock, now: () => Date.now() },
+  const clock = {
+      ...options.clock,
+      now: () => options.clock.now?.() ?? Date.now(),
+    },
     modeLease = createAgentLease(clock),
     audioLease = createAgentLease(clock),
     sttLease = createAgentLease(clock),
@@ -98,12 +104,79 @@ export function createFireController(options: {
     utterance = 0,
     intent = 0,
     capture: FireCapture | null = null,
-    sr: SpeechRecognizer | null = null;
-  let audio: Blob[] = [],
-    bytes = 0,
-    releaseRequested = false,
+    sr: SpeechRecognizer | null = null,
+    currentSaid = "";
+  let releaseRequested = false,
+    stopLevel: (() => void) | null = null,
     restoreTimer: unknown,
     deliveryTimer: unknown;
+  const ending = new Map<FireCapture, { said: string; timer: unknown }>();
+  const segments: { blob: Blob; said: string; ticket: number }[] = [];
+  let segmentBytes = 0,
+    processing = 0,
+    nextProcess = 0,
+    workGeneration = 0;
+  const segmentCurrent = (ticket: number, opened: FireCapture) =>
+    current(ticket) && (capture === opened || ending.has(opened));
+  function stopLevels() {
+    const stop = stopLevel;
+    stopLevel = null;
+    try {
+      stop?.();
+    } catch {}
+  }
+  function clearSegments() {
+    workGeneration++;
+    processing = 0;
+    segments.length = 0;
+    segmentBytes = 0;
+  }
+  function drain() {
+    if (
+      processing ||
+      pending ||
+      !segments.length ||
+      !owned() ||
+      get(state).error === "send-refused" ||
+      get(state).sending === "unconfirmed" ||
+      get(state).phase === "leaving"
+    )
+      return;
+    const next = segments.shift()!;
+    segmentBytes -= next.blob.size;
+    if (!current(next.ticket)) return;
+    const job = ++nextProcess;
+    processing = job;
+    void transcribe(next.blob, next.said, next.ticket).finally(() => {
+      if (processing !== job) return;
+      processing = 0;
+      drain();
+    });
+  }
+  function enqueue(blob: Blob, said: string, ticket: number) {
+    if (
+      !current(ticket) ||
+      blob.size < 2000 ||
+      get(state).sending === "unconfirmed" ||
+      get(state).error === "send-refused"
+    )
+      return;
+    // Bound retained, unsent audio while an ACK/provider is slow. Never drop a
+    // sent uncertainty marker or replay a segment that may have been accepted.
+    if (segments.length >= 8 || segmentBytes + blob.size > STT_AUDIO_MAX * 2) {
+      state.update((value) => ({
+        ...value,
+        locked: false,
+        error: "recording",
+      }));
+      stopLevels();
+      release();
+      return;
+    }
+    segments.push({ blob, said, ticket });
+    segmentBytes += blob.size;
+    drain();
+  }
   let pending: { snapshot: MessageSnapshot; ack: boolean } | null = null;
   const owned = () => {
     const room = options.room();
@@ -127,21 +200,53 @@ export function createFireController(options: {
     else deliveryTimer = undefined;
   }
   function releaseAudio() {
+    const stopped = [...ending];
+    ending.clear();
+    const previous = capture;
+    capture = null;
     const recognition = sr;
     sr = null;
+    stopLevels();
+    // The factory revokes its epoch before any native stop callbacks and stops
+    // the actual stream even if a getUserMedia or resume promise ignores abort.
+    try {
+      options.capture?.release?.();
+    } catch {}
+    for (const [opened, value] of stopped) {
+      options.clock.cancel(value.timer);
+      try {
+        opened.dispose();
+      } catch {}
+    }
     if (recognition) {
       recognition.onresult = recognition.onerror = recognition.onend = null;
       try {
         recognition.abort();
       } catch {}
     }
-    const previous = capture;
-    capture = null;
     try {
       previous?.dispose();
     } catch {}
-    audio = [];
-    bytes = 0;
+  }
+  function releaseIdleStream() {
+    if (!capture && !ending.size && !get(state).talking && !get(state).locked) {
+      try {
+        options.capture?.release?.();
+      } catch {}
+    }
+  }
+  function haltCapture() {
+    utterance++;
+    releaseRequested = true;
+    audioLease.cancel();
+    releaseAudio();
+    if (owned())
+      state.update((value) => ({
+        ...value,
+        talking: false,
+        locked: false,
+        error: "recording",
+      }));
   }
   function failure(error: unknown) {
     if (error instanceof FireFailure) {
@@ -163,6 +268,7 @@ export function createFireController(options: {
       sent: text,
       error: "",
     }));
+    if (owned()) drain();
   }
   async function post(text: string, ticket: number) {
     if (!current(ticket) || pending) return;
@@ -204,7 +310,12 @@ export function createFireController(options: {
             ...value,
             sending: "none",
             error: "send-refused",
+            text: snapshot.text,
           }));
+          if (get(state).locked) {
+            state.update((value) => ({ ...value, locked: false }));
+            release();
+          }
           return;
         }
         // Timeout/disconnect may already have written. No automatic resend.
@@ -212,45 +323,52 @@ export function createFireController(options: {
           ...value,
           sending: "unconfirmed",
           error: "unconfirmed",
+          text: snapshot.text,
+          locked: false,
         }));
+        release();
         return;
       }
       operation.ack = true;
       settle();
       if (pending !== operation) return;
       deliveryTimer = options.clock.schedule(() => {
-        if (current(ticket) && pending === operation)
+        if (current(ticket) && pending === operation) {
           state.update((value) => ({
             ...value,
             sending: "unconfirmed",
             error: "unconfirmed",
+            text: snapshot.text,
+            locked: false,
           }));
+          release();
+        }
       }, 20000);
     } catch {
       if (current(ticket) && pending === operation) {
         settle();
-        if (pending === operation)
+        if (pending === operation) {
           state.update((value) => ({
             ...value,
             sending: "unconfirmed",
             error: "unconfirmed",
+            text: snapshot.text,
+            locked: false,
           }));
+          release();
+        }
       }
     }
   }
-  async function transcribe(
-    blob: Blob,
-    said: string,
-    ticket: number,
-    take: number,
-  ) {
-    if (!recording(ticket, take)) return;
+  async function transcribe(blob: Blob, said: string, ticket: number) {
+    const generation = workGeneration;
+    const ownsWork = () => current(ticket) && generation === workGeneration;
+    if (!ownsWork()) return;
     state.update((value) => ({
       ...value,
-      talking: false,
       sending: "transcribing",
     }));
-    if (!recording(ticket, take)) return;
+    if (!ownsWork()) return;
     const room = options.room();
     const prompt =
       `Conversa no vibebook (vibebook.dev), sala ${room.book?.title ?? ""}. Pessoas: ${room.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${room.epics
@@ -270,22 +388,69 @@ export function createFireController(options: {
         45000,
       );
     } catch (error) {
-      if (recording(ticket, take)) failure(error);
+      if (ownsWork()) failure(error);
     }
-    if (!recording(ticket, take)) return;
+    if (!ownsWork()) return;
     await post((text || said).trim(), ticket);
   }
   function release() {
     if (!owned() || !get(state).talking) return;
+    const ticket = session,
+      take = utterance;
     releaseRequested = true;
-    state.update((value) => ({ ...value, talking: false }));
+    stopLevels();
     const currentCapture = capture;
-    if (!currentCapture) return; // Permission may still be pending: never start it after release.
+    capture = null;
+    const said = currentSaid;
+    const recognition = sr;
+    sr = null;
+    if (recognition) {
+      recognition.onresult = recognition.onerror = recognition.onend = null;
+      try {
+        recognition.abort();
+      } catch {}
+    }
+    state.update((value) => ({ ...value, talking: false }));
+    if (!currentCapture) {
+      releaseIdleStream();
+      return;
+    }
+    if (
+      !recording(ticket, take) ||
+      get(state).phase === "leaving" ||
+      get(state).phase === "idle"
+    ) {
+      currentCapture.dispose();
+      return;
+    }
+    const timer = options.clock.schedule(() => {
+      if (!ending.has(currentCapture)) return;
+      if (current(ticket)) haltCapture();
+      else {
+        ending.delete(currentCapture);
+        currentCapture.dispose();
+        releaseIdleStream();
+      }
+    }, 20000);
+    ending.set(currentCapture, { said, timer });
     try {
       currentCapture.stop();
     } catch {
-      releaseAudio();
-      state.update((value) => ({ ...value, error: "recording" }));
+      const stopped = ending.get(currentCapture);
+      ending.delete(currentCapture);
+      if (stopped) options.clock.cancel(stopped.timer);
+      currentCapture.dispose();
+      if (current(ticket)) haltCapture();
+      else releaseIdleStream();
+    }
+    if (current(ticket) && get(state).locked) {
+      if (ending.size >= 8)
+        state.update((value) => ({
+          ...value,
+          locked: false,
+          error: "recording",
+        }));
+      else void hold();
     }
   }
   function startPreview(ticket: number, take: number) {
@@ -304,7 +469,10 @@ export function createFireController(options: {
         )
           return;
         const text = preview(event);
-        if (text !== null) state.update((value) => ({ ...value, text }));
+        if (text !== null) {
+          currentSaid = text;
+          state.update((value) => ({ ...value, text }));
+        }
       };
       recognition.onerror = () => {};
       recognition.onend = () => {};
@@ -316,9 +484,9 @@ export function createFireController(options: {
   async function hold() {
     if (
       !owned() ||
-      pending ||
+      (!get(state).locked && !!pending) ||
       get(state).talking ||
-      get(state).sending !== "none" ||
+      (!get(state).locked && get(state).sending !== "none") ||
       get(state).phase === "leaving" ||
       get(state).error === "send-refused"
     )
@@ -331,7 +499,12 @@ export function createFireController(options: {
     if (get(state).phase === "idle") {
       session++;
       const ticket = session;
-      state.set({ ...initialFireState(), session, phase: "switching" });
+      state.set({
+        ...initialFireState(),
+        session,
+        phase: "switching",
+        locked: get(state).locked,
+      });
       if (
         !current(ticket) ||
         get(state).phase === "leaving" ||
@@ -363,8 +536,7 @@ export function createFireController(options: {
     const ticket = session,
       take = ++utterance;
     releaseRequested = false;
-    audio = [];
-    bytes = 0;
+    currentSaid = "";
     state.update((value) => ({
       ...value,
       talking: true,
@@ -390,55 +562,80 @@ export function createFireController(options: {
         return;
       }
       capture = opened;
+      const chunks: Blob[] = [];
+      let size = 0;
       opened.start(
         (chunk) => {
-          if (!recording(ticket, take) || capture !== opened) return;
-          if ((bytes += chunk.size) > STT_AUDIO_MAX) {
+          if (!segmentCurrent(ticket, opened)) return;
+          if ((size += chunk.size) > STT_AUDIO_MAX) {
             utterance++;
             releaseAudio();
             state.update((value) => ({
               ...value,
               talking: false,
+              locked: false,
               error: "recording",
             }));
             return;
           }
-          audio.push(chunk);
+          chunks.push(chunk);
         },
         () => {
-          if (!recording(ticket, take) || capture !== opened) return;
-          if (!releaseRequested) {
+          if (!segmentCurrent(ticket, opened)) return;
+          const retired = ending.get(opened);
+          if (!retired) {
             releaseAudio();
             state.update((value) => ({
               ...value,
               talking: false,
+              locked: false,
               error: "recording",
             }));
             return;
           }
-          const blob = new Blob(audio, { type: opened.type }),
-            said = get(state).text;
-          releaseAudio();
-          if (blob.size < 2000) {
-            state.update((value) => ({ ...value, talking: false }));
-            return;
+          ending.delete(opened);
+          options.clock.cancel(retired.timer);
+          const blob = new Blob(chunks, { type: opened.type });
+          try {
+            opened.dispose();
+          } finally {
+            releaseIdleStream();
           }
-          void transcribe(blob, said, ticket, take);
+          enqueue(blob, retired.said, ticket);
         },
         () => {
-          if (recording(ticket, take) && capture === opened) {
-            utterance++;
-            releaseAudio();
-            state.update((value) => ({
-              ...value,
-              talking: false,
-              error: "recording",
-            }));
-          }
+          if (segmentCurrent(ticket, opened)) haltCapture();
         },
       );
-      if (recording(ticket, take) && !releaseRequested)
+      if (recording(ticket, take) && !releaseRequested) {
         startPreview(ticket, take);
+        if (get(state).locked) {
+          const segmenter = createFireSegmentation(clock.now());
+          try {
+            if (!opened.observeLevel)
+              throw Error("Microphone level unavailable");
+            const stop = opened.observeLevel(
+              (level) => {
+                if (
+                  recording(ticket, take) &&
+                  capture === opened &&
+                  get(state).locked &&
+                  segmenter.sample(level, clock.now())
+                )
+                  release();
+              },
+              () => {
+                if (recording(ticket, take) && capture === opened)
+                  haltCapture();
+              },
+            );
+            if (!recording(ticket, take) || capture !== opened) stop();
+            else stopLevel = stop;
+          } catch {
+            if (recording(ticket, take) && capture === opened) haltCapture();
+          }
+        }
+      }
     } catch {
       if (recording(ticket, take)) {
         utterance++;
@@ -446,6 +643,7 @@ export function createFireController(options: {
         state.update((value) => ({
           ...value,
           talking: false,
+          locked: false,
           error: releaseRequested ? "" : "permission",
         }));
       }
@@ -454,11 +652,16 @@ export function createFireController(options: {
   function suspend() {
     if (
       !capture &&
+      ending.size === 0 &&
+      segments.length === 0 &&
       !get(state).talking &&
       get(state).sending !== "transcribing"
     )
       return;
     utterance++;
+    clearSegments();
+    stopLevels();
+    state.update((value) => ({ ...value, locked: false }));
     releaseRequested = true;
     audioLease.cancel();
     sttLease.cancel();
@@ -503,6 +706,7 @@ export function createFireController(options: {
     if (!owned() || get(state).phase === "idle") return;
     const ticket = session;
     utterance++;
+    clearSegments();
     releaseRequested = true;
     modeLease.cancel();
     audioLease.cancel();
@@ -512,6 +716,7 @@ export function createFireController(options: {
       ...value,
       phase: "leaving",
       talking: false,
+      locked: false,
       sending: pending ? value.sending : "none",
       text: pending ? value.text : "",
       error: "",
@@ -533,6 +738,8 @@ export function createFireController(options: {
       return;
     if (report.state === "off") {
       utterance++;
+      clearSegments();
+      state.update((value) => ({ ...value, locked: false }));
       modeLease.cancel();
       audioLease.cancel();
       sttLease.cancel();
@@ -567,6 +774,7 @@ export function createFireController(options: {
     if (get(state).phase !== "idle") restore();
     session++;
     utterance++;
+    clearSegments();
     releaseRequested = true;
     modeLease.cancel();
     audioLease.cancel();
@@ -584,11 +792,30 @@ export function createFireController(options: {
     supported: !!options.capture,
     hold,
     start: hold,
+    lock() {
+      if (
+        !owned() ||
+        get(state).talking ||
+        get(state).phase === "leaving" ||
+        get(state).sending === "unconfirmed"
+      )
+        return;
+      state.update((value) => ({ ...value, locked: true }));
+      if (owned() && get(state).locked) void hold();
+    },
+    unlock() {
+      if (!owned() || !get(state).locked) return;
+      state.update((value) => ({ ...value, locked: false }));
+      if (owned()) release();
+    },
     release,
     stop,
     suspend,
     toggle() {
-      if (get(state).talking) release();
+      if (get(state).locked) {
+        state.update((value) => ({ ...value, locked: false }));
+        release();
+      } else if (get(state).talking) release();
       else void hold();
     },
     retry(expected: number) {
@@ -601,6 +828,7 @@ export function createFireController(options: {
     },
     discard(expected: number) {
       if (!owned() || get(state).intent !== expected) return;
+      clearSegments();
       messageLease.cancel();
       pending = null;
       clearTimer("delivery");

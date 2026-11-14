@@ -1601,6 +1601,7 @@ document.addEventListener("keydown", (e) => {
 document.addEventListener("keyup", (e) => { if (e.key !== " ") return; clearTimeout(fireKeyT); if (fire?.talking) fireRelease(); });
 let fireKeyT = 0;
 const EN = {
+  "Nova UI": "New UI",
   "Dono: {who}": "Owner: {who}",
   "clique pra trocar": "click to change",
   "Sem dono · clique pra escolher": "No owner · click to pick one",
@@ -2319,6 +2320,14 @@ const t = (pt, vars) => {
   return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
 };
 const langSwitch = () => `<span class="langSw" role="group" aria-label="Idioma / Language">${["pt", "en"].map((l) => `<button type="button" class="${LANG === l ? "sel" : ""}" data-lang="${l}" aria-pressed="${LANG === l}">${l.toUpperCase()}</button>`).join("<i>·</i>")}</span>`;
+const uiSwitch = () => `<label class="langSw"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}" ${new URL(location.href).searchParams.get("ui") === "svelte" ? "checked" : ""}>${t("Nova UI")}</label>`;
+document.addEventListener("change", (event) => {
+  if (!(event.target instanceof HTMLInputElement) || !event.target.matches("[data-ui-switch]") || !event.target.isConnected) return;
+  const next = new URL(location.href);
+  if (event.target.checked) next.searchParams.set("ui", "svelte"); else next.searchParams.delete("ui");
+  location.href = next.pathname + next.search + next.hash;
+});
+
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-lang]"); if (!b || b.dataset.lang === LANG) return;
   document.cookie = `vb_lang=${b.dataset.lang}; path=/; max-age=31536000; samesite=lax`;
@@ -2811,7 +2820,7 @@ function homeWith(me) {
       <button class="me" id="myName" title="${t("Seu perfil: email, como você entra, sair")}">${avatar(me.email)}<span>${esc(me.name || me.email)}</span></button>
       <button class="ghost bell" data-bell></button>
       <button class="ghost homeTheme" id="homeTheme" aria-label="${t("Tema")}">${THEMES[theme()].icon}</button>
-      ${langSwitch()}
+      ${langSwitch()}${uiSwitch()}
     </header>
     <dialog class="profile" id="profileDlg">
       <button class="ghost x pfX" aria-label="${t("Fechar")}">${icon("x")}</button>
@@ -2890,7 +2899,7 @@ function onboarding(me) {
       <p class="err" hidden></p>
       <div class="obActs"><button type="button" class="ghost" data-back="${obAgent ? 1 : 2}">${t("Voltar")}</button><button type="submit" form="obRoom" class="primary">${t("Criar a sala")}</button></div>`;
   $app.innerHTML = `<div class="onb">
-    <header class="obTop"><div class="brand"><a href="/">vibebook</a></div>${langSwitch()}</header>
+    <header class="obTop"><div class="brand"><a href="/">vibebook</a></div>${langSwitch()}${uiSwitch()}</header>
     <main class="obCard"><div class="obDots" aria-label="${of}">${dots}<span>${of}</span></div>${body}</main>
     <button type="button" class="ghost obOut" data-obdone>${t("Pular e ver a home")}</button>
     <input type="file" id="picFile" accept="image/png,image/jpeg,image/webp" hidden /></div>`;
@@ -2966,7 +2975,7 @@ function phoneHome(me) {
     <section class="waits" id="waits"${myWaits.length ? "" : " hidden"}></section>
     <nav class="pdNav">
       <a data-nav href="/archived">${t("Arquivo")}</a>
-      <div class="pdRow"><button class="ghost" id="homeTheme">${THEMES[theme()].icon}<span>${THEMES[theme()].label}</span></button>${langSwitch()}</div>
+      <div class="pdRow"><button class="ghost" id="homeTheme">${THEMES[theme()].icon}<span>${THEMES[theme()].label}</span></button>${langSwitch()}${uiSwitch()}</div>
       <div class="pdBell"><button class="ghost bell" data-bell></button><span>${t("Notificações")}</span></div>
       ${window.PublicKeyCredential ? `<label class="pdLock"><input type="checkbox" id="lockToggle" ${lockId() ? "checked" : ""} /> <span>${t("Exigir Face ID ao abrir")}</span></label>` : ""}
     </nav>

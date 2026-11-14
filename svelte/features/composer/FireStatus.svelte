@@ -24,6 +24,7 @@
           data-native-fire-bar
           data-fire-phase={$state.phase}
           data-fire-sending={$state.sending}
+          data-fire-locked={$state.locked}
           aria-label={copy.title}
           class="tw:mb-2 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-surface tw:border tw:border-warning tw:bg-card tw:p-2 tw:text-sm tw:text-card-foreground"
         >
@@ -31,14 +32,14 @@
               aria-hidden="true"
               class="tw:size-3 tw:animate-spin tw:rounded-full tw:border-2 tw:border-border tw:border-t-primary tw:motion-reduce:animate-none"
             ></span>{/if}
-          {#if $state.talking}<span
+          {#if $state.talking || $state.locked}<span
               data-native-fire-listening
               aria-hidden="true"
               class="tw:size-2.5 tw:shrink-0 tw:animate-pulse tw:rounded-full tw:bg-destructive tw:motion-reduce:animate-none"
             ></span>{/if}
           <span aria-hidden="true">🔥</span>
           <b class="tw:whitespace-nowrap"
-            >{#if $state.talking}{copy.talking}{:else if $state.phase === "ready"}⚡
+            >{#if $state.locked}🔒 {copy.locked}{:else if $state.talking}{copy.talking}{:else if $state.phase === "ready"}⚡
               {prettyModel($state.model || "Haiku")}
               {copy.ready}{:else if $state.phase === "failed"}⚠ {copy.failed}{:else if $state.phase === "leaving"}{copy.leaving}{:else if $state.phase === "idle"}{copy.title}{:else}{copy.switching}{/if}</b
           >

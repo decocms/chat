@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
+  import UiSwitch from "./UiSwitch.svelte";
   import Button from "../../lib/ui/Button.svelte";
   import NotificationBell from "../notifications/NotificationBell.svelte";
   import InstallCard from "../pwa/InstallCard.svelte";
@@ -124,6 +125,7 @@
           >vibebook</a
         >
         <div class="tw:flex tw:flex-wrap tw:gap-2">
+          <UiSwitch {lang} />
           {#if oninbox}<Button
               data-native-inbox-toggle
               variant="outline"
