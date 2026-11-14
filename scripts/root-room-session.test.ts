@@ -336,3 +336,41 @@ test("denied feature authority prevents private cache reinsertion before public 
   stop();
   h.owner.dispose();
 });
+
+test("definite HTTP membership refusal revokes its exact room generation and cannot remove a reopened room or another identity", async () => {
+  const h = harness();
+  h.owner.open("aaaaaa");
+  const old = h.sockets[0]!;
+  old.callbacks.onEvent(snapshot(room()));
+  const captured = h.owner.read().generation;
+  h.owner.denyMembership("aaaaaa", "other@test", captured);
+  h.owner.denyMembership("bbbbbb", "a@test", captured);
+  expect(h.owner.read().phase).toBe("live");
+  h.owner.open("aaaaaa");
+  const next = h.sockets[1]!;
+  next.callbacks.onEvent(snapshot(room()));
+  h.owner.denyMembership("aaaaaa", "a@test", captured);
+  expect(h.owner.read().phase).toBe("live");
+  const generation = h.owner.read().generation;
+  let finish!: (value: CommandOutcome) => void;
+  h.outcome(
+    new Promise((yes) => {
+      finish = yes;
+    }),
+  );
+  const request = h.owner.request({ t: "doc.get" });
+  h.owner.denyMembership("aaaaaa", "a@test", generation);
+  expect(h.owner.read()).toMatchObject({
+    phase: "removed",
+    room: null,
+    connection: null,
+  });
+  expect(next.disposed).toBe(1);
+  finish({ ok: true });
+  expect(await request).toEqual({ ok: false, error: "disconnected" });
+  next.callbacks.onEvent(snapshot(room()));
+  expect(h.owner.read().room).toBeNull();
+  h.owner.open("aaaaaa");
+  expect(h.owner.read().phase).toBe("loading");
+  h.owner.dispose();
+});

@@ -220,6 +220,23 @@ export function createRootRoomSession(options: {
             : { ok: false, error: "disconnected" },
         );
     },
+    /** A definite HTTP membership refusal revokes only the captured live room. */
+    denyMembership(
+      roomId: string,
+      deniedAccount: string,
+      roomGeneration: number,
+    ) {
+      const before = read();
+      if (
+        !active ||
+        before.roomId !== roomId ||
+        before.room?.me !== deniedAccount ||
+        before.generation !== roomGeneration ||
+        !before.connection
+      )
+        return;
+      terminal(roomGeneration, before.connection, "removed");
+    },
     resync() {
       if (active) read().connection?.resync();
     },

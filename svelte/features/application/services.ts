@@ -557,6 +557,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       send: root.send,
       request: root.request,
       resync: root.resync,
+      denyMembership: root.denyMembership,
     },
     router: {
       go: navigate,

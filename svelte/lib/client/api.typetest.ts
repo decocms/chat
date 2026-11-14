@@ -311,13 +311,13 @@ void api.api.books[":id"].fire.$post({
   param: { id: "room" },
   json: { text: "spoken", card_msg: 0 },
 });
-// @ts-expect-error speech is text, never an unchecked unknown value
 void api.api.books[":id"].fire.$post({
   param: { id: "room" },
+  // @ts-expect-error speech is text, never an unchecked unknown value
   json: { text: 3 },
 });
-// @ts-expect-error history entries are strings
 void api.api.books[":id"].fire.$post({
   param: { id: "room" },
+  // @ts-expect-error history entries are strings
   json: { text: "spoken", history: [1] },
 });

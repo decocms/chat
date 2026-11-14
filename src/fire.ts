@@ -107,7 +107,7 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
     if (!body) return { ok: false, error: "the model returned nothing" };
     const meta = await storeFile(env, bookId, email, type, new TextEncoder().encode(body).buffer as ArrayBuffer, name);
     const openedResult = !fid ? await bookStub(env,bookId).agentOpenFile(bookId,email,meta.id) : null;
-    const opened = openedResult !== null && "opened_in_tabs" in openedResult && openedResult.opened_in_tabs > 0;
+    const opened = openedResult !== null && "opened_in_tabs" in openedResult && typeof openedResult.opened_in_tabs === "number" && openedResult.opened_in_tabs > 0;
     const ms = Date.now() - t0;
     await bookStub(env, bookId).firePiece(bookId, email, thread, text, { file: { id: meta.id, name: meta.name } });
     await track(env, "fire", { user: email, dims: { book: bookId, ms, chars: text.length, size: body.length, cost: usageCost(usage), created: !fid } });
