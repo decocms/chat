@@ -189,6 +189,8 @@
       data-room-attention
       class={[
         "tw:col-start-2 tw:row-start-3 tw:min-w-0",
+        $view.mobile &&
+          "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain",
         props.overlayOpen && "tw:hidden",
       ]}
     >

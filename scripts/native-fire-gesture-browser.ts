@@ -97,7 +97,7 @@ export async function auditNativeFireGesture(
     | undefined;
   let original: Awaited<
     ReturnType<import("@playwright/test").Locator["elementHandle"]>
-  > = null;
+  > | null = null;
   const operation = async (name: string, run: () => Promise<void>) => {
     report.phase = name;
     await fixture.step(`Fire gesture: ${name}`, run);
