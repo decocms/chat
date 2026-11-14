@@ -268,10 +268,13 @@ const roomPosts = new Hono<ApiCtx>()
       const type = h["content-type"].split(";")[0].trim().toLowerCase();
       if (!svc.fileTypes.includes(type)) return c.json({ error: svc.typesError } satisfies ErrorBody, 415);
       try {
-        const meta = await svc.storeFile(id, type, await requestBytes(c.req.raw, svc.maxBytes(type)), decodeURIComponent(h["x-filename"] ?? ""));
+        const bytes=await requestBytes(c.req.raw, svc.maxBytes(type));
+        if(!(await svc.isMember(id)))return c.json(forbidden,403);
+        const meta = await svc.storeFile(id, type, bytes, decodeURIComponent(h["x-filename"] ?? ""));
         svc.track("file_uploaded", { book: id, type, size: meta.size });
         return c.json(meta satisfies UploadFileResult, 200);
       } catch (e) {
+        if(!(await svc.isMember(id)))return c.json(forbidden,403);
         if (e instanceof RequestBytesError) return c.json({ error: svc.sizeError(type) } satisfies ErrorBody, e.reason === "limit" ? 413 : 400);
         return c.json({ error: e instanceof Error ? e.message : String(e) } satisfies ErrorBody, 400);
       }

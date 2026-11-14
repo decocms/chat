@@ -30,3 +30,17 @@ Existing STT consumer/encoding cases remain separate. The combined RPC/connectio
 fixture run passes 40 tests / 442 assertions; isolated STT/authority tests pass
 six tests / 37 assertions. Full compiler and browser checks must still validate
 the integrated source; this receipt is not final M1/M2 acceptance.
+
+The authenticated API upload service also enables the existing membership fence
+before R2 storage and at Book file publication. The route rechecks membership
+after reading the stream and after an error. A revoked member gets 403, while
+a still-authorized provider error saying “forbidden” remains an ordinary 400
+business error. System/reminder callers retain their existing behavior. A
+confirmed publication denial removes only the new R2 key; an ambiguous lost
+response never deletes potentially committed bytes.
+
+Additional actual-consumer fixtures revoke membership during the request stream
+and during R2 put through the real `services.storeFile` adapter. The route never
+reaches storage after stream-time revocation; publication-time revocation leaves
+no index/event and preserves earlier objects. These follow-ups pass 33 route
+tests / 328 assertions and seven isolated authority/STT tests / 41 assertions.

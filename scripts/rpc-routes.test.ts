@@ -1518,3 +1518,46 @@ test("agents reads actual SQLite nullable/invalid Claude flags without truthy-st
     db.close();
   }
 });
+
+test("upload revocation during the real body read cannot reach storage", async () => {
+  let member = true;
+  const f = fixture({ isMember: async () => member });
+  const stream = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        controller.enqueue(new Uint8Array([1]));
+        member = false;
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const response = await f.app.request("/api/books/room/files", {
+    method: "POST",
+    headers: { "content-type": "text/plain" },
+    body: stream,
+  });
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: "forbidden" });
+  expect(f.uploaded).toHaveLength(0);
+});
+
+test("upload errors recheck actual membership rather than interpreting a provider's forbidden text", async () => {
+  for (const removed of [false, true]) {
+    let member = true;
+    const f = fixture({
+      isMember: async () => member,
+      storeFile: async () => {
+        member = !removed;
+        throw Error("forbidden");
+      },
+    });
+    const response = await f.app.request("/api/books/room/files", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "a",
+    });
+    expect(response.status).toBe(removed ? 403 : 400);
+    expect(await response.json()).toEqual({ error: "forbidden" });
+  }
+});

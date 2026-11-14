@@ -1,3 +1,4 @@
+import { record } from "../shared/validation";
 import { Buffer } from "node:buffer";
 // Actual live-card/storeFile authority consumers; STT uses a fake Workers AI callback.
 // These fixtures do not exercise real AI, Durable Object scheduling or R2 atomicity.
@@ -9,6 +10,7 @@ mock.module("cloudflare:workers", () => ({
 }));
 const { Book } = await import("../src/book");
 const { storeFile } = await import("../src/rooms");
+const { services } = await import("../src/services");
 const email = "member@example.test",
   book = "abcdef";
 const card = {
@@ -109,6 +111,22 @@ function fixture() {
     },
     waitPut: (promise: Promise<void>) => {
       putWait = promise;
+    },
+    apiStore: async () => {
+      const api: unknown = Reflect.apply(services, undefined, [
+        env,
+        { waitUntil() {} },
+        email,
+        new Request("http://127.0.0.1/api/books/abcdef/files"),
+      ]);
+      if (!record(api) || typeof api.storeFile !== "function")
+        throw Error("Actual upload service missing");
+      return Reflect.apply(api.storeFile, api, [
+        book,
+        "text/plain",
+        new TextEncoder().encode("new").buffer,
+        "existing.txt",
+      ]);
     },
     store: async () =>
       Reflect.apply(storeFile, undefined, [
@@ -238,4 +256,19 @@ test("actual Whisper input encodes every binary byte across full chunks and one/
     expect(encoded).toBe(Buffer.from(audio).toString("base64"));
     expect(Buffer.from(encoded, "base64")).toEqual(Buffer.from(audio));
   }
+});
+
+test("actual API upload service enables the existing R2 publication fence", async () => {
+  const f = fixture(),
+    released = deferred<void>();
+  f.objects.add("prior/version");
+  f.waitPut(released.promise);
+  const operation = f.apiStore();
+  await f.putStarted.promise;
+  f.revoke();
+  released.resolve();
+  await expect(operation).rejects.toThrow("forbidden");
+  expect([...f.objects]).toEqual(["prior/version"]);
+  expect(f.writes).toEqual([]);
+  expect(f.events).toEqual([]);
 });

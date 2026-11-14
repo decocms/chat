@@ -106,7 +106,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     allowStt:async()=> (await env.UPLOAD_LIMIT.limit({key:`stt:${email}`})).success,
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
     humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread),
-    storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name),
+    storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }),
     fileTypes: FILE_TYPES,
     maxBytes,
     sizeError,
