@@ -29,7 +29,6 @@ export async function own(env: Env, name: string, memory: string, m: JevMsg): Pr
     to_claude: { type: "noul", instructions: `${name} wrote this message. Is ${name} asking or telling their own AI agent (their Claude, Codex or any agent of theirs, maybe called by its name) something, or saying something it should act on or answer? Answer no only when ${name} is clearly talking to other people (answering a person, asking a person's opinion, @mentioning someone to ask them, chatting), or addressing another person's agent.` },
   }).catch(() => null);
   const p = r?.answers.to_claude?.noul;
-  if (p === undefined) return { decision: "wake", why: "mensagem sua · Jev falhou", cost: 0 };
+  if (p === undefined || p === null) return { decision: "wake", why: "mensagem sua · Jev falhou", cost: 0 };
   return { decision: p < 0.25 ? "ignore" : "wake", why: `mensagem sua · pro seu Claude: ${p.toFixed(2)}`, cost: r?.cost ?? 0 };
 }
-
