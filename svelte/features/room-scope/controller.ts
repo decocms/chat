@@ -90,8 +90,10 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     projectAgain = false,
     inboxVisible = false;
   const fireApi = createFireApi(browser.fetcher);
-  const fireLeaving=new Set<()=>void>();
-  function leaveFire(){for(const stop of [...fireLeaving])if(fireLeaving.has(stop))stop();}
+  const fireLeaving = new Set<() => void>();
+  function leaveFire() {
+    for (const stop of [...fireLeaving]) if (fireLeaving.has(stop)) stop();
+  }
   const current = () => active && services.active() && services.ownsRoom(scope);
   const frame = () => (current() ? services.rootRoom.read() : null);
   const room = () => frame()?.room ?? null;
@@ -1057,16 +1059,46 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 request: composerRequestFor(thread),
                 upload,
                 fire: {
-                  current:owned,
-                  restore:signal=>current()?fireApi.set(scope.roomId,false,signal):Promise.reject(new FireFailure(0)),
-                  beforeLeave:callback=>{fireLeaving.add(callback);return()=>{fireLeaving.delete(callback);};},
-                  set:(on,signal)=>owned()?fireApi.set(scope.roomId,on,signal):Promise.reject(new FireFailure(0)),
-                  transcribe:(audio,query,signal)=>owned()?fireApi.transcribe(scope.roomId,audio,query,signal):Promise.reject(new FireFailure(0)),
-                  watch:callback=>services.personalChannel.onFire((report,before)=>{
-                    if(owned()&&before.connection===scope.connection&&before.account===scope.account&&report.book===scope.roomId)callback(report);
-                  }),
-                  sessionLost:()=>{if(owned())services.actions.sessionLost();},
-                  denyMembership:()=>{if(owned())services.rootRoom.denyMembership(scope.roomId,scope.account,scope.roomGeneration);},
+                  current: owned,
+                  restore: (signal) =>
+                    current()
+                      ? fireApi.set(scope.roomId, false, signal)
+                      : Promise.reject(new FireFailure(0)),
+                  beforeLeave: (callback) => {
+                    fireLeaving.add(callback);
+                    return () => {
+                      fireLeaving.delete(callback);
+                    };
+                  },
+                  set: (on, signal) =>
+                    owned()
+                      ? fireApi.set(scope.roomId, on, signal)
+                      : Promise.reject(new FireFailure(0)),
+                  transcribe: (audio, query, signal) =>
+                    owned()
+                      ? fireApi.transcribe(scope.roomId, audio, query, signal)
+                      : Promise.reject(new FireFailure(0)),
+                  watch: (callback) =>
+                    services.personalChannel.onFire((report, before) => {
+                      if (
+                        owned() &&
+                        before.connection === scope.connection &&
+                        before.account === scope.account &&
+                        report.book === scope.roomId
+                      )
+                        callback(report);
+                    }),
+                  sessionLost: () => {
+                    if (owned()) services.actions.sessionLost();
+                  },
+                  denyMembership: () => {
+                    if (owned())
+                      services.rootRoom.denyMembership(
+                        scope.roomId,
+                        scope.account,
+                        scope.roomGeneration,
+                      );
+                  },
                 },
                 agents: data?.sandboxes ?? [],
                 navigate: (id) => {
@@ -1265,11 +1297,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       );
     } else project(event.t === "older" ? true : "stay");
   }
-  let disposing=false;
+  let disposing = false;
   function dispose() {
-    if (!active||disposing) return;
-    disposing=true;
-    leaveFire();fireLeaving.clear();
+    if (!active || disposing) return;
+    disposing = true;
+    leaveFire();
+    fireLeaving.clear();
     active = false;
     richFiles.dispose();
     pendingMessage = null;

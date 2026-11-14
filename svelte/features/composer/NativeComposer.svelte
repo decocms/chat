@@ -72,7 +72,11 @@
   );
   const copy = untrack(() => fireCopy(vb.locale));
   let charge = $state<number | null>(null);
-  const ownedCaptureFactory=untrack(()=>mediaFactory===undefined?browserFireCapture(window):mediaFactory||undefined);
+  const ownedCaptureFactory = untrack(() =>
+    mediaFactory === undefined
+      ? browserFireCapture(window)
+      : mediaFactory || undefined,
+  );
   const speech = createSpeechController({
     factory: ownedSpeechFactory,
     coarse: () => window.matchMedia("(pointer: coarse)").matches,
@@ -101,18 +105,29 @@
       document.activeElement === textarea &&
       !busy &&
       !fireWaiting &&
-      (!fireOwner ||
-        get(fireOwner.state).phase === "idle") &&
+      (!fireOwner || get(fireOwner.state).phase === "idle") &&
       !document.querySelector(
         '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
       ),
-    canHold:()=>canInteract() && !busy && !fireWaiting && !get(entry.state).text.trim() && !!fireOwner?.supported &&
-      document.activeElement===textarea && !document.querySelector('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]'),
-    heldStart:()=>{
-      if(!get(entry.state).text.trim() && fireOwner?.supported){speech.cancel();void fireOwner.hold();return true;}
+    canHold: () =>
+      canInteract() &&
+      !busy &&
+      !fireWaiting &&
+      !get(entry.state).text.trim() &&
+      !!fireOwner?.supported &&
+      document.activeElement === textarea &&
+      !document.querySelector(
+        '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
+      ),
+    heldStart: () => {
+      if (!get(entry.state).text.trim() && fireOwner?.supported) {
+        speech.cancel();
+        void fireOwner.hold();
+        return true;
+      }
       return false;
     },
-    heldRelease:()=>fireOwner?.release(),
+    heldRelease: () => fireOwner?.release(),
     recording: (value) => {
       if (active) dictating = value;
     },
@@ -123,8 +138,7 @@
       void focus(
         undefined,
         () =>
-          (!fireOwner ||
-            get(fireOwner.state).phase === "idle") &&
+          (!fireOwner || get(fireOwner.state).phase === "idle") &&
           !document.querySelector(
             '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
           ),
@@ -133,22 +147,51 @@
   });
   const ownedFirePort = untrack(() => firePort),
     ownedRequest = untrack(() => request);
-  const fireOwner = untrack(() => ownedFirePort && ownedCaptureFactory
-    ? createFireController({roomId:room.id,thread,room:()=>room,locale:vb.locale||"pt-BR",
-      factory:ownedSpeechFactory,capture:ownedCaptureFactory,clock:browserSpeechClock,
-      request:command=>ownedRequest(command),port:{...ownedFirePort,current:()=>canInteract()&&ownedFirePort.current()},
-    }):null);
-  const fireState=untrack(()=>fireOwner?.state??readable(initialFireState()));
-  function armFire(){
-    if(!canInteract()||!fireOwner)return;
-    speech.cancel();plus=false;void fireOwner.hold();
+  const fireOwner = untrack(() =>
+    ownedFirePort && ownedCaptureFactory
+      ? createFireController({
+          roomId: room.id,
+          thread,
+          room: () => room,
+          locale: vb.locale || "pt-BR",
+          factory: ownedSpeechFactory,
+          capture: ownedCaptureFactory,
+          clock: browserSpeechClock,
+          request: (command) => ownedRequest(command),
+          port: {
+            ...ownedFirePort,
+            current: () => canInteract() && ownedFirePort.current(),
+          },
+        })
+      : null,
+  );
+  const fireState = untrack(
+    () => fireOwner?.state ?? readable(initialFireState()),
+  );
+  function armFire() {
+    if (!canInteract() || !fireOwner) return;
+    speech.cancel();
+    plus = false;
+    void fireOwner.hold();
   }
-  const microphone=createMicrophoneGesture({clock:browserSpeechClock,current:()=>canInteract()&&!busy&&!fireWaiting,
-    recording:()=>dictating,start:()=>speech.start(),stop:()=>speech.stop(),
-    fireLive:()=>fireOwner?.live()??false,stopFire:()=>fireOwner?.toggle(),armFire,
-    charge:value=>{if(active)charge=value;},
+  const microphone = createMicrophoneGesture({
+    clock: browserSpeechClock,
+    current: () => canInteract() && !busy && !fireWaiting,
+    recording: () => dictating,
+    start: () => speech.start(),
+    stop: () => speech.stop(),
+    fireLive: () => fireOwner?.live() ?? false,
+    stopFire: () => fireOwner?.toggle(),
+    armFire,
+    charge: (value) => {
+      if (active) charge = value;
+    },
   });
-  const fireWaiting=$derived($fireState.phase==="leaving" || $fireState.sending!=="none" || $fireState.error==="send-refused");
+  const fireWaiting = $derived(
+    $fireState.phase === "leaving" ||
+      $fireState.sending !== "none" ||
+      $fireState.error === "send-refused",
+  );
   const previews = new Map<number, { file: File; url: string }>();
   const allowed = $derived(
     $draft.error !== "draft-limit" &&
@@ -480,30 +523,76 @@
       )
         plus = false;
     };
-    let outsideHold:ReturnType<typeof setTimeout>|undefined, outsideHeld=false;
-    const cancelOutside=()=>{if(outsideHold!==undefined)clearTimeout(outsideHold);outsideHold=undefined;outsideHeld=false;};
-    const modalOpen=()=>!!document.querySelector('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]');
-    const fireKeydown=(event:KeyboardEvent)=>{
-      if(event.key==="Escape" && canInteract() && !modalOpen()){cancelOutside();microphone.cancel();if(fireOwner?.live())fireOwner.stop();}
-      if(event.key!==" "||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||
-        !canInteract()||busy||fireWaiting||!fireOwner?.supported||window.matchMedia("(pointer: coarse)").matches||modalOpen())return;
-      const target=event.target;
-      if(target instanceof HTMLElement && (target.isContentEditable||/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName)))return;
-      event.preventDefault();cancelOutside();
-      outsideHold=setTimeout(()=>{outsideHold=undefined;if(canInteract()&&!modalOpen()){outsideHeld=true;armFire();}},300);
+    let outsideHold: ReturnType<typeof setTimeout> | undefined,
+      outsideHeld = false;
+    const cancelOutside = () => {
+      if (outsideHold !== undefined) clearTimeout(outsideHold);
+      outsideHold = undefined;
+      outsideHeld = false;
     };
-    const fireKeyup=(event:KeyboardEvent)=>{
-      if(event.key!==" ")return;
-      const held=outsideHeld;cancelOutside();if(held)fireOwner?.release();
+    const modalOpen = () =>
+      !!document.querySelector(
+        '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
+      );
+    const fireKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && canInteract() && !modalOpen()) {
+        cancelOutside();
+        microphone.cancel();
+        if (fireOwner?.live()) fireOwner.stop();
+      }
+      if (
+        event.key !== " " ||
+        event.repeat ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.isComposing ||
+        !canInteract() ||
+        busy ||
+        fireWaiting ||
+        !fireOwner?.supported ||
+        window.matchMedia("(pointer: coarse)").matches ||
+        modalOpen()
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(target.tagName))
+      )
+        return;
+      event.preventDefault();
+      cancelOutside();
+      outsideHold = setTimeout(() => {
+        outsideHold = undefined;
+        if (canInteract() && !modalOpen()) {
+          outsideHeld = true;
+          armFire();
+        }
+      }, 300);
     };
-    const visibility=()=>{if(document.visibilityState!=="visible"){cancelOutside();fireOwner?.suspend();}};
+    const fireKeyup = (event: KeyboardEvent) => {
+      if (event.key !== " ") return;
+      const held = outsideHeld;
+      cancelOutside();
+      if (held) fireOwner?.release();
+    };
+    const visibility = () => {
+      if (document.visibilityState !== "visible") {
+        cancelOutside();
+        fireOwner?.suspend();
+      }
+    };
     const windowBlur = () => {
       speech.cancel();
-      microphone.cancel();cancelOutside();fireOwner?.suspend();
+      microphone.cancel();
+      cancelOutside();
+      fireOwner?.suspend();
     };
-    document.addEventListener("keydown",fireKeydown,true);
-    document.addEventListener("keyup",fireKeyup);
-    document.addEventListener("visibilitychange",visibility);
+    document.addEventListener("keydown", fireKeydown, true);
+    document.addEventListener("keyup", fireKeyup);
+    document.addEventListener("visibilitychange", visibility);
     window.addEventListener("blur", windowBlur);
     document.addEventListener("paste", paste);
     document.addEventListener("pointerdown", outside);
@@ -512,9 +601,9 @@
     main?.addEventListener("drop", drop);
     return () => {
       cancelOutside();
-      document.removeEventListener("keydown",fireKeydown,true);
-      document.removeEventListener("keyup",fireKeyup);
-      document.removeEventListener("visibilitychange",visibility);
+      document.removeEventListener("keydown", fireKeydown, true);
+      document.removeEventListener("keyup", fireKeyup);
+      document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("blur", windowBlur);
       document.removeEventListener("paste", paste);
       document.removeEventListener("pointerdown", outside);

@@ -3,14 +3,16 @@ import { authClock, type AuthClock } from "../auth/owner";
 export type PersonalNotice =
   | { kind: "account"; book?: string; message?: boolean }
   | { kind: "agents"; book: string }
-  | { kind:"fire";report:Extract<PersonEvent,{t:"fireState"}> };
+  | { kind: "fire"; report: Extract<PersonEvent, { t: "fireState" }> };
 export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
   const event = parsePersonEvent(raw);
   return event?.t === "me"
     ? { kind: "account", book: event.book, message: event.msg === 1 }
     : event?.t === "agents"
       ? { kind: "agents", book: event.book }
-      : event?.t === "fireState" ? {kind:"fire",report:event} : null;
+      : event?.t === "fireState"
+        ? { kind: "fire", report: event }
+        : null;
 }
 type PersonalSocket = Pick<
   WebSocket,
@@ -21,7 +23,7 @@ export function createPersonalConnection(options: {
   decode?: (raw: unknown) => PersonalNotice | null;
   onAccount: () => void;
   onAgents: (book: string) => void;
-  onFire?: (report:Extract<PersonEvent,{t:"fireState"}>)=>void;
+  onFire?: (report: Extract<PersonEvent, { t: "fireState" }>) => void;
   onVisible: () => void;
   onConnected?: () => void;
   currentRoom: () => string | null;
@@ -73,7 +75,7 @@ export function createPersonalConnection(options: {
           notice.book === options.currentRoom()
         ))
           options.onAccount();
-      } else if(notice.kind === "agents") options.onAgents(notice.book);
+      } else if (notice.kind === "agents") options.onAgents(notice.book);
       else options.onFire?.(notice.report);
     };
     current.onclose = () => {
