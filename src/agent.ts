@@ -1,4 +1,3 @@
-import { PersonEventSchemas } from "../shared/person";
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
@@ -9,7 +8,7 @@ import { agentMessageFromWire } from "./bookMessages";
 import { AuthNeeded, signedInTo } from "./mcpauth";
 import { ASK_OPENER } from "./book";
 import { cardOf } from "./card";
-import { LISTEN_FRESH, markListening, poke } from "./person";
+import { LISTEN_FRESH, markListening } from "./person";
 import type { AgentProps } from "./connect";
 import type { Env } from "./index";
 import { checkEmbed, EMBED_MAX, withBridge } from "./embed";
