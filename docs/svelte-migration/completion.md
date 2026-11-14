@@ -58,6 +58,12 @@ hardware, production and measured performance acceptance remain open.
 The earlier [targeted App proof](inline-app-browser/2026-11-14-main-3b86/README.md)
 is retained separately and is not substituted for the full cohort.
 
+Combined backend-boundary source `1de343e` passes a fresh native build and all
+24 repository gates on BugMachine. The [exact source receipt](verification/1de343e-backend-boundaries-source.json)
+includes the streamed-body limits, authenticated file publication fence, runtime
+connection row projections, and provider metadata validation. This source-only
+proof does not replace the separate browser, performance or production gates.
+
 The [source/build receipt](verification/5a7f2c1-current-main-source.json)
 records the all-24-gate producer of the committed preview at `366450e`.
 Later source changes require another build, generated asset refresh and browser
