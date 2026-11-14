@@ -13,6 +13,7 @@ import type {
 import { createChatViewport, type KeepChat } from "../chat-viewport/controller";
 import { createChatSurface } from "../chat-viewport/surface";
 import { createChatPresentation } from "../chat-viewport/presentation";
+import { createFireApi, FireFailure } from "../composer/fireApi";
 import { createNeedsYou } from "../needs-you/session";
 import { createRichFileIndex } from "../rich-text/roomFiles";
 import type { AppsAuthority } from "../apps/authority";
@@ -21,7 +22,7 @@ import { createFileChipIndex } from "../rich-text/fileIndex";
 import { createSideFileSession, type SideFileInput } from "../file-viewer/side";
 import { createFileViewer } from "../file-viewer/session";
 import { createFileReadApi, FileReadFailure } from "../file-viewer/api";
-import { knownViewerFiles, sameFile } from "../file-viewer/model";
+import { knownViewerFiles, sameFile, fileVersions } from "../file-viewer/model";
 import { consumeFileViewerPop } from "../file-viewer/navigation";
 import {
   createNavigationSession,
@@ -86,6 +87,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     projecting = false,
     projectAgain = false,
     inboxVisible = false;
+  let fireCardActivity: { thread: string; id: number; hot: boolean } | null =
+    null;
+  const fireApi = createFireApi(browser.fetcher);
   const current = () => active && services.active() && services.ownsRoom(scope);
   const frame = () => (current() ? services.rootRoom.read() : null);
   const room = () => frame()?.room ?? null;
@@ -721,6 +725,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           owned = () => forThread(thread) && !inboxVisible,
           waits = me()?.waits ?? [],
           display = get(layout.state);
+        if (
+          fireCardActivity?.thread !== thread ||
+          inboxVisible ||
+          display.boardFull
+        )
+          fireCardActivity = null;
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
         chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
         const revision = ++chatRevision;
@@ -803,6 +813,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         };
         const actions: ChatActions = {
           ...rich,
+          fireCard: fireCardActivity
+            ? { id: fireCardActivity.id, hot: fireCardActivity.hot }
+            : undefined,
           openSideFile: (file) => {
             if (owned()) openSideFile(file);
           },
@@ -1042,6 +1055,56 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 drafts: resources.composer,
                 request: threadRequest,
                 upload,
+                fire: {
+                  current: owned,
+                  apply: (body, signal) => {
+                    if (!owned() || (body.thread ?? "main") !== thread)
+                      return Promise.reject(new FireFailure(0));
+                    return fireApi(scope.roomId, body, signal);
+                  },
+                  currentFile: () => {
+                    if (!owned()) return null;
+                    const target = side.target(),
+                      latest = room();
+                    if (
+                      !target ||
+                      target.roomId !== scope.roomId ||
+                      !latest ||
+                      !owned()
+                    )
+                      return null;
+                    return {
+                      ...target,
+                      id: fileVersions(latest, target.name)[0]?.id ?? target.id,
+                    };
+                  },
+                  openFile: (file) => {
+                    if (owned()) openSideFile(file);
+                  },
+                  sessionLost: () => {
+                    if (owned()) services.actions.sessionLost();
+                  },
+                  denyMembership: () => {
+                    if (owned())
+                      services.rootRoom.denyMembership(
+                        scope.roomId,
+                        scope.account,
+                        scope.roomGeneration,
+                      );
+                  },
+                  activity: (id, hot) => {
+                    if (!owned()) return;
+                    const next = id ? { thread, id, hot } : null;
+                    if (
+                      fireCardActivity?.id === next?.id &&
+                      fireCardActivity?.hot === next?.hot &&
+                      fireCardActivity?.thread === next?.thread
+                    )
+                      return;
+                    fireCardActivity = next;
+                    project("stay");
+                  },
+                },
                 agents: data?.sandboxes ?? [],
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);

@@ -31,6 +31,7 @@ export type ChatEmbedControls = {
   resize: (height: number) => void;
 };
 export type ChatActions = {
+  fireCard?: { id: number; hot: boolean };
   request: RequestRoomCommand;
   draftReply: (draft: {
     messageId: number;

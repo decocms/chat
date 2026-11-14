@@ -49,6 +49,13 @@
     active = false;
   });
   const waiting = $derived(vb.waiting(m.id));
+  const fireHot = $derived(
+    !origin &&
+      m.kind === "agent" &&
+      m.author === room.me &&
+      actions.fireCard?.id === m.id &&
+      actions.fireCard.hot,
+  );
   let attention = $state(false),
     flash = $state(false);
   $effect(() => {
@@ -121,6 +128,7 @@
   id={origin ? undefined : `m${m.id}`}
   data-chat-message={m.id}
   data-message-kind={kind}
+  data-fire-hot={fireHot}
   data-waiting={waiting}
   use:highlight
   data-vb-native
@@ -140,6 +148,9 @@
     waiting ? "tw:border-l-2 tw:border-warning tw:bg-warning/10" : "",
     attention ? "tw:animate-pulse tw:motion-reduce:animate-none" : "",
     flash ? "tw:ring-2 tw:ring-ring tw:bg-accent" : "",
+    fireHot
+      ? "tw:after:pointer-events-none tw:after:absolute tw:after:inset-0 tw:after:animate-pulse tw:after:rounded-surface tw:after:ring-2 tw:after:ring-warning tw:motion-reduce:after:animate-none"
+      : "",
   ]}
 >
   <div class="tw:flex tw:items-start tw:gap-3">

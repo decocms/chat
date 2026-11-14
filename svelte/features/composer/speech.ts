@@ -228,7 +228,13 @@ export function createSpeechController(options: {
     stop,
     cancel,
     keydown(event: SpeechKey) {
-      if (!active || !options.factory || !options.canStart() || options.coarse?.()) return false;
+      if (
+        !active ||
+        !options.factory ||
+        !options.canStart() ||
+        options.coarse?.()
+      )
+        return false;
       if (event.key !== " ") {
         if (pending) space();
         return false;
