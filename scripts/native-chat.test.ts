@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { visibleChatMessages } from "../svelte/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
 import {
   continues,
@@ -164,4 +165,18 @@ test("receipt reconnect rows coalesce logical readers without duplicate keys or 
   expect(footer.readers).toHaveLength(1);
   expect(footer.readers[0].read).toBe(true);
   expect(r.receipts).toHaveLength(2);
+});
+
+test("Fire transcript pieces stay canonical while visible rows and receipt placement exclude them", () => {
+  const ordinary = message(1, "Public"),
+    fire = { ...message(2, "Spoken private working piece"), tag: "fire" },
+    r = room([ordinary, fire]);
+  r.receipts = [
+    { email: "reader@test", who: "Reader", read: 2, delivered: 2, ts: 3 },
+  ];
+  expect(visibleChatMessages(r, "main").map((row) => row.id)).toEqual([1]);
+  const footers = messageFooters(r, "main", 4);
+  expect(footers.has(2)).toBe(false);
+  expect(footers.get(1)?.readers).toHaveLength(1);
+  expect(r.messages).toEqual([ordinary, fire]);
 });

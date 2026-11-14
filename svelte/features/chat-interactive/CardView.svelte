@@ -4,6 +4,10 @@
   import type { Room, Message } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import Button from "../../lib/ui/Button.svelte";
+  import Badge from "../../lib/ui/Badge.svelte";
+  import { buttonVariants } from "../../lib/ui/button";
+  import { cn } from "../../lib/ui/utils";
+  import { fieldDeltaTone } from "./chartProjection";
   import CardBox from "../../lib/ui/Card.svelte";
   import Icon from "../../lib/ui/Icon.svelte";
   import CardChart from "./CardChart.svelte";
@@ -130,7 +134,15 @@
       </dt>
       <dd class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:font-medium">
         {element.props.value}
+        {#if element.props.delta}<Badge
+            variant={fieldDeltaTone(element.props.delta, element.props.good)}
+            >{element.props.delta}</Badge
+          >{/if}
       </dd>
+      {#if element.props.trend}<small
+          class="tw:block tw:whitespace-pre-wrap tw:text-xs tw:text-muted-foreground"
+          >{element.props.trend}</small
+        >{/if}
     </div>
   {:else if element.type === "Table"}<CardTable
       headers={element.props.headers}
@@ -183,15 +195,20 @@
   {:else if element.type === "LinkButton"}{#if element.props.url.startsWith("#")}<Button
         class="tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left"
         size="sm"
-        variant="link"
+        variant={element.props.style === "primary" ? "primary" : "link"}
         onclick={(event) => navigate(element.props.url, event)}
         >{element.props.label}<Icon name="arrowRight" /></Button
       >{:else}<a
         href={element.props.url}
         target="_blank"
         rel="noopener noreferrer"
-        class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-button tw:px-3 tw:py-1.5 tw:text-sm tw:text-link tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-        >{element.props.label}<Icon name="external" /></a
+        class={cn(
+          buttonVariants({
+            variant: element.props.style === "primary" ? "primary" : "link",
+            size: "sm",
+          }),
+          "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
+        )}>{element.props.label}<Icon name="external" /></a
       >{/if}
   {/if}
 {/snippet}

@@ -79,6 +79,7 @@
     "scripts/rich-file-index.test.ts",
     "scripts/entities-compatibility.test.ts",
     "scripts/native-interactive.test.ts",
+    "scripts/native-live-cards.test.ts",
     "scripts/native-auth-dom.test.ts",
     "scripts/native-home.test.ts",
     "scripts/native-home-dom.test.ts",

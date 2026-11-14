@@ -1438,6 +1438,77 @@ describe("native Svelte chat", () => {
       true,
     );
   }, 30_000);
+  test("native live cards expose four-series legend/axis/tooltips, Field delta and primary links", async () => {
+    const card = {
+      root: "c",
+      elements: {
+        c: { type: "Card", children: ["v", "fields", "actions"] },
+        v: {
+          type: "Chart",
+          props: {
+            title: "Live metrics",
+            kind: "line",
+            labels: ["A", "B", "C"],
+            series: [
+              { name: "Revenue", values: [0, 40, 80] },
+              { name: "Cost", values: [-20, 10, 0] },
+              { name: "<img src=x>", values: [5, 10, 20] },
+              { name: "Fourth", values: [2, 1, 0] },
+            ],
+          },
+        },
+        fields: { type: "Fields", children: ["f"] },
+        f: {
+          type: "Field",
+          props: {
+            label: "Metric",
+            value: "4",
+            delta: "-3%",
+            good: "down",
+            trend: "Safe <b>trend</b>",
+          },
+        },
+        actions: { type: "Actions", children: ["link"] },
+        link: {
+          type: "LinkButton",
+          props: {
+            label: "Primary external",
+            url: "https://example.test/",
+            style: "primary",
+          },
+        },
+      },
+    };
+    const { target } = renderChat({
+      ...fixture(),
+      id: "abc123",
+      messages: [{ ...message(331, "Live card"), card: JSON.stringify(card) }],
+    });
+    await expectInteractiveReady(target);
+    expect(
+      target.querySelectorAll("[data-card-chart-legend] > span"),
+    ).toHaveLength(4);
+    expect(
+      [...target.querySelectorAll("[data-card-chart-axis] span")].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(["80", "30", "-20"]);
+    expect(
+      target.querySelectorAll("[data-native-card-chart] polyline"),
+    ).toHaveLength(4);
+    expect(
+      target.querySelectorAll("[data-native-card-chart] rect title"),
+    ).toHaveLength(3);
+    expect(target.querySelector("[data-native-card-chart] img")).toBe(null);
+    expect(target.textContent).toContain("Safe <b>trend</b>");
+    expect(target.querySelector("dd")?.textContent).toContain("-3%");
+    const link = target.querySelector<HTMLAnchorElement>(
+      'a[href="https://example.test/"]',
+    )!;
+    expect(!!link).toBe(true);
+    expect(link.classList.contains("tw:bg-primary")).toBe(true);
+    expect(link.rel).toBe("noopener noreferrer");
+  });
   test("native card catalog keeps plain text, table expansion, owner-only replies and canonical answer state", async () => {
     const input = JSON.parse(
       readFileSync(

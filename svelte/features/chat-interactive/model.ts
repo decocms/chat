@@ -71,7 +71,11 @@ export function inlineCardNodes(card: Card): ReadonlySet<string> {
         ? node.props.rows.reduce((sum, row) => sum + row.length * 2 + 2, 0) +
           node.props.headers.length * 2 +
           4
-        : node.props.data.length * 8 + 8;
+        : "series" in node.props
+          ? node.props.labels.length * (node.props.series.length * 8 + 8) +
+            node.props.series.length * 4 +
+            8
+          : node.props.data.length * 8 + 8;
     if (cost <= remaining) {
       inline.add(id);
       remaining -= cost;

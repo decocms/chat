@@ -148,7 +148,9 @@ export function messageFooters(
               : "idle";
     at(ack.msg_id).statuses.push({ ack, kind, owners });
   }
-  const list = room.messages.filter((m) => m.thread === thread);
+  const list = room.messages.filter(
+    (m) => m.thread === thread && m.tag !== "fire",
+  );
   const readers = new Map<string, Receipt>();
   for (const receipt of room.receipts || []) {
     const key = `${receipt.who}|${receipt.email}`;

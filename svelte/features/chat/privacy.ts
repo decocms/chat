@@ -20,6 +20,7 @@ export function visibleMessage(room: Room, message: Message): boolean {
   const parent =
     message.reply_to == null ? undefined : messageById(room, message.reply_to);
   return (
+    message.tag !== "fire" &&
     !privateAskForOther(room, message) &&
     !privateAskForOther(room, parent) &&
     !permissionReply(room, message)
