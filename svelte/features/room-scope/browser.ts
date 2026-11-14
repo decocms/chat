@@ -1,3 +1,4 @@
+import { resetChatTime } from "../chat/time";
 import type { RoomScopeBrowser } from "./types";
 import { cssHex } from "../../lib/ui/cssColor";
 /** Only browser bindings; visual geometry/viewport/pointer ownership belongs to
@@ -28,8 +29,16 @@ export function createRoomScopeBrowser(
     iosStandalone: standalone && ios,
     visible: () => doc.visibilityState === "visible",
     listenVisibility(callback) {
-      doc.addEventListener("visibilitychange", callback);
-      return () => doc.removeEventListener("visibilitychange", callback);
+      const resumed = () => {
+        if (doc.visibilityState === "visible") resetChatTime();
+        callback();
+      };
+      doc.addEventListener("visibilitychange", resumed);
+      win.addEventListener("focus", resetChatTime);
+      return () => {
+        doc.removeEventListener("visibilitychange", resumed);
+        win.removeEventListener("focus", resetChatTime);
+      };
     },
     openExternal: (url) => {
       win.open(url, "_blank", "noopener");
