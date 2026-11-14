@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
-import { Window, type HTMLElement } from "happy-dom";
+import { Window, type HTMLElement, type HTMLButtonElement } from "happy-dom";
 
 async function consentFixture() {
   const html = await readFile(
@@ -108,5 +108,174 @@ test("late document connection reads cannot replace another room or account's ap
     finish({ connections: [{ id: "old-owner" }] });
     expect(await pending).toEqual([]);
     expect(owner.cached()).toEqual([{ id: "new-owner" }]);
+  }
+});
+
+async function inlineOpenFixture() {
+  const html = await readFile(
+    new URL("../public/app.html", import.meta.url),
+    "utf8",
+  );
+  const consentStart = html.indexOf("let appAskQ = Promise.resolve();"),
+    consentEnd = html.indexOf("// vibebook's tools", consentStart);
+  const scopeStart = html.indexOf("function appDocumentScope("),
+    scopeEnd = html.indexOf("// Removal is synchronous", scopeStart);
+  const mountStart = html.indexOf("function inlineAppOpen("),
+    mountEnd = html.indexOf("// Reminders:", mountStart);
+  if (
+    [consentStart, consentEnd, scopeStart, scopeEnd, mountStart, mountEnd].some(
+      (value) => value < 0,
+    )
+  )
+    throw Error("Actual inline Open functions missing");
+  const window = new Window(),
+    calls: string[] = [],
+    hosts: string[] = [],
+    loads: string[] = [];
+  const build = new Function(
+    "document",
+    "AbortController",
+    "api",
+    "loadAppDocumentHost",
+    "makeHost",
+    `
+    const t=(text)=>text,esc=(text)=>String(text),toolOut=(value)=>({content:[{type:'text',text:String(value)}]});
+    let S={id:'room',me:'reader'},thread='main',ws={readyState:1},nonce=0;
+    const hosts=new WeakMap(),appDocuments=new Set(),appFrameName=()=> 'new-frame-'+(++nonce);
+    ${html.slice(consentStart, consentEnd)}
+    ${html.slice(scopeStart, scopeEnd)}
+    ${html.slice(mountStart, mountEnd)}
+    return {mount:mountApp,prune:pruneAppDocuments,pending:()=>appDocuments.size,switchAccount(){S={...S,me:'other'};},switchRoom(){S={...S,id:'other'};}};
+  `,
+  );
+  const owner: {
+    mount(
+      frame: HTMLElement,
+      c: object,
+      a: object,
+      ask?: () => HTMLElement,
+    ): Promise<void>;
+    prune(): void;
+    pending(): number;
+    switchAccount(): void;
+    switchRoom(): void;
+  } = build(
+    window.document,
+    AbortController,
+    async (path: string) => {
+      calls.push(path);
+      return path.includes("/ui?")
+        ? {
+            html: "<p>controlled</p>",
+            tool: { name: "mutate", annotations: { readOnlyHint: false } },
+          }
+        : { result: { content: [] } };
+    },
+    async () => {
+      loads.push("SDK");
+      return { createAppDocumentHost() {} };
+    },
+    (_frame: unknown, options: { first: Promise<unknown> }) => {
+      hosts.push("host");
+      void options.first.catch(() => {});
+      return { start() {}, loadHtml() {}, loadFile() {} };
+    },
+  );
+  const surfaces = Array.from({ length: 2 }, () => {
+    const box = window.document.createElement("div"),
+      frame = window.document.createElement("iframe"),
+      ask = window.document.createElement("div");
+    box.append(frame, ask);
+    window.document.body.append(box);
+    return { box, frame, ask };
+  });
+  const connection = { id: "abcdef123456", title: "Controlled connection" },
+    app = { tool: "mutate", title: "Mutate" };
+  const settle = async () => {
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+  };
+  return {
+    owner,
+    surfaces,
+    connection,
+    app,
+    calls,
+    hosts,
+    loads,
+    settle,
+    close: () => window.happyDOM.abort(),
+  };
+}
+test("actual vanilla inline mount requires reader Allow before UI, initial mutating call or private host; Cancel and retry are explicit", async () => {
+  const f = await inlineOpenFixture();
+  try {
+    const first = f.surfaces[0]!,
+      second = f.surfaces[1]!;
+    const a = f.owner.mount(first.frame, f.connection, f.app, () => first.ask),
+      b = f.owner.mount(second.frame, f.connection, f.app, () => second.ask);
+    await f.settle();
+    expect(f.owner.pending()).toBe(2);
+    expect(f.calls).toEqual([]);
+    expect(f.hosts).toEqual([]);
+    expect(f.loads).toEqual([]);
+    first.ask.querySelector<HTMLButtonElement>(".ghost")!.click();
+    await a;
+    await f.settle();
+    expect(first.box.textContent).toContain("App não aberto.");
+    expect(f.calls).toEqual([]);
+    second.ask.querySelector<HTMLButtonElement>(".primary")!.click();
+    await b;
+    expect(f.calls.filter((path) => path.includes("/call"))).toHaveLength(1);
+    expect(f.hosts).toHaveLength(1);
+    first.box.querySelector<HTMLButtonElement>("button")!.click();
+    await f.settle();
+    expect(f.calls.filter((path) => path.includes("/call"))).toHaveLength(1);
+    first.ask.querySelector<HTMLButtonElement>(".primary")!.click();
+    await f.settle();
+    expect(f.calls.filter((path) => path.includes("/call"))).toHaveLength(2);
+    expect(f.hosts).toHaveLength(2);
+    expect(f.owner.pending()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+test("actual vanilla pending inline consent is aborted on removal/account/room changes and stale Allow cannot dispatch", async () => {
+  for (const changed of ["remove", "account", "room"] as const) {
+    const f = await inlineOpenFixture();
+    try {
+      const surface = f.surfaces[0]!,
+        operation = f.owner.mount(
+          surface.frame,
+          f.connection,
+          f.app,
+          () => surface.ask,
+        );
+      await f.settle();
+      const old = surface.ask.querySelector<HTMLButtonElement>(".primary")!;
+      if (changed === "remove") surface.frame.remove();
+      else if (changed === "account") f.owner.switchAccount();
+      else f.owner.switchRoom();
+      f.owner.prune();
+      await operation;
+      old.click();
+      await f.settle();
+      expect(f.owner.pending()).toBe(0);
+      expect(f.calls).toEqual([]);
+      expect(f.hosts).toEqual([]);
+      expect(f.loads).toEqual([]);
+    } finally {
+      await f.close();
+    }
+  }
+});
+test("actual vanilla explicit panel Open preserves its existing initial call without an inline question", async () => {
+  const f = await inlineOpenFixture();
+  try {
+    await f.owner.mount(f.surfaces[0]!.frame, f.connection, f.app);
+    expect(f.calls.filter((path) => path.includes("/call"))).toHaveLength(1);
+    expect(f.hosts).toHaveLength(1);
+    expect(f.owner.pending()).toBe(0);
+  } finally {
+    await f.close();
   }
 });

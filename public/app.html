@@ -2154,6 +2154,8 @@ const EN = {
   "Esta sala": "This room",
   "Um app da sala é um arquivo HTML em apps/ que usa a sala pelo iframe: lê o doc, as tarefas e as mensagens, posta e mexe nas tarefas (com o seu OK). Peça pro seu agent: “faz um app apps/enquete.html pra esta sala”.": "A room app is an HTML file in apps/ that uses the room through its iframe: it reads the doc, tasks and messages, posts and moves tasks (with your OK). Ask your agent: “make an app apps/poll.html for this room”.",
   "Este app quer {what}, como você:": "This app wants to {what}, as you:",
+  "Abrir este app pode executar ferramentas na sua conta.": "Opening this app may run tools on your account.",
+  "App não aberto.": "App not opened.",
   "Permitir": "Allow",
   "postar": "post",
   "criar uma tarefa": "add a task",
@@ -6028,10 +6030,41 @@ async function embedHost(frame) {
     hosts.set(frame, host); host.start(); host.loadFile(frame.dataset.appFile);
   } catch { if (current()) frame.dataset.appDocumentExpired = "true"; }
 }
-async function mountApp(frame, c, a, askBox) {
+// An inline marker is authored content, never the reader's explicit Open grant.
+function inlineAppOpen(frame, c, a, askBox, current) {
+  const consent = new AbortController();
+  let notice = null, accepted = false, disposed = false;
+  const owner = { current: () => !disposed && current(), dispose() {
+    if (disposed) return; disposed = true; consent.abort(); notice?.remove(); appDocuments.delete(owner);
+  } };
+  appDocuments.add(owner);
+  const ready = (async () => {
+    const allowed = await appAsk(askBox(), t("usar {tool} em {conn}", { tool: a.tool, conn: c.title }), t("Abrir este app pode executar ferramentas na sua conta."), consent.signal);
+    if (!owner.current()) return false;
+    if (allowed) { accepted = true; return true; }
+    frame.hidden = true;
+    notice = document.createElement("div"); notice.className = "empty"; notice.setAttribute("role", "status");
+    notice.append(document.createTextNode(t("App não aberto.")));
+    const reopen = document.createElement("button"); reopen.type = "button"; reopen.className = "ghost"; reopen.textContent = t("Reabrir");
+    notice.append(reopen); frame.after(notice);
+    reopen.onclick = () => {
+      if (!reopen.isConnected || !owner.current()) return;
+      const next = frame.cloneNode(false);
+      for (const attribute of ["src", "srcdoc", "name", "hidden", "data-app-document-expired"]) next.removeAttribute(attribute);
+      next.name = appFrameName(); owner.dispose(); frame.replaceWith(next); void mountApp(next, c, a, askBox);
+    };
+    return false;
+  })();
+  return { ready, accepted: () => accepted, dispose: owner.dispose };
+}
+async function mountApp(frame, connection, target, askBox) {
+  const c = { ...connection }, a = { ...target };
   const current = appDocumentScope(frame), room = c.id === "room", base = `/api/books/${S.id}/connections/${c.id}`;
   const ask = askBox || (() => document.getElementById("appAsk"));
+  const opening = askBox && !room ? inlineAppOpen(frame, c, a, askBox, current) : null;
   try {
+    if (opening && !await opening.ready) return;
+    if (!current()) return;
     const { createAppDocumentHost } = await loadAppDocumentHost();
     if (!current()) return;
     if (room) {
@@ -6045,7 +6078,7 @@ async function mountApp(frame, c, a, askBox) {
       if (!current()) return Promise.reject(Error("App document authorization expired"));
       return api(`${base}/call`, { name, arguments: args }).then((r) => r.result);
     };
-    // This initial call remains the person's explicit Open action, as before.
+    // The panel's explicit Open, or this inline reader's Allow, grants the initial call.
     const first = call(a.tool, {}).catch((e) => ({ isError: true, content: [{ type: "text", text: e.message }] }));
     const host = makeHost(frame, { ask, call, first, reopen: (next) => mountApp(next, c, a, askBox), tool: ui.tool, base, toolName: a.tool }, createAppDocumentHost, current);
     hosts.set(frame, host); host.start(); host.loadHtml(ui.html);
@@ -6053,6 +6086,8 @@ async function mountApp(frame, c, a, askBox) {
     if (!current()) return;
     const notice = document.createElement("div"); notice.className = "empty"; notice.textContent = error.message;
     frame.replaceWith(notice);
+  } finally {
+    if (opening?.accepted()) opening.dispose();
   }
 }
 
