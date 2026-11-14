@@ -2,7 +2,10 @@ import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../roomConnection";
 import type { AppsApi } from "./api";
 import type { AppsSession } from "./session";
-export type AppBridgeModule = Pick<typeof import('./bridge'), 'createNativeAppBridge'|'appToolInfo'|'remoteToolResult'>;
+export type AppBridgeModule = Pick<
+  typeof import("./bridge"),
+  "createNativeAppBridge" | "appToolInfo" | "remoteToolResult"
+>;
 export type AppsProps = {
   owner: AppsSession;
   api: AppsApi;
