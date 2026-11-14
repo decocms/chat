@@ -139,11 +139,11 @@ export async function auditInlineAppOpen(
         result.roomId = roomId;
         result.phase = "post-marker";
         const posted = await ownerContext.request.post(
-          `${fixture.base}/api/books/${roomId}/messages`,
+          `${fixture.base}/api/books/${roomId}/post`,
           { headers: { origin: fixture.base }, data: { text: marker } },
         );
         assert(posted.ok(), `Post marker ${posted.status()}`);
-        PostMessageResult.parse(await posted.json());
+        assert(PostMessageResult.parse(await posted.json()).ok);
         const remote: { url: string; counters: InlineCounters } =
           server.configure(variant, async () => {
             const value = z
