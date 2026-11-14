@@ -152,3 +152,28 @@ creation, VM, deployed Worker or billing receipt.
 This is the finite disposition of the listed metadata/cost/caught-value cohort.
 It does not certify every D1 generic, all platform interop runtime behavior, the
 final transport inventory, or whole M1/M2 completion.
+
+## R2/importKey finite interop follow-up
+
+Against canonical `8223d15`, the redundant mcpauth `importKey(..., "Ed25519")`
+result assertion is removed: the installed Worker signature already returns
+`Promise<CryptoKey>`. The key bytes, algorithm, extractability, usages, JWK export,
+identity seal and caches are untouched.
+
+The R2 range result assertion is also removed. The authorized GET route retains
+its existing R2 request and HTML Escape branch, then calls `r2FileResponse` for
+unchanged response construction. That helper consumes only `Pick`s of the public
+R2 object/body declarations (:2540–2558) and narrows `R2Range` with the actual
+`suffix` discriminator. It preserves the old full/bodyless fallback, suffix
+clamping, offset/length calculation, content headers and Safari 206 response.
+The existing file-cache fixture path now invokes this production helper through
+Hono for full, ignored-range, metadata-only, suffix/oversized suffix, offset,
+bounded, length-only, Safari one-byte and full/ranged HEAD cases. These fixtures
+supply explicit SDK result bodies; they do not substitute an R2 Range parser or
+claim real R2/Safari behavior. They are source-only until the parent runs them.
+
+Remaining fixed-format WebCrypto export/generate results and the Worker-specific
+ECDH argument-declaration mismatch remain the localized platform interop described
+above. Freshly allocated byte-buffer and successful generic-schema output
+assertions retain their distinct provenance. No crypto/range policy relaxation,
+new public DTO, ambient type widening or blanket M1 acceptance is made here.

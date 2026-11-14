@@ -24,7 +24,7 @@ function identityKey(env: Pick<Env, "SESSION_SECRET">) {
     const seed = new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: te.encode("vibebook"), info: te.encode("identity-seal v1") }, base, 256));
     // PKCS#8 wrapper for a raw Ed25519 seed (RFC 8410).
     const pkcs8 = new Uint8Array([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20, ...seed]);
-    const priv = (await crypto.subtle.importKey("pkcs8", pkcs8, { name: "Ed25519" }, true, ["sign"])) as CryptoKey;
+    const priv = await crypto.subtle.importKey("pkcs8", pkcs8, { name: "Ed25519" }, true, ["sign"]);
     const x = String(((await crypto.subtle.exportKey("jwk", priv)) as JsonWebKey).x);
     const kid = b64u(await crypto.subtle.digest("SHA-256", te.encode(x))).slice(0, 16);
     return { priv, jwk: { kty: "OKP", crv: "Ed25519", x, kid, alg: "EdDSA", use: "sig" } };

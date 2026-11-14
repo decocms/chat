@@ -1,3 +1,4 @@
+import { r2FileResponse } from "./r2FileResponse";
 import { mountAppDocumentFiles, isAppDocumentNavigation } from "./appDocumentFile";
 import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api";
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
@@ -521,19 +522,13 @@ app.get("/api/books/:id/files/:fid", async (c) => {
   if (!obj) return c.notFound();
   const headers = new Headers(fileHeaders(obj.httpMetadata?.contentType ?? "application/octet-stream", obj.customMetadata?.name ?? "arquivo"));
   headers.set("accept-ranges", "bytes");
-  const r = obj.range as { offset?: number; length?: number; suffix?: number } | undefined;
   // In the app's viewer (?esc=1), an HTML file gets one listener that tells the viewer about Esc: focus inside the
   // sandboxed frame keeps the key from ever reaching the app, so the viewer couldn't close with it.
   if (!ranged && c.req.query("esc") === "1" && "body" in obj && (obj.httpMetadata?.contentType ?? "").startsWith("text/html")) {
     headers.delete("content-length");
     return new Response(`${await obj.text()}\n<script>addEventListener("keydown",function(e){if(e.key==="Escape")parent.postMessage({vbViewer:"esc"},"*")},true)</script>`, { headers });
   }
-  if (!ranged || !r || !("body" in obj)) return new Response("body" in obj ? obj.body : null, { headers });
-  const start = r.suffix !== undefined ? Math.max(0, obj.size - r.suffix) : (r.offset ?? 0);
-  const len = r.suffix !== undefined ? obj.size - start : (r.length ?? obj.size - start);
-  headers.set("content-range", `bytes ${start}-${start + len - 1}/${obj.size}`);
-  headers.set("content-length", String(len));
-  return new Response(obj.body, { status: 206, headers });
+  return r2FileResponse(obj, ranged, headers);
 });
 
 // Co-editing a doc (y-websocket): /yjs/<room> or /yjs/<room>~<epic>. Same session cookie as /ws, members only.

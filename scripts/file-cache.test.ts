@@ -1,3 +1,5 @@
+import { Hono } from "hono";
+import { r2FileResponse } from "../src/r2FileResponse";
 // Header-policy fixtures, not a real browser HTTP-cache or R2 integration gate.
 import { expect, mock, test } from "bun:test";
 mock.module("cloudflare:workers", () => ({
@@ -49,4 +51,120 @@ test("plain text and unknown types retain non-executable serving policies", () =
     "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
   );
   expect(headers.vary).toBe("Cookie");
+});
+
+// Actual production response constructor through Hono; R2 result bodies are
+// explicit fixture inputs, not a claim that this test implements R2 parsing.
+function fileResponse(
+  range: R2Range | undefined,
+  content = "0123456789",
+  body = true,
+) {
+  const app = new Hono();
+  app.get("/file", (c) => {
+    const headers = new Headers(fileHeaders("audio/webm", "voice.webm"));
+    headers.set("accept-ranges", "bytes");
+    const object = body
+      ? { size: 10, range, body: new Blob([content]).stream() }
+      : { size: 10, range };
+    return r2FileResponse(object, !!c.req.header("range"), headers);
+  });
+  return app;
+}
+
+test("actual file response preserves full, ignored-range and bodyless SDK responses", async () => {
+  for (const range of [undefined, "bytes=0-0"]) {
+    const response = await fileResponse(undefined).request("/file", {
+      headers: range ? { range } : {},
+    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("0123456789");
+    expect(response.headers.get("content-range")).toBe(null);
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    expect(response.headers.get("vary")).toBe("Cookie");
+  }
+  const metadata = await fileResponse(
+    { offset: 0, length: 1 },
+    "",
+    false,
+  ).request("/file", { headers: { range: "bytes=0-0" } });
+  expect(metadata.status).toBe(200);
+  expect(await metadata.text()).toBe("");
+  expect(metadata.headers.get("content-range")).toBe(null);
+});
+
+test("actual SDK range union retains suffix, offset, bounded and Safari206 byte-probe semantics", async () => {
+  const cases: {
+    range: R2Range;
+    header: string;
+    content: string;
+    expected: string;
+  }[] = [
+    {
+      range: { suffix: 3 },
+      header: "bytes=-3",
+      content: "789",
+      expected: "bytes 7-9/10",
+    },
+    {
+      range: { suffix: 20 },
+      header: "bytes=-20",
+      content: "0123456789",
+      expected: "bytes 0-9/10",
+    },
+    {
+      range: { offset: 3 },
+      header: "bytes=3-",
+      content: "3456789",
+      expected: "bytes 3-9/10",
+    },
+    {
+      range: { offset: 2, length: 3 },
+      header: "bytes=2-4",
+      content: "234",
+      expected: "bytes 2-4/10",
+    },
+    {
+      range: { length: 3 },
+      header: "bytes=0-2",
+      content: "012",
+      expected: "bytes 0-2/10",
+    },
+    {
+      range: { offset: 0, length: 1 },
+      header: "bytes=0-0",
+      content: "0",
+      expected: "bytes 0-0/10",
+    },
+  ];
+  for (const value of cases) {
+    const response = await fileResponse(value.range, value.content).request(
+      "/file",
+      { headers: { range: value.header } },
+    );
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-range")).toBe(value.expected);
+    expect(response.headers.get("content-length")).toBe(
+      String(value.content.length),
+    );
+    expect(await response.text()).toBe(value.content);
+  }
+});
+
+test("actual Hono HEAD preserves full/range headers without a response body", async () => {
+  for (const ranged of [false, true]) {
+    const response = await fileResponse(
+      ranged ? { offset: 0, length: 1 } : undefined,
+      ranged ? "0" : "0123456789",
+    ).request("/file", {
+      method: "HEAD",
+      headers: ranged ? { range: "bytes=0-0" } : {},
+    });
+    expect(response.status).toBe(ranged ? 206 : 200);
+    expect(await response.text()).toBe("");
+    expect(response.headers.get("content-range")).toBe(
+      ranged ? "bytes 0-0/10" : null,
+    );
+    expect(response.headers.get("content-length")).toBe(ranged ? "1" : null);
+  }
 });
