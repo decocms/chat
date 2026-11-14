@@ -268,7 +268,7 @@ test("beside-chat native pane follows versions, rejects old connected controls a
           lang: "en",
           current: () => true,
           actions: { navigate() {}, openFile() {} },
-          fullscreen: (id) => full.push(id),
+          fullscreen: (id: string) => full.push(id),
           close: () => side.close(),
         },
       }),

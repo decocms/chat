@@ -39,7 +39,9 @@
     { id: "decisions", label: en ? "Decisions" : "Decisões" },
     { id: "reminders", label: en ? "Reminders" : "Lembretes" },
     { id: "agents", label: "Agents" },
-    ...(sideFileName ? [{id:'view' as const,label:en?'Beside chat':'Ao lado'}] : []),
+    ...(sideFileName
+      ? [{ id: "view" as const, label: en ? "Beside chat" : "Ao lado" }]
+      : []),
   ]);
   const epic = $derived(
     room.epics.find((epic) => epic.id === $view.target?.epicId),

@@ -154,7 +154,9 @@
     if (!frame || !selected || !initialKey) return;
     const isRoom = selected.connection === "room";
     try {
-      const loaded = await requests.run(props.loadBridge ?? (() => import("./bridge")));
+      const loaded = await requests.run(
+        props.loadBridge ?? (() => import("./bridge")),
+      );
       if (!current()) return;
       protocol = loaded;
       const app = isRoom
