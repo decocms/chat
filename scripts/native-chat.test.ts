@@ -1,4 +1,4 @@
-import { chatTime } from "../svelte/features/chat/time";
+import { chatTime, chatDateTime } from "../svelte/features/chat/time";
 import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../svelte/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
@@ -197,5 +197,20 @@ test("chat time retains browser locale formatting across locale switches and dat
           hour: "2-digit",
           minute: "2-digit",
         }),
+      );
+});
+
+test("cached full chat timestamp retains browser date/time defaults", () => {
+  for (const locale of ["en-US", "pt-BR", "en-GB", "pt-BR"])
+    for (const ts of [
+      0,
+      Date.UTC(2026, 2, 8, 6, 59),
+      Date.UTC(2026, 10, 1, 6, 1),
+      -1,
+      NaN,
+      Infinity,
+    ])
+      expect(chatDateTime(locale, ts)).toBe(
+        new Date(ts).toLocaleString(locale),
       );
 });
