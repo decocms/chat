@@ -638,7 +638,16 @@ export async function auditInlineAppOpen(
         result.failure = {
           name: error instanceof Error ? error.name : "UnknownError",
           phase: result.phase,
-          sourceLocations: error instanceof Error ? [...new Set((error.stack ?? "").match(/scripts\/(?:native-inline-app-open-browser|native-test-mcp)\.ts:\d+:\d+/g) ?? [])].slice(0, 5) : [],
+          sourceLocations:
+            error instanceof Error
+              ? [
+                  ...new Set(
+                    (error.stack ?? "").match(
+                      /scripts\/(?:native-inline-app-open-browser|native-test-mcp)\.ts:\d+:\d+/g,
+                    ) ?? [],
+                  ),
+                ].slice(0, 5)
+              : [],
         };
       } finally {
         if (counters)
