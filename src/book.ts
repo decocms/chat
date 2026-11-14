@@ -1,4 +1,5 @@
 import "server-only";
+import { caughtMessage } from "./providerMetadata";
 import { matchesSuggestion } from "../shared/suggestions";
 import { storedNotes, storedHashes, storedFlags, storedProd, storedEpicFiles, storedSuggestions, storedFileRows, storedPollRows } from "./bookStored";
 import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRefs, AccessRequested } from "./bookMessages";
@@ -366,7 +367,7 @@ export class Book extends DurableObject<Env> {
       if (after && after - next < REMINDER_MIN_GAP_MS) return { error: `runs too often: at most once every ${REMINDER_MIN_GAP_MS / 60_000} minutes` };
       return { next };
     } catch (e) {
-      return { error: e instanceof RangeError ? `unknown timezone ${tz}` : String((e as Error).message) };
+      return { error: e instanceof RangeError ? `unknown timezone ${tz}` : caughtMessage(e) };
     }
   }
   /** A reminders/<name>.md file was saved: read its schedule and store it (same name = replace). */

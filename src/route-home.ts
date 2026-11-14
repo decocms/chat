@@ -1,3 +1,4 @@
+import { providerCost } from "./providerMetadata";
 // Home composer: "where should this go?". One D1 query lists the person's rooms with their epics
 // (books.epics is kept in sync by the DO), one cheap model call (MODEL_ROUTE, reasoning off) picks the
 // room + epic. The model only sees ids from that list; anything else is dropped.
@@ -66,6 +67,6 @@ ${listing}`,
   const alternatives = output.alternatives
     .map((a) => toPick(a.room_id, a.epic_id))
     .filter((a): a is RoomPick => !!a && !(a.book_id === pick?.book_id && a.epic_id === pick?.epic_id));
-  const cost = Number((usage as { raw?: { cost?: number } }).raw?.cost) || 0;
+  const cost = providerCost(usage);
   return { pick, reason: output.reason.slice(0, 160), alternatives, new_room_title: (output.new_room_title || text).slice(0, 60), cost };
 }

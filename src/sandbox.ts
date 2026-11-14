@@ -1,3 +1,4 @@
+import { caughtMessage } from "./providerMetadata";
 import * as z from "zod/mini";
 import { SandboxesResult } from "../shared/schemas";
 import { sandboxTarget, sandboxSetup, sandboxCleanupName, sandboxIdentity, sandboxMetrics, sandboxEstimate, runningSeconds } from "./sandboxRows";
@@ -60,7 +61,7 @@ export async function checkFreestyleKey(env: Env, key: string): Promise<string |
     await fs(key, "GET", "/v5/vms?limit=1");
     return null;
   } catch (e) {
-    return (e as Error).message;
+    return caughtMessage(e);
   }
 }
 /** One freestyle REST call with the person's key. Throws an Error with freestyle's message. */
@@ -322,7 +323,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
     async power(sid: string, act: "pause" | "start"): Promise<string | null> {
       const r = await mine(sid), k = await key();
       if (!r || !k) return "not_found";
-      try { await fs(k, "POST", `/v5/vms/${r.vm_id}/${act}`); } catch (e) { return (e as Error).message; }
+      try { await fs(k, "POST", `/v5/vms/${r.vm_id}/${act}`); } catch (e) { return caughtMessage(e); }
       await env.DB.prepare(`UPDATE sandboxes SET state = ? WHERE id = ?`).bind(act === "pause" ? "paused" : "running", r.id).run(); // the rail's ☁ follows at once
       if (r.book_id) { track(`sandbox_${act}`, r.book_id); ctx.waitUntil(roomChanged(env, r.book_id)); }
       return null;
@@ -388,7 +389,7 @@ export async function agentSandboxes(env: Env, email: string) {
       const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
       return { sandbox_id: r.id, room_id: r.book_id, name: r.name, state: vm.state, ready: !!r.ready };
     } catch (e) {
-      return { sandbox_id: r.id, room_id: r.book_id, name: r.name, state: "unknown", ready: !!r.ready, error: (e as Error).message };
+      return { sandbox_id: r.id, room_id: r.book_id, name: r.name, state: "unknown", ready: !!r.ready, error: caughtMessage(e) };
     }
   }));
   return { connected: true, sandboxes: out };

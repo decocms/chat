@@ -30,6 +30,7 @@
     "scripts/digest-items-boundary.test.ts",
     "scripts/grant-metadata-boundary.test.ts",
     "scripts/sandbox-rows.test.ts",
-    "scripts/fire-authority.test.ts"
+    "scripts/fire-authority.test.ts",
+    "scripts/provider-metadata.test.ts"
   ]
 }

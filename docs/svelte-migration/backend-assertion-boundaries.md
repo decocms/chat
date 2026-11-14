@@ -95,3 +95,60 @@ with Bun 1.4.4 in 2.89 seconds. No full compiler, Node fixture runtime, real Wor
 hibernation or browser check ran for this follow-up; those remain separate gates.
 
 The membership `claude_on` assertion and operational/public connection row generics are addressed by the bounded [connection row follow-up](connection-row-boundary.md). Required identities and credential pairs fail closed; display/cache damage is separate from owner deletion. This does not close unrelated D1 generics, token-retirement notification metadata or the complete M1 audit.
+
+## Finite metadata/cost/caught-value follow-up
+
+The installed `ai/dist/index.d.ts:393` declares provider `usage.raw` as optional
+`JSONObject`, rather than a fixed `{cost:number}`. The shared backend-only
+`providerMetadata` guard now reads only record containers and finite number/string
+costs. Numeric strings, zero and negative adjustments retain the previous Number
+conversion; containers, booleans and nonfinite values cannot become a charge.
+The actual start-room, route-home and hybrid-router consumers use that guard.
+No model, rate, rounding or billing policy changes. Caught diagnostics in sandbox,
+router and the remaining reminder `Book.nextFire` catch narrow Error/string/string
+message records without arbitrary object coercion. Existing logging locations,
+bounds and the reminder's special RangeError timezone response remain unchanged.
+
+Installed `@cloudflare/workers-types` 5.20261025.1 declares `Request<CfHostMetadata,
+Cf>.cf?: Cf` at index.d.ts:2186 and `CfProperties` as incoming metadata or request
+options at :14976. Incoming metadata is a record with finite ASN/string fields
+(:14288 onward). `requestContext` now reads this cross-runtime property into
+unknown, narrows its container and only the four consumed fields; no double cast,
+new metadata collection or secret logging is introduced. The tracking visitor
+hash/network-prefix policy is unchanged.
+
+The isolated metadata fixture process tests actual routeMessage/startRoom/router
+gate consumers, actual Request→requestContext and actual checkFreestyleKey error
+handling with model/domain/provider fixture ports. This is not a real provider,
+creation, VM, deployed Worker or billing receipt.
+
+### Runtime interop classification (inspected, deliberately not rewritten here)
+
+- **R2 range:** installed `R2Range` is an offset/length/suffix union
+  (index.d.ts:2564–2576). `index.ts` widens only that SDK-provided result for the
+  three existing range branches after R2 parsed the HTTP Range header. It is not
+  an asserted HTTP/JSON result. A future union-property cleanup must retain suffix,
+  offset-only, bounded-length, full/HEAD and Safari 206 behavior; no range change
+  is included in this metadata patch.
+- **WebCrypto:** installed `importKey` already returns `Promise<CryptoKey>`
+  (:1397–1403), so the mcpauth key assertion is redundant. `exportKey` returns
+  `ArrayBuffer|JsonWebKey` without a format overload (:1409); fixed `jwk` and
+  `raw` calls explain localized result narrowing. `generateKey` returns a key/key
+  pair union (:1365–1369), while ECDH chooses a pair. The Worker derive-key
+  declaration spells its public field `$public` (:1514), whereas the actual Web
+  Crypto call uses `public`; that mismatch explains webpush's localized argument
+  assertion. These are platform-overload boundaries, not provider JSON schema
+  validation. They remain explicit interop assertions, with no crypto behavior or
+  key-validation change claimed by this patch.
+- **Fresh byte buffers:** the pinned Worker TextEncoder declaration returns a
+  generic `Uint8Array` (:1624). Agent/sandbox assertions concern only buffers
+  freshly allocated by TextEncoder or Uint8Array.from, not untrusted JSON. No
+  credentials, received buffer or ambient realm widening is added.
+- **Successful generic parses/static schemas:** `sandbox.fs` and the Hono body
+  helper assert the output type only after successful schema parsing; authored
+  MCP tool-schema construction is separately internal. These cannot be counted
+  as replacing a missing response validator.
+
+This is the finite disposition of the listed metadata/cost/caught-value cohort.
+It does not certify every D1 generic, all platform interop runtime behavior, the
+final transport inventory, or whole M1/M2 completion.

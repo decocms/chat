@@ -1,3 +1,4 @@
+import { record } from "../shared/validation";
 // First-party analytics: the Worker is the collector, events are D1 rows
 // (same pattern as holocard). track() never breaks a request: errors are logged.
 // Every new surface ships with at least one track() call.
@@ -63,7 +64,9 @@ const ipRange = (ip: string) =>
 
 /** Request-level context for a page view: visitor, country and the dims the traffic screen slices by. */
 export async function requestContext(env: Pick<Env, "SESSION_SECRET">, request: Request, response?: Response): Promise<TrackOpts> {
-  const cf = ((request as Request & { cf?: Record<string, unknown> }).cf ?? {}) as Record<string, unknown>;
+  const raw:unknown=Reflect.get(request,"cf");
+  const cf=record(raw)?raw:{};
+  const asn=cf.asn;
   const url = new URL(request.url);
   return {
     path: url.pathname.startsWith("/b/") ? "/b/:id" : url.pathname,
@@ -72,7 +75,7 @@ export async function requestContext(env: Pick<Env, "SESSION_SECRET">, request: 
     dims: {
       ref: request.headers.get("referer")?.slice(0, 200) || undefined,
       ua: request.headers.get("user-agent")?.slice(0, 200) || undefined,
-      asn: cf.asn ? String(cf.asn) : undefined,
+      asn: (typeof asn === "string" || (typeof asn === "number" && Number.isFinite(asn))) && asn ? String(asn) : undefined,
       asOrg: typeof cf.asOrganization === "string" ? cf.asOrganization : undefined,
       colo: typeof cf.colo === "string" ? cf.colo : undefined,
       ip: ipRange(request.headers.get("cf-connecting-ip") ?? ""),
