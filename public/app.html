@@ -1497,10 +1497,10 @@ function fireBar(status) {
   b.hidden = !fire;
   if (!fire) return;
   const st = fire.state, m = fire.model ? prettyModel(fire.model) : "Haiku";
-  const head = fire.talking ? t("ouvindo…") : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("o Haiku não abriu")}` : st === "leaving" ? t("fechando o Haiku…") : t("abrindo teu Haiku…");
+  const head = fire.locked ? `🔒 ${t("ouvindo · toque no 🎤 pra parar")}` : fire.talking ? t("ouvindo…") : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("o Haiku não abriu")}` : st === "leaving" ? t("fechando o Haiku…") : t("abrindo teu Haiku…");
   const tail = status ?? (fire.talking ? "" : st === "ready" ? t("segure espaço e fale; solte pra mandar · Esc sai") : fire.note || "");
   b.classList.toggle("hot", st === "switching" || st === "leaving" || !!fire.sending);
-  b.classList.toggle("talk", !!fire.talking);
+  b.classList.toggle("talk", !!fire.talking || !!fire.locked);
   b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span class="fbMic" aria-hidden="true"></span><span>🔥</span><b class="fbSt">${esc(head)}</b><span class="fbTx">${tail ? esc(tail) : ""}</span><button type="button" class="ghost" data-firestop>${t("Sair do Fire")}</button>`;
   b.querySelector("[data-firestop]")?.addEventListener("click", fireStop);
 }
@@ -1522,8 +1522,8 @@ async function fireHold() {
   try { fire.stream ||= await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { fire.talking = false; toast(t("O navegador não deixou usar o microfone.")); return fireBar(); }
   if (!fire?.talking) return; // released before the mic opened
-  const rec = new MediaRecorder(fire.stream); fire.rec = rec;
-  rec.ondataavailable = (e) => { if (e.data.size) fire?.chunks.push(e.data); };
+  const rec = new MediaRecorder(fire.stream), chunks = []; fire.rec = rec; rec.chunks = chunks; // per recorder: in lock mode the next one starts before this one's last data arrives
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   rec.start();
   if (SR) { // instant words on screen while the real transcript waits for the release
     const sr = new SR(); sr.lang = LOCALE; sr.continuous = true; sr.interimResults = true; fire.sr = sr;
@@ -1537,8 +1537,8 @@ function fireRelease() {
   const rec = f.rec; f.rec = null;
   if (!rec) return fireBar();
   rec.onstop = async () => {
-    const blob = new Blob(f.chunks, { type: rec.mimeType || "audio/webm" });
-    if (blob.size < 2000) return fireBar(); // a tap, not speech
+    const blob = new Blob(rec.chunks, { type: rec.mimeType || "audio/webm" });
+    if (blob.size < 2000) return f.locked ? undefined : fireBar(); // a tap, not speech
     f.sending = true; fireBar(f.said ? `${t("transcrevendo")}: ${f.said}` : t("transcrevendo…"));
     // Whisper follows a prompt written like a transcript better than a word list ("VBbook" with a list, vibebook with this).
     const hints = `Conversa no vibebook (vibebook.dev), sala ${S.book?.title ?? ""}. Pessoas: ${(S.members || []).map((e) => e.split("@")[0]).join(", ")}. Épicos: ${(S.epics || []).filter((e) => !e.archived).slice(0, 15).map((e) => e.title).join("; ")}.`;
@@ -1555,9 +1555,36 @@ function fireRelease() {
     fireBar(`${t("mandei")}: ${text}`);
   };
   try { rec.stop(); } catch {}
+  if (f.locked && fire === f) fireHold(); // locked: the next piece starts recording right away
+}
+// Lock (Gui #2552): slide 🎤 up on a phone and Fire keeps listening hands-free, sending each piece at a pause (0.8 s of
+// quiet after speech, or 20 s at most), until you tap 🎤 again. The pause comes from the mic's own level (Web Audio).
+async function fireLock() {
+  await fireHold();
+  const f = fire; if (!f?.stream || f.locked) return;
+  f.locked = true;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), an = ctx.createAnalyser(), buf = new Float32Array(1024);
+  an.fftSize = 2048; ctx.createMediaStreamSource(f.stream).connect(an);
+  let voiced = false, last = 0, start = performance.now();
+  f.vad = { ctx, timer: setInterval(() => {
+    if (!f.locked || fire !== f) return;
+    an.getFloatTimeDomainData(buf);
+    let sum = 0; for (const v of buf) sum += v * v;
+    const now = performance.now();
+    if (Math.sqrt(sum / buf.length) > 0.02) { if (!voiced) start = now; voiced = true; last = now; }
+    if (f.talking && voiced && (now - last > 800 || now - start > 20000)) { voiced = false; fireRelease(); }
+  }, 100) };
+  fireBar();
+}
+function fireUnlock() {
+  const f = fire; if (!f?.locked) return;
+  f.locked = false; clearInterval(f.vad?.timer); try { f.vad?.ctx.close(); } catch {} f.vad = null;
+  fireRelease();
+  fireBar();
 }
 function fireStop() {
   const f = fire; if (!f) return;
+  f.locked = false; clearInterval(f.vad?.timer); try { f.vad?.ctx.close(); } catch {}
   f.talking = false; try { f.sr?.stop(); f.rec?.stop(); } catch {}
   f.stream?.getTracks().forEach((x) => x.stop()); f.stream = null;
   f.state = "leaving"; fireBar();
@@ -1980,7 +2007,7 @@ const EN = {
   "Pôr no doc": "Put in doc",
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
   "Modo Fire": "Fire mode",
-  "Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
+  "Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · slide up (or hold Space with the box empty) to talk live with your Claude",
   "ouvindo…": "listening…",
   "{m} pronto": "{m} ready",
   "o Haiku não abriu": "the Haiku didn't open",
@@ -1993,6 +2020,7 @@ const EN = {
   "não entendi, fala de novo": "didn't catch that, say it again",
   "mandei": "sent",
   "Sair do Fire": "Leave Fire",
+  "ouvindo · toque no 🎤 pra parar": "listening · tap 🎤 to stop",
   "Uma versão está no ar; você pediu correções depois": "A version is live; you asked for changes after it",
   "Uma versão está no ar · correções em andamento": "A version is live · changes in progress",
   "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.": "You asked for changes after this deploy; the next version isn't out yet.",
@@ -3707,7 +3735,7 @@ function renderBook() {
             <button type="button" role="menuitem" id="pollBtn">${icon("chart")} ${t("Criar votação")}</button>
           </div>
           <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/html,.html,.htm,text/markdown,.md,text/plain,.txt,text/csv,.csv,audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.flac" multiple hidden />
-          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
+          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
         </div>
       </form>
     </main>
@@ -3830,7 +3858,7 @@ function renderBook() {
     mic?.addEventListener("pointerdown", (e) => {
       e.preventDefault(); try { mic.setPointerCapture?.(e.pointerId); } catch {}
       fired = false;
-      if (fireLive()) { fired = true; return fire.talking ? fireRelease() : fireHold(); }
+      if (fireLive()) { fired = true; return fire.locked ? fireUnlock() : fire.talking ? fireRelease() : fireHold(); }
       const t0 = performance.now();
       box.classList.add("charging");
       showT = setTimeout(() => {
@@ -3840,9 +3868,21 @@ function renderBook() {
       }, 400);
       fireT = setTimeout(() => { fired = true; cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); stop(); fireHold(); }, 3000);
     });
+    // Phones (Gui #2548, #2552: holding 3 s was bad in the PWA): slide up from 🎤 and Fire locks on, hands-free, sending
+    // at every pause until you tap 🎤 again (WhatsApp's slide-to-lock, upwards).
+    let y0 = 0, swiped = false;
+    mic?.addEventListener("pointerdown", (e) => { y0 = e.clientY; swiped = false; });
+    mic?.addEventListener("pointermove", (e) => {
+      if (swiped || fired || !y0 || y0 - e.clientY < 40) return;
+      swiped = fired = true;
+      box.classList.remove("charging"); clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
+      stop(); fireLock();
+    });
     mic?.addEventListener("pointerup", () => {
       box.classList.remove("charging");
       clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
+      y0 = 0;
+      if (swiped) { swiped = false; return; } // locked: keeps listening after the finger leaves
       if (fired) return;
       if (rec) stop(); else start(); // a tap: toggle dictation
     });

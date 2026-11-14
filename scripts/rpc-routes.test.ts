@@ -1228,12 +1228,13 @@ test("runner Fire toggles only the owned membership and rejects the retired spee
     { book: "room", on: true },
     { book: "room", on: false },
   ]);
-  expect(f.writes.map((value) => value.values.slice(1))).toEqual([
+  expect(f.writes.slice(0, 2).map((value) => value.values.slice(1))).toEqual([
     ["room", "test@example.com"],
     ["room", "test@example.com"],
   ]);
   expect(typeof f.writes[0].values[0]).toBe("number");
   expect(f.writes[1].values[0]).toBe(null);
+  expect(f.writes[2].values).toEqual(["room", "room", "test@example.com"]);
   for (const body of [
     {},
     { on: "true" },
@@ -1252,6 +1253,64 @@ test("runner Fire toggles only the owned membership and rejects the retired spee
     403,
   );
   expect(denied.writes).toEqual([]);
+});
+
+test("ending Fire advances only this person's current room cursors and rejects late membership loss", async () => {
+  const { Database } = await import("bun:sqlite");
+  const db = new Database(":memory:");
+  db.exec(`CREATE TABLE members(book_id TEXT, email TEXT, fire_at INTEGER);
+    CREATE TABLE books(id TEXT, last_msg_id INTEGER);
+    CREATE TABLE agent_reads(book_id TEXT, email TEXT, agent TEXT, last_id INTEGER);
+    INSERT INTO members VALUES('room','test@example.com',NULL);
+    INSERT INTO books VALUES('room',42),('other',99);
+    INSERT INTO agent_reads VALUES
+      ('room','test@example.com','opus',3),
+      ('room','test@example.com','haiku',7),
+      ('room','peer@example.com','peer',9),
+      ('other','test@example.com','other',11);`);
+  try {
+    let member = true;
+    let revokeAfterWrite = false;
+    const pokes: boolean[] = [];
+    const f = fixture({
+      isMember: async () => member,
+      sql: async (query, ...values) => {
+        db.query(query).run(...values);
+        if (revokeAfterWrite) member = false;
+      },
+      pokeFire: (_book, on) => {
+        pokes.push(on);
+      },
+    });
+    const cursors = () =>
+      db.query("SELECT agent,last_id FROM agent_reads ORDER BY agent").all();
+    const initial = cursors();
+    expect((await f.json("/api/books/room/fire", { on: true })).status).toBe(
+      200,
+    );
+    expect(cursors()).toEqual(initial);
+    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
+      200,
+    );
+    expect(cursors()).toEqual([
+      { agent: "haiku", last_id: 42 },
+      { agent: "opus", last_id: 42 },
+      { agent: "other", last_id: 11 },
+      { agent: "peer", last_id: 9 },
+    ]);
+    db.query("UPDATE agent_reads SET last_id=2 WHERE email=?").run(
+      "test@example.com",
+    );
+    const beforeRevocation = cursors();
+    revokeAfterWrite = true;
+    expect((await f.json("/api/books/room/fire", { on: false })).status).toBe(
+      403,
+    );
+    expect(cursors()).toEqual(beforeRevocation);
+    expect(pokes).toEqual([true, false]);
+  } finally {
+    db.close();
+  }
 });
 
 test("STT real handlers bound raw audio, gate membership/rate, and validate responses", async () => {

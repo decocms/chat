@@ -409,6 +409,11 @@ export const roomApi = accountApi
     const {on}=c.req.valid("json");
     await svc.sql(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`,on?Date.now():null,id,c.get("email"));
     if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    // Completed Fire talk belongs to the dedicated Haiku; other listeners resume after it.
+    if(!on){
+      await svc.sql(`UPDATE agent_reads SET last_id = (SELECT coalesce(last_msg_id, 0) FROM books WHERE id = ?) WHERE book_id = ? AND email = ?`,id,id,c.get("email"));
+      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    }
     svc.pokeFire(id,on);svc.track(on?"fire_on":"fire_off",{book:id});
     return c.json(FireResult.parse(ok),200);
   })
