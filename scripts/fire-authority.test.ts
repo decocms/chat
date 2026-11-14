@@ -1,20 +1,11 @@
-// Actual Fire/Book/storeFile consumers with a deliberately deferred model/R2.
+// Actual live-card/storeFile authority consumers; STT uses a fake Workers AI callback.
 // These fixtures do not exercise real AI, Durable Object scheduling or R2 atomicity.
 import { expect, mock, test } from "bun:test";
-import { FireResult } from "../shared/schemas";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {},
   WorkerEntrypoint: class {},
   env: {},
 }));
-let generate: () => Promise<unknown> = async () => {
-  throw Error("unexpected model call");
-};
-mock.module("ai", () => ({
-  generateText: () => generate(),
-  Output: { object: (value: unknown) => value },
-}));
-const { fire } = await import("../src/fire");
 const { Book } = await import("../src/book");
 const { storeFile } = await import("../src/rooms");
 const email = "member@example.test",
@@ -66,7 +57,6 @@ function fixture() {
   const stub = {
     messageCard: () => JSON.stringify(card),
     fireCard: (...args: unknown[]) => invoke("fireCard", receiver, ...args),
-    firePiece: (...args: unknown[]) => invoke("firePiece", receiver, ...args),
     fetch: async (url: string, init: RequestInit) => {
       const response: unknown = await invoke(
         "fetch",
@@ -119,10 +109,6 @@ function fixture() {
     waitPut: (promise: Promise<void>) => {
       putWait = promise;
     },
-    fire: async (body: unknown) =>
-      FireResult.parse(
-        await Reflect.apply(fire, undefined, [env, book, email, body]),
-      ),
     store: async () =>
       Reflect.apply(storeFile, undefined, [
         env,
@@ -135,39 +121,12 @@ function fixture() {
       ]),
   };
 }
-test("revocation while the actual card/file model is pending causes no write or message", async () => {
-  for (const body of [
-    { text: "update", card_msg: 7 },
-    { text: "update", file_id: "old" },
-  ]) {
-    const f = fixture(),
-      entered = deferred<void>(),
-      result = deferred<unknown>();
-    generate = () => {
-      entered.resolve();
-      return result.promise;
-    };
-    const operation = f.fire(body);
-    await entered.promise;
-    f.revoke();
-    result.resolve({
-      output: { card: JSON.stringify(card), title: "Safe" },
-      text: "new file",
-      usage: {},
-    });
-    expect(await operation).toEqual({ ok: false, error: "forbidden" });
-    expect(f.writes).toEqual([]);
-    expect(f.events).toEqual([]);
-    expect(f.objects.size).toBe(0);
-  }
-});
-test("actual Book card/piece commit checks current membership even when invoked directly", async () => {
+test("actual Book live-card commit checks current membership even when invoked directly", async () => {
   const f = fixture();
   f.revoke();
   expect(
     await invoke("fireCard", f.receiver, book, email, "main", "safe", card, 7),
   ).toEqual({ ok: false, error: "forbidden" });
-  await invoke("firePiece", f.receiver, book, email, "main", "safe", {});
   expect(f.writes).toEqual([]);
   expect(f.events).toEqual([]);
 });
@@ -196,4 +155,69 @@ test("authorized Fire publication still commits the original file metadata and o
     t: "fileAdd",
     file: { name: "existing.txt", author: email, type: "text/plain" },
   });
+});
+
+test("actual STT normalizer validates Workers AI output and preserves input hints without casts", async () => {
+  const { transcribeSpeech } = await import("../src/speechToText");
+  let input: unknown;
+  expect(
+    await transcribeSpeech(
+      new Uint8Array([1, 2, 3]),
+      { lang: "portuguese", prompt: "x".repeat(650) },
+      async (value) => {
+        input = value;
+        return { text: "  spoken  " };
+      },
+    ),
+  ).toEqual({ ok: true, text: "spoken" });
+  expect(input).toEqual({
+    audio: "AQID",
+    language: "portu",
+    initial_prompt: "x".repeat(600),
+    vad_filter: true,
+  });
+  expect(
+    await transcribeSpeech(new Uint8Array([0]), {}, async () => ({})),
+  ).toEqual({ ok: true, text: "" });
+  for (const value of [
+    null,
+    3,
+    "text",
+    { text: 3 },
+    { text: null },
+    { text: "x".repeat(65537) },
+  ]) {
+    await expect(
+      transcribeSpeech(new Uint8Array([0]), {}, async () => value),
+    ).rejects.toThrow();
+  }
+});
+test("actual STT byte consumer enforces chunked cap and cancels oversized input before AI", async () => {
+  const { speechAudio } = await import("../src/speechToText");
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(4_000_001));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  await expect(
+    speechAudio(
+      new Request("http://local/stt", { method: "POST", body: stream }),
+    ),
+  ).rejects.toThrow("audio empty or over 4 MB");
+  expect(cancelled).toBe(true);
+  expect(
+    await speechAudio(
+      new Request("http://local/stt", {
+        method: "POST",
+        body: new Uint8Array([0, 1]),
+      }),
+    ),
+  ).toEqual(new Uint8Array([0, 1]));
+  await expect(
+    speechAudio(new Request("http://local/stt", { method: "POST" })),
+  ).rejects.toThrow();
 });

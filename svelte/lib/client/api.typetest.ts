@@ -294,7 +294,7 @@ type GF = NonNullable<ReturnType<typeof globalFailure>>;
 sameAs<Equal<IsAny<GF["error"]>, false>>(true);
 sameAs<Equal<GF["status"], 401 | 403>>(true);
 
-// Live Fire input and output come from the owned Hono route, never a hand-written client DTO.
+// Runner Fire and Whisper are inferred from the owned validator chain.
 sameAs<
   Equal<
     InferRequestType<Client["api"]["books"][":id"]["fire"]["$post"]>["json"],
@@ -309,17 +309,33 @@ sameAs<
 >(true);
 void api.api.books[":id"].fire.$post({
   param: { id: "room" },
-  json: { text: "spoken", card_msg: 0 },
+  json: { on: false },
 });
 void api.api.books[":id"].fire.$post({
   param: { id: "room" },
-  // @ts-expect-error speech is text, never an unchecked unknown value
-  json: { text: 3 },
+  // @ts-expect-error Fire toggles a boolean; speech text belongs to STT/msg
+  json: { on: "true" },
 });
-void api.api.books[":id"].fire.$post({
+sameAs<
+  Equal<
+    InferRequestType<Client["api"]["books"][":id"]["stt"]["$post"]>["query"],
+    import("../../../shared/schemas").SttQuery
+  >
+>(true);
+sameAs<
+  Equal<
+    InferResponseType<Client["api"]["books"][":id"]["stt"]["$post"], 200>,
+    import("../../../shared/schemas").SttResult
+  >
+>(true);
+void api.api.books[":id"].stt.$post({
   param: { id: "room" },
-  // @ts-expect-error history entries are strings
-  json: { text: "spoken", history: [1] },
+  query: { lang: "pt", prompt: "vibebook" },
+});
+void api.api.books[":id"].stt.$post({
+  param: { id: "room" },
+  // @ts-expect-error query hints are strings
+  query: { prompt: 7 },
 });
 
 sameAs<

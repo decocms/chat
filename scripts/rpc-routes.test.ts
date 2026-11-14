@@ -54,8 +54,9 @@ function fixture(overrides: Partial<ApiServices> = {}) {
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
     isMember: async () => true,
-    allowFire: async () => true,
-    fire: async () => ({ ok: true, mode: "card", card_msg: 42, ms: 0 }),
+    pokeFire: () => {},
+    allowStt: async () => true,
+    transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
@@ -1073,96 +1074,6 @@ test("room sandbox presence normalizes nullable and malformed SQLite metadata wi
   }
 });
 
-test("Fire inferred route validates input/output and preserves membership/rate/business failures", async () => {
-  const calls: unknown[] = [];
-  const f = fixture({
-    fire: async (room, value) => {
-      calls.push({ room, value });
-      return { ok: true, mode: "card", card_msg: 7, ms: 0 };
-    },
-  });
-  const response = await f.json("/api/books/room/fire", {
-    text: "spoken",
-    history: ["before"],
-    card_msg: 0,
-    thread: "main",
-  });
-  expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({
-    ok: true,
-    mode: "card",
-    card_msg: 7,
-    ms: 0,
-  });
-  expect(calls).toEqual([
-    {
-      room: "room",
-      value: {
-        text: "spoken",
-        history: ["before"],
-        card_msg: 0,
-        thread: "main",
-      },
-    },
-  ]);
-  for (const body of [
-    { text: 3 },
-    { text: "x", history: [1] },
-    { text: "x", card_msg: -1 },
-    { text: "x", card_msg: 1.1 },
-  ])
-    expect((await f.json("/api/books/room/fire", body)).status).toBe(400);
-  expect(calls).toHaveLength(1);
-  for (const [svc, status] of [
-    [{ isMember: async () => false }, 403],
-    [{ allowFire: async () => false }, 429],
-  ] as const) {
-    let invoked = false;
-    const denied = fixture({
-      ...svc,
-      fire: async () => {
-        invoked = true;
-        throw Error("must not run");
-      },
-    });
-    expect(
-      (await denied.json("/api/books/room/fire", { text: "x" })).status,
-    ).toBe(status);
-    expect(invoked).toBe(false);
-  }
-  const business = fixture({
-    fire: async () => ({ ok: false, error: "model unavailable" }),
-  });
-  expect(
-    await (await business.json("/api/books/room/fire", { text: "x" })).json(),
-  ).toEqual({ ok: false, error: "model unavailable" });
-  for (const result of [
-    { ok: true, mode: "card", card_msg: 0, ms: 0 },
-    { ok: true, mode: "file", file: { id: "x" }, opened: true, ms: 0 },
-    "<html>",
-  ]) {
-    const invalid = fixture({ fire: async () => result });
-    expect(
-      (await invalid.json("/api/books/room/fire", { text: "x" })).status,
-    ).toBe(400);
-  }
-  const file = {
-    id: "f",
-    name: "live.html",
-    type: "text/html",
-    size: 0,
-    ts: 0,
-  };
-  const made = fixture({
-    fire: async () => ({ ok: true, mode: "file", file, opened: false, ms: 0 }),
-  });
-  expect(
-    await (
-      await made.json("/api/books/room/fire", { text: "x", file_id: "f" })
-    ).json(),
-  ).toEqual({ ok: true, mode: "file", file, opened: false, ms: 0 });
-});
-
 test("personal focus notices retain their validated room and reject malformed wire data", () => {
   expect(parsePersonEvent('{"t":"focus","book":"room"}')).toEqual({
     t: "focus",
@@ -1301,27 +1212,150 @@ test("focus relay authorizes the requested room before emitting a person-channel
   expect(pokes).toEqual(["owned-room"]);
 });
 
-test("late Fire membership loss uses route 403 only after a fresh membership check, preserving member provider failures", async () => {
-  for (const throws of [false, true]) {
-    for (const removed of [false, true]) {
+test("runner Fire toggles only the owned membership and rejects the retired speech contract", async () => {
+  const pokes: unknown[] = [],
+    f = fixture({
+      pokeFire: (book, on) => {
+        pokes.push({ book, on });
+      },
+    });
+  for (const on of [true, false]) {
+    const answer = await f.json("/api/books/room/fire", { on });
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toEqual({ ok: true });
+  }
+  expect(pokes).toEqual([
+    { book: "room", on: true },
+    { book: "room", on: false },
+  ]);
+  expect(f.writes.map((value) => value.values.slice(1))).toEqual([
+    ["room", "test@example.com"],
+    ["room", "test@example.com"],
+  ]);
+  expect(typeof f.writes[0].values[0]).toBe("number");
+  expect(f.writes[1].values[0]).toBe(null);
+  for (const body of [
+    {},
+    { on: "true" },
+    { text: "old model request" },
+    { on: true, extra: "no" },
+    { on: true, padding: "x".repeat(2000) },
+  ])
+    expect((await f.json("/api/books/room/fire", body)).status).toBe(400);
+  const denied = fixture({
+    isMember: async () => false,
+    pokeFire: () => {
+      throw Error("unexpected poke");
+    },
+  });
+  expect((await denied.json("/api/books/room/fire", { on: true })).status).toBe(
+    403,
+  );
+  expect(denied.writes).toEqual([]);
+});
+
+test("STT real handlers bound raw audio, gate membership/rate, and validate responses", async () => {
+  const calls: unknown[] = [],
+    f = fixture({
+      transcribe: async (audio, query) => {
+        calls.push({ audio: [...audio], query });
+        return { ok: true, text: "words" };
+      },
+    });
+  const answer = await f.app.request(
+    "/api/books/room/stt?lang=pt&lang=en&prompt=names",
+    { method: "POST", body: new Uint8Array([1, 2]) },
+  );
+  expect(answer.status).toBe(200);
+  expect(await answer.json()).toEqual({ ok: true, text: "words" });
+  expect(calls).toEqual([
+    { audio: [1, 2], query: { lang: "pt", prompt: "names" } },
+  ]);
+  for (const audio of [new Uint8Array(), new Uint8Array(4_000_001)])
+    expect(
+      (
+        await f.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: audio,
+        })
+      ).status,
+    ).toBe(400);
+  expect(calls).toHaveLength(1);
+  for (const [overrides, status] of [
+    [{ isMember: async () => false }, 403],
+    [{ allowStt: async () => false }, 429],
+  ] as const) {
+    const denied = fixture({
+      ...overrides,
+      transcribe: async () => {
+        throw Error("unexpected AI");
+      },
+    });
+    expect(
+      (
+        await denied.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: new Uint8Array([1]),
+        })
+      ).status,
+    ).toBe(status);
+  }
+  for (const result of [
+    null,
+    { ok: true, text: 7 },
+    { ok: false, error: "provider" },
+  ]) {
+    const invalid = fixture({ transcribe: async () => result });
+    expect(
+      (
+        await invalid.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: new Uint8Array([1]),
+        })
+      ).status,
+    ).toBe(502);
+  }
+});
+
+test("STT never publishes a late result after membership loss, while provider errors remain502 for members", async () => {
+  for (const removed of [false, true])
+    for (const throws of [false, true]) {
       let member = true;
       const f = fixture({
         isMember: async () => member,
-        fire: async () => {
+        transcribe: async () => {
           member = !removed;
-          if (throws) throw Error("forbidden");
-          return { ok: false, error: "forbidden" };
+          if (throws) throw Error("provider failed");
+          return { ok: true, text: "secret speech" };
         },
       });
-      const answer = await f.app.request("/api/books/room/fire", {
+      const response = await f.app.request("/api/books/room/stt", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: "Update card" }),
+        body: new Uint8Array([1]),
       });
-      expect(answer.status).toBe(removed ? 403 : throws ? 400 : 200);
-      expect(await answer.json()).toEqual(
-        removed ? { error: "forbidden" } : { ok: false, error: "forbidden" },
-      );
+      expect(response.status).toBe(removed ? 403 : throws ? 502 : 200);
+      if (removed)
+        expect(await response.json()).toEqual({
+          ok: false,
+          error: "forbidden",
+        });
     }
-  }
+});
+
+test("personal runner Fire states are bounded literals and never confuse mode with confirmation", () => {
+  expect(parsePersonEvent('{"t":"fire","book":"room","on":true}')).toEqual({
+    t: "fire",
+    book: "room",
+    on: true,
+  });
+  for (const state of ["switching", "ready", "off", "failed"])
+    expect(
+      parsePersonEvent(JSON.stringify({ t: "fireState", book: "room", state })),
+    ).toEqual({ t: "fireState", book: "room", state });
+  for (const value of [
+    { t: "fireState", book: "room", state: "anything" },
+    { t: "fire", book: "room", on: 1 },
+    { t: "fireState", book: "room", state: "ready", note: "x".repeat(201) },
+  ])
+    expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
 });

@@ -1,3 +1,4 @@
+import { PersonEventSchemas } from "../shared/person";
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
@@ -1061,7 +1062,8 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
     case "fire_state": {
       const id = await room(), state = str(a.state);
       if (!["switching", "ready", "off", "failed"].includes(state)) throw new Error("state: switching | ready | off | failed");
-      ctx.waitUntil(poke(env, [me.email], { t: "fireState", book: id, state, model: str(a.model).slice(0, 60), note: str(a.note).slice(0, 200) }));
+      const event = PersonEventSchemas.fireState.parse({ t: "fireState", book: id, state, model: str(a.model).slice(0, 60), note: str(a.note).slice(0, 200) });
+      ctx.waitUntil(poke(env, [me.email], event));
       ctx.waitUntil(track(env, "fire_state", { user: me.email, dims: { book: id, state } }));
       return { ok: true };
     }

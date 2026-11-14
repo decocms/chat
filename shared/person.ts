@@ -13,9 +13,9 @@ export const PersonEventSchemas = {
   fireState: z.object({
     t: z.literal("fireState"),
     book: z.string(),
-    state: z.string(),
-    model: z.string(),
-    note: z.string(),
+    state: z.enum(["switching", "ready", "off", "failed"]),
+    model: z.optional(z.string().check(z.maxLength(60))),
+    note: z.optional(z.string().check(z.maxLength(200))),
   }),
 };
 export const PersonEventSchema = z.discriminatedUnion("t", [

@@ -1,4 +1,5 @@
-import { FireBody, FireResult } from "../shared/schemas";
+import { FireBody, FireResult, SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
+import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
@@ -9,7 +10,7 @@ import { roomSandbox } from "./sandboxRows";
 // person), whose types are plain wire types. So AppType's declaration (.api-types, `bun run build:api-types`) stays free
 // of Worker and Cloudflare types, and every response is checked against its shared schema type with `satisfies`, so a
 // handler and the schema the client validates with can't drift apart.
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import * as zm from "zod/mini";
 import { validator } from "hono/validator";
 import type * as z from "zod/mini";
@@ -95,8 +96,9 @@ export type Bind = string | number | null;
 export interface ApiServices {
   /** Is the signed-in person a member of this room? */
   isMember(roomId: string): Promise<boolean>;
-  allowFire(): Promise<boolean>;
-  fire(roomId: string, body: FireBody): Promise<unknown>;
+  pokeFire(roomId:string,on:boolean):void;
+  allowStt():Promise<boolean>;
+  transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
   humanPost(roomId: string, text: string, thread: string): Promise<PostMessageResult>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
@@ -226,6 +228,12 @@ const body = <S extends z.ZodMiniType>(schema: S, error = "bad request") =>
 const ok = { ok: true as const } satisfies OkResult;
 const forbidden = { error: "forbidden" } satisfies ErrorBody;
 
+const boundedFireBody:MiddlewareHandler<ApiCtx>=async(c,next)=>{
+  let bytes:Uint8Array<ArrayBuffer>;
+  try{bytes=await speechAudio(c.req.raw,1024);}catch{return c.json({error:"bad request"} satisfies ErrorBody,400);}
+  c.req.raw=new Request(c.req.raw,{body:bytes});
+  await next();
+};
 const roomPosts = new Hono<ApiCtx>()
   .post(
     "/api/books/:id/post",
@@ -391,17 +399,34 @@ export const roomApi = accountApi
     svc.track(on ? "claude_on" : "claude_off", { book: id });
     return c.json({ ok: true as const, claude_on: on } satisfies ClaudeToggleResult, 200);
   })
-  .post("/api/books/:id/fire", body(FireBody), async (c) => {
-    const svc = c.get("svc"), id = c.req.param("id");
-    if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" }, 403);
-    if (!(await svc.allowFire())) return c.json({ ok: false as const, error: "rate limited: wait a few seconds" }, 429);
-    try {
-      const result = FireResult.parse(await svc.fire(id, c.req.valid("json")));
-      if (!result.ok && !(await svc.isMember(id))) return c.json(forbidden, 403);
-      return c.json(result, 200);
-    } catch (error) {
-      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
-      return c.json({ ok: false as const, error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }, 400);
+  .post("/api/books/:id/fire", boundedFireBody, body(FireBody), async (c) => {
+    const svc=c.get("svc"),id=c.req.param("id");
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    const {on}=c.req.valid("json");
+    await svc.sql(`UPDATE members SET fire_at = ? WHERE book_id = ? AND email = ?`,on?Date.now():null,id,c.get("email"));
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    svc.pokeFire(id,on);svc.track(on?"fire_on":"fire_off",{book:id});
+    return c.json(FireResult.parse(ok),200);
+  })
+  .post("/api/books/:id/stt", validator("query",(value,c)=>{
+    const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});
+    return r.success?r.data:c.json({ok:false as const,error:"bad request"},400);
+  }),async(c)=>{
+    const svc=c.get("svc"),id=c.req.param("id");
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    if(!(await svc.allowStt()))return c.json({ok:false as const,error:"rate limited: wait a few seconds"},429);
+    let audio:Uint8Array;
+    try{audio=await speechAudio(c.req.raw);}catch{return c.json({ok:false as const,error:"audio empty or over 4 MB"},400);}
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    const started=Date.now();
+    try{
+      const out=SttResult.parse(await svc.transcribe(audio,c.req.valid("query")));
+      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+      svc.track("stt",{book:id,ms:Date.now()-started,bytes:audio.byteLength});
+      return c.json(out,200);
+    }catch(error){
+      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+      return c.json({ok:false as const,error:(error instanceof Error?error.message:String(error)).slice(0,200)},502);
     }
   })
   // ↗ through the person's channel to their CLI hub, which asks the local herdr runner: the page never talks to

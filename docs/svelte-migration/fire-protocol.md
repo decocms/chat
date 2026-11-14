@@ -1,3 +1,5 @@
+> Historical server-model Fire checkpoint, superseded by main `3b86acb`. See [current runner/Whisper protocol](runner-fire-protocol.md). The retired server model and its card/file response are no longer the Fire API contract.
+
 # Fire and refreshed main protocol
 
 The owned `POST /api/books/:id/fire` route belongs to the inferred Hono `AppType`, with shared runtime `FireBody`/`FireResult` validation. Membership and the existing per-person AI limiter run before generation. Existing model/business failures remain `{ok:false,error}`; successful card and file replies are discriminated by `mode`. File results intentionally contain server file metadata without an invented author: side-file consumers resolve the canonical room attachment. Provider calls, file/card creation policy and billing rates are unchanged.
