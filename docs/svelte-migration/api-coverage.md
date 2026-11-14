@@ -22,6 +22,7 @@ Every route the Worker answers, generated from `src/*.ts` at the start of M2 (ma
 | GET | `/api/books/:id/connections/:cid/signin` | `src/mcpconn.ts:229` | browser navigation / redirect | 37 | n/a (documented) |
 | POST | `/api/books/:id/connections/:cid/signout` | `src/api.ts` | JSON RPC | 37 | tested (slice 9) |
 | GET | `/api/books/:id/connections/:cid/ui` | `src/api.ts` | JSON RPC (`{ html, tool }`: the app HTML travels as a string for srcdoc) | 37 | tested (slice 9; was listed as an HTML resource, but it answers JSON) |
+| POST | `/api/books/:id/focus` | `src/api.ts` | JSON RPC (authenticated person/CLI relay) | current runner | inferred native client, response/missing-param type fixtures and authorized/forbidden real-handler tests; final browser pending |
 | POST | `/api/books/:id/fire` | `src/api.ts` | JSON RPC (live card/file update) | current Fire | typed shared input/output + positive/negative inference and fake-service handler fixtures; refreshed runtime gates pending |
 | POST | `/api/books/:id/files` | `src/api.ts` | binary upload (typed adapter) | 37 | tested (slice 1) |
 | GET | `/api/books/:id/files/:fid` | `src/index.ts:813` | binary GET (asset) | 37 | n/a (documented) |

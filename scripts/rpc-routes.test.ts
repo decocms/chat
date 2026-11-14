@@ -1274,3 +1274,54 @@ test("new card presentation props survive normalization and bounded runtime DTO 
     data: [{ label: "zero", value: 0 }],
   });
 });
+
+test("focus relay authorizes the requested room before emitting a person-channel notice", async () => {
+  const pokes: string[] = [],
+    checked: string[] = [];
+  const f = fixture({
+    isMember: async (id) => {
+      checked.push(id);
+      return id === "owned-room";
+    },
+    pokeFocus: (id) => {
+      pokes.push(id);
+    },
+  });
+  const allowed = await f.app.request("/api/books/owned-room/focus", {
+    method: "POST",
+  });
+  expect(allowed.status).toBe(200);
+  expect(await allowed.json()).toEqual({ ok: true });
+  const refused = await f.app.request("/api/books/private-room/focus", {
+    method: "POST",
+  });
+  expect(refused.status).toBe(403);
+  expect(await refused.json()).toEqual({ error: "forbidden" });
+  expect(checked).toEqual(["owned-room", "private-room"]);
+  expect(pokes).toEqual(["owned-room"]);
+});
+
+test("late Fire membership loss uses route 403 only after a fresh membership check, preserving member provider failures", async () => {
+  for (const throws of [false, true]) {
+    for (const removed of [false, true]) {
+      let member = true;
+      const f = fixture({
+        isMember: async () => member,
+        fire: async () => {
+          member = !removed;
+          if (throws) throw Error("forbidden");
+          return { ok: false, error: "forbidden" };
+        },
+      });
+      const answer = await f.app.request("/api/books/room/fire", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: "Update card" }),
+      });
+      expect(answer.status).toBe(removed ? 403 : throws ? 400 : 200);
+      expect(await answer.json()).toEqual(
+        removed ? { error: "forbidden" } : { ok: false, error: "forbidden" },
+      );
+    }
+  }
+});

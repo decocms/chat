@@ -395,8 +395,14 @@ export const roomApi = accountApi
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" }, 403);
     if (!(await svc.allowFire())) return c.json({ ok: false as const, error: "rate limited: wait a few seconds" }, 429);
-    try { return c.json(FireResult.parse(await svc.fire(id, c.req.valid("json"))), 200); }
-    catch (error) { return c.json({ ok: false as const, error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }, 400); }
+    try {
+      const result = FireResult.parse(await svc.fire(id, c.req.valid("json")));
+      if (!result.ok && !(await svc.isMember(id))) return c.json(forbidden, 403);
+      return c.json(result, 200);
+    } catch (error) {
+      if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+      return c.json({ ok: false as const, error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }, 400);
+    }
   })
   // ↗ through the person's channel to their CLI hub, which asks the local herdr runner: the page never talks to
   // 127.0.0.1 itself, so the browser's Local Network Access permission isn't needed (Gui, 14/11).

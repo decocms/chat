@@ -321,3 +321,12 @@ void api.api.books[":id"].fire.$post({
   // @ts-expect-error history entries are strings
   json: { text: "spoken", history: [1] },
 });
+
+sameAs<
+  Equal<
+    InferResponseType<Client["api"]["books"][":id"]["focus"]["$post"], 200>,
+    OkResult
+  >
+>(true);
+// @ts-expect-error the relay's requested room parameter is required
+void api.api.books[":id"].focus.$post({});
