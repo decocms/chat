@@ -736,6 +736,10 @@ const EN: Readonly<Record<string, string>> = {
   "Um app da sala é um arquivo HTML em apps/ que usa a sala pelo iframe: lê o doc, as tarefas e as mensagens, posta e mexe nas tarefas (com o seu OK). Peça pro seu agent: “faz um app apps/enquete.html pra esta sala”.":
     "A room app is an HTML file in apps/ that uses the room through its iframe: it reads the doc, tasks and messages, posts and moves tasks (with your OK). Ask your agent: “make an app apps/poll.html for this room”.",
   "Este app quer {what}, como você:": "This app wants to {what}, as you:",
+  "Abrir este app pode executar ferramentas na sua conta.":
+    "Opening this app may run tools on your account.",
+  "App não aberto.": "App not opened.",
+  Reabrir: "Reopen",
   Permitir: "Allow",
   postar: "post",
   "criar uma tarefa": "add a task",

@@ -30,6 +30,7 @@
     active = true,
     error = $state(""),
     loading = $state(true),
+    declined = $state(false),
     signinNeeded = $state(false);
   const selected = untrack(() => get(props.owner.state).target),
     initialKey = untrack(() =>
@@ -59,11 +60,15 @@
       selected,
     ) === initialKey;
   const documentCurrent = () => current() && !!bridge?.active();
-  const consent = createAppConsent(documentCurrent),
+  // A document marker is another person's content, not this reader's Open action.
+  // This opening question deliberately precedes any private document capability.
+  const openingConsent = createAppConsent(current),
+    openingQuestion = openingConsent.question,
+    consent = createAppConsent(documentCurrent),
     question = consent.question;
   const ask = consent.ask;
   function choose(intent: AppQuestion, answer: boolean) {
-    consent.choose(intent, answer);
+    if (!openingConsent.choose(intent, answer)) consent.choose(intent, answer);
   }
   const connected = (event: Event) =>
     current() &&
@@ -154,6 +159,24 @@
     if (!frame || !selected || !initialKey) return;
     const isRoom = selected.connection === "room";
     try {
+      if (inline && !isRoom) {
+        const connection = get(props.owner.state).connections?.find(
+          (item) => item.id === selected.connection,
+        );
+        const allowed = await openingConsent.ask(
+          props.t("usar {tool} em {conn}", {
+            tool: selected.tool,
+            conn: connection?.title || selected.connection,
+          }),
+          props.t("Abrir este app pode executar ferramentas na sua conta."),
+        );
+        if (!current()) return;
+        if (!allowed) {
+          declined = true;
+          loading = false;
+          return;
+        }
+      }
       const loaded = await requests.run(
         props.loadBridge ?? (() => import("./bridge")),
       );
@@ -187,6 +210,7 @@
         revoked: () => {
           if (!current()) return;
           requests.dispose();
+          openingConsent.cancel();
           consent.cancel();
           loading = false;
           error =
@@ -262,6 +286,7 @@
     active = false;
     requests.dispose();
     bridge?.dispose();
+    openingConsent.dispose();
     consent.dispose();
   });
 </script>
@@ -288,7 +313,18 @@
         }}>{props.t("Tentar de novo")}</Button
       >
     </div>{/if}
-  {#if $question}{#key $question}<Snapshot value={$question}>
+  {#if declined}<div role="status" class="tw:space-y-2 tw:p-3">
+      <p>{props.t("App não aberto.")}</p>
+      <Button
+        variant="outline"
+        onclick={(event) => {
+          if (connected(event)) props.owner.reload();
+        }}>{props.t("Reabrir")}</Button
+      >
+    </div>{/if}
+  {#if $openingQuestion || $question}{#key $openingQuestion || $question}<Snapshot
+        value={($openingQuestion || $question)!}
+      >
         {#snippet children(intent)}
           <section
             aria-label={props.t("Permissão do app")}
@@ -340,6 +376,6 @@
     class={inline
       ? "tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"
       : "tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"}
-    hidden={!!error}
+    hidden={!!error || declined || !!$openingQuestion}
   ></iframe>
 </div>

@@ -6006,6 +6006,8 @@ test("document inline Apps keep independent consent and stable frames, and revok
     import("../svelte/features/apps/bridge").NativeAppBridgeOptions;
   const bridges: Options[] = [],
     calls: string[] = [],
+    uiReads: string[] = [],
+    bridgeLoads: string[] = [],
     writes: RoomCommand[] = [],
     puts: { connection: string; tool: string }[] = [];
   const connection: import("../shared/schemas").Connection = {
@@ -6032,7 +6034,20 @@ test("document inline Apps keep independent consent and stable frames, and revok
         screen: true,
       },
     ],
-    tools: [],
+    tools: [
+      {
+        name: "screen",
+        description: "Controlled mutating tool",
+        read_only: false,
+        app: true,
+      },
+      {
+        name: "other",
+        description: "Controlled mutating tool",
+        read_only: false,
+        app: true,
+      },
+    ],
     context: {},
   };
   const api: import("../svelte/features/apps/api").AppsApi = {
@@ -6044,10 +6059,13 @@ test("document inline Apps keep independent consent and stable frames, and revok
     remove: async () => ({ ok: true }),
     refresh: async () => ({ ok: true, connection }),
     signout: async () => ({ ok: true }),
-    ui: async (_cid, tool) => ({
-      html: "<p>Controlled UI</p>",
-      tool: { name: tool },
-    }),
+    ui: async (_cid, tool) => {
+      uiReads.push(tool);
+      return {
+        html: "<p>Controlled UI</p>",
+        tool: { name: tool, annotations: { readOnlyHint: false } },
+      };
+    },
     call: async (_cid, tool) => {
       calls.push(tool);
       return { result: toolOutput("controlled result") };
@@ -6097,25 +6115,28 @@ test("document inline Apps keep independent consent and stable frames, and revok
     openLink() {},
     metric: async () => ({}),
     putInDocument: (target) => puts.push(target),
-    loadBridge: async () => ({
-      appToolInfo: protocol.appToolInfo,
-      remoteToolResult: protocol.remoteToolResult,
-      createNativeAppBridge: (options) => {
-        bridges.push(options);
-        let active = true;
-        return {
-          ready: Promise.resolve(),
-          active: () => active && options.current(),
-          attest: async () => active && options.current(),
-          loadHtml() {},
-          loadFile() {},
-          update() {},
-          dispose() {
-            active = false;
-          },
-        };
-      },
-    }),
+    loadBridge: async () => {
+      bridgeLoads.push("load");
+      return {
+        appToolInfo: protocol.appToolInfo,
+        remoteToolResult: protocol.remoteToolResult,
+        createNativeAppBridge: (options) => {
+          bridges.push(options);
+          let active = true;
+          return {
+            ready: Promise.resolve(),
+            active: () => active && options.current(),
+            attest: async () => active && options.current(),
+            loadHtml() {},
+            loadFile() {},
+            update() {},
+            dispose() {
+              active = false;
+            },
+          };
+        },
+      };
+    },
   };
   const props: DocumentProps = {
     room: canonical,
@@ -6150,6 +6171,31 @@ test("document inline Apps keep independent consent and stable frames, and revok
       flushSync();
     }
   };
+  const button = (root: ParentNode, label: string) =>
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find(
+      (value) => value.textContent?.trim() === label,
+    )!;
+  await settled();
+  const cards = [...target.querySelectorAll("[data-document-app]")];
+  expect(cards).toHaveLength(2);
+  expect(calls).toEqual([]);
+  expect(uiReads).toEqual([]);
+  expect(bridgeLoads).toEqual([]);
+  expect(bridges).toEqual([]);
+  button(cards[1]!, "Cancelar").click();
+  await settled();
+  expect(cards[1]!.textContent).toContain("App não aberto.");
+  expect(calls).toEqual([]);
+  button(cards[0]!, "Permitir").click();
+  await settled();
+  expect(calls).toEqual(["screen"]);
+  expect(uiReads).toEqual(["screen"]);
+  expect(bridges).toHaveLength(1);
+  button(cards[1]!, "Reabrir").click();
+  await settled();
+  expect(calls).toEqual(["screen"]);
+  expect(bridges).toHaveLength(1);
+  button(cards[1]!, "Permitir").click();
   await settled();
   const frames = [...target.querySelectorAll("iframe")];
   expect(frames).toHaveLength(2);
@@ -6160,11 +6206,6 @@ test("document inline Apps keep independent consent and stable frames, and revok
   const askA = first.ask("write A", "independent A"),
     askB = second.ask("write B", "independent B");
   await settled();
-  const cards = [...target.querySelectorAll("[data-document-app]")];
-  const button = (root: ParentNode, label: string) =>
-    [...root.querySelectorAll<HTMLButtonElement>("button")].find(
-      (value) => value.textContent?.trim() === label,
-    )!;
   button(cards[0]!, "Permitir").click();
   button(cards[1]!, "Cancelar").click();
   await settled();
@@ -6213,6 +6254,13 @@ test("document inline Apps keep independent consent and stable frames, and revok
     },
   });
   await settled();
+  const callsBeforeNestedGrant = calls.length;
+  const nestedCards = [...target.querySelectorAll("[data-document-app]")];
+  expect(bridges.filter((bridge) => bridge.current())).toHaveLength(0);
+  expect(calls).toHaveLength(callsBeforeNestedGrant);
+  for (const card of nestedCards) button(card, "Permitir").click();
+  await settled();
+  expect(calls).toHaveLength(callsBeforeNestedGrant + 2);
   const nestedFrames = [...target.querySelectorAll("iframe")],
     nestedCalls = calls.length;
   expect(nestedFrames).toHaveLength(2);
@@ -6270,6 +6318,26 @@ test("document inline Apps keep independent consent and stable frames, and revok
   });
   await settled();
   expect(oldFrame.isConnected).toBe(false);
+  const staleAllow = button(
+      target.querySelector("[data-document-app]")!,
+      "Permitir",
+    ),
+    callsBeforeRemoval = calls.length;
+  canonical = { ...canonical, doc: "" };
+  owner.sync(canonical, "main");
+  expect(staleAllow.isConnected).toBe(true);
+  staleAllow.click();
+  expect(calls).toHaveLength(callsBeforeRemoval);
+  view.update({
+    owner,
+    props: {
+      ...props,
+      room: canonical,
+      apps: { ...appProps, room: canonical },
+    },
+  });
+  await settled();
+  expect(target.querySelector("[data-document-app]")).toBeNull();
   // The Apps toolbar's existing immutable-target callback is exercised with the same real catalog owner.
   appsOwner.load();
   await settled();
