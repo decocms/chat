@@ -113,6 +113,7 @@ export async function auditNativeFireGesture(
     // This independent fresh context reloads once to install metadata-only
     // native observers before the application acquires any media resources.
     await page.addInitScript(() => {
+      if (window !== window.top) return;
       const tracks: MediaStreamTrack[] = [],
         contexts: AudioContext[] = [];
       const state: MediaSnapshot = {
@@ -206,7 +207,9 @@ export async function auditNativeFireGesture(
       });
     });
     page.on("pageerror", (error) => report.pageErrors.push(error.name));
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.goto(`${fixture.base}/b/${fixture.roomId}?ui=svelte`, {
+      waitUntil: "domcontentloaded",
+    });
     const media = () =>
       page.evaluate(() => {
         const state = window.__vbFireGestureMedia;

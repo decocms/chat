@@ -2,7 +2,9 @@
 // Worker. Fixtures enter through public HTTP/MCP, never SQL or fabricated WS.
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   chromium,
   expect as baseExpect,
@@ -52,6 +54,11 @@ declare global {
 }
 import { auditInlineAppOpen } from "./native-inline-app-open-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
+import {
+  auditNativeFireGesture,
+  fireGestureBrowserArgs,
+  writeFireGestureTone,
+} from "./native-fire-gesture-browser";
 import { auditNativeAppNavigation } from "./native-app-navigation-probe";
 import { vanillaAppNavigationDriver } from "./app-navigation-ui-driver";
 import {
@@ -434,10 +441,17 @@ async function anchor(page: Page) {
   });
 }
 
+let fireMediaDirectory: string | undefined;
 try {
+  fireMediaDirectory = await mkdtemp(join(tmpdir(), "vibebook-fire-gesture-"));
+  const fireTone = await writeFireGestureTone(fireMediaDirectory);
   browser = await chromium.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-gpu"],
+    args: [
+      "--no-sandbox",
+      "--disable-gpu",
+      ...fireGestureBrowserArgs(fireTone),
+    ],
   });
   if (interrupted) throw Error("Interrupted startup");
   report.browserVersion = browser.version();
@@ -1216,6 +1230,9 @@ try {
     },
   };
   report.profileAuditArtifact = "native-root-profiles.json";
+  await independentAudit("fire-native-gesture", async () => {
+    report.fireGesture = await auditNativeFireGesture(profileFixture);
+  });
   await independentAudit("profiles", async () => {
     report.profileAudit = await auditNativeApplicationProfiles(profileFixture);
   });
@@ -1276,6 +1293,8 @@ try {
   // application's earlier close invocation. The hook stores no socket refs.
   report.browserCloseInvocations = await closeInvocationEvidence();
   await closeBrowser();
+  if (fireMediaDirectory)
+    await rm(fireMediaDirectory, { recursive: true, force: true });
   contexts.clear();
   process.off("SIGINT", signal);
   process.off("SIGTERM", signal);
