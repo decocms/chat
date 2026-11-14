@@ -1,33 +1,33 @@
 {
-  "sourceRevision": "00e1cf1dd561de925895d4c17c0d0672bd07b667",
+  "sourceRevision": "5a7f2c1c74c2721ecd827114860bc62ef330262e",
   "node": "22.23.5",
   "bun": "1.4.4",
-  "archiveSHA256": "8b783c499ec5c47fe7ca7049ff2e57e568163186db212604b6e2eb630be97f9a",
-  "previewFiles": 79,
+  "archiveSHA256": "41a04d8764d39cb116669bfaa4abdd9a4ce6324256e72493cea6fd3fb486e352",
+  "previewFiles": 85,
   "sha256": {
-    "public/app-svelte.html": "5ce3114bacc15be3805cc8b13564dd971a0ea0b36f6903218ff0b0dbf1a77d21",
-    "public/svelte-preview/app.js": "30f1e921986f72735bd433ed31ecab9e6be67df4668f5f71ca9c3ea9feb37ec5",
-    "public/svelte-preview/ui.css": "0c77adf933880354309872ec327f497169737993bbc32d01ea508b805af88ed6",
+    "public/app-svelte.html": "3381ff42137bce73a1cf4cd8e8df87b07f0e09ba64f0ca3599bf4cd6bde7e2fd",
+    "public/svelte-preview/app.js": "55905df114c05c3e6135159e6184eca5f64db6a99a79cd79468870f7b4256b3c",
+    "public/svelte-preview/ui.css": "f54cb44f799dff5ecf9a41a1f240f342bb5da138e790a5d1d7238cd298aa4f7e",
     "public/sw.js": "80559c131cecdc0371262a69cbb70a1c0b8823a578a072459036fa65b9d867b7"
   },
   "defaultAssetsUnchangedByRefresh": {
-    "public/app.html": "d024591c5ecea0af9364ff3fd53e9ee5fc45b30eddf352ab7a11ff1a22a3e157",
+    "public/app.html": "0f90a4e58aa191b7ee097394c89147d5e4425506bafff0b83b4612edc4148a1c",
     "public/svelte/ui.js": "863eaed36b1b8419013a7a07d72aac26a00a90e69ab99fa0a0682803499d22b8"
   },
   "emittedJavaScriptComparison": {
     "before": {
       "files": 78,
-      "rawBytes": 3018049,
-      "separatelyGzippedBytes": 833495,
-      "newlineCount": 86235
-    },
-    "after": {
-      "files": 78,
       "rawBytes": 2354549,
       "separatelyGzippedBytes": 747920,
       "newlineCount": 346
     },
+    "after": {
+      "files": 84,
+      "rawBytes": 2395940,
+      "separatelyGzippedBytes": 763492,
+      "newlineCount": 358
+    },
     "scope": "Entire emitted JS graph, including unrequested lazy entries; same gzip level 6 for each file. Not observed initial transfer, readiness, or a performance-budget result."
   },
-  "verification": "Fresh native build and all 23 repository gates pass at this source revision. Final CI/browser/performance and authenticated production acceptance remain required. Original Studio fonts stay active."
+  "verification": "Fresh native build and all 24 repository gates pass at this source revision. Final CI/browser/performance and authenticated production acceptance remain required. Original Studio fonts stay active."
 }
