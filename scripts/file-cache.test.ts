@@ -168,3 +168,16 @@ test("actual Hono HEAD preserves full/range headers without a response body", as
     expect(response.headers.get("content-length")).toBe(ranged ? "1" : null);
   }
 });
+
+test("R2 range dictionaries with a present undefined suffix use their offset/length values", async () => {
+  // Structural SDK unions do not forbid extra optional dictionary fields.
+  // Miniflare's own public R2 handler also tests suffix VALUE, not presence.
+  const range = { offset: 0, length: 1, suffix: undefined };
+  const response = await fileResponse(range, "0").request("/file", {
+    headers: { range: "bytes=0-0" },
+  });
+  expect(response.status).toBe(206);
+  expect(response.headers.get("content-range")).toBe("bytes 0-0/10");
+  expect(response.headers.get("content-length")).toBe("1");
+  expect(await response.text()).toBe("0");
+});

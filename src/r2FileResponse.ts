@@ -16,14 +16,17 @@ export function r2FileResponse(
   const range = object.range;
   if (!ranged || !range || !("body" in object))
     return new Response("body" in object ? object.body : null, { headers });
+  // SDK dictionaries can expose optional fields with an undefined value.
+  // Property presence narrows the public union, but does not select the range.
+  const suffix = "suffix" in range ? range.suffix : undefined;
+  const offset = "offset" in range ? range.offset : undefined;
+  const boundedLength = "length" in range ? range.length : undefined;
   const start =
-    "suffix" in range
-      ? Math.max(0, object.size - range.suffix)
-      : (range.offset ?? 0);
+    suffix !== undefined ? Math.max(0, object.size - suffix) : (offset ?? 0);
   const length =
-    "suffix" in range
+    suffix !== undefined
       ? object.size - start
-      : (range.length ?? object.size - start);
+      : (boundedLength ?? object.size - start);
   headers.set(
     "content-range",
     `bytes ${start}-${start + length - 1}/${object.size}`,
