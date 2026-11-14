@@ -8,23 +8,26 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
-The latest retained passing published checkpoint is source head `366450e`:
-[repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43623424612),
-[integrated actual-Worker browser](https://github.com/vibegui/vibebook.dev/actions/runs/43623424616),
-[App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43623424671), and
-[source HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43623483513)
-all pass. [Original JSON and exact provenance](native-application-browser/2026-11-14-366450e/README.md)
-are retained, including twenty editor/socket lifecycle cycles and eight
-language/theme/device profiles. The repository workflow includes Linux/macOS,
-generated asset consistency and the production gallery layout scenario.
+The latest published checkpoint is source head `139573a`:
+[repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43632961178),
+[integrated actual-Worker browser](https://github.com/vibegui/vibebook.dev/actions/runs/43632969916), and
+[App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43632978504)
+pass. The repository workflow includes Linux/macOS, generated asset consistency
+and the production gallery layout scenario. Its
+[source HMR run](https://github.com/vibegui/vibebook.dev/actions/runs/43632716991)
+failed because the new AI binding triggered Wrangler remote authentication.
+Explicit local mode and child-exit observation fix the reproduced failure;
+[the complete ten-step local HMR proof](source-hmr-local-worker.md) passes.
+Published-head HMR revalidation remains required.
 
-The latest complete [performance cohort](performance/2026-11-14-366450e/README.md)
-executes all 32 original trials but fails **12 of 16 budget comparisons**.
-Application gzip references are 356916 B against a 220207 B limit; fonts are
-826876 B against approximately 293033 B. Readiness, thread switch, first history
-load and heap also fail. Three of four separate excluded diagnostic trials
-complete; native desktop diagnostics fail with `cpu-invalid`. Neither execution
-success nor diagnostics waive acceptance budgets.
+The latest complete [performance cohort](performance/2026-11-14-139573a/README.md)
+executes all 32 original trials but fails **11 of 16 budget comparisons**.
+Application gzip is 358662 B against a 220947 B limit; fonts are 826876 B against
+approximately 293031 B. Readiness, thread switch and heap fail on both devices;
+first history load fails on mobile. Three of four separate excluded diagnostic
+trials complete; native mobile diagnostics fail with `cpu-invalid`. Neither
+execution success nor diagnostics waive acceptance budgets. The original JSON,
+report and module metadata are retained with exact hashes.
 
 Current integration baseline is main `868b375`, merged at `6b58be8`.
 Fire now uses a dedicated Haiku runner tab and Workers AI transcription, with
