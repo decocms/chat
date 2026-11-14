@@ -411,6 +411,78 @@ export function createDocumentSession(options: Options) {
         }
       });
   }
+  function writeInput(text:string, preview:boolean):void {
+      if (
+        !active ||
+        (value.status !== "fallback" && !(preview && value.mode === "preview")) ||
+        !value.target ||
+        !room ||
+        !owner.authorized()
+      )
+        return;
+      const target = value.target,
+        ticket = generation,
+        write = ++writeRevision;
+      localText = text;
+      publish({ text, fallbackPending: true, fallbackUnconfirmed: false });
+      if(!active || ticket!==generation || write!==writeRevision || !value.target || targetKey(target)!==targetKey(value.target) || !owner.authorized())return;
+      if (confirmationTimer !== undefined) cancel(confirmationTimer);
+      confirmationTimer = undefined;
+      options.drafts.set(target, { text, scroll: element?.scrollTop ?? 0 });
+      if (timer !== undefined) cancel(timer);
+      timer = schedule(() => {
+        timer = undefined;
+        if (
+          !active ||
+          ticket !== generation ||
+          write !== writeRevision ||
+          !room ||
+          !value.target ||
+          targetKey(target) !== targetKey(value.target) ||
+          room.me !== target.account ||
+          room.id !== target.roomId ||
+          (target.epicId && !room.epics.some((e) => e.id === target.epicId))
+        )
+          return;
+        const current = () =>
+          active &&
+          ticket === generation &&
+          write === writeRevision &&
+          value.target &&
+          targetKey(target) === targetKey(value.target) &&
+          value.fallbackPending;
+        void options
+          .request({ t: "doc", text, epic: target.epicId ?? undefined })
+          .then((outcome) => {
+            if (!current()) return;
+            if (!outcome.ok) {
+              publish({ error: true, fallbackUnconfirmed: true });
+              return;
+            }
+            // One read after the actual ACK reconciles the canonical mirror; it
+            // never repeats a mutation or treats the ACK as durable CRDT storage.
+            return options
+              .request({ t: "doc.get", epic: target.epicId ?? undefined })
+              .then((read) => {
+                if (current() && !read.ok)
+                  publish({ error: true, fallbackUnconfirmed: true });
+              });
+          })
+          .catch(() => {
+            if (current()) publish({ error: true, fallbackUnconfirmed: true });
+          });
+        if(!current())return;
+        publish({ fallbackPending: true });
+        if(!current())return;
+        confirmationTimer = schedule(() => {
+          if (!active || ticket !== generation || write !== writeRevision)
+            return;
+          confirmationTimer = undefined;
+          if (value.fallbackPending)
+            publish({ fallbackUnconfirmed: true, error: true });
+        }, 30000);
+      }, 400);
+  }
   const owner = {
     state,
     authorized: () =>
@@ -727,75 +799,7 @@ export function createDocumentSession(options: Options) {
       });
       publish({ orphaned: options.drafts.orphans(room) });
     },
-    input(text: string) {
-      if (
-        !active ||
-        (value.status !== "fallback" && value.mode !== "preview") ||
-        !value.target ||
-        !room ||
-        !owner.authorized()
-      )
-        return;
-      const target = value.target,
-        ticket = generation,
-        write = ++writeRevision;
-      localText = text;
-      publish({ text, fallbackPending: true, fallbackUnconfirmed: false });
-      if (confirmationTimer !== undefined) cancel(confirmationTimer);
-      confirmationTimer = undefined;
-      options.drafts.set(target, { text, scroll: element?.scrollTop ?? 0 });
-      if (timer !== undefined) cancel(timer);
-      timer = schedule(() => {
-        timer = undefined;
-        if (
-          !active ||
-          ticket !== generation ||
-          write !== writeRevision ||
-          !room ||
-          !value.target ||
-          targetKey(target) !== targetKey(value.target) ||
-          room.me !== target.account ||
-          room.id !== target.roomId ||
-          (target.epicId && !room.epics.some((e) => e.id === target.epicId))
-        )
-          return;
-        const current = () =>
-          active &&
-          ticket === generation &&
-          write === writeRevision &&
-          value.target &&
-          targetKey(target) === targetKey(value.target) &&
-          value.fallbackPending;
-        void options
-          .request({ t: "doc", text, epic: target.epicId ?? undefined })
-          .then((outcome) => {
-            if (!current()) return;
-            if (!outcome.ok) {
-              publish({ error: true, fallbackUnconfirmed: true });
-              return;
-            }
-            // One read after the actual ACK reconciles the canonical mirror; it
-            // never repeats a mutation or treats the ACK as durable CRDT storage.
-            return options
-              .request({ t: "doc.get", epic: target.epicId ?? undefined })
-              .then((read) => {
-                if (current() && !read.ok)
-                  publish({ error: true, fallbackUnconfirmed: true });
-              });
-          })
-          .catch(() => {
-            if (current()) publish({ error: true, fallbackUnconfirmed: true });
-          });
-        publish({ fallbackPending: true });
-        confirmationTimer = schedule(() => {
-          if (!active || ticket !== generation || write !== writeRevision)
-            return;
-          confirmationTimer = undefined;
-          if (value.fallbackPending)
-            publish({ fallbackUnconfirmed: true, error: true });
-        }, 30000);
-      }, 400);
-    },
+    input(text:string) { writeInput(text,false); },
     /** Atomic preview edits use this same write owner, never a second provider. */
     rewrite(
       expectedTarget: DocumentTarget,
@@ -824,8 +828,8 @@ export function createDocumentSession(options: Options) {
         return true;
       }
       if (value.mode !== "preview" && value.status !== "fallback") return false;
-      owner.input(text);
-      return true;
+      writeInput(text,true);
+      return owner.authorized() && !!value.target && targetKey(value.target)===targetKey(expectedTarget);
     },
     recoveryToken(): RecoveryToken | null {
       if (!active || !value.target || value.recovery === null) return null;

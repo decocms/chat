@@ -1017,3 +1017,12 @@ test("captured inline App callbacks reject canonical marker replacement before a
   h.owner.dispose();
   expect(current(key)).toBe(false);
 });
+
+test('public fallback controls cannot acquire programmatic preview authority and publication disposal stays terminal',()=>{
+ const h=setup(), target=h.owner.target()!, source=get(h.owner.state).text;
+ h.owner.input('old textarea event');expect(get(h.owner.state).text).toBe(source);expect(h.writes).toEqual([]);
+ const stop=h.owner.state.subscribe(view=>{if(view.fallbackPending)h.owner.dispose();});
+ expect(h.owner.rewrite(target,source,'controlled preview edit')).toBe(false);
+ expect(get(h.owner.state).target).toBeNull();expect(get(h.owner.state).text).toBe('');
+ h.clock.run(true);expect(h.writes).toEqual([]);stop();
+});
