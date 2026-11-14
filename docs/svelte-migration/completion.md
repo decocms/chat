@@ -8,48 +8,37 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
-The latest retained passing actual-Worker cohort is associated with source head
-`64fd62a`, tested as PR merge `8a7351e269d8bd9bb3f6837d604637fe5e372d33` in
-[run 43614897139](https://github.com/vibegui/vibebook.dev/actions/runs/43614897139).
-Its [unchanged reports and exact provenance](native-application-browser/2026-11-14-main-f07/README.md)
-cover the seven core phases, twenty editor/socket cycles, eight English/Portuguese
-light/dark desktop/mobile profiles without axe violations, the new canonical
-endcard task lifecycle, and native/default App initial-read/replacement-denial.
-The standalone App transport suite also passes in
-[run 43614897120](https://github.com/vibegui/vibebook.dev/actions/runs/43614897120).
-The earlier [controlled HTTP document proof](app-document-browser/2026-11-14-file-post/README.md)
-retains actual same-frame POST routing and denial evidence. These functional
-results do not establish production, real-provider intelligence or performance
-acceptance.
+The latest retained passing published checkpoint is source head `366450e`:
+[repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43623424612),
+[integrated actual-Worker browser](https://github.com/vibegui/vibebook.dev/actions/runs/43623424616),
+[App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43623424671), and
+[source HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43623483513)
+all pass. [Original JSON and exact provenance](native-application-browser/2026-11-14-366450e/README.md)
+are retained, including twenty editor/socket lifecycle cycles and eight
+language/theme/device profiles. The repository workflow includes Linux/macOS,
+generated asset consistency and the production gallery layout scenario.
 
-Latest complete performance evidence is source head `b292537`: all 32 desktop
-and mobile trials execute successfully, but twelve of sixteen budget comparisons
-fail. [The original results and receipt](performance/2026-11-14-full-native/README.md)
-retain the unchanged limits. Execution success is not performance acceptance;
-the runner now makes failed or unverified budgets fail its CI exit code.
+The latest complete [performance cohort](performance/2026-11-14-366450e/README.md)
+executes all 32 original trials but fails **12 of 16 budget comparisons**.
+Application gzip references are 356916 B against a 220207 B limit; fonts are
+826876 B against approximately 293033 B. Readiness, thread switch, first history
+load and heap also fail. Three of four separate excluded diagnostic trials
+complete; native desktop diagnostics fail with `cpu-invalid`. Neither execution
+success nor diagnostics waive acceptance budgets.
 
-[Source HMR passes at `b292537`](https://github.com/vibegui/vibebook.dev/actions/runs/43585067909);
-final-head revalidation remains required. The later BugMachine checkpoint
-`00e1cf1` passes a fresh native build and all 23 repository gates. Its compact
-generated preview is committed, with the exact producer and preserved default
-asset hashes in [the build receipt](preview-build-2026-11-14.json). This is source
-and build evidence, not a final browser or performance acceptance result.
+Current integration baseline is main `3b86acb`, merged at `2d1b6ae`.
+It replaces the previous server-side Fire model with the user's Claude runner
+and Workers AI transcription, and adds alongside-file context to sent messages.
+Native ports, typed backend contracts and new real-browser coverage are being
+reconciled against that published behavior. The passing `366450e` cohort
+predates this new baseline and the independent inline-document reader-approval
+audit. Combined-head verification is required before parity can be claimed.
 
-The later `0f650eb` intermediate checkpoint also passes a fresh native build
-and all 24 current repository gates, including mandatory deterministic router
-checks; [the exact receipt](verification/2026-11-14-current-main-source.json)
-records the source and log hash. This precedes native file-side/voice integration
-and still needs final generated assets and browser revalidation.
-
-Current integration baseline is main `f07d6a2`, merged at `914d399`.
-It adds Fire/dictation, inline document apps, richer cards and new file flows
-after those passing cohorts. Native ports and combined-head verification are
-in progress; [the current ledger](change-ledger.md) records required behavior
-and evidence gaps. Typed runner focus now uses the server relay; only an existing
-permission grant allows optional local folder hints. The in-place Inbox and mobile
-Back ports are implemented but still need the combined final browser cohort.
-Current API declarations generate successfully; backend/UI/tooling checks are
-being reconciled against the new contracts.
+The [source/build receipt](verification/5a7f2c1-current-main-source.json)
+records the all-24-gate producer of the committed preview at `366450e`.
+Later source changes require another build, generated asset refresh and browser
+cohort. [The current ledger](change-ledger.md) retains the outstanding behavior
+and acceptance obligations.
 
 Original Studio fonts remain active. Both inactive partition candidates were
 rejected by actual fidelity/transfer evidence, retained under
