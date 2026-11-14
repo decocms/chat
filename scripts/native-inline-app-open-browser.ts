@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
   expect as baseExpect,
+  type APIResponse,
   type BrowserContext,
   type Locator,
   type Page,
@@ -138,7 +139,7 @@ export async function auditInlineAppOpen(
         );
         assert(posted.ok(), `Post marker ${posted.status()}`);
         PostMessageResult.parse(await posted.json());
-        const remote = server.configure(variant, async () => {
+        const remote: ReturnType<typeof server.configure> = server.configure(variant, async () => {
           const value = z
             .object({
               messages: z.array(z.object({ text: z.optional(z.string()) })),
@@ -154,7 +155,7 @@ export async function auditInlineAppOpen(
         });
         const meter = remote.counters;
         counters = meter;
-        const connResponse = await ownerContext.request.post(
+        const connResponse: APIResponse = await ownerContext.request.post(
           `${fixture.base}/api/books/${roomId}/connections`,
           {
             headers: { origin: fixture.base },
