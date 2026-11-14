@@ -727,9 +727,13 @@
   .fireBar[hidden] { display: none; }
   .fireBar .fbSpin { display: none; width: 12px; height: 12px; border: 2px solid color-mix(in srgb, #ff7a1a 30%, transparent); border-top-color: #ff7a1a; border-radius: 50%; animation: ackspin .7s linear infinite; }
   .fireBar.hot .fbSpin { display: inline-block; }
-  @media (prefers-reduced-motion: reduce) { .fireBar .fbSpin { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .fireBar .fbSpin, .fireBar .fbMic { animation: none; } }
   .fireBar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 6px; border-radius: 10px; background: color-mix(in srgb, #ff7a1a 14%, var(--panel)); border: 1px solid color-mix(in srgb, #ff7a1a 40%, transparent); font-size: 13px; }
   .fireBar .fbSt { white-space: nowrap; }
+  /* Listening: a pulsing dot from the first instant, even while the Haiku is still opening (Gui #2481). */
+  .fireBar .fbMic { display: none; width: 10px; height: 10px; border-radius: 50%; background: #e5381f; animation: fireListen 1s ease-in-out infinite; }
+  .fireBar.talk .fbMic { display: inline-block; }
+  @keyframes fireListen { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, #e5381f 55%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
   .fireBar .fbTx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fireBar .fbTx i { color: var(--mute); }
   .composer.dictating textarea, .composer.dictating input { box-shadow: 0 0 0 2px #d64545; }
   .emojiPop { width: min(340px, calc(100% - 48px)); }
@@ -1480,9 +1484,9 @@ const LANG = (document.cookie.match(/(?:^|;\s*)vb_lang=(pt|en)\b/)?.[1]) || (/^p
 document.documentElement.lang = LANG === "en" ? "en" : "pt-BR";
 const LOCALE = LANG === "en" ? "en-US" : "pt-BR";
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition; // dictation in the composer, when the browser has it
-// Modo Fire (Gui #2448): hold Space with the composer empty (or 🎤 for 3 s) and talk to your own Claude, which the
-// herdr runner on your machine switches to Haiku (POST /api/books/:id/fire → /model haiku; it reports back through
-// /ws-me as fireState). While you hold, the browser's own recognition shows your words; on release the audio goes to
+// Modo Fire (Gui #2448, #2481): hold Space with the composer empty (or 🎤 for 3 s) and talk to a Haiku Claude of your
+// own that the herdr runner on your machine opens in a new tab for this room (POST /api/books/:id/fire; that Claude's
+// listen reports ready through /ws-me as fireState). You talk from the first instant, while it opens. While you hold, the browser's own recognition shows your words; on release the audio goes to
 // Whisper on the Worker (/stt, with the room's words as hints, so "vibebook" and names come out right) and the text is
 // sent as your message, which wakes your Claude with it already in hand. Esc or Sair: back to the model it had.
 let fire = null; // { state, model, note, talking, rec, sr, chunks, said, stream, thread }
@@ -1492,10 +1496,11 @@ function fireBar(status) {
   b.hidden = !fire;
   if (!fire) return;
   const st = fire.state, m = fire.model ? prettyModel(fire.model) : "Haiku";
-  const head = fire.talking ? `🎙 ${t("falando…")}` : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("não troquei o modelo")}` : st === "leaving" ? t("voltando pro modelo de antes…") : t("trocando teu Claude pro Haiku…");
+  const head = fire.talking ? t("ouvindo…") : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("o Haiku não abriu")}` : st === "leaving" ? t("fechando o Haiku…") : t("abrindo teu Haiku…");
   const tail = status ?? (fire.talking ? "" : st === "ready" ? t("segure espaço e fale; solte pra mandar · Esc sai") : fire.note || "");
-  b.classList.toggle("hot", st === "switching" || st === "leaving" || !!fire.talking || !!fire.sending);
-  b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span>🔥</span><b class="fbSt">${esc(head)}</b><span class="fbTx">${tail ? esc(tail) : ""}</span><button type="button" class="ghost" data-firestop>${t("Sair do Fire")}</button>`;
+  b.classList.toggle("hot", st === "switching" || st === "leaving" || !!fire.sending);
+  b.classList.toggle("talk", !!fire.talking);
+  b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span class="fbMic" aria-hidden="true"></span><span>🔥</span><b class="fbSt">${esc(head)}</b><span class="fbTx">${tail ? esc(tail) : ""}</span><button type="button" class="ghost" data-firestop>${t("Sair do Fire")}</button>`;
   b.querySelector("[data-firestop]")?.addEventListener("click", fireStop);
 }
 function fireSet(on) {
@@ -1975,11 +1980,11 @@ const EN = {
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
   "Modo Fire": "Fire mode",
   "Toque pra ditar · segure 3 s (ou espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · hold 3 s (or Space with the box empty) to talk live with your Claude",
-  "falando…": "talking…",
+  "ouvindo…": "listening…",
   "{m} pronto": "{m} ready",
-  "não troquei o modelo": "couldn't switch the model",
-  "voltando pro modelo de antes…": "going back to the previous model…",
-  "trocando teu Claude pro Haiku…": "switching your Claude to Haiku…",
+  "o Haiku não abriu": "the Haiku didn't open",
+  "fechando o Haiku…": "closing the Haiku…",
+  "abrindo teu Haiku…": "opening your Haiku…",
   "segure espaço e fale; solte pra mandar · Esc sai": "hold Space and talk; let go to send · Esc leaves",
   "Este navegador não grava áudio.": "This browser can't record audio.",
   "transcrevendo": "transcribing",
