@@ -1,5 +1,5 @@
 import { Lexer, type Tokens } from "marked";
-import { markdownSourceOffsets } from "./sourceOffsets";
+import { markdownSource } from "./markdownSource";
 import {
   Parser,
   Token,
@@ -45,7 +45,12 @@ type KnownToken =
  * No protected/underscore parser methods or HTML serialization/rendering APIs are called.
  */
 export function markdownTree(source: string, documentImages = false) {
-  const normalized = markdownSourceOffsets(source);
+  const parsedSource = documentImages
+    ? markdownSource(source)
+    : {
+        tokens: Lexer.lex(source, { gfm: true, breaks: true }),
+        spans: new WeakMap<object, { start: number; end: number }>(),
+      };
   let emitted = 0,
     depth = 0;
   let pending: { tag: string; metadata: MarkdownMetadata } | undefined;
@@ -122,22 +127,14 @@ export function markdownTree(source: string, documentImages = false) {
     tokens(children);
     tag(name, false);
   };
-  function tokens(
-    input: Tokens.Generic[],
-    loose = false,
-    sourceOffset?: number,
-  ) {
+  function tokens(input: Tokens.Generic[], loose = false) {
     if (++depth > 48) throw new Error("Rich token depth limit");
     for (const raw of input) {
       const token = raw as KnownToken;
-      const sourceSpan =
-        sourceOffset === undefined
-          ? undefined
-          : {
-              sourceStart: normalized.offsets[sourceOffset],
-              sourceEnd: normalized.offsets[sourceOffset + raw.raw.length],
-            };
-      if (sourceOffset !== undefined) sourceOffset += raw.raw.length;
+      const span = parsedSource.spans.get(raw);
+      const sourceSpan = span
+        ? { sourceStart: span.start, sourceEnd: span.end }
+        : undefined;
       switch (token.type) {
         case "space":
         case "def":
@@ -165,7 +162,7 @@ export function markdownTree(source: string, documentImages = false) {
           break;
         case "text":
           if ("tokens" in token && token.tokens) {
-            if (loose) wrap("p", token.tokens);
+            if (loose) wrap("p", token.tokens, [], sourceSpan);
             else tokens(token.tokens);
           } else text(decodeHTML(token.text));
           break;
@@ -268,7 +265,7 @@ export function markdownTree(source: string, documentImages = false) {
     }
     depth--;
   }
-  tokens(Lexer.lex(normalized.source, { gfm: true, breaks: true }), false, 0);
+  tokens(parsedSource.tokens);
   parser.tokenizer.write("", true);
   return { fragment: parser.getFragment(), metadata };
 }

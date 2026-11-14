@@ -941,12 +941,12 @@ test("App AST slots carry exact legal paragraph spans and stable grants across p
   const slots = descendants(documentAppNodes(nodes, source)).filter(
     (node) => node.kind === "element" && node.documentAppSlot !== undefined,
   );
-  expect(slots).toHaveLength(1);
-  const original = documentAppMarkers(source)[0]!;
+  expect(slots).toHaveLength(2);
+  const original = documentAppMarkers(source).at(-1)!;
   const moved = documentAppMarkers(
     "New paragraph\n\n" +
       source.replace("[[app:room/demo|m]]\n", "[[app:room/demo|g]]\n"),
-  )[0]!;
+  ).at(-1)!;
   expect(documentAppKey(moved)).toBe(documentAppKey(original));
   expect(original.start).toBe(hidden.length);
 });
@@ -1036,4 +1036,59 @@ test("public fallback controls cannot acquire programmatic preview authority and
   h.clock.run(true);
   expect(h.writes).toEqual([]);
   stop();
+});
+
+test("nested quote and loose-list App paragraphs preserve prefixes and newline bytes while tight lists stay literal", () => {
+  const source =
+    "> Quote\r\n>\r\n> [[app:room/demo|m]]\r\n>\r\n> \x60\x60\x60\r\n> [[app:room/demo|m]]\r\n> \x60\x60\x60\r\n\r\n- First\r\n\r\n  [[app:room/demo|m]]\r\n\r\n- Second\r\n";
+  const markers = documentAppMarkers(source);
+  expect(markers).toHaveLength(2);
+  const projected = descendants(
+    documentAppNodes(richText(source, "markdown", context("document")), source),
+  );
+  expect(
+    projected.filter(
+      (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+    ),
+  ).toHaveLength(2);
+  expect(resizeDocumentApp(source, markers[0]!, "p")).toBe(
+    source.replace("> [[app:room/demo|m]]", "> [[app:room/demo|p]]"),
+  );
+  const at = source.lastIndexOf("[[app:room/demo|m]]");
+  expect(resizeDocumentApp(source, markers[1]!, "g")).toBe(
+    source.slice(0, at) +
+      "[[app:room/demo|g]]" +
+      source.slice(at + "[[app:room/demo|m]]".length),
+  );
+  expect(documentAppMarkers("- [[app:room/demo|m]]\n- Other")).toHaveLength(0);
+  const nested = "> - First\n>\n>   [[app:room/nested|m]]\n>\n> - Next\n";
+  const inner = documentAppMarkers(nested);
+  expect(inner).toHaveLength(1);
+  expect(resizeDocumentApp(nested, inner[0]!, "g")).toBe(
+    nested.replace("nested|m", "nested|g"),
+  );
+});
+
+test("skipped Markdown definitions cannot shift root or nested App rewrite spans", () => {
+  const source =
+    "[link]: /target\n\n> [nested]: /other\n>\n> [[app:room/demo|m]]\n\n- First\n\n  [inside]: /inside\n\n  [[app:room/demo|m]]\n\n- Last\n";
+  const markers = documentAppMarkers(source);
+  expect(markers).toHaveLength(2);
+  const nodes = descendants(
+    documentAppNodes(richText(source, "markdown", context("document")), source),
+  );
+  expect(
+    nodes.filter(
+      (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+    ),
+  ).toHaveLength(2);
+  expect(resizeDocumentApp(source, markers[0]!, "g")).toBe(
+    source.replace("demo|m", "demo|g"),
+  );
+  const index = source.lastIndexOf("[[app:room/demo|m]]");
+  expect(resizeDocumentApp(source, markers[1]!, "p")).toBe(
+    source.slice(0, index) +
+      "[[app:room/demo|p]]" +
+      source.slice(index + "[[app:room/demo|m]]".length),
+  );
 });

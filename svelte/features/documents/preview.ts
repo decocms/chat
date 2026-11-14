@@ -13,8 +13,8 @@ export function documentAppNodes(
         const found = markers.findIndex(
           (marker, index) =>
             index >= cursor &&
-            marker.start === node.sourceStart &&
-            marker.end === node.sourceEnd,
+            marker.paragraphStart === node.sourceStart &&
+            marker.paragraphEnd === node.sourceEnd,
         );
         if (found >= 0) {
           cursor = found + 1;

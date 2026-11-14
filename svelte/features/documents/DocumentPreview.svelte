@@ -95,6 +95,19 @@
     ),
   );
   const appMarkers = $derived(documentAppMarkers(text));
+  function blockKey(
+    block: ReturnType<typeof documentBlocks>[number],
+    index: number,
+  ) {
+    const keys: string[] = [];
+    function collect(node: import("../rich-text/types").RichNode) {
+      if (node.kind === "element" && node.documentAppSlot !== undefined)
+        keys.push(documentAppKey(appMarkers[node.documentAppSlot]!));
+      else if ("children" in node) node.children.forEach(collect);
+    }
+    if ("node" in block) collect(block.node);
+    return keys.length ? "apps:" + JSON.stringify(keys) : "block:" + index;
+  }
   const appCurrent = createDocumentAppAuthority(
     () => get(owner.state).text,
     current,
@@ -152,7 +165,7 @@
         ? "Preview shown as plain text. The full document remains available to read, copy and edit."
         : "Prévia em texto simples. O documento completo continua disponível para ler, copiar e editar."}
     </p>{/if}
-  {#each blocks as block, index ("node" in block && block.node.kind === "element" && block.node.documentAppSlot !== undefined ? "app:" + documentAppKey(appMarkers[block.node.documentAppSlot]!) : "block:" + index)}
+  {#each blocks as block, index (blockKey(block, index))}
     {#if "tasks" in block}<section data-document-tasks class="tw:my-3">
         <Tasks {...taskProps} thread={epic ?? "main"} />
       </section>
@@ -168,7 +181,13 @@
             ? "tw:whitespace-pre-wrap tw:break-words"
             : "tw:min-w-0"}
         >
-          <RichNodes nodes={[block.node]} {actions} {taskSlot} {appSlot} />
+          <RichNodes
+            nodes={[block.node]}
+            {actions}
+            {taskSlot}
+            {appSlot}
+            appKey={(index) => documentAppKey(appMarkers[index]!)}
+          />
         </div>{/if}{/if}
   {/each}
 </div>

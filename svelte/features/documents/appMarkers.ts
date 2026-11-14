@@ -1,14 +1,14 @@
 import type { AppTarget } from "../apps/model";
-import { Lexer } from "marked";
-import { markdownSourceOffsets } from "../rich-text/sourceOffsets";
+import { markdownSource } from "../rich-text/markdownSource";
 export type DocumentAppSize = "p" | "m" | "g";
 export type DocumentAppMarker = AppTarget & {
   size: DocumentAppSize;
   occurrence: number;
-  line: number;
   start: number;
   end: number;
   multiplicity: number;
+  paragraphStart: number;
+  paragraphEnd: number;
 };
 const marker = /^\[\[app:([\w-]+)\/([\w.-]+)(?:\|([pmg]))?\]\]$/i;
 export const documentAppKey = (marker: DocumentAppMarker) =>
@@ -21,15 +21,8 @@ export const documentAppKey = (marker: DocumentAppMarker) =>
 export function documentAppMarkers(source: string): DocumentAppMarker[] {
   const result: DocumentAppMarker[] = [];
   if (!/\[\[app:/i.test(source) || source.length > 100000) return result;
-  const normalized = markdownSourceOffsets(source);
-  let offset = 0,
-    line = 0;
-  for (const token of Lexer.lex(normalized.source, {
-    gfm: true,
-    breaks: true,
-  })) {
-    const raw = token.raw;
-    const found = token.type === "paragraph" ? marker.exec(raw.trim()) : null;
+  for (const { token, span } of markdownSource(source).paragraphs) {
+    const found = marker.exec(token.raw.trim());
     if (found)
       result.push({
         connection: found[1]!,
@@ -41,13 +34,12 @@ export function documentAppMarkers(source: string): DocumentAppMarker[] {
               ? "g"
               : "m",
         occurrence: result.length,
-        line,
-        start: normalized.offsets[offset]!,
-        end: normalized.offsets[offset + raw.length]!,
+        start: span.trimStart,
+        end: span.trimEnd,
+        paragraphStart: span.start,
+        paragraphEnd: span.end,
         multiplicity: 0,
       });
-    offset += raw.length;
-    line += raw.split("\n").length - 1;
   }
   const counts = new Map<string, number>();
   for (const entry of result) {
@@ -67,7 +59,8 @@ export function resizeDocumentApp(
   const current = documentAppMarkers(source)[expected.occurrence];
   if (
     !current ||
-    current.line !== expected.line ||
+    current.paragraphStart !== expected.paragraphStart ||
+    current.paragraphEnd !== expected.paragraphEnd ||
     current.start !== expected.start ||
     current.end !== expected.end ||
     current.connection !== expected.connection ||

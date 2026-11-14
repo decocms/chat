@@ -9,17 +9,33 @@
     actions,
     taskSlot,
     appSlot,
+    appKey,
   }: {
     nodes: readonly RichNode[];
     actions: RichActions;
     taskSlot?: Snippet;
     appSlot?: Snippet<[number]>;
+    appKey?(slot: number): string;
   } = $props();
   let active = true;
   onDestroy(() => {
     active = false;
   });
   const missingFile = $derived(hasMissingFileReference(nodes));
+  function key(node: RichNode, index: number): string {
+    const keys: string[] = [];
+    function collect(node: RichNode) {
+      if (
+        node.kind === "element" &&
+        node.documentAppSlot !== undefined &&
+        appKey
+      )
+        keys.push(appKey(node.documentAppSlot));
+      else if ("children" in node) node.children.forEach(collect);
+    }
+    if (appKey) collect(node);
+    return keys.length ? "app:" + JSON.stringify(keys) : "node:" + index;
+  }
   $effect(() => {
     if (active && missingFile) actions.ensureFileIndex?.();
   });
@@ -127,7 +143,7 @@
 </script>
 
 {#snippet content(items: readonly RichNode[])}
-  {#each items as node}
+  {#each items as node, index (key(node, index))}
     {#if node.kind === "text"}{node.text}
     {:else if node.kind === "mention"}<span
         data-rich-mention={node.who}
