@@ -58,17 +58,12 @@
       },
       {
         "title": {
-          "pt": "Modo Fire: fale com o seu Claude ao vivo",
-          "en": "Fire mode: talk to your Claude live"
+          "pt": "Fale em vez de digitar",
+          "en": "Talk instead of typing"
         },
         "text": {
-          "pt": "Com a caixa de mensagem vazia, segure espaço (ou o 🎤 por 3 segundos) e já pode falar: o vibebook abre, numa aba nova do herdr, um Claude Haiku só seu e só desta sala, enquanto o seu Claude principal segue com o que estava fazendo. Solte pra mandar: o áudio é transcrito no servidor com as palavras da sala (vibebook, nomes, épicos), e o Haiku responde com um card, um texto curto ou uma página ao lado. Esc fecha o Haiku.",
-          "en": "With the message box empty, hold Space (or 🎤 for 3 seconds) and start talking: vibebook opens, in a new herdr tab, a Haiku Claude of your own just for this room, while your main Claude keeps doing what it was doing. Let go to send: the audio is transcribed on the server with the room's words (vibebook, names, epics), and the Haiku answers with a card, a short text or a page beside the chat. Esc closes the Haiku."
-        },
-        "image": "changelog/2026-11-14-fire2.webp",
-        "alt": {
-          "pt": "Barra do Modo Fire ouvindo enquanto o Haiku abre",
-          "en": "Fire mode bar listening while the Haiku opens"
+          "pt": "Segure espaço na caixa de mensagem (ou toque no 🎤) e fale: o texto aparece enquanto você fala e, ao soltar, é trocado por uma transcrição melhor, feita no servidor com os nomes e épicos da sala. Enter manda pro seu Claude como qualquer mensagem.",
+          "en": "Hold Space in the message box (or tap 🎤) and talk: the text shows up as you speak and, when you let go, is replaced by a better transcript made on the server with the room's names and epics. Enter sends it to your Claude like any message."
         }
       },
       {

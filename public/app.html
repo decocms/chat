@@ -719,22 +719,6 @@
   .composer .emojiBtn { font-size: 19px; line-height: 1; filter: grayscale(.4); } .composer .emojiBtn:hover, .composer .emojiBtn[aria-expanded="true"] { filter: none; }
   .composer .micBtn { color: var(--mute); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   .composer.charging, .composer.charging * { -webkit-user-select: none; user-select: none; } .composer .micBtn.on { color: #fff; background: #d64545; border-radius: 50%; }
-  /* Modo Fire: holding 🎤 for 3s charges it (a ring fills), then it burns while live speech goes to the fast model. */
-  .composer .micBtn.charging { position: relative; border-radius: 50%; background: conic-gradient(#ff7a1a var(--fireP, 0%), transparent 0); transition: none; }
-  .composer .micBtn.fire { color: #fff; border-radius: 50%; background: radial-gradient(circle at 50% 70%, #ffd23f, #ff7a1a 45%, #e5381f 80%); box-shadow: 0 0 0 3px color-mix(in srgb, #ff7a1a 35%, transparent), 0 0 18px #ff7a1a; animation: fireFlick 1.1s ease-in-out infinite alternate; }
-  @keyframes fireFlick { from { box-shadow: 0 0 0 3px color-mix(in srgb, #ff7a1a 30%, transparent), 0 0 12px #ff7a1a; } to { box-shadow: 0 0 0 5px color-mix(in srgb, #e5381f 30%, transparent), 0 0 24px #ffb03a; } }
-  @media (prefers-reduced-motion: reduce) { .composer .micBtn.fire { animation: none; } }
-  .fireBar[hidden] { display: none; }
-  .fireBar .fbSpin { display: none; width: 12px; height: 12px; border: 2px solid color-mix(in srgb, #ff7a1a 30%, transparent); border-top-color: #ff7a1a; border-radius: 50%; animation: ackspin .7s linear infinite; }
-  .fireBar.hot .fbSpin { display: inline-block; }
-  @media (prefers-reduced-motion: reduce) { .fireBar .fbSpin, .fireBar .fbMic { animation: none; } }
-  .fireBar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 6px; border-radius: 10px; background: color-mix(in srgb, #ff7a1a 14%, var(--panel)); border: 1px solid color-mix(in srgb, #ff7a1a 40%, transparent); font-size: 13px; }
-  .fireBar .fbSt { white-space: nowrap; }
-  /* Listening: a pulsing dot from the first instant, even while the Haiku is still opening (Gui #2481). */
-  .fireBar .fbMic { display: none; width: 10px; height: 10px; border-radius: 50%; background: #e5381f; animation: fireListen 1s ease-in-out infinite; }
-  .fireBar.talk .fbMic { display: inline-block; }
-  @keyframes fireListen { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, #e5381f 55%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
-  .fireBar .fbTx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fireBar .fbTx i { color: var(--mute); }
   .composer.dictating textarea, .composer.dictating input { box-shadow: 0 0 0 2px #d64545; }
   .emojiPop { width: min(340px, calc(100% - 48px)); }
   .emojiPop input { width: 100%; margin-bottom: 6px; }
@@ -1485,121 +1469,13 @@ const LANG = (document.cookie.match(/(?:^|;\s*)vb_lang=(pt|en)\b/)?.[1]) || (/^p
 document.documentElement.lang = LANG === "en" ? "en" : "pt-BR";
 const LOCALE = LANG === "en" ? "en-US" : "pt-BR";
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition; // dictation in the composer, when the browser has it
-// Modo Fire (Gui #2448, #2481): hold Space with the composer empty (or 🎤 for 3 s) and talk to a Haiku Claude of your
-// own that the herdr runner on your machine opens in a new tab for this room (POST /api/books/:id/fire; that Claude's
-// listen reports ready through /ws-me as fireState). You talk from the first instant, while it opens. While you hold, the browser's own recognition shows your words; on release the audio goes to
-// Whisper on the Worker (/stt, with the room's words as hints, so "vibebook" and names come out right) and the text is
-// sent as your message, which wakes your Claude with it already in hand. Esc or Sair: back to the model it had.
-let fire = null; // { state, model, note, talking, rec, sr, chunks, said, stream, thread }
-const fireLive = () => !!fire;
-function fireBar(status) {
-  const b = document.getElementById("fireBar"); if (!b) return;
-  b.hidden = !fire;
-  if (!fire) return;
-  const st = fire.state, m = fire.model ? prettyModel(fire.model) : "Haiku";
-  const head = fire.locked ? `🔒 ${t("ouvindo · toque no 🎤 pra parar")}` : fire.talking ? t("ouvindo…") : st === "ready" ? `⚡ ${t("{m} pronto", { m })}` : st === "failed" ? `⚠ ${t("o Haiku não abriu")}` : st === "leaving" ? t("fechando o Haiku…") : t("abrindo teu Haiku…");
-  const tail = status ?? (fire.talking ? "" : st === "ready" ? t("segure espaço e fale; solte pra mandar · Esc sai") : fire.note || "");
-  b.classList.toggle("hot", st === "switching" || st === "leaving" || !!fire.sending);
-  b.classList.toggle("talk", !!fire.talking || !!fire.locked);
-  b.innerHTML = `<span class="fbSpin" aria-hidden="true"></span><span class="fbMic" aria-hidden="true"></span><span>🔥</span><b class="fbSt">${esc(head)}</b><span class="fbTx">${tail ? esc(tail) : ""}</span><button type="button" class="ghost" data-firestop>${t("Sair do Fire")}</button>`;
-  b.querySelector("[data-firestop]")?.addEventListener("click", fireStop);
+// Whisper on the Worker (/stt) for what was dictated: the browser's own recognition writes while you talk, then this
+// replaces it with a better transcript (the room's words as hints, so "vibebook" and names come out right).
+async function whisper(blob) {
+  const hints = `Conversa no vibebook (vibebook.dev), sala ${S.book?.title ?? ""}. Pessoas: ${(S.members || []).map((e) => e.split("@")[0]).join(", ")}. Épicos: ${(S.epics || []).filter((e) => !e.archived).slice(0, 15).map((e) => e.title).join("; ")}.`;
+  const r = await fetch(`/api/books/${S.id}/stt?lang=${LANG}&prompt=${encodeURIComponent(hints.slice(0, 600))}`, { method: "POST", headers: { "content-type": blob.type }, body: blob }).then((x) => x.json()).catch(() => ({}));
+  return r.ok ? (r.text || "").trim() : "";
 }
-function fireSet(on) {
-  return fetch(`/api/books/${S.id}/fire`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ on }) }).then((r) => r.json()).catch(() => ({ ok: false }));
-}
-// From /ws-me: the runner's report (switching | ready | off | failed).
-function fireState(m) {
-  if (!fire || m.book !== S?.id) return;
-  if (m.state === "off") { fire = null; return fireBar(); }
-  fire.state = m.state; if (m.model) fire.model = m.model; fire.note = m.note || "";
-  fireBar();
-}
-async function fireHold() {
-  if (!S || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast(t("Este navegador não grava áudio."));
-  if (!fire) { fire = { state: "switching", model: "", note: "", thread }; fireSet(true).then((r) => { if (!r.ok && fire) { fire.state = "failed"; fire.note = t("sem conexão"); fireBar(); } }); }
-  if (fire.talking) return;
-  fire.talking = true; fire.said = ""; fire.chunks = []; fire.thread = thread; fireBar();
-  try { fire.stream ||= await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { fire.talking = false; toast(t("O navegador não deixou usar o microfone.")); return fireBar(); }
-  if (!fire?.talking) return; // released before the mic opened
-  const rec = new MediaRecorder(fire.stream), chunks = []; fire.rec = rec; rec.chunks = chunks; // per recorder: in lock mode the next one starts before this one's last data arrives
-  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  rec.start();
-  if (SR) { // instant words on screen while the real transcript waits for the release
-    const sr = new SR(); sr.lang = LOCALE; sr.continuous = true; sr.interimResults = true; fire.sr = sr;
-    sr.onresult = (ev) => { if (!fire?.talking) return; fire.said = [...ev.results].map((r) => r[0].transcript).join("").trim(); fireBar(fire.said); };
-    try { sr.start(); } catch {}
-  }
-}
-function fireRelease() {
-  const f = fire; if (!f?.talking) return;
-  f.talking = false; try { f.sr?.stop(); } catch {}
-  const rec = f.rec; f.rec = null;
-  if (!rec) return fireBar();
-  rec.onstop = async () => {
-    const blob = new Blob(rec.chunks, { type: rec.mimeType || "audio/webm" });
-    if (blob.size < 2000) return f.locked ? undefined : fireBar(); // a tap, not speech
-    f.sending = true; fireBar(f.said ? `${t("transcrevendo")}: ${f.said}` : t("transcrevendo…"));
-    // Whisper follows a prompt written like a transcript better than a word list ("VBbook" with a list, vibebook with this).
-    const hints = `Conversa no vibebook (vibebook.dev), sala ${S.book?.title ?? ""}. Pessoas: ${(S.members || []).map((e) => e.split("@")[0]).join(", ")}. Épicos: ${(S.epics || []).filter((e) => !e.archived).slice(0, 15).map((e) => e.title).join("; ")}.`;
-    let text = "";
-    try {
-      const r = await fetch(`/api/books/${S.id}/stt?lang=${LANG}&prompt=${encodeURIComponent(hints.slice(0, 600))}`, { method: "POST", headers: { "content-type": blob.type }, body: blob }).then((x) => x.json());
-      text = r.ok ? r.text : "";
-    } catch {}
-    text = (text || f.said || "").trim();
-    f.sending = false;
-    if (!text) return fireBar(t("não entendi, fala de novo"));
-    const viewing = sideView && sideView.room === S.id ? (sideView.follow ? fileVersions(sideView.name)[0]?.id || sideView.fid : sideView.fid) : undefined;
-    send({ t: "msg", thread: f.thread || "main", text, viewing });
-    fireBar(`${t("mandei")}: ${text}`);
-  };
-  try { rec.stop(); } catch {}
-  if (f.locked && fire === f) fireHold(); // locked: the next piece starts recording right away
-}
-// Lock (Gui #2552): slide 🎤 up on a phone and Fire keeps listening hands-free, sending each piece at a pause (0.8 s of
-// quiet after speech, or 20 s at most), until you tap 🎤 again. The pause comes from the mic's own level (Web Audio).
-async function fireLock() {
-  await fireHold();
-  const f = fire; if (!f?.stream || f.locked) return;
-  f.locked = true;
-  const ctx = new (window.AudioContext || window.webkitAudioContext)(), an = ctx.createAnalyser(), buf = new Float32Array(1024);
-  an.fftSize = 2048; ctx.createMediaStreamSource(f.stream).connect(an);
-  let voiced = false, last = 0, start = performance.now();
-  f.vad = { ctx, timer: setInterval(() => {
-    if (!f.locked || fire !== f) return;
-    an.getFloatTimeDomainData(buf);
-    let sum = 0; for (const v of buf) sum += v * v;
-    const now = performance.now();
-    if (Math.sqrt(sum / buf.length) > 0.02) { if (!voiced) start = now; voiced = true; last = now; }
-    if (f.talking && voiced && (now - last > 800 || now - start > 20000)) { voiced = false; fireRelease(); }
-  }, 100) };
-  fireBar();
-}
-function fireUnlock() {
-  const f = fire; if (!f?.locked) return;
-  f.locked = false; clearInterval(f.vad?.timer); try { f.vad?.ctx.close(); } catch {} f.vad = null;
-  fireRelease();
-  fireBar();
-}
-function fireStop() {
-  const f = fire; if (!f) return;
-  f.locked = false; clearInterval(f.vad?.timer); try { f.vad?.ctx.close(); } catch {}
-  f.talking = false; try { f.sr?.stop(); f.rec?.stop(); } catch {}
-  f.stream?.getTracks().forEach((x) => x.stop()); f.stream = null;
-  f.state = "leaving"; fireBar();
-  fireSet(false);
-  setTimeout(() => { if (fire === f && f.state === "leaving") { fire = null; fireBar(); } }, 30_000); // no runner answer: drop the bar anyway
-}
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && fire && !document.querySelector("dialog[open]")) fireStop(); }, true); // capture: the composer's own Esc (cancel reply) stops it
-// Space held anywhere outside a text field also talks (the composer's own handler covers the empty composer).
-document.addEventListener("keydown", (e) => {
-  if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || !S || matchMedia("(pointer: coarse)").matches) return;
-  const el = e.target; if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(el.tagName))) return;
-  e.preventDefault(); clearTimeout(fireKeyT); fireKeyT = setTimeout(fireHold, 300);
-});
-document.addEventListener("keyup", (e) => { if (e.key !== " ") return; clearTimeout(fireKeyT); if (fire?.talking) fireRelease(); });
-let fireKeyT = 0;
 const EN = {
   "Nova UI": "New UI",
   "Dono: {who}": "Owner: {who}",
@@ -2007,21 +1883,7 @@ const EN = {
   "Pôr este app no doc (sala ou épico aberto)": "Put this app in the doc (room or open epic)",
   "Pôr no doc": "Put in doc",
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
-  "Modo Fire": "Fire mode",
   "Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · slide up (or hold Space with the box empty) to talk live with your Claude",
-  "ouvindo…": "listening…",
-  "{m} pronto": "{m} ready",
-  "o Haiku não abriu": "the Haiku didn't open",
-  "fechando o Haiku…": "closing the Haiku…",
-  "abrindo teu Haiku…": "opening your Haiku…",
-  "segure espaço e fale; solte pra mandar · Esc sai": "hold Space and talk; let go to send · Esc leaves",
-  "Este navegador não grava áudio.": "This browser can't record audio.",
-  "transcrevendo": "transcribing",
-  "transcrevendo…": "transcribing…",
-  "não entendi, fala de novo": "didn't catch that, say it again",
-  "mandei": "sent",
-  "Sair do Fire": "Leave Fire",
-  "ouvindo · toque no 🎤 pra parar": "listening · tap 🎤 to stop",
   "Uma versão está no ar; você pediu correções depois": "A version is live; you asked for changes after it",
   "Uma versão está no ar · correções em andamento": "A version is live · changes in progress",
   "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.": "You asked for changes after this deploy; the next version isn't out yet.",
@@ -2542,7 +2404,6 @@ function connectMe() {
     if (m.t === "me" && !(m.msg && m.book && m.book === S?.id)) { clearTimeout(meT); meT = setTimeout(refreshMe, 600); }
     // Only an agents poke refetches this room's agents: a plain message here ({t:"me"}) did too, ~13k fetches a day.
     if (m.t === "agents" && (m.book === "*" || m.book === S?.id)) { clearTimeout(agT); agT = setTimeout(loadRoomAgents, 600); }
-    if (m.t === "fireState") fireState(m);
   };
   meWs.onclose = () => { meWs = null; if (document.visibilityState === "visible") setTimeout(connectMe, Math.min(30_000, 1000 * 2 ** meWsTry++)); };
 }
@@ -3732,7 +3593,6 @@ function renderBook() {
       <form class="composer" id="composer">
         <div class="tray" id="tray"></div>
         <div class="replyBar" id="replyBar" hidden></div>
-        <div class="fireBar" id="fireBar" hidden></div>
         <div class="mentionPop" id="mentionPop" role="listbox" aria-label="${t("Mencionar")}" hidden></div>
         <div class="row">
           <button type="button" class="ghost icon emojiBtn" id="emojiBtn" title="${t("Emoji")}" aria-label="${t("Emoji")}" aria-haspopup="dialog" aria-expanded="false">🙂</button>
@@ -3828,21 +3688,37 @@ function renderBook() {
   // release to stop, Enter sends. A quick tap of Space still types a space (only a hold ≥350ms starts listening).
   if (SR) {
     const input = document.getElementById("input"), mic = document.getElementById("micBtn"), box = input.closest(".composer") || input.parentElement;
-    let rec = null, base = "", holdT = 0, held = false, pending = false;
+    let rec = null, base = "", holdT = 0, held = false, pending = false, audio = null, gen = 0, wrote = "";
     const typeSpace = () => { pending = false; clearTimeout(holdT); const a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a; input.setRangeText(" ", a, b, "end"); input.dispatchEvent(new Event("input", { bubbles: true })); };
     const start = () => {
       if (rec) return;
       base = input.value; rec = new SR(); rec.lang = LOCALE; rec.continuous = true; rec.interimResults = true;
-      rec.onresult = (ev) => { const said = [...ev.results].map((r) => r[0].transcript).join("").trim(); input.value = `${base}${base && said && !/\s$/.test(base) ? " " : ""}${said}`; input.dispatchEvent(new Event("input", { bubbles: true })); };
+      const join = (said) => `${base}${base && said && !/\s$/.test(base) ? " " : ""}${said}`;
+      rec.onresult = (ev) => { input.value = wrote = join([...ev.results].map((r) => r[0].transcript).join("").trim()); input.dispatchEvent(new Event("input", { bubbles: true })); };
+      // The same audio goes to Whisper when you stop; its text replaces the browser's if the box wasn't touched since.
+      const g = ++gen, mine = rec;
+      if (navigator.mediaDevices?.getUserMedia && window.MediaRecorder) navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        if (rec !== mine) return stream.getTracks().forEach((x) => x.stop()); // stopped before the mic opened
+        const mr = new MediaRecorder(stream), chunks = [];
+        mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        mr.onstop = async () => {
+          stream.getTracks().forEach((x) => x.stop());
+          const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+          if (blob.size < 2000) return; // a tap, not speech
+          const text = await whisper(blob);
+          if (text && g === gen && input.value === wrote) { input.value = wrote = join(text); input.dispatchEvent(new Event("input", { bubbles: true })); }
+        };
+        mr.start(); audio = mr;
+      }).catch(() => {});
       rec.onend = () => { rec = null; box.classList.remove("dictating"); mic?.classList.remove("on"); input.focus(); };
       rec.onerror = (ev) => { if (ev.error === "not-allowed") toast(t("O navegador não deixou usar o microfone.")); };
       box.classList.add("dictating"); mic?.classList.add("on");
       try { rec.start(); } catch { rec = null; box.classList.remove("dictating"); mic?.classList.remove("on"); }
     };
-    const stop = () => { try { rec?.stop(); } catch {} };
+    const stop = () => { try { rec?.stop(); audio?.stop(); } catch {} audio = null; };
     // Enviar while dictating (Gui #2405): the message goes, dictation stops, and late results don't write the sent
     // text back into the empty box.
-    box.addEventListener("submit", () => { if (!rec) return; rec.onresult = null; base = ""; stop(); }, true);
+    box.addEventListener("submit", () => { gen++; if (!rec) return; rec.onresult = null; base = ""; stop(); }, true);
     // Hold-Space is for physical keyboards. On touch screens it cancelled every space of the on-screen keyboard
     // (inserted later by hand), which broke autocorrect/predictions and froze iPhones (Gui 14/11): they have 🎤 and
     // the keyboard's own dictation.
@@ -3853,50 +3729,17 @@ function renderBook() {
       e.preventDefault(); // decided on keyup (a tap) or after 350ms (a hold)
       if (e.repeat) return;
       held = false; pending = true; clearTimeout(holdT);
-      holdT = setTimeout(() => { pending = false; held = true; if (!input.value.trim()) { held = "fire"; fireHold(); } else start(); }, 350);
+      holdT = setTimeout(() => { pending = false; held = true; start(); }, 350);
     });
     input.addEventListener("keyup", (e) => {
       if (e.key !== " " || matchMedia("(pointer: coarse)").matches) return;
-      if (held === "fire") { held = false; fireRelease(); return; }
       if (held) { held = false; stop(); return; }
       if (pending) typeSpace();
     });
     // 🎤: a tap starts dictation and another tap stops it (Gui 14/11, #2364: no holding, on the phone or the desktop).
-    // Holding it charges Modo Fire: the ring shows after 0.4 s and fills to 3 s.
-    let fireT = 0, fireRaf = 0, showT = 0, fired = false;
-    mic?.addEventListener("pointerdown", (e) => {
-      e.preventDefault(); try { mic.setPointerCapture?.(e.pointerId); } catch {}
-      fired = false;
-      if (fireLive()) { fired = true; return fire.locked ? fireUnlock() : fire.talking ? fireRelease() : fireHold(); }
-      const t0 = performance.now();
-      box.classList.add("charging");
-      showT = setTimeout(() => {
-        mic.classList.add("charging");
-        const tick = () => { mic.style.setProperty("--fireP", `${Math.min(100, (performance.now() - t0) / 30)}%`); fireRaf = requestAnimationFrame(tick); };
-        tick();
-      }, 400);
-      fireT = setTimeout(() => { fired = true; cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); stop(); fireHold(); }, 3000);
-    });
-    // Phones (Gui #2548, #2552: holding 3 s was bad in the PWA): slide up from 🎤 and Fire locks on, hands-free, sending
-    // at every pause until you tap 🎤 again (WhatsApp's slide-to-lock, upwards).
-    let y0 = 0, swiped = false;
-    mic?.addEventListener("pointerdown", (e) => { y0 = e.clientY; swiped = false; });
-    mic?.addEventListener("pointermove", (e) => {
-      if (swiped || fired || !y0 || y0 - e.clientY < 40) return;
-      swiped = fired = true;
-      box.classList.remove("charging"); clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
-      stop(); fireLock();
-    });
-    mic?.addEventListener("pointerup", () => {
-      box.classList.remove("charging");
-      clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging");
-      y0 = 0;
-      if (swiped) { swiped = false; return; } // locked: keeps listening after the finger leaves
-      if (fired) return;
-      if (rec) stop(); else start(); // a tap: toggle dictation
-    });
+    mic?.addEventListener("pointerdown", (e) => e.preventDefault()); // keep the composer's focus
+    mic?.addEventListener("click", () => (rec ? stop() : start()));
     mic?.addEventListener("contextmenu", (e) => e.preventDefault()); // a long press on iOS/Android must not select or open a menu
-    mic?.addEventListener("pointercancel", () => { box.classList.remove("charging"); clearTimeout(fireT); clearTimeout(showT); cancelAnimationFrame(fireRaf); mic.classList.remove("charging"); });
   }
   // 🙂 picker: the same names as the :shortcodes: (EMOJI), one button per emoji, filtered by name; a pick goes in at the
   // cursor. The keyboard's own emoji key still works; this is for the desktop and for finding one by name.
@@ -4598,8 +4441,7 @@ const agentRows = (email) => {
   // The same Claude after a /mcp reconnect is a new session: one row per model + repo, listening first. Listening
   // ones never fold: three Claudes of Gui's in one folder read as one row for days (14/11).
   const mine = roomAgents.list.filter((a) => a.email === email);
-  // The Modo Fire Haiku is a second Claude on purpose (it takes only the Fire talk): not a duplicate (Gui #2492).
-  const live = mine.filter((a) => a.listening && !a.all_rooms && !/haiku/i.test(a.who || "")).length;
+  const live = mine.filter((a) => a.listening && !a.all_rooms).length;
   const warn = email === S.me && live > 1 ? `<div class="agentWarn">⚠ ${t("{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.", { n: live })}</div>` : "";
   return warn + mine.sort((x, y) => y.listening - x.listening).filter((a) => a.listening || (!seen.has(prettyModel(a.who) + a.repo) && seen.add(prettyModel(a.who) + a.repo))).slice(0, live > 3 ? live : 3)
     .map((a) => `<div class="member agentRow" title="${t("{via} de {who}", { via: esc(prettyModel(a.who)), who: esc(name(email)) })}${a.repo ? ` ${t("em {repo}", { repo: esc(a.repo) })}` : ""} · ${a.listening ? (a.all_rooms ? t("ouvindo todas as salas agora") : t("ouvindo esta sala agora")) : t("visto há {ago}", { ago: ago(a.seen_at) })}"><span class="aglyph ${agentKind(a.who)[0]} ${a.listening ? "on" : ""}">${agentKind(a.who)[1]}</span><span class="fn">${esc(prettyModel(a.who).replace(/^Claude\s+/i, ""))}${a.repo ? ` · ${esc(a.repo)}` : ""}</span><small>${a.listening ? t("ouvindo") : ago(a.seen_at)}${a.context ? ` · ${ctxPct(a.context)}%` : ""}</small>${ctxBar(a.context)}${a.context ? ctxTip(a.context) : ""}</div>`).join("");

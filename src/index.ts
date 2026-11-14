@@ -48,7 +48,7 @@ export type Env = {
   AGENT_LIMIT: RateLimit;
   EMAIL: SendEmail;
   AI_LIMIT: RateLimit;
-  /** Workers AI: Modo Fire's speech-to-text (Whisper). */
+  /** Workers AI: push-to-talk speech-to-text (Whisper). */
   AI: Ai;
   UPLOAD_LIMIT: RateLimit;
   FILES: R2Bucket;
