@@ -2,7 +2,7 @@
   import { onMount, onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
   import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps/app-bridge";
-  import type { AppsProps } from "./types";
+  import type { AppsProps, AppBridgeModule } from "./types";
   import { AppsFailure } from "./api";
   import { appIdentity, roomApps, signinUrl } from "./model";
   import type { NativeAppBridge } from "./bridge";
@@ -26,7 +26,7 @@
     requests = createAppRequests();
   let frame: HTMLIFrameElement | undefined = $state(),
     bridge: NativeAppBridge | null = null,
-    protocol: typeof import("./bridge") | null = null,
+    protocol: AppBridgeModule | null = null,
     active = true,
     error = $state(""),
     loading = $state(true),
@@ -154,7 +154,7 @@
     if (!frame || !selected || !initialKey) return;
     const isRoom = selected.connection === "room";
     try {
-      const loaded = await requests.run(() => import("./bridge"));
+      const loaded = await requests.run(props.loadBridge ?? (() => import("./bridge")));
       if (!current()) return;
       protocol = loaded;
       const app = isRoom

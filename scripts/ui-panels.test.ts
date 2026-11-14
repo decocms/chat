@@ -5810,3 +5810,50 @@ test("native needs-you endcard captures visible rows and rejects old connected c
   expect(writes).toEqual(["m7"]);
   expect(navigated).toEqual([]);
 });
+
+// Controlled bridge dependency only: real iframe/MessagePort privacy is covered by the browser suite.
+test('document inline Apps keep independent consent and stable frames, and revoke removed-marker callbacks before flush', async()=>{
+ const {createAppsSession}=await import('../svelte/features/apps/session');
+ const protocol=await import('../svelte/features/apps/bridge');
+ const {toolOutput}=await import('../svelte/features/apps/tools');
+ type Options=import('../svelte/features/apps/bridge').NativeAppBridgeOptions;
+ const bridges:Options[]=[],calls:string[]=[],writes:RoomCommand[]=[],puts:{connection:string;tool:string}[]=[];
+ const connection:import('../shared/schemas').Connection={id:'abcdef123456',title:'Controlled connection',host:'example.test',scope:'room',owner:'me@test',mine:true,created_at:1,auth:'identity',signed_in:true,apps:[{tool:'screen',title:'Screen',description:'Controlled screen',screen:true},{tool:'other',title:'Other',description:'Controlled other',screen:true}],tools:[],context:{}};
+ const api:import('../svelte/features/apps/api').AppsApi={
+  list:async()=>({connections:[connection]}),create:async()=>({ok:true,connection:{...connection,needs_sign_in:false}}),remove:async()=>({ok:true}),refresh:async()=>({ok:true,connection}),signout:async()=>({ok:true}),ui:async(_cid,tool)=>({html:'<p>Controlled UI</p>',tool:{name:tool}}),call:async(_cid,tool)=>{calls.push(tool);return {result:toolOutput('controlled result')};},context:async()=>({ok:true})
+ };
+ let canonical={...fixture(),doc:'[[app:abcdef123456/screen|m]]\n\n[[app:abcdef123456/other|m]]\n'};
+ const timers=new Map<number,{callback:()=>void;delay:number}>();let nextTimer=0;
+ const owner=createDocumentSession({drafts:createDocumentDrafts(),request:async command=>{writes.push(command);return {ok:true};},schedule:(callback,delay)=>{timers.set(++nextTimer,{callback,delay});return nextTimer;},cancel:timer=>{if(typeof timer==='number')timers.delete(timer);},name:()=> 'Member',color:()=> '#123456'});
+ owner.sync(canonical,'main');
+ const appsOwner=createAppsSession(api,{current:()=>owner.authorized(),navigate(){}});appsOwner.sync(canonical);
+ const appProps:import('../svelte/features/apps/types').AppsProps={owner:appsOwner,api,room:canonical,request:async()=>({ok:true}),current:()=>owner.authorized(),checkAccess(){},name:email=>email,ago:()=> 'now',t:text=>text,lang:'pt',thread:'main',openLink(){},metric:async()=>({}),putInDocument:target=>puts.push(target),loadBridge:async()=>({appToolInfo:protocol.appToolInfo,remoteToolResult:protocol.remoteToolResult,createNativeAppBridge:options=>{
+  bridges.push(options);let active=true;return {ready:Promise.resolve(),active:()=>active&&options.current(),attest:async()=>active&&options.current(),loadHtml(){},loadFile(){},update(){},dispose(){active=false;}};
+ }})};
+ const props:DocumentProps={room:canonical,thread:'main',lang:'pt',pane:'doc',send:()=>true,taskProps:{room:canonical,thread:'main',vb,send:()=>true,request:async()=>({ok:true})},actions:{navigate(){},openFile(){}},onPane(){},onAuthorize(){},apps:appProps};
+ const target=document.createElement('div');document.body.append(target);const view=mountView('document',target,{owner,props});active.push(view);
+ peopleCleanups.push(()=>{owner.dispose();appsOwner.dispose();});
+ const settled=async()=>{for(let i=0;i<30;i++){await Promise.resolve();await tick();flushSync();}};
+ await settled();
+ const frames=[...target.querySelectorAll('iframe')];expect(frames).toHaveLength(2);expect(bridges).toHaveLength(2);expect(calls.slice().sort()).toEqual(['other','screen']);
+ const first=bridges.find(bridge=>bridge.frame===frames[0])!, second=bridges.find(bridge=>bridge.frame===frames[1])!;
+ const askA=first.ask('write A','independent A'),askB=second.ask('write B','independent B');await settled();
+ const cards=[...target.querySelectorAll('[data-document-app]')];
+ const button=(root:ParentNode,label:string)=>[...root.querySelectorAll<HTMLButtonElement>('button')].find(value=>value.textContent?.trim()===label)!;
+ button(cards[0]!,'Permitir').click();button(cards[1]!,'Cancelar').click();await settled();await expect(askA).resolves.toBe(true);await expect(askB).resolves.toBe(false);
+ canonical={...canonical,doc:'New prose\n\n'+canonical.doc};owner.sync(canonical,'main');view.update({owner,props:{...props,room:canonical,apps:{...appProps,room:canonical}}});await settled();
+ expect([...target.querySelectorAll('iframe')]).toEqual(frames);expect(calls).toHaveLength(2);
+ button(target.querySelector('[data-document-app]')!,'G').click();await settled();
+ expect(get(owner.state).text).toContain('screen|g');expect([...target.querySelectorAll('iframe')]).toEqual(frames);expect(calls).toHaveLength(2);
+ for(const [id,timer]of [...timers])if(timer.delay===400){timers.delete(id);timer.callback();}await settled();expect(writes.filter(command=>command.t==='doc')).toHaveLength(1);
+ canonical={...canonical,doc:get(owner.state).text};owner.sync(canonical,'main');await settled();
+ const old=first;const oldFrame=frames[0]!;
+ canonical={...canonical,doc:'[[app:abcdef123456/other|m]]\n'};owner.sync(canonical,'main');
+ expect(oldFrame.isConnected).toBe(true);expect(old.current()).toBe(false);
+ const before=calls.length;await expect(old.ask('removed write','must be refused')).resolves.toBe(false);await expect(old.call('screen',{})).rejects.toThrow();expect(calls).toHaveLength(before);
+ view.update({owner,props:{...props,room:canonical,apps:{...appProps,room:canonical}}});await settled();expect(oldFrame.isConnected).toBe(false);
+ // The Apps toolbar's existing immutable-target callback is exercised with the same real catalog owner.
+ appsOwner.load();await settled();appsOwner.open({connection:connection.id,tool:'screen'});
+ const appsTarget=document.createElement('div');document.body.append(appsTarget);const appsView=mountView('apps',appsTarget,{props:{...appProps,room:canonical}});active.push(appsView);await settled();
+ button(appsTarget,'Pôr no doc').click();expect(puts).toEqual([{connection:connection.id,tool:'screen'}]);
+},30_000);

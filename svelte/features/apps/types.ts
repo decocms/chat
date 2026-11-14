@@ -2,6 +2,7 @@ import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../roomConnection";
 import type { AppsApi } from "./api";
 import type { AppsSession } from "./session";
+export type AppBridgeModule = Pick<typeof import('./bridge'), 'createNativeAppBridge'|'appToolInfo'|'remoteToolResult'>;
 export type AppsProps = {
   owner: AppsSession;
   api: AppsApi;
@@ -17,4 +18,6 @@ export type AppsProps = {
   openLink(url: string): void;
   metric(kind: "spend" | "router", roomOnly: boolean): Promise<unknown>;
   putInDocument?(target: { connection: string; tool: string }): void;
+  /** Explicit browser dependency seam; production keeps its existing lazy SDK import. */
+  loadBridge?(): Promise<AppBridgeModule>;
 };

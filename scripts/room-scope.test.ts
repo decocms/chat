@@ -158,3 +158,17 @@ test("legacy document hashes select the real epic and never open a deleted epic 
   ).toBe(false);
   h.dispose();
 });
+
+test('Put in doc uses the actual scoped DocumentSession and old thread callbacks cannot write another document',async()=>{
+ const h=await roomScopeFixture();h.room.doc='Room introduction';h.publish();
+ const rendered=get(h.owner.state)!;
+ rendered.apps.putInDocument?.({connection:'room',tool:'demo'});
+ const view=get(rendered.document.owner.state);
+ expect(view.text).toBe('Room introduction\n\n[[app:room/demo|m]]\n');
+ expect(view.fallbackPending).toBe(true);expect(view.target?.epicId).toBeNull();
+ h.owner.actions.setThread('other');
+ const next=get(h.owner.state)!;const before=get(next.document.owner.state).text;
+ rendered.apps.putInDocument?.({connection:'room',tool:'stale'});
+ expect(get(next.document.owner.state).text).toBe(before);
+ h.dispose();
+});
