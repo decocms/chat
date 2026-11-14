@@ -390,3 +390,24 @@ test("pruning queued vanilla inline B releases its mount before unanswered A wit
     await f.close();
   }
 });
+
+test("agent-opened remote panel waits for this reader's Open and stale controls cannot grant it", async () => {
+  const html = await readFile(new URL("../public/app.html", import.meta.url), "utf8");
+  const start = html.indexOf("function renderConnApp(el) {"), end = html.indexOf("const textOf =", start);
+  if (start < 0 || end < start) throw Error("Actual panel function missing");
+  const window = new Window(), el = window.document.createElement("div");
+  window.document.body.append(el);
+  const scope = {id:"room",me:"reader@example.test"}, target = {cid:"remote",tool:"mutate",requireOpeningConsent:true};
+  let renders=0;
+  const actual: {render():void; selected():unknown;replace(value:unknown):void} = new Function("el","S","conns","target","t","esc","renderConns", `let connApp=target;${html.slice(start,end)};return {render:()=>renderConnApp(el),selected:()=>connApp,replace:value=>{connApp=value}};`)(el,scope,[{id:"remote",apps:[{tool:"mutate",title:"Mutation"}]}],target,(text:string)=>text,(text:string)=>text,()=>{renders++;});
+  try {
+    actual.render();expect(el.querySelector("iframe")).toBeNull();
+    const open=el.querySelector<HTMLButtonElement>("#connReaderOpen")!;
+    scope.me="other@example.test";open.click();expect(renders).toBe(0);
+    scope.me="reader@example.test";scope.id="other";open.click();expect(renders).toBe(0);
+    scope.id="room";actual.replace({...target});open.click();expect(renders).toBe(0);
+    actual.replace(target);open.click();expect(renders).toBe(1);
+    expect(actual.selected()).toEqual({cid:"remote",tool:"mutate"});
+    open.click();expect(renders).toBe(1);
+  } finally {await window.happyDOM.abort();}
+});

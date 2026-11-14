@@ -57,6 +57,7 @@ export type InlineAppOpenEvidence = {
     };
     retainedFramesAfterProse?: boolean;
     documentWidth?: { available: number; card: number };
+    agentOpenRequiresReader?: boolean;
     failure?: { name: string; phase: string; sourceLocations?: string[] };
   }[];
   failure?: { name: string; phase: string };
@@ -624,6 +625,14 @@ export async function auditInlineAppOpen(
             await initialWindow.dispose();
           },
         );
+        await phase("agent-opened remote App still requires this reader's Open",async()=>{
+          const before=snapshot(meter);
+          await readerAgent("app_open",{room_id:roomId,connection_id:connection.id,tool:"mutate_a"});
+          const open=variant==="svelte"?page.locator("[data-native-apps]").getByRole("button",{name:/^(Allow|Permitir)$/}):page.locator("#connReaderOpen");
+          await expect(open).toBeVisible();
+          await quiet();assert.deepEqual(snapshot(meter),before);
+          result.agentOpenRequiresReader=true;
+        });
         assert.deepEqual(result.pageErrors, []);
         assert.equal(meter.invalid, 0);
         assert.deepEqual(meter.initial, result.explicitGrants);

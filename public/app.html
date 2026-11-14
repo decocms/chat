@@ -3532,7 +3532,7 @@ function onEvent(ev, id) {
     case "pins": S.pins = ev.pins; renderSide(); renderFiles(); renderApps(); return;
     // Your Claude opened a file for you (MCP open_file): show it beside the chat; it follows newer versions.
     case "openSide": if (!(S.files || []).some((f) => f.id === ev.file.id)) S.files = [ev.file, ...(S.files || [])]; openSide(ev.file.id, ev.file.name); return;
-    case "openApp": cardGo(`#app:${ev.ref}`); return;
+    case "openApp": cardGo(`#app:${ev.ref}`, true); return;
     case "error": toast(esc(ev.error || t("falhou"))); return;
     case "receipts": S.receipts = ev.receipts; renderReceipts(); return;
     case "older": {
@@ -5618,8 +5618,8 @@ function chartHtml(p, txt) {
   return `<figure class="vchart">${cap}${legend}<div class="vplot"><div class="vyax"><span>${vnum(max)}</span><span>${vnum((max + min) / 2)}</span><span>${vnum(min)}</span></div><svg viewBox="-4 -4 ${w + 8} ${h + 8}" preserveAspectRatio="none">${grid}${lines}${hits}</svg></div><div class="vlab"><span>${txt(L[0])}</span>${mid ? `<span>${txt(mid)}</span>` : ""}<span>${txt(L.at(-1))}</span></div></figure>`;
 }
 // A card's LinkButton to a place in the room: a message (#m), an epic's thread (#e), the doc (#doc[:epic]).
-function cardGo(to) {
-  if (to.startsWith("#app:")) { const [cid, tool] = to.slice(5).split("/"); connApp = { cid, tool }; document.dispatchEvent(new CustomEvent("vb:pane", { detail: "apps" })); if (ROOM_PHONE.matches) openSheet("doc"); return; }
+function cardGo(to, requireOpeningConsent = false) {
+  if (to.startsWith("#app:")) { const [cid, tool] = to.slice(5).split("/"); connApp = { cid, tool, requireOpeningConsent }; document.dispatchEvent(new CustomEvent("vb:pane", { detail: "apps" })); if (ROOM_PHONE.matches) openSheet("doc"); return; }
   if (to.startsWith("#m")) return goToMsg(Number(to.slice(2)));
   const epic = to.startsWith("#e") ? to.slice(2) : to.split(":")[1];
   const target = epic && S.epics.some((x) => x.id === epic) ? epic : epic ? null : thread;
@@ -5826,6 +5826,16 @@ function renderConnApp(el) {
     if (room && !S.filesAll) { el.innerHTML = `<div class="empty">${t("Carregando…")}</div>`; return; } // files.get answers, connsFilesChanged redraws
     if (!room && !connApp.retried) { connApp.retried = true; conns = null; return renderConns(); } // someone may have just connected it
     connApp = null; toast(t("Esse app não está nas conexões que você pode usar nesta sala.")); return renderConns();
+  }
+  // An agent may reveal this app, but only this reader's Open grants its initial tool call.
+  if (connApp.requireOpeningConsent && !room) {
+    const selected = connApp, book = S.id, account = S.me;
+    el.innerHTML = `<div class="connBar"><button type="button" class="ghost" id="connBack">← Apps</button><b>${esc(a.title)}</b></div><p>${t("Abrir este app pode executar ferramentas na sua conta.")}</p><button type="button" class="primary" id="connReaderOpen">${t("Abrir")}</button>`;
+    const open = el.querySelector("#connReaderOpen"), back = el.querySelector("#connBack");
+    const current = (button) => button.isConnected && connApp === selected && S.id === book && S.me === account;
+    open.onclick = () => { if (current(open)) { connApp = { cid: selected.cid, tool: selected.tool }; renderConns(); } };
+    back.onclick = () => { if (current(back)) { connApp = null; renderConns(); } };
+    return;
   }
   const key = `${c.id}/${a.tool}${room ? `@${a.file.id}` : ""}`;
   const pinRef = room ? a.tool : `${c.id}/${a.tool}`;
