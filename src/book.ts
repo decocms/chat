@@ -1482,6 +1482,7 @@ export class Book extends DurableObject<Env> {
    * wakes on each piece of speech), then replaced in place on every new piece. Only that person's own card message. */
   async fireCard(bookId: string, email: string, thread: string, text: string, card: Card, msgId?: number) {
     this.bind(bookId);
+    if (!(await this.members()).includes(email)) return { ok: false as const, error: "forbidden" };
     const secret = findSecret(`${text}\n${cardText(card)}`);
     if (secret) return { ok: false as const, error: `blocked: looks like a secret (${secret})` };
     if (msgId) {
@@ -1502,6 +1503,7 @@ export class Book extends DurableObject<Env> {
    * review message already show them). */
   async firePiece(bookId: string, email: string, thread: string, text: string, ref: { card_msg?: number; file?: { id: string; name: string } }) {
     this.bind(bookId);
+    if (!(await this.members()).includes(email)) return;
     if (findSecret(text)) return;
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
     const at = ref.file ? `\n\n(ao vivo em ${ref.file.name}, file_id ${ref.file.id})` : "";
@@ -1720,6 +1722,9 @@ export class Book extends DurableObject<Env> {
       if (!parsed.success) return Response.json({ error: "invalid file metadata" }, { status: 400 });
       const f = parsed.data;
       if (!this.get("book_id")) this.set("book_id", url.searchParams.get("book") ?? "");
+      // Fire may have awaited a model/R2 write since its HTTP membership check.
+      // No await separates this final authority read from index/broadcast commit.
+      if (req.headers.get("x-require-member") === "true" && !(await this.members()).includes(f.author)) return Response.json({ error: "forbidden" }, { status: 403 });
       this.sql.exec(`INSERT INTO files (id, name, type, size, author, ts) VALUES (?, ?, ?, ?, ?, ?)`, f.id, f.name, f.type, f.size, f.author, f.ts);
       // Just the new file: the whole list went to every tab on each upload (~100 KB each, Nov 2026).
       this.broadcast({ t: "fileAdd", file: f });

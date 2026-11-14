@@ -436,6 +436,7 @@ test("actual Fire card updates require owned card and emit the normalized replac
     events: unknown[] = [];
   const receiver = {
     bind: () => {},
+    members: async () => ["member@example.test"],
     sql: {
       exec: (query: string, ...values: unknown[]) => {
         if (query.startsWith("UPDATE")) writes.push(values);

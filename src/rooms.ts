@@ -114,7 +114,7 @@ export const sizeError = (type: string) => `Arquivo vazio ou maior que ${maxByte
 export type StoredFile = UploadFileResponse;
 
 /** Validates and stores one file in R2 + the room's index. Throws an Error whose message is user-facing. */
-export async function storeFile(env: Env, bookId: string, email: string, type: string, body: ArrayBuffer, rawName: string): Promise<StoredFile> {
+export async function storeFile(env: Env, bookId: string, email: string, type: string, body: ArrayBuffer, rawName: string, authority?: { requireMember: true }): Promise<StoredFile> {
   if (!FILE_TYPES.includes(type)) throw new Error(TYPES_ERROR);
   if (!body.byteLength || body.byteLength > maxBytes(type)) throw new Error(sizeError(type));
   const text = type.startsWith("text/") ? new TextDecoder().decode(body) : "";
@@ -130,8 +130,15 @@ export async function storeFile(env: Env, bookId: string, email: string, type: s
   if (appHtml) await checkEmbed(env, text, email);
   const name = rem ? `reminders/${rem[1].trim()}.md` : agentMd ? `agents/${agentMd[1].trim()}.md` : appHtml ? `apps/${appHtml[1]}.html` : (rawName || `arquivo.${{ "text/html": "html", "text/markdown": "md", "text/plain": "txt", "text/csv": "csv" }[type] ?? type.split("/")[1]}`).replace(/[\\/\u0000-\u001f]/g, "_").slice(0, 120);
   const meta = { id: crypto.randomUUID().replace(/-/g, "").slice(0, 16), name, type, size: body.byteLength, author: email, ts: Date.now() };
+  if (authority && !(await isMember(env.DB, bookId, email))) throw new Error("forbidden");
   await env.FILES.put(`${bookId}/${meta.id}`, body, { httpMetadata: { contentType: type }, customMetadata: { name, author: email } });
-  await bookStub(env, bookId).fetch(`https://book/file?book=${bookId}`, { method: "POST", body: JSON.stringify(meta) });
+  const published = await bookStub(env, bookId).fetch(`https://book/file?book=${bookId}`, { method: "POST", body: JSON.stringify(meta), ...(authority ? { headers: { "x-require-member": "true" } } : {}) });
+  if (authority && !published.ok) {
+    // A confirmed denial precedes the index write. A lost response could follow
+    // a successful commit: never delete bytes on that ambiguous transport path.
+    if (published.status === 403) await env.FILES.delete(`${bookId}/${meta.id}`);
+    throw new Error(published.status === 403 ? "forbidden" : "file publication failed");
+  }
   if (rem) return { ...meta, reminder: await bookStub(env, bookId).reminderFile(bookId, email, rem[1].trim(), text, meta.id) };
   return meta;
 }

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { cardOf } from "./card";
 import type { Env } from "./index";
 import { aiSpend, growthReport, productReport } from "./reports";
-import { bookStub, storeFile } from "./rooms";
+import { bookStub, storeFile, isMember } from "./rooms";
 import { track } from "./track";
 import { recordValue } from "./mcpRequest";
 const usageCost = (usage:unknown) => { const raw = recordValue(usage) ? usage.raw : null; const value = recordValue(raw) ? raw.cost : undefined; const cost = Number(value); return Number.isFinite(cost) ? cost : 0; };
@@ -57,6 +57,8 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
   if (!text) return { ok: false, error: "empty" };
   const history = Array.isArray(b.history) ? b.history.filter((x): x is string => typeof x === "string").slice(-12).map((x) => x.slice(0, 500)) : [];
   const t0 = Date.now();
+  const currentMember = () => isMember(env.DB, bookId, email);
+  if (!(await currentMember())) return { ok: false, error: "forbidden" };
   const thread = typeof b.thread === "string" ? b.thread : "main";
   let cardMsg = Number(b.card_msg) || 0;
   const model = () => createOpenRouter({ apiKey: env.OPENROUTER_API_KEY })(env.MODEL_FAST, { reasoning: { enabled: false, effort: "none" } });
@@ -75,6 +77,7 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
       if (fix) throw e;
       return cardMode(current, (e instanceof Error ? e.message : String(e)).slice(0, 300));
     }
+    if (!(await currentMember())) return { ok: false, error: "forbidden" };
     const r = await bookStub(env, bookId).fireCard(bookId, email, thread, `🔥 ${output.title}`, card, cardMsg || undefined);
     if (!r.ok) return { ok: false as const, error: r.error };
     await bookStub(env, bookId).firePiece(bookId, email, thread, text, { card_msg: r.id });
@@ -105,7 +108,8 @@ export async function fire(env: Env, bookId: string, email: string, b: FireIn): 
     });
     const body = out.trim().replace(/^```[\w-]*\n/, "").replace(/\n```$/, "").trim();
     if (!body) return { ok: false, error: "the model returned nothing" };
-    const meta = await storeFile(env, bookId, email, type, new TextEncoder().encode(body).buffer as ArrayBuffer, name);
+    if (!(await currentMember())) return { ok: false, error: "forbidden" };
+    const meta = await storeFile(env, bookId, email, type, new TextEncoder().encode(body).buffer as ArrayBuffer, name, { requireMember: true });
     const openedResult = !fid ? await bookStub(env,bookId).agentOpenFile(bookId,email,meta.id) : null;
     const opened = openedResult !== null && "opened_in_tabs" in openedResult && typeof openedResult.opened_in_tabs === "number" && openedResult.opened_in_tabs > 0;
     const ms = Date.now() - t0;
