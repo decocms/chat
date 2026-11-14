@@ -9,14 +9,14 @@ PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
 The latest retained passing actual-Worker cohort is associated with source head
-`c3e057c`, tested as PR merge `1ca5434499cb6b182043b7f077531cfe237e72fd` in
-[run 43595260339](https://github.com/vibegui/vibebook.dev/actions/runs/43595260339).
-Its [unchanged reports and exact provenance](native-application-browser/2026-11-14-current-parity/README.md)
+`64fd62a`, tested as PR merge `8a7351e269d8bd9bb3f6837d604637fe5e372d33` in
+[run 43614897139](https://github.com/vibegui/vibebook.dev/actions/runs/43614897139).
+Its [unchanged reports and exact provenance](native-application-browser/2026-11-14-main-f07/README.md)
 cover the seven core phases, twenty editor/socket cycles, eight English/Portuguese
 light/dark desktop/mobile profiles without axe violations, the new canonical
 endcard task lifecycle, and native/default App initial-read/replacement-denial.
 The standalone App transport suite also passes in
-[run 43595260356](https://github.com/vibegui/vibebook.dev/actions/runs/43595260356).
+[run 43614897120](https://github.com/vibegui/vibebook.dev/actions/runs/43614897120).
 The earlier [controlled HTTP document proof](app-document-browser/2026-11-14-file-post/README.md)
 retains actual same-frame POST routing and denial evidence. These functional
 results do not establish production, real-provider intelligence or performance
@@ -34,6 +34,12 @@ final-head revalidation remains required. The later BugMachine checkpoint
 generated preview is committed, with the exact producer and preserved default
 asset hashes in [the build receipt](preview-build-2026-11-14.json). This is source
 and build evidence, not a final browser or performance acceptance result.
+
+The later `0f650eb` intermediate checkpoint also passes a fresh native build
+and all 24 current repository gates, including mandatory deterministic router
+checks; [the exact receipt](verification/2026-11-14-current-main-source.json)
+records the source and log hash. This precedes native file-side/voice integration
+and still needs final generated assets and browser revalidation.
 
 Current integration baseline is main `f07d6a2`, merged at `914d399`.
 It adds Fire/dictation, inline document apps, richer cards and new file flows

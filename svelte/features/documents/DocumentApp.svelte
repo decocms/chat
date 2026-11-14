@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { get } from "svelte/store";
   import { onDestroy, untrack } from "svelte";
   import AppFrame from "../apps/AppFrame.svelte";
   import { createAppsSession } from "../apps/session";

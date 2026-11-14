@@ -184,8 +184,10 @@ try {
   await page.getByRole("button", { name: "Inbox view", exact: true }).click();
   const inboxDocument = page.locator("[data-layout-inbox-document]");
   await expect(inboxDocument).toBeVisible();
-  await expect(slider).toBeHidden();
-  await expect(slider).toBeDisabled();
+  const retainedResize = page.locator("[data-room-width]");
+  await expect(retainedResize).toHaveCount(1);
+  await expect(retainedResize).toBeHidden();
+  await expect(retainedResize).toBeDisabled();
   await expect(page.locator("[data-room-board]")).toHaveAttribute("inert", "");
   await expect
     .poll(() =>
