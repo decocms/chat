@@ -154,6 +154,7 @@ export function matchingMessage(
       message.id > snapshot.baseline &&
       message.author === room.me &&
       message.kind !== "agent" &&
+      message.tag !== "fire" &&
       message.thread === thread &&
       message.text === snapshot.text &&
       (message.reply_to || undefined) === snapshot.replyId &&

@@ -72,7 +72,7 @@ export type SpeechClock = {
   schedule(fn: () => void, ms: number): unknown;
   cancel(handle: unknown): void;
 };
-const browserClock: SpeechClock = {
+export const browserSpeechClock: SpeechClock = {
   schedule: (fn, ms) => setTimeout(fn, ms),
   cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
@@ -88,6 +88,7 @@ export type SpeechKey = {
 export const SPEECH_HOLD_MS = 350;
 export function createSpeechController(options: {
   factory?: SpeechFactory;
+  coarse?: () => boolean;
   locale: string;
   read: () => { text: string; start: number; end: number; revision: number };
   write: (text: string, caret?: number) => void;
@@ -97,7 +98,7 @@ export function createSpeechController(options: {
   ended: () => void;
   clock?: SpeechClock;
 }) {
-  const clock = options.clock || browserClock;
+  const clock = options.clock || browserSpeechClock;
   let active = true,
     generation = 0,
     recording: SpeechRecognizer | undefined,
@@ -227,7 +228,7 @@ export function createSpeechController(options: {
     stop,
     cancel,
     keydown(event: SpeechKey) {
-      if (!active || !options.factory || !options.canStart()) return false;
+      if (!active || !options.factory || !options.canStart() || options.coarse?.()) return false;
       if (event.key !== " ") {
         if (pending) space();
         return false;
@@ -248,7 +249,7 @@ export function createSpeechController(options: {
       return true;
     },
     keyup(event: Pick<SpeechKey, "key">) {
-      if (event.key !== " ") return;
+      if (event.key !== " " || options.coarse?.()) return;
       if (held) {
         held = false;
         stop();

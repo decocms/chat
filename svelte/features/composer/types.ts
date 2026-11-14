@@ -2,6 +2,7 @@ import type { Room } from "../../../shared/room";
 import type { UploadFileResult, AgentsResult } from "../../../shared/schemas";
 import type { ChatBridge } from "../../chatTypes";
 import type { RequestRoomCommand } from "../../roomConnection";
+import type { ComposerFirePort } from "./fireTypes";
 import type { SpeechFactory } from "./speech";
 import type { ComposerDrafts } from "./drafts";
 export type ComposerUpload = (
@@ -23,6 +24,7 @@ export type ComposerProps = {
   agents?: readonly ComposerAgent[];
   hidden?: boolean;
   speechFactory?: SpeechFactory | null;
+  fire?: ComposerFirePort;
 };
 export type ComposerScope = Readonly<{
   account: string;
