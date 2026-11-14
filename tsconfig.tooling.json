@@ -164,6 +164,9 @@
     "scripts/ui-chunk-attribution.ts",
     "scripts/ui-chunk-diagnostics.test.ts",
     "scripts/navigation-presentation.test.ts",
-    "scripts/inventory-calls.test.ts"
+    "scripts/inventory-calls.test.ts",
+    "scripts/inventory-sections.test.ts",
+    "scripts/inventory-reconciliation.test.ts",
+    "scripts/reconcile-inventory.ts"
   ]
 }

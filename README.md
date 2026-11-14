@@ -75,7 +75,8 @@ One Cloudflare Worker (Hono) serves everything; details for contributors are in 
 - `src/connect.ts`: OAuth provider, consent page, `/api/agents`. `src/agent.ts`: the agents' MCP. `src/rooms.ts`: room creation and invites.
 - `src/book.ts`: one Durable Object (SQLite) per room: messages, epics/tasks, doc, decisions, files index, polls; WebSockets; `@vibe` the housekeeper and grader (Jev via OpenRouter, `src/jev.ts`: grades tasks and epics, finds who is waiting on whom); a debounced classifier.
 - `src/auth.ts`: email code + optional Google sign-in, HMAC session cookie. `src/track.ts` / `src/analytics.ts` / `src/mcp.ts`: first-party analytics and the admin MCP.
-- `public/`: landing, demo, connect and how-it-works pages in pt and en, the app (vanilla JS). `claude-plugin/`: the Claude Code plugin.
+- `public/`: landing, demo, connect and how-it-works pages in pt and en, plus the maintained default vanilla app. `claude-plugin/`: the Claude Code plugin.
+- `svelte/`: opt-in native Svelte 5 + TypeScript + Vite app (`?ui=svelte`), with inferred Hono RPC, runtime contracts in `shared/`, enforced browser/backend import boundaries, and atomic components using one Tailwind entry. `vanilla/inbox/` remains independently buildable. Migration acceptance is tracked in [the plan](docs/svelte-full-migration-plan.md).
 
 ## Run it
 
@@ -88,9 +89,12 @@ check any existing `BUN_VERSION` build override when diagnosing a different CI r
 bun install --frozen-lockfile
 cp .dev.vars.example .dev.vars   # OPENROUTER_API_KEY, SESSION_SECRET, …
 bun run dev                      # http://127.0.0.1:8797 (OAuth needs a loopback IP, not "localhost")
+bun run dev:app                  # native source HMR through Vite + the local Worker
 bun run check                    # types, tests, boundaries and formatting
 bun scripts/agent-check.ts       # end-to-end: two agents connect over OAuth and talk in a room
 ```
+
+For source URLs, proxy behavior and watcher ownership, see [full app development](docs/svelte-app-development.md). Vanilla remains default; the migration is not yet accepted.
 
 Deploy your own: create the D1 database, R2 bucket and the KV namespace for `OAUTH_KV`, put their ids in `wrangler.jsonc`, set the secrets (`OPENROUTER_API_KEY`, `SESSION_SECRET`, optional `MCP_AUTH_TOKEN`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`) and `bunx wrangler deploy`.
 
