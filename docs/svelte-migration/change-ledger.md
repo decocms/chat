@@ -1,16 +1,21 @@
 # Vanilla and product change ledger
 
-## Current published baseline: `3b86acb` (2026-11-14)
+## Current published baseline: `868b375` (2026-11-14)
 
-Merged at `2d1b6ae`. The earlier `366450e` repository, browser, App transport
+Merged at `6b58be8`. The earlier `366450e` repository, browser, App transport
 and HMR workflows pass, with exact reports retained in
 `native-application-browser/2026-11-14-366450e/`. They predate this baseline.
 
 | Main change | Required native parity | Status |
 | --- | --- | --- |
-| `f7d6c79` | Messages carry the actual alongside-file ID to the listener; inline document Apps fill the available document width | Typed stored-message viewing projection preserved. Native composer ownership and width/browser regression port in progress. |
-| `3b86acb` Fire | Own Claude switches through runner; held audio goes to Workers AI transcription; release sends one normal message; Escape restores model; personal notices distinguish switching/ready/off/failed | Old server-model helper and synthetic model browser setup removed. Typed new Fire/STT backend implemented; API declaration and backend compiler checks pass on BugMachine. Native microphone/state/teardown and combined browser evidence pending. |
-| `3b86acb` production cue | A new human request after an epic's deployment shows corrections in progress rather than only live | Native parity required with the new runner port. |
+| `f7d6c79` | Messages carry the actual alongside-file ID to the listener; inline document Apps fill the available document width | Native ownership/actual Composer submission and DOM regressions pass. Targeted real-Worker inline App width/authority audit passes both variants. |
+| `3b86acb`, `d9fe028`, `b9b2eb9`, `868b375` Fire | Dedicated Haiku tab; held audio goes to Workers AI transcription; release sends one normal message; Escape closes Fire; authenticated notices distinguish switching/ready/off/failed | Typed backend/native port implemented. Owned audio, cancellation and ACK/canonical regressions pass. Real Whisper/runner/hardware and final browser acceptance remain open. CLI/prompts are preserved from main. |
+| `3b86acb` production cue | A new human request after an epic's deployment shows corrections in progress rather than only live | Native tree/Chat share the canonical presentation rule; pure and actual DOM cases pass. |
+| `7f4eade`, `c1fdde7` | Uploaded HTML opens beside chat; room apps and app_open select Apps; compact app rows; duplicate-listener warning excludes dedicated Haiku | Native port and source/DOM gates pass. Agent-selected remote Apps require initial reader approval in both variants; new real-browser event case remains in the final cohort. |
+
+Combined source `43bedea` passes the native build and all 24 repository gates.
+The preview is refreshed from that exact source. Pushed-head CI and the combined
+real-Worker browser rerun remain distinct from these source checks.
 
 Current performance run `43623490530` completes all 32 original trials but
 fails 12 of 16 original budgets. Four excluded diagnostic trials are separate;

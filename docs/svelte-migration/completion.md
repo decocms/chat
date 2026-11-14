@@ -26,13 +26,30 @@ load and heap also fail. Three of four separate excluded diagnostic trials
 complete; native desktop diagnostics fail with `cpu-invalid`. Neither execution
 success nor diagnostics waive acceptance budgets.
 
-Current integration baseline is main `3b86acb`, merged at `2d1b6ae`.
-It replaces the previous server-side Fire model with the user's Claude runner
-and Workers AI transcription, and adds alongside-file context to sent messages.
-Native ports, typed backend contracts and new real-browser coverage are being
-reconciled against that published behavior. The passing `366450e` cohort
-predates this new baseline and the independent inline-document reader-approval
-audit. Combined-head verification is required before parity can be claimed.
+Current integration baseline is main `868b375`, merged at `6b58be8`.
+Fire now uses a dedicated Haiku runner tab and Workers AI transcription, with
+an owned recording and authenticated state boundary. Messages include the
+actual alongside-file context. Uploaded HTML opens beside chat; room apps and
+agent `app_open` select Apps. Agent-selected remote apps still require reader
+Open/Allow before initialization. Direct reader Open and local room apps retain
+their existing grants. Compact room-app attachment rows and the Haiku-aware
+duplicate-listener warning are ported.
+
+Combined source `43bedea` passes a fresh native build and **all 24 repository
+gates**, including actual DOM regressions, UI/tooling/backend TypeScript,
+runtime RPC/authority tests, client boundaries, style and formatting policies.
+[The exact source receipt](verification/43bedea-current-main-source.json) and
+[matching preview build](preview-build-2026-11-14.json) record provenance.
+The refreshed preview preserves the maintained default assets during refresh.
+Adversarial review found and resolved pending-enable, late-recorder and
+ACK/canonical races. Focused runner tests pass, while real microphone/Whisper
+and dedicated runner hardware remain separate acceptance requirements.
+
+The [targeted real-Worker inline App audit](inline-app-browser/2026-11-14-main-3b86/README.md)
+passes both variants, including OAuth/stock SDK, independent consent, same-frame
+replacement denial and full document width. A complete combined browser rerun,
+including the newer agent-open consent case, and pushed-head CI remain required.
+The passing published `366450e` workflows predate these new ports.
 
 The [source/build receipt](verification/5a7f2c1-current-main-source.json)
 records the all-24-gate producer of the committed preview at `366450e`.
