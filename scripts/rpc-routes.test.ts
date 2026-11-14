@@ -1348,7 +1348,7 @@ test("personal runner Fire states are bounded literals and never confuse mode wi
     book: "room",
     on: true,
   });
-  for (const state of ["switching", "ready", "off", "failed"])
+  for (const state of ["switching", "ready", "off", "failed"] as const)
     expect(
       parsePersonEvent(JSON.stringify({ t: "fireState", book: "room", state })),
     ).toEqual({ t: "fireState", book: "room", state });

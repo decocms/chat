@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 // Actual live-card/storeFile authority consumers; STT uses a fake Workers AI callback.
 // These fixtures do not exercise real AI, Durable Object scheduling or R2 atomicity.
 import { expect, mock, test } from "bun:test";
@@ -220,4 +221,21 @@ test("actual STT byte consumer enforces chunked cap and cancels oversized input 
   await expect(
     speechAudio(new Request("http://local/stt", { method: "POST" })),
   ).rejects.toThrow();
+});
+
+test("actual Whisper input encodes every binary byte across full chunks and one/two-byte tails", async () => {
+  const { transcribeSpeech } = await import("../src/speechToText");
+  for (const length of [24575, 24576, 24577, 24578, 49153, 49154]) {
+    const backing = new Uint8Array(length + 19).fill(255);
+    const audio = backing.subarray(7, length + 7);
+    for (let index = 0; index < audio.length; index++)
+      audio[index] = (index * 31 + 129) & 255;
+    let encoded = "";
+    await transcribeSpeech(audio, {}, async (input) => {
+      encoded = input.audio;
+      return { text: "encoded" };
+    });
+    expect(encoded).toBe(Buffer.from(audio).toString("base64"));
+    expect(Buffer.from(encoded, "base64")).toEqual(Buffer.from(audio));
+  }
 });
