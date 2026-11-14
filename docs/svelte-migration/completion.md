@@ -8,7 +8,18 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
-Latest combined tested source `bf147df` passes a fresh build, all 24 repository
+Main `dcdb3d2` was merged at `4de282a` following Gui's approved
+voice simplification (room messages 2568–2575). Continuous Fire is retired;
+ordinary microphone/hold-Space dictation fills a draft and Enter sends to the
+normal Claude. Native conversion and its independent source review are in
+progress. Cards, uploaded HTML opening beside the chat, historical messages and
+the `fire_card` rewrite tool remain supported. The backend retirement checkpoint
+`ea617ae` passes all four `test:rpc` suites on BugMachine (164 tests, 1735
+assertions), including the retired route's 404/no-effects regression and retained
+STT bounds, authorization and late-membership fences. This targeted result does
+not verify the final native conversion or its generated preview.
+
+Historical combined tested source `bf147df` passes a fresh build, all 24 repository
 gates and the [complete actual-Worker browser cohort](managed-browser/2026-11-14-bf147df/README.md).
 All twelve language/theme/viewport profiles now pass, including usable short-phone
 chat and contained composer. The real Chromium synthetic-input audit verifies
@@ -17,7 +28,7 @@ input-track/context cleanup. Twenty lifecycle cycles, native/default document
 collaboration and both variants' App authority/consent audits pass. The
 [exact source receipt](verification/bf147df-continuous-fire-source.json) and
 [preview asset receipt](preview-build-2026-11-14.json) bind the refreshed build
-to this source. Published-head CI revalidation remains required.
+to this source. Published-head `dfbdbdc` passes [repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43654891131), [integrated browser](https://github.com/vibegui/vibebook.dev/actions/runs/43654899052), [App security](https://github.com/vibegui/vibebook.dev/actions/runs/43654907958), and [HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43654914150). Its new [performance cohort](https://github.com/vibegui/vibebook.dev/actions/runs/43654920935) is pending. These checks predate the voice workflow change below.
 
 Published source `587de12` passes the full [repository workflow](https://github.com/vibegui/vibebook.dev/actions/runs/43642706919),
 including Linux/macOS source gates, generated-asset consistency and the layout
@@ -57,7 +68,7 @@ trials complete; native mobile diagnostics fail with `cpu-invalid`. Neither
 execution success nor diagnostics waive acceptance budgets. The original JSON,
 report and module metadata are retained with exact hashes.
 
-Current integration baseline is main `5027d7d`, merged at `b82d9aa`.
+The previous integration baseline was main `5027d7d`, merged at `b82d9aa`.
 The [native continuous Fire port](native-continuous-fire.md) is integrated at
 `70ab4a5`: swipe-up locks recording, independent final chunks feed a bounded
 serialized queue, and the actual capture adapter shares a resumed stream/level

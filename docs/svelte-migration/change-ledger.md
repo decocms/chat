@@ -115,3 +115,15 @@ The final immutable current inventory, API matrix, feature-owner ledger, generat
 preview, source gates, integrated browser cohort and measured performance cohort
 must be refreshed after these ports are integrated. No acceptance checkbox is
 closed by this integration note.
+
+## Voice workflow simplification: main `dcdb3d2`
+
+Gui approved removal of continuous Fire in room messages 2568–2572; main
+`c833ab4` / `dcdb3d2` was published and deployed, reported in 2573–2575.
+Merged into the migration at `4de282a`. Keep ordinary tap/hold-Space dictation,
+Whisper refinement into the unchanged draft, and Enter sending to the normal
+Claude. Remove the live-mode route, runner tab, personal events and native UI.
+Keep historical message decoding, native cards, `fire_card` rewrite and uploaded
+HTML auto-opening beside chat. Backend removal is integrated; native conversion,
+full source/browser verification and matching generated preview are pending.
+The prior Fire cohorts remain historical evidence, not acceptance of this change.
