@@ -8,17 +8,16 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
-The latest published checkpoint is source head `139573a`:
-[repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43632961178),
-[integrated actual-Worker browser](https://github.com/vibegui/vibebook.dev/actions/runs/43632969916), and
-[App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43632978504)
-pass. The repository workflow includes Linux/macOS, generated asset consistency
-and the production gallery layout scenario. Its
-[source HMR run](https://github.com/vibegui/vibebook.dev/actions/runs/43632716991)
-failed because the new AI binding triggered Wrangler remote authentication.
-Explicit local mode and child-exit observation fix the reproduced failure;
-[the complete ten-step local HMR proof](source-hmr-local-worker.md) passes.
-Published-head HMR revalidation remains required.
+At published source head `9f58378`, the complete integrated actual-Worker browser,
+full source HMR and App transport security workflows pass. [Original safe JSON,
+exact provenance and workflow links](managed-browser/2026-11-14-9f58378/README.md)
+are retained. The repository workflow fails on checked-in preview freshness on
+Linux/macOS; source gates and the production gallery layout job pass. Rebuild and
+commit the preview from the combined source, then rerun the complete workflow.
+The earlier `139573a` checkpoint passed generated-asset consistency but failed
+HMR because the new AI binding triggered Wrangler remote authentication.
+[Explicit local mode and owned child-exit observation](source-hmr-local-worker.md)
+fix the reproduced HMR failure; the managed passing run verifies that fix.
 
 The latest complete [performance cohort](performance/2026-11-14-139573a/README.md)
 executes all 32 original trials but fails **11 of 16 budget comparisons**.
@@ -29,7 +28,14 @@ trials complete; native mobile diagnostics fail with `cpu-invalid`. Neither
 execution success nor diagnostics waive acceptance budgets. The original JSON,
 report and module metadata are retained with exact hashes.
 
-Current integration baseline is main `868b375`, merged at `6b58be8`.
+Current integration baseline is main `5027d7d`, merged at `b82d9aa`.
+The maintained app now includes swipe-up continuous Fire recording; its native
+port is pending. Fire-off cursor handoff is ported into the typed handler, with
+an actual SQLite regression proving room/account isolation and late-membership
+rejection. All 34 focused RPC tests pass 336 assertions. The independent R2
+response helper narrows the actual SDK range union; six focused tests pass 153
+assertions for full, ignored, suffix, offset, bounded and HEAD response behavior.
+Final combined type and browser checks remain required after these follow-ups.
 Fire now uses a dedicated Haiku runner tab and Workers AI transcription, with
 an owned recording and authenticated state boundary. Messages include the
 actual alongside-file context. Uploaded HTML opens beside chat; room apps and
