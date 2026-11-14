@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { expect } from "@playwright/test";
+import { expect, type BrowserContext } from "@playwright/test";
 import { get } from "svelte/store";
 import { CreateRoomResult, FireResult } from "../shared/schemas";
 import { parseRoomEvent, record } from "../shared/validation";
@@ -24,11 +24,7 @@ declare global {
 }
 
 export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
-  const { context, page } = await fixture.createProfile({
-    lang: "en",
-    theme: "light",
-    width: 1440,
-  });
+  let ownedContext: BrowserContext | null = null;
   const evidence = {
     status: "running",
     scope:
@@ -55,6 +51,12 @@ export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
     }
   };
   try {
+    const { context, page } = await fixture.createProfile({
+      lang: "en",
+      theme: "light",
+      width: 1440,
+    });
+    ownedContext = context;
     assert(/^http:\/\/127\.0\.0\.1:[1-9]\d*$/.test(fixture.base));
     const created = await context.request.post(`${fixture.base}/api/books`, {
       headers: { origin: fixture.base },
@@ -69,13 +71,20 @@ export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
       if (new URL(socket.url()).pathname !== `/ws/${room}`) return;
       socket.on("framesent", ({ payload }) => {
         try {
-          const command:unknown = JSON.parse(payload.toString());
-          if (record(command) && command.t === "msg" && typeof command.text === "string" &&
-              command.text.startsWith("🔥 Fire mode:") && typeof command.cid === "string") {
+          const command: unknown = JSON.parse(payload.toString());
+          if (
+            record(command) &&
+            command.t === "msg" &&
+            typeof command.text === "string" &&
+            command.text.startsWith("🔥 Fire mode:") &&
+            typeof command.cid === "string"
+          ) {
             reviewCommands.add(command.cid);
             evidence.reviewCommands++;
           }
-        } catch { invalidFrames.push("InvalidOutgoingBookCommand"); }
+        } catch {
+          invalidFrames.push("InvalidOutgoingBookCommand");
+        }
       });
       socket.on("framereceived", ({ payload }) => {
         try {
@@ -354,9 +363,9 @@ export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
         assert.equal(pieces.length, 4);
         for (const piece of pieces)
           await expect(page.locator(`#m${piece.id}`)).toHaveCount(0);
-        assert.equal(evidence.reviewCommands,1);
-      assert.equal(evidence.reviewCommandResults,1);
-      evidence.reviewMessages = 1;
+        assert.equal(evidence.reviewCommands, 1);
+        assert.equal(evidence.reviewCommandResults, 1);
+        evidence.reviewMessages = 1;
         evidence.canonicalFirePieces = pieces.length;
       },
     );
@@ -398,8 +407,8 @@ export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
           (message) => message.tag === "fire",
         ))
           await expect(page.locator(`#m${piece.id}`)).toHaveCount(0);
-        assert.equal(evidence.reviewCommands,2);
-        assert.equal(evidence.reviewCommandResults,2);
+        assert.equal(evidence.reviewCommands, 2);
+        assert.equal(evidence.reviewCommandResults, 2);
         evidence.reviewMessages = 2;
         evidence.canonicalFirePieces = 5;
         assert(firstFile && latestFile);
@@ -410,10 +419,15 @@ export async function auditNativeFire(fixture: NativeApplicationAuditFixture) {
     return evidence;
   } catch (error) {
     evidence.status = "failed";
+    evidence.failurePhase ??= "profile/room setup";
     throw error;
   } finally {
     try {
-      await context.close();
+      await ownedContext?.close();
+    } catch (error) {
+      evidence.status = "failed";
+      evidence.failurePhase ??= "owned context cleanup";
+      throw error;
     } finally {
       await writeFile(
         resolve(fixture.output, "native-fire.json"),
