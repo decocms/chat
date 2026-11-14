@@ -697,7 +697,7 @@ test("Fire metadata-only file reconciles exact later canonical metadata without 
   expect(side.target()?.follow).toBe(true);
   input.ts=99; // The requested witness is copied, not a mutable caller alias.
   side.sync(room(),request);
-  side.sync(room({receipts:{a:1}}),request);
+  side.sync(room({receipts:[{email:"a",who:"Member",read:1,delivered:1}]}),request);
   expect(side.target()?.id).toBe("bb");
   expect(side.target()?.witness.ts).toBe(2);
   side.sync(room({ files: [attachment("bb", 2), attachment()] }), request);
