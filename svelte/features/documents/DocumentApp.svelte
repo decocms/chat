@@ -7,17 +7,24 @@
   import type { AppsProps } from "../apps/types";
   import type { DocumentAppMarker, DocumentAppSize } from "./appMarkers";
   import Button from "../../lib/ui/Button.svelte";
+  import Snapshot from "../../lib/ui/Snapshot.svelte";
   let {
     props,
     marker,
+    source,
     current,
     resize,
     open,
   }: {
     props: AppsProps;
     marker: DocumentAppMarker;
+    source: string;
     current(): boolean;
-    resize(size: DocumentAppSize): void;
+    resize(
+      source: string,
+      marker: DocumentAppMarker,
+      size: DocumentAppSize,
+    ): void;
     open(): void;
   } = $props();
   let active = true;
@@ -67,18 +74,24 @@
 >
   <header class="tw:flex tw:items-center tw:gap-2 tw:bg-muted tw:px-3 tw:py-2">
     <b class="tw:min-w-0 tw:flex-1 tw:truncate">{marker.tool}</b>
-    <div role="group" aria-label={props.t("Tamanho")} class="tw:flex tw:gap-1">
-      {#each ["p", "m", "g"] as size}<Button
-          variant={marker.size === size ? "secondary" : "ghost"}
-          onclick={(event) => {
-            if (
-              connected(event) &&
-              (size === "p" || size === "m" || size === "g")
-            )
-              resize(size);
-          }}>{size.toUpperCase()}</Button
-        >{/each}
-    </div>
+    {#key source}<Snapshot value={{ source, marker }}
+        >{#snippet children(rendered)}<div
+            role="group"
+            aria-label={props.t("Tamanho")}
+            class="tw:flex tw:gap-1"
+          >
+            {#each ["p", "m", "g"] as size}<Button
+                variant={marker.size === size ? "secondary" : "ghost"}
+                onclick={(event) => {
+                  if (
+                    connected(event) &&
+                    (size === "p" || size === "m" || size === "g")
+                  )
+                    resize(rendered.source, rendered.marker, size);
+                }}>{size.toUpperCase()}</Button
+              >{/each}
+          </div>{/snippet}</Snapshot
+      >{/key}
     <Button
       variant="ghost"
       onclick={(event) => {

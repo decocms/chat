@@ -10,9 +10,12 @@
   import Tasks from "../../Tasks.svelte";
   import Mermaid from "./Mermaid.svelte";
   import { documentBlocks, documentAppNodes, mermaidSource } from "./preview";
-  import { documentAppMarkers, resizeDocumentApp } from "./appMarkers";
+  import {
+    documentAppMarkers,
+    resizeDocumentApp,
+    documentAppKey,
+  } from "./appMarkers";
   import DeferredDocumentApp from "./DeferredDocumentApp.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
   let {
     text,
     epic,
@@ -93,39 +96,25 @@
 </script>
 
 {#snippet appSlot(index: number)}
-  {#if props.apps && appMarkers[index]}{#key text}<Snapshot
-        value={{
-          source: text,
-          marker: appMarkers[index]!,
-          target: owner.target(),
-          apps: props.apps,
-        }}
-      >
-        {#snippet children(binding)}
-          <DeferredDocumentApp
-            props={props.apps}
-            marker={binding.marker}
-            current={() =>
-              current() &&
-              owner.target()?.epicId === binding.target?.epicId &&
-              text === binding.source}
-            resize={(size) => {
-              if (!current() || !binding.target) return;
-              const next = resizeDocumentApp(
-                binding.source,
-                binding.marker,
-                size,
-              );
-              if (next !== null)
-                owner.rewrite(binding.target, binding.source, next);
-            }}
-            open={() => {
-              if (current() && text === binding.source)
-                props.openApp?.(binding.marker);
-            }}
-          />
-        {/snippet}
-      </Snapshot>{/key}{/if}
+  {#if props.apps && appMarkers[index]}
+    <DeferredDocumentApp
+      props={props.apps}
+      marker={appMarkers[index]!}
+      source={text}
+      {current}
+      resize={(source, marker, size) => {
+        if (!current()) return;
+        const target = owner.target();
+        if (!target) return;
+        const next = resizeDocumentApp(source, marker, size);
+        if (next !== null) owner.rewrite(target, source, next);
+      }}
+      open={() => {
+        const marker = appMarkers[index];
+        if (current() && marker) props.openApp?.(marker);
+      }}
+    />
+  {/if}
 {/snippet}
 
 {#snippet taskSlot()}<section data-document-tasks class="tw:my-3">
@@ -157,7 +146,7 @@
         ? "Preview shown as plain text. The full document remains available to read, copy and edit."
         : "Prévia em texto simples. O documento completo continua disponível para ler, copiar e editar."}
     </p>{/if}
-  {#each blocks as block}
+  {#each blocks as block, index ("node" in block && block.node.kind === "element" && block.node.documentAppSlot !== undefined ? "app:" + documentAppKey(appMarkers[block.node.documentAppSlot]!) : "block:" + index)}
     {#if "tasks" in block}<section data-document-tasks class="tw:my-3">
         <Tasks {...taskProps} thread={epic ?? "main"} />
       </section>

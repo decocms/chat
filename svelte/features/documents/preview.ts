@@ -10,12 +10,11 @@ export function documentAppNodes(
   function walk(values: readonly RichNode[]): RichNode[] {
     return values.map((node) => {
       if (node.kind === "element" && node.tag === "p") {
-        const value = text(node.children).trim();
         const found = markers.findIndex(
           (marker, index) =>
             index >= cursor &&
-            value.toLowerCase() ===
-              `[[app:${marker.connection}/${marker.tool}${/\|[pmg]\]\]$/i.test(value) ? "|" + marker.size : ""}]]`.toLowerCase(),
+            marker.start === node.sourceStart &&
+            marker.end === node.sourceEnd,
         );
         if (found >= 0) {
           cursor = found + 1;

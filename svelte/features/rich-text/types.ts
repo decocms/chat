@@ -66,5 +66,7 @@ export type RichNode =
       task?: boolean;
       documentTaskSlot?: true;
       documentAppSlot?: number;
+      sourceStart?: number;
+      sourceEnd?: number;
       language?: string;
     };

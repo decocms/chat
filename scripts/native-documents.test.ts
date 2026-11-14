@@ -1,5 +1,6 @@
 import {
   documentAppMarkers,
+  documentAppKey,
   resizeDocumentApp,
   appendDocumentApp,
 } from "../svelte/features/documents/appMarkers";
@@ -33,6 +34,7 @@ import { createRichSession } from "../svelte/features/rich-text/session";
 import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
 import {
   documentBlocks,
+  documentAppNodes,
   mermaidSource,
 } from "../svelte/features/documents/preview";
 import {
@@ -868,7 +870,7 @@ test("a new live editor cannot overwrite a retained fallback or prior-view draft
 });
 
 test("document app markers rewrite only the captured occurrence and preserve unrelated source", () => {
-  const source = "# Doc\n\n[[app:room/chart|P]]\n\ntext\n[[app:abc/tool]]\n";
+  const source = "# Doc\n\n[[app:room/chart|P]]\n\ntext\n\n[[app:abc/tool]]\n";
   const markers = documentAppMarkers(source);
   expect(
     markers.map((marker) => [marker.connection, marker.tool, marker.size]),
@@ -877,7 +879,7 @@ test("document app markers rewrite only the captured occurrence and preserve unr
     ["abc", "tool", "m"],
   ]);
   expect(resizeDocumentApp(source, markers[1]!, "g")).toBe(
-    "# Doc\n\n[[app:room/chart|P]]\n\ntext\n[[app:abc/tool|g]]\n",
+    "# Doc\n\n[[app:room/chart|P]]\n\ntext\n\n[[app:abc/tool|g]]\n",
   );
   expect(
     resizeDocumentApp(
@@ -915,4 +917,51 @@ test("preview app edits retain bounded write uncertainty and refuse stale source
   expect(h.owner.rewrite(target, "app marker", "wrong document")).toBe(false);
   h.owner.dispose();
   expect(h.owner.rewrite(target, "app marker", "after disposal")).toBe(false);
+});
+
+test("document App source spans exclude fenced, HTML-comment and indented code twins", () => {
+  const hidden =
+    "\x60\x60\x60\n[[app:room/demo|m]]\n\x60\x60\x60\n\n<!--\n[[app:room/demo|m]]\n-->\n\n    [[app:room/demo|m]]\n\n";
+  const source = hidden + "[[app:room/demo|m]]\n\n[[app:room/demo|m]]\n";
+  const markers = documentAppMarkers(source);
+  expect(markers).toHaveLength(2);
+  expect(resizeDocumentApp(source, markers[1]!, "g")).toBe(
+    hidden + "[[app:room/demo|m]]\n\n[[app:room/demo|g]]\n",
+  );
+  expect(resizeDocumentApp(source, markers[0]!, "p")).toBe(
+    hidden + "[[app:room/demo|p]]\n\n[[app:room/demo|m]]\n",
+  );
+});
+
+test("App AST slots carry exact legal paragraph spans and stable grants across prose and size edits", () => {
+  const hidden = "<p>[[app:room/demo|m]]</p>\n\n> [[app:room/demo|m]]\n\n";
+  const source = hidden + "[[app:room/demo|m]]\n";
+  const nodes = richText(source, "markdown", context("document"));
+  const slots = descendants(documentAppNodes(nodes, source)).filter(
+    (node) => node.kind === "element" && node.documentAppSlot !== undefined,
+  );
+  expect(slots).toHaveLength(1);
+  const original = documentAppMarkers(source)[0]!;
+  const moved = documentAppMarkers(
+    "New paragraph\n\n" +
+      source.replace("[[app:room/demo|m]]\n", "[[app:room/demo|g]]\n"),
+  )[0]!;
+  expect(documentAppKey(moved)).toBe(documentAppKey(original));
+  expect(original.start).toBe(hidden.length);
+});
+test("canonical reads during preview writes cannot discard or repeat the pending local edit", async () => {
+  const h = setup();
+  const target = h.owner.target()!,
+    source = get(h.owner.state).text;
+  expect(h.owner.rewrite(target, source, "preview mutation")).toBe(true);
+  h.owner.sync({ ...room(), doc: "remote older mirror" }, "main");
+  expect(get(h.owner.state).text).toBe("preview mutation");
+  expect(get(h.owner.state).fallbackPending).toBe(true);
+  h.clock.run();
+  await settle();
+  h.owner.sync({ ...room(), doc: "remote older mirror" }, "main");
+  expect(h.writes.filter((command) => command.t === "doc")).toHaveLength(1);
+  expect(h.owner.rewrite(target, "preview mutation", "duplicate")).toBe(false);
+  h.owner.dispose();
+  expect(h.drafts.get(target)?.text).toBe("preview mutation");
 });

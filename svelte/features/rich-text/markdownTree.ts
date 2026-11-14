@@ -8,7 +8,12 @@ import {
   type DefaultTreeAdapterTypes,
 } from "parse5";
 import { decodeHTML } from "entities";
-export type MarkdownMetadata = { task?: boolean; language?: string };
+export type MarkdownMetadata = {
+  task?: boolean;
+  language?: string;
+  sourceStart?: number;
+  sourceEnd?: number;
+};
 type KnownToken =
   | Tokens.Space
   | Tokens.Code
@@ -115,10 +120,22 @@ export function markdownTree(source: string, documentImages = false) {
     tokens(children);
     tag(name, false);
   };
-  function tokens(input: Tokens.Generic[], loose = false) {
+  function tokens(
+    input: Tokens.Generic[],
+    loose = false,
+    sourceOffset?: number,
+  ) {
     if (++depth > 48) throw new Error("Rich token depth limit");
     for (const raw of input) {
       const token = raw as KnownToken;
+      const sourceSpan =
+        sourceOffset === undefined
+          ? undefined
+          : {
+              sourceStart: sourceOffset,
+              sourceEnd: sourceOffset + raw.raw.length,
+            };
+      if (sourceOffset !== undefined) sourceOffset += raw.raw.length;
       switch (token.type) {
         case "space":
         case "def":
@@ -131,7 +148,7 @@ export function markdownTree(source: string, documentImages = false) {
           wrap(`h${token.depth}`, token.tokens);
           break;
         case "paragraph":
-          wrap("p", token.tokens);
+          wrap("p", token.tokens, [], sourceSpan);
           break;
         case "blockquote":
           wrap("blockquote", token.tokens);
@@ -249,7 +266,7 @@ export function markdownTree(source: string, documentImages = false) {
     }
     depth--;
   }
-  tokens(Lexer.lex(source, { gfm: true, breaks: true }));
+  tokens(Lexer.lex(source, { gfm: true, breaks: true }), false, 0);
   parser.tokenizer.write("", true);
   return { fragment: parser.getFragment(), metadata };
 }
