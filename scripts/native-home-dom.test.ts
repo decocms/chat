@@ -1309,26 +1309,64 @@ test("room Inbox old connected question controls cannot act on a same-ID canonic
 
 test("real RoomShell rejects connected card-A intent after same-ID canonical msgCard replacement", async () => {
   const h = await actualRoomShell();
-  const wire = (title: string, label: string) => JSON.stringify({root:"c",elements:{c:{type:"Card",props:{title},children:["a"]},a:{type:"Actions",children:["b"]},b:{type:"Button",props:{label,value:"approve"}}}});
-  const first=wire("Context A","Approve A"),second=wire("Context B","Approve B");
-  h.publish({...h.canonical,messages:[{id:1,thread:"main",author:h.canonical.me,kind:"agent",text:"Card prompt",card:first,ts:1}]});
-  await flush();await waitForView(h.target,'[data-native-card-answer="approve"]');
-  const old=h.target.querySelector<HTMLButtonElement>('[data-native-card-answer="approve"]')!;
+  const wire = (title: string, label: string) =>
+    JSON.stringify({
+      root: "c",
+      elements: {
+        c: { type: "Card", props: { title }, children: ["a"] },
+        a: { type: "Actions", children: ["b"] },
+        b: { type: "Button", props: { label, value: "approve" } },
+      },
+    });
+  const first = wire("Context A", "Approve A"),
+    second = wire("Context B", "Approve B");
+  h.publish({
+    ...h.canonical,
+    messages: [
+      {
+        id: 1,
+        thread: "main",
+        author: h.canonical.me,
+        kind: "agent",
+        text: "Card prompt",
+        card: first,
+        ts: 1,
+      },
+    ],
+  });
+  await flush();
+  await waitForView(h.target, '[data-native-card-answer="approve"]');
+  const old = h.target.querySelector<HTMLButtonElement>(
+    '[data-native-card-answer="approve"]',
+  )!;
   expect(old.textContent).toContain("Approve A");
-  const before=h.roomCommands.filter(command=>command.t==="msg").length;
-  h.connectionCallbacks.at(-1)!.onEvent({t:"msgCard",id:1,card:second});
-  expect(h.services.rootRoom.read().room?.messages.find(message=>message.id===1)?.card).toBe(second);
-  expect(old.isConnected).toBe(true);expect(old.textContent).toContain("Approve A");
+  const before = h.roomCommands.filter((command) => command.t === "msg").length;
+  h.connectionCallbacks.at(-1)!.onEvent({ t: "msgCard", id: 1, card: second });
+  expect(
+    h.services.rootRoom
+      .read()
+      .room?.messages.find((message) => message.id === 1)?.card,
+  ).toBe(second);
+  expect(old.isConnected).toBe(true);
+  expect(old.textContent).toContain("Approve A");
   old.click();
-  expect(h.roomCommands.filter(command=>command.t==="msg").length).toBe(before);
-  await flush();await waitForView(h.target,'[data-native-card-answer="approve"]');
-  const current=h.target.querySelector<HTMLButtonElement>('[data-native-card-answer="approve"]')!;
+  expect(h.roomCommands.filter((command) => command.t === "msg").length).toBe(
+    before,
+  );
+  await flush();
+  await waitForView(h.target, '[data-native-card-answer="approve"]');
+  const current = h.target.querySelector<HTMLButtonElement>(
+    '[data-native-card-answer="approve"]',
+  )!;
   expect(current.textContent).toContain("Approve B");
   // An unrelated canonical receipt refresh retains the same legitimate card intent.
-  h.connectionCallbacks.at(-1)!.onEvent({t:"receipts",receipts:[]});
+  h.connectionCallbacks.at(-1)!.onEvent({ t: "receipts", receipts: [] });
   current.click();
-  expect(h.roomCommands.filter(command=>command.t==="msg").length).toBe(before+1);
-  const sent=h.roomCommands.filter(command=>command.t==="msg").at(-1);
-  if(!sent||sent.t!=="msg")throw Error("Expected current card reply");
-  expect(sent.reply_to).toBe(1);expect(sent.text).toBe("approve");
+  expect(h.roomCommands.filter((command) => command.t === "msg").length).toBe(
+    before + 1,
+  );
+  const sent = h.roomCommands.filter((command) => command.t === "msg").at(-1);
+  if (!sent || sent.t !== "msg") throw Error("Expected current card reply");
+  expect(sent.reply_to).toBe(1);
+  expect(sent.text).toBe("approve");
 });
