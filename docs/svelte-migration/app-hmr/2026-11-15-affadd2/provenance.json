@@ -1,0 +1,40 @@
+{
+  "sourceRevision": "affadd2825d31320f2d90d7b63e6736de1917b58",
+  "run": 43669338342,
+  "unchangedSourceBetweenAttempts": true,
+  "downloadCaveat": "Both attempts have the same artifact name; attempt2 was retrieved explicitly by artifact ID14143078636, not name.",
+  "files": [
+    {
+      "attempt": 1,
+      "artifactId": 14143726094,
+      "path": "attempt-1-results.json",
+      "originalName": "results.json",
+      "bytes": 3681,
+      "sha256": "438d2913c29ba362899d1e5af543f226b0f9c6a574b72022e5cc6535d1f0b96e"
+    },
+    {
+      "attempt": 1,
+      "artifactId": 14143726094,
+      "path": "attempt-1-runner.json",
+      "originalName": "runner.json",
+      "bytes": 183,
+      "sha256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97"
+    },
+    {
+      "attempt": 2,
+      "artifactId": 14143078636,
+      "path": "attempt-2-results.json",
+      "originalName": "results.json",
+      "bytes": 13102,
+      "sha256": "adc15a9ca366552b99000df7f43d29911ebe2284db440237569c62eebb041ee9"
+    },
+    {
+      "attempt": 2,
+      "artifactId": 14143078636,
+      "path": "attempt-2-runner.json",
+      "originalName": "runner.json",
+      "bytes": 183,
+      "sha256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "sourceRevision": "fe9584c8077a187afc83d879761d6e92a29d8c74",
+  "testedRevision": "fe9584c8077a187afc83d879761d6e92a29d8c74",
+  "publishedHead": "affadd2825d31320f2d90d7b63e6736de1917b58",
+  "mergeCommit": "3a73dffaf9fe3ff66045c08515a50714fc89060a",
+  "environment": "Isolated BugMachine; pinned Node22.23.5/Bun1.4.4/Chromium158.0.8127.18",
+  "status": "passed",
+  "profiles": 12,
+  "lifecycleCycles": 20,
+  "files": [
+    {
+      "originalName": "results.json",
+      "path": "results.json.gz",
+      "originalBytes": 1105334,
+      "originalSHA256": "26bcdc8721ec0dbab73b273b91c5b043d76befd39f5d5b4899b743700a38c13d",
+      "storedBytes": 38303,
+      "storedSHA256": "cb8118642e7e5dd4d5025f86b2372f73a53145ecad70cf4c08c5f33923d4784d",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "runner.json",
+      "path": "runner.json",
+      "originalBytes": 1009,
+      "originalSHA256": "a5df2e4c2512513adae89818049680ba95ff2184019af3dcfdbb10c8743a68c3",
+      "storedBytes": 1009,
+      "storedSHA256": "a5df2e4c2512513adae89818049680ba95ff2184019af3dcfdbb10c8743a68c3",
+      "compression": null
+    },
+    {
+      "originalName": "native-root-profiles.json",
+      "path": "native-root-profiles.json.gz",
+      "originalBytes": 993308,
+      "originalSHA256": "d1ee0ec1e4e713aad5da818d044b75d063fc31b7988533f7ab14957de5af51a2",
+      "storedBytes": 27808,
+      "storedSHA256": "70804dc34e6b722f835a7fc4fee2529d12e66205e5014546b5b20e0e579996b3",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "native-app-navigation.json",
+      "path": "native-app-navigation.json",
+      "originalBytes": 2047,
+      "originalSHA256": "aee5e110b606a373ab7b24ff5eafa6e5c16b7ec1e68beeb0448f818851f950a6",
+      "storedBytes": 2047,
+      "storedSHA256": "aee5e110b606a373ab7b24ff5eafa6e5c16b7ec1e68beeb0448f818851f950a6",
+      "compression": null
+    },
+    {
+      "originalName": "vanilla-app-navigation.json",
+      "path": "vanilla-app-navigation.json",
+      "originalBytes": 2049,
+      "originalSHA256": "69d5a8d97719cccb680bfcef1c4e58530aed5a8f7bb306dc2cbe48c7ad632601",
+      "storedBytes": 2049,
+      "storedSHA256": "69d5a8d97719cccb680bfcef1c4e58530aed5a8f7bb306dc2cbe48c7ad632601",
+      "compression": null
+    },
+    {
+      "originalName": "inline-app-open.json",
+      "path": "inline-app-open.json",
+      "originalBytes": 10988,
+      "originalSHA256": "9c6cc99dce471303644e62882e8b98bc60d67d544e080b652ef5222789754eff",
+      "storedBytes": 10988,
+      "storedSHA256": "9c6cc99dce471303644e62882e8b98bc60d67d544e080b652ef5222789754eff",
+      "compression": null
+    },
+    {
+      "originalName": "native-dictation.json",
+      "path": "native-dictation.json",
+      "originalBytes": 825,
+      "originalSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "storedBytes": 825,
+      "storedSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "compression": null
+    },
+    {
+      "originalName": "native-document-answers.json",
+      "path": "native-document-answers.json",
+      "originalBytes": 2815,
+      "originalSHA256": "a607f4330f1b1d25f4ae0e01f119cf2e96327f149aea6038a15797a212a1f957",
+      "storedBytes": 2815,
+      "storedSHA256": "a607f4330f1b1d25f4ae0e01f119cf2e96327f149aea6038a15797a212a1f957",
+      "compression": null
+    },
+    {
+      "originalName": "direct-mcp.json",
+      "path": "direct-mcp.json",
+      "originalBytes": 1309,
+      "originalSHA256": "d39542283588b1acc94b6c5cc569b29620e15595c70c98f45e69223c65350d4a",
+      "storedBytes": 1309,
+      "storedSHA256": "d39542283588b1acc94b6c5cc569b29620e15595c70c98f45e69223c65350d4a",
+      "compression": null
+    }
+  ],
+  "limits": "Real local Worker/Auth/MCP/Book/D1/R2/DocRoom; synthetic microphone and controlled external peers/models. Not production, physical speech, actual Whisper/provider intelligence, performance-budget acceptance or final sign-off. Raw logs/credentials/HTML/audio/screenshots excluded."
+}

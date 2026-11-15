@@ -4,9 +4,12 @@ Status: **in progress, not accepted**. This report tracks evidence against
 `../svelte-full-migration-plan.md`; it does not replace its conditions. Vanilla
 remains the default and Svelte requires `?ui=svelte`.
 
-The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
-PR #2 is closed, with its work preserved in #1. No final deployed revision or
-maintainer acceptance is recorded yet.
+The consolidated migration [PR #1](https://github.com/vibegui/vibebook.dev/pull/1)
+merged as `3a73dffaf9fe3ff66045c08515a50714fc89060a`. PR #2 is closed, with its
+work preserved in #1; no migration PR remains open. Both production builds
+succeeded and [three deployed asset hashes match](production/2026-11-15-3a73dff/README.md).
+This is an opt-in checkpoint. Authenticated production coexistence/rollback and
+maintainer acceptance remain unverified.
 
 Main `a7e8ac9` is integrated. The direct-MCP checkpoint at `fe9584c` passes a
 fresh native build and [all 24 mandatory source gates](verification/fe9584c-direct-mcp-source.json),
@@ -15,10 +18,29 @@ validates and rechecks membership/connection authority around signing. The nativ
 client owns short-lived credentials and SDK sessions within its RoomScope;
 initialization can fall back, but a started tool call cannot replay through the
 proxy. Default direct requests also omit cookies and refuse redirects. Reader
-consent remains required. Matching generated assets are refreshed. The complete
-Worker/browser audit and published-head CI are pending; source acceptance alone
-does not satisfy those gates. Legacy token/OAuth fallback remains temporarily
-compatible with main; Gui's separate token-removal follow-up is not yet integrated.
+consent remains required. Matching generated assets are refreshed. The
+[complete real Worker/browser cohort](managed-browser/2026-11-15-fe9584c/README.md)
+and all four published functional workflows pass, as do main's repository and
+browser workflows. Both variants verify the actual identity signature/claims,
+reader approval, one effect and one failed direct call, no replay via the Worker
+and no forwarded cookies. Twelve display profiles, twenty lifecycle cycles and
+the existing document/consent regressions pass. The [first HMR failure and unchanged
+passing retry](app-hmr/2026-11-15-affadd2/README.md) are retained separately; no
+cause or product fix is claimed. Legacy token/OAuth fallback remains temporarily
+compatible with this deployed main; Gui's runtime token-removal follow-up and
+the matching typed-contract port are prepared separately and not yet integrated.
+
+Performance remains unaccepted. The latest retained complete cohort is still
+`14646bc`, with 12 of 16 original budgets failed. A fresh unchanged control at
+deployed `3a73dff` is running. The [font-budget amendment](font-budget-amendment-proposal.md)
+is a proposal only, awaiting explicit user approval; no plan or validator limit
+has changed. Layout and Markdown-parser experiments remain isolated and have
+not been deployed or accepted as performance improvements.
+
+## Earlier checkpoints
+
+The entries below retain their original source scopes and historical limitations.
+Their pending statements do not replace the current checkpoint status above.
 
 Current native document integration at `7516b84` passes a fresh build, [all 24 source gates](verification/7516b84-document-answer-source.json), and the [complete real Worker/browser cohort](managed-browser/2026-11-15-7516b84/README.md). Both variants deliver `open_doc` to two own tabs, refuse missing/deleted epics, render/update read-only cards without message writes, and retain two real R2/private-channel App versions inside the doc. Existing reader consent, stock SDK and replacement-authority audits, all twelve display profiles and twenty lifecycle cycles pass. The [same-epic vanilla failure](managed-browser/2026-11-15-de5570e-document-failure/README.md) and [remote-App consent regression](managed-browser/2026-11-15-1809c28-consent-failure/README.md) were reproduced and fixed without weakening their assertions. Matching assets are refreshed; published-head CI and production verification remain required. This is an opt-in checkpoint, not full-plan acceptance.
 
