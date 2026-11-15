@@ -589,3 +589,182 @@ test("actual direct identity signer binds requester, stored audience and five-mi
     ),
   ).toBe(true);
 });
+
+test("actual signed viewer identity ignores historical owner credentials and retains OAuth fallback", async () => {
+  const { connectionIdentity } = await import("../src/connectionIdentity");
+  const { identityJwt } = await import("../src/mcpauth");
+  const schema = await import("zod/mini");
+  const row: Conn = {
+    id: "stale",
+    book_id: "room",
+    owner: "old-owner@example.test",
+    scope: "room",
+    url: "https://remote.example/mcp",
+    title: "Historical",
+    enc: "historical-ciphertext",
+    iv: "historical-iv",
+    tools: null,
+    ctx: null,
+    created_at: 1,
+  };
+  let grants = 0;
+  const result = await connectionIdentity("room", "stale", {
+    email: "current-viewer@example.test",
+    member: async () => true,
+    connection: async () => row,
+    allowed: async () => true,
+    signedIn: async () => {
+      grants++;
+      return false;
+    },
+    sign: (room, url) =>
+      identityJwt(
+        { SESSION_SECRET: "controlled-direct-identity-test-only" },
+        "https://vibebook.test",
+        { email: "current-viewer@example.test", room, aud: url },
+      ),
+    track() {},
+  });
+  if (!("direct" in result) || !result.direct)
+    throw Error("Expected current viewer identity");
+  expect(grants).toBeGreaterThan(0);
+  const claims: unknown = JSON.parse(
+    Buffer.from(result.identity.split(".")[1], "base64url").toString("utf8"),
+  );
+  const parsed = schema
+    .strictObject({
+      iss: schema.string(),
+      sub: schema.literal("current-viewer@example.test"),
+      email: schema.literal("current-viewer@example.test"),
+      room: schema.literal("room"),
+      aud: schema.literal(row.url),
+      iat: schema.number(),
+      exp: schema.number(),
+      jti: schema.string(),
+    })
+    .parse(claims);
+  expect(parsed.exp - parsed.iat).toBe(300);
+  expect(Object.keys(result).sort()).toEqual([
+    "direct",
+    "expires_in",
+    "identity",
+    "url",
+  ]);
+  expect(row.enc).toBe("historical-ciphertext");
+  expect(row.iv).toBe("historical-iv");
+});
+
+test("actual RPC and public projection never read historical pasted credentials", async () => {
+  const { rpc, publicConn } = await import("../src/mcpconn");
+  const schema = await import("zod/mini");
+  const row: Conn = {
+    id: "historical-reader-rpc",
+    book_id: "room",
+    owner: "former-owner@example.test",
+    scope: "room",
+    url: "https://controlled-identity.example/mcp",
+    title: "Historical",
+    tools: "[]",
+    ctx: null,
+    created_at: 1,
+    get enc(): string {
+      throw Error("Historical ciphertext must never be accessed");
+    },
+    get iv(): string {
+      throw Error("Historical IV must never be accessed");
+    },
+  };
+  const requester = "current-reader@example.test";
+  expect(publicConn(row, requester).auth).toBe("identity");
+  expect(publicConn(row, requester, new Set([row.url])).signed_in).toBe(true);
+  const lookups: unknown[] = [];
+  const env = {
+    SESSION_SECRET: "controlled-direct-identity-test-only",
+    DB: {
+      prepare(query: string) {
+        expect(query).toContain("FROM mcp_grants");
+        return {
+          bind(...values: unknown[]) {
+            lookups.push(values);
+            return { first: async () => null };
+          },
+        };
+      },
+    },
+  };
+  const methods: string[] = [];
+  const fetching = spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1],
+      ) => {
+        const request = new Request(input, init);
+        expect(request.url).toBe(row.url);
+        expect(request.headers.has("authorization")).toBe(false);
+        const signed = request.headers.get("x-vibebook-identity");
+        if (!signed) throw Error("Expected actual viewer JWT");
+        const claims: unknown = JSON.parse(
+          Buffer.from(signed.split(".")[1], "base64url").toString("utf8"),
+        );
+        schema
+          .strictObject({
+            iss: schema.literal("https://vibebook.test"),
+            sub: schema.literal(requester),
+            email: schema.literal(requester),
+            room: schema.literal("room"),
+            aud: schema.literal(row.url),
+            iat: schema.number(),
+            exp: schema.number(),
+            jti: schema.string(),
+          })
+          .parse(claims);
+        const message = schema
+          .object({
+            id: schema.optional(schema.number()),
+            method: schema.string(),
+          })
+          .parse(await request.json());
+        methods.push(message.method);
+        if (message.method === "notifications/initialized")
+          return new Response(null, { status: 202 });
+        return Response.json(
+          {
+            jsonrpc: "2.0",
+            id: message.id,
+            result:
+              message.method === "initialize"
+                ? {
+                    protocolVersion: "2025-06-18",
+                    capabilities: {},
+                    serverInfo: { name: "Controlled", version: "1" },
+                  }
+                : { content: [{ type: "text", text: "current reader only" }] },
+          },
+          { headers: { "mcp-session-id": "historical-test-session" } },
+        );
+      },
+      { preconnect: fetch.preconnect },
+    ),
+  );
+  try {
+    const result: unknown = await Reflect.apply(rpc, undefined, [
+      env,
+      row,
+      "tools/call",
+      { name: "read", arguments: {} },
+      { email: requester, room: "room", origin: "https://vibebook.test" },
+    ]);
+    expect(result).toEqual({
+      content: [{ type: "text", text: "current reader only" }],
+    });
+    expect(lookups).toEqual([[requester, row.url]]);
+    expect(methods).toEqual([
+      "initialize",
+      "notifications/initialized",
+      "tools/call",
+    ]);
+  } finally {
+    fetching.mockRestore();
+  }
+});

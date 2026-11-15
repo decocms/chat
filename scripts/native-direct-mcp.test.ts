@@ -1,7 +1,7 @@
 // Actual SDK/injected HTTP and pure room-owner fixtures. No Worker/browser acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import type { Connection } from "../shared/schemas";
+import { Connection, ConnectionIdentityResult } from "../shared/schemas";
 import { createDirectMcp } from "../svelte/features/apps/direct";
 import { connectDirectSdk } from "../svelte/features/apps/directSdk";
 import {
@@ -106,12 +106,8 @@ test("eligible direct SDK is lazy, reused across metadata refresh, and scope-pri
   expect(a.counts().disposals).toBe(1);
   expect(get(a.owner.state).size).toBe(0);
 });
-test("signed-in, legacy token, and direct:false retain proxy without loading SDK", async () => {
-  for (const row of [
-    { ...connection, signed_in: true },
-    { ...connection, auth: "token" as const },
-    connection,
-  ]) {
+test("signed-in and direct:false retain proxy without loading SDK", async () => {
+  for (const row of [{ ...connection, signed_in: true }, connection]) {
     const f = fixture({
       identity: async () => ({ direct: false, why: "signed_in" }),
     });
@@ -407,4 +403,17 @@ test("actual concurrent SDK calls retain separate abort signals across asynchron
     );
   expect(await second).toMatchObject({ content: [{ text: "second" }] });
   owner.dispose();
+});
+
+test("retired token public modes and fallback reasons are rejected at the wire boundary", () => {
+  expect(Connection.safeParse({ ...connection, auth: "token" }).success).toBe(
+    false,
+  );
+  expect(
+    ConnectionIdentityResult.safeParse({ direct: false, why: "token" }).success,
+  ).toBe(false);
+  expect(
+    ConnectionIdentityResult.safeParse({ direct: false, why: "signed_in" })
+      .success,
+  ).toBe(true);
 });

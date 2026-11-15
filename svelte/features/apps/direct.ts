@@ -284,7 +284,7 @@ export function createDirectMcp(options: {
         return result;
       };
       if (owned.mode === "proxy") return proxy();
-      if (connection.auth !== "identity" || connection.signed_in) {
+      if (connection.signed_in) {
         mode(owned, "proxy");
         return proxy();
       }

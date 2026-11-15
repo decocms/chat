@@ -349,7 +349,7 @@
                 title={props.t(
                   mode === "direct"
                     ? "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você."
-                    : "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).",
+                    : "As chamadas passam pelo vibebook (o servidor não libera chamada direta ou pede login).",
                 )}
                 >{props.t(mode === "direct" ? "direto" : "via vibebook")}</Badge
               >{/if}<Button
@@ -366,32 +366,30 @@
                 }}>{props.t("Remover conexão")}</Button
               >{/if}
           </div>
-          {#if item.auth === "identity"}{#if item.signed_in}<p
-                class="tw:text-sm"
-              >
-                {props.t("Você entrou em {host} com a sua conta.", {
-                  host: item.host,
-                })}
-                <Button
-                  variant="link"
-                  disabled={busy}
-                  onclick={(event) => {
-                    if (live(event)) owner.signout(item.id);
-                  }}>{props.t("Sair")}</Button
-                >
-              </p>{:else}<p class="tw:text-sm">
-                {props.t(
-                  "Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.",
-                  { host: item.host },
-                )}
-              </p>
-              <a
-                class="tw:inline-flex tw:rounded-control tw:bg-primary tw:px-3 tw:py-2 tw:text-sm tw:text-primary-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-                href={signinUrl(props.room.id, item.id)}
+          {#if item.signed_in}<p class="tw:text-sm">
+              {props.t("Você entrou em {host} com a sua conta.", {
+                host: item.host,
+              })}
+              <Button
+                variant="link"
+                disabled={busy}
                 onclick={(event) => {
-                  if (!live(event)) event.preventDefault();
-                }}>{props.t("Entrar em {host}", { host: item.host })}</a
-              >{/if}{/if}
+                  if (live(event)) owner.signout(item.id);
+                }}>{props.t("Sair")}</Button
+              >
+            </p>{:else}<p class="tw:text-sm">
+              {props.t(
+                "Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.",
+                { host: item.host },
+              )}
+            </p>
+            <a
+              class="tw:inline-flex tw:rounded-control tw:bg-primary tw:px-3 tw:py-2 tw:text-sm tw:text-primary-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+              href={signinUrl(props.room.id, item.id)}
+              onclick={(event) => {
+                if (!live(event)) event.preventDefault();
+              }}>{props.t("Entrar em {host}", { host: item.host })}</a
+            >{/if}
           {#if visible.length}<div class="tw:grid tw:gap-2">
               {#each visible as app (app.tool)}<Button
                   variant="outline"

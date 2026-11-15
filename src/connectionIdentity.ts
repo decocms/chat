@@ -28,9 +28,7 @@ const sameAuthority = (a: StoredConnection, b: StoredConnection) =>
   a.book_id === b.book_id &&
   a.owner === b.owner &&
   a.scope === b.scope &&
-  a.url === b.url &&
-  a.enc === b.enc &&
-  a.iv === b.iv;
+  a.url === b.url;
 
 /** Sign only the current authorized stored destination; repeat authority reads after asynchronous signing. */
 export async function connectionIdentity(
@@ -64,12 +62,10 @@ export async function connectionIdentity(
       if ("error" in current) return current;
       if (!sameAuthority(first, current)) return missing;
       // Even an expired grant retains the legacy sign-in route: never export its credentials.
-      const signedIn =
-        current.enc && current.iv ? false : await ports.signedIn(current.url);
+      const signedIn = await ports.signedIn(current.url);
       const final = await read();
       if ("error" in final) return final;
       if (!sameAuthority(current, final)) return missing;
-      if (final.enc && final.iv) return { direct: false, why: "token" };
       return signedIn ? { direct: false, why: "signed_in" } : null;
     };
     const before = await inspect();

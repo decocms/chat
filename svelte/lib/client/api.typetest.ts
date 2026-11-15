@@ -335,10 +335,6 @@ sameAs<
     import("../../../shared/schemas").ConnectionIdentityResult
   >
 >(true);
-const identityTokenFallback: InferResponseType<typeof identityMethod, 200> = {
-  direct: false,
-  why: "token",
-};
 const identityOauthFallback: InferResponseType<typeof identityMethod, 200> = {
   direct: false,
   why: "signed_in",
@@ -352,13 +348,19 @@ const wrongIdentityLifetime: InferResponseType<typeof identityMethod, 200> = {
 };
 const wrongIdentityCredential: InferResponseType<typeof identityMethod, 200> = {
   direct: false,
-  why: "token",
+  why: "signed_in",
   // @ts-expect-error no browser credential field exists on the public fallback
   token: "secret",
 };
-void [
-  identityTokenFallback,
-  identityOauthFallback,
-  wrongIdentityLifetime,
-  wrongIdentityCredential,
-];
+void [identityOauthFallback, wrongIdentityLifetime, wrongIdentityCredential];
+
+const retiredIdentityFallback: InferResponseType<typeof identityMethod, 200> = {
+  direct: false,
+  // @ts-expect-error pasted-token fallback is no longer a public mode
+  why: "token",
+};
+void retiredIdentityFallback;
+
+sameAs<Equal<import("../../../shared/schemas").Connection["auth"], "identity">>(
+  true,
+);
