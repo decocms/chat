@@ -41,6 +41,7 @@ export async function auditDesignSystemInbox(
   };
   let held: Route | null = null,
     readFailures = 0;
+  const pendingResolve = (): Route | null => held;
   const roomSchema = z.object({ id: z.string() });
   const postedSchema = z.object({
     ok: z.literal(true),
@@ -444,8 +445,9 @@ export async function auditDesignSystemInbox(
     result.status = "failed";
     throw error;
   } finally {
-    if (held) {
-      await held.abort().catch(() => {
+    const pending = pendingResolve();
+    if (pending) {
+      await pending.abort().catch(() => {
         result.cleanup.push("held-route-abort");
       });
       held = null;
