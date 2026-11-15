@@ -115,6 +115,11 @@ export const RoomEventSchemas = {
     more: z.boolean(),
   }),
   acks: event("acks", { acks: z.array(AckSchema) }),
+  // A message's reactions changed: the whole map for that message (empty = none left).
+  reactions: event("reactions", {
+    id: num,
+    reactions: z.record(str, strings),
+  }),
   ackRows: event("ackRows", { acks: z.array(AckSchema) }),
   poll: event("poll", { poll: PollSchema }),
   online: event("online", { online: strings }),

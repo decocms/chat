@@ -377,6 +377,16 @@
   .verBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--line)); border-radius: 10px; background: color-mix(in oklch, var(--accent) 8%, var(--panel)); font-size: 13px; }
   .verBar b { flex: 1 0 100%; min-width: 0; }
   .verBar button { padding: 5px 10px; font-size: 12.5px; }
+  .reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .reacts .react { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; min-height: 26px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; color: var(--ink); cursor: pointer; }
+  .reacts .react b { font-weight: 600; font-size: 12px; color: var(--mute); }
+  .reacts .react.me { border-color: var(--accent); background: color-mix(in oklch, var(--accent) 12%, var(--panel)); }
+  .reacts .react.me b { color: var(--accent); }
+  .reacts .react.add { opacity: 0; color: var(--mute); } .msg:hover .reacts .react.add, .reacts .react.add:focus { opacity: 1; }
+  @media (hover: none) { .reacts .react.add { display: none; } }
+  .reactPop { position: fixed; z-index: 60; display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); box-shadow: 0 6px 24px rgb(0 0 0 / .14); }
+  .reactPop button { font-size: 20px; line-height: 1; padding: 6px; border: 0; background: none; border-radius: 999px; cursor: pointer; }
+  .reactPop button:hover { background: var(--line); }
   .docSkel { display: grid; gap: 10px; margin: 18px 0; } .docSkel b { font-size: 13.5px; color: var(--accent); font-weight: 600; }
   .docSkel i { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--line) 25%, color-mix(in oklch, var(--line) 40%, transparent) 50%, var(--line) 75%); background-size: 200% 100%; animation: skel 1.4s linear infinite; }
   .docSkel i.short { width: 55%; }
@@ -1728,6 +1738,9 @@ const EN = {
   "Conecte sua conta do Claude": "Connect your Claude account",
   "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:": "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   "Copiar": "Copy",
+  "Reagir": "React",
+  "Reagir a esta mensagem": "React to this message",
+  "Claude de {who}": "{who}'s Claude",
   "{who} está escrevendo a resposta…": "{who} is writing the answer…",
   "Versões do doc": "Doc versions",
   "Atual (ao vivo)": "Current (live)",
@@ -3439,6 +3452,7 @@ function onEvent(ev, id) {
     case "epics": S.epics = ev.epics; if (ev.roomTasks) S.roomTasks = ev.roomTasks;
       if (thread !== "main" && !isPre() && !S.epics.some((e) => e.id === thread)) thread = "main"; renderSide(); renderTasks(); renderKanban(); syncEnd(); if (thread === "main") refreshThreadCards(); return;
     case "docNotes": S.docNotes = ev.notes; renderDoc(); return;
+    case "reactions": for (const m of allMsgs()) if (m.id === ev.id) m.reactions = ev.reactions; redrawReacts(ev.id); return;
     case "docVersions": if (ev.epic === (docEpic() ?? "")) { verList = ev; renderVerPicker(); } return;
     case "docVersion": if (ev.epic === (docEpic() ?? "")) { verView = ev; renderDoc(true); } return;
     case "doc": {
@@ -5442,6 +5456,10 @@ function startReply(id) {
   document.getElementById("input")?.focus();
 }
 document.addEventListener("click", (ev) => {
+  const re = ev.target.closest("[data-react][data-emoji]");
+  if (re) { document.getElementById("reactPop")?.remove(); return send({ t: "react", id: Number(re.dataset.react), emoji: re.dataset.emoji }); }
+  const rp = ev.target.closest("[data-reactpick]");
+  if (rp) return reactPick(Number(rp.dataset.reactpick), rp);
   const r = ev.target.closest("[data-reply]");
   if (r) return startReply(Number(r.dataset.reply));
   const cp = ev.target.closest("[data-copymsg]");
@@ -5690,7 +5708,7 @@ function noticeHtml(m) {
   return `<div class="msg remMsg noticeMsg" id="m${m.id}">${mact(m.id)}<div class="body"><details><summary><span class="vibeMark" aria-hidden="true">✦</span><span class="remT">${mentions(esc(one))}</span><span class="remWhen" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${day}</span></summary><div class="txt">${mentions(md(m.text || ""))}</div></details></div></div>`;
 }
 // Hover actions (Copiar / Responder) shared by messages and the quiet reminder/issue lines.
-const mact = (id) => `<span class="mact"><button type="button" class="rbtn" data-copymsg="${id}" title="${t("Copiar")}" aria-label="${t("Copiar o texto desta mensagem")}">${icon("copy", 14)} ${t("Copiar")}</button><button type="button" class="rbtn" data-copylink="${id}" title="${t("Copiar link")}" aria-label="${t("Copiar o link desta mensagem")}">${icon("link", 14)} ${t("Copiar link")}</button><button type="button" class="rbtn" data-reply="${id}" title="${t("Responder")}" aria-label="${t("Responder a esta mensagem")}">${icon("reply", 14)} ${t("Responder")}</button></span>`;
+const mact = (id) => `<span class="mact"><button type="button" class="rbtn" data-reactpick="${id}" title="${t("Reagir")}" aria-label="${t("Reagir a esta mensagem")}">🙂+</button><button type="button" class="rbtn" data-copymsg="${id}" title="${t("Copiar")}" aria-label="${t("Copiar o texto desta mensagem")}">${icon("copy", 14)} ${t("Copiar")}</button><button type="button" class="rbtn" data-copylink="${id}" title="${t("Copiar link")}" aria-label="${t("Copiar o link desta mensagem")}">${icon("link", 14)} ${t("Copiar link")}</button><button type="button" class="rbtn" data-reply="${id}" title="${t("Responder")}" aria-label="${t("Responder a esta mensagem")}">${icon("reply", 14)} ${t("Responder")}</button></span>`;
 const msgHtml = (m, prev) => {
   if (m.tag === "reminder") return remHtml(m);
   if (m.tag === "issue") return issueHtml(m);
@@ -5702,9 +5720,42 @@ const msgHtml = (m, prev) => {
     ${m.kind === "agent" ? agentAvatar(m.author, m.via) : avatar(m.author)}${cont ? `<span class="gut" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${hhmm(m.ts)}</span>` : ""}
     ${mact(m.id)}
     <div class="body">${m.reply_to ? quoteHtml(m.reply_to) : ""}<div class="who">${m.kind === "agent" ? `${t("{via} de {who}", { via: esc(m.via || "agent"), who: esc(name(m.author)) })} <span class="agentTag" title="${t("Escrito pelo agent dessa pessoa, em nome dela")}">agent</span>` : esc(name(m.author))}${m.tag === "done" ? ` <span class="doneTag" title="${t("Reporta algo entregue")}">✓ ${t("entregue")}</span>` : ""} · ${ago(m.ts)}<span class="hhmm" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${hhmm(m.ts)}</span></div>
-      ${txt ? `<div class="txt">${txt}</div>` : `<div class="txt" hidden></div>`}${attHtml(m.files)}${m.card ? cardHtml(m) : ""}${m.choices ? choiceHtml(m) : ""}${m.poll ? pollHtml(m.poll) : ""}${threadCards(m.id)}</div>
+      ${txt ? `<div class="txt">${txt}</div>` : `<div class="txt" hidden></div>`}${attHtml(m.files)}${m.card ? cardHtml(m) : ""}${m.choices ? choiceHtml(m) : ""}${m.poll ? pollHtml(m.poll) : ""}${reactsHtml(m)}${threadCards(m.id)}</div>
   </div>`;
 };
+// Emoji reactions (Gui #2724): chips under the message (yours highlighted, who on hover), a click toggles yours; 🙂+ on
+// hover (a long press on phones) opens the quick ones. The Book keeps them (messages.reactions) and pushes "reactions".
+const REACTS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "🙏", "🔥"];
+const reactWho = (w) => (w.endsWith("#agent") ? t("Claude de {who}", { who: name(w.slice(0, -6)) }) : name(w));
+function reactsHtml(m) {
+  const all = Object.entries(m.reactions || {}).filter(([, who]) => who.length);
+  if (!all.length) return `<div class="reacts" hidden></div>`;
+  return `<div class="reacts">${all.map(([e, who]) => `<button type="button" class="react${who.includes(S.me) ? " me" : ""}" data-react="${m.id}" data-emoji="${esc(e)}" title="${esc(who.map(reactWho).join(", "))}">${esc(e)} <b>${who.length}</b></button>`).join("")}<button type="button" class="react add" data-reactpick="${m.id}" title="${t("Reagir")}" aria-label="${t("Reagir a esta mensagem")}">🙂+</button></div>`;
+}
+function redrawReacts(id) {
+  const m = allMsgs().find((x) => x.id === id), el = document.querySelector(`#m${id} .body .reacts`);
+  if (m && el) el.outerHTML = reactsHtml(m);
+}
+function reactPick(id, anchor) {
+  document.getElementById("reactPop")?.remove();
+  const pop = document.createElement("div");
+  pop.id = "reactPop"; pop.className = "reactPop"; pop.setAttribute("role", "menu");
+  pop.innerHTML = REACTS.map((e) => `<button type="button" role="menuitem" data-react="${id}" data-emoji="${e}">${e}</button>`).join("");
+  document.body.append(pop);
+  const r = anchor.getBoundingClientRect(), w = pop.offsetWidth;
+  pop.style.left = `${Math.max(8, Math.min(r.right - w, innerWidth - w - 8))}px`;
+  pop.style.top = `${r.top - pop.offsetHeight - 6 < 8 ? r.bottom + 6 : r.top - pop.offsetHeight - 6}px`;
+  setTimeout(() => document.addEventListener("click", function off(e) { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener("click", off); } }), 0);
+}
+// Phones: a long press (500 ms without moving) on a message opens the quick reactions.
+let pressT = 0;
+document.addEventListener("touchstart", (e) => {
+  clearTimeout(pressT);
+  const m = e.touches.length === 1 && e.target.closest(".msgs .msg[id^=m]");
+  if (!m || e.target.closest("a, button, input, textarea, iframe")) return;
+  pressT = setTimeout(() => { navigator.vibrate?.(10); reactPick(Number(m.id.slice(1)), m.querySelector(".body") || m); }, 500);
+}, { passive: true });
+for (const ev of ["touchmove", "touchend", "touchcancel"]) document.addEventListener(ev, () => clearTimeout(pressT), { passive: true });
 
 function renderDecisions() {
   const el = document.getElementById("decPane"); if (!el) return;
@@ -6608,7 +6659,7 @@ function renderDoc(force) {
 // and "Ver na conversa" (the chat at that moment: the newest message of the doc's thread up to the version's msg_id).
 let verList = null, verView = null, verAsked = false;
 // An epic doc nobody wrote yet: the seed's empty Contexto and Decisões (epicDocSeed in src/book.ts).
-const DOC_SEED_RE = /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*$/;
+const DOC_SEED_RE = /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*(?:\n## Tarefas[\s\S]*)?$/;
 const verWho = (by) => by.map((w) => w === "agent" ? "Claude" : w === "yjs" ? t("editor ao vivo") : w === "tasks" ? t("tarefas") : name(w)).join(", ");
 const verWhen = (ts) => new Date(ts).toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 function renderVerPicker() {

@@ -129,7 +129,30 @@ const BaseMessage = z.omit(MessageSchema, {
   files: true,
   choices: true,
   card: true,
+  reactions: true,
 });
+/** messages.reactions: JSON {emoji: [who]}; anything malformed or empty reads as none. */
+export function storedReactions(
+  raw: unknown,
+): Record<string, string[]> | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return undefined;
+    const out: Record<string, string[]> = {};
+    for (const [emoji, who] of Object.entries(value))
+      if (
+        Array.isArray(who) &&
+        who.length &&
+        who.every((w) => typeof w === "string")
+      )
+        out[emoji] = who as string[];
+    return Object.keys(out).length ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
 export function storedMessageRows(
   rows: readonly unknown[],
   room: string,
@@ -179,6 +202,9 @@ export function storedMessageRows(
         files: storedAttachments(row.files, resolve, issue),
         choices: wire(row.choices, storedChoices(row.choices, issue)),
         card: cardWire,
+        ...(storedReactions(row.reactions)
+          ? { reactions: storedReactions(row.reactions) }
+          : {}),
       },
     ];
   });

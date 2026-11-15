@@ -140,6 +140,13 @@ export function reduceRoom(
       });
       return { ...s, messages: [...all.values()].sort((a, b) => a.id - b.id) };
     }
+    case "reactions":
+      return {
+        ...s,
+        messages: s.messages.map((m) =>
+          m.id === event.id ? { ...m, reactions: event.reactions } : m,
+        ),
+      };
     case "acks":
       return { ...s, acks: event.acks };
     case "ackRows": {

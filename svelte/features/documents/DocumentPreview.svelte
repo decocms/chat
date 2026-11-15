@@ -39,7 +39,8 @@
   const idPrefix = $props.id();
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that
   // the answer is coming instead of an empty doc. Seed = epicDocSeed's empty Contexto and Decisões.
-  const SEED = /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*$/;
+  const SEED =
+    /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*(?:\n## Tarefas[\s\S]*)?$/;
   const writer = $derived(
     epic && SEED.test(text)
       ? (threadWorkers(props.room, epic, Date.now())[0] ?? null)

@@ -42,7 +42,7 @@ Workflow:
 - When you need your human to pick between options or say yes/no ("do I do it?", which files to delete, which approach), post the question with choices (a yes/no gets e.g. ["Sim, faz", "Não", "Ajustar antes"]) (and multi: true for several): the room shows buttons and their pick arrives as their message replying to yours. Don't ask them to type numbers.
 - Every message from your human gets an ack (doing when you pick it up, done when finished, idle when it needs nothing from you): read_room lists the ones from the last 48h that none of your human's agents acked as unacked, so nothing you skipped stays hidden. A short answer (no work to deliver) goes out as a post with reply_to = their message: that closes your ack; work you deliver gets done: true. Read every new message read_room returns, not only the last few: two can arrive seconds apart. When post returns unread_from_your_human, your human wrote that while you worked: handle it before going on. When you notice you failed (you skipped or ignored a message of your human's, a tool call failed and you gave up, you reported something wrong), call report_issue right away with what happened, then fix it and say so in the room.
 - A request is an epic, almost always: when your human asks you for a piece of work, (1) start_epic for it with 2-5 concrete tasks (each one checkable), (2) post in the epic (thread = its id) how you'll do it in 2-4 lines, or the question that blocks you if something is unclear, (3) unless you asked something, do it right away without waiting for an OK, moving each task to doing and done as you go, (4) post the result with done: true. If the work ships somewhere (deploy, publish, release): once it's out, update_epic prod: "deployed"; then open it in production, check it really works, and update_epic prod: "verified" with prod_note saying what you checked (URL, what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod". With every task done the epic archives itself and shows as finished; if your human writes in it again, it reopens: add the new tasks there and run the same loop. Only quick answers and clarifications stay where they were asked. An epic you worked in archives itself only once every task is done AND the thread has your delivery (done: true) saying what you tested, plus a screenshot when there's something to see (upload it with thread = the epic id); verification that needs a person = a task in review with its owner, which keeps the epic open.
-- Answer in the doc beside the chat (Gui #2589, #2592): when your human asks a question or for an analysis, right after the ack and before researching anything, start_epic for it and open_doc with its epic_id (the doc opens to their right at once, with a "Claude is writing" placeholder), and write the answer into that epic's doc with update_doc as you go, so it fills in live; in the chat post one line pointing to it. Simple answer (numbers, status, a table, a chart) = a \`\`\`card fenced block with the card's JSON (same spec as post's card) inside the doc; complex one (a page, a mockup, an interactive view, or any new format they ask for) = first a line [[app:room/<name>]] at the top of the doc (under the title), then upload_file apps/<name>.html (it shows up there, embedded; uploading never switches their screen to the Apps tab, only app_open does when they ask to open an app), where it runs embedded; otherwise short markdown. Then keep talking in the chat and improve what's in the doc with each turn (update_doc again; uploading the same apps/<name>.html updates it). Never a markdown table where a card fits.
+- Answer in the doc beside the chat (Gui #2589, #2592): when your human asks a question or for an analysis, right after the ack and before researching anything, start_epic for it with answer: true (the epic and its doc open to their right at once, with a "Claude is writing" placeholder, and its task list stays at the end, under the answer), and write the answer into that epic's doc with update_doc as you go, so it fills in live; in the chat post one line pointing to it. Simple answer (numbers, status, a table, a chart) = a \`\`\`card fenced block with the card's JSON (same spec as post's card) inside the doc; complex one (a page, a mockup, an interactive view, or any new format they ask for) = first a line [[app:room/<name>]] at the top of the doc (under the title), then upload_file apps/<name>.html (it shows up there, embedded; uploading never switches their screen to the Apps tab, only app_open does when they ask to open an app), where it runs embedded; otherwise short markdown. Then keep talking in the chat and improve what's in the doc with each turn (update_doc again; uploading the same apps/<name>.html updates it). Never a markdown table where a card fits.
 - Deploy banner (required): every push to main that deploys, and every CLI publish, gets one native banner in the room's main thread once the build is green: post with thread \"main\" and a card (Card titled \"🚀 No ar · <commit or version>\", one Field per change a person would notice, Actions with a LinkButton to each epic it came from (#e<epic id>) and one to the commit). Not a plain text line.
 - Progress reports: when you work on something that belongs to a room (the repo has a .vibebook file with room_id, or your human said so), the room is the team's live channel. Post short updates with links: starting a task (set_task_status doing), an important commit, a PR ready for review (who should review it; task to review), a deploy or shipped change (task to done), a blocker and who you need. Skip routine steps and WIP pushes.`;
 
@@ -425,6 +425,11 @@ const TOOLS = [
     },
   },
   {
+    name: "react",
+    description: "Toggle an emoji reaction on a message, shown under it as yours (\"Claude de <your human>\"). Use it sparingly, like a person would: 👀 when you pick a request up is fine; never as a substitute for answering. Calling it again with the same emoji removes it. read_room shows each message's reactions (emoji → who).",
+    inputSchema: { type: "object", properties: { room_id: { type: "string" }, message_id: { type: "number" }, emoji: { type: "string", description: "one emoji, e.g. 👍" } }, required: ["room_id", "message_id", "emoji"] },
+  },
+  {
     name: "doc_versions",
     description: "List a doc's saved versions, newest first: the room's (no epic_id) or an epic's. A version is cut by itself once edits go quiet; each has who edited (emails, agent, yjs = live editor, tasks = task list sync), when, and msg_id = the room's newest message at that moment (what the chat was saying). Read one with get_doc_version.",
     inputSchema: { type: "object", properties: { room_id: { type: "string" }, epic_id: { type: "string" } }, required: ["room_id"] },
@@ -465,6 +470,7 @@ const TOOLS = [
         model: { type: "string", description: "your model's name, shown next to your human's name" },
         from_message_id: { type: "number", description: "the main-thread message this request came from; default: your human's latest message there" },
         owner: { type: "string", description: "who owns the epic: a member's email (their avatar becomes its icon). Default: your human. Pick someone else when the request names them or it's clearly theirs." },
+        answer: { type: "boolean", description: "true = this epic answers a question or analysis your human asked: the epic and its doc open in their tabs right now (with \"Claude is writing the answer…\" until you write), and the doc's task list stays at its end, under the answer. Call it right after the ack, before researching." },
         backlog: { type: "boolean", description: "true = an epic to keep for later, not work you're taking now (e.g. organizing a backlog): no owner unless you pass one, tasks unowned, no ack on the request, no message in the main thread, so the room doesn't show you working on it" },
       },
       required: ["room_id", "title", "why"],
@@ -1043,7 +1049,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       if (!str(a.why)) throw new Error("why is required: one sentence on what the epic delivers and why (it opens the epic's doc)");
       if (Array.isArray(a.tasks) && a.tasks.some((t) => typeof t !== "string")) throw new Error("tasks must be strings (task titles)");
       const tasks = (Array.isArray(a.tasks) ? a.tasks : []).map(str).filter(Boolean);
-      const out = await bookStub(env, id).agentEpic(id, me.email, str(a.title), str(a.why), tasks, str(a.model) || ((await db.prepare(`SELECT coalesce(model, client) AS who FROM agents WHERE id = ?`).bind(me.agent).first<{ who: string }>())?.who ?? ""), Number(a.from_message_id) || undefined, me.agent, str(a.owner), a.backlog === true);
+      const out = await bookStub(env, id).agentEpic(id, me.email, str(a.title), str(a.why), tasks, str(a.model) || ((await db.prepare(`SELECT coalesce(model, client) AS who FROM agents WHERE id = ?`).bind(me.agent).first<{ who: string }>())?.who ?? ""), Number(a.from_message_id) || undefined, me.agent, str(a.owner), a.backlog === true, a.answer === true);
       return out;
     }
     case "add_task":
@@ -1088,6 +1094,10 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
     case "unpin": {
       const id = await room();
       return bookStub(env, id).agentUnpin(id, str(a.id));
+    }
+    case "react": {
+      const id = await room();
+      return bookStub(env, id).agentReact(id, me.email, Number(a.message_id), str(a.emoji));
     }
     case "doc_versions": {
       const id = await room();

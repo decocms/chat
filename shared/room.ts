@@ -106,6 +106,8 @@ export const MessageSchema = z.object({
   answers_ask: opt(bool),
   for_who: maybe(str),
   files: opt(z.array(AttachmentSchema)),
+  // Emoji reactions (Gui #2724): emoji → who reacted (emails; "<email>#agent" = that person's Claude). Absent = none.
+  reactions: opt(z.record(str, z.array(str))),
 });
 export type Message = z.infer<typeof MessageSchema>;
 export const AckSchema = z.object({

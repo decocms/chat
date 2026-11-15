@@ -30,10 +30,16 @@ export function parseBlock(doc: string): Parsed[] | null {
 }
 
 /** The doc with its "## Tarefas" checklist matching the tasks. Other lines in the section are kept (after the list).
- * No section yet: it goes before the first "## " heading (right after the goal), else at the end. */
-export function renderBlock(doc: string, tasks: BlockTask[]): string {
+ * No section yet: it goes before the first "## " heading (right after the goal), else at the end. atEnd (an epic that
+ * answers a question, Gui #2735: the answer comes first, the bookkeeping task last): always the last section. */
+export function renderBlock(doc: string, tasks: BlockTask[], atEnd = false): string {
   const list = tasks.map(line).join("\n");
   const s = section(doc);
+  if (atEnd) {
+    const rest = s ? doc.slice(s[0], s[1]).split("\n").filter((l) => !ITEM.test(l)).join("\n").trim() : "";
+    const body = (s ? doc.slice(0, s[0]).replace(/##\s*Tarefas\s*$/, "") + doc.slice(s[1]) : doc).replace(/\s*$/, "");
+    return `${body}\n\n## Tarefas\n\n${list}${rest ? `\n\n${rest}` : ""}\n`;
+  }
   if (!s) {
     const block = `## Tarefas\n\n${list}\n\n`;
     const h2 = /^##\s/m.exec(doc);

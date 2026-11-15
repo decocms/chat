@@ -19,6 +19,7 @@
   import Button from "./lib/ui/Button.svelte";
   import MessageActions from "./features/chat/MessageActions.svelte";
   import MessageFooter from "./features/chat/MessageFooter.svelte";
+  import MessageReactions from "./features/chat/MessageReactions.svelte";
   import Attachments from "./features/chat/Attachments.svelte";
   import ThreadCards from "./features/room-sidebar/ThreadCards.svelte";
   import { swipeMessage } from "./features/chat/swipe";
@@ -284,6 +285,12 @@
             {actions}
             {vb}
           />{/each}{/if}
+      {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
+          message={m}
+          me={room.me}
+          {actions}
+          {vb}
+        />{/if}
       {#if footer && !origin}<MessageFooter {footer} {vb} />{/if}
     </div>
   </div>
