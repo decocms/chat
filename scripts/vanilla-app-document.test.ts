@@ -2,6 +2,188 @@ import { expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { Window, type HTMLElement, type HTMLButtonElement } from "happy-dom";
 
+async function directFixture(
+  options: {
+    identity?(): Promise<unknown>;
+    response?(method: string, id: unknown): Response;
+  } = {},
+) {
+  const html = await readFile(
+    new URL("../public/app.html", import.meta.url),
+    "utf8",
+  );
+  const start = html.indexOf("const directMcp = new Map();"),
+    end = html.indexOf("// An inline marker", start);
+  if (start < 0 || end < start)
+    throw Error("Actual vanilla direct caller missing");
+  let now = 1000,
+    active = true;
+  const calls: string[] = [],
+    remote: { method: string; init: RequestInit }[] = [];
+  const window = new Window();
+  const source = new Function(
+    "api",
+    "fetch",
+    "Date",
+    "document",
+    "current",
+    `
+    let S={id:'room',me:'reader'},ws={readyState:1};const t=(text)=>text;
+    ${html.slice(start, end)}
+    return {call:()=>connCall({id:'abcdef123456'},'mutate',{},current),expiry:()=>[...directMcp.values()][0]?.exp};
+  `,
+  );
+  const owner: { call(): Promise<unknown>; expiry(): number | undefined } =
+    source(
+      async (path: string) => {
+        calls.push(path);
+        return path.endsWith("/identity")
+          ? options.identity
+            ? options.identity()
+            : {
+                direct: true,
+                url: "https://remote.example/mcp",
+                identity: "short-lived",
+                expires_in: 300,
+              }
+          : { result: { content: [] } };
+      },
+      async (_url: string, init: RequestInit) => {
+        const message: unknown = JSON.parse(String(init.body));
+        if (
+          !message ||
+          typeof message !== "object" ||
+          !("method" in message) ||
+          typeof message.method !== "string"
+        )
+          throw Error("Unexpected RPC fixture body");
+        const id = "id" in message ? message.id : undefined;
+        remote.push({ method: message.method, init });
+        return (
+          options.response?.(message.method, id) ??
+          (id === undefined
+            ? new Response(null, { status: 202 })
+            : Response.json(
+                { jsonrpc: "2.0", id, result: { content: [] } },
+                { headers: { "mcp-session-id": "owned-session" } },
+              ))
+        );
+      },
+      { now: () => now },
+      window.document,
+      () => active,
+    );
+  return {
+    owner,
+    calls,
+    remote,
+    time(value: number) {
+      now = value;
+    },
+    revoke() {
+      active = false;
+    },
+    close: () => window.happyDOM.abort(),
+  };
+}
+
+test("actual vanilla direct RPC omits credentials, refuses redirects and counts identity lifetime from bootstrap start", async () => {
+  let resolve!: (value: unknown) => void;
+  const identity = new Promise<unknown>((done) => {
+    resolve = done;
+  });
+  const f = await directFixture({ identity: () => identity });
+  try {
+    const pending = f.owner.call();
+    f.time(6000);
+    resolve({
+      direct: true,
+      url: "https://remote.example/mcp",
+      identity: "short-lived",
+      expires_in: 300,
+    });
+    await pending;
+    expect(f.owner.expiry()).toBe(301000);
+    expect(f.remote.map((call) => call.method)).toEqual([
+      "initialize",
+      "notifications/initialized",
+      "tools/call",
+    ]);
+    for (const { init } of f.remote) {
+      expect(init.credentials).toBe("omit");
+      expect(init.redirect).toBe("error");
+    }
+    f.time(271001);
+    await f.owner.call();
+    expect(f.calls.filter((path) => path.endsWith("/identity"))).toHaveLength(
+      2,
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test("actual vanilla direct setup may proxy a redirect but a tool-call redirect is never replayed", async () => {
+  for (const phase of ["initialize", "tools/call"] as const) {
+    const f = await directFixture({
+      response: (method, id) =>
+        method === phase
+          ? new Response("redirect", {
+              status: 307,
+              headers: { location: "https://other.example/mcp" },
+            })
+          : id === undefined
+            ? new Response(null, { status: 202 })
+            : Response.json({ jsonrpc: "2.0", id, result: {} }),
+    });
+    try {
+      if (phase === "initialize") await f.owner.call();
+      else
+        await expect(f.owner.call()).rejects.toThrow(
+          "Direct MCP redirects are not followed",
+        );
+      expect(f.calls.filter((path) => path.endsWith("/call"))).toHaveLength(
+        phase === "initialize" ? 1 : 0,
+      );
+      expect(
+        f.remote.filter((call) => call.method === "tools/call"),
+      ).toHaveLength(phase === "initialize" ? 0 : 1);
+    } finally {
+      await f.close();
+    }
+  }
+});
+
+test("actual vanilla direct bootstrap cannot resume a revoked document or send an expired setup identity", async () => {
+  for (const kind of ["revoked", "expired"] as const) {
+    let resolve!: (value: unknown) => void;
+    const identity = new Promise<unknown>((done) => {
+      resolve = done;
+    });
+    const f = await directFixture({ identity: () => identity });
+    try {
+      const pending = f.owner.call();
+      if (kind === "revoked") f.revoke();
+      else f.time(280001);
+      resolve({
+        direct: true,
+        url: "https://remote.example/mcp",
+        identity: "late",
+        expires_in: 300,
+      });
+      if (kind === "revoked")
+        await expect(pending).rejects.toThrow("authorization expired");
+      else await pending;
+      expect(f.remote).toEqual([]);
+      expect(f.calls.filter((path) => path.endsWith("/call"))).toHaveLength(
+        kind === "revoked" ? 0 : 1,
+      );
+    } finally {
+      await f.close();
+    }
+  }
+});
+
 async function consentFixture() {
   const html = await readFile(
     new URL("../public/app.html", import.meta.url),
@@ -120,12 +302,21 @@ async function inlineOpenFixture() {
     consentEnd = html.indexOf("// vibebook's tools", consentStart);
   const scopeStart = html.indexOf("function appDocumentScope("),
     scopeEnd = html.indexOf("// Removal is synchronous", scopeStart);
+  const directStart = html.indexOf("const directMcp = new Map();"),
+    directEnd = html.indexOf("// An inline marker", directStart);
   const mountStart = html.indexOf("function inlineAppOpen("),
     mountEnd = html.indexOf("// Reminders:", mountStart);
   if (
-    [consentStart, consentEnd, scopeStart, scopeEnd, mountStart, mountEnd].some(
-      (value) => value < 0,
-    )
+    [
+      consentStart,
+      consentEnd,
+      scopeStart,
+      scopeEnd,
+      directStart,
+      directEnd,
+      mountStart,
+      mountEnd,
+    ].some((value) => value < 0)
   )
     throw Error("Actual inline Open functions missing");
   const window = new Window(),
@@ -153,6 +344,7 @@ async function inlineOpenFixture() {
     const hosts=new WeakMap(),appDocuments=new Set(),appFrameName=()=> 'new-frame-'+(++nonce);
     ${html.slice(consentStart, consentEnd)}
     ${html.slice(scopeStart, scopeEnd)}
+    ${html.slice(directStart, directEnd)}
     ${html.slice(mountStart, mountEnd)}
     return {mount:mountApp,prune:pruneAppDocuments,pending:()=>appDocuments.size,switchAccount(){S={...S,me:'other'};},switchRoom(){S={...S,id:'other'};}};
   `,
@@ -173,6 +365,8 @@ async function inlineOpenFixture() {
     AbortController,
     async (path: string) => {
       calls.push(path);
+      if (path.endsWith("/identity"))
+        return { direct: false, why: "signed_in" };
       if (path.includes("/ui?") && paused === "ui") await waiting;
       return path.includes("/ui?")
         ? {

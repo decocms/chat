@@ -6007,13 +6007,20 @@ async function connCall(c, name, args, documentCurrent = () => true) {
   if (d === false) return proxy();
   try {
     if (!d || d.exp < Date.now() + 30e3) {
+      const started = Date.now(); // Bootstrap latency must not extend the signed identity's lifetime.
       const r = await api(`/api/books/${room}/connections/${c.id}/identity`, {});
       guard();
       if (!r.direct) throw new Error(r.why || "proxy");
-      d = { url: r.url, identity: r.identity, exp: Date.now() + r.expires_in * 1000, session: d?.session ?? null };
+      if (started + r.expires_in * 1000 <= Date.now() + 30e3) throw Error("Direct MCP identity expired during setup");
+      d = { url: r.url, identity: r.identity, exp: started + r.expires_in * 1000, session: d?.session ?? null };
     }
   } catch { guard(); directMcp.set(cacheKey, false); renderConnsMode(); return proxy(); }
-  const post = (body) => { guard(); return fetch(d.url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "x-vibebook-identity": d.identity, ...(d.session ? { "mcp-session-id": d.session } : {}) }, body: JSON.stringify(body) }); };
+  const post = async (body) => {
+    guard();
+    const response = await fetch(d.url, { method: "POST", credentials: "omit", redirect: "error", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "x-vibebook-identity": d.identity, ...(d.session ? { "mcp-session-id": d.session } : {}) }, body: JSON.stringify(body) });
+    if ((response.status >= 300 && response.status < 400) || response.type === "opaqueredirect") { await response.body?.cancel().catch(() => {}); throw Error("Direct MCP redirects are not followed"); }
+    return response;
+  };
   const read = async (res, id) => {
     guard();
     if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
