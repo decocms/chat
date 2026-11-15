@@ -23,4 +23,3 @@ export const AgentDbRow = z.object({
   ctx_at: num,
   ctx_limits: str,
 });
-

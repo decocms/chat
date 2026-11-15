@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { Hono } from "hono";
 import { hc, type InferRequestType } from "hono/client";
 import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
+import { AgentDbRow, UploadHeaders } from "../src/apiServerSchemas";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
 import type { MeQuery, SearchQuery } from "../shared/schemas";
 import {
@@ -1775,4 +1776,43 @@ test("historical encrypted-column cleanup during signing does not change viewer 
     identity: "current-viewer-proof",
     expires_in: 300,
   });
+});
+
+test("API-local metadata and database validators retain optional/null and uncoerced input contracts", () => {
+  expect(
+    UploadHeaders.parse({
+      "content-type": "text/plain",
+      "x-filename": "report%20one.txt",
+      ignored: true,
+    }),
+  ).toEqual({ "content-type": "text/plain", "x-filename": "report%20one.txt" });
+  expect(UploadHeaders.parse({ "content-type": "text/plain" })).toEqual({
+    "content-type": "text/plain",
+  });
+  for (const invalid of [
+    {},
+    { "content-type": 7 },
+    { "content-type": "text/plain", "x-filename": null },
+  ])
+    expect(UploadHeaders.safeParse(invalid).success).toBe(false);
+  const row = {
+    email: "exact DB text",
+    who: null,
+    repo: null,
+    seen_at: null,
+    listening_at: null,
+    listen_room: null,
+    ctx_tokens: null,
+    ctx_window: null,
+    ctx_at: null,
+    ctx_limits: null,
+  };
+  expect(AgentDbRow.parse({ ...row, ignored: true })).toEqual(row);
+  expect(AgentDbRow.safeParse({ ...row, seen_at: "1" }).success).toBe(false);
+  expect(AgentDbRow.safeParse({ ...row, email: null }).success).toBe(false);
+  const incomplete: Record<string, unknown> = { ...row };
+  delete incomplete.ctx_tokens;
+  expect(AgentDbRow.safeParse(incomplete).success).toBe(false);
+  expect(AgentDbRow.shape.who).toBe(AgentDbRow.shape.repo);
+  expect(AgentDbRow.shape.seen_at).toBe(AgentDbRow.shape.ctx_tokens);
 });
