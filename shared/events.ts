@@ -101,7 +101,8 @@ export const RoomEventSchemas = {
   // An agent opened this file beside the chat for its human (MCP open_file): sent only to that person's tabs.
   openSide: event("openSide", { file: AttachmentSchema }),
   // An agent opened an app for its human (MCP app_open; a room app it just uploaded): ref = "<connection>/<tool>" or "room/<name>".
-  openApp: event("openApp", { ref: str }),
+  // auto = a room app the agent just uploaded (never switches the screen to Apps; only redraws/scrolls a doc that embeds it).
+  openApp: event("openApp", { ref: str, auto: z.optional(z.boolean()) }),
   // An agent opened a doc beside the chat for its human (MCP open_doc): epic = its id, or "" for the room's doc.
   openDoc: event("openDoc", { epic: str }),
   reminders: event("reminders", { reminders: z.array(ReminderSchema) }),

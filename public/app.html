@@ -377,6 +377,11 @@
   .verBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--line)); border-radius: 10px; background: color-mix(in oklch, var(--accent) 8%, var(--panel)); font-size: 13px; }
   .verBar b { flex: 1 0 100%; min-width: 0; }
   .verBar button { padding: 5px 10px; font-size: 12.5px; }
+  .docSkel { display: grid; gap: 10px; margin: 18px 0; } .docSkel b { font-size: 13.5px; color: var(--accent); font-weight: 600; }
+  .docSkel i { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--line) 25%, color-mix(in oklch, var(--line) 40%, transparent) 50%, var(--line) 75%); background-size: 200% 100%; animation: skel 1.4s linear infinite; }
+  .docSkel i.short { width: 55%; }
+  @keyframes skel { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .docSkel i { animation: none; } }
   .docCrumb button { border: 0; background: none; padding: 3px 7px; border-radius: 7px; font: inherit; color: var(--mute); cursor: pointer; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .docCrumb button.sel { background: var(--bg); color: var(--ink); font-weight: 600; }
   .tcard { display: flex; align-items: center; gap: 10px; margin-top: 8px; max-width: 420px; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
@@ -1723,6 +1728,7 @@ const EN = {
   "Conecte sua conta do Claude": "Connect your Claude account",
   "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:": "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   "Copiar": "Copy",
+  "{who} está escrevendo a resposta…": "{who} is writing the answer…",
   "Versões do doc": "Doc versions",
   "Atual (ao vivo)": "Current (live)",
   "editor ao vivo": "live editor",
@@ -3469,7 +3475,14 @@ function onEvent(ev, id) {
       // An uploaded room App this doc already embeds ([[app:room/<name>]], Gui #2589): redraw it in the doc instead of covering the
       // doc with the Apps pane.
       const ep = docEpic(), text = ep ? S.docs?.[ep] ?? "" : S.doc ?? "";
-      if (ev.ref.startsWith("room/") && text.toLowerCase().includes(`[[app:${ev.ref.toLowerCase()}`)) { document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); renderDoc(true); return; }
+      // auto = the agent just uploaded it (Gui #2720): never switch to the Apps tab; a doc that embeds it shows it and
+      // scrolls to it, else nothing happens (the agent puts the [[app:…]] line in the doc). app_open (no auto) opens Apps.
+      if (ev.ref.startsWith("room/") && text.toLowerCase().includes(`[[app:${ev.ref.toLowerCase()}`)) {
+        document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); renderDoc(true);
+        document.querySelector(`.doc .preview .docApp[data-ref="${CSS.escape(ev.ref.toLowerCase())}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+        return;
+      }
+      if (ev.auto) return;
       cardGo(`#app:${ev.ref}`, true); return;
     }
     case "openDoc": if (ev.epic) cardGo(`#doc:${ev.epic}`); else { docRoom = true; renderDoc(true); cardGo("#doc"); } return;
@@ -5923,7 +5936,7 @@ async function vbCall(name, a = {}, ask, current = () => true) {
 const hosts = new WeakMap();
 const appDocuments = new Set();
 let appDocumentModule;
-const loadAppDocumentHost = () => appDocumentModule ||= import("/app-document-host.4d2415a82429751f62c7.js").catch((error) => { appDocumentModule = null; throw error; });
+const loadAppDocumentHost = () => appDocumentModule ||= import("/app-document-host.7e469427bbba31a553f7.js").catch((error) => { appDocumentModule = null; throw error; });
 function appDocumentScope(frame) {
   const room = S?.id, account = S?.me, at = thread, socket = ws;
   return () => frame.isConnected && S?.id === room && S?.me === account && thread === at && ws === socket && ws?.readyState === 1;
@@ -6495,6 +6508,7 @@ function docApps(pv, ep) {
     const [, cid, tool, sz0] = DOC_APP_RE.exec(p.textContent.trim()), sz = (sz0 || "m").toLowerCase();
     const box = document.createElement("div");
     box.className = "embedBox htmlCard docApp";
+    box.dataset.ref = `${cid}/${tool}`.toLowerCase();
     box.innerHTML = `<div class="hcHead">${icon("grid", 14)}<span class="hcName">${esc(cid === "room" ? tool : tool.replace(/[_-]/g, " "))}</span><span class="daSize" role="group" aria-label="${t("Tamanho")}">${["p", "m", "g"].map((k) => `<button type="button" data-dsz="${k}" class="${k === sz ? "on" : ""}" title="${t("Tamanho")} ${k.toUpperCase()}">${k.toUpperCase()}</button>`).join("")}</span><button type="button" class="hcFull" data-dopen title="${t("Abrir no painel Apps")}" aria-label="${t("Abrir no painel Apps")}">${icon("expand", 14)}</button></div><iframe name="${appFrameName()}" class="embed docAppFrame" sandbox="allow-scripts allow-forms" style="height:${DOC_APP_H[sz]}px" title="${esc(tool)}"></iframe><div class="appAsk" hidden></div>`;
     p.replaceWith(box);
     box.querySelector("[data-dopen]").onclick = () => { connApp = { cid, tool }; document.dispatchEvent(new CustomEvent("vb:pane", { detail: "apps" })); };
@@ -6580,6 +6594,10 @@ function renderDoc(force) {
   if (verView) { verBar(pv); renderPeek(); return; } // an old version: no live tasks or apps, and the editor keeps the live text
   placeTasks(pv, ep || (thread === "main" && S.roomTasks?.length ? "main" : null));
   docApps(pv, ep);
+  // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that the
+  // answer is coming, right away, instead of an empty doc.
+  const w = ep && epicWorker(epic);
+  if (w && DOC_SEED_RE.test(text)) pv.insertAdjacentHTML("beforeend", `<div class="docSkel" role="status"><b>${STAR} ${t("{who} está escrevendo a resposta…", { who: esc(w.who || "Claude") })}</b><i></i><i></i><i></i><i class="short"></i></div>`);
   renderPeek();
   // ponytail: last-writer-wins doc; don't clobber while someone is typing. CRDT (Yjs) if real co-editing matters.
   if (force || document.activeElement !== doc) doc.value = text;
@@ -6589,6 +6607,8 @@ function renderDoc(force) {
 // doc on screen; picking one shows it read-only with Restaurar (writes it back as the live doc, itself a new version)
 // and "Ver na conversa" (the chat at that moment: the newest message of the doc's thread up to the version's msg_id).
 let verList = null, verView = null, verAsked = false;
+// An epic doc nobody wrote yet: the seed's empty Contexto and Decisões (epicDocSeed in src/book.ts).
+const DOC_SEED_RE = /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*$/;
 const verWho = (by) => by.map((w) => w === "agent" ? "Claude" : w === "yjs" ? t("editor ao vivo") : w === "tasks" ? t("tarefas") : name(w)).join(", ");
 const verWhen = (ts) => new Date(ts).toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 function renderVerPicker() {

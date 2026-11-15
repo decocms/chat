@@ -1302,7 +1302,8 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     if (event.t === "older") viewport.older(event);
     else if (event.t === "openSide") openSideFile(event.file);
     else if (event.t === "openDoc") openAgentDocument(event.epic);
-    else if (event.t === "openApp") {
+    // auto = a room app the agent just uploaded: the doc that embeds it redraws by itself; never switch to Apps (#2720).
+    else if (event.t === "openApp" && !event.auto) {
       const target = appRouteTarget("#app:" + event.ref);
       if (target?.tool !== undefined) {
         openAgentApp({ connection: target.connection, tool: target.tool });

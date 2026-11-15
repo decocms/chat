@@ -24,6 +24,7 @@
     createDocumentAppAuthority,
   } from "./appMarkers";
   import DeferredDocumentApp from "./DeferredDocumentApp.svelte";
+  import { threadWorkers } from "../chat/model";
   let {
     text,
     epic,
@@ -36,6 +37,14 @@
     owner: DocumentSession;
   } = $props();
   const idPrefix = $props.id();
+  // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that
+  // the answer is coming instead of an empty doc. Seed = epicDocSeed's empty Contexto and Decisões.
+  const SEED = /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*$/;
+  const writer = $derived(
+    epic && SEED.test(text)
+      ? (threadWorkers(props.room, epic, Date.now())[0] ?? null)
+      : null,
+  );
   const fileIndex = scopedRichFileIndex();
   const binding = untrack(() => ({
     account: props.room.me,
@@ -217,4 +226,18 @@
           />
         </div>{/if}{/if}
   {/each}
+  {#if writer}<div
+      role="status"
+      data-doc-writing
+      class="tw:my-4 tw:grid tw:gap-2"
+    >
+      <b class="tw:text-sm tw:font-semibold tw:text-primary"
+        >✻ {props.lang === "en"
+          ? `${writer.who || "Claude"} is writing the answer…`
+          : `${writer.who || "Claude"} está escrevendo a resposta…`}</b
+      >
+      {#each ["tw:w-full", "tw:w-full", "tw:w-full", "tw:w-1/2"] as width}<i
+          class="tw:block tw:h-3 tw:animate-pulse tw:rounded-md tw:bg-muted {width}"
+        ></i>{/each}
+    </div>{/if}
 </div>
