@@ -589,3 +589,23 @@ test("actual direct identity signer binds requester, stored audience and five-mi
     ),
   ).toBe(true);
 });
+
+test("actual signed viewer identity ignores historical owner credentials and retains OAuth fallback", async () => {
+  const { connectionIdentity } = await import("../src/connectionIdentity");
+  const { identityJwt } = await import("../src/mcpauth");
+  const schema = await import("zod/mini");
+  const row: Conn = { id: "stale", book_id: "room", owner: "old-owner@example.test", scope: "room", url: "https://remote.example/mcp", title: "Historical", enc: "historical-ciphertext", iv: "historical-iv", tools: null, ctx: null, created_at: 1 };
+  let grants = 0;
+  const result = await connectionIdentity("room", "stale", {
+    email: "current-viewer@example.test", member: async () => true, connection: async () => row,
+    allowed: async () => true, signedIn: async () => { grants++; return false; },
+    sign: (room, url) => identityJwt({ SESSION_SECRET: "controlled-direct-identity-test-only" }, "https://vibebook.test", { email: "current-viewer@example.test", room, aud: url }), track() {},
+  });
+  if (!("direct" in result) || !result.direct) throw Error("Expected current viewer identity");
+  expect(grants).toBeGreaterThan(0);
+  const claims: unknown = JSON.parse(Buffer.from(result.identity.split(".")[1], "base64url").toString("utf8"));
+  const parsed = schema.strictObject({ iss: schema.string(), sub: schema.literal("current-viewer@example.test"), email: schema.literal("current-viewer@example.test"), room: schema.literal("room"), aud: schema.literal(row.url), iat: schema.number(), exp: schema.number(), jti: schema.string() }).parse(claims);
+  expect(parsed.exp - parsed.iat).toBe(300);
+  expect(Object.keys(result).sort()).toEqual(["direct", "expires_in", "identity", "url"]);
+  expect(row.enc).toBe("historical-ciphertext"); expect(row.iv).toBe("historical-iv");
+});

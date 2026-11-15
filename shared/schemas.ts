@@ -317,7 +317,7 @@ export const Connection = z.object({
   owner: z.string(),
   mine: z.boolean(),
   created_at: z.nullable(z.number()),
-  auth: z.enum(["token", "identity"]),
+  auth: z.literal("identity"),
   signed_in: z.boolean(),
   apps: z.array(ConnectionApp),
   tools: z.array(ConnectionTool),
@@ -348,7 +348,7 @@ export type RefreshConnectionResult = z.infer<typeof RefreshConnectionResult>;
 export const ConnectionIdentityResult = z.discriminatedUnion("direct", [
   z.strictObject({
     direct: z.literal(false),
-    why: z.enum(["token", "signed_in"]),
+    why: z.literal("signed_in"),
   }),
   z.strictObject({
     direct: z.literal(true),

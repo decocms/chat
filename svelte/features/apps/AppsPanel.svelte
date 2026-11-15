@@ -349,7 +349,7 @@
                 title={props.t(
                   mode === "direct"
                     ? "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você."
-                    : "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).",
+                    : "As chamadas passam pelo vibebook (o servidor não libera chamada direta ou pede login).",
                 )}
                 >{props.t(mode === "direct" ? "direto" : "via vibebook")}</Badge
               >{/if}<Button
@@ -366,7 +366,7 @@
                 }}>{props.t("Remover conexão")}</Button
               >{/if}
           </div>
-          {#if item.auth === "identity"}{#if item.signed_in}<p
+          {#if item.signed_in}<p
                 class="tw:text-sm"
               >
                 {props.t("Você entrou em {host} com a sua conta.", {
@@ -391,7 +391,7 @@
                 onclick={(event) => {
                   if (!live(event)) event.preventDefault();
                 }}>{props.t("Entrar em {host}", { host: item.host })}</a
-              >{/if}{/if}
+              >{/if}
           {#if visible.length}<div class="tw:grid tw:gap-2">
               {#each visible as app (app.tool)}<Button
                   variant="outline"
