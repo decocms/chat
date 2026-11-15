@@ -48,6 +48,7 @@ import {
   type AppsApi,
 } from "../apps/api";
 import { createAppRequests } from "../apps/requests";
+import { createDirectMcp } from "../apps/direct";
 import {
   roomApps,
   appRouteHash,
@@ -310,16 +311,31 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       throw error;
     }
   };
+  const direct = createDirectMcp({
+    current: () => current() && authority.current(),
+    identity: (cid, signal) => guardApp(rawApps.identity(cid, signal)),
+    proxy: (cid, name, args, signal) => guardApp(rawApps.call(cid, name, args, signal)),
+    fetcher: browser.fetcher, clock,
+  });
+  const changeConnection = <T>(cid: string, signal: AbortSignal, operation: () => Promise<T>) => {
+    direct.invalidate(cid);
+    if (!current() || !authority.current() || signal.aborted) return Promise.reject(Error("App is no longer active"));
+    return guardApp(operation());
+  };
   const appApi: AppsApi = {
-    list: (signal) => guardApp(rawApps.list(signal)),
+    identity: (cid, signal) => guardApp(rawApps.identity(cid, signal)),
+    list: async (signal) => {
+      const value = await guardApp(rawApps.list(signal));
+      if (current() && authority.current() && !signal.aborted) direct.sync(value.connections);
+      return value;
+    },
     create: (url, value, signal) =>
       guardApp(rawApps.create(url, value, signal)),
-    remove: (cid, signal) => guardApp(rawApps.remove(cid, signal)),
-    refresh: (cid, signal) => guardApp(rawApps.refresh(cid, signal)),
-    signout: (cid, signal) => guardApp(rawApps.signout(cid, signal)),
+    remove: (cid, signal) => changeConnection(cid, signal, () => rawApps.remove(cid, signal)),
+    refresh: (cid, signal) => changeConnection(cid, signal, () => rawApps.refresh(cid, signal)),
+    signout: (cid, signal) => changeConnection(cid, signal, () => rawApps.signout(cid, signal)),
     ui: (cid, tool, signal) => guardApp(rawApps.ui(cid, tool, signal)),
-    call: (cid, tool, args, signal) =>
-      guardApp(rawApps.call(cid, tool, args, signal)),
+    call: (cid, tool, args, signal) => guardApp(direct.call(cid, tool, args, signal)),
     context: (cid, tool, text, signal) =>
       guardApp(rawApps.context(cid, tool, text, signal)),
   };
@@ -337,6 +353,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   );
   track(
     authority.listen(() => {
+      direct.dispose();
       apps.revoke();
       project("stay");
     }),
@@ -770,6 +787,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
         const revision = ++chatRevision;
         const appProps: import("../apps/types").AppsProps = {
+          connectionModes: direct.state,
           owner: apps,
           api: appApi,
           room: { ...value, messages: roomMessages(value) },
@@ -1334,6 +1352,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     leaveVoice();
     voiceLeaving.clear();
     active = false;
+    direct.dispose();
     richFiles.dispose();
     pendingMessage = null;
     noticeRevision++;

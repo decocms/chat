@@ -2,6 +2,8 @@ import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../roomConnection";
 import type { AppsApi } from "./api";
 import type { AppsSession } from "./session";
+import type { Readable } from "svelte/store";
+import type { ConnectionMode } from "./directTypes";
 export type AppBridgeModule = Pick<
   typeof import("./bridge"),
   "createNativeAppBridge" | "appToolInfo" | "remoteToolResult"
@@ -9,6 +11,7 @@ export type AppBridgeModule = Pick<
 export type AppsProps = {
   owner: AppsSession;
   api: AppsApi;
+  connectionModes?: Readable<ReadonlyMap<string, ConnectionMode>>;
   room: Room;
   request: RequestRoomCommand;
   current(): boolean;

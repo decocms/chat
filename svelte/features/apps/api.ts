@@ -10,6 +10,7 @@ import {
   ConnectionUiResult,
   ConnectionCallResult,
   ConnectionError,
+  ConnectionIdentityResult,
   OkResult,
 } from "../../../shared/schemas";
 export class AppsFailure extends Error {
@@ -59,6 +60,9 @@ export function createAppsApi(roomId: string, fetcher?: FetchLike) {
   const id = encodeURIComponent(roomId),
     param = (cid: string) => ({ id, cid: encodeURIComponent(cid) });
   return {
+    identity: (cid: string, signal: AbortSignal) =>
+      connections[":cid"].identity.$post({ param: param(cid) }, { init: { signal, cache: "no-store" } })
+        .then((value) => read(value, ConnectionIdentityResult)),
     list: (signal: AbortSignal) =>
       connections
         .$get({ param: { id } }, { init: { signal, cache: "no-store" } })

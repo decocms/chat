@@ -6365,6 +6365,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
     context: {},
   };
   const api: import("../svelte/features/apps/api").AppsApi = {
+    identity: async () => ({ direct: false, why: "signed_in" }),
     list: async () => ({ connections: [connection] }),
     create: async () => ({
       ok: true,

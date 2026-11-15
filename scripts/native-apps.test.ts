@@ -54,6 +54,7 @@ const room = (): Room => ({
 });
 function api(extra: Partial<AppsApi> = {}): AppsApi {
   return {
+    identity: async () => ({ direct: false, why: "signed_in" }),
     list: async () => ({ connections: [connection] }),
     create: async () => ({
       ok: true,

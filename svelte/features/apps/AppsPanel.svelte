@@ -1,5 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { readable } from "svelte/store";
+  import type { ConnectionMode } from "./directTypes";
+  import Badge from "../../lib/ui/Badge.svelte";
   import type { Connection } from "../../../shared/schemas";
   import type { AppsProps } from "./types";
   import {
@@ -22,6 +25,7 @@
     view = untrack(() => owner.state),
     pinView = untrack(() => owner.pin.state),
     id = $props.id();
+  const modes = untrack(() => props.connectionModes ?? readable<ReadonlyMap<string, ConnectionMode>>(new Map()));
   let remove = $state.raw<Connection | null>(null);
   const current = () => props.current() && owner.current();
   const live = (event: Event) =>
@@ -335,7 +339,13 @@
                 : props.t("da sala")}</span
             ><small class="tw:break-words tw:text-muted-foreground"
               >{item.host} · {props.name(item.owner)}</small
-            ><Button
+            >{#if $modes.get(item.id)}{@const mode = $modes.get(item.id)}<Badge
+                variant="secondary"
+                data-native-connection-mode={mode}
+                title={props.t(mode === "direct"
+                  ? "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você."
+                  : "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).")}
+              >{props.t(mode === "direct" ? "direto" : "via vibebook")}</Badge>{/if}<Button
               variant="ghost"
               disabled={busy}
               onclick={(event) => {
