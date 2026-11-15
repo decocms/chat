@@ -8,11 +8,14 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
+Latest source `a96ac43` passes a fresh build and [all 24 repository gates](verification/a96ac43-whisper-finish-source.json), including actual Composer Enter/Whisper DOM cases and the unchanged RoomShell removal-before-DOM-flush regression. Ordinary dictation is integrated: Enter waits at most eight seconds for an owned refinement, with visible loading and cancellation/revision fences. Main `cd47d1c` is merged. Matching preview assets are refreshed. Published-head browser, HMR, security and freshness checks remain required; the complete `350e4cb` browser proof below predates this follow-up.
+
+The latest complete [performance cohort at dfbdbdc](performance/2026-11-15-dfbdbdc/README.md) executes all 32 original trials but fails **12 of 16 unchanged budgets**. Application gzip is 360563 B against 222117 B; font transfer is 826876 B against about 293 KB. Readiness, thread switch, first history and heap also fail on both devices. Three of four excluded diagnostics pass; native desktop rejects a negative CPU timestamp delta. Original JSON/report/module metadata and exact hashes are retained. This cohort predates the ordinary-dictation conversion and does not measure its later source. No acceptance budget is waived.
+
 Main `dcdb3d2` was merged at `4de282a` following Gui's approved
 voice simplification (room messages 2568–2575). Continuous Fire is retired;
 ordinary microphone/hold-Space dictation fills a draft and Enter sends to the
-normal Claude. Native conversion and its independent source review are in
-progress. Cards, uploaded HTML opening beside the chat, historical messages and
+normal Claude. Native conversion and its independent source review are complete at the source level; final published-head checks remain open. Cards, uploaded HTML opening beside the chat, historical messages and
 the `fire_card` rewrite tool remain supported. The backend retirement checkpoint
 `ea617ae` passes all four `test:rpc` suites on BugMachine (164 tests, 1735
 assertions), including the retired route's 404/no-effects regression and retained
@@ -61,7 +64,7 @@ tooling, actual Composer DOM regressions, the media adapter and structural-shari
 cases. [The exact source receipt](verification/7bbbf6f-continuous-fire-source.json)
 does not substitute for the currently running complete Worker/browser audit.
 
-The latest complete [performance cohort](performance/2026-11-14-139573a/README.md)
+The earlier complete [performance cohort](performance/2026-11-14-139573a/README.md)
 executes all 32 original trials but fails **11 of 16 budget comparisons**.
 Application gzip is 358662 B against a 220947 B limit; fonts are 826876 B against
 approximately 293031 B. Readiness, thread switch and heap fail on both devices;

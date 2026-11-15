@@ -127,3 +127,13 @@ Keep historical message decoding, native cards, `fire_card` rewrite and uploaded
 HTML auto-opening beside chat. Backend removal is integrated; native conversion,
 full source/browser verification and matching generated preview are pending.
 The prior Fire cohorts remain historical evidence, not acceptance of this change.
+
+Main `cd47d1c` (room 2582–2585) adds Enter waiting for Whisper. Merged at
+`f1f2914`; native follow-up integrated at `1515d96` with the captured-owner
+preflush fix at `a96ac43`. Fresh build and all 24 gates pass at that exact
+source, including actual Composer DOM and unchanged RoomShell removal regression.
+Enter has a total eight-second refinement deadline and visible loading, with
+room/account/draft identity checked before the ordinary submit. Missing native
+recorder completion cancels after the existing five-second watchdog without
+sending. Final published-head checks remain required. Future doc-card/open_doc
+work discussed in room 2591 is not covered by this checkpoint.
