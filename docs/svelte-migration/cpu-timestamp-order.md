@@ -23,3 +23,26 @@ The caller records this namespace before invoking the original strict summary. A
 Focused fixtures cover frozen input/multiset preservation, bounded signed reorder, monotonic-versus-old weighting, ties/duplicate samples, singleton/empty cases, excursions, invalid arithmetic, malformed graphs/frames, existing provenance privacy negatives, and default-off/measured-context zero inspection or mutation. They are pure tests, not actual Chrome acceptance. Source/type review and an explicitly separate fresh diagnostic run must follow before interpreting real results. The application under measurement remains the frozen revision; no complete benchmark is replayed or shortened by this source.
 
 Author checks: six owned paths passed Node Prettier. The existing strict/private-heap suite and the new interpretation suite together passed 18 tests / 327 assertions in 2.60 seconds with Bun 1.4.4. Zero positive inter-sample intervals—including a singleton or multiple tied timestamps—are explicitly duration-unverified/counts-only; numeric interval totals do not claim zero CPU cost. The original strict source file and all historical artifacts have no diff. No local compiler, browser, profiler, heap snapshot or benchmark ran. Actual source/type review and fresh separately excluded diagnostics remain pending.
+
+## External-script hash calibration
+
+A separate [public fixed-source calibration](cpu-script-hash-calibration.json)
+ran on pinned Chromium `158.0.8127.18`. Both external classic and module scripts
+containing accented, CJK and astral characters reported the SHA-256 of served
+UTF-8 bytes, matching the existing attribution policy. Neither reported
+sourceURL, live-edit or stack-trace provenance. No application, profile or
+private data was used. The fixed source was:
+
+```js
+globalThis.__hashProbe = (globalThis.__hashProbe || 0) + 1;
+console.info("café 日本語 🧪");
+```
+
+The [V8 implementation](https://chromium.googlesource.com/v8/v8/+/refs/heads/main/src/inspector/v8-debugger-script.cc)
+has both a precomputed `GetSha256Hash()` path and a UTF-16 code-unit fallback.
+The fallback alone does not define external-network script hashes. The actual
+calibration supports keeping the existing served-byte comparison unchanged;
+no alternate hash acceptance or field swapping is introduced. This limited
+probe does not authenticate HTML inline, eval, live-edit or arbitrary-encoding
+scripts, which remain conservatively unattributed. It does not validate an
+actual CPU profile or change a historical rejection.

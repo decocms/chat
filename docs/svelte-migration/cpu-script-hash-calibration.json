@@ -1,0 +1,28 @@
+{
+  "scope": "Public fixed Unicode external classic and module scripts only; no application or private data",
+  "browser": "158.0.8127.18",
+  "sourceUTF8Bytes": 98,
+  "sourceUTF16CodeUnits": 89,
+  "utf8SHA256": "3e094a95c0856ff2f6921eeefe27584f6c590a84c801a9d748dab6b2a73963c8",
+  "utf16leSHA256": "060ad8616f8df71aad44d977863db6908a99ab1fe423d17dcc3febae68da522d",
+  "observed": [
+    {
+      "kind": "classic",
+      "hash": "3e094a95c0856ff2f6921eeefe27584f6c590a84c801a9d748dab6b2a73963c8",
+      "hasSourceURL": false,
+      "isLiveEdit": false,
+      "hasStackTrace": false,
+      "matchesUTF8": true,
+      "matchesUTF16LE": false
+    },
+    {
+      "kind": "module",
+      "hash": "3e094a95c0856ff2f6921eeefe27584f6c590a84c801a9d748dab6b2a73963c8",
+      "hasSourceURL": false,
+      "isLiveEdit": false,
+      "hasStackTrace": false,
+      "matchesUTF8": true,
+      "matchesUTF16LE": false
+    }
+  ]
+}
