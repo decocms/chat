@@ -7,6 +7,7 @@ import { mkdir, writeFile, unlink, readFile, open } from "node:fs/promises";
 import { resolve } from "node:path";
 import { MeResult } from "../shared/schemas";
 import { record } from "../shared/validation";
+import { awaitOwnedBrowserPhase } from "./managed-browser-phase";
 import {
   startReviewModelFixture,
   REVIEW_FIXTURE_MODEL,
@@ -72,7 +73,8 @@ async function runtimeDiagnostic() {
 const args = process.argv.slice(2);
 assert(
   args.length === 0 ||
-    (args.length === 2 && args[0] === "--suite" &&
+    (args.length === 2 &&
+      args[0] === "--suite" &&
       (args[1] === "application" || args[1] === "design-system")),
   "Usage: bun scripts/native-application-ci.ts [--suite application|design-system]",
 );
@@ -86,7 +88,12 @@ assert(process.platform === "linux", "Dedicated Ubuntu job required");
 const root = resolve(import.meta.dirname, ".."),
   reportDirectory = resolve(
     process.env.TEST_OUTPUT_DIR ??
-      resolve(root, suite === "application" ? ".artifacts/native-application-browser/report" : ".artifacts/design-system-browser/report"),
+      resolve(
+        root,
+        suite === "application"
+          ? ".artifacts/native-application-browser/report"
+          : ".artifacts/design-system-browser/report",
+      ),
   );
 const privateDirectory = resolve(
     root,
@@ -193,14 +200,26 @@ let reviewModel: Awaited<ReturnType<typeof startReviewModelFixture>> | null =
 try {
   if (suite === "design-system") {
     const expected = process.env.TEST_APP_REVISION;
-    assert(expected && /^[a-f0-9]{40}$/.test(expected), "Design-system suite requires exact TEST_APP_REVISION");
-    const revision = Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root, stdout: "pipe", stderr: "ignore" });
+    assert(
+      expected && /^[a-f0-9]{40}$/.test(expected),
+      "Design-system suite requires exact TEST_APP_REVISION",
+    );
+    const revision = Bun.spawnSync(["git", "rev-parse", "HEAD"], {
+      cwd: root,
+      stdout: "pipe",
+      stderr: "ignore",
+    });
     assert.equal(revision.exitCode, 0);
-    assert.equal(revision.stdout.toString().trim(), expected, "Checked-out source differs from requested evidence revision");
+    assert.equal(
+      revision.stdout.toString().trim(),
+      expected,
+      "Checked-out source differs from requested evidence revision",
+    );
   }
   await mkdir(reportDirectory, { recursive: true });
   await mkdir(privateDirectory, { recursive: true });
-  if (suite === "application") reviewModel = await startReviewModelFixture(base);
+  if (suite === "application")
+    reviewModel = await startReviewModelFixture(base);
   await writeFile(
     devVars,
     `DEV_EMAIL=${devEmail}\nSESSION_SECRET=${randomBytes(32).toString("hex")}\nMODEL_ROUTE=off\nMODEL_CLASSIFY=off\nMODEL_FAST=off\nMODEL_JUDGE=${reviewModel ? REVIEW_FIXTURE_MODEL : "off"}\n${reviewModel ? `DECISION_API=${reviewModel.url}\n` : ""}`,
@@ -250,12 +269,30 @@ try {
     }
     throw Error("Real Worker readiness deadline");
   });
-  const checks = suite === "application"
-    ? [{ name: "integrated NativeApplication browser", script: "scripts/native-application-browser.ts", args: [], output: reportDirectory }]
-    : [
-        { name: "atomic gallery and Studio verification", script: "scripts/design-system-browser.ts", args: ["--gallery-only"], output: resolve(reportDirectory, "gallery") },
-        { name: "current RoomInbox verification", script: "scripts/design-system-browser.ts", args: ["--inbox-only"], output: resolve(reportDirectory, "inbox") },
-      ];
+  const checks =
+    suite === "application"
+      ? [
+          {
+            name: "integrated NativeApplication browser",
+            script: "scripts/native-application-browser.ts",
+            args: [],
+            output: reportDirectory,
+          },
+        ]
+      : [
+          {
+            name: "atomic gallery and Studio verification",
+            script: "scripts/design-system-browser.ts",
+            args: ["--gallery-only"],
+            output: resolve(reportDirectory, "gallery"),
+          },
+          {
+            name: "current RoomInbox verification",
+            script: "scripts/design-system-browser.ts",
+            args: ["--inbox-only"],
+            output: resolve(reportDirectory, "inbox"),
+          },
+        ];
   let failed = false;
   for (const check of checks) {
     if (stopped) throw Error("Runner interrupted between browser phases");
@@ -265,20 +302,19 @@ try {
         const test = spawn(
           [process.execPath, check.script, ...check.args],
           resolve(check.output, "browser.log"),
-          { ...process.env, TEST_BASE_URL: base, TEST_OUTPUT_DIR: check.output },
+          {
+            ...process.env,
+            TEST_BASE_URL: base,
+            TEST_OUTPUT_DIR: check.output,
+          },
         );
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const deadline = new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => { stop(); reject(Error("Owned browser phase deadline")); }, 12 * 60_000);
+        const result = await awaitOwnedBrowserPhase({
+          childExited: test.exited,
+          workerExited: worker.exited,
+          stop,
+          deadlineMs: 12 * 60_000,
         });
-        try {
-          const result = await Promise.race([
-            deadline,
-            test.exited,
-            worker.exited.then(() => { throw Error("Worker exited during browser cohort"); }),
-          ]);
-          assert.equal(result, 0, "Browser gate failed");
-        } finally { clearTimeout(timer); }
+        assert.equal(result, 0, "Browser gate failed");
       });
     } catch (error) {
       if (suite === "application" || stopped) throw error;
