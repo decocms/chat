@@ -60,13 +60,24 @@ has changed. Layout and Markdown-parser experiments remain isolated and have
 not been deployed or accepted as performance improvements. Ordinary-rich-content
 setup and lazy chat-App follow-ups remain isolated, under review and unmeasured.
 
-The combined follow-up at `3399322` passes the [complete Worker/browser cohort](https://github.com/vibegui/vibebook.dev/actions/runs/43679620510)
-and layout browser checks. Its [repository run](https://github.com/vibegui/vibebook.dev/actions/runs/43679614891) passes 23 of 24 source gates,
-including mounted UI cases, but fails tooling typing in a new adoption test:
-an optional result was passed to an identity matcher without narrowing. The
-isolated `2c150ee` follow-up adds an explicit runtime guard, preserving the
-assertions; its [repository rerun](https://github.com/vibegui/vibebook.dev/actions/runs/43680084591) is pending. This is not all-gates acceptance,
-and neither checkpoint is deployed or measured.
+The combined follow-up at `249e1e9` passes [all four functional workflows](experiments/2026-11-15-249e1e9/README.md),
+including source/preview freshness, complete Worker/browser, App security and
+HMR. Its [finished unchanged cohort](performance/2026-11-15-249e1e9/README.md)
+passes all 32 original trials but still fails 12 of 16 budgets. Application
+gzip is 328917 B against 220629 B; settled heap is about 20.8/20.7 MB against
+about 15.4 MB. Both native CPU diagnostics remain rejected under the original
+strict delta policy. Module attribution now passes directly with correctly
+labelled original metadata. The earlier `3399322` test-tooling failure is
+retained; `2c150ee` fixes it with an explicit guard and all 24 source gates pass.
+This candidate is not deployed or accepted as the completed migration.
+
+A separate empty-component follow-up at `74dcfe3` passes all source gates and
+the complete browser cohort; its refreshed `86d76c5` passes final freshness.
+It remains unmeasured and isolated. Backend-only header/row schema isolation
+and managed atomic-gallery/current-Inbox verification are also under review/CI.
+The existing actual Root profiles already cover Studio tokens, fonts, keyboard
+and Axe; they do not substitute for the gallery interaction suite. No original
+budget or historical failed result has been changed.
 
 The [fresh deployed-main inventory](inventory-current-2026-11-15-9bae26a/README.md)
 covers 412 files and 2882 candidate keys. An additive owner amendment maps the

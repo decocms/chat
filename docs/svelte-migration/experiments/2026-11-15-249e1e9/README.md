@@ -27,9 +27,11 @@ This is GitHub Ubuntu functional evidence with controlled external model and
 microphone fixtures. Production, physical hardware/provider intelligence,
 performance budgets, M0/F56 traceability and maintainer acceptance remain separate.
 
-A fresh unchanged seven-measured-plus-one-warmup cohort is running on BugMachine
-at this exact revision, after fresh builds, all 24 gates and asset freshness.
-Its runner supplies the revision before builds. No byte, latency, heap or font
-improvement is claimed before the original complete results exist. Original
-Studio fonts and all original acceptance limits remain active. Vanilla stays
-the maintained default.
+The [complete unchanged performance cohort](../../performance/2026-11-15-249e1e9/README.md)
+finishes all 32 original trials but fails 12 of 16 budgets. Both native strict
+CPU diagnostics remain rejected; independent sanitized heap summaries are
+retained separately. Module attribution passes exact revision/observed-hash
+checks. The runner supplies the revision before builds. Requested application
+gzip falls only 1874 B versus the prior candidate; readiness and heap remain
+over budget. No stable causal speedup or acceptance is claimed. Original Studio
+fonts and all original limits remain active. Vanilla stays the maintained default.
