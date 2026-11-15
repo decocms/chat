@@ -344,9 +344,9 @@ export async function auditDesignSystemInbox(
         url.searchParams.get("ui") === "svelte" &&
         url.hash === `#m${other.id}`,
     );
-    await expect(page.locator("[data-native-chat]")).toContainText(
-      "Cross-room target message",
-    );
+    const crossRoomMessage = page.locator(`[data-room-chat] #m${other.id}`);
+    await expect(crossRoomMessage).toHaveCount(1);
+    await expect(crossRoomMessage).toContainText("Cross-room target message");
     result.phases.push(result.phase);
 
     result.phase = "Home Inbox modal resolve cancellation and fresh opening";
