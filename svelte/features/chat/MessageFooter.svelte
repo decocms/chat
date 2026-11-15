@@ -121,7 +121,7 @@
       {#if shown}<div
           id={`${ids}-readers`}
           role="tooltip"
-          class="tw:absolute tw:bottom-full tw:left-0 tw:z-20 tw:mb-2 tw:w-72 tw:max-w-[80vw] tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:bg-popover tw:p-3 tw:text-popover-foreground tw:shadow-md"
+          class="tw:absolute tw:bottom-full tw:right-0 tw:z-20 tw:mb-2 tw:w-72 tw:max-w-[80vw] tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:bg-popover tw:p-3 tw:text-popover-foreground tw:shadow-md"
         >
           {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
               class="tw:flex tw:items-center tw:gap-2"

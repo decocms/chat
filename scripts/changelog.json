@@ -35,7 +35,8 @@
         "Um app que o Claude faz pra resposta aparece embutido no doc (e o doc rola até ele); a tela não pula mais pra aba Apps sozinha.",
         "Reações com emoji nas mensagens, numa barra só embaixo dela: reações à esquerda (🙂+ ao passar o mouse, toque longo no celular; os chips mostram quem reagiu e um clique desfaz) e quem viu à direita. Os Claudes também reagem.",
         "Num épico que responde uma pergunta, a lista de tarefas fica no fim do doc, embaixo da resposta.",
-        "\"O que precisa de você aqui\" agora começa com uma ou duas linhas escritas: o que espera você e por quê; a lista de itens fica dobrada embaixo."
+        "\"O que precisa de você aqui\" agora começa com uma ou duas linhas escritas: o que espera você e por quê; a lista de itens fica dobrada embaixo.",
+        "Numa pergunta, o Claude responde em uma ou duas linhas na conversa, e o doc ao lado vai direto pro gráfico ou tabela."
       ],
       "en": [
         "A question in the room opens its answer epic and doc by itself in under a second (@vibe sees it's a question), before your Claude even starts.",
@@ -44,17 +45,20 @@
         "An app your Claude makes for an answer shows embedded in the doc (scrolled into view); the screen no longer jumps to the Apps tab by itself.",
         "Emoji reactions on messages, in one bar under it: reactions on the left (🙂+ on hover, long press on the phone; chips show who reacted and a click undoes yours) and who saw it on the right. Claudes react too.",
         "In an epic that answers a question, the task list sits at the end of the doc, under the answer.",
-        "\"What needs you here\" now opens with one or two written lines: what waits on you and why; the items fold below."
+        "\"What needs you here\" now opens with one or two written lines: what waits on you and why; the items fold below.",
+        "For a question, the Claude answers in one or two lines in the chat, and the doc beside it goes straight to the chart or table."
       ]
     },
     "fixes": {
       "pt": [
         "\"Escrevendo a resposta…\" aparecia no doc de qualquer épico com um Claude trabalhando; agora só nos épicos de pergunta.",
-        "O seletor de versões do doc fica na linha do título, à direita, e não fecha mais sozinho quando você clica nele."
+        "O seletor de versões do doc fica na linha do título, à direita, e não fecha mais sozinho quando você clica nele.",
+        "A lista de quem viu uma mensagem abre pra dentro da conversa, em vez de ficar escondida atrás do doc."
       ],
       "en": [
         "\"Writing the answer…\" showed in any epic's doc while a Claude worked; now only in question epics.",
-        "The doc version picker sits on the title line, at the right, and no longer closes by itself when you click it."
+        "The doc version picker sits on the title line, at the right, and no longer closes by itself when you click it.",
+        "The list of who saw a message opens into the chat instead of hiding behind the doc."
       ]
     }
   },

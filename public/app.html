@@ -708,6 +708,8 @@
   .seen .sv i.codex, .seen .sv i.cursor { background: light-dark(#111, #ececec); color: light-dark(#fff, #111); } .seen .sv i.gemini { background: #6b7cff; } .seen .sv i.copilot { background: #6e40c9; }
   .seen .more { font-size: 11px; } .seen .ck { color: var(--accent); font-size: 11px; }
   .seenPop { display: none; position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; min-width: 220px; max-width: 300px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / .14); text-align: left; }
+  /* The pill sits at the bar's right edge (Gui #2761): open leftward, or it ran under the doc panel and widened the chat (Gui #2782). */
+  .mbar .seenPop { left: auto; right: 0; }
   .seen:hover .seenPop, .seen:focus-within .seenPop, .seen:focus .seenPop { display: grid; gap: 2px; }
   .seenPop div { display: flex; align-items: center; gap: 8px; padding: 4px 6px; color: var(--ink); white-space: nowrap; } .seenPop div span { flex: 1; overflow: hidden; text-overflow: ellipsis; } .seenPop small { color: var(--mute); }
   .seenPop .avatar { width: 20px; height: 20px; font-size: 9px; flex: none; }
