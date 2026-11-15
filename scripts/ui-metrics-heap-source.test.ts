@@ -139,6 +139,15 @@ test("malformed metadata, tuple completeness, safe integers, alignment, bounds a
   const cases: unknown[] = [
     null,
     { ...raw, nodes: [0, 0] },
+    ...[
+      [raw.snapshot.meta.node_types[0], "number", "number", "number"],
+      [raw.snapshot.meta.node_types[0], "string", "string", "number"],
+      [raw.snapshot.meta.node_types[0], "string", "number", "string"],
+      ["number", "string", "number", "number"],
+    ].map((node_types) => ({
+      ...raw,
+      snapshot: { ...raw.snapshot, meta: { ...raw.snapshot.meta, node_types } },
+    })),
     { ...raw, snapshot: { ...raw.snapshot, node_count: 8 } },
     {
       ...raw,

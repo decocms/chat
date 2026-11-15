@@ -178,7 +178,10 @@ export function summarizeHeapSources(
         si >= 0 &&
         ni >= 0 &&
         ii >= 0 &&
-        Array.isArray(meta.node_types[ti]),
+        Array.isArray(meta.node_types[ti]) &&
+        meta.node_types[ni] === "string" &&
+        meta.node_types[ii] === "number" &&
+        meta.node_types[si] === "number",
       "node-metadata",
     );
     const labels: unknown[] = meta.node_types[ti];
