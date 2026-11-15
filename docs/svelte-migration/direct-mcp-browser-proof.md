@@ -1,0 +1,11 @@
+# Direct MCP browser acceptance source
+
+Source-only audit `auditDirectMcp`, registered as an independent full-application browser audit. New helper and fixture do not modify production handlers, credentials, security allowlists or canonical API/Book responses. They run only against the existing controlled loopback Worker.
+
+For each frontend, a fresh authenticated context creates a real room and an actual MCP connection. The synthetic external peer supports CORS and signed identities, and requires no OAuth grant. Worker discovery and resource reads remain real. Its JWKS comes from the actual Worker's public endpoint; every MCP POST verifies Ed25519 signature, issuer, exact stored audience URL, requester email/sub, room, integer expiry/issued-at and the 300-second lifetime. Tokens, claims, session cookies and private keys are never persisted in evidence.
+
+An actual MCP `app_open` selects the app. Until the reader clicks the native Allow/default Open, no resource/SDK/initial tool request is permitted. The stock installed Apps SDK then receives the initial result through the existing document-bound host. Exactly one initial browser tools/call must reach the peer; no Worker `/connections/:cid/call` request or proxy-origin tool invocation may occur. A real cookie is seeded for the external host, and browser MCP requests must omit it.
+
+A button in the actual iframe requests a second, distinct tool through the SDK. The peer counts that invocation and returns HTTP 503. Positive SDK error completion precedes an 800ms negative-observation window. Both frontend and peer counters must still show exactly one failed invocation and no proxy replay. This tests HTTP failure after dispatch, not every possible network interruption. Existing legacy token/OAuth fallback tests remain separate.
+
+Evidence is `direct-mcp.json`: variant, phase, status, public SDK digest, bounded counters and safe pageerror categories. Each variant runs independently after another variant's failure; any failure rejects the aggregate. Context/server cleanup and artifact writing run on failure. No secrets, raw JWTs, RPC arguments, session headers or provider response bodies are recorded. All new source is unexecuted until a recorded real Worker/browser run; format/type success alone is not acceptance.

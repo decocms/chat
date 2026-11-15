@@ -52,6 +52,7 @@ declare global {
     __nativeSocketCloseObservations?: SocketCloseObservation[];
   }
 }
+import { auditDirectMcp } from "./native-direct-mcp-browser";
 import { auditInlineAppOpen } from "./native-inline-app-open-browser";
 import { auditDocumentAnswers } from "./native-doc-answer-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
@@ -1268,6 +1269,11 @@ try {
       "passed",
       "Inline App reader-approval audit must pass",
     );
+  });
+  await independentAudit("direct-mcp-browser", async () => {
+    const result = await auditDirectMcp(profileFixture);
+    report.directMcp = result;
+    assert.equal(result.status, "passed", "Both frontends must pass real direct MCP identity and no-replay checks");
   });
   await independentAudit("document-answer-parity", async () => {
     const result = await auditDocumentAnswers(profileFixture);
