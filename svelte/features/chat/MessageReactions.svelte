@@ -34,7 +34,10 @@
 
 <div
   data-message-reactions
-  class="tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:gap-1"
+  class="tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:gap-1 {all.length ||
+  open
+    ? ''
+    : 'tw:md:-mt-1 tw:md:h-0 tw:md:overflow-visible'}"
 >
   {#each all as [emoji, list] (emoji)}<button
       type="button"
@@ -58,7 +61,7 @@
     class="tw:inline-flex tw:min-h-7 tw:items-center tw:rounded-full tw:border tw:border-border tw:bg-background tw:px-2 tw:text-sm tw:text-muted-foreground {all.length ||
     open
       ? ''
-      : 'tw:md:opacity-0 tw:md:group-hover:opacity-100 tw:md:focus:opacity-100'}"
+      : 'tw:hidden tw:md:inline-flex tw:md:opacity-0 tw:md:group-hover:opacity-100 tw:md:focus:opacity-100'}"
     onclick={() => (open = !open)}>🙂+</button
   >
   {#if open}<div

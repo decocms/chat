@@ -285,13 +285,20 @@
             {actions}
             {vb}
           />{/each}{/if}
-      {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
-          message={m}
-          me={room.me}
-          {actions}
-          {vb}
-        />{/if}
-      {#if footer && !origin}<MessageFooter {footer} {vb} />{/if}
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. -->
+      <div
+        class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-3"
+      >
+        {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
+            message={m}
+            me={room.me}
+            {actions}
+            {vb}
+          />{/if}
+        {#if footer && !origin}<div class="tw:ml-auto">
+            <MessageFooter {footer} {vb} />
+          </div>{/if}
+      </div>
     </div>
   </div>
   <div

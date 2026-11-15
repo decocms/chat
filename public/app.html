@@ -377,7 +377,12 @@
   .verBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--line)); border-radius: 10px; background: color-mix(in oklch, var(--accent) 8%, var(--panel)); font-size: 13px; }
   .verBar b { flex: 1 0 100%; min-width: 0; }
   .verBar button { padding: 5px 10px; font-size: 12.5px; }
-  .reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .mbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
+  .mbar:not(:has(.react:not(.add), .mfoot)) { margin-top: 0; height: 0; overflow: visible; }
+  .msg:has(.mbar .mfoot) > .body { flex: 1; } /* the seen/acks side of the bar reaches the right edge */
+  .mbar .mfoot { margin: 0 0 0 auto; justify-content: flex-end; }
+  .mbar .mfoot:has(.need) { margin-left: 0; flex-basis: 100%; }
+  .reacts { display: flex; flex-wrap: wrap; gap: 4px; }
   .reacts .react { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; min-height: 26px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 13px; color: var(--ink); cursor: pointer; }
   .reacts .react b { font-weight: 600; font-size: 12px; color: var(--mute); }
   .reacts .react.me { border-color: var(--accent); background: color-mix(in oklch, var(--accent) 12%, var(--panel)); }
@@ -5708,7 +5713,7 @@ function noticeHtml(m) {
   return `<div class="msg remMsg noticeMsg" id="m${m.id}">${mact(m.id)}<div class="body"><details><summary><span class="vibeMark" aria-hidden="true">✦</span><span class="remT">${mentions(esc(one))}</span><span class="remWhen" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${day}</span></summary><div class="txt">${mentions(md(m.text || ""))}</div></details></div></div>`;
 }
 // Hover actions (Copiar / Responder) shared by messages and the quiet reminder/issue lines.
-const mact = (id) => `<span class="mact"><button type="button" class="rbtn" data-reactpick="${id}" title="${t("Reagir")}" aria-label="${t("Reagir a esta mensagem")}">🙂+</button><button type="button" class="rbtn" data-copymsg="${id}" title="${t("Copiar")}" aria-label="${t("Copiar o texto desta mensagem")}">${icon("copy", 14)} ${t("Copiar")}</button><button type="button" class="rbtn" data-copylink="${id}" title="${t("Copiar link")}" aria-label="${t("Copiar o link desta mensagem")}">${icon("link", 14)} ${t("Copiar link")}</button><button type="button" class="rbtn" data-reply="${id}" title="${t("Responder")}" aria-label="${t("Responder a esta mensagem")}">${icon("reply", 14)} ${t("Responder")}</button></span>`;
+const mact = (id) => `<span class="mact"><button type="button" class="rbtn" data-copymsg="${id}" title="${t("Copiar")}" aria-label="${t("Copiar o texto desta mensagem")}">${icon("copy", 14)} ${t("Copiar")}</button><button type="button" class="rbtn" data-copylink="${id}" title="${t("Copiar link")}" aria-label="${t("Copiar o link desta mensagem")}">${icon("link", 14)} ${t("Copiar link")}</button><button type="button" class="rbtn" data-reply="${id}" title="${t("Responder")}" aria-label="${t("Responder a esta mensagem")}">${icon("reply", 14)} ${t("Responder")}</button></span>`;
 const msgHtml = (m, prev) => {
   if (m.tag === "reminder") return remHtml(m);
   if (m.tag === "issue") return issueHtml(m);
@@ -5720,7 +5725,7 @@ const msgHtml = (m, prev) => {
     ${m.kind === "agent" ? agentAvatar(m.author, m.via) : avatar(m.author)}${cont ? `<span class="gut" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${hhmm(m.ts)}</span>` : ""}
     ${mact(m.id)}
     <div class="body">${m.reply_to ? quoteHtml(m.reply_to) : ""}<div class="who">${m.kind === "agent" ? `${t("{via} de {who}", { via: esc(m.via || "agent"), who: esc(name(m.author)) })} <span class="agentTag" title="${t("Escrito pelo agent dessa pessoa, em nome dela")}">agent</span>` : esc(name(m.author))}${m.tag === "done" ? ` <span class="doneTag" title="${t("Reporta algo entregue")}">✓ ${t("entregue")}</span>` : ""} · ${ago(m.ts)}<span class="hhmm" title="${esc(new Date(m.ts).toLocaleString(LOCALE))}">${hhmm(m.ts)}</span></div>
-      ${txt ? `<div class="txt">${txt}</div>` : `<div class="txt" hidden></div>`}${attHtml(m.files)}${m.card ? cardHtml(m) : ""}${m.choices ? choiceHtml(m) : ""}${m.poll ? pollHtml(m.poll) : ""}${reactsHtml(m)}${threadCards(m.id)}</div>
+      ${txt ? `<div class="txt">${txt}</div>` : `<div class="txt" hidden></div>`}${attHtml(m.files)}${m.card ? cardHtml(m) : ""}${m.choices ? choiceHtml(m) : ""}${m.poll ? pollHtml(m.poll) : ""}${threadCards(m.id)}<div class="mbar">${reactsHtml(m)}</div></div>
   </div>`;
 };
 // Emoji reactions (Gui #2724): chips under the message (yours highlighted, who on hover), a click toggles yours; 🙂+ on
@@ -5729,7 +5734,7 @@ const REACTS = ["👍", "❤️", "😂", "🎉", "👀", "✅", "🙏", "🔥"]
 const reactWho = (w) => (w.endsWith("#agent") ? t("Claude de {who}", { who: name(w.slice(0, -6)) }) : name(w));
 function reactsHtml(m) {
   const all = Object.entries(m.reactions || {}).filter(([, who]) => who.length);
-  if (!all.length) return `<div class="reacts" hidden></div>`;
+  if (!all.length) return `<div class="reacts"><button type="button" class="react add" data-reactpick="${m.id}" title="${t("Reagir")}" aria-label="${t("Reagir a esta mensagem")}">🙂+</button></div>`;
   return `<div class="reacts">${all.map(([e, who]) => `<button type="button" class="react${who.includes(S.me) ? " me" : ""}" data-react="${m.id}" data-emoji="${esc(e)}" title="${esc(who.map(reactWho).join(", "))}">${esc(e)} <b>${who.length}</b></button>`).join("")}<button type="button" class="react add" data-reactpick="${m.id}" title="${t("Reagir")}" aria-label="${t("Reagir a esta mensagem")}">🙂+</button></div>`;
 }
 function redrawReacts(id) {
@@ -6451,7 +6456,8 @@ function renderReceipts() {
     at(m.id).rd.push({ r, read, who });
   }
   for (const [id, f] of Object.entries(foot)) {
-    const body = document.querySelector(`#m${id} .body`); if (!body) continue;
+    // One bar under the message (Gui #2761): reactions on the left, these (acks, seen) on the right.
+    const body = document.querySelector(`#m${id} .body .mbar`) || document.querySelector(`#m${id} .body`); if (!body) continue;
     body.insertAdjacentHTML("beforeend", `<div class="mfoot">${f.st.join("")}${f.rd.length ? seenPill(f.rd) : ""}</div>`);
   }
 }
