@@ -1,5 +1,7 @@
 // Actual pinned parser differential and owned loader fixtures; no browser/layout/performance claim.
-import { expect, test } from "bun:test";
+import { expect, test, spyOn } from "bun:test";
+import { Lexer } from "marked";
+import { createRichSession } from "../svelte/features/rich-text/session";
 import { get } from "svelte/store";
 import { createHtmlTree } from "../svelte/features/rich-text/htmlTree";
 import {
@@ -394,4 +396,107 @@ test("full raw-HTML fallback retains table repair, foreign namespaces and droppe
     ),
   ).toBe(true);
   expect(JSON.stringify(nodes)).not.toContain("evil()");
+});
+test("one session caches normal display syntax without retaining lexer tokens and reprojects only context", () => {
+  const lex = spyOn(Lexer.prototype, "lex"),
+    session = createRichSession();
+  try {
+    const first = session.display(
+      "# Ready\n\n**body**",
+      "markdown",
+      "document",
+    );
+    expect(first.kind).toBe("ready");
+    expect(session.display("# Ready\n\n**body**", "markdown", "document")).toBe(
+      first,
+    );
+    expect(lex).toHaveBeenCalledTimes(1);
+    expect("prepared" in first).toBe(false);
+    if (first.kind !== "ready") throw Error("Expected semantic display");
+    expect("tokens" in first.parsed).toBe(false);
+    const nodes = session.project(first.parsed, context);
+    expect(
+      session.project(first.parsed, {
+        ...context,
+        room: { ...context.room, messages: [] },
+      }),
+    ).toBe(nodes);
+    const human = session.display("@alice", "human");
+    expect(lex).toHaveBeenCalledTimes(1);
+    if (human.kind !== "ready") throw Error("Expected human display");
+    const named = {
+      ...context,
+      room: { ...context.room, names: { a: "Alice" } },
+    };
+    const before = session.project(human.parsed, named);
+    expect(before[0]).toMatchObject({ kind: "mention", who: "a" });
+    const after = session.project(human.parsed, {
+      ...named,
+      room: { ...named.room, names: { a: "Bob" } },
+    });
+    expect(after).not.toBe(before);
+    expect(after).toEqual([{ kind: "text", text: "@alice" }]);
+    session.display("# Ready\n\n**body**", "markdown");
+    expect(lex).toHaveBeenCalledTimes(2);
+    session.display("# Ready\n\n**body**", "markdown", "document");
+    expect(lex).toHaveBeenCalledTimes(3);
+  } finally {
+    session.dispose();
+    lex.mockRestore();
+  }
+});
+test("HTML adoption accepts only the exact live syntax request and drops prepared tokens without mutating it", () => {
+  const session = createRichSession();
+  const old = session.display("<b>A</b>", "markdown");
+  if (old.kind !== "html") throw Error("Expected HTML request");
+  const parsed = parsePreparedRichSource(old.prepared, createHtmlTree),
+    tokens = old.prepared.tokens;
+  session.display("ordinary B", "human");
+  expect(session.adoptHtml(old, parsed)).toBeUndefined();
+  const current = session.display("<b>A</b>", "markdown");
+  if (current.kind !== "html") throw Error("Expected fresh HTML request");
+  expect(current).not.toBe(old);
+  expect(session.adoptHtml(old, parsed)).toBeUndefined();
+  const currentTokens = current.prepared.tokens;
+  Object.freeze(current.prepared);
+  Object.freeze(current);
+  const ready = session.adoptHtml(
+    current,
+    parsePreparedRichSource(current.prepared, createHtmlTree),
+  );
+  expect(ready?.kind).toBe("ready");
+  expect(session.display("<b>A</b>", "markdown")).toBe(ready);
+  expect("prepared" in ready!).toBe(false);
+  expect(old.prepared.tokens).toBe(tokens);
+  expect(current.prepared.tokens).toBe(currentTokens);
+  session.dispose();
+  expect(session.adoptHtml(current, parsed)).toBeUndefined();
+});
+test("supplied HTML preparation is lexed once through failure Retry and stable ready-store reuse", async () => {
+  const lex = spyOn(Lexer.prototype, "lex");
+  let attempts = 0;
+  const owner = createRichPreparation({
+    current: () => true,
+    load: async () => {
+      if (++attempts === 1) throw Error("retry");
+      return createHtmlTree;
+    },
+  });
+  try {
+    const prepared = prepareRichSource("<em>same tokens</em>", "markdown"),
+      request = input("<em>same tokens</em>");
+    const state = owner.readPrepared(request, prepared);
+    await turn();
+    expect(get(state).phase).toBe("error");
+    owner.retry();
+    await turn();
+    expect(get(state).phase).toBe("ready");
+    expect(owner.readPrepared({ ...request }, prepared)).toBe(state);
+    owner.retry();
+    expect(attempts).toBe(2);
+    expect(lex).toHaveBeenCalledTimes(1);
+  } finally {
+    owner.dispose();
+    lex.mockRestore();
+  }
 });

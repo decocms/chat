@@ -46,6 +46,7 @@ export function createRichPreparation(options: {
         timer?: ReturnType<typeof setTimeout>;
         prepared?: PreparedRichSource;
         supplied?: PreparedRichSource;
+        ready: boolean;
       }
     | undefined;
   function cleanup(previous: typeof owner, notify = false) {
@@ -68,7 +69,13 @@ export function createRichPreparation(options: {
     supplied?: PreparedRichSource,
   ): Readable<RichPreparationState> {
     if (!active) return writable({ phase: "cancelled" });
-    if (!retry && owner && equal(owner.input, input) && owner.supplied === supplied) return owner.store;
+    if (
+      !retry &&
+      owner &&
+      equal(owner.input, input) &&
+      (owner.ready || owner.supplied === supplied)
+    )
+      return owner.store;
     const previous = owner,
       store =
         retry && previous
@@ -81,12 +88,13 @@ export function createRichPreparation(options: {
         timer: undefined as ReturnType<typeof setTimeout> | undefined,
         prepared: undefined as PreparedRichSource | undefined,
         supplied,
+        ready: false,
       };
     // Install the ticket before abort/publication: either can synchronously reenter.
     owner = next;
     const current = () => {
       if (!active || owner !== next || next.abort.signal.aborted) return false;
-      const valid = check?.(next.input);
+      const valid = check?.(next.input) === true;
       return valid && active && owner === next && !next.abort.signal.aborted;
     };
     cleanup(previous);
@@ -99,10 +107,15 @@ export function createRichPreparation(options: {
       if (owner === next) release(true);
       return next.store;
     }
-    const prepared = supplied ?? prepareRichSource(input.source, input.mode, input.policy);
+    const prepared =
+      supplied ?? prepareRichSource(input.source, input.mode, input.policy);
     if (!prepared.tokens?.html || factory) {
       const parsed = parsePreparedRichSource(prepared, factory);
-      if (current()) next.store.set({ phase: "ready", parsed });
+      if (current()) {
+        next.ready = true;
+        next.supplied = undefined;
+        next.store.set({ phase: "ready", parsed });
+      }
       return next.store;
     }
     next.prepared = prepared;
@@ -114,11 +127,11 @@ export function createRichPreparation(options: {
       next.prepared = undefined;
       next.abort.abort();
       if (owner !== next || !active) return;
-      const authorized = valid && check?.(next.input);
+      const authorized = valid && check?.(next.input) === true;
       if (owner === next && active)
         next.store.set({ phase: authorized ? "error" : "cancelled" });
     };
-    next.timer = setTimeout(fail, options.deadline ?? 15000);
+    next.timer = setTimeout(fail, deadline);
     // Resolve an injected synchronous throw through the same owned failure path.
     void Promise.resolve()
       .then(() => {
@@ -136,6 +149,8 @@ export function createRichPreparation(options: {
         next.prepared = undefined;
         if (current()) {
           factory = loaded;
+          next.ready = true;
+          next.supplied = undefined;
           next.store.set({ phase: "ready", parsed });
         }
       })
@@ -144,11 +159,14 @@ export function createRichPreparation(options: {
   }
   return {
     read,
-    readPrepared(input: RichInput, prepared: PreparedRichSource) { return read(input, false, prepared); },
+    readPrepared(input: RichInput, prepared: PreparedRichSource) {
+      return read(input, false, prepared);
+    },
     retry() {
       const previous = owner;
       if (
         previous &&
+        !previous.ready &&
         active &&
         check?.(previous.input) &&
         active &&
