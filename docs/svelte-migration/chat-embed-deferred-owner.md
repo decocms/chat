@@ -1,0 +1,15 @@
+# Inactive deferred chat App owner candidate
+
+This source experiment starts at `b84b1a0`. It adapts the small `e3435e1` / `480d015` chat-embed import boundary, not their older RoomScope/controller or Fire implementations. It is not integrated, adopted or measured, and makes no byte, CPU, heap or budget claim.
+
+RoomScope keeps its current direct-MCP-aware Apps API, metrics guard, authenticated Book scope and request lease. It imports the small deferred owner instead of the full chat App capability module. Only an actual connected iframe with current account/room membership, exact canonical attachment metadata and the immutable component ticket can start the dynamic import. Those same checks run after import and inside the existing mounted bridge owner.
+
+Each import owns the existing 20-second request deadline and authority subscription. Disposal/denial revokes the owner before observable UI callbacks and clears pending imports. A late factory's returned cleanup is always captured/disposed once, including reentrant revocation during the factory or during its subsequent current check. Successful handoff removes only the deferred subscription; the existing mounted bridge keeps its own authority/requests/private document lifecycle.
+
+File metadata and callback references are copied at mount time. The optional `ChatEmbedControls.current` captures the component's existing frame epoch, invalidated synchronously on retry/close before DOM destruction. Existing busy/fail/cancel/deny/retry UI is reused; no new DOM loading mechanism is introduced. Module code alone is cacheable; no global account/room/frame/approval state is created.
+
+Viewer, document AppFrame, inline reader grants, nonce/private-port hosts and post-consent attestation are unchanged. The extracted `embedOwner` predicate is used by the existing chat bridge too, preserving its metadata/membership checks. The new wrapper forwards the current RootScope API and request functions, rather than recreating transport or permission policy.
+
+Source tests adapt the previous finite owner fixtures to the current baseline, including explicit imports, disposal, preflush ticket replacement, membership/file/metadata changes, deadline/rejection, fresh retry and synchronous factory disposal. New cases cover initial ineligibility, copied callbacks/source witness, and reentrant post-factory cleanup exactly once. These injected module/HappyDOM-node cases are not actual iframe SDK, browser/private-port or performance proof. The previous baseline's separate real document-security tests remain required after integration.
+
+Validation is pending at this source checkpoint. No compiler, DOM compiler, browser, build, remote process, asset regeneration, publication or deployment has run. A measured cohort and full combined functional/security gates must precede adoption.

@@ -1,6 +1,10 @@
 // Pure owners and HTTP/SDK-boundary fixtures; not real OAuth/iframe/browser acceptance.
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import { get } from "svelte/store";
+import { Window } from "happy-dom";
+import { mountDeferredChatApp } from "../svelte/features/apps/deferredEmbed";
+import type { NativeChatAppOptions } from "../svelte/features/apps/embedOwner";
+import { createAppsAuthority } from "../svelte/features/apps/authority";
 import type { Room } from "../shared/room";
 import type { Connection } from "../shared/schemas";
 import {
@@ -642,4 +646,305 @@ test("agent opening consent is frame-owned, remote-only, retained for retry and 
   owner.back();
   expect(get(owner.state).target).toBeNull();
   owner.dispose();
+});
+
+const embedEnvironment = new Window();
+afterAll(() => {
+  void embedEnvironment.happyDOM.close();
+});
+function deferredEmbedFixture() {
+  // Obtain the native DOM declaration through the same document port as the
+  // component fixtures, restoring the global before any asynchronous work.
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+  Reflect.set(globalThis, "document", embedEnvironment.document);
+  let frame: HTMLIFrameElement;
+  try {
+    frame = document.createElement("iframe");
+    document.body.append(frame);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "document", descriptor);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+  const file = {
+    id: "abc",
+    name: "app.html",
+    type: "text/html",
+    size: 10,
+    ts: 1,
+    author: "me@example.test",
+    embed: true,
+  };
+  let canonical: Room = { ...room(), files: [file] },
+    scopeCurrent = true,
+    documentCurrent = true,
+    ready = 0,
+    failed = 0,
+    denied = 0,
+    cancelled = 0;
+  const authority = createAppsAuthority(() => scopeCurrent),
+    timer = manualClock();
+  const options: NativeChatAppOptions = {
+    frame,
+    file,
+    authority,
+    room: () => canonical,
+    current: () => scopeCurrent,
+    controls: {
+      current: () => documentCurrent,
+      thread: "main",
+      ask: async () => false,
+      resize() {},
+      ready: () => {
+        ready++;
+      },
+      fail: () => {
+        failed++;
+      },
+      deny: () => {
+        denied++;
+      },
+      cancel: () => {
+        cancelled++;
+      },
+    },
+    request: async () => ({ ok: true }),
+    name: (email) => email,
+    t: (text) => text,
+    locale: "en-US",
+    open() {},
+    api: api(),
+  };
+  return {
+    options,
+    timer,
+    authority,
+    frame,
+    counts: () => ({ ready, failed, denied, cancelled }),
+    scopeLost: () => {
+      scopeCurrent = false;
+    },
+    documentReplaced: () => {
+      documentCurrent = false;
+    },
+    memberRemoved: () => {
+      canonical = { ...canonical, members: [] };
+    },
+    fileRemoved: () => {
+      canonical = { ...canonical, files: [] };
+    },
+    fileReplaced: () => {
+      canonical = { ...canonical, files: [{ ...file, ts: 2 }] };
+    },
+    cleanup: () => {
+      frame.remove();
+      authority.dispose();
+    },
+  };
+}
+type ChatEmbedModule = Pick<
+  typeof import("../svelte/features/apps/embed"),
+  "mountNativeChatApp"
+>;
+
+test("chat App module loads only at an owned frame mount and forwards the original options", async () => {
+  const f = deferredEmbedFixture(),
+    module = deferred<ChatEmbedModule>();
+  let loads = 0,
+    mounts = 0,
+    detached = 0;
+  const stop = mountDeferredChatApp(f.options, {
+    clock: f.timer.clock,
+    load: () => {
+      loads++;
+      return module.promise;
+    },
+  });
+  expect(loads).toBe(1);
+  expect(mounts).toBe(0);
+  module.resolve({
+    mountNativeChatApp: (options) => {
+      mounts++;
+      expect(options.frame === f.frame).toBe(true);
+      expect(options.file).toEqual(f.options.file);
+      expect(options.authority === f.authority).toBe(true);
+      expect(options.request === f.options.request).toBe(true);
+      expect(options.controls === f.options.controls).toBe(false);
+      expect(options.controls.ask === f.options.controls.ask).toBe(true);
+      expect(options.controls.ready === f.options.controls.ready).toBe(true);
+      expect(options.current()).toBe(true);
+      options.controls.ready();
+      return () => {
+        detached++;
+        options.controls.cancel?.();
+      };
+    },
+  });
+  await settle();
+  expect(mounts).toBe(1);
+  expect(f.counts().ready).toBe(1);
+  stop();
+  stop();
+  expect(detached).toBe(1);
+  expect(f.counts().cancelled).toBe(1);
+  expect(f.timer.jobs.size).toBe(0);
+  f.cleanup();
+});
+
+test("late chat App imports cannot attach disposed, replaced, removed or denied documents", async () => {
+  for (const loss of [
+    "dispose",
+    "scope",
+    "document",
+    "member",
+    "file",
+    "metadata",
+    "disconnect",
+    "deny",
+  ] as const) {
+    const f = deferredEmbedFixture(),
+      module = deferred<ChatEmbedModule>();
+    let mounts = 0;
+    const stop = mountDeferredChatApp(f.options, {
+      clock: f.timer.clock,
+      load: () => module.promise,
+    });
+    if (loss === "dispose") stop();
+    if (loss === "scope") f.scopeLost();
+    if (loss === "document") f.documentReplaced();
+    if (loss === "member") f.memberRemoved();
+    if (loss === "file") f.fileRemoved();
+    if (loss === "metadata") f.fileReplaced();
+    if (loss === "disconnect") f.frame.remove();
+    if (loss === "deny") f.authority.deny();
+    // The generation guard matters even while its retired iframe is connected.
+    if (loss === "document") expect(f.frame.isConnected).toBe(true);
+    module.resolve({
+      mountNativeChatApp: () => {
+        mounts++;
+        return () => {};
+      },
+    });
+    await settle();
+    expect(mounts).toBe(0);
+    expect(f.counts().ready).toBe(0);
+    expect(f.counts().failed).toBe(0);
+    expect(f.counts().denied).toBe(loss === "deny" ? 1 : 0);
+    expect(f.timer.jobs.size).toBe(0);
+    stop();
+    f.cleanup();
+  }
+});
+
+test("chat App import deadline is visible, never auto-retries and cannot consume a fresh frame's mount", async () => {
+  const old = deferredEmbedFixture(),
+    pending = deferred<ChatEmbedModule>();
+  let oldMounts = 0,
+    freshMounts = 0,
+    loads = 0;
+  const stopOld = mountDeferredChatApp(old.options, {
+    clock: old.timer.clock,
+    load: () => {
+      loads++;
+      return pending.promise;
+    },
+  });
+  old.timer.advance(20_000);
+  await settle();
+  expect(old.counts().failed).toBe(1);
+  expect(loads).toBe(1);
+  const fresh = deferredEmbedFixture();
+  const stopFresh = mountDeferredChatApp(fresh.options, {
+    clock: fresh.timer.clock,
+    load: async () => ({
+      mountNativeChatApp: (options) => {
+        freshMounts++;
+        options.controls.ready();
+        return () => {};
+      },
+    }),
+  });
+  await settle();
+  pending.resolve({
+    mountNativeChatApp: () => {
+      oldMounts++;
+      return () => {};
+    },
+  });
+  await settle();
+  expect(oldMounts).toBe(0);
+  expect(freshMounts).toBe(1);
+  expect(fresh.counts().ready).toBe(1);
+  expect(fresh.frame === old.frame).toBe(false);
+  stopOld();
+  stopFresh();
+  old.cleanup();
+  fresh.cleanup();
+});
+
+test("chat App import rejection reports failure, and synchronous mount disposal releases the returned owner", async () => {
+  const failed = deferredEmbedFixture();
+  let loads = 0;
+  const stopFailed = mountDeferredChatApp(failed.options, {
+    clock: failed.timer.clock,
+    load: async () => {
+      loads++;
+      throw Error("module unavailable");
+    },
+  });
+  await settle();
+  expect(failed.counts().failed).toBe(1);
+  expect(loads).toBe(1);
+  expect(failed.timer.jobs.size).toBe(0);
+  stopFailed();
+  failed.cleanup();
+  const f = deferredEmbedFixture(),
+    module = deferred<ChatEmbedModule>();
+  let detached = 0;
+  const stop = mountDeferredChatApp(f.options, {
+    clock: f.timer.clock,
+    load: () => module.promise,
+  });
+  module.resolve({
+    mountNativeChatApp: () => {
+      stop();
+      return () => {
+        detached++;
+      };
+    },
+  });
+  await settle();
+  expect(detached).toBe(1);
+  expect(f.timer.jobs.size).toBe(0);
+  stop();
+  f.cleanup();
+});
+
+
+test("ineligible chat App frame never starts its capability import", () => {
+  const f = deferredEmbedFixture(); let loads = 0;
+  f.documentReplaced();
+  const stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: async () => { loads++; return { mountNativeChatApp: () => () => {} }; } });
+  expect(loads).toBe(0); expect(f.timer.jobs.size).toBe(0); expect(f.counts().cancelled).toBe(1);
+  stop(); f.cleanup();
+});
+test("chat App import snapshots source metadata and callbacks without transferring caller mutations", async () => {
+  const f = deferredEmbedFixture(), pending = deferred<ChatEmbedModule>(); let mounted = 0;
+  const originalReady = f.options.controls.ready;
+  const stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: () => pending.promise });
+  f.options.controls.ready = () => { throw Error("Mutable replacement must not inherit old mount"); };
+  pending.resolve({ mountNativeChatApp: options => { mounted++; expect(options.controls.ready).toBe(originalReady); options.controls.ready(); return () => {}; } });
+  await settle(); expect(mounted).toBe(1); expect(f.counts().ready).toBe(1); stop(); f.cleanup();
+  const changed = deferredEmbedFixture(), importLater = deferred<ChatEmbedModule>(); let wrongMount = 0;
+  const stopChanged = mountDeferredChatApp(changed.options, { clock: changed.timer.clock, load: () => importLater.promise });
+  changed.options.file.ts++;
+  importLater.resolve({ mountNativeChatApp: () => { wrongMount++; return () => {}; } });
+  await settle(); expect(wrongMount).toBe(0); stopChanged(); changed.cleanup();
+});
+test("reentrant current callback after factory return disposes the captured mount exactly once", async () => {
+  const f = deferredEmbedFixture(), pending = deferred<ChatEmbedModule>(); let mounted = false, disposed = 0;
+  let stop = () => {};
+  f.options.controls.current = () => { if (mounted) stop(); return true; };
+  stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: () => pending.promise });
+  pending.resolve({ mountNativeChatApp: () => { mounted = true; return () => { disposed++; }; } });
+  await settle(); expect(disposed).toBe(1); expect(f.timer.jobs.size).toBe(0); stop(); expect(disposed).toBe(1); f.cleanup();
 });
