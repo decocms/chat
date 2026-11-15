@@ -111,8 +111,16 @@ test("reordered metadata and extra numeric location fields use names, and vendor
     "line",
   ];
   raw.locations = [2, 0, 9, 4, 1];
-  const vendor = { ...asset, assetKey: "/vendor/marked-public.js" };
-  const result = ready(raw, [vendor]);
+  const vendor = {
+    ...asset,
+    assetKey: "/vendor/marked-public.js",
+    url: "http://127.0.0.1:1234/vendor/marked-public.js?v=known",
+  };
+  const result = ready(
+    raw,
+    [vendor],
+    new Map([["9", { ...script, url: vendor.url }]]),
+  );
   expect(result.byAssetAndType[0]?.type).toBe("object");
   expect(result.associated).toEqual({ count: 1, selfSizeBytes: 40 });
 });
@@ -165,11 +173,38 @@ test("malformed metadata, tuple completeness, safe integers, alignment, bounds a
     { ...raw, locations: [0, 9, NaN, 0, 0] },
     { ...raw, locations: [0, 9, 0, Infinity, 0] },
     { ...raw, locations: [0, 9, 0, 0, Number.MAX_SAFE_INTEGER + 1] },
+    { ...raw, locations: [0, 9, 0, 0, 1] },
+    { ...raw, locations: [0, 9, 0, 0, 12] },
   ];
   for (const value of cases)
     expect(summarizeHeapSources(value, [asset], scripts).status).toBe(
       "unverified",
     );
+});
+test("public path must agree with trusted registry key; version queries stay internal and old four-field tuples work", () => {
+  const raw = snapshot();
+  raw.snapshot.meta.location_fields = [
+    "object_index",
+    "script_id",
+    "line",
+    "column",
+  ];
+  raw.locations = [0, 9, 0, 0];
+  expect(ready(raw).associated.count).toBe(1);
+  for (const url of [
+    "http://127.0.0.1:1234/private.js",
+    "http://user:PRIVATE@127.0.0.1:1234/svelte-preview/Field-public.js",
+    asset.url + "#PRIVATE",
+    "http://127.0.0.1:1234/private/../svelte-preview/Field-public.js",
+    "http://127.0.0.1:1234/%73velte-preview/Field-public.js",
+    "http://127.0.0.1:1234/private/%2e%2e/svelte-preview/Field-public.js",
+    "file:///svelte-preview/Field-public.js",
+  ]) {
+    expect(
+      ready(raw, [{ ...asset, url }], new Map([["9", { ...script, url }]]))
+        .associated.count,
+    ).toBe(0);
+  }
 });
 test("untrusted/reused IDs, URL/hash mismatch, eval/sourceURL, unsafe keys and inline assets stay unattributed", () => {
   for (const known of [

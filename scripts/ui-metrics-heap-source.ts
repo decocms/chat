@@ -64,6 +64,25 @@ function add(total: Totals, size: number) {
   total.count++;
   total.selfSizeBytes += size;
 }
+function matchingPublicPath(asset: DiagnosticAsset) {
+  try {
+    const url = new URL(asset.url);
+    const rawPath =
+      /^https?:\/\/[^/?#]+(\/[^?#]*)?(?:\?[^#]*)?$/.exec(asset.url)?.[1] ?? "";
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      rawPath === url.pathname &&
+      !url.pathname.includes("%") &&
+      url.pathname ===
+        (asset.assetKey.startsWith("/") ? asset.assetKey : `/${asset.assetKey}`)
+    );
+  } catch {
+    return false;
+  }
+}
 /** Only network-observed external public JS with the existing script-ID/URL/
  * served-byte-SHA conjunction is eligible. Never emit a raw URL or node name. */
 function trusted(
@@ -75,6 +94,7 @@ function trusted(
     if (
       !digest(asset.sourceSHA256) ||
       !digest(asset.servedSHA256) ||
+      !matchingPublicPath(asset) ||
       !/^\/?(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.m?js$/.test(asset.assetKey) ||
       asset.assetKey.split("/").some((p) => p === "." || p === "..")
     )
@@ -203,7 +223,8 @@ export function summarizeHeapSources(
     const oi = lf.indexOf("object_index"),
       sci = lf.indexOf("script_id"),
       li = lf.indexOf("line"),
-      ci = lf.indexOf("column");
+      ci = lf.indexOf("column"),
+      scriptObjectIndex = lf.indexOf("script_object_index");
     requireValue(
       oi >= 0 &&
         sci >= 0 &&
@@ -229,6 +250,15 @@ export function summarizeHeapSources(
         "location-values",
       );
       requireValue(!located.has(index), "location-duplicate");
+      if (scriptObjectIndex >= 0) {
+        const scriptIndex: unknown = locations[off + scriptObjectIndex];
+        requireValue(
+          integer(scriptIndex) &&
+            scriptIndex < nodes.length &&
+            scriptIndex % width === 0,
+          "location-values",
+        );
+      }
       located.set(index, sources.get(String(script)));
     }
     const associated: Totals = { count: 0, selfSizeBytes: 0 },
