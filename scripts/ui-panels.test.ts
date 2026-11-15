@@ -2934,7 +2934,8 @@ test("native document task slots dispose across suggestion scope and detached co
     lang: "en",
     pane: "doc",
     send: (command) => {
-      events.push(command);
+      // The version picker's read on mount (doc.versions) isn't one of the writes this test counts.
+      if (command.t !== "doc.versions") events.push(command);
       return true;
     },
     taskProps: {

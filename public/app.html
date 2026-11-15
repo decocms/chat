@@ -369,6 +369,14 @@
   .bar i { display: block; height: 100%; background: var(--ok); }
   .docCrumb { display: flex; align-items: center; gap: 4px; padding: 10px 20px 0; font-size: 12.5px; color: var(--mute); }
   .doc:not([data-pane="doc"]) .docCrumb { display: none; } /* the doc's "room › epic" crumb means nothing over files, apps… */
+  /* Doc versions (Gui #2666): a picker over the doc; an old version is shown read-only with a bar to restore it or
+     jump to the chat at that moment. */
+  .docVer { display: flex; align-items: center; gap: 8px; padding: 8px 20px 0; font-size: 12.5px; color: var(--mute); min-width: 0; }
+  .doc:not([data-pane="doc"]) .docVer, .doc[data-view="edit"] .docVer { display: none; }
+  .docVer select { max-width: 100%; font-size: 12.5px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
+  .verBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--line)); border-radius: 10px; background: color-mix(in oklch, var(--accent) 8%, var(--panel)); font-size: 13px; }
+  .verBar b { flex: 1 0 100%; min-width: 0; }
+  .verBar button { padding: 5px 10px; font-size: 12.5px; }
   .docCrumb button { border: 0; background: none; padding: 3px 7px; border-radius: 7px; font: inherit; color: var(--mute); cursor: pointer; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .docCrumb button.sel { background: var(--bg); color: var(--ink); font-weight: 600; }
   .tcard { display: flex; align-items: center; gap: 10px; margin-top: 8px; max-width: 420px; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
@@ -1694,7 +1702,6 @@ const EN = {
   "Voltar": "Back",
   "arquivada {ago}": "archived {ago} ago",
   "abrir": "open",
-  "Restaurar": "Restore",
   "Nada arquivado.": "Nothing archived.",
   "conectado {ago}": "connected {ago} ago",
   "Peça pro seu agent: <i>“vê o que tem de novo no vibebook”</i> ou <i>“vai na sala tal e fala com a Marina…”</i>": "Ask your agent: <i>“what's new on vibebook?”</i> or <i>“go to room X and tell Marina…”</i>",
@@ -1716,6 +1723,16 @@ const EN = {
   "Conecte sua conta do Claude": "Connect your Claude account",
   "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:": "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   "Copiar": "Copy",
+  "Versões do doc": "Doc versions",
+  "Atual (ao vivo)": "Current (live)",
+  "editor ao vivo": "live editor",
+  "tarefas": "tasks",
+  "Versão {n} · {when} · {who}": "Version {n} · {when} · {who}",
+  "Ver na conversa": "See in the chat",
+  "Restaurar": "Restore",
+  "Voltar ao atual": "Back to current",
+  "Restaurar esta versão? O doc atual vira uma versão também, nada se perde.": "Restore this version? The current doc becomes a version too, nothing is lost.",
+  "Versão restaurada": "Version restored",
   "Link": "Link",
   "esperando seu agent conectar…": "waiting for your agent to connect…",
   "Claude.ai ou outro cliente": "Claude.ai or another client",
@@ -3416,6 +3433,8 @@ function onEvent(ev, id) {
     case "epics": S.epics = ev.epics; if (ev.roomTasks) S.roomTasks = ev.roomTasks;
       if (thread !== "main" && !isPre() && !S.epics.some((e) => e.id === thread)) thread = "main"; renderSide(); renderTasks(); renderKanban(); syncEnd(); if (thread === "main") refreshThreadCards(); return;
     case "docNotes": S.docNotes = ev.notes; renderDoc(); return;
+    case "docVersions": if (ev.epic === (docEpic() ?? "")) { verList = ev; renderVerPicker(); } return;
+    case "docVersion": if (ev.epic === (docEpic() ?? "")) { verView = ev; renderDoc(true); } return;
     case "doc": {
       // A big epic doc comes as "stale": the tab showing it fetches it, the others drop their copy. Only the doc on
       // screen is redrawn (each task tick in another epic used to re-render the open doc).
@@ -3637,6 +3656,7 @@ function renderBook() {
       <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="${t("Redimensionar documento")}" tabindex="0"></div>
       <header><div class="ptabs" role="tablist"><button type="button" class="ptDoc" data-pane="doc">${icon("doc", 16)} Doc</button><button type="button" class="ptBoard" data-pane="board" title="${t("Quadro de tarefas")}" aria-label="${t("Quadro de tarefas")}">${icon("board", 17)}<b class="kN" hidden></b></button><button type="button" data-pane="files" title="${t("Arquivos")}" aria-label="${t("Arquivos")}">${icon("paperclip", 17)}<small id="fileCount"></small></button><button type="button" data-pane="apps" title="Apps" aria-label="Apps">${icon("chart", 17)}<small id="appCount"></small></button><button type="button" data-pane="decisions" title="${t("Decisões")}" aria-label="${t("Decisões")}">${icon("check", 17)}<small id="decCount"></small></button><button type="button" data-pane="reminders" title="${t("Lembretes")}" aria-label="${t("Lembretes")}">${icon("clock", 17)}<small id="remCount"></small></button><button type="button" class="ptAgents" data-pane="agents" title="Agents" aria-label="Agents">${STAR}<i class="qDot"></i><small class="qN"></small></button></div><div class="seg" role="group" aria-label="${t("Modo do documento")}"><button type="button" data-view="preview">${t("Ver")}</button><button type="button" data-view="edit">${t("Editar")}</button></div></header>
       <div class="docCrumb" id="docCrumb" hidden></div>
+      <div class="docVer" id="docVer"></div>
       <div class="preview" id="preview"></div>
       <textarea id="doc" placeholder="${t("O documento do vibebook. Todo mundo edita; o @vibe mantém atualizado com as decisões.")}"></textarea>
       <div class="cm" id="cm"></div>
@@ -5903,7 +5923,7 @@ async function vbCall(name, a = {}, ask, current = () => true) {
 const hosts = new WeakMap();
 const appDocuments = new Set();
 let appDocumentModule;
-const loadAppDocumentHost = () => appDocumentModule ||= import("/app-document-host.7e469427bbba31a553f7.js").catch((error) => { appDocumentModule = null; throw error; });
+const loadAppDocumentHost = () => appDocumentModule ||= import("/app-document-host.4d2415a82429751f62c7.js").catch((error) => { appDocumentModule = null; throw error; });
 function appDocumentScope(frame) {
   const room = S?.id, account = S?.me, at = thread, socket = ws;
   return () => frame.isConnected && S?.id === room && S?.me === account && thread === at && ws === socket && ws?.readyState === 1;
@@ -6528,7 +6548,9 @@ function renderDoc(force) {
   const ep = docEpic(), epic = ep && S.epics.find((e) => e.id === ep);
   if (ep && !(ep in S.docs) && !docAsked.has(S.id + ep)) { docAsked.add(S.id + ep); send({ t: "doc.get", epic: ep }); }
   const text = ep ? S.docs[ep] || `# ${epic.title}\n\n**Objetivo:** o que este épico entrega e por quê (edite aqui ou peça pro seu Claude).\n\n## Contexto\n\n- \n\n## Decisões\n\n- \n` : S.doc;
-  if (docShown !== (ep || "room")) { force = true; docShown = ep || "room"; }
+  if (docShown !== (ep || "room")) { force = true; docShown = ep || "room"; verView = null; verList = null; verAsked = false; }
+  if (!verList && !verAsked) verAsked = send({ t: "doc.versions", epic: ep }); // false while the socket is down: asked again on the next draw
+  renderVerPicker();
   ensureCollab();
   const inEpic = !isPre() && S.epics.find((e) => e.id === thread);
   const crumb = document.getElementById("docCrumb");
@@ -6540,8 +6562,9 @@ function renderDoc(force) {
   // Doc is written by people and the AI: render markdown, then sanitize.
   const pv = document.getElementById("preview");
   const tk = document.getElementById("tasks"); if (tk) document.getElementById("tasksHome").append(tk); // keep it out of the innerHTML wipe
-  pv.innerHTML = text.trim()
-    ? DOMPurify.sanitize(marked.parse(text, { breaks: true, gfm: true }), { ...MD_PURIFY, FORBID_TAGS: MD_PURIFY.FORBID_TAGS.filter((x) => x !== "img"), ADD_ATTR: ["target"] }) // the doc keeps images (screenshots of the room's files)
+  const shownText = verView ? verView.text : text;
+  pv.innerHTML = shownText.trim()
+    ? DOMPurify.sanitize(marked.parse(shownText, { breaks: true, gfm: true }), { ...MD_PURIFY, FORBID_TAGS: MD_PURIFY.FORBID_TAGS.filter((x) => x !== "img"), ADD_ATTR: ["target"] }) // the doc keeps images (screenshots of the room's files)
     : `<div class="empty">${t("Documento vazio. Clique em <b>Editar</b> ou peça pro seu agent resumir as decisões aqui.")}</div>`;
   pv.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener noreferrer nofollow ugc"; });
   // @vibe's grade of the room doc (Jev): what the scope still misses. Only on the room's doc, not an epic's.
@@ -6554,11 +6577,44 @@ function renderDoc(force) {
     if (html) code.parentElement.outerHTML = html;
   });
   renderMermaid(pv);
+  if (verView) { verBar(pv); renderPeek(); return; } // an old version: no live tasks or apps, and the editor keeps the live text
   placeTasks(pv, ep || (thread === "main" && S.roomTasks?.length ? "main" : null));
   docApps(pv, ep);
   renderPeek();
   // ponytail: last-writer-wins doc; don't clobber while someone is typing. CRDT (Yjs) if real co-editing matters.
   if (force || document.activeElement !== doc) doc.value = text;
+}
+
+// Doc versions (Gui #2666): the Book cuts a version once edits go quiet (Book.cutVersions). The picker lists them for the
+// doc on screen; picking one shows it read-only with Restaurar (writes it back as the live doc, itself a new version)
+// and "Ver na conversa" (the chat at that moment: the newest message of the doc's thread up to the version's msg_id).
+let verList = null, verView = null, verAsked = false;
+const verWho = (by) => by.map((w) => w === "agent" ? "Claude" : w === "yjs" ? t("editor ao vivo") : w === "tasks" ? t("tarefas") : name(w)).join(", ");
+const verWhen = (ts) => new Date(ts).toLocaleString(LOCALE, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+function renderVerPicker() {
+  const box = document.getElementById("docVer"); if (!box) return;
+  const vs = verList?.versions ?? [];
+  if (!vs.length) { box.innerHTML = ""; box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `${icon("clock", 14)}<select aria-label="${t("Versões do doc")}"><option value="">${t("Atual (ao vivo)")}</option>${vs.map((v, i) => `<option value="${v.id}"${verView?.id === v.id ? " selected" : ""}>v${vs.length - i} · ${esc(verWhen(v.ts))} · ${esc(verWho(v.by))}</option>`).join("")}</select>`;
+  const sel = box.querySelector("select");
+  sel.onfocus = () => send({ t: "doc.versions", epic: docEpic() }); // a version may have been cut since
+  sel.onchange = () => { if (sel.value) send({ t: "doc.version", id: Number(sel.value) }); else { verView = null; renderDoc(true); } };
+}
+function verBar(pv) {
+  const vs = verList?.versions ?? [], n = vs.length - vs.findIndex((v) => v.id === verView.id);
+  pv.insertAdjacentHTML("afterbegin", `<div class="verBar"><b>${t("Versão {n} · {when} · {who}", { n: n > vs.length ? "?" : n, when: esc(verWhen(verView.ts)), who: esc(verWho(verView.by)) })}</b><button type="button" class="ghost" data-ver="chat">${t("Ver na conversa")}</button><button type="button" class="primary" data-ver="restore">${t("Restaurar")}</button><button type="button" class="ghost" data-ver="live">${t("Voltar ao atual")}</button></div>`);
+  pv.querySelector('[data-ver="live"]').onclick = () => { verView = null; renderDoc(true); };
+  pv.querySelector('[data-ver="restore"]').onclick = () => {
+    if (!confirm(t("Restaurar esta versão? O doc atual vira uma versão também, nada se perde."))) return;
+    const ep = verView.epic || null, text = verView.text;
+    if (ep) S.docs[ep] = text; else S.doc = text;
+    send({ t: "doc", text, epic: ep }); verView = null; renderDoc(true); toast(`✓ ${t("Versão restaurada")}`, 1800);
+  };
+  pv.querySelector('[data-ver="chat"]').onclick = () => {
+    const th = verView.epic || "main", at = S.messages.filter((m) => m.thread === th && m.id <= verView.msg_id).pop();
+    goToMsg(at ? at.id : verView.msg_id, th);
+  };
 }
 
 // Face ID lock (this device): a passkey of the device's own authenticator (user verification required, so Face ID /

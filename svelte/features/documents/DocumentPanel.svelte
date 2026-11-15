@@ -7,6 +7,8 @@
   } from "./session";
   import type { DocumentProps } from "./types";
   import DocumentPreview from "./DocumentPreview.svelte";
+  import DocumentVersions from "./DocumentVersions.svelte";
+  import { docVersionOpen } from "./versions";
   import Button from "../../lib/ui/Button.svelte";
   import Textarea from "../../lib/ui/Textarea.svelte";
   let { owner, props }: { owner: DocumentSession; props: DocumentProps } =
@@ -233,8 +235,13 @@
         }}>{en ? "Check access again" : "Verificar acesso novamente"}</Button
       >
     </p>{/if}
+  {#if !$view.denied && $view.mode === "preview"}<DocumentVersions
+      {owner}
+      {props}
+      epic={$view.target?.epicId ?? null}
+    />{/if}
   {#if !$view.denied}<div
-      hidden={$view.mode !== "preview"}
+      hidden={$view.mode !== "preview" || !!$docVersionOpen}
       class="tw:min-h-0 tw:flex-1 tw:flex-col tw:[&:not([hidden])]:flex"
     >
       {#key JSON.stringify( [props.room.me, props.room.id, $view.target?.epicId] )}<DocumentPreview

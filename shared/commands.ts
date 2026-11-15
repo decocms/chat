@@ -24,6 +24,12 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     text: z.string(),
     epic: z.optional(z.nullable(z.string())),
   }),
+  // Doc versions (Gui #2666): the list for a doc (epic, or none for the room's), then one version's text.
+  z.object({
+    t: z.literal("doc.versions"),
+    epic: z.optional(z.nullable(z.string())),
+  }),
+  z.object({ t: z.literal("doc.version"), id: num }),
   z.object({ t: z.literal("title"), title: z.string() }),
   z.object({ t: z.literal("epic"), title: z.string() }),
   z.object({ t: z.literal("epic.owner"), id, owner: z.string() }),

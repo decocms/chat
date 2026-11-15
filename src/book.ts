@@ -1942,6 +1942,17 @@ export class Book extends DurableObject<Env> {
         if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");
         return ws.send(JSON.stringify({ t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true }));
       }
+      case "doc.versions": {
+        const epic = String(m.epic ?? "");
+        if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");
+        const v = this.docVersions(this.get("book_id") ?? "", epic || "main");
+        return ws.send(JSON.stringify({ t: "docVersions", epic, versions: v.versions, pending: v.live_has_unsaved_edits }));
+      }
+      case "doc.version": {
+        const v = this.docVersion(this.get("book_id") ?? "", Number(m.id));
+        if (!v.ok || !("text" in v)) return new Refused("unknown version");
+        return ws.send(JSON.stringify({ t: "docVersion", id: v.id, epic: v.doc === "main" ? "" : v.doc, text: v.text, by: v.by, msg_id: v.msg_id, ts: v.ts }));
+      }
       case "doc": {
         const epic = m.epic ? String(m.epic) : undefined;
         if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");

@@ -3,14 +3,30 @@
     "date": "2026-11-15",
     "slug": "2026-11-15-link",
     "title": {
-      "pt": "Link de mensagem no celular",
-      "en": "Message links on the phone"
+      "pt": "Docs com histórico de versões e link de mensagem no celular",
+      "en": "Docs with version history, and message links on the phone"
     },
     "intro": {
-      "pt": "No celular, o gesto de copiar agora também copia o link da mensagem.",
-      "en": "On the phone, the copy gesture now copies the message's link too."
+      "pt": "O doc da sala e o de cada épico agora guardam versões sozinhos, e no celular o gesto de copiar também copia o link da mensagem.",
+      "en": "The room doc and every epic doc now keep versions by themselves, and on the phone the copy gesture also copies a message's link."
     },
-    "features": [],
+    "features": [
+      {
+        "title": {
+          "pt": "Versões do doc",
+          "en": "Doc versions"
+        },
+        "text": {
+          "pt": "Quando a edição de um doc aquieta, o vibebook guarda uma versão, sem você fazer nada. No topo do doc, escolha uma versão pra ver como ele estava, restaure (o atual vira versão também, nada se perde) ou vá pra conversa naquele momento.",
+          "en": "When editing a doc goes quiet, vibebook saves a version, with nothing for you to do. At the top of the doc, pick a version to see how it was, restore it (the current one becomes a version too, nothing is lost) or jump to the chat at that moment."
+        },
+        "image": "changelog/2026-11-15-doc-versions.webp",
+        "alt": {
+          "pt": "Doc mostrando a versão 1 com os botões Ver na conversa, Restaurar e Voltar ao atual",
+          "en": "Doc showing version 1 with See in the chat, Restore and Back to current"
+        }
+      }
+    ],
     "improvements": {
       "pt": [
         "Arrastar uma mensagem pra esquerda mostra dois alvos, Copiar em cima e Link embaixo: com o dedo na metade de cima da mensagem copia o texto, na de baixo copia o link que abre a sala direto nela."

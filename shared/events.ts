@@ -66,6 +66,22 @@ export const RoomEventSchemas = {
   }),
   doc: z.union([DocumentInvalidationSchema, DocumentContentSchema]),
   docNotes: event("docNotes", { notes: strings }),
+  // Doc versions (Gui #2666), answers to doc.versions / doc.version: epic = its id, or "" for the room's doc.
+  docVersions: event("docVersions", {
+    epic: str,
+    versions: z.array(
+      z.object({ id: num, by: strings, msg_id: num, ts: num, size: num }),
+    ),
+    pending: z.boolean(),
+  }),
+  docVersion: event("docVersion", {
+    id: num,
+    epic: str,
+    text: str,
+    by: strings,
+    msg_id: num,
+    ts: num,
+  }),
   meta: event("meta", {
     title: z.optional(str),
     folder: z.optional(str),
