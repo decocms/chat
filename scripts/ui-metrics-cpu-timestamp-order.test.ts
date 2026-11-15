@@ -45,7 +45,11 @@ function interpreted(value: unknown) {
     throw Error("Expected interpreted fixture");
   return result;
 }
-function reason(value: unknown, expected: string) {
+type InterpretationReason = Extract<
+  ReturnType<typeof interpretCPUTimeOrder>,
+  { status: "unverified" }
+>["reason"];
+function reason(value: unknown, expected: InterpretationReason) {
   const result = interpretCPUTimeOrder(value, assets, scripts());
   expect(result.status).toBe("unverified");
   if (result.status !== "unverified") throw Error("Expected rejected fixture");

@@ -46,3 +46,15 @@ no alternate hash acceptance or field swapping is introduced. This limited
 probe does not authenticate HTML inline, eval, live-edit or arbitrary-encoding
 scripts, which remain conservatively unattributed. It does not validate an
 actual CPU profile or change a historical rejection.
+
+## Source-check correction
+
+[Repository run 43687687418](https://github.com/vibegui/vibebook.dev/actions/runs/43687687418)
+at `f2a043ce35ada2d96db946bc8931bd3517c9d59b` passed the build, preview freshness,
+layout browser and 23 of 24 repository gates on both operating systems. Tooling
+typing alone failed: the test helper accepted a broad string where the model
+and Bun's equality matcher require its closed failure-reason union. The helper
+now derives that parameter from the actual unverified result type. The equality
+assertion, every fixture and all production/diagnostic semantics are unchanged;
+no cast, suppression or validator relaxation is used. A fresh exact-head CI
+run is required; the original failure remains retained as a failure.
