@@ -6653,8 +6653,10 @@ function renderDoc(force) {
   docApps(pv, ep);
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that the
   // answer is coming, right away, instead of an empty doc.
-  const w = ep && epicWorker(epic);
-  if (w && DOC_SEED_RE.test(text)) pv.insertAdjacentHTML("beforeend", `<div class="docSkel" role="status"><b>${STAR} ${t("{who} está escrevendo a resposta…", { who: esc(w.who || "Claude") })}</b><i></i><i></i><i></i><i class="short"></i></div>`);
+  const w = ep && (epicWorker(epic) || (epic.answer && { who: "Claude" }));
+  const blank = DOC_SEED_RE.test(text) || (epic?.answer && !text.replace(/^#\s.*$/m, "").replace(/##\s*Tarefas[\s\S]*$/, "").trim());
+  const h1 = pv.querySelector("h1");
+  if (w && blank) (h1 ?? pv).insertAdjacentHTML(h1 ? "afterend" : "afterbegin", `<div class="docSkel" role="status"><b>${STAR} ${t("{who} está escrevendo a resposta…", { who: esc(w.who || "Claude") })}</b><i></i><i></i><i></i><i class="short"></i></div>`);
   renderPeek();
   // ponytail: last-writer-wins doc; don't clobber while someone is typing. CRDT (Yjs) if real co-editing matters.
   if (force || document.activeElement !== doc) doc.value = text;

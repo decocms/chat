@@ -41,9 +41,22 @@
   // the answer is coming instead of an empty doc. Seed = epicDocSeed's empty Contexto and Decisões.
   const SEED =
     /## Contexto\s*\n\s*-\s*\n[\s\S]*## Decisões\s*\n\s*-\s*(?:\n## Tarefas[\s\S]*)?$/;
+  const isAnswer = $derived(
+    !!epic && !!props.room.epics.find((e) => e.id === epic)?.answer,
+  );
+  // An answer epic's doc starts as just its title (+ the task list at the end, Gui #2767).
+  const blank = $derived(
+    SEED.test(text) ||
+      (isAnswer &&
+        !text
+          .replace(/^#\s.*$/m, "")
+          .replace(/##\s*Tarefas[\s\S]*$/, "")
+          .trim()),
+  );
   const writer = $derived(
-    epic && SEED.test(text)
-      ? (threadWorkers(props.room, epic, Date.now())[0] ?? null)
+    epic && blank
+      ? (threadWorkers(props.room, epic, Date.now())[0] ??
+          (isAnswer ? { who: "Claude" } : null))
       : null,
   );
   const fileIndex = scopedRichFileIndex();
@@ -174,6 +187,20 @@
       />{/snippet}</DeferredDocumentCard
   >
 {/snippet}
+{#snippet writing()}{#if writer}<div
+      role="status"
+      data-doc-writing
+      class="tw:my-4 tw:grid tw:gap-2"
+    >
+      <b class="tw:text-sm tw:font-semibold tw:text-primary"
+        >✻ {props.lang === "en"
+          ? `${writer.who || "Claude"} is writing the answer…`
+          : `${writer.who || "Claude"} está escrevendo a resposta…`}</b
+      >
+      {#each ["tw:w-full", "tw:w-full", "tw:w-full", "tw:w-1/2"] as width}<i
+          class="tw:block tw:h-3 tw:animate-pulse tw:rounded-md tw:bg-muted {width}"
+        ></i>{/each}
+    </div>{/if}{/snippet}
 <div
   data-document-preview
   data-vb-native
@@ -201,7 +228,8 @@
         : "Prévia em texto simples. O documento completo continua disponível para ler, copiar e editar."}
     </p>{/if}
   {#each blocks as block, index (blockKey(block, index))}
-    {#if "tasks" in block}<section data-document-tasks class="tw:my-3">
+    {#if "tasks" in block}{@render writing()}
+      <section data-document-tasks class="tw:my-3">
         <Tasks {...taskProps} thread={epic ?? "main"} />
       </section>
     {:else}{@const diagram = mermaidSource(
@@ -227,18 +255,5 @@
           />
         </div>{/if}{/if}
   {/each}
-  {#if writer}<div
-      role="status"
-      data-doc-writing
-      class="tw:my-4 tw:grid tw:gap-2"
-    >
-      <b class="tw:text-sm tw:font-semibold tw:text-primary"
-        >✻ {props.lang === "en"
-          ? `${writer.who || "Claude"} is writing the answer…`
-          : `${writer.who || "Claude"} está escrevendo a resposta…`}</b
-      >
-      {#each ["tw:w-full", "tw:w-full", "tw:w-full", "tw:w-1/2"] as width}<i
-          class="tw:block tw:h-3 tw:animate-pulse tw:rounded-md tw:bg-muted {width}"
-        ></i>{/each}
-    </div>{/if}
+  {#if writer && !blocks.some((block) => "tasks" in block)}{@render writing()}{/if}
 </div>

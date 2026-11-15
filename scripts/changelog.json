@@ -29,6 +29,7 @@
     ],
     "improvements": {
       "pt": [
+        "Uma pergunta na sala já abre o épico e o doc da resposta sozinha, em menos de um segundo (o @vibe percebe que é pergunta), antes mesmo do seu Claude começar.",
         "Arrastar uma mensagem pra esquerda mostra dois alvos, Copiar em cima e Link embaixo: com o dedo na metade de cima da mensagem copia o texto, na de baixo copia o link que abre a sala direto nela.",
         "Pergunta pro seu Claude abre o épico e o doc na hora, com \"Claude está escrevendo a resposta…\" até ele escrever.",
         "Um app que o Claude faz pra resposta aparece embutido no doc (e o doc rola até ele); a tela não pula mais pra aba Apps sozinha.",
@@ -36,6 +37,7 @@
         "Num épico que responde uma pergunta, a lista de tarefas fica no fim do doc, embaixo da resposta."
       ],
       "en": [
+        "A question in the room opens its answer epic and doc by itself in under a second (@vibe sees it's a question), before your Claude even starts.",
         "Dragging a message left shows two targets, Copy on top and Link below: with your finger on the message's top half it copies the text, on the bottom half it copies a link that opens the room right at it.",
         "A question to your Claude opens the epic and its doc at once, with \"Claude is writing the answer…\" until it writes.",
         "An app your Claude makes for an answer shows embedded in the doc (scrolled into view); the screen no longer jumps to the Apps tab by itself.",

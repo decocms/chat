@@ -75,6 +75,8 @@ export const EpicSchema = z.object({
   files: opt(z.array(z.object({ id: str, name: str, type: str, n: num }))),
   flags: opt(strings),
   prod: maybe(z.object({ stage: str, note: opt(str), at: opt(num) })),
+  // An epic that answers a question (start_epic answer: true or answerIntent, Gui #2767).
+  answer: opt(bool),
 });
 export type Epic = z.infer<typeof EpicSchema>;
 export const AttachmentSchema = z.object({
