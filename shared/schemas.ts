@@ -8,12 +8,6 @@ export const PostMessageBody = z.object({
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 
-/** Upload headers: the file's media type and its name (URI-encoded, the vanilla app's x-filename). */
-export const UploadHeaders = z.object({
-  "content-type": z.string(),
-  "x-filename": z.optional(z.string()),
-});
-
 // Responses the browser reads back: validated at the boundary with the same schemas the types come from.
 export const PostMessageResult = z.union([
   z.object({ ok: z.literal(true), id: z.number(), thread: z.string() }),
@@ -237,20 +231,6 @@ export const AgentsResult = z.object({
   agents: z.array(RoomAgent),
 });
 export type AgentsResult = z.infer<typeof AgentsResult>;
-/** One agents row as D1 returns it (parsed on the server before it becomes a RoomAgent). */
-export const AgentDbRow = z.object({
-  email: z.string(),
-  who: str,
-  repo: str,
-  seen_at: num,
-  listening_at: num,
-  listen_room: str,
-  ctx_tokens: num,
-  ctx_window: num,
-  ctx_at: num,
-  ctx_limits: str,
-});
-
 // Slice 8: the person's own cloud sandboxes in a room (freestyle.sh VMs; the key never leaves the server).
 export const SandboxCard = z.object({
   id: z.string(),

@@ -1,3 +1,4 @@
+import { AgentDbRow, UploadHeaders } from "./apiServerSchemas";
 import { requestBytes, RequestBytesError } from "./requestBytes";
 import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
@@ -38,7 +39,6 @@ import {
   type SandboxesResult,
   type SandboxSetupResult,
   type SandboxTerminalResult,
-  AgentDbRow,
   AgentLimits,
   type AgentsResult,
   ClaudeTokenBody,
@@ -76,7 +76,6 @@ import {
   RoomOrderBody,
   TINTS,
   TintBody,
-  UploadHeaders,
   type UploadFileResult,
   type AuthProviders,
   type LoginContext,
