@@ -11,7 +11,15 @@ export type TreeElement = {
   attrs: TreeAttribute[];
   childNodes: TreeNode[];
 };
-export type TreeNode = TreeElement | TreeText | { nodeName: string };
+export type TreeComment = { nodeName: "#comment"; data: string };
+export type TreeDocumentType = {
+  nodeName: "#documentType";
+  name: string;
+  publicId: string;
+  systemId: string;
+};
+export type TreeNode =
+  TreeFragment | TreeElement | TreeText | TreeComment | TreeDocumentType;
 export type TreeFragment = {
   nodeName: "#document-fragment";
   childNodes: TreeNode[];

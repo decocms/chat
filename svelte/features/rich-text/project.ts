@@ -176,7 +176,9 @@ export function parsePreparedRichSource(
     const tree = markdownTree(tokens, full);
     let count = 0,
       svg = 0;
-    const pending = [{ node: tree.fragment as TreeNode, depth: 0 }];
+    const pending: { node: TreeNode; depth: number }[] = [
+      { node: tree.fragment, depth: 0 },
+    ];
     while (pending.length) {
       const { node, depth } = pending.pop()!;
       if (++count > RICH_LIMITS.nodes || depth > RICH_LIMITS.depth)

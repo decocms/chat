@@ -123,6 +123,7 @@
     names={vb.knownNames}
     pageUrl={vb.pageUrl}
     fileLabel={vb.t("arquivo")}
+    lang={vb.locale?.startsWith("en") ? "en" : "pt"}
   />{/snippet}
 <article
   id={origin ? undefined : `m${m.id}`}

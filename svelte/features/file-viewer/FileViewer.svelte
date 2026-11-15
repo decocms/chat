@@ -200,6 +200,7 @@
               room={$view.room}
               actions={ownedActions}
               policy="file-preview"
+              {lang}
               fileLabel={text("file")}
               pageUrl={location.href}
             />

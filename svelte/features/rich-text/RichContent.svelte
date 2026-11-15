@@ -21,6 +21,7 @@
     policy,
     fileLabel,
     loadHtml,
+    lang = "pt",
   }: {
     text: string;
     mode?: RichMode;
@@ -31,6 +32,7 @@
     policy?: RichPolicy;
     fileLabel?: string;
     loadHtml?: HtmlTreeLoader;
+    lang?: string;
   } = $props();
   const idPrefix = $props.id();
   const fileIndex = scopedRichFileIndex();
@@ -69,6 +71,7 @@
 </script>
 
 {#if $prepared.phase !== "ready"}<RichPreparationStatus
+    {lang}
     phase={$prepared.phase}
     retry={() => preparation.retry()}
   />
