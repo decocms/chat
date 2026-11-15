@@ -5544,6 +5544,7 @@ function cardGo(to, requireOpeningConsent = false) {
   const target = epic && S.epics.some((x) => x.id === epic) ? epic : epic ? null : thread;
   if (!target) return toast(t("Esse épico não existe mais nesta sala."));
   if (target !== thread) { thread = target; docRoom = false; boardEpic = thread === "main" ? null : thread; renderSide(); renderChat(); renderKanban(); renderDoc(); }
+  else if (epic && to.startsWith("#doc:") && docRoom) { docRoom = false; renderDoc(true); }
   if (to.startsWith("#doc")) { document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); if (ROOM_PHONE.matches) openSheet("doc"); }
 }
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-cardgo]"); if (g) { e.preventDefault(); cardGo(g.dataset.cardgo); } });
