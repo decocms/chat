@@ -137,3 +137,14 @@ room/account/draft identity checked before the ordinary submit. Missing native
 recorder completion cancels after the existing five-second watchdog without
 sending. Final published-head checks remain required. Future doc-card/open_doc
 work discussed in room 2591 is not covered by this checkpoint.
+
+Main 6697819 document answers are integrated at436a7b8, with fresh Book membership
+authorization before open_doc target/socket access. Real browser cases reproduced
+a vanilla room-doc→same-epic-doc routing bug (fixed1809c28), then caught both
+variants intercepting remote app_open consent as if it were a room upload
+(fixed7516b84). The unchanged full cohort passes at7516b84 with all24source gates.
+Both native/default new document flows and original remote consent/SDK audits
+pass together; the new hashes/source/failed and passing JSON are retained.
+This intentional vanilla fix is separate from generated-preview refresh, which
+preserves the current default asset bytes. Final published-head and production
+verification remain required; full-plan/performance acceptance is not implied.

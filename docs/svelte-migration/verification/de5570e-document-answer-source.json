@@ -1,0 +1,137 @@
+{
+  "sourceRevision": "de5570e5d71c89cbf4987d57ecec208b373a6c6c",
+  "environment": "Isolated BugMachine; Node22.23.5 / Bun1.4.4",
+  "build": {
+    "command": "bun run build:ui",
+    "exitCode": 0,
+    "logSha256": "1858ec0eee22ede6a8f374cbc4b21bf430fee26f2b23500d6c5d1b6f440274cc"
+  },
+  "check": {
+    "command": "bun scripts/check-ci.ts",
+    "exitCode": 0,
+    "logSha256": "d590e64256a01043ad7c03a71ff7a6c04df694fd73479091098c6154b8785da0",
+    "gates": [
+      {
+        "name": "build:api-types",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:backend",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:ui",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:vanilla",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:router",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:protocol",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:client-boundary",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:bundle",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:styles:native",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:styles",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:store",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:rpc",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:auth",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:home",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:viewer",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:ui",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:ui:variants",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:build",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:connection",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:worker-tests",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:pwa",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:pwa",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:tooling",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "format:check",
+        "status": "PASS",
+        "exitCode": 0
+      }
+    ]
+  },
+  "limits": "Source/build evidence. Browser, measured performance, real runner/Whisper, hardware, authenticated production coexistence/rollback and final acceptance remain separate requirements."
+}

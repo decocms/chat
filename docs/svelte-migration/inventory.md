@@ -53,7 +53,8 @@ The [new combined owner manifest](inventory-owners-890fbee.json) and
 owner objects and 400 frozen hashes. Five newly inventoried files now have
 owners, and two supplemental entries have current reviewed bytes. Reconciliation
 has zero unmapped candidates: 1,500 entries match their owner hashes and 1,340
-have changed since those historical reviews. All 2,840 entries still await
-per-action verification; no action was promoted merely because a module or test
-file exists. M0 and F56 remain open. This snapshot predates main 6697819's
+have changed since those historical reviews. All 2,840 entries lack an explicit per-candidate review record in this registry.
+Independent unit/browser evidence remains valid; those references are not yet
+linked to these individual keys. No record was promoted merely because a module
+or test file exists. M0 and F56 remain open. This snapshot predates main 6697819's
 subsequent document-feature integration.

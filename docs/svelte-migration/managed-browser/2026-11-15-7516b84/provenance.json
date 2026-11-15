@@ -1,0 +1,84 @@
+{
+  "sourceRevision": "7516b846e8ab3bc11b932de9af628891c4cdaa8d",
+  "testedRevision": "7516b846e8ab3bc11b932de9af628891c4cdaa8d",
+  "environment": "Isolated BugMachine; pinned Node22.23.5/Bun1.4.4/Chromium158.0.8127.18",
+  "status": "passed",
+  "profiles": 12,
+  "lifecycleCycles": 20,
+  "summary": "The full cohort and both new/old independent audits pass together after the two reproduced fixes.",
+  "files": [
+    {
+      "originalName": "results.json",
+      "path": "results.json.gz",
+      "originalBytes": 1103608,
+      "originalSHA256": "7a83d166758c09609b77a96a158538c0f48797d56e33f2e4b5b5bd3cc0fec31d",
+      "storedBytes": 38020,
+      "storedSHA256": "d679bd483a628245662dcdc2ee16a4f4cdbfb0a6936293e4d3b20e39b709b580",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "runner.json",
+      "path": "runner.json",
+      "originalBytes": 1009,
+      "originalSHA256": "af6f78045f3fc43a8bb96a48f82775ba7b84d3239600d791cd6a6278d304c813",
+      "storedBytes": 1009,
+      "storedSHA256": "af6f78045f3fc43a8bb96a48f82775ba7b84d3239600d791cd6a6278d304c813",
+      "compression": null
+    },
+    {
+      "originalName": "native-root-profiles.json",
+      "path": "native-root-profiles.json.gz",
+      "originalBytes": 993306,
+      "originalSHA256": "82ff0e9325e3d38a5f12f0b36c62c44cb379ccecd3e384ff5d76cf7b56428009",
+      "storedBytes": 27808,
+      "storedSHA256": "d622bd80828513268f74026d800193f1ae459eb267f5b4e420f449a893d3deae",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "native-app-navigation.json",
+      "path": "native-app-navigation.json",
+      "originalBytes": 2047,
+      "originalSHA256": "3f59f93859de8cf465c5b115bcbba750e517801fb90ad0029fa7925b32903edb",
+      "storedBytes": 2047,
+      "storedSHA256": "3f59f93859de8cf465c5b115bcbba750e517801fb90ad0029fa7925b32903edb",
+      "compression": null
+    },
+    {
+      "originalName": "vanilla-app-navigation.json",
+      "path": "vanilla-app-navigation.json",
+      "originalBytes": 2049,
+      "originalSHA256": "dbeceda5cb4038af3408d99cc5bf1f78b4176277e106134db7595cf2d712860c",
+      "storedBytes": 2049,
+      "storedSHA256": "dbeceda5cb4038af3408d99cc5bf1f78b4176277e106134db7595cf2d712860c",
+      "compression": null
+    },
+    {
+      "originalName": "inline-app-open.json",
+      "path": "inline-app-open.json",
+      "originalBytes": 10988,
+      "originalSHA256": "0611f806ff93ad7033801029803c66ab76e9a909e214110aeb12f4f3bad74302",
+      "storedBytes": 10988,
+      "storedSHA256": "0611f806ff93ad7033801029803c66ab76e9a909e214110aeb12f4f3bad74302",
+      "compression": null
+    },
+    {
+      "originalName": "native-dictation.json",
+      "path": "native-dictation.json",
+      "originalBytes": 825,
+      "originalSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "storedBytes": 825,
+      "storedSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "compression": null
+    },
+    {
+      "originalName": "native-document-answers.json",
+      "path": "native-document-answers.json",
+      "originalBytes": 2815,
+      "originalSHA256": "d014c72dafbbf209f20d541e517e4f52b2cfcf105fabfd84d1257d40a253cbf5",
+      "storedBytes": 2815,
+      "storedSHA256": "d014c72dafbbf209f20d541e517e4f52b2cfcf105fabfd84d1257d40a253cbf5",
+      "compression": null
+    }
+  ],
+  "limits": "Real local Worker/Auth/MCP/Book/D1/R2/DocRoom and synthetic microphone/external providers. Not production, physical speech, actual Whisper/provider intelligence, timing-budget acceptance or final sign-off. Raw logs/credentials/HTML/audio/screenshots excluded."
+}
