@@ -1418,7 +1418,7 @@ describe("native Svelte chat", () => {
     expect(document.activeElement).toBe(pre);
     expect(pre!.classList.contains("tw:focus-visible:outline-ring")).toBe(true);
   });
-  test("native rich content preserves safe semantics and exact direct actions without HTML hooks", () => {
+  test("native rich content preserves safe semantics and exact direct actions without HTML hooks", async () => {
     const file = {
       id: "aa11",
       name: "report.html",
@@ -1452,7 +1452,20 @@ describe("native Svelte chat", () => {
         navigateRich: (target) => threads.push(target.id || ""),
       },
     });
-    const body = target.querySelector("#m1 [data-rich-content]")!;
+    // The real cold HTML adapter must finish before its canonical rich DOM is ready.
+    // Keep the semantic/security/action assertions below against that actual DOM.
+    const until = Date.now() + 5000;
+    while (
+      !target.querySelector("#m1 [data-rich-content]") &&
+      Date.now() < until
+    ) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 5));
+      await tick();
+      flushSync();
+    }
+    const body = target.querySelector("#m1 [data-rich-content]");
+    expect(body).not.toBeNull();
+    if (!body) throw Error("Real rich-content parser did not finish");
     expect(body.querySelector("details[open] summary")?.textContent).toBe(
       "More",
     );
