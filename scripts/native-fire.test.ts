@@ -428,3 +428,132 @@ test("draft edit while native stop is pending revokes its final audio immediatel
   expect(f.clock.jobs.size).toBe(0);
   f.owner.dispose();
 });
+
+test("Enter intent stops recording and receives only the owned refined snapshot", async () => {
+  const result = deferred<string>(),
+    f = fixture({ preview: true, transcribe: () => result.promise });
+  await f.owner.start();
+  f.sr.onresult?.({ results: [[{ transcript: "rough" }]] });
+  f.chunk();
+  const submitted = f.owner.finish();
+  expect(f.state().stops).toBe(1);
+  f.done();
+  await settle();
+  expect(f.state().refining).toBe(true);
+  result.resolve("refined");
+  expect(await submitted).toEqual({ text: "base refined", revision: 2 });
+  expect(f.clock.jobs.size).toBe(0);
+  f.owner.dispose();
+});
+
+test("Enter while Whisper is pending waits at most eight seconds and late text is inert", async () => {
+  const result = deferred<string>(),
+    f = fixture({ preview: true, transcribe: () => result.promise });
+  await f.owner.start();
+  f.sr.onresult?.({ results: [[{ transcript: "rough" }]] });
+  f.chunk();
+  f.owner.stop();
+  f.done();
+  await settle();
+  const submitted = f.owner.finish();
+  f.clock.advance(7999);
+  expect(f.state().refining).toBe(true);
+  f.clock.advance(1);
+  expect(await submitted).toEqual({ text: "base rough", revision: 1 });
+  result.resolve("late refined");
+  await settle();
+  expect(f.state().text).toBe("base rough");
+  expect(f.state().refining).toBe(false);
+  expect(f.clock.jobs.size).toBe(0);
+  f.owner.dispose();
+});
+
+test("Escape, edit, scope change and disposal cancel the waiting submission identity", async () => {
+  for (const loss of ["cancel", "edit", "scope", "dispose"] as const) {
+    const result = deferred<string>(),
+      f = fixture({ transcribe: () => result.promise });
+    await f.owner.start();
+    f.chunk();
+    const submitted = f.owner.finish();
+    f.done();
+    await settle();
+    if (loss === "edit") f.edit("new draft");
+    else if (loss === "scope") f.lose();
+    else if (loss === "dispose") f.owner.dispose();
+    else f.owner.cancel();
+    expect(await submitted).toBeNull();
+    result.resolve("late");
+    await settle();
+    expect(f.state().text).toBe(loss === "edit" ? "new draft" : "base");
+    expect(f.clock.jobs.size).toBe(0);
+    f.owner.dispose();
+  }
+});
+
+test("ordinary typed draft needs no transcription and failed refinement returns its current preview", async () => {
+  const typed = fixture();
+  typed.edit("typed");
+  expect(await typed.owner.finish()).toEqual({ text: "typed", revision: 1 });
+  typed.owner.dispose();
+  const f = fixture({
+    preview: true,
+    transcribe: async () => {
+      throw Error("offline");
+    },
+  });
+  await f.owner.start();
+  f.sr.onresult?.({ results: [[{ transcript: "rough" }]] });
+  f.chunk();
+  const submitted = f.owner.finish();
+  f.done();
+  expect(await submitted).toEqual({ text: "base rough", revision: 1 });
+  expect(f.clock.jobs.size).toBe(0);
+  f.owner.dispose();
+});
+
+test("capture-only empty-draft Enter waits for Whisper before the ordinary empty-text decision", async () => {
+  const result = deferred<string>(),
+    f = fixture({ text: "", transcribe: () => result.promise });
+  await f.owner.start();
+  f.chunk();
+  const submitted = f.owner.finish();
+  f.done();
+  await settle();
+  expect(f.state().text).toBe("");
+  result.resolve("first words");
+  expect(await submitted).toEqual({ text: "first words", revision: 1 });
+  f.owner.dispose();
+});
+
+test("the eight-second Enter budget includes delayed native stop and pending refinement", async () => {
+  const result = deferred<string>(),
+    f = fixture({ transcribe: () => result.promise });
+  await f.owner.start();
+  f.chunk();
+  const submitted = f.owner.finish();
+  f.clock.advance(4000);
+  f.done();
+  await settle();
+  f.clock.advance(3999);
+  expect(f.state().refining).toBe(true);
+  f.clock.advance(1);
+  expect(await submitted).toEqual({ text: "base", revision: 0 });
+  result.resolve("too late");
+  await settle();
+  expect(f.state().text).toBe("base");
+  expect(f.clock.jobs.size).toBe(0);
+  f.owner.dispose();
+});
+
+test("a recorder which never confirms stop cancels the waiting send and preserves the draft", async () => {
+  const f = fixture();
+  await f.owner.start();
+  f.chunk();
+  const submitted = f.owner.finish();
+  f.clock.advance(5000);
+  expect(await submitted).toBeNull();
+  expect(f.state().text).toBe("base");
+  expect(f.state().reads).toBe(0);
+  expect(f.clock.jobs.size).toBe(0);
+  f.owner.dispose();
+});

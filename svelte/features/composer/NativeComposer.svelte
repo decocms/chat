@@ -63,7 +63,8 @@
       ? browserSpeech(window)
       : speechFactory || undefined,
   );
-  let refining = $state(false);
+  let refining = $state(false),
+    voiceWaiting = $state(false);
   const ownedCaptureFactory = untrack(() =>
     mediaFactory === undefined
       ? browserFireCapture(window)
@@ -105,6 +106,7 @@
     },
     canStart: () =>
       canInteract() &&
+      !voiceWaiting &&
       document.activeElement === textarea &&
       !busy &&
       !document.querySelector(
@@ -245,14 +247,42 @@
       allowed &&
       !!root?.isConnected &&
       (!event ||
-        (event.currentTarget instanceof HTMLElement &&
+        (!voiceWaiting &&
+          event.currentTarget instanceof HTMLElement &&
           event.currentTarget.isConnected))
     );
   }
-  function submit() {
-    if (canInteract()) {
+  async function submit() {
+    if (!canInteract() || voiceWaiting) return;
+    if (!speech.working()) {
       speech.cancel();
       void entry.submit();
+      return;
+    }
+    voiceWaiting = true;
+    try {
+      const snapshot = await speech.finish();
+      if (
+        !snapshot ||
+        !canInteract() ||
+        (ownedVoicePort && !ownedVoicePort.current())
+      )
+        return;
+      const latest = get(entry.state);
+      if (
+        latest.revision !== snapshot.revision ||
+        latest.text !== snapshot.text
+      )
+        return;
+      speech.cancel();
+      if (
+        canInteract() &&
+        (!ownedVoicePort || ownedVoicePort.current()) &&
+        get(entry.state).revision === snapshot.revision
+      )
+        void entry.submit();
+    } finally {
+      if (active) voiceWaiting = false;
     }
   }
   function readCaret() {
@@ -600,10 +630,15 @@
           ></button
         >{/each}
     </div>{/if}
-  {#if refining}<p
+  {#if refining || voiceWaiting}<p
       role="status"
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      data-composer-transcribing
+      class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
     >
+      <span
+        aria-hidden="true"
+        class="tw:inline-block tw:size-3 tw:animate-spin tw:motion-reduce:animate-none tw:rounded-full tw:border-2 tw:border-current tw:border-r-transparent"
+      ></span>
       {vb.locale?.startsWith("en")
         ? "Refining transcription…"
         : "Refinando transcrição…"}
@@ -618,7 +653,7 @@
     <IconButton
       icon="smile"
       label={vb.t("Emoji")}
-      disabled={!allowed}
+      disabled={voiceWaiting || !allowed}
       onclick={(event) => {
         if (canInteract(event)) {
           speech.cancel();
@@ -637,7 +672,7 @@
         class={dictating
           ? "tw:bg-destructive tw:text-destructive-foreground"
           : "tw:text-muted-foreground"}
-        disabled={!allowed || busy}
+        disabled={voiceWaiting || !allowed || busy}
         onpointerdown={(event) => {
           if (canInteract(event)) event.preventDefault();
         }}
@@ -655,7 +690,7 @@
         data-composer-more
         aria-haspopup="menu"
         aria-expanded={plus}
-        disabled={!allowed}
+        disabled={voiceWaiting || !allowed}
         onpointerdown={(event) => {
           if (document.activeElement === textarea) event.preventDefault();
         }}
@@ -728,7 +763,7 @@
       aria-label={vb.t("Mensagem…")}
       placeholder={vb.t("Mensagem…")}
       value={$draft.text}
-      disabled={!allowed}
+      disabled={voiceWaiting || !allowed}
       aria-autocomplete="list"
       aria-controls={items.length ? `${uid}-mentions` : undefined}
       aria-activedescendant={items.length
@@ -758,7 +793,7 @@
       onkeydown={keydown}
       onfocus={() => clearTimeout(blurTimer)}
       onblur={() => {
-        speech.cancel();
+        if (!voiceWaiting) speech.cancel();
         blurTimer = setTimeout(() => {
           if (active) mentionClosed = true;
         }, 100);
@@ -767,7 +802,8 @@
     <Button
       type="submit"
       data-composer-send
-      disabled={!allowed ||
+      disabled={voiceWaiting ||
+        !allowed ||
         busy ||
         $draft.attachments.some(
           (item) => item.phase === "queued" || item.phase === "uploading",

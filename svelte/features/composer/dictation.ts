@@ -35,6 +35,10 @@ export function createDictationController(options: {
     expectedRevision = 0;
   const current = (ticket: number) =>
     active && ticket === generation && options.current();
+  const waiters = new Set<() => void>();
+  const changed = () => {
+    for (const waiter of [...waiters]) waiter();
+  };
   function clearTimer() {
     if (timer !== undefined) options.clock.cancel(timer);
     timer = undefined;
@@ -60,6 +64,7 @@ export function createDictationController(options: {
     release();
     options.recording(false);
     options.refining(false);
+    changed();
   }
   const preview = createSpeechController({
     factory: options.factory,
@@ -82,7 +87,10 @@ export function createDictationController(options: {
       if (!usesAudio) options.error(value);
     },
     ended: () => {
-      if (!usesAudio) options.ended();
+      if (!usesAudio) {
+        options.ended();
+        changed();
+      }
     },
     canHold: () => usesAudio && options.canStart(),
     heldStart: () => {
@@ -153,6 +161,7 @@ export function createDictationController(options: {
           release();
           if (blob.size < 2000) {
             options.ended();
+            changed();
             return;
           }
           const request = new AbortController();
@@ -199,6 +208,7 @@ export function createDictationController(options: {
               controller = null;
               options.refining(false);
               options.ended();
+              changed();
             });
         },
         () => {
@@ -251,11 +261,74 @@ export function createDictationController(options: {
       options.error("failed");
     }
   }
+  /** One bounded submission intent may wait for native stop and refinement.
+   * The returned draft identity must still match before its owner sends. */
+  function finish(): Promise<{ text: string; revision: number } | null> {
+    const ticket = generation;
+    return new Promise((resolve) => {
+      let done = false,
+        deadline: unknown;
+      const settle = (value: { text: string; revision: number } | null) => {
+        if (done) return;
+        done = true;
+        waiters.delete(check);
+        options.clock.cancel(deadline);
+        resolve(value);
+      };
+      const snapshot = () => {
+        const value = options.read();
+        return current(ticket) && value.revision === expectedRevision
+          ? { text: value.text, revision: value.revision }
+          : null;
+      };
+      const check = () => {
+        if (!current(ticket)) {
+          settle(null);
+          return;
+        }
+        if (!pending && !recording && !capture && !controller)
+          settle(snapshot());
+      };
+      waiters.add(check);
+      deadline = options.clock.schedule(() => {
+        const value = snapshot();
+        // Remove this waiter before cancellation invalidates all other intents.
+        waiters.delete(check);
+        cancel();
+        const after = options.read();
+        settle(
+          value &&
+            options.current() &&
+            after.revision === value.revision &&
+            after.text === value.text
+            ? value
+            : null,
+        );
+      }, 8000);
+      if (!pending && !recording && !capture && !controller) {
+        // Ordinary typed drafts have no active dictation revision to compare.
+        const value = options.read();
+        settle(
+          current(ticket)
+            ? { text: value.text, revision: value.revision }
+            : null,
+        );
+      } else {
+        // Without a server refinement path, submit the frozen local preview;
+        // disabling the field must not leave SR waiting for focus-dependent end.
+        if (!usesAudio) preview.cancel();
+        else stop();
+        check();
+      }
+    });
+  }
   return {
     supported: !!options.factory || (!!options.capture && !!options.transcribe),
     start,
     stop,
     cancel,
+    finish,
+    working: () => !!(pending || recording || capture || controller),
     sync() {
       if (
         !options.current() ||

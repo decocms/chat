@@ -4593,6 +4593,70 @@ describe("native composer ownership and interactions", () => {
     expect(commands[0]).toMatchObject({ t: "msg", text: "base corrected" });
   }, 30_000);
 
+  test("Empty capture-only Enter during Whisper disables the composer and sends refined text once through its normal owner", async () => {
+    let chunk: (data: Blob) => void = () => {},
+      ended = () => {},
+      resolve: (text: string) => void = () => {};
+    const commands: RoomCommand[] = [];
+    const { target } = renderComposer(fixture(), {
+      speechFactory: null,
+      mediaFactory: async () => ({
+        type: "audio/webm",
+        start(c, e) {
+          chunk = c;
+          ended = e;
+        },
+        stop() {
+          ended();
+        },
+        dispose() {},
+      }),
+      voice: {
+        current: () => true,
+        beforeLeave: () => () => {},
+        transcribe: () =>
+          new Promise<string>((done) => {
+            resolve = done;
+          }),
+      },
+      request: async (command) => {
+        commands.push(command);
+        return { ok: false, error: "disconnected" };
+      },
+    });
+    const input = edit(target, "");
+    target
+      .querySelector<HTMLButtonElement>('button[aria-label="Ditar mensagem"]')!
+      .click();
+    await tick();
+    await tick();
+    flushSync();
+    chunk(new Blob([new Uint8Array(3000)]));
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await tick();
+    await tick();
+    flushSync();
+    expect(input.disabled).toBe(true);
+    expect(target.querySelector("[data-composer-transcribing]")).not.toBeNull();
+    target
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(commands).toHaveLength(0);
+    resolve("refined");
+    await tick();
+    await tick();
+    await tick();
+    flushSync();
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({ t: "msg", text: "refined" });
+  }, 30_000);
+
   test("native mic capability projects interim text and cancels stale recognition across thread changes", async () => {
     const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
       [];
