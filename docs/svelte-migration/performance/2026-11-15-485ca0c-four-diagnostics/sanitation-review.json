@@ -1,0 +1,236 @@
+{
+  "diagnosticsKeys": [
+    "scope",
+    "trials",
+    "measuredCohortPreserved"
+  ],
+  "metricsStatus": "incomplete-or-failed",
+  "performanceAcceptance": "unverified-pending-real-editor-lifecycle-and-full-scope-review",
+  "originalTrials": 0,
+  "budgetStatusCounts": {
+    "unverified": 16
+  },
+  "preserved": true,
+  "trials": [
+    {
+      "variant": "vanilla",
+      "device": "mobile",
+      "status": "passed",
+      "phases": [
+        {
+          "phase": "entry",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 1996152,
+          "topVerified": [
+            {
+              "name": "emStrong",
+              "line": 5,
+              "column": 9149,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 15065
+            },
+            {
+              "name": "getRegex",
+              "line": 5,
+              "column": 1299,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 9717
+            },
+            {
+              "name": "Et",
+              "line": 1,
+              "column": 14575,
+              "asset": "/vendor/purify-3.1.6.min.js",
+              "interval": 7618
+            }
+          ]
+        },
+        {
+          "phase": "threadSwitch",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 643921,
+          "topVerified": [
+            {
+              "name": "emStrong",
+              "line": 5,
+              "column": 9149,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 3858
+            },
+            {
+              "name": "w",
+              "line": 1,
+              "column": 1442,
+              "asset": "/vendor/purify-3.1.6.min.js",
+              "interval": 3373
+            },
+            {
+              "name": "paragraph",
+              "line": 5,
+              "column": 7045,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 2201
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "svelte",
+      "device": "mobile",
+      "status": "failed",
+      "error": "cpu-invalid",
+      "cpuReason": "delta-negative",
+      "phases": [
+        {
+          "phase": "entry",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 3057792,
+          "topVerified": [
+            {
+              "name": "K",
+              "line": 0,
+              "column": 7227,
+              "asset": "/svelte-preview/Field-EI-oca6X.js",
+              "interval": 386358
+            },
+            {
+              "name": "$r",
+              "line": 0,
+              "column": 31397,
+              "asset": "/svelte-preview/mount-B9Wx5HbG.js",
+              "interval": 61928
+            },
+            {
+              "name": "K",
+              "line": 0,
+              "column": 7227,
+              "asset": "/svelte-preview/Field-EI-oca6X.js",
+              "interval": 56373
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "vanilla",
+      "device": "desktop",
+      "status": "failed",
+      "error": "cpu-invalid",
+      "cpuReason": "delta-negative",
+      "phases": [
+        {
+          "phase": "entry",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 1948676,
+          "topVerified": [
+            {
+              "name": "emStrong",
+              "line": 5,
+              "column": 9149,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 18090
+            },
+            {
+              "name": "St",
+              "line": 1,
+              "column": 15792,
+              "asset": "/vendor/purify-3.1.6.min.js",
+              "interval": 13296
+            },
+            {
+              "name": "getRegex",
+              "line": 5,
+              "column": 1299,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 10938
+            }
+          ]
+        },
+        {
+          "phase": "threadSwitch",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 784528,
+          "topVerified": [
+            {
+              "name": "emStrong",
+              "line": 5,
+              "column": 9149,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 4264
+            },
+            {
+              "name": "w",
+              "line": 1,
+              "column": 1442,
+              "asset": "/vendor/purify-3.1.6.min.js",
+              "interval": 3517
+            },
+            {
+              "name": "paragraph",
+              "line": 5,
+              "column": 7045,
+              "asset": "/vendor/marked-12.0.2.min.js",
+              "interval": 2317
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "svelte",
+      "device": "desktop",
+      "status": "failed",
+      "error": "cpu-invalid",
+      "cpuReason": "delta-negative",
+      "phases": [
+        {
+          "phase": "entry",
+          "status": "interpreted",
+          "durationStatus": "interpreted-intervals",
+          "intervalMicroseconds": 3138689,
+          "topVerified": [
+            {
+              "name": "K",
+              "line": 0,
+              "column": 7227,
+              "asset": "/svelte-preview/Field-EI-oca6X.js",
+              "interval": 282823
+            },
+            {
+              "name": "$r",
+              "line": 0,
+              "column": 31397,
+              "asset": "/svelte-preview/mount-B9Wx5HbG.js",
+              "interval": 64625
+            },
+            {
+              "name": "t",
+              "line": 0,
+              "column": 36025,
+              "asset": "/svelte-preview/mount-B9Wx5HbG.js",
+              "interval": 22591
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scan": {
+    "forbiddenCount": 0,
+    "forbiddenPaths": [],
+    "absolutePathCount": 0,
+    "absolutePathFields": [],
+    "origins": [
+      "http://127.0.0.1:45595",
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com"
+    ],
+    "stringCount": 257492
+  }
+}

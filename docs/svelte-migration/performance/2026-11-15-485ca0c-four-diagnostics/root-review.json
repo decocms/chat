@@ -1,0 +1,10 @@
+{
+  "sourceRevision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+  "privateDriverSHA256": "cf7071cfacdf6a62a257fb4f704ea64bb43f4dd6163b0895c48fe6421e8f7ca5",
+  "review": "Finite diff/source/helpers/seven app trees/unchanged dependencies verified independently",
+  "approvedScope": "Four supplementary excluded diagnostic trials only; no original cohort replay or acceptance",
+  "executionAllowed": true,
+  "originalTrialsExpected": 0,
+  "diagnosticTrialsExpected": 4,
+  "originalBudgetsUnchanged": true
+}

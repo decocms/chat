@@ -1,0 +1,207 @@
+{
+  "scope": "NOT_ACCEPTANCE",
+  "sourceRevision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+  "applicationBlobReference": "249e1e95ebde24a4a462f7afdecaad5ceb014658",
+  "sourceCI": {
+    "runId": "43688582518",
+    "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43688582518",
+    "reportedStatus": "all24+preview-freshness+layout-success-bothOS"
+  },
+  "originalTrialsExecuted": 0,
+  "excludedDiagnosticTrials": 4,
+  "runnerExitCode": 1,
+  "measuredCohortPreserved": true,
+  "budgets": {
+    "unverified": 16
+  },
+  "strictTrials": {
+    "passed": 1,
+    "failedDeltaNegative": 3
+  },
+  "timestampPhasesInterpreted": 6,
+  "interpretation": "diagnostic inter-sample intervals only; not raw strict validity, CPU self time, latency causality or performance acceptance",
+  "nativeEntry": [
+    {
+      "device": "mobile",
+      "asset": "/svelte-preview/Field-EI-oca6X.js",
+      "frame": {
+        "name": "K",
+        "line": 0,
+        "column": 7227
+      },
+      "topFrameInterSampleMicroseconds": 386358,
+      "aggregateFieldInterSampleMicroseconds": 456248
+    },
+    {
+      "device": "desktop",
+      "asset": "/svelte-preview/Field-EI-oca6X.js",
+      "frame": {
+        "name": "K",
+        "line": 0,
+        "column": 7227
+      },
+      "topFrameInterSampleMicroseconds": 282823,
+      "aggregateFieldInterSampleMicroseconds": 301703
+    }
+  ],
+  "privateDriverOriginalSHA256": "cf7071cfacdf6a62a257fb4f704ea64bb43f4dd6163b0895c48fe6421e8f7ca5",
+  "trackedDriverOriginalSHA256": "ab7899c978edaefac58117ed6a1e48303f0d752e4f7e6f8fcc20fa29ebf2d584",
+  "originalPreparationDiffSHA256": "0cde2f5f6311836f8e6980ccc249420bb0dfe44b3f04899fa22a5dc88f8be978",
+  "retainedDiffChange": "Only unified-diff filename headers normalized to repository-relative labels; body unchanged.",
+  "helpers": [
+    {
+      "path": "scripts/ui-metrics-model.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "c05ab47469f141a4471e21afe8494361acd257614058fc6f02170d783bab756f",
+      "workingSHA256": "c05ab47469f141a4471e21afe8494361acd257614058fc6f02170d783bab756f",
+      "matchesWorkingCopy": true
+    },
+    {
+      "path": "scripts/ui-metrics-budgets.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "2b30fdc4196c9c9c60a7b638b7c1211bb7e89b62af08d179b9721d1b02cc5cd1",
+      "workingSHA256": "2b30fdc4196c9c9c60a7b638b7c1211bb7e89b62af08d179b9721d1b02cc5cd1",
+      "matchesWorkingCopy": true
+    },
+    {
+      "path": "scripts/ui-metrics-cpu-timestamp-order.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "d7e0a9883c4eb9154812d4ef8dbf8b19a83ccc0d3424cc787b9bf43f927e38a1",
+      "workingSHA256": "d7e0a9883c4eb9154812d4ef8dbf8b19a83ccc0d3424cc787b9bf43f927e38a1",
+      "matchesWorkingCopy": true
+    },
+    {
+      "path": "scripts/ui-metrics-shell.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "30d5712127329fbc56a8028840a86d5e37d69ef87147d34c0e46a2eb32445de8",
+      "workingSHA256": "30d5712127329fbc56a8028840a86d5e37d69ef87147d34c0e46a2eb32445de8",
+      "matchesWorkingCopy": true
+    },
+    {
+      "path": "scripts/ui-metrics-document-model.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "d47aa0830ad1f49489dec3bd0759ecd52a2e853429dea254c23197211e328b08",
+      "workingSHA256": "d47aa0830ad1f49489dec3bd0759ecd52a2e853429dea254c23197211e328b08",
+      "matchesWorkingCopy": true
+    },
+    {
+      "path": "scripts/ui-metrics-diagnostics.ts",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "sha256": "7411e5b73f0f4e4991fdf6cf42362c4dc8cba39de59fe6629fd2ae01494c164a",
+      "workingSHA256": "7411e5b73f0f4e4991fdf6cf42362c4dc8cba39de59fe6629fd2ae01494c164a",
+      "matchesWorkingCopy": true
+    }
+  ],
+  "applicationProof": [
+    {
+      "path": "svelte",
+      "baselineTree": "1c76be687536caf33618dfabee37bf146a0fcad7",
+      "preparedTree": "1c76be687536caf33618dfabee37bf146a0fcad7"
+    },
+    {
+      "path": "public",
+      "baselineTree": "e025db8b9130ad51bf89579c5afefadb7c262299",
+      "preparedTree": "e025db8b9130ad51bf89579c5afefadb7c262299"
+    },
+    {
+      "path": "shared",
+      "baselineTree": "cbe1551c3351ac11ff05c7c709c69215c726dcbe",
+      "preparedTree": "cbe1551c3351ac11ff05c7c709c69215c726dcbe"
+    },
+    {
+      "path": "src",
+      "baselineTree": "ec94541d5db5697ed37795185b5fc34d2a6259f1",
+      "preparedTree": "ec94541d5db5697ed37795185b5fc34d2a6259f1"
+    },
+    {
+      "path": "browser",
+      "baselineTree": "03973992ed38e651dc07114af950d9ce00a9faf7",
+      "preparedTree": "03973992ed38e651dc07114af950d9ce00a9faf7"
+    },
+    {
+      "path": "vanilla",
+      "baselineTree": "a60e2b2385433aa57d95de47b1e6d4abc143a29f",
+      "preparedTree": "a60e2b2385433aa57d95de47b1e6d4abc143a29f"
+    },
+    {
+      "path": "collab",
+      "baselineTree": "9e0b92e461bec71c20a97751eb58e875d40e1af0",
+      "preparedTree": "9e0b92e461bec71c20a97751eb58e875d40e1af0"
+    }
+  ],
+  "privacyReview": {
+    "rawProfiles": false,
+    "rawDeltas": false,
+    "sourceText": false,
+    "privateURLs": false,
+    "heapStrings": false,
+    "credentials": false,
+    "absolutePaths": false,
+    "allowedOrigins": "loopback test fixture and public Google Fonts",
+    "method": "Recursive key/value scan of both complete JSON documents; existing sanitized diagnostic namespaces retained without rewriting payloads."
+  },
+  "files": [
+    {
+      "path": "diagnostics.json.gz",
+      "bytes": 364637,
+      "sha256": "057890f8dca87c8b07212a5e9536f513a617d2c2758e5667b6dd973c08dbf394",
+      "originalName": "diagnostics.json",
+      "compression": "gzip",
+      "uncompressedBytes": 17152999,
+      "uncompressedSHA256": "1be63ebb2261868f706391527c3e55c742ca719ef63ddf04b775d7a2bd4d599b",
+      "roundTripByteIdentical": true
+    },
+    {
+      "path": "metrics.json.gz",
+      "bytes": 387669,
+      "sha256": "d7063809a383fc44d184597819697df14ef5fd3a1168d6ffd744c9f563513244",
+      "originalName": "metrics.json",
+      "compression": "gzip",
+      "uncompressedBytes": 18070949,
+      "uncompressedSHA256": "c367cb9d32ca4a66ada3839e369d15bf3ee30fed87c0b33064a0482d1d859743",
+      "roundTripByteIdentical": true
+    },
+    {
+      "path": "report.md",
+      "bytes": 4575,
+      "sha256": "41eb2c0b5d36d279887c896b08654548d29da22ba44eb1cb9fbf5b91e6637705",
+      "originalName": "report.md"
+    },
+    {
+      "path": "runner-exit.txt",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "originalName": "runner-exit.txt"
+    },
+    {
+      "path": "private-driver.ts",
+      "bytes": 70603,
+      "sha256": "cf7071cfacdf6a62a257fb4f704ea64bb43f4dd6163b0895c48fe6421e8f7ca5",
+      "originalName": "private-driver.ts"
+    },
+    {
+      "path": "PROTOCOL.md",
+      "bytes": 4178,
+      "sha256": "4c640dd481777ab59612d84e235a7918d8a6c4cf855c37714231b690f4eb44d0",
+      "originalName": "PROTOCOL.md"
+    },
+    {
+      "path": "root-review.json",
+      "bytes": 506,
+      "sha256": "6cdb50b96fd474bd3d471ff2ddfc7e3611be5377eb9f4a7548f5462e141a2f80",
+      "originalName": "root-review.json"
+    },
+    {
+      "path": "sanitation-review.json",
+      "bytes": 6262,
+      "sha256": "23213158c3d5c12fbf40d69a590b68f1fc3f41acc6b78d2e550cf863adabac28",
+      "originalName": "sanitation-review.json"
+    },
+    {
+      "path": "driver.diff",
+      "bytes": 6151,
+      "sha256": "07345532f0906e049f9bb8b2e3cb9304e84ee331f91c40ff3c9f752822ccef56",
+      "originalName": "driver.diff"
+    }
+  ]
+}

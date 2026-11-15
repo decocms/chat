@@ -58,3 +58,27 @@ now derives that parameter from the actual unverified result type. The equality
 assertion, every fixture and all production/diagnostic semantics are unchanged;
 no cast, suppression or validator relaxation is used. A fresh exact-head CI
 run is required; the original failure remains retained as a failure.
+
+## Verified source and four supplementary diagnostics
+
+The subsequent exact source `485ca0cbb20913da31c82a5ab096d1e2b69254e5`
+passed [all 24 repository gates, preview freshness and layout on both operating
+systems](https://github.com/vibegui/vibebook.dev/actions/runs/43688582518).
+This resolves the tooling-only failure above without changing diagnostic or
+strict-validator semantics.
+
+Root then executed the separately reviewed four-extra-only driver. The
+[losslessly retained results and provenance](performance/2026-11-15-485ca0c-four-diagnostics/README.md)
+contain four excluded trials and zero original samples. Exit 1, the failed empty
+cohort and all 16 unverified budgets are preserved. Strict CPU validation passed
+one trial and rejected three for `delta-negative`; the independent timestamp
+sidecar interpreted six available phases without overriding those rejections.
+
+Native entry's verified Field frame `K` at zero-based `0:7227` accounts for
+386,358 / 282,823 µs of diagnostic inter-sample intervals on mobile / desktop;
+all verified Field frames aggregate to 456,248 / 301,703 µs. Source inspection
+identifies the frame as layout measurement. This is an investigation target,
+not validated CPU self time, latency causality or performance acceptance.
+Application/public tree IDs remain identical to `249e1e9`; no original cohort
+was replayed, changed or replaced. The retained preparation protocol predates
+execution; its root approval and actual failure-preserving result are included.
