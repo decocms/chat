@@ -24,8 +24,12 @@ const errors: string[] = [];
 const expectedNetworkFailures: string[] = [];
 const requestFailures: { url: string; error: string | undefined }[] = [];
 const results: Record<string, unknown> = {};
-const onlyInbox = process.argv.includes("--inbox-only");
-results.scope = onlyInbox ? "Inbox debug only" : "Gallery and Inbox";
+const args = process.argv.slice(2);
+assert(args.length === 0 || (args.length === 1 && (args[0] === "--gallery-only" || args[0] === "--inbox-only")), "Use --gallery-only or --inbox-only, or no arguments for both");
+const onlyInbox = args[0] === "--inbox-only";
+const onlyGallery = args[0] === "--gallery-only";
+results.scope = onlyInbox ? "Current RoomInbox" : onlyGallery ? "Atomic gallery and Studio" : "Gallery and RoomInbox";
+results.sourceRevision = process.env.TEST_APP_REVISION ?? null;
 try {
   const context = await browser.newContext({
     locale: "en-US",
@@ -239,6 +243,7 @@ try {
       "PASS native gallery: fonts, controls, keyboard tabs, focus trap/restoration, scroll lock, sheet, light/dark/mobile axe",
     );
   }
+  if (!onlyGallery) {
   await page.setViewportSize({ width: 390, height: 844 });
 
   const created = await context.request.post(`${base}/api/books`, {
@@ -561,8 +566,9 @@ try {
   ).toBeVisible();
   results.crossRoomNavigation =
     "Actual Inbox link retained ui=svelte and entered the second room";
+  }
   assert.deepEqual(errors, [], "Browser page errors");
-  results.room = id;
+
   results.errors = errors;
   results.status = "pass";
   console.log(
