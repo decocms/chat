@@ -1,31 +1,16 @@
-import type { Room, Attachment } from "../../../shared/room";
-import type { ChatEmbedControls } from "../../chatTypes";
-import type { RequestRoomCommand } from "../../roomConnection";
+import type { Room } from "../../../shared/room";
 import type { NativeAppBridge } from "./bridge";
 import {
   appMembershipFailure,
   appSessionFailure,
   type AppsAuthority,
 } from "./authority";
-import { createAppsApi, createAppMetrics, type AppsApi } from "./api";
+import { createAppsApi, createAppMetrics } from "./api";
 import { createAppRequests } from "./requests";
 import { appDocumentAction } from "./documentAction";
 import { createRoomAppTools, roomTools } from "./tools";
-export function mountNativeChatApp(options: {
-  frame: HTMLIFrameElement;
-  file: Attachment;
-  controls: ChatEmbedControls;
-  authority: AppsAuthority | null;
-  room(): Room | null;
-  current(): boolean;
-  request: RequestRoomCommand;
-  name(email: string): string;
-  t(text: string, vars?: Record<string, string | number>): string;
-  locale: string;
-  open(url: string): void;
-  api?: AppsApi;
-  metrics?: ReturnType<typeof createAppMetrics>;
-}) {
+import { chatAppCurrent, type NativeChatAppOptions } from "./embedOwner";
+export function mountNativeChatApp(options: NativeChatAppOptions) {
   const candidate = options.room(),
     candidateAuthority = options.authority;
   if (!candidate || !candidateAuthority) return () => {};
@@ -40,29 +25,8 @@ export function mountNativeChatApp(options: {
   let active = true,
     bridge: NativeAppBridge | null = null;
   const current = () => {
-    const room = options.room();
-    return (
-      active &&
-      authority.current() &&
-      options.current() &&
-      frame.isConnected &&
-      room?.id === roomId &&
-      room.me === account &&
-      room.members.includes(account) &&
-      [
-        ...(room.files || []),
-        ...room.messages.flatMap((message) => message.files || []),
-      ].some(
-        (file) =>
-          file.embed === true &&
-          file.id === options.file.id &&
-          file.name === options.file.name &&
-          file.type === options.file.type &&
-          file.ts === options.file.ts &&
-          file.size === options.file.size &&
-          file.author === options.file.author,
-      )
-    );
+    const valid = active && chatAppCurrent(options, roomId, account);
+    return valid && active;
   };
   const documentCurrent = () => current() && !!bridge?.active();
   const unlisten = authority.listen(() => {

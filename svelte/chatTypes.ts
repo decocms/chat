@@ -21,6 +21,8 @@ export type ChatBridge = {
   typingNote?: (id: number) => string | undefined;
 };
 export type ChatEmbedControls = {
+  /** Immutable mounted-frame ticket, invalidated before replacement DOM flush. */
+  current?(): boolean;
   revoked?(): void;
   ready: () => void;
   cancel?: () => void;

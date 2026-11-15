@@ -42,6 +42,7 @@
     const ticket = ++epoch;
     const current = () => active && epoch === ticket && node.isConnected;
     const detach = actions.mountEmbed?.(node, file, {
+      current,
       ask: (what, detail) =>
         current() ? ask(what, detail) : Promise.resolve(false),
       ready: () => {

@@ -56,7 +56,7 @@ import {
   type AppTarget,
   type AppRouteTarget,
 } from "../apps/model";
-import { mountNativeChatApp } from "../apps/embed";
+import { mountDeferredChatApp } from "../apps/deferredEmbed";
 import {
   visibleChatMessages,
   visibleMessage,
@@ -903,7 +903,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           },
           mountEmbed: (element, file, controls) => {
             if (!owned() || !element.isConnected) return () => {};
-            const detach = mountNativeChatApp({
+            const detach = mountDeferredChatApp({
               frame: element,
               file,
               controls,
@@ -921,7 +921,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               api: appApi,
               metrics: (kind, id, roomOnly, signal) =>
                 guardApp(metrics(kind, id, roomOnly, signal)),
-            });
+            }, { clock });
             const stop = () => {
               embeds.delete(stop);
               detach();
