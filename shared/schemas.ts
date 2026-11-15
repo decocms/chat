@@ -344,6 +344,12 @@ export const RefreshConnectionResult = z.object({
   connection: Connection,
 });
 export type RefreshConnectionResult = z.infer<typeof RefreshConnectionResult>;
+/** Browser direct-MCP bootstrap; sealed tokens and OAuth grants never leave the server. */
+export const ConnectionIdentityResult = z.discriminatedUnion("direct", [
+  z.strictObject({ direct: z.literal(false), why: z.enum(["token", "signed_in"]) }),
+  z.strictObject({ direct: z.literal(true), url: z.string(), identity: z.string(), expires_in: z.literal(300) }),
+]);
+export type ConnectionIdentityResult = z.infer<typeof ConnectionIdentityResult>;
 export const ConnectionUiQuery = z.object({ tool: z.optional(z.string()) });
 export const ConnectionUiResult = z.object({
   html: z.string(),

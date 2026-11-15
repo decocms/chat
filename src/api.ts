@@ -23,6 +23,7 @@ import {
   type ConnectionError,
   ConnectionsResult,
   ConnectionUiQuery,
+  ConnectionIdentityResult,
   type ConnectionUiResult,
   CreateConnectionBody,
   type CreateConnectionResult,
@@ -175,6 +176,7 @@ export interface ApiServices {
   /** The room's MCP connections as this person sees them (src/mcpconn.ts connOps); membership is checked by the route. */
   connections: {
     list(roomId: string): Promise<ConnectionsResult>;
+    identity(roomId: string, cid: string): Promise<ConnectionIdentityResult | ConnFail>;
     create(roomId: string, b: CreateConnectionBody): Promise<CreateConnectionResult | ConnFail>;
     remove(roomId: string, cid: string): Promise<OkResult | ConnFail>;
     refresh(roomId: string, cid: string): Promise<RefreshConnectionResult | ConnFail>;
@@ -195,7 +197,7 @@ export interface ApiServices {
   consentContext(): Promise<{ context: ConsentContext; headers: [string, string][] } | (ConsentError & { status: 400 })>;
 }
 /** A failed connection call and its status; sign_in = sign in on that server first (401). */
-export type ConnFail = { error: string; status: 400 | 401 | 404 | 429 | 502; sign_in?: true };
+export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 502; sign_in?: true };
 export type ApiCtx = { Variables: { email: string; svc: ApiServices } };
 
 /** The public /auth routes' side (src/auth.ts authServices): no session needed, so it is its own app, mounted before
@@ -649,6 +651,13 @@ export const connectionsApi = sandboxApi
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
     const r = await svc.connections.ui(id, c.req.param("cid"), c.req.valid("query").tool ?? "");
     return "error" in r ? c.json(connFail(r), r.status) : c.json(r satisfies ConnectionUiResult, 200);
+  })
+  .post("/api/books/:id/connections/:cid/identity", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const r = await svc.connections.identity(id, c.req.param("cid"));
+    return "error" in r ? c.json(connFail(r), r.status) : c.json(ConnectionIdentityResult.parse(r), 200);
   })
   .post("/api/books/:id/connections/:cid/call", body(ConnectionCallBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");

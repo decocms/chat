@@ -4,6 +4,8 @@ import { hc, type InferRequestType } from "hono/client";
 import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
 import type { MeQuery, SearchQuery } from "../shared/schemas";
+import { connectionIdentity, type ConnectionIdentityPorts } from "../src/connectionIdentity";
+import type { StoredConnection } from "../src/connectionRows";
 import { uiVariant } from "../shared/uiVariant";
 
 // Compile-time route contracts must come from the actual validator chain, not a
@@ -149,6 +151,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       v: "v1",
     }),
     connections: {
+      identity: async () => ({ direct: true, url: "https://mcp.example/mcp", identity: "signed-identity", expires_in: 300 }),
       list: async () => ({ connections: [conn] }),
       create: async (_room, b) =>
         b.token
@@ -274,7 +277,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(value),
     });
-  return { app, json, writes, posted, uploaded, saved };
+  return { app, json, writes, posted, uploaded, saved, svc };
 }
 
 test("post validates HTTP input and preserves success and business-error responses", async () => {
@@ -1537,4 +1540,92 @@ test("upload errors recheck actual membership rather than interpreting a provide
     expect(response.status).toBe(removed ? 403 : 400);
     expect(await response.json()).toEqual({ error: "forbidden" });
   }
+});
+
+function identityFixture() {
+  let row: StoredConnection | null = { id: "cid", book_id: "room", owner: "owner@example.test", scope: "room", url: "https://remote.example/mcp", title: "Remote", enc: null, iv: null, tools: "[]", ctx: null, created_at: 1 };
+  let member = true, signedIn = false, allowed = true;
+  const signed: { room: string; url: string }[] = [], tracked: string[] = [];
+  const ports: ConnectionIdentityPorts = {
+    email: "reader@example.test", member: async () => member,
+    connection: async () => row, allowed: async () => allowed, signedIn: async () => signedIn,
+    sign: async (room, url) => { signed.push({ room, url }); return "signed-public-identity"; },
+    track: (_room, url) => { tracked.push(url); },
+  };
+  return { ports, signed, tracked, setRow: (value: StoredConnection | null) => { row = value; }, row: () => row, setMember: (value: boolean) => { member = value; }, setSignedIn: (value: boolean) => { signedIn = value; }, setAllowed: (value: boolean) => { allowed = value; } };
+}
+
+test("identity uses only authorized stored destination and never exports token or OAuth credentials", async () => {
+  const direct = identityFixture();
+  expect(await connectionIdentity("room", "cid", direct.ports)).toEqual({ direct: true, url: "https://remote.example/mcp", identity: "signed-public-identity", expires_in: 300 });
+  expect(direct.signed).toEqual([{ room: "room", url: "https://remote.example/mcp" }]);
+  for (const kind of ["token", "signed_in"] as const) {
+    const f = identityFixture(), original = f.row();
+    if (!original) throw Error("missing fixture row");
+    if (kind === "token") { f.setRow({ ...original, enc: "sealed-never-return", iv: "private-iv" }); f.ports.signedIn = async () => { throw Error("legacy token must not require OAuth lookup"); }; }
+    else f.setSignedIn(true);
+    expect(await connectionIdentity("room", "cid", f.ports)).toEqual({ direct: false, why: kind });
+    expect(f.signed).toEqual([]); expect(f.tracked).toEqual([]);
+  }
+});
+
+test("identity refuses private, missing, nonmember and rate-limited connections before signing", async () => {
+  for (const kind of ["private", "missing", "nonmember", "rate"] as const) {
+    const f = identityFixture(), row = f.row(); if (!row) throw Error("missing fixture");
+    if (kind === "private") f.setRow({ ...row, scope: "me" });
+    if (kind === "missing") f.setRow(null);
+    if (kind === "nonmember") f.setMember(false);
+    if (kind === "rate") f.setAllowed(false);
+    const result = await connectionIdentity("room", "cid", f.ports);
+    expect("error" in result ? result.status : null).toBe(kind === "rate" ? 429 : kind === "nonmember" ? 403 : 404);
+    expect(f.signed).toEqual([]); expect(f.tracked).toEqual([]);
+  }
+});
+
+test("identity rechecks membership after final connection lookup and after grant lookup", async () => {
+  for (const phase of ["connection", "grant"] as const) {
+    const f = identityFixture(); let reads = 0;
+    const read = f.ports.connection;
+    if (phase === "connection") f.ports.connection = async (...args) => { const row = await read(...args); if (++reads === 5) f.setMember(false); return row; };
+    else f.ports.signedIn = async () => { f.setMember(false); return false; };
+    expect(await connectionIdentity("room", "cid", f.ports)).toEqual({ error: "forbidden", status: 403 });
+    expect(f.tracked).toEqual([]);
+  }
+});
+
+test("late signing cannot export a JWT after removal, retargeting, or new credential authority", async () => {
+  for (const kind of ["member", "removed", "url", "owner", "token", "signed_in"] as const) {
+    const f = identityFixture(), row = f.row(); if (!row) throw Error("missing fixture");
+    f.ports.sign = async () => {
+      if (kind === "member") f.setMember(false);
+      else if (kind === "removed") f.setRow(null);
+      else if (kind === "url") f.setRow({ ...row, url: "https://other.example/mcp" });
+      else if (kind === "owner") f.setRow({ ...row, owner: "new@example.test" });
+      else if (kind === "token") f.setRow({ ...row, enc: "sealed", iv: "iv" });
+      else f.setSignedIn(true);
+      return "must-not-be-exported";
+    };
+    const result = await connectionIdentity("room", "cid", f.ports);
+    expect("identity" in result).toBe(false);
+    expect(f.tracked).toEqual([]);
+    if (kind === "signed_in") expect(result).toEqual({ direct: false, why: "signed_in" });
+  }
+});
+
+test("inferred identity handler enforces room gate and emits only checked no-store replies", async () => {
+  for (const result of [
+    { direct: true, url: "https://mcp.example/mcp", identity: "signed-identity", expires_in: 300 },
+    { direct: false, why: "token" },
+    { direct: false, why: "signed_in" },
+  ] as const) {
+    const f = fixture();
+    f.svc.connections.identity = async () => result;
+    const response = await f.app.request("/api/books/room/connections/c1/identity", { method: "POST" });
+    expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual(result);
+  }
+  const denied = fixture({ isMember: async () => false });
+  denied.svc.connections.identity = async () => { throw Error("identity service must not run without membership"); };
+  const response = await denied.app.request("/api/books/room/connections/c1/identity", { method: "POST" });
+  expect(response.status).toBe(403); expect(response.headers.get("cache-control")).toBe("no-store");
 });

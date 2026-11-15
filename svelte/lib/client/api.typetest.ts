@@ -325,3 +325,15 @@ sameAs<
 >(true);
 // @ts-expect-error the relay's requested room parameter is required
 void api.api.books[":id"].focus.$post({});
+
+// Direct identity is inferred from the real no-body authenticated route.
+const identityMethod = api.api.books[":id"].connections[":cid"].identity.$post;
+void identityMethod({ param: { id: "r", cid: "c" } });
+sameAs<Equal<InferResponseType<typeof identityMethod, 200>, import("../../../shared/schemas").ConnectionIdentityResult>>(true);
+const identityTokenFallback: InferResponseType<typeof identityMethod, 200> = { direct: false, why: "token" };
+const identityOauthFallback: InferResponseType<typeof identityMethod, 200> = { direct: false, why: "signed_in" };
+// @ts-expect-error direct identity has a fixed five-minute lifetime
+const wrongIdentityLifetime: InferResponseType<typeof identityMethod, 200> = { direct: true, url: "https://remote.example/mcp", identity: "signed", expires_in: 600 };
+// @ts-expect-error no browser credential field exists on the public fallback
+const wrongIdentityCredential: InferResponseType<typeof identityMethod, 200> = { direct: false, why: "token", token: "secret" };
+void [identityTokenFallback, identityOauthFallback, wrongIdentityLifetime, wrongIdentityCredential];

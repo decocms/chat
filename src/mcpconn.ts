@@ -20,7 +20,8 @@ import { nativeAuthPage } from "./native-page";
 import { checkUrl } from "./reader";
 import { findSecret } from "./secrets";
 import { seal, unseal } from "./sandbox";
-import { bookStub } from "./rooms";
+import { bookStub, isMember } from "./rooms";
+import { connectionIdentity } from "./connectionIdentity";
 import { AuthNeeded, finishAuth, forget, identityJwt, signedInTo, startAuth, tokenFor } from "./mcpauth";
 
 /** Who is looking: every call carries their identity seal, and their own sign-in when the server wants one. */
@@ -251,19 +252,6 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
   const conn = async (c: ConnectionRouteContext) => getConn(c.env, c.req.param("id"), c.req.param("cid"), c.get("email"));
   const who = (c: ConnectionRouteContext): Who => ({ email: c.get("email"), room: c.req.param("id"), origin: new URL(c.req.url).origin });
 
-  // Modo direto (Gui #2532): the page calls the MCP server itself with this signed identity, so the content never passes
-  // through vibebook. Only when no secret is involved: an old pasted token or this person's OAuth grant stays on the
-  // server, and those connections keep going through /call.
-  app.post("/api/books/:id/connections/:cid/identity", async (c: any) => {
-    const no = await guard(c); if (no) return no;
-    const x = await conn(c); if (!x) return c.json({ error: "conexão não encontrada" }, 404);
-    if (!(await c.env.AGENT_LIMIT.limit({ key: `ident:${c.get("email")}` })).success) return c.json({ error: "rate limited" }, 429);
-    const w = who(c);
-    if (x.enc && x.iv) return c.json({ direct: false, why: "token" });
-    if (await c.env.DB.prepare(`SELECT 1 FROM mcp_grants WHERE email = ? AND resource = ?`).bind(w.email, x.url).first()) return c.json({ direct: false, why: "signed_in" });
-    c.executionCtx.waitUntil(deps.track(c.env, "mcp_identity", { user: w.email, dims: { book: w.room, host: new URL(x.url).host } }));
-    return c.json({ direct: true, url: x.url, identity: await identityJwt(c.env, w.origin, { email: w.email, room: w.room, aud: x.url }), expires_in: 300 });
-  });
   // Sign in on a connection's server (OAuth per person): the browser goes to its consent page and comes back here.
   app.get("/api/books/:id/connections/:cid/signin", async (c) => {
     const no = await guard(c); if (no) return no;
@@ -301,7 +289,7 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
 
 /** The typed routes' side (src/api.ts, slice 9): the signed-in person's view of a room's connections. Room membership
  *  is checked by the route; a failure is { error, status } (401 + sign_in = sign in on that server first). */
-export type ConnFail = { error: string; status: 400 | 401 | 404 | 429 | 502; sign_in?: true };
+export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 502; sign_in?: true };
 export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string, track: (env: Env, name: string, o: object) => Promise<unknown>) {
   const who = (room: string): Who => ({ email, room, origin });
   const fail = (e: unknown, status: 400 | 502 = 502): ConnFail =>
@@ -311,6 +299,17 @@ export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void },
     async list(room: string) {
       const signed = await signedInTo(env, email);
       return ConnectionsResult.parse({ connections: (await listConns(env, room, email)).map((x) => publicConn(x, email, signed)) });
+    },
+    identity(room: string, cid: string) {
+      return connectionIdentity(room, cid, {
+        email,
+        member: (id) => isMember(env.DB, id, email),
+        connection: (id, connectionId) => getConn(env, id, connectionId, email),
+        allowed: async () => (await env.AGENT_LIMIT.limit({ key: `ident:${email}` })).success,
+        signedIn: async (url) => !!(await env.DB.prepare("SELECT 1 FROM mcp_grants WHERE email = ? AND resource = ?").bind(email, url).first()),
+        sign: (id, url) => identityJwt(env, origin, { email, room: id, aud: url }),
+        track: (id, url) => ctx.waitUntil(track(env, "mcp_identity", { user: email, dims: { book: id, host: new URL(url).host } })),
+      });
     },
     async create(room: string, b: { url?: string; scope?: string; title?: string; token?: unknown }) {
       if (!(await env.LOGIN_LIMIT.limit({ key: `mcp:${email}` })).success) return { error: "Muitas tentativas. Espera um minuto.", status: 429 } satisfies ConnFail;
