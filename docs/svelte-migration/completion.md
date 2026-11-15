@@ -60,6 +60,21 @@ has changed. Layout and Markdown-parser experiments remain isolated and have
 not been deployed or accepted as performance improvements. Ordinary-rich-content
 setup and lazy chat-App follow-ups remain isolated, under review and unmeasured.
 
+The combined follow-up at `3399322` passes the [complete Worker/browser cohort](https://github.com/vibegui/vibebook.dev/actions/runs/43679620510)
+and layout browser checks. Its [repository run](https://github.com/vibegui/vibebook.dev/actions/runs/43679614891) passes 23 of 24 source gates,
+including mounted UI cases, but fails tooling typing in a new adoption test:
+an optional result was passed to an identity matcher without narrowing. The
+isolated `2c150ee` follow-up adds an explicit runtime guard, preserving the
+assertions; its [repository rerun](https://github.com/vibegui/vibebook.dev/actions/runs/43680084591) is pending. This is not all-gates acceptance,
+and neither checkpoint is deployed or measured.
+
+The [fresh deployed-main inventory](inventory-current-2026-11-15-9bae26a/README.md)
+covers 412 files and 2882 candidate keys. An additive owner amendment maps the
+24 previously unknown keys; the original reconciler confirms zero unknown,
+52 exact source reviews and zero action promotions. All 2882 action candidates
+remain pending in this registry. Independent browser evidence remains separate;
+this finite traceability amendment does not close M0/F56 or full matrix acceptance.
+
 ## Earlier checkpoints
 
 The entries below retain their original source scopes and historical limitations.
