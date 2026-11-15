@@ -126,6 +126,7 @@
     "scripts/native-apps.test.ts",
     "scripts/native-direct-mcp.test.ts",
     "scripts/room-layout.test.ts",
+    "scripts/room-playback.test.ts",
     "scripts/room-inbox.test.ts",
     "scripts/room-layout-dom.test.ts",
     "scripts/room-layout-browser.ts",

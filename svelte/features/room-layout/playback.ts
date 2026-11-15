@@ -36,13 +36,20 @@ export function createRoomPlayback(
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
   }
+  function apply(animation: CSSAnimation) {
+    // Discovery still runs for every request: a replacement CSSAnimation at
+    // the same progress must be paused and sought independently.
+    if (animation.playState !== "paused") animation.pause();
+    const time = wanted * TIMELINE_MS;
+    if (animation.pending || animation.currentTime !== time)
+      animation.currentTime = time;
+  }
   function seek(ticket: number) {
     frame = null;
     if (!active || sequence !== ticket || !element.isConnected) return;
     const animation = find();
     if (animation) {
-      animation.pause();
-      animation.currentTime = wanted * TIMELINE_MS;
+      apply(animation);
       return;
     }
     if (performance.now() >= deadline) {
@@ -58,8 +65,7 @@ export function createRoomPlayback(
       const animation = find();
       if (animation) {
         cancel();
-        animation.pause();
-        animation.currentTime = wanted * TIMELINE_MS;
+        apply(animation);
         return;
       }
       if (frame !== null || !element.isConnected) return;
