@@ -3403,7 +3403,14 @@ function onEvent(ev, id) {
     case "pins": S.pins = ev.pins; renderSide(); renderFiles(); renderApps(); return;
     // Your Claude opened a file for you (MCP open_file): show it beside the chat; it follows newer versions.
     case "openSide": if (!(S.files || []).some((f) => f.id === ev.file.id)) S.files = [ev.file, ...(S.files || [])]; openSide(ev.file.id, ev.file.name); return;
-    case "openApp": cardGo(`#app:${ev.ref}`); return;
+    case "openApp": {
+      // An app this doc already embeds ([[app:room/<name>]], Gui #2589): redraw it in the doc instead of covering the
+      // doc with the Apps pane.
+      const ep = docEpic(), text = ep ? S.docs?.[ep] ?? "" : S.doc ?? "";
+      if (text.toLowerCase().includes(`[[app:${ev.ref.toLowerCase()}`)) { document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); renderDoc(true); return; }
+      cardGo(`#app:${ev.ref}`); return;
+    }
+    case "openDoc": if (ev.epic) cardGo(`#doc:${ev.epic}`); else { docRoom = true; renderDoc(true); cardGo("#doc"); } return;
     case "error": toast(esc(ev.error || t("falhou"))); return;
     case "receipts": S.receipts = ev.receipts; renderReceipts(); return;
     case "older": {
@@ -6302,6 +6309,13 @@ function renderDoc(force) {
   pv.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener noreferrer nofollow ugc"; });
   // @vibe's grade of the room doc (Jev): what the scope still misses. Only on the room's doc, not an epic's.
   if (!ep && S.docNotes?.length) pv.insertAdjacentHTML("afterbegin", `<div class="docNotes" title="${t("@vibe avaliou este doc. O agent de cada um também recebe isso (doc_notes).")}">${S.docNotes.map((n) => `<span class="vnote">${icon("alert", 12)} ${esc(n)}</span>`).join("")}</div>`);
+  // A ```card block (json-render spec) is drawn as a native card, like in the chat (Gui #2589: a simple answer as a card
+  // in the doc beside the chat). Read-only: its Buttons are answered in the chat, not here.
+  pv.querySelectorAll("pre > code.language-card").forEach((code) => {
+    let card; try { card = JSON.parse(code.textContent); } catch { return; }
+    const html = cardHtml({ id: 0, card, kind: null, author: "" });
+    if (html) code.parentElement.outerHTML = html;
+  });
   renderMermaid(pv);
   placeTasks(pv, ep || (thread === "main" && S.roomTasks?.length ? "main" : null));
   docApps(pv, ep);

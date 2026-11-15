@@ -1460,6 +1460,18 @@ export class Book extends DurableObject<Env> {
       ? { ok: true, opened_in_tabs: tabs.length, note: "your human sees it beside the chat now; uploading a new version with the same name updates it there" }
       : { ok: true, opened_in_tabs: 0, note: "your human doesn't have this room open right now: post the file (or link it) so they find it" };
   }
+  /** open_doc: the agent's human sees this doc (an epic's, or the room's) beside the chat in their open tabs of this room,
+   * so an answer written into it with update_doc shows up as it's written (Gui #2589). */
+  agentOpenDoc(bookId: string, email: string, epic: string) {
+    this.bind(bookId);
+    if (epic && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, epic).toArray().length) return { ok: false, error: "no such epic in this room (epic_id from start_epic / read_room)" };
+    const tabs = this.sockets().filter((ws) => this.ctx.getTags(ws)[0] === email);
+    const s = JSON.stringify({ t: "openDoc", epic } satisfies RoomEvent);
+    for (const ws of tabs) ws.send(s);
+    return tabs.length
+      ? { ok: true, opened_in_tabs: tabs.length, note: "your human sees this doc beside the chat now; every update_doc shows there live" }
+      : { ok: true, opened_in_tabs: 0, note: "your human doesn't have this room open right now; the doc is there when they come back" };
+  }
   /** app_open / a room app an agent uploaded: opens it in the Apps pane of its human's open tabs (Gui #2496). */
   agentOpenApp(bookId: string, email: string, ref: string) {
     this.bind(bookId);
