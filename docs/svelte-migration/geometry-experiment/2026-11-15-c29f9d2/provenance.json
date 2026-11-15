@@ -1,0 +1,10 @@
+{
+  "sourceRevision": "c29f9d2c40281bb480401f45ff4e556acaab03b4",
+  "run": 43671090339,
+  "artifactId": 14144232926,
+  "originalBytes": 8554,
+  "originalSHA256": "5fdbbf1c4040eecc8c303197f0e58bb1ac7122e8db2d7939190517fc99827f9c",
+  "scope": "Original gallery browser JSON only; screenshot not used as a substitute for assertions",
+  "adopted": false,
+  "performanceMeasured": false
+}

@@ -1,0 +1,317 @@
+{
+  "status": "passed",
+  "suppliedRevision": "c29f9d2c40281bb480401f45ff4e556acaab03b4",
+  "scope": "Production RoomLayout class/playback/history controller in a neutral gallery; no integrated RoomScope/Worker/provider acceptance",
+  "gaps": [
+    "Physical touch, hardware keyboard/AT, safe-area hardware and Safari/WebKit are not represented",
+    "Synthetic pointercancel/input events are named explicitly",
+    "Actual FileViewer/RootApp navigation ordering needs the separate integrated browser gate",
+    "No real room/editor/Board business state is represented by neutral snippet text"
+  ],
+  "assetProof": {
+    "entrySha256": "899a8ce004d7c1297d8e57e005cf78acd4e99d20f4a79b9a99a5e762d89435e4",
+    "cssSha256": "bd9fcd9c7106c637edb907d35a3dc4e1c5c702d7fa3936ae538b9e7572a26fe1",
+    "fixtureVersion": "eba05f4f779fab7c4a952f002e685d9595c11fbe8e523da2e37fa2ef56b78024",
+    "fixture": "Minimal public HTML plus actual built Vite assets; no Worker/API/private room"
+  },
+  "phase": "mobile/default-chat-capacity",
+  "browserVersion": "158.0.8127.18",
+  "pageErrors": [],
+  "htmlVersionMarker": "eba05f4f779fab7c4a952f002e685d9595c11fbe8e523da2e37fa2ef56b78024",
+  "firstAnimationFrame": {
+    "rootHeight": 923,
+    "viewportHeight": 923
+  },
+  "visualViewportOnlyResize": {
+    "initial": {
+      "rootWidth": 1440,
+      "rootHeight": 923,
+      "visibleHeight": 923,
+      "viewportHeight": 923,
+      "scale": 1
+    },
+    "scaled": {
+      "rootWidth": 1440,
+      "rootHeight": 923,
+      "visibleHeight": 589.6666870117188,
+      "viewportHeight": 589.65625,
+      "scale": 1.5
+    },
+    "restored": {
+      "rootWidth": 1440,
+      "rootHeight": 923,
+      "visibleHeight": 923,
+      "viewportHeight": 923,
+      "scale": 1
+    },
+    "scope": "Actual Chromium page scale changes visualViewport while layout width stays fixed; not a physical keyboard simulation"
+  },
+  "resize": {
+    "containerWidth": 1440,
+    "reducedWidth": 1372,
+    "nativeInput": "Home/End plus declared synthetic input473",
+    "persisted": 473
+  },
+  "boardIdentity": true,
+  "mobileFullBoardToDesktop": true,
+  "samples": [
+    {
+      "fraction": 0.1,
+      "y": -473.569,
+      "height": 526.1875,
+      "animations": [
+        {
+          "name": "vb-room-sheet",
+          "time": 99.99998840049292
+        }
+      ],
+      "opacity": 0.1
+    },
+    {
+      "fraction": 0.15,
+      "y": -447.259,
+      "height": 526.1875,
+      "animations": [
+        {
+          "name": "vb-room-sheet",
+          "time": 150.00001159950708
+        }
+      ],
+      "opacity": 0.15
+    },
+    {
+      "fraction": 0.2,
+      "y": -420.95,
+      "height": 526.1875,
+      "animations": [
+        {
+          "name": "vb-room-sheet",
+          "time": 199.99997680098585
+        }
+      ],
+      "opacity": 0.2
+    },
+    {
+      "closeDistance": 210.47500000000002,
+      "measuredHeight": 526.1875,
+      "quarterThreshold": 131.546875
+    }
+  ],
+  "styleWrites": [],
+  "reducedMotion": true,
+  "mobileCapacity": {
+    "scope": "Actual production Layout with actual SetupInstructions in neutral snippets; no integrated Root/Worker acceptance",
+    "initial": {
+      "root": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 803,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "viewport": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 803,
+        "display": "grid",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "48px 49px 240.891px 353.109px 112px"
+      },
+      "attention": {
+        "top": 138,
+        "height": 240.890625,
+        "clientHeight": 241,
+        "scrollHeight": 424,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "auto",
+        "gridTemplateRows": "none"
+      },
+      "setup": {
+        "top": 151,
+        "height": 398,
+        "clientHeight": 396,
+        "scrollHeight": 396,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      },
+      "document": {
+        "top": -407.390625,
+        "height": 545.390625,
+        "clientHeight": 545,
+        "scrollHeight": 545,
+        "display": "flex",
+        "visibility": "hidden",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "chat": {
+        "top": 378.890625,
+        "height": 353.109375,
+        "clientHeight": 353,
+        "scrollHeight": 1840,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "auto",
+        "gridTemplateRows": "none"
+      },
+      "composer": {
+        "top": 732,
+        "height": 112,
+        "clientHeight": 112,
+        "scrollHeight": 112,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      }
+    },
+    "withoutSetup": {
+      "root": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 803,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "viewport": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 803,
+        "display": "grid",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "48px 49px 0px 594px 112px"
+      },
+      "attention": {
+        "top": 138,
+        "height": 0,
+        "clientHeight": 0,
+        "scrollHeight": 0,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "auto",
+        "gridTemplateRows": "none"
+      },
+      "setup": null,
+      "document": {
+        "top": -407.390625,
+        "height": 545.390625,
+        "clientHeight": 545,
+        "scrollHeight": 545,
+        "display": "flex",
+        "visibility": "hidden",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "chat": {
+        "top": 138,
+        "height": 594,
+        "clientHeight": 594,
+        "scrollHeight": 1840,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "auto",
+        "gridTemplateRows": "none"
+      },
+      "composer": {
+        "top": 732,
+        "height": 112,
+        "clientHeight": 112,
+        "scrollHeight": 112,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      }
+    },
+    "withoutDocument": {
+      "root": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 803,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "viewport": {
+        "top": 41,
+        "height": 803,
+        "clientHeight": 803,
+        "scrollHeight": 3136,
+        "display": "grid",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "96px 0px 2928px 0px 112px"
+      },
+      "attention": {
+        "top": 137,
+        "height": 2928,
+        "clientHeight": 2928,
+        "scrollHeight": 2928,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      },
+      "setup": {
+        "top": 150,
+        "height": 2902,
+        "clientHeight": 2900,
+        "scrollHeight": 2900,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      },
+      "document": {
+        "top": 0,
+        "height": 0,
+        "clientHeight": 0,
+        "scrollHeight": 0,
+        "display": "none",
+        "visibility": "visible",
+        "overflowY": "hidden",
+        "gridTemplateRows": "none"
+      },
+      "chat": {
+        "top": 3065,
+        "height": 0,
+        "clientHeight": 0,
+        "scrollHeight": 3620,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "auto",
+        "gridTemplateRows": "none"
+      },
+      "composer": {
+        "top": 3065,
+        "height": 112,
+        "clientHeight": 112,
+        "scrollHeight": 112,
+        "display": "block",
+        "visibility": "visible",
+        "overflowY": "visible",
+        "gridTemplateRows": "none"
+      }
+    },
+    "styleWrites": []
+  },
+  "controllerMemory": [
+    "VmHWM:\t  142956 kB",
+    "VmRSS:\t  136684 kB"
+  ]
+}
