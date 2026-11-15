@@ -13,6 +13,16 @@
     "features": [
       {
         "title": {
+          "pt": "A resposta aparece no doc ao lado",
+          "en": "The answer shows up in the doc beside the chat"
+        },
+        "text": {
+          "pt": "Pergunte algo ou peça uma análise e seu Claude abre um épico, abre o doc dele à sua direita e escreve a resposta lá enquanto trabalha: um card nativo (números, tabela, gráfico) quando é simples, uma página HTML embutida no doc quando é complexo. Depois é só conversar no chat que ele vai melhorando o doc.",
+          "en": "Ask something or ask for an analysis and your Claude starts an epic, opens its doc to your right and writes the answer there as it works: a native card (numbers, a table, a chart) when it's simple, an HTML page embedded in the doc when it's complex. Then keep talking in the chat and it improves the doc."
+        }
+      },
+      {
+        "title": {
           "pt": "Cards com cara de dashboard",
           "en": "Cards that look like a dashboard"
         },
@@ -130,6 +140,7 @@
     },
     "fixes": {
       "pt": [
+        "Um spinner no 🎤 mostra quando o Whisper está melhorando o texto ditado.",
         "Enter durante o ditado espera a transcrição melhor (Whisper) e manda ela, não o rascunho do navegador.",
         "No celular, arrastar da borda esquerda volta (do épico pra sala, da sala pra home, no app instalado) em vez de responder a mensagem",
         "A fila do seu Claude não mostra mais suas respostas \"Aprovar\"/\"Negar\" aos pedidos dele como se fossem pedidos",
@@ -145,6 +156,7 @@
         "Desligar o Fire não fecha mais o Haiku no meio de uma resposta: ele termina, e se o Fire voltar em 1 minuto a mesma aba é reaproveitada"
       ],
       "en": [
+        "A spinner on 🎤 shows while Whisper improves the dictated text.",
         "Enter while dictating waits for the better transcript (Whisper) and sends it, not the browser's draft.",
         "On phones, a drag from the left edge goes back (epic to room, room to home, in the installed app) instead of replying to the message",
         "Your Claude's queue no longer lists your \"Aprovar\"/\"Negar\" answers to its asks as requests",
