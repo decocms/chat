@@ -721,6 +721,9 @@
   .composer.charging, .composer.charging * { -webkit-user-select: none; user-select: none; } .composer .micBtn.on { color: #fff; background: #d64545; border-radius: 50%; }
   .composer.dictating textarea, .composer.dictating input { box-shadow: 0 0 0 2px #d64545; }
   .composer.transcribing textarea { opacity: .6; }
+  .composer .micBtn { position: relative; }
+  .composer.whispering .micBtn::after { content: ""; position: absolute; inset: 2px; width: auto; height: auto; border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top-color: var(--accent); border-radius: 50%; animation: ackspin .7s linear infinite; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { .composer.whispering .micBtn::after { animation: none; } }
   .emojiPop { width: min(340px, calc(100% - 48px)); }
   .emojiPop input { width: 100%; margin-bottom: 6px; }
   .emojiPop .eGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); max-height: 220px; overflow: auto; }
@@ -1882,7 +1885,7 @@ const EN = {
   "Pôr este app no doc (sala ou épico aberto)": "Put this app in the doc (room or open epic)",
   "Pôr no doc": "Put in doc",
   "App posto no fim do doc. Em Editar, mova a linha {line} pra onde quiser.": "App added at the end of the doc. In Edit, move the line {line} wherever you want.",
-  "Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude": "Tap to dictate · slide up (or hold Space with the box empty) to talk live with your Claude",
+  "Toque pra ditar (ou segure espaço na caixa)": "Tap to dictate (or hold Space in the box)",
   "Uma versão está no ar; você pediu correções depois": "A version is live; you asked for changes after it",
   "Uma versão está no ar · correções em andamento": "A version is live · changes in progress",
   "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.": "You asked for changes after this deploy; the next version isn't out yet.",
@@ -3574,7 +3577,7 @@ function renderBook() {
             <button type="button" role="menuitem" id="pollBtn">${icon("chart")} ${t("Criar votação")}</button>
           </div>
           <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/html,.html,.htm,text/markdown,.md,text/plain,.txt,text/csv,.csv,audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.flac" multiple hidden />
-          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar · arraste pra cima (ou segure espaço com a caixa vazia) pra falar ao vivo com teu Claude")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
+          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar (ou segure espaço na caixa)")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
         </div>
       </form>
     </main>
@@ -3678,7 +3681,8 @@ function renderBook() {
           stream.getTracks().forEach((x) => x.stop());
           const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
           if (blob.size < 2000) return done(); // a tap, not speech
-          const text = await whisper(blob);
+          box.classList.add("whispering"); // Gui #2590: show that the better transcript is on its way
+          const text = await whisper(blob).finally(() => box.classList.remove("whispering"));
           if (text && g === gen && input.value === wrote) { input.value = wrote = join(text); input.dispatchEvent(new Event("input", { bubbles: true })); }
           done();
         };
