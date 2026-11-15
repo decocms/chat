@@ -68,6 +68,24 @@ try {
       : route.abort(),
   );
   await context.addInitScript(() => {
+    const firstFrame = new MutationObserver(() => {
+      const root = document.querySelector("[data-native-room-layout]");
+      if (!(root instanceof HTMLElement)) return;
+      firstFrame.disconnect();
+      requestAnimationFrame(() => {
+        const viewport = root.firstElementChild;
+        performance.mark("room-layout-first-animation-frame", {
+          detail: {
+            rootHeight: root.getBoundingClientRect().height,
+            viewportHeight:
+              viewport instanceof HTMLElement
+                ? viewport.getBoundingClientRect().height
+                : 0,
+          },
+        });
+      });
+    });
+    firstFrame.observe(document, { subtree: true, childList: true });
     const changes: string[] = [];
     Object.defineProperty(window, "roomLayoutStyleWrites", { value: changes });
     new MutationObserver((records) => {
@@ -105,6 +123,91 @@ try {
   const alpha = () =>
     scrim.evaluate((node) => Number(getComputedStyle(node).opacity));
   const sheet = () => page!.locator("[data-layout-sheet]").textContent();
+  checkpoint("desktop/first-animation-frame-has-full-viewport");
+  await expect
+    .poll(() =>
+      page!.evaluate(
+        () =>
+          performance.getEntriesByName("room-layout-first-animation-frame")
+            .length,
+      ),
+    )
+    .toBe(1);
+  const firstFrame = await page.evaluate(() => {
+    const entry = performance.getEntriesByName(
+      "room-layout-first-animation-frame",
+    )[0];
+    if (!(entry instanceof PerformanceMark)) throw Error("Missing frame mark");
+    const value: unknown = entry.detail;
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("rootHeight" in value) ||
+      typeof value.rootHeight !== "number" ||
+      !("viewportHeight" in value) ||
+      typeof value.viewportHeight !== "number"
+    )
+      throw Error("Invalid first-frame geometry");
+    return {
+      rootHeight: value.rootHeight,
+      viewportHeight: value.viewportHeight,
+    };
+  });
+  assert(firstFrame.rootHeight > 0);
+  assert(firstFrame.viewportHeight > 0);
+  assert(Math.abs(firstFrame.rootHeight - firstFrame.viewportHeight) < 1);
+  report.firstAnimationFrame = firstFrame;
+  checkpoint("desktop/visual-viewport-only-resize-keeps-root-width");
+  const viewportGeometry = () =>
+    root.evaluate((node) => {
+      const viewport = node.firstElementChild,
+        visual = window.visualViewport;
+      if (!(viewport instanceof HTMLElement) || !visual)
+        throw Error("Missing viewport geometry");
+      return {
+        rootWidth: node.clientWidth,
+        rootHeight: node.clientHeight,
+        visibleHeight: Math.min(
+          node.clientHeight,
+          Math.max(
+            0,
+            visual.offsetTop + visual.height - node.getBoundingClientRect().top,
+          ),
+        ),
+        viewportHeight: viewport.getBoundingClientRect().height,
+        scale: visual.scale,
+      };
+    });
+  const initialViewport = await viewportGeometry(),
+    cdp = await context.newCDPSession(page);
+  let scaledViewport: Awaited<ReturnType<typeof viewportGeometry>>;
+  try {
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1.5 });
+    await expect.poll(async () => (await viewportGeometry()).scale).toBe(1.5);
+    await expect
+      .poll(async () => {
+        const value = await viewportGeometry();
+        return Math.abs(value.viewportHeight - value.visibleHeight);
+      })
+      .toBeLessThan(1);
+    scaledViewport = await viewportGeometry();
+    assert.equal(scaledViewport.rootWidth, initialViewport.rootWidth);
+    assert.equal(scaledViewport.rootHeight, initialViewport.rootHeight);
+    assert(scaledViewport.viewportHeight < initialViewport.viewportHeight - 1);
+  } finally {
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
+    await cdp.detach();
+  }
+  await expect
+    .poll(async () => (await viewportGeometry()).viewportHeight)
+    .toBeCloseTo(initialViewport.viewportHeight, 1);
+  report.visualViewportOnlyResize = {
+    initial: initialViewport,
+    scaled: scaledViewport,
+    restored: await viewportGeometry(),
+    scope:
+      "Actual Chromium page scale changes visualViewport while layout width stays fixed; not a physical keyboard simulation",
+  };
   checkpoint("desktop/container-width-native-input");
   await expect.poll(width).toBeCloseTo(380, 1);
   await slider.focus();
