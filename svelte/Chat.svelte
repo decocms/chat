@@ -4,6 +4,7 @@
   import type { ChatProps } from "./chatTypes";
   import {
     foldMessages,
+    threadCardSourceIds,
     messageFooters,
     threadWorkers,
     agentMark,
@@ -34,9 +35,11 @@
     return () => clearInterval(timer);
   });
   const rows = $derived(foldMessages(list));
+  const canonicalEpics = $derived(room.epics);
+  const cardSources = $derived(threadCardSourceIds(canonicalEpics));
   const footers = $derived(messageFooters(room, thread, now));
   const workers = $derived(threadWorkers(room, thread, now));
-  const epic = $derived(room.epics.find((e) => e.id === thread));
+  const epic = $derived(canonicalEpics.find((e) => e.id === thread));
   const production = $derived(productionStatuses(room).get(thread));
 </script>
 
@@ -58,6 +61,7 @@
         <Message
           message={origin}
           origin
+          {cardSources}
           typing={room.typing[origin.id]}
           {vb}
           {room}
@@ -81,6 +85,7 @@
       </div>{/if}
     {#if rows.length}{#each rows as message, i (message.id)}<Message
           {message}
+          {cardSources}
           previous={i ? rows[i - 1] : previous}
           typing={room.typing[message.id]}
           {vb}

@@ -25,6 +25,7 @@
   let {
     message: m,
     previous,
+    cardSources,
     origin = false,
     typing,
     vb,
@@ -34,6 +35,7 @@
   }: {
     message: ChatMessage;
     previous?: ChatMessage;
+    cardSources: ReadonlySet<number>;
     origin?: boolean;
     typing?: string;
     vb: ChatBridge;
@@ -214,13 +216,13 @@
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
           )}{/if}
-        <Attachments
+        {#if m.files?.length}<Attachments
           roomId={room.id}
           messageThread={m.thread}
           files={m.files}
           {actions}
           {vb}
-        />
+        />{/if}
         {#if m.card || m.choices || m.poll}<DeferredInteractiveBody
             message={m}
             {room}
@@ -279,12 +281,12 @@
             )} · <time title={timestamp}>{day(m.ts)}</time></summary
           >{@render rich(m.text)}
         </details>{/if}
-      {#if !origin && kind !== "issue" && kind !== "notice"}{#each kind === "reminder" ? group : [m] as source (source.id)}<ThreadCards
+      {#if !origin && kind !== "issue" && kind !== "notice"}{#each kind === "reminder" ? group : [m] as source (source.id)}{#if cardSources.has(source.id)}<ThreadCards
             {room}
             messageId={source.id}
             {actions}
             {vb}
-          />{/each}{/if}
+          />{/if}{/each}{/if}
       {#if footer && !origin}<MessageFooter {footer} {vb} />{/if}
     </div>
   </div>
