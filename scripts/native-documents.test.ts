@@ -31,8 +31,8 @@ import type {
 import {
   richText,
   parseRichSource,
-} from "../svelte/features/rich-text/project";
-import { createRichSession } from "../svelte/features/rich-text/session";
+} from "./rich-text-fixture";
+import { createRichSession } from "./rich-text-fixture";
 import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
 import {
   documentBlocks,
@@ -41,10 +41,12 @@ import {
   mermaidSource,
 } from "../svelte/features/documents/preview";
 import {
-  diagramNodes,
+  diagramNodes as projectDiagramNodes,
   renderDiagram,
   createPeleLoader,
 } from "../svelte/features/documents/mermaid";
+import { createHtmlTree } from "../svelte/features/rich-text/htmlTree";
+const diagramNodes = (svg: string, ctx: RichContext) => projectDiagramNodes(svg, ctx, createHtmlTree);
 const environment = new Window();
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
 Reflect.set(globalThis, "document", environment.document);

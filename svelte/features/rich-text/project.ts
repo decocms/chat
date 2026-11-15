@@ -1,4 +1,4 @@
-import type { DefaultTreeAdapterTypes as Tree } from "parse5";
+import type { TreeNode, TreeElement, TreeFragment, HtmlTreeFactory, MarkdownTokens, MarkdownTree } from "./markdownTree";
 import { emojify } from "../../../shared/emoji";
 import {
   HTML_TAGS,
@@ -14,7 +14,7 @@ import {
   BOOLEAN_ATTRIBUTES,
   REFERENCE_ATTRIBUTES,
 } from "./allowlist";
-import { markdownTree } from "./markdownTree";
+import { markdownTree, prepareMarkdown } from "./markdownTree";
 import { fileTarget, linkTarget, mentionTarget, safeUrl } from "./links";
 import type {
   RichContext,
@@ -87,7 +87,7 @@ export type ParsedRichSource = {
   text: string;
   mode: RichMode;
   literal?: boolean;
-  tree?: ReturnType<typeof markdownTree>;
+  tree?: MarkdownTree;
 };
 /** Linear preflight avoids pathological Markdown work on a giant non-code line.
  * Full source remains visible. Fenced code can still use the selected profile's full budget. */
@@ -122,11 +122,11 @@ export function markdownWorkAllowed(source: string): boolean {
   }
   return true;
 }
-export function parseRichSource(
+export function prepareRichSource(
   source: string,
   mode: RichMode,
   policy?: RichPolicy,
-): ParsedRichSource {
+): PreparedRichSource {
   // Canonical source remains untouched for copy/edit. Oversize content has one inert text node.
   if (
     source.length >
@@ -142,10 +142,23 @@ export function parseRichSource(
   const text = policy === "document" ? source : emojify(source);
   if (mode !== "markdown") return { text, mode };
   try {
-    const tree = markdownTree(text, policy === "document");
+    return { text, mode, tokens: prepareMarkdown(text, policy === "document"), original: source };
+  } catch {
+    return { text: source, mode, literal: true };
+  }
+}
+export type PreparedRichSource = Omit<ParsedRichSource, "tree"> & { tokens?: MarkdownTokens; original?: string };
+/** Preparation/loading is outside this synchronous parser. Missing adapters are programmer errors,
+ * never source-limit fallbacks or a signal to render valid HTML as literal content. */
+export function parsePreparedRichSource(prepared: PreparedRichSource, full?: HtmlTreeFactory): ParsedRichSource {
+  const { text, mode, tokens } = prepared;
+  if (!tokens) return prepared;
+  if (tokens.html && !full) throw Error("HTML parser was not prepared");
+  try {
+    const tree = markdownTree(tokens, full);
     let count = 0,
       svg = 0;
-    const pending = [{ node: tree.fragment as Tree.Node, depth: 0 }];
+    const pending = [{ node: tree.fragment as TreeNode, depth: 0 }];
     while (pending.length) {
       const { node, depth } = pending.pop()!;
       if (++count > RICH_LIMITS.nodes || depth > RICH_LIMITS.depth)
@@ -162,16 +175,20 @@ export function parseRichSource(
     }
     return { text, mode, tree };
   } catch {
-    return { text: source, mode, literal: true };
+    return { text: prepared.original ?? text, mode, literal: true };
   }
+}
+export function parseRichSource(source: string, mode: RichMode, policy?: RichPolicy, full?: HtmlTreeFactory): ParsedRichSource {
+  return parsePreparedRichSource(prepareRichSource(source, mode, policy), full);
 }
 export function richText(
   source: string,
   mode: RichMode,
   context: RichContext,
+  full?: HtmlTreeFactory,
 ): RichNode[] {
   return projectRichSource(
-    parseRichSource(source, mode, context.policy),
+    parseRichSource(source, mode, context.policy, full),
     context,
   );
 }
@@ -190,10 +207,10 @@ export function projectRichSource(
   }
   const { fragment, metadata } = parsed.tree!;
   const ids = new Map<string, string>(),
-    nodeIds = new WeakMap<Tree.Element, string>();
+    nodeIds = new WeakMap<TreeElement, string>();
   let sequence = 0;
   const prefix = `vb-rich-${context.idPrefix.replace(/[^a-z0-9_-]/gi, "-")}`;
-  function collect(node: Tree.ParentNode) {
+  function collect(node: TreeFragment | TreeElement) {
     for (const child of node.childNodes) {
       if ("tagName" in child) {
         const id = child.attrs.find((a) => a.name === "id")?.value;
@@ -212,7 +229,7 @@ export function projectRichSource(
     return match && ids.has(match[1]) ? `url(#${ids.get(match[1])})` : null;
   };
   function attributes(
-    node: Tree.Element,
+    node: TreeElement,
     namespace: RichNamespace,
   ): SafeAttributes {
     const result: Record<string, string | number | boolean> = {},
@@ -364,7 +381,7 @@ export function projectRichSource(
     return result;
   }
   function nodes(
-    children: readonly Tree.ChildNode[],
+    children: readonly TreeNode[],
     namespace: RichNamespace = HTML_NS,
     code = false,
   ): RichNode[] {

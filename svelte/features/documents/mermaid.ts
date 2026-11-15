@@ -1,3 +1,5 @@
+import { loadHtmlTree, type HtmlTreeLoader } from "../rich-text/preparation";
+import type { HtmlTreeFactory } from "../rich-text/markdownTree";
 import { richText } from "../rich-text/project";
 import { SVG_NS } from "../rich-text/allowlist";
 import type { RichContext, RichNode } from "../rich-text/types";
@@ -117,7 +119,7 @@ const paint = new Set([
   "text-decoration",
 ]);
 /** Treat renderer output as untrusted SVG; never insert its HTML/CSS or active nodes. */
-export function diagramNodes(svg: string, context: RichContext): RichNode[] {
+export function diagramNodes(svg: string, context: RichContext, full: HtmlTreeFactory): RichNode[] {
   if (svg.length > 65536) throw Error("Diagram output limit");
   function clean(nodes: RichNode[]): RichNode[] {
     return nodes.flatMap((node) => {
@@ -151,7 +153,7 @@ export function diagramNodes(svg: string, context: RichContext): RichNode[] {
     });
   }
   const nodes = clean(
-    richText(svg.trim(), "markdown", { ...context, policy: "document" }),
+    richText(svg.trim(), "markdown", { ...context, policy: "document" }, full),
   ).filter((node) => node.kind !== "text" || node.text.trim());
   if (
     nodes.length !== 1 ||
@@ -166,6 +168,7 @@ export async function renderDiagram(
   context: RichContext,
   width: number,
   load = loadPele,
+  loadHtml: HtmlTreeLoader = loadHtmlTree,
 ) {
   if (source.length > 16000) throw Error("Diagram source limit");
   const pele = await load(),
@@ -184,5 +187,6 @@ export async function renderDiagram(
     typeof result.svg !== "string"
   )
     throw Error("Diagram output unavailable");
-  return diagramNodes(result.svg, context);
+  const full = await loadHtml(new AbortController().signal);
+  return diagramNodes(result.svg, context, full);
 }

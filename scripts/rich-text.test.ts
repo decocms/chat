@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { richText } from "../svelte/features/rich-text/project";
-import { createRichSession } from "../svelte/features/rich-text/session";
+import { richText } from "./rich-text-fixture";
+import { createRichSession } from "./rich-text-fixture";
 import { safeUrl } from "../svelte/features/rich-text/links";
 import {
   createFileChipIndex,

@@ -9,7 +9,7 @@ import {
   decodeHTMLStrict as legacyStrict,
 } from "entities-legacy";
 import { safeUrl } from "../svelte/features/rich-text/links";
-import { richText } from "../svelte/features/rich-text/project";
+import { richText } from "./rich-text-fixture";
 import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
 
 const corpusBytes = readFileSync(

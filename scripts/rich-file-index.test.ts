@@ -6,7 +6,7 @@ import {
   createRichFileIndex,
 } from "../svelte/features/rich-text/roomFiles";
 import { fileTarget, knownFiles } from "../svelte/features/rich-text/links";
-import { createRichSession } from "../svelte/features/rich-text/session";
+import { createRichSession } from "./rich-text-fixture";
 import type { RichContext } from "../svelte/features/rich-text/types";
 const scope = {
   roomId: "abc123",

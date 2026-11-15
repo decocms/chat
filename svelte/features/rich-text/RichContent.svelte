@@ -4,6 +4,8 @@
   import { createRichSession } from "./session";
   import type { RichActions, RichMode, RichPolicy } from "./types";
   import RichNodes from "./RichNodes.svelte";
+  import { createRichPreparation, loadHtmlTree, type HtmlTreeLoader } from "./preparation";
+  import RichPreparationStatus from "./RichPreparationStatus.svelte";
   import { scopedRichFileIndex } from "./fileContext";
   let {
     text,
@@ -14,6 +16,7 @@
     pageUrl,
     policy,
     fileLabel,
+    loadHtml,
   }: {
     text: string;
     mode?: RichMode;
@@ -23,13 +26,20 @@
     pageUrl?: string;
     policy?: RichPolicy;
     fileLabel?: string;
+    loadHtml?: HtmlTreeLoader;
   } = $props();
   const idPrefix = $props.id();
   const fileIndex = scopedRichFileIndex();
   const session = createRichSession();
   onDestroy(() => session.dispose());
+  const preparation = createRichPreparation({
+    load: (signal) => (loadHtml ?? loadHtmlTree)(signal),
+    current: (input) => input.source === text && input.mode === mode && input.policy === policy && input.scope === JSON.stringify([room.me, room.id]),
+  });
+  onDestroy(() => preparation.dispose());
+  const prepared = $derived(preparation.read({ source: text, mode, policy, scope: JSON.stringify([room.me, room.id]) }));
   const nodes = $derived(
-    session.render(text, mode, {
+    $prepared.phase === "ready" ? session.project($prepared.parsed, {
       room,
       policy,
       names,
@@ -37,11 +47,12 @@
       idPrefix,
       fileLabel,
       fileIndex,
-    }),
+    }) : [],
   );
 </script>
 
-{#if mode === "inline"}<span
+{#if $prepared.phase !== "ready"}<RichPreparationStatus phase={$prepared.phase} retry={() => preparation.retry()} />
+{:else if mode === "inline"}<span
     data-rich-content
     data-vb-native
     class="tw:min-w-0 tw:break-words tw:font-sans tw:leading-6 tw:text-foreground"

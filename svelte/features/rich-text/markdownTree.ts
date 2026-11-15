@@ -1,20 +1,56 @@
 import { Lexer, type Tokens } from "marked";
 import { markdownSource } from "./markdownSource";
-import {
-  Parser,
-  Token,
-  html,
-  defaultTreeAdapter,
-  type DefaultTreeAdapterMap,
-  type DefaultTreeAdapterTypes,
-} from "parse5";
 import { decodeHTML } from "entities";
+import { HTML_NS } from "./allowlist";
+export type TreeAttribute = { name: string; value: string; prefix?: string };
+export type TreeText = { nodeName: "#text"; value: string };
+export type TreeElement = {
+  nodeName: string;
+  tagName: string;
+  namespaceURI: string;
+  attrs: TreeAttribute[];
+  childNodes: TreeNode[];
+};
+export type TreeNode = TreeElement | TreeText | { nodeName: string };
+export type TreeFragment = { nodeName: "#document-fragment"; childNodes: TreeNode[] };
 export type MarkdownMetadata = {
   task?: boolean;
   language?: string;
   sourceStart?: number;
   sourceEnd?: number;
 };
+export type MarkdownTree = { fragment: TreeFragment; metadata: WeakMap<TreeElement, MarkdownMetadata> };
+export type MarkdownSink = {
+  tag(name: string, start: boolean, attrs?: TreeAttribute[], meta?: MarkdownMetadata): void;
+  text(value: string): void;
+  raw(value: string): void;
+  finish(): MarkdownTree;
+};
+export type HtmlTreeFactory = () => MarkdownSink;
+export type MarkdownTokens = ReturnType<typeof prepareMarkdown>;
+/** Lex once, retaining token identities used by verified document source spans. */
+export function prepareMarkdown(source: string, documentImages = false) {
+  const parsed = documentImages ? markdownSource(source) : {
+    tokens: Lexer.lex(source, { gfm: true, breaks: true }),
+    spans: new WeakMap<object, { start: number; end: number }>(),
+  };
+  function rawHtml(values: Tokens.Generic[], depth = 0): boolean {
+    if (depth > 48) throw Error("Rich token depth limit");
+    let found = false;
+    for (const value of values) {
+      const token = value as KnownToken;
+      if (token.type === "html") found = true;
+      if ("tokens" in token && token.tokens) found = rawHtml(token.tokens, depth + 1) || found;
+      if (token.type === "list") for (const item of token.items) found = rawHtml(item.tokens, depth + 1) || found;
+      if (token.type === "table") {
+        for (const cell of token.header) found = rawHtml(cell.tokens, depth + 1) || found;
+        for (const row of token.rows) for (const cell of row) found = rawHtml(cell.tokens, depth + 1) || found;
+      }
+    }
+    return found;
+  }
+  return { ...parsed, html: rawHtml(parsed.tokens), documentImages };
+}
 type KnownToken =
   | Tokens.Space
   | Tokens.Code
@@ -37,80 +73,49 @@ type KnownToken =
   | Tokens.Codespan
   | Tokens.Br
   | Tokens.Del;
-/** Marked 12.0.2 is a lexer only. parse5 8.1.1 receives semantic tokens, not rendered Markdown HTML.
- * Its supplied streaming flush API preserves completed raw text before a semantic token is inserted.
- * One parser stack retains raw inline/block tags spanning multiple Markdown tokens, namespaces and table repair.
- * parse5 marks Parser/token-event helpers @internal even though it exports them. Their use is confined to this
- * exact-version adapter; upgrades must pass split-tag, namespace, table-repair and text-flush regressions.
- * No protected/underscore parser methods or HTML serialization/rendering APIs are called.
- */
-export function markdownTree(source: string, documentImages = false) {
-  const parsedSource = documentImages
-    ? markdownSource(source)
-    : {
-        tokens: Lexer.lex(source, { gfm: true, breaks: true }),
-        spans: new WeakMap<object, { start: number; end: number }>(),
-      };
-  let emitted = 0,
-    depth = 0;
-  let pending: { tag: string; metadata: MarkdownMetadata } | undefined;
-  const metadata = new WeakMap<
-    DefaultTreeAdapterTypes.Element,
-    MarkdownMetadata
-  >();
-  const adapter = {
-    ...defaultTreeAdapter,
-    createElement(
-      ...args: Parameters<typeof defaultTreeAdapter.createElement>
-    ) {
-      if (++emitted > 4096) throw new Error("Rich parser node limit");
-      const element = defaultTreeAdapter.createElement(...args);
-      if (pending?.tag === args[0]) metadata.set(element, pending.metadata);
-      return element;
+
+/** Semantic Markdown creates balanced known HTML elements, with no DOM or HTML parsing. */
+function semanticSink(): MarkdownSink {
+  const fragment: TreeFragment = { nodeName: "#document-fragment", childNodes: [] },
+    metadata = new WeakMap<TreeElement, MarkdownMetadata>(),
+    stack: (TreeFragment | TreeElement)[] = [fragment];
+  let emitted = 0;
+  return {
+    tag(name, start, attrs = [], meta) {
+      if (!start) {
+        const top = stack.at(-1)!;
+        if (stack.length === 1 || !("tagName" in top) || top.tagName !== name) throw Error("Unbalanced semantic Markdown");
+        stack.pop();
+        return;
+      }
+      if (++emitted > 4096) throw Error("Rich parser node limit");
+      const node: TreeElement = { nodeName: name, tagName: name, namespaceURI: HTML_NS, attrs, childNodes: [] };
+      if (meta) metadata.set(node, meta);
+      stack.at(-1)!.childNodes.push(node);
+      if (!["br", "hr", "img"].includes(name)) stack.push(node);
+    },
+    text(value) {
+      if (!value) return;
+      const children = stack.at(-1)!.childNodes,
+        last = children.at(-1);
+      if (last && "value" in last) last.value += value;
+      else children.push({ nodeName: "#text", value });
+    },
+    raw() { throw Error("Raw HTML requires prepared parser"); },
+    finish() {
+      if (stack.length !== 1) throw Error("Unbalanced semantic Markdown");
+      return { fragment, metadata };
     },
   };
-  const parser = Parser.getFragmentParser<DefaultTreeAdapterMap>(null, {
-    treeAdapter: adapter,
-    scriptingEnabled: false,
-  });
-  const flush = () => parser.tokenizer.flushCurrentCharacterToken();
-  function tag(
-    name: string,
-    start: boolean,
-    attrs: Token.Attribute[] = [],
-    meta?: MarkdownMetadata,
-  ) {
-    flush();
-    pending = meta ? { tag: name, metadata: meta } : undefined;
-    const token: Token.TagToken = {
-      type: start ? Token.TokenType.START_TAG : Token.TokenType.END_TAG,
-      tagName: name,
-      tagID: html.getTagID(name),
-      selfClosing: false,
-      ackSelfClosing: false,
-      attrs,
-      location: null,
-    };
-    if (start) parser.onStartTag(token);
-    else parser.onEndTag(token);
-    pending = undefined;
-  }
-  function text(value: string) {
-    flush();
-    for (const part of value.split(/(\s+)/)) {
-      if (!part) continue;
-      const whitespace = /^\s+$/.test(part);
-      const token: Token.CharacterToken = {
-        type: whitespace
-          ? Token.TokenType.WHITESPACE_CHARACTER
-          : Token.TokenType.CHARACTER,
-        chars: part,
-        location: null,
-      };
-      if (whitespace) parser.onWhitespaceCharacter(token);
-      else parser.onCharacter(token);
-    }
-  }
+}
+/** Full raw-HTML parser is explicit and prepared before this synchronous call. */
+export function markdownTree(parsedSource: MarkdownTokens, full?: HtmlTreeFactory): MarkdownTree {
+  if (parsedSource.html && !full) throw Error("HTML parser was not prepared");
+  const sink = parsedSource.html ? full!() : semanticSink();
+  const { documentImages } = parsedSource;
+  const tag: MarkdownSink["tag"] = (...args) => sink.tag(...args);
+  const text = (value: string) => sink.text(value);
+  let depth = 0;
   const attrs = (values: Record<string, string | number | undefined>) =>
     Object.entries(values)
       .filter(
@@ -120,7 +125,7 @@ export function markdownTree(source: string, documentImages = false) {
   const wrap = (
     name: string,
     children: Tokens.Generic[],
-    attributes: Token.Attribute[] = [],
+    attributes: TreeAttribute[] = [],
     meta?: MarkdownMetadata,
   ) => {
     tag(name, true, attributes, meta);
@@ -140,8 +145,7 @@ export function markdownTree(source: string, documentImages = false) {
         case "def":
           break;
         case "html":
-          parser.tokenizer.write(token.text, false);
-          flush();
+          sink.raw(token.text);
           break;
         case "heading":
           wrap(`h${token.depth}`, token.tokens);
@@ -266,6 +270,5 @@ export function markdownTree(source: string, documentImages = false) {
     depth--;
   }
   tokens(parsedSource.tokens);
-  parser.tokenizer.write("", true);
-  return { fragment: parser.getFragment(), metadata };
+  return sink.finish();
 }
