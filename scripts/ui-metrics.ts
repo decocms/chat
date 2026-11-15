@@ -719,12 +719,8 @@ async function run(
     await cdp.send("Profiler.start");
     profilerActive = true;
   }
-  async function stopCPU(name: string) {
-    if (!diagnosticContext) return;
-    const stopped: unknown = await cdp.send("Profiler.stop");
-    profilerActive = false;
-    assert(record(stopped), "Missing CPU profile");
-    const observed = [...network.values()].flatMap((resource) => {
+  function observedDiagnosticAssets() {
+    return [...network.values()].flatMap((resource) => {
       const asset = resource.assetKey
         ? assets.get(resource.assetKey)
         : undefined;
@@ -739,6 +735,13 @@ async function run(
           ]
         : [];
     });
+  }
+  async function stopCPU(name: string) {
+    if (!diagnosticContext) return;
+    const stopped: unknown = await cdp.send("Profiler.stop");
+    profilerActive = false;
+    assert(record(stopped), "Missing CPU profile");
+    const observed = observedDiagnosticAssets();
     recordCPUTimeOrder(
       sample,
       {
@@ -1126,7 +1129,15 @@ async function run(
     if (diagnosticContext)
       await collectEntryDiagnostics(sample, {
         stopCPU: () => stopCPU("entry"),
-        captureHeap: () => capturePrivateHeap(cdp, output),
+        captureHeap: () =>
+          process.env.METRICS_HEAP_SOURCE_ATTRIBUTION === "1"
+            ? capturePrivateHeap(cdp, output, undefined, undefined, {
+                diagnosticContext: !!diagnosticContext,
+                flag: process.env.METRICS_HEAP_SOURCE_ATTRIBUTION,
+                observed: observedDiagnosticAssets(),
+                scripts,
+              })
+            : capturePrivateHeap(cdp, output),
       });
     await page.waitForLoadState("networkidle");
     sample.entryLayout = await layout();

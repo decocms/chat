@@ -41,6 +41,7 @@
     "scripts/ui-metrics-diagnostics.ts",
     "scripts/ui-metrics-diagnostics.test.ts",
     "scripts/ui-metrics-cpu-timestamp-order.test.ts",
+    "scripts/ui-metrics-heap-source.test.ts",
     "scripts/ui-panels.test.ts",
     "scripts/ui-panel-mount.ts",
     "scripts/UiPanelView.svelte",

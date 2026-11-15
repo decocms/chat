@@ -1,5 +1,9 @@
 // Opt-in controlled-fixture diagnostics only. Raw heap contents never enter artifacts.
 import assert from "node:assert/strict";
+import {
+  optionalHeapSourceAttribution,
+  type HeapSourceOptions,
+} from "./ui-metrics-heap-source";
 import { writeFileSync, closeSync, openSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -377,6 +381,7 @@ export async function capturePrivateHeap(
   artifactDirectory: string,
   capBytes = 128 * 1024 * 1024,
   temporaryRoot = tmpdir(),
+  sourceOptions?: HeapSourceOptions,
 ) {
   assert(safeInteger(capBytes) && capBytes > 0);
   await mkdir(artifactDirectory, { recursive: true });
@@ -428,7 +433,14 @@ export async function capturePrivateHeap(
     } catch {
       throw new MetricsDiagnosticFailure("heap-invalid");
     }
+    const sourceAttribution = optionalHeapSourceAttribution(
+      parsed,
+      sourceOptions,
+    );
     return {
+      ...(sourceAttribution
+        ? { heapSourceAttribution: sourceAttribution }
+        : {}),
       status: "summarized",
       rawUTF16LEBytes: bytes,
       rawBytesCap: capBytes,
