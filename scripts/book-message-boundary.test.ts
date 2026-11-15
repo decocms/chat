@@ -1,4 +1,4 @@
-// Stored message and actual Book method fixtures; no real DO/SQLite receipt.
+// Stored message and actual Book method fixtures, including bounded SQLite-backed D1 reads; no real DO scheduling.
 import { expect, mock, test } from "bun:test";
 import { MessageSchema } from "../shared/room";
 import {
@@ -478,4 +478,193 @@ test("actual Fire card updates require owned card and emit the normalized replac
   ).toMatchObject({ ok: false, error: "not your live card" });
   expect(writes).toHaveLength(1);
   expect(events).toHaveLength(1);
+});
+
+async function openDocFixture() {
+  const { Database } = await import("bun:sqlite");
+  const db = new Database(":memory:");
+  db.exec(`CREATE TABLE members(book_id TEXT, email TEXT);
+    CREATE TABLE epics(id TEXT);
+    INSERT INTO members VALUES('abcdef','member@example.test');
+    INSERT INTO epics VALUES('e1');`);
+  let bound = "",
+    epicReads = 0,
+    socketReads = 0,
+    membershipReads = 0;
+  let wait: Promise<void> | undefined;
+  const frames: string[] = [];
+  const mine = {
+      send: (value: string) => {
+        frames.push(value);
+      },
+    },
+    peer = {
+      send: () => {
+        throw Error("openDoc leaked to another person");
+      },
+    };
+  const receiver = {
+    bind: (id: string) => {
+      bound = id;
+    },
+    get: () => bound,
+    env: {
+      DB: {
+        prepare: (query: string) => ({
+          bind: (...values: string[]) => ({
+            all: async () => {
+              membershipReads++;
+              await wait;
+              return { results: db.query(query).all(...values) };
+            },
+          }),
+        }),
+      },
+    },
+    members: async () => {
+      // Exercise the actual Book membership reader backed by this SQLite D1 port.
+      const result = await invoke("members", receiver);
+      if (
+        !Array.isArray(result) ||
+        !result.every((value) => typeof value === "string")
+      )
+        throw Error("invalid membership fixture");
+      return result;
+    },
+    sql: {
+      exec: (query: string, ...values: string[]) => {
+        epicReads++;
+        return { toArray: () => db.query(query).all(...values) };
+      },
+    },
+    sockets: () => {
+      socketReads++;
+      return [mine, peer];
+    },
+    ctx: {
+      getTags: (socket: unknown) => [
+        socket === mine ? "member@example.test" : "peer@example.test",
+      ],
+    },
+  };
+  return {
+    db,
+    receiver,
+    frames,
+    counts: () => ({ epicReads, socketReads, membershipReads }),
+    pause: (promise: Promise<void>) => {
+      wait = promise;
+    },
+    revoke: () => {
+      db.query("DELETE FROM members WHERE email=?").run("member@example.test");
+    },
+  };
+}
+
+test("actual openDoc rejects revoked membership before epic metadata or retained room sockets", async () => {
+  const h = await openDocFixture();
+  try {
+    h.revoke();
+    expect(
+      await invoke(
+        "agentOpenDoc",
+        h.receiver,
+        "abcdef",
+        "member@example.test",
+        "e1",
+      ),
+    ).toEqual({ ok: false, error: "forbidden" });
+    expect(h.frames).toEqual([]);
+    expect(h.counts()).toEqual({
+      epicReads: 0,
+      socketReads: 0,
+      membershipReads: 1,
+    });
+  } finally {
+    h.db.close();
+  }
+});
+
+test("actual openDoc rechecks queued-call membership and validates exact room/epic events", async () => {
+  const h = await openDocFixture();
+  try {
+    let resume: () => void = () => {};
+    h.pause(
+      new Promise<void>((resolve) => {
+        resume = resolve;
+      }),
+    );
+    const pending = invoke(
+      "agentOpenDoc",
+      h.receiver,
+      "abcdef",
+      "member@example.test",
+      "e1",
+    );
+    h.revoke();
+    resume();
+    expect(await pending).toEqual({ ok: false, error: "forbidden" });
+    expect(h.frames).toEqual([]);
+    h.db
+      .query("INSERT INTO members VALUES(?,?)")
+      .run("abcdef", "member@example.test");
+    for (const epic of ["", "e1"]) {
+      expect(
+        await invoke(
+          "agentOpenDoc",
+          h.receiver,
+          "abcdef",
+          "member@example.test",
+          epic,
+        ),
+      ).toMatchObject({ ok: true, opened_in_tabs: 1 });
+    }
+    expect(h.frames.map((value) => JSON.parse(value))).toEqual([
+      { t: "openDoc", epic: "" },
+      { t: "openDoc", epic: "e1" },
+    ]);
+    expect(
+      await invoke(
+        "agentOpenDoc",
+        h.receiver,
+        "abcdef",
+        "member@example.test",
+        "missing",
+      ),
+    ).toMatchObject({ ok: false });
+    for (const epic of [null, 42, {}, ["e1"]]) {
+      expect(
+        await invoke(
+          "agentOpenDoc",
+          h.receiver,
+          "abcdef",
+          "member@example.test",
+          epic,
+        ),
+      ).toEqual({ ok: false, error: "invalid doc target" });
+    }
+    expect(h.frames).toHaveLength(2);
+    expect(
+      await invoke(
+        "agentOpenDoc",
+        h.receiver,
+        "abcdef",
+        "peer@example.test",
+        "e1",
+      ),
+    ).toEqual({ ok: false, error: "forbidden" });
+    expect(h.frames).toHaveLength(2);
+    h.receiver.sockets = () => [];
+    expect(
+      await invoke(
+        "agentOpenDoc",
+        h.receiver,
+        "abcdef",
+        "member@example.test",
+        "",
+      ),
+    ).toMatchObject({ ok: true, opened_in_tabs: 0 });
+  } finally {
+    h.db.close();
+  }
 });

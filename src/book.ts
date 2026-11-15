@@ -9,6 +9,7 @@ import { reorderEpics } from "./epic-order";
 import { TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion } from "../shared/room";
+import { RoomEventSchemas } from "../shared/events";
 import { parseCommandEnvelope } from "../shared/validation";
 import type { CommandOutcome, CommandResult, RoomCommand } from "../shared/commands";
 
@@ -1462,11 +1463,16 @@ export class Book extends DurableObject<Env> {
   }
   /** open_doc: the agent's human sees this doc (an epic's, or the room's) beside the chat in their open tabs of this room,
    * so an answer written into it with update_doc shows up as it's written (Gui #2589). */
-  agentOpenDoc(bookId: string, email: string, epic: string) {
+  async agentOpenDoc(bookId: string, email: string, epic: string) {
     this.bind(bookId);
-    if (epic && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, epic).toArray().length) return { ok: false, error: "no such epic in this room (epic_id from start_epic / read_room)" };
+    // The caller's cached D1 check predates RPC dispatch. Retained tabs do not
+    // grant a revoked member authority to read targets or emit new UI actions.
+    if (!(await this.members()).includes(email)) return { ok: false, error: "forbidden" };
+    const event = RoomEventSchemas.openDoc.safeParse({ t: "openDoc", epic });
+    if (!event.success) return { ok: false, error: "invalid doc target" };
+    if (event.data.epic && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, event.data.epic).toArray().length) return { ok: false, error: "no such epic in this room (epic_id from start_epic / read_room)" };
     const tabs = this.sockets().filter((ws) => this.ctx.getTags(ws)[0] === email);
-    const s = JSON.stringify({ t: "openDoc", epic } satisfies RoomEvent);
+    const s = JSON.stringify(event.data);
     for (const ws of tabs) ws.send(s);
     return tabs.length
       ? { ok: true, opened_in_tabs: tabs.length, note: "your human sees this doc beside the chat now; every update_doc shows there live" }
