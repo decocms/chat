@@ -527,6 +527,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     const captured = { ...target };
     if (!current() || defer(() => openAgentApp(captured))) return;
     if (
+      captured.connection === "room" &&
       document.authorized() &&
       documentEmbedsApp(get(document.state).text, captured)
     )

@@ -3435,10 +3435,10 @@ function onEvent(ev, id) {
     // Your Claude opened a file for you (MCP open_file): show it beside the chat; it follows newer versions.
     case "openSide": if (!(S.files || []).some((f) => f.id === ev.file.id)) S.files = [ev.file, ...(S.files || [])]; openSide(ev.file.id, ev.file.name); return;
     case "openApp": {
-      // An app this doc already embeds ([[app:room/<name>]], Gui #2589): redraw it in the doc instead of covering the
+      // An uploaded room App this doc already embeds ([[app:room/<name>]], Gui #2589): redraw it in the doc instead of covering the
       // doc with the Apps pane.
       const ep = docEpic(), text = ep ? S.docs?.[ep] ?? "" : S.doc ?? "";
-      if (text.toLowerCase().includes(`[[app:${ev.ref.toLowerCase()}`)) { document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); renderDoc(true); return; }
+      if (ev.ref.startsWith("room/") && text.toLowerCase().includes(`[[app:${ev.ref.toLowerCase()}`)) { document.dispatchEvent(new CustomEvent("vb:pane", { detail: "doc" })); renderDoc(true); return; }
       cardGo(`#app:${ev.ref}`, true); return;
     }
     case "openDoc": if (ev.epic) cardGo(`#doc:${ev.epic}`); else { docRoom = true; renderDoc(true); cardGo("#doc"); } return;

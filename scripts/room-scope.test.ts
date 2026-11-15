@@ -282,6 +282,7 @@ test("closing the side file clears viewing and stale or mismatched composer thre
 
 test("openApp events select Apps behind navigation guards and remote events require a reader grant", async () => {
   const h = await roomScopeFixture();
+  h.publish({ ...h.room, doc: "[[app:abcdef123456/screen]]\n" });
   h.hold();
   h.serverEvent({ t: "openApp", ref: "abcdef123456/screen" });
   expect(get(h.app.services.state).pane).toBe("doc");
