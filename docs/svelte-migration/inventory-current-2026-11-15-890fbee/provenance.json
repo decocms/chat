@@ -1,0 +1,68 @@
+{
+  "sourceRevision": "890fbee856ce99b2acb72cb0a47d7ccae03956a5",
+  "workingTreeDirty": false,
+  "sourceFingerprint": "0eb1c99ddc20a89712ab46befd34725554b116d806a887954ac698bbae7a9ca1",
+  "inventoryCounts": {
+    "files": 406,
+    "functions": 2049,
+    "networkCalls": 177,
+    "endpoints": 93,
+    "typeEscapeCandidates": 0,
+    "domOperations": 400,
+    "styleCandidates": 121
+  },
+  "before": {
+    "entries": 2840,
+    "moduleMapped": 1470,
+    "moduleChanged": 1350,
+    "unknown": 20,
+    "actionVerified": 0,
+    "sourceReviewed": 0,
+    "actionPending": 2840
+  },
+  "after": {
+    "entries": 2840,
+    "moduleMapped": 1500,
+    "moduleChanged": 1340,
+    "unknown": 0,
+    "actionVerified": 0,
+    "sourceReviewed": 0,
+    "actionPending": 2840
+  },
+  "manifest": "../inventory-owners-890fbee.json",
+  "frozen": {
+    "inventory.json": "ebb6ed7d9d87c7e53d44a69605e13a7cfe7f573ea90829c76cd985ab2ad4d32b",
+    "baseline.json": "942789c9528d0448a16bbfe7537256c76518f4979215cdc0738f65b16df6a9d2",
+    "inventory-owners-c6112e8.json": "6e707b2932f8b7bed2f9750aca71b0dae897561baf3c672e5386d3a086d743ee"
+  },
+  "files": [
+    {
+      "originalName": "inventory-current-890fbee.json",
+      "path": "inventory.json.gz",
+      "originalBytes": 412520,
+      "originalSHA256": "28257df087fbc42e89fe0cb8ded848a6148a2cbe7e7dfda9c7789cb0370baa0b",
+      "storedBytes": 50299,
+      "storedSHA256": "2ed06ec460351e57fa2e2c7c790cf9b6f7d16187d041a42bbe906eaca0d4f8b9",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "reconciliation-890fbee-a47.json",
+      "path": "reconciliation-before.json.gz",
+      "originalBytes": 4310066,
+      "originalSHA256": "9a41d785fe5cfadea2eebf306c1ec907bb204741c165b73c1444e087c2ee1c9e",
+      "storedBytes": 207285,
+      "storedSHA256": "628a5f82fbbc69a07d7894b9ad174f7b781e158fe31e5a691125939a494c54d2",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "reconciliation-890fbee-reviewed.json",
+      "path": "reconciliation.json.gz",
+      "originalBytes": 4325267,
+      "originalSHA256": "a386afa1272472cc1ace310a8938b3c4cdb6648cd64c36643ef23d62ae17f440",
+      "storedBytes": 207645,
+      "storedSHA256": "5fee438dc2ec3eca884139037f4d63a8bd636bd7beb1cdc5e324a59417c45a62",
+      "compression": "gzip, restores exact original bytes"
+    }
+  ],
+  "limits": "Exact source scan and owner reconciliation. Ownership/source review does not verify actions. Explicit-any/suppression candidates are not an inventory of every type assertion. M0/F56 and final deployed acceptance remain open."
+}
