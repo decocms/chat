@@ -425,6 +425,16 @@ const TOOLS = [
     },
   },
   {
+    name: "doc_versions",
+    description: "List a doc's saved versions, newest first: the room's (no epic_id) or an epic's. A version is cut by itself once edits go quiet; each has who edited (emails, agent, yjs = live editor, tasks = task list sync), when, and msg_id = the room's newest message at that moment (what the chat was saying). Read one with get_doc_version.",
+    inputSchema: { type: "object", properties: { room_id: { type: "string" }, epic_id: { type: "string" } }, required: ["room_id"] },
+  },
+  {
+    name: "get_doc_version",
+    description: "One saved version of a doc, with its full markdown (version_id from doc_versions). To bring it back, update_doc with that text: that becomes a new version, nothing is lost.",
+    inputSchema: { type: "object", properties: { room_id: { type: "string" }, version_id: { type: "number" } }, required: ["room_id", "version_id"] },
+  },
+  {
     name: "upload_link",
     description:
       "Preferred way to attach a file you have on disk (screenshots, PDFs, HTML reports, audio recordings up to 50MB): returns a one-time URL (10 minutes) and a ready curl command that PUTs the file straight into the room with your message, so the bytes never go through you. For UI changes, post a before and an after screenshot this way.",
@@ -1042,6 +1052,14 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
     case "delete_epic":
     case "update_epic":
     case "move_message":
+    case "doc_versions": {
+      const id = await room();
+      return bookStub(env, id).docVersions(id, str(a.epic_id) || "main");
+    }
+    case "get_doc_version": {
+      const id = await room();
+      return bookStub(env, id).docVersion(id, Number(a.version_id));
+    }
     case "update_doc": {
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success) throw new Error("rate limited. Wait a bit.");

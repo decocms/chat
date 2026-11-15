@@ -55,6 +55,8 @@ const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300
 
 const DEFAULT_TITLE = "Novo vibebook";
 const CLASSIFY_DELAY_MS = 30_000;
+// Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
+const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
 // @vibe the housekeeper (no model call): a delivery with tasks still open, or a task in doing/review with no news.
 const NUDGE_AFTER_DELIVERY_MS = 30 * 60_000;
 const NUDGE_STALE_MS = 24 * 3600_000;
@@ -117,6 +119,9 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS mail_q (email TEXT, msg_id INTEGER, due INTEGER, PRIMARY KEY (email, msg_id));
       CREATE TABLE IF NOT EXISTS grades (id TEXT PRIMARY KEY, sig TEXT, flags TEXT, ts INTEGER);
       CREATE TABLE IF NOT EXISTS pins (id TEXT PRIMARY KEY, kind TEXT, ref TEXT, title TEXT, author TEXT, ts INTEGER, UNIQUE (kind, ref));
+      CREATE TABLE IF NOT EXISTS doc_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, doc TEXT, text TEXT, by TEXT, msg_id INTEGER, ts INTEGER);
+      CREATE INDEX IF NOT EXISTS doc_versions_doc ON doc_versions (doc, id);
+      CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
     for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"]]) {
@@ -997,6 +1002,7 @@ export class Book extends DurableObject<Env> {
   // The room's doc, or an epic's own doc (a child of the room's) when epic is set.
   setDoc(text: string, by: string, except?: WebSocket, epic?: string) {
     const key = epic ? `doc:${epic}` : "doc";
+    if (this.get(key) !== text.slice(0, 100_000)) this.docDirty(epic ?? "main", by);
     this.set(key, text.slice(0, 100_000));
     if (by !== "tasks") this.docToTasks(epic ?? "main", this.get(key) ?? "");
     this.docPush(key, by, epic, except);
@@ -1017,10 +1023,53 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     const key = epic ? `doc:${epic}` : "doc";
     if (this.get(key) === text) return;
+    this.docDirty(epic ?? "main", "yjs");
     this.set(key, text.slice(0, 100_000));
     this.docPush(key, "yjs", epic);
     this.docToTasks(epic ?? "main", this.get(key) ?? "");
     if (!epic) this.ctx.waitUntil(this.wakeAt(Date.now() + CLASSIFY_DELAY_MS));
+  }
+  /** Doc versions (Gui #2666): the LIVE doc stays in meta; a version is cut once its edits go quiet. The quiet window
+   *  starts at 10s and doubles with every edit that lands inside it (≤5 min), so a burst of typing settles into one
+   *  version; a doc dirty for 15 min straight is cut anyway. A version carries who edited and the room's newest
+   *  message at that moment (msg_id), which ties it to the chat. ≤200 per doc, oldest dropped. */
+  docDirty(doc: string, by: string) {
+    const now = Date.now(), r = this.sql.exec<{ first: number; last: number; gap: number; by: string }>(`SELECT first, last, gap, by FROM doc_dirty WHERE doc = ?`, doc).toArray()[0];
+    const who = r ? [...new Set([...r.by.split(","), by])].slice(-5).join(",") : by;
+    const k = this.env.DEV_EMAIL ? 0.1 : 1;
+    const gap = !r ? DOC_QUIET_MS * k : now - r.last < r.gap ? Math.min(r.gap * 2, DOC_QUIET_MAX_MS * k) : r.gap;
+    this.sql.exec(`INSERT INTO doc_dirty (doc, first, last, gap, by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(doc) DO UPDATE SET last = excluded.last, gap = excluded.gap, by = excluded.by`, doc, now, now, gap, who);
+    this.ctx.waitUntil(this.wakeAt(Math.min(now + gap, (r?.first ?? now) + DOC_FORCE_MS * k)));
+  }
+  /** On the alarm: cut every doc whose quiet window (or the 15-min cap) has passed; a text equal to its last version is skipped. */
+  async cutVersions() {
+    const now = Date.now(), force = DOC_FORCE_MS * (this.env.DEV_EMAIL ? 0.1 : 1);
+    const rows = this.sql.exec<{ doc: string; first: number; last: number; gap: number; by: string }>(`SELECT * FROM doc_dirty`).toArray();
+    let next = Infinity;
+    for (const r of rows) {
+      const due = Math.min(r.last + r.gap, r.first + force);
+      if (due > now) { next = Math.min(next, due); continue; }
+      this.sql.exec(`DELETE FROM doc_dirty WHERE doc = ?`, r.doc);
+      const text = this.get(r.doc === "main" ? "doc" : `doc:${r.doc}`) ?? "";
+      const prev = this.sql.exec<{ text: string }>(`SELECT text FROM doc_versions WHERE doc = ? ORDER BY id DESC LIMIT 1`, r.doc).toArray()[0];
+      if (prev?.text === text) continue;
+      const msg = (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number | null) ?? 0;
+      this.sql.exec(`INSERT INTO doc_versions (doc, text, by, msg_id, ts) VALUES (?, ?, ?, ?, ?)`, r.doc, text, r.by, msg, now);
+      this.sql.exec(`DELETE FROM doc_versions WHERE doc = ? AND id NOT IN (SELECT id FROM doc_versions WHERE doc = ? ORDER BY id DESC LIMIT ?)`, r.doc, r.doc, DOC_VERSIONS_MAX);
+    }
+    if (next < Infinity) await this.wakeAt(next);
+  }
+  /** A doc's versions, newest first (no text): doc = "main" (the room's) or an epic id. */
+  docVersions(bookId: string, doc: string) {
+    this.bind(bookId);
+    const versions = this.sql.exec<{ id: number; by: string; msg_id: number; ts: number; size: number }>(`SELECT id, by, msg_id, ts, length(text) AS size FROM doc_versions WHERE doc = ? ORDER BY id DESC`, doc).toArray();
+    const pending = this.sql.exec(`SELECT 1 FROM doc_dirty WHERE doc = ?`, doc).toArray().length > 0;
+    return { doc, versions: versions.map((v) => ({ ...v, by: v.by.split(",") })), live_has_unsaved_edits: pending };
+  }
+  docVersion(bookId: string, id: number) {
+    this.bind(bookId);
+    const v = this.sql.exec<{ id: number; doc: string; text: string; by: string; msg_id: number; ts: number }>(`SELECT * FROM doc_versions WHERE id = ?`, id).toArray()[0];
+    return v ? { ok: true, ...v, by: v.by.split(",") } : { ok: false, error: "no such version in this room" };
   }
   /** What a fresh co-editing doc starts with: the stored markdown (an epic without one gets its seed); null = no such epic. */
   docSeed(bookId: string, epic?: string): string | null {
@@ -2213,6 +2262,7 @@ export class Book extends DurableObject<Env> {
   async alarm() {
     await this.refreshLang().catch(() => {});
     await this.fireReminders().catch((e) => console.error("reminders", String(e)));
+    await this.cutVersions().catch((e) => console.error("doc versions", String(e)));
     // Waits first: a mention e-mail goes out at once only for an ask Jev marked as a wait (sendDueMail).
     await this.findWaits().catch((e) => console.error("waits", String(e)));
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
