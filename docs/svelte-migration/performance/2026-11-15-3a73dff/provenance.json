@@ -1,0 +1,78 @@
+{
+  "sourceRevision": "3a73dffaf9fe3ff66045c08515a50714fc89060a",
+  "testedRevision": "3a73dffaf9fe3ff66045c08515a50714fc89060a",
+  "environment": "BugMachine; pinned Node22.23.5/Bun1.4.4/Chromium158.0.8127.18; serialized task-owned benchmark lane, ambient host agent processes remain",
+  "settings": {
+    "repetitions": 7,
+    "warmups": 1,
+    "profiles": "long",
+    "fonts": "network-public-fonts",
+    "diagnostics": true
+  },
+  "executionStatus": "passed",
+  "originalTrials": 32,
+  "measuredTrials": 28,
+  "diagnosticTrials": 4,
+  "diagnosticsPassed": 2,
+  "performanceAcceptance": "failed",
+  "failedBudgets": 12,
+  "totalBudgets": 16,
+  "moduleAttribution": {
+    "status": "rejected",
+    "reason": "Runner supplied TEST_APP_REVISION after builds; original module metadata revision is unrecorded",
+    "originalMetadataPreserved": true,
+    "recovery": "Separate same-SHA rebuild pending; must pass existing strict asset/revision matching without modifying original measurements"
+  },
+  "files": [
+    {
+      "sourceArtifact": "3a73dff-performance",
+      "originalName": "metrics.json",
+      "path": "metrics.json.gz",
+      "originalBytes": 4799003,
+      "originalSHA256": "3090cb29b0568fff849707d1e38a8999d82ebaa7b680a9887b00fcb3c5ecdff1",
+      "storedBytes": 361271,
+      "storedSHA256": "8cf38a7ff6a39b1b6dd8981378055d0f012374599c6cbebef7ebec0bc9b98279",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "3a73dff-performance",
+      "originalName": "diagnostics.json",
+      "path": "diagnostics.json.gz",
+      "originalBytes": 716978,
+      "originalSHA256": "31b0db6f0533a2e66825588f24042d64b05993e5f2198597740ae5f5dfa52b9a",
+      "storedBytes": 38031,
+      "storedSHA256": "9d9bb7150079edb564489e87b9cfc6b90b8edc635762b659d7bcac6558264d7a",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "3a73dff-performance",
+      "originalName": "report.md",
+      "path": "report.md",
+      "originalBytes": 6933,
+      "originalSHA256": "0a027945cf5cdb3d7d7e8257f09985a2cfe06c88db16d9c6202606f485043360",
+      "storedBytes": 6933,
+      "storedSHA256": "0a027945cf5cdb3d7d7e8257f09985a2cfe06c88db16d9c6202606f485043360",
+      "compression": null
+    },
+    {
+      "sourceArtifact": "3a73dff-modules",
+      "originalName": "svelte.json",
+      "path": "unlabelled-svelte-modules.json.gz",
+      "originalBytes": 857673,
+      "originalSHA256": "09349c2a673f3e17ea34f514bc73bb922169ca62af842acfe62e9c511819ebbe",
+      "storedBytes": 47353,
+      "storedSHA256": "df04af8f7456fa8ccb804e19df49230b6afdcab69ed32edeb74d5201c1041e72",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "3a73dff-modules",
+      "originalName": "vanilla.json",
+      "path": "unlabelled-vanilla-modules.json.gz",
+      "originalBytes": 91092,
+      "originalSHA256": "5dc1ee21e415062b575942bef9f77459f03a9270993c3a50c74e98fc2acf9790",
+      "storedBytes": 3547,
+      "storedSHA256": "02da48e9e059995b6ee761070c6ec01cb87f5ca94a580dea93f1203335f84042",
+      "compression": "gzip, restores exact original bytes"
+    }
+  ]
+}

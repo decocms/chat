@@ -1,0 +1,11 @@
+# Deployed-source performance control
+
+Exact source and served revision: `3a73dffaf9fe3ff66045c08515a50714fc89060a`. Fresh isolated BugMachine control after PR #1 merged, with the original unchanged benchmark: seven alternating measured trials plus one warmup per variant/device, desktop/mobile at4xCPU, complete canonical readiness and original Studio fonts. The task's browser/build lane ran serially; ambient host agents mean this is not a dedicated hardware lab.
+
+All32 original trials pass (28 measured, four warmups). Performance acceptance fails12 of16 unchanged budgets. Readiness, thread switch, first history load, application gzip, font transfer and post-GC heap fail on both devices; second/third history loads pass. Native application gzip358327B exceeds220643B; fonts826876B exceed293033/293035B; heap21.09/20.92MB exceedsabout15.44MB. Mobile/desktop readiness medians2809.5/2769.6ms exceed2050.56/2213.76ms. These controlled intervals include automation/render observations; they are not production or framework-only latency.
+
+Two of four excluded diagnostics pass. Native CPU profiles both reject negative deltas and provide neither valid CPU attribution nor initial heap snapshots in this original source. Those failures remain retained; subsequent independent heap recovery cannot repair CPU validity or rewrite the control. No trial, font, readiness condition or budget was relaxed.
+
+Five original artifact files are retained with exact hashes and lossless gzip. The runner mistakenly supplied TEST_APP_REVISION only after builds, leaving both module reports unrecorded. Strict chunk attribution rejected them with a revision mismatch. Original unlabelled metadata remains preserved and must not be relabeled. Primary metrics still record the exact harness/served SHA and observed asset hashes. A separate fresh metadata build at the same frozen SHA is pending, and may support attribution only if existing strict revision/asset checks pass against the unchanged original metrics. No import-cost attribution is accepted yet.
+
+The font-budget proposal remains inactive pending explicit user approval. Geometry/parser candidates are not measured by this control. Vanilla remains default and full migration acceptance remains open.

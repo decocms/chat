@@ -30,9 +30,15 @@ cause or product fix is claimed. Legacy token/OAuth fallback remains temporarily
 compatible with this deployed main; Gui's runtime token-removal follow-up and
 the matching typed-contract port are prepared separately and not yet integrated.
 
-Performance remains unaccepted. The latest retained complete cohort is still
-`14646bc`, with 12 of 16 original budgets failed. A fresh unchanged control at
-deployed `3a73dff` is running. The [font-budget amendment](font-budget-amendment-proposal.md)
+Performance remains unaccepted. The [fresh deployed-source control at
+`3a73dff`](performance/2026-11-15-3a73dff/README.md) completes all 32 original
+trials and fails 12 of 16 unchanged budgets. Both native CPU diagnostics remain
+invalid. Module attribution correctly rejected unlabelled build metadata; its
+original failed inputs are retained while separate same-SHA metadata rebuilds
+must pass strict asset-hash matching. No original measurement is relabeled.
+The parser/layout application candidate passes source and real-Worker/browser
+checks; its unchanged performance cohort at `60bb255` is running. The
+[font-budget amendment](font-budget-amendment-proposal.md)
 is a proposal only, awaiting explicit user approval; no plan or validator limit
 has changed. Layout and Markdown-parser experiments remain isolated and have
 not been deployed or accepted as performance improvements.
