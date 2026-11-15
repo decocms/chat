@@ -1,0 +1,1046 @@
+{
+  "status": "proposal-only-not-approved-not-active",
+  "approved": false,
+  "validatorChanged": false,
+  "baseRevision": "3a73dffaf9fe3ff66045c08515a50714fc89060a",
+  "measuredRevision": "14646bcf8f8445a7c7f8e8606c927a9ba791c87e",
+  "run": 43665138953,
+  "runUrl": "https://github.com/vibegui/vibebook.dev/actions/runs/43665138953",
+  "originalExecutionStatus": "passed",
+  "originalPerformanceAcceptance": "failed",
+  "originalTrialCount": 32,
+  "proposed": {
+    "scope": "entry.fontTransferBytes only; complete matched original measured cohort, each device separately",
+    "nativeColdTransferCapBytes": 921600,
+    "observedNativeTransferBytes": 826876,
+    "headroomBytes": 94724,
+    "headroomKiB": 92.50390625,
+    "changesNoOtherBudget": true
+  },
+  "originalFontBudgetRows": [
+    {
+      "profile": "long",
+      "device": "mobile",
+      "metric": "entry.fontTransferBytes",
+      "vanilla": 190629,
+      "native": 826876,
+      "limit": 293029,
+      "status": "failed",
+      "definition": "Observed font dependency transfer ≤ vanilla +100KiB; blocked/missing/fallback-font observations unverified"
+    },
+    {
+      "profile": "long",
+      "device": "desktop",
+      "metric": "entry.fontTransferBytes",
+      "vanilla": 190496,
+      "native": 826876,
+      "limit": 292896,
+      "status": "failed",
+      "definition": "Observed font dependency transfer ≤ vanilla +100KiB; blocked/missing/fallback-font observations unverified"
+    }
+  ],
+  "retainedMetrics": {
+    "path": "docs/svelte-migration/performance/2026-11-15-14646bc/metrics.json.gz",
+    "storedBytes": 354886,
+    "storedSHA256": "070925152994c2f50f51e211e004c3d151fada6497e5c32c998d83dde168710c",
+    "originalBytes": 4705064,
+    "originalSHA256": "0f3f523f41ea534aa27b1101d72bdb393d896991df92225b35504270e17e932e",
+    "provenancePath": "docs/svelte-migration/performance/2026-11-15-14646bc/provenance.json",
+    "provenanceSHA256": "bb8d36ddbfc48d5192c409266b564c776aec39ae648de76b54edfed81cddf99b"
+  },
+  "sourceFiles": [
+    {
+      "path": "docs/svelte-migration/font-assets.json",
+      "bytes": 1333,
+      "sha256": "ea3294fa365737326158ebc9c3ad86b2d5ad2c7d7432bd0e3cbaf53304872de0"
+    },
+    {
+      "path": "docs/svelte-migration/studio-tokens.json",
+      "bytes": 35278,
+      "sha256": "2d783ceafd75bd532deaabac16d91e25bc10d9da71473ec7eda09a10d9a0d926"
+    },
+    {
+      "path": "svelte/styles/tailwind.css",
+      "bytes": 20863,
+      "sha256": "700abf3a2bed10815cf8c069d0868d9c15c86c7ded8c30f31f0eea8af97f4296"
+    },
+    {
+      "path": "scripts/ui-metrics-model.ts",
+      "bytes": 8850,
+      "sha256": "c05ab47469f141a4471e21afe8494361acd257614058fc6f02170d783bab756f"
+    },
+    {
+      "path": "scripts/ui-metrics.ts",
+      "bytes": 68794,
+      "sha256": "01944a35f109babb13cfe2b255ced45b46ba0a17ef2d4537f3bd1533dedc8408"
+    },
+    {
+      "path": "scripts/ui-metrics-budgets.ts",
+      "bytes": 2990,
+      "sha256": "2b30fdc4196c9c9c60a7b638b7c1211bb7e89b62af08d179b9721d1b02cc5cd1"
+    },
+    {
+      "path": "docs/svelte-full-migration-plan.md",
+      "bytes": 32909,
+      "sha256": "ca4cf764273ab717654071783088dfd9b05fb3717cd1f550b58abf0353628fc4"
+    },
+    {
+      "path": "docs/svelte-migration/font-forensics/2026-11-14-general-core-result.md",
+      "bytes": 6478,
+      "sha256": "14d9c7871ecfd1d4c25958c3b806372a0fed3e15dc11c38b2d951a37e9ec7530"
+    },
+    {
+      "path": "docs/svelte-migration/font-forensics/2026-11-14-general-core-result.json",
+      "bytes": 410773,
+      "sha256": "050ddcacac17b45ed516d61530caeeb599438699e5aa2574538dc1f5df7ece42"
+    },
+    {
+      "path": "docs/svelte-migration/font-forensics/2026-11-14-weight-range-numeric.md",
+      "bytes": 4160,
+      "sha256": "05b633a6028fcadc418dfb85e192128128f2d5bb0f0030f6382e7169942c8cbb"
+    },
+    {
+      "path": "svelte/features/rich-text/RichNodes.svelte",
+      "bytes": 9788,
+      "sha256": "ee2f0a58804c1d079fa4507570b6f58df78e11d56a7b07d805f1054835d2c6b8"
+    }
+  ],
+  "fonts": [
+    {
+      "path": "public/fonts/studio/InterVariable-693b77d4f3.woff2",
+      "bytes": 352240,
+      "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+      "frozenSource": "https://studio.decocms.com/assets/InterVariable-DiVDrmQJ.woff2"
+    },
+    {
+      "path": "public/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+      "bytes": 387976,
+      "sha256": "e564f652916db6c139570fefb9524a77c4d48f30c92928de9db19b6b5c7a262a",
+      "frozenSource": "https://studio.decocms.com/assets/InterVariable-Italic-FCBEiFp6.woff2"
+    },
+    {
+      "path": "public/fonts/studio/CommitMono-f342ca6c3f.woff2",
+      "bytes": 86768,
+      "sha256": "f342ca6c3f2597e6c0fcd84b3f3ed64d3ce5bdb6d0af19d190d645a558b1cf29",
+      "frozenSource": "https://studio.decocms.com/assets/CommitMono-VariableFont-ytizKI8U.woff2"
+    }
+  ],
+  "measuredNativeFontRequestReceipts": [
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 1,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 2,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 3,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 4,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 5,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 6,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "mobile",
+      "profile": "long",
+      "repetition": 7,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 1,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 2,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 3,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 4,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 5,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 6,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    },
+    {
+      "device": "desktop",
+      "profile": "long",
+      "repetition": 7,
+      "status": "passed",
+      "metric": 826876,
+      "loadedFontFaces": [
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        },
+        {
+          "family": "Inter var",
+          "weight": "100 900",
+          "style": "italic",
+          "status": "loaded"
+        },
+        {
+          "family": "CommitMono",
+          "weight": "100 900",
+          "style": "normal",
+          "status": "loaded"
+        }
+      ],
+      "requests": [
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-693b77d4f3.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 352020,
+          "decodedDataBytes": 352240,
+          "encodedDataBytes": 351779,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-693b77d4f3.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/InterVariable-Italic-e564f65291.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 387858,
+          "decodedDataBytes": 387976,
+          "encodedDataBytes": 387610,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/InterVariable-Italic-e564f65291.woff2"
+        },
+        {
+          "url": "http://127.0.0.1:37183/fonts/studio/CommitMono-f342ca6c3f.woff2",
+          "phase": "entry",
+          "type": "Font",
+          "transferBytes": 86998,
+          "decodedDataBytes": 86768,
+          "encodedDataBytes": 86761,
+          "completed": true,
+          "status": 200,
+          "cache": false,
+          "assetKey": "/fonts/studio/CommitMono-f342ca6c3f.woff2"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Read-only extraction of retained measurements; no profiler/browser/font generation rerun",
+    "Fourteen native measured cold-context trials, not all arbitrary Unicode strings or roles",
+    "No active font/style/validator/budget change; explicit user approval required",
+    "Original failed performance rows remain failed under their original rules"
+  ]
+}
