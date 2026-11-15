@@ -19,3 +19,11 @@ Room #2644 supplied attachment `48193036af3b4b91` (`patch-48f9d4c.md`). Only its
 `git am` applied it atop `3a73dff` as `7d66937`, retaining Guilherme Rodrigues's author metadata and co-author trailer. The new committer differs, so this is not represented as the original commit hash. Both the original attachment and applied diff have stable patch ID `f31f5d1b340552bd6f1ff2bf0ed09b09d5074ac6`. Typed commits were then cherry-picked without conflicts as `1ea9759` and `4b03fa4`. This local combined tree does not authorize or claim publication/deployment of Gui's pending commit.
 
 The additional actual `rpc`/`publicConn` fixture uses historical `enc`/`iv` getters that throw if accessed. Its controlled provider checks that no Authorization header is sent without a personal OAuth grant, that grant lookup is bound to the requester/resource, and that the real signer emits current-viewer/room/audience claims without credential fields. Its global fetch spy is restored in `finally`. This is a service/provider boundary fixture, not a live remote MCP or browser test. Combined execution receipts follow separately; no compiler, DOM or browser execution is implied.
+
+Combined local execution on 2026-11-15, Bun 1.4.4, sequential isolated processes:
+
+- `bun test scripts/rpc-routes.test.ts`: 40 pass, 371 assertions, 5.30s.
+- `bun test scripts/mcp-connections.test.ts`: 12 pass, 141 assertions, 1.75s, including actual RPC/public projection with throwing historical-field getters.
+- `bun test scripts/native-direct-mcp.test.ts`: 10 pass, 89 assertions, 2.82s, including actual SDK JSON/SSE/no-replay constraints and retired-mode schema rejection.
+
+All three completed with zero failures (62 tests / 601 assertions). The newly added RPC fixture was Node-formatted; `git diff --check` passes. These are local boundary/protocol results only, not full strict typing, DOM, browser, asset freshness, publication or deployment acceptance. No production resources or credentials were accessed.
