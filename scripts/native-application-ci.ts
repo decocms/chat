@@ -69,6 +69,15 @@ async function runtimeDiagnostic() {
   }
 }
 
+const args = process.argv.slice(2);
+assert(
+  args.length === 0 ||
+    (args.length === 2 && args[0] === "--suite" &&
+      (args[1] === "application" || args[1] === "design-system")),
+  "Usage: bun scripts/native-application-ci.ts [--suite application|design-system]",
+);
+const suite = args[1] ?? "application";
+
 assert(
   process.env.CI === "true",
   "Managed Worker runner is CI-only; run the browser harness against an existing disposable Worker locally",
@@ -81,7 +90,9 @@ const root = resolve(import.meta.dirname, ".."),
   );
 const privateDirectory = resolve(
     root,
-    ".artifacts/native-application-browser/private",
+    suite === "application"
+      ? ".artifacts/native-application-browser/private"
+      : ".artifacts/design-system-browser/private",
   ),
   devVars = resolve(root, ".dev.vars"),
   base = "http://127.0.0.1:8797";
@@ -182,10 +193,10 @@ let reviewModel: Awaited<ReturnType<typeof startReviewModelFixture>> | null =
 try {
   await mkdir(reportDirectory, { recursive: true });
   await mkdir(privateDirectory, { recursive: true });
-  reviewModel = await startReviewModelFixture(base);
+  if (suite === "application") reviewModel = await startReviewModelFixture(base);
   await writeFile(
     devVars,
-    `DEV_EMAIL=${devEmail}\nSESSION_SECRET=${randomBytes(32).toString("hex")}\nMODEL_ROUTE=off\nMODEL_CLASSIFY=off\nMODEL_FAST=off\nMODEL_JUDGE=${REVIEW_FIXTURE_MODEL}\nDECISION_API=${reviewModel.url}\n`,
+    `DEV_EMAIL=${devEmail}\nSESSION_SECRET=${randomBytes(32).toString("hex")}\nMODEL_ROUTE=off\nMODEL_CLASSIFY=off\nMODEL_FAST=off\nMODEL_JUDGE=${reviewModel ? REVIEW_FIXTURE_MODEL : "off"}\n${reviewModel ? `DECISION_API=${reviewModel.url}\n` : ""}`,
     { flag: "wx", mode: 0o600 },
   );
   ownedVars = true;
@@ -232,25 +243,38 @@ try {
     }
     throw Error("Real Worker readiness deadline");
   });
-  await phase("integrated NativeApplication browser", async () => {
-    const test = spawn(
-      [process.execPath, "scripts/native-application-browser.ts"],
-      resolve(reportDirectory, "browser.log"),
-      { ...process.env, TEST_BASE_URL: base, TEST_OUTPUT_DIR: reportDirectory },
-    );
-    const timer = setTimeout(stop, 12 * 60_000);
+  const checks = suite === "application"
+    ? [{ name: "integrated NativeApplication browser", script: "scripts/native-application-browser.ts", args: [], output: reportDirectory }]
+    : [
+        { name: "atomic gallery and Studio verification", script: "scripts/design-system-browser.ts", args: ["--gallery-only"], output: resolve(reportDirectory, "gallery") },
+        { name: "current RoomInbox verification", script: "scripts/design-system-browser.ts", args: ["--inbox-only"], output: resolve(reportDirectory, "inbox") },
+      ];
+  let failed = false;
+  for (const check of checks) {
+    if (stopped) throw Error("Runner interrupted between browser phases");
+    await mkdir(check.output, { recursive: true });
     try {
-      const result = await Promise.race([
-        test.exited,
-        worker.exited.then(() => {
-          throw Error("Worker exited during browser cohort");
-        }),
-      ]);
-      assert.equal(result, 0, "Integrated browser gate failed");
-    } finally {
-      clearTimeout(timer);
+      await phase(check.name, async () => {
+        const test = spawn(
+          [process.execPath, check.script, ...check.args],
+          resolve(check.output, "browser.log"),
+          { ...process.env, TEST_BASE_URL: base, TEST_OUTPUT_DIR: check.output },
+        );
+        const timer = setTimeout(stop, 12 * 60_000);
+        try {
+          const result = await Promise.race([
+            test.exited,
+            worker.exited.then(() => { throw Error("Worker exited during browser cohort"); }),
+          ]);
+          assert.equal(result, 0, "Browser gate failed");
+        } finally { clearTimeout(timer); }
+      });
+    } catch (error) {
+      if (suite === "application" || stopped) throw error;
+      failed = true;
     }
-  });
+  }
+  assert(!failed, "One or more design-system phases failed");
 } catch (error) {
   failure = {
     name: error instanceof Error ? error.name : "UnknownError",
@@ -286,6 +310,8 @@ try {
     resolve(reportDirectory, "runner.json"),
     JSON.stringify(
       {
+        suite,
+        sourceRevision: process.env.TEST_APP_REVISION ?? null,
         status: failure || cleanupErrors.length ? "failed" : "passed",
         phases,
         failure,
