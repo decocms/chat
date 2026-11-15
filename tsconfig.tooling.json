@@ -119,6 +119,7 @@
     "svelte/features/application/browser.ts",
     "scripts/native-documents.test.ts",
     "scripts/native-apps.test.ts",
+    "scripts/native-direct-mcp.test.ts",
     "scripts/room-layout.test.ts",
     "scripts/room-inbox.test.ts",
     "scripts/room-layout-dom.test.ts",
