@@ -5,6 +5,7 @@ import {
   CreateRoomResult,
   CreateConnectionResult,
   MeResult,
+  OkResult,
 } from "../shared/schemas";
 import { nativeTestAgent } from "./native-test-mcp";
 import { localBrowserError } from "./native-browser-fixtures";
@@ -33,6 +34,7 @@ export async function auditDirectMcp(
       readerGrant: boolean;
       pageErrors: ReturnType<typeof localBrowserError>[];
       failure?: string;
+      cleanupFailure?: "archive" | "context";
     }[];
     sdk?: { version: string; sha256: string };
     failure?: string;
@@ -65,6 +67,7 @@ export async function auditDirectMcp(
       };
       evidence.variants.push(result);
       let context: BrowserContext | null = null;
+      let ownedRoom: string | null = null;
       try {
         const profile = await fixture.createProfile({
           lang: "en",
@@ -92,6 +95,7 @@ export async function auditDirectMcp(
         );
         assert(created.ok());
         const room = CreateRoomResult.parse(await created.json()).id;
+        ownedRoom = room;
         const remote = server.configure(variant, room, me.email);
         result.counters = remote.meter;
         const connected = await context.request.post(
@@ -156,12 +160,10 @@ export async function auditDirectMcp(
         });
         const allow =
           variant === "svelte"
-            ? page
-                .locator("[data-native-apps]")
-                .getByRole("button", {
-                  name: /^(Allow|Permitir)$/,
-                  exact: true,
-                })
+            ? page.locator("[data-native-apps]").getByRole("button", {
+                name: /^(Allow|Permitir)$/,
+                exact: true,
+              })
             : page.locator("#connReaderOpen");
         await expect(allow).toBeVisible();
         await page.waitForTimeout(600);
@@ -220,11 +222,30 @@ export async function auditDirectMcp(
         result.failure = error instanceof Error ? error.name : "UnknownError";
         failures.push(error);
       } finally {
+        if (context && ownedRoom) {
+          try {
+            const archive = await context.request.post(
+              `${fixture.base}/api/books/${ownedRoom}/archive`,
+              {
+                headers: { origin: fixture.base },
+                data: { archived: true },
+                timeout: 5000,
+              },
+            );
+            assert(archive.ok());
+            OkResult.parse(await archive.json());
+          } catch (error) {
+            result.status = "failed";
+            result.cleanupFailure = "archive";
+            failures.push(error);
+          }
+        }
         if (context)
           try {
             await context.close();
           } catch (error) {
             result.status = "failed";
+            result.cleanupFailure = "context";
             failures.push(error);
           }
         await writeFile(

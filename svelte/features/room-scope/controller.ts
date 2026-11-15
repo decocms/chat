@@ -314,28 +314,40 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const direct = createDirectMcp({
     current: () => current() && authority.current(),
     identity: (cid, signal) => guardApp(rawApps.identity(cid, signal)),
-    proxy: (cid, name, args, signal) => guardApp(rawApps.call(cid, name, args, signal)),
-    fetcher: browser.fetcher, clock,
+    proxy: (cid, name, args, signal) =>
+      guardApp(rawApps.call(cid, name, args, signal)),
+    fetcher: browser.fetcher,
+    clock,
   });
-  const changeConnection = <T>(cid: string, signal: AbortSignal, operation: () => Promise<T>) => {
+  const changeConnection = <T>(
+    cid: string,
+    signal: AbortSignal,
+    operation: () => Promise<T>,
+  ) => {
     direct.invalidate(cid);
-    if (!current() || !authority.current() || signal.aborted) return Promise.reject(Error("App is no longer active"));
+    if (!current() || !authority.current() || signal.aborted)
+      return Promise.reject(Error("App is no longer active"));
     return guardApp(operation());
   };
   const appApi: AppsApi = {
     identity: (cid, signal) => guardApp(rawApps.identity(cid, signal)),
     list: async (signal) => {
       const value = await guardApp(rawApps.list(signal));
-      if (current() && authority.current() && !signal.aborted) direct.sync(value.connections);
+      if (current() && authority.current() && !signal.aborted)
+        direct.sync(value.connections);
       return value;
     },
     create: (url, value, signal) =>
       guardApp(rawApps.create(url, value, signal)),
-    remove: (cid, signal) => changeConnection(cid, signal, () => rawApps.remove(cid, signal)),
-    refresh: (cid, signal) => changeConnection(cid, signal, () => rawApps.refresh(cid, signal)),
-    signout: (cid, signal) => changeConnection(cid, signal, () => rawApps.signout(cid, signal)),
+    remove: (cid, signal) =>
+      changeConnection(cid, signal, () => rawApps.remove(cid, signal)),
+    refresh: (cid, signal) =>
+      changeConnection(cid, signal, () => rawApps.refresh(cid, signal)),
+    signout: (cid, signal) =>
+      changeConnection(cid, signal, () => rawApps.signout(cid, signal)),
     ui: (cid, tool, signal) => guardApp(rawApps.ui(cid, tool, signal)),
-    call: (cid, tool, args, signal) => guardApp(direct.call(cid, tool, args, signal)),
+    call: (cid, tool, args, signal) =>
+      guardApp(direct.call(cid, tool, args, signal)),
     context: (cid, tool, text, signal) =>
       guardApp(rawApps.context(cid, tool, text, signal)),
   };

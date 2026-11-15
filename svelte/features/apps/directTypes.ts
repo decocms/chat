@@ -1,6 +1,8 @@
 import type { FetchLike } from "../../transport";
 export class DirectCancelled extends Error {
-  constructor() { super("App is no longer active"); }
+  constructor() {
+    super("App is no longer active");
+  }
 }
 export type DirectSession = {
   call(name: string, args: unknown, signal: AbortSignal): Promise<unknown>;
@@ -13,5 +15,7 @@ export type DirectSdkOptions = {
   signal: AbortSignal;
   fetcher: FetchLike;
 };
-export type DirectSdkModule = { connectDirectSdk(options: DirectSdkOptions): Promise<DirectSession> };
+export type DirectSdkModule = {
+  connectDirectSdk(options: DirectSdkOptions): Promise<DirectSession>;
+};
 export type ConnectionMode = "direct" | "proxy";

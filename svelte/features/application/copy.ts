@@ -20,8 +20,10 @@ export const applicationLocale = (
 const EN: Readonly<Record<string, string>> = {
   direto: "direct",
   "via vibebook": "via vibebook",
-  "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.": "Calls go from your browser straight to the server; vibebook only signs who you are.",
-  "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).": "Calls go through vibebook (the server doesn't allow direct calls, wants a sign-in, or the connection holds a token).",
+  "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.":
+    "Calls go from your browser straight to the server; vibebook only signs who you are.",
+  "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).":
+    "Calls go through vibebook (the server doesn't allow direct calls, wants a sign-in, or the connection holds a token).",
   "Toque pra ditar (ou segure espaço na caixa)":
     "Tap to dictate (or hold Space in the box)",
   "Uma versão está no ar; você pediu correções depois":

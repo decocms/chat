@@ -61,7 +61,8 @@ export function createAppsApi(roomId: string, fetcher?: FetchLike) {
     param = (cid: string) => ({ id, cid: encodeURIComponent(cid) });
   return {
     identity: (cid: string, signal: AbortSignal) =>
-      connections[":cid"].identity.$post({ param: param(cid) }, { init: { signal, cache: "no-store" } })
+      connections[":cid"].identity
+        .$post({ param: param(cid) }, { init: { signal, cache: "no-store" } })
         .then((value) => read(value, ConnectionIdentityResult)),
     list: (signal: AbortSignal) =>
       connections
