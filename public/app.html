@@ -1486,7 +1486,7 @@ const EN = {
   "direto": "direct",
   "via vibebook": "via vibebook",
   "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.": "Calls go from your browser straight to the server; vibebook only signs who you are.",
-  "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).": "Calls go through vibebook (the server doesn't allow direct calls, wants a sign-in, or the connection holds a token).",
+  "As chamadas passam pelo vibebook (o servidor não libera chamada direta ou você entrou nele com login).": "Calls go through vibebook (the server doesn't allow direct calls, or you signed in to it).",
   "Dono: {who}": "Owner: {who}",
   "clique pra trocar": "click to change",
   "Sem dono · clique pra escolher": "No owner · click to pick one",
@@ -6048,7 +6048,7 @@ function renderConnsMode() {
   document.querySelectorAll("[data-conn-mode]").forEach((el) => {
     const d = directMcp.get(JSON.stringify([S?.id, S?.me, el.dataset.connMode]));
     el.textContent = d === undefined ? "" : d ? t("direto") : t("via vibebook");
-    el.title = d ? t("As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.") : d === false ? t("As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).") : "";
+    el.title = d ? t("As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.") : d === false ? t("As chamadas passam pelo vibebook (o servidor não libera chamada direta ou você entrou nele com login).") : "";
   });
 }
 // An inline marker is authored content, never the reader's explicit Open grant.
