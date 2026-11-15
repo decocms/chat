@@ -67,6 +67,8 @@ records 1,477 matching module hashes, 1,381 changed hashes and 24 unknown keys.
 The [finite amendment](inventory-owners-9bae26a.json) preserves the historical
 111 owners, adds six file owners and records 52 exact-key source reviews with
 [per-candidate rationale](owner-review-9bae26a.md). No action is verified by this
-documentation work. The original reconciler's amended after-output is pending;
-expected counts must not be confused with a retained execution receipt.
+documentation work. The retained original-reconciler after-output confirms
+1,501 matching module hashes, 1,381 changed hashes, zero unknown keys and 52
+source-reviewed keys. All 2,882 action candidates remain pending: source review
+does not promote action verification.
 M0/F56 remain open, including the changed-source queue and actual action evidence.

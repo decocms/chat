@@ -6,7 +6,9 @@ The scan contains 2,085 function, 179 network, 94 endpoint, zero type-escape, 40
 
 The [amended manifest](../inventory-owners-9bae26a.json) preserves all 111 historical owner objects and adds six file owners. Three files account for the 24 unknown keys; the other three have no named candidates but still need explicit ownership. [Finite source reviews](../owner-review-9bae26a.md) link 52 exact candidate keys to source rationale and relevant existing regression source. No test was executed for this amendment, and no action is promoted to verified.
 
-An amended run of the **original** reconciler is pending. Expected counts are 1,501 module-mapped, 1,381 module-changed, zero unknown, 52 source-reviewed, zero action-verified and 2,830 action-pending. These are expectations, not a retained execution receipt. Preserve the before-output and write a new after-output:
+The original reconciler ran with Bun 1.4.4 on the clean exact 9bae26a BugMachine checkout, writing a new after-output without overwriting the before-output. The retained `reconciliation-after.json.gz` reports **1,501 module-mapped, 1,381 module-changed, zero unknown, 52 source-reviewed, zero action-verified and 2,882 action-pending**; there are no unmatched reviews and `f56Status` remains `pending`. The earlier estimate of 2,830 action-pending was incorrect: source review and action verification are independent, so source-reviewed entries still require action evidence. Both original and stored after-output hashes are in provenance.
+
+The execution used the original reconciler interface, with the exact captured inventory and amended manifest, and a fresh output path:
 
 ```sh
 bun scripts/reconcile-inventory.ts --inventory /path/to/exact/current.json --owners docs/svelte-migration/inventory-owners-9bae26a.json --out /new/path/reconciliation-after.json

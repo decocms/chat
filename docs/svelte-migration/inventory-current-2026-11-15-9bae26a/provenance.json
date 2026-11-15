@@ -50,7 +50,34 @@
       "storedBytes": 210731,
       "storedSHA256": "b4200aad22162f7474838a77f1b24b48e1034c249907bd0c9b54e5af0598ef95",
       "compression": "gzip restores exact original bytes"
+    },
+    {
+      "originalName": "reconciliation-after.json",
+      "path": "reconciliation-after.json.gz",
+      "originalBytes": 4396106,
+      "originalSHA256": "03bb77b7c3f70b3de08526989c7d55d9c0354bc66723386b6e9028ac541fd770",
+      "storedBytes": 211515,
+      "storedSHA256": "47efad6c9e37cfd49c49fd15d23b197554a3fb619eb0ead9314f35d6e8b5ab42",
+      "compression": "gzip restores exact original bytes"
     }
   ],
-  "limits": "Fresh original scanner output plus finite source review, not M0/F56/runtime/provider/hardware/performance/production acceptance. Official reconciler after-output pending."
+  "limits": "Fresh original scanner/reconciler outputs plus finite source review, not M0/F56/runtime/provider/hardware/performance/production acceptance. All 2882 actions remain pending; 52 exact source reviews do not promote action status.",
+  "after": {
+    "entries": 2882,
+    "moduleMapped": 1501,
+    "moduleChanged": 1381,
+    "unknown": 0,
+    "actionVerified": 0,
+    "sourceReviewed": 52,
+    "actionPending": 2882
+  },
+  "afterReceipt": {
+    "executor": "Original scripts/reconcile-inventory.ts, Bun 1.4.4, clean exact 9bae26a BugMachine checkout",
+    "reportedBy": "Parent verification owner",
+    "newOutput": true,
+    "originalBeforePreserved": true,
+    "unmatchedReviews": 0,
+    "f56Status": "pending",
+    "limit": "Source reviews do not verify actions: all 2882 action candidates remain pending."
+  }
 }
