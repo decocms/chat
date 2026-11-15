@@ -28,10 +28,7 @@ import type {
   EditorModule,
   EditorOptions,
 } from "../svelte/features/documents/types";
-import {
-  richText,
-  parseRichSource,
-} from "./rich-text-fixture";
+import { richText, parseRichSource } from "./rich-text-fixture";
 import { createRichSession } from "./rich-text-fixture";
 import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
 import {
@@ -46,7 +43,8 @@ import {
   createPeleLoader,
 } from "../svelte/features/documents/mermaid";
 import { createHtmlTree } from "../svelte/features/rich-text/htmlTree";
-const diagramNodes = (svg: string, ctx: RichContext) => projectDiagramNodes(svg, ctx, createHtmlTree);
+const diagramNodes = (svg: string, ctx: RichContext) =>
+  projectDiagramNodes(svg, ctx, createHtmlTree);
 const environment = new Window();
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
 Reflect.set(globalThis, "document", environment.document);

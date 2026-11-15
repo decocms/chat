@@ -12,16 +12,27 @@ export type TreeElement = {
   childNodes: TreeNode[];
 };
 export type TreeNode = TreeElement | TreeText | { nodeName: string };
-export type TreeFragment = { nodeName: "#document-fragment"; childNodes: TreeNode[] };
+export type TreeFragment = {
+  nodeName: "#document-fragment";
+  childNodes: TreeNode[];
+};
 export type MarkdownMetadata = {
   task?: boolean;
   language?: string;
   sourceStart?: number;
   sourceEnd?: number;
 };
-export type MarkdownTree = { fragment: TreeFragment; metadata: WeakMap<TreeElement, MarkdownMetadata> };
+export type MarkdownTree = {
+  fragment: TreeFragment;
+  metadata: WeakMap<TreeElement, MarkdownMetadata>;
+};
 export type MarkdownSink = {
-  tag(name: string, start: boolean, attrs?: TreeAttribute[], meta?: MarkdownMetadata): void;
+  tag(
+    name: string,
+    start: boolean,
+    attrs?: TreeAttribute[],
+    meta?: MarkdownMetadata,
+  ): void;
   text(value: string): void;
   raw(value: string): void;
   finish(): MarkdownTree;
@@ -30,21 +41,29 @@ export type HtmlTreeFactory = () => MarkdownSink;
 export type MarkdownTokens = ReturnType<typeof prepareMarkdown>;
 /** Lex once, retaining token identities used by verified document source spans. */
 export function prepareMarkdown(source: string, documentImages = false) {
-  const parsed = documentImages ? markdownSource(source) : {
-    tokens: Lexer.lex(source, { gfm: true, breaks: true }),
-    spans: new WeakMap<object, { start: number; end: number }>(),
-  };
+  const parsed = documentImages
+    ? markdownSource(source)
+    : {
+        tokens: Lexer.lex(source, { gfm: true, breaks: true }),
+        spans: new WeakMap<object, { start: number; end: number }>(),
+      };
   function rawHtml(values: Tokens.Generic[], depth = 0): boolean {
     if (depth > 48) throw Error("Rich token depth limit");
     let found = false;
     for (const value of values) {
       const token = value as KnownToken;
       if (token.type === "html") found = true;
-      if ("tokens" in token && token.tokens) found = rawHtml(token.tokens, depth + 1) || found;
-      if (token.type === "list") for (const item of token.items) found = rawHtml(item.tokens, depth + 1) || found;
+      if ("tokens" in token && token.tokens)
+        found = rawHtml(token.tokens, depth + 1) || found;
+      if (token.type === "list")
+        for (const item of token.items)
+          found = rawHtml(item.tokens, depth + 1) || found;
       if (token.type === "table") {
-        for (const cell of token.header) found = rawHtml(cell.tokens, depth + 1) || found;
-        for (const row of token.rows) for (const cell of row) found = rawHtml(cell.tokens, depth + 1) || found;
+        for (const cell of token.header)
+          found = rawHtml(cell.tokens, depth + 1) || found;
+        for (const row of token.rows)
+          for (const cell of row)
+            found = rawHtml(cell.tokens, depth + 1) || found;
       }
     }
     return found;
@@ -76,7 +95,10 @@ type KnownToken =
 
 /** Semantic Markdown creates balanced known HTML elements, with no DOM or HTML parsing. */
 function semanticSink(): MarkdownSink {
-  const fragment: TreeFragment = { nodeName: "#document-fragment", childNodes: [] },
+  const fragment: TreeFragment = {
+      nodeName: "#document-fragment",
+      childNodes: [],
+    },
     metadata = new WeakMap<TreeElement, MarkdownMetadata>(),
     stack: (TreeFragment | TreeElement)[] = [fragment];
   let emitted = 0;
@@ -84,12 +106,19 @@ function semanticSink(): MarkdownSink {
     tag(name, start, attrs = [], meta) {
       if (!start) {
         const top = stack.at(-1)!;
-        if (stack.length === 1 || !("tagName" in top) || top.tagName !== name) throw Error("Unbalanced semantic Markdown");
+        if (stack.length === 1 || !("tagName" in top) || top.tagName !== name)
+          throw Error("Unbalanced semantic Markdown");
         stack.pop();
         return;
       }
       if (++emitted > 4096) throw Error("Rich parser node limit");
-      const node: TreeElement = { nodeName: name, tagName: name, namespaceURI: HTML_NS, attrs, childNodes: [] };
+      const node: TreeElement = {
+        nodeName: name,
+        tagName: name,
+        namespaceURI: HTML_NS,
+        attrs,
+        childNodes: [],
+      };
       if (meta) metadata.set(node, meta);
       stack.at(-1)!.childNodes.push(node);
       if (!["br", "hr", "img"].includes(name)) stack.push(node);
@@ -101,7 +130,9 @@ function semanticSink(): MarkdownSink {
       if (last && "value" in last) last.value += value;
       else children.push({ nodeName: "#text", value });
     },
-    raw() { throw Error("Raw HTML requires prepared parser"); },
+    raw() {
+      throw Error("Raw HTML requires prepared parser");
+    },
     finish() {
       if (stack.length !== 1) throw Error("Unbalanced semantic Markdown");
       return { fragment, metadata };
@@ -109,7 +140,10 @@ function semanticSink(): MarkdownSink {
   };
 }
 /** Full raw-HTML parser is explicit and prepared before this synchronous call. */
-export function markdownTree(parsedSource: MarkdownTokens, full?: HtmlTreeFactory): MarkdownTree {
+export function markdownTree(
+  parsedSource: MarkdownTokens,
+  full?: HtmlTreeFactory,
+): MarkdownTree {
   if (parsedSource.html && !full) throw Error("HTML parser was not prepared");
   const sink = parsedSource.html ? full!() : semanticSink();
   const { documentImages } = parsedSource;

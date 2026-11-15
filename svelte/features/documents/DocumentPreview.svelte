@@ -5,7 +5,11 @@
   import type { DocumentProps } from "./types";
   import RichNodes from "../rich-text/RichNodes.svelte";
   import { createRichSession } from "../rich-text/session";
-  import { createRichPreparation, loadHtmlTree, type HtmlTreeLoader } from "../rich-text/preparation";
+  import {
+    createRichPreparation,
+    loadHtmlTree,
+    type HtmlTreeLoader,
+  } from "../rich-text/preparation";
   import RichPreparationStatus from "../rich-text/RichPreparationStatus.svelte";
   import { scopedRichFileIndex } from "../rich-text/fileContext";
   import type { DocumentSession } from "./session";
@@ -95,11 +99,25 @@
   onDestroy(() => session.dispose());
   const preparation = createRichPreparation({
     load: (signal) => (loadHtml ?? loadHtmlTree)(signal),
-    current: (input) => current() && input.source === text && input.scope === JSON.stringify([props.room.me, props.room.id, epic]),
+    current: (input) =>
+      current() &&
+      input.source === text &&
+      input.scope === JSON.stringify([props.room.me, props.room.id, epic]),
   });
   onDestroy(() => preparation.dispose());
-  const prepared = $derived(preparation.read({ source: text, mode: "markdown", policy: "document", scope: JSON.stringify([props.room.me, props.room.id, epic]) }));
-  const nodes = $derived($prepared.phase === "ready" ? session.project($prepared.parsed, context) : []);
+  const prepared = $derived(
+    preparation.read({
+      source: text,
+      mode: "markdown",
+      policy: "document",
+      scope: JSON.stringify([props.room.me, props.room.id, epic]),
+    }),
+  );
+  const nodes = $derived(
+    $prepared.phase === "ready"
+      ? session.project($prepared.parsed, context)
+      : [],
+  );
   const hasTasks = $derived(
     !!epic || (props.thread === "main" && !!props.room.roomTasks?.length),
   );
@@ -179,7 +197,11 @@
   data-vb-native
   class="tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-auto tw:p-4 tw:font-sans tw:text-foreground tw:break-words"
 >
-  {#if $prepared.phase !== "ready"}<RichPreparationStatus phase={$prepared.phase} retry={() => preparation.retry()} lang={props.lang} />{/if}
+  {#if $prepared.phase !== "ready"}<RichPreparationStatus
+      phase={$prepared.phase}
+      retry={() => preparation.retry()}
+      lang={props.lang}
+    />{/if}
   {#if !epic && props.room.docNotes?.length}<aside
       aria-label={props.lang === "en"
         ? "Document review"

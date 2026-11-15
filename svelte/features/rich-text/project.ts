@@ -1,4 +1,11 @@
-import type { TreeNode, TreeElement, TreeFragment, HtmlTreeFactory, MarkdownTokens, MarkdownTree } from "./markdownTree";
+import type {
+  TreeNode,
+  TreeElement,
+  TreeFragment,
+  HtmlTreeFactory,
+  MarkdownTokens,
+  MarkdownTree,
+} from "./markdownTree";
 import { emojify } from "../../../shared/emoji";
 import {
   HTML_TAGS,
@@ -142,15 +149,26 @@ export function prepareRichSource(
   const text = policy === "document" ? source : emojify(source);
   if (mode !== "markdown") return { text, mode };
   try {
-    return { text, mode, tokens: prepareMarkdown(text, policy === "document"), original: source };
+    return {
+      text,
+      mode,
+      tokens: prepareMarkdown(text, policy === "document"),
+      original: source,
+    };
   } catch {
     return { text: source, mode, literal: true };
   }
 }
-export type PreparedRichSource = Omit<ParsedRichSource, "tree"> & { tokens?: MarkdownTokens; original?: string };
+export type PreparedRichSource = Omit<ParsedRichSource, "tree"> & {
+  tokens?: MarkdownTokens;
+  original?: string;
+};
 /** Preparation/loading is outside this synchronous parser. Missing adapters are programmer errors,
  * never source-limit fallbacks or a signal to render valid HTML as literal content. */
-export function parsePreparedRichSource(prepared: PreparedRichSource, full?: HtmlTreeFactory): ParsedRichSource {
+export function parsePreparedRichSource(
+  prepared: PreparedRichSource,
+  full?: HtmlTreeFactory,
+): ParsedRichSource {
   const { text, mode, tokens } = prepared;
   if (!tokens) return prepared;
   if (tokens.html && !full) throw Error("HTML parser was not prepared");
@@ -178,7 +196,12 @@ export function parsePreparedRichSource(prepared: PreparedRichSource, full?: Htm
     return { text: prepared.original ?? text, mode, literal: true };
   }
 }
-export function parseRichSource(source: string, mode: RichMode, policy?: RichPolicy, full?: HtmlTreeFactory): ParsedRichSource {
+export function parseRichSource(
+  source: string,
+  mode: RichMode,
+  policy?: RichPolicy,
+  full?: HtmlTreeFactory,
+): ParsedRichSource {
   return parsePreparedRichSource(prepareRichSource(source, mode, policy), full);
 }
 export function richText(

@@ -2,7 +2,8 @@
   import { onDestroy, untrack } from "svelte";
   import type { RichContext, RichNode, RichActions } from "../rich-text/types";
   import RichNodes from "../rich-text/RichNodes.svelte";
-  import { renderDiagram } from "./mermaid";
+  import { renderDiagram, loadPele } from "./mermaid";
+  import { loadHtmlTree } from "../rich-text/preparation";
   let {
     source,
     context,
@@ -56,10 +57,18 @@
       host = container;
     const available = width;
     if (!host || available === 0) return;
-    const ticket = ++revision;
+    const ticket = ++revision,
+      abort = new AbortController();
     loading = true;
     error = false;
-    void renderDiagram(text, ctx, available - 32)
+    void renderDiagram(
+      text,
+      ctx,
+      available - 32,
+      loadPele,
+      loadHtmlTree,
+      abort.signal,
+    )
       .then((value) => {
         if (active && ticket === revision) {
           nodes = value;
@@ -74,6 +83,7 @@
         }
       });
     return () => {
+      abort.abort();
       ++revision;
     };
   });

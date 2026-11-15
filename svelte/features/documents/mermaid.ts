@@ -1,4 +1,8 @@
-import { loadHtmlTree, type HtmlTreeLoader } from "../rich-text/preparation";
+import {
+  loadHtmlTree,
+  acquireHtmlTree,
+  type HtmlTreeLoader,
+} from "../rich-text/preparation";
 import type { HtmlTreeFactory } from "../rich-text/markdownTree";
 import { richText } from "../rich-text/project";
 import { SVG_NS } from "../rich-text/allowlist";
@@ -119,7 +123,11 @@ const paint = new Set([
   "text-decoration",
 ]);
 /** Treat renderer output as untrusted SVG; never insert its HTML/CSS or active nodes. */
-export function diagramNodes(svg: string, context: RichContext, full: HtmlTreeFactory): RichNode[] {
+export function diagramNodes(
+  svg: string,
+  context: RichContext,
+  full: HtmlTreeFactory,
+): RichNode[] {
   if (svg.length > 65536) throw Error("Diagram output limit");
   function clean(nodes: RichNode[]): RichNode[] {
     return nodes.flatMap((node) => {
@@ -169,17 +177,20 @@ export async function renderDiagram(
   width: number,
   load = loadPele,
   loadHtml: HtmlTreeLoader = loadHtmlTree,
+  signal?: AbortSignal,
 ) {
   if (source.length > 16000) throw Error("Diagram source limit");
-  const pele = await load(),
-    result: unknown = pele.render(source, {
-      idPrefix: `diagram-${context.idPrefix.replace(/[^a-z0-9_-]/gi, "-")}-`,
-      fontFamily: "sans-serif",
-      fontSize: 14,
-      maxWidth: Math.max(160, Math.min(1600, width)),
-      links: false,
-      images: false,
-    });
+  if (signal?.aborted) throw Error("Diagram render cancelled");
+  const pele = await load();
+  if (signal?.aborted) throw Error("Diagram render cancelled");
+  const result: unknown = pele.render(source, {
+    idPrefix: `diagram-${context.idPrefix.replace(/[^a-z0-9_-]/gi, "-")}-`,
+    fontFamily: "sans-serif",
+    fontSize: 14,
+    maxWidth: Math.max(160, Math.min(1600, width)),
+    links: false,
+    images: false,
+  });
   if (
     typeof result !== "object" ||
     result === null ||
@@ -187,6 +198,6 @@ export async function renderDiagram(
     typeof result.svg !== "string"
   )
     throw Error("Diagram output unavailable");
-  const full = await loadHtml(new AbortController().signal);
+  const full = await acquireHtmlTree(loadHtml, signal);
   return diagramNodes(result.svg, context, full);
 }

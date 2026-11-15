@@ -1,15 +1,22 @@
-import { Parser, Token, html, defaultTreeAdapter, type DefaultTreeAdapterMap } from "parse5";
-import type { MarkdownMetadata, MarkdownSink, TreeElement } from "./markdownTree";
+import {
+  Parser,
+  Token,
+  html,
+  defaultTreeAdapter,
+  type DefaultTreeAdapterMap,
+} from "parse5";
+import type {
+  MarkdownMetadata,
+  MarkdownSink,
+  TreeElement,
+} from "./markdownTree";
 /** Pinned parse5 8.1.1 adapter. One stack retains split tags, namespaces and HTML repair.
  * Token-event helpers are @internal exports, confined here; no serialization or protected methods.
  */
 export function createHtmlTree(): MarkdownSink {
   let emitted = 0;
   let pending: { tag: string; metadata: MarkdownMetadata } | undefined;
-  const metadata = new WeakMap<
-    TreeElement,
-    MarkdownMetadata
-  >();
+  const metadata = new WeakMap<TreeElement, MarkdownMetadata>();
   const adapter = {
     ...defaultTreeAdapter,
     createElement(
@@ -63,8 +70,16 @@ export function createHtmlTree(): MarkdownSink {
       else parser.onCharacter(token);
     }
   }
-  return { tag, text,
-    raw(value) { parser.tokenizer.write(value, false); flush(); },
-    finish() { parser.tokenizer.write("", true); return { fragment: parser.getFragment(), metadata }; },
+  return {
+    tag,
+    text,
+    raw(value) {
+      parser.tokenizer.write(value, false);
+      flush();
+    },
+    finish() {
+      parser.tokenizer.write("", true);
+      return { fragment: parser.getFragment(), metadata };
+    },
   };
 }
