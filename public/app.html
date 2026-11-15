@@ -857,6 +857,7 @@
   .conn { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--panel); display: grid; gap: 10px; }
   .connTop { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .connTop small { color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .connTop small.connMode { flex: none; color: var(--accent); } .connTop small.connMode:empty { display: none; }
   .connTop button { width: 28px; height: 28px; padding: 0; border-radius: 50%; flex: none; justify-content: center; }
   .cScope { font: 600 11px/1 "Schibsted Grotesk", sans-serif; padding: 4px 7px; border-radius: 99px; background: var(--hover); color: var(--ink); white-space: nowrap; }
   .cScope.me { background: var(--claude); color: #fff; }
@@ -1480,6 +1481,10 @@ async function whisper(blob) {
   return r.ok ? (r.text || "").trim() : "";
 }
 const EN = {
+  "direto": "direct",
+  "via vibebook": "via vibebook",
+  "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.": "Calls go from your browser straight to the server; vibebook only signs who you are.",
+  "As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).": "Calls go through vibebook (the server doesn't allow direct calls, wants a sign-in, or the connection holds a token).",
   "Dono: {who}": "Owner: {who}",
   "clique pra trocar": "click to change",
   "Sem dono · clique pra escolher": "No owner · click to pick one",
@@ -5677,12 +5682,13 @@ function renderConns() {
       <div class="acts"><button type="button" id="connCancel">${t("Cancelar")}</button><button class="primary">${t("Conectar")}</button></div></form>` : ""}
     <div class="conn"><div class="connTop"><b>${t("Esta sala")}</b><span class="cScope">${t("da sala")}</span><small>apps/*.html</small></div>
       ${rapps.length ? appBtns("room", rapps) : `<small class="mute">${t("Um app da sala é um arquivo HTML em apps/ que usa a sala pelo iframe: lê o doc, as tarefas e as mensagens, posta e mexe nas tarefas (com o seu OK). Peça pro seu agent: “faz um app apps/enquete.html pra esta sala”.")}</small>`}</div>
-    ${conns.map((c) => `<div class="conn"><div class="connTop"><b>${esc(c.title)}</b>${scopeChip(c)}<small>${esc(c.host)} · ${esc(name(c.owner))}</small>
+    ${conns.map((c) => `<div class="conn"><div class="connTop"><b>${esc(c.title)}</b>${scopeChip(c)}<small>${esc(c.host)} · ${esc(name(c.owner))}</small><small class="connMode" data-conn-mode="${c.id}"></small>
         <button type="button" class="ghost" data-conn-ref="${c.id}" title="${t("Atualizar")}" aria-label="${t("Atualizar")}">↻</button>${c.mine ? `<button type="button" class="ghost" data-conn-del="${c.id}" title="${t("Remover conexão")}" aria-label="${t("Remover conexão")}">${icon("x", 14)}</button>` : ""}</div>
         ${c.auth === "identity" ? (c.signed_in
           ? `<small class="mute connWho">${t("Você entrou em {host} com a sua conta.", { host: esc(c.host) })} <button type="button" class="link" data-conn-out="${c.id}">${t("Sair")}</button></small>`
           : `<div class="connSign"><small>${t("Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.", { host: esc(c.host) })}</small><a class="primary" href="/api/books/${S.id}/connections/${c.id}/signin">${t("Entrar em {host}", { host: esc(c.host) })}</a></div>`) : ""}
         ${c.apps.length ? (() => { const sc = c.apps.filter((a) => a.screen), few = sc.length && !connMore.has(c.id); return appBtns(c.id, few ? sc : c.apps) + (sc.length && sc.length < c.apps.length ? `<button type="button" class="link connMore" data-conn-more="${c.id}">${few ? t("ver todas ({n})", { n: c.apps.length }) : t("só as telas")}</button>` : ""); })() : `<small class="mute">${t("{n} tools, nenhum app", { n: c.tools.length })}</small>`}</div>`).join("")}`;
+  renderConnsMode();
   const f = document.getElementById("connForm");
   if (f && keep) for (const [k, v] of Object.entries(keep)) if (f.elements[k] && k !== "scope") f.elements[k].value = v;
   document.getElementById("connAdd")?.addEventListener("click", () => { connForm = true; renderConns(); document.querySelector('#connForm [name="url"]')?.focus(); });
@@ -5800,7 +5806,7 @@ async function vbCall(name, a = {}, ask) {
       // Always asked, read-only or not: readOnlyHint is the remote server's word, and an embed calling a connection of
       // yours could read your data through it and pass it on (security review, Nov 2026).
       if (!(await ask(t("usar {tool} em {conn}", { tool: tl.name, conn: c.title }), JSON.stringify(a.arguments || {})))) return { isError: true, content: [{ type: "text", text: "cancelled" }] };
-      return (await api(`/api/books/${S.id}/connections/${c.id}/call`, { name: tl.name, arguments: a.arguments || {} })).result;
+      return connCall(c, tl.name, a.arguments || {});
     }
   }
   return { isError: true, content: [{ type: "text", text: `unknown tool ${name}` }] };
@@ -5876,6 +5882,51 @@ addEventListener("message", (e) => {
   if (d.vbEmbed === 1) return embedHost(fr)(typeof d.h === "number" ? { method: "ui/notifications/size-changed", params: { height: d.h } } : { method: "ui/message", params: { content: [{ type: "text", text: String(d.send || "") }] } });
   if (d.jsonrpc === "2.0" && typeof d.method === "string") (hosts.get(fr) || embedHost(fr))(d);
 });
+// Modo direto (Gui #2532): a tool call goes from this page straight to the MCP server, with the identity vibebook signs
+// (POST …/identity: email, room, aud = the server's URL, 5 min), so the content doesn't pass through vibebook. A server
+// that doesn't allow this origin (CORS), wants a sign-in, or a connection that holds a secret goes through /call as before.
+// Only a failed start falls back: once the session is up, an error is the call's answer (never sent twice).
+const directMcp = new Map(); // connection id → { url, identity, exp, session } | false (use the proxy)
+async function connCall(c, name, args) {
+  const proxy = () => api(`/api/books/${S.id}/connections/${c.id}/call`, { name, arguments: args }).then((r) => r.result);
+  let d = directMcp.get(c.id);
+  if (d === false) return proxy();
+  try {
+    if (!d || d.exp < Date.now() + 30e3) {
+      const r = await api(`/api/books/${S.id}/connections/${c.id}/identity`, {});
+      if (!r.direct) throw new Error(r.why || "proxy");
+      d = { url: r.url, identity: r.identity, exp: Date.now() + r.expires_in * 1000, session: d?.session ?? null };
+    }
+  } catch { directMcp.set(c.id, false); renderConnsMode(); return proxy(); }
+  const post = (body) => fetch(d.url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "x-vibebook-identity": d.identity, ...(d.session ? { "mcp-session-id": d.session } : {}) }, body: JSON.stringify(body) });
+  const read = async (res, id) => {
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+    const msg = (res.headers.get("content-type") || "").includes("event-stream")
+      ? (await res.text()).split("\n").filter((l) => l.startsWith("data:")).map((l) => { try { return JSON.parse(l.slice(5)); } catch { return null; } }).find((m) => m?.id === id)
+      : await res.json();
+    if (msg?.error) throw new Error(msg.error.message || "error");
+    return msg?.result;
+  };
+  if (d.session === null) {
+    try {
+      const r = await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "vibebook", version: "1" } } });
+      await read(r, 1);
+      d.session = r.headers.get("mcp-session-id") || "";
+      post({ jsonrpc: "2.0", method: "notifications/initialized" }).catch(() => {});
+    } catch { directMcp.set(c.id, false); renderConnsMode(); return proxy(); } // CORS refused (never sent), 401, …
+  }
+  directMcp.set(c.id, d); renderConnsMode();
+  const id = Date.now();
+  return read(await post({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }), id);
+}
+// "direto" / "via vibebook" on each connection card, once this page has called it.
+function renderConnsMode() {
+  document.querySelectorAll("[data-conn-mode]").forEach((el) => {
+    const d = directMcp.get(el.dataset.connMode);
+    el.textContent = d === undefined ? "" : d ? t("direto") : t("via vibebook");
+    el.title = d ? t("As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.") : d === false ? t("As chamadas passam pelo vibebook (o servidor não libera chamada direta, pede login ou a conexão guarda um token).") : "";
+  });
+}
 async function mountApp(frame, c, a, askBox) {
   const room = c.id === "room", base = `/api/books/${S.id}/connections/${c.id}`;
   const ask = askBox || (() => document.getElementById("appAsk"));
@@ -5887,7 +5938,7 @@ async function mountApp(frame, c, a, askBox) {
   let ui;
   try { ui = await api(`${base}/ui?tool=${encodeURIComponent(a.tool)}`); }
   catch (e) { const d = document.createElement("div"); d.className = "empty"; d.textContent = e.message; frame.replaceWith(d); return; }
-  const call = (name, args) => api(`${base}/call`, { name, arguments: args }).then((r) => r.result);
+  const call = (name, args) => connCall(c, name, args);
   const first = call(a.tool, {}).catch((e) => ({ isError: true, content: [{ type: "text", text: e.message }] }));
   hosts.set(frame, makeHost(frame, { ask, call, first, tool: ui.tool, base, toolName: a.tool }));
   frame.srcdoc = ui.html;

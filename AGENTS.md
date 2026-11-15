@@ -1,5 +1,7 @@
 # vibebook
 
+**Design rule (Gui #2608, Nov 2026): vibebook is a collaboration surface, not an MCP proxy and not a vault.** It never calls someone's MCP server on their behalf and never keeps their credentials. Machines and sandboxes dial in to vibebook (the arrow points here): your Claude on your computer, a cloud sandbox, a browser tab. A tool call goes from the person's own client straight to the MCP server; vibebook only signs who you are and which room (`X-Vibebook-Identity`). So a breach of vibebook gives an attacker nowhere to climb and no credential to steal. New features keep it that way: no token storage, no server-side calls into someone's tools.
+
 Project room: https://vibebook.dev/b/f94aedb83899 (report progress there: see the plugin's `vibebook` skill).
 
 Browser architecture: vanilla remains default in `public/app.html`, with its existing Inbox (`public/svelte/ui.js`) and editor (`public/collab.js`) assets. Svelte is explicit opt-in via `?ui=svelte`; its shell is `public/app-svelte.html`, stylesheet `public/app-svelte.css`, modules `public/svelte-preview/*.js` and editor `public/collab-svelte.js`. Preview builds must not overwrite vanilla assets. See `docs/svelte-rollout-plan.md` and `docs/client-server-boundary.md`. Shared contracts live in `shared/`; backend implementation stays in `src/`. Rebuild/commit all preview chunks and shell after frontend changes. No default switch or removal of vanilla without explicit acceptance.

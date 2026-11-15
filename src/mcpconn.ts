@@ -6,7 +6,7 @@
 //   sent from the Worker to that server: never to the browser, the iframe or an agent.
 // - The app's HTML (`ui://` resource) is served with a CSP built from the resource's own `_meta.ui.csp` and runs in an
 //   opaque-origin iframe (srcdoc, sandbox allow-scripts); its tools/call go through the host page to /call here.
-// - Agents: MCP tools `connections`, `app_call`, `app_open` (src/agent.ts).
+// - Agents: MCP tools `connections`, `app_open` (src/agent.ts). No app_call: vibebook is not an MCP proxy (Gui #2608).
 import * as z from "zod/mini";
 import { ConnectionContext } from "../shared/schemas";
 import { uiNavigationUrl, uiVariant } from "../shared/uiVariant";
@@ -249,6 +249,19 @@ export function mountConnections(app: any, deps: { isMember: (db: D1Database, id
   const conn = async (c: any) => getConn(c.env, c.req.param("id"), c.req.param("cid"), c.get("email"));
   const who = (c: any): Who => ({ email: c.get("email"), room: c.req.param("id"), origin: new URL(c.req.url).origin });
 
+  // Modo direto (Gui #2532): the page calls the MCP server itself with this signed identity, so the content never passes
+  // through vibebook. Only when no secret is involved: an old pasted token or this person's OAuth grant stays on the
+  // server, and those connections keep going through /call.
+  app.post("/api/books/:id/connections/:cid/identity", async (c: any) => {
+    const no = await guard(c); if (no) return no;
+    const x = await conn(c); if (!x) return c.json({ error: "conexão não encontrada" }, 404);
+    if (!(await c.env.AGENT_LIMIT.limit({ key: `ident:${c.get("email")}` })).success) return c.json({ error: "rate limited" }, 429);
+    const w = who(c);
+    if (x.enc && x.iv) return c.json({ direct: false, why: "token" });
+    if (await c.env.DB.prepare(`SELECT 1 FROM mcp_grants WHERE email = ? AND resource = ?`).bind(w.email, x.url).first()) return c.json({ direct: false, why: "signed_in" });
+    c.executionCtx.waitUntil(deps.track(c.env, "mcp_identity", { user: w.email, dims: { book: w.room, host: new URL(x.url).host } }));
+    return c.json({ direct: true, url: x.url, identity: await identityJwt(c.env, w.origin, { email: w.email, room: w.room, aud: x.url }), expires_in: 300 });
+  });
   // Sign in on a connection's server (OAuth per person): the browser goes to its consent page and comes back here.
   app.get("/api/books/:id/connections/:cid/signin", async (c: any) => {
     const no = await guard(c); if (no) return no;
