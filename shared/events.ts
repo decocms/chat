@@ -86,6 +86,8 @@ export const RoomEventSchemas = {
   openSide: event("openSide", { file: AttachmentSchema }),
   // An agent opened an app for its human (MCP app_open; a room app it just uploaded): ref = "<connection>/<tool>" or "room/<name>".
   openApp: event("openApp", { ref: str }),
+  // An agent opened a doc beside the chat for its human (MCP open_doc): epic = its id, or "" for the room's doc.
+  openDoc: event("openDoc", { epic: str }),
   reminders: event("reminders", { reminders: z.array(ReminderSchema) }),
   decisions: event("decisions", { decisions: z.array(DecisionSchema) }),
   pins: event("pins", { pins: z.array(PinSchema) }),

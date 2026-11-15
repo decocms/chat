@@ -39,7 +39,7 @@ import {
 import { createRoomMutations } from "../room-sidebar/session";
 import { suggestionIdentity, suggestionAt } from "../room-sidebar/model";
 import { createDocumentSession } from "../documents/session";
-import { appendDocumentApp } from "../documents/appMarkers";
+import { appendDocumentApp, documentEmbedsApp } from "../documents/appMarkers";
 import { createAppsSession } from "../apps/session";
 import {
   createAppsApi,
@@ -510,6 +510,28 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       return;
     setPane("apps", { open: true });
     if (current()) apps.open(captured, { requireOpeningConsent });
+  }
+  function openAgentDocument(epic: string) {
+    if (!current() || defer(() => openAgentDocument(epic))) return;
+    if (epic && !room()!.epics.some((entry) => entry.id === epic)) {
+      showNotice(t("Esse épico não existe mais nesta sala."));
+      return;
+    }
+    if (epic && selected() !== epic) pickThread(epic);
+    if (!current() || (epic && selected() !== epic)) return;
+    // The room doc can open alongside the current epic's conversation.
+    document.chooseRoom(!epic);
+    if (current()) setPane("doc", { open: true });
+  }
+  function openAgentApp(target: AppTarget) {
+    const captured = { ...target };
+    if (!current() || defer(() => openAgentApp(captured))) return;
+    if (
+      document.authorized() &&
+      documentEmbedsApp(get(document.state).text, captured)
+    )
+      setPane("doc", { open: true });
+    else openApp(captured, true);
   }
   function openAppRoute(target: AppRouteTarget) {
     if (
@@ -1246,10 +1268,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       canonical = room()!;
     if (event.t === "older") viewport.older(event);
     else if (event.t === "openSide") openSideFile(event.file);
+    else if (event.t === "openDoc") openAgentDocument(event.epic);
     else if (event.t === "openApp") {
       const target = appRouteTarget("#app:" + event.ref);
-      if (target?.tool !== undefined)
-        openApp({ connection: target.connection, tool: target.tool }, true);
+      if (target?.tool !== undefined) {
+        openAgentApp({ connection: target.connection, tool: target.tool });
+      }
     } else if (event.t === "doc" && event.stale)
       document.invalidate(event.epic);
     else if (event.t === "suggestions" && selected().startsWith("pre:")) {

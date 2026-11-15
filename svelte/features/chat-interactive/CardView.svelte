@@ -20,13 +20,19 @@
     room,
     actions,
     vb,
+    readOnly = false,
   }: {
     card: Card;
-    message: Message;
     room: Room;
-    actions: ChatActions;
-    vb: ChatBridge;
-  } = $props();
+    vb: Pick<ChatBridge, "t">;
+  } & (
+    | { readOnly?: false; message: Message; actions: ChatActions }
+    | {
+        readOnly: true;
+        message?: never;
+        actions: Pick<ChatActions, "navigate" | "navigateRich" | "openApp">;
+      }
+  ) = $props();
   let active = true,
     status = $state(idleState()),
     expanded = $state<string | null>(null);
@@ -41,33 +47,43 @@
       });
   });
   const session = untrack(() =>
-    createInteractiveSession(room.id, message.id, (next) => (status = next)),
+    !readOnly && message
+      ? createInteractiveSession(room.id, message.id, (next) => (status = next))
+      : null,
   );
   $effect(() => {
     const snapshot = room;
-    untrack(() => session.sync(snapshot));
+    untrack(() => session?.sync(snapshot));
   });
   onDestroy(() => {
     active = false;
-    session.dispose();
+    session?.dispose();
   });
   const root = $derived(card.elements[card.root]);
   const title = $derived(
     root.type === "Card" ? root.props.title || vb.t("Tabela") : vb.t("Tabela"),
   );
-  const answer = $derived(answerOf(room, message));
-  const actionable = $derived(canAnswer(room, message));
+  const answer = $derived(
+    !readOnly && message ? answerOf(room, message) : undefined,
+  );
+  const actionable = $derived(
+    !readOnly && !!message && canAnswer(room, message),
+  );
   const busy = $derived(
     status.phase === "pending" || status.phase === "unconfirmed",
   );
   function reply(value: string, event: MouseEvent) {
+    const request = "request" in actions ? actions.request : undefined;
     if (
       active &&
+      !readOnly &&
+      session &&
+      request &&
       event.currentTarget instanceof HTMLElement &&
       event.currentTarget.isConnected &&
       actionable
     )
-      void session.reply(value, actions.request);
+      void session.reply(value, request);
   }
   function navigate(url: string, event: MouseEvent) {
     if (
@@ -214,6 +230,7 @@
 {/snippet}
 <div
   data-native-card
+  data-native-card-readonly={readOnly || undefined}
   data-vb-native
   class="tw:space-y-2 tw:font-sans tw:text-sm tw:text-foreground"
 >

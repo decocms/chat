@@ -51,6 +51,14 @@ export function documentAppMarkers(source: string): DocumentAppMarker[] {
       counts.get(JSON.stringify([entry.connection, entry.tool])) ?? 0;
   return result;
 }
+/** Only legal standalone App paragraphs select the document. A prefix match in
+ * prose, code or another tool's name must not redirect a newly uploaded app. */
+export function documentEmbedsApp(source: string, target: AppTarget): boolean {
+  return documentAppMarkers(source).some(
+    (entry) =>
+      entry.connection === target.connection && entry.tool === target.tool,
+  );
+}
 export function resizeDocumentApp(
   source: string,
   expected: DocumentAppMarker,

@@ -2802,6 +2802,120 @@ test("phone edge observes installed Back without consuming browser gestures or r
   }
 });
 
+test("fenced document cards reuse native presentation read-only, including nested cards and malformed fallback", async () => {
+  const card = {
+    root: "c",
+    elements: {
+      c: {
+        type: "Card",
+        props: { title: "Document result" },
+        children: ["text", "actions"],
+      },
+      text: {
+        type: "Text",
+        props: { content: "Safe <img src=x onerror=evil()>" },
+      },
+      actions: { type: "Actions", children: ["answer", "link"] },
+      answer: { type: "Button", props: { label: "Do it", value: "write" } },
+      link: { type: "LinkButton", props: { label: "Epic", url: "#eabcd" } },
+    },
+  };
+  const raw = JSON.stringify(card),
+    fence = "```card\n" + raw + "\n```";
+  const room = {
+    ...fixture(),
+    epics: [
+      ...fixture().epics,
+      { id: "abcd", title: "Card destination", tasks: [] },
+    ],
+    doc:
+      fence +
+      "\n\n> " +
+      fence.replaceAll("\n", "\n> ") +
+      "\n\n```card\n{broken-json}\n```",
+  };
+  const commands: RoomCommand[] = [],
+    navigated: unknown[] = [];
+  const owner = createDocumentSession({
+    drafts: createDocumentDrafts(),
+    request: async (command) => {
+      commands.push(command);
+      return { ok: true };
+    },
+    name: () => "Member",
+    color: () => "#123456",
+  });
+  owner.sync(room, "main", true, true, 1);
+  const props: DocumentProps = {
+    room,
+    thread: "main",
+    lang: "en",
+    pane: "doc",
+    send: () => true,
+    taskProps: {
+      room,
+      thread: "main",
+      vb,
+      send: () => true,
+      request: async (command) => {
+        commands.push(command);
+        return { ok: true };
+      },
+    },
+    actions: {
+      navigate() {},
+      openFile() {},
+      navigateRich: (target) => navigated.push(target),
+    },
+    onPane() {},
+    onAuthorize() {},
+  };
+  const target = document.createElement("div");
+  document.body.append(target);
+  const view = mountView("document", target, { owner, props });
+  active.push(view);
+  try {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      await tick();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      flushSync();
+      if (target.querySelectorAll("[data-native-card-readonly]").length === 2)
+        break;
+    }
+    expect(target.querySelectorAll("[data-native-card-readonly]").length).toBe(
+      2,
+    );
+    expect(target.textContent).toContain("Document result");
+    expect(target.textContent).toContain("Safe <img src=x onerror=evil()>");
+    expect(
+      target.querySelector("img,script,[data-native-card-answer]") === null,
+    ).toBe(true);
+    expect(target.querySelector("pre code")?.textContent).toContain(
+      "{broken-json}",
+    );
+    const link = [
+      ...target.querySelectorAll<HTMLButtonElement>(
+        "[data-native-card-readonly] button",
+      ),
+    ].find((button) => button.textContent?.includes("Epic"));
+    expect(link !== undefined).toBe(true);
+    link!.click();
+    expect(navigated).toEqual([{ kind: "thread", id: "abcd" }]);
+    for (const node of target.querySelectorAll<HTMLElement>(
+      "[data-native-card-readonly] span",
+    ))
+      node.click();
+    expect(commands.filter((command) => command.t === "msg")).toEqual([]);
+    owner.sync({ ...room, members: [] }, "main", true, true, 1);
+    expect(link!.isConnected).toBe(true);
+    link!.click();
+    expect(navigated).toHaveLength(1);
+  } finally {
+    owner.dispose();
+    target.remove();
+  }
+}, 30_000);
+
 test("native document task slots dispose across suggestion scope and detached controls cannot write", async () => {
   const room = fixture();
   room.doc = "# Room document";
@@ -4573,6 +4687,9 @@ describe("native composer ownership and interactions", () => {
     await tick();
     await tick();
     expect(reads).toBe(1);
+    flushSync();
+    expect(mic().getAttribute("aria-busy")).toBe("true");
+    expect(mic().title).toBe("Toque pra ditar (ou segure espaço na caixa)");
     expect(commands).toHaveLength(0);
     resolve("corrected");
     await tick();
@@ -4580,6 +4697,7 @@ describe("native composer ownership and interactions", () => {
     flushSync();
     const input = target.querySelector<HTMLTextAreaElement>("textarea")!;
     expect(input.value).toBe("base corrected");
+    expect(mic().getAttribute("aria-busy")).not.toBe("true");
     expect(commands).toHaveLength(0);
     input.dispatchEvent(
       new KeyboardEvent("keydown", {

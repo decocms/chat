@@ -42,7 +42,7 @@ Workflow:
 - When you need your human to pick between options or say yes/no ("do I do it?", which files to delete, which approach), post the question with choices (a yes/no gets e.g. ["Sim, faz", "Não", "Ajustar antes"]) (and multi: true for several): the room shows buttons and their pick arrives as their message replying to yours. Don't ask them to type numbers.
 - Every message from your human gets an ack (doing when you pick it up, done when finished, idle when it needs nothing from you): read_room lists the ones from the last 48h that none of your human's agents acked as unacked, so nothing you skipped stays hidden. A short answer (no work to deliver) goes out as a post with reply_to = their message: that closes your ack; work you deliver gets done: true. Read every new message read_room returns, not only the last few: two can arrive seconds apart. When post returns unread_from_your_human, your human wrote that while you worked: handle it before going on. When you notice you failed (you skipped or ignored a message of your human's, a tool call failed and you gave up, you reported something wrong), call report_issue right away with what happened, then fix it and say so in the room.
 - A request is an epic, almost always: when your human asks you for a piece of work, (1) start_epic for it with 2-5 concrete tasks (each one checkable), (2) post in the epic (thread = its id) how you'll do it in 2-4 lines, or the question that blocks you if something is unclear, (3) unless you asked something, do it right away without waiting for an OK, moving each task to doing and done as you go, (4) post the result with done: true. If the work ships somewhere (deploy, publish, release): once it's out, update_epic prod: "deployed"; then open it in production, check it really works, and update_epic prod: "verified" with prod_note saying what you checked (URL, what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod". With every task done the epic archives itself and shows as finished; if your human writes in it again, it reopens: add the new tasks there and run the same loop. Only quick answers and clarifications stay where they were asked. An epic you worked in archives itself only once every task is done AND the thread has your delivery (done: true) saying what you tested, plus a screenshot when there's something to see (upload it with thread = the epic id); verification that needs a person = a task in review with its owner, which keeps the epic open.
-- Pick the format for each answer (Gui #2569): numbers, status, tables, charts or a decision with buttons = post with a native card (never a markdown table); a page to look at (a report, a mockup, something made from a meeting) = upload_file an .html, which opens beside the chat for your human by itself (fire_card / a new upload rewrites it as you go); anything else = short markdown. Switch format when another fits better.
+- Answer in the doc beside the chat (Gui #2589, #2592): when your human asks a question or for an analysis, start_epic for it, open_doc with its epic_id (the doc opens to their right), and write the answer into that epic's doc with update_doc as you go, so it fills in live; in the chat post one line pointing to it. Simple answer (numbers, status, a table, a chart) = a \`\`\`card fenced block with the card's JSON (same spec as post's card) inside the doc; complex one (a page, a mockup, an interactive view) = first a line [[app:room/<name>]] in the doc, then upload_file apps/<name>.html (it shows up there, embedded), where it runs embedded; otherwise short markdown. Then keep talking in the chat and improve what's in the doc with each turn (update_doc again; uploading the same apps/<name>.html updates it). Never a markdown table where a card fits.
 - Deploy banner (required): every push to main that deploys, and every CLI publish, gets one native banner in the room's main thread once the build is green: post with thread \"main\" and a card (Card titled \"🚀 No ar · <commit or version>\", one Field per change a person would notice, Actions with a LinkButton to each epic it came from (#e<epic id>) and one to the commit). Not a plain text line.
 - Progress reports: when you work on something that belongs to a room (the repo has a .vibebook file with room_id, or your human said so), the room is the team's live channel. Post short updates with links: starting a task (set_task_status doing), an important commit, a PR ready for review (who should review it; task to review), a deploy or shipped change (task to done), a blocker and who you need. Skip routine steps and WIP pushes.`;
 
@@ -382,6 +382,15 @@ const TOOLS = [
       type: "object",
       properties: { room_id: { type: "string" }, file_id: { type: "string", description: "the file's id (upload_file's file.id, read_room files[].id) or its URL" } },
       required: ["room_id", "file_id"],
+    },
+  },
+  {
+    name: "open_doc",
+    description: "Open a doc beside the chat for your human, in the room tabs they have open: an epic's doc (epic_id) or the room's (no epic_id). The way to answer a question or an analysis: start_epic, open_doc, then write the answer into that doc with update_doc (a ```card block for a simple one, a [[app:room/<name>]] line of an apps/<name>.html for a complex one); it shows up live as you write.",
+    inputSchema: {
+      type: "object",
+      properties: { room_id: { type: "string" }, epic_id: { type: "string", description: "the epic whose doc to open; omit for the room's doc" } },
+      required: ["room_id"],
     },
   },
   {
@@ -1072,6 +1081,13 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const fid = /\/files\/([0-9a-f]+)/.exec(str(a.file_id))?.[1] ?? str(a.file_id);
       const r = await bookStub(env, id).agentOpenFile(id, me.email, fid);
       if (r.ok) ctx.waitUntil(track(env, "open_file", { user: me.email, dims: { book: id, tabs: r.opened_in_tabs } }));
+      return r;
+    }
+    case "open_doc": {
+      if (a.epic_id !== undefined && typeof a.epic_id !== "string") return { ok: false, error: "invalid doc target" };
+      const id = await room(), epic = str(a.epic_id) === "main" ? "" : str(a.epic_id);
+      const r = await bookStub(env, id).agentOpenDoc(id, me.email, epic);
+      if (r.ok) ctx.waitUntil(track(env, "open_doc", { user: me.email, dims: { book: id, tabs: r.opened_in_tabs } }));
       return r;
     }
     case "pin": {

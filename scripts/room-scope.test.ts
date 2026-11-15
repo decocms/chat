@@ -308,3 +308,58 @@ test("openApp events select Apps behind navigation guards and remote events requ
   expect(get(h.owner.state)).toBeNull();
   h.dispose();
 });
+
+test("openDoc selects the exact epic doc, or the room doc beside the current conversation, after pending navigation", async () => {
+  const h = await roomScopeFixture();
+  h.owner.actions.setPane("files");
+  h.hold();
+  h.serverEvent({ t: "openDoc", epic: "other" });
+  expect(h.app.services.rootRoom.read().thread).toBe("main");
+  expect(get(h.app.services.state).pane).toBe("files");
+  h.release();
+  expect(h.app.services.rootRoom.read().thread).toBe("other");
+  expect(get(h.app.services.state).pane).toBe("doc");
+  const doc = get(h.owner.state)!.document.owner;
+  expect(doc.target()?.epicId).toBe("other");
+  h.serverEvent({ t: "openDoc", epic: "" });
+  expect(h.app.services.rootRoom.read().thread).toBe("other");
+  expect(doc.target()?.epicId).toBeNull();
+  h.serverEvent({ t: "openDoc", epic: "missing" });
+  expect(doc.target()?.epicId).toBeNull();
+  expect(h.app.services.rootRoom.read().thread).toBe("other");
+  h.dispose();
+});
+
+test("queued openDoc rechecks removed targets and cannot cross account/room departure", async () => {
+  const h = await roomScopeFixture();
+  h.hold();
+  h.serverEvent({ t: "openDoc", epic: "other" });
+  h.publish({ ...h.room, epics: [] });
+  h.release();
+  expect(h.app.services.rootRoom.read().thread).toBe("main");
+  expect(get(h.owner.state)!.document.owner.target()?.epicId).toBeNull();
+  h.hold();
+  h.serverEvent({ t: "openDoc", epic: "" });
+  h.app.services.actions.home();
+  h.release();
+  expect(get(h.owner.state)).toBeNull();
+  expect(h.app.services.rootRoom.read().room).toBeNull();
+  h.dispose();
+});
+
+test("uploaded Apps already legally embedded in the current doc stay there, with deferred source revalidation", async () => {
+  const h = await roomScopeFixture();
+  h.publish({ ...h.room, doc: "[[app:room/demo|m]]\n" });
+  h.owner.actions.setPane("files");
+  const apps = get(h.owner.state)!.apps.owner;
+  h.serverEvent({ t: "openApp", ref: "room/demo" });
+  expect(get(h.app.services.state).pane).toBe("doc");
+  expect(get(apps.state).target).toBeNull();
+  h.hold();
+  h.serverEvent({ t: "openApp", ref: "room/demo" });
+  h.publish({ ...h.room, doc: "Marker removed while navigation was pending" });
+  h.release();
+  expect(get(h.app.services.state).pane).toBe("apps");
+  expect(get(apps.state).target).toEqual({ connection: "room", tool: "demo" });
+  h.dispose();
+});

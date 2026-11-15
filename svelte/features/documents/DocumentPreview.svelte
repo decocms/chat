@@ -10,7 +10,13 @@
   import type { RichActions, RichContext } from "../rich-text/types";
   import Tasks from "../../Tasks.svelte";
   import Mermaid from "./Mermaid.svelte";
-  import { documentBlocks, documentAppNodes, mermaidSource } from "./preview";
+  import {
+    documentBlocks,
+    documentAppNodes,
+    mermaidSource,
+    documentCardSource,
+  } from "./preview";
+  import DeferredDocumentCard from "./DeferredDocumentCard.svelte";
   import {
     documentAppMarkers,
     resizeDocumentApp,
@@ -139,6 +145,25 @@
 {#snippet taskSlot()}<section data-document-tasks class="tw:my-3">
     <Tasks {...taskProps} thread={epic ?? "main"} />
   </section>{/snippet}
+{#snippet cardSlot(source: string, node: import("../rich-text/types").RichNode)}
+  <DeferredDocumentCard
+    {source}
+    room={props.room}
+    actions={{
+      ...actions,
+      openApp: (target) => {
+        if (current()) props.openApp?.(target);
+      },
+    }}
+    t={props.taskProps.vb.t}
+    {current}
+    lang={props.lang}
+    >{#snippet fallback()}<RichNodes
+        nodes={[node]}
+        {actions}
+      />{/snippet}</DeferredDocumentCard
+  >
+{/snippet}
 <div
   data-document-preview
   data-vb-native
@@ -186,6 +211,8 @@
             {actions}
             {taskSlot}
             {appSlot}
+            {cardSlot}
+            cardSource={documentCardSource}
             appKey={(index) => documentAppKey(appMarkers[index]!)}
           />
         </div>{/if}{/if}
