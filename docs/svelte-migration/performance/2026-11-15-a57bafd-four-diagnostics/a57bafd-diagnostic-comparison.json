@@ -1,0 +1,419 @@
+{
+  "scope": "N1 per frontend/device supplementary diagnostics, not causal performance or acceptance evidence",
+  "rows": [
+    {
+      "name": "baseline",
+      "variant": "vanilla",
+      "device": "mobile",
+      "status": "interpreted",
+      "negative": 0,
+      "samples": 1862,
+      "matched": 116,
+      "intervalMicroseconds": 1996152,
+      "geometrySamples": 0,
+      "geometryInterSampleMicroseconds": 0,
+      "fieldInterSampleMicroseconds": 0,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 855,
+          "interval": 921501
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 266,
+          "interval": 284838
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 132,
+          "interval": 141563
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 127,
+          "interval": 135723
+        }
+      ]
+    },
+    {
+      "name": "baseline",
+      "variant": "svelte",
+      "device": "mobile",
+      "status": "interpreted",
+      "negative": 1,
+      "samples": 2898,
+      "matched": 2099,
+      "intervalMicroseconds": 3057792,
+      "geometrySamples": 410,
+      "geometryInterSampleMicroseconds": 442731,
+      "fieldInterSampleMicroseconds": 456248,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 448,
+          "interval": 481238
+        },
+        {
+          "name": "K",
+          "asset": "/svelte-preview/Field-EI-oca6X.js",
+          "line": 0,
+          "column": 7227,
+          "samples": 358,
+          "interval": 386358
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 63,
+          "interval": 66237
+        },
+        {
+          "name": "$r",
+          "asset": "/svelte-preview/mount-B9Wx5HbG.js",
+          "line": 0,
+          "column": 31397,
+          "samples": 57,
+          "interval": 61928
+        }
+      ]
+    },
+    {
+      "name": "baseline",
+      "variant": "vanilla",
+      "device": "desktop",
+      "status": "interpreted",
+      "negative": 0,
+      "samples": 1819,
+      "matched": 122,
+      "intervalMicroseconds": 1948676,
+      "geometrySamples": 0,
+      "geometryInterSampleMicroseconds": 0,
+      "fieldInterSampleMicroseconds": 0,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 786,
+          "interval": 843641
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 164,
+          "interval": 174232
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 135,
+          "interval": 144064
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 119,
+          "interval": 128408
+        }
+      ]
+    },
+    {
+      "name": "baseline",
+      "variant": "svelte",
+      "device": "desktop",
+      "status": "interpreted",
+      "negative": 1,
+      "samples": 2992,
+      "matched": 2128,
+      "intervalMicroseconds": 3138689,
+      "geometrySamples": 265,
+      "geometryInterSampleMicroseconds": 283795,
+      "fieldInterSampleMicroseconds": 301703,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 469,
+          "interval": 508398
+        },
+        {
+          "name": "K",
+          "asset": "/svelte-preview/Field-EI-oca6X.js",
+          "line": 0,
+          "column": 7227,
+          "samples": 264,
+          "interval": 282823
+        },
+        {
+          "name": "$r",
+          "asset": "/svelte-preview/mount-B9Wx5HbG.js",
+          "line": 0,
+          "column": 31397,
+          "samples": 61,
+          "interval": 64625
+        },
+        {
+          "name": "(garbage collector)",
+          "line": null,
+          "column": null,
+          "samples": 57,
+          "interval": 64539
+        }
+      ]
+    },
+    {
+      "name": "candidate",
+      "variant": "vanilla",
+      "device": "mobile",
+      "status": "interpreted",
+      "negative": 0,
+      "samples": 1850,
+      "matched": 115,
+      "intervalMicroseconds": 1982946,
+      "geometrySamples": 0,
+      "geometryInterSampleMicroseconds": 0,
+      "fieldInterSampleMicroseconds": 0,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 779,
+          "interval": 835027
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 202,
+          "interval": 216065
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 139,
+          "interval": 150121
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 136,
+          "interval": 145904
+        }
+      ]
+    },
+    {
+      "name": "candidate",
+      "variant": "svelte",
+      "device": "mobile",
+      "status": "interpreted",
+      "negative": 1,
+      "samples": 2880,
+      "matched": 2117,
+      "intervalMicroseconds": 3029617,
+      "geometrySamples": 420,
+      "geometryInterSampleMicroseconds": 450663,
+      "fieldInterSampleMicroseconds": 460691,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 442,
+          "interval": 470966
+        },
+        {
+          "name": "K",
+          "asset": "/svelte-preview/Field-CEDGGGCb.js",
+          "line": 0,
+          "column": 7287,
+          "samples": 366,
+          "interval": 392472
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 58,
+          "interval": 64642
+        },
+        {
+          "name": "$r",
+          "asset": "/svelte-preview/mount-CXlQddH9.js",
+          "line": 0,
+          "column": 31397,
+          "samples": 58,
+          "interval": 62749
+        }
+      ]
+    },
+    {
+      "name": "candidate",
+      "variant": "vanilla",
+      "device": "desktop",
+      "status": "interpreted",
+      "negative": 0,
+      "samples": 1816,
+      "matched": 121,
+      "intervalMicroseconds": 1946743,
+      "geometrySamples": 0,
+      "geometryInterSampleMicroseconds": 0,
+      "fieldInterSampleMicroseconds": 0,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 794,
+          "interval": 852652
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 165,
+          "interval": 176145
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 129,
+          "interval": 139997
+        },
+        {
+          "name": "[unattributed]",
+          "line": null,
+          "column": null,
+          "samples": 118,
+          "interval": 127052
+        }
+      ]
+    },
+    {
+      "name": "candidate",
+      "variant": "svelte",
+      "device": "desktop",
+      "status": "interpreted",
+      "negative": 2,
+      "samples": 3011,
+      "matched": 2119,
+      "intervalMicroseconds": 3142104,
+      "geometrySamples": 261,
+      "geometryInterSampleMicroseconds": 280376,
+      "fieldInterSampleMicroseconds": 293551,
+      "topFrames": [
+        {
+          "name": "(program)",
+          "line": null,
+          "column": null,
+          "samples": 474,
+          "interval": 510582
+        },
+        {
+          "name": "K",
+          "asset": "/svelte-preview/Field-CEDGGGCb.js",
+          "line": 0,
+          "column": 7287,
+          "samples": 260,
+          "interval": 279328
+        },
+        {
+          "name": "(idle)",
+          "line": null,
+          "column": null,
+          "samples": 66,
+          "interval": 69695
+        },
+        {
+          "name": "(garbage collector)",
+          "line": null,
+          "column": null,
+          "samples": 57,
+          "interval": 60522
+        }
+      ]
+    }
+  ],
+  "receipts": [
+    {
+      "name": "baseline",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "diagnosticsSHA256": "1be63ebb2261868f706391527c3e55c742ca719ef63ddf04b775d7a2bd4d599b",
+      "metricsSHA256": "c367cb9d32ca4a66ada3839e369d15bf3ee30fed87c0b33064a0482d1d859743",
+      "strict": [
+        {
+          "variant": "vanilla",
+          "device": "mobile",
+          "status": "passed"
+        },
+        {
+          "variant": "svelte",
+          "device": "mobile",
+          "status": "failed",
+          "reason": "delta-negative"
+        },
+        {
+          "variant": "vanilla",
+          "device": "desktop",
+          "status": "failed",
+          "reason": "delta-negative"
+        },
+        {
+          "variant": "svelte",
+          "device": "desktop",
+          "status": "failed",
+          "reason": "delta-negative"
+        }
+      ]
+    },
+    {
+      "name": "candidate",
+      "revision": "a57bafd40734855f65e64a4e127b3dc64ce1e469",
+      "diagnosticsSHA256": "41d69d643204a1b0ad325891c769c02ef35392c0c500e44349e6c815856a6c9d",
+      "metricsSHA256": "97886cf555bc1ed8153b9a3bdbc892eb3c3c9512cfd2872fdf666487ef33ccb6",
+      "strict": [
+        {
+          "variant": "vanilla",
+          "device": "mobile",
+          "status": "passed"
+        },
+        {
+          "variant": "svelte",
+          "device": "mobile",
+          "status": "failed",
+          "reason": "delta-negative"
+        },
+        {
+          "variant": "vanilla",
+          "device": "desktop",
+          "status": "passed"
+        },
+        {
+          "variant": "svelte",
+          "device": "desktop",
+          "status": "failed",
+          "reason": "delta-negative"
+        }
+      ]
+    }
+  ]
+}

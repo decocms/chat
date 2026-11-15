@@ -1,0 +1,11 @@
+{
+  "scope": "Both complete decompressed JSON documents scanned before retention; original payloads unchanged",
+  "forbiddenFields": [],
+  "absolutePaths": [],
+  "origins": [
+    "http://127.0.0.1:45633",
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com"
+  ],
+  "stringCount": 272699
+}

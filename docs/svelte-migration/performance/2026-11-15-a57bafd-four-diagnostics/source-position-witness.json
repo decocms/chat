@@ -1,0 +1,23 @@
+{
+  "scope": "Derived emitted-source positions and sanitized interval aggregation; not source-map or causal performance proof",
+  "witness": [
+    {
+      "name": "baseline",
+      "revision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+      "asset": "public/svelte-preview/Field-EI-oca6X.js",
+      "assetSHA256": "591520a306afb30f5fb13fb7bfdc4a17c9c23b2b735513f5bf7e60bfbdc98e32",
+      "functionKStart": 7217,
+      "profilerColumn": 7227,
+      "firstRootClientWidthDotPosition": 7248
+    },
+    {
+      "name": "candidate",
+      "revision": "a57bafd40734855f65e64a4e127b3dc64ce1e469",
+      "asset": "public/svelte-preview/Field-CEDGGGCb.js",
+      "assetSHA256": "bef4380666191feb1fbc2bee47096a772bdb968711c75a48e6fffd31003b0d58",
+      "functionKStart": 7277,
+      "profilerColumn": 7287,
+      "firstRootClientWidthDotPosition": 7308
+    }
+  ]
+}

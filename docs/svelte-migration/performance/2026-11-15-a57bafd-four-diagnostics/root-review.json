@@ -1,0 +1,7 @@
+{
+  "sourceRevision": "a57bafd40734855f65e64a4e127b3dc64ce1e469",
+  "driverSHA256": "43fd1d1da07a9ab781c7eb7e9644568a6a6cb93bfbeaabc11b0141c4f039dfc8",
+  "review": "Root independently verifies exact four-literal-only change, unchanged helpers, source delta and public tree; final CI required before execution",
+  "scope": "Four excluded diagnostics only; original zero and all16budgets unverified",
+  "executionAllowedAfterFreshnessSuccess": true
+}

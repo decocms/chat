@@ -97,3 +97,25 @@ failed only checked-in preview freshness and remain failed. Their exact
 precede an allowlisted refresh from that run's Ubuntu artifact `14152709552`.
 Final generated freshness still requires new CI. No comparison diagnostic or
 original cohort ran during this preparation; no performance conclusion follows.
+
+## Playback comparison result: inactive
+
+The refreshed comparison source `a57bafd40734855f65e64a4e127b3dc64ce1e469`
+passed [all 24 source gates and preview freshness on both operating systems,
+plus Ubuntu layout](https://github.com/vibegui/vibebook.dev/actions/runs/43693244863).
+The separately reviewed four-extra-only execution completed with zero original
+trials, four excluded diagnostics, all 16 budgets unverified and exit 1.
+Both vanilla trials passed strict CPU validation; both native trials retained
+`delta-negative` failures. Six separate timestamp-interpretation phases are
+available; they do not override strict failures.
+
+[The lossless evidence and comparison](performance/2026-11-15-a57bafd-four-diagnostics/README.md)
+show no meaningful improvement. All verified geometry `K` frames aggregate to
+442,731 → 450,663 µs mobile and 283,795 → 280,376 µs desktop. Entire native
+entry intervals are 3,057,792 → 3,029,617 µs and 3,138,689 → 3,142,104 µs.
+These are N=1 per frontend/device diagnostic inter-sample intervals, not strict
+CPU self time, latency causality or acceptance evidence. Emitted-source positions
+and asset hashes verify the old `K` frame at `0:7227` and new one at `0:7287`;
+totals include all matching frames rather than only the largest frame.
+The candidate stays isolated and inactive. No original full cohort was replayed,
+no historical artifact was rewritten, and original performance failures remain.
