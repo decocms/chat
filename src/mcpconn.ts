@@ -3,9 +3,9 @@ import { Connection, ConnectionsResult } from "../shared/schemas";
 // MCP connections and apps (Nov 2026, F1 of "MCP apps no vibebook"): a room links remote MCP servers (Rituals,
 // anjo.chat's admin, anything speaking Streamable HTTP) and opens their MCP Apps (tools with `_meta.ui.resourceUri`)
 // as a tab of the doc panel.
-// - Scope: "room" = every member (and their Claudes) uses it with the owner's token; "me" = only the owner and their
-//   Claudes see it. The token is pasted by the person in the app, AES-GCM encrypted (sandbox.ts vault) and only ever
-//   sent from the Worker to that server: never to the browser, the iframe or an agent.
+// - Scope: "room" = every member (and their Claudes) sees it, each signed in with their own account; "me" = only the
+//   owner and their Claudes. No pasted tokens: every call carries the caller's identity seal (and, when the server asks,
+//   their own OAuth sign-in).
 // - The app's HTML (`ui://` resource) is served with a CSP built from the resource's own `_meta.ui.csp` and runs in an
 //   opaque-origin iframe (srcdoc, sandbox allow-scripts); its tools/call go through the host page to /call here.
 // - Agents: MCP tools `connections`, `app_open` (src/agent.ts). No app_call: vibebook is not an MCP proxy (Gui #2608).
@@ -19,7 +19,6 @@ import type { Ctx, Env } from "./index";
 import { nativeAuthPage } from "./native-page";
 import { checkUrl } from "./reader";
 import { findSecret } from "./secrets";
-import { seal, unseal } from "./sandbox";
 import { bookStub, isMember } from "./rooms";
 import { connectionIdentity } from "./connectionIdentity";
 import { AuthNeeded, finishAuth, forget, identityJwt, signedInTo, startAuth, tokenFor } from "./mcpauth";
@@ -54,9 +53,8 @@ export function publicConn(c: Conn, email: string, signed?: Set<string>) {
   const tools = toolsOf(c);
   return Connection.parse({
     id: c.id, title: c.title, host: new URL(c.url).host, scope: c.scope, owner: c.owner, mine: c.owner === email, created_at: c.created_at,
-    // auth: "token" = the old pasted Bearer (to be removed); "identity" = no secret here, each person signs in on the
-    // server when it asks (signed_in tells whether this person already did).
-    auth: c.enc ? ("token" as const) : ("identity" as const), signed_in: !c.enc && !!signed?.has(c.url),
+    // Each person signs in on the server when it asks (signed_in tells whether this person already did).
+    auth: "identity" as const, signed_in: !!signed?.has(c.url),
     // Screens first: tools with a UI only the app calls (visibility ["app"], e.g. autogui's APP_*) are the views meant to
     // be opened; the rest of the UI tools render a tool result and sit behind "ver todas" in the tab.
     apps: tools.filter(uiOf).map((t) => ({ tool: t.name, title: t.title || t.annotations?.title || t.name, description: firstLine(t.description), screen: !!t._meta?.ui?.visibility && !t._meta.ui.visibility.includes("model") })).sort((a, b) => Number(b.screen) - Number(a.screen)),
@@ -107,38 +105,37 @@ export async function readMcpAnswer(r: Response, id: number): Promise<unknown> {
   }
   throw new Error("o servidor MCP não respondeu essa chamada");
 }
-/** 401 from a server we hold no pasted token for: this person has to sign in there (the app shows "Entrar"). */
-function needsSignIn(r: Response, url: string, legacy: boolean) {
-  if (r.status !== 401 || legacy) return;
+/** 401: this person has to sign in there (the app shows "Entrar"). */
+function needsSignIn(r: Response, url: string) {
+  if (r.status !== 401) return;
   const e = new AuthNeeded(new URL(url).host) as AuthNeeded & { wwwAuth?: string | null };
   e.wwwAuth = r.headers.get("www-authenticate");
   r.body?.cancel();
   throw e;
 }
-async function init(url: string, token: string | null, identity?: string, legacy = !!token) {
+async function init(url: string, token: string | null, identity?: string) {
   const id = ++rpcId;
   const r = await post(url, token, { jsonrpc: "2.0", id, method: "initialize", params: { protocolVersion: PROTOCOL, capabilities: { extensions: { [UI_EXT]: { mimeTypes: [MIME_APP] } } }, clientInfo: { name: "vibebook", version: "1" } } }, null, identity);
-  needsSignIn(r, url, legacy);
+  needsSignIn(r, url);
   const session = r.headers.get("mcp-session-id");
   const result = await readMcpAnswer(r, id);
   await post(url, token, { jsonrpc: "2.0", method: "notifications/initialized" }, session, identity).then((x) => x.body?.cancel()).catch(() => {});
   return { session, result };
 }
-export async function rpc(env: Env, c: Pick<Conn, "id" | "url" | "enc" | "iv">, method: string, params: unknown, who: Who) {
-  const legacy = !!(c.enc && c.iv);
-  const token = legacy ? await unseal(env, c.enc!, c.iv!) : await tokenFor(env, who.origin, who.email, c.url);
+export async function rpc(env: Env, c: Pick<Conn, "id" | "url">, method: string, params: unknown, who: Who) {
+  const token = await tokenFor(env, who.origin, who.email, c.url);
   const identity = await identityJwt(env, who.origin, { email: who.email, room: who.room, aud: c.url });
   const key = `${c.id}:${who.email}`; // sessions per person: each one signs in on their own
   for (let attempt = 0; ; attempt++) {
-    if (!sessions.has(key)) sessions.set(key, (await init(c.url, token, identity, legacy)).session);
+    if (!sessions.has(key)) sessions.set(key, (await init(c.url, token, identity)).session);
     const id = ++rpcId;
     const r = await post(c.url, token, { jsonrpc: "2.0", id, method, params }, sessions.get(key), identity);
-    needsSignIn(r, c.url, legacy);
+    needsSignIn(r, c.url);
     if ((r.status === 404 || r.status === 400) && attempt === 0 && sessions.get(key)) { sessions.delete(key); await r.body?.cancel(); continue; }
     return readMcpAnswer(r, id);
   }
 }
-async function listTools(env: Env, c: Pick<Conn, "id" | "url" | "enc" | "iv">, who: Who) {
+async function listTools(env: Env, c: Pick<Conn, "id" | "url">, who: Who) {
   const out: unknown[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 5; page++) { // ≤5 pages: a server can't make us loop
@@ -175,7 +172,7 @@ export async function createConn(env: Env, book: string, email: string, b: { url
     const first = await init(ok.url, null, await identityJwt(env, origin, { email, room: book, aud: ok.url }));
     result = first.result;
     sessions.set(`${cid}:${email}`, first.session);
-    tools = await listTools(env, { id: cid, url: ok.url, ...sealed }, who);
+    tools = await listTools(env, { id: cid, url: ok.url }, who);
   } catch (e) {
     if (!(e instanceof AuthNeeded)) throw e;
     needsAuth = true;
