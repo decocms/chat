@@ -1,0 +1,51 @@
+{
+  "scope": "Current RoomInbox",
+  "sourceRevision": "d62c87431ca81161932755e8de069b3ff48a89ee",
+  "fixtures": [
+    "legacy-only Google CSS isolated",
+    "local runner: no active rooms/directory",
+    "Schema-validated controlled Inbox and matching profile waits",
+    "Held resolve responses and explicit HTTP 500"
+  ],
+  "inbox": {
+    "status": "passed",
+    "phase": "recoverable resolve error, modal focus and search Escape",
+    "phases": [
+      "in-place Inbox and three input sections",
+      "recoverable Inbox read and retry",
+      "mention and task navigation",
+      "all-room navigation preserves selected UI",
+      "Home Inbox modal resolve cancellation and fresh opening",
+      "recoverable resolve error, modal focus and search Escape"
+    ],
+    "inboxReads": 9,
+    "profileReads": 8,
+    "fixtureScope": "Real loopback Worker auth/create/post/archive with schema-validated controlled /api/inbox and matching /api/me waits; held resolves and HTTP errors are fixtures, not DB/query acceptance",
+    "cleanup": []
+  },
+  "errors": [],
+  "status": "pass",
+  "expectedNetworkFailures": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ],
+  "requestFailures": [
+    {
+      "url": "http://127.0.0.1:8797/api/me?ui=svelte",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8797/api/me?ui=svelte",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8797/api/waits/resolve",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "http://127.0.0.1:8797/api/waits/resolve",
+      "error": "net::ERR_ABORTED"
+    }
+  ]
+}

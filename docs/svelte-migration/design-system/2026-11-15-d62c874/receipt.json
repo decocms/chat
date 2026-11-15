@@ -1,0 +1,58 @@
+{
+  "sourceRevision": "d62c87431ca81161932755e8de069b3ff48a89ee",
+  "workflow": "native-application-browser.yml",
+  "input": {
+    "suite": "design-system"
+  },
+  "run": "https://github.com/vibegui/vibebook.dev/actions/runs/43688328874",
+  "jobId": 132733413284,
+  "status": "passed",
+  "originalFiles": [
+    {
+      "artifactPath": "gallery/results.json",
+      "path": "gallery-results.json",
+      "bytes": 4258,
+      "sha256": "8feb45c828d63b130dc9d40b51f8233024dc6d794165f88239ac21395c66e7df"
+    },
+    {
+      "artifactPath": "inbox/inbox-results.json",
+      "path": "inbox-phases.json",
+      "bytes": 676,
+      "sha256": "a630c5990ef299643f58ef6d39fac53c9b89c74f2563c97abab8a7df81d8c0f1"
+    },
+    {
+      "artifactPath": "inbox/results.json",
+      "path": "inbox-results.json",
+      "bytes": 1845,
+      "sha256": "0a5dcabe2634505049a6b4a8ad38262be3cb9ae7e06b7849f9022a1a03dec64a"
+    },
+    {
+      "artifactPath": "runner.json",
+      "path": "runner.json",
+      "bytes": 977,
+      "sha256": "da531b2c2915c9a8e06ec7286c3637fd47e7e6f85edbcc54494a799ee44a8497"
+    },
+    {
+      "artifactPath": "inbox/room-inbox-axe.json",
+      "path": "room-inbox-axe.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "artifactPath": "inbox/global-inbox-axe.json",
+      "path": "global-inbox-axe.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ],
+  "scope": "Fresh build and real loopback Worker setup; actual atomic gallery and controlled schema-validated native Inbox UI. No provider/query/business/hardware/manual-screenreader/performance/production acceptance.",
+  "priorFailure": {
+    "sourceRevision": "b63dbf1e7bfe6f3077c80d48ba4862ead1d8a1d1",
+    "run": "https://github.com/vibegui/vibebook.dev/actions/runs/43686323277",
+    "status": "failed",
+    "phase": "all-room navigation preserves selected UI",
+    "cause": "Second obsolete data-native-chat selector; exact URL and actual canonical message already present.",
+    "inboxResultSHA256": "ef2afca9691edeececde6b805b05131045078f88a2631d88b6f3fd49ebce8da5",
+    "retention": "Original failed artifact remains in private audit cache; this passing run does not overwrite it."
+  }
+}

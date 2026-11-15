@@ -1,6 +1,6 @@
 # Managed Studio and atomic UI verification
 
-The `Studio and atomic design-system browser` workflow builds the exact checked-out application and MCP assets, then runs `scripts/native-application-ci.ts --suite design-system` on a disposable Ubuntu runner. This is a new verification path, not a passing runtime receipt. M4/M5 final visual/manual acceptance remains open.
+The `Studio and atomic design-system browser` workflow builds the exact checked-out application and MCP assets, then runs `scripts/native-application-ci.ts --suite design-system` on a disposable Ubuntu runner. The first complete managed runtime receipt is recorded below. M4/M5 final visual/manual acceptance remains open.
 
 The runner accepts only the fixed `application` and `design-system` suites. No arguments retain the existing application suite. The design-system suite requires the exact checked-out `TEST_APP_REVISION`, uses its own default report/private directories, synthetic `DEV_EMAIL`, random local session secret, private local D1/R2 state, models off, and loopback Worker. It reuses the existing readiness/schema check, owned process groups, cancellation and cleanup. No production credentials or resource writes are used. Raw Worker logs/storage/private variables are excluded from uploaded artifacts. A browser deadline rejects as well as signalling children so the runner reaches its existing kill/reap cleanup.
 
@@ -28,3 +28,11 @@ gh workflow run native-application-browser.yml --ref <reviewed-branch> -f suite=
 ```
 
 Push/PR and default manual runs retain the application command, original artifact name/path, concurrency group and 20-minute job deadline. Only an explicit design-system dispatch selects its fixed command, separate artifact directory/name and concurrency suffix, and a 30-minute job deadline for its two bounded phases. Arbitrary script names or shell text are never accepted as input. The two suites cannot cancel or overwrite each other on the same ref. This is orchestration registration, not browser acceptance: verify the actual API dispatch and retain the resulting exact-source phase artifacts before recording a pass. The dedicated workflow remains the automatic PR/main path after registration.
+
+## Actual managed execution at d62c874
+
+[Run 43688328874](https://github.com/vibegui/vibebook.dev/actions/runs/43688328874) passed at exact source `d62c87431ca81161932755e8de069b3ff48a89ee` through the registered workflow with `suite=design-system`. [The retained receipt and original safe JSON](design-system/2026-11-15-d62c874/receipt.json) preserve source, run, byte counts and SHA256 hashes; failed earlier artifacts remain separate. This documentation follow-up changes no tested application or harness bytes.
+
+All original gallery interactions passed, with zero light/dark/mobile Axe violations and zero mismatches in four Studio token/role comparisons (light/dark at ordinary/high density, nine rendered roles each). Both original Studio font families loaded. All six Inbox phases passed: in-place data sections/draft/focus; read failure/retry; mention/task navigation; cross-room navigation; Home modal cancelled/late resolve; resolve failure and search Escape. Nine Inbox requests and eight profile requests exercised the explicitly controlled response fixtures. Both Inbox Axe results and browser errors were empty. Worker readiness and both named children passed; runner cleanup errors and remaining owned process groups were zero.
+
+The b63 failure was a harness selector left over after the full-native migration. Its corrected assertion requires exactly one canonical message row using the actual Worker POST ID and preserves the selected-UI/deep-link checks. The run does not broaden the controlled Inbox fixture into backend business-query proof, does not supply manual screen-reader or final visual approval, and does not close performance, hardware or production acceptance.

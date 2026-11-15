@@ -1,0 +1,38 @@
+{
+  "suite": "design-system",
+  "sourceRevision": "d62c87431ca81161932755e8de069b3ff48a89ee",
+  "status": "passed",
+  "phases": [
+    {
+      "name": "real Worker readiness and ensureSchema",
+      "status": "passed",
+      "ms": 1863
+    },
+    {
+      "name": "atomic gallery and Studio verification",
+      "status": "passed",
+      "ms": 6273
+    },
+    {
+      "name": "current RoomInbox verification",
+      "status": "passed",
+      "ms": 3393
+    }
+  ],
+  "failure": null,
+  "cleanupErrors": [],
+  "remainingOwnedGroups": 0,
+  "reviewModelFixture": null,
+  "runtime": {
+    "packages": {
+      "wrangler": "4.152.0",
+      "miniflare": "5.20261019.2-beta",
+      "workerd": "1.20261019.1"
+    },
+    "requestedDate": "2026-10-01",
+    "workerLogHeadBytes": 16674,
+    "workerLogHeadTruncated": false,
+    "compatibilityWarnings": []
+  },
+  "scope": "Disposable loopback local Worker; private raw Worker log and storage are intentionally excluded from artifact upload"
+}
