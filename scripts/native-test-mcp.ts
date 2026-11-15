@@ -95,8 +95,16 @@ export async function nativeTestAgent(page: Page, base: string) {
       })
       .parse(await response.json());
     if (expectation === "refusal")
-      assert.equal(body.result.isError, true, `Local MCP ${name} must explicitly refuse`);
-    else assert(!body.result.isError, `Local MCP ${name} rejected the fixture operation`);
+      assert.equal(
+        body.result.isError,
+        true,
+        `Local MCP ${name} must explicitly refuse`,
+      );
+    else
+      assert(
+        !body.result.isError,
+        `Local MCP ${name} rejected the fixture operation`,
+      );
     return body.result.structuredContent;
   };
 }

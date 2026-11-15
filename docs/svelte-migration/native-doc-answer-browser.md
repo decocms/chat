@@ -8,4 +8,4 @@ The HTML phase first puts a legal room-App marker in that epic doc, then calls r
 
 Output is safe phase/count/boolean/hash metadata in native-document-answers.json. OAuth tokens, headers, raw HTML/DOM, error payloads, audio, traces and HAR are not saved. Each owned room is archived and its browser context is closed; fixture persistence remains disposable. The original core, lifecycle and profile cohorts are unchanged. Positive Whisper/provider intelligence, hardware, production OAuth, deployment, Safari/iOS and performance remain separate gates.
 
-All formatter/type/browser execution is pending at this source checkpoint. The stage must actually pass before any new feature browser claim is made.
+Author Node formatting passed for the six owned paths. Type/build/browser execution remains pending. Both tabs now observe positive openDoc events before the bounded refusal no-event check; actual epic rows prove canonical room readiness before dispatch. The stage must actually pass before any new feature browser claim is made.

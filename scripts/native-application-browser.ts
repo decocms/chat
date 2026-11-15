@@ -1272,7 +1272,11 @@ try {
   await independentAudit("document-answer-parity", async () => {
     const result = await auditDocumentAnswers(profileFixture);
     report.documentAnswers = result;
-    assert.equal(result.status, "passed", "Document answer parity audit must pass");
+    assert.equal(
+      result.status,
+      "passed",
+      "Document answer parity audit must pass",
+    );
   });
   await independentAudit("page-errors", async () => {
     assert.deepEqual(errors, []);
