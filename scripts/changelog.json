@@ -1,5 +1,26 @@
 [
   {
+    "date": "2026-11-15",
+    "slug": "2026-11-15-link",
+    "title": {
+      "pt": "Link de mensagem no celular",
+      "en": "Message links on the phone"
+    },
+    "intro": {
+      "pt": "No celular, o gesto de copiar agora também copia o link da mensagem.",
+      "en": "On the phone, the copy gesture now copies the message's link too."
+    },
+    "features": [],
+    "improvements": {
+      "pt": [
+        "Arrastar uma mensagem pra esquerda mostra dois alvos, Copiar em cima e Link embaixo: com o dedo na metade de cima da mensagem copia o texto, na de baixo copia o link que abre a sala direto nela."
+      ],
+      "en": [
+        "Dragging a message left shows two targets, Copy on top and Link below: with your finger on the message's top half it copies the text, on the bottom half it copies a link that opens the room right at it."
+      ]
+    }
+  },
+  {
     "date": "2026-11-14",
     "slug": "2026-11-14-inbox",
     "title": {

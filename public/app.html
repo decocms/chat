@@ -607,10 +607,16 @@
   .msg.flash { animation: msgflash 1.6s ease-out; }
   @keyframes msgflash { 0%, 40% { background: color-mix(in oklch, var(--accent) 16%, transparent); } }
   .msg.swipe { transition: none; } .msg { transition: transform .18s; }
-  /* The swipe reveals what letting go does: "← Copiar" from the right edge, "Responder →" from the left; lit past 60px. */
-  .msg.swL::after, .msg.swR::after { content: attr(data-sw); position: absolute; top: 50%; translate: 0 -50%; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--mute); opacity: .7; }
-  .msg.swL::after { left: calc(100% + 12px); } .msg.swR::after { right: calc(100% + 12px); }
-  .msg.swGo::after { color: var(--accent); opacity: 1; }
+  /* The swipe reveals what letting go does. Right: "Responder →" from the left edge. Left (Gui #2668): two stacked
+     targets past the right edge, Copiar on top and Link below; the half of the message under the finger picks one
+     (.swTop/.swBot), lit past 60px. Each target keeps 22px even on a one-line message. */
+  .msg.swR::after { content: attr(data-sw); position: absolute; top: 50%; translate: 0 -50%; right: calc(100% + 12px); white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--mute); opacity: .7; }
+  .msg.swR.swGo::after { color: var(--accent); opacity: 1; }
+  .msg.swL::before, .msg.swL::after { position: absolute; left: calc(100% + 8px); width: 68px; height: max(calc(50% - 2px), 22px); display: grid; place-items: center; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--mute); background: var(--panel); white-space: nowrap; }
+  .msg.swL::after { content: attr(data-sw); bottom: calc(50% + 2px); }
+  .msg.swL::before { content: attr(data-sw2); top: calc(50% + 2px); }
+  .msg.swL.swTop::after, .msg.swL.swBot::before { color: var(--ink); border-color: var(--accent); }
+  .msg.swL.swGo.swTop::after, .msg.swL.swGo.swBot::before { color: var(--accent); background: color-mix(in oklch, var(--accent) 14%, var(--panel)); }
   .toast .primary { margin-left: 10px; padding: 5px 12px; }
   .choice { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   .choice .opt { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; background: var(--panel); cursor: pointer; }
@@ -1710,6 +1716,7 @@ const EN = {
   "Conecte sua conta do Claude": "Connect your Claude account",
   "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:": "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   "Copiar": "Copy",
+  "Link": "Link",
   "esperando seu agent conectar…": "waiting for your agent to connect…",
   "Claude.ai ou outro cliente": "Claude.ai or another client",
   "Configurações → Conectores → Adicionar conector personalizado, e cole": "Settings → Connectors → Add custom connector, and paste",
@@ -5437,7 +5444,8 @@ function goToMsg(id, th) {
   el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && replyTo && document.activeElement?.id === "input") { replyTo = null; renderReply(); } });
-// Touch: drag a message right past 60px to reply, left past 60px to copy (it follows the finger, then snaps back).
+// Touch: drag a message right past 60px to reply, left past 60px to copy its text (finger on its top half) or its link
+// (bottom half); it follows the finger, then snaps back.
 // A drag from the left edge is "back", not a reply (Gui 14/11: the reply swipe took the back gesture): left to the
 // system in Safari, and in the installed app (no system back on iOS) it does what the header's ← does.
 let sw = null, edge = null;
@@ -5465,15 +5473,19 @@ document.addEventListener("touchmove", (e) => {
   }
   e.preventDefault();
   sw.dx = dx; sw.m.style.transform = `translateX(${Math.max(-80, Math.min(dx, 80))}px)`;
-  sw.m.dataset.sw = dx < 0 ? `← ${t("Copiar")}` : `${t("Responder")} →`;
+  // Left swipe: the finger above the message's middle picks Copiar, below picks Link (Gui #2668).
+  const r = sw.m.getBoundingClientRect(); sw.link = e.touches[0].clientY > r.top + r.height / 2;
+  sw.m.dataset.sw = dx < 0 ? t("Copiar") : `${t("Responder")} →`;
+  sw.m.dataset.sw2 = t("Link");
   sw.m.classList.toggle("swL", dx < 0); sw.m.classList.toggle("swR", dx > 0); sw.m.classList.toggle("swGo", Math.abs(dx) > 60);
+  sw.m.classList.toggle("swTop", dx < 0 && !sw.link); sw.m.classList.toggle("swBot", dx < 0 && sw.link);
 }, { passive: false });
 document.addEventListener("touchend", () => {
   if (!sw) return;
-  const { m, dx } = sw; sw = null;
-  m.classList.remove("swipe", "swL", "swR", "swGo"); m.style.transform = "";
+  const { m, dx, link } = sw; sw = null;
+  m.classList.remove("swipe", "swL", "swR", "swGo", "swTop", "swBot"); m.style.transform = "";
   if (dx > 60) startReply(Number(m.id.slice(1)));
-  else if (dx < -60) copyMsg(Number(m.id.slice(1)));
+  else if (dx < -60) (link ? copyLink : copyMsg)(Number(m.id.slice(1)));
 });
 // Choices: an agent asks its human to pick (post with choices). That person sees radio/checkboxes + Enviar; the
 // pick is sent as their message replying to the question, which is also how the block knows it was answered.
