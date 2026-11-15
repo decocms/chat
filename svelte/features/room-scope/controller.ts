@@ -903,25 +903,28 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           },
           mountEmbed: (element, file, controls) => {
             if (!owned() || !element.isConnected) return () => {};
-            const detach = mountDeferredChatApp({
-              frame: element,
-              file,
-              controls,
-              authority,
-              room: () =>
-                owned()
-                  ? { ...room()!, messages: roomMessages(room()!) }
-                  : null,
-              current: owned,
-              request: threadRequest,
-              name,
-              t,
-              locale,
-              open: browser.openExternal,
-              api: appApi,
-              metrics: (kind, id, roomOnly, signal) =>
-                guardApp(metrics(kind, id, roomOnly, signal)),
-            }, { clock });
+            const detach = mountDeferredChatApp(
+              {
+                frame: element,
+                file,
+                controls,
+                authority,
+                room: () =>
+                  owned()
+                    ? { ...room()!, messages: roomMessages(room()!) }
+                    : null,
+                current: owned,
+                request: threadRequest,
+                name,
+                t,
+                locale,
+                open: browser.openExternal,
+                api: appApi,
+                metrics: (kind, id, roomOnly, signal) =>
+                  guardApp(metrics(kind, id, roomOnly, signal)),
+              },
+              { clock },
+            );
             const stop = () => {
               embeds.delete(stop);
               detach();

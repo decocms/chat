@@ -919,32 +919,178 @@ test("chat App import rejection reports failure, and synchronous mount disposal 
   f.cleanup();
 });
 
-
 test("ineligible chat App frame never starts its capability import", () => {
-  const f = deferredEmbedFixture(); let loads = 0;
+  const f = deferredEmbedFixture();
+  let loads = 0;
   f.documentReplaced();
-  const stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: async () => { loads++; return { mountNativeChatApp: () => () => {} }; } });
-  expect(loads).toBe(0); expect(f.timer.jobs.size).toBe(0); expect(f.counts().cancelled).toBe(1);
-  stop(); f.cleanup();
+  const stop = mountDeferredChatApp(f.options, {
+    clock: f.timer.clock,
+    load: async () => {
+      loads++;
+      return { mountNativeChatApp: () => () => {} };
+    },
+  });
+  expect(loads).toBe(0);
+  expect(f.timer.jobs.size).toBe(0);
+  expect(f.counts().cancelled).toBe(1);
+  stop();
+  f.cleanup();
 });
 test("chat App import snapshots source metadata and callbacks without transferring caller mutations", async () => {
-  const f = deferredEmbedFixture(), pending = deferred<ChatEmbedModule>(); let mounted = 0;
+  const f = deferredEmbedFixture(),
+    pending = deferred<ChatEmbedModule>();
+  let mounted = 0;
   const originalReady = f.options.controls.ready;
-  const stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: () => pending.promise });
-  f.options.controls.ready = () => { throw Error("Mutable replacement must not inherit old mount"); };
-  pending.resolve({ mountNativeChatApp: options => { mounted++; expect(options.controls.ready).toBe(originalReady); options.controls.ready(); return () => {}; } });
-  await settle(); expect(mounted).toBe(1); expect(f.counts().ready).toBe(1); stop(); f.cleanup();
-  const changed = deferredEmbedFixture(), importLater = deferred<ChatEmbedModule>(); let wrongMount = 0;
-  const stopChanged = mountDeferredChatApp(changed.options, { clock: changed.timer.clock, load: () => importLater.promise });
+  const stop = mountDeferredChatApp(f.options, {
+    clock: f.timer.clock,
+    load: () => pending.promise,
+  });
+  f.options.controls.ready = () => {
+    throw Error("Mutable replacement must not inherit old mount");
+  };
+  pending.resolve({
+    mountNativeChatApp: (options) => {
+      mounted++;
+      expect(options.controls.ready).toBe(originalReady);
+      options.controls.ready();
+      return () => {};
+    },
+  });
+  await settle();
+  expect(mounted).toBe(1);
+  expect(f.counts().ready).toBe(1);
+  stop();
+  f.cleanup();
+  const changed = deferredEmbedFixture(),
+    importLater = deferred<ChatEmbedModule>();
+  let wrongMount = 0;
+  const stopChanged = mountDeferredChatApp(changed.options, {
+    clock: changed.timer.clock,
+    load: () => importLater.promise,
+  });
   changed.options.file.ts++;
-  importLater.resolve({ mountNativeChatApp: () => { wrongMount++; return () => {}; } });
-  await settle(); expect(wrongMount).toBe(0); stopChanged(); changed.cleanup();
+  importLater.resolve({
+    mountNativeChatApp: () => {
+      wrongMount++;
+      return () => {};
+    },
+  });
+  await settle();
+  expect(wrongMount).toBe(0);
+  stopChanged();
+  changed.cleanup();
 });
 test("reentrant current callback after factory return disposes the captured mount exactly once", async () => {
-  const f = deferredEmbedFixture(), pending = deferred<ChatEmbedModule>(); let mounted = false, disposed = 0;
+  const f = deferredEmbedFixture(),
+    pending = deferred<ChatEmbedModule>();
+  let mounted = false,
+    disposed = 0;
   let stop = () => {};
-  f.options.controls.current = () => { if (mounted) stop(); return true; };
-  stop = mountDeferredChatApp(f.options, { clock: f.timer.clock, load: () => pending.promise });
-  pending.resolve({ mountNativeChatApp: () => { mounted = true; return () => { disposed++; }; } });
-  await settle(); expect(disposed).toBe(1); expect(f.timer.jobs.size).toBe(0); stop(); expect(disposed).toBe(1); f.cleanup();
+  f.options.controls.current = () => {
+    if (mounted) stop();
+    return true;
+  };
+  stop = mountDeferredChatApp(f.options, {
+    clock: f.timer.clock,
+    load: () => pending.promise,
+  });
+  pending.resolve({
+    mountNativeChatApp: () => {
+      mounted = true;
+      return () => {
+        disposed++;
+      };
+    },
+  });
+  await settle();
+  expect(disposed).toBe(1);
+  expect(f.timer.jobs.size).toBe(0);
+  stop();
+  expect(disposed).toBe(1);
+  f.cleanup();
+});
+
+test("authority registration and module-load callbacks can revoke without attaching or leaking", async () => {
+  for (const phase of ["listen", "load"] as const) {
+    const f = deferredEmbedFixture(),
+      pending = deferred<ChatEmbedModule>();
+    let loads = 0,
+      mounts = 0,
+      unsubscribed = 0;
+    if (phase === "listen") {
+      const listen = f.authority.listen;
+      f.options.authority = {
+        ...f.authority,
+        listen(listener) {
+          const off = listen(listener);
+          f.authority.deny();
+          return () => {
+            unsubscribed++;
+            off();
+          };
+        },
+      };
+    }
+    const stop = mountDeferredChatApp(f.options, {
+      clock: f.timer.clock,
+      load: () => {
+        loads++;
+        if (phase === "load") f.authority.deny();
+        return pending.promise;
+      },
+    });
+    pending.resolve({
+      mountNativeChatApp: () => {
+        mounts++;
+        return () => {};
+      },
+    });
+    await settle();
+    expect(loads).toBe(phase === "listen" ? 0 : 1);
+    expect(mounts).toBe(0);
+    expect(f.counts().denied).toBe(1);
+    expect(f.counts().cancelled).toBe(1);
+    expect(f.timer.jobs.size).toBe(0);
+    if (phase === "listen") expect(unsubscribed).toBe(1);
+    stop();
+    f.cleanup();
+  }
+});
+
+test("failure, denial and cancellation callbacks can synchronously dispose only their captured owner", async () => {
+  for (const reason of ["fail", "deny", "cancel"] as const) {
+    const f = deferredEmbedFixture(),
+      pending = deferred<ChatEmbedModule>();
+    let stop = () => {};
+    const callback = f.options.controls[reason];
+    f.options.controls[reason] = () => {
+      callback?.();
+      stop();
+    };
+    stop = mountDeferredChatApp(f.options, {
+      clock: f.timer.clock,
+      load: () =>
+        reason === "fail"
+          ? Promise.reject(Error("unavailable"))
+          : pending.promise,
+    });
+    if (reason === "deny") f.authority.deny();
+    if (reason === "cancel") stop();
+    await settle();
+    pending.resolve({
+      mountNativeChatApp: () => {
+        throw Error("Retired factory must not run");
+      },
+    });
+    await settle();
+    expect(f.counts()).toEqual({
+      ready: 0,
+      failed: reason === "fail" ? 1 : 0,
+      denied: reason === "deny" ? 1 : 0,
+      cancelled: 1,
+    });
+    expect(f.timer.jobs.size).toBe(0);
+    stop();
+    f.cleanup();
+  }
 });
