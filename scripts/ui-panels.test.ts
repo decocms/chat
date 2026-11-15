@@ -6028,7 +6028,8 @@ describe("native Apps catalog", () => {
     let writes = 0,
       uiReads = 0,
       bridgeLoads = 0;
-    const api = {
+    const api: import("../svelte/features/apps/api").AppsApi = {
+      identity: async () => ({ direct: false, why: "signed_in" }),
       list: async () => ({ connections: [connection] }),
       create: async () => {
         writes++;

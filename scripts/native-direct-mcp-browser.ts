@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expect as baseExpect, type BrowserContext } from "@playwright/test";
+import {
+  expect as baseExpect,
+  type APIResponse,
+  type BrowserContext,
+} from "@playwright/test";
 import {
   CreateRoomResult,
   CreateConnectionResult,
@@ -96,9 +100,13 @@ export async function auditDirectMcp(
         assert(created.ok());
         const room = CreateRoomResult.parse(await created.json()).id;
         ownedRoom = room;
-        const remote = server.configure(variant, room, me.email);
+        const remote: { url: string; meter: DirectMeter } = server.configure(
+          variant,
+          room,
+          me.email,
+        );
         result.counters = remote.meter;
-        const connected = await context.request.post(
+        const connected: APIResponse = await context.request.post(
           fixture.base + `/api/books/${room}/connections`,
           {
             headers: { origin: fixture.base },

@@ -33,8 +33,11 @@ instead of its clock port; corrected without production changes. The equivalent
 three-file test:apps command then passed 31 tests / 185 assertions in 3.09 seconds.
 The shell wrapper initially could not find bun on PATH; tests used the pinned Bun
 1.4.4 executable directly. Actual SDK HTTP fixtures cover JSON/SSE, identity/session
-headers, redirect policy, tool failures, concurrent abort signals, catalog/owner
-revocation, delayed import cancellation, TTL and setup-only fallback.
+headers, redirect policy, tool failures and concurrent abort signals. Separate
+pure owner fixtures with an injected SDK factory cover catalog/owner revocation,
+delayed import cancellation, rejection of a late identity proof and setup-only
+fallback. They do not exercise the expiry timer. The direct tests are also
+registered in the mandatory test:store gate.
 
 This receipt is not Worker/browser, provider intelligence, hardware, typography,
 performance or deployment acceptance. Strict types and the separate actual
