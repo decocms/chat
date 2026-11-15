@@ -122,8 +122,7 @@ export async function connectDirectSdk(
     async start() {
       transport.onclose = () => scoped.onclose?.();
       transport.onerror = (error) => scoped.onerror?.(error);
-      transport.onmessage = (message, extra) =>
-        scoped.onmessage?.(message, extra);
+      transport.onmessage = (message) => scoped.onmessage?.(message);
       await transport.start();
     },
     async send(message, sendOptions) {

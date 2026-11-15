@@ -344,7 +344,7 @@
             ><small class="tw:break-words tw:text-muted-foreground"
               >{item.host} · {props.name(item.owner)}</small
             >{#if $modes.get(item.id)}{@const mode = $modes.get(item.id)}<Badge
-                variant="secondary"
+                variant="neutral"
                 data-native-connection-mode={mode}
                 title={props.t(
                   mode === "direct"
