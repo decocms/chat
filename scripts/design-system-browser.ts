@@ -15,10 +15,19 @@ assert(
 );
 const results: Record<string, unknown> = {};
 const args = process.argv.slice(2);
-assert(args.length === 0 || (args.length === 1 && (args[0] === "--gallery-only" || args[0] === "--inbox-only")), "Use --gallery-only or --inbox-only, or no arguments for both");
+assert(
+  args.length === 0 ||
+    (args.length === 1 &&
+      (args[0] === "--gallery-only" || args[0] === "--inbox-only")),
+  "Use --gallery-only or --inbox-only, or no arguments for both",
+);
 const onlyInbox = args[0] === "--inbox-only";
 const onlyGallery = args[0] === "--gallery-only";
-results.scope = onlyInbox ? "Current RoomInbox" : onlyGallery ? "Atomic gallery and Studio" : "Gallery and RoomInbox";
+results.scope = onlyInbox
+  ? "Current RoomInbox"
+  : onlyGallery
+    ? "Atomic gallery and Studio"
+    : "Gallery and RoomInbox";
 results.sourceRevision = process.env.TEST_APP_REVISION ?? null;
 const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-design-system";
 let ownedBrowser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
@@ -27,7 +36,10 @@ const expectedNetworkFailures: string[] = [];
 const requestFailures: { url: string; error: string | undefined }[] = [];
 try {
   await mkdir(output, { recursive: true });
-  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-gpu"] });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-gpu"],
+  });
   ownedBrowser = browser;
   const context = await browser.newContext({
     locale: "en-US",
@@ -39,16 +51,20 @@ try {
   context.setDefaultNavigationTimeout(120_000);
   results.fixtures = [
     ...(await nativeBrowserFixtures(context, base)),
-    "deterministic profile waits",
-    "held resolve responses and explicit HTTP 500",
-    "native outer boxes frozen only during CSS containment comparison; fixture itself must preserve surrounding layout",
+    ...(!onlyGallery
+      ? [
+          "Schema-validated controlled Inbox and matching profile waits",
+          "Held resolve responses and explicit HTTP 500",
+        ]
+      : []),
   ];
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     if (
-      (message.location().url.endsWith("/api/waits/resolve") || message.location().url.endsWith("/api/inbox")) &&
+      (message.location().url.endsWith("/api/waits/resolve") ||
+        message.location().url.endsWith("/api/inbox")) &&
       /500/.test(message.text())
     )
       expectedNetworkFailures.push(message.text());
@@ -249,12 +265,12 @@ try {
 
   results.errors = errors;
   results.status = "pass";
-  console.log(
-    "PASS selected design-system browser scope",
-  );
+  console.log("PASS selected design-system browser scope");
 } catch (error) {
   results.status = "failed";
-  results.failure = { name: error instanceof Error ? error.name : "UnknownError" };
+  results.failure = {
+    name: error instanceof Error ? error.name : "UnknownError",
+  };
   throw error;
 } finally {
   try {
@@ -264,13 +280,13 @@ try {
     results.cleanupFailure = "browser-close";
     throw error;
   } finally {
-  await writeFile(
-    `${output}/results.json`,
-    JSON.stringify(
-      { ...results, errors, expectedNetworkFailures, requestFailures },
-      null,
-      2,
-    ) + "\n",
-  );
+    await writeFile(
+      `${output}/results.json`,
+      JSON.stringify(
+        { ...results, errors, expectedNetworkFailures, requestFailures },
+        null,
+        2,
+      ) + "\n",
+    );
   }
 }

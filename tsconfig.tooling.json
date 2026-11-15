@@ -152,6 +152,7 @@
     "scripts/application-version.test.ts",
     "scripts/native-application-browser.ts",
     "scripts/native-application-ci.ts",
+    "scripts/managed-browser-phase.test.ts",
     "scripts/app-hmr-ci.ts",
     "scripts/build-app-document.ts",
     "scripts/app-document-build.test.ts",
