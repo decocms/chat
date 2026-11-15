@@ -1616,10 +1616,12 @@ test("identity uses only authorized stored destination and never exports token o
   ]);
   const oauth = identityFixture();
   oauth.setSignedIn(true);
-  expect(await connectionIdentity("room", "cid", oauth.ports)).toEqual({ direct: false, why: "signed_in" });
+  expect(await connectionIdentity("room", "cid", oauth.ports)).toEqual({
+    direct: false,
+    why: "signed_in",
+  });
   expect(oauth.signed).toEqual([]);
   expect(oauth.tracked).toEqual([]);
-
 });
 
 test("identity refuses private, missing, nonmember and rate-limited connections before signing", async () => {
@@ -1727,21 +1729,50 @@ test("inferred identity handler enforces room gate and emits only checked no-sto
 
 test("historical encrypted columns are inert while per-person OAuth is checked for every identity decision", async () => {
   for (const signedIn of [false, true]) {
-    const f = identityFixture(), row = f.row(); if (!row) throw Error("missing fixture row");
-    f.setRow({ ...row, enc: "historical-ciphertext-never-read", iv: "historical-iv-never-read" });
+    const f = identityFixture(),
+      row = f.row();
+    if (!row) throw Error("missing fixture row");
+    f.setRow({
+      ...row,
+      enc: "historical-ciphertext-never-read",
+      iv: "historical-iv-never-read",
+    });
     let lookups = 0;
-    f.ports.signedIn = async url => { expect(url).toBe(row.url); lookups++; return signedIn; };
+    f.ports.signedIn = async (url) => {
+      expect(url).toBe(row.url);
+      lookups++;
+      return signedIn;
+    };
     const result = await connectionIdentity("room", "cid", f.ports);
     expect(lookups).toBeGreaterThan(0);
-    expect(result).toEqual(signedIn ? { direct: false, why: "signed_in" } : { direct: true, url: row.url, identity: "signed-public-identity", expires_in: 300 });
+    expect(result).toEqual(
+      signedIn
+        ? { direct: false, why: "signed_in" }
+        : {
+            direct: true,
+            url: row.url,
+            identity: "signed-public-identity",
+            expires_in: 300,
+          },
+    );
     expect("enc" in result || "iv" in result || "token" in result).toBe(false);
     expect(f.signed.length).toBe(signedIn ? 0 : 1);
   }
 });
 
 test("historical encrypted-column cleanup during signing does not change viewer authority", async () => {
-  const f = identityFixture(), row = f.row(); if (!row) throw Error("missing fixture row");
+  const f = identityFixture(),
+    row = f.row();
+  if (!row) throw Error("missing fixture row");
   f.setRow({ ...row, enc: "old-encrypted-data", iv: "old-iv" });
-  f.ports.sign = async () => { f.setRow({ ...row, enc: null, iv: null }); return "current-viewer-proof"; };
-  expect(await connectionIdentity("room", "cid", f.ports)).toEqual({ direct: true, url: row.url, identity: "current-viewer-proof", expires_in: 300 });
+  f.ports.sign = async () => {
+    f.setRow({ ...row, enc: null, iv: null });
+    return "current-viewer-proof";
+  };
+  expect(await connectionIdentity("room", "cid", f.ports)).toEqual({
+    direct: true,
+    url: row.url,
+    identity: "current-viewer-proof",
+    expires_in: 300,
+  });
 });

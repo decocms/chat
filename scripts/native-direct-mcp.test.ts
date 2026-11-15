@@ -107,10 +107,7 @@ test("eligible direct SDK is lazy, reused across metadata refresh, and scope-pri
   expect(get(a.owner.state).size).toBe(0);
 });
 test("signed-in and direct:false retain proxy without loading SDK", async () => {
-  for (const row of [
-    { ...connection, signed_in: true },
-    connection,
-  ]) {
+  for (const row of [{ ...connection, signed_in: true }, connection]) {
     const f = fixture({
       identity: async () => ({ direct: false, why: "signed_in" }),
     });
@@ -409,7 +406,14 @@ test("actual concurrent SDK calls retain separate abort signals across asynchron
 });
 
 test("retired token public modes and fallback reasons are rejected at the wire boundary", () => {
-  expect(Connection.safeParse({ ...connection, auth: "token" }).success).toBe(false);
-  expect(ConnectionIdentityResult.safeParse({ direct: false, why: "token" }).success).toBe(false);
-  expect(ConnectionIdentityResult.safeParse({ direct: false, why: "signed_in" }).success).toBe(true);
+  expect(Connection.safeParse({ ...connection, auth: "token" }).success).toBe(
+    false,
+  );
+  expect(
+    ConnectionIdentityResult.safeParse({ direct: false, why: "token" }).success,
+  ).toBe(false);
+  expect(
+    ConnectionIdentityResult.safeParse({ direct: false, why: "signed_in" })
+      .success,
+  ).toBe(true);
 });

@@ -352,11 +352,7 @@ const wrongIdentityCredential: InferResponseType<typeof identityMethod, 200> = {
   // @ts-expect-error no browser credential field exists on the public fallback
   token: "secret",
 };
-void [
-  identityOauthFallback,
-  wrongIdentityLifetime,
-  wrongIdentityCredential,
-];
+void [identityOauthFallback, wrongIdentityLifetime, wrongIdentityCredential];
 
 const retiredIdentityFallback: InferResponseType<typeof identityMethod, 200> = {
   direct: false,
@@ -365,4 +361,6 @@ const retiredIdentityFallback: InferResponseType<typeof identityMethod, 200> = {
 };
 void retiredIdentityFallback;
 
-sameAs<Equal<import("../../../shared/schemas").Connection["auth"], "identity">>(true);
+sameAs<Equal<import("../../../shared/schemas").Connection["auth"], "identity">>(
+  true,
+);
