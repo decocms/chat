@@ -373,6 +373,8 @@
      jump to the chat at that moment. */
   .docVer { display: flex; align-items: center; gap: 8px; padding: 8px 20px 0; font-size: 12.5px; color: var(--mute); min-width: 0; }
   .doc:not([data-pane="doc"]) .docVer, .doc[data-view="edit"] .docVer { display: none; }
+  /* On the title's line, at the right (Gui #2779): the picker is moved into the preview and floats. */
+  .preview > .docVer { float: right; padding: 0; margin: 4px 0 6px 12px; }
   .docVer select { max-width: 100%; font-size: 12.5px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
   .verBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--line)); border-radius: 10px; background: color-mix(in oklch, var(--accent) 8%, var(--panel)); font-size: 13px; }
   .verBar b { flex: 1 0 100%; min-width: 0; }
@@ -6644,6 +6646,7 @@ function renderDoc(force) {
   // Doc is written by people and the AI: render markdown, then sanitize.
   const pv = document.getElementById("preview");
   const tk = document.getElementById("tasks"); if (tk) document.getElementById("tasksHome").append(tk); // keep it out of the innerHTML wipe
+  const vb = document.getElementById("docVer"); if (vb) pv.before(vb); // same: back home, then into the preview below
   const shownText = verView ? verView.text : text;
   pv.innerHTML = shownText.trim()
     ? DOMPurify.sanitize(marked.parse(shownText, { breaks: true, gfm: true }), { ...MD_PURIFY, FORBID_TAGS: MD_PURIFY.FORBID_TAGS.filter((x) => x !== "img"), ADD_ATTR: ["target"] }) // the doc keeps images (screenshots of the room's files)
@@ -6659,7 +6662,9 @@ function renderDoc(force) {
     if (html) code.parentElement.outerHTML = html;
   });
   renderMermaid(pv);
-  if (verView) { verBar(pv); renderPeek(); return; } // an old version: no live tasks or apps, and the editor keeps the live text
+  const ver = () => { if (!vb) return; const h = pv.querySelector("h1"); h ? h.before(vb) : pv.prepend(vb); }; // floats right of the title
+  ver();
+  if (verView) { verBar(pv); ver(); renderPeek(); return; } // an old version: no live tasks or apps, and the editor keeps the live text
   placeTasks(pv, ep || (thread === "main" && S.roomTasks?.length ? "main" : null));
   docApps(pv, ep);
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that the
@@ -6685,9 +6690,13 @@ const verWhen = (ts) => new Date(ts).toLocaleString(LOCALE, { day: "2-digit", mo
 function renderVerPicker() {
   const box = document.getElementById("docVer"); if (!box) return;
   const vs = verList?.versions ?? [];
-  if (!vs.length) { box.innerHTML = ""; box.hidden = true; return; }
+  if (!vs.length) { box.innerHTML = ""; box.dataset.h = ""; box.hidden = true; return; }
   box.hidden = false;
-  box.innerHTML = `${icon("clock", 14)}<select aria-label="${t("Versões do doc")}"><option value="">${t("Atual (ao vivo)")}</option>${vs.map((v, i) => `<option value="${v.id}"${verView?.id === v.id ? " selected" : ""}>v${vs.length - i} · ${esc(verWhen(v.ts))} · ${esc(verWho(v.by))}</option>`).join("")}</select>`;
+  // Same list = leave the open dropdown alone: focusing it asks for the list again, and redrawing on the answer closed
+  // it right away (Gui #2779).
+  const html = `${icon("clock", 14)}<select aria-label="${t("Versões do doc")}"><option value="">${t("Atual (ao vivo)")}</option>${vs.map((v, i) => `<option value="${v.id}"${verView?.id === v.id ? " selected" : ""}>v${vs.length - i} · ${esc(verWhen(v.ts))} · ${esc(verWho(v.by))}</option>`).join("")}</select>`;
+  if (box.dataset.h === html) return;
+  box.dataset.h = html; box.innerHTML = html;
   const sel = box.querySelector("select");
   sel.onfocus = () => send({ t: "doc.versions", epic: docEpic() }); // a version may have been cut since
   sel.onchange = () => { if (sel.value) send({ t: "doc.version", id: Number(sel.value) }); else { verView = null; renderDoc(true); } };

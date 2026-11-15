@@ -30,11 +30,14 @@
     epic,
     props,
     owner,
+    aside,
   }: {
     text: string;
     epic: string | null;
     props: DocumentProps;
     owner: DocumentSession;
+    /** Floats right of the title, e.g. the version picker (Gui #2779). */
+    aside?: import("svelte").Snippet;
   } = $props();
   const idPrefix = $props.id();
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that
@@ -214,6 +217,9 @@
     >
       {#each props.room.docNotes as note}<p class="tw:m-0">{note}</p>{/each}
     </aside>{/if}
+  {#if aside}<div class="tw:float-right tw:mb-1 tw:ml-3 tw:mt-1">
+      {@render aside()}
+    </div>{/if}
   {#if !text.trim()}<p class="tw:m-0 tw:text-muted-foreground">
       {props.lang === "en"
         ? "This document is empty. Choose Edit or ask your agent to summarize the decisions here."

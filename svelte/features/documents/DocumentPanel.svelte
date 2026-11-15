@@ -239,6 +239,7 @@
       {owner}
       {props}
       epic={$view.target?.epicId ?? null}
+      part="open"
     />{/if}
   {#if !$view.denied}<div
       hidden={$view.mode !== "preview" || !!$docVersionOpen}
@@ -249,7 +250,13 @@
           text={$view.text}
           epic={$view.target?.epicId ?? null}
           {props}
-        />{/key}
+          >{#snippet aside()}<DocumentVersions
+              {owner}
+              {props}
+              epic={$view.target?.epicId ?? null}
+              part="picker"
+            />{/snippet}</DocumentPreview
+        >{/key}
     </div>{/if}
   <div
     hidden={$view.denied ||

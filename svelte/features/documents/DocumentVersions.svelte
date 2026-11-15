@@ -6,20 +6,29 @@
   import type { DocumentProps } from "./types";
   import Button from "../../lib/ui/Button.svelte";
   import DocumentPreview from "./DocumentPreview.svelte";
+  import Self from "./DocumentVersions.svelte";
   import type { DocumentSession } from "./session";
   import { docVersionList, docVersionOpen } from "./versions";
   let {
     owner,
     props,
     epic,
-  }: { owner: DocumentSession; props: DocumentProps; epic: string | null } =
-    $props();
+    part,
+  }: {
+    owner: DocumentSession;
+    props: DocumentProps;
+    epic: string | null;
+    /** "picker" = the select, drawn on the title's line by DocumentPreview's aside; "open" = the old version's view
+     *  (and the one instance that asks for the list). */
+    part: "picker" | "open";
+  } = $props();
   const en = $derived(props.lang === "en");
   const key = $derived(epic ?? "");
   // Only when the doc on screen changes: props change on every room event, and reading them here cleared the open
   // version as soon as it arrived.
   $effect(() => {
     const doc = key;
+    if (part !== "open") return;
     untrack(() => {
       docVersionOpen.set(null);
       props.send({ t: "doc.versions", epic: doc || null });
@@ -81,9 +90,9 @@
   }
 </script>
 
-{#if list.length}<div
+{#if part === "picker" && list.length}<div
     data-doc-versions
-    class="tw:flex tw:items-center tw:gap-2 tw:px-3 tw:pt-2 tw:text-xs tw:text-muted-foreground"
+    class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
   >
     <select
       aria-label={en ? "Doc versions" : "Versões do doc"}
@@ -99,7 +108,7 @@
         >{/each}</select
     >
   </div>{/if}
-{#if open}<div
+{#if part === "open" && open}<div
     data-doc-version-open
     class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-auto"
   >
@@ -121,10 +130,12 @@
         >{en ? "Back to current" : "Voltar ao atual"}</Button
       >
     </div>
-    {#key open.id}<DocumentPreview
-        {owner}
-        text={open.text}
-        {epic}
-        {props}
-      />{/key}
+    {#key open.id}<DocumentPreview {owner} text={open.text} {epic} {props}
+        >{#snippet aside()}<Self
+            {owner}
+            {props}
+            {epic}
+            part="picker"
+          />{/snippet}</DocumentPreview
+      >{/key}
   </div>{/if}

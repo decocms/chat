@@ -49,10 +49,12 @@
     },
     "fixes": {
       "pt": [
-        "\"Escrevendo a resposta…\" aparecia no doc de qualquer épico com um Claude trabalhando; agora só nos épicos de pergunta."
+        "\"Escrevendo a resposta…\" aparecia no doc de qualquer épico com um Claude trabalhando; agora só nos épicos de pergunta.",
+        "O seletor de versões do doc fica na linha do título, à direita, e não fecha mais sozinho quando você clica nele."
       ],
       "en": [
-        "\"Writing the answer…\" showed in any epic's doc while a Claude worked; now only in question epics."
+        "\"Writing the answer…\" showed in any epic's doc while a Claude worked; now only in question epics.",
+        "The doc version picker sits on the title line, at the right, and no longer closes by itself when you click it."
       ]
     }
   },
