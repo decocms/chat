@@ -720,6 +720,7 @@
   .composer .micBtn { color: var(--mute); touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   .composer.charging, .composer.charging * { -webkit-user-select: none; user-select: none; } .composer .micBtn.on { color: #fff; background: #d64545; border-radius: 50%; }
   .composer.dictating textarea, .composer.dictating input { box-shadow: 0 0 0 2px #d64545; }
+  .composer.transcribing textarea { opacity: .6; }
   .emojiPop { width: min(340px, calc(100% - 48px)); }
   .emojiPop input { width: 100%; margin-bottom: 6px; }
   .emojiPop .eGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); max-height: 220px; overflow: auto; }
@@ -3688,7 +3689,7 @@ function renderBook() {
   // release to stop, Enter sends. A quick tap of Space still types a space (only a hold ≥350ms starts listening).
   if (SR) {
     const input = document.getElementById("input"), mic = document.getElementById("micBtn"), box = input.closest(".composer") || input.parentElement;
-    let rec = null, base = "", holdT = 0, held = false, pending = false, audio = null, gen = 0, wrote = "";
+    let rec = null, base = "", holdT = 0, held = false, pending = false, audio = null, gen = 0, wrote = "", whisperP = null, waiting = false;
     const typeSpace = () => { pending = false; clearTimeout(holdT); const a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a; input.setRangeText(" ", a, b, "end"); input.dispatchEvent(new Event("input", { bubbles: true })); };
     const start = () => {
       if (rec) return;
@@ -3697,19 +3698,23 @@ function renderBook() {
       rec.onresult = (ev) => { input.value = wrote = join([...ev.results].map((r) => r[0].transcript).join("").trim()); input.dispatchEvent(new Event("input", { bubbles: true })); };
       // The same audio goes to Whisper when you stop; its text replaces the browser's if the box wasn't touched since.
       const g = ++gen, mine = rec;
-      if (navigator.mediaDevices?.getUserMedia && window.MediaRecorder) navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        if (rec !== mine) return stream.getTracks().forEach((x) => x.stop()); // stopped before the mic opened
+      let done = () => {};
+      const p = (whisperP = new Promise((r) => (done = () => { if (whisperP === p) whisperP = null; r(); })));
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) done();
+      else navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        if (rec !== mine) return (stream.getTracks().forEach((x) => x.stop()), done()); // stopped before the mic opened
         const mr = new MediaRecorder(stream), chunks = [];
         mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
         mr.onstop = async () => {
           stream.getTracks().forEach((x) => x.stop());
           const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
-          if (blob.size < 2000) return; // a tap, not speech
+          if (blob.size < 2000) return done(); // a tap, not speech
           const text = await whisper(blob);
           if (text && g === gen && input.value === wrote) { input.value = wrote = join(text); input.dispatchEvent(new Event("input", { bubbles: true })); }
+          done();
         };
         mr.start(); audio = mr;
-      }).catch(() => {});
+      }).catch(done);
       rec.onend = () => { rec = null; box.classList.remove("dictating"); mic?.classList.remove("on"); input.focus(); };
       rec.onerror = (ev) => { if (ev.error === "not-allowed") toast(t("O navegador não deixou usar o microfone.")); };
       box.classList.add("dictating"); mic?.classList.add("on");
@@ -3718,7 +3723,19 @@ function renderBook() {
     const stop = () => { try { rec?.stop(); audio?.stop(); } catch {} audio = null; };
     // Enviar while dictating (Gui #2405): the message goes, dictation stops, and late results don't write the sent
     // text back into the empty box.
-    box.addEventListener("submit", () => { gen++; if (!rec) return; rec.onresult = null; base = ""; stop(); }, true);
+    // Enter while dictating or while Whisper is still on it (Gui #2579): wait for Whisper's text (≤8 s) and send that,
+    // not the browser's draft.
+    box.addEventListener("submit", (e) => {
+      if (rec || whisperP) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (waiting) return;
+        waiting = true; box.classList.add("transcribing");
+        const p = whisperP; stop();
+        Promise.race([p, new Promise((r) => setTimeout(r, 8000))]).then(() => { waiting = false; whisperP = null; box.classList.remove("transcribing"); if (rec) rec.onresult = null; box.requestSubmit(); });
+        return;
+      }
+      gen++; if (!rec) return; rec.onresult = null; base = ""; stop();
+    }, true);
     // Hold-Space is for physical keyboards. On touch screens it cancelled every space of the on-screen keyboard
     // (inserted later by hand), which broke autocorrect/predictions and froze iPhones (Gui 14/11): they have 🎤 and
     // the keyboard's own dictation.
