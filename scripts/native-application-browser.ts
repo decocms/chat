@@ -53,6 +53,7 @@ declare global {
   }
 }
 import { auditInlineAppOpen } from "./native-inline-app-open-browser";
+import { auditDocumentAnswers } from "./native-doc-answer-browser";
 import { auditNativeApplicationProfiles } from "./native-application-profiles";
 import {
   auditNativeDictation,
@@ -1267,6 +1268,11 @@ try {
       "passed",
       "Inline App reader-approval audit must pass",
     );
+  });
+  await independentAudit("document-answer-parity", async () => {
+    const result = await auditDocumentAnswers(profileFixture);
+    report.documentAnswers = result;
+    assert.equal(result.status, "passed", "Document answer parity audit must pass");
   });
   await independentAudit("page-errors", async () => {
     assert.deepEqual(errors, []);

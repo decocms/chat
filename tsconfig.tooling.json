@@ -178,6 +178,7 @@
     "scripts/reconcile-inventory.ts",
     "scripts/native-inline-app-open-browser.ts",
     "scripts/native-inline-app-fixture.ts",
-    "scripts/native-dictation-browser.ts"
+    "scripts/native-dictation-browser.ts",
+    "scripts/native-doc-answer-browser.ts"
   ]
 }

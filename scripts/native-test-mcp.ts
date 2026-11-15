@@ -74,6 +74,7 @@ export async function nativeTestAgent(page: Page, base: string) {
   return async (
     name: string,
     args: Record<string, unknown>,
+    expectation: "success" | "refusal" = "success",
   ): Promise<unknown> => {
     const response = await request.post(`${base}/mcp`, {
       headers: { authorization: `Bearer ${token.access_token}` },
@@ -93,10 +94,9 @@ export async function nativeTestAgent(page: Page, base: string) {
         }),
       })
       .parse(await response.json());
-    assert(
-      !body.result.isError,
-      `Local MCP ${name} rejected the fixture operation`,
-    );
+    if (expectation === "refusal")
+      assert.equal(body.result.isError, true, `Local MCP ${name} must explicitly refuse`);
+    else assert(!body.result.isError, `Local MCP ${name} rejected the fixture operation`);
     return body.result.structuredContent;
   };
 }
