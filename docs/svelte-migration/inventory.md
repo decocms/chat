@@ -58,3 +58,15 @@ Independent unit/browser evidence remains valid; those references are not yet
 linked to these individual keys. No record was promoted merely because a module
 or test file exists. M0 and F56 remain open. This snapshot predates main 6697819's
 subsequent document-feature integration.
+
+## Current captured source: 9bae26a
+
+The [fresh deployed-source capture](inventory-current-2026-11-15-9bae26a/README.md)
+contains 412 files and 2,882 candidate keys. Its unchanged original reconciliation
+records 1,477 matching module hashes, 1,381 changed hashes and 24 unknown keys.
+The [finite amendment](inventory-owners-9bae26a.json) preserves the historical
+111 owners, adds six file owners and records 52 exact-key source reviews with
+[per-candidate rationale](owner-review-9bae26a.md). No action is verified by this
+documentation work. The original reconciler's amended after-output is pending;
+expected counts must not be confused with a retained execution receipt.
+M0/F56 remain open, including the changed-source queue and actual action evidence.

@@ -1,0 +1,56 @@
+{
+  "sourceRevision": "9bae26acdbd06fb5886ea307ee8e2077de12f763",
+  "documentationBaseRevision": "dc2fa820d0dd7471c4fab099e2d580b7ff9abcfa",
+  "workingTreeDirty": false,
+  "sourceFingerprint": "083b3f59f31cb37bcf10c34b7b227a6d4713bcb6b596896b097f7c38b62759ee",
+  "inventoryCounts": {
+    "files": 412,
+    "functions": 2085,
+    "networkCalls": 179,
+    "endpoints": 94,
+    "typeEscapeCandidates": 0,
+    "domOperations": 403,
+    "styleCandidates": 121
+  },
+  "before": {
+    "entries": 2882,
+    "moduleMapped": 1477,
+    "moduleChanged": 1381,
+    "unknown": 24,
+    "actionVerified": 0,
+    "sourceReviewed": 0,
+    "actionPending": 2882
+  },
+  "amendment": {
+    "originalOwnerObjects": 111,
+    "addedOwnerObjects": 6,
+    "finiteSourceReviews": 52,
+    "actionVerified": 0
+  },
+  "manifest": "../inventory-owners-9bae26a.json",
+  "baseManifest": {
+    "path": "../inventory-owners-890fbee.json",
+    "sha256": "f30cc0eac4f12befbc51c021eaf977ade858a83a8e3e9b2ab8ca20d6fca80a52"
+  },
+  "files": [
+    {
+      "originalName": "current.json",
+      "path": "inventory.json.gz",
+      "originalBytes": 418727,
+      "originalSHA256": "2c0b654a4dccb2bedc775a875a1b8ff0ceed7abc43c49e8dbd3a298648c3ada9",
+      "storedBytes": 51031,
+      "storedSHA256": "6b988f1f7225379336304bc4e4bc09f1fed3596808d1f26c426da41af318a22a",
+      "compression": "gzip restores exact original bytes"
+    },
+    {
+      "originalName": "reconciliation.json",
+      "path": "reconciliation-before.json.gz",
+      "originalBytes": 4375333,
+      "originalSHA256": "9b42a2b98a325a171a9b9c4da6fce829651939b127745da85f92e83d04ee4042",
+      "storedBytes": 210731,
+      "storedSHA256": "b4200aad22162f7474838a77f1b24b48e1034c249907bd0c9b54e5af0598ef95",
+      "compression": "gzip restores exact original bytes"
+    }
+  ],
+  "limits": "Fresh original scanner output plus finite source review, not M0/F56/runtime/provider/hardware/performance/production acceptance. Official reconciler after-output pending."
+}
