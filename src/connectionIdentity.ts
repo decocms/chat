@@ -15,11 +15,22 @@ export interface ConnectionIdentityPorts {
   sign(room: string, url: string): Promise<string>;
   track(room: string, url: string): void;
 }
-const missing: ConnectionIdentityFailure = { error: "conexão não encontrada", status: 404 };
-const forbidden: ConnectionIdentityFailure = { error: "forbidden", status: 403 };
+const missing: ConnectionIdentityFailure = {
+  error: "conexão não encontrada",
+  status: 404,
+};
+const forbidden: ConnectionIdentityFailure = {
+  error: "forbidden",
+  status: 403,
+};
 const sameAuthority = (a: StoredConnection, b: StoredConnection) =>
-  a.id === b.id && a.book_id === b.book_id && a.owner === b.owner && a.scope === b.scope &&
-  a.url === b.url && a.enc === b.enc && a.iv === b.iv;
+  a.id === b.id &&
+  a.book_id === b.book_id &&
+  a.owner === b.owner &&
+  a.scope === b.scope &&
+  a.url === b.url &&
+  a.enc === b.enc &&
+  a.iv === b.iv;
 
 /** Sign only the current authorized stored destination; repeat authority reads after asynchronous signing. */
 export async function connectionIdentity(
@@ -27,23 +38,34 @@ export async function connectionIdentity(
   cid: string,
   ports: ConnectionIdentityPorts,
 ): Promise<ConnectionIdentityResult | ConnectionIdentityFailure> {
-  const read = async (): Promise<StoredConnection | ConnectionIdentityFailure> => {
+  const read = async (): Promise<
+    StoredConnection | ConnectionIdentityFailure
+  > => {
     if (!(await ports.member(room))) return forbidden;
     const row = await ports.connection(room, cid);
     if (!(await ports.member(room))) return forbidden;
-    if (!row || row.id !== cid || row.book_id !== room || (row.scope === "me" && row.owner !== ports.email)) return missing;
+    if (
+      !row ||
+      row.id !== cid ||
+      row.book_id !== room ||
+      (row.scope === "me" && row.owner !== ports.email)
+    )
+      return missing;
     return row;
   };
   try {
     const first = await read();
     if ("error" in first) return first;
     if (!(await ports.allowed())) return { error: "rate limited", status: 429 };
-    const inspect = async (): Promise<ConnectionIdentityResult | ConnectionIdentityFailure | null> => {
+    const inspect = async (): Promise<
+      ConnectionIdentityResult | ConnectionIdentityFailure | null
+    > => {
       const current = await read();
       if ("error" in current) return current;
       if (!sameAuthority(first, current)) return missing;
       // Even an expired grant retains the legacy sign-in route: never export its credentials.
-      const signedIn = current.enc && current.iv ? false : await ports.signedIn(current.url);
+      const signedIn =
+        current.enc && current.iv ? false : await ports.signedIn(current.url);
       const final = await read();
       if ("error" in final) return final;
       if (!sameAuthority(current, final)) return missing;
@@ -53,11 +75,17 @@ export async function connectionIdentity(
     const before = await inspect();
     if (before) return before;
     const destination = new URL(first.url);
-    if (destination.username || destination.password) return { error: "invalid connection URL", status: 400 };
+    if (destination.username || destination.password)
+      return { error: "invalid connection URL", status: 400 };
     const identity = await ports.sign(room, first.url);
     const after = await inspect();
     if (after) return after;
-    const result = ConnectionIdentityResult.parse({ direct: true, url: first.url, identity, expires_in: 300 });
+    const result = ConnectionIdentityResult.parse({
+      direct: true,
+      url: first.url,
+      identity,
+      expires_in: 300,
+    });
     ports.track(room, first.url);
     return result;
   } catch {
