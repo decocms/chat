@@ -30,16 +30,10 @@ export function parseBlock(doc: string): Parsed[] | null {
 }
 
 /** The doc with its "## Tarefas" checklist matching the tasks. Other lines in the section are kept (after the list).
- * No section yet: it goes before the first "## " heading (right after the goal), else at the end. atEnd (an epic that
- * answers a question, Gui #2735: the answer comes first, the bookkeeping task last): always the last section. */
-export function renderBlock(doc: string, tasks: BlockTask[], atEnd = false): string {
+ * No section yet: it goes before the first "## " heading (right after the goal), else at the end. */
+export function renderBlock(doc: string, tasks: BlockTask[]): string {
   const list = tasks.map(line).join("\n");
   const s = section(doc);
-  if (atEnd) {
-    const rest = s ? doc.slice(s[0], s[1]).split("\n").filter((l) => !ITEM.test(l)).join("\n").trim() : "";
-    const body = (s ? doc.slice(0, s[0]).replace(/##\s*Tarefas\s*$/, "") + doc.slice(s[1]) : doc).replace(/\s*$/, "");
-    return `${body}\n\n## Tarefas\n\n${list}${rest ? `\n\n${rest}` : ""}\n`;
-  }
   if (!s) {
     const block = `## Tarefas\n\n${list}\n\n`;
     const h2 = /^##\s/m.exec(doc);
@@ -47,6 +41,14 @@ export function renderBlock(doc: string, tasks: BlockTask[], atEnd = false): str
   }
   const rest = doc.slice(s[0], s[1]).split("\n").filter((l) => !ITEM.test(l)).join("\n").trim();
   return `${doc.slice(0, s[0])}\n\n${list}${rest ? `\n\n${rest}` : ""}\n\n${doc.slice(s[1])}`.replace(/\n{3,}(?=#|$)/g, "\n\n");
+}
+
+/** The doc without its "## Tarefas" section: an answer epic's doc is only the answer (Gui #2798). */
+export function dropBlock(doc: string): string {
+  const s = section(doc);
+  if (!s) return doc;
+  const head = HEAD.exec(doc)!.index;
+  return `${doc.slice(0, head).replace(/\s*$/, "")}\n${doc.slice(s[1]) ? `\n${doc.slice(s[1])}` : ""}`;
 }
 
 /** What to change in the tasks so they match the doc's checklist. Pairs exact titles first, then the rest in order

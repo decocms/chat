@@ -1,5 +1,5 @@
 // bun scripts/taskblock-check.ts: the doc ⇄ tasks checklist sync (src/taskblock.ts).
-import { parseBlock, reconcile, renderBlock } from "../src/taskblock";
+import { dropBlock, parseBlock, reconcile, renderBlock } from "../src/taskblock";
 
 let fails = 0;
 const check = (ok: unknown, what: string) => { console.log(`${ok ? "✓" : "✗"} ${what}`); if (!ok) fails++; };
@@ -24,6 +24,11 @@ r = reconcile(parseBlock(doc.replace("- [ ] Criar conta\n", ""))!, tasks);
 check(r.del.length === 1 && r.del[0] === "a" && !r.add.length, "removing a line deletes its task");
 const withNote = doc.replace("- [x] Deploy", "- [x] Deploy\n\nObs.: o DNS só depois do QA.");
 check(renderBlock(withNote, tasks).includes("Obs.: o DNS só depois do QA."), "other text in the section is kept");
+
+// An answer epic's doc is only the answer (Gui #2798).
+check(dropBlock("# T\n\nResposta.\n\n## Tarefas\n\n- [x] a\n") === "# T\n\nResposta.\n", "dropBlock: the answer stays, the task list goes");
+check(dropBlock("# T\n\n## Tarefas\n\n- [ ] a\n\n## Notas\n\nx\n") === "# T\n\n## Notas\n\nx\n", "dropBlock: sections after it stay");
+check(dropBlock("# T\n\nsem bloco\n") === "# T\n\nsem bloco\n", "dropBlock: a doc without the section is untouched");
 
 if (fails) { console.log(`\n${fails} check(s) failed`); process.exit(1); }
 console.log("\nall checks passed");
