@@ -1330,7 +1330,7 @@ test("personal channel ignores retired live Fire events and retains focus/agent 
     })),
   ])
     expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
-  for (const t of ["focus", "agents"])
+  for (const t of ["focus", "agents"] as const)
     expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({
       t,
       book: "room",

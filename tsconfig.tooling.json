@@ -177,6 +177,6 @@
     "scripts/reconcile-inventory.ts",
     "scripts/native-inline-app-open-browser.ts",
     "scripts/native-inline-app-fixture.ts",
-    "scripts/native-fire-gesture-browser.ts"
+    "scripts/native-dictation-browser.ts"
   ]
 }
