@@ -12,7 +12,7 @@
     onOpenChange,
   }: {
     chart: Extract<CardEl, { type: "Chart" }>["props"];
-    vb: ChatBridge;
+    vb: Pick<ChatBridge, "t">;
     inline?: boolean;
     open?: boolean;
     onOpenChange: (open: boolean) => void;

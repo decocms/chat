@@ -18,6 +18,8 @@ export const applicationLocale = (
   language: ApplicationLanguage,
 ): ApplicationLocale => (language === "en" ? "en-US" : "pt-BR");
 const EN: Readonly<Record<string, string>> = {
+  "Toque pra ditar (ou segure espaço na caixa)":
+    "Tap to dictate (or hold Space in the box)",
   "Uma versão está no ar; você pediu correções depois":
     "A version is live; you asked for changes after it",
   "Uma versão está no ar · correções em andamento":

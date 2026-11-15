@@ -10,12 +10,16 @@
     taskSlot,
     appSlot,
     appKey,
+    cardSource,
+    cardSlot,
   }: {
     nodes: readonly RichNode[];
     actions: RichActions;
     taskSlot?: Snippet;
     appSlot?: Snippet<[number]>;
     appKey?(slot: number): string;
+    cardSource?(node: RichNode): string | null;
+    cardSlot?: Snippet<[string, RichNode]>;
   } = $props();
   let active = true;
   onDestroy(() => {
@@ -144,6 +148,7 @@
 
 {#snippet content(items: readonly RichNode[])}
   {#each items as node, index (key(node, index))}
+    {@const documentCard = cardSource?.(node) ?? null}
     {#if node.kind === "text"}{node.text}
     {:else if node.kind === "mention"}<span
         data-rich-mention={node.who}
@@ -202,6 +207,10 @@
               >{/if}
           {:else}{@render content(node.children)}{/if}
         </a>{/if}
+    {:else if documentCard !== null && cardSlot}{@render cardSlot(
+        documentCard,
+        node,
+      )}
     {:else if node.documentTaskSlot}{@render taskSlot?.()}
     {:else if node.documentAppSlot !== undefined && appSlot}{@render appSlot(
         node.documentAppSlot,

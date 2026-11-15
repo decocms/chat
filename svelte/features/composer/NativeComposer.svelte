@@ -668,10 +668,9 @@
     />
     {#if speech.supported}<IconButton
         icon="mic"
+        loading={refining}
         label={vb.t("Ditar mensagem")}
-        title={vb.locale?.startsWith("en")
-          ? "Dictate into the draft; tap again to stop"
-          : "Dite no rascunho; toque de novo para parar"}
+        title={vb.t("Toque pra ditar (ou segure espaço na caixa)")}
         aria-pressed={dictating}
         class={dictating
           ? "tw:bg-destructive tw:text-destructive-foreground"

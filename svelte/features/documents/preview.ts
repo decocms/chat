@@ -116,6 +116,12 @@ export function documentBlocks(
   return result;
 }
 export function mermaidSource(node: RichNode): string | null {
+  return fencedSource(node, "mermaid");
+}
+export function documentCardSource(node: RichNode): string | null {
+  return fencedSource(node, "card");
+}
+function fencedSource(node: RichNode, language: string): string | null {
   if (
     node.kind !== "element" ||
     node.tag !== "pre" ||
@@ -125,7 +131,7 @@ export function mermaidSource(node: RichNode): string | null {
   const code = node.children[0];
   return code.kind === "element" &&
     code.tag === "code" &&
-    code.language === "mermaid"
+    code.language === language
     ? text(code.children)
     : null;
 }

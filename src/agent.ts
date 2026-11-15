@@ -1084,6 +1084,7 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       return r;
     }
     case "open_doc": {
+      if (a.epic_id !== undefined && typeof a.epic_id !== "string") return { ok: false, error: "invalid doc target" };
       const id = await room(), epic = str(a.epic_id) === "main" ? "" : str(a.epic_id);
       const r = await bookStub(env, id).agentOpenDoc(id, me.email, epic);
       if (r.ok) ctx.waitUntil(track(env, "open_doc", { user: me.email, dims: { book: id, tabs: r.opened_in_tabs } }));

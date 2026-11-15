@@ -14,7 +14,7 @@
     headers: readonly string[];
     rows: readonly (readonly string[])[];
     title: string;
-    vb: ChatBridge;
+    vb: Pick<ChatBridge, "t">;
     inline?: boolean;
     open?: boolean;
     onOpenChange: (open: boolean) => void;

@@ -1,5 +1,6 @@
 import {
   documentAppMarkers,
+  documentEmbedsApp,
   documentAppKey,
   createDocumentAppAuthority,
   resizeDocumentApp,
@@ -36,6 +37,7 @@ import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
 import {
   documentBlocks,
   documentAppNodes,
+  documentCardSource,
   mermaidSource,
 } from "../svelte/features/documents/preview";
 import {
@@ -1177,4 +1179,31 @@ test("skipped Markdown definitions cannot shift root or nested App rewrite spans
       "[[app:room/demo|p]]" +
       source.slice(index + "[[app:room/demo|m]]".length),
   );
+});
+
+test("only exact legal document App paragraphs keep a newly uploaded app inside the document", () => {
+  const target = { connection: "room", tool: "demo" };
+  expect(documentEmbedsApp("> [[APP:room/demo|g]]\n", target)).toBe(true);
+  for (const source of [
+    "[[app:room/demolition]]",
+    "[[app:room/Demo]]",
+    "[[app:ROOM/demo]]",
+    "Prose [[app:room/demo]]",
+    "`[[app:room/demo]]`",
+    "```text\n[[app:room/demo]]\n```",
+    "<!-- [[app:room/demo]] -->",
+  ])
+    expect(documentEmbedsApp(source, target)).toBe(false);
+});
+
+test("native fenced card extraction includes nested code but never raw-HTML or another language", () => {
+  const source =
+    '```card\n{"root":"one"}\n```\n\n> ```card\n> {"root":"two"}\n> ```\n\n```json\n{"root":"three"}\n```\n\n<pre><code class="language-card">{"root":"four"}</code></pre>';
+  const nodes = descendants(richText(source, "markdown", context("document")));
+  expect(
+    nodes.flatMap((node) => {
+      const card = documentCardSource(node);
+      return card === null ? [] : [card.trim()];
+    }),
+  ).toEqual(['{"root":"one"}', '{"root":"two"}']);
 });
