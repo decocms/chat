@@ -331,11 +331,13 @@ export async function auditDesignSystemInbox(
     await expect(
       roomInbox.getByRole("button", { name: "All", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await roomInbox
+    const crossRoomOpen = roomInbox
       .locator("[data-room-inbox-message]")
       .filter({ hasText: "Cross-room target message" })
       .getByRole("button")
-      .click();
+      .filter({ hasText: "Cross-room target message" });
+    await expect(crossRoomOpen).toHaveCount(1);
+    await crossRoomOpen.click();
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/b/${second.id}` &&
