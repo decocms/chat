@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.6.17";
+const VERSION = "1.6.18";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -80,18 +80,20 @@ function roomHere(root: string): string | undefined {
   }
   return undefined;
 }
-/** One agent per person + folder + Claude Code session. Folder alone made three Claudes in ~/Projects/vibebook one
- * agent (Gui, 14/11): one cursor, each listen stopping the other's, and the room showing one Claude with whichever
- * model wrote last. Inside Claude Code the session id (stable across --resume) splits them; outside it (the herdr
- * runner, a plain terminal) it's the folder's id, as before. */
+/** One agent per Claude. Folder alone made three Claudes in ~/Projects/vibebook one agent (Gui, 14/11): one cursor,
+ * each listen stopping the other's. Inside Claude Code the agent is the session (stable across --resume), whatever
+ * folder a call runs from: folder + session made a read_room from a scratch folder another agent with its own cursor,
+ * so the repo's listen kept waking for what that Claude had already read (Nov 2026 product report, missed_message).
+ * Outside Claude Code (the herdr runner, a plain terminal) it's the folder's id, as before. */
 function agentId(root: string) {
+  const sid = process.env.CLAUDE_CODE_SESSION_ID;
+  if (sid) return `s_${createHash("sha256").update(`claude-code:${sid}`).digest("hex").slice(0, 32)}`;
   const all = readJson<Record<string, string>>(AGENTS, {});
   if (!all[root]) {
     all[root] = `s_${randomBytes(16).toString("hex")}`;
     writePrivate(AGENTS, all);
   }
-  const sid = process.env.CLAUDE_CODE_SESSION_ID;
-  return sid ? `s_${createHash("sha256").update(`${all[root]}:${sid}`).digest("hex").slice(0, 32)}` : all[root];
+  return all[root];
 }
 
 // ---- auth ----

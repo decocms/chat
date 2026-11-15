@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.17";
+var VERSION = "1.6.18";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -80,13 +80,15 @@ function roomHere(root) {
   return;
 }
 function agentId(root) {
+  const sid = process.env.CLAUDE_CODE_SESSION_ID;
+  if (sid)
+    return `s_${createHash("sha256").update(`claude-code:${sid}`).digest("hex").slice(0, 32)}`;
   const all = readJson(AGENTS, {});
   if (!all[root]) {
     all[root] = `s_${randomBytes(16).toString("hex")}`;
     writePrivate(AGENTS, all);
   }
-  const sid = process.env.CLAUDE_CODE_SESSION_ID;
-  return sid ? `s_${createHash("sha256").update(`${all[root]}:${sid}`).digest("hex").slice(0, 32)}` : all[root];
+  return all[root];
 }
 var b64url = (b) => b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 function openBrowser(url) {
