@@ -50,8 +50,9 @@ actual CPU profile or change a historical rejection.
 ## Source-check correction
 
 [Repository run 43687687418](https://github.com/vibegui/vibebook.dev/actions/runs/43687687418)
-at `f2a043ce35ada2d96db946bc8931bd3517c9d59b` passed the build, preview freshness,
-layout browser and 23 of 24 repository gates on both operating systems. Tooling
+at `f2a043ce35ada2d96db946bc8931bd3517c9d59b` passed the build, preview freshness
+and 23 of 24 repository gates on both operating systems, plus the Ubuntu
+layout-browser job. Tooling
 typing alone failed: the test helper accepted a broad string where the model
 and Bun's equality matcher require its closed failure-reason union. The helper
 now derives that parameter from the actual unverified result type. The equality
