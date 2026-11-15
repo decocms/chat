@@ -243,9 +243,13 @@
   function canInteract(event?: Event) {
     return (
       active &&
+      // RoomScene's live spread may already be null while this outgoing DOM
+      // remains connected. Captured authority must fence reads of those props.
+      (!ownedVoicePort || ownedVoicePort.current()) &&
+      entry.available() &&
+      !!root?.isConnected &&
       !hidden &&
       allowed &&
-      !!root?.isConnected &&
       (!event ||
         (!voiceWaiting &&
           event.currentTarget instanceof HTMLElement &&
