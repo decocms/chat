@@ -34,7 +34,8 @@ export function createRoomGeometry(options: {
   const media = win.matchMedia("(max-width: 900px)"),
     reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
   let active = true,
-    rootWidth = cells.root.clientWidth,
+    // The synchronous initial measure below initializes this before gestures.
+    rootWidth = 0,
     preferred = 380,
     shown: RoomSheet | null = null,
     lastSheet: RoomSheet | null = null,
@@ -240,22 +241,24 @@ export function createRoomGeometry(options: {
   }
   function measure() {
     if (!current()) return;
+    // Read one container/visual-viewport snapshot before publishing state or
+    // seeking CSS playback, either of which can invalidate presentation.
     rootWidth = cells.root.clientWidth;
     const value = options.read(),
-      width = documentWidth(preferred, rootWidth, value.sidebarCollapsed);
-    options.changed({
-      documentWidth: width,
-      documentMaximum: documentMaximum(rootWidth, value.sidebarCollapsed),
-    });
-    const available = cells.root.clientHeight,
+      available = cells.root.clientHeight,
       rect = cells.root.getBoundingClientRect(),
-      visual = win.visualViewport;
-    const visible = visual
-      ? Math.min(
-          available,
-          Math.max(0, visual.offsetTop + visual.height - rect.top),
-        )
-      : available;
+      visual = win.visualViewport,
+      visible = visual
+        ? Math.min(
+            available,
+            Math.max(0, visual.offsetTop + visual.height - rect.top),
+          )
+        : available,
+      scrollY = value.mobile ? win.scrollY : 0,
+      width = documentWidth(preferred, rootWidth, value.sidebarCollapsed),
+      maximum = documentMaximum(rootWidth, value.sidebarCollapsed);
+    if (value.documentWidth !== width || value.documentMaximum !== maximum)
+      options.changed({ documentWidth: width, documentMaximum: maximum });
     viewport.set(available > 0 ? visible / available : 1);
     if (value.mobile) {
       docWidth.suspend();
@@ -273,7 +276,7 @@ export function createRoomGeometry(options: {
       docWidth.suspend();
       boardWidth.suspend();
     }
-    if (value.mobile && win.scrollY) win.scrollTo(0, 0);
+    if (value.mobile && scrollY) win.scrollTo(0, 0);
     for (const [node, player] of extraWidths) {
       if (value.mobile || !node.isConnected) player.suspend();
       else
