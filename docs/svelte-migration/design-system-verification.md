@@ -18,3 +18,13 @@ The earlier script's `.kN` badge, `#swDlg` switcher, waits-only profile response
 Artifacts are `gallery/results.json`, gallery screenshots/diagnostic HTML, `inbox/results.json`, `inbox/inbox-results.json`, controlled Inbox screenshot/Axe findings, browser logs and `runner.json`. Independent real-Root profile coverage continues through the existing application suite; its Studio/Axe/keyboard evidence does not imply the gallery was exercised. Record exact workflow/source/artifact hashes only after execution, retaining failed phases rather than treating source registration as acceptance.
 
 The local Linux process regression `bun test scripts/managed-browser-phase.test.ts` passed one test/eight assertions in 1.79 seconds with Bun 1.4.4. It starts one owned Node process which ignores SIGTERM and proves the real deadline rejection reaches finally, SIGKILL and reap within three seconds. This checks runner cancellation only; no gallery, Inbox, compiler or browser execution was performed locally. A source comparison also confirms the entire gallery assertion body is unchanged from `249e1e9` modulo formatting.
+
+## Manual branch verification before workflow registration
+
+The existing registered `native-application-browser.yml` also exposes a closed manual `suite` choice: `application` (default) or `design-system`. A reviewed branch can request the fixed design-system runner through that registered workflow before the dedicated new workflow reaches the default branch:
+
+```sh
+gh workflow run native-application-browser.yml --ref <reviewed-branch> -f suite=design-system
+```
+
+Push/PR and default manual runs retain the application command, original artifact name/path, concurrency group and 20-minute job deadline. Only an explicit design-system dispatch selects its fixed command, separate artifact directory/name and concurrency suffix, and a 30-minute job deadline for its two bounded phases. Arbitrary script names or shell text are never accepted as input. The two suites cannot cancel or overwrite each other on the same ref. This is orchestration registration, not browser acceptance: verify the actual API dispatch and retain the resulting exact-source phase artifacts before recording a pass. The dedicated workflow remains the automatic PR/main path after registration.
