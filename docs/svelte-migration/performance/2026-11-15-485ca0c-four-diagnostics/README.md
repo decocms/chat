@@ -1,6 +1,6 @@
 # Four supplementary CPU diagnostics: NOT_ACCEPTANCE
 
-Source `485ca0cbb20913da31c82a5ab096d1e2b69254e5` passed [all 24 source gates, preview freshness and layout on both operating systems](https://github.com/vibegui/vibebook.dev/actions/runs/43688582518). Its seven application/public trees are identical to `249e1e95ebde24a4a462f7afdecaad5ceb014658`; exact tree IDs and six helper fingerprints are in [provenance.json](provenance.json).
+Source `485ca0cbb20913da31c82a5ab096d1e2b69254e5` passed [all 24 source gates and preview freshness on both operating systems, plus the Ubuntu layout-browser job](https://github.com/vibegui/vibebook.dev/actions/runs/43688582518). Its seven application/public trees are identical to `249e1e95ebde24a4a462f7afdecaad5ceb014658`; exact tree IDs and six helper fingerprints are in [provenance.json](provenance.json).
 
 Root executed the reviewed private driver once: four excluded diagnostic trials, one per frontend/device pair, **zero original measured or warmup trials**. The runner exited 1. The empty measured cohort remains `incomplete-or-failed`, all 16 budgets remain unverified, and `measuredCohortPreserved` is true. The declared seven repetitions and one warmup in the original report were not executed. This run does not replace the original 32-trial report, waive its failures or establish performance acceptance.
 

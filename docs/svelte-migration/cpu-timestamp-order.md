@@ -62,8 +62,8 @@ run is required; the original failure remains retained as a failure.
 ## Verified source and four supplementary diagnostics
 
 The subsequent exact source `485ca0cbb20913da31c82a5ab096d1e2b69254e5`
-passed [all 24 repository gates, preview freshness and layout on both operating
-systems](https://github.com/vibegui/vibebook.dev/actions/runs/43688582518).
+passed [all 24 repository gates and preview freshness on both operating
+systems, plus the Ubuntu layout-browser job](https://github.com/vibegui/vibebook.dev/actions/runs/43688582518).
 This resolves the tooling-only failure above without changing diagnostic or
 strict-validator semantics.
 
