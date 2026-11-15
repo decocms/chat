@@ -1273,7 +1273,11 @@ try {
   await independentAudit("direct-mcp-browser", async () => {
     const result = await auditDirectMcp(profileFixture);
     report.directMcp = result;
-    assert.equal(result.status, "passed", "Both frontends must pass real direct MCP identity and no-replay checks");
+    assert.equal(
+      result.status,
+      "passed",
+      "Both frontends must pass real direct MCP identity and no-replay checks",
+    );
   });
   await independentAudit("document-answer-parity", async () => {
     const result = await auditDocumentAnswers(profileFixture);
