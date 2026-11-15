@@ -26,9 +26,20 @@ reader approval, one effect and one failed direct call, no replay via the Worker
 and no forwarded cookies. Twelve display profiles, twenty lifecycle cycles and
 the existing document/consent regressions pass. The [first HMR failure and unchanged
 passing retry](app-hmr/2026-11-15-affadd2/README.md) are retained separately; no
-cause or product fix is claimed. Legacy token/OAuth fallback remains temporarily
-compatible with this deployed main; Gui's runtime token-removal follow-up and
-the matching typed-contract port are prepared separately and not yet integrated.
+cause or product fix is claimed.
+
+The separately verified token-retirement maintenance at `fc16a89` is now integrated:
+Gui's exact runtime patch is preserved, the public connection mode is only
+`identity`, and only per-person OAuth can select the sign-in fallback. Historical
+encrypted columns are inert to the current viewer's identity decision; the
+existing retirement/owner-notice routine remains unchanged. Actual RPC fixtures
+throw if old credential fields are read and verify viewer claims with no legacy
+Authorization header. All 24 source gates and [repository](https://github.com/vibegui/vibebook.dev/actions/runs/43674499552),
+[complete browser](https://github.com/vibegui/vibebook.dev/actions/runs/43674504989),
+[App security](https://github.com/vibegui/vibebook.dev/actions/runs/43675176300), and
+[HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43675186133) workflows
+pass at that exact source. This follow-up's deployment verification remains
+separate from the original `3a73dff` deployment receipt.
 
 Performance remains unaccepted. The [fresh deployed-source control at
 `3a73dff`](performance/2026-11-15-3a73dff/README.md) completes all 32 original
