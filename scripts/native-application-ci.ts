@@ -86,7 +86,7 @@ assert(process.platform === "linux", "Dedicated Ubuntu job required");
 const root = resolve(import.meta.dirname, ".."),
   reportDirectory = resolve(
     process.env.TEST_OUTPUT_DIR ??
-      resolve(root, ".artifacts/native-application-browser/report"),
+      resolve(root, suite === "application" ? ".artifacts/native-application-browser/report" : ".artifacts/design-system-browser/report"),
   );
 const privateDirectory = resolve(
     root,
@@ -191,6 +191,13 @@ async function pause() {
 let reviewModel: Awaited<ReturnType<typeof startReviewModelFixture>> | null =
   null;
 try {
+  if (suite === "design-system") {
+    const expected = process.env.TEST_APP_REVISION;
+    assert(expected && /^[a-f0-9]{40}$/.test(expected), "Design-system suite requires exact TEST_APP_REVISION");
+    const revision = Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: root, stdout: "pipe", stderr: "ignore" });
+    assert.equal(revision.exitCode, 0);
+    assert.equal(revision.stdout.toString().trim(), expected, "Checked-out source differs from requested evidence revision");
+  }
   await mkdir(reportDirectory, { recursive: true });
   await mkdir(privateDirectory, { recursive: true });
   if (suite === "application") reviewModel = await startReviewModelFixture(base);
@@ -260,9 +267,13 @@ try {
           resolve(check.output, "browser.log"),
           { ...process.env, TEST_BASE_URL: base, TEST_OUTPUT_DIR: check.output },
         );
-        const timer = setTimeout(stop, 12 * 60_000);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const deadline = new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => { stop(); reject(Error("Owned browser phase deadline")); }, 12 * 60_000);
+        });
         try {
           const result = await Promise.race([
+            deadline,
             test.exited,
             worker.exited.then(() => { throw Error("Worker exited during browser cohort"); }),
           ]);

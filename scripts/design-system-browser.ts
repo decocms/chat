@@ -1,12 +1,11 @@
 // Local-only, real browser verification of the production UI assets and shared primitives.
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
-import { chromium, expect as baseExpect, type Route } from "@playwright/test";
+import { chromium, expect as baseExpect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import * as z from "zod/mini";
-import type { Wait } from "../svelte/types";
 import { verifyStudioPalette } from "./studio-browser";
 import { nativeBrowserFixtures } from "./native-browser-fixtures";
+import { auditDesignSystemInbox } from "./design-system-inbox-browser";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -14,15 +13,6 @@ assert(
   /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),
   "Use a local test Worker",
 );
-const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-design-system";
-await mkdir(output, { recursive: true });
-const browser = await chromium.launch({
-  headless: true,
-  args: ["--no-sandbox", "--disable-gpu"],
-});
-const errors: string[] = [];
-const expectedNetworkFailures: string[] = [];
-const requestFailures: { url: string; error: string | undefined }[] = [];
 const results: Record<string, unknown> = {};
 const args = process.argv.slice(2);
 assert(args.length === 0 || (args.length === 1 && (args[0] === "--gallery-only" || args[0] === "--inbox-only")), "Use --gallery-only or --inbox-only, or no arguments for both");
@@ -30,7 +20,15 @@ const onlyInbox = args[0] === "--inbox-only";
 const onlyGallery = args[0] === "--gallery-only";
 results.scope = onlyInbox ? "Current RoomInbox" : onlyGallery ? "Atomic gallery and Studio" : "Gallery and RoomInbox";
 results.sourceRevision = process.env.TEST_APP_REVISION ?? null;
+const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-design-system";
+let ownedBrowser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+const errors: string[] = [];
+const expectedNetworkFailures: string[] = [];
+const requestFailures: { url: string; error: string | undefined }[] = [];
 try {
+  await mkdir(output, { recursive: true });
+  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-gpu"] });
+  ownedBrowser = browser;
   const context = await browser.newContext({
     locale: "en-US",
     viewport: { width: 1440, height: 1000 },
@@ -50,7 +48,7 @@ try {
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     if (
-      message.location().url.endsWith("/api/waits/resolve") &&
+      (message.location().url.endsWith("/api/waits/resolve") || message.location().url.endsWith("/api/inbox")) &&
       /500/.test(message.text())
     )
       expectedNetworkFailures.push(message.text());
@@ -244,337 +242,28 @@ try {
     );
   }
   if (!onlyGallery) {
-  await page.setViewportSize({ width: 390, height: 844 });
-
-  const created = await context.request.post(`${base}/api/books`, {
-    data: { title: "Design system verification" },
-    headers: { origin: base },
-  });
-  assert(created.ok(), `Create test room: ${created.status()}`);
-  const { id } = z.object({ id: z.string() }).parse(await created.json());
-  const waits: Wait[] = [
-    {
-      book_id: id,
-      room: "Design system verification",
-      ref: "m1",
-      thread: "main",
-      topic: null,
-      author: "peer@example.test",
-      author_name: "Peer",
-      text: "Please review the typed UI",
-      ts: Date.now(),
-    },
-  ];
-  await page.route("**/api/me?ui=svelte", async (route) => {
-    const response = await route.fetch();
-    const raw: unknown = await response.json();
-    if (!raw || typeof raw !== "object" || Array.isArray(raw))
-      throw new Error("Invalid local profile response");
-    await route.fulfill({ response, json: { ...raw, waits } });
-  });
-  await page.goto(`${base}/b/${id}?ui=svelte`);
-  const inboxTrigger = page.getByRole("button", { name: "Inbox", exact: true });
-  await expect(inboxTrigger).toBeVisible();
-  await expect(inboxTrigger.locator(".kN")).toHaveText("1");
-  const legacyLayout = [];
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    for (const theme of ["light", "dark"]) {
-      await page.evaluate((value) => {
-        document.documentElement.dataset.theme = value;
-      }, theme);
-      const comparison = await page.evaluate(() => {
-        const sheet = [...document.styleSheets].find((item) =>
-          item.href?.includes("/svelte-preview/ui.css"),
-        );
-        if (!sheet) throw new Error("Missing native stylesheet");
-        const elements = [...document.querySelectorAll("body, body *")].filter(
-          (element) => !element.closest("[data-vb-native]"),
-        );
-        const properties = [
-          "display",
-          "position",
-          "box-sizing",
-          "width",
-          "height",
-          "margin",
-          "padding",
-          "border-width",
-          "border-style",
-          "border-radius",
-          "font-family",
-          "font-size",
-          "font-weight",
-          "line-height",
-          "color",
-          "background-color",
-          "overflow",
-          "appearance",
-        ];
-        const snapshot = () =>
-          elements.map((element) => {
-            const style = getComputedStyle(element);
-            const rect = element.getBoundingClientRect();
-            return {
-              tag: element.tagName,
-              id: element.id,
-              rect: [rect.x, rect.y, rect.width, rect.height],
-              styles: properties.map((name) => style.getPropertyValue(name)),
-            };
-          });
-        const diff = (
-          before: ReturnType<typeof snapshot>,
-          after: ReturnType<typeof snapshot>,
-        ) =>
-          before.flatMap((value, index) =>
-            JSON.stringify(value) === JSON.stringify(after[index])
-              ? []
-              : [{ baseline: value, nativeLoaded: after[index] }],
-          );
-        const frames = [
-          ...document.querySelectorAll<HTMLElement>("[data-vb-native]"),
-        ]
-          .filter((node) => !node.parentElement?.closest("[data-vb-native]"))
-          .map((node) => {
-            const style = getComputedStyle(node),
-              rect = node.getBoundingClientRect();
-            return {
-              node,
-              originalStyle: node.getAttribute("style"),
-              width: rect.width,
-              height: rect.height,
-              geometry: {
-                display: style.display,
-                position: style.position,
-                flex: style.flex,
-                "align-self": style.alignSelf,
-                margin: style.margin,
-                "box-sizing": "border-box",
-              },
-            };
-          });
-        const original = snapshot();
-        try {
-          // Native content intentionally changes size when its own CSS is removed.
-          // Fix only its excluded outer boxes so reset leakage is measured separately.
-          for (const frame of frames) {
-            for (const [name, value] of Object.entries(frame.geometry))
-              frame.node.style.setProperty(name, value, "important");
-            if (frame.width > 0 && frame.height > 0) {
-              for (const name of ["width", "min-width", "max-width"])
-                frame.node.style.setProperty(
-                  name,
-                  `${frame.width}px`,
-                  "important",
-                );
-              for (const name of ["height", "min-height", "max-height"])
-                frame.node.style.setProperty(
-                  name,
-                  `${frame.height}px`,
-                  "important",
-                );
-              frame.node.style.setProperty("overflow", "hidden", "important");
-            }
-          }
-          const fixtureMismatches = diff(original, snapshot());
-          sheet.disabled = true;
-          const baseline = snapshot();
-          sheet.disabled = false;
-          const nativeLoaded = snapshot();
-          return {
-            elements: elements.length,
-            nativeFrames: frames.map(({ node, width, height }) => ({
-              tag: node.tagName,
-              id: node.id,
-              label: node.getAttribute("aria-label"),
-              width,
-              height,
-            })),
-            fixtureMismatches,
-            mismatches: diff(baseline, nativeLoaded),
-          };
-        } finally {
-          sheet.disabled = false;
-          for (const frame of frames) {
-            if (frame.originalStyle === null)
-              frame.node.removeAttribute("style");
-            else frame.node.setAttribute("style", frame.originalStyle);
-          }
-        }
-      });
-      assert(comparison.elements > 20, "Measure the real legacy room shell");
-      assert.deepEqual(
-        comparison.fixtureMismatches,
-        [],
-        "Native-box fixture changed surrounding layout",
-      );
-      assert.deepEqual(
-        comparison.mismatches,
-        [],
-        "Native CSS changed legacy layout/defaults",
-      );
-      legacyLayout.push({ width, theme, ...comparison });
-      await page.screenshot({ path: `${output}/legacy-${theme}-${width}.png` });
-    }
-  }
-  results.legacyLayout = legacyLayout;
-  await page.setViewportSize({ width: 390, height: 844 });
-  await inboxTrigger.click();
-  const inbox = page.getByRole("dialog", { name: "Inbox", exact: true });
-  await expect(
-    inbox.getByRole("link").filter({ hasText: "Please review the typed UI" }),
-  ).toBeVisible();
-  const link = inbox.getByRole("link");
-  await expect(link).toHaveAttribute("href", `/b/${id}?ui=svelte#m1`);
-  await expect(
-    inbox.getByRole("tab", { name: "This room (1)" }),
-  ).toHaveAttribute("aria-selected", "true");
-  await page.keyboard.press("Escape");
-  await expect(inbox).toHaveCount(0);
-  await expect(inboxTrigger).toBeFocused();
-  await inboxTrigger.click();
-  await expect(inbox).toBeVisible();
-  await page.screenshot({ path: `${output}/inbox-390.png` });
-  const inboxAxe = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-    .analyze();
-  results.inboxAccessibility = inboxAxe.violations;
-  assert.deepEqual(inboxAxe.violations, []);
-  await inbox.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(inbox).toHaveCount(0);
-
-  // A pending request must never reopen an abandoned modal or replace a newer one.
-  let held: Route | undefined;
-  const initialWait = waits[0];
-  assert(initialWait);
-  await page.route("**/api/waits/resolve", (route) => {
-    held = route;
-  });
-  const resolveButton = () =>
-    inbox.getByRole("button", {
-      name: "Done (I answered elsewhere, or it's not for me)",
-      exact: true,
-    });
-  const reloadInbox = async () => {
-    waits.splice(0, waits.length, initialWait);
-    await page.goto(`${base}/b/${id}?ui=svelte`);
-    await expect(inboxTrigger.locator(".kN")).toHaveText("1");
-    await inboxTrigger.click();
-    await expect(inbox).toBeVisible();
-  };
-  const finish = async (status: number, body: object) => {
-    const route = held;
-    assert(route, "Missing held resolve request");
-    held = undefined;
-    const response = page.waitForResponse((response) =>
-      response.url().endsWith("/api/waits/resolve"),
-    );
-    if (status === 200) waits.splice(0, waits.length);
-    await route.fulfill({
-      status,
-      contentType: "application/json",
-      body: JSON.stringify(body),
-    });
-    await response;
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        ),
-    );
-  };
-  await reloadInbox();
-  await resolveButton().click();
-  await expect.poll(() => !!held).toBe(true);
-  await page.keyboard.press("Escape");
-  await expect(inbox).toHaveCount(0);
-  await finish(200, { ok: true });
-  await expect(inbox).toHaveCount(0);
-
-  await reloadInbox();
-  await resolveButton().click();
-  await expect.poll(() => !!held).toBe(true);
-  await page.keyboard.press("Escape");
-  await inboxTrigger.click();
-  const newer = await inbox.getAttribute("id");
-  await finish(200, { ok: true });
-  await expect(inbox).toHaveAttribute("id", newer!);
-  await expect(inbox.getByRole("link")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-
-  await reloadInbox();
-  await resolveButton().click();
-  await expect.poll(() => !!held).toBe(true);
-  await finish(500, { error: "simulated test failure" });
-  await expect(inbox.getByRole("alert")).toContainText(
-    "Couldn't resolve this request",
-  );
-  await expect(
-    inbox.getByRole("link").filter({ hasText: "Please review the typed UI" }),
-  ).toBeVisible();
-  await expect(resolveButton()).toBeEnabled();
-  await page.keyboard.press("Control+k");
-  await expect(inbox).toHaveCount(0);
-  await expect(page.locator("#swDlg")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.locator("#swDlg")).not.toBeVisible();
-  results.inboxLifecycle =
-    "close/reopen during resolve, recoverable failure, native switcher Escape passed";
-
-  const other = await context.request.post(`${base}/api/books`, {
-    data: { title: "Cross-room Inbox verification" },
-    headers: { origin: base },
-  });
-  assert(other.ok());
-  const otherRoom = z.object({ id: z.string() }).parse(await other.json());
-  const posted = await context.request.post(
-    `${base}/api/books/${otherRoom.id}/post`,
-    {
-      data: { text: "Cross-room target message", thread: "main" },
-      headers: { origin: base },
-    },
-  );
-  assert(posted.ok());
-  const target = z
-    .object({ ok: z.literal(true), id: z.number(), thread: z.string() })
-    .parse(await posted.json());
-  waits.push({
-    ...waits[0]!,
-    book_id: otherRoom.id,
-    room: "Cross-room Inbox verification",
-    ref: `m${target.id}`,
-    text: "Open the other test room",
-  });
-  await page.goto(`${base}/b/${id}?ui=svelte`);
-  await expect(inboxTrigger.locator(".kN")).toHaveText("2");
-  await inboxTrigger.click();
-  await inbox.getByRole("tab", { name: "All (2)", exact: true }).click();
-  await inbox
-    .getByRole("link")
-    .filter({ hasText: "Open the other test room" })
-    .click();
-  await expect(page).toHaveURL(
-    (url) =>
-      url.pathname === `/b/${otherRoom.id}` &&
-      url.searchParams.get("ui") === "svelte" &&
-      url.hash === `#m${target.id}`,
-  );
-  await expect(inboxTrigger).toBeVisible();
-  await expect(
-    page.getByText("Cross-room target message", { exact: true }),
-  ).toBeVisible();
-  results.crossRoomNavigation =
-    "Actual Inbox link retained ui=svelte and entered the second room";
+    await page.setViewportSize({ width: 390, height: 844 });
+    results.inbox = await auditDesignSystemInbox(page, context, base, output);
   }
   assert.deepEqual(errors, [], "Browser page errors");
 
   results.errors = errors;
   results.status = "pass";
   console.log(
-    "PASS real native Inbox: local profile data, Svelte URL, tabs, close/Escape, focus restoration, mobile axe",
+    "PASS selected design-system browser scope",
   );
+} catch (error) {
+  results.status = "failed";
+  results.failure = { name: error instanceof Error ? error.name : "UnknownError" };
+  throw error;
 } finally {
+  try {
+    await ownedBrowser?.close();
+  } catch (error) {
+    results.status = "failed";
+    results.cleanupFailure = "browser-close";
+    throw error;
+  } finally {
   await writeFile(
     `${output}/results.json`,
     JSON.stringify(
@@ -583,5 +272,5 @@ try {
       2,
     ) + "\n",
   );
-  await browser.close();
+  }
 }
