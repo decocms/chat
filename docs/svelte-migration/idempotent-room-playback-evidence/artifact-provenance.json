@@ -1,0 +1,25 @@
+{
+  "sourceRevision": "0b885a01a79de833df72eed726648bcf63da0b38",
+  "artifact": {
+    "id": 14153041922,
+    "name": "svelte-preview-ubuntu-24.04-0b885a01a79de833df72eed726648bcf63da0b38",
+    "size_in_bytes": 857183,
+    "workflow_run": {
+      "id": 43692365940,
+      "repository_id": 1433807621,
+      "head_repository_id": 1433807621,
+      "head_branch": "codex/idempotent-room-playback",
+      "head_sha": "0b885a01a79de833df72eed726648bcf63da0b38"
+    }
+  },
+  "downloadedZipSHA256": "fcff0770cda6fa463f863a0e696d1f66a000659caef0c295515a2493bd3a5e37",
+  "refreshTarSHA256": "14da0a1004de961b6926aba57e6e2ac09a6d1b9127a30c01d19be805dbd0a679",
+  "extraction": "Downloaded by exact artifact ID, validated all ZIP paths and entry types, extracted without content edits, repackaged only public/app-svelte.html, public/svelte-preview/** and public/sw.js for existing allowlisted refresh helper.",
+  "audit": {
+    "revision": "0b885a01a79de833df72eed726648bcf63da0b38",
+    "productionHelperSHA256": "257f699451a551c90b51ed0b335a405cf9e9d1ac2c9ca5bc1e2c46ceba512ba4",
+    "fixtureSHA256": "8a272d4606c48211f98ac7e2093cdb2935435d64e61b3f33267f6509b24d3b6f",
+    "reportSHA256": "6a55225d9ba8777dcc89b71c085eb7ee697892d7946253f55465275228a04af7",
+    "scope": "Isolated actual-source Web Animations state/operation fixture; not production geometry, application acceptance or performance"
+  }
+}

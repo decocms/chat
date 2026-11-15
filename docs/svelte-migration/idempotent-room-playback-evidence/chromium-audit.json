@@ -1,0 +1,27 @@
+{
+  "scope": "Isolated actual-source Web Animations state/operation fixture; not production geometry, application acceptance or performance",
+  "revision": "0b885a01a79de833df72eed726648bcf63da0b38",
+  "sourceSHA256": "257f699451a551c90b51ed0b335a405cf9e9d1ac2c9ca5bc1e2c46ceba512ba4",
+  "status": "passed",
+  "pageErrors": [],
+  "chromium": "158.0.8127.18",
+  "result": {
+    "assertions": [
+      "settled-repeat-no-writes",
+      "native-pending-pause-synchronously-settled",
+      "replacement-same-progress-seeks-new-animation",
+      "external-time-corrected",
+      "disposed-owner-inert"
+    ],
+    "first": {
+      "pause": 2,
+      "seek": 2
+    },
+    "replacement": {
+      "pause": 1,
+      "seek": 3
+    },
+    "unavailable": 0
+  },
+  "closed": true
+}

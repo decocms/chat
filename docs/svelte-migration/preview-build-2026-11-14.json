@@ -1,12 +1,12 @@
 {
-  "sourceRevision": "2c150ee251b9372974e25a49ecdadc0fcadcf2ba",
+  "sourceRevision": "0b885a01a79de833df72eed726648bcf63da0b38",
   "node": "22.23.5",
   "bun": "1.4.4",
-  "archiveSHA256": "13c32d8180059856f25ea62896ac638bcd8056bc52f66b796a6ac9fac4783e32",
+  "archiveSHA256": "14da0a1004de961b6926aba57e6e2ac09a6d1b9127a30c01d19be805dbd0a679",
   "previewFiles": 97,
   "sha256": {
-    "public/app-svelte.html": "6f9d8f9756d831ca2de92d32f176d07c48f5d20e1cc0d452dfefb4936a98272f",
-    "public/svelte-preview/app.js": "0a973bb21de7f3f31ef86adb8a922ad0835248f9eba68e91aa77128a12d4024d",
+    "public/app-svelte.html": "b6025bfc8a5a89ba18493f94e84ad141d9da404340707edad7b1b0a1b412463a",
+    "public/svelte-preview/app.js": "a97147214282103242e92288a65e6459bccf8df63dacaa190a1af0d9feb7cc6a",
     "public/svelte-preview/ui.css": "bd9fcd9c7106c637edb907d35a3dc4e1c5c702d7fa3936ae538b9e7572a26fe1",
     "public/sw.js": "80559c131cecdc0371262a69cbb70a1c0b8823a578a072459036fa65b9d867b7"
   },
@@ -16,15 +16,15 @@
   },
   "emittedJavaScriptComparison": {
     "before": {
-      "files": 91,
-      "rawBytes": 2590456,
-      "separatelyGzippedBytes": 822582,
+      "files": 96,
+      "rawBytes": 2593025,
+      "separatelyGzippedBytes": 824298,
       "newlineCount": 389
     },
     "after": {
       "files": 96,
-      "rawBytes": 2593025,
-      "separatelyGzippedBytes": 824298,
+      "rawBytes": 2593085,
+      "separatelyGzippedBytes": 824332,
       "newlineCount": 389
     },
     "scope": "Entire emitted JS graph, including unrequested lazy entries; same gzip level 6 for each file. Not observed initial transfer, readiness, or a performance-budget result."
