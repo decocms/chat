@@ -566,9 +566,16 @@ test("actual direct identity signer binds requester, stored audience and five-mi
     .object({ iat: schema.number(), exp: schema.number() })
     .parse(claims);
   expect(times.exp - times.iat).toBe(300);
+  const publicKey = schema
+    .object({
+      kty: schema.literal("OKP"),
+      crv: schema.literal("Ed25519"),
+      x: schema.string(),
+    })
+    .parse((await jwks(env)).keys[0]);
   const key = await crypto.subtle.importKey(
     "jwk",
-    (await jwks(env)).keys[0],
+    publicKey,
     { name: "Ed25519" },
     false,
     ["verify"],

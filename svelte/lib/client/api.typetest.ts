@@ -343,17 +343,17 @@ const identityOauthFallback: InferResponseType<typeof identityMethod, 200> = {
   direct: false,
   why: "signed_in",
 };
-// @ts-expect-error direct identity has a fixed five-minute lifetime
 const wrongIdentityLifetime: InferResponseType<typeof identityMethod, 200> = {
   direct: true,
   url: "https://remote.example/mcp",
   identity: "signed",
+  // @ts-expect-error direct identity has a fixed five-minute lifetime
   expires_in: 600,
 };
-// @ts-expect-error no browser credential field exists on the public fallback
 const wrongIdentityCredential: InferResponseType<typeof identityMethod, 200> = {
   direct: false,
   why: "token",
+  // @ts-expect-error no browser credential field exists on the public fallback
   token: "secret",
 };
 void [
