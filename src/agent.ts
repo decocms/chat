@@ -3,9 +3,9 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
 // whose props carry the person's email. Every room call re-checks membership in D1.
 import { gate, routerOn, routerStats } from "./router";
-import { callTool, createConn, deleteConn, getConn, listConns, publicConn } from "./mcpconn";
+import { createConn, deleteConn, getConn, listConns, publicConn } from "./mcpconn";
 import { agentMessageFromWire } from "./bookMessages";
-import { AuthNeeded, signedInTo } from "./mcpauth";
+import { signedInTo } from "./mcpauth";
 import { ASK_OPENER } from "./book";
 import { cardOf } from "./card";
 import { LISTEN_FRESH, markListening } from "./person";
@@ -113,7 +113,7 @@ const TOOLS = [
   },
   {
     name: "connections",
-    description: "The room's MCP connections (Conexões tab: remote MCP servers people linked, e.g. Rituals) that your human may use: scope room (everyone's) or me (only your human's), their apps (tools with a UI that open as a tab of the doc panel), their tools (read_only from the server's annotations) and context (what each open app last reported about itself). Tokens stay on vibebook's server.",
+    description: "The room's MCP connections (Conexões tab: remote MCP servers people linked, e.g. Rituals) that your human may use: scope room (everyone's) or me (only your human's), their apps (tools with a UI that open as a tab of the doc panel), their tools (read_only from the server's annotations) and context (what each open app last reported about itself). vibebook doesn't call these servers for you (it's not an MCP proxy): to use one, connect it in your own client on your machine; your human's apps open in the room with app_open.",
     inputSchema: { type: "object", properties: { room_id: { type: "string" }, model: { type: "string" }, repo: { type: "string" } }, required: ["room_id"] },
   },
   {
@@ -125,11 +125,6 @@ const TOOLS = [
     name: "disconnect_mcp",
     description: "Remove one of your human's MCP connections from the room (its apps leave the Apps tab). Only the person who connected it can.",
     inputSchema: { type: "object", properties: { room_id: { type: "string" }, connection_id: { type: "string" }, model: { type: "string" }, repo: { type: "string" } }, required: ["room_id", "connection_id"] },
-  },
-  {
-    name: "app_call",
-    description: "Call a tool on one of the room's MCP connections (see connections) and get its result; the server runs it with the token of whoever connected it. On a room connection someone else owns, read_only tools run; any other waits for its owner's OK (they're asked in the room; you get pending: true and nothing runs until they approve). Changes show up for everyone who has the app open after they refresh it.",
-    inputSchema: { type: "object", properties: { room_id: { type: "string" }, connection_id: { type: "string" }, tool: { type: "string" }, arguments: { type: "object" }, model: { type: "string" }, repo: { type: "string" } }, required: ["room_id", "connection_id", "tool"] },
   },
   {
     name: "app_open",
@@ -752,21 +747,6 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
       const id = await room();
       await deleteConn(env, id, str(a.connection_id), me.email);
       return { ok: true };
-    }
-    case "app_call": {
-      const id = await room();
-      if (!(await env.AGENT_LIMIT.limit({ key: `app:${me.email}` })).success) throw new Error("rate limited: too many app calls in the last minute. Wait a bit.");
-      const c = await getConn(env, id, str(a.connection_id), me.email);
-      if (!c) throw new Error(`no connection ${str(a.connection_id)} you can use in this room; call connections`);
-      const tool = publicConn(c, me.email).tools.find((t) => t.name === str(a.tool));
-      if (!tool) throw new Error(`${c.title} has no tool ${str(a.tool)} you can call (app-only tools are the app's)`);
-      // Someone else's room connection: reads run; a write waits for the owner's OK (asked in the room).
-      const result = await callTool(env, c, tool.name, a.arguments, { email: me.email, room: id, origin }).catch((e) => {
-        if (e instanceof AuthNeeded) throw new Error(`${e.message}: your human signs in once on ${new URL(c.url).host} from the room's Apps tab (Entrar); vibebook keeps no token for it`);
-        throw e;
-      });
-      ctx.waitUntil(track(env, "app_call", { user: me.email, dims: { book: id, host: new URL(c.url).host, tool: tool.name, via: "agent", client: me.client } }));
-      return result;
     }
     case "app_open": {
       const id = await room();

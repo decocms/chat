@@ -539,3 +539,46 @@ test("actual SQLite connection listing isolates malformed rows and projects only
     db.close();
   }
 });
+
+test("actual direct identity signer binds requester, stored audience and five-minute EdDSA lifetime", async () => {
+  const { identityJwt, jwks } = await import("../src/mcpauth");
+  const env = { SESSION_SECRET: "controlled-direct-identity-test-only" };
+  const token = await identityJwt(env, "https://vibebook.test", {
+    email: "reader@example.test",
+    room: "room",
+    aud: "https://remote.example/mcp",
+  });
+  const [header, payload, signature] = token.split(".");
+  const decode = (part: string) =>
+    Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (char) =>
+      char.charCodeAt(0),
+    );
+  const claims: unknown = JSON.parse(new TextDecoder().decode(decode(payload)));
+  expect(claims).toMatchObject({
+    iss: "https://vibebook.test",
+    sub: "reader@example.test",
+    email: "reader@example.test",
+    room: "room",
+    aud: "https://remote.example/mcp",
+  });
+  const schema = await import("zod/mini");
+  const times = schema
+    .object({ iat: schema.number(), exp: schema.number() })
+    .parse(claims);
+  expect(times.exp - times.iat).toBe(300);
+  const key = await crypto.subtle.importKey(
+    "jwk",
+    (await jwks(env)).keys[0],
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  expect(
+    await crypto.subtle.verify(
+      "Ed25519",
+      key,
+      decode(signature),
+      new TextEncoder().encode(header + "." + payload),
+    ),
+  ).toBe(true);
+});

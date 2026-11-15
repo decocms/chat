@@ -8,7 +8,7 @@ import { Connection, ConnectionsResult } from "../shared/schemas";
 //   sent from the Worker to that server: never to the browser, the iframe or an agent.
 // - The app's HTML (`ui://` resource) is served with a CSP built from the resource's own `_meta.ui.csp` and runs in an
 //   opaque-origin iframe (srcdoc, sandbox allow-scripts); its tools/call go through the host page to /call here.
-// - Agents: MCP tools `connections`, `app_call`, `app_open` (src/agent.ts).
+// - Agents: MCP tools `connections`, `app_open` (src/agent.ts). No app_call: vibebook is not an MCP proxy (Gui #2608).
 import * as z from "zod/mini";
 import { toolList, cachedTools, type Tool } from "./mcpTools";
 import type { Context, Hono } from "hono";
@@ -20,7 +20,8 @@ import { nativeAuthPage } from "./native-page";
 import { checkUrl } from "./reader";
 import { findSecret } from "./secrets";
 import { seal, unseal } from "./sandbox";
-import { bookStub } from "./rooms";
+import { bookStub, isMember } from "./rooms";
+import { connectionIdentity } from "./connectionIdentity";
 import { AuthNeeded, finishAuth, forget, identityJwt, signedInTo, startAuth, tokenFor } from "./mcpauth";
 
 /** Who is looking: every call carries their identity seal, and their own sign-in when the server wants one. */
@@ -288,7 +289,7 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
 
 /** The typed routes' side (src/api.ts, slice 9): the signed-in person's view of a room's connections. Room membership
  *  is checked by the route; a failure is { error, status } (401 + sign_in = sign in on that server first). */
-export type ConnFail = { error: string; status: 400 | 401 | 404 | 429 | 502; sign_in?: true };
+export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 502; sign_in?: true };
 export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string, track: (env: Env, name: string, o: object) => Promise<unknown>) {
   const who = (room: string): Who => ({ email, room, origin });
   const fail = (e: unknown, status: 400 | 502 = 502): ConnFail =>
@@ -298,6 +299,17 @@ export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void },
     async list(room: string) {
       const signed = await signedInTo(env, email);
       return ConnectionsResult.parse({ connections: (await listConns(env, room, email)).map((x) => publicConn(x, email, signed)) });
+    },
+    identity(room: string, cid: string) {
+      return connectionIdentity(room, cid, {
+        email,
+        member: (id) => isMember(env.DB, id, email),
+        connection: (id, connectionId) => getConn(env, id, connectionId, email),
+        allowed: async () => (await env.AGENT_LIMIT.limit({ key: `ident:${email}` })).success,
+        signedIn: async (url) => !!(await env.DB.prepare("SELECT 1 FROM mcp_grants WHERE email = ? AND resource = ?").bind(email, url).first()),
+        sign: (id, url) => identityJwt(env, origin, { email, room: id, aud: url }),
+        track: (id, url) => ctx.waitUntil(track(env, "mcp_identity", { user: email, dims: { book: id, host: new URL(url).host } })),
+      });
     },
     async create(room: string, b: { url?: string; scope?: string; title?: string; token?: unknown }) {
       if (!(await env.LOGIN_LIMIT.limit({ key: `mcp:${email}` })).success) return { error: "Muitas tentativas. Espera um minuto.", status: 429 } satisfies ConnFail;
