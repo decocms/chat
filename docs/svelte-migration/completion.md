@@ -8,6 +8,18 @@ The sole migration PR is [#1](https://github.com/vibegui/vibebook.dev/pull/1).
 PR #2 is closed, with its work preserved in #1. No final deployed revision or
 maintainer acceptance is recorded yet.
 
+Main `a7e8ac9` is integrated. The direct-MCP checkpoint at `fe9584c` passes a
+fresh native build and [all 24 mandatory source gates](verification/fe9584c-direct-mcp-source.json),
+including the new actual-SDK protocol tests. The inferred identity endpoint
+validates and rechecks membership/connection authority around signing. The native
+client owns short-lived credentials and SDK sessions within its RoomScope;
+initialization can fall back, but a started tool call cannot replay through the
+proxy. Default direct requests also omit cookies and refuse redirects. Reader
+consent remains required. Matching generated assets are refreshed. The complete
+Worker/browser audit and published-head CI are pending; source acceptance alone
+does not satisfy those gates. Legacy token/OAuth fallback remains temporarily
+compatible with main; Gui's separate token-removal follow-up is not yet integrated.
+
 Current native document integration at `7516b84` passes a fresh build, [all 24 source gates](verification/7516b84-document-answer-source.json), and the [complete real Worker/browser cohort](managed-browser/2026-11-15-7516b84/README.md). Both variants deliver `open_doc` to two own tabs, refuse missing/deleted epics, render/update read-only cards without message writes, and retain two real R2/private-channel App versions inside the doc. Existing reader consent, stock SDK and replacement-authority audits, all twelve display profiles and twenty lifecycle cycles pass. The [same-epic vanilla failure](managed-browser/2026-11-15-de5570e-document-failure/README.md) and [remote-App consent regression](managed-browser/2026-11-15-1809c28-consent-failure/README.md) were reproduced and fixed without weakening their assertions. Matching assets are refreshed; published-head CI and production verification remain required. This is an opt-in checkpoint, not full-plan acceptance.
 
 Published `14646bc` passes all four functional workflows: [repository](https://github.com/vibegui/vibebook.dev/actions/runs/43665113323), [integrated browser](https://github.com/vibegui/vibebook.dev/actions/runs/43665121253), [App security](https://github.com/vibegui/vibebook.dev/actions/runs/43665126747), and [HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43665132079). Its [complete performance cohort](performance/2026-11-15-14646bc/README.md) executes all 32 original trials but fails **12 of 16 unchanged budgets**. Two of four excluded diagnostic trials pass; both native diagnostics fail and remain retained. Readiness, thread switch, first history load, application gzip, original Studio font transfer and heap fail on both devices. Second and third history loads pass. This checkpoint predates direct-MCP integration; it does not verify that later source or imply a framework-only comparison across runs.
