@@ -19,6 +19,8 @@ assertions), including the retired route's 404/no-effects regression and retaine
 STT bounds, authorization and late-membership fences. This targeted result does
 not verify the final native conversion or its generated preview.
 
+Ordinary dictation source `350e4cb` passes a fresh build, [all 24 source gates](verification/350e4cb-ordinary-dictation-source.json), and the [complete Worker/browser cohort](managed-browser/2026-11-15-350e4cb/README.md). All twelve profiles, twenty lifecycle cycles, document interoperation, both App authority audits and actual Chromium microphone cancellation pass. The generated preview matches this source. The subsequent main `cd47d1c` is merged at `f1f2914`; its native Enter-waits-for-Whisper follow-up and visible loading state are in progress. Neither historical cohort verifies that pending follow-up.
+
 Historical combined tested source `bf147df` passes a fresh build, all 24 repository
 gates and the [complete actual-Worker browser cohort](managed-browser/2026-11-14-bf147df/README.md).
 All twelve language/theme/viewport profiles now pass, including usable short-phone
