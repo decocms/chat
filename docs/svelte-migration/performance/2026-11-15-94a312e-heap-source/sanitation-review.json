@@ -1,0 +1,11 @@
+{
+  "scope": "Full original decompressed diagnostic+metrics payloads and derived summary scanned; immutable originals retained",
+  "forbiddenFields": [],
+  "absolutePaths": [],
+  "origins": [
+    "http://127.0.0.1:41767",
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com"
+  ],
+  "stringCount": 484403
+}

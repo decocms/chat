@@ -1,0 +1,325 @@
+{
+  "scope": "Source-associated node selfsize, not retained-size/ownership or causal performance; mostbytes unattributed",
+  "summaries": [
+    {
+      "variant": "vanilla",
+      "device": "mobile",
+      "strictStatus": "passed",
+      "strictCPUFailure": null,
+      "heapStatus": "summarized",
+      "attributionStatus": "source-associated",
+      "heapNodeCount": 161468,
+      "sourceAssociated": {
+        "count": 153,
+        "selfSizeBytes": 4600
+      },
+      "unattributed": {
+        "count": 161315,
+        "selfSizeBytes": 12750005
+      },
+      "withoutLocation": 160009,
+      "unmatchedLocation": 1306,
+      "totalClosures": {
+        "type": "closure",
+        "count": 5498,
+        "selfSizeBytes": 157636
+      },
+      "associatedClosures": {
+        "count": 152,
+        "selfSizeBytes": 4516
+      },
+      "topClosureAssets": [
+        {
+          "asset": {
+            "key": "/vendor/marked-12.0.2.min.js",
+            "sourceSHA256": "15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894",
+            "servedSHA256": "15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894"
+          },
+          "type": "closure",
+          "count": 103,
+          "selfSizeBytes": 2960
+        },
+        {
+          "asset": {
+            "key": "/vendor/purify-3.1.6.min.js",
+            "sourceSHA256": "c0845096a7c4a6741f362ac506c94c1c7d27dc603bcc1bf64a587f76f2dbe3a1",
+            "servedSHA256": "c0845096a7c4a6741f362ac506c94c1c7d27dc603bcc1bf64a587f76f2dbe3a1"
+          },
+          "type": "closure",
+          "count": 49,
+          "selfSizeBytes": 1556
+        }
+      ]
+    },
+    {
+      "variant": "svelte",
+      "device": "mobile",
+      "strictStatus": "failed",
+      "strictCPUFailure": "delta-negative",
+      "heapStatus": "summarized",
+      "attributionStatus": "source-associated",
+      "heapNodeCount": 482255,
+      "sourceAssociated": {
+        "count": 69937,
+        "selfSizeBytes": 2049572
+      },
+      "unattributed": {
+        "count": 412318,
+        "selfSizeBytes": 22883781
+      },
+      "withoutLocation": 411550,
+      "unmatchedLocation": 768,
+      "totalClosures": {
+        "type": "closure",
+        "count": 70359,
+        "selfSizeBytes": 2000348
+      },
+      "associatedClosures": {
+        "count": 65001,
+        "selfSizeBytes": 1847608
+      },
+      "topClosureAssets": [
+        {
+          "asset": {
+            "key": "/svelte-preview/Button-DnqFw9Ee.js",
+            "sourceSHA256": "b60c0a0e284cb362ecfc9635c7c43846ed7056a5d62ed09b5b3b16645b5001d1",
+            "servedSHA256": "b60c0a0e284cb362ecfc9635c7c43846ed7056a5d62ed09b5b3b16645b5001d1"
+          },
+          "type": "closure",
+          "count": 29552,
+          "selfSizeBytes": 844964
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/mount-B9Wx5HbG.js",
+            "sourceSHA256": "b90ab6dbc3eb6871e961dff208c27bd6f3a9fc711c8e5dae099ae32abaf18029",
+            "servedSHA256": "b90ab6dbc3eb6871e961dff208c27bd6f3a9fc711c8e5dae099ae32abaf18029"
+          },
+          "type": "closure",
+          "count": 14458,
+          "selfSizeBytes": 406884
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/copy-DDLelU9j.js",
+            "sourceSHA256": "4189391f6ae88780096e2b2122d6dcc702d227590358c9a89a0b20cc9a80e505",
+            "servedSHA256": "4189391f6ae88780096e2b2122d6dcc702d227590358c9a89a0b20cc9a80e505"
+          },
+          "type": "closure",
+          "count": 9458,
+          "selfSizeBytes": 267300
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/api-BNReHrjQ.js",
+            "sourceSHA256": "c8389280a28b7c0d7fde24522ec6e92d9cd6a1ea23b7d3074b47ccd51f9d6a29",
+            "servedSHA256": "c8389280a28b7c0d7fde24522ec6e92d9cd6a1ea23b7d3074b47ccd51f9d6a29"
+          },
+          "type": "closure",
+          "count": 2229,
+          "selfSizeBytes": 64496
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/shared-DKeaMcdI.js",
+            "sourceSHA256": "0b8c1182c7c619d74750604d03b3cd405dd1562e39ee477e918986e7db351cec",
+            "servedSHA256": "0b8c1182c7c619d74750604d03b3cd405dd1562e39ee477e918986e7db351cec"
+          },
+          "type": "closure",
+          "count": 2152,
+          "selfSizeBytes": 61572
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/IconButton-DbbDjC8y.js",
+            "sourceSHA256": "cc7b4e8213ab0c8fde2b5045a4241e07fcf937cb87c717b63b5936e07e4a9f2f",
+            "servedSHA256": "cc7b4e8213ab0c8fde2b5045a4241e07fcf937cb87c717b63b5936e07e4a9f2f"
+          },
+          "type": "closure",
+          "count": 1883,
+          "selfSizeBytes": 52732
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/Icon-CbDPsTIv.js",
+            "sourceSHA256": "69bc845d4d7dac77bc14c769e59b041bff493675ee0fba93cbde7d57d99bb386",
+            "servedSHA256": "69bc845d4d7dac77bc14c769e59b041bff493675ee0fba93cbde7d57d99bb386"
+          },
+          "type": "closure",
+          "count": 1259,
+          "selfSizeBytes": 35260
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/dialogController-CZQ85IjD.js",
+            "sourceSHA256": "6546dfa3f942c9cf4b6ebcb5e7f95f60b4e7f900c6cb5b920e8123816e358aa3",
+            "servedSHA256": "6546dfa3f942c9cf4b6ebcb5e7f95f60b4e7f900c6cb5b920e8123816e358aa3"
+          },
+          "type": "closure",
+          "count": 753,
+          "selfSizeBytes": 21536
+        }
+      ]
+    },
+    {
+      "variant": "vanilla",
+      "device": "desktop",
+      "strictStatus": "passed",
+      "strictCPUFailure": null,
+      "heapStatus": "summarized",
+      "attributionStatus": "source-associated",
+      "heapNodeCount": 160434,
+      "sourceAssociated": {
+        "count": 153,
+        "selfSizeBytes": 4600
+      },
+      "unattributed": {
+        "count": 160281,
+        "selfSizeBytes": 12780946
+      },
+      "withoutLocation": 158975,
+      "unmatchedLocation": 1306,
+      "totalClosures": {
+        "type": "closure",
+        "count": 5503,
+        "selfSizeBytes": 157784
+      },
+      "associatedClosures": {
+        "count": 152,
+        "selfSizeBytes": 4516
+      },
+      "topClosureAssets": [
+        {
+          "asset": {
+            "key": "/vendor/marked-12.0.2.min.js",
+            "sourceSHA256": "15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894",
+            "servedSHA256": "15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894"
+          },
+          "type": "closure",
+          "count": 103,
+          "selfSizeBytes": 2960
+        },
+        {
+          "asset": {
+            "key": "/vendor/purify-3.1.6.min.js",
+            "sourceSHA256": "c0845096a7c4a6741f362ac506c94c1c7d27dc603bcc1bf64a587f76f2dbe3a1",
+            "servedSHA256": "c0845096a7c4a6741f362ac506c94c1c7d27dc603bcc1bf64a587f76f2dbe3a1"
+          },
+          "type": "closure",
+          "count": 49,
+          "selfSizeBytes": 1556
+        }
+      ]
+    },
+    {
+      "variant": "svelte",
+      "device": "desktop",
+      "strictStatus": "passed",
+      "strictCPUFailure": null,
+      "heapStatus": "summarized",
+      "attributionStatus": "source-associated",
+      "heapNodeCount": 483509,
+      "sourceAssociated": {
+        "count": 69939,
+        "selfSizeBytes": 2049628
+      },
+      "unattributed": {
+        "count": 413570,
+        "selfSizeBytes": 22826153
+      },
+      "withoutLocation": 412802,
+      "unmatchedLocation": 768,
+      "totalClosures": {
+        "type": "closure",
+        "count": 70363,
+        "selfSizeBytes": 2000460
+      },
+      "associatedClosures": {
+        "count": 65003,
+        "selfSizeBytes": 1847664
+      },
+      "topClosureAssets": [
+        {
+          "asset": {
+            "key": "/svelte-preview/Button-DnqFw9Ee.js",
+            "sourceSHA256": "b60c0a0e284cb362ecfc9635c7c43846ed7056a5d62ed09b5b3b16645b5001d1",
+            "servedSHA256": "b60c0a0e284cb362ecfc9635c7c43846ed7056a5d62ed09b5b3b16645b5001d1"
+          },
+          "type": "closure",
+          "count": 29552,
+          "selfSizeBytes": 844964
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/mount-B9Wx5HbG.js",
+            "sourceSHA256": "b90ab6dbc3eb6871e961dff208c27bd6f3a9fc711c8e5dae099ae32abaf18029",
+            "servedSHA256": "b90ab6dbc3eb6871e961dff208c27bd6f3a9fc711c8e5dae099ae32abaf18029"
+          },
+          "type": "closure",
+          "count": 14458,
+          "selfSizeBytes": 406884
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/copy-DDLelU9j.js",
+            "sourceSHA256": "4189391f6ae88780096e2b2122d6dcc702d227590358c9a89a0b20cc9a80e505",
+            "servedSHA256": "4189391f6ae88780096e2b2122d6dcc702d227590358c9a89a0b20cc9a80e505"
+          },
+          "type": "closure",
+          "count": 9458,
+          "selfSizeBytes": 267300
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/api-BNReHrjQ.js",
+            "sourceSHA256": "c8389280a28b7c0d7fde24522ec6e92d9cd6a1ea23b7d3074b47ccd51f9d6a29",
+            "servedSHA256": "c8389280a28b7c0d7fde24522ec6e92d9cd6a1ea23b7d3074b47ccd51f9d6a29"
+          },
+          "type": "closure",
+          "count": 2231,
+          "selfSizeBytes": 64552
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/shared-DKeaMcdI.js",
+            "sourceSHA256": "0b8c1182c7c619d74750604d03b3cd405dd1562e39ee477e918986e7db351cec",
+            "servedSHA256": "0b8c1182c7c619d74750604d03b3cd405dd1562e39ee477e918986e7db351cec"
+          },
+          "type": "closure",
+          "count": 2152,
+          "selfSizeBytes": 61572
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/IconButton-DbbDjC8y.js",
+            "sourceSHA256": "cc7b4e8213ab0c8fde2b5045a4241e07fcf937cb87c717b63b5936e07e4a9f2f",
+            "servedSHA256": "cc7b4e8213ab0c8fde2b5045a4241e07fcf937cb87c717b63b5936e07e4a9f2f"
+          },
+          "type": "closure",
+          "count": 1883,
+          "selfSizeBytes": 52732
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/Icon-CbDPsTIv.js",
+            "sourceSHA256": "69bc845d4d7dac77bc14c769e59b041bff493675ee0fba93cbde7d57d99bb386",
+            "servedSHA256": "69bc845d4d7dac77bc14c769e59b041bff493675ee0fba93cbde7d57d99bb386"
+          },
+          "type": "closure",
+          "count": 1259,
+          "selfSizeBytes": 35260
+        },
+        {
+          "asset": {
+            "key": "/svelte-preview/dialogController-CZQ85IjD.js",
+            "sourceSHA256": "6546dfa3f942c9cf4b6ebcb5e7f95f60b4e7f900c6cb5b920e8123816e358aa3",
+            "servedSHA256": "6546dfa3f942c9cf4b6ebcb5e7f95f60b4e7f900c6cb5b920e8123816e358aa3"
+          },
+          "type": "closure",
+          "count": 753,
+          "selfSizeBytes": 21536
+        }
+      ]
+    }
+  ]
+}

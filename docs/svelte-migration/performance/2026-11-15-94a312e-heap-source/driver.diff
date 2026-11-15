@@ -1,0 +1,151 @@
+--- scripts/ui-metrics.ts
++++ .artifacts/ui-metrics-four-heap-source-94a312e.ts
+@@ -38,11 +38,11 @@
+   summarize,
+   workloads,
+   type Workload,
+-} from "./ui-metrics-model";
+-import { assessBudgets } from "./ui-metrics-budgets";
+-import { recordCPUTimeOrder } from "./ui-metrics-cpu-timestamp-order";
+-import { metricShell } from "./ui-metrics-shell";
+-import { metricDocumentContent } from "./ui-metrics-document-model";
++} from "../scripts/ui-metrics-model";
++import { assessBudgets } from "../scripts/ui-metrics-budgets";
++import { recordCPUTimeOrder } from "../scripts/ui-metrics-cpu-timestamp-order";
++import { metricShell } from "../scripts/ui-metrics-shell";
++import { metricDocumentContent } from "../scripts/ui-metrics-document-model";
+ import {
+   capturePrivateHeap,
+   collectEntryDiagnostics,
+@@ -52,7 +52,7 @@
+   diagnosticScript,
+   type DiagnosticScript,
+   summarizeCPUProfile,
+-} from "./ui-metrics-diagnostics";
++} from "../scripts/ui-metrics-diagnostics";
+ type Variant = "vanilla" | "svelte";
+ const variants: Variant[] = ["vanilla", "svelte"];
+ const devices = [
+@@ -85,6 +85,21 @@
+ };
+ const expect = baseExpect.configure({ timeout: config.stepTimeoutMs });
+ assert(["local-only", "network-public-fonts"].includes(config.fontPolicy));
++assert(
++  process.env.METRICS_DIAGNOSTICS === "1" &&
++    process.env.METRICS_CPU_TIMESTAMP_ORDER === "1" &&
++    process.env.METRICS_HEAP_SOURCE_ATTRIBUTION === "1",
++  "Private diagnostic copy requires all three diagnostic opt-ins",
++);
++assert(
++  process.env.TEST_APP_REVISION === "94a312e0cabda23398ec074705c0a9e9bbce518c",
++  "Private diagnostic declared source must be the verified revision",
++);
++assert(
++  execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim() ===
++    "94a312e0cabda23398ec074705c0a9e9bbce518c",
++  "Private diagnostic runtime Git HEAD must be the verified revision",
++);
+ const profiles = (process.env.METRICS_PROFILES ?? "long")
+   .split(",")
+   .map((name) => {
+@@ -107,6 +122,10 @@
+     "History pages exceed the synthetic main-thread history",
+   );
+ }
++assert(
++  profiles.length === 1 && profiles[0]?.name === "long",
++  "Private copy requires exactly the original long workload and four excluded trials",
++);
+ const publicRoot = await realpath(
+     resolve(process.env.METRICS_PUBLIC_ROOT ?? "public"),
+   ),
+@@ -461,11 +480,17 @@
+ const results: { [key: string]: unknown } = {
+   status: "running",
+   scope:
+-    "Controlled synthetic CURRENT browser frontends; not Worker/database/provider/network/deployment acceptance",
++    "NOT_ACCEPTANCE: private FOUR-extra diagnostic-only copy; no original measured trials executed",
++  originalTrialsExecuted: 0,
++  expectedDiagnosticTrials: 4,
++  preparedDriverBaseRevision: "94a312e0cabda23398ec074705c0a9e9bbce518c",
++  preparedDriverBaseSHA256:
++    "33df2ebf0921fbf43220c751b0551ab3eef3ae8c2562830ef9e1ab37dcc13e13",
++  driverProtocol: "FOUR_EXCLUDED_DIAGNOSTICS_NOT_ACCEPTANCE",
+   harnessRevision: execFileSync("git", ["rev-parse", "HEAD"], {
+     encoding: "utf8",
+   }).trim(),
+-  servedRevisionSuppliedByRunner: process.env.TEST_APP_REVISION ?? null,
++  servedRevisionSuppliedByRunner: "94a312e0cabda23398ec074705c0a9e9bbce518c",
+   config,
+   profiles,
+   environmentStart: environment(),
+@@ -1618,29 +1643,36 @@
+   });
+   results.chromium = browser.version();
+   assert(!cancelled, "Benchmark cancelled during browser startup");
+-  trials: for (const shape of profiles)
+-    for (const device of devices) {
+-      for (let index = 0; index < config.warmups; index++)
+-        for (const variant of variants)
+-          if (
+-            !(await run(variant, device, shape, index + 1, true)) &&
+-            config.failFast
+-          ) {
+-            results.stoppedAfterInvalidSample = true;
+-            break trials;
+-          }
+-      for (let repetition = 1; repetition <= config.repetitions; repetition++)
+-        for (const variant of repetition % 2
+-          ? variants
+-          : [...variants].reverse())
+-          if (
+-            !(await run(variant, device, shape, repetition, false)) &&
+-            config.failFast
+-          ) {
+-            results.stoppedAfterInvalidSample = true;
+-            break trials;
+-          }
+-    }
++  // Private copy only: the original measured/warmup loop is deliberately unreachable.
++  trials: if (false)
++    for (const shape of profiles)
++      for (const device of devices) {
++        for (let index = 0; index < config.warmups; index++)
++          for (const variant of variants)
++            if (
++              !(await run(variant, device, shape, index + 1, true)) &&
++              config.failFast
++            ) {
++              results.stoppedAfterInvalidSample = true;
++              break trials;
++            }
++        for (let repetition = 1; repetition <= config.repetitions; repetition++)
++          for (const variant of repetition % 2
++            ? variants
++            : [...variants].reverse())
++            if (
++              !(await run(variant, device, shape, repetition, false)) &&
++              config.failFast
++            ) {
++              results.stoppedAfterInvalidSample = true;
++              break trials;
++            }
++      }
++  assert.equal(
++    samples.length,
++    0,
++    "Private diagnostics must not produce measured samples",
++  );
+   const summaries = profiles.flatMap((shape) =>
+     devices.flatMap((device) =>
+       variants.map((variant) => {
+@@ -1748,7 +1780,8 @@
+     }));
+   results.byteSummary = byteSummary;
+   const lines = [
+-    "# Fully native versus vanilla controlled long-room benchmark",
++    "# NOT_ACCEPTANCE: four extra excluded CPU diagnostics",
++    "OriginalTrialsExecuted: 0. The measured cohort is intentionally empty and cannot establish performance acceptance.",
+     `Workload execution: ${results.status}`,
+     `Performance acceptance: ${results.performanceAcceptance}`,
+     "",

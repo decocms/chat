@@ -1,0 +1,10 @@
+{
+  "sourceRevision": "94a312e0cabda23398ec074705c0a9e9bbce518c",
+  "driverSHA256": "e41cb56afe07db09daca4ca8f85bc60d3b8b718209ff36c731adbf33749aff0c",
+  "review": "Root reviewed complete finite canonical diff: imports, mandatory flags/head guard, unreachable original loop/zero samples, truthful scopes only; all helpers independently hashed",
+  "executionAllowedAfterFinalCI": true,
+  "originalTrials": 0,
+  "excludedTrialsExpected": 4,
+  "budgetsUnverifiedExpected": 16,
+  "expectedExitCode": 1
+}

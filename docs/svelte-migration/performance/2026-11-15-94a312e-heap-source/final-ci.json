@@ -1,0 +1,29 @@
+{
+  "run": {
+    "id": 43695717484,
+    "head_sha": "94a312e0cabda23398ec074705c0a9e9bbce518c",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/vibegui/vibebook.dev/actions/runs/43695717484"
+  },
+  "jobs": [
+    {
+      "id": 132755673206,
+      "name": "room-layout-browser",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132755673282,
+      "name": "check (macos-15)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 132755673313,
+      "name": "check (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}
