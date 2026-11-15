@@ -2,14 +2,14 @@
   import type { Room } from "../../../shared/room";
   import { onDestroy } from "svelte";
   import { createRichSession } from "./session";
-  import type { RichActions, RichMode, RichPolicy } from "./types";
+  import type { RichActions, RichMode, RichPolicy, RichNode, RichContext } from "./types";
   import RichNodes from "./RichNodes.svelte";
   import {
-    createRichPreparation,
-    loadHtmlTree,
+    type createRichPreparation,
+    type RichInput,
     type HtmlTreeLoader,
   } from "./preparation";
-  import RichPreparationStatus from "./RichPreparationStatus.svelte";
+  import HtmlRichSource from "./HtmlRichSource.svelte";
   import { scopedRichFileIndex } from "./fileContext";
   let {
     text,
@@ -21,6 +21,7 @@
     policy,
     fileLabel,
     loadHtml,
+    createHtmlPreparation,
     lang = "pt",
   }: {
     text: string;
@@ -32,50 +33,24 @@
     policy?: RichPolicy;
     fileLabel?: string;
     loadHtml?: HtmlTreeLoader;
+    createHtmlPreparation?: typeof createRichPreparation;
     lang?: string;
   } = $props();
   const idPrefix = $props.id();
   const fileIndex = scopedRichFileIndex();
   const session = createRichSession();
   onDestroy(() => session.dispose());
-  const preparation = createRichPreparation({
-    load: (signal) => (loadHtml ?? loadHtmlTree)(signal),
-    current: (input) =>
-      input.source === text &&
-      input.mode === mode &&
-      input.policy === policy &&
-      input.scope === JSON.stringify([room.me, room.id]),
+  const display = $derived(session.display(text, mode, policy));
+  const context: RichContext = $derived({
+    room, policy, names, pageUrl: pageUrl || location.href, idPrefix, fileLabel, fileIndex,
   });
-  onDestroy(() => preparation.dispose());
-  const prepared = $derived(
-    preparation.read({
-      source: text,
-      mode,
-      policy,
-      scope: JSON.stringify([room.me, room.id]),
-    }),
-  );
-  const nodes = $derived(
-    $prepared.phase === "ready"
-      ? session.project($prepared.parsed, {
-          room,
-          policy,
-          names,
-          pageUrl: pageUrl || location.href,
-          idPrefix,
-          fileLabel,
-          fileIndex,
-        })
-      : [],
-  );
+  const nodes = $derived(display.kind === "ready" ? session.project(display.parsed, context) : []);
+  const htmlCurrent = (input: RichInput) =>
+    input.source === text && input.mode === mode && input.policy === policy && input.scope === JSON.stringify([room.me, room.id]);
 </script>
 
-{#if $prepared.phase !== "ready"}<RichPreparationStatus
-    {lang}
-    phase={$prepared.phase}
-    retry={() => preparation.retry()}
-  />
-{:else if mode === "inline"}<span
+{#snippet body(nodes: RichNode[])}
+{#if mode === "inline"}<span
     data-rich-content
     data-vb-native
     class="tw:min-w-0 tw:break-words tw:font-sans tw:leading-6 tw:text-foreground"
@@ -90,3 +65,9 @@
   >
     <RichNodes {nodes} {actions} />
   </div>{/if}
+
+{/snippet}
+{#if display.kind === "ready"}{@render body(nodes)}
+{:else}<HtmlRichSource source={display.prepared} input={{ source: text, mode, policy, scope: JSON.stringify([room.me, room.id]) }} current={htmlCurrent} {loadHtml} createPreparation={createHtmlPreparation} {lang}>
+  {#snippet children(parsed)}{@render body(session.project(parsed, context))}{/snippet}
+</HtmlRichSource>{/if}

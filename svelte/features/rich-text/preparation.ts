@@ -33,6 +33,9 @@ export function createRichPreparation(options: {
   load?: HtmlTreeLoader;
   deadline?: number;
 }) {
+  const deadline = options.deadline ?? 15000;
+  let check: typeof options.current | undefined = options.current,
+    loader: HtmlTreeLoader | undefined = options.load;
   let active = true,
     factory: HtmlTreeFactory | undefined;
   let owner:
@@ -42,6 +45,7 @@ export function createRichPreparation(options: {
         abort: AbortController;
         timer?: ReturnType<typeof setTimeout>;
         prepared?: PreparedRichSource;
+        supplied?: PreparedRichSource;
       }
     | undefined;
   function cleanup(previous: typeof owner, notify = false) {
@@ -49,6 +53,7 @@ export function createRichPreparation(options: {
     if (previous.timer !== undefined) clearTimeout(previous.timer);
     previous.abort.abort();
     previous.prepared = undefined;
+    previous.supplied = undefined;
     previous.input = { source: "", mode: "inline", scope: "" };
     if (notify) previous.store.set({ phase: "cancelled" });
   }
@@ -60,9 +65,10 @@ export function createRichPreparation(options: {
   function read(
     input: RichInput,
     retry = false,
+    supplied?: PreparedRichSource,
   ): Readable<RichPreparationState> {
     if (!active) return writable({ phase: "cancelled" });
-    if (!retry && owner && equal(owner.input, input)) return owner.store;
+    if (!retry && owner && equal(owner.input, input) && owner.supplied === supplied) return owner.store;
     const previous = owner,
       store =
         retry && previous
@@ -74,12 +80,13 @@ export function createRichPreparation(options: {
         abort: new AbortController(),
         timer: undefined as ReturnType<typeof setTimeout> | undefined,
         prepared: undefined as PreparedRichSource | undefined,
+        supplied,
       };
     // Install the ticket before abort/publication: either can synchronously reenter.
     owner = next;
     const current = () => {
       if (!active || owner !== next || next.abort.signal.aborted) return false;
-      const valid = options.current(next.input);
+      const valid = check?.(next.input);
       return valid && active && owner === next && !next.abort.signal.aborted;
     };
     cleanup(previous);
@@ -92,7 +99,7 @@ export function createRichPreparation(options: {
       if (owner === next) release(true);
       return next.store;
     }
-    const prepared = prepareRichSource(input.source, input.mode, input.policy);
+    const prepared = supplied ?? prepareRichSource(input.source, input.mode, input.policy);
     if (!prepared.tokens?.html || factory) {
       const parsed = parsePreparedRichSource(prepared, factory);
       if (current()) next.store.set({ phase: "ready", parsed });
@@ -107,7 +114,7 @@ export function createRichPreparation(options: {
       next.prepared = undefined;
       next.abort.abort();
       if (owner !== next || !active) return;
-      const authorized = valid && options.current(next.input);
+      const authorized = valid && check?.(next.input);
       if (owner === next && active)
         next.store.set({ phase: authorized ? "error" : "cancelled" });
     };
@@ -116,7 +123,7 @@ export function createRichPreparation(options: {
     void Promise.resolve()
       .then(() => {
         if (!current()) throw Error("Rich source no longer current");
-        return (options.load ?? loadHtmlTree)(next.abort.signal);
+        return (loader ?? loadHtmlTree)(next.abort.signal);
       })
       .then((loaded) => {
         if (!current()) {
@@ -137,20 +144,23 @@ export function createRichPreparation(options: {
   }
   return {
     read,
+    readPrepared(input: RichInput, prepared: PreparedRichSource) { return read(input, false, prepared); },
     retry() {
       const previous = owner;
       if (
         previous &&
         active &&
-        options.current(previous.input) &&
+        check?.(previous.input) &&
         active &&
         owner === previous
       ) {
-        read(previous.input, true);
+        read(previous.input, true, previous.supplied);
       }
     },
     dispose() {
       active = false;
+      check = undefined;
+      loader = undefined;
       factory = undefined;
       release(true);
     },

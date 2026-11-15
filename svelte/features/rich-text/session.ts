@@ -1,4 +1,4 @@
-import { parseRichSource, projectRichSource } from "./project";
+import { prepareRichSource, parsePreparedRichSource, projectRichSource, type PreparedRichSource } from "./project";
 import { knownFileFingerprint } from "./links";
 import type { HtmlTreeFactory } from "./markdownTree";
 import type { ParsedRichSource } from "./project";
@@ -21,7 +21,8 @@ function contextKey(context: RichContext, files: string): string {
     files,
   ]);
 }
-/** One syntax tree and one projection per mounted content component; disposal releases both. */
+export type RichDisplay = { kind: "ready"; parsed: ParsedRichSource } | { kind: "html"; prepared: PreparedRichSource };
+/** One syntax result and one projection per mounted content component; no async owner on normal content. */
 export function createRichSession(full?: HtmlTreeFactory) {
   let active = true,
     previousText: string | undefined,
@@ -29,23 +30,27 @@ export function createRichSession(full?: HtmlTreeFactory) {
     previousPolicy: RichContext["policy"],
     previousContext: string | undefined;
   let previousParts: readonly unknown[] | undefined;
-  let parsed: ReturnType<typeof parseRichSource> | undefined,
+  let display: RichDisplay | undefined,
     nodes: RichNode[] | undefined,
     projected: ParsedRichSource | undefined;
   return {
-    render(text: string, mode: RichMode, context: RichContext): RichNode[] {
-      if (!active) return [{ kind: "text", text }];
-      const changed =
-        text !== previousText ||
-        mode !== previousMode ||
-        context.policy !== previousPolicy;
-      if (changed) {
-        parsed = parseRichSource(text, mode, context.policy, full);
-        previousPolicy = context.policy;
+    display(text: string, mode: RichMode, policy?: RichContext["policy"]): RichDisplay {
+      if (!active) return { kind: "ready", parsed: { text, mode, literal: true } };
+      if (!display || text !== previousText || mode !== previousMode || policy !== previousPolicy) {
+        const prepared = prepareRichSource(text, mode, policy);
+        display = prepared.tokens?.html && !full
+          ? { kind: "html", prepared }
+          : { kind: "ready", parsed: parsePreparedRichSource(prepared, full) };
         previousText = text;
         previousMode = mode;
+        previousPolicy = policy;
       }
-      return this.project(parsed!, context);
+      return display;
+    },
+    render(text: string, mode: RichMode, context: RichContext): RichNode[] {
+      const source = this.display(text, mode, context.policy);
+      if (source.kind === "html") throw Error("HTML parser was not prepared");
+      return this.project(source.parsed, context);
     },
     project(value: ParsedRichSource, context: RichContext): RichNode[] {
       if (!active) return [{ kind: "text", text: value.text }];
@@ -88,7 +93,7 @@ export function createRichSession(full?: HtmlTreeFactory) {
       previousPolicy = undefined;
       previousContext = undefined;
       previousParts = undefined;
-      parsed = undefined;
+      display = undefined;
       projected = undefined;
       nodes = undefined;
     },
