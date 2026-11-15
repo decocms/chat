@@ -1,0 +1,1 @@
+var e=`vibebook.app-document.v1`,t=`__VIBEBOOK_APP_DOCUMENT_NONCE__`,n=()=>`app-document-${crypto.randomUUID()}`,r=e=>typeof e==`object`&&!!e&&!Array.isArray(e),i=e=>typeof e==`string`&&/^[a-f0-9]{64}$/.test(e);export{i as a,r as i,t as n,n as r,e as t};

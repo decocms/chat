@@ -1,0 +1,1 @@
+async function e(e,t,n){let r=t();return!e()||!r?.active()||!await r.attest()||!e()||t()!==r||!r.active()?{ok:!1}:{ok:!0,value:await n()}}export{e as t};

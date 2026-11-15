@@ -1,0 +1,132 @@
+{
+  "sourceRevision": "33993227319e7fdb76e1693964b13b3f43dfd43b",
+  "run": 43679614891,
+  "job": 132707172323,
+  "logSHA256": "7f5126aa2928e6f1d1dae792a36ea4ab40a8014ae2a11b5c1b91adbfae307d16",
+  "status": "failed",
+  "gates": [
+    {
+      "name": "build:api-types",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:backend",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:ui",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:vanilla",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:router",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:protocol",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:client-boundary",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:bundle",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:styles:native",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:styles",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:store",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:rpc",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:auth",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:home",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:viewer",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:ui",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:ui:variants",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:build",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:connection",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:worker-tests",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:pwa",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "test:pwa",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "check:tooling",
+      "status": "FAIL",
+      "exitCode": 1
+    },
+    {
+      "name": "format:check",
+      "status": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "cause": "check:tooling TS2769 markdown-semantic.test.ts468: ReadyRichDisplay|undefined passed to toBe matcher. No cast/suppression workaround; explicit runtime narrowing required.",
+  "assetFreshness": "failed; not refreshed before source gates pass",
+  "limits": "Source failure retained; no all24 acceptance. Other23gates including actual mountedUI pass. Completebrowser separate."
+}
