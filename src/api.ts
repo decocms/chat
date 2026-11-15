@@ -1,3 +1,7 @@
+import { requestBytes, RequestBytesError } from "./requestBytes";
+import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
+import { speechAudio } from "./speechToText";
+import { roomSandbox } from "./sandboxRows";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
 // The vanilla app calls the same paths with the same payloads. Routes move here slice by slice
@@ -17,12 +21,14 @@ import {
   type ConnectionCallResult,
   ConnectionContextBody,
   type ConnectionError,
-  type ConnectionsResult,
+  ConnectionsResult,
   ConnectionUiQuery,
+  ConnectionIdentityResult,
   type ConnectionUiResult,
   CreateConnectionBody,
   type CreateConnectionResult,
   type MeResult,
+  MeQuery,
   AVATAR_TYPES,
   type AvatarResult,
   ImageHeaders,
@@ -35,7 +41,6 @@ import {
   AgentDbRow,
   AgentLimits,
   type AgentsResult,
-  RoomSandbox,
   ClaudeTokenBody,
   type ConnectedResult,
   FreestyleKeyBody,
@@ -49,7 +54,7 @@ import {
   type AccessRequestResult,
   type AccessResult,
   ClaudeToggleBody,
-  type ClaudeToggleResult,
+  ClaudeToggleResult,
   DecideRequestBody,
   ArchiveBody,
   ArchivedRoom,
@@ -57,6 +62,7 @@ import {
   EmailBody,
   LoginsResult,
   type SearchResult,
+  SearchQuery,
   type InboxResult,
   type ErrorBody,
   type OkResult,
@@ -92,6 +98,8 @@ export type Bind = string | number | null;
 export interface ApiServices {
   /** Is the signed-in person a member of this room? */
   isMember(roomId: string): Promise<boolean>;
+  allowStt():Promise<boolean>;
+  transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
   humanPost(roomId: string, text: string, thread: string): Promise<PostMessageResult>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
@@ -168,6 +176,7 @@ export interface ApiServices {
   /** The room's MCP connections as this person sees them (src/mcpconn.ts connOps); membership is checked by the route. */
   connections: {
     list(roomId: string): Promise<ConnectionsResult>;
+    identity(roomId: string, cid: string): Promise<ConnectionIdentityResult | ConnFail>;
     create(roomId: string, b: CreateConnectionBody): Promise<CreateConnectionResult | ConnFail>;
     remove(roomId: string, cid: string): Promise<OkResult | ConnFail>;
     refresh(roomId: string, cid: string): Promise<RefreshConnectionResult | ConnFail>;
@@ -188,7 +197,7 @@ export interface ApiServices {
   consentContext(): Promise<{ context: ConsentContext; headers: [string, string][] } | (ConsentError & { status: 400 })>;
 }
 /** A failed connection call and its status; sign_in = sign in on that server first (401). */
-export type ConnFail = { error: string; status: 400 | 401 | 404 | 429 | 502; sign_in?: true };
+export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 502; sign_in?: true };
 export type ApiCtx = { Variables: { email: string; svc: ApiServices } };
 
 /** The public /auth routes' side (src/auth.ts authServices): no session needed, so it is its own app, mounted before
@@ -253,12 +262,15 @@ const roomPosts = new Hono<ApiCtx>()
       const h = c.req.valid("header");
       const type = h["content-type"].split(";")[0].trim().toLowerCase();
       if (!svc.fileTypes.includes(type)) return c.json({ error: svc.typesError } satisfies ErrorBody, 415);
-      if (Number(c.req.header("content-length") ?? 0) > svc.maxBytes(type)) return c.json({ error: svc.sizeError(type) } satisfies ErrorBody, 413);
       try {
-        const meta = await svc.storeFile(id, type, await c.req.arrayBuffer(), decodeURIComponent(h["x-filename"] ?? ""));
+        const bytes=await requestBytes(c.req.raw, svc.maxBytes(type));
+        if(!(await svc.isMember(id)))return c.json(forbidden,403);
+        const meta = await svc.storeFile(id, type, bytes, decodeURIComponent(h["x-filename"] ?? ""));
         svc.track("file_uploaded", { book: id, type, size: meta.size });
         return c.json(meta satisfies UploadFileResult, 200);
       } catch (e) {
+        if(!(await svc.isMember(id)))return c.json(forbidden,403);
+        if (e instanceof RequestBytesError) return c.json({ error: svc.sizeError(type) } satisfies ErrorBody, e.reason === "limit" ? 413 : 400);
         return c.json({ error: e instanceof Error ? e.message : String(e) } satisfies ErrorBody, 400);
       }
     },
@@ -329,8 +341,12 @@ export const accountApi = api
     );
     return c.json({ books: zm.array(ArchivedRoom).parse(rows) } satisfies ArchivedResult, 200);
   })
-  .get("/api/search", async (c) => {
-    const q = (c.req.query("q") ?? "").trim().slice(0, 120);
+  .get("/api/search", validator("query", (value,c) => {
+    // Hono gives repeated keys as arrays; query() previously used the first.
+    const r=SearchQuery.safeParse({q:Array.isArray(value.q)?value.q[0]:value.q});
+    return r.success?r.data:c.json({error:"bad request"} satisfies ErrorBody,400);
+  }), async (c) => {
+    const q = (c.req.valid("query").q ?? "").trim().slice(0, 120);
     const none: SearchResult = { rooms: 0, epics: [], messages: [] }; // typed, so both answers are one SearchResult
     if (q.length < 2) return c.json(none, 200);
     const out = await c.get("svc").search(q);
@@ -381,6 +397,27 @@ export const roomApi = accountApi
     svc.pokeAgents(id);
     svc.track(on ? "claude_on" : "claude_off", { book: id });
     return c.json({ ok: true as const, claude_on: on } satisfies ClaudeToggleResult, 200);
+  })
+  .post("/api/books/:id/stt", validator("query",(value,c)=>{
+    const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});
+    return r.success?r.data:c.json({ok:false as const,error:"bad request"},400);
+  }),async(c)=>{
+    const svc=c.get("svc"),id=c.req.param("id");
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    if(!(await svc.allowStt()))return c.json({ok:false as const,error:"rate limited: wait a few seconds"},429);
+    let audio:Uint8Array;
+    try{audio=await speechAudio(c.req.raw);}catch{return c.json({ok:false as const,error:"audio empty or over 4 MB"},400);}
+    if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+    const started=Date.now();
+    try{
+      const out=SttResult.parse(await svc.transcribe(audio,c.req.valid("query")));
+      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+      svc.track("stt",{book:id,ms:Date.now()-started,bytes:audio.byteLength});
+      return c.json(out,200);
+    }catch(error){
+      if(!(await svc.isMember(id)))return c.json({ok:false as const,error:"forbidden"},403);
+      return c.json({ok:false as const,error:(error instanceof Error?error.message:String(error)).slice(0,200)},502);
+    }
   })
   // ↗ through the person's channel to their CLI hub, which asks the local herdr runner: the page never talks to
   // 127.0.0.1 itself, so the browser's Local Network Access permission isn't needed (Gui, 14/11).
@@ -507,11 +544,14 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // Everyone's cloud sandboxes in this room, as last seen by their owner's list (src/sandbox.ts): they cost money.
     svc.sqlAll(`SELECT id, email, name, state, run_s, rate, disk_rate, checked_at, created_at FROM sandboxes WHERE book_id = ? ORDER BY created_at`, id),
   ]);
-  const me = mine[0] as { claude_on?: number | null } | undefined;
-  if (!me) return c.json(forbidden, 403);
+  const me=zm.object({claude_on:zm.optional(zm.unknown())}).safeParse(mine[0]);
+  if(!me.success)return c.json(forbidden,403);
+  const scalar=me.data.claude_on;
+  const flag=zm.pick(ClaudeToggleResult,{claude_on:true}).safeParse({claude_on:scalar==null||scalar===0?false:scalar===1?true:scalar});
+  if(!flag.success)console.error("membership Claude flag invalid");
   const out: AgentsResult = {
-    claude_on: !!me.claude_on,
-    sandboxes: sbx.map((s) => RoomSandbox.parse(s)),
+    claude_on: flag.success && flag.data.claude_on,
+    sandboxes: sbx.flatMap((row) => { try { return [roomSandbox(row)]; } catch { console.error("room sandbox has invalid identity"); return []; } }),
     agents: rows.map((row) => {
       const a = AgentDbRow.parse(row);
       return {
@@ -586,7 +626,7 @@ export const connectionsApi = sandboxApi
   .get("/api/books/:id/connections", async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
-    return c.json((await svc.connections.list(id)) satisfies ConnectionsResult, 200);
+    return c.json(ConnectionsResult.parse(await svc.connections.list(id)), 200);
   })
   .post("/api/books/:id/connections", body(CreateConnectionBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
@@ -612,6 +652,13 @@ export const connectionsApi = sandboxApi
     const r = await svc.connections.ui(id, c.req.param("cid"), c.req.valid("query").tool ?? "");
     return "error" in r ? c.json(connFail(r), r.status) : c.json(r satisfies ConnectionUiResult, 200);
   })
+  .post("/api/books/:id/connections/:cid/identity", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const r = await svc.connections.identity(id, c.req.param("cid"));
+    return "error" in r ? c.json(connFail(r), r.status) : c.json(ConnectionIdentityResult.parse(r), 200);
+  })
   .post("/api/books/:id/connections/:cid/call", body(ConnectionCallBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
@@ -634,7 +681,10 @@ export const connectionsApi = sandboxApi
   });
 
 // Slice 10: GET /api/me (POST /api/me, your name, is slice 5).
-export const meApi = connectionsApi.get("/api/me", async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200));
+export const meApi = connectionsApi.get("/api/me", validator("query", (value,c) => {
+  const r=MeQuery.safeParse({ui:Array.isArray(value.ui)?value.ui[0]:value.ui});
+  return r.success?r.data:c.json({error:"bad request"} satisfies ErrorBody,400);
+}), async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200));
 
 // Slice 11: the profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.
 const imageHeaders = validator("header", (value, c) => {
@@ -649,8 +699,12 @@ export const uploadsApi = meApi
     if (!svc.sameOrigin) return c.json({ error: "bad origin" } satisfies ErrorBody, 403);
     const type = mediaType(c.req.valid("header"));
     if (!AVATAR_TYPES.includes(type)) return c.json({ error: "Use uma imagem PNG, JPEG ou WebP." } satisfies ErrorBody, 415);
-    const bytes = await c.req.arrayBuffer();
-    if (!bytes.byteLength || bytes.byteLength > 1_000_000) return c.json({ error: "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
+    let bytes:ArrayBuffer;
+    try { bytes=await requestBytes(c.req.raw,1_000_000); }
+    catch(error){
+      if(error instanceof RequestBytesError)return c.json({ error: "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
+      throw error;
+    }
     if (!(await svc.allowUpload())) return c.json(slowDown, 429);
     const avatar = await svc.saveAvatar(type, bytes);
     svc.track("avatar_set");
@@ -664,7 +718,16 @@ export const uploadsApi = meApi
     const type = mediaType(c.req.valid("header"));
     try {
       // A JSON body removes the icon; anything else is the image (setRoomIcon checks type and size).
-      const icon = await svc.setRoomIcon(id, type === "application/json" ? null : { type, body: await c.req.arrayBuffer() });
+      let image:{type:string;body:ArrayBuffer}|null=null;
+      if(type==="application/json")await c.req.raw.body?.cancel().catch(()=>{});
+      else {
+        try { image={type,body:await requestBytes(c.req.raw,256_000)}; }
+        catch(error){
+          if(error instanceof RequestBytesError)return c.json({error:"Ícone vazio ou maior que 256KB."} satisfies ErrorBody,400);
+          throw error;
+        }
+      }
+      const icon = await svc.setRoomIcon(id,image);
       svc.track("room_icon", { book: id, set: icon !== null });
       return c.json({ ok: true as const, icon } satisfies RoomIconResult, 200);
     } catch (e) {

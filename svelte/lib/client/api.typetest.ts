@@ -6,6 +6,7 @@ import type {
   SandboxesResult,
   ConnectionsResult,
   MeResult,
+  MeQuery,
   AvatarResult,
   RoomIconResult,
   ConnectionCallResult,
@@ -23,6 +24,7 @@ import type {
   LoginsResult,
   OkResult,
   SearchResult,
+  SearchQuery,
   PostMessageResult,
   PushKeyResult,
   PushTestResult,
@@ -124,6 +126,13 @@ const snippet: string = found.messages[0].snippet;
 void found.messages[0].text;
 void snippet;
 void api.api.search.$get({ query: { q: "hi" } });
+sameAs<
+  Equal<InferRequestType<typeof api.api.search.$get>["query"], SearchQuery>
+>(true);
+// @ts-expect-error search query input is inferred from its shared string schema
+void api.api.search.$get({ query: { q: 123 } });
+// @ts-expect-error this endpoint has no room query input
+void api.api.search.$get({ query: { room: "room" } });
 
 // Slice 4: "Ligar Claude" and access requests.
 const room4 = api.api.books[":id"];
@@ -248,6 +257,11 @@ void api.api.books[":id"].connections[":cid"].ui.$get({
 
 // Slice 10: GET /api/me.
 sameAs<Equal<InferResponseType<typeof api.api.me.$get, 200>, MeResult>>(true);
+sameAs<Equal<InferRequestType<typeof api.api.me.$get>["query"], MeQuery>>(true);
+void api.api.me.$get({ query: { ui: "svelte" } });
+void api.api.me.$get({ query: { ui: "unknown-still-vanilla" } });
+// @ts-expect-error UI query is a permissive string, not unknown input
+void api.api.me.$get({ query: { ui: 123 } });
 
 // Slice 11: avatar and room icon (raw bytes; the typed client sees the JSON answers).
 sameAs<
@@ -279,3 +293,72 @@ sameAs<Equal<IsAny<Conn401["error"]>, false>>(true);
 type GF = NonNullable<ReturnType<typeof globalFailure>>;
 sameAs<Equal<IsAny<GF["error"]>, false>>(true);
 sameAs<Equal<GF["status"], 401 | 403>>(true);
+
+// Whisper is inferred from the owned validator chain.
+sameAs<
+  Equal<
+    InferRequestType<Client["api"]["books"][":id"]["stt"]["$post"]>["query"],
+    import("../../../shared/schemas").SttQuery
+  >
+>(true);
+sameAs<
+  Equal<
+    InferResponseType<Client["api"]["books"][":id"]["stt"]["$post"], 200>,
+    import("../../../shared/schemas").SttResult
+  >
+>(true);
+void api.api.books[":id"].stt.$post({
+  param: { id: "room" },
+  query: { lang: "pt", prompt: "vibebook" },
+});
+void api.api.books[":id"].stt.$post({
+  param: { id: "room" },
+  // @ts-expect-error query hints are strings
+  query: { prompt: 7 },
+});
+
+sameAs<
+  Equal<
+    InferResponseType<Client["api"]["books"][":id"]["focus"]["$post"], 200>,
+    OkResult
+  >
+>(true);
+// @ts-expect-error the relay's requested room parameter is required
+void api.api.books[":id"].focus.$post({});
+
+// Direct identity is inferred from the real no-body authenticated route.
+const identityMethod = api.api.books[":id"].connections[":cid"].identity.$post;
+void identityMethod({ param: { id: "r", cid: "c" } });
+sameAs<
+  Equal<
+    InferResponseType<typeof identityMethod, 200>,
+    import("../../../shared/schemas").ConnectionIdentityResult
+  >
+>(true);
+const identityTokenFallback: InferResponseType<typeof identityMethod, 200> = {
+  direct: false,
+  why: "token",
+};
+const identityOauthFallback: InferResponseType<typeof identityMethod, 200> = {
+  direct: false,
+  why: "signed_in",
+};
+const wrongIdentityLifetime: InferResponseType<typeof identityMethod, 200> = {
+  direct: true,
+  url: "https://remote.example/mcp",
+  identity: "signed",
+  // @ts-expect-error direct identity has a fixed five-minute lifetime
+  expires_in: 600,
+};
+const wrongIdentityCredential: InferResponseType<typeof identityMethod, 200> = {
+  direct: false,
+  why: "token",
+  // @ts-expect-error no browser credential field exists on the public fallback
+  token: "secret",
+};
+void [
+  identityTokenFallback,
+  identityOauthFallback,
+  wrongIdentityLifetime,
+  wrongIdentityCredential,
+];

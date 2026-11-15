@@ -1,3 +1,4 @@
+import { providerCost, caughtMessage } from "./providerMetadata";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -56,7 +57,7 @@ async function haiku(env: Env, name: string, memory: string, m: Msg, writeOnly =
     system: SYSTEM(name) + (writeOnly ? `\nAnother model already judged this message answerable from the memory. Write the reply with its source; if the memory doesn't have the facts, say "wake".` : ""),
     prompt: prompt(name, memory, m),
   });
-  return { ...output, cost: Number((usage as { raw?: { cost?: number } }).raw?.cost) || 0 };
+  return { ...output, cost: providerCost(usage) };
 }
 
 /** One message through the router. Never throws: a failure is "wake". */
@@ -74,7 +75,7 @@ async function route(env: Env, name: string, memory: string, m: Msg, email: stri
     const ok = w.action === "answer" && w.reply.trim() && w.source.trim();
     return { arm, decision: ok ? "answer" : "wake", why: ok ? j.why : `${j.why} · sem fonte`, reply: ok ? w.reply : undefined, source: ok ? w.source : undefined, ms: Date.now() - t0, cost: j.cost + w.cost };
   } catch (e) {
-    console.error("router", arm, String((e as Error)?.message ?? e).slice(0, 200));
+    console.error("router", arm, caughtMessage(e).slice(0, 200));
     return { arm, decision: "wake", why: "erro no modelo", ms: Date.now() - t0, cost: 0 };
   }
 }

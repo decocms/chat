@@ -1,3 +1,4 @@
+import { providerCost } from "./providerMetadata";
 // "Novo vibebook" in one step: the person says what it is and with whom. One cheap model call (MODEL_ROUTE, reasoning
 // off) turns that into a short title and the people it names; names are matched against the person's friends here
 // (never by the model), emails are taken as written. Then: the room, its first message, the invites, and the
@@ -47,7 +48,7 @@ export async function startRoom(env: Env, ctx: { waitUntil(p: Promise<unknown>):
     });
     title = output.title;
     people = output.people;
-    cost = Number((usage as { raw?: { cost?: number } }).raw?.cost) || 0;
+    cost = providerCost(usage);
   } catch {
     // Model down: the room still opens, titled from the text.
   }

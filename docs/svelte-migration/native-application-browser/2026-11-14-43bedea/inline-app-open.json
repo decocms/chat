@@ -1,0 +1,389 @@
+{
+  "status": "passed",
+  "variants": [
+    {
+      "variant": "svelte",
+      "status": "passed",
+      "phase": "agent-opened remote App still requires this reader's Open",
+      "markerSHA256": "c55006023c512194829b57707279ce0ad190b822ba7189444e9ba5aa3314432f",
+      "snapshots": [
+        {
+          "phase": "provider-setup-complete",
+          "counters": {
+            "resources": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "sdk": 0,
+            "reads": 0,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "initial document has no remote execution before reader Allow",
+          "counters": {
+            "resources": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "sdk": 0,
+            "reads": 0,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "Cancel is independent and Reopen requires its own grant",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 2,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "prose and real size edits cannot implicitly replay initial tools",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 2,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "removing an unapproved marker cancels its real pending grant",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 2,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "approved stock SDK read loses authority after real same-frame replacement",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 3,
+            "replacements": 1,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "agent-opened remote App still requires this reader's Open",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 3,
+            "replacements": 1,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "before-context-close",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 3,
+            "replacements": 1,
+            "invalid": 0
+          }
+        }
+      ],
+      "browserRequests": {
+        "ui": 2,
+        "call": 5,
+        "sdk": 2
+      },
+      "explicitGrants": {
+        "mutate_a": 1,
+        "mutate_b": 1,
+        "mutate_pending": 0
+      },
+      "pageErrors": [],
+      "roomId": "0e05b8095da0",
+      "documentWidth": {
+        "available": 747,
+        "card": 747
+      },
+      "retainedFramesAfterProse": true,
+      "replacement": {
+        "sameElement": true,
+        "sameWindow": true,
+        "opaque": true,
+        "outcome": "refused",
+        "direct": "refused",
+        "negotiated": "refused"
+      },
+      "agentOpenRequiresReader": true
+    },
+    {
+      "variant": "vanilla",
+      "status": "passed",
+      "phase": "agent-opened remote App still requires this reader's Open",
+      "markerSHA256": "dc2d7ab44679d4498e4d6bfcecd357f8575a4590016a626f3bcb10c21f0fa31d",
+      "snapshots": [
+        {
+          "phase": "provider-setup-complete",
+          "counters": {
+            "resources": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "sdk": 0,
+            "reads": 0,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "initial document has no remote execution before reader Allow",
+          "counters": {
+            "resources": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 0,
+              "mutate_b": 0,
+              "mutate_pending": 0
+            },
+            "sdk": 0,
+            "reads": 0,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "Cancel is independent and Reopen requires its own grant",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 2,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "prose and real size edits cannot implicitly replay initial tools",
+          "counters": {
+            "resources": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 1,
+              "mutate_b": 1,
+              "mutate_pending": 0
+            },
+            "sdk": 2,
+            "reads": 2,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "removing an unapproved marker cancels its real pending grant",
+          "counters": {
+            "resources": {
+              "mutate_a": 2,
+              "mutate_b": 2,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 2,
+              "mutate_b": 2,
+              "mutate_pending": 0
+            },
+            "sdk": 4,
+            "reads": 4,
+            "replacements": 0,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "approved stock SDK read loses authority after real same-frame replacement",
+          "counters": {
+            "resources": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "sdk": 6,
+            "reads": 7,
+            "replacements": 1,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "agent-opened remote App still requires this reader's Open",
+          "counters": {
+            "resources": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "sdk": 6,
+            "reads": 7,
+            "replacements": 1,
+            "invalid": 0
+          }
+        },
+        {
+          "phase": "before-context-close",
+          "counters": {
+            "resources": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "initial": {
+              "mutate_a": 3,
+              "mutate_b": 3,
+              "mutate_pending": 0
+            },
+            "sdk": 6,
+            "reads": 7,
+            "replacements": 1,
+            "invalid": 0
+          }
+        }
+      ],
+      "browserRequests": {
+        "ui": 6,
+        "call": 13,
+        "sdk": 6
+      },
+      "explicitGrants": {
+        "mutate_a": 3,
+        "mutate_b": 3,
+        "mutate_pending": 0
+      },
+      "pageErrors": [],
+      "roomId": "7f4247a93ba7",
+      "documentWidth": {
+        "available": 803,
+        "card": 803
+      },
+      "retainedFramesAfterProse": false,
+      "replacement": {
+        "sameElement": true,
+        "sameWindow": true,
+        "opaque": true,
+        "outcome": "refused",
+        "direct": "refused",
+        "negotiated": "refused"
+      },
+      "agentOpenRequiresReader": true
+    }
+  ],
+  "gaps": [
+    "Real local Worker/Auth/Book/MCP connection/UI resource/private-port/stock-SDK paths; external MCP side effects are synthetic counters, not a production provider.",
+    "Author and reader use loopback DEV identity plus real Worker DCR/PKCE grants; remote sign-in executes the Worker discovery/DCR/PKCE/callback path against a synthetic external provider. Email delivery and real-provider login quality remain unverified.",
+    "Negative network assertions observe a bounded 600ms plus two animation-frame window after positive canonical/UI readiness, not an unbounded no-event claim.",
+    "SDK counter measures the exact installed 1.7.4 child SDK served by the external fixture; parent bundle module attribution is not inferred from chunk names.",
+    "Default document HTML may recreate inline frames on prose/size changes; it must ask again and never implicitly replay. Native must preserve existing frame identity.",
+    "Desktop Chromium only; hardware, Safari/iOS, IME, production OAuth and actual external mutation semantics remain unverified."
+  ],
+  "sdk": {
+    "version": "1.7.4",
+    "sha256": "e72bf921bc15d38951cf85abbb8e572688a30572db89b5344e3a447b1f8d6b40"
+  }
+}

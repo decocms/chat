@@ -1,0 +1,18 @@
+import{$ as e,An as t,B as n,Bt as r,Ct as i,Dn as a,Ft as o,Gt as s,H as c,K as l,L as u,Ln as d,Lt as f,On as p,Ut as m,Vt as h,Wn as g,Xn as _,Xt as v,Zt as y,_t as b,a as x,an as S,ct as C,dt as w,en as T,ir as E,kn as D,nr as O,on as k,qn as A,yt as j}from"./api-BNReHrjQ.js";var M=/*@__PURE__*/ d(`ZodMiniType`,(e,t)=>{if(!e._zod)throw Error(`Uninitialized schema in ZodMiniType.`);T.init(e,t),e.def=t,e.type=t.type},{get with(){return this.check},set with(e){E(this,`with`,e)},parse(e,t){return a(this,e,t,{callee:this.parse})},parseAsync(e,t){return p(this,e,t,{callee:this.parseAsync})},safeParse(e,t){return D(this,e,t)},safeParseAsync(e,n){return t(this,e,n)},check(...e){let t=this.def;return this.clone({...t,checks:[...t.checks??[],...e.map(e=>typeof e==`function`?{_zod:{check:e,def:{check:`custom`},onattach:[]}}:e)]},{parent:!0})},clone(e,t){return g(this,e,t)},brand(){return this},register(e,t){return e.add(this,t),this},apply(e,...t){return t.length===0?e(this):e(this,...t)}}),N=/*@__PURE__*/ d(`ZodMiniString`,(e,t)=>{y.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function P(e){return l(N,e)}var ee=/*@__PURE__*/ d(`ZodMiniNumber`,(e,t)=>{h.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function F(e){return n(ee,e)}var I=/*@__PURE__*/ d(`ZodMiniBoolean`,(e,t)=>{w.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function L(e){return x(I,e)}var R=/*@__PURE__*/ d(`ZodMiniUnknown`,(e,t)=>{k.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function z(){return e(R)}var B=/*@__PURE__*/ d(`ZodMiniNever`,(e,t)=>{f.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function V(e){return u(B,e)}var H=/*@__PURE__*/ d(`ZodMiniArray`,(e,t)=>{C.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function U(e,t){return new H({type:`array`,element:e,...O(t)})}var W=/*@__PURE__*/ d(`ZodMiniObject`,(e,t)=>{m.init(e,t),M.init(e,t),_(e,`shape`,e=>e._zod.def.shape,!1)});// @__NO_SIDE_EFFECTS__
+function G(e,t){return new W({type:`object`,shape:e??{},...O(t)})}// @__NO_SIDE_EFFECTS__
+function K(e,t){return new W({type:`object`,shape:e,catchall:/* @__PURE__ */ V(),...O(t)})}// @__NO_SIDE_EFFECTS__
+function q(e,t){return A(e,t)}var J=/*@__PURE__*/ d(`ZodMiniUnion`,(e,t)=>{S.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function Y(e,t){return new J({type:`union`,options:e,...O(t)})}var X=/*@__PURE__*/ d(`ZodMiniDiscriminatedUnion`,(e,t)=>{j.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function Z(e,t,n){return new X({type:`union`,options:t,discriminator:e,...O(n)})}var Q=/*@__PURE__*/ d(`ZodMiniRecord`,(e,t)=>{v.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function $(e,t,n){return!t||!t._zod?new Q({type:`record`,keyType:/* @__PURE__ */ P(),valueType:e,...O(t)}):new Q({type:`record`,keyType:e,valueType:t,...O(n)})}var te=/*@__PURE__*/ d(`ZodMiniEnum`,(e,t)=>{i.init(e,t),M.init(e,t),e.options=[...e._zod.values]});// @__NO_SIDE_EFFECTS__
+function ne(e,t){return new te({type:`enum`,entries:Array.isArray(e)?Object.fromEntries(e.map(e=>[e,e])):e,...O(t)})}var re=/*@__PURE__*/ d(`ZodMiniLiteral`,(e,t)=>{o.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function ie(e,t){return new re({type:`literal`,values:Array.isArray(e)?e:[e],...O(t)})}var ae=/*@__PURE__*/ d(`ZodMiniOptional`,(e,t)=>{s.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function oe(e){return new ae({type:`optional`,innerType:e})}var se=/*@__PURE__*/ d(`ZodMiniNullable`,(e,t)=>{r.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function ce(e){return new se({type:`nullable`,innerType:e})}var le=/*@__PURE__*/ d(`ZodMiniCustom`,(e,t)=>{b.init(e,t),M.init(e,t)});// @__NO_SIDE_EFFECTS__
+function ue(e,t={}){return c(le,e,t)}export{z as _,q as a,ce as c,oe as d,$ as f,Y as g,P as h,Z as i,F as l,K as m,U as n,ie as o,ue as p,L as r,V as s,ne as t,G as u};

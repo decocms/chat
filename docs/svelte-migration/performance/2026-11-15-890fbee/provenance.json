@@ -1,0 +1,74 @@
+{
+  "sourceRevision": "890fbee856ce99b2acb72cb0a47d7ccae03956a5",
+  "testedRevision": "890fbee856ce99b2acb72cb0a47d7ccae03956a5",
+  "run": 43657685040,
+  "executionStatus": "passed",
+  "performanceAcceptance": "failed",
+  "originalTrials": 32,
+  "diagnosticTrials": 4,
+  "diagnosticsPassed": 4,
+  "failedBudgets": 10,
+  "totalBudgets": 16,
+  "files": [
+    {
+      "sourceArtifact": "890fbee-performance",
+      "originalName": "metrics.json",
+      "path": "metrics.json.gz",
+      "originalBytes": 17838425,
+      "originalSHA256": "28d1f962bde456deec52764f1ef7ec56564d5d620d925f8a6b3d239564659546",
+      "storedBytes": 631745,
+      "storedSHA256": "eedda02609cdba68cbba454db0fa5831c02d1e4a4c54007659350fb0405b01a4",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "890fbee-performance",
+      "originalName": "diagnostics.json",
+      "path": "diagnostics.json.gz",
+      "originalBytes": 13261281,
+      "originalSHA256": "5a12a752a0370cd9916f67e81ae9d5612049ed0cb290f2da55ae2e3d3fd52854",
+      "storedBytes": 314104,
+      "storedSHA256": "db2f7fffcce1723c62ffee24c3b596b3004e5e8d13514c11fe9b395328fce065",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "890fbee-performance",
+      "originalName": "chunk-attribution.json",
+      "path": "chunk-attribution.json.gz",
+      "originalBytes": 167531,
+      "originalSHA256": "6484ec516c187ec84f93d492f2da6b050834c0692c18c89109c76380077057c8",
+      "storedBytes": 10028,
+      "storedSHA256": "41ea9edc2d137a229616a8829bea1ce1798cad346dd884c9274236562c8a66aa",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "890fbee-performance",
+      "originalName": "report.md",
+      "path": "report.md",
+      "originalBytes": 6844,
+      "originalSHA256": "c21b8f3c9a09f9cd76cd613b13f3eb828ecd0b675e9d8205bebd3dbdcd31cee5",
+      "storedBytes": 6844,
+      "storedSHA256": "c21b8f3c9a09f9cd76cd613b13f3eb828ecd0b675e9d8205bebd3dbdcd31cee5",
+      "compression": null
+    },
+    {
+      "sourceArtifact": "890fbee-modules",
+      "originalName": "svelte.json",
+      "path": "svelte-modules.json.gz",
+      "originalBytes": 800779,
+      "originalSHA256": "532f5b46102c901222261b5492fa36d0c90efce98dd7aac2df337e6ecfb434e0",
+      "storedBytes": 43255,
+      "storedSHA256": "3f712bfee15f3d0eaac525b77dd556ef23d13a8480b1ecae5f69c40def28b12f",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "sourceArtifact": "890fbee-modules",
+      "originalName": "vanilla.json",
+      "path": "vanilla-modules.json.gz",
+      "originalBytes": 91121,
+      "originalSHA256": "cdd70c1d91f3a38a543e7785f3a551fed55b2ee97be19eaf1b83eb1e3991e4fa",
+      "storedBytes": 3565,
+      "storedSHA256": "13414175736fc503dfb83a462276b09303b6844a7e57cb70f601f0657f6266b7",
+      "compression": "gzip, restores exact original bytes"
+    }
+  ]
+}

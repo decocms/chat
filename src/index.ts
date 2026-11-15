@@ -1,3 +1,5 @@
+import { r2FileResponse } from "./r2FileResponse";
+import { mountAppDocumentFiles, isAppDocumentNavigation } from "./appDocumentFile";
 import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api";
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
@@ -8,6 +10,7 @@ import { cookieLang, reqLang } from "./lang";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { accessPage, filePage, roomAccess, roomMeta } from "./access";
+import { nativeAuthPage, nativeConnectionSignedOut } from "./native-page";
 import { auth, authServices, EMAIL_RE, identify } from "./auth";
 import type { Book } from "./book";
 import { connect, providerFor } from "./connect";
@@ -70,11 +73,15 @@ export type Env = {
   MODEL_CLASSIFY: string;
   /** Jev decision model for @vibe's grading (src/jev.ts); "off" disables it. */
   MODEL_JUDGE?: string;
+  /** Local CI provider-protocol fixture only: DEV_EMAIL + exact 127.0.0.1 HTTP endpoint. */
+  DECISION_API?: string;
+  /** Explicit local Fire SDK protocol fixture; strict DEV_EMAIL + loopback endpoint. */
+  FIRE_API?: string;
   DEV_EMAIL?: string;
   MCP_AUTH_TOKEN?: string;
 };
 
-type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
+export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, created_at INTEGER)`,
@@ -255,7 +262,10 @@ for (const prefix of ["/_site/*", "/deco/*", "/_serverFn/*"])
     return res;
   });
 // Already signed in: /login goes straight to the app (or to ?next=, which the client keeps safe).
-app.get("/login", async (c) => ((await identify(c)) && !c.req.query("next") ? c.redirect(uiNavigationUrl("/app", c.req.url, uiVariant(c.req.url))) : pageview(c, await shell(c))));
+app.get("/login", async (c) => {
+  if ((await identify(c)) && !c.req.query("next")) return c.redirect(uiNavigationUrl("/app", c.req.url, uiVariant(c.req.url)));
+  return pageview(c, uiVariant(c.req.url) === "svelte" ? await nativeAuthPage(c.env, c.req.raw, "login") : await shell(c));
+});
 app.get("/app", async (c) => {
   const email = await identify(c);
   return email ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl("/login", c.req.url, uiVariant(c.req.url)));
@@ -274,6 +284,12 @@ app.get("/b/*", async (c) => {
   const { state, title } = await roomAccess(c.env.DB, id, email ?? null);
   if (state === "member")
     return pageview(c, new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, title ?? ""), { html: true }); } }).transform(await shell(c)), email ?? undefined);
+  if (uiVariant(url) === "svelte") {
+    const autoAccess = url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`);
+    const native = await nativeAuthPage(c.env, c.req.raw, "access", {autoAccess,status:state === "missing" ? 404 : 200});
+    const res = native.status === 503 ? native : new HTMLRewriter().on("title", {element: (el) => {el.replace(roomMeta(url.origin,id,state === "missing" ? null : title),{html:true});}}).transform(native);
+    return pageview(c,res,email ?? undefined);
+  }
   const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
   res.headers.set("x-frame-options", "DENY");
   res.headers.set("content-security-policy", "frame-ancestors 'none'");
@@ -372,7 +388,10 @@ app.get("/.well-known/jwks.json", async (c) => c.json(await jwks(c.env), 200, { 
 app.use("*", async (c, next) => {
   const email = await identify(c);
   if (!email) {
+    const connection = nativeConnectionSignedOut(c.env, c.req.raw);
+    if (connection) return connection;
     const file = fileLink(c);
+    if(file && uiVariant(c.req.url)==='svelte' && /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(new URL(c.req.url).pathname))return nativeAuthPage(c.env,c.req.raw,'file-access',{status:401});
     return file ? c.html(filePage({ id: file, path: new URL(c.req.url).pathname, signedIn: false, lang: reqLang(c.req.raw) }), 401) : c.json(UNAUTHENTICATED, 401);
   }
   // The users row once per isolate, off the request path: a D1 write here cost every request a round trip.
@@ -386,7 +405,7 @@ app.use("*", async (c, next) => {
   }
   c.set("email", email);
   await next();
-  if (c.req.method !== "GET" && c.req.path.startsWith("/api/") && c.res.status < 400) c.executionCtx.waitUntil(poke(c.env, [email], { t: "me" }));
+  if (c.req.method !== "GET" && c.req.path.startsWith("/api/") && !isAppDocumentNavigation(c.req.raw) && c.res.status < 400) c.executionCtx.waitUntil(poke(c.env, [email], { t: "me" }));
 });
 
 
@@ -430,6 +449,8 @@ async function edgeCached(c: Context<Ctx>, load: () => Promise<Response | null>)
   }
   const out = new Response(res.body, res);
   out.headers.set("cache-control", "private, max-age=31536000, immutable");
+  // Also partition older edge entries created before fileHeaders varied by Cookie.
+  out.headers.set("vary", "Cookie");
   return out;
 }
 app.get("/api/books/:id/icon", async (c) => {
@@ -487,51 +508,27 @@ app.route("/", uploadsApi);
 
 // Files: stored in R2 under <book>/<file>; types, limits and serving headers live in rooms.ts.
 
-// Push-to-talk: one utterance (what was said while space or 🎤 was held) → Whisper on Workers AI, with the room's words
-// (title, people, epics: `prompt`, sent by the app) as the initial prompt so "vibebook" and names come out right.
-app.post("/api/books/:id/stt", async (c) => {
-  const id = c.req.param("id"), email = c.get("email");
-  if (!(await isMember(c.env.DB, id, email))) return c.json({ ok: false, error: "forbidden" }, 403);
-  if (!(await c.env.UPLOAD_LIMIT.limit({ key: `stt:${email}` })).success) return c.json({ ok: false, error: "rate limited: wait a few seconds" }, 429);
-  const buf = await c.req.arrayBuffer();
-  if (!buf.byteLength || buf.byteLength > 4_000_000) return c.json({ ok: false, error: "audio empty or over 4 MB" }, 400);
-  const started = Date.now();
-  try {
-    const out = (await c.env.AI.run("@cf/openai/whisper-large-v3-turbo", {
-      audio: Buffer.from(buf).toString("base64"),
-      language: (c.req.query("lang") || "pt").slice(0, 5),
-      initial_prompt: (c.req.query("prompt") ?? "vibebook").slice(0, 600),
-      vad_filter: true,
-    } as never)) as { text?: string };
-    c.executionCtx.waitUntil(track(c.env, "stt", { user: email, dims: { book: id, ms: Date.now() - started, bytes: buf.byteLength } }));
-    return c.json({ ok: true, text: (out.text ?? "").trim() });
-  } catch (e) {
-    return c.json({ ok: false, error: String((e as Error)?.message ?? e).slice(0, 200) }, 502);
-  }
-});
+mountAppDocumentFiles(app);
+
 app.get("/api/books/:id/files/:fid", async (c) => {
   const id = c.req.param("id");
-  if (!(await isMember(c.env.DB, id, c.get("email"))))
+  if (!(await isMember(c.env.DB, id, c.get("email")))) {
+    if(fileLink(c) && uiVariant(c.req.url)==='svelte' && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param('fid')))return nativeAuthPage(c.env,c.req.raw,'file-access',{status:403});
     return fileLink(c) ? c.html(filePage({ id, path: "", signedIn: true, lang: reqLang(c.req.raw) }), 403) : c.json({ error: "forbidden" }, 403);
+  }
   // Range: iOS Safari's <audio> plays only what answers 206 to a byte range (also lets any player seek).
   const ranged = !!c.req.header("range");
   const obj = await c.env.FILES.get(`${id}/${c.req.param("fid")}`, ranged ? { range: c.req.raw.headers } : undefined);
   if (!obj) return c.notFound();
   const headers = new Headers(fileHeaders(obj.httpMetadata?.contentType ?? "application/octet-stream", obj.customMetadata?.name ?? "arquivo"));
   headers.set("accept-ranges", "bytes");
-  const r = obj.range as { offset?: number; length?: number; suffix?: number } | undefined;
   // In the app's viewer (?esc=1), an HTML file gets one listener that tells the viewer about Esc: focus inside the
   // sandboxed frame keeps the key from ever reaching the app, so the viewer couldn't close with it.
   if (!ranged && c.req.query("esc") === "1" && "body" in obj && (obj.httpMetadata?.contentType ?? "").startsWith("text/html")) {
     headers.delete("content-length");
     return new Response(`${await obj.text()}\n<script>addEventListener("keydown",function(e){if(e.key==="Escape")parent.postMessage({vbViewer:"esc"},"*")},true)</script>`, { headers });
   }
-  if (!ranged || !r || !("body" in obj)) return new Response("body" in obj ? obj.body : null, { headers });
-  const start = r.suffix !== undefined ? Math.max(0, obj.size - r.suffix) : (r.offset ?? 0);
-  const len = r.suffix !== undefined ? obj.size - start : (r.length ?? obj.size - start);
-  headers.set("content-range", `bytes ${start}-${start + len - 1}/${obj.size}`);
-  headers.set("content-length", String(len));
-  return new Response(obj.body, { status: 206, headers });
+  return r2FileResponse(obj, ranged, headers);
 });
 
 // Co-editing a doc (y-websocket): /yjs/<room> or /yjs/<room>~<epic>. Same session cookie as /ws, members only.
@@ -570,6 +567,9 @@ app.get("/ws/:id", async (c) => {
 // Cloud agents (freestyle.sh sandboxes): src/sandbox.ts. agents/<name>.md is the sandbox's CLAUDE.md, kept in the
 // room's files so people (and their Claudes) edit it there; created with a template the first time.
 mountConnections(app, { isMember, track });
+const appHandler: ExportedHandler<Env> = {
+  fetch: (request, env, ctx) => app.fetch(request, env, ctx),
+};
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -582,7 +582,7 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
-    return providerFor(url.origin, app as unknown as ExportedHandler<Env>).fetch(request, env, ctx);
+    return providerFor(url.origin, appHandler).fetch(request, env, ctx);
   },
   // 11:00 and 21:00 UTC = 8h and 18h in São Paulo: the catch-up e-mail.
   scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {

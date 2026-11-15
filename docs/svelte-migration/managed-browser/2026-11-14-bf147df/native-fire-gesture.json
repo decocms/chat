@@ -1,0 +1,37 @@
+{
+  "fixture": "continuous synthetic 440Hz PCM; no quiet window; canceled before20s",
+  "status": "passed",
+  "phase": "complete",
+  "fireOn": 1,
+  "fireOff": 1,
+  "sttRequests": 0,
+  "messageWrites": 0,
+  "sameButton": true,
+  "retainedCapture": true,
+  "afterLock": {
+    "streams": 1,
+    "activeTracks": 1,
+    "contexts": 1,
+    "totalContexts": 2,
+    "openContexts": 1,
+    "runningContexts": 1,
+    "samples": 1,
+    "voicedSamples": 1,
+    "pointer": 1
+  },
+  "afterCancel": {
+    "streams": 1,
+    "activeTracks": 0,
+    "contexts": 1,
+    "totalContexts": 2,
+    "openContexts": 0,
+    "runningContexts": 0,
+    "samples": 1,
+    "voicedSamples": 1,
+    "pointer": 1
+  },
+  "error": "",
+  "pageErrors": [],
+  "cleanupFireOff": false,
+  "cleanupErrors": []
+}

@@ -1,0 +1,78 @@
+{
+  "sourceRevision": "139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+  "workflow": "Controlled frontend performance",
+  "testedRevision": "139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+  "originalTrials": 32,
+  "failedBudgets": 11,
+  "diagnosticTrials": 4,
+  "diagnosticPassed": 3,
+  "diagnosticFailed": 1,
+  "files": [
+    {
+      "path": "metrics.json.gz",
+      "run": 43632725243,
+      "artifact": "frontend-performance-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "metrics.json",
+      "originalBytes": 12246713,
+      "originalSHA256": "c241c46941129f081af064a50f98af01a674d47a1a42af425ce4eda0a52400a6",
+      "storedBytes": 509088,
+      "storedSHA256": "4884b7cb1f95973fb08a43b4ee306bab10cfa05121d086d97b2de3de13c780e8",
+      "compression": "gzip, exact original JSON restored on decompression"
+    },
+    {
+      "path": "report.md",
+      "run": 43632725243,
+      "artifact": "frontend-performance-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "report.md",
+      "originalBytes": 6830,
+      "originalSHA256": "6555c16b0b28481d6c91717fe200c81b81f37af184e2a4aaff36b4048cfbebbe",
+      "storedBytes": 6830,
+      "storedSHA256": "6555c16b0b28481d6c91717fe200c81b81f37af184e2a4aaff36b4048cfbebbe",
+      "compression": null
+    },
+    {
+      "path": "diagnostics.json.gz",
+      "run": 43632725243,
+      "artifact": "frontend-performance-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "diagnostics.json",
+      "originalBytes": 7905341,
+      "originalSHA256": "98e0001c10ed4c5ec67b5eab1225013d667155b6fcefe8b6beefeb233b3c2e99",
+      "storedBytes": 192356,
+      "storedSHA256": "f9f8ab760e53be7918fe6ebe753d16a721e98157301e12e1178bb181ae65af77",
+      "compression": "gzip, exact original JSON restored on decompression"
+    },
+    {
+      "path": "chunk-attribution.json",
+      "run": 43632725243,
+      "artifact": "frontend-performance-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "chunk-attribution.json",
+      "originalBytes": 167559,
+      "originalSHA256": "c596482c5b09f9f8274f35f19797c6a37f96f8a67c65f366f58a1b7d62eaf6fe",
+      "storedBytes": 167559,
+      "storedSHA256": "c596482c5b09f9f8274f35f19797c6a37f96f8a67c65f366f58a1b7d62eaf6fe",
+      "compression": null
+    },
+    {
+      "path": "modules/svelte.json.gz",
+      "run": 43632725243,
+      "artifact": "frontend-module-metadata-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "svelte.json",
+      "originalBytes": 801812,
+      "originalSHA256": "65cdeae22ec36c8a690de925f60a9329ff556472e6e14fd82d89dd2a003b3076",
+      "storedBytes": 43298,
+      "storedSHA256": "fca93a3fa26570c557d5d3c667f61c9d76f3c9558fdb26ebac2ed51b2065d962",
+      "compression": "gzip, exact original JSON restored on decompression"
+    },
+    {
+      "path": "modules/vanilla.json",
+      "run": 43632725243,
+      "artifact": "frontend-module-metadata-139573ac8437d9a39b054e8f6687ae6bd8e8d591",
+      "originalName": "vanilla.json",
+      "originalBytes": 91121,
+      "originalSHA256": "c5eecb71a1f804d2819dfcc3721d803c93f67436798e5518460384770428adc8",
+      "storedBytes": 91121,
+      "storedSHA256": "c5eecb71a1f804d2819dfcc3721d803c93f67436798e5518460384770428adc8",
+      "compression": null
+    }
+  ]
+}

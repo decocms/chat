@@ -1,0 +1,40 @@
+{
+  "sourceRevision": "43bedea60a43076bdd34b6e0c1dc05fb243af127",
+  "main": "868b375",
+  "environment": "Isolated BugMachine; pinned Node22.23.5, Bun1.4.4 and Playwright Chromium",
+  "command": "CI=true TEST_APP_REVISION=43bedea TEST_OUTPUT_DIR=<owned report directory> bun run test:native-application:ci",
+  "scope": "Complete maintained real Worker NativeApplication cohort, not the targeted diagnostic. Disposable DEV identities and synthetic external provider; no production/provider/hardware acceptance.",
+  "unchangedOriginals": true,
+  "files": [
+    {
+      "name": "inline-app-open.json",
+      "bytes": 10988,
+      "sha256": "991283624739ac3b85690e8c837944ebc1b8ed217f60fd3ce65dc1e0884ebad2"
+    },
+    {
+      "name": "native-app-navigation.json",
+      "bytes": 2047,
+      "sha256": "b1a6c7bbd8bde7ee8e532b5b3c4253ca2f448c0072c8032a94240733aff9214d"
+    },
+    {
+      "name": "native-root-profiles.json",
+      "bytes": 654431,
+      "sha256": "76b40afb3df44363b85d65ac63fc80796fa1428bb26eea786e83ced3e42b0444"
+    },
+    {
+      "name": "results.json",
+      "bytes": 759700,
+      "sha256": "d0e2344d528f1549bdb30b3f176efaaab7505a10295f5ed645fda1972a09cd23"
+    },
+    {
+      "name": "runner.json",
+      "bytes": 1008,
+      "sha256": "9157871bd9201fe80b1b22ad64f0731abd8f2031641474961d19ad1fc902bc7a"
+    },
+    {
+      "name": "vanilla-app-navigation.json",
+      "bytes": 2049,
+      "sha256": "d837b5ba2b4de2e361a87486b3612cefb79e6d5e2ab7c745b780c144066747d3"
+    }
+  ]
+}

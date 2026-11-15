@@ -23,6 +23,14 @@ export function reduceRoom(
           ? s.messages
           : [...s.messages, event.m],
       };
+    case "msgCard":
+      return {
+        ...s,
+        messages: updateMessage(event.id, { card: event.card }),
+        origins: s.origins?.map((message) =>
+          message.id === event.id ? { ...message, card: event.card } : message,
+        ),
+      };
     case "moved":
       return {
         ...s,
@@ -113,6 +121,10 @@ export function reduceRoom(
           (s.filesN ?? s.files?.length ?? 0) +
           ((s.files ?? []).some((f) => f.id === event.file.id) ? 0 : 1),
       };
+    case "openSide":
+      return (s.files ?? []).some((file) => file.id === event.file.id)
+        ? s
+        : { ...s, files: [event.file, ...(s.files ?? [])] };
     case "reminders":
       return { ...s, reminders: event.reminders };
     case "decisions":

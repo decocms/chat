@@ -1,0 +1,74 @@
+{
+  "sourceRevision": "350e4cbbfa11d43732936063209091392ae07bbf",
+  "testedRevision": "350e4cbbfa11d43732936063209091392ae07bbf",
+  "environment": "Isolated BugMachine; pinned Node22.23.5/Bun1.4.4/Chromium158.0.8127.18",
+  "status": "passed",
+  "profileCount": 12,
+  "cycles": 20,
+  "files": [
+    {
+      "path": "results.json.gz",
+      "originalName": "results.json",
+      "originalBytes": 1100312,
+      "originalSHA256": "e87319d47e2af2937c1a95f3c324c52d7649f1b7fc6af13cabe6e63f193e08e1",
+      "storedBytes": 37152,
+      "storedSHA256": "94b402a08b2abb9758839a5bb2caca5145fe954b6c16874a4966221b3200d0d7",
+      "compression": "gzip, restores exact original JSON"
+    },
+    {
+      "path": "runner.json",
+      "originalName": "runner.json",
+      "originalBytes": 1008,
+      "originalSHA256": "2ba6686d3137431243f2cb2547876d117ecda57da7d0d561c5a97e6855c39171",
+      "storedBytes": 1008,
+      "storedSHA256": "2ba6686d3137431243f2cb2547876d117ecda57da7d0d561c5a97e6855c39171",
+      "compression": null
+    },
+    {
+      "path": "native-root-profiles.json.gz",
+      "originalName": "native-root-profiles.json",
+      "originalBytes": 993309,
+      "originalSHA256": "722fba69562101cc28f95cc6d3d883506953564cf728e186a6bebf6d6ccc3a11",
+      "storedBytes": 27808,
+      "storedSHA256": "a3096081777c37a2c803c30cce5cffa1222c4d537e56eb5daf7cf23cfcd6987f",
+      "compression": "gzip, restores exact original JSON"
+    },
+    {
+      "path": "native-app-navigation.json",
+      "originalName": "native-app-navigation.json",
+      "originalBytes": 2047,
+      "originalSHA256": "35b05a44f743aa1300ff29b2e899d3b679cc59518e72c8ba33b9caa9e4ceb5b6",
+      "storedBytes": 2047,
+      "storedSHA256": "35b05a44f743aa1300ff29b2e899d3b679cc59518e72c8ba33b9caa9e4ceb5b6",
+      "compression": null
+    },
+    {
+      "path": "vanilla-app-navigation.json",
+      "originalName": "vanilla-app-navigation.json",
+      "originalBytes": 2049,
+      "originalSHA256": "467e931d306802f71a03255fa2cfdec5cae1cbed4c95e0330d2e76bbabb8dfa7",
+      "storedBytes": 2049,
+      "storedSHA256": "467e931d306802f71a03255fa2cfdec5cae1cbed4c95e0330d2e76bbabb8dfa7",
+      "compression": null
+    },
+    {
+      "path": "inline-app-open.json",
+      "originalName": "inline-app-open.json",
+      "originalBytes": 10988,
+      "originalSHA256": "2bff29e5c2a6b51a89376a116a5367080fd3be7d784007a72ec0640b21662be2",
+      "storedBytes": 10988,
+      "storedSHA256": "2bff29e5c2a6b51a89376a116a5367080fd3be7d784007a72ec0640b21662be2",
+      "compression": null
+    },
+    {
+      "path": "native-dictation.json",
+      "originalName": "native-dictation.json",
+      "originalBytes": 825,
+      "originalSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "storedBytes": 825,
+      "storedSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "compression": null
+    }
+  ],
+  "limits": "Real local Worker/Book/D1/R2/DocRoom with synthetic microphone input. No physical microphone/iOS, actual Whisper/runner/provider, production, performance acceptance or final sign-off claimed. Predates the Enter-waits followup."
+}

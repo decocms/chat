@@ -1,0 +1,148 @@
+{
+  "sourceRevision": "649f77367198dc45db82ad29dc4f6864207fdb33",
+  "environment": "GitHub Actions ubuntu-24.04, pinned Node22.23.5 / Bun1.4.4",
+  "run": 43641403518,
+  "job": 132589567884,
+  "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43641403518",
+  "build": {
+    "command": "bun run build:ui",
+    "exitCode": 0,
+    "stepConclusion": "success"
+  },
+  "check": {
+    "command": "bun scripts/check-ci.ts",
+    "exitCode": 0,
+    "stepConclusion": "success",
+    "gates": [
+      {
+        "name": "build:api-types",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:backend",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:ui",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:vanilla",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:router",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:protocol",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:client-boundary",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:bundle",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:styles:native",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:styles",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:store",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:rpc",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:auth",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:home",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:viewer",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:ui",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:ui:variants",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:build",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:connection",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:worker-tests",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:pwa",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "test:pwa",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "check:tooling",
+        "status": "PASS",
+        "exitCode": 0
+      },
+      {
+        "name": "format:check",
+        "status": "PASS",
+        "exitCode": 0
+      }
+    ]
+  },
+  "jobLogSHA256": "f28eee33078e36944758f9e487f6df3cac7dd212d3d8647ffea121ddae8a2aa2",
+  "workflowMetadataSHA256": "6fd7830cdc2417d693a433873837bbc60b54161bfd099b8230ec685b07f3ed99",
+  "artifact": {
+    "id": 14132555746,
+    "name": "svelte-preview-ubuntu-24.04-649f77367198dc45db82ad29dc4f6864207fdb33"
+  },
+  "overallWorkflowConclusion": "failure",
+  "failedStep": "Verify checked-in preview artifacts",
+  "limits": "The build and all source gates pass. Overall CI fails because committed preview is stale. This receipt authorizes exact artifact refresh; later freshness, browser, performance, hardware and production gates remain separate."
+}

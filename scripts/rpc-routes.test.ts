@@ -1,6 +1,38 @@
 import { expect, test } from "bun:test";
 import { Hono } from "hono";
+import { hc, type InferRequestType } from "hono/client";
 import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
+import { parsePersonEvent, PersonEventSchema } from "../shared/person";
+import type { MeQuery, SearchQuery } from "../shared/schemas";
+import {
+  connectionIdentity,
+  type ConnectionIdentityPorts,
+} from "../src/connectionIdentity";
+import type { StoredConnection } from "../src/connectionRows";
+import { uiVariant } from "../shared/uiVariant";
+
+// Compile-time route contracts must come from the actual validator chain, not a
+// client-side query cast/wrapper that could hide missing server inference.
+type PersonalClient = ReturnType<typeof hc<typeof api>>;
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+type Assert<T extends true> = T;
+export type PersonalQueryContracts = [
+  Assert<
+    Equal<
+      InferRequestType<PersonalClient["api"]["me"]["$get"]>["query"],
+      MeQuery
+    >
+  >,
+  Assert<
+    Equal<
+      InferRequestType<PersonalClient["api"]["search"]["$get"]>["query"],
+      SearchQuery
+    >
+  >,
+];
 
 // Exercise the real handlers/validators without Worker bindings or unchecked Env casts.
 // Authentication middleware and persistence are separate Worker integration gates.
@@ -27,6 +59,9 @@ function fixture(overrides: Partial<ApiServices> = {}) {
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
     isMember: async () => true,
+    allowStt: async () => true,
+    transcribe: async () => ({ ok: true, text: "spoken" }),
+    pokeFocus: () => {},
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -119,6 +154,12 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       v: "v1",
     }),
     connections: {
+      identity: async () => ({
+        direct: true,
+        url: "https://mcp.example/mcp",
+        identity: "signed-identity",
+        expires_in: 300,
+      }),
       list: async () => ({ connections: [conn] }),
       create: async (_room, b) =>
         b.token
@@ -244,7 +285,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(value),
     });
-  return { app, json, writes, posted, uploaded, saved };
+  return { app, json, writes, posted, uploaded, saved, svc };
 }
 
 test("post validates HTTP input and preserves success and business-error responses", async () => {
@@ -330,8 +371,8 @@ test("binary upload validates metadata, encoded names and limits", async () => {
   expect((await request("text/plain", "large.txt", "large", "5")).status).toBe(
     413,
   );
-  // An absent/incorrect content-length must still hit storage's actual-byte limit.
-  expect((await request("text/plain", "large.txt", "large")).status).toBe(400);
+  // Actual streamed bytes must reject oversize before calling storage, regardless of this header.
+  expect((await request("text/plain", "large.txt", "large")).status).toBe(413);
   expect((await request("text/plain", "%ZZ", "hi")).status).toBe(400);
   expect(f.uploaded).toEqual([
     { room: "room", type: "text/plain", size: 2, name: "a b.txt" },
@@ -662,6 +703,120 @@ test("me: the home's one read, typed end to end", async () => {
   expect([r.status, (await r.json()).v]).toEqual([200, "v1"]);
 });
 
+test("personal query contracts preserve first duplicates, search normalization and UI fallback", async () => {
+  const searches: string[] = [];
+  const f = fixture({
+    search: async (q) => {
+      searches.push(q);
+      return { rooms: 0, epics: [], messages: [] };
+    },
+  });
+  const rpc = hc<typeof api>("http://localhost", { fetch: f.app.request });
+  expect((await rpc.api.me.$get({ query: { ui: "svelte" } })).status).toBe(200);
+  expect((await rpc.api.me.$get({ query: { ui: "unknown" } })).status).toBe(
+    200,
+  );
+  expect(
+    (await rpc.api.search.$get({ query: { q: "  typed search  " } })).status,
+  ).toBe(200);
+  expect(searches).toEqual(["typed search"]);
+  await f.app.request("/api/search?q=%20first%20&q=second");
+  expect(searches.at(-1)).toBe("first");
+  await f.app.request(
+    `/api/search?q=${encodeURIComponent("  " + "x".repeat(130) + "  ")}`,
+  );
+  expect(searches.at(-1)).toBe("x".repeat(120));
+  const count = searches.length;
+  for (const path of [
+    "/api/search",
+    "/api/search?q=",
+    "/api/search?q=%20a%20&q=longer",
+  ]) {
+    const response = await f.app.request(path);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rooms: 0,
+      epics: [],
+      messages: [],
+    });
+  }
+  expect(searches).toHaveLength(count);
+  for (const query of [
+    "ui=svelte&ui=unknown",
+    "ui=unknown&ui=svelte",
+    "ui=&ui=svelte",
+  ]) {
+    const url = `http://localhost/api/me?${query}`;
+    expect((await f.app.request(url)).status).toBe(200);
+    expect(uiVariant(url)).toBe(
+      query.startsWith("ui=svelte&") ? "svelte" : "vanilla",
+    );
+  }
+  if (false) {
+    // @ts-expect-error inferred ui accepts a string, not an untyped numeric value.
+    await rpc.api.me.$get({ query: { ui: 123 } });
+    // @ts-expect-error inferred q accepts a string, not an untyped numeric value.
+    await rpc.api.search.$get({ query: { q: 123 } });
+    // @ts-expect-error there is no room search query in this existing endpoint.
+    await rpc.api.search.$get({ query: { room: "room" } });
+  }
+});
+
+test("personal query contracts leave rate limits and cached me payloads unchanged", async () => {
+  const limited = fixture({ search: async () => false });
+  const response = await limited.app.request("/api/search?q=hello");
+  expect(response.status).toBe(429);
+  expect(await response.json()).toEqual({ error: "rate limited" });
+  let calls = 0;
+  const cached = fixture({
+    me: async () => {
+      calls++;
+      return {
+        email: "test@example.com",
+        name: null,
+        avatar: null,
+        books: [],
+        friends: [],
+        waits: [],
+        v: "current",
+        cached: true,
+      };
+    },
+  });
+  for (const query of ["", "?ui=unknown", "?ui=svelte&ui=unknown"]) {
+    const response = await cached.app.request(`/api/me${query}`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ v: "current", cached: true });
+  }
+  expect(calls).toBe(3);
+});
+
+test("personal event contracts decode raw ws-me data and retain the literal new-message flag", () => {
+  for (const notice of [
+    { t: "me" },
+    { t: "me", book: "room", msg: 1 },
+    { t: "agents", book: "*" },
+  ] as const) {
+    expect(parsePersonEvent(JSON.stringify(notice))).toEqual(notice);
+    expect(PersonEventSchema.safeParse(notice).success).toBe(true);
+  }
+  for (const value of [
+    null,
+    {},
+    new Uint8Array([1]),
+    "pong",
+    "{",
+    "[]",
+    "null",
+    '{"t":"agents"}',
+    '{"t":"me","msg":2}',
+    '{"t":"me","book":3}',
+    '{"t":"unknown"}',
+  ])
+    expect(parsePersonEvent(value)).toBeNull();
+  expect(parsePersonEvent('{"t":"me","extra":"ignored"}')).toEqual({ t: "me" });
+});
+
 test("avatar and room icon: same origin, type, size and rate limits keep their old answers", async () => {
   const f = fixture();
   const send = (path: string, type: string, body: BodyInit, origin?: string) =>
@@ -854,4 +1009,732 @@ test("model spend: only in the report rooms, for their members", async () => {
   expect(
     (await outsider.app.request("/api/metrics/ai-spend?room=report")).status,
   ).toBe(403);
+});
+
+test("room sandbox presence normalizes nullable and malformed SQLite metadata without changing membership or row order", async () => {
+  const { Database } = await import("bun:sqlite");
+  const db = new Database(":memory:");
+  try {
+    db.run(
+      "CREATE TABLE sandboxes (id TEXT PRIMARY KEY, email TEXT, book_id TEXT, name TEXT, state TEXT, run_s INTEGER, rate REAL, disk_rate REAL, checked_at INTEGER, created_at INTEGER)",
+    );
+    db.run(
+      "INSERT INTO sandboxes VALUES ('bad','owner@test','room',X'0102',NULL,'broken',0,0,0,NULL), ('null','owner@test','room',NULL,NULL,NULL,NULL,NULL,NULL,NULL), ('valid','owner@test','room','valid','paused',0,0,0,0,0), (NULL,'owner@test','room','missing','paused',0,0,0,0,0), ('private','other@test','other','private','running',0,0,0,0,0)",
+    );
+    const rows = db
+      .query(
+        "SELECT id,email,name,state,run_s,rate,disk_rate,checked_at,created_at FROM sandboxes WHERE book_id='room' ORDER BY created_at",
+      )
+      .all();
+    const queries: { sql: string; values: (string | number | null)[] }[] = [];
+    const f = fixture({
+      sqlAll: async (sql, ...values) => {
+        queries.push({ sql, values });
+        return sql.includes("FROM sandboxes")
+          ? rows
+          : sql.includes("SELECT claude_on")
+            ? [{ claude_on: 0 }]
+            : [];
+      },
+    });
+    const response = await f.app.request("/api/books/room/agents");
+    expect(response.status).toBe(200);
+    const { AgentsResult } = await import("../shared/schemas");
+    const value = AgentsResult.parse(await response.json());
+    expect(value.sandboxes.map((row: { id: string }) => row.id)).toEqual([
+      "bad",
+      "null",
+      "valid",
+    ]);
+    expect(value.sandboxes[0]).toMatchObject({
+      name: null,
+      run_s: null,
+      created_at: null,
+      cost_unknown: true,
+    });
+    expect(value.sandboxes[1]).toMatchObject({
+      name: null,
+      run_s: null,
+      created_at: null,
+      cost_unknown: true,
+    });
+    expect(value.sandboxes[2]).toMatchObject({
+      name: "valid",
+      run_s: 0,
+      rate: 0,
+      disk_rate: 0,
+      checked_at: 0,
+      created_at: 0,
+      cost_unknown: false,
+    });
+    expect(
+      queries.find((query) => query.sql.includes("FROM sandboxes"))?.values,
+    ).toEqual(["room"]);
+    expect(
+      queries.find((query) => query.sql.includes("SELECT claude_on"))?.values,
+    ).toEqual(["room", "test@example.com"]);
+    const outsider = fixture({
+      sqlAll: async (sql) => (sql.includes("SELECT claude_on") ? [] : rows),
+    });
+    expect((await outsider.app.request("/api/books/room/agents")).status).toBe(
+      403,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("personal focus notices retain their validated room and reject malformed wire data", () => {
+  expect(parsePersonEvent('{"t":"focus","book":"room"}')).toEqual({
+    t: "focus",
+    book: "room",
+  });
+  for (const value of [
+    '{"t":"focus","book":1}',
+    '{"t":"focus"}',
+    new Uint8Array([1]),
+  ])
+    expect(parsePersonEvent(value)).toBeNull();
+});
+
+test("new card presentation props survive normalization and bounded runtime DTO validation", async () => {
+  const { cardOf, CardSchema } = await import("../shared/card");
+  const value = cardOf(
+    {
+      root: "c",
+      elements: {
+        c: { type: "Card", children: ["chart", "fields", "link"] },
+        chart: {
+          type: "Chart",
+          props: {
+            labels: ["one", "two"],
+            series: [
+              { name: "first", values: [0, "2"] },
+              { name: "second", values: [3, 4] },
+            ],
+          },
+        },
+        fields: { type: "Fields", children: ["field"] },
+        field: {
+          type: "Field",
+          props: {
+            label: "Errors",
+            value: "0",
+            delta: "-100%",
+            good: "down",
+            trend: "3 · 2 · 0",
+          },
+        },
+        link: {
+          type: "LinkButton",
+          props: { label: "Open", url: "#m1", style: "primary" },
+        },
+      },
+    },
+    "room",
+  );
+  expect(CardSchema.parse(value)).toEqual(value);
+  expect(value.elements.chart.props).toMatchObject({
+    labels: ["one", "two"],
+    series: [
+      { name: "first", values: [0, 2] },
+      { name: "second", values: [3, 4] },
+    ],
+  });
+  expect(value.elements.field.props).toMatchObject({
+    delta: "-100%",
+    good: "down",
+    trend: "3 · 2 · 0",
+  });
+  expect(value.elements.link.props).toMatchObject({ style: "primary" });
+  const chart = value.elements.chart;
+  if (chart.type !== "Chart" || !("series" in chart.props))
+    throw Error("series projection lost");
+  expect(
+    CardSchema.safeParse({
+      ...value,
+      elements: {
+        ...value.elements,
+        chart: {
+          ...chart,
+          props: {
+            ...chart.props,
+            series: [
+              ...chart.props.series,
+              ...chart.props.series,
+              ...chart.props.series,
+            ],
+          },
+        },
+      },
+    }).success,
+  ).toBe(false);
+  expect(
+    CardSchema.safeParse({
+      ...value,
+      elements: {
+        ...value.elements,
+        chart: { ...chart, props: { ...chart.props, labels: ["one"] } },
+      },
+    }).success,
+  ).toBe(false);
+  const old = cardOf(
+    {
+      root: "c",
+      elements: {
+        c: { type: "Card", children: ["chart"] },
+        chart: {
+          type: "Chart",
+          props: { data: [{ label: "zero", value: 0 }] },
+        },
+      },
+    },
+    "room",
+  );
+  expect(old.elements.chart.props).toMatchObject({
+    data: [{ label: "zero", value: 0 }],
+  });
+});
+
+test("focus relay authorizes the requested room before emitting a person-channel notice", async () => {
+  const pokes: string[] = [],
+    checked: string[] = [];
+  const f = fixture({
+    isMember: async (id) => {
+      checked.push(id);
+      return id === "owned-room";
+    },
+    pokeFocus: (id) => {
+      pokes.push(id);
+    },
+  });
+  const allowed = await f.app.request("/api/books/owned-room/focus", {
+    method: "POST",
+  });
+  expect(allowed.status).toBe(200);
+  expect(await allowed.json()).toEqual({ ok: true });
+  const refused = await f.app.request("/api/books/private-room/focus", {
+    method: "POST",
+  });
+  expect(refused.status).toBe(403);
+  expect(await refused.json()).toEqual({ error: "forbidden" });
+  expect(checked).toEqual(["owned-room", "private-room"]);
+  expect(pokes).toEqual(["owned-room"]);
+});
+
+test("retired Fire endpoint cannot toggle membership or hand off runner cursors", async () => {
+  let transcriptions = 0;
+  let membershipReads = 0;
+  const f = fixture({
+    isMember: async () => {
+      membershipReads++;
+      return true;
+    },
+    transcribe: async () => {
+      transcriptions++;
+      return { ok: true, text: "unexpected" };
+    },
+  });
+  for (const body of [{ on: true }, { on: false }, { text: "old live mode" }])
+    expect((await f.json("/api/books/room/fire", body)).status).toBe(404);
+  expect(f.writes).toEqual([]);
+  expect(membershipReads).toBe(0);
+  expect(transcriptions).toBe(0);
+});
+
+test("STT real handlers bound raw audio, gate membership/rate, and validate responses", async () => {
+  const calls: unknown[] = [],
+    f = fixture({
+      transcribe: async (audio, query) => {
+        calls.push({ audio: [...audio], query });
+        return { ok: true, text: "words" };
+      },
+    });
+  const answer = await f.app.request(
+    "/api/books/room/stt?lang=pt&lang=en&prompt=names",
+    { method: "POST", body: new Uint8Array([1, 2]) },
+  );
+  expect(answer.status).toBe(200);
+  expect(await answer.json()).toEqual({ ok: true, text: "words" });
+  expect(calls).toEqual([
+    { audio: [1, 2], query: { lang: "pt", prompt: "names" } },
+  ]);
+  for (const audio of [new Uint8Array(), new Uint8Array(4_000_001)])
+    expect(
+      (
+        await f.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: audio,
+        })
+      ).status,
+    ).toBe(400);
+  expect(calls).toHaveLength(1);
+  for (const [overrides, status] of [
+    [{ isMember: async () => false }, 403],
+    [{ allowStt: async () => false }, 429],
+  ] as const) {
+    const denied = fixture({
+      ...overrides,
+      transcribe: async () => {
+        throw Error("unexpected AI");
+      },
+    });
+    expect(
+      (
+        await denied.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: new Uint8Array([1]),
+        })
+      ).status,
+    ).toBe(status);
+  }
+  for (const result of [
+    null,
+    { ok: true, text: 7 },
+    { ok: false, error: "provider" },
+  ]) {
+    const invalid = fixture({ transcribe: async () => result });
+    expect(
+      (
+        await invalid.app.request("/api/books/room/stt", {
+          method: "POST",
+          body: new Uint8Array([1]),
+        })
+      ).status,
+    ).toBe(502);
+  }
+});
+
+test("STT never publishes a late result after membership loss, while provider errors remain502 for members", async () => {
+  for (const removed of [false, true])
+    for (const throws of [false, true]) {
+      let member = true;
+      const f = fixture({
+        isMember: async () => member,
+        transcribe: async () => {
+          member = !removed;
+          if (throws) throw Error("provider failed");
+          return { ok: true, text: "secret speech" };
+        },
+      });
+      const response = await f.app.request("/api/books/room/stt", {
+        method: "POST",
+        body: new Uint8Array([1]),
+      });
+      expect(response.status).toBe(removed ? 403 : throws ? 502 : 200);
+      if (removed)
+        expect(await response.json()).toEqual({
+          ok: false,
+          error: "forbidden",
+        });
+    }
+});
+
+test("personal channel ignores retired live Fire events and retains focus/agent notices", () => {
+  for (const value of [
+    { t: "fire", book: "room", on: true },
+    { t: "fire", book: "room", on: false },
+    ...["switching", "ready", "off", "failed"].map((state) => ({
+      t: "fireState",
+      book: "room",
+      state,
+    })),
+  ])
+    expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+  for (const t of ["focus", "agents"] as const)
+    expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({
+      t,
+      book: "room",
+    });
+});
+
+test("binary handlers stop chunked and falsely small-length uploads at their actual byte limits", async () => {
+  for (const length of [undefined, "1"])
+    for (const item of [
+      {
+        path: "/api/books/room/files",
+        type: "text/plain",
+        maximum: 4,
+        status: 413,
+      },
+      {
+        path: "/api/me/avatar",
+        type: "image/png",
+        maximum: 1_000_000,
+        status: 413,
+      },
+      {
+        path: "/api/books/room/icon",
+        type: "image/png",
+        maximum: 256_000,
+        status: 400,
+      },
+    ]) {
+      let pulls = 0,
+        canceled = 0;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            pulls++;
+            if (pulls === 1) controller.enqueue(new Uint8Array(item.maximum));
+            else if (pulls === 2) controller.enqueue(new Uint8Array([1]));
+            else throw Error("Oversized body must not be drained");
+          },
+          cancel() {
+            canceled++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const f = fixture();
+      const response = await f.app.request(item.path, {
+        method: "POST",
+        headers: {
+          "content-type": item.type,
+          ...(length ? { "content-length": length } : {}),
+        },
+        body: stream,
+      });
+      expect(response.status).toBe(item.status);
+      expect(await response.json()).toHaveProperty("error");
+      expect(pulls).toBe(2);
+      expect(canceled).toBe(1);
+      expect(f.uploaded).toHaveLength(0);
+      expect(f.saved).toHaveLength(0);
+    }
+});
+
+test("declared oversized upload is canceled before reading and icon removal does not buffer JSON", async () => {
+  for (const item of [
+    {
+      path: "/api/books/room/files",
+      type: "text/plain",
+      length: "5",
+      status: 413,
+    },
+    {
+      path: "/api/me/avatar",
+      type: "image/png",
+      length: "1000001",
+      status: 413,
+    },
+    {
+      path: "/api/books/room/icon",
+      type: "image/png",
+      length: "256001",
+      status: 400,
+    },
+    {
+      path: "/api/books/room/icon",
+      type: "application/json",
+      length: "999999999",
+      status: 200,
+    },
+  ]) {
+    let pulls = 0,
+      canceled = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull() {
+          pulls++;
+          throw Error("Body must not be read");
+        },
+        cancel() {
+          canceled++;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const f = fixture();
+    const response = await f.app.request(item.path, {
+      method: "POST",
+      headers: { "content-type": item.type, "content-length": item.length },
+      body: stream,
+    });
+    expect(response.status).toBe(item.status);
+    expect(pulls).toBe(0);
+    expect(canceled).toBe(1);
+    if (item.type === "application/json")
+      expect(await response.json()).toEqual({ ok: true, icon: null });
+    else {
+      expect(f.uploaded).toHaveLength(0);
+      expect(f.saved).toHaveLength(0);
+    }
+  }
+});
+
+test("agents reads actual SQLite nullable/invalid Claude flags without truthy-string coercion", async () => {
+  const { Database } = await import("bun:sqlite"),
+    db = new Database(":memory:");
+  db.exec("CREATE TABLE membership(claude_on INTEGER)");
+  try {
+    for (const [stored, expected] of [
+      [0, false],
+      [1, true],
+      [null, false],
+      ["0", false],
+      ["false", false],
+    ] as const) {
+      db.exec("DELETE FROM membership");
+      // INTEGER affinity converts TEXT '0' to numeric zero; a CAST expression
+      // models a genuine text scalar returned by legacy/coerced SQL producers.
+      db.query("INSERT INTO membership VALUES(?)").run(stored);
+      const rows =
+        stored === "0"
+          ? db
+              .query(
+                "SELECT CAST(claude_on AS TEXT) AS claude_on FROM membership",
+              )
+              .all()
+          : db.query("SELECT claude_on FROM membership").all();
+      const f = fixture({
+        sqlAll: async (sql) => (sql.includes("SELECT claude_on") ? rows : []),
+      });
+      const response = await f.app.request("/api/books/room/agents");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        claude_on: expected,
+        agents: [],
+        sandboxes: [],
+      });
+    }
+    const denied = fixture({ sqlAll: async () => [] });
+    expect((await denied.app.request("/api/books/room/agents")).status).toBe(
+      403,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("upload revocation during the real body read cannot reach storage", async () => {
+  let member = true;
+  const f = fixture({ isMember: async () => member });
+  const stream = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        controller.enqueue(new Uint8Array([1]));
+        member = false;
+        controller.close();
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const response = await f.app.request("/api/books/room/files", {
+    method: "POST",
+    headers: { "content-type": "text/plain" },
+    body: stream,
+  });
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: "forbidden" });
+  expect(f.uploaded).toHaveLength(0);
+});
+
+test("upload errors recheck actual membership rather than interpreting a provider's forbidden text", async () => {
+  for (const removed of [false, true]) {
+    let member = true;
+    const f = fixture({
+      isMember: async () => member,
+      storeFile: async () => {
+        member = !removed;
+        throw Error("forbidden");
+      },
+    });
+    const response = await f.app.request("/api/books/room/files", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "a",
+    });
+    expect(response.status).toBe(removed ? 403 : 400);
+    expect(await response.json()).toEqual({ error: "forbidden" });
+  }
+});
+
+function identityFixture() {
+  let row: StoredConnection | null = {
+    id: "cid",
+    book_id: "room",
+    owner: "owner@example.test",
+    scope: "room",
+    url: "https://remote.example/mcp",
+    title: "Remote",
+    enc: null,
+    iv: null,
+    tools: "[]",
+    ctx: null,
+    created_at: 1,
+  };
+  let member = true,
+    signedIn = false,
+    allowed = true;
+  const signed: { room: string; url: string }[] = [],
+    tracked: string[] = [];
+  const ports: ConnectionIdentityPorts = {
+    email: "reader@example.test",
+    member: async () => member,
+    connection: async () => row,
+    allowed: async () => allowed,
+    signedIn: async () => signedIn,
+    sign: async (room, url) => {
+      signed.push({ room, url });
+      return "signed-public-identity";
+    },
+    track: (_room, url) => {
+      tracked.push(url);
+    },
+  };
+  return {
+    ports,
+    signed,
+    tracked,
+    setRow: (value: StoredConnection | null) => {
+      row = value;
+    },
+    row: () => row,
+    setMember: (value: boolean) => {
+      member = value;
+    },
+    setSignedIn: (value: boolean) => {
+      signedIn = value;
+    },
+    setAllowed: (value: boolean) => {
+      allowed = value;
+    },
+  };
+}
+
+test("identity uses only authorized stored destination and never exports token or OAuth credentials", async () => {
+  const direct = identityFixture();
+  expect(await connectionIdentity("room", "cid", direct.ports)).toEqual({
+    direct: true,
+    url: "https://remote.example/mcp",
+    identity: "signed-public-identity",
+    expires_in: 300,
+  });
+  expect(direct.signed).toEqual([
+    { room: "room", url: "https://remote.example/mcp" },
+  ]);
+  for (const kind of ["token", "signed_in"] as const) {
+    const f = identityFixture(),
+      original = f.row();
+    if (!original) throw Error("missing fixture row");
+    if (kind === "token") {
+      f.setRow({ ...original, enc: "sealed-never-return", iv: "private-iv" });
+      f.ports.signedIn = async () => {
+        throw Error("legacy token must not require OAuth lookup");
+      };
+    } else f.setSignedIn(true);
+    expect(await connectionIdentity("room", "cid", f.ports)).toEqual({
+      direct: false,
+      why: kind,
+    });
+    expect(f.signed).toEqual([]);
+    expect(f.tracked).toEqual([]);
+  }
+});
+
+test("identity refuses private, missing, nonmember and rate-limited connections before signing", async () => {
+  for (const kind of ["private", "missing", "nonmember", "rate"] as const) {
+    const f = identityFixture(),
+      row = f.row();
+    if (!row) throw Error("missing fixture");
+    if (kind === "private") f.setRow({ ...row, scope: "me" });
+    if (kind === "missing") f.setRow(null);
+    if (kind === "nonmember") f.setMember(false);
+    if (kind === "rate") f.setAllowed(false);
+    const result = await connectionIdentity("room", "cid", f.ports);
+    expect("error" in result ? result.status : null).toBe(
+      kind === "rate" ? 429 : kind === "nonmember" ? 403 : 404,
+    );
+    expect(f.signed).toEqual([]);
+    expect(f.tracked).toEqual([]);
+  }
+});
+
+test("identity rechecks membership after final connection lookup and after grant lookup", async () => {
+  for (const phase of ["connection", "grant"] as const) {
+    const f = identityFixture();
+    let reads = 0;
+    const read = f.ports.connection;
+    if (phase === "connection")
+      f.ports.connection = async (...args) => {
+        const row = await read(...args);
+        if (++reads === 5) f.setMember(false);
+        return row;
+      };
+    else
+      f.ports.signedIn = async () => {
+        f.setMember(false);
+        return false;
+      };
+    expect(await connectionIdentity("room", "cid", f.ports)).toEqual({
+      error: "forbidden",
+      status: 403,
+    });
+    expect(f.tracked).toEqual([]);
+  }
+});
+
+test("late signing cannot export a JWT after removal, retargeting, or new credential authority", async () => {
+  for (const kind of [
+    "member",
+    "removed",
+    "url",
+    "owner",
+    "token",
+    "signed_in",
+  ] as const) {
+    const f = identityFixture(),
+      row = f.row();
+    if (!row) throw Error("missing fixture");
+    f.ports.sign = async () => {
+      if (kind === "member") f.setMember(false);
+      else if (kind === "removed") f.setRow(null);
+      else if (kind === "url")
+        f.setRow({ ...row, url: "https://other.example/mcp" });
+      else if (kind === "owner")
+        f.setRow({ ...row, owner: "new@example.test" });
+      else if (kind === "token") f.setRow({ ...row, enc: "sealed", iv: "iv" });
+      else f.setSignedIn(true);
+      return "must-not-be-exported";
+    };
+    const result = await connectionIdentity("room", "cid", f.ports);
+    expect("identity" in result).toBe(false);
+    expect(f.tracked).toEqual([]);
+    if (kind === "signed_in")
+      expect(result).toEqual({ direct: false, why: "signed_in" });
+  }
+});
+
+test("inferred identity handler enforces room gate and emits only checked no-store replies", async () => {
+  for (const result of [
+    {
+      direct: true,
+      url: "https://mcp.example/mcp",
+      identity: "signed-identity",
+      expires_in: 300,
+    },
+    { direct: false, why: "token" },
+    { direct: false, why: "signed_in" },
+  ] as const) {
+    const f = fixture();
+    f.svc.connections.identity = async () => result;
+    const response = await f.app.request(
+      "/api/books/room/connections/c1/identity",
+      { method: "POST" },
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual(result);
+  }
+  const denied = fixture({ isMember: async () => false });
+  denied.svc.connections.identity = async () => {
+    throw Error("identity service must not run without membership");
+  };
+  const response = await denied.app.request(
+    "/api/books/room/connections/c1/identity",
+    { method: "POST" },
+  );
+  expect(response.status).toBe(403);
+  expect(response.headers.get("cache-control")).toBe("no-store");
 });

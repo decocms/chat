@@ -93,6 +93,7 @@ export const MessageSchema = z.object({
   author: str,
   ts: num,
   text: str,
+  viewing: opt(z.nullable(str)),
   kind: maybe(str),
   tag: maybe(str),
   via: maybe(str),

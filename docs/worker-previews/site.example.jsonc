@@ -1,0 +1,8 @@
+{
+  "previews": {
+    "vars": {
+      "DECO_SITE_NAME": "<REPLACE_ME>",
+      "DECO_ENV_NAME": "<REPLACE_ME>"
+    }
+  }
+}

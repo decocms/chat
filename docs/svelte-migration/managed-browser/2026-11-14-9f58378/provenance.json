@@ -1,0 +1,95 @@
+{
+  "sourceRevision": "9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+  "testedRevision": "9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+  "files": [
+    {
+      "path": "native-application-browser/results.json.gz",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "results.json",
+      "originalBytes": 759621,
+      "originalSHA256": "afe3d9cde38d73eddb2475652a7203d2166e54b4d05c6ba084f7cfcaa8bfe989",
+      "storedBytes": 28706,
+      "storedSHA256": "9af1a8e537e549aceff70027eeab11161f7fcb17530e32c9b1d0dd60eb581716",
+      "compression": "gzip, restores exact original JSON"
+    },
+    {
+      "path": "native-application-browser/runner.json",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "runner.json",
+      "originalBytes": 1007,
+      "originalSHA256": "828dbf1ee43690909369dcb6963eecdb8533ac704d01871a4d03429d3a2a6439",
+      "storedBytes": 1007,
+      "storedSHA256": "828dbf1ee43690909369dcb6963eecdb8533ac704d01871a4d03429d3a2a6439",
+      "compression": null
+    },
+    {
+      "path": "native-application-browser/native-root-profiles.json.gz",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "native-root-profiles.json",
+      "originalBytes": 654437,
+      "originalSHA256": "491dad2ff766ed038921bca46343b8509780f93015a138458d5ed5e4f11c9008",
+      "storedBytes": 19468,
+      "storedSHA256": "31e394a34ebfdbce38d98676fc08ab2106ddeda5aadf71d41f4c187ad5f91b1e",
+      "compression": "gzip, restores exact original JSON"
+    },
+    {
+      "path": "native-application-browser/native-app-navigation.json",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "native-app-navigation.json",
+      "originalBytes": 2047,
+      "originalSHA256": "4850f77d959adf1bbf4a794100e1b22089b5b3a734f1080dd4ef48277e76c017",
+      "storedBytes": 2047,
+      "storedSHA256": "4850f77d959adf1bbf4a794100e1b22089b5b3a734f1080dd4ef48277e76c017",
+      "compression": null
+    },
+    {
+      "path": "native-application-browser/vanilla-app-navigation.json",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "vanilla-app-navigation.json",
+      "originalBytes": 2049,
+      "originalSHA256": "2e5c119fb0118669384ae7fdc250b0bad00012d3885fe86bd3689f70e8a658d0",
+      "storedBytes": 2049,
+      "storedSHA256": "2e5c119fb0118669384ae7fdc250b0bad00012d3885fe86bd3689f70e8a658d0",
+      "compression": null
+    },
+    {
+      "path": "native-application-browser/inline-app-open.json",
+      "run": 43639334636,
+      "artifact": "native-application-browser-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "inline-app-open.json",
+      "originalBytes": 10988,
+      "originalSHA256": "73280709656529877c9be2b1bae5728845b5c6b5490accc6ff5036c97270399e",
+      "storedBytes": 10988,
+      "storedSHA256": "73280709656529877c9be2b1bae5728845b5c6b5490accc6ff5036c97270399e",
+      "compression": null
+    },
+    {
+      "path": "app-hmr/results.json",
+      "run": 43639335097,
+      "artifact": "app-hmr-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "results.json",
+      "originalBytes": 13104,
+      "originalSHA256": "ece57a24a691e74fe1f3463ae14310ffb273267772d59914fdf3fca1d9085b88",
+      "storedBytes": 13104,
+      "storedSHA256": "ece57a24a691e74fe1f3463ae14310ffb273267772d59914fdf3fca1d9085b88",
+      "compression": null
+    },
+    {
+      "path": "app-hmr/runner.json",
+      "run": 43639335097,
+      "artifact": "app-hmr-9f583789bf24f8ce5b2737059eb8ab9b9cb1eacf",
+      "originalName": "runner.json",
+      "originalBytes": 183,
+      "originalSHA256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97",
+      "storedBytes": 183,
+      "storedSHA256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97",
+      "compression": null
+    }
+  ],
+  "limitations": "Managed local Worker/browser and source HMR evidence; separate performance, live provider/hardware, production, final revised-source and acceptance gates remain open."
+}

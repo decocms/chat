@@ -306,3 +306,12 @@ assert.throws(() => parseRoomEvent('{"t":"doc"}'), /Invalid room event/);
   assert(!isEvent({ t: "result", cid: "c1", ok: false }));
   console.log("PASS correlated command envelope and result events");
 }
+
+assert.deepEqual(parseRoomEvent('{"t":"openApp","ref":"room/demo"}'), {
+  t: "openApp",
+  ref: "room/demo",
+});
+assert.throws(
+  () => parseRoomEvent('{"t":"openApp","ref":null}'),
+  /Invalid room event/,
+);
