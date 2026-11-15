@@ -1052,14 +1052,6 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
     case "delete_epic":
     case "update_epic":
     case "move_message":
-    case "doc_versions": {
-      const id = await room();
-      return bookStub(env, id).docVersions(id, str(a.epic_id) || "main");
-    }
-    case "get_doc_version": {
-      const id = await room();
-      return bookStub(env, id).docVersion(id, Number(a.version_id));
-    }
     case "update_doc": {
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success) throw new Error("rate limited. Wait a bit.");
@@ -1095,6 +1087,14 @@ async function call(name: string, a: Args, env: Env, ctx: ExecutionContext, me: 
     case "unpin": {
       const id = await room();
       return bookStub(env, id).agentUnpin(id, str(a.id));
+    }
+    case "doc_versions": {
+      const id = await room();
+      return bookStub(env, id).docVersions(id, str(a.epic_id) || "main");
+    }
+    case "get_doc_version": {
+      const id = await room();
+      return bookStub(env, id).docVersion(id, Number(a.version_id));
     }
     case "log_decision": {
       const id = await room();
