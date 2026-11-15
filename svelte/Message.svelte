@@ -217,12 +217,12 @@
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
           )}{/if}
         {#if m.files?.length}<Attachments
-          roomId={room.id}
-          messageThread={m.thread}
-          files={m.files}
-          {actions}
-          {vb}
-        />{/if}
+            roomId={room.id}
+            messageThread={m.thread}
+            files={m.files}
+            {actions}
+            {vb}
+          />{/if}
         {#if m.card || m.choices || m.poll}<DeferredInteractiveBody
             message={m}
             {room}
@@ -282,11 +282,11 @@
           >{@render rich(m.text)}
         </details>{/if}
       {#if !origin && kind !== "issue" && kind !== "notice"}{#each kind === "reminder" ? group : [m] as source (source.id)}{#if cardSources.has(source.id)}<ThreadCards
-            {room}
-            messageId={source.id}
-            {actions}
-            {vb}
-          />{/if}{/each}{/if}
+              {room}
+              messageId={source.id}
+              {actions}
+              {vb}
+            />{/if}{/each}{/if}
       {#if footer && !origin}<MessageFooter {footer} {vb} />{/if}
     </div>
   </div>

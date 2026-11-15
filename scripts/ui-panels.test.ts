@@ -2310,6 +2310,145 @@ describe("native Svelte chat", () => {
       .click();
     expect(opened).toEqual([first, second]);
   });
+  test("empty chat attachments mount on first file and retire exact version controls when the last file leaves", async () => {
+    const plain = {
+        id: "plain-one",
+        name: "report.txt",
+        type: "text/plain",
+        author: "you@test",
+        ts: 1,
+        size: 10,
+      },
+      embedded = {
+        ...plain,
+        id: "embed-one",
+        name: "demo.html",
+        type: "text/html",
+        embed: true,
+      },
+      row = message(8, "Files arrive later"),
+      base = { ...fixture(), messages: [row], epics: [] };
+    const opened: import("../shared/room").Attachment[] = [],
+      mounts: Parameters<NonNullable<ChatProps["actions"]["mountEmbed"]>>[] =
+        [];
+    let detached = 0;
+    const { target, update } = renderChat(base, {
+      actions: {
+        request: async () => ({ ok: true }),
+        draftReply: () => {},
+        reply: () => {},
+        navigate: () => {},
+        openFile: (file) => opened.push(file),
+        mountEmbed: (...args) => {
+          mounts.push(args);
+          return () => {
+            detached++;
+          };
+        },
+      },
+    });
+    const article = target.querySelector("#m8");
+    expect(target.querySelector("[data-message-attachments]")).toBeNull();
+    expect(mounts).toHaveLength(0);
+    update({ ...base, messages: [{ ...row, files: [plain, embedded] }] });
+    expect(target.querySelector("#m8")).toBe(article);
+    expect(mounts).toHaveLength(1);
+    const oldLink = target.querySelector<HTMLAnchorElement>(
+        'a[href$="plain-one"]',
+      )!,
+      oldFrame = target.querySelector("iframe")!,
+      oldControls = mounts[0]![2];
+    oldLink.click();
+    expect(opened).toEqual([plain]);
+    update({ ...base, messages: [{ ...row, files: [] }] });
+    expect(target.querySelector("[data-message-attachments]")).toBeNull();
+    expect(detached).toBe(1);
+    expect(oldLink.isConnected).toBe(false);
+    expect(oldFrame.isConnected).toBe(false);
+    oldLink.click();
+    oldControls.ready();
+    oldControls.resize(999);
+    await expect(oldControls.ask("stale", "Removed file")).resolves.toBe(false);
+    expect(opened).toEqual([plain]);
+    const nextPlain = { ...plain, id: "plain-two", ts: 2 },
+      nextEmbedded = { ...embedded, id: "embed-two", ts: 2 };
+    update({
+      ...base,
+      messages: [{ ...row, files: [nextPlain, nextEmbedded] }],
+    });
+    expect(mounts).toHaveLength(2);
+    const nextFrame = target.querySelector("iframe")!;
+    expect(nextFrame).not.toBe(oldFrame);
+    expect(nextFrame.getAttribute("aria-busy")).toBe("true");
+    oldControls.deny?.();
+    oldControls.fail?.();
+    oldControls.ready();
+    flushSync();
+    expect(target.querySelector("iframe")).toBe(nextFrame);
+    expect(nextFrame.getAttribute("aria-busy")).toBe("true");
+    target.querySelector<HTMLAnchorElement>('a[href$="plain-two"]')!.click();
+    expect(opened).toEqual([plain, nextPlain]);
+    update(base);
+    expect(target.querySelector("[data-message-attachments]")).toBeNull();
+    expect(detached).toBe(2);
+  }, 30_000);
+  test("thread-card gates follow canonical origin add/reassign/remove while message rows stay mounted", () => {
+    const messages = [message(1, "First source"), message(2, "Second source")],
+      base = { ...fixture(), messages, epics: [] },
+      targets: import("../svelte/features/rich-text/types").RichNavigation[] =
+        [];
+    const { target, update } = renderChat(base, {
+      actions: {
+        request: async () => ({ ok: true }),
+        draftReply: () => {},
+        reply: () => {},
+        navigate: () => {},
+        openFile: () => {},
+        navigateRich: (value) => targets.push(value),
+      },
+    });
+    const first = target.querySelector("#m1"),
+      second = target.querySelector("#m2");
+    expect(target.querySelector("[data-thread-card]")).toBeNull();
+    const branch = {
+      id: "late-branch",
+      title: "New branch",
+      tasks: [],
+      from_msg: 1,
+    };
+    update({ ...base, epics: [branch] });
+    const old = target.querySelector<HTMLButtonElement>(
+      '#m1 [data-thread-card="late-branch"]',
+    )!;
+    expect(old).not.toBeNull();
+    old.click();
+    expect(targets).toEqual([{ kind: "thread", id: "late-branch" }]);
+    update({ ...base, epics: [{ ...branch, from_msg: 2 }] });
+    expect(target.querySelector("#m1")).toBe(first);
+    expect(target.querySelector("#m2")).toBe(second);
+    expect(target.querySelector("#m1 [data-thread-card]")).toBeNull();
+    expect(old.isConnected).toBe(false);
+    old.click();
+    expect(targets).toHaveLength(1);
+    const reassigned = target.querySelector<HTMLButtonElement>(
+      '#m2 [data-thread-card="late-branch"]',
+    )!;
+    reassigned.click();
+    expect(targets).toHaveLength(2);
+    update({
+      ...base,
+      epics: [{ id: branch.id, title: branch.title, tasks: [] }],
+    });
+    expect(target.querySelector("[data-thread-card]")).toBeNull();
+    reassigned.click();
+    expect(targets).toHaveLength(2);
+    update({ ...base, epics: [{ ...branch, archived: true }] });
+    expect(target.querySelectorAll("#m1 [data-thread-card]")).toHaveLength(1);
+    update(base);
+    expect(target.querySelector("[data-thread-card]")).toBeNull();
+    expect(target.querySelector("#m1")).toBe(first);
+    expect(target.querySelector("#m2")).toBe(second);
+  });
   test("compact native receipts show five faces, overflow and read/delivery details on focus and tap", async () => {
     const room: Room = {
       ...fixture(),

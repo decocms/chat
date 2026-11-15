@@ -57,9 +57,12 @@ const foldKey = (m?: ChatMessage) =>
       ? "⚠issue"
       : null;
 /** One immutable-by-contract index per Chat's canonical epics array, shared by every folded source. */
-export function threadCardSourceIds(epics: readonly Room["epics"][number][]): ReadonlySet<number> {
+export function threadCardSourceIds(
+  epics: readonly Room["epics"][number][],
+): ReadonlySet<number> {
   const ids = new Set<number>();
-  for (const epic of epics) if (typeof epic.from_msg === "number") ids.add(epic.from_msg);
+  for (const epic of epics)
+    if (typeof epic.from_msg === "number") ids.add(epic.from_msg);
   return ids;
 }
 export function foldMessages(list: readonly ChatMessage[]) {

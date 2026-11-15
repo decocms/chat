@@ -6,6 +6,7 @@ import type { Room, Message } from "../shared/room";
 import {
   continues,
   foldMessages,
+  threadCardSourceIds,
   messageFooters,
   threadWorkers,
   agentMark,
@@ -283,4 +284,33 @@ test("production cue includes loaded origins but canonical message IDs take prec
   const before = JSON.stringify(r);
   productionStatuses(r);
   expect(JSON.stringify(r)).toBe(before);
+});
+
+test("thread-card source index is per canonical epics input and retains every matching numeric origin", () => {
+  const epics: Room["epics"] = [
+    { id: "none", title: "None", tasks: [] },
+    { id: "one", title: "One", tasks: [], from_msg: 7 },
+    { id: "two", title: "Two", tasks: [], from_msg: 7, archived: true },
+    { id: "zero", title: "Zero", tasks: [], from_msg: 0 },
+  ];
+  for (const epic of epics) Object.freeze(epic);
+  Object.freeze(epics);
+  const first = threadCardSourceIds(epics);
+  expect([...first]).toEqual([7, 0]);
+  expect(first.has(8)).toBe(false);
+  const changed = threadCardSourceIds(
+    epics.map((epic) => (epic.id === "one" ? { ...epic, from_msg: 8 } : epic)),
+  );
+  expect([...changed]).toEqual([8, 7, 0]);
+  expect([...first]).toEqual([7, 0]);
+  expect([...threadCardSourceIds([])]).toEqual([]);
+  const folded = foldMessages([
+    { ...message(7, "daily"), tag: "reminder" },
+    { ...message(8, "daily"), tag: "reminder" },
+  ]);
+  expect(
+    folded[0]?.group
+      ?.filter((source) => changed.has(source.id))
+      .map((source) => source.id),
+  ).toEqual([7, 8]);
 });
