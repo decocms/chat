@@ -464,9 +464,10 @@ test("HTML adoption accepts only the exact live syntax request and drops prepare
     current,
     parsePreparedRichSource(current.prepared, createHtmlTree),
   );
-  expect(ready?.kind).toBe("ready");
+  if (!ready) throw Error("Expected current HTML adoption");
+  expect(ready.kind).toBe("ready");
   expect(session.display("<b>A</b>", "markdown")).toBe(ready);
-  expect("prepared" in ready!).toBe(false);
+  expect("prepared" in ready).toBe(false);
   expect(old.prepared.tokens).toBe(tokens);
   expect(current.prepared.tokens).toBe(currentTokens);
   session.dispose();
