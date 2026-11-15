@@ -725,21 +725,31 @@ async function run(
     profilerActive = false;
     assert(record(stopped), "Missing CPU profile");
     const observed = [...network.values()].flatMap((resource) => {
-        const asset = resource.assetKey
-          ? assets.get(resource.assetKey)
-          : undefined;
-        return asset && /(?:javascript|html)/.test(asset.type)
-          ? [
-              {
-                url: resource.url,
-                assetKey: asset.key,
-                sourceSHA256: asset.sourceSHA256,
-                servedSHA256: asset.servedSHA256,
-              },
-            ]
-          : [];
-      });
-    recordCPUTimeOrder(sample, { diagnosticContext: !!diagnosticContext, flag: process.env.METRICS_CPU_TIMESTAMP_ORDER, phase: name }, stopped.profile, observed, scripts);
+      const asset = resource.assetKey
+        ? assets.get(resource.assetKey)
+        : undefined;
+      return asset && /(?:javascript|html)/.test(asset.type)
+        ? [
+            {
+              url: resource.url,
+              assetKey: asset.key,
+              sourceSHA256: asset.sourceSHA256,
+              servedSHA256: asset.servedSHA256,
+            },
+          ]
+        : [];
+    });
+    recordCPUTimeOrder(
+      sample,
+      {
+        diagnosticContext: !!diagnosticContext,
+        flag: process.env.METRICS_CPU_TIMESTAMP_ORDER,
+        phase: name,
+      },
+      stopped.profile,
+      observed,
+      scripts,
+    );
     cpu[name] = summarizeCPUProfile(stopped.profile, observed, scripts);
     sample.cpuProfiles = cpu;
   }
