@@ -83,3 +83,17 @@ not validated CPU self time, latency causality or performance acceptance.
 Application/public tree IDs remain identical to `249e1e9`; no original cohort
 was replayed, changed or replaced. The retained preparation protocol predates
 execution; its root approval and actual failure-preserving result are included.
+
+## Isolated playback comparison preparation
+
+The comparison source `0478afe86d5cd843f25c95bd0c6e81ffdc25b031` adds only
+the idempotent playback application change to the verified `485ca0c` source;
+the canonical driver, six diagnostic helpers and dependencies remain identical.
+[Run 43692865942](https://github.com/vibegui/vibebook.dev/actions/runs/43692865942)
+passed the complete preview build and all 24 source gates on both operating
+systems, plus the separate Ubuntu layout-browser job. Both repository jobs
+failed only checked-in preview freshness and remain failed. Their exact
+[source receipts and artifact provenance](idempotent-playback-cpu-comparison-evidence/README.md)
+precede an allowlisted refresh from that run's Ubuntu artifact `14152709552`.
+Final generated freshness still requires new CI. No comparison diagnostic or
+original cohort ran during this preparation; no performance conclusion follows.

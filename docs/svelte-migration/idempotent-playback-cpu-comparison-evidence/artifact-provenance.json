@@ -1,0 +1,63 @@
+{
+  "sourceRevision": "0478afe86d5cd843f25c95bd0c6e81ffdc25b031",
+  "baselineRevision": "485ca0cbb20913da31c82a5ab096d1e2b69254e5",
+  "artifact": {
+    "id": 14152709552,
+    "name": "svelte-preview-ubuntu-24.04-0478afe86d5cd843f25c95bd0c6e81ffdc25b031",
+    "size_in_bytes": 857183,
+    "workflow_run": {
+      "id": 43692865942,
+      "repository_id": 1433807621,
+      "head_repository_id": 1433807621,
+      "head_branch": "codex/idempotent-playback-cpu-comparison",
+      "head_sha": "0478afe86d5cd843f25c95bd0c6e81ffdc25b031"
+    }
+  },
+  "downloadedZipSHA256": "d803b92e337a197f9d6c775b7e12d75d00b22eb1e8e77e91064478c6afbc26a6",
+  "refreshTarSHA256": "1ef8627922ef66bbcde14ce6a4d258199cc06fdcbfba8e9cc1fa0b99c083768a",
+  "extraction": "Downloaded by exact artifact ID; all99 ZIP entries path/type allowlisted; extracted bytes unmodified; tar contains only public/app-svelte.html, public/svelte-preview/**, public/sw.js. Existing refresh helper ran after valid source receipts.",
+  "applicationSourceChanges": [
+    "svelte/features/room-layout/playback.ts"
+  ],
+  "playbackSHA256": "257f699451a551c90b51ed0b335a405cf9e9d1ac2c9ca5bc1e2c46ceba512ba4",
+  "playbackIdenticalToStandalone0b": true,
+  "diagnosticHelpers": [
+    {
+      "path": "scripts/ui-metrics.ts",
+      "sha256": "ab7899c978edaefac58117ed6a1e48303f0d752e4f7e6f8fcc20fa29ebf2d584",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-model.ts",
+      "sha256": "c05ab47469f141a4471e21afe8494361acd257614058fc6f02170d783bab756f",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-budgets.ts",
+      "sha256": "2b30fdc4196c9c9c60a7b638b7c1211bb7e89b62af08d179b9721d1b02cc5cd1",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-cpu-timestamp-order.ts",
+      "sha256": "d7e0a9883c4eb9154812d4ef8dbf8b19a83ccc0d3424cc787b9bf43f927e38a1",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-shell.ts",
+      "sha256": "30d5712127329fbc56a8028840a86d5e37d69ef87147d34c0e46a2eb32445de8",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-document-model.ts",
+      "sha256": "d47aa0830ad1f49489dec3bd0759ecd52a2e853429dea254c23197211e328b08",
+      "identicalTo485": true
+    },
+    {
+      "path": "scripts/ui-metrics-diagnostics.ts",
+      "sha256": "7411e5b73f0f4e4991fdf6cf42362c4dc8cba39de59fe6629fd2ae01494c164a",
+      "identicalTo485": true
+    }
+  ],
+  "dependenciesUnchanged": true,
+  "scope": "Source/asset preparation only. No comparison diagnostics executed and no performance acceptance."
+}
