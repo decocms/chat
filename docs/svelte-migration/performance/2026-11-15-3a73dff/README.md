@@ -8,4 +8,6 @@ Two of four excluded diagnostics pass. Native CPU profiles both reject negative 
 
 Five original artifact files are retained with exact hashes and lossless gzip. The runner mistakenly supplied TEST_APP_REVISION only after builds, leaving both module reports unrecorded. Strict chunk attribution rejected them with a revision mismatch. Original unlabelled metadata remains preserved and must not be relabeled. Primary metrics still record the exact harness/served SHA and observed asset hashes. A separate fresh metadata build at the same frozen SHA is pending, and may support attribution only if existing strict revision/asset checks pass against the unchanged original metrics. No import-cost attribution is accepted yet.
 
+Subsequent auxiliary recovery: a [separate frozen-SHA metadata rebuild](../2026-11-15-module-recovery/README.md) now passes strict source-revision and observed-asset hash checks against the unchanged original metrics. The original metadata and rejection above remain preserved; the original provenance records the state when those artifacts were retained. This recovery changes no measurement or acceptance result.
+
 The font-budget proposal remains inactive pending explicit user approval. Geometry/parser candidates are not measured by this control. Vanilla remains default and full migration acceptance remains open.

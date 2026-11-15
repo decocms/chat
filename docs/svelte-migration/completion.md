@@ -11,7 +11,7 @@ succeeded and [three deployed asset hashes match](production/2026-11-15-3a73dff/
 This is an opt-in checkpoint. Authenticated production coexistence/rollback and
 maintainer acceptance remain unverified.
 
-Main `a7e8ac9` is integrated. The direct-MCP checkpoint at `fe9584c` passes a
+Main `9bae26a` is deployed. The direct-MCP checkpoint at `fe9584c` passes a
 fresh native build and [all 24 mandatory source gates](verification/fe9584c-direct-mcp-source.json),
 including the new actual-SDK protocol tests. The inferred identity endpoint
 validates and rechecks membership/connection authority around signing. The native
@@ -38,21 +38,27 @@ Authorization header. All 24 source gates and [repository](https://github.com/vi
 [complete browser](https://github.com/vibegui/vibebook.dev/actions/runs/43674504989),
 [App security](https://github.com/vibegui/vibebook.dev/actions/runs/43675176300), and
 [HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43675186133) workflows
-pass at that exact source. This follow-up's deployment verification remains
-separate from the original `3a73dff` deployment receipt.
+pass at that exact source. The [main deployment receipt](production/2026-11-15-9bae26a/README.md)
+records successful builds, main repository/browser checks and matching public
+asset bytes. Authenticated production coexistence and rollback remain pending.
 
 Performance remains unaccepted. The [fresh deployed-source control at
 `3a73dff`](performance/2026-11-15-3a73dff/README.md) completes all 32 original
 trials and fails 12 of 16 unchanged budgets. Both native CPU diagnostics remain
 invalid. Module attribution correctly rejected unlabelled build metadata; its
-original failed inputs are retained while separate same-SHA metadata rebuilds
-must pass strict asset-hash matching. No original measurement is relabeled.
+original failed inputs are retained. [Separate same-SHA metadata rebuilds](performance/2026-11-15-module-recovery/README.md)
+now pass strict revision and observed-asset hash matching. No original
+measurement or metadata is relabelled.
 The parser/layout application candidate passes source and real-Worker/browser
-checks; its unchanged performance cohort at `60bb255` is running. The
+checks; its [completed original cohort at `60bb255`](performance/2026-11-15-60bb255/README.md)
+passes all 32 trials but fails 12 of 16 unchanged budgets. Requested application
+gzip falls 27536 B versus the control; readiness and heap remain over budget,
+and thread medians worsen. No causal latency improvement is claimed. The
 [font-budget amendment](font-budget-amendment-proposal.md)
 is a proposal only, awaiting explicit user approval; no plan or validator limit
 has changed. Layout and Markdown-parser experiments remain isolated and have
-not been deployed or accepted as performance improvements.
+not been deployed or accepted as performance improvements. Ordinary-rich-content
+setup and lazy chat-App follow-ups remain isolated, under review and unmeasured.
 
 ## Earlier checkpoints
 
