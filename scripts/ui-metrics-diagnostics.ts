@@ -44,6 +44,32 @@ export function diagnosticFailure(error: unknown) {
     ? error.code
     : "diagnostic-failed";
 }
+export type EntryHeapEvidence = {
+  initialHeap?: Awaited<ReturnType<typeof capturePrivateHeap>>;
+  /** Independent, sanitized secondary failure; never replaces the CPU rejection. */
+  heapFailure?: ReturnType<typeof diagnosticFailure>;
+};
+/** Collect debug heap evidence even when entry CPU validation rejects the trial.
+ * CPU rejection is always rethrown unchanged; this cannot accept a diagnostic sample. */
+export async function collectEntryDiagnostics(
+  evidence: EntryHeapEvidence,
+  ports: {
+    stopCPU(): Promise<void>;
+    captureHeap(): Promise<Awaited<ReturnType<typeof capturePrivateHeap>>>;
+  },
+): Promise<void> {
+  try {
+    await ports.stopCPU();
+  } catch (cpuError) {
+    try {
+      evidence.initialHeap = await ports.captureHeap();
+    } catch (heapError) {
+      evidence.heapFailure = diagnosticFailure(heapError);
+    }
+    throw cpuError;
+  }
+  evidence.initialHeap = await ports.captureHeap();
+}
 type CPUFailureReason =
   | "profile-not-object"
   | "nodes-not-array"

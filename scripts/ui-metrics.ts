@@ -44,6 +44,8 @@ import { metricShell } from "./ui-metrics-shell";
 import { metricDocumentContent } from "./ui-metrics-document-model";
 import {
   capturePrivateHeap,
+  collectEntryDiagnostics,
+  type EntryHeapEvidence,
   diagnosticFailure,
   diagnosticCPUFailure,
   diagnosticScript,
@@ -485,7 +487,7 @@ const results: { [key: string]: unknown } = {
     "Post-GC heap/DOM counters and controlled socket counts expose retention signals, but do not directly enumerate observer instances or prove no detached component trees. Real-Worker lifecycle artifacts remain required.",
   ],
 };
-type Sample = {
+type Sample = EntryHeapEvidence & {
   variant: Variant;
   device: string;
   profile: string;
@@ -1112,9 +1114,11 @@ async function run(
     sample.metrics["entry.readyWithFontsAndTwoFramesMs"] = await page.evaluate(
       () => performance.now(),
     );
-    if (diagnosticContext) await stopCPU("entry");
     if (diagnosticContext)
-      sample.initialHeap = await capturePrivateHeap(cdp, output);
+      await collectEntryDiagnostics(sample, {
+        stopCPU: () => stopCPU("entry"),
+        captureHeap: () => capturePrivateHeap(cdp, output),
+      });
     await page.waitForLoadState("networkidle");
     sample.entryLayout = await layout();
     const entryCounters = await counters();

@@ -8,6 +8,8 @@ import {
   diagnosticScript,
   heapChunkBytes,
   capturePrivateHeap,
+  collectEntryDiagnostics,
+  type EntryHeapEvidence,
   diagnosticFailure,
   diagnosticCPUFailure,
   MetricsDiagnosticFailure,
@@ -416,4 +418,59 @@ test("CPU failure detail instrumentation preserves zero/empty valid profiles and
   ]);
   expect(JSON.stringify(result)).not.toContain("PRIVATE");
   expect(JSON.stringify(result)).not.toContain("reason");
+});
+
+function rejectedCPU() {
+  try { summarizeCPUProfile({ nodes: [], samples: [1], timeDeltas: [1] }, []); }
+  catch (error) { return error; }
+  throw Error("Expected actual CPU validator rejection");
+}
+test("failed entry CPU still collects sanitized private heap but rethrows the exact CPU rejection", async () => {
+  const root = await mkdtemp(join(tmpdir(), "metrics-cpu-failure-heap-")),
+    artifacts = join(root, "artifacts"), temporary = join(root, "private");
+  await mkdir(artifacts); await mkdir(temporary);
+  const cpuError = rejectedCPU(), stream = port([JSON.stringify(heap())]);
+  const sample: EntryHeapEvidence & { status: string; acceptance: string; measuredSamples: number } = { status: "running", acceptance: "unverified", measuredSamples: 0 };
+  const events: string[] = []; let rejected: unknown;
+  try {
+    try {
+      await collectEntryDiagnostics(sample, {
+        stopCPU: async () => { events.push("cpu"); throw cpuError; },
+        captureHeap: async () => { events.push("heap"); return capturePrivateHeap(stream, artifacts, 100000, temporary); },
+      });
+    } catch (error) { rejected = error; }
+    expect(rejected).toBe(cpuError);
+    expect(diagnosticFailure(rejected)).toBe("cpu-invalid");
+    expect(diagnosticCPUFailure(rejected)).not.toBeNull();
+    expect(events).toEqual(["cpu", "heap"]);
+    expect(sample.initialHeap?.rawRetained).toBe(false);
+    expect(sample.initialHeap?.nodeCount).toBe(3);
+    expect(sample.heapFailure).toBeUndefined();
+    expect([sample.status, sample.acceptance, sample.measuredSamples]).toEqual(["running", "unverified", 0]);
+    expect(JSON.stringify(sample)).not.toContain("PRIVATE");
+    expect(stream.listeners.size).toBe(0);
+    expect(await readdir(temporary)).toEqual([]); expect(await readdir(artifacts)).toEqual([]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+test("secondary heap failure stays explicit and cannot replace the original invalid CPU error", async () => {
+  for (const heapError of [new MetricsDiagnosticFailure("heap-invalid"), Error("PRIVATE_HEAP_FAILURE")]) {
+    const cpuError = rejectedCPU(), sample: EntryHeapEvidence = {}; let rejected: unknown;
+    try { await collectEntryDiagnostics(sample, { stopCPU: async () => { throw cpuError; }, captureHeap: async () => { throw heapError; } }); }
+    catch (error) { rejected = error; }
+    expect(rejected).toBe(cpuError);
+    expect(diagnosticFailure(rejected)).toBe("cpu-invalid");
+    expect(sample.initialHeap).toBeUndefined();
+    expect(sample.heapFailure).toBe(heapError instanceof MetricsDiagnosticFailure ? "heap-invalid" : "diagnostic-failed");
+    expect(JSON.stringify(sample)).not.toContain("PRIVATE");
+  }
+});
+test("valid CPU preserves the original heap success and failure behavior", async () => {
+  const summary: Awaited<ReturnType<typeof capturePrivateHeap>> = { status: "summarized", rawUTF16LEBytes: 100, rawBytesCap: 1000, rawRetained: false, ...summarizeHeapSnapshot(heap()) };
+  const sample: EntryHeapEvidence = {}, events: string[] = [];
+  expect(await collectEntryDiagnostics(sample, { stopCPU: async () => { events.push("cpu"); }, captureHeap: async () => { events.push("heap"); return summary; } })).toBeUndefined();
+  expect(events).toEqual(["cpu", "heap"]); expect(sample.initialHeap).toBe(summary); expect(sample.heapFailure).toBeUndefined();
+  const failure = new MetricsDiagnosticFailure("heap-write"), failed: EntryHeapEvidence = {}; let rejected: unknown;
+  try { await collectEntryDiagnostics(failed, { stopCPU: async () => {}, captureHeap: async () => { throw failure; } }); }
+  catch (error) { rejected = error; }
+  expect(rejected).toBe(failure); expect(failed).toEqual({});
 });
