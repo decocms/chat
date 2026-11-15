@@ -1,0 +1,254 @@
+{
+  "sourceRevision": "f28c297e233a7629db0b8afc59ad565dbf68b8ee",
+  "documentationBaseRevision": "f28c297e233a7629db0b8afc59ad565dbf68b8ee",
+  "status": "passed",
+  "environment": "GitHub managed Ubuntu24.04 browser jobs; pinned Node22.23.5/Bun1.4.4; actual Chromium158.0.8127.18. Repository gates also run on macOS15.",
+  "runs": [
+    {
+      "name": "repository",
+      "id": 43689417972,
+      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689417972",
+      "attempt": 1,
+      "status": "success"
+    },
+    {
+      "name": "application",
+      "id": 43689454744,
+      "input": {
+        "suite": "application"
+      },
+      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689454744",
+      "attempt": 1,
+      "status": "success"
+    },
+    {
+      "name": "design-system",
+      "id": 43689466368,
+      "input": {
+        "suite": "design-system"
+      },
+      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689466368",
+      "attempt": 1,
+      "status": "success"
+    },
+    {
+      "name": "source-hmr",
+      "id": 43689502314,
+      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689502314",
+      "attempt": 1,
+      "status": "success"
+    }
+  ],
+  "summary": {
+    "mandatorySourceGatesPerOS": 24,
+    "repositoryPlatforms": [
+      "ubuntu-24.04",
+      "macos-15"
+    ],
+    "applicationPhases": 65,
+    "lifecycleCycles": 20,
+    "rootProfiles": 12,
+    "rootProfileFailures": 0,
+    "independentApplicationAudits": 9,
+    "designSystemInboxPhases": 6,
+    "galleryStudioComparisons": 4,
+    "galleryRenderedRolesPerComparison": 9,
+    "galleryTokensPerComparison": 134,
+    "galleryColorTokensPerComparison": 92,
+    "galleryStudioMismatches": 0,
+    "galleryAxeViolations": 0,
+    "roomAndGlobalInboxAxeViolations": 0,
+    "hmrRestoredSources": 7,
+    "hmrActiveMutations": 0,
+    "browserPageErrors": 0,
+    "runnerCleanupErrors": 0,
+    "remainingOwnedGroups": 0
+  },
+  "files": [
+    {
+      "originalName": "application/direct-mcp.json",
+      "path": "application/direct-mcp.json",
+      "originalBytes": 1309,
+      "originalSHA256": "d39542283588b1acc94b6c5cc569b29620e15595c70c98f45e69223c65350d4a",
+      "storedBytes": 1309,
+      "storedSHA256": "d39542283588b1acc94b6c5cc569b29620e15595c70c98f45e69223c65350d4a",
+      "compression": null
+    },
+    {
+      "originalName": "application/inline-app-open.json",
+      "path": "application/inline-app-open.json",
+      "originalBytes": 10988,
+      "originalSHA256": "0dbe02d20279993967fed0b78d791eb92a2a5fa6b739814889548fc8ed0d7df4",
+      "storedBytes": 10988,
+      "storedSHA256": "0dbe02d20279993967fed0b78d791eb92a2a5fa6b739814889548fc8ed0d7df4",
+      "compression": null
+    },
+    {
+      "originalName": "application/native-app-navigation.json",
+      "path": "application/native-app-navigation.json",
+      "originalBytes": 2047,
+      "originalSHA256": "5e846972e99307372dcca6a78b7d1b57804e3da3356c57fd9793964cd7129d3a",
+      "storedBytes": 2047,
+      "storedSHA256": "5e846972e99307372dcca6a78b7d1b57804e3da3356c57fd9793964cd7129d3a",
+      "compression": null
+    },
+    {
+      "originalName": "application/native-dictation.json",
+      "path": "application/native-dictation.json",
+      "originalBytes": 825,
+      "originalSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "storedBytes": 825,
+      "storedSHA256": "28712d907c25a6d54fa1b9443467bf12dab6da663bd68da8b54c3b456a9ef782",
+      "compression": null
+    },
+    {
+      "originalName": "application/native-document-answers.json",
+      "path": "application/native-document-answers.json",
+      "originalBytes": 2815,
+      "originalSHA256": "c0310d034eec416e5ea593c419a969e575dca04cd23235fe202169c0a5aec9f0",
+      "storedBytes": 2815,
+      "storedSHA256": "c0310d034eec416e5ea593c419a969e575dca04cd23235fe202169c0a5aec9f0",
+      "compression": null
+    },
+    {
+      "originalName": "application/native-root-profiles.json",
+      "path": "application/native-root-profiles.json.gz",
+      "originalBytes": 993308,
+      "originalSHA256": "1a7e9c8519a748dde0ec3d14732ebbaff4f2156c2befb7cfafc099502d5fa3be",
+      "storedBytes": 27812,
+      "storedSHA256": "763269d773ed7c08dc2362c33eecec5b97acd4a8925daa1767d863bced73729d",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "application/results.json",
+      "path": "application/results.json.gz",
+      "originalBytes": 1105180,
+      "originalSHA256": "bf222a9b65312a943eacffac431a0c481b9b5ea47de6ea5e5b615900d9736e2c",
+      "storedBytes": 38118,
+      "storedSHA256": "75c00330197ac0cae6f77a87657b2a806f442e55861291e5ecbe02079df196c8",
+      "compression": "gzip, restores exact original bytes"
+    },
+    {
+      "originalName": "application/runner.json",
+      "path": "application/runner.json",
+      "originalBytes": 1097,
+      "originalSHA256": "c0ccf91e915aeffa32bcd9a4fc023a17d2be65aa078fae76f1be9db23f58d77d",
+      "storedBytes": 1097,
+      "storedSHA256": "c0ccf91e915aeffa32bcd9a4fc023a17d2be65aa078fae76f1be9db23f58d77d",
+      "compression": null
+    },
+    {
+      "originalName": "application/vanilla-app-navigation.json",
+      "path": "application/vanilla-app-navigation.json",
+      "originalBytes": 2049,
+      "originalSHA256": "ca19184e62dd280d23c8a30ac4d8ed61957f40805fcaa97df932a20bfb5863b0",
+      "storedBytes": 2049,
+      "storedSHA256": "ca19184e62dd280d23c8a30ac4d8ed61957f40805fcaa97df932a20bfb5863b0",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/gallery/results.json",
+      "path": "design-system/gallery/results.json",
+      "originalBytes": 4258,
+      "originalSHA256": "03a869f617007651c3d80f135d3208f0981ed2b405fac865da36e92512d7cc81",
+      "storedBytes": 4258,
+      "storedSHA256": "03a869f617007651c3d80f135d3208f0981ed2b405fac865da36e92512d7cc81",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/inbox/global-inbox-axe.json",
+      "path": "design-system/inbox/global-inbox-axe.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "storedBytes": 3,
+      "storedSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/inbox/inbox-results.json",
+      "path": "design-system/inbox/inbox-results.json",
+      "originalBytes": 676,
+      "originalSHA256": "2178d43d883276859ae1ad39e63fe0f2a4ddc6efcc9e94106c55044ca70cfd23",
+      "storedBytes": 676,
+      "storedSHA256": "2178d43d883276859ae1ad39e63fe0f2a4ddc6efcc9e94106c55044ca70cfd23",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/inbox/results.json",
+      "path": "design-system/inbox/results.json",
+      "originalBytes": 1743,
+      "originalSHA256": "448d43c8555b2f39802976f8d2e1c100e5fba57a48abae526a51b05271a82268",
+      "storedBytes": 1743,
+      "storedSHA256": "448d43c8555b2f39802976f8d2e1c100e5fba57a48abae526a51b05271a82268",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/inbox/room-inbox-axe.json",
+      "path": "design-system/inbox/room-inbox-axe.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "storedBytes": 3,
+      "storedSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compression": null
+    },
+    {
+      "originalName": "design-system/runner.json",
+      "path": "design-system/runner.json",
+      "originalBytes": 977,
+      "originalSHA256": "b1113939c58eaa5e8619b077325cd8b4be753a5d31d772bfbc39a9b4b6106b4e",
+      "storedBytes": 977,
+      "storedSHA256": "b1113939c58eaa5e8619b077325cd8b4be753a5d31d772bfbc39a9b4b6106b4e",
+      "compression": null
+    },
+    {
+      "originalName": "hmr/results.json",
+      "path": "hmr/results.json",
+      "originalBytes": 13102,
+      "originalSHA256": "0fef71344a547f0116d6479e7f437048f0bf1dce69ad3ebaeca7a4f0a095bdde",
+      "storedBytes": 13102,
+      "storedSHA256": "0fef71344a547f0116d6479e7f437048f0bf1dce69ad3ebaeca7a4f0a095bdde",
+      "compression": null
+    },
+    {
+      "originalName": "hmr/runner.json",
+      "path": "hmr/runner.json",
+      "originalBytes": 183,
+      "originalSHA256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97",
+      "storedBytes": 183,
+      "storedSHA256": "e3ece40236e3445b1b4c370279c21bf597824138ef65e18beed43a7c619a8c97",
+      "compression": null
+    }
+  ],
+  "derivedFiles": [
+    {
+      "path": "repository-checks.json",
+      "bytes": 7136,
+      "sha256": "265fe1f8ef4a247d71d5e5fcf2cb00e829bcd8448e513143dad55352d60b337e",
+      "basis": "Original private repository log, per-OS exact PASS lines"
+    }
+  ],
+  "sourceScope": {
+    "base": "e7a83ff",
+    "productionChanges": [
+      "Move unchanged UploadHeaders validator to src/apiServerSchemas.ts",
+      "Move unchanged AgentDbRow validator; use identical local nullable aliases",
+      "Change src/api.ts imports only; add server-only boundary"
+    ],
+    "verifiedPreviewRefresh": "ff79442",
+    "publicTree": "a651449c5c1a90cd2ef21335b5258b455100d63a",
+    "noAdoption": [
+      "isolated parser/layout candidate",
+      "lazy chat-App candidate",
+      "CPU diagnostic helper"
+    ],
+    "defaultAssets": "Unchanged default app/Inbox/editor assets; only verified opt-in preview refresh"
+  },
+  "limits": [
+    "Functional checkpoint only; M0/F56 action registry, manual screen-reader/final visual acceptance, physical devices, external provider intelligence, performance budgets, authenticated production coexistence/rollback and maintainer acceptance remain separate.",
+    "Inbox projection/resolve/error responses are explicit controlled schema-validated frontend fixtures; real Worker auth/create/post/archive is not a substitute for backend Inbox query/member-policy acceptance.",
+    "Physical microphone/Whisper behavior is not proven by fake-device Chromium cancellation.",
+    "No new App-security workflow was dispatched: transport source is unchanged; both actual application authority audits passed.",
+    "All original JSON bytes are retained; larger files are only losslessly compressed. Raw logs, credentials, HTML/audio/heaps, screenshots and storage are excluded.",
+    "Prior failed DS/HMR/performance receipts are not overwritten, relabelled or waived."
+  ]
+}

@@ -11,7 +11,14 @@ succeeded and [three deployed asset hashes match](production/2026-11-15-3a73dff/
 This is an opt-in checkpoint. Authenticated production coexistence/rollback and
 maintainer acceptance remain unverified.
 
-Main `9bae26a` is deployed. The direct-MCP checkpoint at `fe9584c` passes a
+Main `f28c297` is deployed. Its [verified joint checkpoint](managed-browser/2026-11-15-f28c297/README.md)
+passes all 24 source gates on Linux/macOS, the complete application browser,
+managed atomic-gallery/current-Inbox suite and source HMR. Both Cloudflare
+builds succeeded; [three anonymous production assets match exactly](production/2026-11-15-f28c297/README.md).
+Authenticated production coexistence/rollback, manual final visual/screen-reader
+and full-plan acceptance remain pending.
+
+Earlier deployed main `9bae26a` and the direct-MCP checkpoint at `fe9584c` pass a
 fresh native build and [all 24 mandatory source gates](verification/fe9584c-direct-mcp-source.json),
 including the new actual-SDK protocol tests. The inferred identity endpoint
 validates and rechecks membership/connection authority around signing. The native
@@ -73,11 +80,16 @@ This candidate is not deployed or accepted as the completed migration.
 
 A separate empty-component follow-up at `74dcfe3` passes all source gates and
 the complete browser cohort; its refreshed `86d76c5` passes final freshness.
-It remains unmeasured and isolated. Backend-only header/row schema isolation
-and managed atomic-gallery/current-Inbox verification are also under review/CI.
-The existing actual Root profiles already cover Studio tokens, fonts, keyboard
-and Axe; they do not substitute for the gallery interaction suite. No original
-budget or historical failed result has been changed.
+It remains unmeasured and isolated. Separately, backend-only header/row schema
+isolation and managed atomic-gallery/current-Inbox verification are integrated
+at the [verified joint source `f28c297`](managed-browser/2026-11-15-f28c297/README.md):
+all 24 source gates pass on both operating systems; all 65 application phases,
+20 lifecycle cycles, 12 display profiles, the original gallery interactions and
+all six Inbox phases pass. Studio token/role comparisons and Axe checks have
+zero unexplained mismatches/violations; HMR restores seven sources exactly and
+all runners clean up. The Inbox responses are explicitly controlled frontend
+fixtures, not a substitute for backend query-policy proof. No experimental UI
+candidate, original budget or historical failed result is promoted or changed.
 
 The [fresh deployed-main inventory](inventory-current-2026-11-15-9bae26a/README.md)
 covers 412 files and 2882 candidate keys. An additive owner amendment maps the

@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "phase": "recoverable resolve error, modal focus and search Escape",
+  "phases": [
+    "in-place Inbox and three input sections",
+    "recoverable Inbox read and retry",
+    "mention and task navigation",
+    "all-room navigation preserves selected UI",
+    "Home Inbox modal resolve cancellation and fresh opening",
+    "recoverable resolve error, modal focus and search Escape"
+  ],
+  "inboxReads": 9,
+  "profileReads": 7,
+  "fixtureScope": "Real loopback Worker auth/create/post/archive with schema-validated controlled /api/inbox and matching /api/me waits; held resolves and HTTP errors are fixtures, not DB/query acceptance",
+  "cleanup": []
+}

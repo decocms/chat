@@ -1,0 +1,34 @@
+{
+  "mergeCommit": "f28c297e233a7629db0b8afc59ad565dbf68b8ee",
+  "checkedAt": "2026-11-15T07:43:51.473Z",
+  "scope": "Anonymous read-only production asset checks; not authenticated functional/rollback acceptance",
+  "results": [
+    {
+      "path": "svelte-preview/app.js",
+      "status": 200,
+      "contentType": "text/javascript",
+      "bytes": 580,
+      "expectedSHA256": "969d897c152c732443730efe6803aaf16e0d5f77da69f5894fd46899d944bbfe",
+      "actualSHA256": "969d897c152c732443730efe6803aaf16e0d5f77da69f5894fd46899d944bbfe",
+      "match": true
+    },
+    {
+      "path": "svelte-preview/ui.css",
+      "status": 200,
+      "contentType": "text/css",
+      "bytes": 65297,
+      "expectedSHA256": "bd9fcd9c7106c637edb907d35a3dc4e1c5c702d7fa3936ae538b9e7572a26fe1",
+      "actualSHA256": "bd9fcd9c7106c637edb907d35a3dc4e1c5c702d7fa3936ae538b9e7572a26fe1",
+      "match": true
+    },
+    {
+      "path": "sw.js",
+      "status": 200,
+      "contentType": "text/javascript",
+      "bytes": 17140,
+      "expectedSHA256": "80559c131cecdc0371262a69cbb70a1c0b8823a578a072459036fa65b9d867b7",
+      "actualSHA256": "80559c131cecdc0371262a69cbb70a1c0b8823a578a072459036fa65b9d867b7",
+      "match": true
+    }
+  ]
+}
