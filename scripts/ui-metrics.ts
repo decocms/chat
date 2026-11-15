@@ -40,6 +40,7 @@ import {
   type Workload,
 } from "./ui-metrics-model";
 import { assessBudgets } from "./ui-metrics-budgets";
+import { recordCPUTimeOrder } from "./ui-metrics-cpu-timestamp-order";
 import { metricShell } from "./ui-metrics-shell";
 import { metricDocumentContent } from "./ui-metrics-document-model";
 import {
@@ -723,9 +724,7 @@ async function run(
     const stopped: unknown = await cdp.send("Profiler.stop");
     profilerActive = false;
     assert(record(stopped), "Missing CPU profile");
-    cpu[name] = summarizeCPUProfile(
-      stopped.profile,
-      [...network.values()].flatMap((resource) => {
+    const observed = [...network.values()].flatMap((resource) => {
         const asset = resource.assetKey
           ? assets.get(resource.assetKey)
           : undefined;
@@ -739,9 +738,9 @@ async function run(
               },
             ]
           : [];
-      }),
-      scripts,
-    );
+      });
+    recordCPUTimeOrder(sample, { diagnosticContext: !!diagnosticContext, flag: process.env.METRICS_CPU_TIMESTAMP_ORDER, phase: name }, stopped.profile, observed, scripts);
+    cpu[name] = summarizeCPUProfile(stopped.profile, observed, scripts);
     sample.cpuProfiles = cpu;
   }
   await cdp.send("Performance.enable");
