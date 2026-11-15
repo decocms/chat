@@ -180,6 +180,6 @@
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
       </div>{/if}
-    {#if needsYou}<NeedsYou {...needsYou} {vb} />{/if}
+    {#if needsYou}<NeedsYou {...needsYou} {vb} request={actions.request} />{/if}
   </section>
 {/key}

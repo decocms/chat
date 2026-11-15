@@ -1122,6 +1122,37 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     await this.agentOpenDoc(bookId, email, id);
   }
+  /** "O que precisa de você aqui" written as one or two lines (Gui #2602): what in this thread waits on this person and
+   *  why, from the card's own items + the thread's last messages, not the task list again. MODEL_FAST, cached per
+   *  person, thread and inputs (DO meta `needs:<email>:<thread>` = key + text), ≤30 new ones per room per hour. */
+  async needsSummary(thread: string, email: string, items: string[]) {
+    const msgs = this.messages(thread, 15).filter((m) => m.text).map((m) => `${m.kind === "agent" ? "Claude" : m.author === "ai" ? "@vibe" : m.author.split("@")[0]}: ${m.text.replace(/\s+/g, " ").slice(0, 240)}`);
+    const title = thread === "main" ? this.get("title") ?? "" : this.epics().find((e) => e.id === thread)?.title ?? "";
+    const input = JSON.stringify([title, items, msgs.slice(-6)]);
+    let h = 5381; for (let i = 0; i < input.length; i++) h = (h * 33 + input.charCodeAt(i)) | 0;
+    const key = (h >>> 0).toString(36), slot = `needs:${email}:${thread}`;
+    const cached = this.get(slot);
+    if (cached?.startsWith(`${key}\n`)) return { key, text: cached.slice(key.length + 1) };
+    const hour = Math.floor(Date.now() / 3600e3), used = Number(this.get(`needs_n:${hour}`) ?? 0);
+    if (used >= 30 || !this.env.OPENROUTER_API_KEY) return null;
+    this.set(`needs_n:${hour}`, String(used + 1));
+    const who = (await this.names())[email] ?? email.split("@")[0];
+    try {
+      const { output, usage } = await generateText({
+        model: this.model(this.env.MODEL_FAST, true),
+        maxOutputTokens: 200,
+        output: Output.object({ schema: z.object({ summary: z.string().describe(this.en ? "one or two short sentences" : "uma ou duas frases curtas") }) }),
+        prompt: `${this.en ? "Write in English." : "Escreva em português."} ${who} opened "${title}". In one or two short sentences, tell ${who} what here waits on them and why it matters now (what is blocked, who is waiting, what decision), using the items and the conversation. Don't list the items one by one; don't greet; second person ("you"/"você").\n\nItems waiting on ${who}:\n- ${items.join("\n- ")}\n\nRecent conversation:\n${msgs.join("\n") || "(none)"}`,
+      });
+      const text = output.summary.replace(/\s+/g, " ").trim().slice(0, 400);
+      this.set(slot, `${key}\n${text}`);
+      this.ctx.waitUntil(track(this.env, "needs_summary", { user: email, dims: { book: this.get("book_id") ?? "", cost: +costOf(usage).toFixed(6) } }));
+      return { key, text };
+    } catch (e) {
+      console.error("needs summary", String(e));
+      return null;
+    }
+  }
   /** What a fresh co-editing doc starts with: the stored markdown (an epic without one gets its seed); null = no such epic. */
   docSeed(bookId: string, epic?: string): string | null {
     this.bind(bookId);
@@ -2008,6 +2039,14 @@ export class Book extends DurableObject<Env> {
         const epic = String(m.epic ?? "");
         if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");
         return ws.send(JSON.stringify({ t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true }));
+      }
+      case "needs.summary": {
+        const thread = String(m.thread ?? "");
+        if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return new Refused("unknown thread");
+        const items = (Array.isArray(m.items) ? m.items : []).map((x) => String(x).slice(0, 200)).filter(Boolean).slice(0, 10);
+        if (!items.length) return;
+        const r = await this.needsSummary(thread, email, items);
+        return r ? ws.send(JSON.stringify({ t: "needsSummary", thread, key: r.key, text: r.text })) : undefined;
       }
       case "doc.versions": {
         const epic = String(m.epic ?? "");

@@ -670,6 +670,9 @@
   .needsYou { margin: 16px 0 8px; border: 1px solid color-mix(in oklch, var(--wait-ink) 35%, var(--line)); background: var(--wait-bg); border-radius: 14px; padding: 10px 12px; }
   .needsYou .nyHead { display: flex; align-items: center; gap: 8px; } .needsYou .nyHead small { color: var(--mute); flex: 1; }
   .needsYou ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+  .needsYou .nySum { margin: 6px 0 4px; font-size: 14.5px; line-height: 1.45; color: var(--ink); }
+  .needsYou .nySum.wait { display: grid; gap: 6px; } .needsYou .nySum.wait i { height: 11px; border-radius: 6px; background: color-mix(in oklch, var(--wait-ink) 18%, transparent); animation: skel 1.4s linear infinite; } .needsYou .nySum.wait i + i { width: 60%; }
+  .needsYou details > summary { cursor: pointer; font-size: 12.5px; color: var(--mute); }
   .needsYou li { display: flex; align-items: center; gap: 6px; }
   .needsYou .nyGo { flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left; background: none; border: 0; padding: 6px 4px; border-radius: 8px; color: var(--ink); font: inherit; }
   button.nyGo { cursor: pointer; } button.nyGo:hover { background: color-mix(in oklch, var(--ink) 6%, transparent); }
@@ -1743,6 +1746,7 @@ const EN = {
   "Conecte sua conta do Claude": "Connect your Claude account",
   "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:": "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   "Copiar": "Copy",
+  "{n} itens": "{n} items",
   "Reagir": "React",
   "Reagir a esta mensagem": "React to this message",
   "Claude de {who}": "{who}'s Claude",
@@ -3457,6 +3461,7 @@ function onEvent(ev, id) {
     case "epics": S.epics = ev.epics; if (ev.roomTasks) S.roomTasks = ev.roomTasks;
       if (thread !== "main" && !isPre() && !S.epics.some((e) => e.id === thread)) thread = "main"; renderSide(); renderTasks(); renderKanban(); syncEnd(); if (thread === "main") refreshThreadCards(); return;
     case "docNotes": S.docNotes = ev.notes; renderDoc(); return;
+    case "needsSummary": needSum[`${S.id}|${ev.thread}`] = ev.text; if (ev.thread === thread) syncEnd(); return;
     case "reactions": for (const m of allMsgs()) if (m.id === ev.id) m.reactions = ev.reactions; redrawReacts(ev.id); return;
     case "docVersions": if (ev.epic === (docEpic() ?? "")) { verList = ev; renderVerPicker(); } return;
     case "docVersion": if (ev.epic === (docEpic() ?? "")) { verView = ev; renderDoc(true); } return;
@@ -5396,10 +5401,16 @@ function needItems() {
     ...tasks.filter((x) => x.owner === S.me && !x.done && !wt.has(x.id)).map((x) => ({ key: `t:${x.id}:${x.status}`, text: x.title, sub: x.status === "doing" ? t("sua tarefa, fazendo") : x.status === "review" ? t("sua tarefa esperando OK") : t("sua tarefa, a fazer") })),
   ];
 }
+// The card leads with one or two written lines (Gui #2602): the Book's needs.summary over these same items and the
+// thread; the items fold under them. Asked again only when the items change.
+const needSum = {}; let needAsked = "";
 function needsYou() {
   const got = needGot(), items = needItems().filter((x) => !got.has(x.key));
   if (!items.length) return "";
-  return `<div class="needsYou" role="region" aria-label="${t("O que precisa de você aqui")}"><div class="nyHead"><b>${t("O que precisa de você aqui")}</b><small>${t("só você vê")}</small><button type="button" class="ghost" data-ny-all>${t("Dispensar")}</button></div><ul>${items.map((x) => `<li>${x.msg ? `<button type="button" class="nyGo" data-goto="${x.msg}">` : `<span class="nyGo">`}<span>${esc(x.text.length > 200 ? `${x.text.slice(0, 198)}…` : x.text)}</span><small>${x.sub}</small>${x.msg ? "</button>" : "</span>"}<button type="button" class="ghost" data-ny="${esc(x.key)}" title="${t("Feito / não é comigo")}" aria-label="${t("Feito / não é comigo")}">${icon("check")}</button></li>`).join("")}</ul></div>`;
+  const texts = items.map((x) => x.text), ask = JSON.stringify([S.id, thread, texts]);
+  if (ask !== needAsked && send({ t: "needs.summary", thread, items: texts })) needAsked = ask;
+  const sum = needSum[`${S.id}|${thread}`];
+  return `<div class="needsYou" role="region" aria-label="${t("O que precisa de você aqui")}"><div class="nyHead"><b>${t("O que precisa de você aqui")}</b><small>${t("só você vê")}</small><button type="button" class="ghost" data-ny-all>${t("Dispensar")}</button></div>${sum ? `<p class="nySum">${esc(sum)}</p>` : `<p class="nySum wait"><i></i><i></i></p>`}<details${sum ? "" : " open"}><summary>${t("{n} itens", { n: items.length })}</summary><ul>${items.map((x) => `<li>${x.msg ? `<button type="button" class="nyGo" data-goto="${x.msg}">` : `<span class="nyGo">`}<span>${esc(x.text.length > 200 ? `${x.text.slice(0, 198)}…` : x.text)}</span><small>${x.sub}</small>${x.msg ? "</button>" : "</span>"}<button type="button" class="ghost" data-ny="${esc(x.key)}" title="${t("Feito / não é comigo")}" aria-label="${t("Feito / não é comigo")}">${icon("check")}</button></li>`).join("")}</ul></details></div>`;
 }
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest?.(".needsYou [data-ny], .needsYou [data-ny-all]"); if (!b) return;
@@ -6653,7 +6664,8 @@ function renderDoc(force) {
   docApps(pv, ep);
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that the
   // answer is coming, right away, instead of an empty doc.
-  const w = ep && (epicWorker(epic) || (epic.answer && { who: "Claude" }));
+  // Only an answer epic (a question): a work epic's seed doc is a plan template, not an answer on its way.
+  const w = ep && epic.answer && (epicWorker(epic) || { who: "Claude" });
   const blank = DOC_SEED_RE.test(text) || (epic?.answer && !text.replace(/^#\s.*$/m, "").replace(/##\s*Tarefas[\s\S]*$/, "").trim());
   const h1 = pv.querySelector("h1");
   if (w && blank) (h1 ?? pv).insertAdjacentHTML(h1 ? "afterend" : "afterbegin", `<div class="docSkel" role="status"><b>${STAR} ${t("{who} está escrevendo a resposta…", { who: esc(w.who || "Claude") })}</b><i></i><i></i><i></i><i class="short"></i></div>`);

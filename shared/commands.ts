@@ -30,6 +30,12 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     epic: z.optional(z.nullable(z.string())),
   }),
   z.object({ t: z.literal("doc.version"), id: num }),
+  // "O que precisa de você" as one or two written lines (Gui #2602): the card's own items, summarized with the thread.
+  z.object({
+    t: z.literal("needs.summary"),
+    thread: z.string(),
+    items: z.array(z.string()),
+  }),
   z.object({ t: z.literal("title"), title: z.string() }),
   z.object({ t: z.literal("epic"), title: z.string() }),
   z.object({ t: z.literal("epic.owner"), id, owner: z.string() }),

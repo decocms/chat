@@ -74,6 +74,7 @@ export const RoomEventSchemas = {
     ),
     pending: z.boolean(),
   }),
+  needsSummary: event("needsSummary", { thread: str, key: str, text: str }),
   docVersion: event("docVersion", {
     id: num,
     epic: str,

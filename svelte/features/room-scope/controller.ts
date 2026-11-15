@@ -40,6 +40,7 @@ import { createRoomMutations } from "../room-sidebar/session";
 import { suggestionIdentity, suggestionAt } from "../room-sidebar/model";
 import { createDocumentSession } from "../documents/session";
 import { docVersionEvent } from "../documents/versions";
+import { needsSummaryEvent } from "../needs-you/summary";
 import { appendDocumentApp, documentEmbedsApp } from "../documents/appMarkers";
 import { createAppsSession } from "../apps/session";
 import {
@@ -1299,6 +1300,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     const event = value.event,
       canonical = room()!;
     docVersionEvent(event);
+    needsSummaryEvent(canonical.id, event);
     if (event.t === "older") viewport.older(event);
     else if (event.t === "openSide") openSideFile(event.file);
     else if (event.t === "openDoc") openAgentDocument(event.epic);

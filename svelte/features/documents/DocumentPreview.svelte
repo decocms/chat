@@ -53,10 +53,10 @@
           .replace(/##\s*Tarefas[\s\S]*$/, "")
           .trim()),
   );
+  // Only an answer epic (a question): a work epic's seed doc is a plan template, not an answer on its way.
   const writer = $derived(
-    epic && blank
-      ? (threadWorkers(props.room, epic, Date.now())[0] ??
-          (isAnswer ? { who: "Claude" } : null))
+    epic && blank && isAnswer
+      ? (threadWorkers(props.room, epic, Date.now())[0] ?? { who: "Claude" })
       : null,
   );
   const fileIndex = scopedRichFileIndex();
