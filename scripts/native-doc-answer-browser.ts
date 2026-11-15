@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
   expect as baseExpect,
+  type APIResponse,
   type BrowserContext,
   type Page,
 } from "@playwright/test";
@@ -404,7 +405,7 @@ export async function auditDocumentAnswers(
           };
           result.uploads.push(record);
           result.phase = `embedded-html-r2-${version}`;
-          const raw = await context.request.get(
+          const raw: APIResponse = await context.request.get(
             `${fixture.base}/api/books/${roomId}/files/${stored.file.id}`,
           );
           assert(raw.ok());
