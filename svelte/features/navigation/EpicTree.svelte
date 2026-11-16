@@ -255,17 +255,13 @@
 <section
   data-vb-native
   aria-label={vb.t("Épicos")}
-  class="tw:m-0 tw:box-border tw:space-y-1 tw:p-0 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
+  class="tw:m-0 tw:box-border tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-1 tw:p-0 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
 >
   {#snippet panel(value: string)}
     {#if value === mode}
       <ul
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
-        class={cn(
-          "tw:m-0 tw:list-none tw:space-y-1 tw:p-0",
-          value === "archived" &&
-            "tw:max-h-[40vh] tw:overflow-y-auto tw:overscroll-contain",
-        )}
+        class="tw:m-0 tw:min-h-0 tw:flex-1 tw:list-none tw:space-y-1 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-0"
       >
         {#each rows as row (row.epic.id)}
           {@const epic = row.epic}
@@ -372,7 +368,11 @@
         {/each}
       </ul>
       {#if value === "active"}
-        <form id="newEpic" onsubmit={add} class="tw:mt-2 tw:space-y-2">
+        <form
+          id="newEpic"
+          onsubmit={add}
+          class="tw:mt-2 tw:shrink-0 tw:space-y-2"
+        >
           <Label for={`${uid}-new`} class="tw:sr-only"
             >{vb.t("Novo épico")}</Label
           >
@@ -414,6 +414,7 @@
   {#if archived.length > 0}
     <Tabs
       compact
+      class="tw:flex-1"
       items={[
         {
           value: "active",
