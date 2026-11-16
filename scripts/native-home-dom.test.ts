@@ -226,6 +226,205 @@ test("direct Account composition preserves native profile confirmation and suppl
     true,
   );
 });
+test("the rail's account menu opens account sections, drives the device notifications and signs out through the application flow", async () => {
+  let bells = 0;
+  // A browser that already allows notifications on this device.
+  const allowed = {
+    permission: "granted",
+    requestPermission: async () => "granted",
+  };
+  for (const scope of [window, globalThis]) {
+    const prior = Object.getOwnPropertyDescriptor(scope, "Notification");
+    Object.defineProperty(scope, "Notification", {
+      value: allowed,
+      configurable: true,
+      writable: true,
+    });
+    cleanups.push(() => {
+      if (prior) Object.defineProperty(scope, "Notification", prior);
+      else Reflect.deleteProperty(scope, "Notification");
+    });
+  }
+  const h = shellFixture(
+      {},
+      {
+        pwa: () => {
+          const service = createPwaService();
+          return {
+            ...service,
+            bell() {
+              bells++;
+              return service.bell();
+            },
+          };
+        },
+      },
+    ),
+    target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(ApplicationShellHarness, {
+      target,
+      props: { services: h.services, effects: h.effects },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  await waitForView(target, "[data-native-user-menu-trigger]");
+  const trigger = target.querySelector<HTMLButtonElement>(
+    "[data-native-user-menu-trigger]",
+  )!;
+  const item = async (name: string) => {
+    if (!document.querySelector("[data-native-user-menu]")) {
+      trigger.focus();
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    }
+    await waitForView(document, `[data-user-menu-item="${name}"]`);
+    return document.querySelector<HTMLElement>(
+      `[data-user-menu-item="${name}"]`,
+    )!;
+  };
+  for (const [name, section] of [
+    ["profile", "profile"],
+    ["friends", "friends"],
+    ["agents", "agents"],
+    ["settings", "all"],
+  ] as const) {
+    (await item(name)).click();
+    const deadline = Date.now() + 2_000;
+    while (!get(h.services.account.state).open && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await flush();
+    }
+    expect(get(h.services.account.state).open).toBe(true);
+    expect(get(h.services.account.state).section).toBe(section);
+    expect(h.services.account.returnFocus() === trigger).toBe(true);
+    if (name === "profile") {
+      // The loading placeholder gives way to the settings without pulling
+      // focus back to the avatar: it lands on the name field.
+      const focused = Date.now() + 2_000;
+      while (
+        document.activeElement?.id !== "account-name" &&
+        Date.now() < focused
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await flush();
+      }
+      expect(document.activeElement?.id).toBe("account-name");
+    }
+    if (name !== "settings") {
+      h.services.account.close();
+      await flush();
+      continue;
+    }
+    // Closed by the person (Esc), the dialog hands focus back to the avatar.
+    await waitForView(document, "[role=dialog]");
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    const closed = Date.now() + 2_000;
+    while (
+      (get(h.services.account.state).open ||
+        document.activeElement !== trigger) &&
+      Date.now() < closed
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await flush();
+    }
+    expect(get(h.services.account.state).open).toBe(false);
+    expect(document.activeElement === trigger).toBe(true);
+  }
+  (await item("notifications")).click();
+  await flush();
+  expect(bells).toBe(1);
+  expect(get(h.services.pwa.state).muted).toBe(true);
+  (await item("logout")).click();
+  const deadline = Date.now() + 2_000;
+  while (!h.documents.includes("/") && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
+  }
+  expect(h.documents).toEqual(["/"]);
+});
+test("the phone room strip carries the account menu and gives up a room tile for it", async () => {
+  const { default: RoomStrip } =
+    await import("../svelte/features/app-navigation/RoomStrip.svelte");
+  const { userMenuKey } =
+    await import("../svelte/features/app-navigation/menuBridge");
+  const h = shellFixture();
+  h.canonical(
+    me({
+      books: [room("aaaaaa"), room("bbbbbb"), room("cccccc"), room("dddddd")],
+    }),
+  );
+  h.services.start();
+  await h.services.personal.refresh();
+  cleanups.push(() => h.services.dispose());
+  const sections: string[] = [];
+  const strip = (context?: Map<unknown, unknown>) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(RoomStrip, {
+        target,
+        props: { controller: h.services.navigation, lang: "en" },
+        context,
+      }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    return target;
+  };
+  // Isolated (no shell): three rooms and no avatar.
+  const bare = strip();
+  await flush();
+  expect(bare.querySelectorAll("[data-room-id]").length).toBe(3);
+  expect(bare.querySelector("[data-native-user-menu-trigger]")).toBe(null);
+  // In the shell: the avatar menu takes the third tile's place.
+  const shell = strip(
+    new Map([
+      [
+        userMenuKey,
+        {
+          lang: "en",
+          theme: () => "auto",
+          onsettheme() {},
+          onlanguage() {},
+          onaccount: (section: string) => sections.push(section),
+        },
+      ],
+    ]),
+  );
+  await flush();
+  expect(shell.querySelectorAll("[data-room-id]").length).toBe(2);
+  const trigger = shell.querySelector<HTMLButtonElement>(
+    "[data-native-user-menu-trigger]",
+  )!;
+  trigger.focus();
+  trigger.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+  );
+  await waitForView(document, '[data-user-menu-item="friends"]');
+  document
+    .querySelector<HTMLElement>('[data-user-menu-item="friends"]')!
+    .click();
+  const deadline = Date.now() + 2_000;
+  while (!sections.length && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
+  }
+  expect(sections).toEqual(["friends"]);
+});
 test("connected old creator controls cannot edit or submit a replacement opening before DOM flush", async () => {
   let creates = 0;
   const h = shellFixture({
@@ -658,6 +857,12 @@ test("real RoomShell uses genuine loading/terminal states and directly renders c
   expect(h.target.querySelector("[data-native-room-header]") !== null).toBe(
     true,
   );
+  // Notifications moved to the avatar menu: no bell in the room header.
+  expect(
+    h.target.querySelector(
+      "[data-native-room-header] [data-native-notifications]",
+    ),
+  ).toBe(null);
   expect(h.target.querySelector("[data-native-composer]") !== null).toBe(true);
   expect(h.target.querySelector("[data-native-document]") !== null).toBe(true);
   expect(h.target.textContent).toContain("Canonical visible message");

@@ -63,7 +63,8 @@
     wasOpen = $state(false),
     photo: HTMLInputElement | undefined = $state(),
     nameInput: HTMLInputElement | null = $state(null),
-    friendInput: HTMLInputElement | null = $state(null);
+    friendInput: HTMLInputElement | null = $state(null),
+    agentsBlock: HTMLDivElement | null = $state(null);
   let remove = $state.raw<{
       email: string;
       name: string;
@@ -142,7 +143,9 @@
               ? (friendInput ?? null)
               : $view.section === "profile"
                 ? (nameInput ?? null)
-                : null}
+                : $view.section === "agents"
+                  ? (agentsBlock ?? null)
+                  : null}
         >
           {#if $view.me}<div data-native-account class="tw:space-y-6">
               <div class="tw:flex tw:items-center tw:gap-3">
@@ -351,7 +354,15 @@
                       : "A autenticação do aparelho foi cancelada ou falhou. Tente de novo."}
                   </p>{/if}
               </div>
-              {@render agentSettings()}
+              <!-- "My agents" lands here: focused (without a ring) so it scrolls into view. -->
+              <div
+                bind:this={agentsBlock}
+                tabindex="-1"
+                data-native-account-agents
+                class="tw:outline-none"
+              >
+                {@render agentSettings()}
+              </div>
               <section class="tw:space-y-3">
                 <Heading level={2} class="tw:text-base"
                   >{en ? "Friends" : "Amigos"}</Heading

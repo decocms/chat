@@ -4,7 +4,6 @@
   import ThreadHeader from "../room-sidebar/ThreadHeader.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
-  import NotificationBell from "../notifications/NotificationBell.svelte";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { RoomLayoutController } from "../room-layout/types";
   import Button from "../../lib/ui/Button.svelte";
@@ -103,10 +102,6 @@
             : "warning"}>{waits.length}</Badge
         >{/if}</Button
     >
-    <NotificationBell
-      owner={presentation.services.pwa}
-      lang={presentation.services.language}
-    />
     <div
       class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
     >

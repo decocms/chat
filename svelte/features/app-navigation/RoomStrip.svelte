@@ -5,12 +5,21 @@
   import { recentRooms } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import type { AppNavigationSession } from "./controller";
+  import UserMenu from "./UserMenu.svelte";
+  import { userMenuBridge } from "./menuBridge";
+  import { personAvatar } from "../home/model";
   let {
     controller,
     lang,
   }: { controller: AppNavigationSession; lang: HomeLanguage } = $props();
   const personal = $derived(controller.personal.state),
     nav = $derived(controller.state);
+  // The shell's account menu (absent in isolated mounts): the rail is hidden
+  // in a phone room, so the sheet's strip carries the avatar instead.
+  const menu = userMenuBridge();
+  // The avatar takes a room tile's place so the home label still fits at
+  // phone width (390px: home, 2 rooms, search, avatar).
+  const tiles = $derived(menu && $personal.me ? 2 : 3);
 </script>
 
 <nav
@@ -25,7 +34,7 @@
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
     }}><span class="tw:truncate">{homeText(lang, "home")}</span></Button
-  >{#each recentRooms($personal.me?.books ?? []).slice(0, 3) as room (room.id)}<RoomTile
+  >{#each recentRooms($personal.me?.books ?? []).slice(0, tiles) as room (room.id)}<RoomTile
       {room}
       {lang}
       compact
@@ -43,5 +52,17 @@
       if (event.currentTarget.isConnected)
         controller.openSearch(event.currentTarget);
     }}
-  />
+  />{#if menu && $personal.me}<UserMenu
+      name={$personal.me.name ?? ""}
+      email={$personal.me.email}
+      avatar={personAvatar($personal.me, $personal.me.email)}
+      friends={$personal.me.friends.length}
+      lang={menu.lang}
+      theme={menu.theme()}
+      onsettheme={menu.onsettheme}
+      onlanguage={menu.onlanguage}
+      onaccount={menu.onaccount}
+      pwa={menu.pwa}
+      onlogout={menu.onlogout}
+    />{/if}
 </nav>

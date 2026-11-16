@@ -15,6 +15,7 @@
   import { get } from "svelte/store";
   import { untrack } from "svelte";
   import type { AppNavigationSession } from "./controller";
+  import type { UserMenuActions } from "./menuBridge";
   let {
     controller,
     lang,
@@ -24,9 +25,12 @@
     onlanguage,
     onreload = () => location.reload(),
     inRoom = false,
+    onaccount,
+    pwa,
+    onlogout,
     loadDialogs = () =>
       import("./AppNavigationDialogs.svelte").then((module) => module.default),
-  }: {
+  }: UserMenuActions & {
     controller: AppNavigationSession;
     lang: HomeLanguage;
     theme?: "auto" | "light" | "dark";
@@ -216,8 +220,12 @@
       name={$personal.me.name ?? ""}
       email={$personal.me.email}
       avatar={personAvatar($personal.me, $personal.me.email)}
+      friends={$personal.me.friends.length}
       {lang}
       {theme}
+      {onaccount}
+      {pwa}
+      {onlogout}
       onsettheme={(next) => {
         if (onsettheme) onsettheme(next);
         else if (next !== theme) ontheme();
