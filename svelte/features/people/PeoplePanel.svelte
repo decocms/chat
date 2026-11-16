@@ -23,6 +23,7 @@
   import Dialog from "../../lib/ui/Dialog.svelte";
   import Icon from "../../lib/ui/Icon.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
+  import Tip from "../../lib/ui/Tip.svelte";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
     room,
@@ -274,6 +275,9 @@
     );
   }
   const everyone = $derived([...model.online, ...model.offline]);
+  /** You are always online to yourself: the page you are looking at is connected. */
+  const isOnline = (email: string) =>
+    room.online.includes(email) || email === room.me;
   const issueText = (issue: string) =>
     issue === "invalid-email"
       ? vb.t("Email inválido.")
@@ -382,7 +386,34 @@
 {#snippet member(email: string)}
   <div class="tw:space-y-2">
     <div class="tw:flex tw:items-start tw:gap-2" data-person={email}>
-      <Avatar name={vb.name(email)} src={avatarUrl(email)} seed={email} />
+      {#if room.pending?.includes(email)}<Avatar
+          name={vb.name(email)}
+          src={avatarUrl(email)}
+          seed={email}
+        />{:else}{@const online = isOnline(email)}
+        {#snippet face(props: Record<string, unknown>)}<button
+            {...props}
+            type="button"
+            aria-label={`${label(email)} · ${online ? vb.t("Online") : vb.t("Offline")}`}
+            data-presence={online ? "online" : "offline"}
+            class="tw:relative tw:inline-flex tw:shrink-0 tw:cursor-default tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring"
+            ><Avatar
+              name={vb.name(email)}
+              src={avatarUrl(email)}
+              seed={email}
+            /><span
+              data-status-dot={online ? "online" : "offline"}
+              class={online
+                ? "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-success tw:ring-2 tw:ring-sidebar"
+                : "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-muted-foreground tw:ring-2 tw:ring-sidebar"}
+            ></span></button
+          >{/snippet}
+        <Tip
+          side="top"
+          tap
+          label={online ? vb.t("Online") : vb.t("Offline")}
+          trigger={face}
+        />{/if}
       <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
         <p
           class="tw:m-0 tw:break-words tw:text-sm tw:font-medium"
@@ -415,14 +446,7 @@
               }}>{vb.t("reenviar")}</Button
             >
           </div>
-        {:else}<Badge
-            variant={room.online.includes(email) || email === room.me
-              ? "success"
-              : "neutral"}
-            >{room.online.includes(email) || email === room.me
-              ? vb.t("online")
-              : vb.t("offline")}</Badge
-          >{/if}
+        {/if}
       </div>
       {#if canRemove(room, email)}<IconButton
           icon="close"
