@@ -33,10 +33,12 @@
     },
     "fixes": {
       "pt": [
-        "A resposta de uma linha a uma pergunta ia pra sala principal; agora vai pra thread do épico da pergunta."
+        "A resposta de uma linha a uma pergunta ia pra sala principal; agora vai pra thread do épico da pergunta.",
+        "As iniciais brancas nas salas de capa âmbar ficavam com pouco contraste; a cor ficou um pouco mais escura."
       ],
       "en": [
-        "The one-line answer to a question went to the main thread; it now goes to the question epic's thread."
+        "The one-line answer to a question went to the main thread; it now goes to the question epic's thread.",
+        "White initials on amber room covers had too little contrast; the color is now a bit darker."
       ]
     }
   },
