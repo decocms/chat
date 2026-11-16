@@ -210,31 +210,39 @@
           trigger={roomTitle}
         />
         {#if oninbox}
-          <Button
-            data-room-inbox-button
-            variant={inboxOpen ? "secondary" : "ghost"}
-            size="icon"
-            aria-label={vb.t("Caixa de entrada")}
-            aria-current={inboxOpen ? "page" : undefined}
-            title={vb.t("Caixa de entrada: o que espera por você")}
-            class="tw:relative tw:size-9 tw:shrink-0"
-            onclick={(event) => {
-              if (event.currentTarget.isConnected)
-                oninbox?.(event.currentTarget);
-            }}
-          >
-            <Icon name="inbox" />
-            <WaitBadge
-              solid
-              waits={vb.waitsInRoom?.() ?? []}
-              label={(n) => vb.t("{n} coisas esperando você", { n })}
-              taskLabel={vb.t("Tarefa sua pendente")}
-              class="tw:pointer-events-none tw:absolute tw:-top-0.5 tw:-right-0.5"
-            />
-          </Button>
+          {#snippet inboxButton(tip: Record<string, unknown>)}
+            <Button
+              {...tip}
+              data-room-inbox-button
+              variant={inboxOpen ? "secondary" : "ghost"}
+              size="icon"
+              aria-label={vb.t("Caixa de entrada")}
+              aria-current={inboxOpen ? "page" : undefined}
+              class="tw:relative tw:size-9 tw:shrink-0"
+              onclick={(event) => {
+                if (event.currentTarget.isConnected)
+                  oninbox?.(event.currentTarget);
+              }}
+            >
+              <Icon name="inbox" />
+              <WaitBadge
+                solid
+                waits={vb.waitsInRoom?.() ?? []}
+                label={(n) => vb.t("{n} coisas esperando você", { n })}
+                taskLabel={vb.t("Tarefa sua pendente")}
+                class="tw:pointer-events-none tw:absolute tw:-top-0.5 tw:-right-0.5"
+              />
+            </Button>
+          {/snippet}
+          <Tip
+            side="bottom"
+            label={vb.t("Caixa de entrada: o que espera por você")}
+            trigger={inboxButton}
+          />
         {/if}
         <IconButton
           icon="pencil"
+          tip="bottom"
           label={vb.t("Renomear")}
           class="tw:size-9 tw:shrink-0"
           onclick={onrenameroom}

@@ -285,10 +285,10 @@
               role="group"
               aria-label={epic.title}
               class={cn(
-                "tw:flex tw:items-center tw:gap-1 tw:rounded-control tw:border-l-2 tw:border-transparent",
+                "tw:flex tw:items-center tw:gap-1 tw:rounded-control",
                 !selectionDisabled &&
                   thread === epic.id &&
-                  "tw:border-l-primary tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
+                  "tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
               )}
             >
               <Button
