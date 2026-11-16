@@ -3121,19 +3121,25 @@ describe("stable native sidebar integration", () => {
       true,
     );
   });
-  test("the room title is plain text and only the pencil is a button", async () => {
+  test("the room title is a button that opens the main thread and shows when it is selected", async () => {
     const room = fixture();
-    const h = sidebar(room, { thread: "main" });
-    const title = h.target.querySelector<HTMLElement>("[data-room-title]");
+    const h = sidebar(room, { thread: "e" });
+    const title = h.target.querySelector<HTMLButtonElement>(
+      "button[data-room-title]",
+    );
     expect(title).not.toBeNull();
-    expect(title!.querySelector("button, a, [role='button']")).toBeNull();
     expect(title!.textContent).toContain(room.book.title);
-    const row = title!.parentElement!;
-    const buttons = [...row.querySelectorAll("button")];
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0]!.getAttribute("aria-label")).toBe("Renomear");
-    const count = title!.querySelector<HTMLElement>(":scope > span:last-child");
-    expect(count!.classList.contains("tw:text-muted-foreground")).toBe(true);
+    expect(title!.getAttribute("aria-current")).toBeNull();
+    title!.click();
+    expect(h.opened).toEqual(["main"]);
+    h.view.update({ ...h.props, thread: "main" });
+    await tick();
+    flushSync();
+    expect(title!.getAttribute("aria-current")).toBe("page");
+    h.view.update({ ...h.props, thread: "main", inboxOpen: true });
+    await tick();
+    flushSync();
+    expect(title!.getAttribute("aria-current")).toBeNull();
   });
   test("the Inbox is an icon button with a tooltip and the room's wait badge, beside the pencil", async () => {
     const room = fixture();
@@ -3166,7 +3172,10 @@ describe("stable native sidebar integration", () => {
     const labels = [...row.querySelectorAll("button")].map((button) =>
       button.getAttribute("aria-label"),
     );
-    expect(labels).toEqual(["Caixa de entrada", "Renomear"]);
+    expect(labels).toEqual([null, "Caixa de entrada", "Renomear"]);
+    expect(row.querySelector("button")?.hasAttribute("data-room-title")).toBe(
+      true,
+    );
     expect(
       [...h.target.querySelectorAll("button")].filter(
         (button) => button.textContent?.trim() === "Caixa de entrada",
