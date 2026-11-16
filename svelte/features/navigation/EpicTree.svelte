@@ -265,215 +265,221 @@
   aria-label={vb.t("Épicos")}
   class="tw:m-0 tw:box-border tw:space-y-3 tw:p-3 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
 >
-  <Tabs
-    items={[
-      {
-        value: "active",
-        label: `${vb.t("Épicos")} · ${active.filter((epic) => !epic.archived).length}`,
-      },
-      {
-        value: "archived",
-        label: `${vb.t("Arquivados")} · ${archived.length}`,
-        disabled: archived.length === 0,
-      },
-    ]}
-    label={vb.t("Épicos")}
-    value={mode}
-    onValueChange={switchMode}
-  >
-    {#snippet children(value)}
-      {#if value === mode}
-        <ul
-          aria-label={value === "archived"
-            ? vb.t("Arquivados")
-            : vb.t("Épicos")}
-          class="tw:m-0 tw:list-none tw:space-y-1 tw:p-0"
-        >
-          {#each rows as row (row.epic.id)}
-            {@const epic = row.epic}
-            {@const closed = $navigation.closed.has(epic.id)}
-            {@const parent = forest.byId.get(forest.parents.get(epic.id) ?? "")}
-            {@const working = vb.epicBusy(epic)}
-            <li
-              use:registerRow={epic.id}
-              use:sorter.row={{
-                id: epic.id,
-                index: siblingIndex.get(epic.id) ?? 0,
-                group: groupOf(epic.id),
-                disabled:
-                  mutationBusy ||
-                  value !== "active" ||
-                  (row.hasChildren && !closed),
-              }}
-              id={rowIds.get(epic.id)}
-              hidden={row.hidden}
-              data-epic={epic.id}
-              data-depth={row.depth}
+  {#snippet panel(value: string)}
+    {#if value === mode}
+      <ul
+        aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
+        class={cn(
+          "tw:m-0 tw:list-none tw:space-y-1 tw:p-0",
+          value === "archived" &&
+            "tw:max-h-[40vh] tw:overflow-y-auto tw:overscroll-contain",
+        )}
+      >
+        {#each rows as row (row.epic.id)}
+          {@const epic = row.epic}
+          {@const closed = $navigation.closed.has(epic.id)}
+          {@const parent = forest.byId.get(forest.parents.get(epic.id) ?? "")}
+          {@const working = vb.epicBusy(epic)}
+          <li
+            use:registerRow={epic.id}
+            use:sorter.row={{
+              id: epic.id,
+              index: siblingIndex.get(epic.id) ?? 0,
+              group: groupOf(epic.id),
+              disabled:
+                mutationBusy ||
+                value !== "active" ||
+                (row.hasChildren && !closed),
+            }}
+            id={rowIds.get(epic.id)}
+            hidden={row.hidden}
+            data-epic={epic.id}
+            data-depth={row.depth}
+            class={cn(
+              "tw:relative",
+              indentation[Math.min(row.depth, indentation.length - 1)],
+            )}
+          >
+            <div
+              role="group"
+              aria-label={epic.title}
               class={cn(
-                "tw:relative",
-                indentation[Math.min(row.depth, indentation.length - 1)],
+                "tw:flex tw:items-center tw:gap-1 tw:rounded-control tw:border-l-2 tw:border-transparent",
+                !selectionDisabled &&
+                  thread === epic.id &&
+                  "tw:border-l-primary tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
               )}
             >
-              <div
-                role="group"
-                aria-label={epic.title}
-                class={cn(
-                  "tw:flex tw:items-center tw:gap-1 tw:rounded-control tw:border-l-2 tw:border-transparent",
-                  !selectionDisabled &&
-                    thread === epic.id &&
-                    "tw:border-l-primary tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
-                )}
-              >
-                {#if row.hasChildren}
-                  <Button
-                    variant="ghost"
-                    class="tw:size-5 tw:shrink-0 tw:p-0"
-                    aria-label={`${vb.t(closed ? "Abrir galho" : "Fechar galho")}: ${epic.title}`}
-                    aria-expanded={!closed}
-                    aria-controls={(forest.children.get(epic.id) ?? [])
-                      .map((child) => rowIds.get(child.id))
-                      .join(" ")}
-                    onclick={() => toggleNavigationBranch(session, epic.id)}
-                    ><Icon
-                      name={closed ? "chevronRight" : "chevronDown"}
-                      class="tw:size-3.5"
-                    /></Button
-                  >
-                {:else}<span
-                    aria-hidden="true"
-                    class={cn(
-                      "tw:shrink-0",
-                      rows.some((other) => other.hasChildren)
-                        ? "tw:w-5"
-                        : "tw:w-0",
-                    )}
-                  ></span>{/if}
+              {#if row.hasChildren}
                 <Button
                   variant="ghost"
-                  class={cn(
-                    "tw:h-8 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-nowrap tw:px-1.5 tw:py-0 tw:text-left tw:font-normal",
-                    !selectionDisabled &&
-                      thread === epic.id &&
-                      "tw:font-medium",
-                  )}
-                  data-epic-thread={epic.id}
-                  title={epic.title}
-                  aria-keyshortcuts={value === "active"
-                    ? "Alt+ArrowUp Alt+ArrowDown"
-                    : undefined}
-                  onkeydown={(event) => {
-                    if (value !== "active" || !event.altKey) return;
-                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-                      event.preventDefault();
-                      move(epic.id, event.key === "ArrowUp" ? -1 : 1);
-                    }
-                  }}
-                  aria-current={!selectionDisabled && thread === epic.id
-                    ? "page"
-                    : undefined}
-                  onclick={() => {
-                    if (onBeforeOpen && !onBeforeOpen()) return;
-                    if (thread === epic.id && row.hasChildren)
-                      toggleNavigationBranch(session, epic.id);
-                    else onopen(epic.id);
-                  }}
+                  class="tw:size-5 tw:shrink-0 tw:p-0"
+                  aria-label={`${vb.t(closed ? "Abrir galho" : "Fechar galho")}: ${epic.title}`}
+                  aria-expanded={!closed}
+                  aria-controls={(forest.children.get(epic.id) ?? [])
+                    .map((child) => rowIds.get(child.id))
+                    .join(" ")}
+                  onclick={() => toggleNavigationBranch(session, epic.id)}
+                  ><Icon
+                    name={closed ? "chevronRight" : "chevronDown"}
+                    class="tw:size-3.5"
+                  /></Button
                 >
-                  <Avatar
-                    name={epic.owner ? vb.name(epic.owner) : epic.title}
-                    src={epic.owner && room.avatars?.[epic.owner]
-                      ? `/api/avatar/${encodeURIComponent(epic.owner)}?v=${room.avatars[epic.owner]}`
-                      : undefined}
-                    class="tw:size-5 tw:text-[10px]"
-                  />
-                  <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
-                    >{epic.title}{#if epic.archived}<span
-                        class="tw:ml-1 tw:text-xs">({vb.t("Arquivado")})</span
-                      >{/if}{#if parent}<span class="tw:sr-only">
-                        · {vb.t("Subépico de {title}", {
-                          title: parent.title,
-                        })}</span
-                      >{/if}</span
-                  >
-                  {#if working || (closed && row.busyBelow)}<span
-                      role="img"
-                      aria-label={working
-                        ? vb.t("{who} está trabalhando", { who: working })
-                        : vb.t("Trabalho em um subépico")}
-                      class="tw:text-primary">✻</span
-                    >{/if}
-                  <WaitBadge
-                    waits={vb.waitsIn(epic.id)}
-                    label={(n) => vb.t("{n} coisas esperando você", { n })}
-                    taskLabel={vb.t("Tarefa sua pendente")}
-                  />
-                  {#if epic.prod}<span
-                      title={vb.t(
-                        production.get(epic.id) === "changes"
-                          ? "Uma versão está no ar; você pediu correções depois"
-                          : epic.prod.stage === "verified"
-                            ? "Verificado em prod"
-                            : "No ar, falta verificar em prod",
-                      )}
-                      >{production.get(epic.id) === "changes"
-                        ? "🚀↻"
-                        : epic.prod.stage === "verified"
-                          ? "✓✓"
-                          : "🚀"}</span
-                    >{/if}
-                  {#if epic.tasks.length}<span
-                      class={!selectionDisabled && thread === epic.id
-                        ? "tw:shrink-0 tw:text-xs tw:text-sidebar-accent-foreground"
-                        : "tw:shrink-0 tw:text-xs tw:text-muted-foreground"}
-                      >{epic.tasks.filter((task) => task.done).length}/{epic
-                        .tasks.length}</span
-                    >{/if}
-                </Button>
-              </div>
-            </li>
-          {/each}
-        </ul>
-        {#if value === "active"}
-          <form id="newEpic" onsubmit={add} class="tw:space-y-2">
-            <Label for={`${uid}-new`} class="tw:sr-only"
-              >{vb.t("Novo épico")}</Label
-            >
-            <div class="tw:flex tw:gap-2">
-              <Input
-                id={`${uid}-new`}
-                bind:ref={input}
-                bind:value={
-                  () => (disposed ? "" : $navigation.draft),
-                  (value) => {
-                    if (!disposed) $navigation.draft = value;
+              {:else}<span
+                  aria-hidden="true"
+                  class={cn(
+                    "tw:shrink-0",
+                    rows.some((other) => other.hasChildren)
+                      ? "tw:w-5"
+                      : "tw:w-0",
+                  )}
+                ></span>{/if}
+              <Button
+                variant="ghost"
+                class={cn(
+                  "tw:h-8 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-nowrap tw:px-1.5 tw:py-0 tw:text-left tw:font-normal",
+                  !selectionDisabled && thread === epic.id && "tw:font-medium",
+                )}
+                data-epic-thread={epic.id}
+                title={epic.title}
+                aria-keyshortcuts={value === "active"
+                  ? "Alt+ArrowUp Alt+ArrowDown"
+                  : undefined}
+                onkeydown={(event) => {
+                  if (value !== "active" || !event.altKey) return;
+                  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                    event.preventDefault();
+                    move(epic.id, event.key === "ArrowUp" ? -1 : 1);
                   }
-                }
-                placeholder={vb.t("Novo épico: escreva o título…")}
-                enterkeyhint="done"
-              /><IconButton
-                disabled={mutationBusy}
-                type="submit"
-                icon="plus"
-                variant="primary"
-                label={vb.t("Criar épico")}
-              />
+                }}
+                aria-current={!selectionDisabled && thread === epic.id
+                  ? "page"
+                  : undefined}
+                onclick={() => {
+                  if (onBeforeOpen && !onBeforeOpen()) return;
+                  if (thread === epic.id && row.hasChildren)
+                    toggleNavigationBranch(session, epic.id);
+                  else onopen(epic.id);
+                }}
+              >
+                <Avatar
+                  name={epic.owner ? vb.name(epic.owner) : epic.title}
+                  src={epic.owner && room.avatars?.[epic.owner]
+                    ? `/api/avatar/${encodeURIComponent(epic.owner)}?v=${room.avatars[epic.owner]}`
+                    : undefined}
+                  class="tw:size-5 tw:text-[10px]"
+                />
+                <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
+                  >{epic.title}{#if epic.archived}<span
+                      class="tw:ml-1 tw:text-xs">({vb.t("Arquivado")})</span
+                    >{/if}{#if parent}<span class="tw:sr-only">
+                      · {vb.t("Subépico de {title}", {
+                        title: parent.title,
+                      })}</span
+                    >{/if}</span
+                >
+                {#if working || (closed && row.busyBelow)}<span
+                    role="img"
+                    aria-label={working
+                      ? vb.t("{who} está trabalhando", { who: working })
+                      : vb.t("Trabalho em um subépico")}
+                    class="tw:text-primary">✻</span
+                  >{/if}
+                <WaitBadge
+                  waits={vb.waitsIn(epic.id)}
+                  label={(n) => vb.t("{n} coisas esperando você", { n })}
+                  taskLabel={vb.t("Tarefa sua pendente")}
+                />
+                {#if epic.prod}<span
+                    title={vb.t(
+                      production.get(epic.id) === "changes"
+                        ? "Uma versão está no ar; você pediu correções depois"
+                        : epic.prod.stage === "verified"
+                          ? "Verificado em prod"
+                          : "No ar, falta verificar em prod",
+                    )}
+                    >{production.get(epic.id) === "changes"
+                      ? "🚀↻"
+                      : epic.prod.stage === "verified"
+                        ? "✓✓"
+                        : "🚀"}</span
+                  >{/if}
+                {#if epic.tasks.length}<span
+                    class={!selectionDisabled && thread === epic.id
+                      ? "tw:shrink-0 tw:text-xs tw:text-sidebar-accent-foreground"
+                      : "tw:shrink-0 tw:text-xs tw:text-muted-foreground"}
+                    >{epic.tasks.filter((task) => task.done).length}/{epic.tasks
+                      .length}</span
+                  >{/if}
+              </Button>
             </div>
-          </form>
-          {#each room.suggestions as suggestion, index}
-            <Button
-              variant="outline"
-              class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:border-dashed tw:text-left"
-              aria-current={thread === `pre:${index}` ? "page" : undefined}
-              onclick={() => onopen(`pre:${index}`)}
-              >{suggestion.title}<span
-                class="tw:text-xs tw:text-muted-foreground"
-                >{vb.t("sugestão do @vibe, clique para ver")}</span
-              ></Button
-            >
-          {/each}
-        {/if}
+          </li>
+        {/each}
+      </ul>
+      {#if value === "active"}
+        <form id="newEpic" onsubmit={add} class="tw:space-y-2">
+          <Label for={`${uid}-new`} class="tw:sr-only"
+            >{vb.t("Novo épico")}</Label
+          >
+          <div class="tw:flex tw:gap-2">
+            <Input
+              id={`${uid}-new`}
+              bind:ref={input}
+              bind:value={
+                () => (disposed ? "" : $navigation.draft),
+                (value) => {
+                  if (!disposed) $navigation.draft = value;
+                }
+              }
+              placeholder={vb.t("Novo épico: escreva o título…")}
+              enterkeyhint="done"
+            /><IconButton
+              disabled={mutationBusy}
+              type="submit"
+              icon="plus"
+              variant="primary"
+              label={vb.t("Criar épico")}
+            />
+          </div>
+        </form>
+        {#each room.suggestions as suggestion, index}
+          <Button
+            variant="outline"
+            class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:border-dashed tw:text-left"
+            aria-current={thread === `pre:${index}` ? "page" : undefined}
+            onclick={() => onopen(`pre:${index}`)}
+            >{suggestion.title}<span class="tw:text-xs tw:text-muted-foreground"
+              >{vb.t("sugestão do @vibe, clique para ver")}</span
+            ></Button
+          >
+        {/each}
       {/if}
-    {/snippet}
-  </Tabs>
+    {/if}
+  {/snippet}
+  {#if archived.length > 0}
+    <Tabs
+      compact
+      items={[
+        {
+          value: "active",
+          label: vb.t("Épicos"),
+          count: active.filter((epic) => !epic.archived).length,
+        },
+        {
+          value: "archived",
+          label: vb.t("Arquivados"),
+          count: archived.length,
+        },
+      ]}
+      label={vb.t("Épicos")}
+      value={mode}
+      onValueChange={switchMode}
+    >
+      {#snippet children(value)}{@render panel(value)}{/snippet}
+    </Tabs>
+  {:else}
+    {@render panel("active")}
+  {/if}
   <p role="status" aria-live="polite" class="tw:sr-only">{announcement}</p>
   {#if error}<p role="alert" class="tw:m-0 tw:text-sm tw:text-destructive">
       {error}

@@ -2,12 +2,19 @@
   import { Tabs } from "bits-ui";
   import type { Snippet } from "svelte";
   import { cn } from "./utils";
-  export type TabItem = { value: string; label: string; disabled?: boolean };
+  export type TabItem = {
+    value: string;
+    label: string;
+    /** A number shown after the label, lighter than it. */
+    count?: number | string;
+    disabled?: boolean;
+  };
   let {
     items,
     label,
     value = $bindable(""),
     onValueChange,
+    compact = false,
     children,
     class: className,
   }: {
@@ -15,6 +22,8 @@
     label: string;
     value?: string;
     onValueChange?: (value: string) => void;
+    /** Shorter, smaller tabs for narrow panels such as the sidebar. */
+    compact?: boolean;
     children: Snippet<[string]>;
     class?: string;
   } = $props();
@@ -24,21 +33,32 @@
   bind:value
   {onValueChange}
   class={cn(
-    "tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:font-sans tw:text-sm tw:text-foreground",
+    "tw:flex tw:min-h-0 tw:flex-col tw:font-sans tw:text-sm tw:text-foreground",
+    compact ? "tw:gap-1.5" : "tw:gap-3",
     className,
   )}
 >
   <Tabs.List
     aria-label={label}
-    class="tw:flex tw:shrink-0 tw:gap-1 tw:rounded-control tw:bg-muted tw:p-1"
+    class={cn(
+      "tw:flex tw:shrink-0 tw:gap-1 tw:rounded-control tw:bg-muted",
+      compact ? "tw:p-0.5" : "tw:p-1",
+    )}
   >
     {#each items as item (item.value)}
       <Tabs.Trigger
         type="button"
         value={item.value}
         disabled={item.disabled}
-        class="tw:flex-1 tw:rounded-md tw:border tw:border-transparent tw:bg-transparent tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:leading-5 tw:text-muted-foreground tw:outline-none tw:transition-colors tw:hover:text-foreground tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:disabled:pointer-events-none tw:disabled:opacity-50 tw:data-[state=active]:bg-card tw:data-[state=active]:text-card-foreground tw:data-[state=active]:shadow-xs tw:motion-reduce:transition-none"
-        >{item.label}</Tabs.Trigger
+        class={cn(
+          "tw:flex-1 tw:cursor-pointer tw:rounded-md tw:border tw:border-transparent tw:bg-transparent tw:font-medium tw:text-muted-foreground tw:outline-none tw:transition-colors tw:hover:text-foreground tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:disabled:pointer-events-none tw:disabled:opacity-50 tw:data-[state=active]:bg-card tw:data-[state=active]:text-card-foreground tw:data-[state=active]:shadow-xs tw:motion-reduce:transition-none",
+          compact
+            ? "tw:px-2 tw:py-1 tw:text-[13px] tw:leading-4"
+            : "tw:px-3 tw:py-1.5 tw:text-sm tw:leading-5",
+        )}
+        >{item.label}{#if item.count !== undefined}<b
+            class="tw:ml-1 tw:font-semibold tw:opacity-70">{item.count}</b
+          >{/if}</Tabs.Trigger
       >
     {/each}
   </Tabs.List>
