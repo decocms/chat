@@ -9,6 +9,7 @@
   import Input from "../../lib/ui/Input.svelte";
   import Label from "../../lib/ui/Label.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
+  import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import { cn } from "../../lib/ui/utils";
   import { readable, type Readable } from "svelte/store";
   import {
@@ -200,25 +201,20 @@
   data-native-pins
   data-vb-native
 >
-  <div
-    class="tw:sticky tw:top-0 tw:z-10 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:bg-sidebar tw:pt-3"
+  <SectionHeader
+    id={`pins-title-${room.id}`}
+    title={t("Fixados")}
+    count={rows.length}
   >
-    <h2
-      id={`pins-title-${room.id}`}
-      class="tw:m-0 tw:font-sans tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
-    >
-      {t("Fixados")}
-    </h2>
-    {#if !$pinState.adding}
-      <IconButton
-        label={t("Fixar um link")}
-        icon="plus"
-        bind:ref={addButton}
-        disabled={!live}
-        onclick={open}
-      />
-    {/if}
-  </div>
+    {#snippet action()}{#if !$pinState.adding}<IconButton
+          label={t("Fixar um link")}
+          icon="plus"
+          tip="bottom"
+          bind:ref={addButton}
+          disabled={!live}
+          onclick={open}
+        />{/if}{/snippet}
+  </SectionHeader>
 
   {#if $pinState.adding}
     <form
