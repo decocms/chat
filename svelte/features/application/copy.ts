@@ -622,6 +622,20 @@ const EN: Readonly<Record<string, string>> = {
   "Cancelar convite": "Cancel invite",
   "Remover do vibebook": "Remove from vibebook",
   "Seus amigos": "Your friends",
+  "Convidar para {title}": "Invite to {title}",
+  "Buscar amigos ou digitar um email…": "Search friends or type an email…",
+  Adicionar: "Add",
+  "Convidando…": "Inviting…",
+  "Convidado ✓": "Invited ✓",
+  "na sala": "in room",
+  "Tentar de novo: {email}": "Try again: {email}",
+  "Copiar uma mensagem de WhatsApp com o link":
+    "Copy a WhatsApp message with the link",
+  'Nenhum amigo encontrado para "{q}". Digite um email completo para convidar alguém novo.':
+    'No friends match "{q}". Type a full email to invite someone new.',
+  "Digite um email completo para convidar alguém.":
+    "Type a full email to invite someone.",
+  "Convidar {email}": "Invite {email}",
   "sua tarefa esperando OK": "your task waiting for OK",
   "{who} pediu": "{who} asked",
   "{n} esperando você": "{n} waiting on you",

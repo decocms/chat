@@ -17,6 +17,7 @@
     onOpenChange,
     initialFocus,
     returnFocus,
+    class: className,
   }: {
     open?: boolean;
     title: string;
@@ -29,6 +30,8 @@
     onOpenChange?: (open: boolean) => void;
     initialFocus?: () => HTMLElement | null;
     returnFocus?: () => HTMLElement | null;
+    /** Extra classes for the content box, e.g. a fixed height. */
+    class?: string;
   } = $props();
   $effect(() => {
     if (open)
@@ -76,6 +79,7 @@
           : sheet
             ? "tw:inset-x-0 tw:bottom-0 tw:rounded-t-surface tw:sm:inset-y-0 tw:sm:left-auto tw:sm:right-0 tw:sm:max-h-none tw:sm:w-96 tw:sm:rounded-none"
             : "tw:left-1/2 tw:top-1/2 tw:w-[calc(100%-2rem)] tw:max-w-lg tw:-translate-x-1/2 tw:-translate-y-1/2 tw:rounded-surface",
+        className,
       )}
     >
       <div class="tw:flex tw:items-start tw:gap-3">

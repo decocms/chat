@@ -253,10 +253,13 @@ function render(
     },
   };
 }
-/** The People header's "+" opens the invite area; open it unless it already is. */
+/** The People header's "+" opens the invite modal (portaled on document.body); open it unless it already is. */
 function openInvite(target: ParentNode) {
-  if (target.querySelector("#invite")) return;
-  target.querySelector<HTMLButtonElement>("[data-invite-toggle]")!.click();
+  const toggle = target.querySelector<HTMLButtonElement>(
+    "[data-invite-toggle]",
+  )!;
+  if (toggle.getAttribute("aria-expanded") === "true") return;
+  toggle.click();
   flushSync();
 }
 
@@ -3547,7 +3550,7 @@ describe("stable native sidebar integration", () => {
     const row = target.querySelector("[data-epic-thread=e]");
     const create = target.querySelector<HTMLInputElement>("#newEpic input")!;
     openInvite(target);
-    const invite = target.querySelector<HTMLInputElement>("#invite input")!;
+    const invite = document.querySelector<HTMLInputElement>("#invite input")!;
     create.value = "Draft epic title";
     invite.value = "invitee@test";
     for (let i = 0; i < 6; i++) {
@@ -4196,20 +4199,33 @@ describe("native People interactions", () => {
     }
     expect(document.querySelector('[role="alertdialog"]') === null).toBe(true);
   }
-  function submitPeopleInvite(target: HTMLElement, email: string) {
-    openInvite(target);
-    const input = target.querySelector<HTMLInputElement>(
-      '#invite input[type="email"]',
+  function inviteSearch() {
+    return document.querySelector<HTMLInputElement>(
+      '#invite input[type="search"]',
     )!;
-    input.value = email;
+  }
+  function typeInvite(text: string) {
+    const input = inviteSearch();
+    input.value = text;
     input.dispatchEvent(new window.Event("input", { bubbles: true }));
     flushSync();
-    target
-      .querySelector<HTMLFormElement>("#invite")!
-      .dispatchEvent(
-        new window.Event("submit", { bubbles: true, cancelable: true }),
-      );
+    return input;
+  }
+  function pressInvite(key: string) {
+    inviteSearch().dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
     flushSync();
+  }
+  /** Type an email in the invite modal's search and press Enter. */
+  function submitPeopleInvite(target: HTMLElement, email: string) {
+    openInvite(target);
+    const input = typeInvite(email);
+    pressInvite("Enter");
     return input;
   }
   test("owner and member see the authorized removal controls and plain-text access requests", () => {
@@ -4333,8 +4349,8 @@ describe("native People interactions", () => {
     await tick();
     flushSync();
     expect(calls).toEqual(["invite:new@test.com"]);
-    expect(rendered.target.textContent).toContain("Não consegui copiar.");
-    expect(rendered.target.textContent).not.toContain("enviado ✓");
+    expect(document.body.textContent).toContain("Não consegui copiar.");
+    expect(document.body.textContent).not.toContain("enviado ✓");
     expect(
       rendered.target.querySelector('[data-person="new@test.com"]') === null,
     ).toBe(true);
@@ -4343,8 +4359,8 @@ describe("native People interactions", () => {
     await tick();
     flushSync();
     expect(input.value).toBe("");
-    expect(rendered.target.textContent).toContain("new@test.com · enviado ✓");
-    expect(rendered.target.textContent).toContain("Não consegui copiar.");
+    expect(document.body.textContent).toContain("new@test.com · enviado ✓");
+    expect(document.body.textContent).toContain("Não consegui copiar.");
     expect(
       rendered.target.querySelector('[data-person="new@test.com"]') === null,
     ).toBe(true);
@@ -4356,9 +4372,7 @@ describe("native People interactions", () => {
     expect(
       rendered.target.querySelector('[data-person="new@test.com"]') !== null,
     ).toBe(true);
-    expect(rendered.target.textContent).not.toContain(
-      "Aguardando confirmação…",
-    );
+    expect(document.body.textContent).not.toContain("Aguardando confirmação…");
   });
   test("copied invite text does not report backend success when invitation is rejected", async () => {
     const copied: string[] = [];
@@ -4376,13 +4390,219 @@ describe("native People interactions", () => {
     expect(copied).toHaveLength(1);
     expect(copied[0]).toContain("/b/r");
     expect(copied[0]).toContain("new@test.com");
-    expect(rendered.target.textContent).toContain("Copiei a mensagem");
-    expect(rendered.target.textContent).toContain("invitation rejected");
-    expect(rendered.target.textContent).not.toContain("enviado ✓");
+    expect(document.body.textContent).toContain("invitation rejected");
+    expect(document.body.textContent).not.toContain("enviado ✓");
     expect(input.value).toBe("new@test.com");
     expect(
       rendered.target.querySelector('[data-person="new@test.com"]') === null,
     ).toBe(true);
+    // The error sits on the row, once; the modal does not also say "copied" under it.
+    const alerts = document.querySelectorAll('[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(
+      alerts[0].closest('[data-invite-email="new@test.com"]') !== null,
+    ).toBe(true);
+    expect(document.querySelector("[data-invite-clipboard]") === null).toBe(
+      true,
+    );
+    // While the modal is open the panel renders no outcome lines of its own.
+    expect(
+      rendered.target.querySelector('[role="alert"], [role="status"]') === null,
+    ).toBe(true);
+    // Closing hands the outcomes back to the panel, and focus back to "+".
+    document
+      .querySelector<HTMLButtonElement>(
+        '[role="dialog"] button[aria-label="Fechar"]',
+      )!
+      .click();
+    await tick();
+    flushSync();
+    for (
+      let frame = 0;
+      frame < 10 && document.querySelector('[role="dialog"]');
+      frame++
+    )
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+    flushSync();
+    expect(document.querySelector('[role="dialog"]') === null).toBe(true);
+    expect(
+      document.activeElement ===
+        rendered.target.querySelector("[data-invite-toggle]"),
+    ).toBe(true);
+    expect(rendered.target.textContent).toContain("Copiei a mensagem");
+    expect(rendered.target.textContent).toContain("invitation rejected");
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+  });
+  test("a failed invite row offers Try again, which retries the same invite", async () => {
+    let fail = true;
+    const calls: string[] = [];
+    const rendered = people(personRoom(), {
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+        if (fail) throw new Error("forbidden");
+      },
+    });
+    openInvite(rendered.target);
+    document
+      .querySelector<HTMLElement>('#invite [data-add="friend@test.com"]')!
+      .click();
+    flushSync();
+    await tick();
+    flushSync();
+    const retry = document.querySelector<HTMLElement>(
+      '#invite [data-add="friend@test.com"]',
+    )!;
+    expect(retry.textContent).toBe("Tentar de novo");
+    expect(
+      document
+        .querySelector('#invite [data-friend="friend@test.com"] [role="alert"]')
+        ?.textContent?.trim(),
+    ).toBe("forbidden");
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    fail = false;
+    retry.click();
+    flushSync();
+    await tick();
+    flushSync();
+    expect(calls).toEqual(["invite:friend@test.com", "invite:friend@test.com"]);
+    expect(
+      document.querySelector(
+        '#invite [data-friend="friend@test.com"] [data-invite-state="invited"]',
+      ) !== null,
+    ).toBe(true);
+    expect(document.querySelector('[role="alert"]') === null).toBe(true);
+  });
+  test("typing a member's email shows them as in the room, with nothing to invite", () => {
+    const calls: string[] = [];
+    const rendered = people(personRoom(), {
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+      },
+    });
+    openInvite(rendered.target);
+    typeInvite("member@test.com");
+    const row = document.querySelector<HTMLElement>(
+      '#invite [data-invite-member="member@test.com"]',
+    )!;
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(row.querySelector('[data-invite-state="member"]')?.textContent).toBe(
+      "na sala",
+    );
+    expect(row.querySelector("[data-add]") === null).toBe(true);
+    expect(document.querySelector("#invite [data-invite-email]") === null).toBe(
+      true,
+    );
+    expect(document.body.textContent).not.toContain("Convidar member@test.com");
+    expect(inviteSearch().hasAttribute("aria-activedescendant")).toBe(false);
+    pressInvite("Enter");
+    expect(calls).toEqual([]);
+    // A pending invitee reads as invited.
+    typeInvite("pending@test.com");
+    expect(
+      document.querySelector(
+        '#invite [data-invite-member="pending@test.com"] [data-invite-state="invited"]',
+      ) !== null,
+    ).toBe(true);
+  });
+  test("a friend whose invite was cancelled elsewhere can be invited again", async () => {
+    const calls: string[] = [];
+    const room = personRoom();
+    const rendered = people(room, {
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+      },
+    });
+    openInvite(rendered.target);
+    document
+      .querySelector<HTMLElement>('#invite [data-add="friend@test.com"]')!
+      .click();
+    flushSync();
+    await tick();
+    flushSync();
+    rendered.update({
+      ...room,
+      members: [...room.members, "friend@test.com"],
+      pending: [...room.pending!, "friend@test.com"],
+    });
+    expect(
+      document.querySelector(
+        '#invite [data-friend="friend@test.com"] [data-invite-state="invited"]',
+      ) !== null,
+    ).toBe(true);
+    // Another member cancels the invite: the friend is addable again.
+    rendered.update(room);
+    expect(
+      document.querySelector('#invite [data-add="friend@test.com"]') !== null,
+    ).toBe(true);
+    pressInvite("ArrowDown");
+    pressInvite("Enter");
+    expect(calls).toEqual(["invite:friend@test.com", "invite:friend@test.com"]);
+  });
+  test("clicking a friend row highlights it; only Add or Enter invites; IME Enter does not", () => {
+    const calls: string[] = [];
+    const rendered = people(friendsRoom(), {
+      friends: inviteFriends,
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+      },
+    });
+    openInvite(rendered.target);
+    const row = document.querySelector<HTMLElement>(
+      '#invite [data-friend="cecilia@deco.cx"]',
+    )!;
+    row.click();
+    flushSync();
+    expect(calls).toEqual([]);
+    expect(row.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement === inviteSearch()).toBe(true);
+    inviteSearch().dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key: "Enter",
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    flushSync();
+    expect(calls).toEqual([]);
+    pressInvite("Enter");
+    expect(calls).toEqual(["invite:cecilia@deco.cx"]);
+    // No nested buttons inside the listbox options.
+    expect(
+      document.querySelector('#invite [role="option"] button') === null,
+    ).toBe(true);
+  });
+  test("the modal shows only the latest sent line and a short Copied", async () => {
+    window.navigator.clipboard.writeText = async () => {};
+    const rendered = people(friendsRoom(), {
+      friends: inviteFriends,
+      request: async () => {},
+    });
+    openInvite(rendered.target);
+    for (const email of ["a@test.com", "b@test.com"]) {
+      typeInvite(email);
+      pressInvite("Enter");
+      await tick();
+      flushSync();
+    }
+    document
+      .querySelector<HTMLElement>('#invite [data-add="joao@test.com"]')!
+      .click();
+    flushSync();
+    await tick();
+    flushSync();
+    const modal = document.querySelector("#invite")!.textContent!;
+    expect(modal).toContain("b@test.com · enviado ✓");
+    expect(modal).not.toContain("a@test.com · enviado ✓");
+    // The friend's row says it; the footer does not repeat it.
+    expect(modal).not.toContain("joao@test.com · enviado ✓");
+    expect(
+      document
+        .querySelector('#invite [data-invite-clipboard="copied"]')
+        ?.textContent?.trim(),
+    ).toBe("Copiado ✓");
   });
   test("keyed room replacement disposes old invitation and clipboard callbacks and detached actions", async () => {
     const room = personRoom();
@@ -4397,7 +4617,7 @@ describe("native People interactions", () => {
       },
     });
     openInvite(rendered.target);
-    const staleFriend = rendered.target.querySelector<HTMLButtonElement>(
+    const staleFriend = document.querySelector<HTMLButtonElement>(
       '[data-add="friend@test.com"]',
     )!;
     submitPeopleInvite(rendered.target, "old@test.com");
@@ -4408,8 +4628,12 @@ describe("native People interactions", () => {
       book: { ...room.book, title: "Next room" },
     });
     openInvite(rendered.target);
+    // Taken before typing: the search below filters the friend out of the list.
+    const staleCurrentFriend = document.querySelector<HTMLButtonElement>(
+      '[data-add="friend@test.com"]',
+    )!;
     const currentInput =
-      rendered.target.querySelector<HTMLInputElement>("#invite input")!;
+      document.querySelector<HTMLInputElement>("#invite input")!;
     currentInput.value = "fresh@test.com";
     currentInput.dispatchEvent(new window.Event("input", { bubbles: true }));
     flushSync();
@@ -4420,15 +4644,183 @@ describe("native People interactions", () => {
     flushSync();
     expect(calls).toEqual(["invite:old@test.com"]);
     expect(currentInput.value).toBe("fresh@test.com");
-    expect(rendered.target.textContent).not.toContain("old@test.com");
-    expect(rendered.target.textContent).not.toContain("Não consegui copiar.");
-    expect(rendered.target.textContent).not.toContain("enviado ✓");
-    const staleCurrentFriend = rendered.target.querySelector<HTMLButtonElement>(
-      '[data-add="friend@test.com"]',
-    )!;
+    expect(document.body.textContent).not.toContain("old@test.com");
+    expect(document.body.textContent).not.toContain("Não consegui copiar.");
+    expect(document.body.textContent).not.toContain("enviado ✓");
     rendered.destroy();
     staleCurrentFriend.click();
     expect(calls).toEqual(["invite:old@test.com"]);
+  });
+  const friendsRoom = (): Room => ({
+    ...personRoom(),
+    names: {
+      "joao@test.com": "João Silva",
+      "cecilia@deco.cx": "Cecilia",
+    },
+  });
+  const inviteFriends = ["joao@test.com", "cecilia@deco.cx", "friend@test.com"];
+  const listedFriends = () =>
+    [...document.querySelectorAll<HTMLElement>("#invite [data-friend]")].map(
+      (row) => row.dataset.friend,
+    );
+  test("invite modal search filters friends by name and email, ignoring case and accents", async () => {
+    const rendered = people(friendsRoom(), { friends: inviteFriends });
+    openInvite(rendered.target);
+    await tick();
+    expect(document.activeElement === inviteSearch()).toBe(true);
+    expect(listedFriends()).toEqual(inviteFriends);
+    expect(document.body.textContent).toContain("Seus amigos · 3");
+    typeInvite("JOAO");
+    expect(listedFriends()).toEqual(["joao@test.com"]);
+    expect(
+      document.querySelector('#invite [data-friend="joao@test.com"] mark')
+        ?.textContent,
+    ).toBe("João");
+    typeInvite("deco");
+    expect(listedFriends()).toEqual(["cecilia@deco.cx"]);
+    expect(
+      document.querySelector('#invite [data-friend="cecilia@deco.cx"] mark')
+        ?.textContent,
+    ).toBe("deco");
+    typeInvite("zzz");
+    expect(listedFriends()).toEqual([]);
+    expect(document.body.textContent).toContain(
+      'Nenhum amigo encontrado para "zzz". Digite um email completo para convidar alguém novo.',
+    );
+  });
+  test("a full email that is not a listed friend gets a highlighted Invite row", () => {
+    const rendered = people(friendsRoom(), { friends: inviteFriends });
+    openInvite(rendered.target);
+    typeInvite("New@Test.com");
+    const row = document.querySelector<HTMLElement>(
+      '#invite [data-invite-email="new@test.com"]',
+    )!;
+    expect(row.textContent).toContain("Convidar new@test.com");
+    expect(row.getAttribute("aria-selected")).toBe("true");
+    expect(inviteSearch().getAttribute("aria-activedescendant")).toBe(row.id);
+    typeInvite("friend@test.com");
+    expect(document.querySelector("#invite [data-invite-email]") === null).toBe(
+      true,
+    );
+    expect(listedFriends()).toEqual(["friend@test.com"]);
+  });
+  test("Add invites a friend in one click, then clears the search and keeps the modal open", async () => {
+    const reply = pendingPeopleRequest();
+    const calls: string[] = [];
+    const copied: string[] = [];
+    window.navigator.clipboard.writeText = async (text) => {
+      copied.push(text);
+    };
+    const rendered = people(friendsRoom(), {
+      friends: inviteFriends,
+      request: (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+        return reply.promise;
+      },
+    });
+    openInvite(rendered.target);
+    typeInvite("cec");
+    document
+      .querySelector<HTMLButtonElement>('#invite [data-add="cecilia@deco.cx"]')!
+      .click();
+    flushSync();
+    expect(calls).toEqual(["invite:cecilia@deco.cx"]);
+    expect(copied).toHaveLength(1);
+    expect(copied[0]).toContain("cecilia@deco.cx");
+    expect(
+      document.querySelector(
+        '#invite [data-friend="cecilia@deco.cx"] [data-invite-state="pending"]',
+      )?.textContent,
+    ).toBe("Convidando…");
+    reply.resolve();
+    await tick();
+    flushSync();
+    expect(inviteSearch().value).toBe("");
+    expect(document.activeElement === inviteSearch()).toBe(true);
+    expect(
+      document.querySelector(
+        '#invite [data-friend="cecilia@deco.cx"] [data-invite-state="invited"]',
+      )?.textContent,
+    ).toBe("Convidado ✓");
+    // Once canonical, the friend is a pending member: still shown as invited in the modal.
+    const room = friendsRoom();
+    rendered.update({
+      ...room,
+      members: [...room.members, "cecilia@deco.cx"],
+      pending: [...room.pending!, "cecilia@deco.cx"],
+    });
+    expect(
+      document.querySelector(
+        '#invite [data-friend="cecilia@deco.cx"] [data-invite-state="invited"]',
+      ) !== null,
+    ).toBe(true);
+    expect(
+      rendered.target.querySelector('[data-person="cecilia@deco.cx"]') !== null,
+    ).toBe(true);
+  });
+  test("arrow keys move the highlighted friend and Enter invites it", () => {
+    const calls: string[] = [];
+    const rendered = people(friendsRoom(), {
+      friends: inviteFriends,
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+      },
+    });
+    openInvite(rendered.target);
+    pressInvite("ArrowDown");
+    pressInvite("ArrowDown");
+    const selected = () =>
+      document.querySelector<HTMLElement>('#invite [aria-selected="true"]')
+        ?.dataset.friend;
+    expect(selected()).toBe("cecilia@deco.cx");
+    pressInvite("ArrowUp");
+    pressInvite("ArrowUp");
+    expect(selected()).toBe("friend@test.com");
+    pressInvite("Enter");
+    expect(calls).toEqual(["invite:friend@test.com"]);
+  });
+  test("with the WhatsApp copy unchecked an invitation writes nothing to the clipboard", () => {
+    const copied: string[] = [];
+    const calls: string[] = [];
+    window.navigator.clipboard.writeText = async (text) => {
+      copied.push(text);
+    };
+    const rendered = people(friendsRoom(), {
+      friends: inviteFriends,
+      request: async (action: PeopleAction, email: string) => {
+        calls.push(`${action}:${email}`);
+      },
+    });
+    openInvite(rendered.target);
+    const box = document.querySelector<HTMLInputElement>(
+      "#invite [data-invite-copy]",
+    )!;
+    expect(box.checked).toBe(true);
+    box.click();
+    flushSync();
+    expect(box.checked).toBe(false);
+    submitPeopleInvite(rendered.target, "new@test.com");
+    expect(calls).toEqual(["invite:new@test.com"]);
+    expect(copied).toEqual([]);
+  });
+  test("the WhatsApp copy choice is remembered per browser", () => {
+    const first = people(friendsRoom(), { friends: inviteFriends });
+    openInvite(first.target);
+    document
+      .querySelector<HTMLInputElement>("#invite [data-invite-copy]")!
+      .click();
+    flushSync();
+    expect(window.localStorage.getItem("vb.inviteCopy")).toBe("0");
+    first.destroy();
+    const second = people(friendsRoom(), { friends: inviteFriends });
+    openInvite(second.target);
+    const box = document.querySelector<HTMLInputElement>(
+      "#invite [data-invite-copy]",
+    )!;
+    expect(box.checked).toBe(false);
+    box.click();
+    flushSync();
+    expect(window.localStorage.getItem("vb.inviteCopy")).toBe("1");
   });
 });
 
