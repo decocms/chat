@@ -3135,6 +3135,58 @@ describe("stable native sidebar integration", () => {
     const count = title!.querySelector<HTMLElement>(":scope > span:last-child");
     expect(count!.classList.contains("tw:text-muted-foreground")).toBe(true);
   });
+  test("the Inbox is an icon button with a tooltip and the room's wait badge, beside the pencil", async () => {
+    const room = fixture();
+    const opened: Element[] = [];
+    const h = sidebar(room, {
+      thread: "main",
+      oninbox: (trigger) => {
+        if (trigger) opened.push(trigger);
+      },
+      vb: {
+        ...vb,
+        epicBusy: () => null,
+        waitsIn: () => [],
+        waitsInRoom: () => [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }],
+      },
+    });
+    const inbox = h.target.querySelector<HTMLButtonElement>(
+      "[data-room-inbox-button]",
+    );
+    expect(inbox).not.toBeNull();
+    expect(inbox!.getAttribute("aria-label")).toBe("Caixa de entrada");
+    expect(inbox!.getAttribute("title")).toBe(
+      "Caixa de entrada: o que espera por você",
+    );
+    expect(inbox!.textContent?.trim()).toBe("2");
+    expect(
+      inbox!.querySelector('[data-wait-kind="asks"]')?.textContent?.trim(),
+    ).toBe("2");
+    const row = inbox!.parentElement!;
+    const labels = [...row.querySelectorAll("button")].map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual(["Caixa de entrada", "Renomear"]);
+    expect(
+      [...h.target.querySelectorAll("button")].filter(
+        (button) => button.textContent?.trim() === "Caixa de entrada",
+      ),
+    ).toHaveLength(0);
+    inbox!.click();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toBe(inbox!);
+    h.view.update({ ...h.props, inboxOpen: true });
+    await tick();
+    flushSync();
+    expect(inbox!.getAttribute("aria-current")).toBe("page");
+  });
+  test("the Inbox button shows no badge when nothing waits in the room", () => {
+    const room = fixture();
+    const h = sidebar(room, { thread: "main", oninbox: () => {} });
+    const inbox = h.target.querySelector("[data-room-inbox-button]");
+    expect(inbox).not.toBeNull();
+    expect(inbox!.querySelector("[data-wait-kind]")).toBeNull();
+  });
   test("epic and rail indicators count asks only and keep canonical task-only waits as a dot", async () => {
     const room = fixture();
     const base = {
