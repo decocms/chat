@@ -798,6 +798,187 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
+  test("room covers and initials match vanilla's coverColor() and initials()", async () => {
+    const { ROOM_COVERS, roomCoverColor, roomCoverIndex, roomInitials } =
+      await import("../svelte/features/home/model");
+    // Vanilla public/app.html, verbatim.
+    const COVERS = [
+      "oklch(0.5 0.17 248)",
+      "oklch(0.58 0.17 35)",
+      "oklch(0.52 0.11 175)",
+      "oklch(0.47 0.15 315)",
+      "oklch(0.6 0.13 75)",
+      "oklch(0.45 0.1 145)",
+      "oklch(0.36 0.06 255)",
+      "oklch(0.55 0.16 10)",
+    ];
+    const coverColor = (t: string) =>
+      COVERS[
+        [...String(t)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) %
+          COVERS.length
+      ];
+    expect<string[]>([...ROOM_COVERS]).toEqual(COVERS);
+    const css = readFileSync("svelte/styles/tailwind.css", "utf8");
+    COVERS.forEach((color, index) => {
+      expect(css).toContain(`--vb-room-cover-${index}: ${color};`);
+      expect(css).toContain(
+        `--color-room-cover-${index}: var(--vb-room-cover-${index});`,
+      );
+    });
+    for (const title of [
+      "vibebook",
+      "Room",
+      "Casa da Praia",
+      "Design System",
+      "ação rápida",
+      "🚀 Launch",
+      "a much longer room title that overflows the 32-bit hash many times",
+    ]) {
+      expect<string>(roomCoverColor(title), title).toBe(coverColor(title));
+      expect<string>(ROOM_COVERS[roomCoverIndex(title)], title).toBe(
+        coverColor(title),
+      );
+    }
+    // Results of running vanilla's own function in bun.
+    expect(roomCoverColor("vibebook")).toBe("oklch(0.36 0.06 255)");
+    expect(roomCoverColor("Casa da Praia")).toBe("oklch(0.58 0.17 35)");
+    expect(roomCoverColor("ação rápida")).toBe("oklch(0.6 0.13 75)");
+    for (const [title, expected] of [
+      ["Casa da Praia", "CP"],
+      ["Plano de Marketing 2026", "PM"],
+      ["the of", "TO"],
+      ["Ética & Ação", "ÉA"],
+      ["dev-tools/v2", "DT"],
+      ["éclair", "É"],
+      ["!!!", "◆"],
+      ["", "◆"],
+      ["  ", "◆"],
+    ] as const)
+      expect(roomInitials(title), title).toBe(expected);
+    expect(roomInitials(null)).toBe("◆");
+  });
+  test("a rail room without an icon gets its vanilla cover color and white initials; with an icon it is unchanged", async () => {
+    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
+      .default;
+    const { roomCoverIndex } = await import("../svelte/features/home/model");
+    const cases = [
+      { title: "Casa da Praia", icon: undefined, tint: "purple" },
+      { title: "Design System", icon: undefined, tint: null },
+      { title: "Casa da Praia", icon: 3, tint: "purple" },
+    ];
+    for (const { title, icon, tint } of cases) {
+      const target = document.createElement("div");
+      document.body.append(target);
+      const instance = flushSync(() =>
+        mount(RoomTile, {
+          target,
+          props: {
+            room: {
+              id: "r1",
+              title,
+              icon,
+              tint,
+              last_human_id: 0,
+              last_agent_id: 0,
+              read_id: 0,
+            } as never,
+            lang: "en",
+            now: 0,
+            compact: true,
+            onnavigate: () => {},
+          },
+        }),
+      );
+      try {
+        const mark = target.querySelector<HTMLElement>(
+          "a > span.tw\\:size-10",
+        )!;
+        const label = `${title} icon=${icon ?? "none"}`;
+        if (icon) {
+          expect(mark.querySelector("img"), label).not.toBeNull();
+          expect(mark.hasAttribute("data-room-cover"), label).toBe(false);
+          expect(mark.className, label).toContain("tw:bg-secondary");
+          expect(mark.className, label).not.toContain("room-cover");
+        } else {
+          const index = roomCoverIndex(title);
+          expect(mark.getAttribute("data-room-cover"), label).toBe(
+            String(index),
+          );
+          expect(mark.className, label).toContain(`tw:bg-room-cover-${index}`);
+          expect(mark.className, label).toContain(
+            "tw:text-room-cover-foreground",
+          );
+          // The tint colors the group like vanilla, never the tile.
+          expect(mark.className, label).not.toContain("tw:bg-secondary");
+          expect(mark.className, label).not.toContain("tw:bg-muted");
+          expect(mark.textContent?.trim(), label).toBe(
+            title === "Casa da Praia" ? "CP" : "DS",
+          );
+        }
+        expect(target.querySelector("[data-rail-pill]"), label).not.toBeNull();
+        // Like vanilla .sw-group[data-tint]: the tint is a backdrop around the tile.
+        const link = target.querySelector<HTMLElement>("a")!;
+        if (tint) {
+          expect(link.getAttribute("data-room-tint"), label).toBe(tint);
+          expect(link.className, label).toContain(`tw:bg-room-tint-${tint}/22`);
+        } else {
+          expect(link.hasAttribute("data-room-tint"), label).toBe(false);
+          expect(link.className, label).not.toContain("room-tint");
+        }
+      } finally {
+        await unmount(instance);
+        target.remove();
+      }
+    }
+  }, 30_000);
+  test("a home-grid room without an icon gets its cover color and its badges keep their own background", async () => {
+    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
+      .default;
+    const { roomCoverIndex } = await import("../svelte/features/home/model");
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(RoomTile, {
+        target,
+        props: {
+          room: {
+            id: "r1",
+            title: "Design System",
+            tint: "purple",
+            busy_until: 10,
+            sandboxes_running: 1,
+            last_human_id: 2,
+            last_agent_id: 0,
+            read_id: 0,
+          } as never,
+          lang: "en",
+          now: 0,
+          onnavigate: () => {},
+        },
+      }),
+    );
+    try {
+      const mark = target.querySelector<HTMLElement>("[data-room-cover]")!;
+      expect(mark.getAttribute("data-room-cover")).toBe(
+        String(roomCoverIndex("Design System")),
+      );
+      expect(mark.className).toContain(
+        `tw:bg-room-cover-${roomCoverIndex("Design System")}`,
+      );
+      expect(target.querySelector("a")!.hasAttribute("data-room-tint")).toBe(
+        false,
+      );
+      const badges = [...mark.querySelectorAll<HTMLElement>("[role=img]")];
+      expect(badges).toHaveLength(3);
+      for (const badge of badges)
+        expect(badge.className, badge.textContent ?? "").toContain(
+          "tw:bg-background",
+        );
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  }, 30_000);
   test("native decisions render escaped canonical rows in reverse order and preserve empty state", () => {
     const room = fixture();
     room.decisions = [

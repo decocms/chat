@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { roomInitials, tintClasses } from "../home/model";
+  import { roomCover, roomInitials, tintClasses } from "../home/model";
   let {
     title,
     src,
@@ -26,7 +26,8 @@
   aria-hidden="true"
   class={[
     "tw:inline-grid tw:size-8 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-control tw:border tw:border-border tw:font-sans tw:text-xs tw:font-semibold tw:tracking-normal",
-    color,
+    // Like vanilla's room mark: initials sit on the title's cover color.
+    src && !failed ? color : roomCover(title),
   ]}
 >
   {#if src && !failed}<img
