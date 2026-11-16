@@ -33,6 +33,7 @@
     pins,
     onopenpinfile,
     onopenpinapp,
+    activePinApp,
     collapsed = false,
     roomIcon,
     roomTint,
@@ -283,6 +284,7 @@
       {request}
       onopenfile={onopenpinfile}
       onopenapp={onopenpinapp}
+      activeApp={activePinApp}
       t={vb.t}
     />
     {#snippet agents(email: string)}<AgentPresenceRows

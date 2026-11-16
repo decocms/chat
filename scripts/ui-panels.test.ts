@@ -3907,6 +3907,117 @@ describe("stable native sidebar integration", () => {
     expect(rendered.events).toEqual([]);
   }, 30_000);
 
+  test("pinned rows show their kind, what a click does and a hover/focus unpin", () => {
+    const file = {
+      id: "f",
+      name: "roadmap.pdf",
+      type: "application/pdf",
+      size: 2_100_000,
+      author: "me@test",
+      ts: 1,
+    };
+    const room = {
+      ...fixture(),
+      files: [file],
+      filesAll: true,
+      pins: [
+        { id: "site", kind: "link", ref: "https://vibebook.dev/" },
+        {
+          id: "repo",
+          kind: "link",
+          ref: "https://github.com/vibegui/vibebook",
+          title: "Repo",
+        },
+        {
+          id: "app",
+          kind: "app",
+          ref: "123456abcdef/router",
+          title: "Roteador A/B",
+        },
+        { id: "doc", kind: "file", ref: "f" },
+      ],
+    };
+    const open = writable<{ connection: string; tool: string } | null>(null);
+    const apps: { connectionId: string; tool: string }[] = [];
+    const rendered = sidebar(room, {
+      activePinApp: open,
+      onopenpinapp: (app) => apps.push(app),
+    });
+    const row = (id: string) =>
+      rendered.target.querySelector<HTMLLIElement>(`[data-pin-id=${id}]`)!;
+
+    const site = row("site");
+    expect(site.dataset.pinKind).toBe("link");
+    expect(site.dataset.pinOpens).toBe("tab");
+    expect(
+      site.querySelector("[data-pin-icon]")?.getAttribute("data-pin-icon"),
+    ).toBe("globe");
+    const link = site.querySelector("a")!;
+    expect(link.getAttribute("href")).toBe("https://vibebook.dev/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.textContent).toContain("vibebook.dev");
+    expect(link.textContent).toContain("abre em nova aba");
+    // Only local SVG; no favicon or other third-party request.
+    expect(site.querySelector("img")).toBeNull();
+
+    const repo = row("repo");
+    expect(
+      repo.querySelector("[data-pin-icon]")?.getAttribute("data-pin-icon"),
+    ).toBe("github");
+    expect(repo.textContent).toContain("github.com/vibegui/vibebook");
+    expect(repo.dataset.pinOpens).toBe("tab");
+
+    const app = row("app");
+    expect(app.dataset.pinKind).toBe("app");
+    expect(app.dataset.pinOpens).toBe("inline");
+    expect(app.querySelector("a")).toBeNull();
+    expect(app.querySelector("[data-pin-icon=tile]")?.textContent).toBe("RA");
+    const appButton = app.querySelector<HTMLButtonElement>("button")!;
+    expect(appButton.textContent).toContain("Roteador A/B");
+    expect(appButton.textContent).toContain("App");
+    expect(appButton.hasAttribute("aria-current")).toBe(false);
+    expect(app.dataset.selected).toBeUndefined();
+    appButton.click();
+    expect(apps).toEqual([{ connectionId: "123456abcdef", tool: "router" }]);
+
+    const doc = row("doc");
+    expect(doc.dataset.pinKind).toBe("file");
+    expect(doc.dataset.pinOpens).toBe("inline");
+    expect(doc.querySelector("[data-pin-icon=file]")).not.toBeNull();
+    expect(doc.textContent).toContain("PDF · 2.1 MB");
+
+    for (const [id, name] of [
+      ["site", "vibebook.dev"],
+      ["repo", "Repo"],
+      ["app", "Roteador A/B"],
+      ["doc", "roadmap.pdf"],
+    ]) {
+      const unpin = row(id).querySelector<HTMLButtonElement>(
+        `button[aria-label="Desafixar ${name}"]`,
+      )!;
+      expect(unpin).not.toBeNull();
+      // Faded out until hover or focus within the row, never removed from the accessibility tree.
+      expect(unpin.getAttribute("aria-hidden")).toBeNull();
+      expect(unpin.tabIndex).not.toBe(-1);
+      expect(unpin.className).toContain("tw:opacity-0");
+      expect(unpin.className).toContain("tw:group-hover:opacity-100");
+      expect(unpin.className).toContain("tw:group-focus-within:opacity-100");
+    }
+
+    open.set({ connection: "123456abcdef", tool: "router" });
+    flushSync();
+    expect(app.dataset.selected).toBe("true");
+    expect(app.className).toContain("tw:bg-sidebar-accent");
+    expect(appButton.getAttribute("aria-current")).toBe("true");
+    open.set({ connection: "room", tool: "router" });
+    flushSync();
+    expect(app.dataset.selected).toBeUndefined();
+    open.set(null);
+    flushSync();
+    expect(app.className).not.toContain("tw:bg-sidebar-accent");
+  }, 30_000);
+
   test("partial pinned-file metadata loads once and opens the current file after canonical resolution", () => {
     const newest = {
       id: "new",
