@@ -368,7 +368,8 @@ export function createRoomGeometry(options: {
       !current() ||
       !sheet ||
       cells.root.ownerDocument.querySelector(
-        "dialog[open], [data-dialog-content], [data-alert-dialog-content]",
+        // An open context menu (e.g. a pinned row's) owns Escape: it closes the menu, not the sheet.
+        "dialog[open], [data-dialog-content], [data-alert-dialog-content], [data-context-menu-content]",
       )
     )
       return;

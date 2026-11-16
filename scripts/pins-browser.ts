@@ -290,6 +290,16 @@ try {
     ).length;
   const pins = page.locator("[data-native-pins]");
   const row = (pinID: string) => pins.locator(`[data-pin-id="${pinID}"]`);
+  // Unpin lives in the row's context menu (right-click, long press or Shift+F10).
+  const unpin = async (pinID: string) => {
+    await row(pinID)
+      .locator("[data-context-menu-trigger]")
+      .click({ button: "right" });
+    await page
+      .locator(`[data-pin-menu="${pinID}"]`)
+      .getByRole("menuitem", { name: "Unpin", exact: true })
+      .click();
+  };
   const show = async () => {
     await openNativeSidebar(page);
     await expect(pins).toBeVisible();
@@ -415,12 +425,7 @@ try {
   );
   holdPins = true;
   const deleteBaseline = count("pin.del", "id", link.id);
-  await row(link.id)
-    .getByRole("button", {
-      name: "Unpin Edited while awaiting confirmation",
-      exact: true,
-    })
-    .click();
+  await unpin(link.id);
   await expect.poll(() => heldPins.length).toBeGreaterThan(0);
   await expect(row(link.id)).toHaveCount(1);
   assert.equal(count("pin.del", "id", link.id), deleteBaseline + 1);
@@ -503,9 +508,7 @@ try {
   );
   await expect(page.locator(".connFrame")).toHaveCount(0);
   await show();
-  await row(appPin.id)
-    .getByRole("button", { name: "Unpin Pinned verification app", exact: true })
-    .click();
+  await unpin(appPin.id);
   await expect(row(appPin.id)).toHaveCount(0);
   result.app = {
     activatedThroughRealMCP: true,
@@ -614,7 +617,7 @@ try {
       const lastControl = pins
         .locator("[data-pin-id]")
         .last()
-        .getByRole("button", { name: /^(Unpin|Desafixar) / });
+        .locator("[data-context-menu-trigger]");
       await lastControl.scrollIntoViewIfNeeded();
       await expect(lastControl).toBeInViewport({ ratio: 0.95 });
       await lastControl.click({ trial: true });

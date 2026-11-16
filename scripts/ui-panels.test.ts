@@ -58,6 +58,7 @@ for (const key of [
   "Text",
   "Comment",
   "MutationObserver",
+  "DOMRect",
   "ResizeObserver",
   "Event",
   "MouseEvent",
@@ -3407,6 +3408,71 @@ describe("stable native sidebar integration", () => {
       },
     };
   }
+  /** Open a pin row's menu the way a right-click (or Shift+F10) does, and return its items. */
+  async function pinMenu(
+    rendered: ReturnType<typeof sidebar>,
+    id: string,
+    via: "pointer" | "keyboard" | "enter" = "pointer",
+  ) {
+    const trigger = rendered.target.querySelector<HTMLElement>(
+      `[data-pin-id="${id}"] [data-context-menu-trigger]`,
+    )!;
+    expect(trigger).not.toBeNull();
+    if (via !== "pointer") {
+      trigger.focus();
+      trigger.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: via === "enter" ? "Enter" : "F10",
+          shiftKey: via === "keyboard",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    } else
+      trigger.dispatchEvent(
+        new window.MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 20,
+          clientY: 20,
+        }),
+      );
+    for (let frame = 0; frame < 10; frame++) {
+      await tick();
+      flushSync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (window.document.querySelector(`[data-pin-menu="${id}"]`)) break;
+    }
+    const menu = window.document.querySelector<HTMLElement>(
+      `[data-pin-menu="${id}"]`,
+    )!;
+    expect(menu).not.toBeNull();
+    expect(menu.getAttribute("role")).toBe("menu");
+    const items = [
+      ...menu.querySelectorAll<HTMLElement>(
+        "[role=menuitem], [role=separator]",
+      ),
+    ];
+    return {
+      trigger,
+      menu,
+      items,
+      labels: items.map((item) =>
+        item.getAttribute("role") === "separator"
+          ? "---"
+          : item.textContent!.trim(),
+      ),
+      item: (label: string) =>
+        items.find((item) => item.textContent!.trim() === label)!,
+    };
+  }
+  async function settleMenu() {
+    for (let frame = 0; frame < 5; frame++) {
+      await tick();
+      flushSync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
   test("titled sidebar sections share one header with a heading, a count and a tooltip action", async () => {
     const room = fixture();
     room.pins = [
@@ -4023,15 +4089,23 @@ describe("stable native sidebar integration", () => {
       )?.value,
     ).toBe("Edited while waiting");
     expect(rendered.target.querySelectorAll("[data-pin-id]")).toHaveLength(1);
-    const remove = rendered.target.querySelector<HTMLButtonElement>(
-      '[data-native-pins] button[aria-label="Desafixar Example"]',
-    )!;
-    expect(remove.disabled).toBe(true); // The canonical row is not the correlated ACK.
+    let menu = await pinMenu(rendered, "p");
+    // The canonical row is not the correlated ACK.
+    expect(menu.item("Desafixar").hasAttribute("data-disabled")).toBe(true);
+    window.document.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    await settleMenu();
     await rendered.settle(0, { ok: true });
-    expect(remove.disabled).toBe(false);
     expect(title.value).toBe("Edited while waiting");
-    remove.click();
-    remove.click();
+    menu = await pinMenu(rendered, "p");
+    expect(menu.item("Desafixar").hasAttribute("data-disabled")).toBe(false);
+    menu.item("Desafixar").click();
+    await settleMenu();
+    // A second unpin while the first is pending is refused.
+    menu = await pinMenu(rendered, "p");
+    expect(menu.item("Desafixar").hasAttribute("data-disabled")).toBe(true);
+    menu.item("Desafixar").click();
     flushSync();
     expect(rendered.events.filter((event) => event.t === "pin.del")).toEqual([
       { t: "pin.del", id: "p" },
@@ -4195,7 +4269,7 @@ describe("stable native sidebar integration", () => {
     expect(rendered.target.querySelector("[data-native-pins] form")).toBeNull();
   }, 30_000);
 
-  test("native file/app pins open typed targets and disposed room actions stay inert", () => {
+  test("native file/app pins open typed targets and disposed room actions stay inert", async () => {
     const file = {
       id: "f",
       name: "report.pdf",
@@ -4232,22 +4306,44 @@ describe("stable native sidebar integration", () => {
       rendered.target.querySelector("[data-pin-id=missing]")?.textContent,
     ).toContain("Arquivo indisponível");
     expect(rendered.target.querySelector("[data-pin-id=missing] a")).toBeNull();
+    // A menu opened while the session was live outlives it: its unpin must stay inert.
+    const stale = await pinMenu(rendered, "missing");
     disposePinsSession(rendered.props.pins);
+    await settleMenu();
+    const staleUnpin = window.document.querySelector<HTMLElement>(
+      "[data-pin-menu=missing] [data-pin-unpin]",
+    );
+    expect(staleUnpin).toBe(stale.item("Desafixar"));
+    staleUnpin!.click();
+    flushSync();
+    window.document.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    await settleMenu();
+    expect(window.document.querySelector("[data-pin-menu=missing]")).toBeNull();
     rendered.target
       .querySelector<HTMLButtonElement>("[data-pin-id=file] button")!
       .click();
     rendered.target
       .querySelector<HTMLButtonElement>("[data-pin-id=app] button")!
       .click();
+    // And a closed session opens no new menu.
     rendered.target
-      .querySelector<HTMLButtonElement>("[data-pin-id=missing] button")!
-      .click();
+      .querySelector("[data-pin-id=missing] [data-context-menu-trigger]")!
+      .dispatchEvent(
+        new window.MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    await settleMenu();
+    expect(window.document.querySelector("[data-pin-menu=missing]")).toBeNull();
     expect(files).toHaveLength(1);
     expect(apps).toHaveLength(1);
     expect(rendered.events).toEqual([]);
   }, 30_000);
 
-  test("pinned rows show their kind, what a click does and a hover/focus unpin", () => {
+  test("pinned rows show their kind and what a click does, with no hover unpin button", () => {
     const file = {
       id: "f",
       name: "roadmap.pdf",
@@ -4327,27 +4423,16 @@ describe("stable native sidebar integration", () => {
     expect(doc.querySelector("[data-pin-icon=file]")).not.toBeNull();
     expect(doc.textContent).toContain("PDF · 2.1 MB");
 
-    for (const [id, name] of [
-      ["site", "vibebook.dev"],
-      ["repo", "Repo"],
-      ["app", "Roteador A/B"],
-      ["doc", "roadmap.pdf"],
-    ]) {
-      const unpin = row(id).querySelector<HTMLButtonElement>(
-        `button[aria-label="Desafixar ${name}"]`,
-      )!;
-      expect(unpin).not.toBeNull();
-      // Faded out until hover or focus within the row, never removed from the accessibility tree.
-      expect(unpin.getAttribute("aria-hidden")).toBeNull();
-      expect(unpin.tabIndex).not.toBe(-1);
-      expect(unpin.className).toContain("tw:opacity-0");
-      expect(unpin.className).toContain("tw:group-hover:opacity-100");
-      expect(unpin.className).toContain("tw:group-focus-within:opacity-100");
-      // Whenever the button shows, the label reserves its width so a long name truncates before it.
+    // No row reserves room for a hover button any more: names use the full width.
+    expect(
+      rendered.target.querySelector(
+        "[data-native-pins] li button[aria-label^=Desafixar]",
+      ),
+    ).toBeNull();
+    for (const id of ["site", "repo", "app", "doc"]) {
       const label = row(id).querySelector<HTMLElement>("[data-pin-text]")!;
-      expect(label.className).toContain("tw:group-hover:pr-7");
-      expect(label.className).toContain("tw:group-focus-within:pr-7");
-      expect(label.className).toContain("tw:[@media(hover:none)]:pr-7");
+      expect(label.className).not.toContain("pr-7");
+      expect(row(id).querySelectorAll("button, a")).toHaveLength(1);
     }
 
     open.set({ connection: "123456abcdef", tool: "router" });
@@ -4361,6 +4446,266 @@ describe("stable native sidebar integration", () => {
     open.set(null);
     flushSync();
     expect(app.className).not.toContain("tw:bg-sidebar-accent");
+  }, 30_000);
+
+  test("pin rows open a context menu per kind; Desafixar unpins, Copiar link copies, keyboard opens it", async () => {
+    const file = {
+      id: "f",
+      name: "roadmap.pdf",
+      type: "application/pdf",
+      size: 2_100,
+      author: "me@test",
+      ts: 1,
+    };
+    const room = {
+      ...fixture(),
+      files: [file],
+      filesAll: true,
+      pins: [
+        { id: "site", kind: "link", ref: "https://vibebook.dev/docs" },
+        { id: "app", kind: "app", ref: "123456abcdef/router", title: "Router" },
+        { id: "doc", kind: "file", ref: "f" },
+        { id: "gone", kind: "file", ref: "missing", title: "Gone" },
+      ],
+    };
+    const files: (typeof file)[] = [];
+    const apps: { connectionId: string; tool: string }[] = [];
+    const rendered = sidebar(room, {
+      onopenpinfile: (selected) => files.push(selected),
+      onopenpinapp: (app) => apps.push(app),
+    });
+    const copied: string[] = [];
+    window.navigator.clipboard.writeText = async (text) => {
+      copied.push(text);
+    };
+    const opened: unknown[][] = [];
+    const originalOpen = window.open;
+    window.open = ((...args: unknown[]) => {
+      opened.push(args);
+      return null;
+    }) as typeof window.open;
+    try {
+      let menu = await pinMenu(rendered, "site");
+      expect(menu.labels).toEqual([
+        "Abrir em nova aba",
+        "Copiar link",
+        "---",
+        "Desafixar",
+      ]);
+      expect(menu.item("Desafixar").className).toContain("tw:text-destructive");
+      menu.item("Copiar link").click();
+      await settleMenu();
+      expect(copied).toEqual(["https://vibebook.dev/docs"]);
+      expect(window.document.querySelector("[data-pin-menu=site]")).toBeNull();
+      const copyNote = () =>
+        rendered.target.querySelector<HTMLElement>("[data-pin-copy]");
+      expect(copyNote()?.getAttribute("role")).toBe("status");
+      expect(copyNote()?.textContent?.trim()).toBe("Link copiado");
+      // A blocked clipboard says so instead of failing silently.
+      const writeText = window.navigator.clipboard.writeText;
+      const execCommand = window.document.execCommand;
+      window.navigator.clipboard.writeText = async () => {
+        throw new Error("blocked");
+      };
+      window.document.execCommand = () => false;
+      try {
+        menu = await pinMenu(rendered, "site");
+        menu.item("Copiar link").click();
+        await settleMenu();
+        expect(copyNote()?.getAttribute("role")).toBe("alert");
+        expect(copyNote()?.textContent?.trim()).toBe(
+          "Não consegui copiar o link.",
+        );
+      } finally {
+        window.navigator.clipboard.writeText = writeText;
+        window.document.execCommand = execCommand;
+      }
+      // Every row points at its menu shortcut; the broken row is a menu button.
+      const hint = rendered.target.querySelector<HTMLElement>(
+        "[data-native-pins] .tw\\:sr-only[id]",
+      )!;
+      expect(hint.textContent).toBe("Shift+F10 abre mais ações");
+      for (const id of ["site", "app", "doc", "gone"])
+        expect(
+          rendered.target
+            .querySelector(`[data-pin-id=${id}] [data-context-menu-trigger]`)!
+            .getAttribute("aria-describedby"),
+        ).toBe(hint.id);
+      const goneRow = rendered.target.querySelector(
+        "[data-pin-id=gone] [data-context-menu-trigger]",
+      )!;
+      expect(goneRow.getAttribute("role")).toBe("button");
+      expect(goneRow.getAttribute("aria-haspopup")).toBe("menu");
+      expect(
+        rendered.target
+          .querySelector("[data-pin-id=site] a")!
+          .hasAttribute("title"),
+      ).toBe(false);
+
+      menu = await pinMenu(rendered, "site");
+      menu.item("Abrir em nova aba").click();
+      await settleMenu();
+      expect(opened).toEqual([
+        ["https://vibebook.dev/docs", "_blank", "noopener,noreferrer"],
+      ]);
+
+      // No standalone URL exists for an app or a download URL for a file in the room data: those items are omitted.
+      menu = await pinMenu(rendered, "app");
+      expect(menu.labels).toEqual(["Abrir", "---", "Desafixar"]);
+      menu.item("Abrir").click();
+      await settleMenu();
+      expect(apps).toEqual([{ connectionId: "123456abcdef", tool: "router" }]);
+
+      menu = await pinMenu(rendered, "doc");
+      expect(menu.labels).toEqual(["Abrir", "---", "Desafixar"]);
+      menu.item("Abrir").click();
+      await settleMenu();
+      expect(files).toEqual([file]);
+
+      menu = await pinMenu(rendered, "gone", "enter");
+      expect(menu.labels).toEqual(["Desafixar"]);
+      // The broken row is focusable, so the keyboard can reach its menu.
+      expect(menu.trigger.tabIndex).toBe(0);
+      window.document.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      await settleMenu();
+      expect(window.document.querySelector("[data-pin-menu=gone]")).toBeNull();
+
+      // A ~500ms touch long press opens the menu; the tap that ends it does not also open the pin.
+      const docRow = rendered.target.querySelector<HTMLElement>(
+        "[data-pin-id=doc] [data-context-menu-trigger]",
+      )!;
+      docRow.dispatchEvent(
+        new window.PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "touch",
+          clientX: 30,
+          clientY: 30,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await settleMenu();
+      expect(
+        window.document.querySelector("[data-pin-menu=doc]"),
+      ).not.toBeNull();
+      docRow.dispatchEvent(
+        new window.PointerEvent("pointerup", {
+          bubbles: true,
+          pointerType: "touch",
+        }),
+      );
+      docRow.dispatchEvent(
+        new window.MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+        }),
+      );
+      expect(files).toEqual([file]);
+      window.document.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      await settleMenu();
+      // Moving the finger (a scroll) cancels the long press.
+      docRow.dispatchEvent(
+        new window.PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "touch",
+          clientX: 30,
+          clientY: 30,
+        }),
+      );
+      docRow.dispatchEvent(
+        new window.PointerEvent("pointermove", {
+          bubbles: true,
+          pointerType: "touch",
+          clientX: 30,
+          clientY: 60,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await settleMenu();
+      expect(
+        window.document.querySelector("[data-pin-menu=doc][data-state=open]"),
+      ).toBeNull();
+
+      // Shift+F10 on the focused row opens the same menu with its first item focused.
+      menu = await pinMenu(rendered, "doc", "keyboard");
+      expect(menu.labels).toEqual(["Abrir", "---", "Desafixar"]);
+      expect(window.document.activeElement).toBe(menu.item("Abrir"));
+      menu.item("Desafixar").click();
+      await settleMenu();
+      expect(rendered.events.filter((event) => event.t === "pin.del")).toEqual([
+        { t: "pin.del", id: "doc" },
+      ]);
+      await rendered.settle(0, { ok: true });
+      // The row goes once the room drops the pin; focus moves to the row that took its place, not to <body>.
+      (window.document.activeElement as HTMLElement | null)?.blur();
+      rendered.view.update({
+        ...rendered.props,
+        room: {
+          ...room,
+          pins: room.pins.filter((pin) => pin.id !== "doc"),
+        },
+      });
+      await settleMenu();
+      expect(rendered.target.querySelector("[data-pin-id=doc]")).toBeNull();
+      expect(window.document.activeElement).toBe(
+        rendered.target.querySelector(
+          "[data-pin-id=gone] [data-context-menu-trigger]",
+        ),
+      );
+
+      // The ContextMenu key works too.
+      const site = rendered.target.querySelector<HTMLElement>(
+        "[data-pin-id=site] a",
+      )!;
+      site.focus();
+      site.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ContextMenu",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await settleMenu();
+      expect(
+        window.document.querySelector("[data-pin-menu=site]"),
+      ).not.toBeNull();
+      window.document.dispatchEvent(
+        new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      await settleMenu();
+      // A plain click still follows the link (not prevented) and opens no menu.
+      const plain = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        detail: 1,
+      });
+      let followed = false;
+      site.addEventListener(
+        "click",
+        (event) => {
+          // The row's own handlers ran first; happy-dom must not navigate.
+          followed = !event.defaultPrevented;
+          event.preventDefault();
+        },
+        { once: true },
+      );
+      site.dispatchEvent(plain);
+      expect(followed).toBe(true);
+      expect(window.document.querySelector("[data-pin-menu=site]")).toBeNull();
+      // A plain click on an app row opens it.
+      rendered.target
+        .querySelector<HTMLButtonElement>("[data-pin-id=app] button")!
+        .click();
+      expect(apps).toHaveLength(2);
+      expect(window.document.querySelector("[data-pin-menu=app]")).toBeNull();
+    } finally {
+      window.open = originalOpen;
+    }
+    disposePinsSession(rendered.props.pins);
   }, 30_000);
 
   test("partial pinned-file metadata loads once and opens the current file after canonical resolution", () => {
