@@ -41,7 +41,6 @@
     boardCount?: number | string;
     /** The right panel's views, for the views card. */
     views: {
-      pane: DocumentPane;
       counts: Partial<Record<DocumentPane, number | string>>;
       onPane(pane: DocumentPane): void;
     };
@@ -152,20 +151,15 @@
       class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
     >
       {#if trigger}<AgentTrigger {...trigger} />{/if}
-      <span class="tw:hidden tw:min-[901px]:contents"
-        ><PanelViews
-          label={t("Abrir no painel direito")}
-          waitingLabel={(n) => t("Esperando você: {n}", { n })}
-          en={presentation.services.language === "en"}
-          pane={views.pane}
-          {panelOpen}
-          meta={panelViewMeta(views.counts)}
-          onpick={pick}
-          onclosepanel={() => {
-            if (panelOpen) layout.toggleDocument();
-          }}
-        /></span
-      >
+      {#if !panelOpen}<span class="tw:hidden tw:min-[901px]:contents"
+          ><PanelViews
+            label={t("Abrir no painel direito")}
+            waitingLabel={(n) => t("Esperando você: {n}", { n })}
+            en={presentation.services.language === "en"}
+            meta={panelViewMeta(views.counts)}
+            onpick={pick}
+          /></span
+        >{/if}
       <IconButton
         data-native-document-toggle
         label={toggleLabel}
