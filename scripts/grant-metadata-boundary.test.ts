@@ -87,7 +87,12 @@ test("actual grant listing binds only recognized IDs and handles prototype-named
             return this;
           },
           first: async () => ({ ts: 100 }),
-          all: async () => ({ results: [{ gid: "live", ts: 25 }] }),
+          all: async () => ({
+            results: [
+              { gid: "live", ts: 25 },
+              { gid: "g:historical", ts: 7 },
+            ],
+          }),
         };
       },
     },
@@ -118,7 +123,7 @@ test("actual grant listing binds only recognized IDs and handles prototype-named
         id: "historical",
         client: "client-old",
         connected_at: 1000,
-        used_at: undefined,
+        used_at: 7,
       },
       { id: "live", client: "Claude", connected_at: 2000, used_at: 25 },
       {
@@ -140,6 +145,12 @@ test("actual grant listing binds only recognized IDs and handles prototype-named
   const lookup = queries.filter((q) => q.sql.includes("FROM grant_seen"));
   expect(lookup).toHaveLength(1);
   expect(lookup[0].values).toEqual([
-    JSON.stringify(["live", "__proto__", "constructor"]),
+    JSON.stringify([
+      "g:historical",
+      "live",
+      "g:bad",
+      "__proto__",
+      "constructor",
+    ]),
   ]);
 });
