@@ -117,13 +117,20 @@
 >
   <RailButton
     bind:ref={homeButton}
-    icon="inbox"
     label={text("home")}
     current={!$nav.roomId}
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
     }}
-  />
+    ><img
+      src="/favicon.svg"
+      width="40"
+      height="40"
+      alt=""
+      draggable="false"
+      class="tw:size-10 tw:rounded-control"
+    /></RailButton
+  >
   <span
     aria-hidden="true"
     class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
@@ -174,12 +181,27 @@
     class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
   ></span>
   <RailButton
-    icon={theme === "dark" ? "moon" : "sun"}
+    icon={theme === "dark" ? "moon" : theme === "light" ? "sun" : undefined}
     label={text("theme")}
     onclick={(event) => {
       if (event.currentTarget.isConnected) ontheme();
     }}
-  />
+    >{#if theme === "auto"}<svg
+        aria-hidden="true"
+        focusable="false"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="tw:size-5 tw:shrink-0"
+        ><circle cx="12" cy="12" r="9" /><path
+          d="M12 17a5 5 0 0 0 0-10z"
+          fill="currentColor"
+        /></svg
+      >{/if}</RailButton
+  >
   <RailButton
     label={text("language")}
     onclick={(event) => {
