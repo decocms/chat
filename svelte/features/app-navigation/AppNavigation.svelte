@@ -146,7 +146,7 @@
     class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
   ></span>
   <div
-    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:gap-1 tw:overflow-x-auto tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto"
+    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:gap-1 tw:overflow-x-auto tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:-mx-2 tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:px-2 tw:min-[901px]:overflow-y-auto"
     role="list"
     aria-label={text("home")}
   >

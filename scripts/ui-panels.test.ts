@@ -736,6 +736,55 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
+  test("a rail room has a Discord-style strip instead of a ring: tall when selected, a dot with news, none otherwise", async () => {
+    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
+      .default;
+    const summary = (extra: Record<string, unknown> = {}) =>
+      ({
+        id: "r1",
+        title: "Room",
+        last_human_id: 0,
+        last_agent_id: 0,
+        read_id: 0,
+        ...extra,
+      }) as never;
+    const cases: [string, Record<string, unknown>, boolean, string][] = [
+      ["idle", {}, false, "idle"],
+      ["news", { last_human_id: 5 }, false, "unread"],
+      ["selected", { last_human_id: 5 }, true, "selected"],
+    ];
+    for (const [label, extra, selected, expected] of cases) {
+      const target = document.createElement("div");
+      document.body.append(target);
+      const instance = flushSync(() =>
+        mount(RoomTile, {
+          target,
+          props: {
+            room: summary(extra),
+            lang: "en",
+            now: 0,
+            compact: true,
+            selected,
+            onnavigate: () => {},
+          },
+        }),
+      );
+      try {
+        expect(
+          target
+            .querySelector("[data-rail-pill]")
+            ?.getAttribute("data-rail-pill"),
+          label,
+        ).toBe(expected);
+        const link = target.querySelector("a")!;
+        expect(link.className, label).not.toContain("ring-primary");
+        expect(link.className, label).toContain("tw:group");
+      } finally {
+        await unmount(instance);
+        target.remove();
+      }
+    }
+  }, 30_000);
   test("native decisions render escaped canonical rows in reverse order and preserve empty state", () => {
     const room = fixture();
     room.decisions = [
