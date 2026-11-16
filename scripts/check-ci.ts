@@ -6,6 +6,10 @@ import project from "../package.json";
 // The first gate (build:api-types) writes what the others read, so it runs
 // alone; the rest run side by side, a few at a time, and their output is
 // printed grouped, in the package script's order, once each has finished.
+// Gates that run real Bun/Vite builds run alone too, before the pool: under CPU
+// contention test:build intermittently failed with "Could not resolve
+// ./style.css" for a file it had just written (1 in 8 parallel runs, 0 in 40
+// alone).
 const commands = project.scripts.check.split(/\s*&&\s*/).map((command) => {
   const match = /^bun run ([\w:.-]+)$/.exec(command);
   const name = match?.[1];
@@ -41,7 +45,10 @@ function report({ name, code, output, ms }: Result) {
   console.info("::endgroup::");
 }
 
-const [first, ...rest] = commands;
+const alone = new Set(["test:build", "check:bundle"]);
+const [first, ...others] = commands;
+const rest = others.filter((name) => !alone.has(name));
+const solo = others.filter((name) => alone.has(name));
 const results: Result[] = [];
 if (first) {
   const result = await run(first);
@@ -50,6 +57,7 @@ if (first) {
 }
 const limit = Math.max(2, Math.min(4, availableParallelism()));
 const done = new Map<string, Result>();
+for (const name of solo) done.set(name, await run(name));
 let next = 0;
 await Promise.all(
   Array.from({ length: Math.min(limit, rest.length) }, async () => {
@@ -59,7 +67,7 @@ await Promise.all(
     }
   }),
 );
-for (const name of rest) {
+for (const name of others) {
   const result = done.get(name)!;
   report(result);
   results.push(result);
