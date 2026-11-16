@@ -11,6 +11,7 @@
   let {
     label,
     icon,
+    hint,
     current = false,
     ref = $bindable(null),
     children,
@@ -18,6 +19,8 @@
   }: Omit<HTMLButtonAttributes, "style" | "class" | "children"> & {
     label: string;
     icon?: IconName;
+    /** Shown after the label in the tooltip, e.g. a keyboard shortcut. */
+    hint?: string;
     current?: boolean;
     ref?: HTMLButtonElement | null;
     children?: Snippet;
@@ -29,7 +32,7 @@
   bind:this={ref}
   type="button"
   aria-label={label}
-  title={label}
+  title={hint ? `${label} (${hint})` : label}
   aria-current={current ? "page" : undefined}
   class="tw:group tw:relative tw:flex tw:cursor-pointer tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:aria-[current=page]:ring-2 tw:aria-[current=page]:ring-primary"
 >

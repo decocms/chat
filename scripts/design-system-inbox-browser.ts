@@ -432,7 +432,7 @@ export async function auditDesignSystemInbox(
     await expect(trigger).toBeFocused();
     await page.keyboard.press("Control+k");
     const search = page.getByRole("dialog", {
-      name: "Go to a vibebook",
+      name: "Search",
       exact: true,
     });
     await expect(search).toBeVisible();

@@ -107,6 +107,11 @@
     theme = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto";
     effects.setTheme(theme);
   }
+  function chooseTheme(next: ApplicationTheme) {
+    if (!current() || next === theme) return;
+    theme = next;
+    effects.setTheme(theme);
+  }
   const language = (value: "pt" | "en") => {
     if (current() && value !== services.language) effects.setLanguage(value);
   };
@@ -212,6 +217,7 @@
         lang={services.language}
         {theme}
         ontheme={nextTheme}
+        onsettheme={chooseTheme}
         onlanguage={language}
         onreload={() => {
           if (current()) services.actions.reload();
