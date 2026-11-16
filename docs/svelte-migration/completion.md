@@ -4,7 +4,7 @@ Status: **in progress, not accepted**. This report tracks evidence against
 `../svelte-full-migration-plan.md`; it does not replace its conditions. Vanilla
 remains the default and Svelte requires `?ui=svelte`.
 
-The consolidated migration [PR #1](https://github.com/vibegui/vibebook.dev/pull/1)
+The consolidated migration [PR #1](https://github.com/decocms/chat/pull/1)
 merged as `3a73dffaf9fe3ff66045c08515a50714fc89060a`. PR #2 is closed, with its
 work preserved in #1; no migration PR remains open. Both production builds
 succeeded and [three deployed asset hashes match](production/2026-11-15-3a73dff/README.md).
@@ -41,10 +41,10 @@ Gui's exact runtime patch is preserved, the public connection mode is only
 encrypted columns are inert to the current viewer's identity decision; the
 existing retirement/owner-notice routine remains unchanged. Actual RPC fixtures
 throw if old credential fields are read and verify viewer claims with no legacy
-Authorization header. All 24 source gates and [repository](https://github.com/vibegui/vibebook.dev/actions/runs/43674499552),
-[complete browser](https://github.com/vibegui/vibebook.dev/actions/runs/43674504989),
-[App security](https://github.com/vibegui/vibebook.dev/actions/runs/43675176300), and
-[HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43675186133) workflows
+Authorization header. All 24 source gates and [repository](https://github.com/decocms/chat/actions/runs/43674499552),
+[complete browser](https://github.com/decocms/chat/actions/runs/43674504989),
+[App security](https://github.com/decocms/chat/actions/runs/43675176300), and
+[HMR](https://github.com/decocms/chat/actions/runs/43675186133) workflows
 pass at that exact source. The [main deployment receipt](production/2026-11-15-9bae26a/README.md)
 records successful builds, main repository/browser checks and matching public
 asset bytes. Authenticated production coexistence and rollback remain pending.
@@ -105,7 +105,7 @@ Their pending statements do not replace the current checkpoint status above.
 
 Current native document integration at `7516b84` passes a fresh build, [all 24 source gates](verification/7516b84-document-answer-source.json), and the [complete real Worker/browser cohort](managed-browser/2026-11-15-7516b84/README.md). Both variants deliver `open_doc` to two own tabs, refuse missing/deleted epics, render/update read-only cards without message writes, and retain two real R2/private-channel App versions inside the doc. Existing reader consent, stock SDK and replacement-authority audits, all twelve display profiles and twenty lifecycle cycles pass. The [same-epic vanilla failure](managed-browser/2026-11-15-de5570e-document-failure/README.md) and [remote-App consent regression](managed-browser/2026-11-15-1809c28-consent-failure/README.md) were reproduced and fixed without weakening their assertions. Matching assets are refreshed; published-head CI and production verification remain required. This is an opt-in checkpoint, not full-plan acceptance.
 
-Published `14646bc` passes all four functional workflows: [repository](https://github.com/vibegui/vibebook.dev/actions/runs/43665113323), [integrated browser](https://github.com/vibegui/vibebook.dev/actions/runs/43665121253), [App security](https://github.com/vibegui/vibebook.dev/actions/runs/43665126747), and [HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43665132079). Its [complete performance cohort](performance/2026-11-15-14646bc/README.md) executes all 32 original trials but fails **12 of 16 unchanged budgets**. Two of four excluded diagnostic trials pass; both native diagnostics fail and remain retained. Readiness, thread switch, first history load, application gzip, original Studio font transfer and heap fail on both devices. Second and third history loads pass. This checkpoint predates direct-MCP integration; it does not verify that later source or imply a framework-only comparison across runs.
+Published `14646bc` passes all four functional workflows: [repository](https://github.com/decocms/chat/actions/runs/43665113323), [integrated browser](https://github.com/decocms/chat/actions/runs/43665121253), [App security](https://github.com/decocms/chat/actions/runs/43665126747), and [HMR](https://github.com/decocms/chat/actions/runs/43665132079). Its [complete performance cohort](performance/2026-11-15-14646bc/README.md) executes all 32 original trials but fails **12 of 16 unchanged budgets**. Two of four excluded diagnostic trials pass; both native diagnostics fail and remain retained. Readiness, thread switch, first history load, application gzip, original Studio font transfer and heap fail on both devices. Second and third history loads pass. This checkpoint predates direct-MCP integration; it does not verify that later source or imply a framework-only comparison across runs.
 
 Earlier `890fbee` [functional evidence](managed-browser/2026-11-15-890fbee/README.md) and its [performance cohort](performance/2026-11-15-890fbee/README.md) remain retained. That cohort failed 10 of 16 unchanged budgets before document integration. No later-source or framework-only speedup is claimed, and no acceptance budget is waived.
 
@@ -136,9 +136,9 @@ input-track/context cleanup. Twenty lifecycle cycles, native/default document
 collaboration and both variants' App authority/consent audits pass. The
 [exact source receipt](verification/bf147df-continuous-fire-source.json) and
 [preview asset receipt](preview-build-2026-11-14.json) bind the refreshed build
-to this source. Published-head `dfbdbdc` passes [repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43654891131), [integrated browser](https://github.com/vibegui/vibebook.dev/actions/runs/43654899052), [App security](https://github.com/vibegui/vibebook.dev/actions/runs/43654907958), and [HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43654914150). Its new [performance cohort](https://github.com/vibegui/vibebook.dev/actions/runs/43654920935) is pending. These checks predate the voice workflow change below.
+to this source. Published-head `dfbdbdc` passes [repository checks](https://github.com/decocms/chat/actions/runs/43654891131), [integrated browser](https://github.com/decocms/chat/actions/runs/43654899052), [App security](https://github.com/decocms/chat/actions/runs/43654907958), and [HMR](https://github.com/decocms/chat/actions/runs/43654914150). Its new [performance cohort](https://github.com/decocms/chat/actions/runs/43654920935) is pending. These checks predate the voice workflow change below.
 
-Published source `587de12` passes the full [repository workflow](https://github.com/vibegui/vibebook.dev/actions/runs/43642706919),
+Published source `587de12` passes the full [repository workflow](https://github.com/decocms/chat/actions/runs/43642706919),
 including Linux/macOS source gates, generated-asset consistency and the layout
 job. Its [retained browser result](managed-browser/2026-11-14-587de12-short-viewport/README.md)
 passes the R2 Viewer, all core phases, lifecycle and App audits, but fails four
@@ -252,7 +252,7 @@ close the migration acceptance conditions.
 
 ## Historical native application browser failures
 
-[Run 43558762566](https://github.com/vibegui/vibebook.dev/actions/runs/43558762566)
+[Run 43558762566](https://github.com/decocms/chat/actions/runs/43558762566)
 tests PR head `3357e09` through GitHub's merge revision
 `9a4eb2a6e9a1224b27283c5b140a6e3950762177`. The retained
 [results](native-app-integration/current-root/2026-11-14/results.json) and
@@ -274,7 +274,7 @@ replacement-app authority cohorts were not reached. No uncaught page errors
 were recorded, and owned process cleanup reports zero remaining groups.
 This is disposable local Worker evidence, not production or real-provider proof.
 
-The next [run 43560795530](https://github.com/vibegui/vibebook.dev/actions/runs/43560795530),
+The next [run 43560795530](https://github.com/decocms/chat/actions/runs/43560795530),
 at head `9a10d09`, again passed the seven core phases. Its added socket diagnostics
 observed two Book connections for the same room during lifecycle cycle 1, versus
 the required one; personal and Yjs counts were each one. This establishes the
@@ -282,7 +282,7 @@ observed count mismatch, but does not yet distinguish failed application disposa
 from a delayed transport close handshake. No timeout or lifecycle assertion is
 relaxed. The root cause and a passing 20-cycle rerun remain required.
 
-The later [run 43563524139](https://github.com/vibegui/vibebook.dev/actions/runs/43563524139)
+The later [run 43563524139](https://github.com/decocms/chat/actions/runs/43563524139)
 at `743a4e0` explicitly completed server close acknowledgements and passed all
 seven core phases plus **all twenty lifecycle cycles**, with all 66 observed
 closes clean and completed within 27 ms. Its overall result remains failed:
@@ -300,7 +300,7 @@ leak-free claim or production acceptance.
 
 The archived [controlled report](performance/2026-11-13/README.md) failed budgets
 and predates the native root. Later native runs passed preflight, then
-[run 43563593700](https://github.com/vibegui/vibebook.dev/actions/runs/43563593700)
+[run 43563593700](https://github.com/decocms/chat/actions/runs/43563593700)
 completed both desktop warmups and seven alternating measured runs per variant.
 Readiness, thread switch, first history load, initial JS/CSS bytes, font transfer
 and post-GC heap all exceeded the agreed desktop budgets. The mobile cohort
@@ -330,13 +330,13 @@ waived by this report. The full goal remains active.
 
 The sole PR now includes deferred native views, an owned serial bootstrap
 watcher and document-bound Apps in both frontends. The expanded real Chromium
-channel suite passed [43575694148](https://github.com/vibegui/vibebook.dev/actions/runs/43575694148),
+channel suite passed [43575694148](https://github.com/decocms/chat/actions/runs/43575694148),
 including the installed stock SDK, second-origin replacement denial, held
 outputs/consent, fresh reopening and permanently revoked subframe history.
 [The retained receipt](app-document-browser/2026-11-14-adversarial/README.md)
 explicitly excludes actual BFCache admission and application/provider acceptance.
 
-The real Worker run [43575694166](https://github.com/vibegui/vibebook.dev/actions/runs/43575694166)
+The real Worker run [43575694166](https://github.com/decocms/chat/actions/runs/43575694166)
 passes all seven functional phases and 20 lifecycle cycles with no page errors.
 It does **not** pass overall: all eight Room profiles stop at delivered-avatar
 contrast, and the authenticated room-App's initial read times out. Replacement
@@ -344,7 +344,7 @@ authorization is therefore inconclusive in the actual application at this head.
 The standalone channel result does not clear this application gate. The contrast
 fix and safer frame/navigation diagnostics require reruns.
 
-Repository run [43575694145](https://github.com/vibegui/vibebook.dev/actions/runs/43575694145)
+Repository run [43575694145](https://github.com/decocms/chat/actions/runs/43575694145)
 also fails source checks: a stale raw-iframe-src DOM assertion, a font diagnostic
 inference error and an Ubuntu provider-test failure caused by another fixture
 leaving global fetch mocked. These fixes and a pre-flush embed reopen regression

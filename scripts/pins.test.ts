@@ -95,14 +95,14 @@ describe("native pinned target resolution", () => {
     ).toBe("MARKDOWN · 2.1 MB");
     expect(
       resolvePin(
-        { id: "l", kind: "link", ref: "https://www.github.com/vibegui/repo/" },
+        { id: "l", kind: "link", ref: "https://www.github.com/decocms/repo/" },
         {},
       ),
     ).toEqual({
       kind: "link",
-      href: "https://www.github.com/vibegui/repo/",
+      href: "https://www.github.com/decocms/repo/",
       label: "github.com",
-      detail: "github.com/vibegui/repo",
+      detail: "github.com/decocms/repo",
       github: true,
     });
     expect(

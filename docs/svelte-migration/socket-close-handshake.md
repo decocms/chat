@@ -3,7 +3,7 @@
 Status: the local 20-cycle socket/editor assertions pass; final revision and
 production acceptance remain pending. The requirement was not relaxed.
 
-[Worker run 43562169377](https://github.com/vibegui/vibebook.dev/actions/runs/43562169377)
+[Worker run 43562169377](https://github.com/decocms/chat/actions/runs/43562169377)
 at head `ba8e529` passed all seven dependent core phases. Browser instrumentation
 observed application calls to `WebSocket.close()` with ready state OPEN before
 the call and CLOSING afterward, without a thrown exception. A room connection
@@ -24,7 +24,7 @@ says explicit close is safe when automatic acknowledgement is enabled. This is
 a defensive completion change; source review and that documentation alone do
 not establish that it resolves the measured failure.
 
-[Run 43563524139](https://github.com/vibegui/vibebook.dev/actions/runs/43563524139)
+[Run 43563524139](https://github.com/decocms/chat/actions/runs/43563524139)
 at head `743a4e0` passed all seven core phases and all twenty lifecycle cycles.
 Every observed application close completed cleanly (66 calls, maximum 27 ms),
 and all 41 socket-count checks matched their expectations. The prior abnormal

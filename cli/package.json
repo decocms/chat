@@ -7,7 +7,7 @@
   "files": ["cli.mjs"],
   "engines": { "node": ">=18" },
   "homepage": "https://vibebook.dev",
-  "repository": { "type": "git", "url": "git+https://github.com/vibegui/vibebook.dev.git", "directory": "cli" },
+  "repository": { "type": "git", "url": "git+https://github.com/decocms/chat.git", "directory": "cli" },
   "license": "MIT",
   "keywords": ["vibebook", "claude", "agents", "cli"]
 }

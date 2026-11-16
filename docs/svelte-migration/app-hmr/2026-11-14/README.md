@@ -1,6 +1,6 @@
 # Full application source HMR receipt
 
-[Run 43567717044](https://github.com/vibegui/vibebook.dev/actions/runs/43567717044)
+[Run 43567717044](https://github.com/decocms/chat/actions/runs/43567717044)
 passed at PR head `eeedb13`, merge revision
 `45c2b4303d6616cc6f9d8efc961fa80a3615c067`. The isolated Ubuntu job installs from
 the frozen lockfile, creates private synthetic local credentials, and launches

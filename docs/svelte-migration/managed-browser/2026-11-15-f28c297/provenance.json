@@ -7,7 +7,7 @@
     {
       "name": "repository",
       "id": 43689417972,
-      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689417972",
+      "url": "https://github.com/decocms/chat/actions/runs/43689417972",
       "attempt": 1,
       "status": "success"
     },
@@ -17,7 +17,7 @@
       "input": {
         "suite": "application"
       },
-      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689454744",
+      "url": "https://github.com/decocms/chat/actions/runs/43689454744",
       "attempt": 1,
       "status": "success"
     },
@@ -27,14 +27,14 @@
       "input": {
         "suite": "design-system"
       },
-      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689466368",
+      "url": "https://github.com/decocms/chat/actions/runs/43689466368",
       "attempt": 1,
       "status": "success"
     },
     {
       "name": "source-hmr",
       "id": 43689502314,
-      "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43689502314",
+      "url": "https://github.com/decocms/chat/actions/runs/43689502314",
       "attempt": 1,
       "status": "success"
     }

@@ -1,10 +1,10 @@
 # Passing published checkpoint, before the new runner Fire contract
 
 Source head `366450e14a641f38d529150bd7174b6648a5e0be` passes
-[repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43623424612),
-[integrated actual-Worker browser checks](https://github.com/vibegui/vibebook.dev/actions/runs/43623424616),
-[App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43623424671), and
-[source HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43623483513).
+[repository checks](https://github.com/decocms/chat/actions/runs/43623424612),
+[integrated actual-Worker browser checks](https://github.com/decocms/chat/actions/runs/43623424616),
+[App transport security](https://github.com/decocms/chat/actions/runs/43623424671), and
+[source HMR](https://github.com/decocms/chat/actions/runs/43623483513).
 The PR workflows test merge `c5d66a8c44e8c5c60525d74a99d7c2c56afdd29c`;
 the dispatched HMR workflow tests the source head directly.
 

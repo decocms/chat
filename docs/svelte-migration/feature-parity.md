@@ -4,7 +4,7 @@ Starting source: `9579bc4`; published vanilla/application baseline: `d3e1473`. T
 
 At baseline, native room views depended on `svelte/legacy/host.js` and lacked the newer push/install UI. That description is historical.
 
-Current source checkpoint: `b247805` (2026-11-14), [complete repository and production-layout checks](https://github.com/vibegui/vibebook.dev/actions/runs/43549278094). `NativeApplication` composes `AppShell` and `RoomShell`; typed ApplicationServices/RoomScope own routing and feature lifecycles. The host, production mount registry and separate preview stylesheet are deleted. Native PWA/install/push owners and UI are included. The target column below names existing implementation paths relative to `svelte/`. Passing source/model/component gates does not sign off a row's final integrated browser or deployed dimensions.
+Current source checkpoint: `b247805` (2026-11-14), [complete repository and production-layout checks](https://github.com/decocms/chat/actions/runs/43549278094). `NativeApplication` composes `AppShell` and `RoomShell`; typed ApplicationServices/RoomScope own routing and feature lifecycles. The host, production mount registry and separate preview stylesheet are deleted. Native PWA/install/push owners and UI are included. The target column below names existing implementation paths relative to `svelte/`. Passing source/model/component gates does not sign off a row's final integrated browser or deployed dimensions.
 
 Verification for every applicable row includes English/Portuguese, light/dark, 390/768/1440px layouts, keyboard access, loading/empty/error/permission states, persistence after reload and remote updates. Final evidence must name the commit and test/artifact; earlier hybrid results are only baseline evidence.
 

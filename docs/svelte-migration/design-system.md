@@ -9,7 +9,7 @@ approved pinned xterm structural exception remains explicit. Vanilla keeps its
 own independently built styles and remains the default.
 
 Both platforms passed the style, component and UI typing gates in
-[run 43560795533](https://github.com/vibegui/vibebook.dev/actions/runs/43560795533).
+[run 43560795533](https://github.com/decocms/chat/actions/runs/43560795533).
 That run failed a separate Worker-test typing case; it is not an all-green
 acceptance receipt. The eight real application theme/accessibility profiles
 have not yet been reached by the integrated runner because its lifecycle gate

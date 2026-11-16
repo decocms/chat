@@ -1,6 +1,6 @@
 # Adversarial document-channel Chromium checkpoint
 
-[Run 43575694148](https://github.com/vibegui/vibebook.dev/actions/runs/43575694148)
+[Run 43575694148](https://github.com/decocms/chat/actions/runs/43575694148)
 passed at PR head `06b0a7e`, merge revision
 `5d9160f5202381e36108cbeb7ac75869c9b49ac5`. Both uploaded synthetic JSON
 artifacts are retained unchanged here.

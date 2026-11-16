@@ -25,7 +25,7 @@
   "limits": "Only three anonymously served asset bodies are checked. Authenticated functional, environment, coexistence and rollback acceptance remains pending.",
   "deploymentBuilds": {
     "status": "success",
-    "checks": "https://github.com/vibegui/vibebook.dev/commit/f28c297e233a7629db0b8afc59ad565dbf68b8ee/checks",
+    "checks": "https://github.com/decocms/chat/commit/f28c297e233a7629db0b8afc59ad565dbf68b8ee/checks",
     "limits": "Build logs are not retained in this anonymous asset receipt."
   }
 }

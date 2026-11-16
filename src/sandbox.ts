@@ -134,7 +134,7 @@ $S npm install -g @anthropic-ai/claude-code
 curl -fsSL ${o.origin}/install.sh | sh
 export PATH="$HOME/.local/bin:$HOME/.vibebook/bin:$PATH"
 grep -q '.vibebook/bin' "$HOME/.bashrc" 2>/dev/null || echo 'export PATH="$HOME/.local/bin:$HOME/.vibebook/bin:$PATH"' >> "$HOME/.bashrc"
-claude plugin marketplace add vibegui/vibebook.dev || true
+claude plugin marketplace add decocms/chat || true
 claude plugin install vibebook@vibebook || true
 # vibebook login, already authorized by the server for the person who created this sandbox (code + PKCE verifier in
 # a 0600 file the CLI redeems and deletes). An older sandbox without it falls back to login --paste in the terminal.

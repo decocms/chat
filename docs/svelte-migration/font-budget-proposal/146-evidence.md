@@ -2,7 +2,7 @@
 
 This is a read-only extraction of already retained measurements, not a profiler, subsetter, browser or benchmark rerun. The proposal is not approved or active. No validator or production font/style file is changed.
 
-Source checkout for this extraction: `3a73dffaf9fe3ff66045c08515a50714fc89060a`. Measured source: `14646bcf8f8445a7c7f8e8606c927a9ba791c87e`, [run 43665138953](https://github.com/vibegui/vibebook.dev/actions/runs/43665138953). The original run remains execution-passed and performance-failed, with twelve of sixteen budgets failed. Its four additional diagnostic trials do not enter this font cohort.
+Source checkout for this extraction: `3a73dffaf9fe3ff66045c08515a50714fc89060a`. Measured source: `14646bcf8f8445a7c7f8e8606c927a9ba791c87e`, [run 43665138953](https://github.com/decocms/chat/actions/runs/43665138953). The original run remains execution-passed and performance-failed, with twelve of sixteen budgets failed. Its four additional diagnostic trials do not enter this font cohort.
 
 ## Exact retained input
 

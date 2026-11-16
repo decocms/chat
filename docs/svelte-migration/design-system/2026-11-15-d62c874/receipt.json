@@ -4,7 +4,7 @@
   "input": {
     "suite": "design-system"
   },
-  "run": "https://github.com/vibegui/vibebook.dev/actions/runs/43688328874",
+  "run": "https://github.com/decocms/chat/actions/runs/43688328874",
   "jobId": 132733413284,
   "status": "passed",
   "originalFiles": [
@@ -48,7 +48,7 @@
   "scope": "Fresh build and real loopback Worker setup; actual atomic gallery and controlled schema-validated native Inbox UI. No provider/query/business/hardware/manual-screenreader/performance/production acceptance.",
   "priorFailure": {
     "sourceRevision": "b63dbf1e7bfe6f3077c80d48ba4862ead1d8a1d1",
-    "run": "https://github.com/vibegui/vibebook.dev/actions/runs/43686323277",
+    "run": "https://github.com/decocms/chat/actions/runs/43686323277",
     "status": "failed",
     "phase": "all-room navigation preserves selected UI",
     "cause": "Second obsolete data-native-chat selector; exact URL and actual canonical message already present.",

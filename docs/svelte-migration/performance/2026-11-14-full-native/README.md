@@ -1,6 +1,6 @@
 # First complete native desktop/mobile cohort
 
-[Run 43585038355](https://github.com/vibegui/vibebook.dev/actions/runs/43585038355)
+[Run 43585038355](https://github.com/decocms/chat/actions/runs/43585038355)
 tested source head `b292537c75aa95a1cfff3a8acd46aecabefc5fdf` through merge
 revision `b22c5089863df87092cdbd85cad9118d3fd9248f`. Original `metrics.json` and
 `report.md` are retained without modification; their identities are recorded in

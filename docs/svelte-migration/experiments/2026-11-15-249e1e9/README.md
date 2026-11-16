@@ -7,10 +7,10 @@ retirement. It is not deployed or accepted as the completed migration.
 
 All four exact-revision workflows pass:
 
-- [Repository checks](https://github.com/vibegui/vibebook.dev/actions/runs/43680368433): all source gates, Ubuntu/macOS preview freshness and Chromium layout.
-- [Complete native application browser](https://github.com/vibegui/vibebook.dev/actions/runs/43680374666): real local Worker, Auth, Book, D1, R2 and DocRoom; twelve display profiles and twenty lifecycle cycles.
-- [App transport security](https://github.com/vibegui/vibebook.dev/actions/runs/43680380912): stock SDK, private-channel replacement/history/late-output/consent and file-POST audit.
-- [Full source HMR](https://github.com/vibegui/vibebook.dev/actions/runs/43680384876): ten steps, seven source files restored to exact original hashes, zero active mutations, errors or cleanup errors.
+- [Repository checks](https://github.com/decocms/chat/actions/runs/43680368433): all source gates, Ubuntu/macOS preview freshness and Chromium layout.
+- [Complete native application browser](https://github.com/decocms/chat/actions/runs/43680374666): real local Worker, Auth, Book, D1, R2 and DocRoom; twelve display profiles and twenty lifecycle cycles.
+- [App transport security](https://github.com/decocms/chat/actions/runs/43680380912): stock SDK, private-channel replacement/history/late-output/consent and file-POST audit.
+- [Full source HMR](https://github.com/decocms/chat/actions/runs/43680384876): ten steps, seven source files restored to exact original hashes, zero active mutations, errors or cleanup errors.
 
 The browser cohort retains both variants' App navigation/reader consent,
 direct-MCP identity signatures and no replay, synthetic dictation cleanup, and

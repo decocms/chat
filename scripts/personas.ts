@@ -234,7 +234,7 @@ function page(p: Persona, lang: Lang) {
     <div class="pz-others">${P.filter((q) => q !== p).map((q) => `<a href="${url(q, lang)}"><b>${q.tab[lang]}</b><span>${q.h1[lang].join(" ")}</span></a>`).join("")}</div>
   </section>
 </div></main>
-<footer><div class="w"><span>vibebook · ${t.foot}</span><span><a href="https://github.com/vibegui/vibebook.dev" rel="noopener">GitHub</a></span></div></footer>
+<footer><div class="w"><span>vibebook · ${t.foot}</span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
 <script>
 document.querySelectorAll(".copy").forEach((b) => b.addEventListener("click", () => { navigator.clipboard?.writeText(b.dataset.copy); const t = b.textContent; b.textContent = "✓"; setTimeout(() => (b.textContent = t), 1200); }));
 </script>

@@ -1,6 +1,6 @@
 # First passing complete application cohort
 
-[Run 43589003975](https://github.com/vibegui/vibebook.dev/actions/runs/43589003975)
+[Run 43589003975](https://github.com/decocms/chat/actions/runs/43589003975)
 passes at exact source head `e7b9263e784993cb5f11921110cc0c8c27f29908`.
 Four original JSON reports are retained unchanged; `runner.json` records byte
 counts and SHA-256 identities. The workflow builds current source and runs an

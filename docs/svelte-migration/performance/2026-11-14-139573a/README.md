@@ -1,7 +1,7 @@
 # Performance evidence at 139573a
 
 Source and tested revision: `139573ac8437d9a39b054e8f6687ae6bd8e8d591`.
-GitHub Actions run: https://github.com/vibegui/vibebook.dev/actions/runs/43632725243.
+GitHub Actions run: https://github.com/decocms/chat/actions/runs/43632725243.
 
 All 32 original workload trials completed. Performance acceptance failed:
 11 of the 16 device/metric budgets exceeded the unchanged limits. The original

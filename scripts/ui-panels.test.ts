@@ -4265,7 +4265,7 @@ describe("stable native sidebar integration", () => {
         {
           id: "repo",
           kind: "link",
-          ref: "https://github.com/vibegui/vibebook",
+          ref: "https://github.com/decocms/chat",
           title: "Repo",
         },
         {
@@ -4305,7 +4305,7 @@ describe("stable native sidebar integration", () => {
     expect(
       repo.querySelector("[data-pin-icon]")?.getAttribute("data-pin-icon"),
     ).toBe("github");
-    expect(repo.textContent).toContain("github.com/vibegui/vibebook");
+    expect(repo.textContent).toContain("github.com/decocms/chat");
     expect(repo.dataset.pinOpens).toBe("tab");
 
     const app = row("app");

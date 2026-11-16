@@ -1,6 +1,6 @@
 # Rejected subset raster localization
 
-[Run 43575716692](https://github.com/vibegui/vibebook.dev/actions/runs/43575716692)
+[Run 43575716692](https://github.com/decocms/chat/actions/runs/43575716692)
 completed its diagnostic at head `06b0a7e`, merge revision
 `5d9160f5202381e36108cbeb7ac75869c9b49ac5`. All uploaded synthetic JSON/PNG
 artifacts are retained unchanged. The diagnostic explicitly records

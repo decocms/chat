@@ -10,9 +10,9 @@ no frontend copy or unchecked assertion is introduced.
 The actual route suite passes 41 tests / 382 assertions. New direct cases
 retain optional/null handling, no coercion, unknown-key stripping and primitive
 schema sharing. The [source check receipt](verification/9fd5b4f-backend-schema-source.json)
-records all 24 mandatory gates passing. [Both OS jobs](https://github.com/vibegui/vibebook.dev/actions/runs/43685305053)
+records all 24 mandatory gates passing. [Both OS jobs](https://github.com/decocms/chat/actions/runs/43685305053)
 still fail original generated-preview freshness; layout checks pass. The
-[complete real-Worker browser cohort](https://github.com/vibegui/vibebook.dev/actions/runs/43685312865)
+[complete real-Worker browser cohort](https://github.com/decocms/chat/actions/runs/43685312865)
 also passes. Matching generated assets are refreshed from that checked build.
 Final freshness/integration verification remains required.
 

@@ -1,6 +1,6 @@
 # Second native desktop performance checkpoint
 
-[Run 43567722419](https://github.com/vibegui/vibebook.dev/actions/runs/43567722419)
+[Run 43567722419](https://github.com/decocms/chat/actions/runs/43567722419)
 terminated unsuccessfully at head `eeedb13`, merge revision
 `45c2b4303d6616cc6f9d8efc961fa80a3615c067`. These files are the unchanged
 uploaded metrics and generated report, including invalid and warmup samples.

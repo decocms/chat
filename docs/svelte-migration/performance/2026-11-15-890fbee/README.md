@@ -1,7 +1,7 @@
 # Performance evidence at 890fbee
 
 Exact source/tested revision: `890fbee856ce99b2acb72cb0a47d7ccae03956a5`.
-[Run 43657685040](https://github.com/vibegui/vibebook.dev/actions/runs/43657685040).
+[Run 43657685040](https://github.com/decocms/chat/actions/runs/43657685040).
 
 All 32 original workload trials complete; all four separately excluded diagnostic trials pass with valid CPU profiles. Performance acceptance still fails **10 of 16 unchanged budgets**. Readiness, thread switch, requested application gzip, actual font transfer and post-GC heap fail on both devices. All three history loads pass on both devices. No trial, validator, feature or threshold was removed or relaxed.
 
