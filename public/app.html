@@ -2248,7 +2248,8 @@ const t = (pt, vars) => {
   return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
 };
 const langSwitch = () => `<span class="langSw" role="group" aria-label="Idioma / Language">${["pt", "en"].map((l) => `<button type="button" class="${LANG === l ? "sel" : ""}" data-lang="${l}" aria-pressed="${LANG === l}">${l.toUpperCase()}</button>`).join("<i>·</i>")}</span>`;
-const uiSwitch = () => `<label class="langSw"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}" ${new URL(location.href).searchParams.get("ui") === "svelte" ? "checked" : ""}>${t("Nova UI")}</label>`;
+// The opt-in Svelte app (?ui=svelte). `cls` lets the phone drawer give it a full row of its own.
+const uiSwitch = (cls = "langSw") => `<label class="${cls}"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}" ${new URL(location.href).searchParams.get("ui") === "svelte" ? "checked" : ""}> <span>${t("Nova UI")}</span></label>`;
 document.addEventListener("change", (event) => {
   if (!(event.target instanceof HTMLInputElement) || !event.target.matches("[data-ui-switch]") || !event.target.isConnected) return;
   const next = new URL(location.href);
@@ -2903,7 +2904,8 @@ function phoneHome(me) {
     <section class="waits" id="waits"${myWaits.length ? "" : " hidden"}></section>
     <nav class="pdNav">
       <a data-nav href="/archived">${t("Arquivo")}</a>
-      <div class="pdRow"><button class="ghost" id="homeTheme">${THEMES[theme()].icon}<span>${THEMES[theme()].label}</span></button>${langSwitch()}${uiSwitch()}</div>
+      <div class="pdRow"><button class="ghost" id="homeTheme">${THEMES[theme()].icon}<span>${THEMES[theme()].label}</span></button>${langSwitch()}</div>
+      ${uiSwitch("pdLock pdUi")}
       <div class="pdBell"><button class="ghost bell" data-bell></button><span>${t("Notificações")}</span></div>
       ${window.PublicKeyCredential ? `<label class="pdLock"><input type="checkbox" id="lockToggle" ${lockId() ? "checked" : ""} /> <span>${t("Exigir Face ID ao abrir")}</span></label>` : ""}
     </nav>
