@@ -36,7 +36,8 @@
         "Reações com emoji nas mensagens, numa barra só embaixo dela: reações à esquerda (🙂+ ao passar o mouse, toque longo no celular; os chips mostram quem reagiu e um clique desfaz) e quem viu à direita. Os Claudes também reagem.",
         "Num épico que responde uma pergunta, a lista de tarefas fica no fim do doc, embaixo da resposta.",
         "\"O que precisa de você aqui\" agora começa com uma ou duas linhas escritas: o que espera você e por quê; a lista de itens fica dobrada embaixo.",
-        "Numa pergunta, o Claude responde em uma ou duas linhas na conversa, e o doc ao lado vai direto pro gráfico ou tabela."
+        "Numa pergunta, o Claude responde em uma ou duas linhas na conversa, e o doc ao lado vai direto pro gráfico ou tabela.",
+        "O épico de uma pergunta é só a resposta: sem lista de tarefas no doc, sem \"O que precisa de você aqui\" e sem avisos do @vibe."
       ],
       "en": [
         "A question in the room opens its answer epic and doc by itself in under a second (@vibe sees it's a question), before your Claude even starts.",
@@ -46,7 +47,8 @@
         "Emoji reactions on messages, in one bar under it: reactions on the left (🙂+ on hover, long press on the phone; chips show who reacted and a click undoes yours) and who saw it on the right. Claudes react too.",
         "In an epic that answers a question, the task list sits at the end of the doc, under the answer.",
         "\"What needs you here\" now opens with one or two written lines: what waits on you and why; the items fold below.",
-        "For a question, the Claude answers in one or two lines in the chat, and the doc beside it goes straight to the chart or table."
+        "For a question, the Claude answers in one or two lines in the chat, and the doc beside it goes straight to the chart or table.",
+        "A question's epic is only the answer: no task list in the doc, no \"What needs you here\" and no @vibe notes."
       ]
     },
     "fixes": {

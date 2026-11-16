@@ -116,8 +116,10 @@
   const session = createRichSession();
   onDestroy(() => session.dispose());
   const nodes = $derived(session.render(text, "markdown", context));
+  // An answer epic's doc is only the answer (Gui #2798): no task list in it.
   const hasTasks = $derived(
-    !!epic || (props.thread === "main" && !!props.room.roomTasks?.length),
+    (!!epic && !isAnswer) ||
+      (props.thread === "main" && !!props.room.roomTasks?.length),
   );
   const literal = $derived(nodes.length === 1 && nodes[0].kind === "text");
   const blocks = $derived(

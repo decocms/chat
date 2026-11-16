@@ -26,6 +26,10 @@
     actions,
     onloadolder,
   }: ChatProps = $props();
+  // A question's epic is only the answer (Gui #2798): no "O que precisa de você" card there.
+  const answerEpic = $derived(
+    !!room.epics.find((e) => e.id === thread)?.answer,
+  );
   let now = $state(Date.now());
   onMount(() => {
     const timer = setInterval(() => {
@@ -180,6 +184,10 @@
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
       </div>{/if}
-    {#if needsYou}<NeedsYou {...needsYou} {vb} request={actions.request} />{/if}
+    {#if needsYou && !answerEpic}<NeedsYou
+        {...needsYou}
+        {vb}
+        request={actions.request}
+      />{/if}
   </section>
 {/key}

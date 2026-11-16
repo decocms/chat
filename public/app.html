@@ -5409,6 +5409,7 @@ function needItems() {
 // thread; the items fold under them. Asked again only when the items change.
 const needSum = {}; let needAsked = "";
 function needsYou() {
+  if (S.epics.find((e) => e.id === thread)?.answer) return ""; // a question's epic is only the answer (Gui #2798)
   const got = needGot(), items = needItems().filter((x) => !got.has(x.key));
   if (!items.length) return "";
   const texts = items.map((x) => x.text), ask = JSON.stringify([S.id, thread, texts]);
@@ -6667,7 +6668,7 @@ function renderDoc(force) {
   const ver = () => { if (!vb) return; const h = pv.querySelector("h1"); h ? h.before(vb) : pv.prepend(vb); }; // floats right of the title
   ver();
   if (verView) { verBar(pv); ver(); renderPeek(); return; } // an old version: no live tasks or apps, and the editor keeps the live text
-  placeTasks(pv, ep || (thread === "main" && S.roomTasks?.length ? "main" : null));
+  placeTasks(pv, epic?.answer ? null : ep || (thread === "main" && S.roomTasks?.length ? "main" : null)); // an answer's doc has no task list (Gui #2798)
   docApps(pv, ep);
   // A question just became this epic and its Claude is on it, but the doc is still the seed (Gui #2720): show that the
   // answer is coming, right away, instead of an empty doc.
