@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
+  import { ContextMenu } from "bits-ui";
   import type { Attachment, Room } from "../../../shared/room";
   import type { SendRoomCommand } from "../../../shared/commands";
   import type { RequestRoomCommand } from "../../roomConnection";
   import Button from "../../lib/ui/Button.svelte";
   import Icon from "../../lib/ui/Icon.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
+  import { copyChatText } from "../chat/clipboard";
   import Input from "../../lib/ui/Input.svelte";
   import Label from "../../lib/ui/Label.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -70,9 +72,212 @@
   function retryFiles() {
     if (interactive()) requestPinnedFiles(session, room, send, true);
   }
+  // Unpinning removes the row the menu returns focus to; once it is gone, focus moves to a neighbour.
+  let refocus: { id: string; index: number } | null = null;
   function remove(id: string) {
-    if (interactive()) void removePinnedItem(session, room.id, id, request);
+    if (!interactive()) return;
+    refocus = { id, index: rows.findIndex((row) => row.pin.id === id) };
+    void removePinnedItem(session, room.id, id, request);
   }
+  let sectionElement: HTMLElement | null = $state(null);
+  $effect(() => {
+    const ids = rows.map((row) => row.pin.id);
+    if (!refocus || ids.includes(refocus.id)) return;
+    const { index } = refocus;
+    refocus = null;
+    void tick().then(() => {
+      const active = document.activeElement;
+      // Only when focus was lost with the row; never steal it from wherever the person moved on to.
+      if (
+        disposed ||
+        (active && active !== document.body && active.isConnected)
+      )
+        return;
+      const next = ids[Math.min(Math.max(index, 0), ids.length - 1)];
+      const row = [
+        ...(sectionElement?.querySelectorAll<HTMLElement>("[data-pin-id]") ??
+          []),
+      ].find((element) => element.dataset.pinId === next);
+      (
+        row?.querySelector<HTMLElement>("[data-context-menu-trigger]") ??
+        addButton ??
+        sectionElement
+      )?.focus();
+    });
+  });
+  function openInNewTab(href: string) {
+    if (interactive()) window.open(href, "_blank", "noopener,noreferrer");
+  }
+  // What the last "Copiar link" did, shown under the list for a moment (a failure stays until the next copy).
+  let copyResult: "copied" | "failed" | null = $state(null);
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  let copySequence = 0;
+  onDestroy(() => clearTimeout(copyTimer));
+  async function copyLink(href: string) {
+    if (!interactive()) return;
+    const token = ++copySequence;
+    clearTimeout(copyTimer);
+    copyResult = null;
+    try {
+      await copyChatText(href);
+      if (disposed || token !== copySequence) return;
+      copyResult = "copied";
+      navigator.vibrate?.(15);
+      copyTimer = setTimeout(() => {
+        if (token === copySequence) copyResult = null;
+      }, 2500);
+    } catch {
+      if (!disposed && token === copySequence) copyResult = "failed";
+    }
+  }
+
+  // Row menu: right-click (bits-ui), a ~500ms touch long press, or Shift+F10 / the ContextMenu key.
+  // Every route ends in one contextmenu event on the row, so bits-ui positions and opens it the same way.
+  let menuPin: string | null = $state(null);
+  let keyboardMenu = false;
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_SLOP = 8;
+  let press: {
+    timer: ReturnType<typeof setTimeout>;
+    x: number;
+    y: number;
+  } | null = null;
+  // A long press that opened the menu must not also count as a tap on the row when the finger lifts.
+  let swallowClick = false;
+  function showMenu(element: HTMLElement, x: number, y: number) {
+    element.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+      }),
+    );
+  }
+  function cancelPress() {
+    if (press) clearTimeout(press.timer);
+    press = null;
+  }
+  onDestroy(cancelPress);
+  function rowTrigger(
+    props: Record<string, unknown>,
+    id: string,
+    menuOnly = false,
+  ) {
+    // bits-ui's own touch handling waits 700ms and cancels on any jitter; this row uses its own.
+    const {
+      onpointerdown: _down,
+      onpointermove: _move,
+      onpointerup: _up,
+      onpointercancel: _cancel,
+      ...rest
+    } = props;
+    return {
+      ...rest,
+      tabindex: 0,
+      "aria-keyshortcuts": "Shift+F10",
+      "aria-describedby": hintId,
+      // A row whose only action is its menu (a broken target) is a menu button: Enter and Space open it too.
+      ...(menuOnly ? { role: "button", "aria-haspopup": "menu" as const } : {}),
+      onpointerdown(event: PointerEvent) {
+        swallowClick = false;
+        cancelPress();
+        if (event.pointerType === "mouse" || !interactive()) return;
+        const element = event.currentTarget as HTMLElement;
+        const { clientX: x, clientY: y } = event;
+        press = {
+          x,
+          y,
+          timer: setTimeout(() => {
+            press = null;
+            if (disposed || !element.isConnected || menuPin === id) return;
+            swallowClick = true;
+            showMenu(element, x, y);
+          }, LONG_PRESS_MS),
+        };
+      },
+      onpointermove(event: PointerEvent) {
+        if (
+          press &&
+          Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+            LONG_PRESS_SLOP
+        )
+          cancelPress();
+      },
+      onpointerup: cancelPress,
+      onpointercancel: cancelPress,
+      onkeydown(event: KeyboardEvent) {
+        if (
+          !(event.key === "F10" && event.shiftKey) &&
+          event.key !== "ContextMenu" &&
+          !(menuOnly && (event.key === "Enter" || event.key === " "))
+        )
+          return;
+        event.preventDefault();
+        if (!interactive()) return;
+        const element = event.currentTarget as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        keyboardMenu = true;
+        showMenu(element, rect.left + 12, rect.bottom);
+      },
+      oncontextmenu(event: MouseEvent) {
+        // A row left over from a closed session (whose disabled flag may lag) opens nothing.
+        if (!interactive()) {
+          cancelPress();
+          event.preventDefault();
+          return;
+        }
+        // A platform long press (Android) also fires contextmenu; one menu, and no tap after it.
+        if (press) swallowClick = true;
+        cancelPress();
+        // Right-clicking another row moves the menu there; no click to swallow.
+        dismissedAt = -Infinity;
+        if (event.isTrusted) keyboardMenu = false;
+        (rest.oncontextmenu as ((event: MouseEvent) => void) | undefined)?.(
+          event,
+        );
+      },
+    };
+  }
+  // Pressing another row only dismisses an open menu (like a native one); the press is not also a click on it.
+  let dismissedAt = -Infinity;
+  function dismissedByRow(event: PointerEvent) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[data-native-pins] [data-pin-id]")
+    )
+      dismissedAt = performance.now();
+  }
+  function swallowLongPressClick(event: MouseEvent) {
+    // Keyboard activation (Enter/Space) is never the end of a press.
+    if (event.detail === 0) return;
+    if (swallowClick) {
+      // The finger lifting after a long press: keep the menu it just opened.
+      swallowClick = false;
+      event.preventDefault();
+      return;
+    }
+    // A mouse press dismissed the menu just before this click; a tap dismisses here, on the click
+    // (bits-ui would skip its own dismissal for a click whose default is prevented).
+    if (menuPin === null && performance.now() - dismissedAt >= 1000) return;
+    menuPin = null;
+    dismissedAt = -Infinity;
+    event.preventDefault();
+  }
+  const menuId = (id: string) => `pin-menu-${room.id}-${id}`;
+  function focusFirstItem(event: Event, id: string) {
+    // Opened from the keyboard: start on the first item, like a menu button.
+    if (!keyboardMenu) return;
+    keyboardMenu = false;
+    const first = document
+      .getElementById(menuId(id))
+      ?.querySelector<HTMLElement>("[role=menuitem]:not([data-disabled])");
+    if (!first) return;
+    event.preventDefault();
+    first.focus();
+  }
+  const menuItemClass =
+    "tw:flex tw:cursor-default tw:select-none tw:items-center tw:rounded-control-md tw:px-2 tw:py-1.5 tw:text-sm tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
   const pinState = $derived(session.state);
   const noApp = readable(null);
   const openApp = $derived(activeApp ?? noApp);
@@ -95,6 +300,7 @@
   let urlInput: HTMLInputElement | null = $state(null);
   let addButton: HTMLButtonElement | null = $state(null);
   const fieldId = $derived(`pin-url-${room.id}`);
+  const hintId = $derived(`pins-hint-${room.id}`);
   const issueTitle = (issue: PinIssue) =>
     t(
       {
@@ -185,9 +391,8 @@
   }
 </script>
 
-<!-- The unpin button floats over the row's end; whenever it shows, the label reserves its width so long names end in an ellipsis instead of under it. -->
 {#snippet text(label: string, detail: string)}<span
-    class="tw:min-w-0 tw:flex-1 tw:text-left tw:group-hover:pr-7 tw:group-focus-within:pr-7 tw:[@media(hover:none)]:pr-7"
+    class="tw:min-w-0 tw:flex-1 tw:text-left"
     data-pin-text
     ><span class="tw:block tw:truncate">{label}</span><span
       class="tw:block tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
@@ -196,8 +401,10 @@
   >{/snippet}
 
 <section
-  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-2 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground"
+  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-2 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:outline-none"
   aria-labelledby={`pins-title-${room.id}`}
+  bind:this={sectionElement}
+  tabindex="-1"
   data-native-pins
   data-vb-native
 >
@@ -299,17 +506,35 @@
     >
   {/if}
 
+  {#if copyResult === "copied"}
+    <p
+      role="status"
+      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      data-pin-copy="copied"
+    >
+      {t("Link copiado")}
+    </p>
+  {:else if copyResult === "failed"}
+    <p
+      role="alert"
+      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
+      data-pin-copy="failed"
+    >
+      {t("Não consegui copiar o link.")}
+    </p>
+  {/if}
   {#if rows.length}
+    <span id={hintId} class="tw:sr-only">{t("Shift+F10 abre mais ações")}</span>
     <ul class="tw:m-0 tw:list-none tw:space-y-0.5 tw:p-0">
       {#each rows as { pin, target } (pin.id)}
         {@const selected =
           target.kind === "app" && samePinApp(target.app, $openApp)}
-        <!-- The row owns the background, so the hover-revealed unpin button can inherit it over the label. -->
         <li
           class={cn(
-            "tw:group tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-control tw:bg-sidebar tw:hover:bg-accent tw:focus-within:bg-accent",
+            "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-control tw:bg-sidebar tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-accent tw:focus-within:bg-accent",
             selected &&
               "tw:bg-sidebar-accent tw:text-sidebar-accent-foreground tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
+            menuPin === pin.id && !selected && "tw:bg-accent",
           )}
           data-pin-id={pin.id}
           data-pin-kind={target.kind === "file-unloaded" ? "file" : target.kind}
@@ -319,80 +544,147 @@
               ? undefined
               : "inline"}
           data-selected={selected || undefined}
+          onclickcapture={swallowLongPressClick}
         >
-          {#if target.kind === "link"}
-            <a
-              href={target.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onclick={(event) => {
-                if (!interactive()) event.preventDefault();
-              }}
-              class={rowClass}
-              title={target.href}
-            >
-              <span
-                class={kindClass}
-                data-pin-icon={target.github ? "github" : "globe"}
-                ><Icon
-                  name={target.github ? "github" : "globe"}
-                  class="tw:text-muted-foreground"
-                /></span
-              >{@render text(target.label, target.detail)}<Icon
-                name="external"
-                class={markerClass}
-              /><span class="tw:sr-only">{t("abre em nova aba")}</span>
-            </a>
-          {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
-            <Button
-              variant="ghost"
-              class={cn(
-                rowClass,
-                "tw:h-auto tw:justify-start tw:whitespace-normal tw:font-normal tw:hover:bg-transparent tw:focus-visible:ring-offset-0",
-              )}
-              disabled={!live}
-              aria-current={selected ? "true" : undefined}
-              onclick={() => activate(pin.id)}
-            >
-              {#if target.kind === "app"}<span
+          <ContextMenu.Root
+            bind:open={
+              () => menuPin === pin.id,
+              (open) => {
+                if (open) menuPin = pin.id;
+                else if (menuPin === pin.id) menuPin = null;
+              }
+            }
+          >
+            <ContextMenu.Trigger disabled={!live}>
+              {#snippet child({ props })}
+                {@const trigger = rowTrigger(
+                  props,
+                  pin.id,
+                  target.kind === "unavailable",
+                )}
+                {#if target.kind === "link"}
+                  <a
+                    {...trigger}
+                    href={target.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onclick={(event) => {
+                      if (!interactive()) event.preventDefault();
+                    }}
+                    class={rowClass}
+                  >
+                    <span
+                      class={kindClass}
+                      data-pin-icon={target.github ? "github" : "globe"}
+                      ><Icon
+                        name={target.github ? "github" : "globe"}
+                        class="tw:text-muted-foreground"
+                      /></span
+                    >{@render text(target.label, target.detail)}<Icon
+                      name="external"
+                      class={markerClass}
+                    /><span class="tw:sr-only">{t("abre em nova aba")}</span>
+                  </a>
+                {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
+                  <Button
+                    {...trigger}
+                    variant="ghost"
+                    class={cn(
+                      rowClass,
+                      "tw:h-auto tw:justify-start tw:whitespace-normal tw:font-normal tw:hover:bg-transparent tw:focus-visible:ring-offset-0",
+                    )}
+                    disabled={!live}
+                    aria-current={selected ? "true" : undefined}
+                    onclick={(event) => {
+                      if (!event.defaultPrevented) activate(pin.id);
+                    }}
+                  >
+                    {#if target.kind === "app"}<span
+                        class={cn(
+                          kindClass,
+                          "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
+                          pinAppTint(target.app),
+                        )}
+                        data-pin-icon="tile"
+                        aria-hidden="true">{pinAppInitials(target.label)}</span
+                      >{:else}<span class={kindClass} data-pin-icon="file"
+                        ><Icon
+                          name="file"
+                          class="tw:text-muted-foreground"
+                        /></span
+                      >{/if}{@render text(
+                      target.label,
+                      target.kind === "file-unloaded"
+                        ? t(
+                            $pinState.filesPending
+                              ? "Carregando arquivo…"
+                              : "Carregar arquivo",
+                          )
+                        : target.kind === "app"
+                          ? t("App")
+                          : target.detail,
+                    )}<Icon name="chevronRight" class={markerClass} />
+                  </Button>
+                {:else}
+                  <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
+                  <div
+                    {...trigger}
+                    class={cn(rowClass, "tw:text-muted-foreground")}
+                  >
+                    <span class={kindClass}><Icon name="warning" /></span
+                    >{@render text(target.label, t(target.reason))}
+                  </div>
+                {/if}
+              {/snippet}
+            </ContextMenu.Trigger>
+            <ContextMenu.Portal>
+              <ContextMenu.Content
+                id={menuId(pin.id)}
+                data-vb-native
+                data-pin-menu={pin.id}
+                aria-label={t("Ações de {name}", { name: target.label })}
+                collisionPadding={8}
+                onOpenAutoFocus={(event) => focusFirstItem(event, pin.id)}
+                onInteractOutside={dismissedByRow}
+                class="tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-control tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none"
+              >
+                {#if target.kind === "link"}
+                  {@const href = target.href}
+                  <ContextMenu.Item
+                    class={menuItemClass}
+                    onSelect={() => openInNewTab(href)}
+                    >{t("Abrir em nova aba")}</ContextMenu.Item
+                  >
+                  <ContextMenu.Item
+                    class={menuItemClass}
+                    onSelect={() => copyLink(href)}
+                    >{t("Copiar link")}</ContextMenu.Item
+                  >
+                {:else if target.kind !== "unavailable"}
+                  <ContextMenu.Item
+                    class={menuItemClass}
+                    onSelect={() => activate(pin.id)}
+                    >{t("Abrir")}</ContextMenu.Item
+                  >
+                {/if}
+                {#if target.kind !== "unavailable"}
+                  <ContextMenu.Separator
+                    class="tw:-mx-1 tw:my-1 tw:h-px tw:bg-border"
+                  />
+                {/if}
+                <ContextMenu.Item
                   class={cn(
-                    kindClass,
-                    "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
-                    pinAppTint(target.app),
+                    menuItemClass,
+                    "tw:text-destructive tw:data-highlighted:bg-destructive/10 tw:data-highlighted:text-destructive",
                   )}
-                  data-pin-icon="tile"
-                  aria-hidden="true">{pinAppInitials(target.label)}</span
-                >{:else}<span class={kindClass} data-pin-icon="file"
-                  ><Icon name="file" class="tw:text-muted-foreground" /></span
-                >{/if}{@render text(
-                target.label,
-                target.kind === "file-unloaded"
-                  ? t(
-                      $pinState.filesPending
-                        ? "Carregando arquivo…"
-                        : "Carregar arquivo",
-                    )
-                  : target.kind === "app"
-                    ? t("App")
-                    : target.detail,
-              )}<Icon name="chevronRight" class={markerClass} />
-            </Button>
-          {:else}
-            <div class={cn(rowClass, "tw:text-muted-foreground")}>
-              <span class={kindClass}><Icon name="warning" /></span
-              >{@render text(target.label, t(target.reason))}
-            </div>
-          {/if}
-          <IconButton
-            icon="close"
-            label={t("Desafixar {name}", { name: target.label })}
-            class={cn(
-              "tw:absolute tw:top-1/2 tw:size-7 tw:-translate-y-1/2 tw:bg-inherit tw:p-1.5 tw:text-muted-foreground tw:opacity-0 tw:hover:text-foreground tw:group-hover:opacity-100 tw:group-focus-within:opacity-100 tw:focus-visible:opacity-100 tw:focus-visible:ring-offset-0 tw:[@media(hover:none)]:opacity-100 tw:disabled:opacity-0 tw:group-hover:disabled:opacity-50 tw:group-focus-within:disabled:opacity-50 tw:[@media(hover:none)]:disabled:opacity-50",
-              target.kind === "unavailable" ? "tw:right-1" : "tw:right-7",
-            )}
-            disabled={!live || !!$pinState.pending}
-            onclick={() => remove(pin.id)}
-          />
+                  data-pin-unpin
+                  disabled={!!$pinState.pending}
+                  onSelect={() => remove(pin.id)}
+                  >{t("Desafixar")}</ContextMenu.Item
+                >
+              </ContextMenu.Content>
+            </ContextMenu.Portal>
+          </ContextMenu.Root>
         </li>
       {/each}
     </ul>
