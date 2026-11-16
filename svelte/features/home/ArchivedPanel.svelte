@@ -7,7 +7,7 @@
   import type { HomeBridge } from "./types";
   import { createArchivedSession } from "./session";
   import { homeText, homeIssue } from "./copy";
-  import { roomInitials, targetHref } from "./model";
+  import { roomCover, roomInitials, targetHref } from "./model";
   let { personal, lang, ago, onnavigate, onhome }: HomeBridge = $props();
   const session = untrack(() => createArchivedSession(personal)),
     view = session.state;
@@ -68,7 +68,10 @@
     <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
       {#each $view.books as room (room.id)}<Card class="tw:space-y-3"
           ><div
-            class="tw:grid tw:h-24 tw:place-items-center tw:rounded-control tw:bg-muted tw:text-2xl tw:font-semibold"
+            class={[
+              "tw:grid tw:h-24 tw:place-items-center tw:rounded-control tw:text-2xl tw:font-semibold tw:grayscale-60",
+              roomCover(room.title),
+            ]}
           >
             {roomInitials(room.title)}
           </div>

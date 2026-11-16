@@ -6,8 +6,11 @@
   import RailPill from "../app-navigation/RailPill.svelte";
   import Tip from "../../lib/ui/Tip.svelte";
   import {
+    roomCover,
+    roomCoverIndex,
     roomInitials,
     roomIcon,
+    roomRailTint,
     roomTint,
     targetHref,
     unread,
@@ -103,8 +106,12 @@
       href={targetHref({ roomId: room.id })}
       aria-label={description}
       aria-current={selected ? "page" : undefined}
+      data-room-tint={compact && roomRailTint(room) ? room.tint : undefined}
       class={compact
-        ? "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+        ? [
+            "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+            roomRailTint(room),
+          ]
         : "tw:flex tw:min-w-0 tw:flex-col tw:gap-3 tw:rounded-control tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"}
       onclick={(event) => {
         if (
@@ -125,8 +132,13 @@
         class={[
           compact ? "tw:size-10" : "tw:h-28 tw:w-full",
           "tw:relative tw:inline-grid tw:place-items-center tw:overflow-hidden tw:rounded-control tw:text-xl tw:font-semibold",
-          roomTint(room),
+          // Like vanilla: no icon means the title's cover color; the tint colors
+          // the room's group, never the tile.
+          roomIcon(room) ? roomTint(room) : roomCover(room.title),
         ]}
+        data-room-cover={roomIcon(room)
+          ? undefined
+          : roomCoverIndex(room.title)}
       >
         {#if roomIcon(room)}<img
             src={roomIcon(room)}
@@ -139,19 +151,21 @@
               role="img"
               aria-label={text(news === "human" ? "newHuman" : "newAgent")}
               class={news === "human"
-                ? "tw:absolute tw:right-1 tw:top-0 tw:text-primary"
-                : "tw:absolute tw:right-1 tw:top-0 tw:text-warning"}>●</span
+                ? "tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:right-1.5 tw:top-1.5 tw:text-primary"
+                : "tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:right-1.5 tw:top-1.5 tw:text-warning"}
+              >●</span
             >{/if}
           {#if (room.busy_until ?? 0) > now}<span
               role="img"
               aria-label={text("busy")}
-              class="tw:absolute tw:bottom-0 tw:left-1 tw:text-primary tw:motion-safe:animate-spin"
+              class="tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:bottom-1.5 tw:left-1.5 tw:text-primary tw:motion-safe:animate-spin"
               >✻</span
             >{/if}
           {#if room.sandboxes_running}<span
               role="img"
               aria-label={text("cloud")}
-              class="tw:absolute tw:bottom-0 tw:right-1 tw:text-warning">☁</span
+              class="tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:bottom-1.5 tw:right-1.5 tw:text-warning"
+              >☁</span
             >{/if}
         {/if}
       </span>
