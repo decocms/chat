@@ -93,6 +93,7 @@
     <Avatar
       name={label}
       src={avatar}
+      seed={email}
       class="tw:size-10 tw:text-sm tw:transition-opacity tw:group-hover:opacity-80 tw:motion-reduce:transition-none"
     />
   </button>
@@ -107,7 +108,12 @@
       )}
     >
       <div class="tw:flex tw:min-w-0 tw:items-center tw:gap-3">
-        <Avatar name={label} src={avatar} class="tw:size-10 tw:text-sm" />
+        <Avatar
+          name={label}
+          src={avatar}
+          seed={email}
+          class="tw:size-10 tw:text-sm"
+        />
         <div class="tw:min-w-0">
           <div class="tw:truncate tw:font-semibold">{label}</div>
           {#if name && name !== email}<div

@@ -460,6 +460,7 @@
         {#if task.owner}<Avatar
             name={vb.name(task.owner)}
             src={`/api/avatar/${encodeURIComponent(task.owner)}`}
+            seed={task.owner}
             class="tw:size-6"
           /><span
             >{task.owner === room.me ? vb.t("você") : vb.name(task.owner)}</span

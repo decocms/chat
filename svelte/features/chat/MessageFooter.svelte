@@ -108,6 +108,7 @@
             <Avatar
               name={vb.name(reader.receipt.email)}
               src={vb.avatarUrl?.(reader.receipt.email)}
+              seed={reader.receipt.email}
               class="tw:size-6"
             /><AgentAvatar
               px={16}
@@ -130,6 +131,7 @@
               <Avatar
                 name={vb.name(reader.receipt.email)}
                 src={vb.avatarUrl?.(reader.receipt.email)}
+                seed={reader.receipt.email}
                 class="tw:size-6"
               /><span class="tw:min-w-0 tw:flex-1 tw:break-words"
                 >{who(reader.receipt.who, reader.receipt.email)}</span

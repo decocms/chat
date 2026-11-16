@@ -49,6 +49,7 @@
     <Avatar
       name={epic.owner ? vb.name(epic.owner) : epic.title}
       src={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+      seed={epic.owner || epic.title}
     />
     <span class="tw:min-w-0 tw:flex-1"
       ><strong class="tw:block tw:font-semibold">{epic.title}</strong><small

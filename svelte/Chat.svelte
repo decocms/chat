@@ -116,6 +116,7 @@
               ><Avatar
                 name={vb.name(worker.email)}
                 src={vb.avatarUrl?.(worker.email)}
+                seed={worker.email}
               /><AgentAvatar
                 px={16}
                 via={worker.who}

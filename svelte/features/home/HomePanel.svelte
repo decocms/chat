@@ -153,6 +153,7 @@
             ><Avatar
               name={$account.me?.name || $account.me?.email || "vibebook"}
               src={personAvatar($account.me, $account.me?.email ?? "")}
+              seed={$account.me?.email}
             />{text("profile")}</Button
           ><Button
             variant="ghost"
@@ -394,6 +395,7 @@
                               (friend) => friend.email === email,
                             )?.name || email}
                             src={personAvatar(me, email)}
+                            seed={email}
                           /></span
                         >{/each}<small class="tw:text-muted-foreground"
                         >{ago(room.updated_at ?? 0)}</small
@@ -412,6 +414,7 @@
                   <Avatar
                     name={friend.name || friend.email}
                     src={personAvatar(me, friend.email)}
+                    seed={friend.email}
                   /><span class="tw:min-w-0 tw:break-words"
                     >{friend.name || friend.email}</span
                   >

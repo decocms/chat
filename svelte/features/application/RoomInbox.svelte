@@ -202,6 +202,7 @@
                   />{:else}<Avatar
                     name={name(row)}
                     src={avatar(row.author)}
+                    seed={row.author}
                   />{/if}
                 <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
                   <span

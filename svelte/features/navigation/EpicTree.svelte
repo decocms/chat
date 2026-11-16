@@ -322,6 +322,7 @@
                   src={epic.owner && room.avatars?.[epic.owner]
                     ? `/api/avatar/${encodeURIComponent(epic.owner)}?v=${room.avatars[epic.owner]}`
                     : undefined}
+                  seed={epic.owner || epic.title}
                   class="tw:size-5 tw:text-[10px]"
                 />
                 <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title

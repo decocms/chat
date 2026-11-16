@@ -162,6 +162,7 @@
           />{:else}<Avatar
             name={author(m)}
             src={vb.avatarUrl?.(m.author)}
+            seed={m.author}
           />{/if}{#if m.kind === "agent"}<AgentAvatar
             px={16}
             via={m.via}
