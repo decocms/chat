@@ -13,6 +13,7 @@ import {
 } from "../src/bookMessages";
 import { cachedTools } from "../src/mcpTools";
 import type { bookStub } from "../src/rooms";
+import { sendTo } from "./book-test-wire";
 type RemoteAgentRead = Awaited<
   ReturnType<ReturnType<typeof bookStub>["agentRead"]>
 >;
@@ -235,6 +236,7 @@ test("actual Book messages/older use validated rows and raw pagination count rem
     })),
     frames: string[] = [];
   const receiver = {
+    sendTo,
     get: () => "abcdef",
     files: () => [file],
     sql: { exec: () => ({ toArray: () => raw }) },
@@ -271,6 +273,7 @@ test("actual closeAsk rejects malformed choices before mutation and preserves te
     updates = 0;
   const events: unknown[] = [];
   const receiver = {
+    sendTo,
     bind: () => {},
     answerTo: () => null,
     sql: {
@@ -309,6 +312,7 @@ test("actual closeAsk rejects malformed choices before mutation and preserves te
 test("access-requested HTTP validates before binding, owner lookup or notice posting", async () => {
   let effects = 0;
   const receiver = {
+    sendTo,
     get: () => {
       effects++;
       return null;
@@ -385,6 +389,7 @@ test("actual open_file validates stored metadata and targets only the requesting
   let raw: unknown = file;
   const args: unknown[][] = [];
   const receiver = {
+    sendTo,
     bind: (id: string) => expect(id).toBe("abcdef"),
     sql: {
       exec: (...values: unknown[]) => {
@@ -435,6 +440,7 @@ test("actual Fire card updates require owned card and emit the normalized replac
   const writes: unknown[][] = [],
     events: unknown[] = [];
   const receiver = {
+    sendTo,
     bind: () => {},
     members: async () => ["member@example.test"],
     sql: {
@@ -504,6 +510,7 @@ async function openDocFixture() {
       },
     };
   const receiver = {
+    sendTo,
     bind: (id: string) => {
       bound = id;
     },
