@@ -8,9 +8,9 @@ import {
   foldMessages,
   messageFooters,
   threadWorkers,
-  agentMark,
   reminderParts,
 } from "../svelte/features/chat/model";
+import { agentMark } from "../svelte/lib/ui/avatar";
 const message = (id: number, text = "text", thread = "main"): Message => ({
   id,
   text,
@@ -133,6 +133,9 @@ test("worker state excludes branched origins, respects latest completion and fal
   expect(threadWorkers(r, "e", 12000)).toEqual([]);
   expect(threadWorkers(r, "pre:0", 12000)).toEqual([]);
   expect(agentMark("Codex")).toBe("◎");
+  expect(agentMark("gemini-3-pro")).toBe("✦");
+  expect(agentMark("Antigravity")).toBe("✦");
+  expect(agentMark("claude-opus-5-5")).toBe("✻");
 });
 test("latest done or dismissed ack never revives an older doing session in footer or epic worker fallback", () => {
   const r = room([message(1)]);

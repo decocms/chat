@@ -1,5 +1,6 @@
 <script lang="ts">
   import Avatar from "../../lib/ui/Avatar.svelte";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import type { MeResult } from "../../../shared/schemas";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import type { RoomsSession } from "../rooms/session";
@@ -36,10 +37,17 @@
 <ul class="tw:m-0 tw:list-none tw:space-y-3 tw:p-0">
   {#each waits as wait (wait.book_id + ":" + wait.ref)}{@const key = `wait:${wait.book_id}:${wait.ref}`}
     <li class="tw:flex tw:items-start tw:gap-2" data-native-wait={wait.ref}>
-      <Avatar
-        name={wait.author_name || wait.author}
-        src={personAvatar(people, wait.author)}
-      />
+      <!-- Same shapes as the Inbox: an agent waiting on you (a/b refs) and an
+           @vibe ask are agent squares; people asking are circles. -->
+      {#if /^[ab]/.test(wait.ref)}<AgentAvatar
+          class="tw:text-sm tw:font-normal"
+        />{:else if wait.author === "ai"}<AgentAvatar
+          mark="✦"
+          class="tw:text-sm tw:font-normal tw:text-primary"
+        />{:else}<Avatar
+          name={wait.author_name || wait.author}
+          src={personAvatar(people, wait.author)}
+        />{/if}
       <a
         class="tw:min-w-0 tw:flex-1 tw:rounded-control tw:text-sm tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
         href={targetHref(waitTarget(wait))}

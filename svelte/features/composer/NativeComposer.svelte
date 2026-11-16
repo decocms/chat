@@ -20,6 +20,7 @@
   import Button from "../../lib/ui/Button.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import Avatar from "../../lib/ui/Avatar.svelte";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import Icon from "../../lib/ui/Icon.svelte";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import EmojiPicker from "./EmojiPicker.svelte";
@@ -625,11 +626,14 @@
             choose(index);
           }}
           onclick={() => choose(index)}
-          ><Avatar
-            name={vb.name(item.email)}
-            src={vb.avatarUrl?.(item.email)}
-            class="tw:size-6"
-          /><b>@{item.handle}</b><small class="tw:text-muted-foreground"
+          >{#if item.agent}<AgentAvatar
+              px={24}
+              class="tw:font-normal"
+            />{:else}<Avatar
+              name={vb.name(item.email)}
+              src={vb.avatarUrl?.(item.email)}
+              px={24}
+            />{/if}<b>@{item.handle}</b><small class="tw:text-muted-foreground"
             >{vb.t(item.label)}</small
           ></button
         >{/each}

@@ -3,6 +3,7 @@
   import type { Wait, InboxMention, InboxTask, Bridge } from "./types";
   import { uiNavigationUrl } from "../shared/uiVariant";
   import Avatar from "./lib/ui/Avatar.svelte";
+  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import Icon from "./lib/ui/Icon.svelte";
   import IconButton from "./lib/ui/IconButton.svelte";
@@ -196,6 +197,13 @@
                       class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:rounded-full tw:border tw:border-border tw:bg-muted"
                       ><Icon name="check" /></span
                     >
+                  {:else if kind(wait) === "agent"}<AgentAvatar
+                      class="tw:text-sm tw:font-normal"
+                    />
+                  {:else if wait.author === "ai"}<AgentAvatar
+                      mark="✦"
+                      class="tw:text-sm tw:font-normal tw:text-primary"
+                    />
                   {:else}<Avatar
                       name={author(wait.author, wait.author_name)}
                       src={avatarUrl?.(wait.author)}
@@ -271,10 +279,13 @@
                   }}
                   class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-3 tw:rounded-control tw:p-2 tw:text-foreground tw:no-underline tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
                 >
-                  <Avatar
-                    name={author(m.author, m.author_name)}
-                    src={avatarUrl?.(m.author)}
-                  />
+                  {#if m.author === "ai"}<AgentAvatar
+                      mark="✦"
+                      class="tw:text-sm tw:font-normal tw:text-primary"
+                    />{:else}<Avatar
+                      name={author(m.author, m.author_name)}
+                      src={avatarUrl?.(m.author)}
+                    />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
                   >

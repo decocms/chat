@@ -15,17 +15,6 @@ export const prettyModel = (value: string) =>
     (_, family: string, a: string, b: string) =>
       `Claude ${family[0].toUpperCase()}${family.slice(1)} ${a}.${b}`,
   );
-export function agentMark(via: string | null | undefined) {
-  return /codex|gpt|openai|\bo[1-9]\b/i.test(via || "")
-    ? "◎"
-    : /gemini/i.test(via || "")
-      ? "✦"
-      : /cursor/i.test(via || "")
-        ? "▲"
-        : /copilot/i.test(via || "")
-          ? "◉"
-          : "✻";
-}
 export const continues = (
   previous: ChatMessage | undefined,
   current: ChatMessage,

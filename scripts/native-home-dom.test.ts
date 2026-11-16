@@ -4,7 +4,7 @@ import { plugin } from "bun";
 import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
-import { get } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { createPersonalSession } from "../svelte/features/home/personal";
 import { createRoomsSession } from "../svelte/features/rooms/session";
 import { createNewRoomSession } from "../svelte/features/home/session";
@@ -100,6 +100,8 @@ const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: Home } =
   await import("../svelte/features/home/HomePanel.svelte");
 const { default: Inbox } = await import("../svelte/Inbox.svelte");
+const { default: WaitList } =
+  await import("../svelte/features/home/WaitList.svelte");
 const { default: AppNavigation } =
   await import("../svelte/features/app-navigation/AppNavigation.svelte");
 const { default: NavigationDialogs } =
@@ -379,6 +381,98 @@ test("Inbox shows all three canonical sections, keeps retry explicit and rejects
   mention.click();
   task.click();
   expect(opened).toEqual([mentions[0], tasks[0]]);
+});
+test("Home waits and the Inbox share one avatar language: people circles, agents and @vibe squares", async () => {
+  const wait = (ref: string, author: string, author_name: string) => ({
+    book_id: "aaaaaa",
+    room: "Room",
+    ref,
+    thread: "main",
+    topic: null,
+    author,
+    author_name,
+    text: `wait ${ref}`,
+    ts: 1,
+  });
+  const waits = [
+    wait("m1", "friend@test", "Friend"),
+    wait("m2", "ai", "@vibe"),
+    wait("a3", "me@test", "Me"),
+  ];
+  const expected = [
+    ["person", ""],
+    ["agent", "✦"],
+    ["agent", "✻"],
+  ];
+  const shapes = (root: ParentNode) =>
+    [...root.querySelectorAll("[data-avatar]")].map((el) => [
+      el.getAttribute("data-avatar"),
+      el.getAttribute("data-avatar") === "agent" ? el.textContent?.trim() : "",
+    ]);
+  const home = document.createElement("div");
+  document.body.append(home);
+  const list = flushSync(() =>
+    mount(WaitList, {
+      target: home,
+      props: {
+        waits,
+        people: me(),
+        rooms: { state: writable({ pending: {}, issues: {} }) },
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(list);
+      home.remove();
+    }),
+  );
+  const box = document.createElement("div");
+  document.body.append(box);
+  const inbox = flushSync(() =>
+    mount(Inbox, {
+      target: box,
+      props: {
+        waits,
+        mentions: [
+          {
+            book_id: "aaaaaa",
+            room: "Room",
+            msg_id: 7,
+            thread: "main",
+            author: "ai",
+            author_name: "@vibe",
+            text: "vibe mention",
+            ts: 1,
+          },
+        ],
+        tasks: [],
+        roomId: null,
+        vb: { t: (text: string) => text, ago: () => "now" },
+        readError: false,
+        current: () => true,
+        onretry: () => {},
+        onmention: () => {},
+        ontask: () => {},
+        onopen: () => {},
+        onresolve: () => {},
+        onclose: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(inbox);
+      box.remove();
+    }),
+  );
+  await flush();
+  expect(shapes(home)).toEqual(expected);
+  const dialog = document.querySelector('[role="dialog"]')!;
+  expect(shapes(dialog)).toEqual([...expected, ["agent", "✦"]]);
 });
 test("global Inbox direct callbacks reject old connected account controls and close on identity replacement", async () => {
   let resolves = 0;

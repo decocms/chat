@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { ChatBridge } from "../../chatTypes";
   import type { MessageFooter } from "./model";
-  import { agentMark, prettyModel } from "./model";
+  import { prettyModel } from "./model";
   import Avatar from "../../lib/ui/Avatar.svelte";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import Button from "../../lib/ui/Button.svelte";
   let { footer, vb }: { footer: MessageFooter; vb: ChatBridge } = $props();
   let opened = $state(false),
@@ -102,17 +103,17 @@
         {#each footer.readers.slice(0, 5) as reader (`${reader.receipt.who}|${reader.receipt.email}`)}
           <span
             data-reader-read={reader.read}
-            class="tw:relative tw:inline-flex"
+            class="tw:relative tw:mr-1.5 tw:inline-flex"
           >
             <Avatar
               name={vb.name(reader.receipt.email)}
               src={vb.avatarUrl?.(reader.receipt.email)}
               class="tw:size-6"
-            /><span
-              aria-hidden="true"
-              class="tw:absolute tw:-right-1 tw:-bottom-1 tw:rounded-full tw:bg-card tw:px-0.5 tw:text-xs"
-              >{agentMark(reader.receipt.who)}</span
-            >
+            /><AgentAvatar
+              px={16}
+              via={reader.receipt.who}
+              class="tw:absolute tw:-right-2 tw:-bottom-1.5 tw:bg-card tw:font-normal"
+            />
           </span>
         {/each}
         {#if footer.readers.length > 5}<span>+{footer.readers.length - 5}</span

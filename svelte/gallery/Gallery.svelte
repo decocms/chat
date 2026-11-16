@@ -4,6 +4,7 @@
   import Icon from "../lib/ui/Icon.svelte";
   import Badge from "../lib/ui/Badge.svelte";
   import Avatar from "../lib/ui/Avatar.svelte";
+  import AgentAvatar from "../lib/ui/AgentAvatar.svelte";
   import Input from "../lib/ui/Input.svelte";
   import Textarea from "../lib/ui/Textarea.svelte";
   import Checkbox from "../lib/ui/Checkbox.svelte";
@@ -239,8 +240,10 @@
           <Avatar name="Gimenes" /><Avatar name="Guilherme Rodrigues" /><Avatar
             name="Sample user"
             src="/favicon.svg"
+          /><AgentAvatar via="claude-opus-5-5" /><AgentAvatar
+            via="codex"
           /><span class="tw:text-muted-foreground"
-            >Images and initials share one frame.</span
+            >People are circles; agents share the room tile radius.</span
           >
         </div>
         <Separator />

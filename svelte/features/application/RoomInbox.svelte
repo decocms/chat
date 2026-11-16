@@ -5,6 +5,7 @@
   import Button from "../../lib/ui/Button.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import Avatar from "../../lib/ui/Avatar.svelte";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import Badge from "../../lib/ui/Badge.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
@@ -193,7 +194,15 @@
                   if (event.currentTarget.isConnected) go(row);
                 }}
               >
-                <Avatar name={name(row)} src={avatar(row.author)} />
+                {#if row.kind === "claude"}<AgentAvatar
+                    class="tw:text-sm tw:font-normal"
+                  />{:else if row.author === "ai"}<AgentAvatar
+                    mark="✦"
+                    class="tw:text-sm tw:font-normal tw:text-primary"
+                  />{:else}<Avatar
+                    name={name(row)}
+                    src={avatar(row.author)}
+                  />{/if}
                 <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
                   <span
                     ><strong>{name(row)}</strong>

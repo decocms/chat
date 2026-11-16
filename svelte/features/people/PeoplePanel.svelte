@@ -703,7 +703,8 @@
                 {#if friends.includes(email)}<Avatar
                     name={label(email)}
                     src={avatarUrl(email)}
-                    class="tw:size-6 tw:text-[0.625rem]"
+                    px={24}
+                    class="tw:text-[0.625rem]"
                   />{:else}<span
                     aria-hidden="true"
                     class="tw:inline-grid tw:size-6 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-highlight tw:text-link"

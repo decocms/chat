@@ -74,7 +74,12 @@ export function mentionPicks(
         fold((room.names?.[email] || names[email] || "").split(/\s+/)[0]) ||
         fold(local.split(/[._+-]/)[0]) ||
         fold(local);
-      return { email, handle, label: name === handle ? email : name };
+      return {
+        email,
+        handle,
+        label: name === handle ? email : name,
+        agent: false,
+      };
     });
   for (const agent of agents)
     if (
@@ -86,6 +91,7 @@ export function mentionPicks(
         email: agent.email,
         handle: agent.name,
         label: "seu agent no sandbox",
+        agent: true,
       });
   return {
     start: before.length - match[2].length - 1,
