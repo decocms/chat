@@ -3,7 +3,6 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Separator from "../../lib/studio/Separator.svelte";
   import { File06 } from "../../lib/studio/icons";
-  import { cn } from "../../lib/studio/utils";
   import Count from "../../lib/components/Count.svelte";
   import { paneIcons, paneLabel } from "../documents/paneIcons";
   import {
@@ -11,36 +10,26 @@
     type PanelView,
     type PanelViewMeta,
   } from "./panelViews";
-  // The chat header's views card (T3's): a toggle that keeps the right panel's views listed in the chat's corner while that panel is closed.
+  // The chat header's views card (T3's): a toggle that keeps the right panel's views listed in the chat's corner. Shown only while that panel is closed: its tab strip lists the views otherwise.
   let {
     label,
     waitingLabel,
     en,
-    pane,
-    panelOpen,
     meta,
     onpick,
-    onclosepanel,
   }: {
     label: string;
     waitingLabel: (count: number) => string;
     en: boolean;
-    /** The view the right panel shows. */
-    pane: string;
-    /** Whether the right panel is on screen. */
-    panelOpen: boolean;
     meta: Partial<Record<PanelView, PanelViewMeta>>;
-    /** Shows the view in the right panel, opening it when closed. */
+    /** Shows the view in the right panel, opening it. */
     onpick: (view: PanelView) => void;
-    /** Closes the right panel, so the card has the chat's corner to itself. */
-    onclosepanel: () => void;
   } = $props();
 
   const STORAGE_KEY = "vb.panelViews.pinned";
   const cardId = $props.id();
   let pinned = $state(readPinned());
   let card = $state<HTMLElement | null>(null);
-  const visible = $derived(pinned && !panelOpen);
 
   function readPinned(): boolean {
     try {
@@ -56,12 +45,6 @@
     } catch {
       /* Private mode: the toggle still works for this page. */
     }
-  }
-  function toggle() {
-    if (panelOpen) {
-      setPinned(true);
-      onclosepanel();
-    } else setPinned(!pinned);
   }
   function onkeydown(event: KeyboardEvent) {
     const all = [
@@ -84,14 +67,14 @@
   {label}
   tooltipSide="bottom"
   size="icon"
-  aria-pressed={visible}
+  aria-pressed={pinned}
   aria-controls={cardId}
   class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
-  onclick={toggle}
+  onclick={() => setPinned(!pinned)}
 >
   <Icon icon={File06} size={16} />
 </IconButton>
-{#if visible}
+{#if pinned}
   <nav
     bind:this={card}
     id={cardId}
@@ -104,17 +87,12 @@
       {#if index}<Separator class="tw:-mx-2 tw:my-2 tw:w-auto!" />{/if}
       <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
         {#each group as view (view)}
-          {@const selected = panelOpen && pane === view}
           {@const info = meta[view]}
           <li>
             <button
               type="button"
               data-view={view}
-              aria-current={selected ? "true" : undefined}
-              class={cn(
-                "tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:text-foreground tw:transition-colors tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:hover:bg-accent tw:focus-visible:bg-accent tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-ring",
-                selected && "tw:bg-accent",
-              )}
+              class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:text-foreground tw:transition-colors tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:hover:bg-accent tw:focus-visible:bg-accent tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-ring"
               onclick={() => onpick(view)}
             >
               <Icon

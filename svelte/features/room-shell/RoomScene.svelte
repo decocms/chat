@@ -333,7 +333,6 @@
         trigger={$view.trigger}
         boardCount={$view.toolbar.counts?.board}
         views={{
-          pane: $view.toolbar.pane,
           counts: $view.toolbar.counts ?? {},
           onPane: $view.toolbar.onPane,
         }}
