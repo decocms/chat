@@ -180,19 +180,25 @@
       />{/if}
     <div class="tw:flex tw:flex-col tw:gap-1">
       <div class="tw:flex tw:items-center tw:gap-1">
-        <div
+        <Button
           data-room-title
-          class="tw:flex tw:h-9 tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:px-3 tw:text-sm tw:font-medium tw:text-foreground"
+          variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
+          aria-current={!inboxOpen && thread === "main" ? "page" : undefined}
+          title={room.book.summary || room.book.title}
+          class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) open("main");
+          }}
         >
           <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
+          <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
           <span
-            class="tw:flex-1 tw:truncate"
-            title={room.book.summary || room.book.title}>{room.book.title}</span
-          >
-          <span class="tw:text-xs tw:font-normal tw:text-muted-foreground"
+            class={!inboxOpen && thread === "main"
+              ? "tw:text-xs tw:font-normal tw:text-secondary-foreground"
+              : "tw:text-xs tw:font-normal tw:text-muted-foreground"}
             >{messageCount(room, "main")}</span
           >
-        </div>
+        </Button>
         {#if oninbox}
           <Button
             data-room-inbox-button
