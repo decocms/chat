@@ -177,71 +177,75 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:flex tw:items-center tw:gap-1">
-      <Button
-        variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
-        class="tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) open("main");
+    <div class="tw:flex tw:flex-col tw:gap-1">
+      <div class="tw:flex tw:items-center tw:gap-1">
+        <Button
+          variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
+          class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) open("main");
+          }}
+          ><RoomMark
+            title={room.book.title}
+            src={roomIcon}
+            tint={roomTint}
+          /><span class="tw:flex-1 tw:truncate">{room.book.title}</span
+          ><WaitBadge
+            waits={vb.waitsIn("main")}
+            label={(n) => vb.t("{n} coisas esperando você", { n })}
+            taskLabel={vb.t("Tarefa sua pendente")}
+          /><span
+            class={!inboxOpen && thread === "main"
+              ? "tw:text-xs tw:text-secondary-foreground"
+              : "tw:text-xs tw:text-muted-foreground"}
+            >{messageCount(room, "main")}</span
+          ></Button
+        ><IconButton
+          icon="pencil"
+          label={vb.t("Renomear")}
+          class="tw:size-9 tw:shrink-0"
+          onclick={onrenameroom}
+        />
+      </div>
+      {#if thread !== "main" && !thread.startsWith("pre:")}<div
+          class="tw:min-[901px]:hidden"
+        >
+          <ThreadHeader
+            {room}
+            {thread}
+            {owner}
+            {vb}
+            {roomIcon}
+            {roomTint}
+            {onopenside}
+            {onrenameroom}
+          />
+        </div>{/if}
+      {#if oninbox}<Button
+          variant={inboxOpen ? "secondary" : "ghost"}
+          aria-current={inboxOpen ? "page" : undefined}
+          class="tw:h-9 tw:min-h-0 tw:justify-start tw:py-0"
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
+          }}>{vb.t("Caixa de entrada")}</Button
+        >{/if}
+      <EpicTree
+        {room}
+        {thread}
+        selectionDisabled={inboxOpen}
+        onBeforeOpen={onthreadintent}
+        session={navigation}
+        mutations={owner}
+        {onarchchange}
+        onopen={open}
+        vb={{
+          t: vb.t,
+          name: vb.name,
+          epicBusy: vb.epicBusy,
+          waitsIn: vb.waitsIn,
         }}
-        ><RoomMark
-          title={room.book.title}
-          src={roomIcon}
-          tint={roomTint}
-        /><span class="tw:flex-1 tw:truncate">{room.book.title}</span><WaitBadge
-          waits={vb.waitsIn("main")}
-          label={(n) => vb.t("{n} coisas esperando você", { n })}
-          taskLabel={vb.t("Tarefa sua pendente")}
-        /><span
-          class={!inboxOpen && thread === "main"
-            ? "tw:text-xs tw:text-secondary-foreground"
-            : "tw:text-xs tw:text-muted-foreground"}
-          >{messageCount(room, "main")}</span
-        ></Button
-      ><IconButton
-        icon="pencil"
-        label={vb.t("Renomear")}
-        onclick={onrenameroom}
       />
     </div>
-    {#if thread !== "main" && !thread.startsWith("pre:")}<div
-        class="tw:min-[901px]:hidden"
-      >
-        <ThreadHeader
-          {room}
-          {thread}
-          {owner}
-          {vb}
-          {roomIcon}
-          {roomTint}
-          {onopenside}
-          {onrenameroom}
-        />
-      </div>{/if}
-    {#if oninbox}<Button
-        variant={inboxOpen ? "secondary" : "ghost"}
-        aria-current={inboxOpen ? "page" : undefined}
-        class="tw:justify-start"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-        }}>{vb.t("Caixa de entrada")}</Button
-      >{/if}
-    <EpicTree
-      {room}
-      {thread}
-      selectionDisabled={inboxOpen}
-      onBeforeOpen={onthreadintent}
-      session={navigation}
-      mutations={owner}
-      {onarchchange}
-      onopen={open}
-      vb={{
-        t: vb.t,
-        name: vb.name,
-        epicBusy: vb.epicBusy,
-        waitsIn: vb.waitsIn,
-      }}
-    />
     <PinnedItems
       {room}
       session={pins}

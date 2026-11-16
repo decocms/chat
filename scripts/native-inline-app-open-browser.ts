@@ -55,6 +55,8 @@ export type InlineAppOpenEvidence = {
       direct: string | null;
       negotiated: string | null;
     };
+    /** Failure only: what each inline App card showed (tool, state text, button labels). */
+    failureCards?: { tool: string; text: string; buttons: string[] }[];
     retainedFramesAfterProse?: boolean;
     documentWidth?: { available: number; card: number };
     agentOpenRequiresReader?: boolean;
@@ -313,6 +315,24 @@ export async function auditInlineAppOpen(
           result.phase = name;
           try {
             await fixture.step(`inline-${variant}: ${name}`, run);
+          } catch (error) {
+            result.failureCards = await page
+              .locator(variant === "svelte" ? "[data-document-app]" : ".docApp")
+              .evaluateAll((nodes) =>
+                nodes.map((node) => ({
+                  tool:
+                    node.querySelector("iframe")?.getAttribute("title") ??
+                    node.querySelector("header > b")?.textContent ??
+                    node.querySelector(".hcName")?.textContent ??
+                    "",
+                  text: (node as HTMLElement).innerText.slice(0, 200),
+                  buttons: [...node.querySelectorAll("button")].map(
+                    (button) => button.textContent?.trim() ?? "",
+                  ),
+                })),
+              )
+              .catch(() => undefined);
+            throw error;
           } finally {
             capture();
           }
