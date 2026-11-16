@@ -756,6 +756,293 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
+  test("account menu: items open their account sections, the switch drives the device push service, sign out runs the given flow", async () => {
+    const { default: UserMenu } =
+      await import("../svelte/features/app-navigation/UserMenu.svelte");
+    const sections: [string, Element | undefined][] = [];
+    const bells: boolean[] = [];
+    let bellResult = true,
+      logouts = 0;
+    const state = writable({
+      permission: "granted" as NotificationPermission | "unsupported",
+      muted: false,
+      iosWeb: false,
+      ios: false,
+      testing: false,
+      sent: null as number | null,
+      error: "",
+    });
+    const push = writable({ status: "on", error: "" });
+    const pwa = {
+      state,
+      push,
+      async bell() {
+        bells.push(true);
+        return bellResult;
+      },
+      mute() {},
+      refresh: async () => {},
+      retry() {},
+      test: async () => {},
+    } as unknown as import("../svelte/features/pwa/service").PwaService;
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(UserMenu, {
+        target,
+        props: {
+          name: "Gimenes",
+          email: "gimenes@test",
+          lang: "en",
+          theme: "auto",
+          friends: 12,
+          onsettheme() {},
+          onlanguage() {},
+          onaccount: (section: string, trigger?: HTMLElement) =>
+            sections.push([section, trigger]),
+          pwa,
+          onlogout: () => logouts++,
+        },
+      }),
+    );
+    const settle = async () => {
+      for (let frame = 0; frame < 6; frame++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        flushSync();
+        await tick();
+      }
+    };
+    const trigger = target.querySelector<HTMLButtonElement>(
+      "[data-native-user-menu-trigger]",
+    )!;
+    const menu = () =>
+      document.querySelector<HTMLElement>("[data-native-user-menu]");
+    const item = (name: string) =>
+      menu()!.querySelector<HTMLElement>(`[data-user-menu-item="${name}"]`)!;
+    const openMenu = async () => {
+      trigger.focus();
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      await settle();
+      expect(menu()?.getAttribute("role")).toBe("menu");
+    };
+    try {
+      // The round person avatar and a styled tooltip, never the native title.
+      expect(trigger.hasAttribute("title")).toBe(false);
+      expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+      expect(
+        trigger.querySelector("[data-avatar]")?.getAttribute("class"),
+      ).toContain("tw:rounded-full");
+      await openMenu();
+      expect(item("friends").textContent).toContain("12");
+      expect(
+        [...menu()!.querySelectorAll("[role^=menuitem]")].map((el) =>
+          el.getAttribute("data-user-menu-item"),
+        ),
+      ).toEqual([
+        "profile",
+        "friends",
+        "agents",
+        "notifications",
+        "settings",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "logout",
+      ]);
+      for (const [name, section] of [
+        ["profile", "profile"],
+        ["friends", "friends"],
+        ["agents", "agents"],
+        ["settings", "all"],
+      ] as const) {
+        if (!menu()) await openMenu();
+        item(name).click();
+        await settle();
+        expect(menu()).toBeNull();
+        expect(sections.at(-1)?.[0]).toBe(section);
+        // Account settings hand focus back to the avatar when they close.
+        expect(sections.at(-1)?.[1] === trigger).toBe(true);
+      }
+      expect(sections).toHaveLength(4);
+      // The switch shows this device's state and toggles through the service.
+      await openMenu();
+      expect(item("notifications").getAttribute("role")).toBe(
+        "menuitemcheckbox",
+      );
+      expect(item("notifications").getAttribute("aria-checked")).toBe("true");
+      item("notifications").click();
+      await settle();
+      expect(bells).toHaveLength(1);
+      expect(menu() !== null).toBe(true);
+      flushSync(() => state.update((value) => ({ ...value, muted: true })));
+      expect(item("notifications").getAttribute("aria-checked")).toBe("false");
+      // A refusal (denied, unsupported, iPhone Safari) opens the help dialog.
+      flushSync(() =>
+        state.update((value) => ({ ...value, permission: "denied" })),
+      );
+      bellResult = false;
+      item("notifications").click();
+      await settle();
+      expect(bells).toHaveLength(2);
+      expect(menu()).toBeNull();
+      expect(document.body.textContent).toContain("Notifications are blocked.");
+      dismissDialogs();
+      await settle();
+      // No push here: the row hides.
+      flushSync(() => push.set({ status: "unavailable", error: "no-key" }));
+      await openMenu();
+      expect(
+        menu()!.querySelector('[data-user-menu-item="notifications"]'),
+      ).toBeNull();
+      // Sign out runs the application's flow.
+      item("logout").click();
+      await settle();
+      expect(logouts).toBe(1);
+      expect(sections).toHaveLength(4);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  }, 30_000);
+  test("account menu: arrow keys move, Esc returns focus to the avatar, no friend count at 0, push trouble opens help", async () => {
+    const { default: UserMenu } =
+      await import("../svelte/features/app-navigation/UserMenu.svelte");
+    const bells: boolean[] = [];
+    let refreshes = 0;
+    const state = writable({
+      permission: "granted" as NotificationPermission | "unsupported",
+      muted: false,
+      iosWeb: false,
+      ios: false,
+      testing: false,
+      sent: null as number | null,
+      error: "",
+    });
+    const push = writable({ status: "on", error: "" });
+    const pwa = {
+      state,
+      push,
+      async bell() {
+        bells.push(true);
+        return true;
+      },
+      mute() {},
+      refresh: async () => {
+        refreshes++;
+      },
+      retry() {},
+      test: async () => {},
+    } as unknown as import("../svelte/features/pwa/service").PwaService;
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(UserMenu, {
+        target,
+        props: {
+          name: "Gimenes",
+          email: "gimenes@test",
+          lang: "en",
+          theme: "auto",
+          friends: 0,
+          onsettheme() {},
+          onlanguage() {},
+          onaccount() {},
+          pwa,
+          onlogout() {},
+        },
+      }),
+    );
+    const settle = async () => {
+      for (let frame = 0; frame < 6; frame++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+        flushSync();
+        await tick();
+      }
+    };
+    const trigger = target.querySelector<HTMLButtonElement>(
+      "[data-native-user-menu-trigger]",
+    )!;
+    const menu = () =>
+      document.querySelector<HTMLElement>("[data-native-user-menu]");
+    const item = (name: string) =>
+      menu()?.querySelector<HTMLElement>(`[data-user-menu-item="${name}"]`) ??
+      null;
+    const key = async (name: string) => {
+      (document.activeElement ?? document.body).dispatchEvent(
+        new KeyboardEvent("keydown", { key: name, bubbles: true }),
+      );
+      await settle();
+    };
+    const openMenu = async () => {
+      trigger.focus();
+      await key("Enter");
+      expect(menu()?.getAttribute("role")).toBe("menu");
+    };
+    try {
+      await openMenu();
+      // No friends: the row stays, its count does not.
+      expect(item("friends")!.textContent?.trim()).toBe("Friends");
+      // Arrow keys walk the items in order.
+      const first = document.activeElement;
+      await key("ArrowDown");
+      const second = document.activeElement;
+      expect(second !== first).toBe(true);
+      expect(
+        (second as HTMLElement | null)?.getAttribute("data-user-menu-item"),
+      ).toBe(
+        (first as HTMLElement | null)?.getAttribute("data-user-menu-item") ===
+          "profile"
+          ? "friends"
+          : "profile",
+      );
+      await key("ArrowUp");
+      expect(document.activeElement === first).toBe(true);
+      // Esc closes and hands focus back to the avatar.
+      await key("Escape");
+      expect(menu()).toBeNull();
+      expect(document.activeElement === trigger).toBe(true);
+      // The server turns out to have no push key while the menu is open: the
+      // focused row stays until the next opening.
+      await openMenu();
+      flushSync(() => push.set({ status: "unavailable", error: "no-key" }));
+      await settle();
+      expect(item("notifications") !== null).toBe(true);
+      await key("Escape");
+      await openMenu();
+      expect(item("notifications")).toBeNull();
+      await key("Escape");
+      // Failed setup: the row says so and opens the help dialog (retry,
+      // test, mute) instead of toggling.
+      flushSync(() => push.set({ status: "failed", error: "subscribe" }));
+      await openMenu();
+      expect(
+        item("notifications")!.querySelector(
+          "[data-user-menu-notifications-problem]",
+        )?.textContent,
+      ).toBe("Notifications need attention");
+      item("notifications")!.click();
+      await settle();
+      expect(bells).toHaveLength(0);
+      expect(refreshes).toBe(1);
+      expect(menu()).toBeNull();
+      expect(document.body.textContent).toContain("Notification setup failed");
+      dismissDialogs();
+      await settle();
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  }, 30_000);
   test("one avatar language: people are circles, agents share the room tile radius", async () => {
     const { default: Avatar } = await import("../svelte/lib/ui/Avatar.svelte");
     const { default: AgentAvatar } =

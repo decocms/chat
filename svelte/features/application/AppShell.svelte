@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
+  import { get } from "svelte/store";
   import type { Snippet } from "svelte";
   import type { BrowserApplicationServices } from "./browser";
   import type {
@@ -18,6 +19,10 @@
   import DeferredRouteStatus from "../deferred-view/DeferredRouteStatus.svelte";
   import type { HomeBridge } from "../home/types";
   import { personAvatar } from "../home/model";
+  import {
+    provideUserMenu,
+    type UserMenuActions,
+  } from "../app-navigation/menuBridge";
   let {
     services,
     roomSnippet,
@@ -115,6 +120,23 @@
   const language = (value: "pt" | "en") => {
     if (current() && value !== services.language) effects.setLanguage(value);
   };
+  // The avatar menu's actions, the same in the rail and in a phone room's sheet.
+  const menuActions: UserMenuActions = {
+    onaccount: (section, trigger) => {
+      if (current()) services.actions.openAccount(section, trigger);
+    },
+    pwa: untrack(() => services.pwa),
+    onlogout: () => {
+      if (current()) void services.actions.logout(false);
+    },
+  };
+  provideUserMenu({
+    ...menuActions,
+    lang: untrack(() => services.language),
+    theme: () => theme,
+    onsettheme: chooseTheme,
+    onlanguage: language,
+  });
   const displayName = (email: string) =>
     $room.room?.names?.[email] ||
     ($personal.me?.email === email
@@ -219,6 +241,7 @@
         ontheme={nextTheme}
         onsettheme={chooseTheme}
         onlanguage={language}
+        {...menuActions}
         onreload={() => {
           if (current()) services.actions.reload();
         }}
@@ -292,7 +315,20 @@
               title={services.language === "en" ? "Your account" : "Sua conta"}
               closeLabel={services.t("Fechar")}
               sheet
-              returnFocus={services.account.returnFocus}
+              returnFocus={() => {
+                // Still open: the loaded settings replace this placeholder
+                // and take focus themselves, so leave it off the trigger
+                // (and where they put it, if they already did).
+                if (!get(accountView).open)
+                  return services.account.returnFocus();
+                const focused = document.activeElement;
+                return focused instanceof HTMLElement &&
+                  focused
+                    .closest("[role=dialog]")
+                    ?.querySelector("[data-native-account]")
+                  ? focused
+                  : document.body;
+              }}
               onOpenChange={(open) => {
                 if (
                   !open &&
