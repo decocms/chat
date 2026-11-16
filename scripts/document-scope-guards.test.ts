@@ -41,6 +41,7 @@ function fixture(options: { failKick?: boolean; bookId?: string | null } = {}) {
     bindings: string[] = [],
     pushes: unknown[][] = [],
     tasks: unknown[][] = [],
+    dirty: unknown[][] = [],
     kicks: string[] = [],
     names: string[] = [],
     jobs: Promise<unknown>[] = [],
@@ -96,6 +97,7 @@ function fixture(options: { failKick?: boolean; bookId?: string | null } = {}) {
     },
     docPush: (...args: unknown[]) => pushes.push(args),
     docToTasks: (...args: unknown[]) => tasks.push(args),
+    docDirty: (...args: unknown[]) => dirty.push(args),
     wakeAt: async () => {
       events.push("wake");
     },
@@ -115,6 +117,7 @@ function fixture(options: { failKick?: boolean; bookId?: string | null } = {}) {
     bindings,
     pushes,
     tasks,
+    dirty,
     kicks,
     names,
     jobs,
@@ -194,6 +197,7 @@ test("actual late Yjs mirror for missing epic is a complete no-op before binding
   expect(h.writes).toEqual([]);
   expect(h.pushes).toEqual([]);
   expect(h.tasks).toEqual([]);
+  expect(h.dirty).toEqual([]);
   expect(h.jobs).toEqual([]);
   expect(h.values.get("doc")).toBe("UNCHANGED ROOM");
   expect(h.values.get("doc:deleted")).toBe("OLD EPIC");
@@ -208,6 +212,7 @@ test("actual live Yjs mirrors still update only their exact scope and unchanged 
   expect(h.writes).toEqual([{ key: "doc:live", value: "LIVE UPDATED" }]);
   expect(h.values.get("doc")).toBe("UNCHANGED ROOM");
   expect(h.tasks).toEqual([["live", "LIVE UPDATED"]]);
+  expect(h.dirty).toEqual([["live", "yjs"]]);
   expect(h.pushes).toEqual([["doc:live", "yjs", "live"]]);
   Reflect.apply(Book.prototype.docFromYjs, h.receiver, [
     "aaaaaa",
