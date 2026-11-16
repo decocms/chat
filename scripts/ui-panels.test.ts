@@ -777,6 +777,7 @@ describe("native Svelte room panels", () => {
           label,
         ).toBe(expected);
         const link = target.querySelector("a")!;
+        expect(link.getAttribute("title"), label).toBe("Room");
         expect(link.className, label).not.toContain("ring-primary");
         expect(link.className, label).toContain("tw:group");
       } finally {
@@ -3178,6 +3179,7 @@ describe("stable native sidebar integration", () => {
     );
     expect(title).not.toBeNull();
     expect(title!.textContent).toContain(room.book.title);
+    expect(title!.getAttribute("title")?.split("\n")[0]).toBe(room.book.title);
     expect(title!.getAttribute("aria-current")).toBeNull();
     title!.click();
     expect(h.opened).toEqual(["main"]);

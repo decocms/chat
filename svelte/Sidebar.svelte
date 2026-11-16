@@ -184,7 +184,9 @@
           data-room-title
           variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
           aria-current={!inboxOpen && thread === "main" ? "page" : undefined}
-          title={room.book.summary || room.book.title}
+          title={room.book.summary
+            ? `${room.book.title}\n${room.book.summary}`
+            : room.book.title}
           class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
           onclick={(event) => {
             if (event.currentTarget.isConnected) open("main");

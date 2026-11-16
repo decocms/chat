@@ -99,6 +99,7 @@
   <a
     href={targetHref({ roomId: room.id })}
     aria-label={description}
+    title={compact ? title : undefined}
     aria-current={selected ? "page" : undefined}
     class={compact
       ? "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
