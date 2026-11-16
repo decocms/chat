@@ -3427,7 +3427,9 @@ function openBook(id) {
   connect();
 }
 
-const send = (m) => ws?.readyState === 1 && ws.send(JSON.stringify(m));
+// true once sent: WebSocket.send returns undefined, so `ws.send(...)` alone read as "not sent" and the needs card re-asked
+// on every reply, a loop of ~14 sends/s per open tab (493 MB of needsSummary on 15/11).
+const send = (m) => { if (ws?.readyState !== 1) return false; ws.send(JSON.stringify(m)); return true; };
 
 function onEvent(ev, id) {
   switch (ev.t) {

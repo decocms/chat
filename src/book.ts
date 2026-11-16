@@ -99,6 +99,7 @@ export const ASK_OPENER = /^(⏸ Seu Claude (pede permissão|quer seguir)|❓ Se
 export class Book extends DurableObject<Env> {
   sql: SqlStorage;
   receiptsT: ReturnType<typeof setTimeout> | 0 = 0; // a coalesced receipts push is pending (receipt())
+  needsSent = new WeakMap<WebSocket, { k: string; at: number }>(); // last needsSummary per socket (needs.summary)
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -2067,7 +2068,11 @@ export class Book extends DurableObject<Env> {
         const items = (Array.isArray(m.items) ? m.items : []).map((x) => String(x).slice(0, 200)).filter(Boolean).slice(0, 10);
         if (!items.length) return;
         const r = await this.needsSummary(thread, email, items);
-        return r ? this.sendTo([ws], { t: "needsSummary", thread, key: r.key, text: r.text }) : undefined;
+        // Same answer to the same socket within a minute: skip. Tabs still on the old app re-asked on every reply.
+        const k = `${thread}|${r?.key}`, seen = this.needsSent.get(ws);
+        if (!r || (seen?.k === k && Date.now() - seen.at < 60_000)) return;
+        this.needsSent.set(ws, { k, at: Date.now() });
+        return this.sendTo([ws], { t: "needsSummary", thread, key: r.key, text: r.text });
       }
       case "doc.versions": {
         const epic = String(m.epic ?? "");
