@@ -9,7 +9,8 @@
 @import "@xterm/xterm/css/xterm.css" layer(components);
 @source "../";
 @source "../../public/app-svelte.html";
-@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+/* `:is`, not `:where`: a dark utility must outweigh a hover one, as it does in the Studio design system. */
+@custom-variant dark (&:is(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 @font-face {
   font-family: "Inter var";
@@ -602,6 +603,81 @@
   --radius-control-md: calc(--theme(--radius-control) * 0.6);
   --radius-control-sm: calc(--theme(--radius-control) * 0.4);
   --radius-surface: var(--vb-studio-surface-radius);
+  /* Studio port: the type, radius and motion scales of packages/ui/src/styles/global.css. */
+  --color-brand-purple: var(--vb-brand-purple-light);
+  --color-brand-yellow: var(--vb-brand-yellow-light);
+  --font-weight-light: 300;
+  --shadow-glass: var(--vb-glass-shadow);
+  --radius-none: 0;
+  --radius-xs: 0.25rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+  --radius-full: 9999px;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.01em;
+  --text-xs--line-height: 1rem;
+  --text-xs--letter-spacing: -0.005em;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: var(--vb-studio-text-sm-line-height, 1.125rem);
+  --text-sm--letter-spacing: -0.005em;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.4375rem;
+  --text-base--letter-spacing: -0.005em;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.625rem;
+  --text-lg--letter-spacing: -0.01em;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-xl--letter-spacing: -0.015em;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.95rem;
+  --text-2xl--letter-spacing: -0.02em;
+  --text-3xl: 1.9375rem;
+  --text-3xl--line-height: 2.375rem;
+  --text-3xl--letter-spacing: -0.022em;
+  --text-4xl: 2.5rem;
+  --text-4xl--line-height: 2.875rem;
+  --text-4xl--letter-spacing: -0.025em;
+  --text-5xl: 3.25rem;
+  --text-5xl--line-height: 3.5rem;
+  --text-5xl--letter-spacing: -0.028em;
+  --animate-search-expand: search-expand 180ms var(--vb-ease-out-cubic) both;
+  --animate-device-icon-pop: device-icon-pop 150ms var(--vb-ease-out-cubic) both;
+  --animate-connection-travel: connection-travel 2.6s
+    var(--vb-ease-in-out-cubic) infinite;
+  --animate-connection-arrive: connection-arrive 2.6s var(--vb-ease-out-cubic)
+    infinite;
+  --animate-preview-ramp: preview-ramp 20s var(--vb-ease-out-cubic) forwards;
+  --animate-card-land: card-land 240ms var(--vb-ease-out-quint) both;
+  --animate-pulse-brightness: pulse-brightness 1.8s var(--vb-ease-in-out-cubic)
+    infinite;
+  --animate-accordion-down: accordion-down 220ms var(--vb-ease-out-cubic);
+  --animate-accordion-up: accordion-up 180ms var(--vb-ease-out-cubic);
+  --shadow-hairline: inset 0 0 0 1px var(--vb-hairline);
+  --shadow-glass-panel:
+    inset 0 0 0 1px var(--vb-glass-rim), var(--vb-glass-shadow);
+  --shadow-edge-destructive:
+    0 0 0 var(--vb-border-hairline) var(--vb-destructive), var(--vb-edge-drop);
+  --shadow-edge-warning:
+    0 0 0 var(--vb-border-hairline) var(--vb-warning), var(--vb-edge-drop);
+  --shadow-edge-success:
+    0 0 0 var(--vb-border-hairline) var(--vb-success), var(--vb-edge-drop);
+  --animate-shimmer: shimmer-sweep 2s linear infinite;
+  --animate-revalidating-ring: revalidating-ring-pulse 1.6s ease-in-out infinite;
+  --animate-stream-word: stream-word-in 0.5s ease-out both;
+  --animate-checkbox-tick: checkbox-draw-tick 300ms ease 150ms forwards;
+  --animate-in: enter var(--tw-animation-duration, var(--tw-duration, 0.15s))
+    var(--tw-ease, ease) var(--tw-animation-delay, 0s)
+    var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal)
+    var(--tw-animation-fill-mode, none);
+  --animate-out: exit var(--tw-animation-duration, var(--tw-duration, 0.15s))
+    var(--tw-ease, ease) var(--tw-animation-delay, 0s)
+    var(--tw-animation-iteration-count, 1) var(--tw-animation-direction, normal)
+    var(--tw-animation-fill-mode, none);
+  --animate-collapsible-down: collapsible-down 0.2s ease-out;
+  --animate-collapsible-up: collapsible-up 0.2s ease-out;
 }
 
 @theme {
@@ -650,5 +726,253 @@
     to {
       height: 100%;
     }
+  }
+}
+
+/* Studio port: state variants and keyframes the components name. */
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+@custom-variant data-checked (&:where([data-state="checked"], [data-checked]:not([data-checked="false"])));
+@custom-variant data-unchecked (&:where([data-state="unchecked"], [data-unchecked]:not([data-unchecked="false"])));
+@custom-variant data-selected (&:where([data-selected="true"], [data-selected]:not([data-selected="false"])));
+@custom-variant data-disabled (&:where([data-disabled="true"], [data-disabled]:not([data-disabled="false"])));
+@custom-variant data-active (&:where([data-state="active"], [data-active]:not([data-active="false"])));
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
+
+@keyframes pulse-brightness {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes card-land {
+  from {
+    opacity: 0;
+    transform: scale(0.94) rotate(-2deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes search-expand {
+  from {
+    width: 1.75rem;
+    opacity: 0;
+  }
+}
+
+@keyframes device-icon-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes connection-travel {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes connection-arrive {
+  0%,
+  72% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  84% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes connection-shuttle {
+  from {
+    left: 0%;
+  }
+  to {
+    left: calc(100% - 0.5rem);
+  }
+}
+
+@keyframes preview-ramp {
+  0% {
+    width: 0%;
+  }
+  4% {
+    width: 58%;
+  }
+  15% {
+    width: 78%;
+  }
+  40% {
+    width: 88%;
+  }
+  100% {
+    width: 96%;
+  }
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes revalidating-ring-pulse {
+  0%,
+  100% {
+    border-color: var(--vb-border);
+  }
+  50% {
+    border-color: var(--vb-ring);
+  }
+}
+
+@keyframes stream-word-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes grid-ripple {
+  0%,
+  75%,
+  100% {
+    background-color: transparent;
+  }
+  10% {
+    background-color: var(--cell-color);
+  }
+}
+
+@keyframes checkbox-draw-tick {
+  to {
+    stroke: var(--vb-primary-foreground);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(
+        var(--tw-enter-translate-x, 0),
+        var(--tw-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1)
+      )
+      rotate(var(--tw-enter-rotate, 0));
+    filter: blur(var(--tw-enter-blur, 0));
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(
+        var(--tw-exit-translate-x, 0),
+        var(--tw-exit-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-exit-scale, 1),
+        var(--tw-exit-scale, 1),
+        var(--tw-exit-scale, 1)
+      )
+      rotate(var(--tw-exit-rotate, 0));
+    filter: blur(var(--tw-exit-blur, 0));
+  }
+}
+
+@keyframes collapsible-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(
+      --radix-collapsible-content-height,
+      var(
+        --bits-collapsible-content-height,
+        var(
+          --reka-collapsible-content-height,
+          var(--kb-collapsible-content-height, auto)
+        )
+      )
+    );
+  }
+}
+
+@keyframes collapsible-up {
+  from {
+    height: var(
+      --radix-collapsible-content-height,
+      var(
+        --bits-collapsible-content-height,
+        var(
+          --reka-collapsible-content-height,
+          var(--kb-collapsible-content-height, auto)
+        )
+      )
+    );
+  }
+  to {
+    height: 0;
   }
 }

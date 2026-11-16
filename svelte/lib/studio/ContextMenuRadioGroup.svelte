@@ -1,0 +1,16 @@
+<script lang="ts">
+  import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
+
+  let {
+    value = $bindable(""),
+    ref = $bindable(null),
+    ...rest
+  }: ContextMenuPrimitive.RadioGroupProps = $props();
+</script>
+
+<ContextMenuPrimitive.RadioGroup
+  bind:ref
+  bind:value
+  data-slot="context-menu-radio-group"
+  {...rest}
+/>

@@ -32,6 +32,8 @@ if (native) {
   for (const directory of [
     "browser",
     "svelte/lib/ui",
+    "svelte/lib/studio",
+    "svelte/parity",
     "svelte/lib/components",
     "svelte/gallery",
     "svelte/styles",
@@ -84,6 +86,7 @@ if (native) {
     "svelte/chatTypes.ts",
     "svelte/styles.ts",
     "svelte/index.html",
+    "svelte/parity.html",
   );
 } else {
   await collect("svelte");
