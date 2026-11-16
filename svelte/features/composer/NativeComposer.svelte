@@ -4,7 +4,7 @@
   import { browserSpeech, browserSpeechClock } from "./speech";
   import { createDictationController } from "./dictation";
   import { browserFireCapture } from "./fireAudio";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   import { onDestroy, onMount, tick, untrack } from "svelte";
   import type { ComposerProps } from "./types";
   import type { PendingAttachment } from "./model";
@@ -15,13 +15,23 @@
     quoteSnippet,
     composerError,
   } from "./model";
-  import Textarea from "../../lib/ui/Textarea.svelte";
-  import { cn } from "../../lib/ui/utils";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
+  import { cn } from "../../lib/studio/utils";
+  import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
+  import Avatar from "../../lib/studio/Avatar.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import {
+    FaceSmile,
+    File02,
+    Microphone01,
+    Plus,
+    ReverseLeft,
+    X,
+  } from "../../lib/studio/icons";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import EmojiPicker from "./EmojiPicker.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
@@ -536,7 +546,7 @@
   {hidden}
   class={hidden
     ? "tw:hidden"
-    : "tw:relative tw:shrink-0 tw:space-y-2 tw:border-t tw:border-border tw:bg-background tw:p-3 tw:font-sans tw:text-sm tw:text-foreground tw:sm:px-6"}
+    : "tw:relative tw:shrink-0 tw:space-y-2 tw:bg-background tw:px-3 tw:pt-1 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground tw:sm:px-4 tw:sm:pb-4"}
 >
   {#if dragging}<div
       role="status"
@@ -554,7 +564,7 @@
               src={image}
               alt={item.name}
               class="tw:h-20 tw:w-full tw:rounded-sm tw:object-cover"
-            />{:else}<Icon name="file" />{/if}<span
+            />{:else}<Icon icon={File02} size={16} />{/if}<span
             class="tw:break-words tw:text-xs">{item.name}</span
           ><span role="status" class="tw:text-xs tw:text-muted-foreground"
             >{item.phase === "queued" || item.phase === "uploading"
@@ -569,20 +579,20 @@
                 if (canInteract(event)) entry.retryUpload(item.id);
               }}>{vb.t("Tentar novamente")}</Button
             >{/if}<IconButton
-            icon="close"
             label={vb.t("Remover anexo")}
-            class="tw:absolute tw:right-1 tw:top-1 tw:bg-card"
+            size="icon-xs"
+            class="tw:absolute tw:right-1 tw:top-1 tw:rounded-full tw:bg-card tw:shadow-edge"
             onclick={(event) => {
               if (canInteract(event)) entry.removeFile(item.id);
-            }}
-          />
+            }}><Icon icon={X} size={14} /></IconButton
+          >
         </div>{/each}
     </div>{/if}
   {#if $draft.replyId}<div
       data-composer-reply
-      class="tw:flex tw:items-center tw:gap-2 tw:rounded-control tw:border-l-2 tw:border-primary tw:bg-muted tw:p-2"
+      class="tw:flex tw:items-center tw:gap-2 tw:rounded-control tw:border-l-2 tw:border-foreground tw:bg-muted tw:p-2"
     >
-      <Icon name="reply" />
+      <Icon icon={ReverseLeft} size={16} />
       <div class="tw:min-w-0 tw:flex-1 tw:text-xs">
         {#if reply}<b
             >{reply.author === "ai"
@@ -600,18 +610,17 @@
           >{:else}{vb.t("A mensagem não está mais disponível.")}{/if}
       </div>
       <IconButton
-        icon="close"
         label={vb.t("Cancelar resposta")}
         onclick={(event) => {
           if (canInteract(event)) entry.clearReply();
-        }}
-      />
+        }}><Icon icon={X} size={16} /></IconButton
+      >
     </div>{/if}
   {#if items.length}<div
       id={`${uid}-mentions`}
       role="listbox"
       aria-label={vb.t("Mencionar")}
-      class="tw:absolute tw:bottom-full tw:left-3 tw:z-20 tw:max-h-64 tw:max-w-[calc(100%-1.5rem)] tw:overflow-auto tw:rounded-surface tw:border tw:border-border tw:bg-popover tw:p-1 tw:shadow-lg"
+      class="tw:absolute tw:bottom-full tw:left-3 tw:z-20 tw:max-h-64 tw:max-w-[calc(100%-1.5rem)] tw:overflow-auto tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
     >
       {#each items as item, index}<button
           id={`${uid}-mention-${index}`}
@@ -619,21 +628,25 @@
           role="option"
           aria-selected={selected === index}
           class={selected === index
-            ? "tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:bg-accent tw:p-2 tw:text-left"
-            : "tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:p-2 tw:text-left tw:hover:bg-accent"}
+            ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
+            : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
           onpointerdown={(event) => {
             event.preventDefault();
             choose(index);
           }}
           onclick={() => choose(index)}
-          >{#if item.agent}<AgentAvatar
-              px={24}
-              class="tw:font-normal"
+          >{#if item.agent}<AgentMark
+              size="xs"
+            />{:else if item.email}<PersonAvatar
+              data-avatar="person"
+              size="xs"
+              name={vb.name(item.email)}
+              url={vb.avatarUrl?.(item.email)}
             />{:else}<Avatar
-              name={item.email ? vb.name(item.email) : "@"}
-              src={item.email ? vb.avatarUrl?.(item.email) : undefined}
-              seed={item.email || "room"}
-              px={24}
+              shape="circle"
+              size="xs"
+              aria-hidden="true"
+              fallback="@"
             />{/if}<b>@{item.handle}</b><small class="tw:text-muted-foreground"
             >{vb.t(item.label)}</small
           ></button
@@ -644,24 +657,22 @@
       data-composer-transcribing
       class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
     >
-      <span
-        aria-hidden="true"
-        class="tw:inline-block tw:size-3 tw:animate-spin tw:motion-reduce:animate-none tw:rounded-full tw:border-2 tw:border-current tw:border-r-transparent"
-      ></span>
+      <Spinner size="2xs" />
       {vb.locale?.startsWith("en")
         ? "Refining transcription…"
         : "Refinando transcrição…"}
     </p>{/if}
   <form
-    class="tw:flex tw:items-end tw:gap-2"
+    class="tw:flex tw:items-end tw:gap-0.5 tw:rounded-[18px] tw:bg-card tw:py-1.5 tw:pr-1.5 tw:pl-1 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
     onsubmit={(event) => {
       event.preventDefault();
       submit();
     }}
   >
     <IconButton
-      icon="smile"
       label={vb.t("Emoji")}
+      size="icon"
+      class="tw:text-muted-foreground tw:hover:text-foreground"
       disabled={voiceWaiting || !allowed}
       onclick={(event) => {
         if (canInteract(event)) {
@@ -669,18 +680,18 @@
           readCaret();
           emoji = true;
         }
-      }}
-    />
+      }}><Icon icon={FaceSmile} size={16} /></IconButton
+    >
     {#if speech.supported}<IconButton
-        icon="mic"
-        loading={refining}
+        size="icon"
+        aria-busy={refining || undefined}
         label={vb.t("Ditar mensagem")}
         title={vb.t("Toque pra ditar (ou segure espaço na caixa)")}
         aria-pressed={dictating}
         class={dictating
-          ? "tw:bg-destructive tw:text-destructive-foreground"
-          : "tw:text-muted-foreground"}
-        disabled={voiceWaiting || !allowed || busy}
+          ? "tw:bg-destructive tw:text-destructive-foreground tw:hover:bg-destructive/85 tw:hover:text-destructive-foreground"
+          : "tw:text-muted-foreground tw:hover:text-foreground"}
+        disabled={voiceWaiting || !allowed || busy || refining}
         onpointerdown={(event) => {
           if (canInteract(event)) event.preventDefault();
         }}
@@ -690,11 +701,16 @@
           if (dictating) speech.stop();
           else void speech.start();
         }}
-      />{/if}
+        >{#if refining}<Spinner size="xs" />{:else}<Icon
+            icon={Microphone01}
+            size={16}
+          />{/if}</IconButton
+      >{/if}
     <div class="tw:relative">
       <IconButton
-        icon="plus"
         label={vb.t("Mais opções")}
+        size="icon"
+        class="tw:text-muted-foreground tw:hover:text-foreground tw:aria-expanded:bg-accent tw:aria-expanded:text-foreground"
         data-composer-more
         aria-haspopup="menu"
         aria-expanded={plus}
@@ -712,17 +728,17 @@
           if (!canInteract(event)) return;
           if (plus) plus = false;
           else void openMenu(event.detail === 0);
-        }}
-      />
+        }}><Icon icon={Plus} size={16} /></IconButton
+      >
       {#if plus}<div
           bind:this={menu}
           role="menu"
           tabindex="-1"
-          class="tw:absolute tw:bottom-full tw:left-0 tw:z-20 tw:mb-2 tw:grid tw:min-w-56 tw:gap-1 tw:rounded-surface tw:border tw:border-border tw:bg-popover tw:p-2 tw:shadow-lg"
+          class="tw:absolute tw:bottom-full tw:left-0 tw:z-20 tw:mb-2 tw:grid tw:min-w-56 tw:gap-0.5 tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
           onkeydown={menuKeydown}
         >
           <Button
-            variant="ghost"
+            variant="menu"
             role="menuitem"
             onclick={(event) => {
               if (!canInteract(event)) return;
@@ -731,7 +747,7 @@
             }}
             >{vb.t("Anexar arquivo")} <small>{vb.t("ou Cmd+V")}</small></Button
           ><Button
-            variant="ghost"
+            variant="menu"
             role="menuitem"
             onclick={(event) => {
               if (!canInteract(event)) return;
@@ -741,7 +757,7 @@
               mentionClosed = false;
             }}>{vb.t("Mencionar alguém")} @</Button
           ><Button
-            variant="ghost"
+            variant="menu"
             role="menuitem"
             onclick={(event) => {
               if (!canInteract(event)) return;
@@ -778,10 +794,8 @@
         ? `${uid}-mention-${selected}`
         : undefined}
       class={cn(
-        "tw:block tw:min-h-11 tw:max-h-40 tw:min-w-0 tw:flex-1 tw:resize-none tw:[field-sizing:content]",
-        dictating
-          ? "tw:ring-2 tw:ring-destructive tw:focus-visible:ring-destructive"
-          : "",
+        "tw:block tw:max-h-40 tw:min-h-8 tw:min-w-0 tw:flex-1 tw:resize-none tw:rounded-lg tw:bg-transparent tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:leading-5 tw:shadow-none tw:[field-sizing:content] tw:hover:bg-transparent tw:focus-visible:outline-none",
+        dictating && "tw:ring-2 tw:ring-destructive",
       )}
       oninput={(event) => {
         if (!canInteract(event)) return;
@@ -816,14 +830,18 @@
         $draft.attachments.some(
           (item) => item.phase === "queued" || item.phase === "uploading",
         )}
-      loading={$draft.phase === "pending"}
+      aria-busy={$draft.phase === "pending" || undefined}
+      class="tw:rounded-full"
       onmousedown={(event) => event.preventDefault()}
       ontouchend={(event) => {
         if (!busy && allowed) {
           event.preventDefault();
           submit();
         }
-      }}>{vb.t("Enviar")}</Button
+      }}
+      >{#if $draft.phase === "pending"}<Spinner size="2xs" />{/if}{vb.t(
+        "Enviar",
+      )}</Button
     >
   </form>
   {#if $draft.phase === "unconfirmed"}<p
@@ -835,6 +853,7 @@
       )}{#if candidateTarget}<Button
           variant="link"
           size="sm"
+          class="tw:h-auto tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
           onclick={(event) => {
             if (canInteract(event) && candidateTarget)
               navigate(candidateTarget);

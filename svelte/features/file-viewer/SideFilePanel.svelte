@@ -3,8 +3,8 @@
   import type { SideFileSession } from "./side";
   import type { RichActions } from "../rich-text/types";
   import FileViewer from "./FileViewer.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   let {
     owner,
     lang,

@@ -1,16 +1,17 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onMount, onDestroy, untrack, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
   import UiSwitch from "./UiSwitch.svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import NotificationBell from "../notifications/NotificationBell.svelte";
   import InstallCard from "../pwa/InstallCard.svelte";
-  import Badge from "../../lib/ui/Badge.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Card from "../../lib/ui/Card.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
+  import Card from "../../lib/studio/Card.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Label from "../../lib/ui/Label.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
   import type { HomeBridge } from "./types";
   import { createHomeSession } from "./session";
   import { homeText, homeIssue } from "./copy";
@@ -62,7 +63,7 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
-  let sendButton = $state<HTMLButtonElement | null>(null);
+  let sendButton = $state<HTMLElement | null>(null);
   const suggestion = $derived($view.result);
   $effect(() => {
     if (suggestion)
@@ -136,6 +137,7 @@
                   oninbox?.(event.currentTarget);
               }}
               >{text("inbox")}{#if $account.me?.waits.length}<Badge
+                  class="tw:text-foreground"
                   variant="warning"
                   aria-hidden="true">{$account.me.waits.length}</Badge
                 >{/if}</Button
@@ -150,10 +152,10 @@
             onclick={(event) => {
               if (event.currentTarget.isConnected) onsettings("profile");
             }}
-            ><Avatar
+            ><PersonAvatar
+              size="xs"
               name={$account.me?.name || $account.me?.email || "vibebook"}
-              src={personAvatar($account.me, $account.me?.email ?? "")}
-              seed={$account.me?.email}
+              url={personAvatar($account.me, $account.me?.email ?? "")}
             />{text("profile")}</Button
           ><Button
             variant="ghost"
@@ -184,7 +186,7 @@
               {text("friends")} ·
               <a
                 href="/archived?ui=svelte"
-                class="tw:text-link tw:underline tw:underline-offset-2"
+                class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
                 onclick={(event) => {
                   if (
                     event.ctrlKey ||
@@ -207,7 +209,7 @@
           >
         </div>
         {#if !me.name || !me.avatar}<Card
-            class="tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:p-3"
+            class="tw:flex-row tw:flex-wrap tw:items-center tw:gap-3 tw:p-3"
             ><p class="tw:m-0 tw:flex-1">
               {!me.name ? text("addName") : text("addPhoto")}
             </p>
@@ -219,6 +221,7 @@
             ></Card
           >{/if}
         {#if $account.agents && !$account.agents.agents.length}<Card
+            class="tw:block tw:space-y-4"
             ><Heading level={2} class="tw:m-0 tw:text-lg tw:font-semibold"
               >{text("setup")}</Heading
             >
@@ -265,13 +268,16 @@
             }}
           /><Button
             type="submit"
-            loading={$view.busy === "route"}
-            disabled={$view.busy === "send"}>{text("find")}</Button
+            aria-busy={$view.busy === "route" || undefined}
+            disabled={$view.busy === "route" || $view.busy === "send"}
+            >{#if $view.busy === "route"}<Spinner size="xs" />{/if}{text(
+              "find",
+            )}</Button
           >
           {#if $view.result}{@const choices = destinations(
               $view.result,
             )}{@const selected = choices[$view.selected]!}<Card
-              class="tw:space-y-3 tw:p-4"
+              class="tw:block tw:space-y-3 tw:p-4"
               ><p aria-live="polite" class="tw:m-0 tw:break-words">
                 {selected.book_id
                   ? text("destination", {
@@ -294,8 +300,12 @@
               <div class="tw:flex tw:flex-wrap tw:gap-2">
                 <Button
                   bind:ref={sendButton}
-                  loading={$view.busy === "send"}
-                  onclick={() => session.send()}>{text("send")}</Button
+                  aria-busy={$view.busy === "send" || undefined}
+                  disabled={$view.busy === "send"}
+                  onclick={() => session.send()}
+                  >{#if $view.busy === "send"}<Spinner size="xs" />{/if}{text(
+                    "send",
+                  )}</Button
                 ><Button
                   variant="outline"
                   disabled={$view.busy === "send"}
@@ -390,12 +400,12 @@
                     >
                       {#each roomMembers(room).slice(0, 5) as email}<span
                           title={email}
-                          ><Avatar
+                          ><PersonAvatar
+                            size="sm"
                             name={me.friends.find(
                               (friend) => friend.email === email,
                             )?.name || email}
-                            src={personAvatar(me, email)}
-                            seed={email}
+                            url={personAvatar(me, email)}
                           /></span
                         >{/each}<small class="tw:text-muted-foreground"
                         >{ago(room.updated_at ?? 0)}</small
@@ -405,16 +415,16 @@
             </div>
           </section>
           <aside class="tw:space-y-4">
-            <Card
+            <Card class="tw:block tw:space-y-4"
               ><Heading level={2} class="tw:m-0 tw:text-lg tw:font-semibold"
                 >{text("friends")} · {me.friends.length}</Heading
               >{#each me.friends as friend (friend.email)}<div
                   class="tw:flex tw:items-center tw:gap-2"
                 >
-                  <Avatar
+                  <PersonAvatar
+                    size="sm"
                     name={friend.name || friend.email}
-                    src={personAvatar(me, friend.email)}
-                    seed={friend.email}
+                    url={personAvatar(me, friend.email)}
                   /><span class="tw:min-w-0 tw:break-words"
                     >{friend.name || friend.email}</span
                   >
@@ -444,10 +454,14 @@
         </p>
         <Button
           variant="outline"
-          loading={$account.loading}
+          disabled={$account.loading}
+          aria-busy={$account.loading || undefined}
           onclick={(event) => {
             if (event.currentTarget.isConnected) void personal.refresh();
-          }}>{text("retry")}</Button
+          }}
+          >{#if $account.loading}<Spinner size="xs" />{/if}{text(
+            "retry",
+          )}</Button
         >{/if}
     </div>
   </main>

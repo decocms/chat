@@ -1,8 +1,10 @@
 <script lang="ts">
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
   import type { MeResult } from "../../../shared/schemas";
-  import IconButton from "../../lib/ui/IconButton.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Check } from "../../lib/studio/icons";
   import type { RoomsSession } from "../rooms/session";
   import {
     targetHref,
@@ -39,15 +41,15 @@
     <li class="tw:flex tw:items-start tw:gap-2" data-native-wait={wait.ref}>
       <!-- Same shapes as the Inbox: an agent waiting on you (a/b refs) and an
            @vibe ask are agent squares; people asking are circles. -->
-      {#if /^[ab]/.test(wait.ref)}<AgentAvatar
+      {#if /^[ab]/.test(wait.ref)}<AgentMark
           class="tw:text-sm tw:font-normal"
-        />{:else if wait.author === "ai"}<AgentAvatar
+        />{:else if wait.author === "ai"}<AgentMark
           mark="✦"
           class="tw:text-sm tw:font-normal tw:text-primary"
-        />{:else}<Avatar
+        />{:else}<PersonAvatar
+          size="sm"
           name={wait.author_name || wait.author}
-          src={personAvatar(people, wait.author)}
-          seed={wait.author}
+          url={personAvatar(people, wait.author)}
         />{/if}
       <a
         class="tw:min-w-0 tw:flex-1 tw:rounded-control tw:text-sm tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
@@ -71,14 +73,13 @@
         ></a
       >
       {#if wait.ref.startsWith("m")}<IconButton
-          icon="check"
           label={text("resolve")}
           disabled={!!$actions.pending[key]}
           onclick={(event) => {
             if (event.currentTarget.isConnected)
               void rooms.resolve(wait.book_id, wait.ref);
-          }}
-        />{/if}
+          }}><Icon icon={Check} /></IconButton
+        >{/if}
       {#if $actions.issues[key]}<p
           role="alert"
           class="tw:m-0 tw:break-words tw:text-destructive"

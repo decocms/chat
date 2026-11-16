@@ -1,41 +1,26 @@
 <script lang="ts">
-  import { roomCover, roomInitials, tintClasses } from "../home/model";
+  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
+  import Avatar from "../../lib/studio/Avatar.svelte";
+  import { cn } from "../../lib/studio/utils";
+  /** The room's icon when it has one, else the marbled tile its title draws. */
   let {
     title,
     src,
-    tint,
-  }: { title: string; src?: string; tint?: string | null } = $props();
-  let failed = $state(false);
-  $effect(() => {
-    void src;
-    failed = false;
-  });
-  const color = $derived(
-    tint === "blue" ||
-      tint === "green" ||
-      tint === "yellow" ||
-      tint === "orange" ||
-      tint === "pink" ||
-      tint === "purple"
-      ? tintClasses[tint]
-      : tintClasses.none,
-  );
+    class: className,
+  }: { title: string; src?: string; class?: string } = $props();
 </script>
 
-<span
-  aria-hidden="true"
-  class={[
-    "tw:inline-grid tw:size-8 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-control tw:border tw:border-border tw:font-sans tw:text-xs tw:font-semibold tw:tracking-normal",
-    // Like vanilla's room mark: initials sit on the title's cover color.
-    src && !failed ? color : roomCover(title),
-  ]}
->
-  {#if src && !failed}<img
-      {src}
-      alt=""
-      class="tw:size-full tw:object-cover"
-      onerror={() => {
-        failed = true;
-      }}
-    />{:else}{roomInitials(title)}{/if}
-</span>
+{#if src}<Avatar
+    size="xs"
+    url={src}
+    fallback={title}
+    aria-hidden="true"
+    data-room-mark="icon"
+    class={cn("tw:shrink-0", className)}
+  />{:else}<span data-room-mark="marble" class="tw:contents"
+    ><OrgAvatar
+      name={title}
+      size="xs"
+      class={cn("tw:shrink-0", className)}
+    /></span
+  >{/if}

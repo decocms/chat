@@ -6,10 +6,11 @@
   import { authContinuation } from "./navigation";
   import { createLoginSession } from "./session";
   import AuthFrame from "./AuthFrame.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
   let {
     api,
     search,
@@ -119,8 +120,14 @@
             if ($view.code.length === 6) void session.submit();
           }}
         />{/if}
-      <Button type="submit" class="tw:w-full" loading={$view.busy}
-        >{$view.phase === "email" ? text("send") : text("login")}</Button
+      <Button
+        type="submit"
+        class="tw:w-full"
+        disabled={$view.busy}
+        aria-busy={$view.busy || undefined}
+        >{#if $view.busy}<Spinner size="xs" />{/if}{$view.phase === "email"
+          ? text("send")
+          : text("login")}</Button
       >
       {#if $view.phase === "code"}<Button
           variant="ghost"

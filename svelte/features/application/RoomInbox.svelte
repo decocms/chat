@@ -1,12 +1,13 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { untrack, tick } from "svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
-  import Badge from "../../lib/ui/Badge.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import { X } from "../../lib/studio/icons";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
   import type { BrowserApplicationServices } from "./browser";
@@ -129,9 +130,11 @@
     <header
       class="tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:border-b tw:border-border tw:p-4"
     >
-      <Heading level={2} class="tw:m-0 tw:flex-1 tw:text-lg tw:font-semibold"
-        >{t("Caixa de entrada")}</Heading
+      <h2
+        class="tw:font-sans tw:tracking-normal tw:m-0 tw:flex-1 tw:text-lg tw:font-semibold"
       >
+        {t("Caixa de entrada")}
+      </h2>
       <Button
         size="sm"
         variant={!$inbox.all ? "secondary" : "ghost"}
@@ -152,12 +155,11 @@
       >
       <IconButton
         data-native-room-inbox-close
-        icon="close"
         label={t("Fechar")}
         onclick={(event) => {
           void close(event);
-        }}
-      />
+        }}><Icon icon={X} size={16} /></IconButton
+      >
     </header>
     <div class="tw:min-h-0 tw:flex-1 tw:space-y-2 tw:overflow-auto tw:p-4">
       {#if $inbox.phase === "loading"}<p role="status">
@@ -194,15 +196,16 @@
                   if (event.currentTarget.isConnected) go(row);
                 }}
               >
-                {#if row.kind === "claude"}<AgentAvatar
-                    class="tw:text-sm tw:font-normal"
-                  />{:else if row.author === "ai"}<AgentAvatar
+                {#if row.kind === "claude"}<AgentMark
+                    class="tw:text-sm"
+                  />{:else if row.author === "ai"}<AgentMark
                     mark="✦"
-                    class="tw:text-sm tw:font-normal tw:text-primary"
-                  />{:else}<Avatar
+                    class="tw:text-sm tw:text-foreground"
+                  />{:else}<PersonAvatar
+                    data-avatar="person"
+                    size="sm"
                     name={name(row)}
-                    src={avatar(row.author)}
-                    seed={row.author}
+                    url={avatar(row.author)}
                   />{/if}
                 <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
                   <span
@@ -257,23 +260,27 @@
         : "tw:min-[901px]:animate-room-document-width",
     ]}
   >
-    <Heading level={1} class="tw:m-0 tw:text-2xl tw:font-semibold"
-      >{t("O que é seu")}</Heading
+    <h1
+      class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-2xl tw:font-semibold"
     >
+      {t("O que é seu")}
+    </h1>
     <p class="tw:text-muted-foreground">
       {t("Tarefas suas e o que espera seu OK. Clique pra abrir.")}
     </p>
-    {#if model.oks.length}<Heading
-        level={3}
-        class="tw:m-0 tw:text-sm tw:font-semibold"
-        >{t("Esperando seu OK")}</Heading
+    {#if model.oks.length}<h3
+        class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
       >
+        {t("Esperando seu OK")}
+      </h3>
       <ul class="tw:m-0 tw:list-none tw:space-y-2 tw:p-0">
         {#each model.oks as wait (wait)}<Snapshot value={wait}
             >{#snippet children(row)}<li
                 class="tw:flex tw:items-center tw:gap-2"
               >
-                <Badge variant="warning">{t("revisar")}</Badge><Button
+                <Badge class="tw:text-foreground" variant="warning"
+                  >{t("revisar")}</Badge
+                ><Button
                   variant="ghost"
                   class="tw:h-auto tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left"
                   onclick={(event) => {
@@ -284,12 +291,16 @@
               </li>{/snippet}</Snapshot
           >{/each}
       </ul>{/if}
-    <Heading level={3} class="tw:m-0 tw:text-sm tw:font-semibold"
-      >{t("Suas tarefas")}</Heading
+    <h3
+      class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
     >
+      {t("Suas tarefas")}
+    </h3>
     {#each model.groups as group (`${group.bookId}/${group.epicId}`)}
-      <Heading level={4} class="tw:m-0 tw:text-sm tw:font-semibold"
-        >{#key group.first}<Snapshot value={group.first}
+      <h4
+        class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
+      >
+        {#key group.first}<Snapshot value={group.first}
             >{#snippet children(row)}<Button
                 variant="ghost"
                 size="sm"
@@ -298,20 +309,20 @@
                   if (event.currentTarget.isConnected && current())
                     owner.openTask(opening, row);
                 }}
-                >{group.epic || t("sala principal")}{#if $inbox.all}<span
-                    class="tw:font-normal"
-                  >
+                >{group.epic || t("sala principal")}{#if $inbox.all}<span>
                     · {group.room}</span
                   >{/if}</Button
               >{/snippet}</Snapshot
-          >{/key}</Heading
-      >
+          >{/key}
+      </h4>
       <ul class="tw:m-0 tw:list-none tw:space-y-2 tw:p-0">
         {#each group.tasks as task (task)}<Snapshot value={task}
             >{#snippet children(row)}<li
                 class="tw:flex tw:flex-wrap tw:items-center tw:gap-2"
               >
-                <Badge variant={row.status === "review" ? "warning" : "neutral"}
+                <Badge
+                  class="tw:text-foreground"
+                  variant={row.status === "review" ? "warning" : "neutral"}
                   >{status(row.status)}</Badge
                 ><Button
                   variant="ghost"

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
-  import Checkbox from "../../lib/ui/Checkbox.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import Checkbox from "../../lib/studio/Checkbox.svelte";
   import AgentPresenceRows from "../room-sidebar/AgentPresenceRows.svelte";
   import SetupInstructions from "./SetupInstructions.svelte";
   import SandboxPanel from "../sandboxes/SandboxPanel.svelte";
@@ -74,8 +74,8 @@
     class="tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:p-3"
   >
     <div class="tw:flex tw:items-center tw:gap-3">
-      <AgentAvatar
-        px={24}
+      <AgentMark
+        size="xs"
         mark="✻"
         class={presence.live
           ? "tw:text-sm tw:font-normal tw:text-success"
@@ -102,10 +102,9 @@
           }}>{text("focus")}</Button
         >{/if}
       <Checkbox
-        checked={presence.on}
+        bind:checked={() => presence.on, () => void owner.toggle()}
         disabled={busy || !$view.data}
         aria-label={text(presence.on ? "turnOff" : "turnOn")}
-        onchange={() => void owner.toggle()}
       />
     </div>
     <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">

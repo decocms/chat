@@ -3,13 +3,21 @@
   import type { FileViewer } from "./session";
   import type { RichActions } from "../rich-text/types";
   import RichContent from "../rich-text/RichContent.svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Select from "../../lib/ui/Select.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Select from "../../lib/studio/Select.svelte";
+  import SelectContent from "../../lib/studio/SelectContent.svelte";
+  import SelectItem from "../../lib/studio/SelectItem.svelte";
+  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
+  import SelectValue from "../../lib/studio/SelectValue.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
   import ViewerMedia from "./ViewerMedia.svelte";
   import { csvData, externalFileURL, fileURL } from "./model";
   import { viewerText } from "./copy";
+  let versionTrigger = $state<HTMLElement | null>(null);
   let {
     controller,
     lang = "pt",
@@ -88,29 +96,42 @@
     >
       <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
         {#if $view.versions.length > 1}
+          {@const versions = $view.versions.map((file, index) => ({
+            value: file.id,
+            label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
+          }))}
           <label
             class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:text-sm"
             >{text("version")}
             <Select
-              aria-label={text("version")}
-              value={$view.target.id}
-              data-file-version-target={$view.target.id}
-              items={$view.versions.map((file, index) => ({
-                value: file.id,
-                label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
-              }))}
-              onchange={(event) => {
-                if (
-                  event.currentTarget.isConnected &&
-                  event.currentTarget.dataset.fileVersionTarget ===
-                    $view.target?.id
-                )
-                  onselect
-                    ? onselect(event.currentTarget.value)
-                    : controller.select(event.currentTarget.value);
-              }}
-              class="tw:min-w-0"
-            />
+              items={versions}
+              bind:value={
+                () => $view.target?.id ?? "",
+                (id) => {
+                  if (
+                    versionTrigger?.isConnected &&
+                    versionTrigger.dataset.fileVersionTarget ===
+                      $view.target?.id
+                  )
+                    onselect ? onselect(id) : controller.select(id);
+                }
+              }
+            >
+              <SelectTrigger
+                bind:ref={versionTrigger}
+                aria-label={text("version")}
+                data-file-version-target={$view.target.id}
+                class="tw:min-w-0 tw:flex-1"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent data-vb-native class="tw:font-sans">
+                {#each versions as version (version.value)}<SelectItem
+                    value={version.value}
+                    label={version.label}>{version.label}</SelectItem
+                  >{/each}
+              </SelectContent>
+            </Select>
           </label>
         {/if}
         {#if !inline && $view.file}<Button
@@ -280,15 +301,32 @@
 {#if inline}{@render preview()}{:else}
   <Dialog
     open={$view.open}
-    title={$view.name || "File"}
-    closeLabel={text("close")}
-    fullScreen
-    returnFocus={() => controller.returnFocus()}
     onOpenChange={(open) => {
       if (!open) close();
     }}
   >
-    {@render preview()}
+    <DialogContent
+      data-vb-native
+      class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:sm:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
+      closeLabel={text("close")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+      onCloseAutoFocus={(event) => {
+        const target = controller.returnFocus();
+        if (target?.isConnected) {
+          event.preventDefault();
+          target.focus();
+        }
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle class="tw:pr-8 tw:font-sans"
+          >{$view.name || "File"}</DialogTitle
+        >
+      </DialogHeader>
+      {@render preview()}
+    </DialogContent>
   </Dialog>{/if}
 
 {#if $view.closingUnconfirmed}<div

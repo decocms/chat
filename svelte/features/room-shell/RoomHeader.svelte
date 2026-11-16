@@ -6,11 +6,23 @@
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { RoomLayoutController } from "../room-layout/types";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Badge from "../../lib/ui/Badge.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import type { DocumentPane } from "../documents/types";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import {
+    ArrowLeft,
+    Columns03,
+    Inbox01,
+    LayoutRight,
+  } from "../../lib/studio/icons";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import Count from "../../lib/components/Count.svelte";
+  import PanelViews from "./PanelViews.svelte";
+  import {
+    isPanelToggleKey,
+    panelViewMeta,
+    type PanelView,
+  } from "./panelViews";
   let {
     presentation,
     header,
@@ -18,6 +30,7 @@
     layout,
     current,
     boardCount,
+    views,
     back,
   }: {
     presentation: ApplicationRoomPresentation;
@@ -26,6 +39,12 @@
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
+    /** The right panel's views, for the views card. */
+    views: {
+      pane: DocumentPane;
+      counts: Partial<Record<DocumentPane, number | string>>;
+      onPane(pane: DocumentPane): void;
+    };
     back(expectedThread: string): void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
@@ -35,86 +54,127 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected;
   const waits = $derived($personal.me?.waits ?? []);
-  const t = (text: string) => presentation.services.t(text);
+  const t = (text: string, vars?: Record<string, string | number>) =>
+    presentation.services.t(text, vars);
+  const mac =
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const toggleLabel = $derived(
+    t(
+      mac
+        ? "Alternar painel direito (⌥⌘B)"
+        : "Alternar painel direito (Ctrl+Alt+B)",
+    ),
+  );
+  const panelOpen = $derived(
+    $geometry.mobile
+      ? $geometry.sheet === "doc"
+      : $geometry.documentVisible && !$geometry.boardFull,
+  );
+  function pick(view: PanelView) {
+    if (!current()) return;
+    views.onPane(view);
+    if (!panelOpen) layout.toggleDocument();
+  }
+  function onwindowkeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented || !isPanelToggleKey(event, mac) || !current())
+      return;
+    event.preventDefault();
+    layout.toggleDocument();
+  }
 </script>
+
+<svelte:window onkeydown={onwindowkeydown} />
 
 <header
   data-vb-native
   data-native-room-header
-  class="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:gap-2"
+  class="tw:@container/room-header tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap"
 >
   {#key header.thread}<Snapshot value={header.thread}
-      >{#snippet children(expectedThread)}<Button
-          variant="ghost"
-          size="sm"
-          class="tw:px-2 tw:min-[901px]:hidden"
-          title={t(
+      >{#snippet children(expectedThread)}<IconButton
+          label={t(
             expectedThread === "main"
               ? "Seus vibebooks"
               : "Voltar pra sala principal",
           )}
-          aria-label={t(
-            expectedThread === "main"
-              ? "Seus vibebooks"
-              : "Voltar pra sala principal",
-          )}
+          tooltipSide="bottom"
+          size="icon"
+          class="tw:rounded-full tw:min-[901px]:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
-          }}><span aria-hidden="true">←</span></Button
+          }}><Icon icon={ArrowLeft} size={16} /></IconButton
         >{/snippet}</Snapshot
     >{/key}
   <div
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-[22rem]"
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-[16rem]"
   >
     <ThreadHeader {...header} compact />
   </div>
   <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:flex-wrap tw:min-[901px]:items-center tw:min-[901px]:justify-end tw:min-[901px]:gap-2"
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:shrink-0 tw:min-[901px]:items-center tw:min-[901px]:justify-end tw:min-[901px]:gap-1"
   >
-    <Button
+    <IconButton
       data-native-board-toggle
-      variant={$geometry.boardFull ? "secondary" : "ghost"}
-      size="sm"
-      class="tw:px-2 tw:min-[901px]:px-3"
-      aria-label={t("Quadro de tarefas (kanban)")}
+      label={t("Quadro de tarefas (kanban)")}
+      tooltipSide="bottom"
+      size="icon"
       aria-pressed={$geometry.boardFull}
+      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
       onclick={(event) => {
         if (live(event)) layout.toggleBoard();
       }}
-      ><Icon name="board" /><span class="tw:hidden tw:min-[1500px]:inline"
-        >{t("Quadro")}</span
-      >{#if boardCount}<Badge variant="warning">{boardCount}</Badge
-        >{/if}</Button
+      ><Icon
+        icon={Columns03}
+        size={16}
+      />{#if typeof boardCount === "number" && boardCount}<Count
+          value={boardCount}
+          label={t("Esperando você: {n}", { n: boardCount })}
+          class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+        />{/if}</IconButton
     >
-    <Button
+    <IconButton
       data-native-inbox-toggle
-      variant="ghost"
-      size="sm"
-      class="tw:px-2 tw:min-[901px]:px-3"
-      aria-label={t("Caixa de entrada")}
-      title={t("Caixa de entrada: o que espera por você")}
+      label={t("Caixa de entrada")}
+      tooltipSide="bottom"
+      size="icon"
+      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
       onclick={(event) => {
         if (live(event)) presentation.openInbox(event.currentTarget);
       }}
-      ><Icon name="inbox" />{#if waits.length}<Badge
-          variant={waits.some((wait) => /^[ab]\d/.test(wait.ref))
-            ? "destructive"
-            : "warning"}>{waits.length}</Badge
-        >{/if}</Button
+      ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
+          value={waits.length}
+          label={t("Esperando você: {n}", { n: waits.length })}
+          class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+        />{/if}</IconButton
     >
     <div
       class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
     >
       {#if trigger}<AgentTrigger {...trigger} />{/if}
+      <span class="tw:hidden tw:min-[901px]:contents"
+        ><PanelViews
+          label={t("Abrir no painel direito")}
+          waitingLabel={(n) => t("Esperando você: {n}", { n })}
+          en={presentation.services.language === "en"}
+          pane={views.pane}
+          {panelOpen}
+          meta={panelViewMeta(views.counts)}
+          onpick={pick}
+        /></span
+      >
       <IconButton
         data-native-document-toggle
-        icon="file"
-        label={t("mostrar/ocultar documento")}
+        label={toggleLabel}
+        tooltipSide="bottom"
+        size="icon"
         aria-pressed={$geometry.documentVisible}
+        aria-keyshortcuts={mac ? "Alt+Meta+B" : "Control+Alt+B"}
+        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
         onclick={(event) => {
           if (live(event)) layout.toggleDocument();
-        }}
-      />
+        }}><Icon icon={LayoutRight} size={16} /></IconButton
+      >
     </div>
   </div>
 </header>

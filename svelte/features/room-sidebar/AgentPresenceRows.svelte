@@ -9,11 +9,11 @@
     roomListenerCount,
   } from "./model";
   import { prettyModel } from "../chat/model";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
-  import HoverCard from "../../lib/ui/HoverCard.svelte";
-  import Progress from "../../lib/ui/Progress.svelte";
-  import { agentProvider } from "../../lib/ui/avatar";
-  import { cn } from "../../lib/ui/utils";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import HoverCard from "../../lib/components/HoverCard.svelte";
+  import { agentProvider } from "../../lib/components/agent";
+  import Progress from "../../lib/studio/Progress.svelte";
+  import { cn } from "../../lib/studio/utils";
   let {
     presence,
     self = false,
@@ -36,10 +36,11 @@
   } = $props();
   const listeners = $derived(self ? roomListenerCount(presence, email) : 0);
   const rows = $derived(agentRows(presence, email));
+  // The Studio bar paints its current color: green, yellow from 60%, red from 80%.
   const METERS = {
-    hot: "tw:[&::-webkit-progress-value]:bg-destructive! tw:[&::-moz-progress-bar]:bg-destructive!",
-    mid: "tw:[&::-webkit-progress-value]:bg-warning! tw:[&::-moz-progress-bar]:bg-warning!",
-    ok: "tw:[&::-webkit-progress-value]:bg-success! tw:[&::-moz-progress-bar]:bg-success!",
+    hot: "tw:[&_progress]:text-destructive",
+    mid: "tw:[&_progress]:text-warning",
+    ok: "tw:[&_progress]:text-success",
   } as const;
   const SURFACES = {
     sidebar: { ring: "tw:ring-sidebar", hover: "tw:hover:bg-sidebar-accent" },
@@ -55,7 +56,7 @@
 {#if listeners > 1}<p
     data-duplicate-listeners
     role="status"
-    class="tw:ml-5 tw:text-xs tw:text-warning"
+    class="tw:m-0 tw:ml-7 tw:px-2 tw:text-xs tw:text-warning"
   >
     {t(
       "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
@@ -75,17 +76,17 @@
       data-agent-provider={agentProvider(agent.who)}
       data-agent-listening={agent.listening}
       class={cn(
-        "tw:ml-5 tw:box-border tw:flex tw:w-[calc(100%-1.25rem)] tw:cursor-default tw:flex-col tw:gap-1 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:font-sans tw:text-xs tw:text-muted-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring",
+        "tw:ml-7 tw:box-border tw:flex tw:w-[calc(100%-1.75rem)] tw:cursor-default tw:flex-col tw:gap-1 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:font-sans tw:text-xs tw:text-muted-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring",
         tone.hover,
       )}
     >
       <span class="tw:flex tw:w-full tw:items-center tw:gap-2">
         <span class="tw:relative tw:inline-flex tw:shrink-0">
-          <AgentAvatar
-            px={24}
+          <AgentMark
+            size="2xs"
             tint
             via={agent.who}
-            class="tw:text-sm tw:font-normal"
+            class="tw:text-[0.625rem]"
           /><span
             data-status-dot={agent.listening ? "listening" : "idle"}
             class={cn(
@@ -112,9 +113,8 @@
           data-context-bar
           aria-hidden="true"
           value={percent}
-          label={t("Contexto")}
           class={cn(
-            "tw:ml-8 tw:h-[3px] tw:w-[calc(100%-2rem)] tw:bg-border tw:[&::-webkit-progress-bar]:bg-border",
+            "tw:ml-6 tw:h-[3px] tw:w-[calc(100%-1.5rem)]",
             meter(percent),
           )}
         />{/if}
@@ -149,8 +149,8 @@
         </p>
         <Progress
           value={section.percent}
-          label={section.label}
-          class={cn("tw:h-1", meter(section.percent))}
+          aria-label={section.label}
+          class={meter(section.percent)}
         />
       </div>{/each}
   </HoverCard>

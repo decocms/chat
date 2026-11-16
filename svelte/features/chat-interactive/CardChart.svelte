@@ -2,8 +2,14 @@
   import type { CardEl } from "../../../shared/card";
   import type { ChatBridge } from "../../chatTypes";
   import { chartSeriesView, chartNumber } from "./chartProjection";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import DialogTrigger from "../../lib/studio/DialogTrigger.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { BarChartSquare02 } from "../../lib/studio/icons";
   let {
     chart,
     vb,
@@ -139,15 +145,26 @@
   </figure>
 {/snippet}
 <div data-native-card-chart class="tw:space-y-2">
-  {#if inline}{@render figure()}{:else}<Dialog
-      title={chart.title || vb.t("Gráfico")}
-      closeLabel={vb.t("Fechar")}
-      fullScreen
-      {open}
-      {onOpenChange}
-    >
-      {#snippet trigger()}<Icon name="chart" />{chart.title || vb.t("Gráfico")} ·
-        {vb.t("Abrir em tela cheia")}{/snippet}
-      {@render figure()}
+  {#if inline}{@render figure()}{:else}<Dialog {open} {onOpenChange}>
+      <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
+        ><Icon icon={BarChartSquare02} size={16} />{chart.title ||
+          vb.t("Gráfico")} ·
+        {vb.t("Abrir em tela cheia")}</DialogTrigger
+      >
+      <DialogContent
+        data-vb-native
+        class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:sm:max-w-none"
+        closeLabel={vb.t("Fechar")}
+        preventScroll={false}
+        preventBodyPointerEvents={false}
+        preventOverflowTextSelection={false}
+      >
+        <DialogHeader>
+          <DialogTitle class="tw:pr-8 tw:font-sans"
+            >{chart.title || vb.t("Gráfico")}</DialogTitle
+          >
+        </DialogHeader>
+        {@render figure()}
+      </DialogContent>
     </Dialog>{/if}
 </div>

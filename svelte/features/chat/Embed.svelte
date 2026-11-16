@@ -3,8 +3,8 @@
   import type { Attachment } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import { createAppConsent } from "../apps/consent";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   import { appDocumentFrameName } from "../../../shared/appDocumentProtocol";
   let {
     url,
@@ -191,7 +191,7 @@
   <a
     href={url}
     onclick={open}
-    class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:text-xs tw:text-link tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+    class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
     >{vb.t("Abrir em tela cheia")} ↗</a
   >
   {#if clipped}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">

@@ -177,12 +177,6 @@ export function createPeopleSession(roomId: string, clock = defaultClock) {
         }, PEOPLE_CONFIRMATION_TIMEOUT);
       return true;
     },
-    /** Forget the last copy outcome (a new invite round starts clean). */
-    clearClipboard() {
-      if (!active) return;
-      copySequence++;
-      state.update((s) => ({ ...s, clipboard: null }));
-    },
     dispose() {
       active = false;
       copySequence++;

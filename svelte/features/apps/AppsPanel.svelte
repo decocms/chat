@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { readable } from "svelte/store";
   import type { ConnectionMode } from "./directTypes";
-  import Badge from "../../lib/ui/Badge.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import type { Connection } from "../../../shared/schemas";
   import type { AppsProps } from "./types";
   import {
@@ -13,13 +13,14 @@
     type AppTarget,
   } from "./model";
   import AppFrame from "./AppFrame.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
-  import RadioGroup from "../../lib/ui/RadioGroup.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import RadioGroup from "../../lib/studio/RadioGroup.svelte";
+  import RadioGroupItem from "../../lib/studio/RadioGroupItem.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   let { props }: { props: AppsProps } = $props();
   const owner = untrack(() => props.owner),
     view = untrack(() => owner.state),
@@ -114,11 +115,13 @@
                   )
                     owner.back();
                 }}>← Apps</Button
-              ><Heading
-                level={2}
-                class="tw:min-w-0 tw:flex-1 tw:break-words tw:text-base"
-                >{app?.title || target.tool}</Heading
-              ><span
+              >
+              <h2
+                class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:min-w-0 tw:flex-1 tw:break-words tw:text-base"
+              >
+                {app?.title || target.tool}
+              </h2>
+              <span
                 class="tw:rounded-control tw:bg-muted tw:px-2 tw:py-1 tw:text-xs"
                 >{connection?.scope === "me"
                   ? props.t("minha")
@@ -198,8 +201,12 @@
         </div>{/if}
     {:else}
       <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
-        <Heading level={2} class="tw:text-lg">Apps</Heading
-        >{#if !$view.form}<Button
+        <h2
+          class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-lg"
+        >
+          Apps
+        </h2>
+        {#if !$view.form}<Button
             variant="outline"
             onclick={(event) => {
               if (live(event)) owner.form(true);
@@ -234,22 +241,18 @@
           </p>
           <RadioGroup
             value={$view.scope}
-            label={props.t("Quem pode usar")}
+            aria-label={props.t("Quem pode usar")}
             disabled={busy}
-            items={[
-              { value: "me", label: props.t("Só minha: só eu e meus agents") },
-              {
-                value: "room",
-                label: props.t(
-                  "Da sala: todo mundo vê; cada um entra com a própria conta",
-                ),
-              },
-            ]}
-            onValueChange={(value, event) => {
-              if (live(event) && (value === "me" || value === "room"))
+            onValueChange={(value) => {
+              if (current() && (value === "me" || value === "room"))
                 owner.draft($view.url, value);
             }}
-          />
+          >
+            {#each [{ value: "me", label: props.t("Só minha: só eu e meus agents") }, { value: "room", label: props.t("Da sala: todo mundo vê; cada um entra com a própria conta") }] as item (item.value)}<Label
+                class="tw:flex tw:items-center tw:gap-2 tw:font-normal"
+                ><RadioGroupItem value={item.value} />{item.label}</Label
+              >{/each}
+          </RadioGroup>
           <div class="tw:flex tw:gap-2">
             <Button
               variant="outline"
@@ -300,9 +303,12 @@
         class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
       >
         <div class="tw:flex tw:items-center tw:gap-2">
-          <Heading level={3} class="tw:text-base"
-            >{props.t("Esta sala")}</Heading
-          ><span class="tw:text-xs tw:text-muted-foreground">apps/*.html</span>
+          <h3
+            class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
+          >
+            {props.t("Esta sala")}
+          </h3>
+          <span class="tw:text-xs tw:text-muted-foreground">apps/*.html</span>
         </div>
         {#if apps.length}<div class="tw:grid tw:gap-2">
             {#each apps as app (app.file.id)}<Button
@@ -336,8 +342,12 @@
           class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
         >
           <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-            <Heading level={3} class="tw:text-base">{item.title}</Heading><span
-              class="tw:rounded-control tw:bg-muted tw:px-2 tw:text-xs"
+            <h3
+              class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
+            >
+              {item.title}
+            </h3>
+            <span class="tw:rounded-control tw:bg-muted tw:px-2 tw:text-xs"
               >{item.scope === "me"
                 ? props.t("minha")
                 : props.t("da sala")}</span
@@ -372,6 +382,7 @@
               })}
               <Button
                 variant="link"
+                class="tw:h-auto tw:px-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
                 disabled={busy}
                 onclick={(event) => {
                   if (live(event)) owner.signout(item.id);
@@ -384,7 +395,7 @@
               )}
             </p>
             <a
-              class="tw:inline-flex tw:rounded-control tw:bg-primary tw:px-3 tw:py-2 tw:text-sm tw:text-primary-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+              class={buttonVariants()}
               href={signinUrl(props.room.id, item.id)}
               onclick={(event) => {
                 if (!live(event)) event.preventDefault();
@@ -410,6 +421,7 @@
             </p>{/if}
           {#if screens.length && screens.length < all.length}<Button
               variant="link"
+              class="tw:h-auto tw:px-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
               onclick={(event) => {
                 if (live(event)) owner.more(item.id);
               }}
@@ -421,7 +433,7 @@
     {/if}
   </section>
   {#if remove}{#key remove}<Snapshot value={remove}>
-        {#snippet children(intent)}<AlertDialog
+        {#snippet children(intent)}<ConfirmDialog
             open
             title={props.t("Remover conexão")}
             description={props.t(

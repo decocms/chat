@@ -4,8 +4,9 @@
   import type { Attachment } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import { kb } from "../../panels";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { File02 } from "../../lib/studio/icons";
+  import Button from "../../lib/studio/Button.svelte";
   let {
     roomId,
     files = [],
@@ -99,7 +100,8 @@
           <a
             href={url(file)}
             onclick={(event) => open(event, file)}
-            class="tw:text-xs tw:text-link">{vb.t("Abrir em tela cheia")}</a
+            class="tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+            >{vb.t("Abrir em tela cheia")}</a
           >
         </div>
       {:else if file.type.startsWith("audio/")}<div
@@ -115,7 +117,7 @@
             target="_blank"
             rel="noopener"
             download={file.name}
-            class="tw:block tw:break-words tw:text-xs tw:text-link"
+            class="tw:block tw:break-words tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
             >{file.name} · {kb(file.size)}</a
           >
         </div>
@@ -138,9 +140,9 @@
           target="_blank"
           rel="noopener"
           onclick={(event) => open(event, file)}
-          class="tw:inline-flex tw:max-w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:px-3 tw:py-2 tw:text-sm tw:text-link tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-          ><Icon name="file" /><span class="tw:min-w-0 tw:break-words"
-            >{file.name}</span
+          class="tw:inline-flex tw:max-w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:px-3 tw:py-2 tw:text-sm tw:text-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+          ><Icon icon={File02} size={16} /><span
+            class="tw:min-w-0 tw:break-words">{file.name}</span
           ><small class="tw:shrink-0 tw:text-muted-foreground"
             >{kb(file.size)}</small
           ></a

@@ -1,1 +1,0 @@
-import{B as e,I as t,V as n}from"./Button-Ckjs1hp9.js";import{B as r,Dt as i,Et as a,g as o}from"./shared-CH0iTQYe.js";function s(s,c){i(c,!0);let l=o(()=>c.value);var u=n(),d=r(u);t(d,()=>c.children,()=>l),e(s,u),a()}export{s as t};

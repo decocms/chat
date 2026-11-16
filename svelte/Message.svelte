@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PersonAvatar from "./lib/components/PersonAvatar.svelte";
   import { onDestroy } from "svelte";
   import DeferredInteractiveBody from "./features/chat-interactive/DeferredInteractiveBody.svelte";
   import RichContent from "./features/rich-text/RichContent.svelte";
@@ -13,10 +14,9 @@
     reminderParts,
     type MessageFooter as Footer,
   } from "./features/chat/model";
-  import Avatar from "./lib/ui/Avatar.svelte";
-  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
-  import Badge from "./lib/ui/Badge.svelte";
-  import Button from "./lib/ui/Button.svelte";
+  import AgentMark from "./lib/components/AgentMark.svelte";
+  import Badge from "./lib/studio/Badge.svelte";
+  import Button from "./lib/studio/Button.svelte";
   import MessageActions from "./features/chat/MessageActions.svelte";
   import MessageFooter from "./features/chat/MessageFooter.svelte";
   import MessageReactions from "./features/chat/MessageReactions.svelte";
@@ -144,11 +144,11 @@
   }}
   class={[
     continuous
-      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-1 tw:font-sans tw:text-sm tw:text-foreground"
-      : "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-3 tw:font-sans tw:text-sm tw:text-foreground",
+      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-1 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
+      : "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-3 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
     waiting ? "tw:border-l-2 tw:border-warning tw:bg-warning/10" : "",
     attention ? "tw:animate-pulse tw:motion-reduce:animate-none" : "",
-    flash ? "tw:ring-2 tw:ring-ring tw:bg-accent" : "",
+    flash ? "tw:bg-accent" : "",
     fireHot
       ? "tw:after:pointer-events-none tw:after:absolute tw:after:inset-0 tw:after:animate-pulse tw:after:rounded-surface tw:after:ring-2 tw:after:ring-warning tw:motion-reduce:after:animate-none"
       : "",
@@ -156,17 +156,18 @@
 >
   <div class="tw:flex tw:items-start tw:gap-3">
     <div class="tw:w-8 tw:shrink-0">
-      {#if !continuous}{#if m.author === "ai"}<AgentAvatar
+      {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
-            class="tw:border-0 tw:bg-primary/10 tw:text-sm tw:font-normal tw:text-primary"
-          />{:else}<Avatar
+            class="tw:text-sm"
+          />{:else}<PersonAvatar
+            size="sm"
+            data-avatar="person"
             name={author(m)}
-            src={vb.avatarUrl?.(m.author)}
-            seed={m.author}
-          />{/if}{#if m.kind === "agent"}<AgentAvatar
-            px={16}
+            url={vb.avatarUrl?.(m.author)}
+          />{/if}{#if m.kind === "agent"}<AgentMark
+            size="2xs"
             via={m.via}
-            class="tw:mx-auto tw:grid tw:font-normal"
+            class="tw:mx-auto tw:mt-1"
           />{/if}{:else}<time
           title={timestamp}
           class="tw:text-xs tw:text-muted-foreground">{vb.hhmm(m.ts)}</time
@@ -180,8 +181,9 @@
           >{#if m.kind === "agent"}<Badge
               title={vb.t("Escrito pelo agent dessa pessoa, em nome dela")}
               >agent</Badge
-            >{/if}{#if m.tag === "done"}<Badge variant="success"
-              >✓ {vb.t("entregue")}</Badge
+            >{/if}{#if m.tag === "done"}<Badge
+              class="tw:text-foreground"
+              variant="success">✓ {vb.t("entregue")}</Badge
             >{/if}<time title={timestamp}>{vb.ago(m.ts)} · {vb.hhmm(m.ts)}</time
           >
         </div>{/if}
@@ -302,15 +304,12 @@
       </div>
     </div>
   </div>
-  <div
-    class="tw:mt-1 tw:flex tw:justify-end tw:md:opacity-0 tw:md:group-hover:opacity-100 tw:md:group-focus-within:opacity-100"
-  >
-    <MessageActions
-      bind:this={actionController}
-      message={m}
-      roomId={room.id}
-      {actions}
-      {vb}
-    />
-  </div>
+  <MessageActions
+    bind:this={actionController}
+    floating
+    message={m}
+    roomId={room.id}
+    {actions}
+    {vb}
+  />
 </article>

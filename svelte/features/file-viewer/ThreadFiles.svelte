@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Attachment, Room } from "../../../shared/room";
   import { fileURL } from "./model";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { File02 } from "../../lib/studio/icons";
   let {
     room,
     thread,
@@ -43,7 +44,7 @@
     class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:p-2 tw:font-sans tw:text-sm tw:text-foreground"
   >
     <span class="tw:flex tw:items-center tw:gap-1 tw:text-muted-foreground"
-      ><Icon name="file" />{lang === "en"
+      ><Icon icon={File02} size={16} />{lang === "en"
         ? "Files from this thread"
         : "Arquivos deste épico"}</span
     >{#each files as { file, count } (file.id)}<a
@@ -65,7 +66,8 @@
           onopen(file, event.currentTarget);
         }}
         class="tw:inline-flex tw:max-w-full tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-border tw:bg-card tw:px-2 tw:py-1 tw:text-foreground tw:no-underline tw:hover:bg-muted"
-        ><Icon name="file" /><span class="tw:truncate">{file.name}</span
+        ><Icon icon={File02} size={16} /><span class="tw:truncate"
+          >{file.name}</span
         >{#if count > 1}<span class="tw:text-xs tw:text-muted-foreground"
             >v{count}</span
           >{/if}</a

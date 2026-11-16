@@ -1,10 +1,10 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import type { ChatBridge } from "../../chatTypes";
   import type { MessageFooter } from "./model";
   import { prettyModel } from "./model";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   let { footer, vb }: { footer: MessageFooter; vb: ChatBridge } = $props();
   let opened = $state(false),
     hovered = $state(false),
@@ -105,15 +105,15 @@
             data-reader-read={reader.read}
             class="tw:relative tw:mr-1.5 tw:inline-flex"
           >
-            <Avatar
+            <PersonAvatar
+              data-avatar="person"
+              size="xs"
               name={vb.name(reader.receipt.email)}
-              src={vb.avatarUrl?.(reader.receipt.email)}
-              seed={reader.receipt.email}
-              class="tw:size-6"
-            /><AgentAvatar
-              px={16}
+              url={vb.avatarUrl?.(reader.receipt.email)}
+            /><AgentMark
+              size="2xs"
               via={reader.receipt.who}
-              class="tw:absolute tw:-right-2 tw:-bottom-1.5 tw:bg-card tw:font-normal"
+              class="tw:absolute tw:-right-2 tw:-bottom-1.5 tw:shadow-[0_0_0_2px_var(--vb-card)]"
             />
           </span>
         {/each}
@@ -128,11 +128,11 @@
           {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
               class="tw:flex tw:items-center tw:gap-2"
             >
-              <Avatar
+              <PersonAvatar
+                data-avatar="person"
+                size="xs"
                 name={vb.name(reader.receipt.email)}
-                src={vb.avatarUrl?.(reader.receipt.email)}
-                seed={reader.receipt.email}
-                class="tw:size-6"
+                url={vb.avatarUrl?.(reader.receipt.email)}
               /><span class="tw:min-w-0 tw:flex-1 tw:break-words"
                 >{who(reader.receipt.who, reader.receipt.email)}</span
               ><span>{vb.t(reader.read ? "leu" : "recebeu")}</span>

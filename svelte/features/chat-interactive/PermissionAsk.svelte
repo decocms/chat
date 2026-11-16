@@ -5,8 +5,8 @@
   import type { Choices } from "./model";
   import { answerOf, canAnswer } from "./model";
   import { createInteractiveSession, idleState } from "./session";
-  import Button from "../../lib/ui/Button.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   let {
     choices,
     message,
@@ -132,7 +132,7 @@
           : status.error}
     </p>{/if}
 </div>
-<AlertDialog
+<ConfirmDialog
   open={selection !== null && actionable && selectedIdentity === identity}
   title={selection === "Aprovar"
     ? vb.t("Aprovar este pedido?")

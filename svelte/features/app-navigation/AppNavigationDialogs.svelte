@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
-  import Label from "../../lib/ui/Label.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import TitledDialog from "../../lib/components/TitledDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
   import { TINTS } from "../../../shared/schemas";
   import {
     roomMatches,
@@ -150,7 +151,7 @@
 {#each openings as opening (opening.revision)}<Snapshot value={opening}
     >{#snippet children(intent)}
       {#if intent.kind === "search"}
-        <Dialog
+        <TitledDialog
           open={$search.open}
           title={text("search")}
           closeLabel={text("close")}
@@ -200,8 +201,8 @@
                 aria-selected={$search.selected === index}
                 tabindex="-1"
                 class={$search.selected === index
-                  ? "tw:block tw:w-full tw:rounded-control tw:bg-accent tw:p-3 tw:text-left tw:text-foreground tw:no-underline"
-                  : "tw:block tw:w-full tw:rounded-control tw:bg-transparent tw:p-3 tw:text-left tw:text-foreground tw:no-underline tw:hover:bg-accent"}
+                  ? "tw:block tw:w-full tw:rounded-lg tw:bg-accent tw:p-3 tw:text-left tw:text-foreground tw:no-underline"
+                  : "tw:block tw:w-full tw:rounded-lg tw:bg-transparent tw:p-3 tw:text-left tw:text-foreground tw:no-underline tw:hover:bg-accent"}
                 onclick={(event) => {
                   if (!current(intent) || !event.currentTarget.isConnected) {
                     event.preventDefault();
@@ -256,13 +257,13 @@
                   controller.search.edit($search.query);
               }}>{text("retry")}</Button
             >{/if}
-        </Dialog>
+        </TitledDialog>
       {:else if intent.kind === "create"}
         {#if $creator.binding}{#key $creator.binding}<Snapshot
               value={$creator.binding}
             >
               {#snippet children(binding)}
-                <Dialog
+                <TitledDialog
                   open={$creator.open && !$creator.inline}
                   title={text("new")}
                   description={text("createHelp")}
@@ -340,8 +341,13 @@
                           )
                             controller.creator.close(binding);
                         }}>{text("cancel")}</Button
-                      ><Button type="submit" loading={$creator.busy}
-                        >{text($creator.busy ? "creating" : "create")}</Button
+                      ><Button
+                        type="submit"
+                        disabled={$creator.busy}
+                        aria-busy={$creator.busy || undefined}
+                        >{#if $creator.busy}<Spinner size="xs" />{/if}{text(
+                          $creator.busy ? "creating" : "create",
+                        )}</Button
                       >
                     </div>
                     {#if $creator.error}<p
@@ -351,11 +357,11 @@
                         {homeIssue(lang, $creator.error)}
                       </p>{/if}
                   </form>
-                </Dialog>
+                </TitledDialog>
               {/snippet}</Snapshot
             >{/key}{/if}
       {:else if intent.kind === "settings"}
-        <Dialog
+        <TitledDialog
           open={!!selectedRoom}
           title={text("roomSettings", { title: selectedRoom?.title ?? "" })}
           closeLabel={text("close")}
@@ -387,7 +393,7 @@
                 accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
                 disabled={imageBusy || !!$mutations.pending[`icon:${room.id}`]}
                 onchange={(event) => upload(event, intent)}
-                class="tw:block tw:w-full tw:rounded-control tw:border tw:border-input tw:p-2 tw:text-sm"
+                class="tw:block tw:w-full tw:rounded-lg tw:border tw:border-input tw:p-2 tw:text-sm"
               />{#if room.icon}<Button
                   variant="outline"
                   disabled={!!$mutations.pending[`icon:${room.id}`]}
@@ -438,9 +444,9 @@
                 {homeIssue(lang, imageError)}
               </p>{/if}
           {/if}
-        </Dialog>
+        </TitledDialog>
       {:else if intent.kind === "archive"}
-        <Dialog
+        <TitledDialog
           open={!!archiveRoom}
           title={text("archiveTitle", { title: archiveRoom?.title ?? "" })}
           description={text("archiveHelp")}
@@ -461,11 +467,16 @@
                 }}>{text("cancel")}</Button
               ><Button
                 variant="destructive"
-                loading={!!$mutations.pending[`archive:${archiveRoom.id}`]}
+                disabled={!!$mutations.pending[`archive:${archiveRoom.id}`]}
+                aria-busy={!!$mutations.pending[`archive:${archiveRoom.id}`] ||
+                  undefined}
                 onclick={(event) => {
                   if (current(intent) && event.currentTarget.isConnected)
                     controller.confirmArchive();
-                }}>{text("archiveAction")}</Button
+                }}
+                >{#if $mutations.pending[`archive:${archiveRoom.id}`]}<Spinner
+                    size="xs"
+                  />{/if}{text("archiveAction")}</Button
               >
             </div>
             {#if $mutations.issues[`archive:${archiveRoom.id}`]}<p
@@ -477,9 +488,9 @@
                   $mutations.issues[`archive:${archiveRoom.id}`]!,
                 )}
               </p>{/if}{/if}
-        </Dialog>
+        </TitledDialog>
       {:else if intent.kind === "rename"}
-        <Dialog
+        <TitledDialog
           open={!!renameRoom}
           title={text("rename")}
           closeLabel={text("close")}
@@ -520,9 +531,14 @@
                   }}>{text("cancel")}</Button
                 ><Button
                   type="submit"
-                  loading={$nav.renameBusy ||
+                  disabled={$nav.renameBusy ||
                     !!$mutations.pending[`rename:${renameRoom.id}`]}
-                  >{text("save")}</Button
+                  aria-busy={$nav.renameBusy ||
+                    !!$mutations.pending[`rename:${renameRoom.id}`] ||
+                    undefined}
+                  >{#if $nav.renameBusy || $mutations.pending[`rename:${renameRoom.id}`]}<Spinner
+                      size="xs"
+                    />{/if}{text("save")}</Button
                 >
               </div>
               {#if $mutations.issues[`rename:${renameRoom.id}`]}<p
@@ -535,6 +551,6 @@
                   )}
                 </p>{/if}
             </form>{/if}
-        </Dialog>
+        </TitledDialog>
       {/if}{/snippet}</Snapshot
   >{/each}

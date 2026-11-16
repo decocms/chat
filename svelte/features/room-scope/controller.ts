@@ -1043,7 +1043,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             thread,
             collapsed: display.sidebarCollapsed && !display.mobile,
             roomIcon: icon,
-            roomTint: book?.tint,
             locale,
             mutations,
             presence: data ?? undefined,
@@ -1085,7 +1084,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             owner: mutations,
             vb: sidebarBridge,
             roomIcon: icon,
-            roomTint: book?.tint,
             onopenside: () => {
               if (current()) layout.openSheet("side");
             },

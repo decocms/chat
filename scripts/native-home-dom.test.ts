@@ -40,6 +40,8 @@ for (const name of [
   "HTMLButtonElement",
   "HTMLFormElement",
   "HTMLAnchorElement",
+  "HTMLImageElement",
+  "Image",
   "HTMLMediaElement",
   "HTMLSelectElement",
   "HTMLTextAreaElement",
@@ -603,11 +605,13 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
     ["agent", "✦"],
     ["agent", "✻"],
   ];
+  // Agent marks say so (data-avatar); any other Studio avatar is a person only when round.
   const shapes = (root: ParentNode) =>
-    [...root.querySelectorAll("[data-avatar]")].map((el) => [
-      el.getAttribute("data-avatar"),
-      el.getAttribute("data-avatar") === "agent" ? el.textContent?.trim() : "",
-    ]);
+    [...root.querySelectorAll("[data-avatar], [data-slot=avatar]")].map((el) =>
+      el.getAttribute("data-avatar") === "agent"
+        ? ["agent", el.textContent?.trim()]
+        : [el.classList.contains("tw:rounded-full") ? "person" : "", ""],
+    );
   const home = document.createElement("div");
   document.body.append(home);
   const list = flushSync(() =>

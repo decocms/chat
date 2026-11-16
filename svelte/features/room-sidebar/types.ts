@@ -13,7 +13,6 @@ export type ThreadHeaderProps = {
   /** Phone top bar: keeps the title and drops the epic actions (the sheet header has them). */
   compact?: boolean;
   roomIcon?: string;
-  roomTint?: string | null;
 };
 export type SuggestionPreviewProps = {
   room: Room;

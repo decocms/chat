@@ -1,16 +1,15 @@
 <script lang="ts">
   import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitIndicator, type WaitReference } from "../waits/model";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import RailPill from "../app-navigation/RailPill.svelte";
-  import Tip from "../../lib/ui/Tip.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Tooltip from "../../lib/studio/Tooltip.svelte";
+  import TooltipContent from "../../lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import { ChevronDown, Cloud01 } from "../../lib/studio/icons";
+  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import {
-    roomCover,
-    roomCoverIndex,
-    roomInitials,
     roomIcon,
-    roomRailTint,
     roomTint,
     targetHref,
     unread,
@@ -25,7 +24,6 @@
     seen = 0,
     waits = [],
     compact = false,
-    selected = false,
     onnavigate,
     onsettings,
     ondragstart,
@@ -39,7 +37,6 @@
     seen?: number;
     waits?: readonly WaitReference[];
     compact?: boolean;
-    selected?: boolean;
     onnavigate: (target: RoomTarget) => void;
     onsettings?: (id: string, trigger: HTMLElement) => void;
     ondragstart?: (event: DragEvent) => void;
@@ -105,13 +102,8 @@
       {...tip}
       href={targetHref({ roomId: room.id })}
       aria-label={description}
-      aria-current={selected ? "page" : undefined}
-      data-room-tint={compact && roomRailTint(room) ? room.tint : undefined}
       class={compact
-        ? [
-            "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
-            roomRailTint(room),
-          ]
+        ? "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
         : "tw:flex tw:min-w-0 tw:flex-col tw:gap-3 tw:rounded-control tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"}
       onclick={(event) => {
         if (
@@ -127,25 +119,23 @@
         onnavigate({ roomId: room.id });
       }}
     >
-      {#if compact}<RailPill state={selected ? "selected" : "idle"} />{/if}
       <span
         class={[
           compact ? "tw:size-10" : "tw:h-28 tw:w-full",
-          "tw:relative tw:inline-grid tw:place-items-center tw:overflow-hidden tw:rounded-control tw:text-xl tw:font-semibold",
-          // Like vanilla: no icon means the title's cover color; the tint colors
-          // the room's group, never the tile.
-          roomIcon(room) ? roomTint(room) : roomCover(room.title),
+          "tw:relative tw:inline-grid tw:place-items-center tw:overflow-hidden tw:rounded-control",
+          roomIcon(room) ? roomTint(room) : "",
         ]}
-        data-room-cover={roomIcon(room)
-          ? undefined
-          : roomCoverIndex(room.title)}
+        data-room-cover={roomIcon(room) ? "icon" : "marble"}
       >
         {#if roomIcon(room)}<img
             src={roomIcon(room)}
             alt=""
             loading="lazy"
             class="tw:size-full tw:object-cover"
-          />{:else}{roomInitials(title)}{/if}
+          />{:else}<OrgAvatar
+            name={title}
+            class="tw:size-full tw:rounded-none"
+          />{/if}
         {#if !compact}
           {#if news}<span
               role="img"
@@ -190,7 +180,7 @@
             aria-label={text("cloud")}
             data-room-badge="cloud"
             class="tw:absolute tw:left-0 tw:top-0 tw:grid tw:size-4 tw:place-items-center tw:rounded-full tw:bg-background tw:text-warning tw:ring-2 tw:ring-background"
-            ><Icon name="cloud" class="tw:size-2.5" /></span
+            ><Icon icon={Cloud01} class="tw:size-2.5" /></span
           >{/if}
       {/if}
       {#if !compact}<b
@@ -213,16 +203,21 @@
       />
     </a>
   {/snippet}
-  {#if compact}<Tip label={title} trigger={link} />{:else}{@render link(
-      {},
-    )}{/if}
+  {#if compact}<Tooltip
+      ><TooltipTrigger
+        >{#snippet child({ props })}{@render link(
+            props,
+          )}{/snippet}</TooltipTrigger
+      ><TooltipContent side="right" sideOffset={8} collisionPadding={8}
+        >{title}</TooltipContent
+      ></Tooltip
+    >{:else}{@render link({})}{/if}
   {#if onsettings && !compact}<IconButton
-      icon="chevronDown"
       label={text("roomSettings", { title })}
       class="tw:absolute tw:right-2 tw:top-2"
       onclick={(event) => {
         if (event.currentTarget.isConnected)
           onsettings?.(room.id, event.currentTarget);
-      }}
-    />{/if}
+      }}><Icon icon={ChevronDown} /></IconButton
+    >{/if}
 </article>

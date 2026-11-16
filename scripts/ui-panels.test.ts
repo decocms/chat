@@ -27,7 +27,7 @@ import { createFilesSession } from "../svelte/features/files/session";
 import type { FilesProps } from "../svelte/features/files/types";
 import type { PeopleAction } from "../svelte/features/people/model";
 import { createComposerDrafts } from "../svelte/features/composer/drafts";
-import { boardModel } from "../svelte/features/board/model";
+import { boardModel, lanes } from "../svelte/features/board/model";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -50,7 +50,10 @@ for (const key of [
   "HTMLIFrameElement",
   "HTMLFormElement",
   "HTMLAnchorElement",
+  "HTMLImageElement",
+  "Image",
   "HTMLMediaElement",
+  "Image",
   "HTMLSelectElement",
   "HTMLTextAreaElement",
   "SVGElement",
@@ -258,8 +261,8 @@ function render(
 function openInvite(target: ParentNode) {
   const toggle = target.querySelector<HTMLButtonElement>(
     "[data-invite-toggle]",
-  )!;
-  if (toggle.getAttribute("aria-expanded") === "true") return;
+  );
+  if (!toggle) return;
   toggle.click();
   flushSync();
 }
@@ -268,6 +271,60 @@ function change(el: Element) {
   el.dispatchEvent(new window.Event("change", { bubbles: true }));
   flushSync();
 }
+const selectTrigger = "[data-slot=select-trigger]";
+/** Opens a Studio Select from its trigger and picks one option, as a mouse does. */
+function choose(trigger: Element, value: string) {
+  trigger.dispatchEvent(
+    new window.PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  const list = window.document.getElementById(
+    trigger.getAttribute("aria-controls") ?? "",
+  );
+  const option = [
+    ...(list?.querySelectorAll<HTMLElement>("[data-slot=select-item]") ?? []),
+  ].find((item) => item.dataset.value === value);
+  if (!option) throw new Error(`Missing select option: ${value}`);
+  option.dispatchEvent(
+    new window.PointerEvent("pointerup", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+}
+/** Opens a Studio dropdown from its trigger, as a mouse does, and returns its item named `name`. */
+function menuItem(trigger: Element, name: string) {
+  trigger.dispatchEvent(
+    new window.PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  const item = [
+    ...window.document.querySelectorAll<HTMLElement>("[role=menuitem]"),
+  ].find((el) => el.textContent?.trim() === name);
+  if (!item) throw new Error(`Missing menu item: ${name}`);
+  return item;
+}
+/** The label a closed Studio Select shows for its committed value. */
+const shown = (trigger: Element) =>
+  trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
+const laneLabel = (status: string) =>
+  lanes.find((lane) => lane.value === status)?.label;
 
 /** The new-epic field opens from the + in the Épicos header. */
 function newEpicInput(target: ParentNode) {
@@ -283,14 +340,16 @@ describe("native Svelte room panels", () => {
     const room = fixture();
     room.epics[0].tasks[0].flags = ["review note"];
     const { target, events } = render("tasks", room);
-    const checkbox = target.querySelector("input[type=checkbox]")!;
+    const checkbox = target.querySelector<HTMLElement>("[role=checkbox]")!;
+    expect(checkbox.getAttribute("aria-checked")).toBe("false");
     checkbox.dispatchEvent(
       new window.MouseEvent("click", { bubbles: true, cancelable: true }),
     );
     flushSync();
-    const owner = target.querySelector("select")!;
-    owner.value = "you@test";
-    change(owner);
+    expect(checkbox.getAttribute("aria-checked")).toBe("false");
+    const owner = target.querySelector("[data-owner]")!;
+    expect(shown(owner)).toBe("você");
+    choose(owner, "you@test");
     target.querySelector<HTMLElement>("[data-task-title]")!.click();
     flushSync();
     const edit = target.querySelector<HTMLInputElement>("[data-task-edit]")!;
@@ -371,10 +430,9 @@ describe("native Svelte room panels", () => {
     expect(target.querySelector('[role="alert"]')?.textContent).toContain(
       "Não deu pra enviar agora",
     );
-    const owner = target.querySelector<HTMLSelectElement>("select")!;
-    owner.value = "you@test";
-    change(owner);
-    expect(owner.value).toBe("me@test");
+    const owner = target.querySelector("[data-owner]")!;
+    choose(owner, "you@test");
+    expect(shown(owner)).toBe("você");
     target.querySelector<HTMLElement>("[data-task-title]")!.click();
     flushSync();
     const edit = target.querySelector<HTMLInputElement>("[data-task-edit]")!;
@@ -485,7 +543,7 @@ describe("native Svelte room panels", () => {
       });
       const form = target.querySelector<HTMLFormElement>("form")!;
       const input = form.querySelector<HTMLInputElement>("input")!;
-      const epic = form.querySelector<HTMLSelectElement>("select")!;
+      const epic = form.querySelector(selectTrigger)!;
       input.value = "Keep this draft";
       input.dispatchEvent(new window.Event("input", { bubbles: true }));
       const submit = () => {
@@ -496,7 +554,7 @@ describe("native Svelte room panels", () => {
       };
       submit();
       expect(input.value).toBe("Keep this draft");
-      expect(epic.value).toBe("e");
+      expect(shown(epic)).toBe("Epic");
       expect(target.querySelector('[role="alert"]')).not.toBeNull();
       failure = "throw";
       submit();
@@ -509,15 +567,14 @@ describe("native Svelte room panels", () => {
       });
       flushSync();
       expect(input.value).toBe("Keep this draft");
-      expect(epic.value).toBe("e");
+      expect(shown(epic)).toBe("Epic");
       expect(
         form.querySelector<HTMLButtonElement>('button[type="submit"]')
           ?.disabled,
       ).toBe(true);
       submit();
       expect(attempted).toHaveLength(2);
-      epic.value = "main";
-      change(epic);
+      choose(epic, "main");
       failure = null;
       submit();
       expect(attempted.at(-1)).toEqual({
@@ -583,8 +640,8 @@ describe("native Svelte room panels", () => {
     const { target, events, update } = render("board", room, {
       onopen: (id) => opened.push(id),
     });
-    const controls = target.querySelectorAll<HTMLSelectElement>(
-      '[data-board-task="t"] select',
+    const controls = target.querySelectorAll<HTMLElement>(
+      `[data-board-task="t"] ${selectTrigger}`,
     );
     expect(controls.length).toBe(2);
     const mine = controls[0];
@@ -593,10 +650,9 @@ describe("native Svelte room panels", () => {
       new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
     );
     expect(events).toEqual([]);
-    mine.value = "doing";
-    change(mine);
+    choose(mine, "doing");
     expect(events).toEqual([{ t: "task.status", id: "t", status: "doing" }]);
-    expect(mine.value).toBe("todo");
+    expect(shown(mine)).toBe(laneLabel("todo"));
     update({
       ...room,
       epics: [
@@ -609,10 +665,9 @@ describe("native Svelte room panels", () => {
     await tick();
     await tick();
     expect(document.activeElement).toBe(mine);
-    expect(mine.value).toBe("doing");
+    expect(shown(mine)).toBe(laneLabel("doing"));
     expect(opened).toEqual([]);
-    mine.value = "done";
-    change(mine);
+    choose(mine, "done");
     update({
       ...room,
       epics: [
@@ -728,27 +783,34 @@ describe("native Svelte room panels", () => {
   }, 30_000);
 
   test("shared switch keeps default local updates and rejects them only in controlled mode", async () => {
-    const Switch = (await import("../svelte/lib/ui/Switch.svelte")).default;
+    const Switch = (await import("../svelte/lib/studio/Switch.svelte")).default;
     for (const controlled of [false, true]) {
       const target = document.createElement("div");
       document.body.append(target);
       const desired: boolean[] = [];
-      const instance = flushSync(() =>
-        mount(Switch, {
-          target,
-          props: {
+      // Controlled callers bind a getter that keeps the canonical value and a setter that only asks for the change.
+      const props = controlled
+        ? {
+            get checked() {
+              return true;
+            },
+            set checked(value: boolean) {
+              desired.push(value);
+            },
+          }
+        : {
             checked: true,
-            controlled,
             onCheckedChange: (value: boolean) => desired.push(value),
-          },
-        }),
-      );
+          };
+      const instance = flushSync(() => mount(Switch, { target, props }));
       try {
-        const input = target.querySelector<HTMLInputElement>("input")!;
-        input.checked = false;
-        change(input);
-        expect(input.checked).toBe(controlled);
-        expect(input.getAttribute("aria-checked")).toBe(String(controlled));
+        const control =
+          target.querySelector<HTMLButtonElement>("[role=switch]")!;
+        flushSync(() => control.click());
+        expect(control.getAttribute("aria-checked")).toBe(String(controlled));
+        expect(control.getAttribute("data-state")).toBe(
+          controlled ? "checked" : "unchecked",
+        );
         expect(desired).toEqual([false]);
       } finally {
         await unmount(instance);
@@ -835,7 +897,7 @@ describe("native Svelte room panels", () => {
       expect(trigger.hasAttribute("title")).toBe(false);
       expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
       expect(
-        trigger.querySelector("[data-avatar]")?.getAttribute("class"),
+        trigger.querySelector("[data-slot=avatar]")?.getAttribute("class"),
       ).toContain("tw:rounded-full");
       await openMenu();
       expect(item("friends").textContent).toContain("12");
@@ -1043,60 +1105,25 @@ describe("native Svelte room panels", () => {
       target.remove();
     }
   }, 30_000);
-  test("one avatar language: people are circles, agents share the room tile radius", async () => {
-    const { default: Avatar } = await import("../svelte/lib/ui/Avatar.svelte");
-    const { default: AgentAvatar } =
-      await import("../svelte/lib/ui/AgentAvatar.svelte");
-    const { default: AgentPresenceRows } =
-      await import("../svelte/features/room-sidebar/AgentPresenceRows.svelte");
+  test("one avatar language: people are round beam faces, agents square marks, rooms marble tiles", async () => {
+    const { default: PersonAvatar } =
+      await import("../svelte/lib/components/PersonAvatar.svelte");
+    const { default: AgentMark } =
+      await import("../svelte/lib/components/AgentMark.svelte");
     const { default: RoomTile } =
       await import("../svelte/features/home/RoomTile.svelte");
-    const { avatarShape } = await import("../svelte/lib/ui/avatar");
-    expect(avatarShape("person")).toBe("tw:rounded-full");
-    expect(avatarShape("agent")).toBe("tw:rounded-control");
-    expect(avatarShape("agent", 24)).toBe("tw:rounded-control-md");
-    expect(avatarShape("agent", 16)).toBe("tw:rounded-control-sm");
-    expect(avatarShape("person", 16)).toBe("tw:rounded-full");
-    // The small agent radii are the room tile token scaled, not new values.
-    const css = readFileSync("svelte/styles/tailwind.css", "utf8");
-    expect(css).toContain("--radius-control: var(--vb-studio-control-radius);");
-    // Derived from --radius-control itself (the token tw:rounded-control reads),
-    // so repointing that token reshapes tiles and every agent size together.
-    for (const size of ["md", "sm"])
-      expect(css).toMatch(
-        new RegExp(
-          `--radius-control-${size}: calc\\(--theme\\(--radius-control\\) \\* 0\\.\\d\\);`,
-        ),
-      );
+    const { beam, marble } = await import("../svelte/lib/components/boring");
     const classes = (el: Element | null | undefined) =>
       (el?.getAttribute("class") ?? "").split(/\s+/);
     const cases: [Component<any>, Record<string, unknown>][] = [
-      [Avatar, { name: "Ana Souza" }],
-      [Avatar, { name: "Ana Souza", kind: "agent", mark: "✻" }],
-      [AgentAvatar, { via: "codex", px: 16, class: "tw:text-success" }],
+      [PersonAvatar, { name: "Ana Souza", "data-avatar": "person" }],
       [
-        AgentPresenceRows,
-        {
-          presence: {
-            agents: [
-              {
-                email: "me@test",
-                who: "claude-opus-5-5",
-                repo: null,
-                listening: true,
-                all_rooms: false,
-                seen_at: 1,
-                context: null,
-              },
-            ],
-            sandboxes: [],
-          },
-          email: "me@test",
-          t: vb.t,
-          name: (email: string) => email,
-          ago: () => "agora",
-        },
+        PersonAvatar,
+        { name: "Ana Souza", size: "2xs", "data-avatar": "person" },
       ],
+      [AgentMark, { mark: "✻" }],
+      [AgentMark, { via: "codex", size: "2xs", class: "tw:text-success" }],
+      [AgentMark, { via: "gemini-3-pro", size: "xs", tint: true }],
       [
         RoomTile,
         {
@@ -1113,46 +1140,75 @@ describe("native Svelte room panels", () => {
         },
       ],
     ];
-    const seen: Record<string, string[][]> = { person: [], agent: [] };
-    let tile: string[] = [];
+    const seen: Record<string, Element[]> = { person: [], agent: [] };
+    let cover: Element | null = null;
     for (const [component, props] of cases) {
       const target = document.createElement("div");
       document.body.append(target);
       const instance = flushSync(() => mount(component, { target, props }));
       try {
         for (const el of target.querySelectorAll("[data-avatar]"))
-          seen[el.getAttribute("data-avatar")!]!.push(classes(el));
+          seen[el.getAttribute("data-avatar")!]!.push(
+            el.cloneNode(true) as Element,
+          );
         if (component === RoomTile)
-          tile = classes(target.querySelector("a [class*='rounded-control']"));
+          cover = target
+            .querySelector("[data-room-cover]")
+            ?.cloneNode(true) as Element;
       } finally {
         await unmount(instance);
         target.remove();
       }
     }
-    expect(seen.person).toHaveLength(1);
+    expect(seen.person).toHaveLength(2);
     expect(seen.agent).toHaveLength(3);
     for (const person of seen.person) {
-      expect(person).toContain("tw:rounded-full");
-      expect(person).not.toContain("tw:rounded-control");
+      expect(classes(person)).toContain("tw:rounded-full");
+      expect(person.getAttribute("aria-hidden")).toBe("true");
+      // No picture: the face the name draws, never initials.
+      expect(person.querySelector("svg > rect")?.getAttribute("fill")).toBe(
+        beam("Ana Souza").background,
+      );
+      expect(person.textContent?.trim()).toBe("");
     }
-    // Full size agents carry the tile class itself; smaller marks their scaled twins.
     expect(
-      seen.agent.map((agent) => agent.filter((c) => c.includes("rounded"))),
+      seen.person.map((el) => classes(el).filter((c) => /^tw:size-/.test(c))),
+    ).toEqual([["tw:size-6"], ["tw:size-4"]]);
+    for (const agent of seen.agent) {
+      expect(classes(agent)).not.toContain("tw:rounded-full");
+      expect(agent.getAttribute("aria-hidden")).toBe("true");
+    }
+    // The radius follows the box, so a 16px mark never gets the 32px radius.
+    expect(
+      seen.agent.map((agent) =>
+        classes(agent).filter((c) => /^tw:(size|rounded)-/.test(c)),
+      ),
     ).toEqual([
-      ["tw:rounded-control"],
-      ["tw:rounded-control-sm"],
-      ["tw:rounded-control-md"],
+      ["tw:size-8", "tw:rounded-[0.625rem]"],
+      ["tw:size-4", "tw:rounded-sm"],
+      ["tw:size-6", "tw:rounded-lg"],
     ]);
-    // px alone sets the box, so a small mark never gets the 32px radius.
+    expect(seen.agent.map((agent) => agent.textContent?.trim())).toEqual([
+      "✻",
+      "◎",
+      "✦",
+    ]);
+    expect(classes(seen.agent[1])).toContain("tw:text-success");
+    // A tinted mark paints the provider's tile; an untinted one stays muted.
+    expect(seen.agent[0]!.querySelector("[data-agent-tile]")).toBeNull();
     expect(
-      seen.agent.map((agent) => agent.filter((c) => /^tw:size-/.test(c))),
-    ).toEqual([["tw:size-8"], ["tw:size-4"], ["tw:size-6"]]);
-    // Agents reuse the room tile's radius token, so changing it reshapes both.
-    expect(tile).toContain(avatarShape("agent"));
+      classes(seen.agent[2]!.querySelector('[data-agent-tile="gemini"]')),
+    ).toContain("tw:bg-agent-gemini");
+    // A room without an icon is the marble its title draws.
+    expect(cover?.getAttribute("data-room-cover")).toBe("marble");
+    expect(cover?.querySelector("svg > rect")?.getAttribute("fill")).toBe(
+      marble("Room").background,
+    );
   }, 30_000);
-  test("a rail room always has the Discord-style strip instead of a ring: tall when selected, a dot otherwise, whatever it contains", async () => {
-    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
-      .default;
+  test("a rail room is marked current by a bar on the rail's edge, never a ring, and explains itself in a tooltip", async () => {
+    const RailRoom = (
+      await import("../svelte/features/app-navigation/RailRoom.svelte")
+    ).default;
     const summary = (extra: Record<string, unknown> = {}) =>
       ({
         id: "r1",
@@ -1162,109 +1218,55 @@ describe("native Svelte room panels", () => {
         read_id: 0,
         ...extra,
       }) as never;
-    const cases: [string, Record<string, unknown>, boolean, string][] = [
-      ["idle", {}, false, "idle"],
-      ["news", { last_human_id: 5 }, false, "idle"],
-      ["selected", { last_human_id: 5 }, true, "selected"],
+    const cases: [string, Record<string, unknown>, boolean][] = [
+      ["idle", {}, false],
+      ["news", { last_human_id: 5 }, false],
+      ["selected", { last_human_id: 5 }, true],
     ];
-    for (const [label, extra, selected, expected] of cases) {
+    for (const [label, extra, selected] of cases) {
       const target = document.createElement("div");
       document.body.append(target);
       const instance = flushSync(() =>
-        mount(RoomTile, {
+        mount(RailRoom, {
           target,
           props: {
             room: summary(extra),
             lang: "en",
             now: 0,
-            compact: true,
             selected,
             onnavigate: () => {},
           },
         }),
       );
       try {
-        expect(
-          target
-            .querySelector("[data-rail-pill]")
-            ?.getAttribute("data-rail-pill"),
-          label,
-        ).toBe(expected);
+        const pill = target.querySelector("[data-rail-pill]");
+        if (selected) {
+          expect(pill?.getAttribute("data-rail-pill"), label).toBe("selected");
+          expect(pill?.getAttribute("class"), label).toContain(
+            "tw:min-[901px]:w-[3px]",
+          );
+        } else expect(pill, label).toBeNull();
         const link = target.querySelector("a")!;
         // A styled tooltip (bits trigger), not the slow native title.
         expect(link.hasAttribute("title"), label).toBe(false);
         expect(link.getAttribute("data-state"), label).toBe("closed");
-        expect(link.className, label).not.toContain("ring-primary");
-        expect(link.className, label).toContain("tw:group");
+        expect(link.className, label).not.toMatch(/(^| )tw:ring/);
+        // The unread dot stays off the current room.
+        expect(
+          target.querySelector('[data-room-badge="unread-human"]') !== null,
+          label,
+        ).toBe(label === "news");
       } finally {
         await unmount(instance);
         target.remove();
       }
     }
   }, 30_000);
-  test("room covers and initials match vanilla's coverColor() and initials()", async () => {
-    const { ROOM_COVERS, roomCoverColor, roomCoverIndex, roomInitials } =
-      await import("../svelte/features/home/model");
-    // Vanilla public/app.html, verbatim.
-    const COVERS = [
-      "oklch(0.5 0.17 248)",
-      "oklch(0.58 0.17 35)",
-      "oklch(0.52 0.11 175)",
-      "oklch(0.47 0.15 315)",
-      "oklch(0.565 0.13 75)",
-      "oklch(0.45 0.1 145)",
-      "oklch(0.36 0.06 255)",
-      "oklch(0.55 0.16 10)",
-    ];
-    const coverColor = (t: string) =>
-      COVERS[
-        [...String(t)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) %
-          COVERS.length
-      ];
-    expect<string[]>([...ROOM_COVERS]).toEqual(COVERS);
-    const css = readFileSync("svelte/styles/tailwind.css", "utf8");
-    COVERS.forEach((color, index) => {
-      expect(css).toContain(`--vb-room-cover-${index}: ${color};`);
-      expect(css).toContain(
-        `--color-room-cover-${index}: var(--vb-room-cover-${index});`,
-      );
-    });
-    for (const title of [
-      "vibebook",
-      "Room",
-      "Casa da Praia",
-      "Design System",
-      "ação rápida",
-      "🚀 Launch",
-      "a much longer room title that overflows the 32-bit hash many times",
-    ]) {
-      expect<string>(roomCoverColor(title), title).toBe(coverColor(title));
-      expect<string>(ROOM_COVERS[roomCoverIndex(title)], title).toBe(
-        coverColor(title),
-      );
-    }
-    // Results of running vanilla's own function in bun.
-    expect(roomCoverColor("vibebook")).toBe("oklch(0.36 0.06 255)");
-    expect(roomCoverColor("Casa da Praia")).toBe("oklch(0.58 0.17 35)");
-    expect(roomCoverColor("ação rápida")).toBe("oklch(0.565 0.13 75)");
-    for (const [title, expected] of [
-      ["Casa da Praia", "CP"],
-      ["Plano de Marketing 2026", "PM"],
-      ["the of", "TO"],
-      ["Ética & Ação", "ÉA"],
-      ["dev-tools/v2", "DT"],
-      ["éclair", "É"],
-      ["!!!", "◆"],
-      ["", "◆"],
-      ["  ", "◆"],
-    ] as const)
-      expect(roomInitials(title), title).toBe(expected);
-    expect(roomInitials(null)).toBe("◆");
-  });
-  test("a rail room without an icon gets its vanilla cover color and white initials; with an icon it is unchanged", async () => {
-    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
-      .default;
-    const { roomCoverIndex } = await import("../svelte/features/home/model");
+  test("a rail room without an icon draws the marble its title makes; with an icon it shows the icon", async () => {
+    const RailRoom = (
+      await import("../svelte/features/app-navigation/RailRoom.svelte")
+    ).default;
+    const { marble } = await import("../svelte/lib/components/boring");
     const cases = [
       { title: "Casa da Praia", icon: undefined, tint: "purple" },
       { title: "Design System", icon: undefined, tint: null },
@@ -1274,7 +1276,7 @@ describe("native Svelte room panels", () => {
       const target = document.createElement("div");
       document.body.append(target);
       const instance = flushSync(() =>
-        mount(RoomTile, {
+        mount(RailRoom, {
           target,
           props: {
             room: {
@@ -1288,57 +1290,37 @@ describe("native Svelte room panels", () => {
             } as never,
             lang: "en",
             now: 0,
-            compact: true,
             onnavigate: () => {},
           },
         }),
       );
       try {
-        const mark = target.querySelector<HTMLElement>(
-          "a > span.tw\\:size-10",
-        )!;
         const label = `${title} icon=${icon ?? "none"}`;
+        const cover = target.querySelector<HTMLElement>("[data-room-cover]")!;
         if (icon) {
-          expect(mark.querySelector("img"), label).not.toBeNull();
-          expect(mark.hasAttribute("data-room-cover"), label).toBe(false);
-          expect(mark.className, label).toContain("tw:bg-secondary");
-          expect(mark.className, label).not.toContain("room-cover");
+          expect(cover.getAttribute("data-room-cover"), label).toBe("icon");
+          expect(cover.querySelector("svg rect"), label).toBeNull();
         } else {
-          const index = roomCoverIndex(title);
-          expect(mark.getAttribute("data-room-cover"), label).toBe(
-            String(index),
-          );
-          expect(mark.className, label).toContain(`tw:bg-room-cover-${index}`);
-          expect(mark.className, label).toContain(
-            "tw:text-room-cover-foreground",
-          );
-          // The tint colors the group like vanilla, never the tile.
-          expect(mark.className, label).not.toContain("tw:bg-secondary");
-          expect(mark.className, label).not.toContain("tw:bg-muted");
-          expect(mark.textContent?.trim(), label).toBe(
-            title === "Casa da Praia" ? "CP" : "DS",
-          );
+          expect(cover.getAttribute("data-room-cover"), label).toBe("marble");
+          expect(
+            cover.querySelector("svg > rect")?.getAttribute("fill"),
+            label,
+          ).toBe(marble(title).background);
         }
-        expect(target.querySelector("[data-rail-pill]"), label).not.toBeNull();
-        // Like vanilla .sw-group[data-tint]: the tint is a backdrop around the tile.
+        // The tint is the rail group's backdrop, never the tile.
         const link = target.querySelector<HTMLElement>("a")!;
-        if (tint) {
-          expect(link.getAttribute("data-room-tint"), label).toBe(tint);
-          expect(link.className, label).toContain(`tw:bg-room-tint-${tint}/22`);
-        } else {
-          expect(link.hasAttribute("data-room-tint"), label).toBe(false);
-          expect(link.className, label).not.toContain("room-tint");
-        }
+        expect(link.getAttribute("data-room-tint"), label).toBe(tint ?? null);
+        expect(link.className, label).not.toContain("room-tint");
       } finally {
         await unmount(instance);
         target.remove();
       }
     }
   }, 30_000);
-  test("a home-grid room without an icon gets its cover color and its badges keep their own background", async () => {
+  test("a home-grid room without an icon draws its marble and its badges keep their own background", async () => {
     const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
       .default;
-    const { roomCoverIndex } = await import("../svelte/features/home/model");
+    const { marble } = await import("../svelte/lib/components/boring");
     const target = document.createElement("div");
     document.body.append(target);
     const instance = flushSync(() =>
@@ -1363,12 +1345,12 @@ describe("native Svelte room panels", () => {
     );
     try {
       const mark = target.querySelector<HTMLElement>("[data-room-cover]")!;
-      expect(mark.getAttribute("data-room-cover")).toBe(
-        String(roomCoverIndex("Design System")),
+      expect(mark.getAttribute("data-room-cover")).toBe("marble");
+      expect(mark.querySelector("svg > rect")?.getAttribute("fill")).toBe(
+        marble("Design System").background,
       );
-      expect(mark.className).toContain(
-        `tw:bg-room-cover-${roomCoverIndex("Design System")}`,
-      );
+      // The tint colors only a room with an icon, never the marble.
+      expect(mark.className).not.toContain("tw:bg-secondary");
       expect(target.querySelector("a")!.hasAttribute("data-room-tint")).toBe(
         false,
       );
@@ -1589,22 +1571,25 @@ describe("native Svelte room panels", () => {
     flushSync();
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(target.querySelector<HTMLPreElement>("pre")?.hidden).toBe(false);
-    const enabled = target.querySelector<HTMLInputElement>("[data-rem-on]")!;
-    enabled.checked = false;
-    change(enabled);
-    expect(enabled.checked).toBe(true);
+    const enabled = target.querySelector<HTMLButtonElement>(
+      "[data-rem-on][role=switch]",
+    )!;
+    expect(enabled.getAttribute("aria-checked")).toBe("true");
+    enabled.click();
+    flushSync();
+    expect(enabled.getAttribute("aria-checked")).toBe("true");
     expect(enabled.disabled).toBe(true);
     answer({ ok: false, error: "offline" });
     await tick();
     flushSync();
-    expect(enabled.checked).toBe(true);
+    expect(enabled.getAttribute("aria-checked")).toBe("true");
     expect(enabled.disabled).toBe(false);
     expect(target.textContent).toContain("sem conexão");
     update({
       ...room,
       reminders: room.reminders.map((r) => ({ ...r, enabled: false })),
     });
-    expect(enabled.checked).toBe(false);
+    expect(enabled.getAttribute("aria-checked")).toBe("false");
   }, 30_000);
   test("reminder deletion requires its native alert dialog and restores focus after cancellation", async () => {
     const room = fixture();
@@ -1799,9 +1784,8 @@ describe("native Svelte room panels", () => {
     const text = target.querySelector<HTMLTextAreaElement>("textarea")!;
     text.value = "Every Monday at 10: report";
     text.dispatchEvent(new window.Event("input", { bubbles: true }));
-    const on = target.querySelector<HTMLInputElement>("[data-rem-on]")!;
-    on.checked = false;
-    change(on);
+    target.querySelector<HTMLButtonElement>("[data-rem-on]")!.click();
+    flushSync();
     expect(events).toEqual([{ t: "reminder.enable", id: "rem", on: false }]);
     update({
       ...room,
@@ -2243,9 +2227,7 @@ describe("native Svelte chat", () => {
     await tick();
     expect(document.querySelector('[role="dialog"] table') !== null).toBe(true);
     document
-      .querySelector<HTMLButtonElement>(
-        '[role="dialog"] button[aria-label="Fechar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[role="dialog"] [data-dialog-close]')!
       .click();
     flushSync();
     await tick();
@@ -2311,18 +2293,18 @@ describe("native Svelte chat", () => {
       },
     });
     await expectInteractiveReady(target);
-    let radios = target.querySelectorAll<HTMLInputElement>(
-      '[data-native-choices] input[type="radio"]',
+    const radios = target.querySelectorAll<HTMLButtonElement>(
+      '[data-native-choices] [role="radio"]',
     );
-    radios[0].checked = true;
-    radios[0].dispatchEvent(new Event("change", { bubbles: true }));
+    radios[0].click();
+    flushSync();
     expect(drafts.at(-1)).toEqual({
       messageId: 41,
       thread: "e",
       text: "First",
     });
-    radios[2].checked = true;
-    radios[2].dispatchEvent(new Event("change", { bubbles: true }));
+    radios[2].click();
+    flushSync();
     expect(drafts.at(-1)?.text).toBe("");
     expect(commands).toHaveLength(0);
     const detached = radios[0];
@@ -2338,16 +2320,21 @@ describe("native Svelte chat", () => {
         },
       ],
     });
-    detached.dispatchEvent(new Event("change", { bubbles: true }));
+    detached.click();
+    flushSync();
     expect(drafts).toHaveLength(2);
-    expect(target.querySelector("[data-native-choices] input") === null).toBe(
-      true,
-    );
+    expect(
+      target.querySelector(
+        '[data-native-choices] input, [data-native-choices] [role="radio"]',
+      ) === null,
+    ).toBe(true);
     expect(target.textContent).toContain("foi pro terminal");
     update({ ...room, me: "you@test", messages: [q] });
-    expect(target.querySelector("[data-native-choices] input") === null).toBe(
-      true,
-    );
+    expect(
+      target.querySelector(
+        '[data-native-choices] input, [data-native-choices] [role="radio"]',
+      ) === null,
+    ).toBe(true);
   }, 30_000);
   test("native multi choices keep option order and Other clears draft without submitting", async () => {
     const q = {
@@ -2369,12 +2356,11 @@ describe("native Svelte chat", () => {
       },
     );
     await expectInteractiveReady(target);
-    const checks = target.querySelectorAll<HTMLInputElement>(
-      '[data-native-choices] input[type="checkbox"]',
+    const checks = target.querySelectorAll<HTMLButtonElement>(
+      '[data-native-choices] [role="checkbox"]',
     );
     for (const index of [1, 0, 2]) {
-      checks[index].checked = true;
-      checks[index].dispatchEvent(new Event("change", { bubbles: true }));
+      checks[index].click();
       flushSync();
     }
     expect(drafts).toEqual(["Second", "First · Second", ""]);
@@ -3607,10 +3593,10 @@ test("native document task slots dispose across suggestion scope and detached co
   const view = mountView("document", target, { owner, props });
   active.push(view);
   try {
-    const original = target.querySelector<HTMLInputElement>(
-      '[data-document-tasks] input[type="checkbox"]',
+    const original = target.querySelector<HTMLButtonElement>(
+      '[data-document-tasks] [role="checkbox"]',
     );
-    expect(original instanceof HTMLInputElement).toBe(true);
+    expect(original instanceof HTMLButtonElement).toBe(true);
     owner.sync(room, "pre:0", true, true, 1);
     view.update({ owner, props: { ...props, thread: "pre:0" } });
     await tick();
@@ -3623,10 +3609,10 @@ test("native document task slots dispose across suggestion scope and detached co
     view.update({ owner, props });
     await tick();
     flushSync();
-    const current = target.querySelector<HTMLInputElement>(
-      '[data-document-tasks] input[type="checkbox"]',
+    const current = target.querySelector<HTMLButtonElement>(
+      '[data-document-tasks] [role="checkbox"]',
     );
-    expect(current instanceof HTMLInputElement).toBe(true);
+    expect(current instanceof HTMLButtonElement).toBe(true);
     expect(current === original).toBe(false);
     current!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await tick();
@@ -3769,7 +3755,7 @@ describe("stable native sidebar integration", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
-  test("titled sidebar sections share one header with a heading, a count and a tooltip action", async () => {
+  test("titled sidebar sections share one header with a heading and a ghost + that opens an inline row", async () => {
     const room = fixture();
     room.pins = [
       { id: "p", kind: "link", ref: "https://example.com/", title: "Example" },
@@ -3781,21 +3767,17 @@ describe("stable native sidebar integration", () => {
       section.querySelector<HTMLElement>("[data-section-header]")!,
     );
     expect(headers[0].className).toBe(headers[1].className);
-    expect(headers[0].className).toContain("tw:sticky");
     const headings = headers.map((header) => header.querySelector("h3")!);
     expect(headings[0].className).toBe(headings[1].className);
-    expect(headings[0].className).toContain("tw:uppercase");
-    expect(headings[0].textContent).toContain("Fixados");
-    expect(headings[1].textContent).toContain("Pessoas e agents");
+    expect(headings[0].className).toContain("tw:text-xs");
+    expect(headings[0].className).not.toContain("tw:uppercase");
+    expect(headings[0].textContent).toBe("Fixados");
+    expect(headings[1].textContent).toBe("Pessoas e agents");
     const label = document.getElementById(
       pins.getAttribute("aria-labelledby")!,
     );
     expect(headings[0].contains(label)).toBe(true);
     expect(label?.textContent).toBe("Fixados");
-    expect(headings[0].querySelector("[data-section-count]")?.textContent).toBe(
-      "1",
-    );
-    expect(headings[0].textContent).toBe("Fixados · 1 (1)");
     const add = headers[0].querySelector<HTMLButtonElement>(
       'button[aria-label="Fixar um link"]',
     )!;
@@ -3805,10 +3787,14 @@ describe("stable native sidebar integration", () => {
     expect(add.className).toBe(invite.className);
     expect(add.hasAttribute("title")).toBe(false);
     expect(invite.hasAttribute("title")).toBe(false);
-    expect(invite.getAttribute("aria-expanded")).toBe("false");
+    const form = people.querySelector<HTMLFormElement>("[data-invite-form]")!;
+    expect(form.classList.contains("tw:hidden")).toBe(true);
     invite.click();
+    await tick();
     flushSync();
-    expect(invite.getAttribute("aria-expanded")).toBe("true");
+    expect(form.classList.contains("tw:hidden")).toBe(false);
+    expect(document.activeElement).toBe(form.querySelector("input"));
+    expect(headers[1].querySelector("button[data-invite-toggle]")).toBe(null);
     add.click();
     await tick();
     flushSync();
@@ -3834,20 +3820,19 @@ describe("stable native sidebar integration", () => {
     const h = sidebar(room);
     flushSync();
     const row = () => h.target.querySelector('[data-epic-thread="e"]');
-    expect(row()?.textContent).toContain("🚀↻");
-    expect(
-      row()?.querySelector(
-        '[title="Uma versão está no ar; você pediu correções depois"]',
-      ),
-    ).not.toBeNull();
+    const cue = () => row()?.querySelector("[data-epic-prod]");
+    expect(cue()?.getAttribute("data-epic-prod")).toBe("changes");
+    expect(cue()?.getAttribute("aria-label")).toBe(
+      "Uma versão está no ar; você pediu correções depois",
+    );
     h.view.update({
       ...h.props,
       room: { ...room, epics: [{ ...room.epics[0]!, archived: true }] },
     });
     await tick();
     flushSync();
-    expect(row()?.textContent).toContain("✓✓");
-    expect(row()?.textContent).not.toContain("🚀↻");
+    expect(cue()?.getAttribute("data-epic-prod")).toBe("verified");
+    expect(cue()?.getAttribute("aria-label")).toBe("Verificado em prod");
   });
   test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
@@ -3906,60 +3891,39 @@ describe("stable native sidebar integration", () => {
     flushSync();
     expect(title!.getAttribute("aria-current")).toBeNull();
   });
-  test("the Inbox is an icon button with a tooltip and the room's wait badge, beside the pencil", async () => {
+  test("the room row is the room's mark, title, what waits on you in its main thread and its message count, with rename behind hover", async () => {
     const room = fixture();
-    const opened: Element[] = [];
     const h = sidebar(room, {
       thread: "main",
-      oninbox: (trigger) => {
-        if (trigger) opened.push(trigger);
-      },
+      oninbox: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
-        waitsIn: () => [],
-        waitsInRoom: () => [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }],
+        waitsIn: (id: string) =>
+          id === "main" ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }] : [],
+        waitsInRoom: () => [{ ref: "m9" }],
       },
     });
-    const inbox = h.target.querySelector<HTMLButtonElement>(
-      "[data-room-inbox-button]",
-    );
-    expect(inbox).not.toBeNull();
-    expect(inbox!.getAttribute("aria-label")).toBe("Caixa de entrada");
-    // Styled tooltip (bits trigger), not the native title.
-    expect(inbox!.hasAttribute("title")).toBe(false);
-    expect(inbox!.getAttribute("data-state")).toBe("closed");
-    expect(inbox!.textContent?.trim()).toBe("2");
+    const title = h.target.querySelector<HTMLButtonElement>(
+      "button[data-room-title]",
+    )!;
+    expect(title.querySelector("[data-room-mark]")).not.toBeNull();
     expect(
-      inbox!.querySelector('[data-wait-kind="asks"]')?.textContent?.trim(),
+      title.querySelector('[data-wait-kind="asks"] [data-count]')?.textContent,
     ).toBe("2");
-    const row = inbox!.parentElement!;
-    const labels = [...row.querySelectorAll("button")].map((button) =>
-      button.getAttribute("aria-label"),
+    // The Inbox lives in the chat header; the sidebar has no second entry to it.
+    expect(h.target.querySelector("[data-room-inbox-button]")).toBeNull();
+    const rename = title.parentElement!.querySelector(
+      'button[aria-label="Renomear"]',
     );
-    expect(labels).toEqual([null, "Caixa de entrada", "Renomear"]);
-    expect(row.querySelector("button")?.hasAttribute("data-room-title")).toBe(
-      true,
-    );
-    expect(
-      [...h.target.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === "Caixa de entrada",
-      ),
-    ).toHaveLength(0);
-    inbox!.click();
-    expect(opened).toHaveLength(1);
-    expect(opened[0]).toBe(inbox!);
-    h.view.update({ ...h.props, inboxOpen: true });
-    await tick();
-    flushSync();
-    expect(inbox!.getAttribute("aria-current")).toBe("page");
+    expect(rename).not.toBeNull();
+    expect(rename!.className).toContain("tw:group-hover/room:opacity-100");
   });
-  test("the Inbox button shows no badge when nothing waits in the room", () => {
+  test("the room row shows no count when nothing waits in its main thread", () => {
     const room = fixture();
-    const h = sidebar(room, { thread: "main", oninbox: () => {} });
-    const inbox = h.target.querySelector("[data-room-inbox-button]");
-    expect(inbox).not.toBeNull();
-    expect(inbox!.querySelector("[data-wait-kind]")).toBeNull();
+    const h = sidebar(room, { thread: "main" });
+    const title = h.target.querySelector("button[data-room-title]")!;
+    expect(title.querySelector("[data-wait-kind]")).toBeNull();
   });
   test("epic and rail indicators count asks only and keep canonical task-only waits as a dot", async () => {
     const room = fixture();
@@ -4027,7 +3991,9 @@ describe("stable native sidebar integration", () => {
     expect(ids).toContain("e");
     expect(ids).toContain("child");
     expect(
-      first.target.querySelector("li[data-epic] [aria-expanded]"),
+      first.target.querySelector(
+        "li[data-epic] [aria-expanded]:not([data-epic-actions])",
+      ),
     ).toBeNull();
     expect(first.target.querySelector("li[data-depth]")).toBeNull();
     expect(
@@ -4055,7 +4021,9 @@ describe("stable native sidebar integration", () => {
       second.target.querySelector<HTMLInputElement>("#newEpic input")?.value,
     ).toBe("Room-owned draft");
     expect(
-      second.target.querySelector("li[data-epic] [aria-expanded]"),
+      second.target.querySelector(
+        "li[data-epic] [aria-expanded]:not([data-epic-actions])",
+      ),
     ).toBeNull();
   }, 30_000);
   test("native epic drafts survive refused and uncertain requests", async () => {
@@ -5176,10 +5144,17 @@ describe("native People interactions", () => {
     }
     expect(document.querySelector('[role="alertdialog"]') === null).toBe(true);
   }
+  function inviteForm() {
+    return document.querySelector<HTMLFormElement>("#invite")!;
+  }
   function inviteSearch() {
-    return document.querySelector<HTMLInputElement>(
-      '#invite input[type="search"]',
-    )!;
+    return document.querySelector<HTMLInputElement>("#invite input")!;
+  }
+  function submitInvite() {
+    inviteForm().dispatchEvent(
+      new window.Event("submit", { bubbles: true, cancelable: true }),
+    );
+    flushSync();
   }
   function typeInvite(text: string) {
     const input = inviteSearch();
@@ -5188,22 +5163,11 @@ describe("native People interactions", () => {
     flushSync();
     return input;
   }
-  function pressInvite(key: string) {
-    inviteSearch().dispatchEvent(
-      new window.KeyboardEvent("keydown", {
-        key,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-    flushSync();
-  }
-  /** Type an email in the invite modal's search, Enter to pick it, Enter again to send. */
+  /** Open the invite row, type an email and press Enter (submits the row's form). */
   function submitPeopleInvite(target: HTMLElement, email: string) {
     openInvite(target);
     const input = typeInvite(email);
-    pressInvite("Enter");
-    pressInvite("Enter");
+    submitInvite();
     return input;
   }
   test("owner and member see the authorized removal controls and plain-text access requests", () => {
@@ -5310,22 +5274,12 @@ describe("native People interactions", () => {
       );
     }, 30_000);
   }
-  const sentRow = (email: string) =>
-    document.querySelector<HTMLElement>(
-      `#invite [data-invite-sent="${email}"]`,
-    );
-  const chips = () =>
-    [
-      ...document.querySelectorAll<HTMLElement>("#invite [data-invite-chip]"),
-    ].map((chip) => chip.dataset.inviteChip);
-  const sendButton = () =>
-    document.querySelector<HTMLButtonElement>("#invite [data-invite-send]")!;
   async function settle() {
     flushSync();
     await tick();
     flushSync();
   }
-  test("a typed email becomes a chip on Enter, a second Enter sends, and the sent row follows the server", async () => {
+  test("a typed email in the invite row is sent on Enter, the row closes and the person follows the server", async () => {
     const room = personRoom();
     const reply = pendingPeopleRequest();
     const calls: string[] = [];
@@ -5339,62 +5293,35 @@ describe("native People interactions", () => {
         return reply.promise;
       },
     });
-    openInvite(rendered.target);
-    typeInvite("NEW@TEST.COM");
-    pressInvite("Enter");
-    expect(calls).toEqual([]);
-    expect(chips()).toEqual(["new@test.com"]);
-    expect(inviteSearch().value).toBe("");
-    expect(sendButton().disabled).toBe(false);
-    expect(sendButton().textContent?.trim()).toBe("Enviar convite");
-    pressInvite("Enter");
+    submitPeopleInvite(rendered.target, "NEW@TEST.COM");
     await settle();
     expect(calls).toEqual(["invite:new@test.com"]);
-    // Inviting never writes to the clipboard by itself any more.
+    // Inviting never writes to the clipboard by itself.
     expect(copied).toEqual([]);
-    expect(
-      sentRow("new@test.com")?.querySelector('[data-invite-state="pending"]')
-        ?.textContent,
-    ).toBe("Convidando…");
-    expect(
-      document.querySelector('#invite [data-invite-done="sending"]') !== null,
-    ).toBe(true);
-    expect(
-      rendered.target.querySelector('[data-person="new@test.com"]') === null,
-    ).toBe(true);
+    expect(rendered.target.textContent).toContain(
+      "new@test.com · Aguardando confirmação…",
+    );
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(false);
     reply.resolve();
     await settle();
-    expect(
-      document.querySelector('#invite [data-invite-done="done"]') !== null,
-    ).toBe(true);
-    expect(document.querySelector("#invite")!.textContent).toContain(
-      "Convite enviado",
-    );
-    const whatsapp = sentRow("new@test.com")!.querySelector<HTMLAnchorElement>(
-      "[data-invite-whatsapp]",
-    )!;
-    expect(whatsapp.href.startsWith("https://wa.me/?text=")).toBe(true);
-    const text = decodeURIComponent(whatsapp.href.split("?text=")[1]);
-    expect(text).toContain("/b/r");
-    expect(text).toContain("new@test.com");
-    expect(whatsapp.target).toBe("_blank");
-    expect(whatsapp.rel).toContain("noopener");
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
+    expect(inviteSearch().value).toBe("");
+    expect(rendered.target.textContent).toContain("new@test.com · enviado ✓");
     rendered.update({
       ...room,
       members: [...room.members, "new@test.com"],
       pending: [...room.pending!, "new@test.com"],
     });
-    expect(
-      rendered.target.querySelector('[data-person="new@test.com"]') !== null,
-    ).toBe(true);
-    expect(
-      sentRow("new@test.com")?.querySelector(
-        '[data-invite-state="invited"]',
-      ) !== null,
-    ).toBe(true);
-    expect(document.body.textContent).not.toContain("Aguardando confirmação…");
+    const row = rendered.target.querySelector('[data-person="new@test.com"]');
+    expect(row !== null).toBe(true);
+    expect(row!.querySelector('[data-copyinv="new@test.com"]') !== null).toBe(
+      true,
+    );
+    expect(rendered.target.textContent).not.toContain(
+      "Aguardando confirmação…",
+    );
   });
-  test("a rejected invite stays on its sent row with Try again, and closing hands the error to the panel", async () => {
+  test("a rejected invite keeps the row open with the typed email and the error", async () => {
     let fail = true;
     const calls: string[] = [];
     const rendered = people(personRoom(), {
@@ -5406,266 +5333,76 @@ describe("native People interactions", () => {
     submitPeopleInvite(rendered.target, "new@test.com");
     await settle();
     expect(calls).toEqual(["invite:new@test.com"]);
-    expect(
-      document.querySelector('#invite [data-invite-done="partial"]') !== null,
-    ).toBe(true);
-    const alerts = document.querySelectorAll('[role="alert"]');
-    expect(alerts).toHaveLength(1);
-    expect(
-      alerts[0].closest('[data-invite-sent="new@test.com"]') !== null,
-    ).toBe(true);
-    expect(alerts[0].textContent?.trim()).toBe("invitation rejected");
-    // No WhatsApp nudge for an invite that did not go out.
-    expect(
-      sentRow("new@test.com")!.querySelector("[data-invite-whatsapp]") === null,
-    ).toBe(true);
-    // While the modal is open the panel renders no outcome lines of its own.
-    expect(
-      rendered.target.querySelector('[role="alert"], [role="status"]') === null,
-    ).toBe(true);
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(false);
+    expect(inviteSearch().value).toBe("new@test.com");
+    expect(rendered.target.textContent).toContain(
+      "new@test.com · invitation rejected",
+    );
     fail = false;
-    sentRow("new@test.com")!
-      .querySelector<HTMLButtonElement>('[data-retry="new@test.com"]')!
-      .click();
+    submitInvite();
     await settle();
     expect(calls).toEqual(["invite:new@test.com", "invite:new@test.com"]);
-    expect(document.querySelector('[role="alert"]') === null).toBe(true);
-    expect(
-      sentRow("new@test.com")!.querySelector("[data-invite-whatsapp]") !== null,
-    ).toBe(true);
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
   });
-  test("closing after a failure gives focus back to + and the error to the panel", async () => {
-    const rendered = people(personRoom(), {
-      request: async () => {
-        throw new Error("invitation rejected");
-      },
-    });
-    submitPeopleInvite(rendered.target, "new@test.com");
-    await settle();
-    document
-      .querySelector<HTMLButtonElement>(
-        '[role="dialog"] button[aria-label="Fechar"]',
-      )!
-      .click();
-    await tick();
-    flushSync();
-    for (
-      let frame = 0;
-      frame < 10 && document.querySelector('[role="dialog"]');
-      frame++
-    )
-      await new Promise<void>((resolve) =>
-        window.requestAnimationFrame(() => resolve()),
-      );
-    flushSync();
-    expect(document.querySelector('[role="dialog"]') === null).toBe(true);
-    expect(
-      document.activeElement ===
-        rendered.target.querySelector("[data-invite-toggle]"),
-    ).toBe(true);
-    expect(rendered.target.textContent).toContain("invitation rejected");
-    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
-  });
-  test("clicking friend rows toggles chips, Backspace drops the last, IME Enter does nothing", () => {
-    const calls: string[] = [];
-    const rendered = people(friendsRoom(), {
-      friends: inviteFriends,
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
+  test("Escape or ✕ closes the invite row, clears it and gives focus back to +", async () => {
+    const rendered = people(personRoom());
     openInvite(rendered.target);
-    expect(sendButton().disabled).toBe(true);
-    const row = (email: string) =>
-      document.querySelector<HTMLElement>(`#invite [data-friend="${email}"]`)!;
-    row("cecilia@deco.cx").click();
-    flushSync();
-    expect(calls).toEqual([]);
-    expect(chips()).toEqual(["cecilia@deco.cx"]);
-    expect(row("cecilia@deco.cx").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement === inviteSearch()).toBe(true);
-    row("cecilia@deco.cx").click();
-    flushSync();
-    expect(chips()).toEqual([]);
-    row("joao@test.com").click();
-    row("cecilia@deco.cx").click();
-    flushSync();
-    expect(chips()).toEqual(["joao@test.com", "cecilia@deco.cx"]);
-    // A chip shows a friend's first name and can be taken out with its own button.
-    expect(
-      document.querySelector('#invite [data-invite-chip="joao@test.com"]')
-        ?.textContent,
-    ).toContain("João");
-    expect(sendButton().textContent?.trim()).toBe("Enviar 2 convites");
-    expect(
-      document
-        .querySelector("#invite [role=listbox]")
-        ?.getAttribute("aria-multiselectable"),
-    ).toBe("true");
+    await settle();
+    expect(document.activeElement).toBe(inviteSearch());
+    typeInvite("half@");
     inviteSearch().dispatchEvent(
       new window.KeyboardEvent("keydown", {
-        key: "Enter",
-        isComposing: true,
+        key: "Escape",
         bubbles: true,
         cancelable: true,
       }),
     );
-    flushSync();
-    expect(calls).toEqual([]);
-    pressInvite("Backspace");
-    expect(chips()).toEqual(["joao@test.com"]);
-    document
-      .querySelector<HTMLButtonElement>(
-        '#invite [data-invite-chip="joao@test.com"] button',
-      )!
-      .click();
-    flushSync();
-    expect(chips()).toEqual([]);
-    expect(calls).toEqual([]);
-    // No nested buttons inside the listbox options.
-    expect(
-      document.querySelector('#invite [role="option"] button') === null,
-    ).toBe(true);
-  });
-  test("Send invites everyone chosen at once, then Invite more goes back to an empty search", async () => {
-    const calls: string[] = [];
-    const rendered = people(friendsRoom(), {
-      friends: inviteFriends,
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    openInvite(rendered.target);
-    document
-      .querySelector<HTMLElement>('#invite [data-friend="cecilia@deco.cx"]')!
-      .click();
-    typeInvite("new@test.com");
-    pressInvite("Enter");
-    expect(chips()).toEqual(["cecilia@deco.cx", "new@test.com"]);
-    sendButton().click();
     await settle();
-    expect(calls).toEqual(["invite:cecilia@deco.cx", "invite:new@test.com"]);
-    expect(sentRow("cecilia@deco.cx") !== null).toBe(true);
-    expect(sentRow("new@test.com") !== null).toBe(true);
-    expect(document.querySelector("#invite")!.textContent).toContain(
-      "2 convites enviados",
-    );
-    expect(document.querySelector("#invite [data-invite-send]") === null).toBe(
-      true,
-    );
-    document
-      .querySelector<HTMLButtonElement>("#invite [data-invite-more]")!
-      .click();
-    await settle();
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
     expect(inviteSearch().value).toBe("");
-    expect(chips()).toEqual([]);
-    expect(sendButton().disabled).toBe(true);
+    expect(document.activeElement).toBe(
+      rendered.target.querySelector("[data-invite-toggle]"),
+    );
+    openInvite(rendered.target);
+    await settle();
+    inviteForm()
+      .querySelector<HTMLButtonElement>('button[aria-label="Cancelar"]')!
+      .click();
+    await settle();
+    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
   });
-  test("a friend already invited is not offered again, and is offered once the invite is cancelled elsewhere", async () => {
-    const calls: string[] = [];
+  test("the invite row suggests friends who are not in the room yet", () => {
     const room = personRoom();
     const rendered = people(room, {
+      friends: ["friend@test.com", "member@test.com", "pending@test.com"],
+    });
+    openInvite(rendered.target);
+    const list = document.getElementById(inviteSearch().getAttribute("list")!);
+    expect(
+      [...list!.querySelectorAll("option")].map((option) => option.value),
+    ).toEqual(["friend@test.com"]);
+  });
+  test("an email that is invalid or already in the room is refused without a request", async () => {
+    const calls: string[] = [];
+    const rendered = people(personRoom(), {
       request: async (action: PeopleAction, email: string) => {
         calls.push(`${action}:${email}`);
       },
     });
-    openInvite(rendered.target);
-    document
-      .querySelector<HTMLElement>('#invite [data-friend="friend@test.com"]')!
-      .click();
-    pressInvite("Enter");
+    submitPeopleInvite(rendered.target, "member@test.com");
     await settle();
-    expect(calls).toEqual(["invite:friend@test.com"]);
-    rendered.update({
-      ...room,
-      members: [...room.members, "friend@test.com"],
-      pending: [...room.pending!, "friend@test.com"],
-    });
-    document
-      .querySelector<HTMLButtonElement>("#invite [data-invite-more]")!
-      .click();
+    expect(rendered.target.textContent).toContain(
+      "member@test.com · Esta pessoa já está na sala.",
+    );
+    typeInvite("not-an-email");
+    submitInvite();
     await settle();
-    expect(listedFriends()).toEqual([]);
-    // Another member cancels the invite: the friend is offered again.
-    rendered.update(room);
-    expect(listedFriends()).toEqual(["friend@test.com"]);
-    pressInvite("ArrowDown");
-    pressInvite("Enter");
-    pressInvite("Enter");
-    await settle();
-    expect(calls).toEqual(["invite:friend@test.com", "invite:friend@test.com"]);
-  });
-  test("a chosen person who joins elsewhere leaves the chips before Send", () => {
-    const calls: string[] = [];
-    const room = personRoom();
-    const rendered = people(room, {
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    openInvite(rendered.target);
-    document
-      .querySelector<HTMLElement>('#invite [data-friend="friend@test.com"]')!
-      .click();
-    flushSync();
-    expect(chips()).toEqual(["friend@test.com"]);
-    rendered.update({ ...room, members: [...room.members, "friend@test.com"] });
-    flushSync();
-    expect(chips()).toEqual([]);
-    expect(sendButton().disabled).toBe(true);
-    pressInvite("Enter");
+    expect(rendered.target.textContent).toContain(
+      "not-an-email · Email inválido.",
+    );
     expect(calls).toEqual([]);
   });
-  test("the footer shares the room link on WhatsApp and copies it", async () => {
-    const copied: string[] = [];
-    window.navigator.clipboard.writeText = async (text) => {
-      copied.push(text);
-    };
-    const rendered = people(personRoom());
-    openInvite(rendered.target);
-    const whatsapp = document.querySelector<HTMLAnchorElement>(
-      '#invite [data-invite-share="whatsapp"]',
-    )!;
-    expect(whatsapp.href.startsWith("https://wa.me/?text=")).toBe(true);
-    const text = decodeURIComponent(whatsapp.href.split("?text=")[1]);
-    expect(text).toContain('"People room"');
-    expect(text).toContain("/b/r");
-    expect(text).toContain("pede pra entrar");
-    expect(text).toContain("llms.txt");
-    const link = document.querySelector<HTMLButtonElement>(
-      '#invite [data-invite-share="link"]',
-    )!;
-    link.click();
-    await settle();
-    expect(copied).toHaveLength(1);
-    expect(copied[0].endsWith("/b/r")).toBe(true);
-    expect(link.textContent?.trim()).toBe("Link copiado ✓");
-  });
-  test("copy on a sent row writes that person's invite message", async () => {
-    const copied: string[] = [];
-    window.navigator.clipboard.writeText = async (text) => {
-      copied.push(text);
-    };
-    const rendered = people(friendsRoom(), {
-      friends: inviteFriends,
-      request: async () => {},
-    });
-    submitPeopleInvite(rendered.target, "a@test.com");
-    await settle();
-    sentRow("a@test.com")!
-      .querySelector<HTMLButtonElement>('[data-copyinv="a@test.com"]')!
-      .click();
-    await settle();
-    expect(copied).toHaveLength(1);
-    expect(copied[0]).toContain("a@test.com");
-    expect(copied[0]).toContain("/b/r");
-    expect(
-      document
-        .querySelector('#invite [data-invite-clipboard="copied"]')
-        ?.textContent?.trim(),
-    ).toBe("Copiado ✓");
-  });
-  test("keyed room replacement disposes old invitations and detached rows", async () => {
+  test("keyed room replacement disposes old invitations", async () => {
     const room = personRoom();
     const reply = pendingPeopleRequest();
     const calls: string[] = [];
@@ -5675,10 +5412,6 @@ describe("native People interactions", () => {
         return reply.promise;
       },
     });
-    openInvite(rendered.target);
-    const staleFriend = document.querySelector<HTMLElement>(
-      '#invite [data-friend="friend@test.com"]',
-    )!;
     submitPeopleInvite(rendered.target, "old@test.com");
     expect(calls).toEqual(["invite:old@test.com"]);
     rendered.update({
@@ -5686,243 +5419,49 @@ describe("native People interactions", () => {
       id: "next",
       book: { ...room.book, title: "Next room" },
     });
-    openInvite(rendered.target);
-    // Taken before typing: the search below filters the friend out of the list.
-    const staleCurrentFriend = document.querySelector<HTMLElement>(
-      '#invite [data-friend="friend@test.com"]',
-    )!;
-    const currentInput = inviteSearch();
-    typeInvite("fresh@test.com");
-    staleFriend.click();
     reply.resolve();
     await settle();
     expect(calls).toEqual(["invite:old@test.com"]);
-    expect(currentInput.value).toBe("fresh@test.com");
-    expect(chips()).toEqual([]);
     expect(document.body.textContent).not.toContain("old@test.com");
     expect(document.body.textContent).not.toContain("enviado ✓");
     rendered.destroy();
-    staleCurrentFriend.click();
-    expect(calls).toEqual(["invite:old@test.com"]);
   });
-  test("typing a member's email shows them as in the room, with nothing to invite", () => {
-    const calls: string[] = [];
-    const rendered = people(personRoom(), {
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    openInvite(rendered.target);
-    typeInvite("member@test.com");
-    const row = document.querySelector<HTMLElement>(
-      '#invite [data-invite-member="member@test.com"]',
-    )!;
-    expect(row.getAttribute("aria-disabled")).toBe("true");
-    expect(row.querySelector('[data-invite-state="member"]')?.textContent).toBe(
-      "na sala",
-    );
-    expect(row.querySelector("[data-add]") === null).toBe(true);
-    expect(document.querySelector("#invite [data-invite-email]") === null).toBe(
-      true,
-    );
-    expect(document.body.textContent).not.toContain("Convidar member@test.com");
-    expect(inviteSearch().hasAttribute("aria-activedescendant")).toBe(false);
-    pressInvite("Enter");
-    expect(calls).toEqual([]);
-    // A pending invitee reads as invited.
-    typeInvite("pending@test.com");
-    expect(
-      document.querySelector(
-        '#invite [data-invite-member="pending@test.com"] [data-invite-state="invited"]',
-      ) !== null,
-    ).toBe(true);
-  });
-  const friendsRoom = (): Room => ({
-    ...personRoom(),
-    names: {
-      "joao@test.com": "João Silva",
-      "cecilia@deco.cx": "Cecilia",
-    },
-  });
-  const inviteFriends = ["joao@test.com", "cecilia@deco.cx", "friend@test.com"];
-  const listedFriends = () =>
-    [...document.querySelectorAll<HTMLElement>("#invite [data-friend]")].map(
-      (row) => row.dataset.friend,
-    );
-  test("invite modal search filters friends by name and email, ignoring case and accents", async () => {
-    const rendered = people(friendsRoom(), { friends: inviteFriends });
-    openInvite(rendered.target);
-    await tick();
-    expect(document.activeElement === inviteSearch()).toBe(true);
-    expect(listedFriends()).toEqual(inviteFriends);
-    expect(document.body.textContent).toContain("Seus amigos · 3");
-    typeInvite("JOAO");
-    expect(listedFriends()).toEqual(["joao@test.com"]);
-    expect(
-      document.querySelector('#invite [data-friend="joao@test.com"] mark')
-        ?.textContent,
-    ).toBe("João");
-    typeInvite("deco");
-    expect(listedFriends()).toEqual(["cecilia@deco.cx"]);
-    expect(
-      document.querySelector('#invite [data-friend="cecilia@deco.cx"] mark')
-        ?.textContent,
-    ).toBe("deco");
-    typeInvite("zzz");
-    expect(listedFriends()).toEqual([]);
-    expect(document.body.textContent).toContain(
-      'Nenhum amigo encontrado para "zzz". Digite um email completo para convidar alguém novo.',
-    );
-  });
-  test("a full email that is not a listed friend gets a highlighted Invite row", () => {
-    const rendered = people(friendsRoom(), { friends: inviteFriends });
-    openInvite(rendered.target);
-    typeInvite("New@Test.com");
-    const row = document.querySelector<HTMLElement>(
-      '#invite [data-invite-email="new@test.com"]',
-    )!;
-    expect(row.textContent).toContain("Convidar new@test.com");
-    expect(row.hasAttribute("data-active")).toBe(true);
-    expect(row.getAttribute("aria-selected")).toBe("false");
-    expect(inviteSearch().getAttribute("aria-activedescendant")).toBe(row.id);
-    typeInvite("friend@test.com");
-    expect(document.querySelector("#invite [data-invite-email]") === null).toBe(
-      true,
-    );
-    expect(listedFriends()).toEqual(["friend@test.com"]);
-  });
-  test("arrow keys move the highlighted friend and Enter picks it", () => {
-    const calls: string[] = [];
-    const rendered = people(friendsRoom(), {
-      friends: inviteFriends,
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    openInvite(rendered.target);
-    pressInvite("ArrowDown");
-    pressInvite("ArrowDown");
-    const highlighted = () =>
-      document.querySelector<HTMLElement>("#invite [data-active]")?.dataset
-        .friend;
-    expect(highlighted()).toBe("cecilia@deco.cx");
-    pressInvite("ArrowUp");
-    pressInvite("ArrowUp");
-    expect(highlighted()).toBe("friend@test.com");
-    pressInvite("Enter");
-    expect(calls).toEqual([]);
-    expect(chips()).toEqual(["friend@test.com"]);
-    pressInvite("Enter");
-    expect(calls).toEqual(["invite:friend@test.com"]);
-  });
-  test("Enter after a click sends even when the pointer rests on a row; the arrows still pick", async () => {
-    const calls: string[] = [];
-    const rendered = people(friendsRoom(), {
-      friends: inviteFriends,
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    openInvite(rendered.target);
-    const row = (email: string) =>
-      document.querySelector<HTMLElement>(`#invite [data-friend="${email}"]`)!;
-    row("joao@test.com").click();
-    flushSync();
-    // The pointer is still over João's row.
-    row("joao@test.com").dispatchEvent(
-      new window.PointerEvent("pointermove", { bubbles: true }),
-    );
-    flushSync();
-    // The arrows move on from the hovered row and Enter picks there.
-    pressInvite("ArrowDown");
-    pressInvite("Enter");
-    expect(chips()).toEqual(["joao@test.com", "cecilia@deco.cx"]);
-    pressInvite("Enter");
-    await settle();
-    expect(calls).toEqual(["invite:joao@test.com", "invite:cecilia@deco.cx"]);
-    // Focus moves to the done view's own button, not to <body>.
-    expect(
-      document.activeElement ===
-        document.querySelector("#invite [data-invite-more]"),
-    ).toBe(true);
-  });
-  test("Enter on a typed email that is already a chip keeps it", () => {
-    const rendered = people(personRoom());
-    openInvite(rendered.target);
-    typeInvite("new@test.com");
-    pressInvite("Enter");
-    typeInvite("new@test.com");
-    pressInvite("Enter");
-    expect(chips()).toEqual(["new@test.com"]);
-    expect(inviteSearch().value).toBe("");
-  });
-  test("an invite cancelled elsewhere reads as cancelled, with nothing to retry", async () => {
-    const calls: string[] = [];
-    const room = personRoom();
-    const rendered = people(room, {
-      request: async (action: PeopleAction, email: string) => {
-        calls.push(`${action}:${email}`);
-      },
-    });
-    submitPeopleInvite(rendered.target, "new@test.com");
-    await settle();
-    rendered.update({
-      ...room,
-      members: [...room.members, "new@test.com"],
-      pending: [...room.pending!, "new@test.com"],
-    });
-    flushSync();
-    expect(
-      document.querySelector('#invite [data-invite-done="done"]') !== null,
-    ).toBe(true);
-    // Another member cancels it.
-    rendered.update(room);
-    flushSync();
-    expect(
-      sentRow("new@test.com")?.querySelector('[data-invite-state="cancelled"]')
-        ?.textContent,
-    ).toBe("Convite cancelado");
-    expect(
-      sentRow("new@test.com")!.querySelector("[data-retry]") === null,
-    ).toBe(true);
-    expect(
-      document.querySelector('#invite [data-invite-done="done"]') !== null,
-    ).toBe(true);
-    expect(calls).toEqual(["invite:new@test.com"]);
-  });
-  test("Copy link says so when the clipboard refuses, and a reopened modal starts without old copy lines", async () => {
-    window.navigator.clipboard.writeText = async () => {
-      throw new Error("denied");
+  test("copy on a pending person writes that person's invite message", async () => {
+    const copied: string[] = [];
+    window.navigator.clipboard.writeText = async (text) => {
+      copied.push(text);
     };
-    const rendered = people(personRoom(), { request: async () => {} });
-    openInvite(rendered.target);
-    document
-      .querySelector<HTMLButtonElement>('#invite [data-invite-share="link"]')!
+    const rendered = people(personRoom());
+    rendered.target
+      .querySelector<HTMLButtonElement>('[data-copyinv="pending@test.com"]')!
       .click();
     await settle();
+    expect(copied).toHaveLength(1);
+    expect(copied[0]).toContain("pending@test.com");
+    expect(copied[0]).toContain("/b/r");
     expect(
-      document
-        .querySelector('#invite [data-invite-link-status="failed"]')
-        ?.textContent?.trim(),
-    ).toBe("Não consegui copiar o link.");
-    window.navigator.clipboard.writeText = async () => {};
-    submitPeopleInvite(rendered.target, "a@test.com");
-    await settle();
-    sentRow("a@test.com")!
-      .querySelector<HTMLButtonElement>('[data-copyinv="a@test.com"]')!
-      .click();
-    await settle();
-    expect(
-      document.querySelector('#invite [data-invite-clipboard="copied"]') !==
+      rendered.target.querySelector('[data-invite-clipboard="copied"]') !==
         null,
     ).toBe(true);
-    document
-      .querySelector<HTMLButtonElement>("#invite [data-invite-more]")!
-      .click();
-    await settle();
+  });
+  test("people are listed flat, online first, each with a presence dot", () => {
+    const rendered = people(personRoom());
+    const rows = [
+      ...rendered.target.querySelectorAll<HTMLElement>("[data-person]"),
+    ];
+    expect(rows.map((row) => row.dataset.person)).toEqual([
+      "owner@test.com",
+      "member@test.com",
+      "pending@test.com",
+    ]);
     expect(
-      document.querySelector("#invite [data-invite-clipboard]") === null,
-    ).toBe(true);
+      rows.map(
+        (row) =>
+          row.querySelector("[data-presence]")?.getAttribute("data-presence") ??
+          null,
+      ),
+    ).toEqual(["online", "online", null]);
+    expect(rows[2]!.textContent).toContain("pendente");
   });
 });
 
@@ -6224,15 +5763,11 @@ describe("native composer ownership and interactions", () => {
     const event = new Event("paste", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", { value: transfer });
     document
-      .querySelector<HTMLButtonElement>(
-        '[role="dialog"] button[aria-label="Fechar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[role="dialog"] [data-dialog-close]')!
       .dispatchEvent(event);
     expect(uploads).toBe(0);
     document
-      .querySelector<HTMLButtonElement>(
-        '[role="dialog"] button[aria-label="Fechar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[role="dialog"] [data-dialog-close]')!
       .click();
     await tick();
     flushSync();
@@ -6857,9 +6392,12 @@ describe("native room sidebar header and suggestion ownership", () => {
       };
     const view = mountView("threadHeader", target, props);
     active.push(view);
-    target
-      .querySelector<HTMLButtonElement>('[aria-label="Apagar épico"]')!
-      .click();
+    // Rename, archive and delete live behind the header's ⋯, so the title keeps the row.
+    expect(target.querySelector('[aria-label="Apagar épico"]')).toBeNull();
+    menuItem(
+      target.querySelector("[data-thread-actions]")!,
+      "Apagar épico",
+    ).click();
     flushSync();
     await tick();
     const dialog = document.querySelector('[role="alertdialog"]')!,
@@ -6882,9 +6420,10 @@ describe("native room sidebar header and suggestion ownership", () => {
     const at = active.indexOf(view);
     active.splice(at, 1);
     view.destroy();
-    target
-      .querySelector<HTMLButtonElement>('[aria-label="Apagar épico"]')
-      ?.click();
+    for (const item of document.querySelectorAll<HTMLElement>(
+      "[role=menuitem]",
+    ))
+      if (item.textContent?.trim() === "Apagar épico") item.click();
     await tick();
     expect(commands).toHaveLength(0);
   }, 30_000);
@@ -6914,7 +6453,10 @@ describe("native room sidebar header and suggestion ownership", () => {
       };
     const view = mountView("threadHeader", target, props);
     active.push(view);
-    target.querySelector<HTMLButtonElement>('[aria-label="Renomear"]')!.click();
+    menuItem(
+      target.querySelector("[data-thread-actions]")!,
+      "Renomear",
+    ).click();
     flushSync();
     await tick();
     const dialog = document.querySelector('[role="dialog"]')!,
@@ -6939,9 +6481,10 @@ describe("native room sidebar header and suggestion ownership", () => {
     owner.sync(next, request);
     view.update({ ...props, room: next });
     await closed("dialog");
-    target
-      .querySelector<HTMLButtonElement>('[aria-label="Arquivar épico"]')!
-      .click();
+    menuItem(
+      target.querySelector("[data-thread-actions]")!,
+      "Arquivar épico",
+    ).click();
     await tick();
     expect(commands.at(-1)).toEqual({
       t: "epic.archive",
@@ -7078,7 +6621,6 @@ describe("native collapsed sidebar and typed presence", () => {
       room,
       thread: "main",
       collapsed: true,
-      roomTint: "purple",
       navigation: createNavigationSession(room.id),
       pins: syncPinsSession(null, room),
       request: async () => ({ ok: false, error: "offline" }),
@@ -7331,8 +6873,8 @@ describe("native account", () => {
   });
   test("unsupported device lock is explicit, never invokes a prompt and has an accessible label", async () => {
     await account();
-    const checkbox = document.querySelector<HTMLInputElement>(
-      '[data-native-account] input[type="checkbox"]',
+    const checkbox = document.querySelector<HTMLButtonElement>(
+      '[data-native-account] button[role="checkbox"]',
     );
     expect(checkbox?.disabled).toBe(true);
     expect(checkbox?.closest("label")?.textContent).toContain(
@@ -7857,11 +7399,10 @@ describe("native Apps catalog", () => {
     )!;
     input.value = "https://server.example.test/mcp";
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    const scope = h.target.querySelector<HTMLInputElement>(
-      'input[value="room"]',
-    )!;
-    scope.checked = true;
-    scope.dispatchEvent(new Event("change", { bubbles: true }));
+    h.target
+      .querySelector<HTMLButtonElement>('[role="radio"][data-value="room"]')!
+      .click();
+    flushSync();
     h.owner.load();
     await Promise.resolve();
     await tick();
@@ -8455,7 +7996,7 @@ describe("People & agents presence", () => {
 
   test("provider detection matches vanilla agentKind() and tints the tile", async () => {
     const { agentProvider, agentMark, AGENT_TILES } =
-      await import("../svelte/lib/ui/avatar");
+      await import("../svelte/lib/components/agent");
     const table: [string | null, string, string][] = [
       ["Codex", "codex", "◎"],
       ["gpt-5.1-codex", "codex", "◎"],
@@ -8482,9 +8023,9 @@ describe("People & agents presence", () => {
     const tiles = [...target.querySelectorAll("[data-agent-presence]")].map(
       (row) => [
         row.getAttribute("data-agent-provider"),
-        row.querySelector("[data-avatar]")?.textContent,
+        row.querySelector("[data-avatar]")?.textContent?.trim(),
         row
-          .querySelector("[data-avatar]")
+          .querySelector("[data-agent-tile]")
           ?.className.includes(
             AGENT_TILES[
               row.getAttribute(
@@ -8541,22 +8082,25 @@ describe("People & agents presence", () => {
       "1.3M",
     ]);
     const cases: [number, number, string][] = [
-      [30_000, 100_000, "bg-success"],
-      [60_000, 100_000, "bg-warning"],
-      [80_000, 100_000, "bg-destructive"],
-      [250_000, 200_000, "bg-destructive"],
+      [30_000, 100_000, "text-success"],
+      [60_000, 100_000, "text-warning"],
+      [80_000, 100_000, "text-destructive"],
+      [250_000, 200_000, "text-destructive"],
     ];
     for (const [tokens, window, color] of cases) {
       const target = await rows([
         agent({ context: { tokens, window, at: 1, limits: null } }),
       ]);
-      const bar = target.querySelector<HTMLProgressElement>(
+      const bar = target.querySelector<HTMLElement>(
         "[data-agent-presence] [data-context-bar]",
       )!;
       const percent = Math.min(100, Math.round((tokens / window) * 100));
-      expect(bar.getAttribute("value")).toBe(String(percent));
-      expect(bar.getAttribute("max")).toBe("100");
-      expect(bar.className).toContain(`[&::-webkit-progress-value]:${color}!`);
+      // The Studio bar: a native progress inside, painted in the bar's current color.
+      expect(bar.querySelector("progress")?.getAttribute("value")).toBe(
+        String(percent),
+      );
+      expect(bar.querySelector("progress")?.getAttribute("max")).toBe("100");
+      expect(bar.className).toContain(`tw:[&_progress]:${color}`);
       expect(
         target.querySelector("[data-agent-presence]")?.textContent,
       ).toContain(`${percent}%`);
@@ -8600,8 +8144,8 @@ describe("People & agents presence", () => {
     expect(context.textContent).toContain("Contexto");
     expect(context.textContent).toContain("90% · 180k/200k");
     expect(context.querySelector("progress")?.getAttribute("value")).toBe("90");
-    expect(context.querySelector("progress")?.className).toContain(
-      "bg-destructive!",
+    expect(context.querySelector("[data-slot=progress]")?.className).toContain(
+      "tw:[&_progress]:text-destructive",
     );
     const session = card!.querySelector('[data-hover-section="five_hour"]')!;
     expect(session.textContent).toContain("Sessão de 5h");

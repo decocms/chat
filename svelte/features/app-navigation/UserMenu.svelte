@@ -3,10 +3,23 @@
   import { readable } from "svelte/store";
   import { MediaQuery } from "svelte/reactivity";
   import { DropdownMenu, mergeProps } from "bits-ui";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Tip from "../../lib/ui/Tip.svelte";
-  import { cn } from "../../lib/ui/utils";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Tooltip from "../../lib/studio/Tooltip.svelte";
+  import TooltipContent from "../../lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import {
+    AlertTriangle,
+    Bell01,
+    BellOff01,
+    ChevronRight,
+    LogOut01,
+    Pencil01,
+    Settings01,
+    Stars01,
+    Users01,
+  } from "../../lib/studio/icons";
+  import { cn } from "../../lib/studio/utils";
   import { homeText, type HomeLanguage } from "../home/copy";
   import NotificationHelpDialog from "../notifications/NotificationHelpDialog.svelte";
   import type { AccountSection } from "../account/session";
@@ -118,49 +131,20 @@
     });
   }
   const itemClass =
-    "tw:flex tw:min-h-9 tw:cursor-pointer tw:select-none tw:items-center tw:gap-2 tw:rounded-control-md tw:px-2 tw:py-1.5 tw:text-sm tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
+    "tw:flex tw:min-h-9 tw:cursor-pointer tw:select-none tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-sm tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
   const segmentClass =
-    "tw:inline-flex tw:h-7 tw:min-w-8 tw:cursor-pointer tw:select-none tw:items-center tw:justify-center tw:rounded-control-md tw:px-2 tw:text-xs tw:font-medium tw:text-muted-foreground tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-[state=checked]:bg-secondary tw:data-[state=checked]:text-secondary-foreground";
+    "tw:inline-flex tw:h-7 tw:min-w-8 tw:cursor-pointer tw:select-none tw:items-center tw:justify-center tw:rounded-md tw:px-2 tw:text-xs tw:font-medium tw:text-muted-foreground tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-[state=checked]:bg-secondary tw:data-[state=checked]:text-secondary-foreground";
   const separatorClass = "tw:-mx-1 tw:my-1 tw:h-px tw:bg-border";
 </script>
 
 {#snippet who()}
-  <Avatar
-    name={label}
-    src={avatar}
-    seed={email}
-    kind="person"
-    class="tw:size-10 tw:text-sm"
-  />
+  <PersonAvatar name={label} url={avatar} size="base" />
   <span class="tw:grid tw:min-w-0 tw:flex-1 tw:text-left">
-    <span class="tw:truncate tw:font-semibold">{label}</span>
+    <span class="tw:truncate tw:font-medium">{label}</span>
     {#if name && name !== email}<span
         class="tw:truncate tw:text-xs tw:text-muted-foreground">{email}</span
       >{/if}
   </span>
-{/snippet}
-
-{#snippet avatarButton(tip: Record<string, unknown>)}
-  <DropdownMenu.Trigger>
-    {#snippet child({ props })}
-      <button
-        {...mergeProps(tip, props)}
-        bind:this={trigger}
-        type="button"
-        aria-label={label}
-        data-native-user-menu-trigger
-        class="tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:aria-expanded:ring-2 tw:aria-expanded:ring-primary"
-      >
-        <Avatar
-          name={label}
-          src={avatar}
-          seed={email}
-          kind="person"
-          class="tw:size-10 tw:text-sm tw:transition-opacity tw:group-hover:opacity-80 tw:motion-reduce:transition-none"
-        />
-      </button>
-    {/snippet}
-  </DropdownMenu.Trigger>
 {/snippet}
 
 <div class="tw:relative tw:shrink-0">
@@ -170,11 +154,34 @@
       if (next) pushUnavailable = $push?.status === "unavailable";
     }}
   >
-    <Tip
-      {label}
-      side={wide.current ? "right" : "bottom"}
-      trigger={avatarButton}
-    />
+    <Tooltip>
+      <TooltipTrigger>
+        {#snippet child({ props: tip })}
+          <DropdownMenu.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...mergeProps(tip, props)}
+                bind:this={trigger}
+                type="button"
+                aria-label={label}
+                data-native-user-menu-trigger
+                class="tw:group tw:relative tw:flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-expanded:outline-2 tw:aria-expanded:outline-solid tw:aria-expanded:outline-foreground"
+              >
+                <PersonAvatar
+                  name={label}
+                  url={avatar}
+                  size="sm"
+                  class="tw:transition-opacity tw:group-hover:opacity-80 tw:motion-reduce:transition-none"
+                />
+              </button>
+            {/snippet}
+          </DropdownMenu.Trigger>
+        {/snippet}
+      </TooltipTrigger>
+      <TooltipContent side={wide.current ? "right" : "bottom"} sideOffset={8}
+        >{label}</TooltipContent
+      >
+    </Tooltip>
     <DropdownMenu.Portal>
       <DropdownMenu.Content
         onCloseAutoFocus={(event) => {
@@ -193,7 +200,7 @@
         align="end"
         sideOffset={8}
         collisionPadding={8}
-        class="tw:z-50 tw:m-0 tw:box-border tw:grid tw:w-72 tw:max-w-[calc(100vw-16px)] tw:gap-0 tw:rounded-surface tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-lg tw:outline-none"
+        class="tw:z-50 tw:m-0 tw:box-border tw:grid tw:w-72 tw:max-w-[calc(100vw-16px)] tw:gap-0 tw:rounded-2xl tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-lg tw:outline-none"
       >
         {#if onaccount}<DropdownMenu.Item
             data-user-menu-item="profile"
@@ -201,8 +208,8 @@
             class={cn(itemClass, "tw:gap-3 tw:py-2")}
             onSelect={() => account("profile")}
             >{@render who()}<Icon
-              name="pencil"
-              class="tw:text-muted-foreground"
+              icon={Pencil01}
+              class="tw:size-4 tw:text-muted-foreground"
             /><span class="tw:sr-only">{text("editProfile")}</span
             ></DropdownMenu.Item
           >{:else}<div
@@ -217,23 +224,24 @@
             data-user-menu-item="friends"
             class={itemClass}
             onSelect={() => account("friends")}
-            ><Icon name="users" /><span class="tw:flex-1"
+            ><Icon icon={Users01} class="tw:size-4" /><span class="tw:flex-1"
               >{text("friends")}</span
             >{#if friends > 0}<span
                 class="tw:text-xs tw:tabular-nums tw:text-muted-foreground"
                 >{friends}</span
               >{/if}<Icon
-              name="chevronRight"
-              class="tw:text-muted-foreground"
+              icon={ChevronRight}
+              class="tw:size-4 tw:text-muted-foreground"
             /></DropdownMenu.Item
           ><DropdownMenu.Item
             data-user-menu-item="agents"
             class={itemClass}
             onSelect={() => account("agents")}
-            ><Icon name="bot" /><span class="tw:flex-1">{text("myAgents")}</span
+            ><Icon icon={Stars01} class="tw:size-4" /><span class="tw:flex-1"
+              >{text("myAgents")}</span
             ><Icon
-              name="chevronRight"
-              class="tw:text-muted-foreground"
+              icon={ChevronRight}
+              class="tw:size-4 tw:text-muted-foreground"
             /></DropdownMenu.Item
           >{/if}
         {#if pwa && notificationsShown}<DropdownMenu.CheckboxItem
@@ -242,8 +250,10 @@
             closeOnSelect={false}
             bind:checked={() => notificationsOn, () => {}}
             onSelect={toggleNotifications}
-            ><Icon name={notificationsOn ? "bell" : "bellOff"} /><span
-              class="tw:grid tw:min-w-0 tw:flex-1"
+            ><Icon
+              icon={notificationsOn ? Bell01 : BellOff01}
+              class="tw:size-4"
+            /><span class="tw:grid tw:min-w-0 tw:flex-1"
               ><span>{text("notifications")}</span
               >{#if notificationsProblem}<span
                   data-user-menu-notifications-problem
@@ -251,8 +261,8 @@
                   >{text("notificationsProblem")}</span
                 >{/if}</span
             >{#if notificationsProblem}<Icon
-                name="warning"
-                class="tw:text-destructive"
+                icon={AlertTriangle}
+                class="tw:size-4 tw:text-destructive"
               />{/if}<span
               aria-hidden="true"
               class={cn(
@@ -272,7 +282,7 @@
             data-user-menu-item="settings"
             class={itemClass}
             onSelect={() => account("all")}
-            ><Icon name="settings" /><span class="tw:flex-1"
+            ><Icon icon={Settings01} class="tw:size-4" /><span class="tw:flex-1"
               >{text("settingsMenu")}</span
             ></DropdownMenu.Item
           >{/if}
@@ -335,7 +345,7 @@
             onSelect={() => {
               if (active) onlogout?.();
             }}
-            ><Icon name="logout" /><span class="tw:flex-1"
+            ><Icon icon={LogOut01} class="tw:size-4" /><span class="tw:flex-1"
               >{text("signOut")}</span
             ></DropdownMenu.Item
           >{/if}

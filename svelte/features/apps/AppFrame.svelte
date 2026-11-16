@@ -16,8 +16,8 @@
     toolOutput,
     toolError,
   } from "./tools";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   import { appDocumentFrameName } from "../../../shared/appDocumentProtocol";
   const frameName = appDocumentFrameName();
   let {
@@ -371,7 +371,7 @@
         onclick={(event) => {
           if (!connected(event)) event.preventDefault();
         }}
-        class="tw:text-link tw:underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+        class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
         >{props.t("Entrar")}</a
       >
     </p>{/if}

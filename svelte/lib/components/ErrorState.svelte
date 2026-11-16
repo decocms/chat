@@ -1,7 +1,8 @@
 <script lang="ts">
-  import Button from "../ui/Button.svelte";
-  import Icon from "../ui/Icon.svelte";
-  import { cn } from "../ui/utils";
+  import Button from "../studio/Button.svelte";
+  import Icon from "../studio/Icon.svelte";
+  import { AlertTriangle } from "../studio/icons";
+  import { cn } from "../studio/utils";
   let {
     title,
     description,
@@ -21,7 +22,11 @@
     compact ? "tw:p-3" : "tw:p-5",
   )}
 >
-  <Icon name="warning" class="tw:mt-0.5 tw:text-destructive" />
+  <Icon
+    icon={AlertTriangle}
+    size={16}
+    class="tw:mt-0.5 tw:shrink-0 tw:text-destructive"
+  />
   <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
     <p class="tw:m-0 tw:font-medium">{title}</p>
     {#if description}<p class="tw:m-0 tw:leading-5 tw:text-foreground">

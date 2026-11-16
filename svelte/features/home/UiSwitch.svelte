@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import Switch from "../../lib/ui/Switch.svelte";
+  import Switch from "../../lib/studio/Switch.svelte";
   import { uiNavigationUrl } from "../../../shared/uiVariant";
   let { lang }: { lang: "pt" | "en" } = $props();
   let active = true;
+  let control = $state<HTMLButtonElement | null>(null);
   onDestroy(() => {
     active = false;
   });
@@ -12,15 +13,21 @@
 <label class="tw:inline-flex tw:min-h-11 tw:items-center tw:gap-2 tw:text-sm">
   <Switch
     data-ui-switch
-    checked
-    controlled
+    bind:ref={control}
+    bind:checked={
+      () => true,
+      () => {
+        if (!active || !control?.isConnected) return;
+        window.location.assign(
+          uiNavigationUrl(
+            window.location.href,
+            window.location.href,
+            "vanilla",
+          ),
+        );
+      }
+    }
     aria-label={lang === "en" ? "New UI" : "Nova UI"}
-    onchange={(event) => {
-      if (!active || !event.currentTarget.isConnected) return;
-      window.location.assign(
-        uiNavigationUrl(window.location.href, window.location.href, "vanilla"),
-      );
-    }}
   />
   {lang === "en" ? "New UI" : "Nova UI"}
 </label>

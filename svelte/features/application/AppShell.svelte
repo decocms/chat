@@ -12,8 +12,11 @@
   import { createApplicationInbox } from "./inbox";
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
   import { createDeferredModule } from "../deferred-view/module";
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
   import DeferredRouteStatus from "../deferred-view/DeferredRouteStatus.svelte";
@@ -227,7 +230,7 @@
   data-native-app-shell
   class={[
     $application.route.kind === "room"
-      ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)]"
+      ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:bg-sidebar"
       : "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr] tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:grid-rows-[auto]",
     "tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground",
   ]}
@@ -312,23 +315,6 @@
           value={$accountView.binding}
           >{#snippet children(binding)}<Dialog
               open
-              title={services.language === "en" ? "Your account" : "Sua conta"}
-              closeLabel={services.t("Fechar")}
-              sheet
-              returnFocus={() => {
-                // Still open: the loaded settings replace this placeholder
-                // and take focus themselves, so leave it off the trigger
-                // (and where they put it, if they already did).
-                if (!get(accountView).open)
-                  return services.account.returnFocus();
-                const focused = document.activeElement;
-                return focused instanceof HTMLElement &&
-                  focused
-                    .closest("[role=dialog]")
-                    ?.querySelector("[data-native-account]")
-                  ? focused
-                  : document.body;
-              }}
               onOpenChange={(open) => {
                 if (
                   !open &&
@@ -338,18 +324,47 @@
                 )
                   services.account.close(binding);
               }}
-              ><DeferredViewStatus
-                phase={$accountModuleView.phase}
-                lang={services.language}
-                label={services.language === "en"
-                  ? "Your account"
-                  : "Sua conta"}
-                retry={() => {
-                  void accountModule.retry();
+            >
+              <DialogContent
+                data-vb-native
+                class="tw:top-auto tw:bottom-0 tw:left-0 tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:rounded-b-none tw:max-h-[90dvh] tw:overflow-auto tw:sm:top-0 tw:sm:right-0 tw:sm:left-auto tw:sm:h-full tw:sm:max-h-none tw:sm:w-96 tw:sm:max-w-96 tw:sm:rounded-none tw:font-sans tw:text-sm tw:text-foreground"
+                closeLabel={services.t("Fechar")}
+                preventScroll={false}
+                preventBodyPointerEvents={false}
+                preventOverflowTextSelection={false}
+                onCloseAutoFocus={(event) => {
+                  // Still open: the loaded settings replace this placeholder
+                  // and take focus themselves, so leave it off the trigger.
+                  if (get(accountView).open) {
+                    event.preventDefault();
+                    return;
+                  }
+                  const target = services.account.returnFocus();
+                  if (target?.isConnected) {
+                    event.preventDefault();
+                    target.focus();
+                  }
                 }}
-                current={() => current() && services.account.owns(binding)}
-              /></Dialog
-            >{/snippet}</Snapshot
+              >
+                <DialogHeader>
+                  <DialogTitle class="tw:pr-8 tw:font-sans"
+                    >{services.language === "en"
+                      ? "Your account"
+                      : "Sua conta"}</DialogTitle
+                  >
+                </DialogHeader><DeferredViewStatus
+                  phase={$accountModuleView.phase}
+                  lang={services.language}
+                  label={services.language === "en"
+                    ? "Your account"
+                    : "Sua conta"}
+                  retry={() => {
+                    void accountModule.retry();
+                  }}
+                  current={() => current() && services.account.owns(binding)}
+                />
+              </DialogContent>
+            </Dialog>{/snippet}</Snapshot
         >{/key}{/if}
     {#if $inboxView.binding && !$inboxView.binding.roomScope}{#key $inboxView.binding}<Snapshot
           value={$inboxView.binding}
@@ -391,23 +406,35 @@
                 }}
               />{:else}<Dialog
                 open
-                title={services.t("Caixa de entrada")}
-                closeLabel={services.t("Fechar")}
                 onOpenChange={(open) => {
                   if (!open && !Inbox && current()) inbox.close(binding);
                 }}
-                ><DeferredViewStatus
-                  phase={$inboxModuleView.phase}
-                  lang={services.language}
-                  label={services.language === "en"
-                    ? "Inbox"
-                    : "Caixa de entrada"}
-                  retry={() => {
-                    void inboxModule.retry();
-                  }}
-                  current={() => current() && inbox.owns(binding)}
-                /></Dialog
-              >{/if}
+              >
+                <DialogContent
+                  data-vb-native
+                  class="tw:font-sans tw:text-sm tw:text-foreground"
+                  closeLabel={services.t("Fechar")}
+                  preventScroll={false}
+                  preventBodyPointerEvents={false}
+                  preventOverflowTextSelection={false}
+                >
+                  <DialogHeader>
+                    <DialogTitle class="tw:pr-8 tw:font-sans"
+                      >{services.t("Caixa de entrada")}</DialogTitle
+                    >
+                  </DialogHeader><DeferredViewStatus
+                    phase={$inboxModuleView.phase}
+                    lang={services.language}
+                    label={services.language === "en"
+                      ? "Inbox"
+                      : "Caixa de entrada"}
+                    retry={() => {
+                      void inboxModule.retry();
+                    }}
+                    current={() => current() && inbox.owns(binding)}
+                  />
+                </DialogContent>
+              </Dialog>{/if}
           {/snippet}
         </Snapshot>{/key}{/if}
   {/if}

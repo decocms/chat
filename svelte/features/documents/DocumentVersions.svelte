@@ -4,7 +4,7 @@
   // moment: the newest message of the doc's thread up to the version's msg_id).
   import { untrack } from "svelte";
   import type { DocumentProps } from "./types";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import DocumentPreview from "./DocumentPreview.svelte";
   import Self from "./DocumentVersions.svelte";
   import type { DocumentSession } from "./session";
@@ -121,7 +121,7 @@
         {number} · {when(open.ts)} · {who(open.by)}</b
       ><Button size="sm" variant="ghost" onclick={chat}
         >{en ? "See in the chat" : "Ver na conversa"}</Button
-      ><Button size="sm" variant="primary" onclick={restore}
+      ><Button size="sm" variant="default" onclick={restore}
         >{en ? "Restore" : "Restaurar"}</Button
       ><Button
         size="sm"

@@ -3,13 +3,14 @@
   import type { Card, CardEl } from "../../../shared/card";
   import type { Room, Message } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
-  import Button from "../../lib/ui/Button.svelte";
-  import Badge from "../../lib/ui/Badge.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
-  import { cn } from "../../lib/ui/utils";
+  import Button from "../../lib/studio/Button.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import { cn } from "../../lib/studio/utils";
   import { fieldDeltaTone } from "./chartProjection";
-  import CardBox from "../../lib/ui/Card.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import CardBox from "../../lib/studio/Card.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { ArrowRight, Check, LinkExternal01 } from "../../lib/studio/icons";
   import CardChart from "./CardChart.svelte";
   import CardTable from "./CardTable.svelte";
   import { answerOf, canAnswer, inlineCardNodes } from "./model";
@@ -108,14 +109,26 @@
 
 {#snippet draw(element: CardEl, id = card.root)}
   {#if element.type === "Card"}<CardBox
-      title={element.props.title}
-      description={element.props.title ? element.props.subtitle : undefined}
-      class="tw:shadow-none tw:[&_h2]:whitespace-pre-wrap tw:[&_p]:whitespace-pre-wrap"
-      >{#each element.children as id}{@render draw(
-          card.elements[id],
-          id,
-        )}{/each}</CardBox
+      class="tw:font-sans tw:text-sm tw:[&_h2]:whitespace-pre-wrap tw:[&_p]:whitespace-pre-wrap"
     >
+      {#snippet child({ props })}<section {...props}>
+          {#if element.props.title}<div class="tw:space-y-1">
+              <h2
+                class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal"
+              >
+                {element.props.title}
+              </h2>
+              {#if element.props.subtitle}<p
+                  class="tw:m-0 tw:text-sm tw:leading-5 tw:text-muted-foreground"
+                >
+                  {element.props.subtitle}
+                </p>{/if}
+            </div>{/if}{#each element.children as id}{@render draw(
+              card.elements[id],
+              id,
+            )}{/each}
+        </section>{/snippet}
+    </CardBox>
   {:else if element.type === "Section"}<section class="tw:space-y-2">
       {#if element.props.title}<h5
           class="tw:m-0 tw:whitespace-pre-wrap tw:font-sans tw:text-sm tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
@@ -196,7 +209,7 @@
         variant={element.props.style === "danger"
           ? "destructive"
           : element.props.style === "primary"
-            ? "primary"
+            ? "default"
             : "outline"}
         disabled={busy}
         onclick={(event) => reply(value, event)}>{element.props.label}</Button
@@ -205,26 +218,32 @@
         class={answer?.text === value
           ? "tw:inline-flex tw:items-center tw:gap-1 tw:whitespace-pre-wrap tw:rounded-button tw:border tw:border-primary tw:bg-primary/10 tw:px-3 tw:py-1.5 tw:text-sm"
           : "tw:inline-flex tw:items-center tw:whitespace-pre-wrap tw:rounded-button tw:border tw:border-border tw:px-3 tw:py-1.5 tw:text-sm tw:text-muted-foreground"}
-        >{#if answer?.text === value}<Icon name="check" />{/if}{element.props
-          .label}</span
+        >{#if answer?.text === value}<Icon
+            icon={Check}
+            size={16}
+          />{/if}{element.props.label}</span
       >{/if}
   {:else if element.type === "LinkButton"}{#if element.props.url.startsWith("#")}<Button
-        class="tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left"
+        class={element.props.style === "primary"
+          ? "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left"
+          : "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"}
         size="sm"
-        variant={element.props.style === "primary" ? "primary" : "link"}
+        variant={element.props.style === "primary" ? "default" : "link"}
         onclick={(event) => navigate(element.props.url, event)}
-        >{element.props.label}<Icon name="arrowRight" /></Button
+        >{element.props.label}<Icon icon={ArrowRight} size={16} /></Button
       >{:else}<a
         href={element.props.url}
         target="_blank"
         rel="noopener noreferrer"
         class={cn(
           buttonVariants({
-            variant: element.props.style === "primary" ? "primary" : "link",
+            variant: element.props.style === "primary" ? "default" : "link",
             size: "sm",
           }),
           "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
-        )}>{element.props.label}<Icon name="external" /></a
+          element.props.style !== "primary" &&
+            "tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current",
+        )}>{element.props.label}<Icon icon={LinkExternal01} size={16} /></a
       >{/if}
   {/if}
 {/snippet}

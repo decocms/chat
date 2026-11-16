@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onDestroy, tick, untrack } from "svelte";
   import type { PanelProps } from "../../panels";
   import type { RoomCommand } from "../../../shared/commands";
@@ -12,17 +13,29 @@
     type AddTarget,
     type BoardTask,
   } from "./model";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Badge from "../../lib/ui/Badge.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
-  import Select from "../../lib/ui/Select.svelte";
-  import Tabs from "../../lib/ui/Tabs.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Select from "../../lib/studio/Select.svelte";
+  import SelectContent from "../../lib/studio/SelectContent.svelte";
+  import SelectItem from "../../lib/studio/SelectItem.svelte";
+  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
+  import SelectValue from "../../lib/studio/SelectValue.svelte";
+  import Tabs from "../../lib/studio/Tabs.svelte";
+  import TabsContent from "../../lib/studio/TabsContent.svelte";
+  import TabsList from "../../lib/studio/TabsList.svelte";
+  import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
-  import { cn } from "../../lib/ui/utils";
+  import {
+    AlertTriangle,
+    Calendar,
+    DotsGrid,
+    Plus,
+  } from "../../lib/studio/icons";
+  import { cn } from "../../lib/studio/utils";
 
   let {
     room,
@@ -54,7 +67,9 @@
   const targetValid = $derived(
     model.targets.some((target) => target.id === selectedTarget.id),
   );
-  const targetItems = $derived([
+  const targetItems = $derived<
+    { value: string; label: string; disabled?: boolean }[]
+  >([
     ...(!targetValid
       ? [
           {
@@ -72,6 +87,10 @@
   const options = $derived(
     lanes.map((lane) => ({ value: lane.value, label: vb.t(lane.label) })),
   );
+  const views = $derived([
+    { value: "board", label: vb.t("Quadro") },
+    { value: "list", label: vb.t("Lista") },
+  ]);
   const openGroups = $derived(
     model.groups
       .map((group) => ({
@@ -85,6 +104,7 @@
       (task) => task.owner === room.me && task.status !== "done",
     ),
   );
+  const statusTrigger = "[data-slot=select-trigger]";
   const cards = new Map<string, HTMLElement>();
   let generation = 0;
   let disposed = false;
@@ -138,8 +158,8 @@
             focus: {
               key,
               node: focused,
-              selector: focused.matches("select")
-                ? "select"
+              selector: focused.matches(statusTrigger)
+                ? statusTrigger
                 : "[data-board-open]",
             },
           }
@@ -254,114 +274,119 @@
     {vb.t("Arraste, ou use ← →. Clique pra abrir o épico.")}
   </p>
   <Tabs
-    class="tw:flex-1 tw:overflow-hidden"
-    label={vb.t("Quadro de tarefas")}
-    items={[
-      { value: "board", label: vb.t("Quadro") },
-      { value: "list", label: vb.t("Lista") },
-    ]}
+    class="tw:min-h-0 tw:flex-1 tw:overflow-hidden"
     value={mode}
     onValueChange={changeMode}
   >
-    {#snippet children(value)}
-      {#if value === mode}
-        {#if value === "board"}
-          <div class="tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-auto tw:pb-2">
-            <div
-              class="tw:grid tw:grid-cols-[repeat(4,minmax(15rem,1fr))] tw:gap-3"
-            >
-              {#each lanes as lane (lane.value)}
-                {@const tasks = model.tasks.filter(
-                  (task) => task.status === lane.value,
-                )}
-                <section
-                  data-lane={lane.value}
-                  aria-label={vb.t(lane.label)}
-                  ondragover={(event) => {
-                    if (
-                      event.dataTransfer?.types.includes(
-                        "application/x-vibebook-task",
-                      )
-                    ) {
-                      event.preventDefault();
-                      over = lane.value;
-                    }
-                  }}
-                  ondragleave={() => {
-                    over = null;
-                  }}
-                  ondrop={(event) => drop(event, lane.value)}
-                  class={cn(
-                    "tw:min-w-0 tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted/40 tw:p-3",
-                    over === lane.value && "tw:ring-2 tw:ring-ring",
-                  )}
-                >
-                  <h3
-                    class="tw:m-0 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
-                  >
-                    {vb.t(lane.label)}<Badge>{tasks.length}</Badge>
-                  </h3>
-                  <div class="tw:space-y-3">
-                    {#each tasks as task (task.id)}{@render card(
-                        task,
-                        `board:${task.id}`,
-                        false,
-                      )}
-                    {:else}<p
-                        class="tw:m-0 tw:py-4 tw:text-xs tw:text-muted-foreground"
-                      >
-                        {vb.t(
-                          lane.value === "todo"
-                            ? "Nada a fazer."
-                            : "Arraste um card pra cá.",
-                        )}
-                      </p>{/each}
-                  </div>
-                </section>
-              {/each}
-            </div>
-          </div>
-        {:else}
-          <div class="tw:h-full tw:min-h-0 tw:space-y-5 tw:overflow-auto">
-            {#if mine.length}<section
-                class="tw:space-y-2"
-                aria-label={vb.t("Esperando você")}
-              >
-                <h3
-                  class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
-                >
-                  {vb.t("Esperando você")}<Badge variant="warning"
-                    >{mine.length}</Badge
-                  >
-                </h3>
-                {#each mine as task (task.id)}{@render card(
-                    task,
-                    `mine:${task.id}`,
-                    true,
-                  )}{/each}
-              </section>{/if}
-            {#each openGroups as group (group.id)}<section
-                class="tw:space-y-2"
-                aria-label={group.title}
-              >
-                <h3
-                  class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
-                >
-                  {group.title}<Badge>{group.tasks.length}</Badge>
-                </h3>
-                {#each group.tasks as task (task.id)}{@render card(
-                    task,
-                    `group:${task.id}`,
-                    true,
-                  )}{/each}
-              </section>{:else}<EmptyState
-                title={vb.t("Nenhuma tarefa aberta.")}
-              />{/each}
-          </div>
-        {/if}
-      {/if}
-    {/snippet}
+    <TabsList aria-label={vb.t("Quadro de tarefas")}>
+      {#each views as view (view.value)}<TabsTrigger value={view.value}
+          >{view.label}</TabsTrigger
+        >{/each}
+    </TabsList>
+    {#each views as view (view.value)}<TabsContent
+        value={view.value}
+        class="tw:min-h-0">{@render panel(view.value)}</TabsContent
+      >{/each}
   </Tabs>
+  {#snippet panel(value: string)}
+    {#if value === mode}
+      {#if value === "board"}
+        <div class="tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-auto tw:pb-2">
+          <div
+            class="tw:grid tw:grid-cols-[repeat(4,minmax(15rem,1fr))] tw:gap-3"
+          >
+            {#each lanes as lane (lane.value)}
+              {@const tasks = model.tasks.filter(
+                (task) => task.status === lane.value,
+              )}
+              <section
+                data-lane={lane.value}
+                aria-label={vb.t(lane.label)}
+                ondragover={(event) => {
+                  if (
+                    event.dataTransfer?.types.includes(
+                      "application/x-vibebook-task",
+                    )
+                  ) {
+                    event.preventDefault();
+                    over = lane.value;
+                  }
+                }}
+                ondragleave={() => {
+                  over = null;
+                }}
+                ondrop={(event) => drop(event, lane.value)}
+                class={cn(
+                  "tw:min-w-0 tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted/40 tw:p-3",
+                  over === lane.value && "tw:ring-2 tw:ring-ring",
+                )}
+              >
+                <h3
+                  class="tw:m-0 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+                >
+                  {vb.t(lane.label)}<Badge>{tasks.length}</Badge>
+                </h3>
+                <div class="tw:space-y-3">
+                  {#each tasks as task (task.id)}{@render card(
+                      task,
+                      `board:${task.id}`,
+                      false,
+                    )}
+                  {:else}<p
+                      class="tw:m-0 tw:py-4 tw:text-xs tw:text-muted-foreground"
+                    >
+                      {vb.t(
+                        lane.value === "todo"
+                          ? "Nada a fazer."
+                          : "Arraste um card pra cá.",
+                      )}
+                    </p>{/each}
+                </div>
+              </section>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <div class="tw:h-full tw:min-h-0 tw:space-y-5 tw:overflow-auto">
+          {#if mine.length}<section
+              class="tw:space-y-2"
+              aria-label={vb.t("Esperando você")}
+            >
+              <h3
+                class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+              >
+                {vb.t("Esperando você")}<Badge
+                  class="tw:text-foreground"
+                  variant="warning">{mine.length}</Badge
+                >
+              </h3>
+              {#each mine as task (task.id)}{@render card(
+                  task,
+                  `mine:${task.id}`,
+                  true,
+                )}{/each}
+            </section>{/if}
+          {#each openGroups as group (group.id)}<section
+              class="tw:space-y-2"
+              aria-label={group.title}
+            >
+              <h3
+                class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+              >
+                {group.title}<Badge>{group.tasks.length}</Badge>
+              </h3>
+              {#each group.tasks as task (task.id)}{@render card(
+                  task,
+                  `group:${task.id}`,
+                  true,
+                )}{/each}
+            </section>{:else}<EmptyState
+              title={vb.t("Nenhuma tarefa aberta.")}
+            />{/each}
+        </div>
+      {/if}
+    {/if}
+  {/snippet}
   <form
     onsubmit={add}
     class="tw:flex tw:shrink-0 tw:flex-wrap tw:items-end tw:gap-2"
@@ -379,20 +404,35 @@
     {#if !model.scope}<div class="tw:min-w-32 tw:flex-1 tw:space-y-1">
         <Label for={`${uid}-epic`}>{vb.t("Épico")}</Label>
         <Select
-          id={`${uid}-epic`}
-          aria-invalid={!targetValid}
           items={targetItems}
-          value={selectedTarget.id}
-          onValueChange={(value) => {
-            const next = model.targets.find((target) => target.id === value);
-            if (!next) return false;
-            selectedTarget = next;
-            error = "";
-          }}
-        />
+          bind:value={
+            () => selectedTarget.id,
+            (value) => {
+              const next = model.targets.find((target) => target.id === value);
+              if (!next) return;
+              selectedTarget = next;
+              error = "";
+            }
+          }
+        >
+          <SelectTrigger
+            id={`${uid}-epic`}
+            aria-invalid={!targetValid}
+            class="tw:w-full"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent data-vb-native class="tw:font-sans">
+            {#each targetItems as target (target.value)}<SelectItem
+                value={target.value}
+                label={target.label}
+                disabled={target.disabled}>{target.label}</SelectItem
+              >{/each}
+          </SelectContent>
+        </Select>
       </div>{/if}
     <Button type="submit" disabled={!title.trim() || !targetValid}
-      ><Icon name="plus" />{vb.t("Nova tarefa")}</Button
+      ><Icon icon={Plus} />{vb.t("Nova tarefa")}</Button
     >
   </form>
 </section>
@@ -404,7 +444,10 @@
     data-status={task.status}
     draggable={!row}
     ondragstart={(event) => {
-      if (event.target instanceof Element && event.target.closest("select")) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(statusTrigger)
+      ) {
         event.preventDefault();
         return;
       }
@@ -449,24 +492,27 @@
       {#if task.flags?.length}<Badge
           variant="warning"
           title={`@vibe: ${task.flags.join(" · ")}`}
-          ><Icon name="warning" class="tw:size-3" />{task.flags.join(
-            " · ",
-          )}</Badge
+          class="tw:text-foreground tw:max-w-full"
+          ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+            >{task.flags.join(" · ")}</span
+          ></Badge
         >{/if}
       <span
         class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
       >
-        <Badge>{task.epicTitle}</Badge>
-        {#if task.owner}<Avatar
+        <Badge class="tw:max-w-full"
+          ><span class="tw:truncate">{task.epicTitle}</span></Badge
+        >
+        {#if task.owner}<PersonAvatar
+            data-avatar="person"
+            size="xs"
             name={vb.name(task.owner)}
-            src={`/api/avatar/${encodeURIComponent(task.owner)}`}
-            seed={task.owner}
-            class="tw:size-6"
+            url={`/api/avatar/${encodeURIComponent(task.owner)}`}
           /><span
             >{task.owner === room.me ? vb.t("você") : vb.name(task.owner)}</span
           >{/if}
         {#if task.due}<span class="tw:inline-flex tw:items-center tw:gap-1"
-            ><Icon name="calendar" class="tw:size-3" />{task.due}</span
+            ><Icon icon={Calendar} size={12} />{task.due}</span
           >{/if}
       </span>
     </button>
@@ -476,7 +522,7 @@
         aria-hidden="true"
         title={vb.t("Arraste, ou use ← →. Clique pra abrir o épico.")}
         class="tw:absolute tw:right-2 tw:top-2 tw:grid tw:size-7 tw:cursor-grab tw:place-items-center tw:rounded-md tw:text-muted-foreground tw:active:cursor-grabbing"
-        ><Icon name="grip" /></span
+        ><Icon icon={DotsGrid} size={16} /></span
       >{/if}
     <div
       class={cn(
@@ -486,15 +532,28 @@
     >
       <Label for={`${uid}-${key}`}>{vb.t("Status")}</Label>
       <Select
-        id={`${uid}-${key}`}
-        aria-label={`${vb.t("Status")}: ${task.title}`}
-        value={task.status}
         items={options}
-        onValueChange={(value) => {
-          if (isTaskStatus(value)) move(task, value, key);
-          return false;
-        }}
-      />
+        bind:value={
+          () => task.status,
+          (value) => {
+            if (isTaskStatus(value)) move(task, value, key);
+          }
+        }
+      >
+        <SelectTrigger
+          id={`${uid}-${key}`}
+          aria-label={`${vb.t("Status")}: ${task.title}`}
+          class="tw:w-full"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent data-vb-native class="tw:font-sans">
+          {#each options as option (option.value)}<SelectItem
+              value={option.value}
+              label={option.label}>{option.label}</SelectItem
+            >{/each}
+        </SelectContent>
+      </Select>
     </div>
   </article>
 {/snippet}

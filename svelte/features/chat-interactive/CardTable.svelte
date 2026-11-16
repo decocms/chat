@@ -1,6 +1,12 @@
 <script lang="ts">
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import DialogTrigger from "../../lib/studio/DialogTrigger.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Expand01 } from "../../lib/studio/icons";
   import type { ChatBridge } from "../../chatTypes";
   let {
     headers,
@@ -46,11 +52,25 @@
   </div>
 {/snippet}
 <div data-native-card-table class="tw:space-y-2">
-  <Dialog {title} closeLabel={vb.t("Fechar")} fullScreen {open} {onOpenChange}>
-    {#snippet trigger()}<Icon name="expand" />{vb.t(
+  <Dialog {open} {onOpenChange}>
+    <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
+      ><Icon icon={Expand01} size={16} />{vb.t(
         "Abrir em tela cheia",
-      )}{/snippet}
-    {@render table()}
+      )}</DialogTrigger
+    >
+    <DialogContent
+      data-vb-native
+      class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:sm:max-w-none"
+      closeLabel={vb.t("Fechar")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+    >
+      <DialogHeader>
+        <DialogTitle class="tw:pr-8 tw:font-sans">{title}</DialogTitle>
+      </DialogHeader>
+      {@render table()}
+    </DialogContent>
   </Dialog>
   {#if inline}{@render table()}{/if}
 </div>

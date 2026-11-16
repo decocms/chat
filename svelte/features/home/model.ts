@@ -56,57 +56,6 @@ export const roomIcon = (room: RoomSummary) =>
   room.icon
     ? `/api/books/${encodeURIComponent(room.id)}/icon?v=${room.icon}`
     : undefined;
-// Same stop words as vanilla initials(), so a room shows the same mark in both UIs.
-const INITIALS_STOP = new Set(
-  "e de do da dos das o a os as em no na para pra com por the and of".split(
-    " ",
-  ),
-);
-export const roomInitials = (title: string | null) => {
-  const words = (title ?? "")
-    .replace(/[^\p{L}\p{N} ]/gu, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const main = words.filter((word) => !INITIALS_STOP.has(word.toLowerCase()));
-  return (
-    (main.length ? main : words)
-      .slice(0, 2)
-      .map((word) => Array.from(word)[0])
-      .join("") || "◆"
-  ).toUpperCase();
-};
-// Vanilla COVERS, in order: a room without an icon gets the same cover in both UIs (4 darkened from L 0.6 in both for contrast).
-export const ROOM_COVERS = [
-  "oklch(0.5 0.17 248)",
-  "oklch(0.58 0.17 35)",
-  "oklch(0.52 0.11 175)",
-  "oklch(0.47 0.15 315)",
-  "oklch(0.565 0.13 75)",
-  "oklch(0.45 0.1 145)",
-  "oklch(0.36 0.06 255)",
-  "oklch(0.55 0.16 10)",
-] as const;
-// Literal classes (Tailwind scans source); index i paints --vb-room-cover-i = ROOM_COVERS[i].
-const roomCoverClasses = [
-  "tw:bg-room-cover-0",
-  "tw:bg-room-cover-1",
-  "tw:bg-room-cover-2",
-  "tw:bg-room-cover-3",
-  "tw:bg-room-cover-4",
-  "tw:bg-room-cover-5",
-  "tw:bg-room-cover-6",
-  "tw:bg-room-cover-7",
-] as const;
-export const roomCoverIndex = (title: string | null) =>
-  [...String(title)].reduce(
-    (hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0,
-    7,
-  ) % ROOM_COVERS.length;
-export const roomCoverColor = (title: string | null) =>
-  ROOM_COVERS[roomCoverIndex(title)];
-export const roomCover = (title: string | null) =>
-  `${roomCoverClasses[roomCoverIndex(title)]} tw:text-room-cover-foreground`;
 export const fold = (value: string) =>
   value
     .normalize("NFD")

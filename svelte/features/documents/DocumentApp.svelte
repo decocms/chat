@@ -6,8 +6,8 @@
   import type { AppsProps } from "../apps/types";
   import { documentAppKey } from "./appMarkers";
   import type { DocumentAppMarker, DocumentAppSize } from "./appMarkers";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   let {
     props,
     marker,

@@ -1,16 +1,23 @@
 <script lang="ts">
+  import PersonAvatar from "./lib/components/PersonAvatar.svelte";
   import { untrack } from "svelte";
   import type { Wait, InboxMention, InboxTask, Bridge } from "./types";
   import { uiNavigationUrl } from "../shared/uiVariant";
-  import Avatar from "./lib/ui/Avatar.svelte";
-  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
-  import Dialog from "./lib/ui/Dialog.svelte";
-  import Icon from "./lib/ui/Icon.svelte";
-  import IconButton from "./lib/ui/IconButton.svelte";
-  import Tabs from "./lib/ui/Tabs.svelte";
+  import Dialog from "./lib/studio/Dialog.svelte";
+  import DialogContent from "./lib/studio/DialogContent.svelte";
+  import DialogHeader from "./lib/studio/DialogHeader.svelte";
+  import DialogTitle from "./lib/studio/DialogTitle.svelte";
+  import Icon from "./lib/studio/Icon.svelte";
+  import IconButton from "./lib/studio/IconButton.svelte";
+  import Spinner from "./lib/studio/Spinner.svelte";
+  import Tabs from "./lib/studio/Tabs.svelte";
+  import TabsContent from "./lib/studio/TabsContent.svelte";
+  import TabsList from "./lib/studio/TabsList.svelte";
+  import TabsTrigger from "./lib/studio/TabsTrigger.svelte";
+  import { Calendar, Check } from "./lib/studio/icons";
+  import AgentMark from "./lib/components/AgentMark.svelte";
   import EmptyState from "./lib/components/EmptyState.svelte";
   import ErrorState from "./lib/components/ErrorState.svelte";
-  import Heading from "./lib/ui/Heading.svelte";
 
   let {
     waits,
@@ -136,13 +143,21 @@
 
 <Dialog
   bind:open
-  title={vb.t("Caixa de entrada")}
-  closeLabel={vb.t("Fechar")}
   onOpenChange={(value) => {
     if (!value && current()) onclose();
   }}
 >
-  {#snippet children()}
+  <DialogContent
+    data-vb-native
+    class="tw:font-sans tw:text-sm tw:text-foreground"
+    closeLabel={vb.t("Fechar")}
+    preventScroll={false}
+    preventBodyPointerEvents={false}
+    preventOverflowTextSelection={false}
+  >
+    <DialogHeader>
+      <DialogTitle class="tw:font-sans">{vb.t("Caixa de entrada")}</DialogTitle>
+    </DialogHeader>
     {#if error}<ErrorState title={error} compact />{/if}
     {#if loading}<p role="status">{vb.t("Carregando…")}</p>{/if}
     {#if readError}<ErrorState
@@ -155,15 +170,20 @@
       />{/if}
     {#if roomId}
       <Tabs
-        {items}
-        label={vb.t("Caixa de entrada")}
         bind:value={selected}
         onValueChange={(value) => ontab?.(value === "all")}
       >
-        {#snippet children()}{@render content()}{/snippet}
+        <TabsList aria-label={vb.t("Caixa de entrada")}>
+          {#each items as item (item.value)}<TabsTrigger value={item.value}
+              >{item.label}</TabsTrigger
+            >{/each}
+        </TabsList>
+        {#each items as item (item.value)}<TabsContent value={item.value}
+            >{@render content()}</TabsContent
+          >{/each}
       </Tabs>
     {:else}{@render content()}{/if}
-  {/snippet}
+  </DialogContent>
 </Dialog>
 
 {#snippet content()}
@@ -173,12 +193,11 @@
     >
       {#if waitList.length}
         <section>
-          <Heading
-            level={3}
+          <h3
             class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
           >
             {vb.t("Esperando você")} ({waitList.length})
-          </Heading>
+          </h3>
           <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
             {#each waitList as wait (key(wait))}
               <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
@@ -195,19 +214,20 @@
                 >
                   {#if kind(wait) === "task"}<span
                       class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:rounded-full tw:border tw:border-border tw:bg-muted"
-                      ><Icon name="check" /></span
+                      ><Icon icon={Check} size={16} /></span
                     >
-                  {:else if kind(wait) === "agent"}<AgentAvatar
-                      class="tw:text-sm tw:font-normal"
+                  {:else if kind(wait) === "agent"}<AgentMark
+                      class="tw:text-sm"
                     />
-                  {:else if wait.author === "ai"}<AgentAvatar
+                  {:else if wait.author === "ai"}<AgentMark
                       mark="✦"
-                      class="tw:text-sm tw:font-normal tw:text-primary"
+                      class="tw:text-sm tw:text-foreground"
                     />
-                  {:else}<Avatar
+                  {:else}<PersonAvatar
+                      data-avatar="person"
+                      size="sm"
                       name={author(wait.author, wait.author_name)}
-                      src={avatarUrl?.(wait.author)}
-                      seed={wait.author}
+                      url={avatarUrl?.(wait.author)}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
@@ -231,15 +251,17 @@
                 </a>
                 {#if wait.ref.startsWith("m")}
                   <IconButton
-                    icon="check"
                     label={vb.t(
                       "Já resolvi (respondi em outro lugar, ou não é comigo)",
                     )}
                     class="tw:mt-1"
-                    loading={pending === key(wait)}
+                    aria-busy={pending === key(wait) || undefined}
                     disabled={pending !== null}
                     onclick={() => resolve(wait)}
-                  />
+                    >{#if pending === key(wait)}<Spinner
+                        size="xs"
+                      />{:else}<Icon icon={Check} />{/if}</IconButton
+                  >
                 {/if}
               </li>
             {/each}
@@ -249,12 +271,11 @@
 
       {#if mentionList.length}
         <section>
-          <Heading
-            level={3}
+          <h3
             class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
           >
             {vb.t("Te mencionaram")} ({mentionList.length})
-          </Heading>
+          </h3>
           <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
             {#each mentionList as m (`${m.book_id}:${m.msg_id}`)}
               <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
@@ -280,13 +301,14 @@
                   }}
                   class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-3 tw:rounded-control tw:p-2 tw:text-foreground tw:no-underline tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
                 >
-                  {#if m.author === "ai"}<AgentAvatar
+                  {#if m.author === "ai"}<AgentMark
                       mark="✦"
-                      class="tw:text-sm tw:font-normal tw:text-primary"
-                    />{:else}<Avatar
+                      class="tw:text-sm tw:text-foreground"
+                    />{:else}<PersonAvatar
+                      data-avatar="person"
+                      size="sm"
                       name={author(m.author, m.author_name)}
-                      src={avatarUrl?.(m.author)}
-                      seed={m.author}
+                      url={avatarUrl?.(m.author)}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
@@ -313,12 +335,11 @@
 
       {#if taskList.length}
         <section>
-          <Heading
-            level={3}
+          <h3
             class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
           >
             {vb.t("Suas tarefas")} ({taskList.length})
-          </Heading>
+          </h3>
           <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
             {#each taskList as task (`${task.book_id}:${task.task_id}`)}
               <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
@@ -346,7 +367,7 @@
                 >
                   <span
                     class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:rounded-full tw:border tw:border-border tw:bg-muted"
-                    ><Icon name="calendar" /></span
+                    ><Icon icon={Calendar} size={16} /></span
                   >
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"

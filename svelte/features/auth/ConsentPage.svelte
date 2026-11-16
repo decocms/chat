@@ -5,8 +5,8 @@
   import { createConsentSession } from "./session";
   import AuthFrame from "./AuthFrame.svelte";
   import AuthLogoutForm from "./AuthLogoutForm.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
+  import Button from "../../lib/studio/Button.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
   let {
     api,
     search,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
   import { authText, type AuthLanguage } from "./copy";
   import type { PushCleanupResult } from "../notifications/logout";
   let {
@@ -60,10 +61,12 @@
   <Button
     variant="link"
     type="submit"
-    loading={phase === "pending"}
-    disabled={phase === "idle" && blocked}
+    aria-busy={phase === "pending" || undefined}
+    disabled={phase === "pending" || (phase === "idle" && blocked)}
     class="tw:h-auto tw:whitespace-normal tw:p-0 tw:text-left"
-    >{text(phase === "unconfirmed" ? "continueLogout" : "other")}</Button
+    >{#if phase === "pending"}<Spinner size="xs" />{/if}{text(
+      phase === "unconfirmed" ? "continueLogout" : "other",
+    )}</Button
   >
   {#if phase === "unconfirmed"}<p
       role="alert"
@@ -71,5 +74,9 @@
     >
       {text("logoutCleanup")}
     </p>
-    <a href={next} class="tw:text-link">{text("reviewAgain")}</a>{/if}
+    <a
+      href={next}
+      class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+      >{text("reviewAgain")}</a
+    >{/if}
 </form>

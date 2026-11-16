@@ -2,9 +2,10 @@
   import type { Room } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import { messageCount, treeFiles } from "./model";
-  import Button from "../../lib/ui/Button.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { ArrowRight, File02 } from "../../lib/studio/icons";
   let {
     room,
     messageId,
@@ -37,7 +38,7 @@
   <Button
     variant="outline"
     data-thread-card={epic.id}
-    class="tw:mt-2 tw:h-auto tw:w-full tw:justify-start tw:gap-3 tw:whitespace-normal tw:p-3 tw:text-left"
+    class="tw:mt-2 tw:h-auto tw:w-full tw:justify-start tw:gap-3 tw:rounded-xl tw:p-3 tw:text-left tw:font-normal tw:whitespace-normal"
     onclick={(event) => {
       if (
         event.currentTarget.isConnected &&
@@ -46,13 +47,13 @@
         actions.navigateRich?.({ kind: "thread", id: epic.id });
     }}
   >
-    <Avatar
+    <PersonAvatar
       name={epic.owner ? vb.name(epic.owner) : epic.title}
-      src={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
-      seed={epic.owner || epic.title}
+      url={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+      size="sm"
     />
     <span class="tw:min-w-0 tw:flex-1"
-      ><strong class="tw:block tw:font-semibold">{epic.title}</strong><small
+      ><strong class="tw:block tw:font-medium">{epic.title}</strong><small
         class="tw:block tw:text-xs tw:text-muted-foreground"
         >{epic.archived ? `✓ ${vb.t("concluído")} · ` : ""}{epic.tasks.length
           ? `${vb.t("{d}/{n} tarefas", { d: epic.tasks.filter((task) => task.status === "done").length, n: epic.tasks.length })} · `
@@ -62,7 +63,7 @@
           ? ` · ${vb.ago(last.ts) === vb.t("agora") ? vb.t("agora") : vb.t("última há {ago}", { ago: vb.ago(last.ts) })}`
           : ""}</small
       ></span
-    ><span aria-hidden="true">→</span>
+    ><Icon icon={ArrowRight} class="tw:text-muted-foreground" />
   </Button>
   {#if files.length}<div class="tw:flex tw:flex-wrap tw:gap-2 tw:py-2">
       {#each files.slice(0, 6) as file (file.name)}<a
@@ -70,7 +71,7 @@
           target="_blank"
           rel="noopener noreferrer"
           title={file.name}
-          class="tw:inline-flex tw:max-w-full tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-border tw:px-2 tw:py-1 tw:text-xs tw:text-foreground tw:no-underline tw:hover:bg-muted"
+          class="tw:inline-flex tw:h-7 tw:max-w-full tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-card tw:px-2.5 tw:text-xs tw:text-foreground tw:no-underline tw:shadow-edge tw:hover:bg-accent"
           onclick={(event) => {
             if (
               !event.currentTarget.isConnected ||
@@ -89,7 +90,8 @@
               name: file.name,
             });
           }}
-          ><Icon name="file" /><span class="tw:truncate">{file.name}</span
+          ><Icon icon={File02} size={14} /><span class="tw:truncate"
+            >{file.name}</span
           >{#if file.n > 1}<small>v{file.n}</small>{/if}</a
         >{/each}{#if files.length > 6}<small
           class="tw:text-xs tw:text-muted-foreground">+{files.length - 6}</small

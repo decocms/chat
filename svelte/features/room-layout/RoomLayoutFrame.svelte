@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import type { RoomLayoutProps, RoomLayoutCells, RoomSheet } from "./types";
   let props: RoomLayoutProps = $props();
   const owner = untrack(() => props.controller),
@@ -41,7 +41,7 @@
     $view.mobile
       ? "tw:col-start-2 tw:row-start-3 tw:row-end-6 tw:z-20 tw:h-room-document-sheet tw:w-full tw:self-start tw:animate-room-sheet tw:rounded-b-surface tw:shadow-lg tw:has-[form:focus-within]:h-full tw:has-[[contenteditable=true]:focus]:h-full tw:has-[form:focus-within]:rounded-none"
       : [
-          "tw:col-start-3 tw:row-start-2 tw:row-end-6 tw:h-full tw:border-l tw:border-border",
+          "tw:col-start-3 tw:row-start-2 tw:row-end-6 tw:mr-2 tw:mb-2 tw:rounded-b-surface",
           widthClass,
         ],
   );
@@ -112,7 +112,10 @@
   data-pane={$view.pane}
   data-sheet={$view.sheet ?? undefined}
   data-board-full={$view.boardFull}
-  class="tw:relative tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:overflow-hidden tw:bg-background tw:font-sans tw:text-sm tw:text-foreground"
+  class={[
+    "tw:relative tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:overflow-hidden tw:font-sans tw:text-sm tw:text-foreground",
+    $view.mobile ? "tw:bg-background" : "tw:bg-sidebar",
+  ]}
 >
   <div
     bind:this={viewport}
@@ -136,7 +139,7 @@
               sidePresented ? "tw:visible" : "tw:invisible",
             ]
           : [
-              "tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:border-r tw:border-border",
+              "tw:col-start-1 tw:row-start-1 tw:row-end-6",
               $view.sidebarCollapsed
                 ? "tw:w-room-sidebar-rail"
                 : "tw:w-room-sidebar",
@@ -161,14 +164,25 @@
         ></span></button
       >
     </aside>
+    {#if !$view.mobile}<div
+        aria-hidden="true"
+        data-room-surface="chat"
+        class="tw:pointer-events-none tw:col-start-2 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:rounded-surface tw:bg-background tw:shadow-edge"
+      ></div>
+      {#if rightVisible && !props.overlayOpen}<div
+          aria-hidden="true"
+          data-room-surface="side"
+          class="tw:pointer-events-none tw:col-start-3 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:rounded-surface tw:bg-background tw:shadow-edge"
+        ></div>{/if}{/if}
     <div
       bind:this={header}
       inert={props.overlayOpen || ($view.mobile && $view.sheet === "side")}
       data-room-header
       class={[
-        "tw:relative tw:z-30 tw:col-start-2 tw:row-start-1 tw:min-w-0 tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3",
-        $view.mobile &&
-          "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain",
+        "tw:relative tw:z-30 tw:col-start-2 tw:row-start-1 tw:min-w-0",
+        $view.mobile
+          ? "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3"
+          : "tw:mt-2 tw:mr-2 tw:flex tw:h-[52px] tw:items-center tw:rounded-t-surface tw:border-b tw:border-border tw:pr-3 tw:pl-5",
         props.overlayOpen && "tw:hidden",
       ]}
     >
@@ -191,8 +205,9 @@
       data-room-attention
       class={[
         "tw:col-start-2 tw:row-start-3 tw:min-w-0",
-        $view.mobile &&
-          "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain",
+        $view.mobile
+          ? "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain"
+          : "tw:mr-2",
         props.overlayOpen && "tw:hidden",
       ]}
     >
@@ -204,7 +219,10 @@
       data-room-chat
       class={props.overlayOpen || $view.boardFull
         ? "tw:hidden"
-        : "tw:col-start-2 tw:row-start-4 tw:min-h-0 tw:min-w-0 tw:overflow-y-auto tw:overscroll-contain tw:px-4"}
+        : [
+            "tw:col-start-2 tw:row-start-4 tw:min-h-0 tw:min-w-0 tw:overflow-y-auto tw:overscroll-contain tw:px-4",
+            !$view.mobile && "tw:mr-2",
+          ]}
     >
       {@render props.chat()}
     </div>
@@ -214,7 +232,12 @@
       data-room-composer
       class={props.overlayOpen || $view.boardFull
         ? "tw:hidden"
-        : "tw:col-start-2 tw:row-start-5 tw:min-w-0 tw:pb-[env(safe-area-inset-bottom)]"}
+        : [
+            "tw:col-start-2 tw:row-start-5 tw:min-w-0",
+            $view.mobile
+              ? "tw:pb-[env(safe-area-inset-bottom)]"
+              : "tw:mr-2 tw:mb-2 tw:overflow-hidden tw:rounded-b-surface",
+          ]}
     >
       {@render props.composer()}
     </div>
@@ -223,7 +246,7 @@
       inert={props.overlayOpen}
       data-room-document-toolbar
       class={!props.overlayOpen && !$view.mobile && rightVisible
-        ? "tw:col-start-3 tw:row-start-1 tw:w-0 tw:min-w-full tw:border-l tw:border-border tw:bg-background"
+        ? "tw:col-start-3 tw:row-start-1 tw:mt-2 tw:mr-2 tw:w-0 tw:min-w-[calc(100%-0.5rem)]"
         : "tw:hidden"}
     >
       {@render props.documentToolbar()}
@@ -233,7 +256,8 @@
       inert={props.overlayOpen || !docLive}
       data-room-document
       class={[
-        "tw:relative tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:bg-background",
+        "tw:relative tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden",
+        $view.mobile && "tw:bg-background",
         rightVisible && $view.pane !== "board" ? "tw:flex" : "tw:hidden",
         paneClass,
         props.overlayOpen || ($view.mobile && !docPresented)
@@ -269,9 +293,15 @@
       data-room-board
       data-placement={$view.boardFull ? "full" : "pane"}
       class={[
-        "tw:relative tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:bg-background",
+        "tw:relative tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden",
+        $view.mobile && "tw:bg-background",
         $view.boardFull
-          ? "tw:col-start-2 tw:row-start-4 tw:row-end-6 tw:flex tw:h-full tw:w-full"
+          ? [
+              "tw:col-start-2 tw:row-start-4 tw:row-end-6 tw:flex tw:h-full",
+              $view.mobile
+                ? "tw:w-full"
+                : "tw:mr-2 tw:mb-2 tw:h-auto tw:rounded-b-surface",
+            ]
           : $view.pane === "board" && rightVisible
             ? ["tw:flex", paneClass]
             : "tw:hidden",
@@ -303,7 +333,10 @@
     {#if props.overlayOpen}<div
         data-room-inbox-surface
         inert={$view.mobile && $view.sheet === "side"}
-        class="tw:z-30 tw:col-start-2 tw:col-end-4 tw:row-start-1 tw:row-end-6 tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:bg-background"
+        class={[
+          "tw:z-30 tw:col-start-2 tw:col-end-4 tw:row-start-1 tw:row-end-6 tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:bg-background",
+          !$view.mobile && "tw:my-2 tw:mr-2 tw:rounded-surface tw:shadow-edge",
+        ]}
       >
         {@render props.overlay?.()}
       </div>{/if}
@@ -318,7 +351,7 @@
       aria-label={props.labels.documentWidth}
       data-room-width
       class={!props.overlayOpen && !$view.mobile && rightVisible
-        ? "tw:z-30 tw:col-start-3 tw:row-start-1 tw:row-end-6 tw:m-0 tw:h-full tw:w-3 tw:cursor-col-resize tw:touch-none tw:appearance-none tw:rounded-none tw:border-0 tw:bg-border tw:p-0 tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+        ? "tw:z-30 tw:col-start-3 tw:row-start-1 tw:row-end-6 tw:my-2 tw:-ml-2 tw:h-auto tw:w-2 tw:cursor-col-resize tw:touch-none tw:appearance-none tw:rounded-full tw:border-0 tw:bg-transparent tw:bg-clip-content tw:px-[3px] tw:py-0 tw:outline-none tw:transition-colors tw:duration-150 tw:hover:bg-ring/50 tw:focus-visible:bg-ring tw:[&::-moz-range-thumb]:size-0 tw:[&::-moz-range-thumb]:border-0 tw:[&::-webkit-slider-thumb]:size-0 tw:[&::-webkit-slider-thumb]:appearance-none"
         : "tw:hidden"}
     />
     <button

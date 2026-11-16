@@ -1,7 +1,9 @@
 <script lang="ts">
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import RoomTile from "../home/RoomTile.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import { SearchMd } from "../../lib/studio/icons";
+  import RailRoom from "./RailRoom.svelte";
   import { recentRooms } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import type { AppNavigationSession } from "./controller";
@@ -25,7 +27,7 @@
 <nav
   data-vb-native="room-strip"
   aria-label={homeText(lang, "home")}
-  class="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-border tw:bg-background tw:p-2 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:hidden"
+  class="tw:flex tw:shrink-0 tw:items-center tw:justify-between tw:gap-3 tw:pb-1 tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:min-[901px]:hidden"
 >
   <Button
     variant="ghost"
@@ -34,10 +36,9 @@
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
     }}><span class="tw:truncate">{homeText(lang, "home")}</span></Button
-  >{#each recentRooms($personal.me?.books ?? []).slice(0, tiles) as room (room.id)}<RoomTile
+  >{#each recentRooms($personal.me?.books ?? []).slice(0, tiles) as room (room.id)}<RailRoom
       {room}
       {lang}
-      compact
       now={$personal.now}
       selected={$nav.roomId === room.id}
       seen={$personal.seen[room.id] ?? 0}
@@ -46,13 +47,12 @@
       onnavigate={controller.callbacks.navigate}
       onsettings={(id, trigger) => controller.openSettings(id, trigger)}
     />{/each}<IconButton
-    icon="search"
     label={homeText(lang, "search")}
     onclick={(event) => {
       if (event.currentTarget.isConnected)
         controller.openSearch(event.currentTarget);
-    }}
-  />{#if menu && $personal.me}<UserMenu
+    }}><Icon icon={SearchMd} /></IconButton
+  >{#if menu && $personal.me}<UserMenu
       name={$personal.me.name ?? ""}
       email={$personal.me.email}
       avatar={personAvatar($personal.me, $personal.me.email)}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import Card from "../../lib/ui/Card.svelte";
+  import Card from "../../lib/studio/Card.svelte";
   let { title, children }: { title: string; children: Snippet } = $props();
 </script>
 
@@ -10,7 +10,7 @@
   class="tw:flex tw:min-h-dvh tw:items-center tw:justify-center tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
 >
   <div class="tw:w-full tw:max-w-md">
-    <Card class="tw:space-y-5 tw:p-6 tw:sm:p-8">
+    <Card class="tw:block tw:space-y-5 tw:p-6 tw:sm:p-8">
       <a
         href="/"
         class="tw:inline-flex tw:rounded-control tw:text-lg tw:font-semibold tw:text-foreground tw:no-underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
