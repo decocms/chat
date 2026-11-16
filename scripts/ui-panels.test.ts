@@ -253,6 +253,13 @@ function render(
     },
   };
 }
+/** The People header's "+" opens the invite area; open it unless it already is. */
+function openInvite(target: ParentNode) {
+  if (target.querySelector("#invite")) return;
+  target.querySelector<HTMLButtonElement>("[data-invite-toggle]")!.click();
+  flushSync();
+}
+
 function change(el: Element) {
   el.dispatchEvent(new window.Event("change", { bubbles: true }));
   flushSync();
@@ -3317,7 +3324,9 @@ describe("stable native sidebar integration", () => {
     ].map((row) => row.dataset.epic);
     expect(ids).toContain("e");
     expect(ids).toContain("child");
-    expect(first.target.querySelector("[aria-expanded]")).toBeNull();
+    expect(
+      first.target.querySelector("li[data-epic] [aria-expanded]"),
+    ).toBeNull();
     expect(first.target.querySelector("li[data-depth]")).toBeNull();
     expect(
       first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
@@ -3344,7 +3353,9 @@ describe("stable native sidebar integration", () => {
     expect(
       second.target.querySelector<HTMLInputElement>("#newEpic input")?.value,
     ).toBe("Room-owned draft");
-    expect(second.target.querySelector("[aria-expanded]")).toBeNull();
+    expect(
+      second.target.querySelector("li[data-epic] [aria-expanded]"),
+    ).toBeNull();
   }, 30_000);
   test("native epic drafts survive refused and uncertain requests", async () => {
     const room = fixture();
@@ -3535,6 +3546,7 @@ describe("stable native sidebar integration", () => {
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
     const create = target.querySelector<HTMLInputElement>("#newEpic input")!;
+    openInvite(target);
     const invite = target.querySelector<HTMLInputElement>("#invite input")!;
     create.value = "Draft epic title";
     invite.value = "invitee@test";
@@ -4069,6 +4081,7 @@ describe("native People interactions", () => {
     expect(document.querySelector('[role="alertdialog"]') === null).toBe(true);
   }
   function submitPeopleInvite(target: HTMLElement, email: string) {
+    openInvite(target);
     const input = target.querySelector<HTMLInputElement>(
       '#invite input[type="email"]',
     )!;
@@ -4267,6 +4280,7 @@ describe("native People interactions", () => {
         return reply.promise;
       },
     });
+    openInvite(rendered.target);
     const staleFriend = rendered.target.querySelector<HTMLButtonElement>(
       '[data-add="friend@test.com"]',
     )!;
@@ -4277,6 +4291,7 @@ describe("native People interactions", () => {
       id: "next",
       book: { ...room.book, title: "Next room" },
     });
+    openInvite(rendered.target);
     const currentInput =
       rendered.target.querySelector<HTMLInputElement>("#invite input")!;
     currentInput.value = "fresh@test.com";
@@ -5444,12 +5459,11 @@ describe("native room sidebar header and suggestion ownership", () => {
 });
 
 describe("native collapsed sidebar and typed presence", () => {
-  test("collapsed create expands and focuses retained draft; partial sandbox presence stays native", async () => {
+  test("collapsed create expands and focuses retained draft; agent presence stays native", async () => {
     const room = fixture(),
       target = document.createElement("div");
     document.body.append(target);
-    let expanded = 0,
-      agentsOpened = 0;
+    let expanded = 0;
     const props: SidebarProps = {
       room,
       thread: "main",
@@ -5465,9 +5479,6 @@ describe("native collapsed sidebar and typed presence", () => {
       onopenpinapp: () => {},
       ontogglerail: () => {
         expanded++;
-      },
-      onagents: () => {
-        agentsOpened++;
       },
       vb: {
         t: vb.t,
@@ -5522,11 +5533,12 @@ describe("native collapsed sidebar and typed presence", () => {
     expect(
       target.querySelector("[data-agent-presence]")?.textContent,
     ).toContain("90%");
-    const sandbox = [...target.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("sandbox"),
-    )!;
-    sandbox.click();
-    expect(agentsOpened).toBe(1);
+    // Sandboxes are not people: the sidebar no longer lists them.
+    expect(
+      [...target.querySelectorAll("button")].some((button) =>
+        button.textContent?.includes("sandbox"),
+      ),
+    ).toBe(false);
     expect(target.querySelector("[data-legacy-chat-content]") === null).toBe(
       true,
     );

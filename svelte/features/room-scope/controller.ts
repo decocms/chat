@@ -1054,7 +1054,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             onopenside: () => {
               if (current()) layout.openSheet("side");
             },
-            onagents: openAgents,
             onopen: (target) => {
               if (current()) pickThread(target);
             },
