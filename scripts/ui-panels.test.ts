@@ -3241,7 +3241,7 @@ describe("stable native sidebar integration", () => {
       h.target.querySelector('[data-wait-kind="tasks"]')?.textContent,
     ).toBe("");
   }, 30_000);
-  test("native branch disclosure and drafts survive updates and a rail-style remount", () => {
+  test("the epic list is flat: sub-epics are plain rows and drafts survive updates and a remount", () => {
     const room = fixture();
     room.epics.push({ id: "child", title: "Child", parent: "e", tasks: [] });
     room.epics.push(
@@ -3256,15 +3256,16 @@ describe("stable native sidebar integration", () => {
     );
     const session = createNavigationSession(room.id);
     const first = sidebar(room, { navigation: session, thread: "child" });
-    const parent = first.target.querySelector<HTMLButtonElement>(
-      "[data-epic=e] button[aria-expanded]",
-    )!;
-    expect(parent.getAttribute("aria-expanded")).toBe("true");
-    parent.click();
-    flushSync();
+    const ids = [
+      ...first.target.querySelectorAll<HTMLElement>("li[data-epic]"),
+    ].map((row) => row.dataset.epic);
+    expect(ids).toContain("e");
+    expect(ids).toContain("child");
+    expect(first.target.querySelector("[aria-expanded]")).toBeNull();
+    expect(first.target.querySelector("li[data-depth]")).toBeNull();
     expect(
       first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
-    ).toBe(true);
+    ).toBe(false);
     const draft =
       first.target.querySelector<HTMLInputElement>("#newEpic input")!;
     draft.value = "Room-owned draft";
@@ -3280,21 +3281,14 @@ describe("stable native sidebar integration", () => {
       },
     });
     expect(
-      first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
-    ).toBe(true);
+      first.target.querySelector<HTMLElement>("[data-epic=child]"),
+    ).not.toBeNull();
     first.destroy();
     const second = sidebar(room, { navigation: session, thread: "child" });
     expect(
       second.target.querySelector<HTMLInputElement>("#newEpic input")?.value,
     ).toBe("Room-owned draft");
-    expect(
-      second.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
-    ).toBe(true);
-    second.view.update({ ...second.props, thread: "old-child" });
-    second.view.update({ ...second.props, thread: "child" });
-    expect(
-      second.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
-    ).toBe(false);
+    expect(second.target.querySelector("[aria-expanded]")).toBeNull();
   }, 30_000);
   test("native epic drafts survive refused and uncertain requests", async () => {
     const room = fixture();

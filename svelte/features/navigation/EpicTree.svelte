@@ -26,11 +26,7 @@
     ROOT_GROUP,
     type SortableMove,
   } from "./sortable";
-  import {
-    enterNavigationThread,
-    toggleNavigationBranch,
-    type NavigationSession,
-  } from "./session";
+  import { enterNavigationThread, type NavigationSession } from "./session";
 
   let {
     room,
@@ -87,15 +83,6 @@
     rowNodes.clear();
     sorter.destroy();
   });
-  const indentation = [
-    "tw:pl-0",
-    "tw:pl-3",
-    "tw:pl-6",
-    "tw:pl-9",
-    "tw:pl-12",
-    "tw:pl-14",
-    "tw:pl-16",
-  ];
   const orderedEpics = $derived.by(() => {
     const order = localOrder;
     if (!order) return room.epics;
@@ -112,7 +99,12 @@
   const mode = $derived(
     $navigation.archived && archived.length > 0 ? "archived" : "active",
   );
-  const forest = $derived(epicForest(mode === "archived" ? archived : active));
+  /** The list is flat: sub-epics are plain rows, with no branches to open. */
+  const flat = (list: readonly Epic[]) =>
+    list.map((epic) => (epic.parent ? { ...epic, parent: undefined } : epic));
+  const forest = $derived(
+    epicForest(flat(mode === "archived" ? archived : active)),
+  );
   const entryForest = $derived(epicForest(room.epics));
   const workingEpics = $derived(
     new Set(
@@ -277,8 +269,6 @@
       >
         {#each rows as row (row.epic.id)}
           {@const epic = row.epic}
-          {@const closed = $navigation.closed.has(epic.id)}
-          {@const parent = forest.byId.get(forest.parents.get(epic.id) ?? "")}
           {@const working = vb.epicBusy(epic)}
           <li
             use:registerRow={epic.id}
@@ -292,13 +282,8 @@
                 (row.hasChildren && !closed),
             }}
             id={rowIds.get(epic.id)}
-            hidden={row.hidden}
             data-epic={epic.id}
-            data-depth={row.depth}
-            class={cn(
-              "tw:relative",
-              indentation[Math.min(row.depth, indentation.length - 1)],
-            )}
+            class="tw:relative"
           >
             <div
               role="group"
@@ -310,30 +295,6 @@
                   "tw:border-l-primary tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
               )}
             >
-              {#if row.hasChildren}
-                <Button
-                  variant="ghost"
-                  class="tw:size-5 tw:shrink-0 tw:p-0"
-                  aria-label={`${vb.t(closed ? "Abrir galho" : "Fechar galho")}: ${epic.title}`}
-                  aria-expanded={!closed}
-                  aria-controls={(forest.children.get(epic.id) ?? [])
-                    .map((child) => rowIds.get(child.id))
-                    .join(" ")}
-                  onclick={() => toggleNavigationBranch(session, epic.id)}
-                  ><Icon
-                    name={closed ? "chevronRight" : "chevronDown"}
-                    class="tw:size-3.5"
-                  /></Button
-                >
-              {:else}<span
-                  aria-hidden="true"
-                  class={cn(
-                    "tw:shrink-0",
-                    rows.some((other) => other.hasChildren)
-                      ? "tw:w-5"
-                      : "tw:w-0",
-                  )}
-                ></span>{/if}
               <Button
                 variant="ghost"
                 class={cn(
@@ -357,9 +318,7 @@
                   : undefined}
                 onclick={() => {
                   if (onBeforeOpen && !onBeforeOpen()) return;
-                  if (thread === epic.id && row.hasChildren)
-                    toggleNavigationBranch(session, epic.id);
-                  else onopen(epic.id);
+                  onopen(epic.id);
                 }}
               >
                 <Avatar
@@ -372,17 +331,13 @@
                 <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
                   >{epic.title}{#if epic.archived}<span
                       class="tw:ml-1 tw:text-xs">({vb.t("Arquivado")})</span
-                    >{/if}{#if parent}<span class="tw:sr-only">
-                      · {vb.t("Subépico de {title}", {
-                        title: parent.title,
-                      })}</span
                     >{/if}</span
                 >
-                {#if working || (closed && row.busyBelow)}<span
+                {#if working}<span
                     role="img"
-                    aria-label={working
-                      ? vb.t("{who} está trabalhando", { who: working })
-                      : vb.t("Trabalho em um subépico")}
+                    aria-label={vb.t("{who} está trabalhando", {
+                      who: working,
+                    })}
                     class="tw:text-primary">✻</span
                   >{/if}
                 <WaitBadge

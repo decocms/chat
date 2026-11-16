@@ -138,8 +138,6 @@ try {
   });
   const row = (epic: string) => nav.locator(`li[data-epic="${epic}"]`);
   const title = (epic: string) => row(epic).locator("[data-epic-thread]");
-  const disclosure = (epic: string) =>
-    row(epic).getByRole("button", { name: /^(Expand|Collapse) branch:/ });
   const show = async (region = nav) => {
     await openNativeSidebar(current);
     await expect(region).toBeAttached();
@@ -156,17 +154,12 @@ try {
   const draft = nav.getByRole("textbox", { name: "New epic", exact: true });
   const submit = nav.getByRole("button", { name: "Create epic", exact: true });
   await navigate();
-  step(
-    "Checking nested metadata, keyboard disclosure and live draft retention",
-  );
-  await expect(row(child)).toHaveAttribute("data-depth", "1");
-  await expect(row(leaf)).toHaveAttribute("data-depth", "2");
-  await disclosure(parent).focus();
-  await disclosure(parent).press("Enter");
-  await expect(row(child)).toBeHidden();
-  await expect(
-    row(parent).getByRole("img", { name: "Work in a sub-epic", exact: true }),
-  ).toBeVisible();
+  step("Checking the flat list, live updates and draft retention");
+  // Sub-epics are plain rows: nothing nests, indents or collapses.
+  for (const epic of [parent, child, leaf, other])
+    await expect(row(epic)).toBeVisible();
+  await expect(nav.locator("[data-depth]")).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: /branch:/ })).toHaveCount(0);
   await draft.fill("Draft survives live updates");
   await agent("update_epic", {
     room_id: id,
@@ -177,12 +170,9 @@ try {
     "Leaf initial live update",
   );
   await expect(draft).toHaveValue("Draft survives live updates");
-  await expect(row(child)).toBeHidden();
   await navigate(leaf);
   await expect(row(leaf)).toBeVisible();
   await expect(title(leaf)).toHaveAttribute("aria-current", "page");
-  await disclosure(parent).click();
-  await expect(row(leaf)).toBeHidden();
   await agent("update_epic", {
     room_id: id,
     epic_id: leaf,
@@ -191,30 +181,26 @@ try {
   await expect(row(leaf).locator("[data-epic-title]")).toContainText(
     "Leaf updated remotely",
   );
-  await expect(row(leaf)).toBeHidden();
-  await disclosure(parent).click();
   await title(parent).click();
   await expect(title(parent)).toHaveAttribute("aria-current", "page");
-  await title(parent).click();
-  await expect(row(child)).toBeHidden();
-  await title(parent).press("Space");
   await expect(row(child)).toBeVisible();
-  step("Checking archived hierarchy and keyboard ordering");
+  step("Checking the archived list and keyboard ordering");
   await nav.getByRole("tab", { name: /^Archived/ }).click();
-  await expect(row(oldChild)).toHaveAttribute("data-depth", "1");
+  await expect(row(oldParent)).toBeVisible();
+  await expect(row(oldChild)).toBeVisible();
   await expect(nav.locator("#newEpic")).toHaveCount(0);
   await nav.getByRole("tab", { name: /^Epics/ }).click();
   const roots = () =>
     nav
-      .locator('li[data-depth="0"]:not([hidden])')
+      .locator("li[data-epic]:not([hidden])")
       .evaluateAll((nodes) =>
         nodes.map((node) => node.getAttribute("data-epic")),
       );
-  await expect.poll(roots).toEqual([parent, other]);
+  await expect.poll(roots).toEqual([parent, child, leaf, other]);
   const moveUp = row(other).locator("[data-epic-thread]");
   await moveUp.focus();
   await moveUp.press("Alt+ArrowUp");
-  await expect.poll(roots).toEqual([other, parent]);
+  await expect.poll(roots).toEqual([parent, child, other, leaf]);
   await expect
     .poll(() =>
       row(other).evaluate((element) =>
@@ -222,9 +208,9 @@ try {
       ),
     )
     .toBe(true);
-  step("Checking real sibling drag without changing hierarchy");
+  step("Checking real drag ordering");
   const from = row(other).locator('[role="group"]');
-  const to = row(parent).locator('[role="group"]');
+  const to = row(leaf).locator('[role="group"]');
   await from.hover();
   const bounds = await from.boundingBox();
   assert(bounds);
@@ -236,11 +222,9 @@ try {
   await to.hover({ position: { x: 15, y: target.height - 3 } });
   await to.hover({ position: { x: 20, y: target.height - 2 } });
   await page.mouse.up();
-  await expect.poll(roots).toEqual([parent, other]);
-  await expect(row(child)).toHaveAttribute("data-depth", "1");
-  await expect(row(leaf)).toHaveAttribute("data-depth", "2");
+  await expect.poll(roots).toEqual([parent, child, leaf, other]);
   await navigate();
-  await expect.poll(roots).toEqual([parent, other]);
+  await expect.poll(roots).toEqual([parent, child, leaf, other]);
   step("Checking disconnected draft retention and retry");
   disconnected = true;
   await Promise.all(
@@ -438,7 +422,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS native epic navigation: hierarchy, disclosure, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
+    "PASS native epic navigation: flat list, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
   );
 } catch (error) {
   result.status = "fail";
