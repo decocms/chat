@@ -161,6 +161,9 @@
           {panelOpen}
           meta={panelViewMeta(views.counts)}
           onpick={pick}
+          onclosepanel={() => {
+            if (panelOpen) layout.toggleDocument();
+          }}
         /></span
       >
       <IconButton

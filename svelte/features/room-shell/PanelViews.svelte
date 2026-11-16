@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Separator from "../../lib/studio/Separator.svelte";
@@ -12,7 +11,7 @@
     type PanelView,
     type PanelViewMeta,
   } from "./panelViews";
-  // The chat header's views card (T3's): the right panel's views in a card under the header's top-right corner.
+  // The chat header's views card (T3's): a toggle that keeps the right panel's views listed in the chat's corner while that panel is closed.
   let {
     label,
     waitingLabel,
@@ -21,6 +20,7 @@
     panelOpen,
     meta,
     onpick,
+    onclosepanel,
   }: {
     label: string;
     waitingLabel: (count: number) => string;
@@ -32,37 +32,42 @@
     meta: Partial<Record<PanelView, PanelViewMeta>>;
     /** Shows the view in the right panel, opening it when closed. */
     onpick: (view: PanelView) => void;
+    /** Closes the right panel, so the card has the chat's corner to itself. */
+    onclosepanel: () => void;
   } = $props();
 
+  const STORAGE_KEY = "vb.panelViews.pinned";
   const cardId = $props.id();
-  let open = $state(false),
-    trigger = $state<HTMLElement | null>(null),
-    card = $state<HTMLElement | null>(null);
+  let pinned = $state(readPinned());
+  let card = $state<HTMLElement | null>(null);
+  const visible = $derived(pinned && !panelOpen);
 
-  const rows = () => [
-    ...(card?.querySelectorAll<HTMLButtonElement>("button[data-view]") ?? []),
-  ];
-  async function show() {
-    open = true;
-    await tick();
-    const all = rows();
-    (
-      (panelOpen && all.find((row) => row.dataset.view === pane)) ||
-      all[0]
-    )?.focus();
+  function readPinned(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
   }
-  function hide(returnFocus: boolean) {
-    if (!open) return;
-    open = false;
-    if (returnFocus) trigger?.focus();
+  function setPinned(value: boolean) {
+    pinned = value;
+    try {
+      localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+    } catch {
+      /* Private mode: the toggle still works for this page. */
+    }
   }
-  function pick(view: PanelView) {
-    hide(true);
-    onpick(view);
+  function toggle() {
+    if (panelOpen) {
+      setPinned(true);
+      onclosepanel();
+    } else setPinned(!pinned);
   }
   function onkeydown(event: KeyboardEvent) {
-    const all = rows(),
-      at = all.findIndex((row) => row === document.activeElement);
+    const all = [
+      ...(card?.querySelectorAll<HTMLButtonElement>("button[data-view]") ?? []),
+    ];
+    const at = all.findIndex((row) => row === document.activeElement);
     const go = (index: number) => {
       event.preventDefault();
       all.at(index % all.length)?.focus();
@@ -72,55 +77,27 @@
     else if (event.key === "Home") go(0);
     else if (event.key === "End") go(-1);
   }
-  function onwindowkeydown(event: KeyboardEvent) {
-    if (!open || event.key !== "Escape" || event.defaultPrevented) return;
-    event.preventDefault();
-    const active = document.activeElement;
-    hide(active === trigger || !!card?.contains(active));
-  }
-  function onwindowpointerdown(event: PointerEvent) {
-    const target = event.target;
-    if (!open || !(target instanceof Node)) return;
-    if (card?.contains(target) || trigger?.contains(target)) return;
-    hide(false);
-  }
-  // Tabbing out of the card closes it, as leaving any popover does.
-  function onfocusout(event: FocusEvent) {
-    const next = event.relatedTarget;
-    if (next instanceof Node && (card?.contains(next) || trigger === next))
-      return;
-    if (next) hide(false);
-  }
 </script>
 
-<svelte:window
-  onkeydown={onwindowkeydown}
-  onpointerdown={onwindowpointerdown}
-/>
-
 <IconButton
-  bind:ref={trigger}
   data-native-panel-views
   {label}
   tooltipSide="bottom"
   size="icon"
-  aria-expanded={open}
+  aria-pressed={visible}
   aria-controls={cardId}
-  class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-expanded:bg-accent tw:aria-expanded:text-foreground"
-  onclick={() => (open ? hide(true) : void show())}
+  class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
+  onclick={toggle}
 >
   <Icon icon={File06} size={16} />
 </IconButton>
-{#if open}
-  <div
+{#if visible}
+  <nav
     bind:this={card}
     id={cardId}
-    role="dialog"
     aria-label={label}
-    tabindex="-1"
     data-vb-native
     {onkeydown}
-    {onfocusout}
     class="tw:absolute tw:top-[calc(100%+8px)] tw:right-2 tw:z-40 tw:w-[288px] tw:origin-top-right tw:rounded-surface tw:bg-popover tw:p-2 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-edge-raised tw:outline-hidden tw:animate-in tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:[--tw-enter-opacity:0] tw:[--tw-enter-scale:.96] tw:motion-reduce:animate-none"
   >
     {#each PANEL_VIEW_GROUPS as group, index (index)}
@@ -138,7 +115,7 @@
                 "tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:text-foreground tw:transition-colors tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:hover:bg-accent tw:focus-visible:bg-accent tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-ring",
                 selected && "tw:bg-accent",
               )}
-              onclick={() => pick(view)}
+              onclick={() => onpick(view)}
             >
               <Icon
                 icon={paneIcons[view]}
@@ -160,5 +137,5 @@
         {/each}
       </ul>
     {/each}
-  </div>
+  </nav>
 {/if}
