@@ -3,6 +3,7 @@ import { expect, mock, spyOn, test } from "bun:test";
 import type { RoomCommand } from "../shared/commands";
 import { CommandResultSchema } from "../shared/commands";
 import { parseRoomEvent } from "../shared/validation";
+import { sendTo } from "./book-test-wire";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {},
   WorkerEntrypoint: class {},
@@ -50,6 +51,7 @@ function fixture(options: { failKick?: boolean; bookId?: string | null } = {}) {
     events: string[] = [];
   const ws = { send: (frame: string) => frames.push(frame) };
   const receiver = {
+    sendTo,
     ctx: {
       getTags: () => ["member@example.test"],
       waitUntil: (job: Promise<unknown>) => jobs.push(job),

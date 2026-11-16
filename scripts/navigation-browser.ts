@@ -199,18 +199,11 @@ try {
   await expect(row(child)).toBeHidden();
   await title(parent).press("Space");
   await expect(row(child)).toBeVisible();
-  step("Checking archived hierarchy, owner changes and keyboard ordering");
+  step("Checking archived hierarchy and keyboard ordering");
   await nav.getByRole("tab", { name: /^Archived/ }).click();
   await expect(row(oldChild)).toHaveAttribute("data-depth", "1");
   await expect(nav.locator("#newEpic")).toHaveCount(0);
   await nav.getByRole("tab", { name: /^Epics/ }).click();
-  await row(child).locator("summary").click();
-  const owner = row(child).getByRole("combobox", {
-    name: "Epic owner: Child workflow",
-    exact: true,
-  });
-  await owner.selectOption("");
-  await expect(owner).toHaveValue("");
   const roots = () =>
     nav
       .locator('li[data-depth="0"]:not([hidden])')
@@ -218,13 +211,9 @@ try {
         nodes.map((node) => node.getAttribute("data-epic")),
       );
   await expect.poll(roots).toEqual([parent, other]);
-  await row(other).locator("summary").click();
-  const moveUp = row(other).getByRole("button", {
-    name: "Move up: Second branch",
-    exact: true,
-  });
+  const moveUp = row(other).locator("[data-epic-thread]");
   await moveUp.focus();
-  await moveUp.press("Enter");
+  await moveUp.press("Alt+ArrowUp");
   await expect.poll(roots).toEqual([other, parent]);
   await expect
     .poll(() =>
@@ -252,9 +241,7 @@ try {
   await expect(row(leaf)).toHaveAttribute("data-depth", "2");
   await navigate();
   await expect.poll(roots).toEqual([parent, other]);
-  await row(child).locator("summary").click();
-  await expect(owner).toHaveValue("");
-  step("Checking disconnected draft retention, owner rollback and retry");
+  step("Checking disconnected draft retention and retry");
   disconnected = true;
   await Promise.all(
     sockets
@@ -267,20 +254,6 @@ try {
   await submit.click();
   await expect(nav.getByRole("alert")).toContainText("Couldn't send it now");
   await expect(draft).toHaveValue("Retained navigation draft");
-  const memberValue = await owner
-    .locator("option")
-    .evaluateAll((options) =>
-      options
-        .flatMap((option) =>
-          option instanceof HTMLOptionElement && option.value
-            ? [option.value]
-            : [],
-        )
-        .find(Boolean),
-    );
-  assert(memberValue);
-  await owner.selectOption(memberValue);
-  await expect(owner).toHaveValue("");
   disconnected = false;
   await expect
     .poll(
@@ -304,8 +277,10 @@ try {
       probe.style.backgroundColor = "var(--vb-sidebar)";
       element.append(probe);
       const style = getComputedStyle(element);
+      // The whole room sidebar column carries the theme surface.
+      const surface = element.closest("[data-room-sidebar]") ?? element;
       const result = {
-        actual: style.backgroundColor,
+        actual: getComputedStyle(surface).backgroundColor,
         expected: getComputedStyle(probe).backgroundColor,
         family: style.fontFamily,
         pageWidth: document.documentElement.scrollWidth,
@@ -463,7 +438,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS native epic navigation: hierarchy, disclosure, live draft state, archive, owner, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
+    "PASS native epic navigation: hierarchy, disclosure, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
   );
 } catch (error) {
   result.status = "fail";

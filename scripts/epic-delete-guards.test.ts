@@ -2,6 +2,7 @@
 import { expect, mock, test } from "bun:test";
 import type { RoomCommand } from "../shared/commands";
 import { CommandResultSchema } from "../shared/commands";
+import { sendTo } from "./book-test-wire";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {},
   WorkerEntrypoint: class {},
@@ -25,6 +26,7 @@ function fixture() {
     jobs: Promise<unknown>[] = [];
   let notifications = 0;
   const receiver = {
+    sendTo,
     epics: () => [...ids].map((id) => ({ id })),
     get: (key: string) => (key === "book_id" ? "aaaaaa" : null),
     ctx: {

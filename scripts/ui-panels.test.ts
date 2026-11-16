@@ -3241,7 +3241,7 @@ describe("stable native sidebar integration", () => {
       second.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
     ).toBe(false);
   }, 30_000);
-  test("native epic drafts survive refused and uncertain requests; owner controls await ACK plus canonical state", async () => {
+  test("native epic drafts survive refused and uncertain requests", async () => {
     const room = fixture();
     let fail: "offline" | "throw" | null = "offline";
     const commands: RoomCommand[] = [];
@@ -3301,47 +3301,30 @@ describe("stable native sidebar integration", () => {
     await tick();
     flushSync();
     expect(draft.value).toBe("");
-    const owner = rendered.target.querySelector<HTMLSelectElement>(
-      "[data-epic=e] select",
-    )!;
-    owner.value = "you@test";
-    change(owner);
-    await tick();
-    await tick();
-    flushSync();
-    expect(commands.at(-1)).toEqual({
-      t: "epic.owner",
-      id: "e",
-      owner: "you@test",
-    });
-    expect(owner.value).toBe("");
-    rendered.view.update({
-      ...rendered.props,
-      room: {
-        ...created,
-        epics: created.epics.map((epic) =>
-          epic.id === "e" ? { ...epic, owner: "you@test" } : epic,
-        ),
-      },
-    });
-    await tick();
-    flushSync();
-    expect(owner.value).toBe("you@test");
     rendered.destroy();
     form.dispatchEvent(
       new Event("submit", { bubbles: true, cancelable: true }),
     );
     await tick();
-    expect(commands).toHaveLength(2);
+    expect(commands).toHaveLength(1);
   }, 30_000);
-  test("native order controls submit a full permutation without optimistic mutation or stale targets", async () => {
+  const altDown = (element: Element) =>
+    element.dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  test("native order shortcut submits a full permutation without mutating the room or using stale targets", async () => {
     const room = fixture();
     room.epics.push({ id: "other", title: "Other", tasks: [] });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
-      '[aria-label="Mover para baixo: Epic"]',
+      '[data-epic-thread="e"]',
     )!;
-    down.click();
+    altDown(down);
     await tick();
     flushSync();
     expect(rendered.events).toEqual([{ t: "epic.order", ids: ["other", "e"] }]);
@@ -3350,8 +3333,7 @@ describe("stable native sidebar integration", () => {
       ...rendered.props,
       room: { ...room, epics: [room.epics[0]] },
     });
-    expect(down.disabled).toBe(true);
-    down.click();
+    altDown(down);
     flushSync();
     expect(rendered.events).toHaveLength(1);
   }, 30_000);
@@ -3360,10 +3342,10 @@ describe("stable native sidebar integration", () => {
     room.epics.push({ id: "other", title: "Other", tasks: [] });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
-      '[aria-label="Mover para baixo: Epic"]',
+      '[data-epic-thread="e"]',
     )!;
     down.focus();
-    down.click();
+    altDown(down);
     await tick();
     flushSync();
     rendered.view.update({
@@ -3382,7 +3364,7 @@ describe("stable native sidebar integration", () => {
     ).toContain("Ordem dos épicos atualizada.");
     rendered.view.update(rendered.props);
     down.focus();
-    down.click();
+    altDown(down);
     await tick();
     flushSync();
     const draft =
@@ -3403,10 +3385,10 @@ describe("stable native sidebar integration", () => {
     room.epics.push({ id: "other", title: "Other", tasks: [] });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
-      '[aria-label="Mover para baixo: Epic"]',
+      '[data-epic-thread="e"]',
     )!;
     down.focus();
-    down.click();
+    altDown(down);
     flushSync();
     rendered.view.update({
       ...rendered.props,
