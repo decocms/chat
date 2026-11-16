@@ -16,7 +16,6 @@
   import SandboxPresenceRows from "./features/room-sidebar/SandboxPresenceRows.svelte";
   import MutationStatus from "./features/room-sidebar/MutationStatus.svelte";
   import { createRoomMutations } from "./features/room-sidebar/session";
-  import { messageCount } from "./features/room-sidebar/model";
   import type { SidebarProps } from "./sidebar";
   let {
     appNavigation,
@@ -179,24 +178,31 @@
       />{/if}
     <div class="tw:flex tw:flex-col tw:gap-1">
       <div class="tw:flex tw:items-center tw:gap-1">
-        <div
-          data-room-title
-          class="tw:flex tw:h-9 tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:px-3 tw:text-sm tw:font-medium tw:text-foreground"
-        >
-          <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
-          <span
-            class="tw:flex-1 tw:truncate"
-            title={room.book.summary || room.book.title}>{room.book.title}</span
+        {#if oninbox}
+          <Button
+            data-room-title
+            variant={inboxOpen ? "secondary" : "ghost"}
+            aria-current={inboxOpen ? "page" : undefined}
+            aria-label={`${room.book.title} · ${vb.t("Caixa de entrada")}`}
+            title={vb.t("Caixa de entrada")}
+            class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
+            onclick={(event) => {
+              if (event.currentTarget.isConnected)
+                oninbox?.(event.currentTarget);
+            }}
           >
-          <WaitBadge
-            waits={vb.waitsIn("main")}
-            label={(n) => vb.t("{n} coisas esperando você", { n })}
-            taskLabel={vb.t("Tarefa sua pendente")}
-          />
-          <span class="tw:text-xs tw:font-normal tw:text-muted-foreground"
-            >{messageCount(room, "main")}</span
+            <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
+            <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
+          </Button>
+        {:else}
+          <div
+            data-room-title
+            class="tw:flex tw:h-9 tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:px-3 tw:text-sm tw:font-medium tw:text-foreground"
           >
-        </div>
+            <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
+            <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
+          </div>
+        {/if}
         <IconButton
           icon="pencil"
           label={vb.t("Renomear")}
@@ -218,14 +224,6 @@
             {onrenameroom}
           />
         </div>{/if}
-      {#if oninbox}<Button
-          variant={inboxOpen ? "secondary" : "ghost"}
-          aria-current={inboxOpen ? "page" : undefined}
-          class="tw:h-9 tw:min-h-0 tw:justify-start tw:py-0"
-          onclick={(event) => {
-            if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-          }}>{vb.t("Caixa de entrada")}</Button
-        >{/if}
       <EpicTree
         {room}
         {thread}
