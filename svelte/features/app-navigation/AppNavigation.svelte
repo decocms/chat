@@ -121,7 +121,7 @@
   data-vb-native="room-navigation"
   data-native-app-navigation
   class={[
-    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-background tw:p-2 tw:font-sans tw:text-foreground tw:min-[901px]:sticky tw:min-[901px]:top-0 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:border-r tw:min-[901px]:border-border",
+    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-background tw:p-2 tw:font-sans tw:text-foreground tw:min-[901px]:sticky tw:min-[901px]:top-0 tw:min-[901px]:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:border-r tw:min-[901px]:border-border",
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   ]}
 >
