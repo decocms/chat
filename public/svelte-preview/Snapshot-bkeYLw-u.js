@@ -1,1 +1,0 @@
-import{B as e,I as t,V as n}from"./Button-CLDCE-Zj.js";import{Et as r,Tt as i,h as a,z as o}from"./shared-DKeaMcdI.js";function s(s,c){r(c,!0);let l=a(()=>c.value);var u=n(),d=o(u);t(d,()=>c.children,()=>l),e(s,u),i()}export{s as t};
