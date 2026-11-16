@@ -10,6 +10,8 @@ export type ThreadHeaderProps = {
   onopenside: () => void;
   onrenameroom: () => void;
   titleId?: string;
+  /** Phone top bar: keeps the title and drops the epic actions (the sheet header has them). */
+  compact?: boolean;
   roomIcon?: string;
   roomTint?: string | null;
 };
