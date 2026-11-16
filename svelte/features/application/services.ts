@@ -131,7 +131,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   const root = createRootRoomSession({
     url: (id, thread, code) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
+        `/ws/${id}?t=${encodeURIComponent(thread)}&ui=svelte${code ? `&rc=${encodeURIComponent(code)}` : ""}`, // ui: the Book counts bytes per app
       ),
     connection: options.roomConnection,
     acceptIdentity: (value) => personal.acceptIdentity(value),

@@ -557,7 +557,7 @@ app.get("/ws/:id", async (c) => {
   c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
   // t = the thread the app opens on: only it comes with its 60 newest messages and its doc (Book.roomWindow).
   const rc = (c.req.query("rc") ?? "").replace(/\D/g, "").slice(0, 4); // a reconnect's previous close code (ws_state)
-  const req = new Request(`https://book/ws?book=${id}&t=${encodeURIComponent(c.req.query("t") ?? "main")}${rc ? `&rc=${rc}` : ""}`, c.req.raw);
+  const req = new Request(`https://book/ws?book=${id}&t=${encodeURIComponent(c.req.query("t") ?? "main")}${rc ? `&rc=${rc}` : ""}${c.req.query("ui") === "svelte" ? "&ui=svelte" : ""}`, c.req.raw);
   req.headers.set("x-email", c.get("email"));
   return bookStub(c.env, id).fetch(req);
 });
