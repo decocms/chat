@@ -23,7 +23,7 @@
   import Icon from "../../lib/ui/Icon.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import Input from "../../lib/ui/Input.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
+  import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
     room,
     friends = [],
@@ -370,27 +370,24 @@
   data-people-panel
   class="tw:max-h-[32%] tw:shrink-0 tw:space-y-3 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground"
 >
-  <div
-    class="tw:sticky tw:top-0 tw:z-10 tw:-mx-3 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:bg-sidebar tw:px-3 tw:pt-3 tw:pb-1"
-  >
-    <Heading level={3} class="tw:text-sm tw:leading-5"
-      >{vb.t("Pessoas e agents")}</Heading
-    >
-    <IconButton
-      icon="plus"
-      tip="bottom"
-      label={vb.t("Convidar")}
-      aria-haspopup="dialog"
-      aria-expanded={inviting}
-      data-invite-toggle
-      bind:ref={toggle}
-      onclick={openInvite}
-    />
-  </div>
+  <SectionHeader title={vb.t("Pessoas e agents")} count={everyone.length}>
+    {#snippet action()}<IconButton
+        icon="plus"
+        tip="bottom"
+        label={vb.t("Convidar")}
+        aria-haspopup="dialog"
+        aria-expanded={inviting}
+        data-invite-toggle
+        bind:ref={toggle}
+        onclick={openInvite}
+      />{/snippet}
+  </SectionHeader>
   {#if room.requests?.length}<div class="tw:space-y-3">
-      <Heading level={3} class="tw:text-sm tw:leading-5">
-        {vb.t("Pedindo pra entrar")}
-      </Heading>
+      <SectionHeader
+        title={vb.t("Pedindo pra entrar")}
+        level={4}
+        sticky={false}
+      />
       {#each room.requests as access (access.email)}<div
           class="tw:flex tw:items-start tw:gap-2"
           data-access-request={access.email}
