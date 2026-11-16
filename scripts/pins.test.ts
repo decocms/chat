@@ -7,6 +7,8 @@ import type { RequestRoomCommand } from "../svelte/roomConnection";
 import {
   normalizePinLink,
   pinAppTarget,
+  pinAppInitials,
+  pinFileDetail,
   resolvePin,
 } from "../svelte/features/pins/model";
 import {
@@ -82,7 +84,36 @@ describe("native pinned target resolution", () => {
   test("distinguishes partial metadata from truly unavailable file/app targets", () => {
     expect(
       resolvePin({ id: "f-pin", kind: "file", ref: "f" }, { files: [file] }),
-    ).toEqual({ kind: "file", file, label: "report.pdf", detail: "arquivo" });
+    ).toEqual({
+      kind: "file",
+      file,
+      label: "report.pdf",
+      detail: "PDF · 1 KB",
+    });
+    expect(
+      pinFileDetail({ name: "notes", type: "text/markdown", size: 2_100_000 }),
+    ).toBe("MARKDOWN · 2.1 MB");
+    expect(
+      resolvePin(
+        { id: "l", kind: "link", ref: "https://www.github.com/vibegui/repo/" },
+        {},
+      ),
+    ).toEqual({
+      kind: "link",
+      href: "https://www.github.com/vibegui/repo/",
+      label: "github.com",
+      detail: "github.com/vibegui/repo",
+      github: true,
+    });
+    expect(
+      resolvePin({ id: "l", kind: "link", ref: "gist.github.com/x" }, {}),
+    ).toMatchObject({ github: true, detail: "gist.github.com/x" });
+    expect(
+      resolvePin({ id: "l", kind: "link", ref: "notgithub.com" }, {}),
+    ).toMatchObject({ github: false, detail: "notgithub.com" });
+    expect(pinAppInitials("Roteador A/B")).toBe("RA");
+    expect(pinAppInitials("chart")).toBe("C");
+    expect(pinAppInitials("my-cool_app")).toBe("MC");
     expect(
       resolvePin(
         { id: "gone", kind: "file", ref: "gone" },

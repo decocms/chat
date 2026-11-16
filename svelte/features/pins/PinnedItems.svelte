@@ -9,7 +9,15 @@
   import Input from "../../lib/ui/Input.svelte";
   import Label from "../../lib/ui/Label.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
-  import { resolvePin, type PinAppTarget } from "./model";
+  import { cn } from "../../lib/ui/utils";
+  import { readable, type Readable } from "svelte/store";
+  import {
+    pinAppInitials,
+    pinAppTint,
+    resolvePin,
+    samePinApp,
+    type PinAppTarget,
+  } from "./model";
   import {
     closePinDraft,
     openPinDraft,
@@ -29,6 +37,7 @@
     request,
     onopenfile,
     onopenapp,
+    activeApp,
     t,
   }: {
     room: Room;
@@ -37,6 +46,8 @@
     request: RequestRoomCommand;
     onopenfile: (file: Attachment) => void;
     onopenapp: (app: PinAppTarget) => void;
+    /** The app open in the right pane, if any; its pinned row is shown selected. */
+    activeApp?: Readable<{ connection: string; tool: string } | null>;
     t: (text: string, vars?: Record<string, string | number>) => string;
   } = $props();
   let disposed = false;
@@ -62,6 +73,15 @@
     if (interactive()) void removePinnedItem(session, room.id, id, request);
   }
   const pinState = $derived(session.state);
+  const noApp = readable(null);
+  const openApp = $derived(activeApp ?? noApp);
+  // Row: [kind icon] label / detail [marker]. The marker says what a click does:
+  // "external" leaves vibebook in a new tab, the chevron opens inside it.
+  const rowClass =
+    "tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1.5 tw:font-sans tw:text-sm tw:text-inherit tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring";
+  const kindClass =
+    "tw:inline-grid tw:size-6 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-control";
+  const markerClass = "tw:size-3.5 tw:text-muted-foreground";
   const rows = $derived(
     (room.pins ?? []).map((pin) => ({ pin, target: resolvePin(pin, room) })),
   );
@@ -163,6 +183,14 @@
     }
   }
 </script>
+
+{#snippet text(label: string, detail: string)}<span
+    class="tw:min-w-0 tw:flex-1 tw:text-left"
+    ><span class="tw:block tw:truncate">{label}</span><span
+      class="tw:block tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
+      >{detail}</span
+    ></span
+  >{/snippet}
 
 <section
   class="tw:max-h-[20%] tw:shrink-0 tw:space-y-2 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground"
@@ -274,9 +302,26 @@
   {/if}
 
   {#if rows.length}
-    <ul class="tw:m-0 tw:list-none tw:space-y-1 tw:p-0">
+    <ul class="tw:m-0 tw:list-none tw:space-y-0.5 tw:p-0">
       {#each rows as { pin, target } (pin.id)}
-        <li class="tw:flex tw:items-start tw:gap-1" data-pin-id={pin.id}>
+        {@const selected =
+          target.kind === "app" && samePinApp(target.app, $openApp)}
+        <!-- The row owns the background, so the hover-revealed unpin button can inherit it over the label. -->
+        <li
+          class={cn(
+            "tw:group tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-control tw:bg-sidebar tw:hover:bg-accent tw:focus-within:bg-accent",
+            selected &&
+              "tw:bg-sidebar-accent tw:text-sidebar-accent-foreground tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
+          )}
+          data-pin-id={pin.id}
+          data-pin-kind={target.kind === "file-unloaded" ? "file" : target.kind}
+          data-pin-opens={target.kind === "link"
+            ? "tab"
+            : target.kind === "unavailable"
+              ? undefined
+              : "inline"}
+          data-selected={selected || undefined}
+        >
           {#if target.kind === "link"}
             <a
               href={target.href}
@@ -285,50 +330,68 @@
               onclick={(event) => {
                 if (!interactive()) event.preventDefault();
               }}
-              class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:rounded-control tw:px-2 tw:py-2 tw:font-sans tw:text-sm tw:text-foreground tw:no-underline tw:hover:bg-accent tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+              class={rowClass}
               title={target.href}
             >
-              <Icon name="chevronRight" /><span class="tw:min-w-0"
-                ><span class="tw:block tw:truncate">{target.label}</span><span
-                  class="tw:block tw:truncate tw:text-xs tw:text-muted-foreground"
-                  >{target.detail}</span
-                ></span
-              >
+              <span
+                class={kindClass}
+                data-pin-icon={target.github ? "github" : "globe"}
+                ><Icon
+                  name={target.github ? "github" : "globe"}
+                  class="tw:text-muted-foreground"
+                /></span
+              >{@render text(target.label, target.detail)}<Icon
+                name="external"
+                class={markerClass}
+              /><span class="tw:sr-only">{t("abre em nova aba")}</span>
             </a>
           {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
             <Button
               variant="ghost"
-              class="tw:h-auto tw:min-w-0 tw:flex-1 tw:justify-start tw:whitespace-normal tw:px-2 tw:py-2 tw:text-left"
+              class={cn(
+                rowClass,
+                "tw:h-auto tw:justify-start tw:whitespace-normal tw:font-normal tw:hover:bg-transparent tw:focus-visible:ring-offset-0",
+              )}
               disabled={!live}
+              aria-current={selected ? "true" : undefined}
               onclick={() => activate(pin.id)}
             >
-              <Icon name="chevronRight" /><span class="tw:min-w-0"
-                ><span class="tw:block tw:truncate">{target.label}</span><span
-                  class="tw:block tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
-                  >{target.kind === "file-unloaded"
-                    ? t(
-                        $pinState.filesPending
-                          ? "Carregando arquivo…"
-                          : "Carregar arquivo",
-                      )
-                    : t(target.detail)}</span
-                ></span
-              >
+              {#if target.kind === "app"}<span
+                  class={cn(
+                    kindClass,
+                    "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
+                    pinAppTint(target.app),
+                  )}
+                  data-pin-icon="tile"
+                  aria-hidden="true">{pinAppInitials(target.label)}</span
+                >{:else}<span class={kindClass} data-pin-icon="file"
+                  ><Icon name="file" class="tw:text-muted-foreground" /></span
+                >{/if}{@render text(
+                target.label,
+                target.kind === "file-unloaded"
+                  ? t(
+                      $pinState.filesPending
+                        ? "Carregando arquivo…"
+                        : "Carregar arquivo",
+                    )
+                  : target.kind === "app"
+                    ? t("App")
+                    : target.detail,
+              )}<Icon name="chevronRight" class={markerClass} />
             </Button>
           {:else}
-            <div
-              class="tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-2 tw:px-2 tw:py-2 tw:font-sans tw:text-sm tw:text-muted-foreground"
-            >
-              <Icon name="warning" class="tw:mt-0.5" /><span class="tw:min-w-0"
-                ><span class="tw:block tw:truncate">{target.label}</span><span
-                  class="tw:block tw:text-xs">{t(target.reason)}</span
-                ></span
-              >
+            <div class={cn(rowClass, "tw:text-muted-foreground")}>
+              <span class={kindClass}><Icon name="warning" /></span
+              >{@render text(target.label, t(target.reason))}
             </div>
           {/if}
           <IconButton
             icon="close"
             label={t("Desafixar {name}", { name: target.label })}
+            class={cn(
+              "tw:absolute tw:top-1/2 tw:size-7 tw:-translate-y-1/2 tw:bg-inherit tw:p-1.5 tw:text-muted-foreground tw:opacity-0 tw:hover:text-foreground tw:group-hover:opacity-100 tw:group-focus-within:opacity-100 tw:focus-visible:opacity-100 tw:focus-visible:ring-offset-0 tw:[@media(hover:none)]:opacity-100 tw:disabled:opacity-0 tw:group-hover:disabled:opacity-50 tw:group-focus-within:disabled:opacity-50 tw:[@media(hover:none)]:disabled:opacity-50",
+              target.kind === "unavailable" ? "tw:right-1" : "tw:right-7",
+            )}
             disabled={!live || !!$pinState.pending}
             onclick={() => remove(pin.id)}
           />

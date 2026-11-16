@@ -51,4 +51,9 @@ export type SidebarProps = {
   pins: PinsSession;
   onopenpinfile: (file: Attachment) => void;
   onopenpinapp: (app: PinAppTarget) => void;
+  /** The app shown in the right pane right now, so its pin can read as selected. */
+  activePinApp?: import("svelte/store").Readable<{
+    connection: string;
+    tool: string;
+  } | null>;
 };

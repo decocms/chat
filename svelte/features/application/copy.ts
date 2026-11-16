@@ -186,6 +186,8 @@ const EN: Readonly<Record<string, string>> = {
   "Não consegui abrir este arquivo.": "Couldn't open this file.",
   Desafixar: "Unpin",
   "Desafixar {name}": "Unpin {name}",
+  App: "App",
+  "abre em nova aba": "opens in a new tab",
   Fixados: "Pinned",
   "Fixar um link": "Pin a link",
   "Cole um link (site, repo, painel…)": "Paste a link (site, repo, dashboard…)",

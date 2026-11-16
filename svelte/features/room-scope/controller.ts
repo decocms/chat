@@ -1,5 +1,5 @@
 import { chatTime, chatDateTime } from "../chat/time";
-import { get, readonly, writable } from "svelte/store";
+import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
 import type { RequestRoomCommand } from "../../roomConnection";
@@ -364,6 +364,15 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       denied: () => authority.deny(),
     },
     clock,
+  );
+  // The app showing in the right pane, for the sidebar's pinned-app highlight.
+  const activePinApp = derived([apps.state, layout.state], ([value, view]) =>
+    value.target &&
+    view.pane === "apps" &&
+    !view.boardFull &&
+    (view.mobile || view.documentVisible)
+      ? value.target
+      : null,
   );
   track(
     authority.listen(() => {
@@ -1068,6 +1077,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             },
             onopenpinapp: (app) =>
               openApp({ connection: app.connectionId, tool: app.tool }),
+            activePinApp,
           },
           header: {
             room: value,
