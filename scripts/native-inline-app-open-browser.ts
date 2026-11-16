@@ -462,6 +462,28 @@ export async function auditInlineAppOpen(
             await quiet();
             assert.equal(meter.initial.mutate_a, 0);
             assert.equal(meter.resources.mutate_a, 0);
+            // The doc can be redrawn right here (a collab status or version
+            // event on a slow runner): the cards then start over, mutate_a asks
+            // again and mutate_b waits behind it, since only one question is
+            // shown at a time. Cancel mutate_a again until mutate_b is asked.
+            for (let attempt = 0; attempt < 5; attempt++) {
+              const asked = await expect(
+                button("mutate_b", /^(Allow|Permitir)$/),
+              )
+                .toBeVisible({ timeout: 5000 })
+                .then(
+                  () => true,
+                  () => false,
+                );
+              if (asked) break;
+              const again = button("mutate_a", /^(Cancel|Cancelar)$/);
+              if (await again.isVisible()) {
+                await again.click();
+                await expect(widget("mutate_a")).toContainText(
+                  /App (?:not opened|não aberto)/,
+                );
+              }
+            }
             await allow("mutate_b");
             await ready("mutate_b");
             assert.equal(meter.initial.mutate_b, 1);
