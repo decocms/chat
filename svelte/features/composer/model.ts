@@ -93,6 +93,13 @@ export function mentionPicks(
         label: "seu agent no sandbox",
         agent: true,
       });
+  // @room calls everyone in the room (the server reads @sala/@todos the same way).
+  people.push({
+    email: "",
+    handle: "room",
+    label: "todos na sala",
+    agent: false,
+  });
   return {
     start: before.length - match[2].length - 1,
     items: people

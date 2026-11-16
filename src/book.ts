@@ -26,7 +26,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, type LanguageModel, Output } from "ai";
 import { z } from "zod";
 import type { Env } from "./index";
-import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, unsubscribeUrl } from "./mentionmail";
+import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, ROOM_TAGS, tagsOf, unsubscribeUrl } from "./mentionmail";
 import { docRoomStub } from "./rooms";
 import { findSecret } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
@@ -747,7 +747,7 @@ export class Book extends DurableObject<Env> {
   // ---- mention emails (src/mentionmail.ts) ----
   /** Someone was @mentioned: email them in MAIL_DELAY_MS unless they read it first. */
   async queueMentions(m: Msg) {
-    const who = mentioned(m.text, await this.members(), await this.names(), m.author);
+    const who = mentioned(m.text, await this.members(), await this.names(), m.author, !m.kind && m.author !== "ai");
     if (!who.length) return;
     const nm = (await this.names())[m.author] || m.author.split("@")[0];
     this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? `agent de ${nm}` : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
@@ -1238,7 +1238,8 @@ export class Book extends DurableObject<Env> {
     const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]/g, "");
     const local = email.split("@")[0];
     const mine = new Set([fold((names[email] ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
-    const mentionsMe = (t: string) => [...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].some((m) => mine.has(fold(m[1])));
+    // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
+    const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     const epics = this.epics().filter((e) => !(Number(e.archived) > 0));
     const rows = this.sql.exec(`SELECT id, thread, author, kind, tag, for_who, text, reply_to FROM messages WHERE id > ? ORDER BY id LIMIT 30`, since).toArray();
     const messages = rows.map((m) => {
@@ -1264,7 +1265,7 @@ export class Book extends DurableObject<Env> {
         tag: (m.tag as string | null) ?? null,
         for_who: (m.for_who as string | null) ?? null,
         text: ((m.text as string | null) ?? "").slice(0, 1500),
-        mentions_you: m.author !== email && mentionsMe((m.text as string | null) ?? ""),
+        mentions_you: m.author !== email && mentionsMe((m.text as string | null) ?? "", !m.kind && m.author !== "ai"),
         recent,
         epic_doc: epic ? (this.get(`doc:${epic.id}`) ?? "").slice(0, 1200) : "",
       };
@@ -1283,7 +1284,8 @@ export class Book extends DurableObject<Env> {
     const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]/g, "");
     const local = email.split("@")[0];
     const mine = new Set([fold((names[email] ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
-    const mentionsMe = (t: string) => [...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].some((m) => mine.has(fold(m[1])));
+    // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
+    const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     // @<sandbox name> in your human's message addresses that one agent; the others leave it alone.
     const toAgents = (t: string) => [...new Set([...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1])).filter((h) => to.agents.includes(h)))];
     const forOther = (t: string) => { const a = toAgents(t); return a.length > 0 && !a.includes(to.me ?? ""); };
@@ -1306,7 +1308,7 @@ export class Book extends DurableObject<Env> {
         thread: threadName(m.thread),
         from: who(m.author),
         by_agent: m.kind === "agent",
-        mentions_you: !!email && m.author !== email && mentionsMe(m.text),
+        mentions_you: !!email && m.author !== email && mentionsMe(m.text, !m.kind && m.author !== "ai"),
         // A reminder file's prompt, posted by @vibe, is the instruction of whoever saved the file.
         from_your_human: mine,
         reminder: m.tag === "reminder" || undefined,

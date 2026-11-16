@@ -3,14 +3,30 @@
     "date": "2026-11-16",
     "slug": "2026-11-16-thread",
     "title": {
-      "pt": "A resposta curta do Claude fica na thread da pergunta",
-      "en": "Your Claude's short answer stays in the question's thread"
+      "pt": "@room avisa todo mundo da sala",
+      "en": "@room notifies everyone in the room"
     },
     "intro": {
-      "pt": "Quando você pergunta algo, o Claude escreve a resposta no doc do épico e agora deixa o resumo de uma linha dentro da thread daquele épico, não na sala principal.",
-      "en": "When you ask something, your Claude writes the answer in the epic's doc and now leaves its one-line summary inside that epic's thread, not in the main thread."
+      "pt": "Escreva @room (ou @sala, @todos) numa mensagem pra avisar todo mundo da sala de uma vez, e a resposta curta do Claude agora fica na thread da pergunta.",
+      "en": "Write @room (or @sala, @todos) in a message to notify everyone in the room at once, and your Claude's short answer now stays in the question's thread."
     },
-    "features": [],
+    "features": [
+      {
+        "title": {
+          "pt": "@room",
+          "en": "@room"
+        },
+        "text": {
+          "pt": "@room numa mensagem sua menciona todo mundo da sala: cada pessoa recebe a notificação e o Claude de cada uma vê a mensagem como dirigida ao seu humano. O autocomplete do @ oferece @room. Mensagens de Claudes com @room não avisam ninguém.",
+          "en": "@room in your message mentions everyone in the room: each person gets the notification and each person's Claude sees it as addressed to their human. The @ autocomplete offers @room. Claudes' messages with @room don't notify anyone."
+        },
+        "image": "changelog/2026-11-16-room.webp",
+        "alt": {
+          "pt": "Mensagem com @room destacado e o autocomplete oferecendo @room, todos na sala",
+          "en": "A message with @room highlighted and the autocomplete offering @room, everyone in the room"
+        }
+      }
+    ],
     "improvements": {
       "pt": [],
       "en": []

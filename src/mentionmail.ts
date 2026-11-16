@@ -14,10 +14,14 @@ export function handles(email: string, name?: string) {
   const local = email.split("@")[0];
   return new Set([fold((name ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
 }
-/** Members mentioned in a text (never the author's own person). */
-export function mentioned(text: string, members: string[], names: Record<string, string>, author: string) {
-  const tags = [...text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1]));
+/** @room (or @sala, @todos) in a person's message calls everyone in the room (Gimenes #2051: announcements). */
+export const ROOM_TAGS = new Set(["room", "sala", "todos"]);
+export const tagsOf = (text: string) => [...text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1]));
+/** Members mentioned in a text (never the author's own person); `room` = @room counts (people's messages only). */
+export function mentioned(text: string, members: string[], names: Record<string, string>, author: string, room = false) {
+  const tags = tagsOf(text);
   if (!tags.length) return [];
+  if (room && tags.some((t) => ROOM_TAGS.has(t))) return members.filter((e) => e !== author);
   return members.filter((e) => e !== author && tags.some((t) => handles(e, names[e]).has(t)));
 }
 

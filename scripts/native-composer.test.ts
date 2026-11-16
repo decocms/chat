@@ -152,7 +152,10 @@ test("mention aliases exclude self, include own sandbox, match labels and cap ei
       { email: r.me, name: "sandbox" },
       { email: "you@test", name: "foreign" },
     ])?.items.map((item) => item.handle),
-  ).toEqual(["jose", "sandbox"]);
+  ).toEqual(["jose", "sandbox", "room"]);
+  expect(mentionPicks("@ro", 3, r)?.items.map((item) => item.handle)).toEqual([
+    "room",
+  ]);
   expect(emojiPicks(":thumbsup:").some((item) => item.emoji === "👍")).toBe(
     true,
   );
@@ -424,7 +427,7 @@ test("partial sandbox metadata cannot throw or insert null handles", () => {
     { email: "me@test", name: "" },
     { email: "me@test", name: "sandbox" },
   ]);
-  expect(picks?.items.map((item) => item.handle)).toEqual(["sandbox"]);
+  expect(picks?.items.map((item) => item.handle)).toEqual(["sandbox", "room"]);
 });
 
 test("origin-only private parents hide replies and invalidate selected reply without losing text", async () => {
