@@ -3140,7 +3140,7 @@ describe("stable native sidebar integration", () => {
     expect(row()?.textContent).toContain("✓✓");
     expect(row()?.textContent).not.toContain("🚀↻");
   });
-  test("selected archived epic remains in normal order with an accent bar and readable cue", async () => {
+  test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
       { id: "a", title: "First", tasks: [] },
@@ -3162,9 +3162,11 @@ describe("stable native sidebar integration", () => {
     const row = h.target.querySelector<HTMLElement>('[data-epic-thread="b"]');
     expect(row !== null).toBe(true);
     expect(row!.textContent).toContain("Arquivado");
-    expect(row!.parentElement!.classList.contains("tw:border-l-primary")).toBe(
+    // Selection is only a background change: no accent bar on the left.
+    expect(row!.parentElement!.classList.contains("tw:bg-sidebar-accent")).toBe(
       true,
     );
+    expect(row!.parentElement!.className).not.toContain("border-l");
     expect(row!.parentElement!.classList.contains("tw:opacity-50")).toBe(false);
     h.view.update({ ...h.props, thread: "main" });
     await tick();
@@ -3215,9 +3217,9 @@ describe("stable native sidebar integration", () => {
     );
     expect(inbox).not.toBeNull();
     expect(inbox!.getAttribute("aria-label")).toBe("Caixa de entrada");
-    expect(inbox!.getAttribute("title")).toBe(
-      "Caixa de entrada: o que espera por você",
-    );
+    // Styled tooltip (bits trigger), not the native title.
+    expect(inbox!.hasAttribute("title")).toBe(false);
+    expect(inbox!.getAttribute("data-state")).toBe("closed");
     expect(inbox!.textContent?.trim()).toBe("2");
     expect(
       inbox!.querySelector('[data-wait-kind="asks"]')?.textContent?.trim(),
