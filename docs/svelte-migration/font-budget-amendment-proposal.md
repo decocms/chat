@@ -6,7 +6,7 @@ The proposed tradeoff is to preserve the exact frozen Studio normal/italic Inter
 
 ## Evidence and reason
 
-The retained [14646bc run](https://github.com/vibegui/vibebook.dev/actions/runs/43665138953) completed all 32 original trials: one warmup and seven measured trials per variant/device, plus four separate diagnostic trials excluded from acceptance. Performance acceptance failed 12 of 16 budgets. Its fourteen measured native trials each recorded exactly three distinct cold font requests once, all completed HTTP 200, with no cache hits or duplicate URLs. Each trial transferred 826,876 bytes. [The evidence receipt](font-budget-proposal/146-evidence.md) and [machine audit](font-budget-proposal/146-font-audit.json) preserve every one of those 42 request records and identify the full original artifact by hash.
+The retained [14646bc run](https://github.com/decocms/chat/actions/runs/43665138953) completed all 32 original trials: one warmup and seven measured trials per variant/device, plus four separate diagnostic trials excluded from acceptance. Performance acceptance failed 12 of 16 budgets. Its fourteen measured native trials each recorded exactly three distinct cold font requests once, all completed HTTP 200, with no cache hits or duplicate URLs. Each trial transferred 826,876 bytes. [The evidence receipt](font-budget-proposal/146-evidence.md) and [machine audit](font-budget-proposal/146-font-audit.json) preserve every one of those 42 request records and identify the full original artifact by hash.
 
 | Exact frozen Studio face | File bytes | Observed cold transfer per native trial |
 | --- | ---: | ---: |

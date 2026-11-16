@@ -1,6 +1,6 @@
 # Current complete controlled benchmark: budgets failed
 
-[Run 43623490530](https://github.com/vibegui/vibebook.dev/actions/runs/43623490530)
+[Run 43623490530](https://github.com/decocms/chat/actions/runs/43623490530)
 tests source `366450e14a641f38d529150bd7174b6648a5e0be` directly.
 All original 32 trials complete; **12 of 16 budget comparisons fail**.
 Original reports, raw samples, build attribution and module metadata are copied

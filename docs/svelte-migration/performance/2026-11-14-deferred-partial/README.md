@@ -1,6 +1,6 @@
 # Deferred-view performance checkpoint
 
-[Run 43575726103](https://github.com/vibegui/vibebook.dev/actions/runs/43575726103)
+[Run 43575726103](https://github.com/decocms/chat/actions/runs/43575726103)
 failed at head `06b0a7e`, merge revision
 `5d9160f5202381e36108cbeb7ac75869c9b49ac5`. Uploaded metrics and report are
 retained unchanged, including every warmup and failure. The initial native

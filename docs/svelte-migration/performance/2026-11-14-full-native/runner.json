@@ -1,7 +1,7 @@
 {
   "workflow": "Controlled frontend performance",
   "run": 43585038355,
-  "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43585038355",
+  "url": "https://github.com/decocms/chat/actions/runs/43585038355",
   "sourceHead": "b292537c75aa95a1cfff3a8acd46aecabefc5fdf",
   "artifact": "frontend-performance-b22c5089863df87092cdbd85cad9118d3fd9248f",
   "execution": "success",

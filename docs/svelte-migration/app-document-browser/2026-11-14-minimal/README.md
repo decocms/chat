@@ -1,6 +1,6 @@
 # Initial document-channel Chromium checkpoint
 
-[Run 43574560640](https://github.com/vibegui/vibebook.dev/actions/runs/43574560640)
+[Run 43574560640](https://github.com/decocms/chat/actions/runs/43574560640)
 passed at PR head `e0920ba`, merge revision
 `32d59ad91b7bb873023aa7999e12c891605d92f3`. The unchanged synthetic result
 records an authorized private reply delivered as a real browser MessageEvent

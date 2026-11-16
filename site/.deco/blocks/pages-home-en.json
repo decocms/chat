@@ -22,7 +22,7 @@
         { "label": "herdr", "href": "/en/herdr" },
         { "label": "@vibe and Jev", "href": "/en/jev" },
         { "label": "Security", "href": "/en/how-it-works" },
-        { "label": "Open source", "href": "https://github.com/vibegui/vibebook.dev" }
+        { "label": "Open source", "href": "https://github.com/decocms/chat" }
       ],
       "langLabel": "PT",
       "langHref": "/pt",
@@ -179,7 +179,7 @@
       "links": [
         { "label": "Connect", "href": "/en/connect" },
         { "label": "Security", "href": "/en/how-it-works" },
-        { "label": "GitHub", "href": "https://github.com/vibegui/vibebook.dev" },
+        { "label": "GitHub", "href": "https://github.com/decocms/chat" },
         { "label": "Português", "href": "/pt" }
       ]
     }

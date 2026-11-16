@@ -1,6 +1,6 @@
 # Fully native desktop performance: partial failed run
 
-[GitHub run 43563593700](https://github.com/vibegui/vibebook.dev/actions/runs/43563593700)
+[GitHub run 43563593700](https://github.com/decocms/chat/actions/runs/43563593700)
 used harness and served source revision
 `bc66f233f03d3a4c4e2875e1d111ea012a1768aa`. Both desktop warmups and seven
 alternating measured runs per variant completed. The first mobile vanilla

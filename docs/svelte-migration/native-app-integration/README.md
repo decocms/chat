@@ -6,13 +6,13 @@ code. Remaining source ports require a fresh build and their own verification.
 
 ## Opt-in release checkpoint
 
-[PR #1](https://github.com/vibegui/vibebook.dev/pull/1) is open. The complete
+[PR #1](https://github.com/decocms/chat/pull/1) is open. The complete
 repository check passed at `5e557cd` in
-[GitHub CI](https://github.com/vibegui/vibebook.dev/actions/runs/43520656881).
+[GitHub CI](https://github.com/decocms/chat/actions/runs/43520656881).
 At `112e264`, the expanded Linux/macOS matrix passes on Linux but fails one
 negative file-serving case on macOS. The ancestor-alias fix at `653fb23` then
 passes the complete repository check on both systems in
-[CI run 43528056645](https://github.com/vibegui/vibebook.dev/actions/runs/43528056645).
+[CI run 43528056645](https://github.com/decocms/chat/actions/runs/43528056645).
 
 The production Vite build at `112e264` passed (1,054 modules, 2m 2s). Its generated
 public assets are byte-identical to the committed preview assets. The path-policy

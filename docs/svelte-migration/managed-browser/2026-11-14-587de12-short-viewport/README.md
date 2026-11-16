@@ -1,7 +1,7 @@
 # Short-phone viewport failure at 587de12
 
 Exact source/tested revision: `587de122b2adc716a9a728f57c1992744bcd69e5`.
-[Complete managed browser run](https://github.com/vibegui/vibebook.dev/actions/runs/43642706812)
+[Complete managed browser run](https://github.com/decocms/chat/actions/runs/43642706812)
 fails the independent profile audit. The earlier R2 Viewer phase now passes, as
 do the other core phases, lifecycle checks and independent App authority audits.
 This is a failed overall run, not final acceptance.

@@ -1,6 +1,6 @@
 # Passing document-bound HTTP transport
 
-[Run 43588998458](https://github.com/vibegui/vibebook.dev/actions/runs/43588998458)
+[Run 43588998458](https://github.com/decocms/chat/actions/runs/43588998458)
 passes at exact source head `e7b9263e784993cb5f11921110cc0c8c27f29908`.
 The three original JSON reports are retained unchanged; `runner.json` records
 their byte counts and SHA-256 identities.

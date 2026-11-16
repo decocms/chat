@@ -1,7 +1,7 @@
 # Retained real-Worker browser failure at 649f773
 
 Exact source/tested revision: `649f77367198dc45db82ad29dc4f6864207fdb33`.
-[Managed browser run](https://github.com/vibegui/vibebook.dev/actions/runs/43641405175)
+[Managed browser run](https://github.com/decocms/chat/actions/runs/43641405175)
 failed after four passing phases, while asserting the actual R2 file contents in
 the native Viewer (`native-application-browser.ts:998`). The phase timed out after
 60,112ms; no page errors were recorded. The newly added twelve-profile audit was

@@ -130,7 +130,7 @@ ${r.fixes?.[lang].length ? `  <h4>${g(T.fix)}</h4>${list(r.fixes)}` : ""}
 ${body}
 </main>
 </div>
-<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/vibegui/vibebook.dev" rel="noopener">GitHub</a></span></div></footer>
+<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
 <script>${JS}</script>
 </body>
 </html>

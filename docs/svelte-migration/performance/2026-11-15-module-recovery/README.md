@@ -8,8 +8,8 @@ Fresh metadata-only builds ran at frozen source revisions:
 
 | Original cohort | Rebuilt source | Successful workflow |
 | --- | --- | --- |
-| Deployed-source control | `3a73dffaf9fe3ff66045c08515a50714fc89060a` | [43676600858](https://github.com/vibegui/vibebook.dev/actions/runs/43676600858) |
-| Semantic-parser/geometry candidate | `60bb255a9941489ff20f664a7a1bb8a464001c93` | [43676613408](https://github.com/vibegui/vibebook.dev/actions/runs/43676613408) |
+| Deployed-source control | `3a73dffaf9fe3ff66045c08515a50714fc89060a` | [43676600858](https://github.com/decocms/chat/actions/runs/43676600858) |
+| Semantic-parser/geometry candidate | `60bb255a9941489ff20f664a7a1bb8a464001c93` | [43676613408](https://github.com/decocms/chat/actions/runs/43676613408) |
 
 The unchanged `scripts/ui-chunk-attribution.ts` validator, run with pinned
 Bun 1.4.4, accepted both rebuilt Svelte reports against each original metrics

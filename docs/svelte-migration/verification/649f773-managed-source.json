@@ -3,7 +3,7 @@
   "environment": "GitHub Actions ubuntu-24.04, pinned Node22.23.5 / Bun1.4.4",
   "run": 43641403518,
   "job": 132589567884,
-  "url": "https://github.com/vibegui/vibebook.dev/actions/runs/43641403518",
+  "url": "https://github.com/decocms/chat/actions/runs/43641403518",
   "build": {
     "command": "bun run build:ui",
     "exitCode": 0,

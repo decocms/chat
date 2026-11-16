@@ -1,7 +1,7 @@
 # Performance evidence at dfbdbdc
 
 Exact source/tested revision: `dfbdbdc8f433ad07a6dd999a1e99f69e0e8352f0`.
-[GitHub run 43654920935](https://github.com/vibegui/vibebook.dev/actions/runs/43654920935).
+[GitHub run 43654920935](https://github.com/decocms/chat/actions/runs/43654920935).
 
 All 32 original workload trials complete successfully: one warmup and seven repetitions per variant/device. Acceptance fails **12 of 16 unchanged budgets**. Readiness, thread switch, first history load, application gzip, font transfer and post-GC heap fail on both devices. Second/third history loads pass. This report predates removal of continuous Fire and the ordinary-dictation follow-up; it does not measure that later source.
 

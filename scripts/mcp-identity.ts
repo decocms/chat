@@ -132,8 +132,8 @@ const T = {
   copyCode: { pt: "Copiar código", en: "Copy code" },
   src: { pt: "Confira no código", en: "Check it in the code" },
   srcL: {
-    pt: '<li><a href="https://github.com/vibegui/vibebook.dev/blob/main/src/mcpauth.ts" rel="noopener">src/mcpauth.ts</a>: como o token é feito e o login por pessoa.</li><li><a href="https://github.com/vibegui/vibebook.dev/blob/main/src/mcpconn.ts" rel="noopener">src/mcpconn.ts</a>: onde ele vai em cada chamada.</li>',
-    en: '<li><a href="https://github.com/vibegui/vibebook.dev/blob/main/src/mcpauth.ts" rel="noopener">src/mcpauth.ts</a>: how the token is made, and the per-person sign-in.</li><li><a href="https://github.com/vibegui/vibebook.dev/blob/main/src/mcpconn.ts" rel="noopener">src/mcpconn.ts</a>: where it goes on every call.</li>',
+    pt: '<li><a href="https://github.com/decocms/chat/blob/main/src/mcpauth.ts" rel="noopener">src/mcpauth.ts</a>: como o token é feito e o login por pessoa.</li><li><a href="https://github.com/decocms/chat/blob/main/src/mcpconn.ts" rel="noopener">src/mcpconn.ts</a>: onde ele vai em cada chamada.</li>',
+    en: '<li><a href="https://github.com/decocms/chat/blob/main/src/mcpauth.ts" rel="noopener">src/mcpauth.ts</a>: how the token is made, and the per-person sign-in.</li><li><a href="https://github.com/decocms/chat/blob/main/src/mcpconn.ts" rel="noopener">src/mcpconn.ts</a>: where it goes on every call.</li>',
   },
   home: { pt: "Início", en: "Home" }, sec: { pt: "Segurança", en: "Security" }, signin: { pt: "Entrar", en: "Sign in" },
 };
@@ -210,7 +210,7 @@ function page(lang: Lang) {
 
 </div></main>
 
-<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/vibegui/vibebook.dev" rel="noopener">GitHub</a></span></div></footer>
+<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
 <script>
 document.querySelectorAll(".copy").forEach((b) => b.addEventListener("click", () => {
   navigator.clipboard?.writeText(document.getElementById(b.dataset.copyFrom)?.textContent ?? "");

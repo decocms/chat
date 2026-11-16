@@ -1,6 +1,6 @@
 # Actual integrated application run 8: partial proof, overall failure
 
-[GitHub run 43563524139](https://github.com/vibegui/vibebook.dev/actions/runs/43563524139) tested PR head `743a4e0d15e491714afc8e82fe22eb630db31e0d`; the runner reports GitHub merge revision `bc66f233f03d3a4c4e2875e1d111ea012a1768aa`. Chromium was `158.0.8127.18`. These JSON files are the actual downloaded safe artifacts, without regenerated or fabricated observations.
+[GitHub run 43563524139](https://github.com/decocms/chat/actions/runs/43563524139) tested PR head `743a4e0d15e491714afc8e82fe22eb630db31e0d`; the runner reports GitHub merge revision `bc66f233f03d3a4c4e2875e1d111ea012a1768aa`. Chromium was `158.0.8127.18`. These JSON files are the actual downloaded safe artifacts, without regenerated or fabricated observations.
 
 Loaded entry SHA-256: `7fb704c8fd9b4efa36bcbc6856f3bbbb18075bc29bf8a74b9d1992946e7cb01b`. CSS SHA-256: `9da04f91a424416b34315e689a479b389d65cc4892baca1d08c4073f7d052dad`. Worker shell/Me version: `e50676b1ab8553db940f3d15858a8f82`.
 

@@ -5,7 +5,7 @@ One Claude Code per vibebook room, as herdr workspaces. Switch **✻ Ligar Claud
 listening to the room; switch it off and it closes (the conversation is kept to resume).
 
 ```sh
-herdr plugin install vibegui/vibebook.dev/herdr-plugin
+herdr plugin install decocms/chat/herdr-plugin
 ```
 
 - **Runner tab.** When herdr starts, the plugin opens a `vibebook` tab running `vibebook herdr` (one per machine;

@@ -1,7 +1,7 @@
 # Integrated main checkpoint, not final acceptance
 
-[Integrated native application run 43614897139](https://github.com/vibegui/vibebook.dev/actions/runs/43614897139)
-and [App document transport run 43614897120](https://github.com/vibegui/vibebook.dev/actions/runs/43614897120)
+[Integrated native application run 43614897139](https://github.com/decocms/chat/actions/runs/43614897139)
+and [App document transport run 43614897120](https://github.com/decocms/chat/actions/runs/43614897120)
 pass at PR head `64fd62a`, tested as merge `8a7351e269d8bd9bb3f6837d604637fe5e372d33`.
 Main through `f07d6a2` is included. The original JSON is copied unchanged;
 [provenance.json](provenance.json) records exact identities and SHA-256 hashes.
