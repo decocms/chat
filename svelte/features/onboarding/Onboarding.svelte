@@ -157,6 +157,7 @@
           >{#if $account.me?.avatar}<Avatar
               name={$account.me.name || $account.me.email}
               src={`/api/avatar/${encodeURIComponent($account.me.email)}?v=${$account.me.avatar}`}
+              seed={$account.me.email}
             />{/if}{text($account.me?.avatar ? "changePhoto" : "photo")}</Button
         ><input
           bind:this={photo}

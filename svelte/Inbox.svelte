@@ -207,6 +207,7 @@
                   {:else}<Avatar
                       name={author(wait.author, wait.author_name)}
                       src={avatarUrl?.(wait.author)}
+                      seed={wait.author}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
@@ -285,6 +286,7 @@
                     />{:else}<Avatar
                       name={author(m.author, m.author_name)}
                       src={avatarUrl?.(m.author)}
+                      seed={m.author}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"

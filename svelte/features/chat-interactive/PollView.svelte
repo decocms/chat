@@ -107,6 +107,7 @@
               ><Avatar
                 name={vb.name(email)}
                 src={vb.avatarUrl?.(email)}
+                seed={email}
                 class="tw:size-6 tw:text-[10px]"
               /></span
             >{/each}</span

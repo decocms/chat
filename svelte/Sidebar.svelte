@@ -135,6 +135,7 @@
           />{:else}<Avatar
             name={epic.owner ? vb.name(epic.owner) : epic.title}
             src={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+            seed={epic.owner || epic.title}
           />{/if}{#if epic.tasks.length}<Progress
             value={epic.tasks.filter((task) => task.done).length}
             max={epic.tasks.length}
@@ -162,7 +163,11 @@
         class={room.online.includes(email)
           ? "tw:rounded-full tw:ring-2 tw:ring-success"
           : "tw:rounded-full"}
-        ><Avatar name={vb.name(email)} src={vb.avatarUrl?.(email)} /></span
+        ><Avatar
+          name={vb.name(email)}
+          src={vb.avatarUrl?.(email)}
+          seed={email}
+        /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
   {:else}

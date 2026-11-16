@@ -103,6 +103,7 @@
       />{:else}<Avatar
         name={title}
         src={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+        seed={epic?.owner || title}
       />{/if}</span
   >
   <Heading level={2} class="tw:min-w-0 tw:overflow-hidden"

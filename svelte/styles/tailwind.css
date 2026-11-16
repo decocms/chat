@@ -195,6 +195,16 @@
   --vb-room-cover-6: oklch(0.36 0.06 255);
   --vb-room-cover-7: oklch(0.55 0.16 10);
   --vb-room-cover-foreground: #fff;
+  /* Person avatars without a picture: the same palette and order as vanilla COLORS, in both themes. */
+  --vb-avatar-0: #ff5a36;
+  --vb-avatar-1: #1f9d8a;
+  --vb-avatar-2: #3b6cf6;
+  --vb-avatar-3: #c2410c;
+  --vb-avatar-4: #9333ea;
+  --vb-avatar-5: #0f766e;
+  --vb-avatar-6: #be185d;
+  --vb-avatar-7: #4d7c0f;
+  --vb-avatar-foreground: #fff;
   /* Room tints, as vanilla .sw-group[data-tint]. */
   --vb-room-tint-blue: oklch(0.6 0.15 248);
   --vb-room-tint-green: oklch(0.62 0.14 155);
@@ -497,6 +507,15 @@
   --color-room-cover-6: var(--vb-room-cover-6);
   --color-room-cover-7: var(--vb-room-cover-7);
   --color-room-cover-foreground: var(--vb-room-cover-foreground);
+  --color-avatar-0: var(--vb-avatar-0);
+  --color-avatar-1: var(--vb-avatar-1);
+  --color-avatar-2: var(--vb-avatar-2);
+  --color-avatar-3: var(--vb-avatar-3);
+  --color-avatar-4: var(--vb-avatar-4);
+  --color-avatar-5: var(--vb-avatar-5);
+  --color-avatar-6: var(--vb-avatar-6);
+  --color-avatar-7: var(--vb-avatar-7);
+  --color-avatar-foreground: var(--vb-avatar-foreground);
   --color-room-tint-blue: var(--vb-room-tint-blue);
   --color-room-tint-green: var(--vb-room-tint-green);
   --color-room-tint-yellow: var(--vb-room-tint-yellow);

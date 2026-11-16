@@ -382,7 +382,7 @@
 {#snippet member(email: string)}
   <div class="tw:space-y-2">
     <div class="tw:flex tw:items-start tw:gap-2" data-person={email}>
-      <Avatar name={vb.name(email)} src={avatarUrl(email)} />
+      <Avatar name={vb.name(email)} src={avatarUrl(email)} seed={email} />
       <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
         <p
           class="tw:m-0 tw:break-words tw:text-sm tw:font-medium"
@@ -469,6 +469,7 @@
           <Avatar
             name={access.name || access.email}
             src={avatarUrl(access.email)}
+            seed={access.email}
           />
           <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
             <p class="tw:m-0 tw:break-words tw:font-medium">
@@ -573,6 +574,7 @@
     {#if friends.includes(email) || room.names?.[email]}<Avatar
         name={label(email)}
         src={avatarUrl(email)}
+        seed={email}
       />{:else}{@render mailAvatar()}{/if}
     <span class="tw:min-w-0 tw:flex-1">
       <span class="tw:block tw:truncate tw:font-medium">{label(email)}</span>
@@ -703,6 +705,7 @@
                 {#if friends.includes(email)}<Avatar
                     name={label(email)}
                     src={avatarUrl(email)}
+                    seed={email}
                     px={24}
                     class="tw:text-[0.625rem]"
                   />{:else}<span
@@ -791,7 +794,11 @@
               data-invite-member={memberRow}
               class="tw:flex tw:items-center tw:gap-3 tw:rounded-control tw:px-2 tw:py-2"
             >
-              <Avatar name={label(memberRow)} src={avatarUrl(memberRow)} />
+              <Avatar
+                name={label(memberRow)}
+                src={avatarUrl(memberRow)}
+                seed={memberRow}
+              />
               <span class="tw:min-w-0 tw:flex-1">
                 <span class="tw:block tw:truncate tw:font-medium"
                   >{label(memberRow)}</span
@@ -840,7 +847,11 @@
                   onclick={() => pick(row.email)}
                   onkeydown={(event) => optionKey(event, row.email)}
                 >
-                  <Avatar name={row.name} src={avatarUrl(row.email)} />
+                  <Avatar
+                    name={row.name}
+                    src={avatarUrl(row.email)}
+                    seed={row.email}
+                  />
                   <span class="tw:min-w-0 tw:flex-1">
                     <span class="tw:block tw:truncate tw:font-medium"
                       >{@render marked(row.name, row.nameMatch)}</span

@@ -151,6 +151,7 @@
                   src={$view.me.avatar
                     ? `/api/avatar/${encodeURIComponent($view.me.email)}?v=${$view.me.avatar}`
                     : undefined}
+                  seed={$view.me.email}
                   class="tw:size-12"
                 />
                 <div class="tw:min-w-0 tw:break-words">
@@ -364,6 +365,7 @@
                         src={friend.avatar
                           ? `/api/avatar/${encodeURIComponent(friend.email)}?v=${friend.avatar}`
                           : undefined}
+                        seed={friend.email}
                       />
                       <div class="tw:min-w-0 tw:flex-1 tw:break-words">
                         <p>{friend.name || friend.email}</p>

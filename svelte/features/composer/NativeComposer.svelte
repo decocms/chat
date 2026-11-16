@@ -632,6 +632,7 @@
             />{:else}<Avatar
               name={vb.name(item.email)}
               src={vb.avatarUrl?.(item.email)}
+              seed={item.email}
               px={24}
             />{/if}<b>@{item.handle}</b><small class="tw:text-muted-foreground"
             >{vb.t(item.label)}</small
