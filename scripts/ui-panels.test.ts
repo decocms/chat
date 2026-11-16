@@ -3121,24 +3121,18 @@ describe("stable native sidebar integration", () => {
       true,
     );
   });
-  test("selected main-thread count uses the secondary surface foreground", async () => {
+  test("the room title is plain text and only the pencil is a button", async () => {
     const room = fixture();
     const h = sidebar(room, { thread: "main" });
-    const selected = h.target.querySelector<HTMLButtonElement>(
-      "button.tw\\:bg-secondary",
-    );
-    expect(selected).not.toBeNull();
-    const count = selected!.querySelector<HTMLElement>(
-      ":scope > span:last-child",
-    );
-    expect(count).not.toBeNull();
-    expect(count!.classList.contains("tw:text-secondary-foreground")).toBe(
-      true,
-    );
-    expect(count!.classList.contains("tw:text-muted-foreground")).toBe(false);
-    h.view.update({ ...h.props, thread: "e" });
-    await tick();
-    flushSync();
+    const title = h.target.querySelector<HTMLElement>("[data-room-title]");
+    expect(title).not.toBeNull();
+    expect(title!.querySelector("button, a, [role='button']")).toBeNull();
+    expect(title!.textContent).toContain(room.book.title);
+    const row = title!.parentElement!;
+    const buttons = [...row.querySelectorAll("button")];
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]!.getAttribute("aria-label")).toBe("Renomear");
+    const count = title!.querySelector<HTMLElement>(":scope > span:last-child");
     expect(count!.classList.contains("tw:text-muted-foreground")).toBe(true);
   });
   test("epic and rail indicators count asks only and keep canonical task-only waits as a dot", async () => {
