@@ -184,14 +184,11 @@
           >{#snippet children(row)}
             <article
               data-room-inbox-message
-              class={[
-                "tw:rounded-surface tw:border tw:border-border tw:p-2",
-                row.kind !== "mention" && "tw:bg-warning/10",
-              ]}
+              class="tw:rounded-surface tw:bg-card tw:p-1 tw:shadow-edge"
             >
               <Button
                 variant="ghost"
-                class="tw:h-auto tw:w-full tw:items-start tw:justify-start tw:gap-3 tw:whitespace-normal tw:p-2 tw:text-left"
+                class="tw:h-auto tw:w-full tw:items-start tw:justify-start tw:gap-3 tw:rounded-lg tw:p-2 tw:text-left tw:font-normal tw:leading-5 tw:whitespace-normal"
                 onclick={(event) => {
                   if (event.currentTarget.isConnected) go(row);
                 }}
@@ -209,18 +206,23 @@
                   />{/if}
                 <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
                   <span
-                    ><strong>{name(row)}</strong>
-                    <span class="tw:text-xs">{when(row.ts)}</span></span
+                    ><strong class="tw:font-medium">{name(row)}</strong>
+                    <span class="tw:text-xs tw:text-muted-foreground"
+                      >{when(row.ts)}</span
+                    ></span
                   >
                   {#if row.kind !== "mention"}<span
-                      class="tw:text-xs tw:font-semibold"
-                      >{t(
+                      class="tw:inline-flex tw:items-center tw:gap-1.5 tw:text-xs tw:font-medium tw:text-foreground"
+                      ><span
+                        aria-hidden="true"
+                        class="tw:size-1.5 tw:rounded-full tw:bg-brand"
+                      ></span>{t(
                         row.kind === "ask"
                           ? "esperando você"
                           : "seu Claude espera você",
                       )}</span
                     >{/if}
-                  <span class="tw:text-xs"
+                  <span class="tw:text-xs tw:text-muted-foreground"
                     >{$inbox.all ? `${row.room} › ` : ""}{topic(row) ||
                       t("épico")}</span
                   >
@@ -233,6 +235,7 @@
               {#if row.wait?.ref.startsWith("m")}<Button
                   size="sm"
                   variant="outline"
+                  class="tw:mb-1 tw:ml-[52px]"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && row.wait)
                       void resolve(row.wait);
@@ -282,7 +285,7 @@
                   >{t("revisar")}</Badge
                 ><Button
                   variant="ghost"
-                  class="tw:h-auto tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left"
+                  class="tw:h-auto tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left tw:rounded-lg tw:font-normal"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && current())
                       owner.openWait(opening, row);
@@ -304,7 +307,7 @@
             >{#snippet children(row)}<Button
                 variant="ghost"
                 size="sm"
-                class="tw:h-auto tw:p-0 tw:text-left"
+                class="tw:h-auto tw:p-0 tw:text-left tw:rounded-lg tw:font-normal"
                 onclick={(event) => {
                   if (event.currentTarget.isConnected && current())
                     owner.openTask(opening, row);
@@ -326,7 +329,7 @@
                   >{status(row.status)}</Badge
                 ><Button
                   variant="ghost"
-                  class="tw:h-auto tw:min-w-0 tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left"
+                  class="tw:h-auto tw:min-w-0 tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left tw:rounded-lg tw:font-normal"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && current())
                       owner.openTask(opening, row);
