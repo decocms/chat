@@ -21,9 +21,10 @@
   <Button
     variant="ghost"
     size="sm"
+    class="tw:min-w-0 tw:shrink!"
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
-    }}>{homeText(lang, "home")}</Button
+    }}><span class="tw:truncate">{homeText(lang, "home")}</span></Button
   >{#each recentRooms($personal.me?.books ?? []).slice(0, 3) as room (room.id)}<RoomTile
       {room}
       {lang}

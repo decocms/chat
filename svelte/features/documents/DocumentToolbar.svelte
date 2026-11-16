@@ -100,13 +100,13 @@
 
 <div
   data-vb-native
-  class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:bg-background tw:p-2 tw:font-sans tw:text-foreground"
+  class="tw:flex tw:min-w-0 tw:items-start tw:gap-2 tw:border-b tw:border-border tw:bg-background tw:p-2 tw:font-sans tw:text-foreground"
 >
   <div
     role={compact ? "toolbar" : "tablist"}
     aria-label={en ? "Room panels" : "Painéis da sala"}
     onkeydown={key}
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-1 tw:overflow-x-auto"
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:gap-1"
   >
     {#each items as item}<Button
         size="sm"
