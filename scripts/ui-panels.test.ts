@@ -4003,6 +4003,11 @@ describe("stable native sidebar integration", () => {
       expect(unpin.className).toContain("tw:opacity-0");
       expect(unpin.className).toContain("tw:group-hover:opacity-100");
       expect(unpin.className).toContain("tw:group-focus-within:opacity-100");
+      // Whenever the button shows, the label reserves its width so a long name truncates before it.
+      const label = row(id).querySelector<HTMLElement>("[data-pin-text]")!;
+      expect(label.className).toContain("tw:group-hover:pr-7");
+      expect(label.className).toContain("tw:group-focus-within:pr-7");
+      expect(label.className).toContain("tw:[@media(hover:none)]:pr-7");
     }
 
     open.set({ connection: "123456abcdef", tool: "router" });

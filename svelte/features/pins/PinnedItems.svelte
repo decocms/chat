@@ -184,8 +184,10 @@
   }
 </script>
 
+<!-- The unpin button floats over the row's end; whenever it shows, the label reserves its width so long names end in an ellipsis instead of under it. -->
 {#snippet text(label: string, detail: string)}<span
-    class="tw:min-w-0 tw:flex-1 tw:text-left"
+    class="tw:min-w-0 tw:flex-1 tw:text-left tw:group-hover:pr-7 tw:group-focus-within:pr-7 tw:[@media(hover:none)]:pr-7"
+    data-pin-text
     ><span class="tw:block tw:truncate">{label}</span><span
       class="tw:block tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
       >{detail}</span
