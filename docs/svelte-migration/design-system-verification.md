@@ -21,13 +21,13 @@ The local Linux process regression `bun test scripts/managed-browser-phase.test.
 
 ## Manual branch verification before workflow registration
 
-The existing registered `native-application-browser.yml` also exposes a closed manual `suite` choice: `application` (default) or `design-system`. A reviewed branch can request the fixed design-system runner through that registered workflow before the dedicated new workflow reaches the default branch:
+The design-system suite is a step of the `browser-ui` job in `ci.yml`. It runs on pushes to `main` and on demand for a reviewed branch; pull requests run only the fast `verify` job:
 
 ```sh
-gh workflow run native-application-browser.yml --ref <reviewed-branch> -f suite=design-system
+gh workflow run ci.yml --ref <reviewed-branch>
 ```
 
-Push/PR and default manual runs retain the application command, original artifact name/path, concurrency group and 20-minute job deadline. Only an explicit design-system dispatch selects its fixed command, separate artifact directory/name and concurrency suffix, and a 30-minute job deadline for its two bounded phases. Arbitrary script names or shell text are never accepted as input. The two suites cannot cancel or overwrite each other on the same ref. This is orchestration registration, not browser acceptance: verify the actual API dispatch and retain the resulting exact-source phase artifacts before recording a pass. The dedicated workflow remains the automatic PR/main path after registration.
+The step runs the fixed design-system runner (`bun scripts/native-application-ci.ts --suite design-system`) and retains its evidence in the `browser-ui-<sha>` artifact. Arbitrary script names or shell text are never accepted as input.
 
 ## Actual managed execution at d62c874
 

@@ -1,0 +1,125 @@
+name: CI
+
+# Pull requests run `verify` (types, lint, unit and DOM tests): about a minute.
+# The real-browser suites (Chromium against a local Worker) run on main and on
+# demand ("Run workflow" on any branch), where they do not hold up a merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Build the opt-in preview
+        id: preview
+        run: bun run build:ui
+      - name: Every repository gate
+        run: bun scripts/check-ci.ts
+      - name: Checked-in preview matches the build
+        if: ${{ always() && steps.preview.outcome == 'success' }}
+        run: git diff --exit-code -- public/app-svelte.html public/svelte-preview/ public/sw.js
+
+  # The real Worker, Book, D1, R2 and NativeApplication cohort (the long one).
+  browser-app:
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      TEST_APP_REVISION: ${{ github.sha }}
+      TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/native-application-browser/report
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          browser: "true"
+      - run: bun run build:ui
+      - run: bun run build:mcp
+      - run: bun run test:native-application:ci
+      - name: Retain safe browser evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-application-browser-${{ github.sha }}
+          path: ${{ env.TEST_OUTPUT_DIR }}/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # Room layout, app-document transport and the Studio / design-system gallery.
+  # Each step runs even if an earlier one failed, so one run reports all three.
+  browser-ui:
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          browser: "true"
+      - run: bun run build:ui
+      - run: bun run build:mcp
+      - name: Room layout
+        run: bun run test:room-layout:browser
+        env:
+          TEST_PUBLIC_ROOT: ${{ github.workspace }}/public
+          TEST_APP_REVISION: ${{ github.sha }}
+          TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/room-layout-browser
+      - name: App document transport
+        if: ${{ !cancelled() }}
+        run: bun run test:app-document:browser
+        env:
+          TEST_REVISION: ${{ github.sha }}
+          TEST_OUTPUT: ${{ github.workspace }}/.artifacts/app-document
+      - name: Design system and Studio
+        if: ${{ !cancelled() }}
+        run: bun scripts/native-application-ci.ts --suite design-system
+        env:
+          CI: "true"
+          TEST_APP_REVISION: ${{ github.sha }}
+          TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/design-system-browser/report
+      - name: Retain browser evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-ui-${{ github.sha }}
+          path: |
+            .artifacts/room-layout-browser/
+            .artifacts/app-document/results.json
+            .artifacts/app-document/adversarial/results.json
+            .artifacts/app-document/file-post/results.json
+            .artifacts/design-system-browser/report/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # The one check to require: green when verify (and, where they ran, the
+  # browser jobs) passed. Jobs that did not run (pull requests) count as fine.
+  ci:
+    if: ${{ always() }}
+    needs: [verify, browser-app, browser-ui]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
