@@ -1,6 +1,6 @@
 <script lang="ts" module>
-  // Vanilla `color(email)` in public/app.html: same palette, order and hash, so a person
-  // without a picture gets the same color in both UIs.
+  // Vanilla `color(email)` in public/app.html: same order and hash, so a person without a
+  // picture gets the same hue in both UIs (tokens darkened for contrast, see tailwind.css).
   const AVATAR_CLASSES = [
     "tw:bg-avatar-0",
     "tw:bg-avatar-1",
