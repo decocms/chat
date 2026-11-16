@@ -77,3 +77,15 @@ export function inviteMessage(
   const url = `${origin}/b/${room.id}`;
   return `${t('Te convidei pro vibebook "{title}": {url}', { title: room.book.title, url })}\n\n${t("1. Entra com {email} (o convite chegou nesse email).", { email })}\n${t("2. Manda isto pro seu Claude Code:")}\n\nRead ${origin}/llms.txt and set up vibebook for this project. Room: ${url}`;
 }
+/** The room link for anyone, with no email: they open it and ask to come in (a member lets them in). */
+export function shareMessage(
+  room: PeopleRoom,
+  origin: string,
+  t: (text: string, vars?: Record<string, string | number>) => string,
+) {
+  const url = `${origin}/b/${room.id}`;
+  return `${t('Te convidei pro vibebook "{title}": {url}', { title: room.book.title, url })}\n\n${t("1. Abre o link, entra com seu email e pede pra entrar: alguém da sala libera.")}\n${t("2. Manda isto pro seu Claude Code:")}\n\nRead ${origin}/llms.txt and set up vibebook for this project. Room: ${url}`;
+}
+/** WhatsApp's own share link: it opens the app (or web) with the text ready and lets the person pick the chat. */
+export const whatsappLink = (text: string) =>
+  `https://wa.me/?text=${encodeURIComponent(text)}`;

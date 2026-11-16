@@ -73,5 +73,14 @@ export const iconPaths = {
     "M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0",
   ],
   moon: ["M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13"],
+  mail: [
+    "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z",
+    "m3.5 6.5 8.5 6 8.5-6",
+  ],
+  /** A chat bubble with a handset: the generic "message on WhatsApp" mark, drawn in the set's stroke style. */
+  whatsapp: [
+    "M3 21l1.6-4.6A9 9 0 1 1 7.7 19.4Z",
+    "M9 8.2c.3 2.9 3.6 6.3 6.8 6.8l1-1.5-2.2-1.1-.9.9a4.6 4.6 0 0 1-2.2-2.2l.9-.9L11.3 8l-1.4-.6Z",
+  ],
 } as const;
 export type IconName = keyof typeof iconPaths;
