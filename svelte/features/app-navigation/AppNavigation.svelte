@@ -129,6 +129,7 @@
     bind:ref={homeButton}
     label={text("home")}
     current={!$nav.roomId}
+    dot
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
     }}

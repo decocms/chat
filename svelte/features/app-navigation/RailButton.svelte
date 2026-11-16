@@ -15,6 +15,7 @@
     icon,
     hint,
     current = false,
+    dot = false,
     ref = $bindable(null),
     children,
     ...rest
@@ -24,6 +25,8 @@
     /** Shown after the label in the tooltip, e.g. a keyboard shortcut. */
     hint?: string;
     current?: boolean;
+    /** Show the room-style dot when not current (the home tile). */
+    dot?: boolean;
     ref?: HTMLButtonElement | null;
     children?: Snippet;
   } = $props();
@@ -39,7 +42,7 @@
     aria-current={current ? "page" : undefined}
     class="tw:group tw:relative tw:flex tw:cursor-pointer tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
   >
-    <RailPill state={current ? "selected" : "idle"} />
+    {#if current || dot}<RailPill state={current ? "selected" : "idle"} />{/if}
     <span
       class="tw:grid tw:size-10 tw:place-items-center tw:rounded-control tw:bg-muted tw:font-sans tw:text-sm tw:font-semibold tw:text-foreground tw:transition-colors tw:group-hover:bg-accent tw:motion-reduce:transition-none"
     >

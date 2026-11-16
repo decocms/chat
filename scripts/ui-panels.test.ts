@@ -736,7 +736,7 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
-  test("a rail room has a Discord-style strip instead of a ring: tall when selected, a dot with news, none otherwise", async () => {
+  test("a rail room always has the Discord-style strip instead of a ring: tall when selected, a dot otherwise, whatever it contains", async () => {
     const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
       .default;
     const summary = (extra: Record<string, unknown> = {}) =>
@@ -750,7 +750,7 @@ describe("native Svelte room panels", () => {
       }) as never;
     const cases: [string, Record<string, unknown>, boolean, string][] = [
       ["idle", {}, false, "idle"],
-      ["news", { last_human_id: 5 }, false, "unread"],
+      ["news", { last_human_id: 5 }, false, "idle"],
       ["selected", { last_human_id: 5 }, true, "selected"],
     ];
     for (const [label, extra, selected, expected] of cases) {

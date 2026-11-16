@@ -120,9 +120,7 @@
         onnavigate({ roomId: room.id });
       }}
     >
-      {#if compact}<RailPill
-          state={selected ? "selected" : news ? "unread" : "idle"}
-        />{/if}
+      {#if compact}<RailPill state={selected ? "selected" : "idle"} />{/if}
       <span
         class={[
           compact ? "tw:size-10" : "tw:h-28 tw:w-full",
