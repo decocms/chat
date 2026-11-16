@@ -1,5 +1,30 @@
 [
   {
+    "date": "2026-11-16",
+    "slug": "2026-11-16-thread",
+    "title": {
+      "pt": "A resposta curta do Claude fica na thread da pergunta",
+      "en": "Your Claude's short answer stays in the question's thread"
+    },
+    "intro": {
+      "pt": "Quando você pergunta algo, o Claude escreve a resposta no doc do épico e agora deixa o resumo de uma linha dentro da thread daquele épico, não na sala principal.",
+      "en": "When you ask something, your Claude writes the answer in the epic's doc and now leaves its one-line summary inside that epic's thread, not in the main thread."
+    },
+    "features": [],
+    "improvements": {
+      "pt": [],
+      "en": []
+    },
+    "fixes": {
+      "pt": [
+        "A resposta de uma linha a uma pergunta ia pra sala principal; agora vai pra thread do épico da pergunta."
+      ],
+      "en": [
+        "The one-line answer to a question went to the main thread; it now goes to the question epic's thread."
+      ]
+    }
+  },
+  {
     "date": "2026-11-15",
     "slug": "2026-11-15-link",
     "title": {
