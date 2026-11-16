@@ -289,7 +289,13 @@ test("real external HTTP protocol drives actual storeFile DENY before put and AL
       logging.mockRestore();
       redirect.closeAllConnections();
       await new Promise<void>((resolve, reject) =>
-        redirect.close((error) => (error ? reject(error) : resolve())),
+        redirect.close((error) =>
+          // closeAllConnections may already have stopped the server (Bun).
+          error &&
+          (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING"
+            ? reject(error)
+            : resolve(),
+        ),
       );
     }
   } finally {
