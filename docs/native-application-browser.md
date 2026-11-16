@@ -2,7 +2,7 @@
 
 This source checkpoint runs the actual NativeApplication and RoomScope against a disposable local Worker, Book/Person/DocRoom Durable Objects, D1 and R2. It does not replace API, canonical WebSocket or Yjs responses. The separate neutral room-layout browser job proves geometry, not this application gate.
 
-The dedicated `native-application-browser.yml` job installs the pinned lockfile/browser, builds current native assets and MCP resources, then runs `bun run test:native-application:ci`. The runner creates an exclusive local `.dev.vars`, initializes fresh local persistence through normal middleware, starts one Worker on 127.0.0.1:8797 and owns shutdown of its subprocess groups. Existing developer secret files are never overwritten.
+The `browser-app` job of `ci.yml` (it runs on pushes to `main` and on demand, not on pull requests) installs the pinned lockfile/browser, builds current native assets and MCP resources, then runs `bun run test:native-application:ci`. The runner creates an exclusive local `.dev.vars`, initializes fresh local persistence through normal middleware, starts one Worker on 127.0.0.1:8797 and owns shutdown of its subprocess groups. Existing developer secret files are never overwritten.
 
 Against an already running disposable Worker with DEV identities enabled and current assets, run:
 
