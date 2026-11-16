@@ -3121,47 +3121,19 @@ describe("stable native sidebar integration", () => {
       true,
     );
   });
-  test("the room title is the Inbox button, there is no separate Inbox row, and the pencil renames", async () => {
-    const room = fixture();
-    const opened: Element[] = [];
-    const h = sidebar(room, {
-      thread: "main",
-      oninbox: (trigger) => {
-        if (trigger) opened.push(trigger);
-      },
-    });
-    const title = h.target.querySelector<HTMLButtonElement>(
-      "button[data-room-title]",
-    );
-    expect(title).not.toBeNull();
-    expect(title!.textContent).toContain(room.book.title);
-    expect(title!.getAttribute("aria-label")).toBe(
-      `${room.book.title} · ${vb.t("Caixa de entrada")}`,
-    );
-    expect(
-      [...h.target.querySelectorAll("button")].filter(
-        (button) => button.textContent?.trim() === vb.t("Caixa de entrada"),
-      ),
-    ).toHaveLength(0);
-    const pencil = title!.parentElement!.querySelector(
-      "button:not([data-room-title])",
-    );
-    expect(pencil?.getAttribute("aria-label")).toBe("Renomear");
-    title!.click();
-    expect(opened).toHaveLength(1);
-    expect(opened[0]).toBe(title!);
-    h.view.update({ ...h.props, inboxOpen: true });
-    await tick();
-    flushSync();
-    expect(title!.getAttribute("aria-current")).toBe("page");
-  });
-  test("without an inbox handler the room title is plain text", () => {
+  test("the room title is plain text and only the pencil is a button", async () => {
     const room = fixture();
     const h = sidebar(room, { thread: "main" });
     const title = h.target.querySelector<HTMLElement>("[data-room-title]");
     expect(title).not.toBeNull();
-    expect(title!.tagName).not.toBe("BUTTON");
+    expect(title!.querySelector("button, a, [role='button']")).toBeNull();
     expect(title!.textContent).toContain(room.book.title);
+    const row = title!.parentElement!;
+    const buttons = [...row.querySelectorAll("button")];
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]!.getAttribute("aria-label")).toBe("Renomear");
+    const count = title!.querySelector<HTMLElement>(":scope > span:last-child");
+    expect(count!.classList.contains("tw:text-muted-foreground")).toBe(true);
   });
   test("epic and rail indicators count asks only and keep canonical task-only waits as a dot", async () => {
     const room = fixture();
