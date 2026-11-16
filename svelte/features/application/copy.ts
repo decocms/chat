@@ -629,8 +629,29 @@ const EN: Readonly<Record<string, string>> = {
   "Convidado ✓": "Invited ✓",
   "na sala": "in room",
   "Tentar de novo: {email}": "Try again: {email}",
-  "Copiar uma mensagem de WhatsApp com o link":
-    "Copy a WhatsApp message with the link",
+  "Adicionar mais…": "Add more…",
+  "Tirar {name}": "Remove {name}",
+  "Enviar convite": "Send invite",
+  "Enviar {n} convites": "Send {n} invites",
+  "Ou mande o link da sala": "Or send the room link",
+  WhatsApp: "WhatsApp",
+  "Mandar o link da sala no WhatsApp": "Send the room link on WhatsApp",
+  "Link copiado ✓": "Link copied ✓",
+  "Enviando convites…": "Sending invites…",
+  "Convite enviado": "Invite sent",
+  "{n} convites enviados": "{n} invites sent",
+  "Chegou um email com o link. Avise no WhatsApp também:":
+    "They got an email with the link. Let them know on WhatsApp too:",
+  "Alguns convites não foram. Tente de novo:":
+    "Some invites didn't go through. Try again:",
+  "Mandar no WhatsApp para {name}": "Send to {name} on WhatsApp",
+  "Copiar a mensagem para {name}": "Copy the message for {name}",
+  "Convidar mais gente": "Invite more people",
+  "Pessoas para convidar": "People to invite",
+  "1. Abre o link, entra com seu email e pede pra entrar: alguém da sala libera.":
+    "1. Open the link, sign in with your email and ask to join: someone in the room lets you in.",
+  "Convite cancelado": "Invite cancelled",
+  "Não consegui copiar o link.": "Couldn't copy the link.",
   'Nenhum amigo encontrado para "{q}". Digite um email completo para convidar alguém novo.':
     'No friends match "{q}". Type a full email to invite someone new.',
   "Digite um email completo para convidar alguém.":
