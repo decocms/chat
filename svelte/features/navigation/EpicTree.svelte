@@ -263,7 +263,7 @@
 <section
   data-vb-native
   aria-label={vb.t("Épicos")}
-  class="tw:m-0 tw:box-border tw:space-y-3 tw:p-3 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
+  class="tw:m-0 tw:box-border tw:space-y-1 tw:p-0 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
 >
   {#snippet panel(value: string)}
     {#if value === mode}
@@ -417,7 +417,7 @@
         {/each}
       </ul>
       {#if value === "active"}
-        <form id="newEpic" onsubmit={add} class="tw:space-y-2">
+        <form id="newEpic" onsubmit={add} class="tw:mt-2 tw:space-y-2">
           <Label for={`${uid}-new`} class="tw:sr-only"
             >{vb.t("Novo épico")}</Label
           >
