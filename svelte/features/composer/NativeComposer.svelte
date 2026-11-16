@@ -686,30 +686,6 @@
         }
       }}><Icon icon={FaceSmile} size={16} /></IconButton
     >
-    {#if speech.supported}<IconButton
-        size="icon"
-        aria-busy={refining || undefined}
-        label={vb.t("Ditar mensagem")}
-        title={vb.t("Toque pra ditar (ou segure espaço na caixa)")}
-        aria-pressed={dictating}
-        class={dictating
-          ? "tw:bg-destructive tw:text-destructive-foreground tw:hover:bg-destructive/85 tw:hover:text-destructive-foreground"
-          : "tw:text-muted-foreground tw:hover:text-foreground"}
-        disabled={voiceWaiting || !allowed || busy || refining}
-        onpointerdown={(event) => {
-          if (canInteract(event)) event.preventDefault();
-        }}
-        onclick={(event) => {
-          if (!canInteract(event)) return;
-          textarea?.focus();
-          if (dictating) speech.stop();
-          else void speech.start();
-        }}
-        >{#if refining}<Spinner size="xs" />{:else}<Icon
-            icon={Microphone01}
-            size={16}
-          />{/if}</IconButton
-      >{/if}
     <div class="tw:relative">
       <IconButton
         label={vb.t("Mais opções")}
@@ -825,6 +801,31 @@
         }, 100);
       }}
     />
+    <!-- The mic sits right before Enviar, as in the classic app (Gui #2896). -->
+    {#if speech.supported}<IconButton
+        size="icon"
+        aria-busy={refining || undefined}
+        label={vb.t("Ditar mensagem")}
+        title={vb.t("Toque pra ditar (ou segure espaço na caixa)")}
+        aria-pressed={dictating}
+        class={dictating
+          ? "tw:bg-destructive tw:text-destructive-foreground tw:hover:bg-destructive/85 tw:hover:text-destructive-foreground"
+          : "tw:text-muted-foreground tw:hover:text-foreground"}
+        disabled={voiceWaiting || !allowed || busy || refining}
+        onpointerdown={(event) => {
+          if (canInteract(event)) event.preventDefault();
+        }}
+        onclick={(event) => {
+          if (!canInteract(event)) return;
+          textarea?.focus();
+          if (dictating) speech.stop();
+          else void speech.start();
+        }}
+        >{#if refining}<Spinner size="xs" />{:else}<Icon
+            icon={Microphone01}
+            size={16}
+          />{/if}</IconButton
+      >{/if}
     <Button
       type="submit"
       data-composer-send
