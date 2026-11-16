@@ -4131,7 +4131,8 @@ function ensureCollab() {
 
 const SIDEBAR_ICON = icon("sidebar", 20);
 const bookTitle = () => S?.book?.title || "vibebook";
-const COVERS = ["oklch(0.5 0.17 248)", "oklch(0.58 0.17 35)", "oklch(0.52 0.11 175)", "oklch(0.47 0.15 315)", "oklch(0.6 0.13 75)", "oklch(0.45 0.1 145)", "oklch(0.36 0.06 255)", "oklch(0.55 0.16 10)"];
+// Cover 4 (amber) was L 0.6: white initials were 4.0:1, under WCAG AA 4.5:1.
+const COVERS = ["oklch(0.5 0.17 248)", "oklch(0.58 0.17 35)", "oklch(0.52 0.11 175)", "oklch(0.47 0.15 315)", "oklch(0.565 0.13 75)", "oklch(0.45 0.1 145)", "oklch(0.36 0.06 255)", "oklch(0.55 0.16 10)"];
 const coverColor = (t) => COVERS[[...String(t)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % COVERS.length];
 const STOP = new Set(["e", "de", "do", "da", "dos", "das", "o", "a", "os", "as", "em", "no", "na", "para", "pra", "com", "por", "the", "and", "of"]);
 const initials = (t) => {

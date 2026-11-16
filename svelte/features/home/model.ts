@@ -76,13 +76,13 @@ export const roomInitials = (title: string | null) => {
       .join("") || "◆"
   ).toUpperCase();
 };
-// Vanilla COVERS, in order: a room without an icon gets the same cover in both UIs.
+// Vanilla COVERS, in order: a room without an icon gets the same cover in both UIs (4 darkened from L 0.6 in both for contrast).
 export const ROOM_COVERS = [
   "oklch(0.5 0.17 248)",
   "oklch(0.58 0.17 35)",
   "oklch(0.52 0.11 175)",
   "oklch(0.47 0.15 315)",
-  "oklch(0.6 0.13 75)",
+  "oklch(0.565 0.13 75)",
   "oklch(0.45 0.1 145)",
   "oklch(0.36 0.06 255)",
   "oklch(0.55 0.16 10)",

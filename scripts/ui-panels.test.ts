@@ -914,7 +914,7 @@ describe("native Svelte room panels", () => {
       "oklch(0.58 0.17 35)",
       "oklch(0.52 0.11 175)",
       "oklch(0.47 0.15 315)",
-      "oklch(0.6 0.13 75)",
+      "oklch(0.565 0.13 75)",
       "oklch(0.45 0.1 145)",
       "oklch(0.36 0.06 255)",
       "oklch(0.55 0.16 10)",
@@ -949,7 +949,7 @@ describe("native Svelte room panels", () => {
     // Results of running vanilla's own function in bun.
     expect(roomCoverColor("vibebook")).toBe("oklch(0.36 0.06 255)");
     expect(roomCoverColor("Casa da Praia")).toBe("oklch(0.58 0.17 35)");
-    expect(roomCoverColor("ação rápida")).toBe("oklch(0.6 0.13 75)");
+    expect(roomCoverColor("ação rápida")).toBe("oklch(0.565 0.13 75)");
     for (const [title, expected] of [
       ["Casa da Praia", "CP"],
       ["Plano de Marketing 2026", "PM"],
