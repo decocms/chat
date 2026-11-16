@@ -175,7 +175,7 @@
     {
       "__resolveType": "site/sections/Footer.tsx",
       "credit": "vibebook · feito com ✨ no Rio de Janeiro por",
-      "creditLink": { "label": "vibegui", "href": "https://vibegui.com" },
+      "creditLink": { "label": "deco", "href": "https://www.decocms.com" },
       "links": [
         { "label": "Conectar", "href": "/pt/connect" },
         { "label": "Segurança", "href": "/pt/how-it-works" },

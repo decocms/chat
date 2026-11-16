@@ -240,7 +240,7 @@ ${body}
 <div class="dz-end"><b>${g(T.more)}</b> ${g(T.links)}<br /><a class="btn btn-sun" href="/app">${g(T.cta)}</a></div>
 </main>
 </div>
-<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
+<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://www.decocms.com" rel="noopener">deco</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
 <script>${JS}</script>
 </body>
 </html>

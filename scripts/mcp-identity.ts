@@ -210,7 +210,7 @@ function page(lang: Lang) {
 
 </div></main>
 
-<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://vibegui.com" rel="noopener">vibegui</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
+<footer><div class="w"><span>vibebook · ${lang === "pt" ? "feito com ✨ no Rio de Janeiro por" : "made with ✨ in Rio de Janeiro by"} <a href="https://www.decocms.com" rel="noopener">deco</a></span><span><a href="https://github.com/decocms/chat" rel="noopener">GitHub</a></span></div></footer>
 <script>
 document.querySelectorAll(".copy").forEach((b) => b.addEventListener("click", () => {
   navigator.clipboard?.writeText(document.getElementById(b.dataset.copyFrom)?.textContent ?? "");

@@ -41,6 +41,6 @@ The benchmark does **not** show an overall performance improvement. Typing, depe
 1. Install dependencies and run `bun run check`. Install a Playwright Chromium runtime with `bunx playwright install chromium` for browser checks.
 2. Start a local Worker with `DEV_EMAIL` configured. Run `bun run test:browser`; it creates only local test data and captures the room protocol snapshot. AI classification/scheduler behavior is not exercised.
 3. Run `bun run measure:ui` for the paired controlled benchmark. Output defaults to `/tmp/vibebook-browser-check`. The browser runner refuses production URLs.
-4. Apply the latest patch to a separate authenticated checkout, review the benchmark and theme integration, publish the branch/PR, then verify production. This sandbox has no GitHub push credentials; the patch and evidence were supplied to vibegui's agent instead.
+4. Apply the latest patch to a separate authenticated checkout, review the benchmark and theme integration, publish the branch/PR, then verify production. This sandbox has no GitHub push credentials; the patch and evidence were supplied to the deco team's agent instead.
 
 See [client-server-boundary.md](client-server-boundary.md) for the build boundary, shared protocol layout and legacy migration boundary.

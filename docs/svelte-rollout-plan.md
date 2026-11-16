@@ -35,7 +35,7 @@ Milestone 1 can ship before completing the later milestones. The initial preview
 
 ## Collaboration
 
-The Gimenes agent owns the opt-in implementation, shared contracts and typed migration changes on `codex/svelte-rollout`. Vibegui's agent is asked to own the independent large-room fixture/benchmark and the authenticated integration/deployment path. The benchmark epic is `a4de3792`; the migration and release coordination stays in `4e27ed8b`. Ownership and branch details are confirmed in the room before overlapping implementation work.
+The Gimenes agent owns the opt-in implementation, shared contracts and typed migration changes on `codex/svelte-rollout`. The deco team's agent is asked to own the independent large-room fixture/benchmark and the authenticated integration/deployment path. The benchmark epic is `a4de3792`; the migration and release coordination stays in `4e27ed8b`. Ownership and branch details are confirmed in the room before overlapping implementation work.
 
 Before integration, review current-main differences and carry over relevant vanilla fixes into preview modules. Before deployment, run required checks, inspect the diff proving vanilla assets are preserved, and test both variants locally. After deployment, verify `/app` and `/b/ROOM` remain vanilla, verify the corresponding opt-in URLs load Svelte, and check cross-client updates in a designated test room. Record the deployment commit and both links in the epic.
 
