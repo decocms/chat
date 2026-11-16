@@ -212,6 +212,7 @@ test("actual Book file HTTP retains validated canonical attachment and existing 
 });
 test("actual epic and suggestion projections retain older metadata, latest file IDs and valid grading siblings", () => {
   const receiver = {
+    get: () => null,
     sql: {
       exec: (sql: string) => ({
         toArray: () => {
