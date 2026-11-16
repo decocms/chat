@@ -3,6 +3,7 @@
   import Dialog from "../../lib/ui/Dialog.svelte";
   import Button from "../../lib/ui/Button.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
+  import RailButton from "./RailButton.svelte";
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { orderedRooms } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
@@ -114,16 +115,21 @@
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   ]}
 >
-  <IconButton
+  <RailButton
     bind:ref={homeButton}
     icon="inbox"
     label={text("home")}
+    current={!$nav.roomId}
     onclick={(event) => {
       if (event.currentTarget.isConnected) controller.callbacks.home();
     }}
   />
+  <span
+    aria-hidden="true"
+    class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
+  ></span>
   <div
-    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:gap-2 tw:overflow-x-auto tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto"
+    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:gap-1 tw:overflow-x-auto tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto"
     role="list"
     aria-label={text("home")}
   >
@@ -163,23 +169,25 @@
         />
       </div>{/each}
   </div>
-  <IconButton
+  <span
+    aria-hidden="true"
+    class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
+  ></span>
+  <RailButton
     icon={theme === "dark" ? "moon" : "sun"}
     label={text("theme")}
     onclick={(event) => {
       if (event.currentTarget.isConnected) ontheme();
     }}
   />
-  <Button
-    variant="ghost"
-    size="sm"
+  <RailButton
+    label={text("language")}
     onclick={(event) => {
       if (event.currentTarget.isConnected)
         onlanguage(lang === "en" ? "pt" : "en");
-    }}
-    aria-label={text("language")}>{lang === "en" ? "PT" : "EN"}</Button
+    }}>{lang === "en" ? "PT" : "EN"}</RailButton
   >
-  <IconButton
+  <RailButton
     icon="search"
     label={text("search")}
     onclick={(event) => {
@@ -187,7 +195,7 @@
         controller.openSearch(event.currentTarget);
     }}
   />
-  <IconButton
+  <RailButton
     icon="plus"
     label={text("new")}
     onclick={(event) => {

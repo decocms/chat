@@ -42,13 +42,18 @@
 <header
   data-vb-native
   data-native-room-header
-  class="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:text-foreground"
+  class="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:gap-2"
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<Button
           variant="ghost"
           size="sm"
-          class="tw:min-[901px]:hidden"
+          class="tw:px-2 tw:min-[901px]:hidden"
+          title={t(
+            expectedThread === "main"
+              ? "Seus vibebooks"
+              : "Voltar pra sala principal",
+          )}
           aria-label={t(
             expectedThread === "main"
               ? "Seus vibebooks"
@@ -56,55 +61,65 @@
           )}
           onclick={(event) => {
             if (live(event)) back(expectedThread);
-          }}
-          >← {t(
-            expectedThread === "main"
-              ? "Seus vibebooks"
-              : "Voltar pra sala principal",
-          )}</Button
+          }}><span aria-hidden="true">←</span></Button
         >{/snippet}</Snapshot
     >{/key}
-  <div class="tw:min-w-0 tw:flex-1"><ThreadHeader {...header} /></div>
-  <Button
-    data-native-board-toggle
-    variant={$geometry.boardFull ? "secondary" : "ghost"}
-    size="sm"
-    aria-label={t("Quadro de tarefas (kanban)")}
-    aria-pressed={$geometry.boardFull}
-    onclick={(event) => {
-      if (live(event)) layout.toggleBoard();
-    }}
-    ><Icon name="board" /><span class="tw:hidden tw:min-[901px]:inline"
-      >{t("Quadro")}</span
-    >{#if boardCount}<Badge variant="warning">{boardCount}</Badge>{/if}</Button
+  <div
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-[22rem]"
   >
-  <Button
-    data-native-inbox-toggle
-    variant="ghost"
-    size="sm"
-    aria-label={t("Caixa de entrada")}
-    title={t("Caixa de entrada: o que espera por você")}
-    onclick={(event) => {
-      if (live(event)) presentation.openInbox(event.currentTarget);
-    }}
-    ><Icon name="inbox" />{#if waits.length}<Badge
-        variant={waits.some((wait) => /^[ab]\d/.test(wait.ref))
-          ? "destructive"
-          : "warning"}>{waits.length}</Badge
-      >{/if}</Button
+    <ThreadHeader {...header} compact />
+  </div>
+  <div
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:flex-wrap tw:min-[901px]:items-center tw:min-[901px]:justify-end tw:min-[901px]:gap-2"
   >
-  <NotificationBell
-    owner={presentation.services.pwa}
-    lang={presentation.services.language}
-  />
-  {#if trigger}<AgentTrigger {...trigger} />{/if}
-  <IconButton
-    data-native-document-toggle
-    icon="file"
-    label={t("mostrar/ocultar documento")}
-    aria-pressed={$geometry.documentVisible}
-    onclick={(event) => {
-      if (live(event)) layout.toggleDocument();
-    }}
-  />
+    <Button
+      data-native-board-toggle
+      variant={$geometry.boardFull ? "secondary" : "ghost"}
+      size="sm"
+      class="tw:px-2 tw:min-[901px]:px-3"
+      aria-label={t("Quadro de tarefas (kanban)")}
+      aria-pressed={$geometry.boardFull}
+      onclick={(event) => {
+        if (live(event)) layout.toggleBoard();
+      }}
+      ><Icon name="board" /><span class="tw:hidden tw:min-[1500px]:inline"
+        >{t("Quadro")}</span
+      >{#if boardCount}<Badge variant="warning">{boardCount}</Badge
+        >{/if}</Button
+    >
+    <Button
+      data-native-inbox-toggle
+      variant="ghost"
+      size="sm"
+      class="tw:px-2 tw:min-[901px]:px-3"
+      aria-label={t("Caixa de entrada")}
+      title={t("Caixa de entrada: o que espera por você")}
+      onclick={(event) => {
+        if (live(event)) presentation.openInbox(event.currentTarget);
+      }}
+      ><Icon name="inbox" />{#if waits.length}<Badge
+          variant={waits.some((wait) => /^[ab]\d/.test(wait.ref))
+            ? "destructive"
+            : "warning"}>{waits.length}</Badge
+        >{/if}</Button
+    >
+    <NotificationBell
+      owner={presentation.services.pwa}
+      lang={presentation.services.language}
+    />
+    <div
+      class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
+    >
+      {#if trigger}<AgentTrigger {...trigger} />{/if}
+      <IconButton
+        data-native-document-toggle
+        icon="file"
+        label={t("mostrar/ocultar documento")}
+        aria-pressed={$geometry.documentVisible}
+        onclick={(event) => {
+          if (live(event)) layout.toggleDocument();
+        }}
+      />
+    </div>
+  </div>
 </header>

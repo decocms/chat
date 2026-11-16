@@ -22,6 +22,7 @@
     roomIcon,
     roomTint,
     titleId,
+    compact = false,
   }: ThreadHeaderProps = $props();
   const status = untrack(() => owner.state);
   const epic = $derived(room.epics.find((item) => item.id === thread));
@@ -92,27 +93,29 @@
 <div
   data-vb-native
   data-native-thread-header
-  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
+  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
 >
-  {#if !epic && !suggestion}<RoomMark
-      {title}
-      src={roomIcon}
-      tint={roomTint}
-    />{:else}<Avatar
-      name={title}
-      src={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
-    />{/if}
-  <Heading level={2} class="tw:min-w-0 tw:flex-1"
+  <span class="tw:hidden tw:min-[901px]:contents"
+    >{#if !epic && !suggestion}<RoomMark
+        {title}
+        src={roomIcon}
+        tint={roomTint}
+      />{:else}<Avatar
+        name={title}
+        src={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+      />{/if}</span
+  >
+  <Heading level={2} class="tw:min-w-0 tw:overflow-hidden"
     ><Button
       id={titleId}
       variant="ghost"
-      class="tw:min-w-0 tw:flex-1 tw:justify-start tw:truncate tw:font-semibold tw:md:flex-none"
+      class="tw:max-w-full tw:min-w-0 tw:justify-start tw:font-semibold"
       title={room.book.summary || title}
       onclick={(event) => {
         if (!event.currentTarget.isConnected) return;
         if (matchMedia("(max-width: 900px)").matches) onopenside();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
-      }}>{title}</Button
+      }}><span class="tw:truncate">{title}</span></Button
     ></Heading
   >
   <IconButton
@@ -127,32 +130,35 @@
     >{:else if room.book.folder && !epic}<span
       class="tw:text-xs tw:text-muted-foreground">{room.book.folder}</span
     >{/if}
-  {#if epic}
-    <IconButton
-      icon="pencil"
-      disabled={busy}
-      label={vb.t("Renomear")}
-      onclick={() => begin("rename")}
-    />
-    <IconButton
-      icon={epic.archived ? "undo" : "check"}
-      disabled={busy}
-      label={vb.t(epic.archived ? "Desarquivar épico" : "Arquivar épico")}
-      onclick={(event) => {
-        if (active && event.currentTarget.isConnected && epic)
-          void owner.run({
-            t: "epic.archive",
-            id: epic.id,
-            archived: !epic.archived,
-          });
-      }}
-    />
-    <IconButton
-      icon="trash"
-      disabled={busy}
-      label={vb.t("Apagar épico")}
-      onclick={() => begin("delete")}
-    />
+  {#if epic}<span
+      class={compact ? "tw:hidden tw:min-[901px]:contents" : "tw:contents"}
+    >
+      <IconButton
+        icon="pencil"
+        disabled={busy}
+        label={vb.t("Renomear")}
+        onclick={() => begin("rename")}
+      />
+      <IconButton
+        icon={epic.archived ? "undo" : "check"}
+        disabled={busy}
+        label={vb.t(epic.archived ? "Desarquivar épico" : "Arquivar épico")}
+        onclick={(event) => {
+          if (active && event.currentTarget.isConnected && epic)
+            void owner.run({
+              t: "epic.archive",
+              id: epic.id,
+              archived: !epic.archived,
+            });
+        }}
+      />
+      <IconButton
+        icon="trash"
+        disabled={busy}
+        label={vb.t("Apagar épico")}
+        onclick={() => begin("delete")}
+      />
+    </span>
   {/if}
   <MutationStatus {owner} t={vb.t} />
 </div>

@@ -297,7 +297,10 @@
               hidden={row.hidden}
               data-epic={epic.id}
               data-depth={row.depth}
-              class={indentation[Math.min(row.depth, indentation.length - 1)]}
+              class={cn(
+                "tw:relative",
+                indentation[Math.min(row.depth, indentation.length - 1)],
+              )}
             >
               <div
                 role="group"
@@ -334,12 +337,20 @@
                     class="tw:size-8 tw:p-1"
                     onclick={() => toggleNavigationBranch(session, epic.id)}
                   />
-                {:else}<span aria-hidden="true" class="tw:w-8 tw:shrink-0"
+                {:else}<span
+                    aria-hidden="true"
+                    class={cn(
+                      "tw:shrink-0",
+                      rows.some((other) => other.hasChildren)
+                        ? "tw:w-8"
+                        : "tw:w-1",
+                    )}
                   ></span>{/if}
                 <Button
                   variant="ghost"
-                  class="tw:h-auto tw:min-h-9 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-normal tw:px-1 tw:py-2 tw:text-left"
+                  class="tw:h-auto tw:min-h-9 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-normal tw:py-1.5 tw:pl-1 tw:pr-9 tw:text-left"
                   data-epic-thread={epic.id}
+                  title={epic.title}
                   aria-current={!selectionDisabled && thread === epic.id
                     ? "page"
                     : undefined}
@@ -358,7 +369,7 @@
                     class="tw:size-6 tw:text-xs"
                   />
                   <span
-                    class="tw:min-w-0 tw:flex-1 tw:break-words"
+                    class="tw:line-clamp-2 tw:min-w-0 tw:flex-1 tw:break-words"
                     data-epic-title
                     >{epic.title}{#if epic.archived}<span
                         class="tw:ml-1 tw:text-xs">({vb.t("Arquivado")})</span
@@ -405,8 +416,10 @@
               </div>
               <details class="tw:ml-8 tw:text-xs tw:text-muted-foreground">
                 <summary
-                  class="tw:cursor-pointer tw:rounded-control tw:px-2 tw:py-1 tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-                  >{vb.t("Ações do épico")}: {epic.title}</summary
+                  class="tw:absolute tw:right-1 tw:top-1 tw:grid tw:size-7 tw:cursor-pointer tw:list-none tw:place-items-center tw:rounded-control tw:text-base tw:leading-none tw:text-muted-foreground tw:hover:bg-accent tw:hover:text-accent-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring tw:[&::-webkit-details-marker]:hidden"
+                  ><span aria-hidden="true">⋯</span><span class="tw:sr-only"
+                    >{vb.t("Ações do épico")}: {epic.title}</span
+                  ></summary
                 >
                 <div class="tw:space-y-2 tw:p-2">
                   <Label for={`${rowIds.get(epic.id)}-owner`}
@@ -455,7 +468,9 @@
         </ul>
         {#if value === "active"}
           <form id="newEpic" onsubmit={add} class="tw:space-y-2">
-            <Label for={`${uid}-new`}>{vb.t("Novo épico")}</Label>
+            <Label for={`${uid}-new`} class="tw:sr-only"
+              >{vb.t("Novo épico")}</Label
+            >
             <div class="tw:flex tw:gap-2">
               <Input
                 id={`${uid}-new`}
