@@ -1,0 +1,27 @@
+<script lang="ts">
+  import { Select as SelectPrimitive } from "bits-ui";
+  import Icon from "./Icon.svelte";
+  import { ChevronDown } from "./icons";
+  import { cn } from "./utils";
+
+  let {
+    class: className,
+    ref = $bindable(null),
+    ...rest
+  }: Omit<
+    SelectPrimitive.ScrollDownButtonProps,
+    "child" | "children"
+  > = $props();
+</script>
+
+<SelectPrimitive.ScrollDownButton
+  bind:ref
+  data-slot="select-scroll-down-button"
+  class={cn(
+    "tw:flex tw:cursor-default tw:items-center tw:justify-center tw:py-1",
+    className,
+  )}
+  {...rest}
+>
+  <Icon icon={ChevronDown} class="tw:size-4" />
+</SelectPrimitive.ScrollDownButton>
