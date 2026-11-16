@@ -140,6 +140,7 @@
   </h2>
   <IconButton
     label={vb.t("Trocar de conversa")}
+    class="tw:min-[901px]:hidden"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onopenside();
     }}><Icon icon={ChevronDown} /></IconButton
