@@ -4,6 +4,8 @@
   import Button from "../../lib/ui/Button.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import RailButton from "./RailButton.svelte";
+  import UserMenu from "./UserMenu.svelte";
+  import { personAvatar } from "../home/model";
   import Snapshot from "../../lib/ui/Snapshot.svelte";
   import { orderedRooms } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
@@ -18,6 +20,7 @@
     lang,
     theme = "auto",
     ontheme,
+    onsettheme,
     onlanguage,
     onreload = () => location.reload(),
     inRoom = false,
@@ -28,6 +31,8 @@
     lang: HomeLanguage;
     theme?: "auto" | "light" | "dark";
     ontheme: () => void;
+    /** Sets a specific theme; without it the menu falls back to cycling with `ontheme`. */
+    onsettheme?: (theme: "auto" | "light" | "dark") => void;
     onlanguage: (lang: HomeLanguage) => void;
     onreload?: () => void;
     inRoom?: boolean;
@@ -41,6 +46,11 @@
     nav = $derived(controller.state),
     mutations = $derived(controller.rooms.state),
     search = $derived(controller.search.state);
+  const shortcut =
+    typeof navigator !== "undefined" &&
+    /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent)
+      ? "⌘K"
+      : "Ctrl+K";
   const text = (
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
@@ -181,37 +191,9 @@
     class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
   ></span>
   <RailButton
-    icon={theme === "dark" ? "moon" : theme === "light" ? "sun" : undefined}
-    label={text("theme")}
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) ontheme();
-    }}
-    >{#if theme === "auto"}<svg
-        aria-hidden="true"
-        focusable="false"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="tw:size-5 tw:shrink-0"
-        ><circle cx="12" cy="12" r="9" /><path
-          d="M12 17a5 5 0 0 0 0-10z"
-          fill="currentColor"
-        /></svg
-      >{/if}</RailButton
-  >
-  <RailButton
-    label={text("language")}
-    onclick={(event) => {
-      if (event.currentTarget.isConnected)
-        onlanguage(lang === "en" ? "pt" : "en");
-    }}>{lang === "en" ? "PT" : "EN"}</RailButton
-  >
-  <RailButton
     icon="search"
     label={text("search")}
+    hint={shortcut}
     onclick={(event) => {
       if (event.currentTarget.isConnected)
         controller.openSearch(event.currentTarget);
@@ -225,6 +207,22 @@
         controller.openCreate(event.currentTarget);
     }}
   />
+  {#if $personal.me}<span
+      aria-hidden="true"
+      class="tw:h-8 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:h-px tw:min-[901px]:w-8"
+    ></span>
+    <UserMenu
+      name={$personal.me.name ?? ""}
+      email={$personal.me.email}
+      avatar={personAvatar($personal.me, $personal.me.email)}
+      {lang}
+      {theme}
+      onsettheme={(next) => {
+        if (onsettheme) onsettheme(next);
+        else if (next !== theme) ontheme();
+      }}
+      {onlanguage}
+    />{/if}
 </div>
 {#if Dialogs}<Dialogs
     {controller}

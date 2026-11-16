@@ -157,13 +157,13 @@ try {
   await page.keyboard.press("Control+k");
   await expect(dueDialog).toHaveCount(0);
   const searchDialog = page.getByRole("dialog", {
-    name: "Go to a vibebook",
+    name: "Search",
     exact: true,
   });
   await expect(searchDialog).toBeVisible();
   await expect(
     searchDialog.getByRole("combobox", {
-      name: "Go to a vibebook",
+      name: "Search",
       exact: true,
     }),
   ).toBeFocused();
