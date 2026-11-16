@@ -269,6 +269,15 @@ function change(el: Element) {
   flushSync();
 }
 
+/** The new-epic field opens from the + in the Épicos header. */
+function newEpicInput(target: ParentNode) {
+  if (!target.querySelector("#newEpic input")) {
+    target.querySelector<HTMLButtonElement>("[data-new-epic]")!.click();
+    flushSync();
+  }
+  return target.querySelector<HTMLInputElement>("#newEpic input")!;
+}
+
 describe("native Svelte room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();
@@ -3737,8 +3746,7 @@ describe("stable native sidebar integration", () => {
     expect(
       first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
     ).toBe(false);
-    const draft =
-      first.target.querySelector<HTMLInputElement>("#newEpic input")!;
+    const draft = newEpicInput(first.target);
     draft.value = "Room-owned draft";
     draft.dispatchEvent(new window.Event("input", { bubbles: true }));
     flushSync();
@@ -3775,8 +3783,7 @@ describe("stable native sidebar integration", () => {
         return { ok: true };
       },
     });
-    const draft =
-      rendered.target.querySelector<HTMLInputElement>("#newEpic input")!;
+    const draft = newEpicInput(rendered.target);
     draft.value = "Retain title";
     draft.dispatchEvent(new Event("input", { bubbles: true }));
     flushSync();
@@ -3822,7 +3829,10 @@ describe("stable native sidebar integration", () => {
     await tick();
     await tick();
     flushSync();
-    expect(draft.value).toBe("");
+    // Created: the draft is cleared and the field folds back under the +.
+    expect(draft.isConnected).toBe(false);
+    expect(rendered.target.querySelector("#newEpic")).toBeNull();
+    expect(newEpicInput(rendered.target).value).toBe("");
     rendered.destroy();
     form.dispatchEvent(
       new Event("submit", { bubbles: true, cancelable: true }),
@@ -3889,8 +3899,7 @@ describe("stable native sidebar integration", () => {
     altDown(down);
     await tick();
     flushSync();
-    const draft =
-      rendered.target.querySelector<HTMLInputElement>("#newEpic input")!;
+    const draft = newEpicInput(rendered.target);
     draft.focus();
     rendered.view.update({
       ...rendered.props,
@@ -3918,8 +3927,7 @@ describe("stable native sidebar integration", () => {
     });
     rendered.destroy();
     const next = sidebar({ ...room, id: "next" });
-    const draft =
-      next.target.querySelector<HTMLInputElement>("#newEpic input")!;
+    const draft = newEpicInput(next.target);
     draft.focus();
     await tick();
     flushSync();
@@ -3951,7 +3959,7 @@ describe("stable native sidebar integration", () => {
     const view = mountView("sidebar", target, props);
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
-    const create = target.querySelector<HTMLInputElement>("#newEpic input")!;
+    const create = newEpicInput(target);
     openInvite(target);
     const invite = document.querySelector<HTMLInputElement>("#invite input")!;
     create.value = "Draft epic title";

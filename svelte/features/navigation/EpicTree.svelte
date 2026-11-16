@@ -12,6 +12,7 @@
   import Input from "../../lib/ui/Input.svelte";
   import Label from "../../lib/ui/Label.svelte";
   import Tabs from "../../lib/ui/Tabs.svelte";
+  import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import { cn } from "../../lib/ui/utils";
   import { productionStatuses } from "../chat/production";
   import {
@@ -64,6 +65,7 @@
   /** The order just dropped, shown until the server confirms (or refuses) it. */
   let localOrder = $state<string[] | null>(null);
   let input: HTMLInputElement | null = $state(null);
+  let plusButton: HTMLButtonElement | null = $state(null);
   let disposed = false;
   const rowNodes = new Map<string, HTMLElement>();
   let generation = 0;
@@ -156,7 +158,48 @@
     if (!title) return input?.focus();
     if (await submit({ t: "epic", title }))
       if (get(draftOwner).draft === original)
-        draftOwner.update((value) => ({ ...value, draft: "" }));
+        draftOwner.update((value) => ({
+          ...value,
+          draft: "",
+          creating: false,
+        }));
+  }
+  /** The field shows while asked for, and while a typed title is kept. */
+  const creating = $derived(
+    mode === "active" && ($navigation.creating || $navigation.draft !== ""),
+  );
+  const openCount = $derived(active.filter((epic) => !epic.archived).length);
+  const suggestionsOpen = $derived(
+    mode === "active" && room.suggestions.length > 0 && $navigation.suggestions,
+  );
+  $effect(() => {
+    // A suggestion opened from elsewhere (a link, Back) keeps its row in view.
+    if (thread.startsWith("pre:") && !untrack(() => $navigation.suggestions))
+      navigation.update((state) => ({ ...state, suggestions: true }));
+  });
+  async function toggleCreate() {
+    if (disposed) return;
+    if (creating) return closeCreate(true);
+    if (mode === "archived") switchMode("active");
+    navigation.update((state) => ({ ...state, creating: true }));
+    await tick();
+    if (!disposed) input?.focus();
+  }
+  function closeCreate(refocus: boolean) {
+    if (disposed) return;
+    navigation.update((state) => ({ ...state, creating: false, draft: "" }));
+    if (refocus)
+      void tick().then(() => {
+        if (!disposed) plusButton?.focus();
+      });
+  }
+  function toggleSuggestions() {
+    if (disposed) return;
+    if (mode === "archived") switchMode("active");
+    navigation.update((state) => ({
+      ...state,
+      suggestions: !suggestionsOpen,
+    }));
   }
   function siblings(id: string) {
     const parent = forest.parents.get(id);
@@ -252,6 +295,28 @@
   }
 </script>
 
+{#snippet actions()}{#if room.suggestions.length}<Button
+      variant={suggestionsOpen ? "secondary" : "ghost"}
+      class="tw:h-7 tw:min-h-0 tw:gap-1 tw:px-2 tw:py-0 tw:text-xs tw:font-medium"
+      aria-expanded={suggestionsOpen}
+      aria-controls={suggestionsOpen ? `${uid}-suggestions` : undefined}
+      aria-label={vb.t("{n} sugestões do @vibe", {
+        n: room.suggestions.length,
+      })}
+      title={vb.t("{n} sugestões do @vibe", { n: room.suggestions.length })}
+      data-epic-suggestions
+      onclick={toggleSuggestions}
+      ><span aria-hidden="true">✦</span>{room.suggestions.length}</Button
+    >{/if}<IconButton
+    bind:ref={plusButton}
+    icon="plus"
+    label={vb.t("Novo épico")}
+    tip="bottom"
+    class="tw:size-7 tw:p-1.5"
+    aria-expanded={creating}
+    data-new-epic
+    onclick={toggleCreate}
+  />{/snippet}
 <section
   data-vb-native
   aria-label={vb.t("Épicos")}
@@ -259,6 +324,86 @@
 >
   {#snippet panel(value: string)}
     {#if value === mode}
+      {#if value === "active" && creating}
+        <form
+          id="newEpic"
+          onsubmit={add}
+          onfocusout={(event) => {
+            const next = event.relatedTarget;
+            if (
+              next instanceof Node &&
+              (event.currentTarget.contains(next) || plusButton?.contains(next))
+            )
+              return;
+            if (!$navigation.draft.trim()) closeCreate(false);
+          }}
+          class="tw:flex tw:shrink-0 tw:gap-1"
+        >
+          <Label for={`${uid}-new`} class="tw:sr-only"
+            >{vb.t("Novo épico")}</Label
+          >
+          <Input
+            id={`${uid}-new`}
+            bind:ref={input}
+            bind:value={
+              () => (disposed ? "" : $navigation.draft),
+              (value) => {
+                if (!disposed) $navigation.draft = value;
+              }
+            }
+            onkeydown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              closeCreate(true);
+            }}
+            placeholder={vb.t("Novo épico: escreva o título…")}
+            enterkeyhint="done"
+            class="tw:h-8"
+          /><IconButton
+            disabled={mutationBusy}
+            type="submit"
+            icon="check"
+            variant="primary"
+            class="tw:size-8 tw:p-1.5"
+            label={vb.t("Criar épico")}
+          />
+        </form>
+      {/if}
+      {#if value === "active" && suggestionsOpen}
+        <div
+          id={`${uid}-suggestions`}
+          role="group"
+          aria-label={vb.t("Sugestões do @vibe")}
+          class="tw:shrink-0 tw:space-y-0.5 tw:rounded-control tw:border tw:border-dashed tw:border-input tw:p-0.5"
+        >
+          {#each room.suggestions as suggestion, index}
+            <Button
+              variant="ghost"
+              class={cn(
+                "tw:h-8 tw:min-h-0 tw:w-full tw:justify-start tw:gap-2 tw:px-1.5 tw:py-0 tw:text-left tw:font-normal tw:text-muted-foreground",
+                thread === `pre:${index}` &&
+                  "tw:bg-sidebar-accent tw:font-medium tw:text-sidebar-accent-foreground",
+              )}
+              aria-current={thread === `pre:${index}` ? "page" : undefined}
+              title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
+              data-suggestion={index}
+              onclick={() => {
+                if (onBeforeOpen && !onBeforeOpen()) return;
+                onopen(`pre:${index}`);
+              }}
+              ><span
+                aria-hidden="true"
+                class="tw:w-5 tw:shrink-0 tw:text-center">✦</span
+              ><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                >{suggestion.title}</span
+              >{#if suggestion.tasks.length}<span class="tw:shrink-0 tw:text-xs"
+                  >{suggestion.tasks.length}</span
+                >{/if}<span class="tw:sr-only">{vb.t("sugestão do @vibe")}</span
+              ></Button
+            >
+          {/each}
+        </div>
+      {/if}
       <ul
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
         class="tw:m-0 tw:min-h-0 tw:flex-1 tw:list-none tw:space-y-1 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-0"
@@ -368,48 +513,6 @@
           </li>
         {/each}
       </ul>
-      {#if value === "active"}
-        <form
-          id="newEpic"
-          onsubmit={add}
-          class="tw:mt-2 tw:shrink-0 tw:space-y-2"
-        >
-          <Label for={`${uid}-new`} class="tw:sr-only"
-            >{vb.t("Novo épico")}</Label
-          >
-          <div class="tw:flex tw:gap-2">
-            <Input
-              id={`${uid}-new`}
-              bind:ref={input}
-              bind:value={
-                () => (disposed ? "" : $navigation.draft),
-                (value) => {
-                  if (!disposed) $navigation.draft = value;
-                }
-              }
-              placeholder={vb.t("Novo épico: escreva o título…")}
-              enterkeyhint="done"
-            /><IconButton
-              disabled={mutationBusy}
-              type="submit"
-              icon="plus"
-              variant="primary"
-              label={vb.t("Criar épico")}
-            />
-          </div>
-        </form>
-        {#each room.suggestions as suggestion, index}
-          <Button
-            variant="outline"
-            class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:border-dashed tw:text-left"
-            aria-current={thread === `pre:${index}` ? "page" : undefined}
-            onclick={() => onopen(`pre:${index}`)}
-            >{suggestion.title}<span class="tw:text-xs tw:text-muted-foreground"
-              >{vb.t("sugestão do @vibe, clique para ver")}</span
-            ></Button
-          >
-        {/each}
-      {/if}
     {/if}
   {/snippet}
   {#if archived.length > 0}
@@ -431,10 +534,17 @@
       label={vb.t("Épicos")}
       value={mode}
       onValueChange={switchMode}
+      {actions}
     >
       {#snippet children(value)}{@render panel(value)}{/snippet}
     </Tabs>
   {:else}
+    <SectionHeader
+      title={vb.t("Épicos")}
+      count={openCount}
+      sticky={false}
+      action={actions}
+    />
     {@render panel("active")}
   {/if}
   <p role="status" aria-live="polite" class="tw:sr-only">{announcement}</p>

@@ -16,6 +16,7 @@
     onValueChange,
     compact = false,
     children,
+    actions,
     class: className,
   }: {
     items: readonly TabItem[];
@@ -25,24 +26,18 @@
     /** Shorter, smaller tabs for narrow panels such as the sidebar. */
     compact?: boolean;
     children: Snippet<[string]>;
+    /** Controls drawn at the end of the tab row (e.g. a section's +). */
+    actions?: Snippet;
     class?: string;
   } = $props();
 </script>
 
-<Tabs.Root
-  bind:value
-  {onValueChange}
-  class={cn(
-    "tw:flex tw:min-h-0 tw:flex-col tw:font-sans tw:text-sm tw:text-foreground",
-    compact ? "tw:gap-1.5" : "tw:gap-3",
-    className,
-  )}
->
-  <Tabs.List
+{#snippet list()}<Tabs.List
     aria-label={label}
     class={cn(
       "tw:flex tw:shrink-0 tw:gap-1 tw:rounded-control tw:bg-muted",
       compact ? "tw:p-0.5" : "tw:p-1",
+      actions && "tw:min-w-0 tw:flex-1",
     )}
   >
     {#each items as item (item.value)}
@@ -61,7 +56,20 @@
           >{/if}</Tabs.Trigger
       >
     {/each}
-  </Tabs.List>
+  </Tabs.List>{/snippet}
+
+<Tabs.Root
+  bind:value
+  {onValueChange}
+  class={cn(
+    "tw:flex tw:min-h-0 tw:flex-col tw:font-sans tw:text-sm tw:text-foreground",
+    compact ? "tw:gap-1.5" : "tw:gap-3",
+    className,
+  )}
+>
+  {#if actions}<div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
+      {@render list()}{@render actions()}
+    </div>{:else}{@render list()}{/if}
   {#each items as item (item.value)}
     <Tabs.Content
       value={item.value}

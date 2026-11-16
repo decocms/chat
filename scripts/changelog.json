@@ -28,8 +28,12 @@
       }
     ],
     "improvements": {
-      "pt": [],
-      "en": []
+      "pt": [
+        "No app novo (?ui=svelte), a lista de épicos ganhou um cabeçalho: o + abre o campo de novo épico ali mesmo e o ✦ mostra as sugestões do @vibe, então a lista só tem épicos de verdade."
+      ],
+      "en": [
+        "In the new app (?ui=svelte), the epic list has a header: + opens the new-epic field in place and ✦ shows @vibe's suggestions, so the list only holds real epics."
+      ]
     },
     "fixes": {
       "pt": [

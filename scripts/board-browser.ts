@@ -114,6 +114,7 @@ try {
   await expect(
     card("Standalone room task").locator("[data-board-open]"),
   ).toHaveAttribute("data-epic", "main");
+  await page.locator("[data-new-epic]").click();
   await page
     .getByRole("textbox", { name: "New epic", exact: true })
     .fill("Board workflow");

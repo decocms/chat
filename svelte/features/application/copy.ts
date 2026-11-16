@@ -606,6 +606,8 @@ const EN: Readonly<Record<string, string>> = {
   "Agent fez": "Agent did it",
   "@vibe sugere": "@vibe suggests",
   "sugestão do @vibe, clique para ver": "suggested by @vibe, click to see",
+  "Sugestões do @vibe": "@vibe's suggestions",
+  "{n} sugestões do @vibe": "{n} suggestions from @vibe",
   "Pedindo pra entrar": "Asking to join",
   "pediu {ago}": "asked {ago} ago",
   "Liberar: entra na sala e recebe o link por email":
