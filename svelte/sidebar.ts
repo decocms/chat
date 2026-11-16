@@ -34,7 +34,6 @@ export type SidebarProps = {
   ontogglerail?: () => void;
   onrenameroom?: () => void;
   onopenside?: () => void;
-  onagents?: () => void;
   oninbox?: (trigger?: HTMLElement) => void;
   inboxOpen?: boolean;
   onthreadintent?: () => boolean;
@@ -42,7 +41,6 @@ export type SidebarProps = {
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */
   hideSheetHandle?: boolean;
-  foldOpen?: { off: boolean; friends: boolean | null };
   friends?: string[];
   vb: SidebarBridge;
   send: SendRoomCommand;

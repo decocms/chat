@@ -15,7 +15,6 @@
   import Progress from "./lib/ui/Progress.svelte";
   import ThreadHeader from "./features/room-sidebar/ThreadHeader.svelte";
   import AgentPresenceRows from "./features/room-sidebar/AgentPresenceRows.svelte";
-  import SandboxPresenceRows from "./features/room-sidebar/SandboxPresenceRows.svelte";
   import MutationStatus from "./features/room-sidebar/MutationStatus.svelte";
   import { createRoomMutations } from "./features/room-sidebar/session";
   import { messageCount } from "./features/room-sidebar/model";
@@ -24,7 +23,6 @@
     appNavigation,
     room,
     thread,
-    foldOpen = { off: false, friends: null },
     friends = [],
     vb,
     send,
@@ -44,7 +42,6 @@
     ontogglerail = () => {},
     onrenameroom = () => {},
     onopenside = () => {},
-    onagents = () => {},
     oninbox,
     inboxOpen = false,
     onthreadintent,
@@ -297,23 +294,11 @@
         ago={vb.ago}
         {locale}
       />{/snippet}
-    {#snippet sandboxes()}<SandboxPresenceRows
-        {presence}
-        t={vb.t}
-        name={vb.name}
-        onopen={onagents}
-        {locale}
-      />{/snippet}
     <People
       {room}
       {friends}
-      {foldOpen}
       vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
       {agents}
-      {sandboxes}
-      onfoldchange={(key, value) => {
-        foldOpen[key] = value;
-      }}
     />
     <MutationStatus {owner} t={vb.t} />
   {/if}

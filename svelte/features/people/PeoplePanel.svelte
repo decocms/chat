@@ -22,11 +22,8 @@
     room,
     friends = [],
     vb,
-    foldOpen = { off: false, friends: null },
     agents,
-    sandboxes,
     request,
-    onfoldchange,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -36,11 +33,8 @@
       ago: (ts: number) => string;
       avatarUrl?: (email: string) => string | undefined;
     };
-    foldOpen?: { off: boolean; friends: boolean | null };
     agents?: Snippet<[string]>;
-    sandboxes?: Snippet;
     request?: PeopleRequest;
-    onfoldchange?: (key: "off" | "friends", value: boolean) => void;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
@@ -53,10 +47,9 @@
     );
   let trigger = $state<HTMLElement | null>(null),
     root = $state<HTMLElement | null>(null);
-  let offlineOpen = $state(untrack(() => foldOpen.off)),
-    friendsOpen = $state(
-      untrack(() => foldOpen.friends ?? room.members.length <= 1),
-    );
+  /** The invite area under the header: an email, or one of your friends. */
+  let inviting = $state(false);
+  const everyone = $derived([...model.online, ...model.offline]);
   const issueText = (issue: string) =>
     issue === "invalid-email"
       ? vb.t("Email inválido.")
@@ -186,8 +179,71 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class="tw:max-h-[32%] tw:shrink-0 tw:space-y-4 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:px-3 tw:pt-3 tw:pb-0 tw:font-sans tw:text-sm tw:text-foreground"
+  class="tw:max-h-[32%] tw:shrink-0 tw:space-y-3 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground"
 >
+  <div
+    class="tw:sticky tw:top-0 tw:z-10 tw:-mx-3 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:bg-sidebar tw:px-3 tw:pt-3 tw:pb-1"
+  >
+    <Heading level={3} class="tw:text-sm tw:leading-5"
+      >{vb.t("Pessoas e agents")}</Heading
+    >
+    <IconButton
+      icon={inviting ? "close" : "plus"}
+      tip="bottom"
+      label={vb.t("Convidar")}
+      aria-expanded={inviting}
+      aria-controls={`${ids}-invite`}
+      data-invite-toggle
+      onclick={() => (inviting = !inviting)}
+    />
+  </div>
+  {#if inviting}<div id={`${ids}-invite`} class="tw:space-y-3">
+      <form
+        id="invite"
+        class="tw:space-y-2"
+        onsubmit={(event) => {
+          event.preventDefault();
+          invite($view.draft);
+        }}
+      >
+        <Label for={`${ids}-email`}>{vb.t("convidar por email")}</Label>
+        <div class="tw:flex tw:items-center tw:gap-2">
+          <Input
+            id={`${ids}-email`}
+            type="email"
+            required
+            list={`${ids}-friends`}
+            autocomplete="off"
+            value={$view.draft}
+            oninput={(event) => session.edit(event.currentTarget.value)}
+          /><Button
+            type="submit"
+            size="sm"
+            disabled={!!$view.pending[normalizeEmail($view.draft)]}
+            >{vb.t("Convidar")}</Button
+          >
+        </div>
+        <datalist id={`${ids}-friends`}
+          >{#each model.friends as email}<option value={email}
+            ></option>{/each}</datalist
+        >
+      </form>
+      {#if model.friends.length}<div class="tw:space-y-1">
+          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+            {vb.t("Seus amigos")} · {model.friends.length}
+          </p>
+          {#each model.friends as email (email)}<Button
+              variant="ghost"
+              class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:text-left"
+              data-add={email}
+              disabled={!!$view.pending[email]}
+              onclick={() => invite(email)}
+              ><Avatar name={vb.name(email)} src={avatarUrl(email)} /><span
+                class="tw:min-w-0 tw:break-all">{vb.name(email)}</span
+              ><span aria-hidden="true">+</span></Button
+            >{/each}
+        </div>{/if}
+    </div>{/if}
   {#if room.requests?.length}<div class="tw:space-y-3">
       <Heading level={3} class="tw:text-sm tw:leading-5">
         {vb.t("Pedindo pra entrar")}
@@ -229,76 +285,9 @@
           />
         </div>{/each}
     </div>{/if}
-  <Heading level={3} class="tw:text-sm tw:leading-5"
-    >{vb.t("Pessoas e agents")}</Heading
-  >
-  {@render sandboxes?.()}
   <div class="tw:space-y-3">
-    {#each model.online as email (email)}{@render member(email)}{/each}
+    {#each everyone as email (email)}{@render member(email)}{/each}
   </div>
-  {#if model.offline.length}<details
-      bind:open={offlineOpen}
-      class="tw:space-y-3"
-    >
-      <summary
-        onclick={() => onfoldchange?.("off", !offlineOpen)}
-        class="tw:cursor-pointer tw:rounded-control tw:p-1 tw:text-xs tw:text-muted-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-        >{vb.t("{n} offline", { n: model.offline.length })}</summary
-      >
-      <div class="tw:space-y-3">
-        {#each model.offline as email (email)}{@render member(email)}{/each}
-      </div>
-    </details>{/if}
-  {#if model.friends.length}<details
-      bind:open={friendsOpen}
-      class="tw:space-y-2"
-    >
-      <summary
-        onclick={() => onfoldchange?.("friends", !friendsOpen)}
-        class="tw:cursor-pointer tw:rounded-control tw:p-1 tw:text-xs tw:text-muted-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-        >{vb.t("Seus amigos")} · {model.friends.length}</summary
-      >
-      {#each model.friends as email (email)}<Button
-          variant="ghost"
-          class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:text-left"
-          data-add={email}
-          disabled={!!$view.pending[email]}
-          onclick={() => invite(email)}
-          ><Avatar name={vb.name(email)} src={avatarUrl(email)} /><span
-            class="tw:min-w-0 tw:break-all">{vb.name(email)}</span
-          ><span aria-hidden="true">+</span></Button
-        >{/each}
-    </details>{/if}
-  <form
-    id="invite"
-    class="tw:sticky tw:bottom-0 tw:z-10 tw:-mx-3 tw:space-y-2 tw:bg-sidebar tw:px-3 tw:pt-2 tw:pb-3"
-    onsubmit={(event) => {
-      event.preventDefault();
-      invite($view.draft);
-    }}
-  >
-    <Label for={`${ids}-email`}>{vb.t("convidar por email")}</Label>
-    <div class="tw:flex tw:items-center tw:gap-2">
-      <Input
-        id={`${ids}-email`}
-        type="email"
-        required
-        list={`${ids}-friends`}
-        autocomplete="off"
-        value={$view.draft}
-        oninput={(event) => session.edit(event.currentTarget.value)}
-      /><Button
-        type="submit"
-        size="sm"
-        disabled={!!$view.pending[normalizeEmail($view.draft)]}
-        >{vb.t("Convidar")}</Button
-      >
-    </div>
-    <datalist id={`${ids}-friends`}
-      >{#each model.friends as email}<option value={email}
-        ></option>{/each}</datalist
-    >
-  </form>
   {#each Object.entries($view.pending) as [email]}{#if $view.issues[email] !== "unconfirmed"}<p
         role="status"
         class="tw:m-0 tw:break-words tw:text-xs tw:text-muted-foreground"
