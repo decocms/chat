@@ -1,10 +1,29 @@
 <script lang="ts">
   import { cn } from "./utils";
+  import {
+    avatarShape,
+    avatarSize,
+    type AvatarKind,
+    type AvatarPx,
+  } from "./avatar";
   let {
     name,
     src,
+    kind = "person",
+    mark,
+    px = 32,
     class: className,
-  }: { name: string; src?: string; class?: string } = $props();
+  }: {
+    name: string;
+    src?: string;
+    /** person: a circle; agent: a rounded square with the room tile radius. */
+    kind?: AvatarKind;
+    /** A glyph shown instead of initials when there is no image (agent marks). */
+    mark?: string;
+    /** Rendered edge (16, 24 or 32px): sets the size and the agent radius. */
+    px?: AvatarPx;
+    class?: string;
+  } = $props();
   let failed = $state(false);
   $effect(() => {
     void src;
@@ -24,8 +43,11 @@
 
 <span
   aria-hidden="true"
+  data-avatar={kind}
   class={cn(
-    "tw:inline-grid tw:size-8 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-full tw:border tw:border-border tw:bg-muted tw:font-sans tw:text-xs tw:font-medium tw:text-foreground",
+    "tw:inline-grid tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:border tw:border-border tw:bg-muted tw:font-sans tw:text-xs tw:font-medium tw:text-foreground",
+    avatarSize(px),
+    avatarShape(kind, px),
     className,
   )}
 >
@@ -36,5 +58,5 @@
       onerror={() => {
         failed = true;
       }}
-    />{:else}{initials || "?"}{/if}
+    />{:else}{mark || initials || "?"}{/if}
 </span>

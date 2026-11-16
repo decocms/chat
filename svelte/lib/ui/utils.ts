@@ -5,7 +5,7 @@ const twMerge = extendTailwindMerge({
   prefix: "tw",
   extend: {
     theme: {
-      radius: ["button", "control", "surface"],
+      radius: ["button", "control", "control-md", "control-sm", "surface"],
       shadow: ["edge", "edge-raised", "soft", "lift"],
     },
   },

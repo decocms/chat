@@ -6,11 +6,11 @@
     foldMessages,
     messageFooters,
     threadWorkers,
-    agentMark,
     prettyModel,
   } from "./features/chat/model";
   import Button from "./lib/ui/Button.svelte";
   import Avatar from "./lib/ui/Avatar.svelte";
+  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
   import NeedsYou from "./features/needs-you/NeedsYou.svelte";
   import { productionStatuses } from "./features/chat/production";
   let {
@@ -116,11 +116,11 @@
               ><Avatar
                 name={vb.name(worker.email)}
                 src={vb.avatarUrl?.(worker.email)}
-              /><span
-                aria-hidden="true"
-                class="tw:absolute tw:-bottom-1 tw:-right-1 tw:rounded-full tw:bg-card tw:px-0.5 tw:text-xs"
-                >{agentMark(worker.who)}</span
-              ></span
+              /><AgentAvatar
+                px={16}
+                via={worker.who}
+                class="tw:absolute tw:-bottom-1 tw:-right-1 tw:bg-card tw:font-normal"
+              /></span
             >{/each}
         </div>
         <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">

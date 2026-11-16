@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Presence } from "./model";
   import { agentRows, contextPercent, roomListenerCount } from "./model";
-  import { agentMark, prettyModel } from "../chat/model";
+  import { prettyModel } from "../chat/model";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import Progress from "../../lib/ui/Progress.svelte";
   let {
     presence,
@@ -54,11 +55,13 @@
     })}
   >
     <div class="tw:flex tw:items-center tw:gap-2">
-      <span
-        aria-hidden="true"
-        class={agent.listening ? "tw:text-success" : "tw:text-muted-foreground"}
-        >{agentMark(agent.who)}</span
-      ><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+      <AgentAvatar
+        px={16}
+        via={agent.who}
+        class={agent.listening
+          ? "tw:font-normal tw:text-success"
+          : "tw:font-normal tw:text-muted-foreground"}
+      /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
         >{prettyModel(agent.who).replace(/^Claude\s+/i, "")}{agent.repo
           ? ` · ${agent.repo}`
           : ""}</span

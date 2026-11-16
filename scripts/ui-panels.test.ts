@@ -746,6 +746,113 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
+  test("one avatar language: people are circles, agents share the room tile radius", async () => {
+    const { default: Avatar } = await import("../svelte/lib/ui/Avatar.svelte");
+    const { default: AgentAvatar } =
+      await import("../svelte/lib/ui/AgentAvatar.svelte");
+    const { default: AgentPresenceRows } =
+      await import("../svelte/features/room-sidebar/AgentPresenceRows.svelte");
+    const { default: RoomTile } =
+      await import("../svelte/features/home/RoomTile.svelte");
+    const { avatarShape } = await import("../svelte/lib/ui/avatar");
+    expect(avatarShape("person")).toBe("tw:rounded-full");
+    expect(avatarShape("agent")).toBe("tw:rounded-control");
+    expect(avatarShape("agent", 24)).toBe("tw:rounded-control-md");
+    expect(avatarShape("agent", 16)).toBe("tw:rounded-control-sm");
+    expect(avatarShape("person", 16)).toBe("tw:rounded-full");
+    // The small agent radii are the room tile token scaled, not new values.
+    const css = readFileSync("svelte/styles/tailwind.css", "utf8");
+    expect(css).toContain("--radius-control: var(--vb-studio-control-radius);");
+    // Derived from --radius-control itself (the token tw:rounded-control reads),
+    // so repointing that token reshapes tiles and every agent size together.
+    for (const size of ["md", "sm"])
+      expect(css).toMatch(
+        new RegExp(
+          `--radius-control-${size}: calc\\(--theme\\(--radius-control\\) \\* 0\\.\\d\\);`,
+        ),
+      );
+    const classes = (el: Element | null | undefined) =>
+      (el?.getAttribute("class") ?? "").split(/\s+/);
+    const cases: [Component<any>, Record<string, unknown>][] = [
+      [Avatar, { name: "Ana Souza" }],
+      [Avatar, { name: "Ana Souza", kind: "agent", mark: "✻" }],
+      [AgentAvatar, { via: "codex", px: 16, class: "tw:text-success" }],
+      [
+        AgentPresenceRows,
+        {
+          presence: {
+            agents: [
+              {
+                email: "me@test",
+                who: "claude-opus-5-5",
+                repo: null,
+                listening: true,
+                all_rooms: false,
+                seen_at: 1,
+                context: null,
+              },
+            ],
+            sandboxes: [],
+          },
+          email: "me@test",
+          t: vb.t,
+          name: (email: string) => email,
+          ago: () => "agora",
+        },
+      ],
+      [
+        RoomTile,
+        {
+          room: {
+            id: "r1",
+            title: "Room",
+            last_human_id: 0,
+            last_agent_id: 0,
+            read_id: 0,
+          },
+          lang: "en",
+          now: 0,
+          onnavigate: () => {},
+        },
+      ],
+    ];
+    const seen: Record<string, string[][]> = { person: [], agent: [] };
+    let tile: string[] = [];
+    for (const [component, props] of cases) {
+      const target = document.createElement("div");
+      document.body.append(target);
+      const instance = flushSync(() => mount(component, { target, props }));
+      try {
+        for (const el of target.querySelectorAll("[data-avatar]"))
+          seen[el.getAttribute("data-avatar")!]!.push(classes(el));
+        if (component === RoomTile)
+          tile = classes(target.querySelector("a [class*='rounded-control']"));
+      } finally {
+        await unmount(instance);
+        target.remove();
+      }
+    }
+    expect(seen.person).toHaveLength(1);
+    expect(seen.agent).toHaveLength(3);
+    for (const person of seen.person) {
+      expect(person).toContain("tw:rounded-full");
+      expect(person).not.toContain("tw:rounded-control");
+    }
+    // Full size agents carry the tile class itself; 16px marks its scaled twin.
+    expect(
+      seen.agent.map((agent) => agent.filter((c) => c.includes("rounded"))),
+    ).toEqual([
+      ["tw:rounded-control"],
+      ["tw:rounded-control-sm"],
+      ["tw:rounded-control-sm"],
+    ]);
+    // px alone sets the box, so a 16px mark never gets the 32px radius.
+    expect(
+      seen.agent.map((agent) => agent.filter((c) => /^tw:size-/.test(c))),
+    ).toEqual([["tw:size-8"], ["tw:size-4"], ["tw:size-4"]]);
+    // Agents reuse the room tile's radius token, so changing it reshapes both.
+    expect(tile).toContain(avatarShape("agent"));
+  }, 30_000);
   test("a rail room always has the Discord-style strip instead of a ring: tall when selected, a dot otherwise, whatever it contains", async () => {
     const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
       .default;

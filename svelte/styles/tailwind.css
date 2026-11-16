@@ -543,6 +543,12 @@
   --shadow-border: var(--vb-shadow-border);
   --radius-button: var(--vb-studio-button-radius);
   --radius-control: var(--vb-studio-control-radius);
+  /* Small agent avatars: the control radius (resolved at build time through
+     --theme, as this block is inline) scaled like a 40px room tile shrunk
+     to 24px and 16px, so they still read as squares (a full 10px radius on a
+     16px box is a circle). */
+  --radius-control-md: calc(--theme(--radius-control) * 0.6);
+  --radius-control-sm: calc(--theme(--radius-control) * 0.4);
   --radius-surface: var(--vb-studio-surface-radius);
 }
 

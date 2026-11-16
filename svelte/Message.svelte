@@ -6,7 +6,6 @@
   import type { Room } from "../shared/room";
   import type { ChatActions, ChatBridge, ChatMessage } from "./chatTypes";
   import {
-    agentMark,
     continues,
     issueParts,
     messageKind,
@@ -15,6 +14,7 @@
     type MessageFooter as Footer,
   } from "./features/chat/model";
   import Avatar from "./lib/ui/Avatar.svelte";
+  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
   import Badge from "./lib/ui/Badge.svelte";
   import Button from "./lib/ui/Button.svelte";
   import MessageActions from "./features/chat/MessageActions.svelte";
@@ -156,17 +156,17 @@
 >
   <div class="tw:flex tw:items-start tw:gap-3">
     <div class="tw:w-8 tw:shrink-0">
-      {#if !continuous}{#if m.author === "ai"}<span
-            aria-hidden="true"
-            class="tw:inline-grid tw:size-8 tw:place-items-center tw:rounded-full tw:bg-primary/10 tw:text-primary"
-            >✦</span
-          >{:else}<Avatar
+      {#if !continuous}{#if m.author === "ai"}<AgentAvatar
+            mark="✦"
+            class="tw:border-0 tw:bg-primary/10 tw:text-sm tw:font-normal tw:text-primary"
+          />{:else}<Avatar
             name={author(m)}
             src={vb.avatarUrl?.(m.author)}
-          />{/if}{#if m.kind === "agent"}<span
-            aria-hidden="true"
-            class="tw:block tw:text-center tw:text-xs">{agentMark(m.via)}</span
-          >{/if}{:else}<time
+          />{/if}{#if m.kind === "agent"}<AgentAvatar
+            px={16}
+            via={m.via}
+            class="tw:mx-auto tw:grid tw:font-normal"
+          />{/if}{:else}<time
           title={timestamp}
           class="tw:text-xs tw:text-muted-foreground">{vb.hhmm(m.ts)}</time
         >{/if}

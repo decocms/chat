@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Button from "../../lib/ui/Button.svelte";
+  import AgentAvatar from "../../lib/ui/AgentAvatar.svelte";
   import Checkbox from "../../lib/ui/Checkbox.svelte";
   import AgentPresenceRows from "../room-sidebar/AgentPresenceRows.svelte";
   import SetupInstructions from "./SetupInstructions.svelte";
@@ -73,14 +74,15 @@
     class="tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:p-3"
   >
     <div class="tw:flex tw:items-center tw:gap-3">
-      <span
-        aria-hidden="true"
+      <AgentAvatar
+        px={24}
+        mark="✻"
         class={presence.live
-          ? "tw:text-success"
+          ? "tw:text-sm tw:font-normal tw:text-success"
           : presence.on
-            ? "tw:text-warning"
-            : "tw:text-muted-foreground"}>✻</span
-      >
+            ? "tw:text-sm tw:font-normal tw:text-warning"
+            : "tw:text-sm tw:font-normal tw:text-muted-foreground"}
+      />
       <div class="tw:min-w-0 tw:flex-1">
         <strong class="tw:block">{text("local")}</strong><small
           class="tw:block tw:break-words tw:text-muted-foreground"
