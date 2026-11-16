@@ -211,6 +211,7 @@
         {name}
         ago={vb.ago}
         locale={lang === "en" ? "en-US" : "pt-BR"}
+        surface="background"
       />
     </section>{/if}
   <SandboxPanel

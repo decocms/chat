@@ -99,3 +99,58 @@ export function contextPercent(tokens: number, window: number) {
     ? Math.max(0, Math.min(100, Math.round((tokens / window) * 100)))
     : 0;
 }
+/** The context bar's color (vanilla `.ctx`): green, yellow from 60%, red from 80%
+ * (the runner compacts a free Claude at 75%). */
+export const contextTone = (percent: number) =>
+  percent >= 80 ? "hot" : percent >= 60 ? "mid" : "ok";
+/** Token counts as vanilla `kTok`: 1.2M, 180k. */
+export const compactTokens = (value: number) =>
+  value >= 1e6
+    ? `${+(value / 1e6).toFixed(1)}M`
+    : `${Math.round(value / 1000)}k`;
+export type AgentRow = Presence["agents"][number];
+export type ContextSection = {
+  key: "context" | "five_hour" | "seven_day";
+  label: string;
+  percent: number;
+  detail: string;
+};
+/** The hover card's meters (vanilla `ctxTip`): context, then the plan's limits that
+ * are present and not yet reset. Empty when the agent reports no context. */
+export function contextSections(
+  context: AgentRow["context"],
+  t: (text: string, vars?: Record<string, string | number>) => string,
+  locale: string,
+  now = Date.now(),
+): ContextSection[] {
+  if (!context) return [];
+  const percent = contextPercent(context.tokens, context.window);
+  const sections: ContextSection[] = [
+    {
+      key: "context",
+      label: t("Contexto"),
+      percent,
+      detail: `${percent}% · ${compactTokens(context.tokens)}/${compactTokens(context.window)}`,
+    },
+  ];
+  for (const key of ["five_hour", "seven_day"] as const) {
+    const limit = context.limits?.[key];
+    if (!limit || limit.r * 1000 < now) continue;
+    const date = new Date(limit.r * 1000),
+      time = date.toLocaleTimeString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    const at =
+      key === "five_hour"
+        ? time
+        : `${date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "")} ${time}`;
+    sections.push({
+      key,
+      label: t(key === "five_hour" ? "Sessão de 5h" : "Semana"),
+      percent: Math.max(0, Math.min(100, Math.round(limit.p))),
+      detail: t("{p}% · reseta {at}", { p: Math.round(limit.p), at }),
+    });
+  }
+  return sections;
+}

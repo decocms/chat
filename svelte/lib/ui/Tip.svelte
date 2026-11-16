@@ -5,21 +5,34 @@
    * A styled tooltip around any element: render the element in `trigger` and
    * spread the props it receives onto it. Shows at once on hover or focus
    * (the browser's own `title` waits about a second and may not show at all).
+   * `tap` also toggles it with a tap on touch screens, where a tooltip alone
+   * never opens; leave it off for triggers whose tap already does something.
    */
   let {
     label,
     side = "right",
+    tap = false,
     trigger,
   }: {
     label: string;
     side?: "top" | "right" | "bottom" | "left";
+    tap?: boolean;
     trigger: Snippet<[Record<string, unknown>]>;
   } = $props();
+  let open = $state(false),
+    touch = false;
 </script>
 
 <Tooltip.Provider delayDuration={0} skipDelayDuration={300}>
-  <Tooltip.Root>
-    <Tooltip.Trigger>
+  <Tooltip.Root bind:open disableCloseOnTriggerClick={tap}>
+    <Tooltip.Trigger
+      onpointerdown={(event: PointerEvent) => {
+        touch = event.pointerType === "touch";
+      }}
+      onclick={() => {
+        if (tap && touch) open = !open;
+      }}
+    >
       {#snippet child({ props })}{@render trigger(props)}{/snippet}
     </Tooltip.Trigger>
     <Tooltip.Portal>

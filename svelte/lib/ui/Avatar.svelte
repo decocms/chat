@@ -31,6 +31,7 @@
     mark,
     px = 32,
     seed,
+    tone,
     class: className,
   }: {
     name: string;
@@ -43,6 +44,8 @@
     px?: AvatarPx;
     /** What picks the color, the person's email when known (as vanilla); else the name. */
     seed?: string;
+    /** Background and text classes for a tinted tile (agent providers) instead of the neutral frame. */
+    tone?: string;
     class?: string;
   } = $props();
   let failed = $state(false);
@@ -72,7 +75,10 @@
   data-avatar-color={colored ? colorIndex : undefined}
   class={cn(
     "tw:inline-grid tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:font-sans tw:text-xs tw:font-medium",
-    !colored && "tw:border tw:border-border tw:bg-muted tw:text-foreground",
+    !colored &&
+      !tone &&
+      "tw:border tw:border-border tw:bg-muted tw:text-foreground",
+    !colored && tone,
     colored && AVATAR_CLASSES[colorIndex],
     colored && "tw:text-avatar-foreground",
     avatarSize(px),

@@ -848,18 +848,18 @@ describe("native Svelte room panels", () => {
       expect(person).toContain("tw:rounded-full");
       expect(person).not.toContain("tw:rounded-control");
     }
-    // Full size agents carry the tile class itself; 16px marks its scaled twin.
+    // Full size agents carry the tile class itself; smaller marks their scaled twins.
     expect(
       seen.agent.map((agent) => agent.filter((c) => c.includes("rounded"))),
     ).toEqual([
       ["tw:rounded-control"],
       ["tw:rounded-control-sm"],
-      ["tw:rounded-control-sm"],
+      ["tw:rounded-control-md"],
     ]);
-    // px alone sets the box, so a 16px mark never gets the 32px radius.
+    // px alone sets the box, so a small mark never gets the 32px radius.
     expect(
       seen.agent.map((agent) => agent.filter((c) => /^tw:size-/.test(c))),
-    ).toEqual([["tw:size-8"], ["tw:size-4"], ["tw:size-4"]]);
+    ).toEqual([["tw:size-8"], ["tw:size-4"], ["tw:size-6"]]);
     // Agents reuse the room tile's radius token, so changing it reshapes both.
     expect(tile).toContain(avatarShape("agent"));
   }, 30_000);
@@ -8091,3 +8091,404 @@ test("document inline Apps keep independent consent and stable frames, and revok
   button(appsTarget, "Pôr no doc").click();
   expect(puts).toEqual([{ connection: connection.id, tool: "screen" }]);
 }, 30_000);
+
+describe("People & agents presence", () => {
+  type Agent = NonNullable<
+    ComponentProps<
+      typeof import("../svelte/features/room-sidebar/AgentPresenceRows.svelte").default
+    >["presence"]
+  >["agents"][number];
+  const agent = (extra: Partial<Agent> = {}): Agent => ({
+    email: "me@test",
+    who: "claude-opus-5-5",
+    repo: "vibebook.dev",
+    listening: true,
+    all_rooms: false,
+    seen_at: 1,
+    context: null,
+    ...extra,
+  });
+  async function rows(
+    agents: Agent[],
+    extra: { surface?: "sidebar" | "background" } = {},
+  ) {
+    const { default: AgentPresenceRows } =
+      await import("../svelte/features/room-sidebar/AgentPresenceRows.svelte");
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(AgentPresenceRows, {
+        target,
+        props: {
+          presence: { agents, sandboxes: [] },
+          email: "me@test",
+          t: vb.t,
+          name: () => "Ana",
+          ago: () => "5 min",
+          locale: "en-US",
+          ...extra,
+        },
+      }),
+    );
+    active.push({
+      destroy: () =>
+        flushSync(() => {
+          void unmount(instance);
+        }),
+    });
+    return target;
+  }
+  /** The open hover card / tooltip (bits portals it onto the body). */
+  const floating = () =>
+    document.body.querySelector<HTMLElement>(
+      "[data-hover-card], [data-tooltip-content]",
+    );
+  async function hover(trigger: HTMLElement) {
+    trigger.focus();
+    await tick();
+    flushSync();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    flushSync();
+  }
+  /** A finger tap: bits ignores touch focus, so only the tap toggle can open it. */
+  async function tap(trigger: HTMLElement) {
+    trigger.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, pointerType: "touch" }),
+    );
+    trigger.click();
+    await settle();
+  }
+  /** Lets a closing card finish its exit before checking it is gone. */
+  async function settle() {
+    await tick();
+    flushSync();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    flushSync();
+  }
+
+  test("provider detection matches vanilla agentKind() and tints the tile", async () => {
+    const { agentProvider, agentMark, AGENT_TILES } =
+      await import("../svelte/lib/ui/avatar");
+    const table: [string | null, string, string][] = [
+      ["Codex", "codex", "◎"],
+      ["gpt-5.1-codex", "codex", "◎"],
+      ["OpenAI agent", "codex", "◎"],
+      ["o3", "codex", "◎"],
+      ["gemini-3-pro", "gemini", "✦"],
+      ["Antigravity", "gemini", "✦"],
+      ["Cursor", "cursor", "▲"],
+      ["GitHub Copilot", "copilot", "◉"],
+      ["claude-opus-5-5", "claude", "✻"],
+      ["vibebook CLI", "claude", "✻"],
+      ["solo3d", "claude", "✻"],
+      [null, "claude", "✻"],
+    ];
+    for (const [via, provider, mark] of table) {
+      expect(agentProvider(via), String(via)).toBe(provider as never);
+      expect(agentMark(via), String(via)).toBe(mark);
+    }
+    const target = await rows([
+      agent({ who: "Codex" }),
+      agent({ who: "gemini-3-pro", repo: "other" }),
+      agent({ who: "claude-sonnet-5-0", repo: "third" }),
+    ]);
+    const tiles = [...target.querySelectorAll("[data-agent-presence]")].map(
+      (row) => [
+        row.getAttribute("data-agent-provider"),
+        row.querySelector("[data-avatar]")?.textContent,
+        row
+          .querySelector("[data-avatar]")
+          ?.className.includes(
+            AGENT_TILES[
+              row.getAttribute(
+                "data-agent-provider",
+              ) as keyof typeof AGENT_TILES
+            ].split(" ")[0]!,
+          ),
+      ],
+    );
+    expect(tiles).toEqual([
+      ["codex", "◎", true],
+      ["gemini", "✦", true],
+      ["claude", "✻", true],
+    ]);
+  });
+
+  test("agent dot shows listening; the row has no native title or Contexto disclosure", async () => {
+    const target = await rows([
+      agent(),
+      agent({ who: "Codex", listening: false, seen_at: 5 }),
+    ]);
+    const list = [...target.querySelectorAll("[data-agent-presence]")];
+    expect(
+      list.map((row) =>
+        row.querySelector("[data-status-dot]")?.getAttribute("data-status-dot"),
+      ),
+    ).toEqual(["listening", "idle"]);
+    expect(list[0]!.querySelector("[data-status-dot]")!.className).toContain(
+      "tw:bg-success",
+    );
+    expect(list[1]!.querySelector("[data-status-dot]")!.className).toContain(
+      "tw:bg-muted-foreground",
+    );
+    expect(target.querySelector("[title]") === null).toBe(true);
+    expect(target.querySelector("details") === null).toBe(true);
+    expect(list[1]!.textContent).toContain("5 min");
+  });
+
+  test("context bar: width is the percent, green, yellow from 60%, red from 80%", async () => {
+    const { contextTone, compactTokens } =
+      await import("../svelte/features/room-sidebar/model");
+    expect([0, 59, 60, 79, 80, 100].map(contextTone)).toEqual([
+      "ok",
+      "ok",
+      "mid",
+      "mid",
+      "hot",
+      "hot",
+    ]);
+    expect([999, 180_400, 1_000_000, 1_250_000].map(compactTokens)).toEqual([
+      "1k",
+      "180k",
+      "1M",
+      "1.3M",
+    ]);
+    const cases: [number, number, string][] = [
+      [30_000, 100_000, "bg-success"],
+      [60_000, 100_000, "bg-warning"],
+      [80_000, 100_000, "bg-destructive"],
+      [250_000, 200_000, "bg-destructive"],
+    ];
+    for (const [tokens, window, color] of cases) {
+      const target = await rows([
+        agent({ context: { tokens, window, at: 1, limits: null } }),
+      ]);
+      const bar = target.querySelector<HTMLProgressElement>(
+        "[data-agent-presence] [data-context-bar]",
+      )!;
+      const percent = Math.min(100, Math.round((tokens / window) * 100));
+      expect(bar.getAttribute("value")).toBe(String(percent));
+      expect(bar.getAttribute("max")).toBe("100");
+      expect(bar.className).toContain(`[&::-webkit-progress-value]:${color}!`);
+      expect(
+        target.querySelector("[data-agent-presence]")?.textContent,
+      ).toContain(`${percent}%`);
+      target.remove();
+    }
+    const none = await rows([agent()]);
+    expect(none.querySelector("[data-context-bar]") === null).toBe(true);
+  });
+
+  test("hover card: title, repo and state, then context and the limits not yet reset", async () => {
+    const now = Date.now() / 1000;
+    const target = await rows([
+      agent({
+        context: {
+          tokens: 180_000,
+          window: 200_000,
+          at: 1,
+          limits: {
+            five_hour: { p: 42, r: Math.round(now + 3600) },
+            seven_day: { p: 12, r: Math.round(now - 60) },
+          },
+        },
+      }),
+    ]);
+    const row = target.querySelector<HTMLElement>("[data-agent-presence]")!;
+    await hover(row);
+    const card = floating();
+    expect(card !== null).toBe(true);
+    expect(card!.querySelector("[data-hover-title]")?.textContent?.trim()).toBe(
+      "Claude Opus 5.5 · Ana",
+    );
+    expect(card!.textContent).toContain(
+      "vibebook.dev · ouvindo esta sala agora",
+    );
+    expect(
+      [...card!.querySelectorAll("[data-hover-section]")].map((section) =>
+        section.getAttribute("data-hover-section"),
+      ),
+    ).toEqual(["context", "five_hour"]);
+    const context = card!.querySelector('[data-hover-section="context"]')!;
+    expect(context.textContent).toContain("Contexto");
+    expect(context.textContent).toContain("90% · 180k/200k");
+    expect(context.querySelector("progress")?.getAttribute("value")).toBe("90");
+    expect(context.querySelector("progress")?.className).toContain(
+      "bg-destructive!",
+    );
+    const session = card!.querySelector('[data-hover-section="five_hour"]')!;
+    expect(session.textContent).toContain("Sessão de 5h");
+    expect(session.textContent).toMatch(/42% · reseta \d{2}:\d{2}/);
+  });
+
+  test("hover card: a tap toggles it on touch, Escape closes it, all-rooms label", async () => {
+    const target = await rows([agent({ all_rooms: true })]);
+    const row = target.querySelector<HTMLElement>("[data-agent-presence]")!;
+    await tap(row);
+    expect(floating()?.textContent).toContain("ouvindo todas as salas agora");
+    await tap(row);
+    expect(document.body.querySelector("[data-hover-card]") === null).toBe(
+      true,
+    );
+    // A fresh row: bits ignores focus right after a touch pointer.
+    const keyboard = (await rows([agent()])).querySelector<HTMLElement>(
+      "[data-agent-presence]",
+    )!;
+    await hover(keyboard);
+    expect(floating() !== null).toBe(true);
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    await settle();
+    expect(document.body.querySelector("[data-hover-card]") === null).toBe(
+      true,
+    );
+  });
+
+  test("rows on the page background use its ring and hover tint", async () => {
+    const sidebar = (await rows([agent()])).querySelector(
+      "[data-agent-presence]",
+    )!;
+    expect(sidebar.className).toContain("tw:hover:bg-sidebar-accent");
+    expect(sidebar.querySelector("[data-status-dot]")!.className).toContain(
+      "tw:ring-sidebar",
+    );
+    const pane = (
+      await rows([agent()], { surface: "background" })
+    ).querySelector("[data-agent-presence]")!;
+    expect(pane.className).toContain("tw:hover:bg-accent");
+    expect(pane.className).not.toContain("bg-sidebar-accent");
+    expect(pane.querySelector("[data-status-dot]")!.className).toContain(
+      "tw:ring-background",
+    );
+  });
+
+  test("hover card without context shows only who, repo and state", async () => {
+    const target = await rows([
+      agent({ listening: false, seen_at: 5, repo: null, who: "Codex" }),
+    ]);
+    await hover(target.querySelector<HTMLElement>("[data-agent-presence]")!);
+    const card = floating()!;
+    expect(card.querySelector("[data-hover-title]")?.textContent?.trim()).toBe(
+      "Codex · Ana",
+    );
+    expect(card.textContent).toContain("visto há 5 min");
+    expect(card.querySelectorAll("[data-hover-section]")).toHaveLength(0);
+  });
+
+  test("weekly limit shows its weekday; limits without context are not shown", async () => {
+    const { contextSections } =
+      await import("../svelte/features/room-sidebar/model");
+    const now = Date.UTC(2026, 10, 16, 12) / 1000;
+    const sections = contextSections(
+      {
+        tokens: 10_000,
+        window: 200_000,
+        at: 1,
+        limits: { seven_day: { p: 70, r: now + 86_400 } },
+      },
+      vb.t,
+      "en-US",
+      now * 1000,
+    );
+    expect(sections.map((section) => section.key)).toEqual([
+      "context",
+      "seven_day",
+    ]);
+    expect(sections[1]!.detail).toMatch(
+      /^70% · reseta [A-Z][a-z]{2} \d{2}:\d{2}/,
+    );
+    expect(contextSections(null, vb.t, "en-US")).toEqual([]);
+  });
+
+  test("person rows: a status dot on the avatar with an Online/Offline tooltip, no pill", async () => {
+    const room: Room = {
+      ...fixture(),
+      me: "me@test",
+      members: ["me@test", "on@test", "off@test", "wait@test"],
+      online: ["on@test"],
+      pending: ["wait@test"],
+    };
+    const target = document.createElement("div");
+    document.body.append(target);
+    const values = writable<Record<string, unknown>>({ room, vb });
+    const component = People as unknown as Component<Record<string, unknown>>;
+    const instance = flushSync(() =>
+      mount(PeopleView, { target, props: { component, values } }),
+    );
+    active.push({
+      destroy: () =>
+        flushSync(() => {
+          void unmount(instance);
+        }),
+    });
+    const dot = (email: string) =>
+      target
+        .querySelector(`[data-person="${email}"] [data-status-dot]`)
+        ?.getAttribute("data-status-dot") ?? null;
+    expect(["me@test", "on@test", "off@test", "wait@test"].map(dot)).toEqual([
+      "online",
+      "online",
+      "offline",
+      null,
+    ]);
+    expect(
+      target.querySelector('[data-person="on@test"] [data-status-dot]')!
+        .className,
+    ).toContain("tw:ring-sidebar");
+    // No online/offline text pill any more.
+    expect(
+      [...target.querySelectorAll("[data-person]")].some((row) =>
+        /\b(online|offline)\b/.test(row.textContent ?? ""),
+      ),
+    ).toBe(false);
+    const face = target.querySelector<HTMLElement>(
+      '[data-person="off@test"] [data-presence]',
+    )!;
+    expect(face.hasAttribute("title")).toBe(false);
+    expect(face.getAttribute("aria-label")).toBe("off@test · Offline");
+    await hover(face);
+    expect(floating()?.textContent?.trim()).toBe("Offline");
+    face.blur();
+    const on = target.querySelector<HTMLElement>(
+      '[data-person="on@test"] [data-presence]',
+    )!;
+    await hover(on);
+    expect(
+      [...document.body.querySelectorAll("[data-tooltip-content]")].some(
+        (tip) => tip.textContent?.trim() === "Online",
+      ),
+    ).toBe(true);
+  });
+
+  test("person avatar tooltip also opens with a tap on touch screens", async () => {
+    const room: Room = {
+      ...fixture(),
+      me: "me@test",
+      members: ["me@test", "off@test"],
+      online: [],
+    };
+    const target = document.createElement("div");
+    document.body.append(target);
+    const values = writable<Record<string, unknown>>({ room, vb });
+    const component = People as unknown as Component<Record<string, unknown>>;
+    const instance = flushSync(() =>
+      mount(PeopleView, { target, props: { component, values } }),
+    );
+    active.push({
+      destroy: () =>
+        flushSync(() => {
+          void unmount(instance);
+        }),
+    });
+    const face = target.querySelector<HTMLElement>(
+      '[data-person="off@test"] [data-presence]',
+    )!;
+    await tap(face);
+    expect(floating()?.textContent?.trim()).toBe("Offline");
+    await tap(face);
+    expect(document.body.querySelector("[data-tooltip-content]") === null).toBe(
+      true,
+    );
+  });
+});
