@@ -3119,6 +3119,55 @@ describe("stable native sidebar integration", () => {
       },
     };
   }
+  test("titled sidebar sections share one header with a heading, a count and a tooltip action", async () => {
+    const room = fixture();
+    room.pins = [
+      { id: "p", kind: "link", ref: "https://example.com/", title: "Example" },
+    ];
+    const rendered = sidebar(room);
+    const pins = rendered.target.querySelector("[data-native-pins]")!;
+    const people = rendered.target.querySelector("[data-people-panel]")!;
+    const headers = [pins, people].map((section) =>
+      section.querySelector<HTMLElement>("[data-section-header]")!,
+    );
+    expect(headers[0].className).toBe(headers[1].className);
+    expect(headers[0].className).toContain("tw:sticky");
+    const headings = headers.map((header) => header.querySelector("h3")!);
+    expect(headings[0].className).toBe(headings[1].className);
+    expect(headings[0].className).toContain("tw:uppercase");
+    expect(headings[0].textContent).toContain("Fixados");
+    expect(headings[1].textContent).toContain("Pessoas e agents");
+    const label = document.getElementById(
+      pins.getAttribute("aria-labelledby")!,
+    );
+    expect(headings[0].contains(label)).toBe(true);
+    expect(label?.textContent).toBe("Fixados");
+    expect(headings[0].querySelector("[data-section-count]")?.textContent).toBe(
+      "1",
+    );
+    expect(headings[0].textContent).toBe("Fixados · 1 (1)");
+    const add = headers[0].querySelector<HTMLButtonElement>(
+      'button[aria-label="Fixar um link"]',
+    )!;
+    const invite = headers[1].querySelector<HTMLButtonElement>(
+      "button[data-invite-toggle]",
+    )!;
+    expect(add.className).toBe(invite.className);
+    expect(add.hasAttribute("title")).toBe(false);
+    expect(invite.hasAttribute("title")).toBe(false);
+    expect(invite.getAttribute("aria-expanded")).toBe("false");
+    invite.click();
+    flushSync();
+    expect(invite.getAttribute("aria-expanded")).toBe("true");
+    add.click();
+    await tick();
+    flushSync();
+    expect(pins.querySelector("form input[name=url]")).not.toBeNull();
+    expect(headers[0].querySelector('button[aria-label="Fixar um link"]')).toBe(
+      null,
+    );
+    rendered.destroy();
+  });
   test("native epic tree changes cue follows the reader’s canonical post-deploy message and clears for archived epics", async () => {
     const room = fixture();
     room.epics = [

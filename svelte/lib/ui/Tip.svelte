@@ -27,6 +27,7 @@
         data-vb-native
         {side}
         sideOffset={8}
+        collisionPadding={8}
         class="tw:z-50 tw:m-0 tw:box-border tw:max-w-xs tw:rounded-control tw:border tw:border-solid tw:border-border tw:bg-popover tw:px-3 tw:py-1.5 tw:font-sans tw:whitespace-pre-line tw:text-xs tw:font-medium tw:leading-4 tw:text-popover-foreground tw:shadow-md"
         >{label}</Tooltip.Content
       >
