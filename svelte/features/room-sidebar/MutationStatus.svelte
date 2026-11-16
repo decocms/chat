@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { RoomMutations } from "./session";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   let { owner, t }: { owner: RoomMutations; t: (text: string) => string } =
     $props();
   const status = untrack(() => owner.state);

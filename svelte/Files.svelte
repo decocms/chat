@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Button from "./lib/ui/Button.svelte";
-  import Icon from "./lib/ui/Icon.svelte";
-  import IconButton from "./lib/ui/IconButton.svelte";
+  import Button from "./lib/studio/Button.svelte";
+  import Icon from "./lib/studio/Icon.svelte";
+  import { File02, Folder, Pin02 } from "./lib/studio/icons";
+  import IconButton from "./lib/studio/IconButton.svelte";
+  import Spinner from "./lib/studio/Spinner.svelte";
   import { filesModel, fileKinds } from "./features/files/model";
   import type { FilesProps } from "./features/files/types";
   import { kb } from "./panels";
@@ -66,7 +68,7 @@
                 : "",
               true,
             )}>← {vb.t("voltar")}</Button
-        ><Icon name="folder" /><b>{view.dir}/</b>
+        ><Icon icon={Folder} size={16} /><b>{view.dir}/</b>
       </div>{/if}
     <div class="tw:grid tw:grid-cols-2 tw:gap-3 tw:sm:grid-cols-3">
       {#each view.folders as [name, count]}<Button
@@ -74,7 +76,8 @@
           variant="outline"
           class="tw:h-auto tw:flex-col tw:items-start tw:whitespace-normal tw:p-3"
           onclick={() => select(view.kind, view.prefix + name, true)}
-          ><Icon name="folder" class="tw:size-8" /><b>{name}/</b><small
+          ><Icon icon={Folder} size={16} class="tw:size-8" /><b>{name}/</b
+          ><small
             >{count === 1
               ? vb.t("1 arquivo")
               : vb.t("{n} arquivos", { n: count })}</small
@@ -103,7 +106,7 @@
                 src={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}`}
                 alt={file.name}
                 loading="lazy"
-              />{:else}<Icon name="file" class="tw:size-8" />{/if}
+              />{:else}<Icon icon={File02} size={16} class="tw:size-8" />{/if}
             <b class="tw:break-all">{file.name.slice(view.prefix.length)}</b
             ><small class="tw:text-muted-foreground"
               >{vb.name(file.author)} · {vb.ago(file.ts)} · {(view.versions.get(
@@ -114,16 +117,19 @@
             >
           </Button>
           <IconButton
-            icon="pin"
             label={vb.t(pinned ? "Desafixar" : "Fixar na lateral")}
             aria-pressed={pinned}
             disabled={!!$fileState.pending}
-            loading={$fileState.pending?.id === file.id}
+            aria-busy={$fileState.pending?.id === file.id || undefined}
+            class="tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
             onclick={(event) => {
               if (mounted && event.currentTarget.isConnected)
                 void session.toggle(file, request);
             }}
-          />
+            >{#if $fileState.pending?.id === file.id}<Spinner
+                size="xs"
+              />{:else}<Icon icon={Pin02} size={16} />{/if}</IconButton
+          >
         </article>
       {/each}
     </div>

@@ -164,13 +164,42 @@ async function render(csv?: string) {
   await settle();
   return owner;
 }
+/** Opens a Studio Select from its trigger and picks one option, as a mouse does. */
+function choose(trigger: Element, value: string) {
+  trigger.dispatchEvent(
+    new PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+  const list = document.getElementById(
+    trigger.getAttribute("aria-controls") ?? "",
+  );
+  const option = [
+    ...(list?.querySelectorAll<HTMLElement>("[data-slot=select-item]") ?? []),
+  ].find((item) => item.dataset.value === value);
+  if (!option) throw new Error(`Missing select option: ${value}`);
+  option.dispatchEvent(
+    new PointerEvent("pointerup", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
+  flushSync();
+}
 test("native viewer renders safe Markdown, changes exact version and disconnects old controls", async () => {
   const owner = await render();
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
   expect(dialog.textContent).toContain("old preview");
-  const oldSelect = dialog.querySelector<HTMLSelectElement>("select")!;
-  oldSelect.value = "bb";
-  oldSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  const oldSelect = dialog.querySelector<HTMLElement>(
+    "[data-file-version-target]",
+  )!;
+  choose(oldSelect, "bb");
   await settle();
   expect(dialog.textContent).toContain("new preview");
   expect(
@@ -178,8 +207,15 @@ test("native viewer renders safe Markdown, changes exact version and disconnects
   ).toBe("bb");
   owner.closeNavigation();
   await settle();
-  oldSelect.value = "aa";
-  oldSelect.dispatchEvent(new Event("change", { bubbles: true }));
+  expect(oldSelect.isConnected).toBe(false);
+  oldSelect.dispatchEvent(
+    new PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      pointerType: "mouse",
+    }),
+  );
   await settle();
   expect(document.querySelector("[data-file-viewer]")).toBeNull();
 });
@@ -290,9 +326,7 @@ test("beside-chat native pane follows versions, rejects old connected controls a
   )!;
   fullButton.click();
   expect(full).toEqual(["bb"]);
-  const select = target.querySelector("select")!;
-  select.value = "aa";
-  select.dispatchEvent(new Event("change", { bubbles: true }));
+  choose(target.querySelector("[data-file-version-target]")!, "aa");
   await settle();
   side.sync(room([file("cc", 3), file("bb", 2), file("aa")]), request);
   await settle();

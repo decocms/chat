@@ -1,7 +1,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogDescription from "../../lib/studio/DialogDescription.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import { registerDialog } from "../../lib/studio/dialogController";
+  import Button from "../../lib/studio/Button.svelte";
   import type { TerminalSession } from "./terminalSession";
   import { mountTerminalRenderer } from "./terminalRenderer";
   import { TERMINAL_KEYS, type TerminalKey } from "./terminalProtocol";
@@ -26,6 +31,10 @@
   );
   let focusTarget: HTMLElement | null = null;
   const keys = Object.keys(TERMINAL_KEYS) as TerminalKey[];
+  $effect(() => {
+    const ticket = $view.generation;
+    if ($view.open) return registerDialog(() => owner.close(ticket));
+  });
   function mount(node: HTMLElement, ticket: number) {
     focusTarget = node;
     let focusAllowed = true;
@@ -65,54 +74,76 @@
   {@const ticket = $view.generation}
   <Dialog
     open={$view.open}
-    title={`${text("terminal")} · ${$view.name ?? text("unnamed")}`}
-    description={text("terminalHelp")}
-    closeLabel={text("close")}
-    fullScreen
-    initialFocus={() =>
-      owner.current(ticket)
-        ? (focusTarget?.querySelector<HTMLTextAreaElement>("textarea") ??
-          focusTarget)
-        : null}
     onOpenChange={(open) => {
       if (!open) owner.close(ticket);
     }}
-    returnFocus={() => owner.returnFocus(ticket)}
   >
-    <p role="status" class="tw:m-0 tw:text-sm tw:text-muted-foreground">
-      {text(phase)}
-    </p>
-    <div
-      tabindex="-1"
-      data-native-terminal-renderer
-      data-terminal-phase={$view.phase}
-      data-terminal-font={$view.semantic?.fontFamily}
-      data-terminal-font-size={$view.semantic?.fontSize}
-      data-terminal-background={$view.semantic?.theme.background}
-      data-terminal-foreground={$view.semantic?.theme.foreground}
-      data-terminal-selection={$view.semantic?.theme.selectionBackground}
-      use:mount={ticket}
-      class="tw:min-h-64 tw:flex-1 tw:overflow-hidden tw:bg-background tw:font-mono tw:text-sm tw:text-foreground tw:selection:bg-primary/30"
-    ></div>
-    <div class="tw:flex tw:flex-wrap tw:gap-2">
-      {#each keys as key}<Button
-          variant="outline"
-          size="sm"
-          disabled={$view.phase !== "connected"}
-          onpointerdown={(event) => {
-            event.preventDefault();
-            if (event.currentTarget.isConnected && owner.current(ticket))
-              owner.key(key, ticket);
-          }}
-          onclick={(event) => {
-            if (
-              event.detail === 0 &&
-              event.currentTarget.isConnected &&
-              owner.current(ticket)
-            )
-              owner.key(key, ticket);
-          }}>{key}</Button
-        >{/each}
-    </div>
+    <DialogContent
+      data-vb-native
+      closeLabel={text("close")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+      onOpenAutoFocus={(event) => {
+        const target = owner.current(ticket)
+          ? (focusTarget?.querySelector<HTMLTextAreaElement>("textarea") ??
+            focusTarget)
+          : null;
+        if (target) {
+          event.preventDefault();
+          target.focus();
+        }
+      }}
+      onCloseAutoFocus={(event) => {
+        const target = owner.returnFocus(ticket);
+        if (target?.isConnected) {
+          event.preventDefault();
+          target.focus();
+        }
+      }}
+      class="tw:inset-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:gap-4 tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:sm:max-w-none"
+    >
+      <DialogHeader class="tw:pr-8">
+        <DialogTitle class="tw:font-sans"
+          >{`${text("terminal")} · ${$view.name ?? text("unnamed")}`}</DialogTitle
+        >
+        <DialogDescription>{text("terminalHelp")}</DialogDescription>
+      </DialogHeader>
+      <p role="status" class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+        {text(phase)}
+      </p>
+      <div
+        tabindex="-1"
+        data-native-terminal-renderer
+        data-terminal-phase={$view.phase}
+        data-terminal-font={$view.semantic?.fontFamily}
+        data-terminal-font-size={$view.semantic?.fontSize}
+        data-terminal-background={$view.semantic?.theme.background}
+        data-terminal-foreground={$view.semantic?.theme.foreground}
+        data-terminal-selection={$view.semantic?.theme.selectionBackground}
+        use:mount={ticket}
+        class="tw:min-h-64 tw:flex-1 tw:overflow-hidden tw:bg-background tw:font-mono tw:text-sm tw:text-foreground tw:selection:bg-primary/30"
+      ></div>
+      <div class="tw:flex tw:flex-wrap tw:gap-2">
+        {#each keys as key}<Button
+            variant="outline"
+            size="sm"
+            disabled={$view.phase !== "connected"}
+            onpointerdown={(event) => {
+              event.preventDefault();
+              if (event.currentTarget.isConnected && owner.current(ticket))
+                owner.key(key, ticket);
+            }}
+            onclick={(event) => {
+              if (
+                event.detail === 0 &&
+                event.currentTarget.isConnected &&
+                owner.current(ticket)
+              )
+                owner.key(key, ticket);
+            }}>{key}</Button
+          >{/each}
+      </div>
+    </DialogContent>
   </Dialog>
 {/key}

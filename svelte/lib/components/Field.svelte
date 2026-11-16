@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import Label from "../ui/Label.svelte";
+  import Label from "../studio/Label.svelte";
   let {
     id,
     label,

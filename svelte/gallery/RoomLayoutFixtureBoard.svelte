@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Textarea from "../lib/ui/Textarea.svelte";
+  import Textarea from "../lib/studio/Textarea.svelte";
   let { mounted }: { mounted(): void } = $props();
   let draft = $state("");
   onMount(() => {

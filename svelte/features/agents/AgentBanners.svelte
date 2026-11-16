@@ -1,7 +1,11 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "./SetupInstructions.svelte";
   import type { RoomAgentSession } from "./room";
   import { agentPresence, pendingAsk, askPreview } from "./model";
@@ -49,6 +53,16 @@
     void $view.room;
     void $view.data;
     if (!owner.current()) connect = false;
+  });
+  $effect(() => {
+    if (connect && owner.current())
+      return registerDialog(() => {
+        connect = false;
+      });
+  });
+  $effect(() => {
+    if ($view.welcome && owner.current())
+      return registerDialog(() => owner.closeWelcome());
   });
   function open() {
     if (owner.current()) onopen();
@@ -167,58 +181,84 @@
 </div>
 <Dialog
   open={connect && owner.current()}
-  title={text("connect")}
-  closeLabel={text("close")}
   onOpenChange={(open) => (connect = open)}
-  ><SetupInstructions
-    {origin}
-    roomId={owner.roomId}
-    {lang}
-    current={owner.current}
-  /></Dialog
 >
-<Dialog
-  open={$view.welcome && owner.current()}
-  title={step === 0
-    ? `${text("welcome")} ${$view.room?.book.title || text("main")}`
-    : text(step === 1 ? "ownAgent" : step === 2 ? "context" : "connect")}
-  closeLabel={text("close")}
-  onOpenChange={(open) => {
-    if (!open) owner.closeWelcome();
-  }}
->
-  <p class="tw:m-0 tw:text-muted-foreground">
-    {step === 0
-      ? `${name($view.room?.book.owner || "")} ${text("welcomeBody")}`
-      : text(
-          step === 1
-            ? "ownAgentBody"
-            : step === 2
-              ? "contextBody"
-              : "connectBody",
-        )}
-  </p>
-  {#if step === 3 && $view.hasAgent !== true}<SetupInstructions
+  <DialogContent
+    data-vb-native
+    class="tw:max-h-[90dvh] tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground"
+    closeLabel={text("close")}
+    preventScroll={false}
+    preventBodyPointerEvents={false}
+    preventOverflowTextSelection={false}
+  >
+    <DialogHeader class="tw:pr-8">
+      <DialogTitle class="tw:font-sans">{text("connect")}</DialogTitle>
+    </DialogHeader>
+    <SetupInstructions
       {origin}
       roomId={owner.roomId}
       {lang}
       current={owner.current}
-    />{/if}
-  <div class="tw:flex tw:items-center tw:gap-2">
-    <span
-      aria-label={`${step + 1} / 4`}
-      class="tw:flex-1 tw:text-xs tw:text-muted-foreground">{step + 1} / 4</span
-    ><Button
-      variant="ghost"
-      onclick={() => {
-        if (step) step--;
-        else owner.closeWelcome();
-      }}>{text(step ? "back" : "skip")}</Button
-    ><Button
-      onclick={() => {
-        if (step === 3) owner.closeWelcome();
-        else step++;
-      }}>{text(step === 3 ? "enter" : "next")}</Button
-    >
-  </div>
+    />
+  </DialogContent>
+</Dialog>
+<Dialog
+  open={$view.welcome && owner.current()}
+  onOpenChange={(open) => {
+    if (!open) owner.closeWelcome();
+  }}
+>
+  <DialogContent
+    data-vb-native
+    class="tw:max-h-[90dvh] tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground"
+    closeLabel={text("close")}
+    preventScroll={false}
+    preventBodyPointerEvents={false}
+    preventOverflowTextSelection={false}
+  >
+    <DialogHeader class="tw:pr-8">
+      <DialogTitle class="tw:font-sans"
+        >{step === 0
+          ? `${text("welcome")} ${$view.room?.book.title || text("main")}`
+          : text(
+              step === 1 ? "ownAgent" : step === 2 ? "context" : "connect",
+            )}</DialogTitle
+      >
+    </DialogHeader>
+    <p class="tw:m-0 tw:text-muted-foreground">
+      {step === 0
+        ? `${name($view.room?.book.owner || "")} ${text("welcomeBody")}`
+        : text(
+            step === 1
+              ? "ownAgentBody"
+              : step === 2
+                ? "contextBody"
+                : "connectBody",
+          )}
+    </p>
+    {#if step === 3 && $view.hasAgent !== true}<SetupInstructions
+        {origin}
+        roomId={owner.roomId}
+        {lang}
+        current={owner.current}
+      />{/if}
+    <div class="tw:flex tw:items-center tw:gap-2">
+      <span
+        aria-label={`${step + 1} / 4`}
+        class="tw:flex-1 tw:text-xs tw:text-muted-foreground"
+        >{step + 1} / 4</span
+      ><Button
+        variant="ghost"
+        onclick={() => {
+          if (step) step--;
+          else owner.closeWelcome();
+        }}>{text(step ? "back" : "skip")}</Button
+      ><Button
+        onclick={() => {
+          if (step === 3) owner.closeWelcome();
+          else step++;
+        }}>{text(step === 3 ? "enter" : "next")}</Button
+      >
+    </div>
+  </DialogContent>
 </Dialog>

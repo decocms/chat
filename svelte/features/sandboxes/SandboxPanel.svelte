@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack, onDestroy } from "svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import { sandboxIdentity, type SandboxSession } from "./session";
   import type { SandboxCredentials } from "./credentials";
   import type { TerminalSession } from "./terminalSession";
@@ -345,7 +345,7 @@
     </p>
   {/if}
 </section>
-<AlertDialog
+<ConfirmDialog
   open={selected !== null}
   title={text(
     selected?.kind === "sandbox" ? "removeTitle" : "credentialRemoveTitle",

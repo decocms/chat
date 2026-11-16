@@ -3,9 +3,13 @@
   import type { Room } from "../../../shared/room";
   import type { ChatBridge } from "../../chatTypes";
   import type { ComposerDrafts, OrphanDraft } from "./drafts";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogDescription from "../../lib/studio/DialogDescription.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
   let {
     room,
     drafts,
@@ -107,32 +111,44 @@
     {/each}
   </aside>
 {/if}
-<Dialog
-  bind:open
-  title={vb.t("Revisar rascunho")}
-  closeLabel={vb.t("Fechar")}
-  description={vb.t(
-    "A conversa original não está disponível. Copie ou descarte este rascunho local. Nada será enviado ou movido. Descartar não desfaz um upload ou uma mensagem já enviada.",
-  )}
->
-  <Textarea
-    readonly
-    value={reviewText}
-    aria-label={vb.t("Rascunho original")}
-    rows={8}
-  />
-  {#if notice}<p
-      role="status"
-      class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-    >
-      {notice}
-    </p>{/if}
-  <div class="tw:flex tw:justify-end tw:gap-2">
-    <Button variant="outline" disabled={!current} onclick={copy}
-      >{vb.t("Copiar")}</Button
-    >
-    <Button variant="destructive" disabled={!current} onclick={discard}
-      >{vb.t("Descartar rascunho")}</Button
-    >
-  </div>
+<Dialog bind:open>
+  <DialogContent
+    data-vb-native
+    class="tw:font-sans tw:text-sm tw:text-foreground"
+    closeLabel={vb.t("Fechar")}
+    preventScroll={false}
+    preventBodyPointerEvents={false}
+    preventOverflowTextSelection={false}
+  >
+    <DialogHeader>
+      <DialogTitle class="tw:pr-8 tw:font-sans"
+        >{vb.t("Revisar rascunho")}</DialogTitle
+      >
+      <DialogDescription
+        >{vb.t(
+          "A conversa original não está disponível. Copie ou descarte este rascunho local. Nada será enviado ou movido. Descartar não desfaz um upload ou uma mensagem já enviada.",
+        )}</DialogDescription
+      >
+    </DialogHeader>
+    <Textarea
+      readonly
+      value={reviewText}
+      aria-label={vb.t("Rascunho original")}
+      rows={8}
+    />
+    {#if notice}<p
+        role="status"
+        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+      >
+        {notice}
+      </p>{/if}
+    <div class="tw:flex tw:justify-end tw:gap-2">
+      <Button variant="outline" disabled={!current} onclick={copy}
+        >{vb.t("Copiar")}</Button
+      >
+      <Button variant="destructive" disabled={!current} onclick={discard}
+        >{vb.t("Descartar rascunho")}</Button
+      >
+    </div>
+  </DialogContent>
 </Dialog>

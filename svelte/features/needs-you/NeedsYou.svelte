@@ -1,8 +1,9 @@
 <script lang="ts">
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import { Check } from "../../lib/studio/icons";
+  import Icon from "../../lib/studio/Icon.svelte";
   import type { ChatBridge } from "../../chatTypes";
   import type { NeedsItem, NeedsView } from "./model";
   import type { NeedsYouSession } from "./session";
@@ -59,9 +60,11 @@
     class="tw:mx-3 tw:mt-4 tw:space-y-2 tw:rounded-surface tw:border tw:border-warning/30 tw:bg-warning/10 tw:p-3 tw:font-sans tw:text-foreground"
   >
     <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-      <Heading level={3} class="tw:m-0 tw:text-sm tw:font-semibold"
-        >{vb.t("O que precisa de você aqui")}</Heading
+      <h3
+        class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
       >
+        {vb.t("O que precisa de você aqui")}
+      </h3>
       <span class="tw:flex-1 tw:text-xs tw:text-foreground"
         >{vb.t("só você vê")}</span
       >
@@ -122,14 +125,13 @@
                     ></span
                   >{/if}
                 <IconButton
-                  icon="check"
                   label={vb.t("Feito / não é comigo")}
                   disabled={view.busy}
                   onclick={(event) => {
                     if (event.currentTarget.isConnected)
                       owner.dismiss(intent.binding, [intent.item]);
-                  }}
-                />
+                  }}><Icon icon={Check} size={16} /></IconButton
+                >
               </li>{/snippet}</Snapshot
           >{/each}
       </ul>

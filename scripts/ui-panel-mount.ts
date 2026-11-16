@@ -16,7 +16,7 @@ import AppsPanel from "../svelte/features/apps/AppsPanel.svelte";
 import AgentSettings from "../svelte/features/agents/AgentSettings.svelte";
 import ThreadHeader from "../svelte/features/room-sidebar/ThreadHeader.svelte";
 import SuggestionPreview from "../svelte/features/room-sidebar/SuggestionPreview.svelte";
-export { dismissDialogs } from "../svelte/lib/ui/dialogController";
+export { dismissDialogs } from "../svelte/lib/studio/dialogController";
 const fixtures = {
   tasks: Tasks,
   board: Board,

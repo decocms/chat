@@ -4,15 +4,26 @@
   import type { Attachment, Room } from "../../../shared/room";
   import type { SendRoomCommand } from "../../../shared/commands";
   import type { RequestRoomCommand } from "../../roomConnection";
-  import Button from "../../lib/ui/Button.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
   import { copyChatText } from "../chat/clipboard";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
+  import { studioType } from "../../lib/components/type";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import {
+    AlertTriangle,
+    ChevronRight,
+    File02,
+    GitBranch01,
+    Globe02,
+    LinkExternal01,
+    Pin02,
+    Plus,
+  } from "../../lib/studio/icons";
+  import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
-  import { cn } from "../../lib/ui/utils";
   import { readable, type Readable } from "svelte/store";
   import {
     pinAppInitials,
@@ -277,17 +288,17 @@
     first.focus();
   }
   const menuItemClass =
-    "tw:flex tw:cursor-default tw:select-none tw:items-center tw:rounded-control-md tw:px-2 tw:py-1.5 tw:text-sm tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
+    "tw:relative tw:flex tw:cursor-pointer tw:select-none tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-sm tw:outline-hidden tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
   const pinState = $derived(session.state);
   const noApp = readable(null);
   const openApp = $derived(activeApp ?? noApp);
   // Row: [kind icon] label / detail [marker]. The marker says what a click does:
   // "external" leaves vibebook in a new tab, the chevron opens inside it.
   const rowClass =
-    "tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1.5 tw:font-sans tw:text-sm tw:text-inherit tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring";
+    "tw:flex tw:h-9 tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:font-sans tw:text-sm tw:text-inherit tw:no-underline tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring";
   const kindClass =
-    "tw:inline-grid tw:size-6 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-control";
-  const markerClass = "tw:size-3.5 tw:text-muted-foreground";
+    "tw:inline-grid tw:size-5 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-md";
+  const markerClass = "tw:size-3.5 tw:shrink-0 tw:text-muted-foreground";
   const rows = $derived(
     (room.pins ?? []).map((pin) => ({ pin, target: resolvePin(pin, room) })),
   );
@@ -392,44 +403,40 @@
 </script>
 
 {#snippet text(label: string, detail: string)}<span
-    class="tw:min-w-0 tw:flex-1 tw:text-left"
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:items-baseline tw:gap-1.5 tw:text-left"
     data-pin-text
-    ><span class="tw:block tw:truncate">{label}</span><span
-      class="tw:block tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
+    ><span class="tw:min-w-0 tw:shrink tw:truncate">{label}</span><span
+      class="tw:min-w-0 tw:flex-1 tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
       >{detail}</span
     ></span
   >{/snippet}
 
 <section
-  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-2 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:outline-none"
+  class="tw:shrink-0 tw:space-y-0.5 tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"
   data-native-pins
   data-vb-native
 >
-  <SectionHeader
-    id={`pins-title-${room.id}`}
-    title={t("Fixados")}
-    count={rows.length}
-  >
+  <SectionHeader id={`pins-title-${room.id}`} title={t("Fixados")}>
     {#snippet action()}{#if !$pinState.adding}<IconButton
           label={t("Fixar um link")}
-          icon="plus"
-          tip="bottom"
+          size="icon-xs"
+          tooltipSide="bottom"
           bind:ref={addButton}
           disabled={!live}
-          onclick={open}
-        />{/if}{/snippet}
+          onclick={open}><Icon icon={Plus} /></IconButton
+        >{/if}{/snippet}
   </SectionHeader>
 
   {#if $pinState.adding}
     <form
-      class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-3"
+      class="tw:space-y-3 tw:rounded-lg tw:bg-card tw:p-3 tw:shadow-edge"
       onsubmit={submit}
       aria-label={t("Fixar um link")}
     >
-      <div class="tw:space-y-1">
+      <div class="tw:space-y-1.5">
         <Label for={fieldId}>{t("Link pra fixar")}</Label>
         <Input
           id={fieldId}
@@ -446,7 +453,7 @@
           aria-invalid={$pinState.issue?.kind === "invalid-link" || undefined}
         />
       </div>
-      <div class="tw:space-y-1">
+      <div class="tw:space-y-1.5">
         <Label for={`${fieldId}-title`}>{t("Nome (opcional)")}</Label>
         <Input
           id={`${fieldId}-title`}
@@ -479,7 +486,7 @@
   {#if $pinState.pending}
     <p
       role="status"
-      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
     >
       {t("Aguardando confirmação…")}
     </p>
@@ -487,7 +494,7 @@
   {#if $pinState.issue?.kind === "already-pinned"}
     <p
       role="status"
-      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
     >
       {issueTitle($pinState.issue)}
     </p>
@@ -509,7 +516,7 @@
   {#if copyResult === "copied"}
     <p
       role="status"
-      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
       data-pin-copy="copied"
     >
       {t("Link copiado")}
@@ -517,7 +524,7 @@
   {:else if copyResult === "failed"}
     <p
       role="alert"
-      class="tw:m-0 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
+      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
       data-pin-copy="failed"
     >
       {t("Não consegui copiar o link.")}
@@ -525,16 +532,16 @@
   {/if}
   {#if rows.length}
     <span id={hintId} class="tw:sr-only">{t("Shift+F10 abre mais ações")}</span>
-    <ul class="tw:m-0 tw:list-none tw:space-y-0.5 tw:p-0">
+    <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
       {#each rows as { pin, target } (pin.id)}
         {@const selected =
           target.kind === "app" && samePinApp(target.app, $openApp)}
         <li
           class={cn(
-            "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-control tw:bg-sidebar tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-accent tw:focus-within:bg-accent",
+            "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-lg tw:bg-sidebar tw:transition-colors tw:duration-150 tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
             selected &&
-              "tw:bg-sidebar-accent tw:text-sidebar-accent-foreground tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
-            menuPin === pin.id && !selected && "tw:bg-accent",
+              "tw:bg-sidebar-accent tw:font-medium tw:text-sidebar-accent-foreground",
+            menuPin === pin.id && "tw:bg-sidebar-accent",
           )}
           data-pin-id={pin.id}
           data-pin-kind={target.kind === "file-unloaded" ? "file" : target.kind}
@@ -577,11 +584,12 @@
                       class={kindClass}
                       data-pin-icon={target.github ? "github" : "globe"}
                       ><Icon
-                        name={target.github ? "github" : "globe"}
+                        icon={target.github ? GitBranch01 : Globe02}
+                        size={16}
                         class="tw:text-muted-foreground"
                       /></span
                     >{@render text(target.label, target.detail)}<Icon
-                      name="external"
+                      icon={LinkExternal01}
                       class={markerClass}
                     /><span class="tw:sr-only">{t("abre em nova aba")}</span>
                   </a>
@@ -591,7 +599,7 @@
                     variant="ghost"
                     class={cn(
                       rowClass,
-                      "tw:h-auto tw:justify-start tw:whitespace-normal tw:font-normal tw:hover:bg-transparent tw:focus-visible:ring-offset-0",
+                      "tw:justify-start tw:font-normal tw:hover:bg-transparent",
                     )}
                     disabled={!live}
                     aria-current={selected ? "true" : undefined}
@@ -609,7 +617,8 @@
                         aria-hidden="true">{pinAppInitials(target.label)}</span
                       >{:else}<span class={kindClass} data-pin-icon="file"
                         ><Icon
-                          name="file"
+                          icon={File02}
+                          size={16}
                           class="tw:text-muted-foreground"
                         /></span
                       >{/if}{@render text(
@@ -623,7 +632,7 @@
                         : target.kind === "app"
                           ? t("App")
                           : target.detail,
-                    )}<Icon name="chevronRight" class={markerClass} />
+                    )}<Icon icon={ChevronRight} class={markerClass} />
                   </Button>
                 {:else}
                   <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
@@ -631,7 +640,8 @@
                     {...trigger}
                     class={cn(rowClass, "tw:text-muted-foreground")}
                   >
-                    <span class={kindClass}><Icon name="warning" /></span
+                    <span class={kindClass}
+                      ><Icon icon={AlertTriangle} size={16} /></span
                     >{@render text(target.label, t(target.reason))}
                   </div>
                 {/if}
@@ -646,7 +656,10 @@
                 collisionPadding={8}
                 onOpenAutoFocus={(event) => focusFirstItem(event, pin.id)}
                 onInteractOutside={dismissedByRow}
-                class="tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-control tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none"
+                class={cn(
+                  studioType,
+                  "tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-lg tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none",
+                )}
               >
                 {#if target.kind === "link"}
                   {@const href = target.href}
@@ -689,13 +702,18 @@
       {/each}
     </ul>
   {:else if !$pinState.adding}
-    <Button
-      variant="ghost"
-      class="tw:w-full tw:justify-start tw:whitespace-normal tw:text-left tw:text-muted-foreground"
+    <button
+      type="button"
+      data-pin-empty
+      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
       disabled={!live}
       onclick={open}
     >
-      <Icon name="plus" />{t("Fixar site, repo ou app")}
-    </Button>
+      <span
+        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+        ><Icon icon={Pin02} size={16} /></span
+      >
+      <span class="tw:min-w-0 tw:truncate">{t("Fixar site, repo ou app")}</span>
+    </button>
   {/if}
 </section>

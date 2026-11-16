@@ -2,7 +2,7 @@
   import { onDestroy } from "svelte";
   import { connectPrompt } from "./model";
   import { agentText } from "./copy";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   let {
     origin,
@@ -111,7 +111,8 @@
         href="/connect"
         target="_blank"
         rel="noopener noreferrer"
-        class="tw:text-link tw:underline">{text("fullGuide")}</a
+        class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+        >{text("fullGuide")}</a
       >
     </div>
   </details>

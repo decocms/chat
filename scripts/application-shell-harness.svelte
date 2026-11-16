@@ -2,7 +2,7 @@
   import AppShell from "../svelte/features/application/AppShell.svelte";
   import type { BrowserApplicationServices } from "../svelte/features/application/browser";
   import type { ApplicationShellEffects } from "../svelte/features/application/shellTypes";
-  import Button from "../svelte/lib/ui/Button.svelte";
+  import Button from "../svelte/lib/studio/Button.svelte";
   let {
     services,
     effects,

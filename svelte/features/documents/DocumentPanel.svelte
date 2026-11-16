@@ -9,8 +9,10 @@
   import DocumentPreview from "./DocumentPreview.svelte";
   import DocumentVersions from "./DocumentVersions.svelte";
   import { docVersionOpen } from "./versions";
-  import Button from "../../lib/ui/Button.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Pencil01 } from "../../lib/studio/icons";
   let { owner, props }: { owner: DocumentSession; props: DocumentProps } =
     $props();
   const view = untrack(() => owner.state);
@@ -278,7 +280,7 @@
           aria-label={en ? "Document editor" : "Editor do documento"}
           value={$view.text}
           disabled={!editable}
-          class="tw:min-h-64 tw:flex-1 tw:resize-none tw:font-mono! tw:text-base! tw:leading-6! tw:p-4! tw:border! tw:border-input! tw:rounded-control! tw:bg-studio-input-background!"
+          class="tw:min-h-64 tw:flex-1 tw:resize-none tw:p-4 tw:font-mono tw:text-base tw:leading-6"
           oninput={(event) => {
             if (connected(event)) owner.input(event.currentTarget.value);
           }}
@@ -325,16 +327,20 @@
           }}>{en ? "Try again" : "Tentar novamente"}</Button
         >
       </p>{/if}
-    <footer class="tw:flex tw:justify-end tw:border-t tw:border-border tw:p-2">
+    <footer class="tw:flex tw:p-3">
       <Button
         disabled={!editable}
-        variant={$view.mode === "edit" ? "primary" : "outline"}
+        variant={$view.mode === "edit" ? "default" : "outline"}
+        class="tw:w-full tw:rounded-full"
         aria-pressed={$view.mode === "edit"}
         onclick={(event) => {
           if (connected(event))
             owner.mode($view.mode === "edit" ? "preview" : "edit");
         }}
-        >{$view.mode === "edit"
+        >{#if $view.mode !== "edit"}<Icon
+            icon={Pencil01}
+            size={16}
+          />{/if}{$view.mode === "edit"
           ? en
             ? "Done"
             : "Pronto"

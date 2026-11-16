@@ -1,6 +1,5 @@
 <script lang="ts">
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import type { RootRoomSnapshot } from "../root-room/session";
   import type { BrowserApplicationServices } from "../application/browser";
@@ -40,11 +39,11 @@
         }}>{services.t("Verificar acesso novamente")}</Button
       >{/if}
   {:else}
-    <Heading
-      level={1}
-      class="tw:font-sans tw:tracking-normal tw:[font-variation-settings:normal]"
-      >vibebook</Heading
+    <h1
+      class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
     >
+      vibebook
+    </h1>
     <p role="status" class="tw:m-0 tw:text-muted-foreground">
       {services.t("Carregando…")}
     </p>

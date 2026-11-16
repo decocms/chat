@@ -4,8 +4,9 @@
   import { authIssue, authText, type AuthLanguage } from "./copy";
   import { createAccessSession } from "./session";
   import AuthFrame from "./AuthFrame.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
+  import Button from "../../lib/studio/Button.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Spinner from "../../lib/studio/Spinner.svelte";
   let {
     api,
     id,
@@ -83,8 +84,11 @@
     >
       {text("signed", { email: $view.context.email ?? "" })}
     </p>
-    <Button loading={$view.busy} onclick={() => session.ask()}
-      >{text("ask")}</Button
+    <Button
+      disabled={$view.busy}
+      aria-busy={$view.busy || undefined}
+      onclick={() => session.ask()}
+      >{#if $view.busy}<Spinner size="xs" />{/if}{text("ask")}</Button
     >
   {:else if $view.context?.state === "asked"}<p
       role="status"

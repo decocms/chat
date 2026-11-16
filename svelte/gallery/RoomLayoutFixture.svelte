@@ -3,12 +3,12 @@
   import RoomLayout from "../features/room-layout/RoomLayout.svelte";
   import { createRoomLayout } from "../features/room-layout/controller";
   import { createRoomLayoutBrowser } from "../features/room-layout/browser";
-  import Button from "../lib/ui/Button.svelte";
+  import Button from "../lib/studio/Button.svelte";
   import Heading from "../lib/ui/Heading.svelte";
-  import Textarea from "../lib/ui/Textarea.svelte";
+  import Textarea from "../lib/studio/Textarea.svelte";
   import RoomLayoutFixtureBoard from "./RoomLayoutFixtureBoard.svelte";
   import SetupInstructions from "../features/agents/SetupInstructions.svelte";
-  import AlertDialog from "../lib/ui/AlertDialog.svelte";
+  import ConfirmDialog from "../lib/components/ConfirmDialog.svelte";
   const capacityProbe =
     new URL(location.href).searchParams.get("capacity") === "1";
   let setupAttention = $state(capacityProbe),
@@ -269,7 +269,7 @@
     </RoomLayout>
   </div>
 </main>
-<AlertDialog
+<ConfirmDialog
   bind:open={alertOpen}
   title="Nested layout confirmation"
   description="Public fixture; no mutation."

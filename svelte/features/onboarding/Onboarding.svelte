@@ -1,11 +1,11 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { untrack, tick } from "svelte";
   import UiSwitch from "../home/UiSwitch.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Input from "../../lib/studio/Input.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
   import SetupInstructions from "../agents/SetupInstructions.svelte";
   import { avatarImage } from "../account/image";
   import { homeIssue } from "../home/copy";
@@ -154,10 +154,10 @@
           onclick={(event) => {
             if (live(event)) photo?.click();
           }}
-          >{#if $account.me?.avatar}<Avatar
+          >{#if $account.me?.avatar}<PersonAvatar
+              size="xs"
               name={$account.me.name || $account.me.email}
-              src={`/api/avatar/${encodeURIComponent($account.me.email)}?v=${$account.me.avatar}`}
-              seed={$account.me.email}
+              url={`/api/avatar/${encodeURIComponent($account.me.email)}?v=${$account.me.avatar}`}
             />{/if}{text($account.me?.avatar ? "changePhoto" : "photo")}</Button
         ><input
           bind:this={photo}

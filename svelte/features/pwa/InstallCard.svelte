@@ -2,9 +2,12 @@
   import { onDestroy } from "svelte";
   import type { PwaService } from "./service";
   import { pwaText } from "./copy";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
+  import { X } from "../../lib/studio/icons";
   let { owner, lang }: { owner: PwaService; lang: string } = $props();
   const view = $derived(owner.state);
   let active = true;
@@ -31,19 +34,22 @@
         class="tw:size-10 tw:rounded-control"
       /><Heading class="tw:flex-1 tw:text-lg">{text("install")}</Heading
       ><IconButton
-        icon="close"
         label={text("close")}
         onclick={(event) => {
           if (current(event)) owner.dismissInstall();
-        }}
-      />
+        }}><Icon icon={X} /></IconButton
+      >
     </div>
     <p class="tw:m-0 tw:text-muted-foreground">{text("benefits")}</p>
     {#if !$view.ios || $view.safari}<Button
-        loading={$view.installBusy}
+        disabled={$view.installBusy}
+        aria-busy={$view.installBusy || undefined}
         onclick={(event) => {
           if (current(event)) void owner.install();
-        }}>{$view.canInstall ? text("installNow") : text("how")}</Button
+        }}
+        >{#if $view.installBusy}<Spinner size="xs" />{/if}{$view.canInstall
+          ? text("installNow")
+          : text("how")}</Button
       >{/if}
     {#if $view.steps || ($view.ios && !$view.safari)}<p
         role="status"

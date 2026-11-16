@@ -2,7 +2,8 @@
   import { onDestroy, type Snippet } from "svelte";
   import type { RichActions, RichNode, SafeAttributes } from "./types";
   import { HTML_NS } from "./allowlist";
-  import Icon from "../../lib/ui/Icon.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { File02 } from "../../lib/studio/icons";
   import { hasMissingFileReference } from "./fileIndex";
   let {
     nodes,
@@ -186,8 +187,8 @@
           onclick={(event) => open(event, node)}
           data-rich-link={node.target.kind}
           class={node.target.kind === "file" || node.target.kind === "github"
-            ? "tw:inline-flex tw:max-w-full tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-border tw:bg-muted tw:px-2 tw:py-0.5 tw:align-middle tw:text-xs tw:font-medium tw:text-link tw:underline-offset-2 tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-            : "tw:rounded-sm tw:text-link tw:underline-offset-2 tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"}
+            ? "tw:inline-flex tw:max-w-full tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-border tw:bg-muted tw:px-2 tw:py-0.5 tw:align-middle tw:text-xs tw:font-medium tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:underline-offset-2 tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+            : "tw:rounded-sm tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:focus-visible:outline-2 tw:focus-visible:outline-ring"}
         >
           {#if node.target.kind === "github"}<svg
               aria-hidden="true"
@@ -200,8 +201,11 @@
             >{#if node.target.label}{node.target.label}{:else}{@render content(
                 node.children,
               )}{/if}
-          {:else if node.target.kind === "file"}<Icon name="file" /><span
-              class="tw:min-w-0 tw:break-words">{node.target.file.name}</span
+          {:else if node.target.kind === "file"}<Icon
+              icon={File02}
+              size={16}
+            /><span class="tw:min-w-0 tw:break-words"
+              >{node.target.file.name}</span
             >{#if node.target.version}<small class="tw:text-muted-foreground"
                 >v{node.target.version}</small
               >{/if}

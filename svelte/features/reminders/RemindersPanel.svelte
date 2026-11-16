@@ -3,15 +3,21 @@
   import type { PanelProps, Reminder } from "../../panels";
   import { createRoomApi } from "../../transport";
   import { createRemindersSession, type ReminderIssue } from "./session";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Card from "../../lib/ui/Card.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
-  import Switch from "../../lib/ui/Switch.svelte";
-  import Textarea from "../../lib/ui/Textarea.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Card from "../../lib/studio/Card.svelte";
+  import Spinner from "../../lib/studio/Spinner.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import {
+    AlertTriangle,
+    ChevronDown,
+    ChevronRight,
+    Plus,
+  } from "../../lib/studio/icons";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Switch from "../../lib/studio/Switch.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
   let { room, vb, request }: Pick<PanelProps, "room" | "vb" | "request"> =
     $props();
   const session = untrack(() => createRemindersSession(room.id));
@@ -21,7 +27,7 @@
     dialogOpen = $state(false);
   let panelRoot = $state<HTMLElement | null>(null),
     deleteTrigger = $state<HTMLElement | null>(null),
-    newTrigger = $state<HTMLButtonElement | null>(null),
+    newTrigger = $state<HTMLElement | null>(null),
     textInput = $state<HTMLTextAreaElement | null>(null);
   const list = $derived(room.reminders || []);
   const locale = $derived(vb.locale || "pt-BR");
@@ -86,9 +92,11 @@
 >
   <div class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3">
     <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
-      <Heading>
+      <h2
+        class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal"
+      >
         {vb.t("Lembretes")}
-      </Heading>
+      </h2>
       <p
         class="tw:m-0 tw:max-w-prose tw:text-sm tw:leading-5 tw:text-muted-foreground"
       >
@@ -101,7 +109,7 @@
         id="remNew"
         bind:ref={newTrigger}
         onclick={() => open({ name: "", text: "" })}
-        ><Icon name="plus" />{vb.t("Novo lembrete")}</Button
+        ><Icon icon={Plus} size={16} />{vb.t("Novo lembrete")}</Button
       >{/if}
   </div>
   {#if $view.draft}
@@ -152,8 +160,14 @@
         <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
           <Button id="remCancel" variant="outline" onclick={cancel}
             >{vb.t("Cancelar")}</Button
-          ><Button id="remSave" type="submit" loading={$view.saving}
-            >{vb.t("Salvar")}</Button
+          ><Button
+            id="remSave"
+            type="submit"
+            disabled={$view.saving}
+            aria-busy={$view.saving || undefined}
+            >{#if $view.saving}<Spinner size="2xs" />{/if}{vb.t(
+              "Salvar",
+            )}</Button
           >
         </div>
       </form>
@@ -174,10 +188,9 @@
             class="tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-1 tw:text-left tw:font-sans tw:text-sm tw:text-foreground tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
           >
             <Icon
-              name={opened.includes(reminder.id)
-                ? "chevronDown"
-                : "chevronRight"}
-              class="tw:mt-0.5"
+              icon={opened.includes(reminder.id) ? ChevronDown : ChevronRight}
+              size={16}
+              class="tw:mt-0.5 tw:shrink-0 tw:text-muted-foreground"
             />
             <span class="tw:min-w-0 tw:space-y-1"
               ><span class="tw:block tw:break-words tw:font-medium"
@@ -198,7 +211,7 @@
             role="status"
             class="tw:m-0 tw:flex tw:items-start tw:gap-2 tw:whitespace-pre-wrap tw:text-sm tw:text-destructive"
           >
-            <Icon name="warning" />{reminder.error}
+            <Icon icon={AlertTriangle} size={16} />{reminder.error}
           </p>{/if}
         <pre
           hidden={!opened.includes(reminder.id)}
@@ -209,13 +222,14 @@
         >
           <Label class="tw:flex tw:items-center tw:gap-2">
             <Switch
-              controlled
               data-rem-on={reminder.id}
-              checked={reminder.enabled}
+              bind:checked={
+                () => reminder.enabled,
+                (desired) => {
+                  void session.mutate(reminder.id, "enable", request, desired);
+                }
+              }
               disabled={!!reminder.error || !!pending}
-              onCheckedChange={(desired) => {
-                void session.mutate(reminder.id, "enable", request, desired);
-              }}
             />{vb.t("Ligado")}
           </Label>
           <div class="tw:flex tw:flex-wrap tw:gap-2">
@@ -264,7 +278,7 @@
         </p>{/if}{/each}
   </div>
 </section>
-<AlertDialog
+<ConfirmDialog
   bind:open={dialogOpen}
   title={vb.t("Apagar este lembrete?")}
   description={deletion?.name ? `${deletion.name}.md` : deletion?.text}

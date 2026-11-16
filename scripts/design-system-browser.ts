@@ -135,12 +135,20 @@ try {
     await expect(
       page.getByRole("radio", { name: "Unavailable", exact: true }),
     ).toBeDisabled();
+    // A Studio Select: the trigger opens a listbox; Enter on an option commits it.
     const filter = page.getByRole("combobox", { name: "Show", exact: true });
-    await filter.selectOption("active");
+    const pick = async (name: string) => {
+      await filter.click();
+      const option = page.getByRole("option", { name, exact: true });
+      await expect(option).toBeVisible();
+      await option.click();
+      await expect(filter).toHaveAttribute("aria-expanded", "false");
+    };
+    await pick("Active rooms");
     await expect(page.locator("[data-selection-state]")).toHaveText(
       "personal · active",
     );
-    await filter.selectOption("all");
+    await pick("All rooms");
     await members.check();
     await expect(page.locator("[data-selection-state]")).toHaveText(
       "room · all",
@@ -154,7 +162,7 @@ try {
       .getByRole("tab", { name: "General", exact: true })
       .evaluateAll((nodes) =>
         nodes.map((node) => ({
-          section: node.closest("section")?.textContent,
+          section: node.closest("[data-slot=card]")?.textContent,
           parent: node.parentElement?.outerHTML,
         })),
       );

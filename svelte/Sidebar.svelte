@@ -5,14 +5,24 @@
   import EpicTree from "./features/navigation/EpicTree.svelte";
   import PinnedItems from "./features/pins/PinnedItems.svelte";
   import RoomMark from "./features/room-sidebar/RoomMark.svelte";
-  import Avatar from "./lib/ui/Avatar.svelte";
-  import IconButton from "./lib/ui/IconButton.svelte";
-  import Icon from "./lib/ui/Icon.svelte";
-  import Button from "./lib/ui/Button.svelte";
-  import Tip from "./lib/ui/Tip.svelte";
-  import { cn } from "./lib/ui/utils";
+  import PersonAvatar from "./lib/components/PersonAvatar.svelte";
+  import { studioType } from "./lib/components/type";
+  import Button from "./lib/studio/Button.svelte";
+  import Icon from "./lib/studio/Icon.svelte";
+  import IconButton from "./lib/studio/IconButton.svelte";
+  import Progress from "./lib/studio/Progress.svelte";
+  import Tooltip from "./lib/studio/Tooltip.svelte";
+  import TooltipContent from "./lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "./lib/studio/TooltipTrigger.svelte";
+  import {
+    ArrowLeft,
+    Inbox01,
+    LayoutLeft,
+    Pencil01,
+    Plus,
+  } from "./lib/studio/icons";
+  import { cn } from "./lib/studio/utils";
   import WaitBadge from "./features/waits/WaitBadge.svelte";
-  import Progress from "./lib/ui/Progress.svelte";
   import ThreadHeader from "./features/room-sidebar/ThreadHeader.svelte";
   import AgentPresenceRows from "./features/room-sidebar/AgentPresenceRows.svelte";
   import MutationStatus from "./features/room-sidebar/MutationStatus.svelte";
@@ -36,7 +46,6 @@
     activePinApp,
     collapsed = false,
     roomIcon,
-    roomTint,
     locale,
     mutations,
     presence = { agents: [], sandboxes: [] },
@@ -55,7 +64,7 @@
   );
   let active = true;
   let root = $state<HTMLElement | null>(null);
-  function expandForCreate(trigger: HTMLButtonElement) {
+  function expandForCreate(trigger: HTMLElement) {
     if (!active) return;
     const account = room.me,
       id = room.id;
@@ -95,38 +104,42 @@
   bind:this={root}
   data-vb-native
   data-native-room-sidebar
-  class="tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:gap-3 tw:p-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
+  class={cn(
+    studioType,
+    "tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:p-2 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
+    collapsed ? "tw:items-center tw:gap-2" : "tw:gap-6",
+  )}
 >
   {#if collapsed}
     <IconButton
-      icon="sidebar"
       label={vb.t("Abrir menu")}
+      tooltipSide="right"
+      size="icon"
       aria-expanded="false"
-      onclick={ontogglerail}
-    />
-    <a
+      onclick={ontogglerail}><Icon icon={LayoutLeft} /></IconButton
+    >
+    <IconButton
       href="/app?ui=svelte"
       data-nav
-      aria-label={vb.t("Seus vibebooks")}
-      class="tw:rounded-control tw:p-2 tw:text-center tw:text-foreground tw:no-underline tw:hover:bg-muted"
-      >←</a
+      label={vb.t("Seus vibebooks")}
+      tooltipSide="right"
+      size="icon"><Icon icon={ArrowLeft} /></IconButton
     >
     {#if oninbox}<IconButton
         variant={inboxOpen ? "secondary" : "ghost"}
         aria-current={inboxOpen ? "page" : undefined}
-        icon="inbox"
         label={vb.t("Caixa de entrada")}
+        tooltipSide="right"
+        size="icon"
         onclick={(event) => {
           if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-        }}
-      />{/if}
+        }}><Icon icon={Inbox01} /></IconButton
+      >{/if}
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
+      {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
         variant={!inboxOpen && thread === epic.id ? "secondary" : "ghost"}
-        class={cn(
-          "tw:h-auto tw:flex-col tw:gap-1 tw:border-l-4 tw:border-l-transparent tw:p-1",
-          !inboxOpen && thread === epic.id && "tw:border-l-primary",
-        )}
+        class="tw:relative tw:h-auto tw:flex-col tw:gap-1 tw:rounded-lg tw:p-1"
         aria-current={!inboxOpen && thread === epic.id ? "page" : undefined}
         title={epic.title}
         onclick={(event) => {
@@ -135,29 +148,34 @@
         >{#if epic.id === "main"}<RoomMark
             title={room.book.title}
             src={roomIcon}
-            tint={roomTint}
-          />{:else}<Avatar
+            class="tw:size-7"
+          />{:else}<PersonAvatar
             name={epic.owner ? vb.name(epic.owner) : epic.title}
-            src={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
-            seed={epic.owner || epic.title}
+            url={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+            class="tw:size-7"
           />{/if}{#if epic.tasks.length}<Progress
-            value={epic.tasks.filter((task) => task.done).length}
-            max={epic.tasks.length}
-            label={vb.t("Tarefas")}
+            value={(done / epic.tasks.length) * 100}
+            aria-label={vb.t("Tarefas")}
+            class="tw:h-1 tw:w-7"
           />{/if}<WaitBadge
+          solid
           waits={vb.waitsIn(epic.id)}
           label={(n) => vb.t("{n} coisas esperando você", { n })}
           taskLabel={vb.t("Tarefa sua pendente")}
+          class="tw:absolute tw:-top-1 tw:-right-1"
         /></Button
       >
     {/each}
     <IconButton
-      icon="plus"
       label={vb.t("Novo épico")}
+      tooltipSide="right"
+      size="icon"
       onclick={(event) => expandForCreate(event.currentTarget)}
-    />
+      ><Icon icon={Plus} /></IconButton
+    >
     {#if room.requests?.length}<Button
         variant="outline"
+        size="sm"
         title={vb.t("{n} pedindo pra entrar", { n: room.requests.length })}
         onclick={ontogglerail}>+{room.requests.length}</Button
       >{/if}
@@ -165,12 +183,12 @@
         role="img"
         aria-label={`${vb.name(email)}${room.online.includes(email) ? ` · ${vb.t("online")}` : ""}`}
         class={room.online.includes(email)
-          ? "tw:rounded-full tw:ring-2 tw:ring-success"
-          : "tw:rounded-full"}
-        ><Avatar
+          ? "tw:relative tw:flex tw:rounded-full tw:ring-2 tw:ring-success"
+          : "tw:relative tw:flex tw:rounded-full"}
+        ><PersonAvatar
           name={vb.name(email)}
-          src={vb.avatarUrl?.(email)}
-          seed={email}
+          url={vb.avatarUrl?.(email)}
+          class="tw:size-7"
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
@@ -179,81 +197,61 @@
         type="button"
         use:sheetHandle
         aria-label={vb.t("Fechar")}
-        class="tw:mx-auto tw:h-5 tw:cursor-pointer tw:w-12 tw:rounded-full tw:border-0 tw:bg-muted tw:min-[901px]:hidden"
+        class="tw:mx-auto tw:h-5 tw:w-12 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border-0 tw:bg-muted tw:min-[901px]:hidden"
         onclick={onopenside}
       ></button>{/if}
     {#if appNavigation}<RoomStrip
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:flex tw:min-h-48 tw:flex-1 tw:flex-col tw:gap-1">
-      <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
-        {#snippet roomTitle(tip: Record<string, unknown>)}
-          <Button
-            {...tip}
-            data-room-title
-            variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
-            aria-current={!inboxOpen && thread === "main" ? "page" : undefined}
-            class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
-            onclick={(event) => {
-              if (event.currentTarget.isConnected) open("main");
-            }}
-          >
-            <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
-            <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
-            <span
-              class={!inboxOpen && thread === "main"
-                ? "tw:text-xs tw:font-normal tw:text-secondary-foreground"
-                : "tw:text-xs tw:font-normal tw:text-muted-foreground"}
-              >{messageCount(room, "main")}</span
-            >
-          </Button>
-        {/snippet}
-        <Tip
-          side="bottom"
-          label={room.book.summary
-            ? `${room.book.title}\n${room.book.summary}`
-            : room.book.title}
-          trigger={roomTitle}
-        />
-        {#if oninbox}
-          {#snippet inboxButton(tip: Record<string, unknown>)}
-            <Button
-              {...tip}
-              data-room-inbox-button
-              variant={inboxOpen ? "secondary" : "ghost"}
-              size="icon"
-              aria-label={vb.t("Caixa de entrada")}
-              aria-current={inboxOpen ? "page" : undefined}
-              class="tw:relative tw:size-9 tw:shrink-0"
-              onclick={(event) => {
-                if (event.currentTarget.isConnected)
-                  oninbox?.(event.currentTarget);
-              }}
-            >
-              <Icon name="inbox" />
-              <WaitBadge
-                solid
-                waits={vb.waitsInRoom?.() ?? []}
-                label={(n) => vb.t("{n} coisas esperando você", { n })}
-                taskLabel={vb.t("Tarefa sua pendente")}
-                class="tw:pointer-events-none tw:absolute tw:-top-0.5 tw:-right-0.5"
-              />
-            </Button>
-          {/snippet}
-          <Tip
+    <div class="tw:flex tw:shrink-0 tw:flex-col tw:gap-3">
+      <div class="tw:group/room tw:relative tw:shrink-0">
+        <Tooltip>
+          <TooltipTrigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                type="button"
+                data-room-title
+                aria-current={!inboxOpen && thread === "main"
+                  ? "page"
+                  : undefined}
+                class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
+                onclick={(event) => {
+                  if (event.currentTarget.isConnected) open("main");
+                }}
+              >
+                <RoomMark title={room.book.title} src={roomIcon} />
+                <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                  >{room.book.title}</span
+                >
+                <WaitBadge
+                  waits={vb.waitsIn("main")}
+                  label={(n) => vb.t("{n} coisas esperando você", { n })}
+                  taskLabel={vb.t("Tarefa sua pendente")}
+                />
+                <span
+                  class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
+                  >{messageCount(room, "main")}</span
+                >
+              </button>
+            {/snippet}
+          </TooltipTrigger>
+          <TooltipContent
             side="bottom"
-            label={vb.t("Caixa de entrada: o que espera por você")}
-            trigger={inboxButton}
-          />
-        {/if}
+            class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
+            >{room.book.summary
+              ? `${room.book.title}\n${room.book.summary}`
+              : room.book.title}</TooltipContent
+          >
+        </Tooltip>
         <IconButton
-          icon="pencil"
-          tip="bottom"
           label={vb.t("Renomear")}
-          class="tw:size-9 tw:shrink-0"
-          onclick={onrenameroom}
-        />
+          size="icon-xs"
+          tooltipSide="bottom"
+          class="tw:absolute tw:top-1.5 tw:right-1.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+          onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+        >
       </div>
       {#if thread !== "main" && !thread.startsWith("pre:")}<div
           class="tw:shrink-0 tw:min-[901px]:hidden"
@@ -264,7 +262,6 @@
             {owner}
             {vb}
             {roomIcon}
-            {roomTint}
             {onopenside}
             {onrenameroom}
           />

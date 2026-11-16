@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Card from "../../lib/ui/Card.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Card from "../../lib/studio/Card.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Spinner from "../../lib/studio/Spinner.svelte";
   import type { HomeBridge } from "./types";
   import { createArchivedSession } from "./session";
   import { homeText, homeIssue } from "./copy";
-  import { roomCover, roomInitials, targetHref } from "./model";
+  import { targetHref } from "./model";
+  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   let { personal, lang, ago, onnavigate, onhome }: HomeBridge = $props();
   const session = untrack(() => createArchivedSession(personal)),
     view = session.state;
@@ -66,15 +68,11 @@
         {text($view.loaded ? "refreshing" : "loading")}
       </p>{/if}
     <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
-      {#each $view.books as room (room.id)}<Card class="tw:space-y-3"
-          ><div
-            class={[
-              "tw:grid tw:h-24 tw:place-items-center tw:rounded-control tw:text-2xl tw:font-semibold tw:grayscale-60",
-              roomCover(room.title),
-            ]}
-          >
-            {roomInitials(room.title)}
-          </div>
+      {#each $view.books as room (room.id)}<Card class="tw:block tw:space-y-3"
+          ><OrgAvatar
+            name={room.title ?? "vibebook"}
+            class="tw:h-24 tw:w-full tw:rounded-control tw:grayscale-60"
+          />
           <Heading
             level={2}
             class="tw:m-0 tw:break-words tw:text-lg tw:font-semibold"
@@ -105,12 +103,15 @@
               }}>{text("open")}</a
             ><Button
               variant="outline"
-              loading={$view.pending === room.id}
+              aria-busy={$view.pending === room.id || undefined}
               disabled={!!$view.pending}
               onclick={(event) => {
                 if (event.currentTarget.isConnected)
                   void session.restore(room.id);
-              }}>{text("restore")}</Button
+              }}
+              >{#if $view.pending === room.id}<Spinner size="xs" />{/if}{text(
+                "restore",
+              )}</Button
             >
           </div></Card
         >{/each}
@@ -121,10 +122,12 @@
       </p>
       <Button
         variant="outline"
-        loading={$view.loading}
+        disabled={$view.loading}
+        aria-busy={$view.loading || undefined}
         onclick={(event) => {
           if (event.currentTarget.isConnected) void session.load();
-        }}>{text("retry")}</Button
+        }}
+        >{#if $view.loading}<Spinner size="xs" />{/if}{text("retry")}</Button
       >{/if}
   </div>
 </main>

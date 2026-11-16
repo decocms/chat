@@ -43,11 +43,11 @@ test("native component audit rejects style blocks, directives, markup and CSSOM 
     '<script lang="ts">const props = {style: "color:red"};</script>',
   ])
     expect(
-      auditPresentation("svelte/lib/ui/Test.svelte", source).length,
+      auditPresentation("svelte/lib/components/Test.svelte", source).length,
     ).toBeGreaterThan(0);
   expect(
     auditPresentation(
-      "svelte/lib/ui/Test.svelte",
+      "svelte/lib/components/Test.svelte",
       '<script lang="ts">let value = $state("hello");</script><p class="tw:text-foreground">{value}</p>',
     ),
   ).toEqual([]);
@@ -116,7 +116,7 @@ test("stylesheet policy distinguishes tokens from custom selector and import esc
     ),
   ).toEqual([]);
   expect(
-    auditPresentation("svelte/lib/ui/test.ts", 'import "./extra.css";'),
+    auditPresentation("svelte/lib/components/test.ts", 'import "./extra.css";'),
   ).toHaveLength(1);
   expect(
     auditPresentation("svelte/styles.ts", 'import "./styles/tailwind.css";'),
@@ -137,7 +137,7 @@ test("approved terminal CSS enters only the sole top-level Tailwind entry and na
     ).toBeGreaterThan(0);
   expect(auditTailwind("other.css", css).length).toBeGreaterThan(0);
   for (const file of [
-    "svelte/lib/ui/test.ts",
+    "svelte/lib/components/test.ts",
     "svelte/features/sandboxes/terminalRenderer.ts",
   ]) {
     expect(
@@ -156,7 +156,7 @@ test("approved terminal CSS enters only the sole top-level Tailwind entry and na
   ).toEqual([]);
   expect(
     auditPresentation(
-      "svelte/lib/ui/test.ts",
+      "svelte/lib/components/test.ts",
       "terminal.options.theme=resolveTerminalTheme(mount);",
     ).length,
   ).toBeGreaterThan(0);
@@ -180,6 +180,6 @@ test("terminal constructor aliases cannot import vendor runtime outside its scop
     'import {FitAddon} from "@xterm/addon-fit";',
   ])
     expect(
-      auditPresentation("svelte/lib/ui/test.ts", source).length,
+      auditPresentation("svelte/lib/components/test.ts", source).length,
     ).toBeGreaterThan(0);
 });

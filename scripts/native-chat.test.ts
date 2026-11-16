@@ -10,7 +10,7 @@ import {
   threadWorkers,
   reminderParts,
 } from "../svelte/features/chat/model";
-import { agentMark } from "../svelte/lib/ui/avatar";
+import { agentMark } from "../svelte/lib/components/agent";
 const message = (id: number, text = "text", thread = "main"): Message => ({
   id,
   text,

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Badge from "../../lib/ui/Badge.svelte";
-  import { cn } from "../../lib/ui/utils";
+  import Count from "../../lib/components/Count.svelte";
+  import { cn } from "../../lib/studio/utils";
   import { waitIndicator, type WaitReference } from "./model";
   let {
     waits,
@@ -12,34 +12,30 @@
     waits: readonly WaitReference[];
     label: (count: number) => string;
     taskLabel: string;
-    /** Compact count chip with an opaque fill, for sitting on top of an avatar tile. */
+    /** Ringed in the surface colour, for sitting on top of an avatar tile. */
     solid?: boolean;
     class?: string;
   } = $props();
   const indicator = $derived(waitIndicator(waits));
 </script>
 
-{#if indicator.asks}<Badge
+{#if indicator.asks}<span
     data-wait-kind="asks"
-    variant={indicator.claude ? "destructive" : "warning"}
-    aria-label={label(indicator.asks)}
-    title={label(indicator.asks)}
-    class={cn(
-      solid &&
-        "tw:h-4 tw:min-w-4 tw:justify-center tw:border-transparent tw:px-1 tw:py-0 tw:text-[10px] tw:leading-4 tw:font-semibold",
-      solid &&
-        (indicator.claude
-          ? "tw:bg-destructive tw:text-destructive-foreground"
-          : "tw:bg-warning tw:text-warning-foreground"),
-      className,
-    )}>{indicator.asks}</Badge
+    data-wait-from={indicator.claude ? "claude" : "person"}
+    class={cn("tw:inline-flex tw:shrink-0", className)}
+    ><Count
+      value={indicator.asks}
+      label={label(indicator.asks)}
+      class={solid ? "tw:ring-2 tw:ring-sidebar" : ""}
+    /></span
   >{:else if indicator.tasks}<span
     data-wait-kind="tasks"
     role="img"
     aria-label={taskLabel}
     title={taskLabel}
-    class={[
-      "tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-warning",
+    class={cn(
+      "tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-brand tw:ring-1 tw:ring-brand-foreground/30",
+      solid && "tw:ring-2 tw:ring-sidebar",
       className,
-    ]}
+    )}
   ></span>{/if}

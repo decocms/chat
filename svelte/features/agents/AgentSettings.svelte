@@ -4,9 +4,9 @@
   import { grantGroups } from "./model";
   import { agentText } from "./copy";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Checkbox from "../../lib/ui/Checkbox.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Checkbox from "../../lib/studio/Checkbox.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import SetupInstructions from "./SetupInstructions.svelte";
   let { owner, origin, vb, lang = "pt" }: AgentSettingsProps = $props();
   const view = untrack(() => owner.state),
@@ -105,14 +105,12 @@
         >{#each group.rows as { grant } (grant.id)}<label
             class="tw:flex tw:items-start tw:gap-2 tw:rounded-control tw:p-2"
             ><Checkbox
-              checked={selected.has(grant.id)}
-              onchange={(event) => {
-                if (
-                  event.currentTarget instanceof HTMLInputElement &&
-                  event.currentTarget.isConnected
-                )
-                  change(grant.id, event.currentTarget.checked);
-              }}
+              bind:checked={
+                () => selected.has(grant.id),
+                (checked) => {
+                  if (active) change(grant.id, checked);
+                }
+              }
             /><span
               >{text("connectedAt")}
               {vb.ago(grant.connected_at)}<small
@@ -179,7 +177,7 @@
       >
     </div>{/if}
 </section>
-<AlertDialog
+<ConfirmDialog
   bind:open={confirm}
   title={text("revokeTitle")}
   description={text("revokeBody")}

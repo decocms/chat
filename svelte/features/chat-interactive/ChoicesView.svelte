@@ -4,8 +4,10 @@
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import type { Choices } from "./model";
   import { answerOf, canAnswer } from "./model";
-  import Checkbox from "../../lib/ui/Checkbox.svelte";
-  import RadioGroup from "../../lib/ui/RadioGroup.svelte";
+  import Checkbox from "../../lib/studio/Checkbox.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import RadioGroup from "../../lib/studio/RadioGroup.svelte";
+  import RadioGroupItem from "../../lib/studio/RadioGroupItem.svelte";
   let {
     choices,
     message,
@@ -92,33 +94,19 @@
             class="tw:flex tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-2"
             ><Checkbox
               checked={selected.includes(value)}
-              onchange={(event) => {
-                if (
-                  event.currentTarget instanceof HTMLInputElement &&
-                  event.currentTarget.isConnected
-                )
-                  choose(value, event.currentTarget.checked);
-              }}
+              onCheckedChange={(checked) => choose(value, checked)}
             /><span>{option}</span></label
           >{/each}
       </div>{:else}<RadioGroup
-        label={vb.t("Escolha uma opção")}
+        aria-label={vb.t("Escolha uma opção")}
         bind:value={radio}
-        items={[
-          ...choices.options.map((label, index) => ({
-            label,
-            value: String(index),
-          })),
-          { label: vb.t("Outro") + "…", value: "-1" },
-        ]}
-        onValueChange={(value, event) => {
-          if (
-            event.currentTarget instanceof HTMLInputElement &&
-            event.currentTarget.isConnected
-          )
-            choose(Number(value));
-        }}
-      />{/if}<small class="tw:block tw:text-muted-foreground"
+        onValueChange={(value) => choose(Number(value))}
+      >
+        {#each [...choices.options.map( (label, index) => ({ label, value: String(index) }) ), { label: vb.t("Outro") + "…", value: "-1" }] as item (item.value)}<Label
+            class="tw:flex tw:items-center tw:gap-2 tw:font-normal"
+            ><RadioGroupItem value={item.value} />{item.label}</Label
+          >{/each}
+      </RadioGroup>{/if}<small class="tw:block tw:text-muted-foreground"
       >{vb.t("escolha e envie pela caixa de mensagem")}</small
     >
   {:else}<div class="tw:flex tw:flex-wrap tw:gap-2">

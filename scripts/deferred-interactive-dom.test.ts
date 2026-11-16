@@ -160,10 +160,9 @@ test("receipt refresh retains actual choice DOM and selected draft; revocation r
     return InteractiveBody;
   });
   await settle();
-  const radio = target.querySelector<HTMLInputElement>('input[type="radio"]');
+  const radio = target.querySelector<HTMLButtonElement>('[role="radio"]');
   if (!radio) throw Error("Missing real choices");
-  radio.checked = true;
-  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  radio.click();
   await settle();
   expect(drafts).toEqual(["A"]);
   flushSync(() =>
@@ -173,15 +172,15 @@ test("receipt refresh retains actual choice DOM and selected draft; revocation r
     }),
   );
   await settle();
-  expect(target.querySelector('input[type="radio"]') === radio).toBe(true);
-  expect(radio.checked).toBe(true);
+  expect(target.querySelector('[role="radio"]') === radio).toBe(true);
+  expect(radio.getAttribute("aria-checked")).toBe("true");
   expect(calls).toBe(1);
   flushSync(() =>
     state.set({ room: { ...room(), members: [] }, message: prompt }),
   );
   await settle();
-  expect(target.querySelector("input")).toBeNull();
-  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  expect(target.querySelector('input, [role="radio"]')).toBeNull();
+  radio.click();
   expect(drafts).toEqual(["A"]);
 });
 test("explicit import retry mounts current controls; account replacement suppresses ignored old success", async () => {

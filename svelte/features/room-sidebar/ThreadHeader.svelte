@@ -3,14 +3,30 @@
   import type { ThreadHeaderProps } from "./types";
   import { epicIdentity, suggestionAt } from "./model";
   import RoomMark from "./RoomMark.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import IconButton from "../../lib/ui/IconButton.svelte";
-  import Input from "../../lib/ui/Input.svelte";
-  import Label from "../../lib/ui/Label.svelte";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import TitledDialog from "../../lib/components/TitledDialog.svelte";
+  import { studioType } from "../../lib/components/type";
+  import Button from "../../lib/studio/Button.svelte";
+  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
+  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
+  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
+  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
+  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import Input from "../../lib/studio/Input.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import {
+    Check,
+    ChevronDown,
+    DotsHorizontal,
+    Pencil01,
+    ReverseLeft,
+    Trash01,
+  } from "../../lib/studio/icons";
+  import { cn } from "../../lib/studio/utils";
   import MutationStatus from "./MutationStatus.svelte";
   let {
     room,
@@ -20,11 +36,13 @@
     onopenside,
     onrenameroom,
     roomIcon,
-    roomTint,
     titleId,
     compact = false,
   }: ThreadHeaderProps = $props();
   const status = untrack(() => owner.state);
+  // Secondary text beside the title gives way first; on the phone bar it is dropped (the sheet header shows it).
+  const aside =
+    "tw:min-w-0 tw:shrink-[2] tw:truncate tw:text-xs tw:text-muted-foreground";
   const epic = $derived(room.epics.find((item) => item.id === thread));
   const suggestion = $derived(suggestionAt(room, thread));
   const title = $derived(suggestion?.title ?? epic?.title ?? room.book.title);
@@ -93,94 +111,113 @@
 <div
   data-vb-native
   data-native-thread-header
-  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
+  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:tracking-normal tw:text-foreground"
 >
   <span class="tw:hidden tw:min-[901px]:contents"
     >{#if !epic && !suggestion}<RoomMark
         {title}
         src={roomIcon}
-        tint={roomTint}
-      />{:else}<Avatar
-        name={title}
-        src={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
-        seed={epic?.owner || title}
+        class="tw:size-6"
+      />{:else}<PersonAvatar
+        name={epic?.owner ? vb.name(epic.owner) : title}
+        url={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+        class="tw:size-6"
       />{/if}</span
   >
-  <Heading level={2} class="tw:min-w-0 tw:overflow-hidden"
-    ><Button
+  <h2 class="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-sm tw:font-medium">
+    <Button
       id={titleId}
       variant="ghost"
-      class="tw:max-w-full tw:min-w-0 tw:justify-start tw:font-semibold"
+      size="sm"
+      class="tw:max-w-full tw:min-w-0 tw:justify-start tw:px-2 tw:text-sm tw:font-medium"
       title={room.book.summary || title}
       onclick={(event) => {
         if (!event.currentTarget.isConnected) return;
         if (matchMedia("(max-width: 900px)").matches) onopenside();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
       }}><span class="tw:truncate">{title}</span></Button
-    ></Heading
-  >
+    >
+  </h2>
   <IconButton
-    icon="chevronDown"
     label={vb.t("Trocar de conversa")}
+    class="tw:min-[901px]:hidden"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onopenside();
-    }}
-  />
-  {#if suggestion}<span class="tw:text-xs tw:text-muted-foreground"
+    }}><Icon icon={ChevronDown} /></IconButton
+  >
+  {#if suggestion}<span class={[aside, compact && "tw:max-[900px]:hidden"]}
       >✦ {vb.t("sugestão do @vibe")}</span
     >{:else if room.book.folder && !epic}<span
-      class="tw:text-xs tw:text-muted-foreground">{room.book.folder}</span
+      class={[aside, compact && "tw:max-[900px]:hidden"]}
+      >{room.book.folder}</span
     >{/if}
   {#if epic}<span
       class={compact ? "tw:hidden tw:min-[901px]:contents" : "tw:contents"}
     >
-      <IconButton
-        icon="pencil"
-        disabled={busy}
-        label={vb.t("Renomear")}
-        onclick={() => begin("rename")}
-      />
-      <IconButton
-        icon={epic.archived ? "undo" : "check"}
-        disabled={busy}
-        label={vb.t(epic.archived ? "Desarquivar épico" : "Arquivar épico")}
-        onclick={(event) => {
-          if (active && event.currentTarget.isConnected && epic)
-            void owner.run({
-              t: "epic.archive",
-              id: epic.id,
-              archived: !epic.archived,
-            });
-        }}
-      />
-      <IconButton
-        icon="trash"
-        disabled={busy}
-        label={vb.t("Apagar épico")}
-        onclick={() => begin("delete")}
-      />
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          data-thread-actions={epic.id}
+          disabled={busy}
+          aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
+          class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+          ><Icon icon={DotsHorizontal} /></DropdownMenuTrigger
+        >
+        <DropdownMenuContent
+          data-vb-native
+          align="end"
+          class={cn(studioType, "tw:w-52")}
+        >
+          <DropdownMenuItem disabled={busy} onSelect={() => begin("rename")}
+            ><Icon icon={Pencil01} />{vb.t("Renomear")}</DropdownMenuItem
+          >
+          <DropdownMenuItem
+            disabled={busy}
+            onSelect={() => {
+              if (active && epic)
+                void owner.run({
+                  t: "epic.archive",
+                  id: epic.id,
+                  archived: !epic.archived,
+                });
+            }}
+            ><Icon icon={epic.archived ? ReverseLeft : Check} />{vb.t(
+              epic.archived ? "Desarquivar épico" : "Arquivar épico",
+            )}</DropdownMenuItem
+          >
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={busy}
+            onSelect={() => begin("delete")}
+            ><Icon icon={Trash01} />{vb.t("Apagar épico")}</DropdownMenuItem
+          >
+        </DropdownMenuContent>
+      </DropdownMenu>
     </span>
   {/if}
   <MutationStatus {owner} t={vb.t} />
 </div>
-<Dialog
+<TitledDialog
   bind:open={rename}
   title={vb.t("Nome do épico:")}
   closeLabel={vb.t("Cancelar")}
   ><form onsubmit={save} class="tw:space-y-3">
-    <Label
+    <Label class="tw:flex-col tw:items-stretch tw:gap-1.5"
       >{vb.t("Nome do épico:")}<Input
         bind:value
         maxlength={200}
         disabled={busy}
         required
       /></Label
-    ><Button type="submit" disabled={busy || !value.trim()}
-      >{vb.t("Salvar")}</Button
     >
-  </form></Dialog
+    <div class="tw:flex tw:justify-end">
+      <Button type="submit" disabled={busy || !value.trim()}
+        >{vb.t("Salvar")}</Button
+      >
+    </div>
+  </form></TitledDialog
 >
-<AlertDialog
+<ConfirmDialog
   bind:open={remove}
   title={vb.t("Apagar épico")}
   description={vb.t(

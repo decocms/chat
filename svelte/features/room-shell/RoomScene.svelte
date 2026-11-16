@@ -24,9 +24,12 @@
   import RoomHeader from "./RoomHeader.svelte";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
-  import Dialog from "../../lib/ui/Dialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
   import { viewerText } from "../file-viewer/copy";
   import { createDeferredModule } from "../deferred-view/module";
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
@@ -329,6 +332,11 @@
         header={$view.header}
         trigger={$view.trigger}
         boardCount={$view.toolbar.counts?.board}
+        views={{
+          pane: $view.toolbar.pane,
+          counts: $view.toolbar.counts ?? {},
+          onPane: $view.toolbar.onPane,
+        }}
         {layout}
         {current}
         {back}
@@ -477,13 +485,6 @@
         value={$viewerState.target}
         >{#snippet children(target)}<Dialog
             open
-            title={$viewerState.name ||
-              (services.language === "en" ? "File" : "Arquivo")}
-            closeLabel={services.language === "en"
-              ? "Close file"
-              : "Fechar arquivo"}
-            fullScreen
-            returnFocus={owner.viewer.returnFocus}
             onOpenChange={(open) => {
               if (
                 !open &&
@@ -493,16 +494,42 @@
               )
                 owner.viewer.closeUser();
             }}
-            ><DeferredViewStatus
-              phase={$viewerView.phase}
-              lang={services.language}
-              label={services.language === "en" ? "File" : "Arquivo"}
-              retry={() => {
-                void viewerModule.retry();
+          >
+            <DialogContent
+              data-vb-native
+              class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:sm:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
+              closeLabel={services.language === "en"
+                ? "Close file"
+                : "Fechar arquivo"}
+              preventScroll={false}
+              preventBodyPointerEvents={false}
+              preventOverflowTextSelection={false}
+              onCloseAutoFocus={(event) => {
+                const target = owner.viewer.returnFocus();
+                if (target?.isConnected) {
+                  event.preventDefault();
+                  target.focus();
+                }
               }}
-              current={() => current() && get(viewerState).target === target}
-            /></Dialog
-          >{/snippet}</Snapshot
+            >
+              <DialogHeader>
+                <DialogTitle class="tw:pr-8 tw:font-sans"
+                  >{$viewerState.name ||
+                    (services.language === "en"
+                      ? "File"
+                      : "Arquivo")}</DialogTitle
+                >
+              </DialogHeader><DeferredViewStatus
+                phase={$viewerView.phase}
+                lang={services.language}
+                label={services.language === "en" ? "File" : "Arquivo"}
+                retry={() => {
+                  void viewerModule.retry();
+                }}
+                current={() => current() && get(viewerState).target === target}
+              />
+            </DialogContent>
+          </Dialog>{/snippet}</Snapshot
       >{/key}{/if}
   {#if !FileViewer && $viewerState.closingUnconfirmed}<aside
       role="alert"

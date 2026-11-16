@@ -27,7 +27,6 @@ export type SidebarProps = {
   thread: string;
   collapsed?: boolean;
   roomIcon?: string;
-  roomTint?: string | null;
   locale?: string;
   mutations?: import("./features/room-sidebar/session").RoomMutations;
   presence?: import("./features/room-sidebar/model").Presence;

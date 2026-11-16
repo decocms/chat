@@ -3,9 +3,9 @@
   import type { PwaService } from "../pwa/service";
   import { pwaText } from "../pwa/copy";
   import NotificationHelpDialog from "./NotificationHelpDialog.svelte";
-  import Button from "../../lib/ui/Button.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import Tip from "../../lib/ui/Tip.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import { Bell01, BellOff01, DotsHorizontal } from "../../lib/studio/icons";
   let { owner, lang }: { owner: PwaService; lang: string } = $props();
   const view = $derived(owner.state);
   let open = $state(false),
@@ -26,40 +26,29 @@
   );
 </script>
 
-{#snippet bell(tip: Record<string, unknown>)}
-  <Button
-    {...tip}
-    variant="ghost"
-    size="sm"
-    aria-label={label}
-    onclick={(event) => {
-      if (!active || !event.currentTarget.isConnected) return;
-      void owner.bell().then((success) => {
-        if (active && !success) open = true;
-      });
-    }}><Icon name={$view.muted ? "bellOff" : "bell"} /></Button
-  >
-{/snippet}
-{#snippet more(tip: Record<string, unknown>)}
-  <Button
-    {...tip}
-    variant="ghost"
-    size="sm"
-    aria-label={text("help")}
-    onclick={(event) => {
-      if (!current(event)) return;
-      open = true;
-      void owner.refresh();
-    }}>⋯</Button
-  >
-{/snippet}
-
 <span
   data-vb-native
   data-native-notifications
   class="tw:inline-flex tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground"
 >
-  <Tip {label} side="bottom" trigger={bell} />
-  <Tip label={text("help")} side="bottom" trigger={more} />
+  <IconButton
+    {label}
+    tooltipSide="bottom"
+    onclick={(event) => {
+      if (!active || !event.currentTarget.isConnected) return;
+      void owner.bell().then((success) => {
+        if (active && !success) open = true;
+      });
+    }}><Icon icon={$view.muted ? BellOff01 : Bell01} /></IconButton
+  >
+  <IconButton
+    label={text("help")}
+    tooltipSide="bottom"
+    onclick={(event) => {
+      if (!current(event)) return;
+      open = true;
+      void owner.refresh();
+    }}><Icon icon={DotsHorizontal} /></IconButton
+  >
 </span>
 <NotificationHelpDialog bind:open {owner} {lang} />

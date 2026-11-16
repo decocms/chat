@@ -1,14 +1,15 @@
 <script lang="ts">
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onDestroy, untrack } from "svelte";
   import type { Room, Message, Poll } from "../../../shared/room";
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import { pollView, canClosePoll, pollIdentity } from "./model";
   import { createInteractiveSession, idleState } from "./session";
-  import Button from "../../lib/ui/Button.svelte";
-  import Progress from "../../lib/ui/Progress.svelte";
-  import Avatar from "../../lib/ui/Avatar.svelte";
-  import Icon from "../../lib/ui/Icon.svelte";
-  import AlertDialog from "../../lib/ui/AlertDialog.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Progress from "../../lib/studio/Progress.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { BarChartSquare02, Check, Trophy01 } from "../../lib/studio/icons";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   let {
     poll,
     message,
@@ -86,7 +87,7 @@
   <h4
     class="tw:m-0 tw:flex tw:items-start tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
   >
-    <Icon name="chart" />{poll.question}
+    <Icon icon={BarChartSquare02} size={16} />{poll.question}
   </h4>
   {#each view.rows as row}<div class="tw:space-y-1">
       <Button
@@ -98,17 +99,19 @@
           status.phase === "unconfirmed"}
         aria-pressed={row.mine}
         onclick={(event) => vote(row.index, event)}
-        >{#if row.winner}<Icon name="trophy" />{:else if row.mine}<Icon
-            name="check"
-          />{/if}<span class="tw:min-w-0 tw:flex-1 tw:break-words"
-          >{row.label}</span
+        >{#if row.winner}<Icon
+            icon={Trophy01}
+            size={16}
+          />{:else if row.mine}<Icon icon={Check} size={16} />{/if}<span
+          class="tw:min-w-0 tw:flex-1 tw:break-words">{row.label}</span
         ><span class="tw:flex tw:-space-x-2"
           >{#each row.voters as email}<span title={vb.name(email)}
-              ><Avatar
+              ><PersonAvatar
+                data-avatar="person"
+                size="xs"
                 name={vb.name(email)}
-                src={vb.avatarUrl?.(email)}
-                seed={email}
-                class="tw:size-6 tw:text-[10px]"
+                url={vb.avatarUrl?.(email)}
+                class="tw:ring-2 tw:ring-card"
               /></span
             >{/each}</span
         ><span class="tw:shrink-0 tw:text-xs"
@@ -116,7 +119,7 @@
         ></Button
       ><Progress
         value={row.percent}
-        label={`${row.label}: ${row.count} (${row.percent}%)`}
+        aria-label={`${row.label}: ${row.count} (${row.percent}%)`}
       />
     </div>{/each}
   <p
@@ -131,6 +134,7 @@
       · <Button
         size="sm"
         variant="link"
+        class="tw:h-auto tw:px-0 tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
         data-native-poll-close
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
         onclick={(event) => {
@@ -155,7 +159,7 @@
           : status.error}
     </p>{/if}
 </section>
-<AlertDialog
+<ConfirmDialog
   open={closing && canClose && selectedIdentity === identity}
   title={vb.t("Encerrar a votação?")}
   confirmLabel={vb.t("Confirmar")}

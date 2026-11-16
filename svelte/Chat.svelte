@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PersonAvatar from "./lib/components/PersonAvatar.svelte";
   import { onMount } from "svelte";
   import Message from "./Message.svelte";
   import type { ChatProps } from "./chatTypes";
@@ -8,9 +9,8 @@
     threadWorkers,
     prettyModel,
   } from "./features/chat/model";
-  import Button from "./lib/ui/Button.svelte";
-  import Avatar from "./lib/ui/Avatar.svelte";
-  import AgentAvatar from "./lib/ui/AgentAvatar.svelte";
+  import Button from "./lib/studio/Button.svelte";
+  import AgentMark from "./lib/components/AgentMark.svelte";
   import NeedsYou from "./features/needs-you/NeedsYou.svelte";
   import { productionStatuses } from "./features/chat/production";
   let {
@@ -113,14 +113,15 @@
         <div class="tw:flex tw:shrink-0 tw:-space-x-2">
           {#each workers.slice(0, 4) as worker (`${worker.who}|${worker.email}`)}<span
               class="tw:relative"
-              ><Avatar
+              ><PersonAvatar
+                data-avatar="person"
+                size="sm"
                 name={vb.name(worker.email)}
-                src={vb.avatarUrl?.(worker.email)}
-                seed={worker.email}
-              /><AgentAvatar
-                px={16}
+                url={vb.avatarUrl?.(worker.email)}
+              /><AgentMark
+                size="2xs"
                 via={worker.who}
-                class="tw:absolute tw:-bottom-1 tw:-right-1 tw:bg-card tw:font-normal"
+                class="tw:absolute tw:-bottom-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-card)]"
               /></span
             >{/each}
         </div>

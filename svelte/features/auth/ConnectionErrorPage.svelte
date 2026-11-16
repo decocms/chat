@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { NativeAuthMetadata } from "../../../shared/nativeAuth";
   import AuthFrame from "./AuthFrame.svelte";
-  import { buttonVariants } from "../../lib/ui/button";
+  import { buttonVariants } from "../../lib/studio/button";
   let {
     lang,
     failure,

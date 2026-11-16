@@ -38,6 +38,15 @@ export async function verifyStudioPalette(
   theme: "light" | "dark",
   renderedRoles?: readonly StudioRenderedRole[],
 ) {
+  // Studio controls ease their colors on a theme change; read them once settled.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation instanceof CSSTransition)
+        .map((animation) => animation.finished),
+    ),
+  );
   const report = await page.evaluate(
     ({ reference, theme, renderedRoles }) => {
       const baseline: Record<string, string> = {};
@@ -118,10 +127,10 @@ export async function verifyStudioPalette(
             });
         }
         const primary = [...document.querySelectorAll("button")].find(
-          (node) => node.textContent?.trim() === "primary",
+          (node) => node.textContent?.trim() === "default",
         );
         const main = document.querySelector("[data-gallery]");
-        const card = main?.querySelector("section");
+        const card = main?.querySelector("[data-slot=card]");
         const input = document.getElementById("gallery-title");
         const code = main?.querySelector("pre");
         if (!renderedRoles && (!primary || !main || !card || !input || !code))

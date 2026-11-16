@@ -3,10 +3,9 @@
   import type { Suggestion } from "../../../shared/room";
   import type { SuggestionPreviewProps } from "./types";
   import { suggestionIdentity } from "./model";
-  import Button from "../../lib/ui/Button.svelte";
-  import Heading from "../../lib/ui/Heading.svelte";
+  import Snapshot from "../../lib/components/Snapshot.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import MutationStatus from "./MutationStatus.svelte";
-  import Snapshot from "../../lib/ui/Snapshot.svelte";
   let { room, index, owner, vb }: SuggestionPreviewProps = $props();
   const status = untrack(() => owner.state);
   const suggestion = $derived(room.suggestions[index]);
@@ -37,16 +36,20 @@
           <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
             ✦ {vb.t("O @vibe sugere um épico")}
           </p>
-          <Heading level={3}>{suggestion.title}</Heading>
+          <h3 class="tw:m-0 tw:text-base tw:leading-6 tw:font-semibold">
+            {suggestion.title}
+          </h3>
           <p class="tw:m-0">
             {suggestion.why ||
               vb.t(
                 "Ele viu isso na conversa e acha que vale virar um épico, com as tarefas abaixo.",
               )}
           </p>
-          {#if suggestion.tasks.length}<Heading level={4}
-              >{vb.t("Tarefas propostas")}</Heading
+          {#if suggestion.tasks.length}<h4
+              class="tw:m-0 tw:text-sm tw:leading-5 tw:font-semibold"
             >
+              {vb.t("Tarefas propostas")}
+            </h4>
             <ul class="tw:m-0 tw:list-disc tw:space-y-1 tw:pl-5">
               {#each suggestion.tasks as task}<li>{task}</li>{/each}
             </ul>{/if}

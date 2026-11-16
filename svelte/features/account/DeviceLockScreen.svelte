@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Dialog } from "bits-ui";
   import { untrack } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
   import type { DeviceLock } from "./device";
   let { owner, lang }: { owner: DeviceLock; lang: string } = $props();
   const view = untrack(() => owner.state);
   const en = $derived(lang === "en");
-  let button: HTMLButtonElement | null = $state(null);
+  let button: HTMLElement | null = $state(null);
 </script>
 
 <Dialog.Root open={$view.locked}>

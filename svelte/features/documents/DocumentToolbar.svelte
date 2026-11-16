@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import Button from "../../lib/ui/Button.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Tooltip from "../../lib/studio/Tooltip.svelte";
+  import TooltipContent from "../../lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import { cn } from "../../lib/studio/utils";
+  import Count from "../../lib/components/Count.svelte";
+  import { paneIcons, paneLabel } from "./paneIcons";
   import type { Room } from "../../../shared/room";
   import type { DocumentPane } from "./types";
   import type { DocumentSession } from "./session";
@@ -32,15 +39,19 @@
   let active = true;
   onDestroy(() => (active = false));
   const allItems: { id: DocumentPane; label: string }[] = $derived([
-    { id: "doc", label: "Doc" },
-    { id: "board", label: en ? "Board" : "Quadro" },
-    { id: "files", label: en ? "Files" : "Arquivos" },
-    { id: "apps", label: "Apps" },
-    { id: "decisions", label: en ? "Decisions" : "Decisões" },
-    { id: "reminders", label: en ? "Reminders" : "Lembretes" },
-    { id: "agents", label: "Agents" },
+    ...(
+      [
+        "doc",
+        "board",
+        "files",
+        "apps",
+        "decisions",
+        "reminders",
+        "agents",
+      ] as const
+    ).map((id) => ({ id, label: paneLabel(id, en) })),
     ...(sideFileName
-      ? [{ id: "view" as const, label: en ? "Beside chat" : "Ao lado" }]
+      ? [{ id: "view" as const, label: paneLabel("view", en) }]
       : []),
   ]);
   const epic = $derived(
@@ -100,68 +111,76 @@
 
 <div
   data-vb-native
-  class="tw:flex tw:min-w-0 tw:items-start tw:gap-2 tw:border-b tw:border-border tw:bg-background tw:p-2 tw:font-sans tw:text-foreground"
+  class={cn(
+    "tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:font-sans tw:text-foreground",
+    compact
+      ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
+      : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
+  )}
 >
   <div
     role={compact ? "toolbar" : "tablist"}
     aria-label={en ? "Room panels" : "Painéis da sala"}
     onkeydown={key}
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:gap-1"
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-0.5 tw:overflow-x-auto tw:[scrollbar-width:none]"
   >
-    {#each items as item}<Button
-        size="sm"
-        variant={pane === item.id ? "secondary" : "ghost"}
-        disabled={$view.denied && item.id !== "doc"}
-        role={compact ? undefined : "tab"}
-        aria-selected={compact ? undefined : pane === item.id}
-        aria-pressed={compact ? pane === item.id : undefined}
-        tabindex={compact || pane === item.id ? 0 : -1}
-        data-document-pane={item.id}
-        title={item.id === "agents"
-          ? agentTitle
-          : item.id === "doc"
-            ? docTitle
-            : item.label}
-        onclick={(event) => choose(event, item.id)}
-        ><span>{item.label}</span
-        >{#if compact && item.id === "doc" && docCount}<span
-            class={pane === item.id
-              ? "tw:text-xs tw:text-secondary-foreground"
-              : "tw:text-xs tw:text-muted-foreground"}>{docCount}</span
-          >{:else if counts[item.id]}<span
-            class={pane === item.id
-              ? "tw:text-xs tw:text-secondary-foreground"
-              : "tw:text-xs tw:text-muted-foreground"}>{counts[item.id]}</span
-          >{/if}{#if item.id === "agents" && agentState}<span
-            aria-label={agentTitle}
-            class={agentState === "blocked"
-              ? "tw:size-2 tw:rounded-full tw:bg-destructive"
-              : agentState === "busy"
-                ? "tw:size-2 tw:rounded-full tw:bg-warning"
-                : "tw:size-2 tw:rounded-full tw:bg-success"}
-          ></span>{/if}</Button
-      >{/each}
+    {#each items as item (item.id)}
+      {@const selected = pane === item.id}
+      {@const count =
+        compact && item.id === "doc" && docCount ? docCount : counts[item.id]}
+      {@const labelled = item.id === "doc" || item.id === "view"}
+      <Tooltip disabled={labelled}>
+        <TooltipTrigger>
+          {#snippet child({ props })}<Button
+              {...props}
+              size="sm"
+              variant="ghost"
+              disabled={$view.denied && item.id !== "doc"}
+              role={compact ? undefined : "tab"}
+              aria-selected={compact ? undefined : selected}
+              aria-pressed={compact ? selected : undefined}
+              aria-label={labelled ? undefined : item.label}
+              tabindex={compact || selected ? 0 : -1}
+              data-document-pane={item.id}
+              title={item.id === "doc"
+                ? docTitle
+                : item.id === "view"
+                  ? item.label
+                  : undefined}
+              class={cn(
+                "tw:relative tw:shrink-0 tw:gap-1.5 tw:text-muted-foreground tw:hover:text-foreground",
+                labelled ? "tw:px-2.5" : "tw:px-2",
+                selected && "tw:bg-accent tw:text-foreground",
+                labelled && compact && "tw:flex-1 tw:justify-start",
+              )}
+              onclick={(event: MouseEvent) => choose(event, item.id)}
+              ><Icon icon={paneIcons[item.id]} size={16} />{#if labelled}<span
+                  class="tw:max-w-40 tw:truncate">{item.label}</span
+                >{/if}{#if item.id === "board" && typeof count === "number" && count}<Count
+                  value={count}
+                  label={en
+                    ? `Waiting on you: ${count}`
+                    : `Esperando você: ${count}`}
+                />{:else if count}<span
+                  class="tw:min-w-[1.125rem] tw:rounded-full tw:bg-muted tw:px-1 tw:text-center tw:text-xs tw:leading-[1.125rem] tw:text-muted-foreground tw:tabular-nums"
+                  >{count}</span
+                >{/if}{#if item.id === "agents" && agentState}<span
+                  aria-label={agentTitle}
+                  class={cn(
+                    "tw:absolute tw:top-1 tw:right-1 tw:size-1.5 tw:rounded-full tw:shadow-[0_0_0_2px_var(--vb-background)]",
+                    agentState === "blocked"
+                      ? "tw:bg-destructive"
+                      : agentState === "busy"
+                        ? "tw:bg-warning"
+                        : "tw:bg-success",
+                  )}
+                ></span>{/if}</Button
+            >{/snippet}
+        </TooltipTrigger>
+        <TooltipContent side="bottom"
+          >{item.id === "agents" ? agentTitle : item.label}</TooltipContent
+        >
+      </Tooltip>
+    {/each}
   </div>
-  {#if !compact && pane === "doc"}<div
-      role="group"
-      aria-label={en ? "Document mode" : "Modo do documento"}
-      class="tw:flex tw:gap-1"
-    >
-      <Button
-        variant={$view.mode === "preview" ? "secondary" : "ghost"}
-        size="sm"
-        aria-pressed={$view.mode === "preview"}
-        onclick={(event) => {
-          if (active && event.currentTarget.isConnected) owner.mode("preview");
-        }}>{en ? "Read" : "Ver"}</Button
-      ><Button
-        variant={$view.mode === "edit" ? "secondary" : "ghost"}
-        size="sm"
-        disabled={$view.denied}
-        aria-pressed={$view.mode === "edit"}
-        onclick={(event) => {
-          if (active && event.currentTarget.isConnected) owner.mode("edit");
-        }}>{en ? "Edit" : "Editar"}</Button
-      >
-    </div>{/if}
 </div>

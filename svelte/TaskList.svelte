@@ -1,18 +1,28 @@
 <script lang="ts">
   import type { RoomCommand } from "../shared/commands";
   import type { PanelProps, Task } from "./panels";
-  import Button from "./lib/ui/Button.svelte";
-  import IconButton from "./lib/ui/IconButton.svelte";
-  import Icon from "./lib/ui/Icon.svelte";
-  import Input from "./lib/ui/Input.svelte";
-  import Select from "./lib/ui/Select.svelte";
-  import Checkbox from "./lib/ui/Checkbox.svelte";
-  import Badge from "./lib/ui/Badge.svelte";
-  import Dialog from "./lib/ui/Dialog.svelte";
-  import Progress from "./lib/ui/Progress.svelte";
+  import Button from "./lib/studio/Button.svelte";
+  import IconButton from "./lib/studio/IconButton.svelte";
+  import Icon from "./lib/studio/Icon.svelte";
+  import Input from "./lib/studio/Input.svelte";
+  import Select from "./lib/studio/Select.svelte";
+  import SelectContent from "./lib/studio/SelectContent.svelte";
+  import SelectItem from "./lib/studio/SelectItem.svelte";
+  import SelectTrigger from "./lib/studio/SelectTrigger.svelte";
+  import SelectValue from "./lib/studio/SelectValue.svelte";
+  import Checkbox from "./lib/studio/Checkbox.svelte";
+  import Badge from "./lib/studio/Badge.svelte";
+  import Dialog from "./lib/studio/Dialog.svelte";
+  import DialogContent from "./lib/studio/DialogContent.svelte";
+  import DialogDescription from "./lib/studio/DialogDescription.svelte";
+  import DialogHeader from "./lib/studio/DialogHeader.svelte";
+  import DialogTitle from "./lib/studio/DialogTitle.svelte";
+  import Progress from "./lib/studio/Progress.svelte";
   import Field from "./lib/components/Field.svelte";
   import ErrorState from "./lib/components/ErrorState.svelte";
-  import { cn } from "./lib/ui/utils";
+  import { registerDialog } from "./lib/studio/dialogController";
+  import { AlertTriangle, Calendar, Plus, X } from "./lib/studio/icons";
+  import { cn } from "./lib/studio/utils";
 
   let {
     room,
@@ -124,6 +134,9 @@
     dueID = null;
     dueDraft = "";
   }
+  $effect(() => {
+    if (dueOpen) return registerDialog(closeDue);
+  });
 </script>
 
 {#if list}
@@ -138,9 +151,8 @@
       </h3>
       <Badge>{done}/{list.tasks.length}</Badge>
       <Progress
-        label={vb.t("Tarefas")}
-        value={done}
-        max={Math.max(1, list.tasks.length)}
+        aria-label={vb.t("Tarefas")}
+        value={(done / Math.max(1, list.tasks.length)) * 100}
         aria-valuetext={`${done}/${list.tasks.length}`}
         class="tw:ml-auto tw:max-w-24"
       />
@@ -148,9 +160,10 @@
     {#if list.flags?.length}<Badge
         variant="warning"
         title={`@vibe: ${list.flags.join(" · ")}`}
-        ><Icon name="warning" class="tw:size-3" />{list.flags.join(
-          " · ",
-        )}</Badge
+        class="tw:text-foreground tw:max-w-full"
+        ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+          >{list.flags.join(" · ")}</span
+        ></Badge
       >{/if}
     {#if error && !dueOpen}<ErrorState title={error} compact />{/if}
     <div class="tw:space-y-2">
@@ -172,12 +185,13 @@
           )}
         >
           <Checkbox
-            checked={task.done}
+            bind:checked={
+              () => task.done,
+              () => {
+                dispatch({ t: "task.toggle", id: task.id });
+              }
+            }
             aria-label={vb.t("Feita")}
-            onclick={(event) => {
-              event.preventDefault();
-              dispatch({ t: "task.toggle", id: task.id });
-            }}
           />
           {#if edit === task.id}
             <Input
@@ -216,21 +230,36 @@
               {#if task.flags?.length}<Badge
                   variant="warning"
                   title={`@vibe: ${task.flags.join(" · ")}`}
-                  ><Icon name="warning" class="tw:size-3" />{task.flags.join(
-                    " · ",
-                  )}</Badge
+                  class="tw:text-foreground tw:max-w-full"
+                  ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+                    >{task.flags.join(" · ")}</span
+                  ></Badge
                 >{/if}
             </div>
           {/if}
           <Select
-            data-owner={task.id}
-            aria-label={vb.t("Responsável")}
-            value={task.owner ?? ""}
             items={owners}
-            class="tw:w-auto tw:max-w-40"
-            onValueChange={(owner) =>
-              dispatch({ t: "task.assign", id: task.id, owner })}
-          />
+            bind:value={
+              () => task.owner ?? "",
+              (owner) => {
+                dispatch({ t: "task.assign", id: task.id, owner });
+              }
+            }
+          >
+            <SelectTrigger
+              data-owner={task.id}
+              aria-label={vb.t("Responsável")}
+              class="tw:w-auto tw:max-w-40 tw:data-[placeholder]:text-foreground"
+            >
+              <SelectValue placeholder={vb.t("sem dono")} />
+            </SelectTrigger>
+            <SelectContent data-vb-native class="tw:font-sans">
+              {#each owners as owner (owner.value)}<SelectItem
+                  value={owner.value}
+                  label={owner.label}>{owner.label}</SelectItem
+                >{/each}
+            </SelectContent>
+          </Select>
           <Button
             data-due={task.id}
             variant="ghost"
@@ -240,16 +269,15 @@
               ? `${vb.t("Prazo")}: ${task.due}`
               : vb.t("Prazo")}
             onclick={() => openDue(task)}
-            ><Icon name="calendar" class="tw:size-3.5" />{task.due ??
+            ><Icon icon={Calendar} class="tw:size-3.5" />{task.due ??
               ""}</Button
           >
           <IconButton
             data-tdel={task.id}
             label={vb.t("Apagar task")}
-            icon="close"
-            class="tw:size-8"
             onclick={() => dispatch({ t: "task.del", id: task.id })}
-          />
+            ><Icon icon={X} /></IconButton
+          >
         </div>
       {/each}
     </div>
@@ -273,46 +301,65 @@
       <IconButton
         type="submit"
         label={vb.t("Nova tarefa")}
-        icon="plus"
         variant="outline"
-      />
+        size="icon"><Icon icon={Plus} /></IconButton
+      >
     </form>
   </section>
 {/if}
 {#if dueTask}
   <Dialog
     bind:open={dueOpen}
-    title={vb.t("Prazo")}
-    description={vb.t("Prazo (ex.: sex, qua 23h, 06/11). Vazio tira o prazo:")}
-    closeLabel={vb.t("Fechar")}
-    initialFocus={() => dueInput}
     onOpenChange={(open) => {
       if (!open) closeDue();
     }}
   >
-    <form
-      class="tw:grid tw:grid-cols-1 tw:gap-4"
-      onsubmit={(event) => {
+    <DialogContent
+      data-vb-native
+      class="tw:font-sans tw:text-sm tw:text-foreground"
+      closeLabel={vb.t("Fechar")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+      onOpenAutoFocus={(event) => {
+        if (!dueInput) return;
         event.preventDefault();
-        if (
-          dueTask &&
-          dispatch({ t: "task.assign", id: dueTask.id, due: dueDraft })
-        )
-          closeDue();
+        dueInput.focus();
       }}
     >
-      <Field id={`${uid}-due`} label={vb.t("Prazo")}>
-        {#snippet children(attributes)}<Input
-            {...attributes}
-            bind:ref={dueInput}
-            bind:value={dueDraft}
-          />{/snippet}
-      </Field>
-      {#if error}<ErrorState title={error} compact />{/if}
-      <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-        <Button variant="outline" onclick={closeDue}>{vb.t("Cancelar")}</Button
-        ><Button type="submit">{vb.t("Salvar")}</Button>
-      </div>
-    </form>
+      <DialogHeader>
+        <DialogTitle class="tw:font-sans">{vb.t("Prazo")}</DialogTitle>
+        <DialogDescription
+          >{vb.t(
+            "Prazo (ex.: sex, qua 23h, 06/11). Vazio tira o prazo:",
+          )}</DialogDescription
+        >
+      </DialogHeader>
+      <form
+        class="tw:grid tw:grid-cols-1 tw:gap-4"
+        onsubmit={(event) => {
+          event.preventDefault();
+          if (
+            dueTask &&
+            dispatch({ t: "task.assign", id: dueTask.id, due: dueDraft })
+          )
+            closeDue();
+        }}
+      >
+        <Field id={`${uid}-due`} label={vb.t("Prazo")}>
+          {#snippet children(attributes)}<Input
+              {...attributes}
+              bind:ref={dueInput}
+              bind:value={dueDraft}
+            />{/snippet}
+        </Field>
+        {#if error}<ErrorState title={error} compact />{/if}
+        <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+          <Button variant="outline" onclick={closeDue}
+            >{vb.t("Cancelar")}</Button
+          ><Button type="submit">{vb.t("Salvar")}</Button>
+        </div>
+      </form>
+    </DialogContent>
   </Dialog>
 {/if}
