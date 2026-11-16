@@ -17,6 +17,8 @@ export type SidebarBridge = {
   waitsIn: (
     thread: string,
   ) => readonly import("./features/waits/model").WaitReference[];
+  /** Everything waiting on you in this room (the Inbox's "this room" count). */
+  waitsInRoom?: () => readonly import("./features/waits/model").WaitReference[];
 };
 
 export type SidebarProps = {

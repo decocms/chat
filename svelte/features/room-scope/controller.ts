@@ -987,6 +987,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             waits.filter(
               (wait) => wait.book_id === value.id && wait.thread === target,
             ),
+          waitsInRoom: () => waits.filter((wait) => wait.book_id === value.id),
         };
         const book = me()?.books.find((book) => book.id === value.id),
           icon = book?.icon

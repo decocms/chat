@@ -7,6 +7,7 @@
   import RoomMark from "./features/room-sidebar/RoomMark.svelte";
   import Avatar from "./lib/ui/Avatar.svelte";
   import IconButton from "./lib/ui/IconButton.svelte";
+  import Icon from "./lib/ui/Icon.svelte";
   import Button from "./lib/ui/Button.svelte";
   import { cn } from "./lib/ui/utils";
   import WaitBadge from "./features/waits/WaitBadge.svelte";
@@ -188,15 +189,34 @@
             class="tw:flex-1 tw:truncate"
             title={room.book.summary || room.book.title}>{room.book.title}</span
           >
-          <WaitBadge
-            waits={vb.waitsIn("main")}
-            label={(n) => vb.t("{n} coisas esperando você", { n })}
-            taskLabel={vb.t("Tarefa sua pendente")}
-          />
           <span class="tw:text-xs tw:font-normal tw:text-muted-foreground"
             >{messageCount(room, "main")}</span
           >
         </div>
+        {#if oninbox}
+          <Button
+            data-room-inbox-button
+            variant={inboxOpen ? "secondary" : "ghost"}
+            size="icon"
+            aria-label={vb.t("Caixa de entrada")}
+            aria-current={inboxOpen ? "page" : undefined}
+            title={vb.t("Caixa de entrada: o que espera por você")}
+            class="tw:relative tw:size-9 tw:shrink-0"
+            onclick={(event) => {
+              if (event.currentTarget.isConnected)
+                oninbox?.(event.currentTarget);
+            }}
+          >
+            <Icon name="inbox" />
+            <WaitBadge
+              solid
+              waits={vb.waitsInRoom?.() ?? []}
+              label={(n) => vb.t("{n} coisas esperando você", { n })}
+              taskLabel={vb.t("Tarefa sua pendente")}
+              class="tw:pointer-events-none tw:absolute tw:-top-0.5 tw:-right-0.5"
+            />
+          </Button>
+        {/if}
         <IconButton
           icon="pencil"
           label={vb.t("Renomear")}
@@ -218,14 +238,6 @@
             {onrenameroom}
           />
         </div>{/if}
-      {#if oninbox}<Button
-          variant={inboxOpen ? "secondary" : "ghost"}
-          aria-current={inboxOpen ? "page" : undefined}
-          class="tw:h-9 tw:min-h-0 tw:justify-start tw:py-0"
-          onclick={(event) => {
-            if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-          }}>{vb.t("Caixa de entrada")}</Button
-        >{/if}
       <EpicTree
         {room}
         {thread}
