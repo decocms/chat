@@ -6,11 +6,11 @@
   import Button from "../../lib/ui/Button.svelte";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import Avatar from "../../lib/ui/Avatar.svelte";
+  import Icon from "../../lib/ui/Icon.svelte";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import type { WaitReference } from "../waits/model";
   import Input from "../../lib/ui/Input.svelte";
   import Label from "../../lib/ui/Label.svelte";
-  import Select from "../../lib/ui/Select.svelte";
   import Tabs from "../../lib/ui/Tabs.svelte";
   import { cn } from "../../lib/ui/utils";
   import { productionStatuses } from "../chat/production";
@@ -21,6 +21,11 @@
     reorderEpics,
     visibleEpics,
   } from "./model";
+  import {
+    createSortableRows,
+    ROOT_GROUP,
+    type SortableMove,
+  } from "./sortable";
   import {
     enterNavigationThread,
     toggleNavigationBranch,
@@ -60,9 +65,8 @@
     $mutation.phase === "pending" || $mutation.phase === "unconfirmed",
   );
   let error = $state("");
-  let drag = $state<string | null>(null);
-  let dropTarget = $state<string | null>(null);
-  let dropAfter = $state(false);
+  /** The order just dropped, shown until the server confirms (or refuses) it. */
+  let localOrder = $state<string[] | null>(null);
   let input: HTMLInputElement | null = $state(null);
   let disposed = false;
   const rowNodes = new Map<string, HTMLElement>();
@@ -76,22 +80,34 @@
   };
   let requested = $state<OrderRequest | null>(null);
   let announcement = $state("");
+  const sorter = createSortableRows((move) => sorted(move));
   onDestroy(() => {
     disposed = true;
     generation++;
     rowNodes.clear();
+    sorter.destroy();
   });
   const indentation = [
     "tw:pl-0",
-    "tw:pl-2",
-    "tw:pl-4",
+    "tw:pl-3",
     "tw:pl-6",
-    "tw:pl-8",
-    "tw:pl-10",
+    "tw:pl-9",
     "tw:pl-12",
+    "tw:pl-14",
+    "tw:pl-16",
   ];
-  const active = $derived(activeEpics(room.epics, thread));
-  const archived = $derived(archivedEpics(room.epics, room.messages));
+  const orderedEpics = $derived.by(() => {
+    const order = localOrder;
+    if (!order) return room.epics;
+    const position = new Map(order.map((id, index) => [id, index]));
+    return [...room.epics].sort(
+      (a, b) =>
+        (position.get(a.id) ?? order.length) -
+        (position.get(b.id) ?? order.length),
+    );
+  });
+  const active = $derived(activeEpics(orderedEpics, thread));
+  const archived = $derived(archivedEpics(orderedEpics, room.messages));
   const production = $derived(productionStatuses(room));
   const mode = $derived(
     $navigation.archived && archived.length > 0 ? "archived" : "active",
@@ -106,6 +122,16 @@
   const rows = $derived(
     visibleEpics(forest, $navigation.closed, workingEpics, true),
   );
+  const groupOf = (id: string) => forest.parents.get(id) ?? ROOT_GROUP;
+  const groupMembers = (group: string) =>
+    group === ROOT_GROUP ? forest.roots : (forest.children.get(group) ?? []);
+  const siblingIndex = $derived(
+    new Map(
+      [ROOT_GROUP, ...forest.children.keys()].flatMap((group) =>
+        groupMembers(group).map((epic, index) => [epic.id, index] as const),
+      ),
+    ),
+  );
   const rowIds = $derived(
     new Map(rows.map((row, index) => [row.epic.id, `${uid}-row-${index}`])),
   );
@@ -117,11 +143,10 @@
     if (disposed) return;
     generation++;
     requested = null;
+    localOrder = null;
     const archived = value === "archived";
     navigation.update((state) => ({ ...state, archived }));
     onarchchange(archived);
-    drag = null;
-    dropTarget = null;
     error = "";
   }
   async function submit(command: Parameters<RoomMutations["run"]>[0]) {
@@ -150,7 +175,7 @@
     return peers[peers.findIndex((epic) => epic.id === id) + direction];
   }
   async function reorder(from: string, to: string, after: boolean) {
-    const ids = reorderEpics(room.epics, from, to, after);
+    const ids = reorderEpics(orderedEpics, from, to, after);
     if (!ids || disposed) return;
     requested = null;
     const version = ++generation;
@@ -160,9 +185,18 @@
         ? active
         : null;
     const targetThread = thread;
-    if (await submit({ t: "epic.order", ids }))
-      if (!disposed && generation === version && thread === targetThread)
-        requested = { ids, from, anchor, generation: version, thread };
+    localOrder = ids;
+    const saved = await submit({ t: "epic.order", ids });
+    if (generation !== version) return;
+    if (saved && !disposed && thread === targetThread)
+      requested = { ids, from, anchor, generation: version, thread };
+    else localOrder = null;
+  }
+  /** A row was dropped at a new place among its siblings. */
+  function sorted(move: SortableMove) {
+    if (disposed || mode !== "active") return;
+    const target = groupMembers(move.group)[move.toIndex];
+    if (target) void reorder(move.id, target.id, move.toIndex > move.fromIndex);
   }
   function registerRow(node: HTMLElement, id: string) {
     rowNodes.set(id, node);
@@ -177,12 +211,14 @@
     if (!request) return;
     if (request.thread !== thread || mode !== "active") {
       requested = null;
+      localOrder = null;
       generation++;
       return;
     }
     const current = room.epics.map((epic) => epic.id);
     if (!current.includes(request.from)) {
       requested = null;
+      localOrder = null;
       restoreOrderFocus(request);
       return;
     }
@@ -196,6 +232,7 @@
     )
       return;
     requested = null;
+    localOrder = null;
     announcement = vb.t("Ordem dos épicos atualizada.");
     restoreOrderFocus(request);
   });
@@ -221,46 +258,12 @@
     const target = adjacent(id, direction);
     if (mode === "active" && target) reorder(id, target.id, direction === 1);
   }
-  function startDrag(event: DragEvent, id: string) {
-    if (mutationBusy || mode !== "active" || !event.dataTransfer)
-      return event.preventDefault();
-    event.dataTransfer.setData("text/vb-epic", id);
-    event.dataTransfer.effectAllowed = "move";
-    drag = id;
-  }
-  function canDrop(event: DragEvent, id: string) {
-    return (
-      !mutationBusy &&
-      mode === "active" &&
-      drag !== id &&
-      event.dataTransfer?.types.includes("text/vb-epic")
-    );
-  }
-  function over(event: DragEvent, id: string) {
-    if (!canDrop(event, id)) return;
-    event.preventDefault();
-    const bounds =
-      event.currentTarget instanceof HTMLElement
-        ? event.currentTarget.getBoundingClientRect()
-        : null;
-    dropTarget = id;
-    dropAfter = !!bounds && event.clientY >= bounds.top + bounds.height / 2;
-  }
-  function drop(event: DragEvent, id: string) {
-    const after = dropAfter;
-    dropTarget = null;
-    if (!canDrop(event, id)) return;
-    event.preventDefault();
-    const from = event.dataTransfer?.getData("text/vb-epic");
-    if (from) reorder(from, id, after);
-    drag = null;
-  }
 </script>
 
 <section
   data-vb-native
   aria-label={vb.t("Épicos")}
-  class="tw:m-0 tw:box-border tw:space-y-3 tw:rounded-surface tw:bg-sidebar tw:p-3 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
+  class="tw:m-0 tw:box-border tw:space-y-3 tw:p-3 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground"
 >
   <Tabs
     items={[
@@ -293,6 +296,15 @@
             {@const working = vb.epicBusy(epic)}
             <li
               use:registerRow={epic.id}
+              use:sorter.row={{
+                id: epic.id,
+                index: siblingIndex.get(epic.id) ?? 0,
+                group: groupOf(epic.id),
+                disabled:
+                  mutationBusy ||
+                  value !== "active" ||
+                  (row.hasChildren && !closed),
+              }}
               id={rowIds.get(epic.id)}
               hidden={row.hidden}
               data-epic={epic.id}
@@ -305,52 +317,57 @@
               <div
                 role="group"
                 aria-label={epic.title}
-                draggable={!mutationBusy && value === "active"}
-                ondragstart={(event) => startDrag(event, epic.id)}
-                ondragend={() => {
-                  drag = null;
-                  dropTarget = null;
-                }}
-                ondragover={(event) => over(event, epic.id)}
-                ondragleave={() => {
-                  if (dropTarget === epic.id) dropTarget = null;
-                }}
-                ondrop={(event) => drop(event, epic.id)}
                 class={cn(
-                  "tw:flex tw:items-center tw:gap-1 tw:rounded-control tw:border tw:border-transparent tw:border-l-4",
+                  "tw:flex tw:items-center tw:gap-1 tw:rounded-control tw:border-l-2 tw:border-transparent",
                   !selectionDisabled &&
                     thread === epic.id &&
                     "tw:border-l-primary tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
-                  dropTarget === epic.id &&
-                    (dropAfter ? "tw:border-b-primary" : "tw:border-t-primary"),
-                  drag === epic.id && "tw:opacity-50",
                 )}
               >
                 {#if row.hasChildren}
-                  <IconButton
-                    icon={closed ? "chevronRight" : "chevronDown"}
-                    label={`${vb.t(closed ? "Abrir galho" : "Fechar galho")}: ${epic.title}`}
+                  <Button
+                    variant="ghost"
+                    class="tw:size-5 tw:shrink-0 tw:p-0"
+                    aria-label={`${vb.t(closed ? "Abrir galho" : "Fechar galho")}: ${epic.title}`}
                     aria-expanded={!closed}
                     aria-controls={(forest.children.get(epic.id) ?? [])
                       .map((child) => rowIds.get(child.id))
                       .join(" ")}
-                    class="tw:size-8 tw:p-1"
                     onclick={() => toggleNavigationBranch(session, epic.id)}
-                  />
+                    ><Icon
+                      name={closed ? "chevronRight" : "chevronDown"}
+                      class="tw:size-3.5"
+                    /></Button
+                  >
                 {:else}<span
                     aria-hidden="true"
                     class={cn(
                       "tw:shrink-0",
                       rows.some((other) => other.hasChildren)
-                        ? "tw:w-8"
-                        : "tw:w-1",
+                        ? "tw:w-5"
+                        : "tw:w-0",
                     )}
                   ></span>{/if}
                 <Button
                   variant="ghost"
-                  class="tw:h-auto tw:min-h-9 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-normal tw:py-1.5 tw:pl-1 tw:pr-9 tw:text-left"
+                  class={cn(
+                    "tw:h-8 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:whitespace-nowrap tw:px-1.5 tw:py-0 tw:text-left tw:font-normal",
+                    !selectionDisabled &&
+                      thread === epic.id &&
+                      "tw:font-medium",
+                  )}
                   data-epic-thread={epic.id}
                   title={epic.title}
+                  aria-keyshortcuts={value === "active"
+                    ? "Alt+ArrowUp Alt+ArrowDown"
+                    : undefined}
+                  onkeydown={(event) => {
+                    if (value !== "active" || !event.altKey) return;
+                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                      event.preventDefault();
+                      move(epic.id, event.key === "ArrowUp" ? -1 : 1);
+                    }
+                  }}
                   aria-current={!selectionDisabled && thread === epic.id
                     ? "page"
                     : undefined}
@@ -366,11 +383,9 @@
                     src={epic.owner && room.avatars?.[epic.owner]
                       ? `/api/avatar/${encodeURIComponent(epic.owner)}?v=${room.avatars[epic.owner]}`
                       : undefined}
-                    class="tw:size-6 tw:text-xs"
+                    class="tw:size-5 tw:text-[10px]"
                   />
-                  <span
-                    class="tw:line-clamp-2 tw:min-w-0 tw:flex-1 tw:break-words"
-                    data-epic-title
+                  <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
                     >{epic.title}{#if epic.archived}<span
                         class="tw:ml-1 tw:text-xs">({vb.t("Arquivado")})</span
                       >{/if}{#if parent}<span class="tw:sr-only">
@@ -414,55 +429,6 @@
                     >{/if}
                 </Button>
               </div>
-              <details class="tw:ml-8 tw:text-xs tw:text-muted-foreground">
-                <summary
-                  class="tw:absolute tw:right-1 tw:top-1 tw:grid tw:size-7 tw:cursor-pointer tw:list-none tw:place-items-center tw:rounded-control tw:text-base tw:leading-none tw:text-muted-foreground tw:hover:bg-accent tw:hover:text-accent-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring tw:[&::-webkit-details-marker]:hidden"
-                  ><span aria-hidden="true">⋯</span><span class="tw:sr-only"
-                    >{vb.t("Ações do épico")}: {epic.title}</span
-                  ></summary
-                >
-                <div class="tw:space-y-2 tw:p-2">
-                  <Label for={`${rowIds.get(epic.id)}-owner`}
-                    >{vb.t("Dono do épico")}</Label
-                  >
-                  <Select
-                    disabled={mutationBusy}
-                    id={`${rowIds.get(epic.id)}-owner`}
-                    aria-label={`${vb.t("Dono do épico")}: ${epic.title}`}
-                    value={epic.owner ?? ""}
-                    items={[
-                      { value: "", label: vb.t("Sem dono") },
-                      ...room.members.map((email) => ({
-                        value: email,
-                        label: vb.name(email),
-                      })),
-                    ]}
-                    onValueChange={(owner) => {
-                      submit({ t: "epic.owner", id: epic.id, owner });
-                      return false;
-                    }}
-                  />
-                  {#if value === "active"}<div
-                      class="tw:flex tw:flex-wrap tw:gap-2"
-                    >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={mutationBusy || !adjacent(epic.id, -1)}
-                        aria-label={`${vb.t("Mover para cima")}: ${epic.title}`}
-                        onclick={() => move(epic.id, -1)}
-                        >{vb.t("Mover para cima")}</Button
-                      ><Button
-                        variant="outline"
-                        size="sm"
-                        disabled={mutationBusy || !adjacent(epic.id, 1)}
-                        aria-label={`${vb.t("Mover para baixo")}: ${epic.title}`}
-                        onclick={() => move(epic.id, 1)}
-                        >{vb.t("Mover para baixo")}</Button
-                      >
-                    </div>{/if}
-                </div>
-              </details>
             </li>
           {/each}
         </ul>

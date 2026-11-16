@@ -177,19 +177,6 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:hidden tw:items-center tw:gap-2 tw:min-[901px]:flex">
-      <a
-        href="/app?ui=svelte"
-        data-nav
-        class="tw:flex-1 tw:text-muted-foreground tw:no-underline tw:hover:text-foreground"
-        >← vibebooks</a
-      ><IconButton
-        icon="sidebar"
-        label={vb.t("Recolher menu")}
-        aria-expanded="true"
-        onclick={ontogglerail}
-      />
-    </div>
     <div class="tw:flex tw:items-center tw:gap-1">
       <Button
         variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}

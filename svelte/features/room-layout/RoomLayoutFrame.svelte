@@ -129,7 +129,7 @@
       inert={!sideLive}
       data-room-sidebar
       class={[
-        "tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:bg-background",
+        "tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:bg-sidebar tw:text-sidebar-foreground",
         $view.mobile
           ? [
               "tw:absolute tw:inset-x-0 tw:top-[12%] tw:z-50 tw:h-[88%] tw:w-full tw:animate-room-sheet tw:rounded-surface tw:shadow-lg",
