@@ -777,7 +777,9 @@ describe("native Svelte room panels", () => {
           label,
         ).toBe(expected);
         const link = target.querySelector("a")!;
-        expect(link.getAttribute("title"), label).toBe("Room");
+        // A styled tooltip (bits trigger), not the slow native title.
+        expect(link.hasAttribute("title"), label).toBe(false);
+        expect(link.getAttribute("data-state"), label).toBe("closed");
         expect(link.className, label).not.toContain("ring-primary");
         expect(link.className, label).toContain("tw:group");
       } finally {
@@ -3179,7 +3181,8 @@ describe("stable native sidebar integration", () => {
     );
     expect(title).not.toBeNull();
     expect(title!.textContent).toContain(room.book.title);
-    expect(title!.getAttribute("title")?.split("\n")[0]).toBe(room.book.title);
+    expect(title!.hasAttribute("title")).toBe(false);
+    expect(title!.getAttribute("data-state")).toBe("closed");
     expect(title!.getAttribute("aria-current")).toBeNull();
     title!.click();
     expect(h.opened).toEqual(["main"]);

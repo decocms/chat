@@ -9,6 +9,7 @@
   import IconButton from "./lib/ui/IconButton.svelte";
   import Icon from "./lib/ui/Icon.svelte";
   import Button from "./lib/ui/Button.svelte";
+  import Tip from "./lib/ui/Tip.svelte";
   import { cn } from "./lib/ui/utils";
   import WaitBadge from "./features/waits/WaitBadge.svelte";
   import Progress from "./lib/ui/Progress.svelte";
@@ -180,27 +181,34 @@
       />{/if}
     <div class="tw:flex tw:flex-col tw:gap-1">
       <div class="tw:flex tw:items-center tw:gap-1">
-        <Button
-          data-room-title
-          variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
-          aria-current={!inboxOpen && thread === "main" ? "page" : undefined}
-          title={room.book.summary
+        {#snippet roomTitle(tip: Record<string, unknown>)}
+          <Button
+            {...tip}
+            data-room-title
+            variant={!inboxOpen && thread === "main" ? "secondary" : "ghost"}
+            aria-current={!inboxOpen && thread === "main" ? "page" : undefined}
+            class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
+            onclick={(event) => {
+              if (event.currentTarget.isConnected) open("main");
+            }}
+          >
+            <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
+            <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
+            <span
+              class={!inboxOpen && thread === "main"
+                ? "tw:text-xs tw:font-normal tw:text-secondary-foreground"
+                : "tw:text-xs tw:font-normal tw:text-muted-foreground"}
+              >{messageCount(room, "main")}</span
+            >
+          </Button>
+        {/snippet}
+        <Tip
+          side="bottom"
+          label={room.book.summary
             ? `${room.book.title}\n${room.book.summary}`
             : room.book.title}
-          class="tw:h-9 tw:min-h-0 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:py-0"
-          onclick={(event) => {
-            if (event.currentTarget.isConnected) open("main");
-          }}
-        >
-          <RoomMark title={room.book.title} src={roomIcon} tint={roomTint} />
-          <span class="tw:flex-1 tw:truncate">{room.book.title}</span>
-          <span
-            class={!inboxOpen && thread === "main"
-              ? "tw:text-xs tw:font-normal tw:text-secondary-foreground"
-              : "tw:text-xs tw:font-normal tw:text-muted-foreground"}
-            >{messageCount(room, "main")}</span
-          >
-        </Button>
+          trigger={roomTitle}
+        />
         {#if oninbox}
           <Button
             data-room-inbox-button
