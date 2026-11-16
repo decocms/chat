@@ -165,12 +165,14 @@
 </script>
 
 <section
-  class="tw:space-y-2 tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:py-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground"
+  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-2 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:bg-sidebar tw:px-3 tw:pt-0 tw:pb-3 tw:font-sans tw:text-sm tw:text-sidebar-foreground"
   aria-labelledby={`pins-title-${room.id}`}
   data-native-pins
   data-vb-native
 >
-  <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+  <div
+    class="tw:sticky tw:top-0 tw:z-10 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:bg-sidebar tw:pt-3"
+  >
     <h2
       id={`pins-title-${room.id}`}
       class="tw:m-0 tw:font-sans tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"

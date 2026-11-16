@@ -186,7 +186,7 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class="tw:space-y-4 tw:border-t tw:border-border tw:p-3 tw:font-sans tw:text-sm tw:text-foreground"
+  class="tw:max-h-[32%] tw:shrink-0 tw:space-y-4 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:border-t tw:border-border tw:px-3 tw:pt-3 tw:pb-0 tw:font-sans tw:text-sm tw:text-foreground"
 >
   {#if room.requests?.length}<div class="tw:space-y-3">
       <Heading level={3} class="tw:text-sm tw:leading-5">
@@ -271,7 +271,7 @@
     </details>{/if}
   <form
     id="invite"
-    class="tw:space-y-2"
+    class="tw:sticky tw:bottom-0 tw:z-10 tw:-mx-3 tw:space-y-2 tw:bg-sidebar tw:px-3 tw:pt-2 tw:pb-3"
     onsubmit={(event) => {
       event.preventDefault();
       invite($view.draft);

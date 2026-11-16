@@ -93,7 +93,7 @@
   bind:this={root}
   data-vb-native
   data-native-room-sidebar
-  class="tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:p-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
+  class="tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:gap-3 tw:p-2 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
 >
   {#if collapsed}
     <IconButton
@@ -179,8 +179,8 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:flex tw:flex-col tw:gap-1">
-      <div class="tw:flex tw:items-center tw:gap-1">
+    <div class="tw:flex tw:min-h-48 tw:flex-1 tw:flex-col tw:gap-1">
+      <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
         {#snippet roomTitle(tip: Record<string, unknown>)}
           <Button
             {...tip}
@@ -241,7 +241,7 @@
         />
       </div>
       {#if thread !== "main" && !thread.startsWith("pre:")}<div
-          class="tw:min-[901px]:hidden"
+          class="tw:shrink-0 tw:min-[901px]:hidden"
         >
           <ThreadHeader
             {room}

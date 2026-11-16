@@ -65,8 +65,10 @@
   {#each items as item (item.value)}
     <Tabs.Content
       value={item.value}
-      class="tw:min-h-0 tw:flex-1 tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
-      >{@render children(item.value)}</Tabs.Content
+      class={cn(
+        "tw:min-h-0 tw:flex-1 tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+        compact && "tw:flex tw:flex-col",
+      )}>{@render children(item.value)}</Tabs.Content
     >
   {/each}
 </Tabs.Root>
