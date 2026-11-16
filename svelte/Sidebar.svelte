@@ -59,7 +59,11 @@
     if (!active) return;
     const account = room.me,
       id = room.id;
-    navigation.state.update((value) => ({ ...value, archived: false }));
+    navigation.state.update((value) => ({
+      ...value,
+      archived: false,
+      creating: true,
+    }));
     onarchchange(false);
     ontogglerail();
     void tick().then(() => {

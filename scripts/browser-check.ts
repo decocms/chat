@@ -85,8 +85,9 @@ try {
   });
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
   await openNativeSidebar(a);
-  await expect(a.locator("#side #newEpic")).toBeAttached();
+  await expect(a.locator("#side [data-new-epic]")).toBeAttached();
   const readyMs = Date.now() - opened;
+  await a.locator("#side [data-new-epic]").click();
   await a.locator("#newEpic input").fill("Verify live Svelte");
   await a.locator("#newEpic input").press("Enter");
   const epic = a

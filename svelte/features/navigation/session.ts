@@ -7,6 +7,10 @@ export type NavigationState = {
   closed: ReadonlySet<string>;
   openedFor: string | null;
   archived: boolean;
+  /** The new-epic field under the Épicos header is open. */
+  creating: boolean;
+  /** @vibe's suggestions are unfolded under the Épicos header. */
+  suggestions: boolean;
 };
 export type NavigationSession = {
   readonly roomId: string;
@@ -67,6 +71,8 @@ export function createNavigationSession(
       closed: readClosed(roomId, storage),
       openedFor: null,
       archived,
+      creating: false,
+      suggestions: false,
     }),
   };
 }
