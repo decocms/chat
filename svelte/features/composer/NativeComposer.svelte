@@ -413,7 +413,11 @@
     }
   }
   onMount(() => {
-    const main = root?.closest("main");
+    // Paste and file drop work anywhere in the room. The Studio layout (#45) has no <main> around the room,
+    // so closest("main") alone left paste and drop dead.
+    const main =
+      root?.closest<HTMLElement>("[data-native-room-layout]") ??
+      root?.closest("main");
     const paste = (event: ClipboardEvent) => {
       const target = event.target,
         typing =

@@ -233,6 +233,9 @@
       ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:bg-sidebar"
       : "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr] tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:grid-rows-[auto]",
     "tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground",
+    // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
+    // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
+    "tw:[&_*]:[scrollbar-color:transparent_transparent] tw:[&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] tw:[&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
   ]}
 >
   {#if !$application.sessionDenied}

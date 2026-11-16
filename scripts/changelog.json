@@ -42,13 +42,17 @@
         "A resposta de uma linha a uma pergunta ia pra sala principal; agora vai pra thread do épico da pergunta.",
         "As iniciais brancas nas salas de capa âmbar ficavam com pouco contraste; a cor ficou um pouco mais escura.",
         "Uma aba aberta com algo esperando você pedia o resumo \"O que precisa de você\" sem parar (centenas de MB por dia no celular); agora pede uma vez.",
-        "Em \"Seus agents conectados\", logins antigos do CLI apareciam como \"uso desconhecido\" mesmo em uso; agora mostram quando foram usados pela última vez."
+        "Em \"Seus agents conectados\", logins antigos do CLI apareciam como \"uso desconhecido\" mesmo em uso; agora mostram quando foram usados pela última vez.",
+        "Na nova UI, colar (⌘V) e arrastar um arquivo pro campo de texto não anexavam nada; voltaram a anexar.",
+        "Na nova UI, as barras de rolagem ficavam sempre à vista; agora são finas e só aparecem quando o mouse passa por cima, como na UI clássica."
       ],
       "en": [
         "The one-line answer to a question went to the main thread; it now goes to the question epic's thread.",
         "White initials on amber room covers had too little contrast; the color is now a bit darker.",
         "An open tab with something waiting on you asked for the \"What needs you\" summary non-stop (hundreds of MB a day on a phone); it now asks once.",
-        "In \"Your connected agents\", older CLI logins showed \"usage unknown\" while in use; they now show when they were last used."
+        "In \"Your connected agents\", older CLI logins showed \"usage unknown\" while in use; they now show when they were last used.",
+        "In the new UI, pasting (⌘V) or dragging a file into the composer attached nothing; both attach again.",
+        "In the new UI, scrollbars were always showing; they are now thin and only show when you point at what scrolls, like the classic UI."
       ]
     }
   },
