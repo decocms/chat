@@ -3,6 +3,7 @@
   import { waitIndicator, type WaitReference } from "../waits/model";
   import IconButton from "../../lib/ui/IconButton.svelte";
   import Icon from "../../lib/ui/Icon.svelte";
+  import RailPill from "../app-navigation/RailPill.svelte";
   import {
     roomInitials,
     roomIcon,
@@ -100,7 +101,7 @@
     aria-label={description}
     aria-current={selected ? "page" : undefined}
     class={compact
-      ? "tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:aria-[current=page]:ring-2 tw:aria-[current=page]:ring-primary"
+      ? "tw:group tw:relative tw:flex tw:size-12 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-control tw:outline-none tw:ring-inset tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
       : "tw:flex tw:min-w-0 tw:flex-col tw:gap-3 tw:rounded-control tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"}
     onclick={(event) => {
       if (
@@ -116,6 +117,9 @@
       onnavigate({ roomId: room.id });
     }}
   >
+    {#if compact}<RailPill
+        state={selected ? "selected" : news ? "unread" : "idle"}
+      />{/if}
     <span
       class={[
         compact ? "tw:size-10" : "tw:h-28 tw:w-full",
