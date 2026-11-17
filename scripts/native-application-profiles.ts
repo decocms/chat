@@ -784,16 +784,12 @@ export async function auditNativeApplicationProfiles(
                 evidence: await verifyStudioPalette(page, theme, [
                   {
                     role: `${pane} pane fill`,
-                    // On desktop the pane sits on Studio's card surface (a
-                    // backdrop under the toolbar and pane); on phones it is
-                    // the sheet itself.
+                    // On desktop the pane sits on Studio's card surface (one
+                    // backdrop under the top bar, chat and pane); on phones it
+                    // is the sheet itself.
                     selector:
                       profile.width > 900
-                        ? (await page
-                            .locator(selector)
-                            .getAttribute("data-placement")) === "full"
-                          ? '[data-room-surface="chat"]'
-                          : '[data-room-surface="side"]'
+                        ? '[data-room-surface="chat"]'
                         : selector,
                     property: "background-color",
                     cssVariable: "--background",

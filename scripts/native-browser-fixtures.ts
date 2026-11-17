@@ -118,9 +118,12 @@ export async function openNativeRoomPane(
     const button = page.locator(
       `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
     );
-    if (!(await button.isVisible()))
-      await page.locator("[data-native-document-toggle]").click();
-    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
+    // The tabs live in the room's top bar and open the pane when it's closed.
+    if (
+      (await layout.getAttribute("data-pane")) !== pane ||
+      !(await page.locator(content[pane]).isVisible())
+    )
+      await button.click();
   }
   await expect(layout).toHaveAttribute("data-pane", pane);
   // A selected pane or a loading placeholder is not feature readiness. Include
