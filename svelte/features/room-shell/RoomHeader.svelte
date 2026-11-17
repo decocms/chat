@@ -10,10 +10,24 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import {
     ArrowLeft,
+    ChevronDown,
     Columns03,
+    DotsHorizontal,
+    File02,
     Inbox01,
     LayoutRight,
   } from "../../lib/studio/icons";
+  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
+  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
+  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
+  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import { cn } from "../../lib/studio/utils";
+  import { studioType } from "../../lib/components/type";
+  import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import { suggestionAt } from "../room-sidebar/model";
+  import { paneIcons, paneLabel } from "../documents/paneIcons";
+  import type { DocumentPane } from "../documents/types";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
   import { isPanelToggleKey } from "./panelViews";
@@ -24,6 +38,7 @@
     layout,
     current,
     boardCount,
+    panes,
     back,
   }: {
     presentation: ApplicationRoomPresentation;
@@ -32,6 +47,11 @@
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
+    /** The room panels (the doc sheet's tabs): on a phone they live in the ⋯ menu. */
+    panes?: {
+      counts?: Partial<Record<DocumentPane, number | string>>;
+      onPane(pane: DocumentPane): void;
+    };
     back(expectedThread: string): void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
@@ -41,6 +61,20 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected;
   const waits = $derived($personal.me?.waits ?? []);
+  const en = $derived(presentation.services.language === "en");
+  // Phone title: the room small on top, the open thread under it.
+  const threadTitle = $derived(
+    suggestionAt(header.room, header.thread)?.title ??
+      header.room.epics.find((epic) => epic.id === header.thread)?.title ??
+      presentation.services.t("Sala principal"),
+  );
+  const morePanes: DocumentPane[] = [
+    "files",
+    "apps",
+    "decisions",
+    "reminders",
+    "agents",
+  ];
   const t = (text: string, vars?: Record<string, string | number>) =>
     presentation.services.t(text, vars);
   const mac =
@@ -83,7 +117,36 @@
           }}><Icon icon={ArrowLeft} size={16} /></IconButton
         >{/snippet}</Snapshot
     >{/key}
-  <div class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-24">
+  <button
+    type="button"
+    data-native-phone-title
+    aria-label={t("Trocar de conversa")}
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-1.5 tw:py-1 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:min-[901px]:hidden"
+    onclick={(event) => {
+      if (live(event)) header.onopenside();
+    }}
+    ><RoomAvatar
+      title={header.room.book.title}
+      icon={header.roomIcon}
+      lang={en ? "en" : "pt"}
+      surface="background"
+    /><span class="tw:flex tw:min-w-0 tw:flex-col"
+      ><span
+        class="tw:truncate tw:text-xs tw:leading-4 tw:text-muted-foreground"
+        >{header.room.book.title}</span
+      ><span
+        class="tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-base tw:leading-5 tw:font-semibold"
+        ><span class="tw:truncate">{threadTitle}</span><Icon
+          icon={ChevronDown}
+          size={16}
+          class="tw:shrink-0"
+        /></span
+      ></span
+    ></button
+  >
+  <div
+    class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24"
+  >
     <ThreadHeader {...header} compact />
   </div>
   <div
@@ -95,7 +158,7 @@
       tooltipSide="bottom"
       size="icon"
       aria-pressed={$geometry.boardFull}
-      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
+      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground tw:max-[900px]:hidden"
       onclick={(event) => {
         if (live(event)) layout.toggleBoard();
       }}
@@ -108,6 +171,16 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
+    {#if panes}<IconButton
+        data-native-phone-doc
+        label="Doc"
+        size="icon"
+        aria-pressed={$geometry.sheet === "doc" && $geometry.pane === "doc"}
+        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground tw:min-[901px]:hidden"
+        onclick={(event) => {
+          if (live(event)) panes.onPane("doc");
+        }}><Icon icon={File02} size={16} /></IconButton
+      >{/if}
     <IconButton
       data-native-inbox-toggle
       label={t("Caixa de entrada")}
@@ -126,7 +199,7 @@
     <div class="tw:contents">
       <!-- Desktop: the agent icon leads the icon buttons on the right. -->
       {#if trigger}<div
-          class="tw:flex tw:min-[901px]:order-first tw:min-[901px]:mr-1"
+          class="tw:flex tw:max-[900px]:hidden tw:min-[901px]:order-first tw:min-[901px]:mr-1"
         >
           <AgentTrigger {...trigger} />
         </div>{/if}
@@ -137,11 +210,61 @@
         size="icon"
         aria-pressed={$geometry.documentVisible}
         aria-keyshortcuts={mac ? "Alt+Meta+B" : "Control+Alt+B"}
-        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:max-[900px]:hidden"
         onclick={(event) => {
           if (live(event)) layout.toggleDocument();
         }}><Icon icon={LayoutRight} size={16} /></IconButton
       >
+      {#if panes}<span class="tw:contents tw:min-[901px]:hidden"
+          ><DropdownMenu>
+            <DropdownMenuTrigger
+              data-native-phone-more
+              aria-label={t("Mais opções")}
+              class={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:hidden",
+              )}
+              ><Icon
+                icon={DotsHorizontal}
+                size={16}
+              />{#if typeof boardCount === "number" && boardCount}<Count
+                  value={boardCount}
+                  label={t("Esperando você: {n}", { n: boardCount })}
+                  class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+                />{/if}</DropdownMenuTrigger
+            >
+            <DropdownMenuContent
+              data-vb-native
+              align="end"
+              class={cn(studioType, "tw:w-56")}
+            >
+              <DropdownMenuItem
+                data-phone-pane="board"
+                onSelect={() => {
+                  if (current()) layout.toggleBoard();
+                }}
+                ><Icon icon={Columns03} /><span class="tw:flex-1"
+                  >{t("Quadro de tarefas (kanban)")}</span
+                >{#if typeof boardCount === "number" && boardCount}<Count
+                    value={boardCount}
+                    label={t("Esperando você: {n}", { n: boardCount })}
+                  />{/if}</DropdownMenuItem
+              >
+              {#each morePanes as pane (pane)}<DropdownMenuItem
+                  data-phone-pane={pane}
+                  onSelect={() => {
+                    if (current()) panes.onPane(pane);
+                  }}
+                  ><Icon icon={paneIcons[pane]} /><span class="tw:flex-1"
+                    >{paneLabel(pane, en)}</span
+                  >{#if panes.counts?.[pane]}<span
+                      class="tw:text-xs tw:text-muted-foreground tw:tabular-nums"
+                      >{panes.counts[pane]}</span
+                    >{/if}</DropdownMenuItem
+                >{/each}
+            </DropdownMenuContent>
+          </DropdownMenu></span
+        >{/if}
     </div>
   </div>
 </header>

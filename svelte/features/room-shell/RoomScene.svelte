@@ -332,6 +332,7 @@
         header={$view.header}
         trigger={$view.trigger}
         boardCount={$view.toolbar.counts?.board}
+        panes={$view.peek}
         {layout}
         {current}
         {back}

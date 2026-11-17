@@ -135,7 +135,7 @@
         "tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-x-clip tw:bg-sidebar tw:text-sidebar-foreground",
         $view.mobile
           ? [
-              "tw:absolute tw:inset-x-0 tw:top-[12%] tw:z-50 tw:h-[88%] tw:w-full tw:animate-room-sheet tw:rounded-surface tw:shadow-lg",
+              "tw:absolute tw:inset-x-0 tw:top-0 tw:z-50 tw:h-[88%] tw:w-full tw:animate-room-sheet tw:rounded-b-surface tw:pt-[env(safe-area-inset-top)] tw:shadow-lg",
               sidePresented ? "tw:visible" : "tw:invisible",
             ]
           : [
@@ -193,7 +193,10 @@
       use:handle={{ sheet: "doc", opening: true }}
       inert={props.overlayOpen || ($view.mobile && $view.sheet === "side")}
       data-room-peek
-      class={!props.overlayOpen && $view.mobile && !$view.boardFull
+      class={!props.overlayOpen &&
+      $view.mobile &&
+      !$view.boardFull &&
+      $view.sheet === "doc"
         ? "tw:relative tw:z-30 tw:col-start-2 tw:row-start-2 tw:min-w-0 tw:touch-none tw:border-b tw:border-border tw:bg-background"
         : "tw:hidden"}
     >
