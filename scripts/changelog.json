@@ -34,7 +34,9 @@
         "No app novo (?ui=svelte), a barra da sala cabe na tela de novo: a lista de épicos, os fixados e as pessoas rolam cada um por dentro, sem empurrar o resto pra fora.",
         "No app novo (?ui=svelte), os títulos Fixados e Pessoas e agents ficam parados enquanto a lista embaixo rola.",
         "No app novo (?ui=svelte), o tema saiu da barra lateral: fica só no menu da sua conta.",
-        "No app novo (?ui=svelte), as ações da mensagem ficam numa barra só no canto de cima, como no Discord: copiar link, copiar texto, reagir (😊 abre os emojis rápidos) e responder, cada uma com sua dica."
+        "No app novo (?ui=svelte), as ações da mensagem ficam numa barra só no canto de cima, como no Discord: copiar link, copiar texto, reagir (😊 abre os emojis rápidos) e responder, cada uma com sua dica.",
+        "No app novo (?ui=svelte), a barra da mensagem traz suas 3 reações mais usadas e, depois de um divisor, o 😊 com o resto e as outras ações, como no Discord.",
+        "No app novo (?ui=svelte), as dicas dos botões trocam na hora quando o mouse passa de um botão pro outro, em vez de piscar."
       ],
       "en": [
         "In the new app (?ui=svelte), the epic list has a header: + opens the new-epic field in place and ✦ shows @vibe's suggestions, so the list only holds real epics.",
@@ -42,7 +44,9 @@
         "In the new app (?ui=svelte), the room sidebar fits the screen again: the epic list, pins and people each scroll inside themselves instead of pushing the rest out of view.",
         "In the new app (?ui=svelte), the Pinned and People & agents titles stay put while the list under them scrolls.",
         "In the new app (?ui=svelte), the theme left the sidebar: it lives only in your account menu.",
-        "In the new app (?ui=svelte), a message's actions sit in one bar at its top-right corner, Discord-style: copy link, copy text, react (😊 opens the quick emojis) and reply, each with its tooltip."
+        "In the new app (?ui=svelte), a message's actions sit in one bar at its top-right corner, Discord-style: copy link, copy text, react (😊 opens the quick emojis) and reply, each with its tooltip.",
+        "In the new app (?ui=svelte), the message bar shows your 3 most used reactions and, after a divider, 😊 with the rest and the other actions, like Discord.",
+        "In the new app (?ui=svelte), button tooltips switch at once as the mouse moves from one button to the next, instead of flickering."
       ]
     },
     "fixes": {

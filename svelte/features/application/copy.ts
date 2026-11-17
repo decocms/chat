@@ -768,6 +768,7 @@ const EN: Readonly<Record<string, string>> = {
   Responder: "Reply",
   "Responder a esta mensagem": "Reply to this message",
   "Reagir a esta mensagem": "React to this message",
+  "Reagir com {emoji}": "React with {emoji}",
   "{n} itens": "{n} items",
   "Claude de {who}": "{who}'s Claude",
   "Escrito pelo agent dessa pessoa, em nome dela":
