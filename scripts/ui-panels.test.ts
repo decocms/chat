@@ -916,6 +916,7 @@ describe("native Svelte room panels", () => {
         null,
         null,
         null,
+        "new-ui",
         "logout",
       ]);
       for (const [name, section] of [
@@ -1354,12 +1355,21 @@ describe("native Svelte room panels", () => {
       expect(target.querySelector("a")!.hasAttribute("data-room-tint")).toBe(
         false,
       );
-      const badges = [...mark.querySelectorAll<HTMLElement>("[role=img]")];
+      const badges = [
+        ...target
+          .querySelector("[data-room-avatar]")!
+          .querySelectorAll<HTMLElement>("[role=img]"),
+      ];
       expect(badges).toHaveLength(3);
-      for (const badge of badges)
-        expect(badge.className, badge.textContent ?? "").toContain(
-          "tw:bg-background",
+      // On the page, the shared RoomAvatar rings its badges in the page colour, never the rail's.
+      for (const badge of badges) {
+        expect(badge.className, badge.textContent ?? "").toMatch(
+          /tw:(bg|ring)-background/,
         );
+        expect(badge.className, badge.textContent ?? "").not.toContain(
+          "sidebar",
+        );
+      }
     } finally {
       await unmount(instance);
       target.remove();

@@ -7,6 +7,7 @@
     label,
     taskLabel,
     solid = false,
+    surface = "sidebar",
     class: className = "",
   }: {
     waits: readonly WaitReference[];
@@ -14,9 +15,16 @@
     taskLabel: string;
     /** Ringed in the surface colour, for sitting on top of an avatar tile. */
     solid?: boolean;
+    /** The colour behind the avatar the badge sits on. */
+    surface?: "sidebar" | "background";
     class?: string;
   } = $props();
   const indicator = $derived(waitIndicator(waits));
+  const ring = $derived(
+    surface === "sidebar"
+      ? "tw:ring-2 tw:ring-sidebar"
+      : "tw:ring-2 tw:ring-background",
+  );
 </script>
 
 {#if indicator.asks}<span
@@ -26,7 +34,7 @@
     ><Count
       value={indicator.asks}
       label={label(indicator.asks)}
-      class={solid ? "tw:ring-2 tw:ring-sidebar" : ""}
+      class={solid ? ring : ""}
     /></span
   >{:else if indicator.tasks}<span
     data-wait-kind="tasks"
@@ -35,7 +43,7 @@
     title={taskLabel}
     class={cn(
       "tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-brand tw:ring-1 tw:ring-brand-foreground/30",
-      solid && "tw:ring-2 tw:ring-sidebar",
+      solid && ring,
       className,
     )}
   ></span>{/if}

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import UiSwitch from "./UiSwitch.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import InstallCard from "../pwa/InstallCard.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
@@ -21,7 +20,11 @@
     roomIcon,
     targetHref,
     waitGroups,
+    waitKind,
+    type WaitKind,
   } from "./model";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Inbox01 } from "../../lib/studio/icons";
   import RoomTile from "./RoomTile.svelte";
   import WaitList from "./WaitList.svelte";
   import Onboarding from "../onboarding/Onboarding.svelte";
@@ -66,6 +69,44 @@
   let sendButton = $state<HTMLElement | null>(null);
   const suggestion = $derived($view.result);
   const groups = $derived(waitGroups($account.me?.waits ?? []));
+  // Triage filters over the same groups; a filter with nothing in it hides.
+  let filter = $state<"all" | WaitKind>("all");
+  let expanded = $state<Record<string, boolean>>({});
+  const filters = $derived.by(() => {
+    const waits = $account.me?.waits ?? [];
+    const count = (kind: WaitKind) =>
+      waits.filter((wait) => waitKind(wait) === kind).length;
+    return [
+      { kind: "all" as const, label: text("filterAll"), count: waits.length },
+      {
+        kind: "claude" as const,
+        label: text("filterClaude"),
+        count: count("claude"),
+      },
+      {
+        kind: "asks" as const,
+        label: text("filterAsks"),
+        count: count("asks"),
+      },
+      {
+        kind: "reviews" as const,
+        label: text("filterReviews"),
+        count: count("reviews"),
+      },
+    ];
+  });
+  const shown = $derived(
+    groups
+      .map((group) => ({
+        ...group,
+        total: group.waits.length,
+        waits:
+          filter === "all"
+            ? group.waits
+            : group.waits.filter((wait) => waitKind(wait) === filter),
+      }))
+      .filter((group) => group.waits.length),
+  );
   const plainClick = (event: MouseEvent) =>
     !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
   $effect(() => {
@@ -119,27 +160,6 @@
       event.preventDefault();
       if (event.currentTarget.isConnected) onarchived();
     }}>{text("archive")}</a
-  >{/snippet}
-
-{#snippet profileNudge(missingName: boolean, compact = false)}<Card
-    class={compact
-      ? "tw:flex-row tw:items-center tw:gap-3 tw:py-2 tw:pr-2 tw:pl-3"
-      : "tw:flex-row tw:flex-wrap tw:items-center tw:gap-3 tw:p-3"}
-    ><p
-      class={[
-        "tw:m-0 tw:min-w-0 tw:flex-1",
-        compact && "tw:font-medium tw:leading-5",
-      ]}
-    >
-      {missingName ? text("addName") : text("addPhoto")}
-    </p>
-    <Button
-      size={compact ? "sm" : "default"}
-      variant="outline"
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) onsettings("profile");
-      }}>{text("profile")}</Button
-    ></Card
   >{/snippet}
 
 {#snippet setupCard()}<Card class="tw:block tw:space-y-4"
@@ -247,20 +267,33 @@
             {text("loading")}
           </p>{/if}{:else}
         {@const me = $account.me}
-        <div class="tw:flex tw:items-start tw:justify-between tw:gap-3">
+        <div class="tw:flex tw:items-end tw:justify-between tw:gap-3">
           <div class="tw:min-w-0">
+            <p
+              class="tw:m-0 tw:flex tw:flex-wrap tw:gap-x-1.5 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+            >
+              <span
+                >{me.name
+                  ? text("greeting", { name: me.name.split(" ")[0] ?? "" })
+                  : text("home")}</span
+              ><span aria-hidden="true">·</span
+              >{@render archiveLink()}{#if !me.name || !me.avatar}<span
+                  aria-hidden="true">·</span
+                ><button
+                  type="button"
+                  class="tw:cursor-pointer tw:rounded-control tw:p-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+                  onclick={(event) => {
+                    if (event.currentTarget.isConnected) onsettings("profile");
+                  }}>{text("completeProfile")}</button
+                >{/if}
+            </p>
             <Heading
               level={1}
-              class="tw:m-0 tw:text-2xl tw:font-semibold tw:leading-8"
-              >{me.name
-                ? text("greeting", { name: me.name.split(" ")[0] ?? "" })
-                : text("home")}</Heading
-            >
-            <p class="tw:m-0 tw:text-muted-foreground">
-              {me.waits.length
+              class="tw:m-0 tw:text-2xl tw:font-semibold tw:leading-8 tw:tracking-tight tw:tabular-nums"
+              >{me.waits.length
                 ? text("waiting", { n: me.waits.length })
-                : text("allClear")} · {@render archiveLink()}
-            </p>
+                : text("allClear")}</Heading
+            >
           </div>
           <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
             {#if oninbox}<Button
@@ -272,11 +305,9 @@
                   if (event.currentTarget.isConnected)
                     oninbox?.(event.currentTarget);
                 }}
-                >{text("inbox")}{#if me.waits.length}<Badge
-                    class="tw:text-foreground"
-                    variant="warning"
-                    aria-hidden="true">{me.waits.length}</Badge
-                  >{/if}</Button
+                ><Icon icon={Inbox01} /><span class="tw:max-sm:hidden"
+                  >{text("inbox")}</span
+                ></Button
               >{/if}<Button
               class="tw:max-sm:hidden"
               onclick={(event) => {
@@ -285,7 +316,6 @@
             >
           </div>
         </div>
-        {#if !me.name || !me.avatar}{@render profileNudge(!me.name, true)}{/if}
         {#if $account.agents && !$account.agents.agents.length}{@render setupCard()}{/if}
         <div
           class="tw:grid tw:gap-6 tw:lg:grid-cols-[minmax(0,1fr)_18rem] tw:lg:items-start"
@@ -294,15 +324,38 @@
               aria-label={text("waiting", { n: me.waits.length })}
               class="tw:min-w-0 tw:space-y-3"
             >
-              {#each groups as group (group.roomId)}{@const room =
-                  me.books.find((book) => book.id === group.roomId)}<Card
+              <div
+                role="group"
+                aria-label={text("waiting", { n: me.waits.length })}
+                class="tw:-mx-4 tw:-mt-1 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-4 tw:py-1 tw:[scrollbar-width:none] tw:sm:-mx-1 tw:sm:px-1 tw:[&::-webkit-scrollbar]:hidden"
+              >
+                {#each filters as option (option.kind)}{#if option.kind === "all" || option.count}<Button
+                      size="sm"
+                      variant={filter === option.kind ? "default" : "outline"}
+                      aria-pressed={filter === option.kind}
+                      class="tw:shrink-0"
+                      onclick={() => (filter = option.kind)}
+                      >{option.label}<span
+                        class={[
+                          "tw:tabular-nums",
+                          filter !== option.kind &&
+                            (option.kind === "claude"
+                              ? "tw:text-destructive"
+                              : "tw:text-muted-foreground"),
+                        ]}>{option.count}</span
+                      ></Button
+                    >{/if}{/each}
+              </div>
+              {#each shown as group (group.roomId)}{@const room = me.books.find(
+                  (book) => book.id === group.roomId,
+                )}{@const open = !!expanded[group.roomId]}<Card
                   data-native-wait-group={group.roomId}
-                  class="tw:block tw:space-y-3 tw:p-4"
+                  class="tw:block tw:overflow-hidden tw:p-0"
                 >
                   <a
                     href={targetHref({ roomId: group.roomId })}
                     aria-label={text("openRoom", { title: group.title })}
-                    class="tw:flex tw:min-h-8 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-control tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+                    class="tw:flex tw:min-h-10 tw:min-w-0 tw:items-center tw:gap-2 tw:px-3 tw:pt-2.5 tw:pb-1 tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-inset tw:focus-visible:ring-ring"
                     onclick={(event) => {
                       if (!plainClick(event)) return;
                       event.preventDefault();
@@ -315,70 +368,69 @@
                         loading="lazy"
                         class="tw:size-6 tw:shrink-0 tw:rounded-lg tw:object-cover"
                       />{:else}<OrgAvatar name={group.title} size="xs" />{/if}<b
-                      class="tw:min-w-0 tw:flex-1 tw:truncate tw:font-semibold"
+                      class="tw:min-w-0 tw:flex-1 tw:truncate tw:text-[13px] tw:font-semibold"
                       >{group.title}</b
-                    ><Badge
-                      variant={group.blocked ? "destructive" : "warning"}
-                      aria-hidden="true">{group.waits.length}</Badge
+                    ><span
+                      class="tw:shrink-0 tw:text-xs tw:tabular-nums tw:text-muted-foreground"
+                      ><b class="tw:font-semibold tw:text-foreground"
+                        >{group.total}</b
+                      > ›</span
                     ></a
                   >
                   <WaitList
                     people={me}
-                    waits={group.waits.slice(0, 3)}
+                    waits={open ? group.waits : group.waits.slice(0, 3)}
                     {rooms}
                     {lang}
                     {ago}
                     {onnavigate}
-                  />{#if group.waits.length > 3}<details>
-                      <summary
-                        class="tw:cursor-pointer tw:py-1 tw:text-muted-foreground"
-                        >{text("more", { n: group.waits.length - 3 })}</summary
-                      >
-                      <div class="tw:pt-3">
-                        <WaitList
-                          people={me}
-                          waits={group.waits.slice(3)}
-                          {rooms}
-                          {lang}
-                          {ago}
-                          {onnavigate}
-                        />
-                      </div>
-                    </details>{/if}
-                </Card>{/each}
+                  />{#if group.waits.length > 3}<button
+                      type="button"
+                      aria-expanded={open}
+                      class="tw:block tw:w-full tw:cursor-pointer tw:border-t tw:border-border tw:py-2.5 tw:pr-3 tw:pl-[3.25rem] tw:text-left tw:text-xs tw:text-muted-foreground tw:outline-none tw:hover:text-foreground tw:focus-visible:ring-2 tw:focus-visible:ring-inset tw:focus-visible:ring-ring"
+                      onclick={() =>
+                        (expanded = { ...expanded, [group.roomId]: !open })}
+                      >{open
+                        ? text("showLess")
+                        : text("moreHere", {
+                            n: group.waits.length - 3,
+                          })}</button
+                    >{/if}
+                </Card>{:else}<p class="tw:m-0 tw:text-muted-foreground">
+                  {text("noneHere")}
+                </p>{/each}
             </section>{:else}<Card class="tw:block tw:space-y-1 tw:p-4"
               ><p class="tw:m-0 tw:font-semibold">{text("allClear")}</p>
               <p class="tw:m-0 tw:text-muted-foreground">
                 {text("allClearHelp")}
               </p></Card
             >{/if}
-          <section aria-label={text("home")} class="tw:min-w-0 tw:space-y-3">
-            <Heading level={2} class="tw:m-0 tw:text-base tw:font-semibold"
+          <section
+            aria-label={text("home")}
+            class={[
+              "tw:flex tw:min-w-0 tw:flex-col tw:gap-4",
+              groups.length && "tw:max-lg:hidden",
+            ]}
+          >
+            <Heading
+              level={2}
+              class="tw:m-0 tw:flex tw:h-7 tw:items-center tw:text-base tw:font-semibold"
               >{text("home")}</Heading
             >
             {#if !me.books.length}<p class="tw:m-0">{text("empty")}</p>{/if}
             <div
               class="tw:grid tw:grid-cols-4 tw:gap-x-2 tw:gap-y-3 tw:sm:grid-cols-6 tw:lg:grid-cols-4"
             >
-              {#each recentRooms(me.books) as room (room.id)}<div
-                  class="tw:min-w-0 tw:space-y-1"
-                >
-                  <RoomTile
-                    {room}
-                    {lang}
-                    compact
-                    now={$account.now}
-                    seen={$account.seen[room.id] ?? 0}
-                    waits={me.waits.filter((wait) => wait.book_id === room.id)}
-                    {onnavigate}
-                    onsettings={onroomsettings}
-                  /><span
-                    class="tw:line-clamp-2 tw:block tw:break-words tw:text-center tw:text-xs tw:leading-4"
-                    >{room.title}</span
-                  >
-                </div>{/each}
+              {#each recentRooms(me.books) as room (room.id)}<RoomTile
+                  {room}
+                  {lang}
+                  now={$account.now}
+                  seen={$account.seen[room.id] ?? 0}
+                  waits={me.waits.filter((wait) => wait.book_id === room.id)}
+                  {onnavigate}
+                  onsettings={onroomsettings}
+                />{/each}
             </div>
-            <UiSwitch {lang} />
           </section>
         </div>
       {/if}

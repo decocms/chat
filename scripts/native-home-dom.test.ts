@@ -1063,7 +1063,7 @@ test("detached native tile link/settings actions cannot navigate after canonical
     }),
   );
   const anchor = target.querySelector("a")!,
-    button = target.querySelector("button")!;
+    tile = target.querySelector("article")!;
   flushSync(() => {
     void unmount(component);
   });
@@ -1071,8 +1071,8 @@ test("detached native tile link/settings actions cannot navigate after canonical
   anchor.dispatchEvent(
     new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
   );
-  button.dispatchEvent(
-    new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
+  tile.dispatchEvent(
+    new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
   );
   expect(navigation).toEqual([]);
   expect(settings).toEqual([]);

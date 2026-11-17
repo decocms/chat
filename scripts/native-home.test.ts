@@ -23,6 +23,8 @@ import {
   applicationRoute,
 } from "../svelte/features/app-navigation/router";
 import {
+  plainWaitText,
+  waitKind,
   orderedRooms,
   recentRooms,
   unread,
@@ -1033,4 +1035,33 @@ test("phone triage groups waits by room: a blocked Claude first, then the newest
   expect(groups[0]?.waits.map((w) => w.ref)).toEqual(["a5", "m4"]);
   expect(groups[1]?.waits.map((w) => w.ref)).toEqual(["t2", "m1"]);
   expect(groups[0]?.title).toBe("BLOCKED");
+});
+
+test("home rows: wait text is one plain line and every wait has a filter kind", () => {
+  expect(
+    plainWaitText(
+      "@gimenes spike do **app** pronto: PR https://github.com/eitri-tech/eitri-shopping-monte-carlo/pull/689\n\nolha `?ui=svelte`",
+    ),
+  ).toBe(
+    "spike do app pronto: PR github.com/eitri-tech/eitri-shopp… olha ?ui=svelte",
+  );
+  expect(
+    plainWaitText("⏸ Seu Claude pede permissão: Bash · npx wrangler deploy"),
+  ).toBe("Bash · npx wrangler deploy");
+  expect(plainWaitText("veja [o doc](#m12) e https://vibebook.dev/")).toBe(
+    "veja o doc e vibebook.dev",
+  );
+  const base = {
+    book_id: "r",
+    room: "R",
+    thread: "main",
+    topic: null,
+    author: "a@x",
+    author_name: "A",
+    text: "t",
+    ts: 1,
+  };
+  expect(
+    ["a1", "b2", "m3", "t4"].map((ref) => waitKind({ ...base, ref })),
+  ).toEqual(["claude", "claude", "asks", "reviews"]);
 });
