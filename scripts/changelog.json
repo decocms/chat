@@ -36,7 +36,8 @@
         "No app novo (?ui=svelte), o tema saiu da barra lateral: fica só no menu da sua conta.",
         "No app novo (?ui=svelte), as ações da mensagem ficam numa barra só no canto de cima, como no Discord: copiar link, copiar texto, reagir (😊 abre os emojis rápidos) e responder, cada uma com sua dica.",
         "No app novo (?ui=svelte), a barra da mensagem traz suas 3 reações mais usadas e, depois de um divisor, o 😊 com o resto e as outras ações, como no Discord.",
-        "No app novo (?ui=svelte), as dicas dos botões trocam na hora quando o mouse passa de um botão pro outro, em vez de piscar."
+        "No app novo (?ui=svelte), as dicas dos botões trocam na hora quando o mouse passa de um botão pro outro, em vez de piscar.",
+        "No app novo (?ui=svelte), o cabeçalho da sala tem um botão só pro painel direito (⌥⌘B): o \"Abrir no painel direito\", que fazia o mesmo, saiu."
       ],
       "en": [
         "In the new app (?ui=svelte), the epic list has a header: + opens the new-epic field in place and ✦ shows @vibe's suggestions, so the list only holds real epics.",
@@ -46,7 +47,8 @@
         "In the new app (?ui=svelte), the theme left the sidebar: it lives only in your account menu.",
         "In the new app (?ui=svelte), a message's actions sit in one bar at its top-right corner, Discord-style: copy link, copy text, react (😊 opens the quick emojis) and reply, each with its tooltip.",
         "In the new app (?ui=svelte), the message bar shows your 3 most used reactions and, after a divider, 😊 with the rest and the other actions, like Discord.",
-        "In the new app (?ui=svelte), button tooltips switch at once as the mouse moves from one button to the next, instead of flickering."
+        "In the new app (?ui=svelte), button tooltips switch at once as the mouse moves from one button to the next, instead of flickering.",
+        "In the new app (?ui=svelte), the room header has a single right-panel button (⌥⌘B): \"Open in the right panel\", which did the same, is gone."
       ]
     },
     "fixes": {
