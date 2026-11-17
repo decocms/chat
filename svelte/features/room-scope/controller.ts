@@ -66,7 +66,13 @@ import {
 } from "../chat/privacy";
 import { canAnswer, choicesOf } from "../chat-interactive/eligibility";
 import { threadWorkers } from "../chat/model";
-import { agentQueue, agentPresence } from "../agents/model";
+import {
+  agentMark,
+  agentPresence,
+  agentQueue,
+  agentStatus,
+} from "../agents/model";
+import { agentMarkLabel } from "../agents/roomCopy";
 import type { RoomAgentSession } from "../agents/room";
 import type { RichActions, RichNavigation } from "../rich-text/types";
 import type { ComposerUpload } from "../composer/types";
@@ -953,18 +959,13 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         const metadata = agent ? get(agent.state) : null;
         const queue = agentQueue(value, Date.now()),
           data = metadata?.data;
-        const around = agentPresence(
-          data
-            ? {
-                ...data,
-                agents: data.agents.filter((item) => item.email === value.me),
-                sandboxes: [],
-              }
-            : null,
-          value.me,
+        const status = agentStatus(
+          agentPresence(data ?? null, value.me, Date.now()),
+          metadata ? metadata.hasAgent : null,
+          metadata?.askedAt ?? 0,
           Date.now(),
-        ).around;
-        const stuck = queue.some((item) => item.phase === "blocked");
+        );
+        const mark = agentMark(data ? status : "off", queue);
         const counts = {
           board: [
             ...value.epics.flatMap((epic) => epic.tasks),
@@ -1013,20 +1014,13 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           pane: display.pane,
           lang,
           counts,
-          agentState: stuck
-            ? "blocked"
-            : queue.length
-              ? "busy"
-              : around
-                ? "idle"
-                : "",
-          agentTitle: stuck
-            ? t("Seu agent espera você no terminal")
-            : queue.length
-              ? t("Fila do seu agent: {n}", { n: queue.length })
-              : around
-                ? t("Seu agent está livre")
-                : "Agents",
+          agent: mark,
+          agentTitle: agentMarkLabel(
+            lang === "en" ? "en" : "pt",
+            mark.state,
+            data ? status : "off",
+            mark.count,
+          ),
           onPane: (pane: DocumentPane) => {
             if (current()) setPane(pane);
           },
@@ -1242,7 +1236,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 lang,
               }
             : null,
-          trigger: agent ? { owner: agent, onopen: openAgents, lang } : null,
+          trigger: agent
+            ? { owner: agent, onopen: openAgents, lang, queue }
+            : null,
           threadFiles: {
             room: value,
             thread,

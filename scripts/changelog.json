@@ -24,6 +24,7 @@
     ],
     "improvements": {
       "pt": [
+        "O ✻ do seu agent é o mesmo botão no topo da sala, nas abas do doc e na barra de baixo do celular: estrela laranja quando ligado, cinza quando desligado, e um só selo no canto, um ponto (ouvindo, abrindo, ainda não ouvindo) ou o número de pedidos na fila, vermelho quando ele espera você no terminal. Antes eram dois botões que mostravam metades diferentes.",
         "No celular, no app novo (?ui=svelte), uma sala já abre com o topo (ícone e nome da sala, a conversa, busca, Caixa de entrada e sua foto) e a barra de baixo no lugar enquanto carrega, então nada pula quando as mensagens chegam.",
         "No app novo (?ui=svelte), o topo da sala no celular ganhou uma linha fina que o separa do chat, e o aviso \"Seu agent está desligado nesta sala\" virou uma faixa de largura inteira logo abaixo do topo, com Ligar como link, em vez de parecer um botão.",
         "No celular, no app novo (?ui=svelte), uma sala ganhou uma barra embaixo com Chat, Doc (com Decisões), Quadro, Arquivos (Fixados em cima, depois Arquivos e Apps) e Claude (seu agent, Pessoas e agents, e Lembretes). O topo ficou com voltar, a conversa, busca, Caixa de entrada e sua foto, sem o ⋯. A lista de conversas tem duas abas, Esta sala e Todas as salas, e deixa todo o espaço pros épicos.",
@@ -37,6 +38,7 @@
         "No app novo (?ui=svelte), a caixa \"O que você quer resolver?\" da tela inicial agora é o mesmo campo de mensagem da sala: emoji, +, ditado por voz e o botão de enviar, que virou uma seta."
       ],
       "en": [
+        "Your agent's ✻ is the same button in the room header, the doc tabs and the phone's bottom bar: an orange star when on, grey when off, and one badge in the corner, a dot (listening, opening, not listening yet) or the number of requests queued, red when it's waiting for you in the terminal. Before, two buttons showed different halves of this.",
         "On phones, in the new app (?ui=svelte), a room opens with its top bar (the room's icon and name, the thread, search, Inbox and your picture) and the bottom bar already in place while it loads, so nothing jumps when the messages arrive.",
         "In the new app (?ui=svelte), a room's top bar on phones has a thin line separating it from the chat, and the \"Your agent is off in this room\" notice is now a full-width strip right under the top bar, with Turn on as a link, instead of looking like a button.",
         "On phones in the new app (?ui=svelte), a room has a bottom bar with Chat, Doc (with Decisions), Board, Files (Pinned on top, then Files and Apps) and Claude (your agent, People & agents, and Reminders). The top bar keeps back, the conversation, search, Inbox and your photo, without the ⋯. The conversation list has two tabs, This room and All rooms, and gives the epics the whole space.",
