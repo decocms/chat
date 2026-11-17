@@ -8,7 +8,13 @@
   import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "./SetupInstructions.svelte";
   import type { RoomAgentSession } from "./room";
-  import { agentPresence, pendingAsk, askPreview } from "./model";
+  import {
+    agentPresence,
+    agentStatus,
+    connectPrompt,
+    pendingAsk,
+    askPreview,
+  } from "./model";
   import { roomAgentText } from "./roomCopy";
   let {
     owner,
@@ -16,6 +22,7 @@
     name,
     onopen,
     onnavigate,
+    agentsOpen = false,
     lang = "pt",
   }: {
     owner: RoomAgentSession;
@@ -23,13 +30,15 @@
     name(email: string): string;
     onopen(): void;
     onnavigate(id: number, thread: string): void;
+    /** The Agents pane is on screen: it says what the line would, with more room. */
+    agentsOpen?: boolean;
     lang?: "pt" | "en";
   } = $props();
   const view = untrack(() => owner.state);
   const text = (key: Parameters<typeof roomAgentText>[1]) =>
     roomAgentText(lang, key);
   let step = $state(0),
-    connect = $state(false);
+    copied = $state(false);
   const presence = $derived(
     agentPresence($view.data, owner.account, $view.now),
   );
@@ -48,18 +57,40 @@
       !presence.around &&
       (!$view.offerDismissed || !!$view.askedAt),
   );
-  const late = $derived($view.now - $view.askedAt > 180_000);
+  const status = $derived(
+    agentStatus(presence, $view.hasAgent, $view.askedAt, $view.now),
+  );
+  /** One quiet line, only while the agent can't work here: never connected, off in this room, or on but not listening. */
+  const line = $derived(
+    agentsOpen
+      ? null
+      : nudge
+        ? ({ kind: "setup", lead: "lineNone", help: "absentHelp" } as const)
+        : offer && !start && status === "off"
+          ? ({ kind: "offer", lead: "agentOff", help: null } as const)
+          : offer && !start && status === "late"
+            ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
+            : null,
+  );
   $effect(() => {
-    void $view.room;
-    void $view.data;
-    if (!owner.current()) connect = false;
+    void status;
+    copied = false;
   });
-  $effect(() => {
-    if (connect && owner.current())
-      return registerDialog(() => {
-        connect = false;
-      });
-  });
+  async function copyPrompt() {
+    if (!owner.current()) return;
+    try {
+      await navigator.clipboard.writeText(connectPrompt(origin, owner.roomId));
+      if (owner.current()) copied = true;
+    } catch {
+      if (owner.current()) open();
+    }
+  }
+  function act() {
+    if (!owner.current()) return;
+    if (status === "none") void copyPrompt();
+    else if (status === "off") void owner.toggle();
+    else open();
+  }
   $effect(() => {
     if ($view.welcome && owner.current())
       return registerDialog(() => owner.closeWelcome());
@@ -81,21 +112,39 @@
   data-native-agent-banners
   class="tw:space-y-3 tw:font-sans tw:text-sm tw:text-foreground"
 >
-  {#if nudge}<div
-      class="tw:relative tw:rounded-surface tw:border tw:border-border tw:p-3 tw:pr-12"
+  {#if line}<div
+      data-native-agent-line
+      data-agent-status={status}
+      role="status"
+      class="tw:flex tw:min-h-9 tw:items-center tw:gap-2 tw:rounded-surface tw:bg-muted tw:py-1 tw:pr-1 tw:pl-3"
     >
-      <SetupInstructions
-        {origin}
-        roomId={owner.roomId}
-        {lang}
-        waiting
-        current={owner.current}
-      /><Button
+      <span aria-hidden="true" class="tw:text-agent-claude-text">✻</span>
+      <button
+        type="button"
+        class="tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:truncate tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sm tw:text-foreground"
+        onclick={open}
+        ><strong class="tw:font-semibold">{text(line.lead)}</strong
+        >{#if line.help}<span
+            class="tw:text-muted-foreground tw:max-[900px]:hidden"
+          >
+            {" "}{text(line.help)}</span
+          >{/if}</button
+      ><Button size="sm" class="tw:shrink-0" onclick={act}
+        >{text(
+          status === "none"
+            ? copied
+              ? "copied"
+              : "copyPrompt"
+            : status === "off"
+              ? "turnOn"
+              : "details",
+        )}</Button
+      ><Button
         variant="ghost"
         size="sm"
-        class="tw:absolute tw:right-1 tw:top-1"
+        class="tw:shrink-0"
         aria-label={text("close")}
-        onclick={() => owner.dismissBanner("setup")}>×</Button
+        onclick={() => owner.dismissBanner(line.kind)}>×</Button
       >
     </div>{/if}
   {#if $view.setupFeedback || $view.listeningFeedback}<p
@@ -143,31 +192,7 @@
         onclick={() => owner.dismissBanner("start")}>×</Button
       >
     </div>
-  {:else if offer}<div
-      class="tw:flex tw:flex-wrap tw:items-start tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:p-3"
-    >
-      <span aria-hidden="true">✻</span>
-      <div class="tw:min-w-0 tw:flex-1">
-        <strong
-          >{text(presence.on ? (late ? "late" : "opening") : "absent")}</strong
-        >
-        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-          {text(
-            presence.on ? (late ? "lateHelp" : "openingHelp") : "absentHelp",
-          )}
-        </p>
-      </div>
-      {#if !presence.on}<Button size="sm" onclick={() => (connect = true)}
-          >{text("connect")}</Button
-        ><Button variant="outline" size="sm" onclick={open}
-          >{text("turnOn")}</Button
-        >{/if}<Button
-        variant="ghost"
-        size="sm"
-        aria-label={text("close")}
-        onclick={() => owner.dismissBanner("offer")}>×</Button
-      >
-    </div>{/if}
+  {/if}
   {#if ask}<div
       class="tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted tw:p-3"
     >
@@ -179,29 +204,6 @@
       <Button size="sm" onclick={navigate}>{text("view")}</Button>
     </div>{/if}
 </div>
-<Dialog
-  open={connect && owner.current()}
-  onOpenChange={(open) => (connect = open)}
->
-  <DialogContent
-    data-vb-native
-    class="tw:max-h-[90dvh] tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground"
-    closeLabel={text("close")}
-    preventScroll={false}
-    preventBodyPointerEvents={false}
-    preventOverflowTextSelection={false}
-  >
-    <DialogHeader class="tw:pr-8">
-      <DialogTitle class="tw:font-sans">{text("connect")}</DialogTitle>
-    </DialogHeader>
-    <SetupInstructions
-      {origin}
-      roomId={owner.roomId}
-      {lang}
-      current={owner.current}
-    />
-  </DialogContent>
-</Dialog>
 <Dialog
   open={$view.welcome && owner.current()}
   onOpenChange={(open) => {

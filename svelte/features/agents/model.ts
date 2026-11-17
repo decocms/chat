@@ -107,3 +107,18 @@ export const knownCreateRefusal = (status: number, error: string) =>
   status === 403 ||
   error === "Conecte sua conta do freestyle.sh primeiro." ||
   error === "No máximo 3 sandboxes seus por sala.";
+/** One word for where your agent stands in this room: the header icon's dot and the quiet line follow it. */
+export type AgentStatus =
+  "none" | "off" | "opening" | "late" | "listening" | "working";
+export function agentStatus(
+  presence: ReturnType<typeof agentPresence>,
+  hasAgent: boolean | null,
+  askedAt: number,
+  now: number,
+): AgentStatus {
+  if (presence.live) return "listening";
+  if (hasAgent === false) return "none";
+  if (!presence.on) return "off";
+  if (presence.around) return "working";
+  return askedAt && now - askedAt <= 180_000 ? "opening" : "late";
+}

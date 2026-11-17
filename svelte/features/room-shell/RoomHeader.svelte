@@ -123,10 +123,8 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
-    <div
-      class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
-    >
-      <!-- Desktop: the agent pill leads, so the icon buttons sit together on the right instead of around it. -->
+    <div class="tw:contents">
+      <!-- Desktop: the agent icon leads the icon buttons on the right. -->
       {#if trigger}<div
           class="tw:flex tw:min-[901px]:order-first tw:min-[901px]:mr-1"
         >

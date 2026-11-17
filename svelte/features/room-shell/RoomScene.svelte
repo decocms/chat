@@ -340,7 +340,13 @@
   {#snippet attention()}{#if $view}
       <div class="tw:px-4">
         <div class={$geometry.boardFull ? "tw:hidden" : ""}>
-          {#if $view.banners}<AgentBanners {...$view.banners} />{/if}
+          {#if $view.banners}<AgentBanners
+              {...$view.banners}
+              agentsOpen={$geometry.pane === "agents" &&
+                ($geometry.mobile
+                  ? $geometry.sheet === "doc"
+                  : $geometry.documentVisible && !$geometry.boardFull)}
+            />{/if}
         </div>
         <ThreadFiles {...$view.threadFiles} />
       </div>
