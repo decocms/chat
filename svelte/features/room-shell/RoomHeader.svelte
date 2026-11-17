@@ -6,7 +6,6 @@
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { RoomLayoutController } from "../room-layout/types";
-  import type { DocumentPane } from "../documents/types";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import {
@@ -17,12 +16,7 @@
   } from "../../lib/studio/icons";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
-  import PanelViews from "./PanelViews.svelte";
-  import {
-    isPanelToggleKey,
-    panelViewMeta,
-    type PanelView,
-  } from "./panelViews";
+  import { isPanelToggleKey } from "./panelViews";
   let {
     presentation,
     header,
@@ -30,7 +24,6 @@
     layout,
     current,
     boardCount,
-    views,
     back,
   }: {
     presentation: ApplicationRoomPresentation;
@@ -39,12 +32,6 @@
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
-    /** The right panel's views, for the views card. */
-    views: {
-      pane: DocumentPane;
-      counts: Partial<Record<DocumentPane, number | string>>;
-      onPane(pane: DocumentPane): void;
-    };
     back(expectedThread: string): void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
@@ -66,16 +53,6 @@
         : "Alternar painel direito (Ctrl+Alt+B)",
     ),
   );
-  const panelOpen = $derived(
-    $geometry.mobile
-      ? $geometry.sheet === "doc"
-      : $geometry.documentVisible && !$geometry.boardFull,
-  );
-  function pick(view: PanelView) {
-    if (!current()) return;
-    views.onPane(view);
-    if (!panelOpen) layout.toggleDocument();
-  }
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.defaultPrevented || !isPanelToggleKey(event, mac) || !current())
       return;
@@ -152,20 +129,6 @@
       class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
     >
       {#if trigger}<AgentTrigger {...trigger} />{/if}
-      <span class="tw:hidden tw:min-[901px]:contents"
-        ><PanelViews
-          label={t("Abrir no painel direito")}
-          waitingLabel={(n) => t("Esperando você: {n}", { n })}
-          en={presentation.services.language === "en"}
-          pane={views.pane}
-          {panelOpen}
-          meta={panelViewMeta(views.counts)}
-          onpick={pick}
-          onclosepanel={() => {
-            if (panelOpen) layout.toggleDocument();
-          }}
-        /></span
-      >
       <IconButton
         data-native-document-toggle
         label={toggleLabel}

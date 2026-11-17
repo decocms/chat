@@ -458,7 +458,6 @@ const EN: Readonly<Record<string, string>> = {
   "mostrar/ocultar documento": "show/hide doc",
   "Alternar painel direito (⌥⌘B)": "Toggle right panel (⌥⌘B)",
   "Alternar painel direito (Ctrl+Alt+B)": "Toggle right panel (Ctrl+Alt+B)",
-  "Abrir no painel direito": "Open in the right panel",
   "Esperando você: {n}": "Waiting on you: {n}",
   Mencionar: "Mention",
   "Anexar, mencionar, votação": "Attach, mention, poll",
