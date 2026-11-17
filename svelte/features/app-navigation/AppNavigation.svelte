@@ -10,7 +10,6 @@
   import { cn } from "../../lib/studio/utils";
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
-  import ThemeIcon from "./ThemeIcon.svelte";
   import UserMenu from "./UserMenu.svelte";
   import {
     orderedRooms,
@@ -128,11 +127,6 @@
     };
   });
   const focusBack = () => controller.returnFocus(homeButton);
-  const themeLabels = {
-    auto: "themeAuto",
-    light: "themeLight",
-    dark: "themeDark",
-  } as const;
   // Neighbours of one colour stand as a group on a tinted backdrop; everything else stands alone.
   const groups = $derived.by(() => {
     const result: { tint: string | undefined; rooms: RoomSummary[] }[] = [];
@@ -246,13 +240,6 @@
   <div
     class="tw:flex tw:shrink-0 tw:flex-row tw:items-center tw:gap-1 tw:min-[901px]:flex-col"
   >
-    <RailButton
-      label={`${text("theme")}: ${text(themeLabels[theme])}`}
-      data-rail-theme={theme}
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) ontheme();
-      }}><ThemeIcon {theme} /></RailButton
-    >
     <RailButton
       icon={SearchMd}
       label={text("search")}
