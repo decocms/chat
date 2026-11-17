@@ -29,6 +29,7 @@ import {
   waitTarget,
   targetHref,
   roomMatches,
+  waitGroups,
 } from "../svelte/features/home/model";
 import {
   deferred,
@@ -1003,4 +1004,33 @@ test("canonical asks are numbered, task-review waits are a dot, and Claude quest
     claude: false,
   });
   expect(waitIndicator([])).toEqual({ asks: 0, tasks: false, claude: false });
+});
+
+test("phone triage groups waits by room: a blocked Claude first, then the newest ask", () => {
+  const wait = (book_id: string, ref: string, ts: number) => ({
+    book_id,
+    room: book_id.toUpperCase(),
+    ref,
+    thread: "main",
+    topic: null,
+    author: "a@x.dev",
+    author_name: null,
+    text: ref,
+    ts,
+  });
+  const groups = waitGroups([
+    wait("news", "m1", 50),
+    wait("news", "t2", 90),
+    wait("calm", "m3", 10),
+    wait("blocked", "m4", 5),
+    wait("blocked", "a5", 1),
+  ]);
+  expect(groups.map((g) => [g.roomId, g.blocked])).toEqual([
+    ["blocked", true],
+    ["news", false],
+    ["calm", false],
+  ]);
+  expect(groups[0]?.waits.map((w) => w.ref)).toEqual(["a5", "m4"]);
+  expect(groups[1]?.waits.map((w) => w.ref)).toEqual(["t2", "m1"]);
+  expect(groups[0]?.title).toBe("BLOCKED");
 });

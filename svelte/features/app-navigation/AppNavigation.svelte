@@ -193,7 +193,7 @@
   data-native-app-navigation
   class={cn(
     studioType,
-    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:min-[901px]:sticky tw:min-[901px]:top-0 tw:min-[901px]:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:py-3",
+    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:py-3",
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   )}
 >
