@@ -198,6 +198,12 @@
   --vb-agent-cursor-foreground: #fff;
   --vb-agent-copilot: #6e40c9;
   --vb-agent-copilot-foreground: #fff;
+  /* Agent names as text: the fill where it already reads, darker where it doesn't. */
+  --vb-agent-claude-text: #a84a25;
+  --vb-agent-codex-text: var(--vb-agent-codex);
+  --vb-agent-gemini-text: #2f5fd6;
+  --vb-agent-cursor-text: var(--vb-agent-cursor);
+  --vb-agent-copilot-text: var(--vb-agent-copilot);
   /* Room tints, as vanilla .sw-group[data-tint]. */
   --vb-room-tint-blue: oklch(0.6 0.15 248);
   --vb-room-tint-green: oklch(0.62 0.14 155);
@@ -272,6 +278,9 @@
   --vb-glass-shadow: 0 0 0 1px #00000040, 0 24px 64px 0 #0006;
   --vb-scrim: #0006;
   --vb-agent-claude: #e07f55;
+  --vb-agent-claude-text: #e07f55;
+  --vb-agent-gemini-text: #7c9ef5;
+  --vb-agent-copilot-text: #a283e6;
   --vb-agent-codex: #ececec;
   --vb-agent-codex-foreground: #111;
   --vb-agent-cursor: #d9d9d9;
@@ -343,6 +352,9 @@
     --vb-glass-shadow: 0 0 0 1px #00000040, 0 24px 64px 0 #0006;
     --vb-scrim: #0006;
     --vb-agent-claude: #e07f55;
+    --vb-agent-claude-text: #e07f55;
+    --vb-agent-gemini-text: #7c9ef5;
+    --vb-agent-copilot-text: #a283e6;
     --vb-agent-codex: #ececec;
     --vb-agent-codex-foreground: #111;
     --vb-agent-cursor: #d9d9d9;
@@ -511,6 +523,11 @@
   --color-agent-cursor-foreground: var(--vb-agent-cursor-foreground);
   --color-agent-copilot: var(--vb-agent-copilot);
   --color-agent-copilot-foreground: var(--vb-agent-copilot-foreground);
+  --color-agent-claude-text: var(--vb-agent-claude-text);
+  --color-agent-codex-text: var(--vb-agent-codex-text);
+  --color-agent-gemini-text: var(--vb-agent-gemini-text);
+  --color-agent-cursor-text: var(--vb-agent-cursor-text);
+  --color-agent-copilot-text: var(--vb-agent-copilot-text);
   --color-room-tint-blue: var(--vb-room-tint-blue);
   --color-room-tint-green: var(--vb-room-tint-green);
   --color-room-tint-yellow: var(--vb-room-tint-yellow);
