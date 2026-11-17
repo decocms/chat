@@ -220,7 +220,10 @@
         "tw:col-start-2 tw:row-start-3 tw:min-w-0",
         $view.mobile
           ? "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain"
-          : "tw:mr-2 tw:px-2",
+          : // With the pane open its border is the edge: the banner runs up to it.
+            split
+            ? "tw:px-2"
+            : "tw:mr-2 tw:px-2",
         props.overlayOpen && "tw:hidden",
       ]}
     >
