@@ -151,6 +151,18 @@ export const ReceiptSchema = z.object({
   ts: opt(num),
 });
 
+/** "O que precisa de mim aqui" asked by a person, answered by their own Claude (Gui #3011): only that person's
+ *  sockets ever get it. text/answered_at empty while it waits. */
+export const BriefSchema = z.object({
+  id: num,
+  thread: str,
+  ts: num,
+  text: maybe(str),
+  answered_at: maybe(num),
+  model: maybe(str),
+});
+export type Brief = z.infer<typeof BriefSchema>;
+
 /** What opening a room sends (the `state` event, without its `t`). */
 export const RoomSnapshotSchema = z.object({
   me: str,
@@ -182,6 +194,7 @@ export const RoomSnapshotSchema = z.object({
   decisions: opt(z.array(DecisionSchema)),
   pins: opt(z.array(PinSchema)),
   polls: opt(z.record(str, PollSchema)),
+  briefs: opt(z.array(BriefSchema)),
 });
 /** The room as the browser keeps it: the snapshot plus its id and who is typing. */
 export type Room = z.infer<typeof RoomSnapshotSchema> & {

@@ -45,7 +45,9 @@ const EN: Readonly<Record<string, string>> = {
   "Nenhuma tarefa aberta sua.": "No open tasks of yours.",
   Resolvido: "Resolved",
   "esperando você": "waiting on you",
-  "O que precisa de você aqui": "What needs you here",
+  "O que precisa de mim aqui?": "What needs me here?",
+  "Pedi pro seu Claude… ele responde quando estiver ouvindo.":
+    "Asked your Claude… it answers when it's listening.",
   "só você vê": "only you see this",
   Dispensar: "Dismiss",
   "Feito / não é comigo": "Done / not for me",

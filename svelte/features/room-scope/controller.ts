@@ -16,7 +16,6 @@ import { createChatViewport, type KeepChat } from "../chat-viewport/controller";
 import { createChatSurface } from "../chat-viewport/surface";
 import { createChatPresentation } from "../chat-viewport/presentation";
 import { createVoiceApi, VoiceFailure } from "../composer/voiceApi";
-import { createNeedsYou } from "../needs-you/session";
 import { createRichFileIndex } from "../rich-text/roomFiles";
 import type { AppsAuthority } from "../apps/authority";
 import { createFilesSession } from "../files/session";
@@ -40,7 +39,6 @@ import { createRoomMutations } from "../room-sidebar/session";
 import { suggestionIdentity, suggestionAt } from "../room-sidebar/model";
 import { createDocumentSession } from "../documents/session";
 import { docVersionEvent } from "../documents/versions";
-import { needsSummaryEvent } from "../needs-you/summary";
 import { appendDocumentApp, documentEmbedsApp } from "../documents/appMarkers";
 import { createAppsSession } from "../apps/session";
 import {
@@ -225,31 +223,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     cancel: clock?.cancel,
   });
   const chatPresentation = createChatPresentation(viewport);
-  const needsYou = createNeedsYou({
-    current,
-    read: () => {
-      const value = room();
-      return value
-        ? { room: value, thread: selected(), waits: me()?.waits ?? [] }
-        : null;
-    },
-    storage: browser.storage,
-    clock: clock ? { ...clock, now: () => Date.now() } : undefined,
-    resolve: (bookId, ref, signal) =>
-      services.personal.api.resolve(bookId, ref, signal),
-    navigate: (id, thread) => navigateMessage(id, thread),
-    changed: () => {
-      if (current()) project(viewport.pinned() ? undefined : "stay");
-    },
-    denied: () => {
-      if (current()) services.actions.sessionLost();
-    },
-    resolved: () => {
-      if (!current()) return;
-      services.personal.invalidate();
-      if (current()) void services.personal.refresh();
-    },
-  });
   const readApi = createFileReadApi(browser.fetcher);
   const guardRead = async <T>(operation: Promise<T>): Promise<T> => {
     try {
@@ -1100,10 +1073,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                   : visible.length,
                 vb: bridge,
                 actions,
-                needsYou: (() => {
-                  const view = needsYou.view();
-                  return view ? { view, owner: needsYou } : undefined;
-                })(),
                 onloadolder: () => {
                   if (owned()) viewport.loadOlder();
                 },
@@ -1304,7 +1273,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     const event = value.event,
       canonical = room()!;
     docVersionEvent(event);
-    needsSummaryEvent(canonical.id, event);
     if (event.t === "older") viewport.older(event);
     else if (event.t === "openSide") openSideFile(event.file);
     else if (event.t === "openDoc") openAgentDocument(event.epic);
@@ -1390,7 +1358,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     viewer.dispose();
     side.dispose();
     viewport.dispose();
-    needsYou.dispose();
     files.dispose();
     disposePinsSession(pins);
     mutations.dispose();

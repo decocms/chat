@@ -118,6 +118,8 @@ const SCHEMA = [
   // (a task of theirs in review, rewritten by the room's epicsChanged).
   `CREATE TABLE IF NOT EXISTS waits (book_id TEXT, ref TEXT, email TEXT, thread TEXT, topic TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (book_id, ref, email))`,
   `CREATE INDEX IF NOT EXISTS waits_email ON waits (email, ts)`,
+  // "O que precisa de mim aqui" asked (Book.briefAsk): wakes that person's listening Claudes once (wait_for_messages).
+  `CREATE TABLE IF NOT EXISTS brief_wake (email TEXT, book_id TEXT, brief_id INTEGER, ts INTEGER, PRIMARY KEY (email, book_id, brief_id))`,
   // Mentions that didn't need the person right away (src/digest.ts): held for the 8h/18h catch-up e-mail.
   `CREATE TABLE IF NOT EXISTS digest_items (email TEXT, book_id TEXT, msg_id INTEGER, thread TEXT, author TEXT, text TEXT, ts INTEGER, PRIMARY KEY (email, book_id, msg_id))`,
   // members' PK is (book_id, email): "my rooms" (/api/me, unreadRooms every 3s per listener) needs email first.

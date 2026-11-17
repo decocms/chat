@@ -15,6 +15,7 @@ import {
   ReminderSchema,
   RoomSnapshotSchema,
   SuggestionSchema,
+  BriefSchema,
   TaskSchema,
 } from "./room";
 
@@ -74,7 +75,7 @@ export const RoomEventSchemas = {
     ),
     pending: z.boolean(),
   }),
-  needsSummary: event("needsSummary", { thread: str, key: str, text: str }),
+  briefs: event("briefs", { briefs: z.array(BriefSchema) }),
   docVersion: event("docVersion", {
     id: num,
     epic: str,
