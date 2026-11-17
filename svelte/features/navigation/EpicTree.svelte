@@ -332,14 +332,14 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    "tw:m-0 tw:box-border tw:flex tw:min-h-0 tw:flex-col tw:p-0 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
+    "tw:m-0 tw:box-border tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:p-0 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
   )}
 >
   {#snippet panel(value: string)}
     {#if value === mode}
       <ul
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
-        class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0"
+        class="tw:m-0 tw:flex tw:min-h-0 tw:flex-1 tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-0"
       >
         {#each rows as row (row.epic.id)}
           {@const epic = row.epic}
@@ -633,15 +633,21 @@
       {/if}
     {/if}
   {/snippet}
-  <Tabs value={mode} onValueChange={switchMode} class="tw:gap-2">
-    <TabsList aria-label={vb.t("Épicos")} class="tw:w-full">
+  <Tabs
+    value={mode}
+    onValueChange={switchMode}
+    class="tw:min-h-0 tw:flex-1 tw:gap-2"
+  >
+    <TabsList aria-label={vb.t("Épicos")} class="tw:w-full tw:shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
           disabled={view.disabled}
           class="tw:flex-1">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
-    {#each views as view (view.value)}<TabsContent value={view.value}
+    {#each views as view (view.value)}<TabsContent
+        value={view.value}
+        class="tw:flex tw:h-auto tw:min-h-0 tw:flex-col"
         >{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>

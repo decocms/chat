@@ -412,7 +412,7 @@
   >{/snippet}
 
 <section
-  class="tw:shrink-0 tw:space-y-0.5 tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
+  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"

@@ -106,8 +106,12 @@
   data-native-room-sidebar
   class={cn(
     studioType,
-    "tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:p-2 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
-    collapsed ? "tw:items-center tw:gap-2" : "tw:gap-6",
+    "tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:overflow-x-hidden tw:bg-sidebar tw:p-2 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
+    // Expanded, each section scrolls inside itself (epics, pins, people);
+    // only the collapsed icon rail scrolls as a whole.
+    collapsed
+      ? "tw:items-center tw:gap-2 tw:overflow-y-auto tw:overscroll-contain"
+      : "tw:gap-6 tw:overflow-y-hidden",
   )}
 >
   {#if collapsed}
@@ -204,7 +208,7 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:flex tw:shrink-0 tw:flex-col tw:gap-3">
+    <div class="tw:flex tw:min-h-48 tw:flex-1 tw:flex-col tw:gap-3">
       <div class="tw:group/room tw:relative tw:shrink-0">
         <Tooltip>
           <TooltipTrigger>

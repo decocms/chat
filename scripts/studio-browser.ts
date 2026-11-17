@@ -33,6 +33,46 @@ export type StudioRenderedRole = {
   property: string;
   cssVariable: string;
 };
+/**
+ * Waits for every finite CSS animation and transition on the page to end.
+ * Studio dialogs fade in (300ms): a contrast audit taken mid-fade reads
+ * half-transparent text against the backdrop and fails colors that pass at
+ * rest. Only running, finite ones count (spinners, pulses and paused
+ * animations never finish). A lazily loaded dialog can start a second fade
+ * after the first one ends, so this waits until two frames in a row have no
+ * such animation, capped so it cannot hang a run.
+ */
+export async function settleAnimations(page: Page, capMs = 3000) {
+  await page.evaluate(async (cap) => {
+    const until = performance.now() + cap;
+    const frame = () =>
+      new Promise((resolve) => requestAnimationFrame(resolve));
+    let quiet = 0;
+    while (quiet < 2 && performance.now() < until) {
+      const running = document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.playState === "running" &&
+            animation.effect?.getComputedTiming().iterations !== Infinity,
+        );
+      if (running.length) {
+        quiet = 0;
+        await Promise.race([
+          Promise.all(
+            running.map((animation) =>
+              animation.finished.catch(() => undefined),
+            ),
+          ),
+          new Promise((resolve) =>
+            setTimeout(resolve, Math.max(0, until - performance.now())),
+          ),
+        ]);
+      } else quiet++;
+      await frame();
+    }
+  }, capMs);
+}
 export async function verifyStudioPalette(
   page: Page,
   theme: "light" | "dark",
@@ -237,7 +277,7 @@ export async function verifyStudioPalette(
   assert.deepEqual(
     report.mismatches,
     [],
-    `Studio frozen-source ${theme} token/role mismatch`,
+    `Studio frozen-source ${theme} token/role mismatch: ${JSON.stringify(report.mismatches).slice(0, 1500)}`,
   );
   return report;
 }
