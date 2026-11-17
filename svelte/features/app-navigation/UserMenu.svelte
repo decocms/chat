@@ -5,7 +5,6 @@
   import { DropdownMenu, mergeProps } from "bits-ui";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import IconButton from "../../lib/studio/IconButton.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -154,9 +153,7 @@
 {/snippet}
 
 <div
-  class={row
-    ? "tw:relative tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-0.5 tw:pr-1"
-    : "tw:relative tw:shrink-0"}
+  class={row ? "tw:relative tw:w-full tw:min-w-0" : "tw:relative tw:shrink-0"}
 >
   <DropdownMenu.Root
     bind:open
@@ -176,7 +173,7 @@
                 aria-label={label}
                 data-native-user-menu-trigger
                 class={row
-                  ? "tw:flex tw:h-11 tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+                  ? "tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
                   : "tw:relative tw:flex tw:size-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"}
               >
                 {#if row}<span class="tw:relative tw:flex tw:shrink-0"
@@ -269,7 +266,7 @@
               class="tw:size-4 tw:text-muted-foreground"
             /></DropdownMenu.Item
           >{/if}
-        {#if pwa && notificationsShown && !row}<DropdownMenu.CheckboxItem
+        {#if pwa && notificationsShown}<DropdownMenu.CheckboxItem
             data-user-menu-item="notifications"
             class={itemClass}
             closeOnSelect={false}
@@ -303,7 +300,7 @@
               ></span></span
             ></DropdownMenu.CheckboxItem
           >{/if}
-        {#if onaccount && !row}<DropdownMenu.Item
+        {#if onaccount}<DropdownMenu.Item
             data-user-menu-item="settings"
             class={itemClass}
             onSelect={() => account("all")}
@@ -402,31 +399,6 @@
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   </DropdownMenu.Root>
-  <!-- The sidebar's row: notifications and settings beside you, not in the menu. -->
-  {#if row && pwa && notificationsShown}<IconButton
-      data-user-row-notifications
-      label={text("notifications")}
-      tooltipSide="top"
-      size="icon-sm"
-      aria-pressed={notificationsOn}
-      class={cn(
-        "tw:shrink-0 tw:text-muted-foreground tw:hover:text-sidebar-foreground",
-        notificationsProblem && "tw:text-destructive",
-      )}
-      onclick={toggleNotifications}
-      ><Icon icon={notificationsOn ? Bell01 : BellOff01} /></IconButton
-    >{/if}
-  {#if row && onaccount}<IconButton
-      data-user-row-settings
-      label={text("settingsMenu")}
-      tooltipSide="top"
-      size="icon-sm"
-      class="tw:shrink-0 tw:text-muted-foreground tw:hover:text-sidebar-foreground"
-      onclick={(event) => {
-        if (active && event.currentTarget.isConnected)
-          onaccount?.("all", event.currentTarget);
-      }}><Icon icon={Settings01} /></IconButton
-    >{/if}
 </div>
 {#if pwa}<NotificationHelpDialog
     bind:open={help}
