@@ -3,14 +3,25 @@
     "date": "2026-11-17",
     "slug": "2026-11-17-agent",
     "title": {
-      "pt": "O agent num ícone",
-      "en": "Your agent in one icon"
+      "pt": "A tela inicial começa pelo que espera você, e o agent num ícone",
+      "en": "The home starts with what waits on you, and your agent in one icon"
     },
     "intro": {
-      "pt": "A barra da sala mostra o estado do seu agent num ícone só.",
-      "en": "The room header shows your agent's state in a single icon."
+      "pt": "No app novo (?ui=svelte), a tela inicial agora começa pelo que espera você, sala por sala, com a caixa de pedido fixa embaixo, no celular e no computador. A barra da sala mostra o estado do seu agent num ícone só.",
+      "en": "In the new app (?ui=svelte), the home now starts with what waits on you, room by room, with the ask box docked at the bottom, on phones and computers. The room header shows your agent's state in a single icon."
     },
-    "features": [],
+    "features": [
+      {
+        "title": {
+          "pt": "Início pelo que espera você",
+          "en": "Home by what waits on you"
+        },
+        "text": {
+          "pt": "O que espera você vem primeiro, agrupado por sala: onde seu Claude está parado esperando você aparece no topo, e cada pedido abre a mensagem ou se resolve com ✓. Suas salas ficam ao lado (embaixo, no celular), a caixa \"O que você quer resolver?\" fica embaixo como o campo de mensagem da sala, e busca, + e o menu da conta ficam na barra de salas, que no celular agora fica presa ao rolar. Os avisos de instalar o app e de pôr sua foto viraram uma linha fina.",
+          "en": "What waits on you comes first, grouped by room: rooms where your Claude is stuck waiting on you are on top, and each ask opens the message or resolves with ✓. Your rooms sit beside it (below, on phones), the \"What do you want to work on?\" box sits at the bottom like a room's message field, and search, + and the account menu live in the rooms bar, which on phones now stays put while you scroll. The install-the-app and add-your-photo prompts are now one slim row each."
+        }
+      }
+    ],
     "improvements": {
       "pt": [
         "No app novo (?ui=svelte), o agent na barra da sala virou um ícone ✻ com um ponto que diz o estado (não conectado, desligado, abrindo, sem ouvir, ouvindo, trabalhando); clicar abre o painel Agents. O aviso grande virou uma linha só, que aparece quando o agent não pode trabalhar na sala.",

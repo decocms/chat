@@ -114,6 +114,9 @@ const pt = {
   connected: "Seu agent conectou.",
   accountError: "Usando os dados anteriores. Tente atualizar de novo.",
   menu: "Menu",
+  allClear: "Nada esperando você",
+  allClearHelp: "Quando alguém ou seu agent precisar de você, aparece aqui.",
+  openRoom: "Abrir {title}",
   update: "Nova versão do vibebook · toque pra atualizar",
 } as const;
 const en: Record<keyof typeof pt, string> = {
@@ -233,6 +236,9 @@ const en: Record<keyof typeof pt, string> = {
   connected: "Your agent connected.",
   accountError: "Showing earlier data. Try refreshing again.",
   menu: "Menu",
+  allClear: "Nothing waiting on you",
+  allClearHelp: "When someone or your agent needs you, it shows up here.",
+  openRoom: "Open {title}",
   update: "New vibebook version · tap to update",
 };
 export type HomeLanguage = "pt" | "en";

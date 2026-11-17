@@ -139,3 +139,38 @@ export const roomTint = (room: RoomSummary) =>
       ? (room.tint as keyof typeof tintClasses)
       : "none"
   ];
+/** A wait where your own Claude is blocked on you (a permission ask or a question). */
+export const claudeWait = (wait: Wait) => /^[ab]/.test(wait.ref);
+/**
+ * The phone home's triage: waits grouped by room. Rooms where your Claude is
+ * blocked come first, then the room with the newest ask; inside a room, the
+ * Claude's asks first, then newest first.
+ */
+export function waitGroups(waits: readonly Wait[]) {
+  const groups = new Map<
+    string,
+    { roomId: string; title: string; waits: Wait[] }
+  >();
+  for (const wait of waits) {
+    const group = groups.get(wait.book_id) ?? {
+      roomId: wait.book_id,
+      title: wait.room,
+      waits: [],
+    };
+    group.waits.push(wait);
+    groups.set(wait.book_id, group);
+  }
+  const byUrgency = (a: Wait, b: Wait) =>
+    Number(claudeWait(b)) - Number(claudeWait(a)) || b.ts - a.ts;
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      waits: group.waits.sort(byUrgency),
+      blocked: group.waits.some(claudeWait),
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.blocked) - Number(a.blocked) ||
+        (b.waits[0]?.ts ?? 0) - (a.waits[0]?.ts ?? 0),
+    );
+}
