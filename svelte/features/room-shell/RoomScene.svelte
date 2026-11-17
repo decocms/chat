@@ -488,7 +488,9 @@
           />{/if}
       </div>
       <div
-        class={$geometry.pane === "apps" ? "tw:min-h-0" : "tw:hidden"}
+        class={$geometry.pane === "apps"
+          ? "tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-auto"
+          : "tw:hidden"}
         hidden={$geometry.pane !== "apps"}
       >
         {#if AppsPanel}<AppsPanel
