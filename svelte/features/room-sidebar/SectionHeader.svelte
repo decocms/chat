@@ -19,8 +19,12 @@
   } = $props();
 </script>
 
+<!-- A section's title stays put while its own list scrolls under it. -->
 <div
-  class="tw:flex tw:h-7 tw:items-center tw:justify-between tw:gap-2 tw:pr-0.5 tw:pl-2"
+  class={[
+    "tw:flex tw:h-7 tw:items-center tw:justify-between tw:gap-2 tw:pr-0.5 tw:pl-2",
+    level === 3 && "tw:sticky tw:top-0 tw:z-10 tw:bg-sidebar",
+  ]}
   data-section-header
 >
   <svelte:element

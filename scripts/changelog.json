@@ -31,12 +31,16 @@
       "pt": [
         "No app novo (?ui=svelte), a lista de épicos ganhou um cabeçalho: o + abre o campo de novo épico ali mesmo e o ✦ mostra as sugestões do @vibe, então a lista só tem épicos de verdade.",
         "No celular, o menu ☰ tem uma linha própria \"Nova UI\" pra abrir o app novo (?ui=svelte), em vez de um botão apertado ao lado do tema.",
-        "No app novo (?ui=svelte), a barra da sala cabe na tela de novo: a lista de épicos, os fixados e as pessoas rolam cada um por dentro, sem empurrar o resto pra fora."
+        "No app novo (?ui=svelte), a barra da sala cabe na tela de novo: a lista de épicos, os fixados e as pessoas rolam cada um por dentro, sem empurrar o resto pra fora.",
+        "No app novo (?ui=svelte), os títulos Fixados e Pessoas e agents ficam parados enquanto a lista embaixo rola.",
+        "No app novo (?ui=svelte), o tema saiu da barra lateral: fica só no menu da sua conta."
       ],
       "en": [
         "In the new app (?ui=svelte), the epic list has a header: + opens the new-epic field in place and ✦ shows @vibe's suggestions, so the list only holds real epics.",
         "On phones, the ☰ menu has its own \"New UI\" row to open the new app (?ui=svelte), instead of a cramped switch next to the theme.",
-        "In the new app (?ui=svelte), the room sidebar fits the screen again: the epic list, pins and people each scroll inside themselves instead of pushing the rest out of view."
+        "In the new app (?ui=svelte), the room sidebar fits the screen again: the epic list, pins and people each scroll inside themselves instead of pushing the rest out of view.",
+        "In the new app (?ui=svelte), the Pinned and People & agents titles stay put while the list under them scrolls.",
+        "In the new app (?ui=svelte), the theme left the sidebar: it lives only in your account menu."
       ]
     },
     "fixes": {
