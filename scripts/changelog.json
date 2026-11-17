@@ -24,6 +24,7 @@
     ],
     "improvements": {
       "pt": [
+        "No celular, no app novo (?ui=svelte), uma sala já abre com o topo (ícone e nome da sala, a conversa, busca, Caixa de entrada e sua foto) e a barra de baixo no lugar enquanto carrega, então nada pula quando as mensagens chegam.",
         "No app novo (?ui=svelte), o topo da sala no celular ganhou uma linha fina que o separa do chat, e o aviso \"Seu agent está desligado nesta sala\" virou uma faixa de largura inteira logo abaixo do topo, com Ligar como link, em vez de parecer um botão.",
         "No celular, no app novo (?ui=svelte), uma sala ganhou uma barra embaixo com Chat, Doc (com Decisões), Quadro, Arquivos (Fixados em cima, depois Arquivos e Apps) e Claude (seu agent, Pessoas e agents, e Lembretes). O topo ficou com voltar, a conversa, busca, Caixa de entrada e sua foto, sem o ⋯. A lista de conversas tem duas abas, Esta sala e Todas as salas, e deixa todo o espaço pros épicos.",
         "No celular, no app novo (?ui=svelte), o topo de uma sala virou uma linha só: o ícone da sala com o nome dela em cima e a conversa embaixo (toque pra trocar de conversa), Doc, Caixa de entrada e ⋯ com Quadro, Arquivos, Apps, Decisões, Lembretes e Agents. A lista de conversas desce do topo e troca de sala pelo mesmo seletor da tela inicial, sem a fileira de salas.",
@@ -36,6 +37,7 @@
         "No app novo (?ui=svelte), a caixa \"O que você quer resolver?\" da tela inicial agora é o mesmo campo de mensagem da sala: emoji, +, ditado por voz e o botão de enviar, que virou uma seta."
       ],
       "en": [
+        "On phones, in the new app (?ui=svelte), a room opens with its top bar (the room's icon and name, the thread, search, Inbox and your picture) and the bottom bar already in place while it loads, so nothing jumps when the messages arrive.",
         "In the new app (?ui=svelte), a room's top bar on phones has a thin line separating it from the chat, and the \"Your agent is off in this room\" notice is now a full-width strip right under the top bar, with Turn on as a link, instead of looking like a button.",
         "On phones in the new app (?ui=svelte), a room has a bottom bar with Chat, Doc (with Decisions), Board, Files (Pinned on top, then Files and Apps) and Claude (your agent, People & agents, and Reminders). The top bar keeps back, the conversation, search, Inbox and your photo, without the ⋯. The conversation list has two tabs, This room and All rooms, and gives the epics the whole space.",
         "On phones in the new app (?ui=svelte), a room's top bar is one row: the room's icon with its name on top and the conversation under it (tap to switch conversations), Doc, Inbox and ⋯ with Board, Files, Apps, Decisions, Reminders and Agents. The conversation list drops from the top and switches rooms with the same switcher as the home, without the row of rooms.",

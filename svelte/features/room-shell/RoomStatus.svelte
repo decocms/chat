@@ -18,6 +18,11 @@
         ? $application.route.target.roomId
         : null),
   );
+  const thread = $derived(
+    ($application.route.kind === "room"
+      ? $application.route.target.thread
+      : undefined) ?? "main",
+  );
   const current = (event: Event) =>
     services.active() &&
     event.currentTarget instanceof HTMLElement &&
@@ -58,5 +63,5 @@
     data-room-generation={snapshot.generation}
     class="tw:contents"
   >
-    <RoomSkeleton {roomId} {services} onhome={home} />
+    <RoomSkeleton {roomId} {thread} {services} onhome={home} />
   </div>{/if}
