@@ -212,7 +212,7 @@
             data-status-dot={here ? "online" : "offline"}
             class={cn(
               "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2 tw:rounded-full tw:ring-2 tw:ring-sidebar tw:group-hover/member:ring-sidebar-accent",
-              here ? "tw:bg-success" : "tw:bg-subtle-foreground",
+              here ? "tw:bg-brand" : "tw:bg-subtle-foreground",
             )}
           ></span></button
         >{/snippet}

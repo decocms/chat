@@ -187,7 +187,7 @@
         role="img"
         aria-label={`${vb.name(email)}${room.online.includes(email) ? ` · ${vb.t("online")}` : ""}`}
         class={room.online.includes(email)
-          ? "tw:relative tw:flex tw:rounded-full tw:ring-2 tw:ring-success"
+          ? "tw:relative tw:flex tw:rounded-full tw:ring-2 tw:ring-brand"
           : "tw:relative tw:flex tw:rounded-full"}
         ><PersonAvatar
           name={vb.name(email)}

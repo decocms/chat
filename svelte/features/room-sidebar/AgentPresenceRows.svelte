@@ -40,7 +40,7 @@
   const METERS = {
     hot: "tw:[&_progress]:text-destructive",
     mid: "tw:[&_progress]:text-warning",
-    ok: "tw:[&_progress]:text-success",
+    ok: "tw:[&_progress]:text-brand",
   } as const;
   const SURFACES = {
     sidebar: { ring: "tw:ring-sidebar", hover: "tw:hover:bg-sidebar-accent" },
@@ -92,7 +92,7 @@
             class={cn(
               "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2 tw:rounded-full tw:ring-2",
               tone.ring,
-              agent.listening ? "tw:bg-success" : "tw:bg-muted-foreground",
+              agent.listening ? "tw:bg-brand" : "tw:bg-muted-foreground",
             )}
           ></span>
         </span><span class="tw:min-w-0 tw:flex-1 tw:truncate"
