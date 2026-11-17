@@ -159,15 +159,20 @@
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
             class="tw:text-sm"
-          />{:else}<PersonAvatar
+          />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->
+          <div class="tw:relative tw:size-8" title={author(m)}>
+            <AgentMark via={m.via} tint class="tw:text-base" /><PersonAvatar
+              size="2xs"
+              data-avatar="person"
+              name={vb.name(m.author)}
+              url={vb.avatarUrl?.(m.author)}
+              class="tw:absolute tw:-right-1.5 tw:-bottom-1.5 tw:ring-2 tw:ring-background"
+            />
+          </div>{:else}<PersonAvatar
             size="sm"
             data-avatar="person"
             name={author(m)}
             url={vb.avatarUrl?.(m.author)}
-          />{/if}{#if m.kind === "agent"}<AgentMark
-            size="2xs"
-            via={m.via}
-            class="tw:mx-auto tw:mt-1"
           />{/if}{:else}<time
           title={timestamp}
           class="tw:text-xs tw:text-muted-foreground">{vb.hhmm(m.ts)}</time
