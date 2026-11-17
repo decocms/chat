@@ -17,6 +17,7 @@
   import {
     ArrowLeft,
     Inbox01,
+    LayoutAlt01,
     LayoutLeft,
     MessageCircle01,
     Pencil01,
@@ -24,6 +25,7 @@
   } from "./lib/studio/icons";
   import { cn } from "./lib/studio/utils";
   import WaitBadge from "./features/waits/WaitBadge.svelte";
+  import Count from "./lib/components/Count.svelte";
   import ThreadHeader from "./features/room-sidebar/ThreadHeader.svelte";
   import AgentPresenceRows from "./features/room-sidebar/AgentPresenceRows.svelte";
   import MutationStatus from "./features/room-sidebar/MutationStatus.svelte";
@@ -55,6 +57,10 @@
     onopenside = () => {},
     oninbox,
     inboxOpen = false,
+    onboard,
+    boardOpen = false,
+    boardCount,
+    inboxCount = 0,
     onthreadintent,
     onroomhome,
     mountSheetHandle,
@@ -133,14 +139,26 @@
       size="icon"><Icon icon={ArrowLeft} /></IconButton
     >
     {#if oninbox}<IconButton
+        data-native-inbox-toggle={onboard ? "" : undefined}
         variant={inboxOpen ? "secondary" : "ghost"}
         aria-current={inboxOpen ? "page" : undefined}
+        aria-pressed={onboard ? inboxOpen : undefined}
         label={vb.t("Caixa de entrada")}
         tooltipSide="right"
         size="icon"
         onclick={(event) => {
           if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
         }}><Icon icon={Inbox01} /></IconButton
+      >{/if}{#if onboard}<IconButton
+        data-native-board-toggle
+        variant={boardOpen ? "secondary" : "ghost"}
+        aria-pressed={boardOpen}
+        label={vb.t("Quadro de tarefas (kanban)")}
+        tooltipSide="right"
+        size="icon"
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) onboard?.();
+        }}><Icon icon={LayoutAlt01} /></IconButton
       >{/if}
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
@@ -257,12 +275,15 @@
                   {...props}
                   type="button"
                   data-room-title
-                  aria-current={!inboxOpen && thread === "main"
+                  aria-current={!inboxOpen && !boardOpen && thread === "main"
                     ? "page"
                     : undefined}
                   class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
                   onclick={(event) => {
-                    if (event.currentTarget.isConnected) open("main");
+                    if (!event.currentTarget.isConnected) return;
+                    // Desktop: the main thread is also the chat view (leaves the full board).
+                    if (boardOpen) onroomhome?.();
+                    open("main");
                   }}
                 >
                   <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
@@ -309,6 +330,47 @@
             onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
           >
         </div>
+        {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
+          <div data-room-views class="tw:-mt-3 tw:flex tw:shrink-0 tw:flex-col">
+            {#if oninbox}<button
+                type="button"
+                data-native-inbox-toggle
+                aria-pressed={inboxOpen}
+                class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+                onclick={(event) => {
+                  if (event.currentTarget.isConnected)
+                    oninbox?.(event.currentTarget);
+                }}
+                ><Icon
+                  icon={Inbox01}
+                  size={16}
+                  class="tw:shrink-0 tw:text-muted-foreground"
+                /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                  >{vb.t("Caixa de entrada")}</span
+                >{#if inboxCount}<Count
+                    value={inboxCount}
+                    label={vb.t("Esperando você: {n}", { n: inboxCount })}
+                  />{/if}</button
+              >{/if}<button
+              type="button"
+              data-native-board-toggle
+              aria-pressed={boardOpen}
+              class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+              onclick={(event) => {
+                if (event.currentTarget.isConnected) onboard?.();
+              }}
+              ><Icon
+                icon={LayoutAlt01}
+                size={16}
+                class="tw:shrink-0 tw:text-muted-foreground"
+              /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                >{vb.t("Quadro de tarefas")}</span
+              >{#if typeof boardCount === "number" && boardCount}<Count
+                  value={boardCount}
+                  label={vb.t("Esperando você: {n}", { n: boardCount })}
+                />{/if}</button
+            >
+          </div>{/if}
         {#if thread !== "main" && !thread.startsWith("pre:")}<div
             class="tw:shrink-0 tw:min-[901px]:hidden"
           >
