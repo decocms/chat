@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import Button from "../../lib/studio/Button.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
+  import RoomSkeleton from "./RoomSkeleton.svelte";
   import type { RootRoomSnapshot } from "../root-room/session";
   import type { BrowserApplicationServices } from "../application/browser";
   let {
@@ -8,6 +10,14 @@
     services,
   }: { snapshot: RootRoomSnapshot; services: BrowserApplicationServices } =
     $props();
+  const application = untrack(() => services.state);
+  // Before the socket opens the snapshot has no room yet: the URL names it.
+  const roomId = $derived(
+    snapshot.roomId ??
+      ($application.route.kind === "room"
+        ? $application.route.target.roomId
+        : null),
+  );
   const current = (event: Event) =>
     services.active() &&
     event.currentTarget instanceof HTMLElement &&
@@ -16,15 +26,17 @@
       .closest("[data-native-room-status]")
       ?.getAttribute("data-room-generation") ===
       String(services.rootRoom.read().generation);
+  const home = (event: MouseEvent) => {
+    if (current(event)) services.actions.home();
+  };
 </script>
 
-<main
-  data-vb-native
-  data-native-room-status={snapshot.phase}
-  data-room-generation={snapshot.generation}
-  class="tw:mx-auto tw:flex tw:min-h-[50dvh] tw:w-full tw:max-w-xl tw:flex-col tw:justify-center tw:gap-4 tw:p-6 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
->
-  {#if snapshot.phase === "removed" || snapshot.phase === "unavailable"}
+{#if snapshot.phase === "removed" || snapshot.phase === "unavailable"}<main
+    data-vb-native
+    data-native-room-status={snapshot.phase}
+    data-room-generation={snapshot.generation}
+    class="tw:mx-auto tw:flex tw:min-h-[50dvh] tw:w-full tw:max-w-xl tw:flex-col tw:justify-center tw:gap-4 tw:p-6 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+  >
     <ErrorState
       title={services.t(
         snapshot.phase === "removed"
@@ -38,28 +50,13 @@
           if (current(event)) services.actions.retryRoom();
         }}>{services.t("Verificar acesso novamente")}</Button
       >{/if}
-  {:else}
-    <h1
-      class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
+    <Button variant="ghost" onclick={home}
+      >{services.t("seus vibebooks")}</Button
     >
-      vibebook
-    </h1>
-    <p role="status" class="tw:m-0 tw:text-muted-foreground">
-      {services.t("Carregando…")}
-    </p>
-    <div
-      aria-hidden="true"
-      class="tw:grid tw:gap-3 tw:motion-safe:animate-pulse"
-    >
-      <div class="tw:h-4 tw:w-3/4 tw:rounded-control tw:bg-muted"></div>
-      <div class="tw:h-4 tw:w-full tw:rounded-control tw:bg-muted"></div>
-      <div class="tw:h-4 tw:w-1/2 tw:rounded-control tw:bg-muted"></div>
-    </div>
-  {/if}
-  <Button
-    variant="ghost"
-    onclick={(event) => {
-      if (current(event)) services.actions.home();
-    }}>{services.t("seus vibebooks")}</Button
+  </main>{:else}<div
+    data-native-room-status={snapshot.phase}
+    data-room-generation={snapshot.generation}
+    class="tw:contents"
   >
-</main>
+    <RoomSkeleton {roomId} {services} onhome={home} />
+  </div>{/if}
