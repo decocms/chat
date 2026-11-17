@@ -15,8 +15,6 @@
     quoteSnippet,
     composerError,
   } from "./model";
-  import Textarea from "../../lib/studio/Textarea.svelte";
-  import { cn } from "../../lib/studio/utils";
   import Button from "../../lib/studio/Button.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
@@ -33,6 +31,9 @@
     X,
   } from "../../lib/studio/icons";
   import OrphanDrafts from "./OrphanDrafts.svelte";
+  import ChatBox from "./ChatBox.svelte";
+  import ChatBoxInput from "./ChatBoxInput.svelte";
+  import ChatBoxSend from "./ChatBoxSend.svelte";
   import EmojiPicker from "./EmojiPicker.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
   let {
@@ -666,9 +667,8 @@
         ? "Refining transcription…"
         : "Refinando transcrição…"}
     </p>{/if}
-  <form
+  <ChatBox
     data-native-composer-field
-    class="tw:flex tw:items-end tw:gap-0.5 tw:rounded-[18px] tw:bg-[var(--vb-studio-input-background)] tw:py-1.5 tw:pr-1.5 tw:pl-1 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
     onsubmit={(event) => {
       event.preventDefault();
       submit();
@@ -761,7 +761,7 @@
         event.currentTarget.value = "";
       }}
     />
-    <Textarea
+    <ChatBoxInput
       bind:ref={textarea}
       id="input"
       rows={Math.min(6, $draft.text.split("\n").length)}
@@ -774,10 +774,7 @@
       aria-activedescendant={items.length
         ? `${uid}-mention-${selected}`
         : undefined}
-      class={cn(
-        "tw:block tw:max-h-40 tw:min-h-8 tw:min-w-0 tw:flex-1 tw:resize-none tw:rounded-lg tw:bg-transparent tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:leading-5 tw:shadow-none tw:[field-sizing:content] tw:hover:bg-transparent tw:focus-visible:outline-none",
-        dictating && "tw:ring-2 tw:ring-destructive",
-      )}
+      class={dictating ? "tw:ring-2 tw:ring-destructive" : undefined}
       oninput={(event) => {
         if (!canInteract(event)) return;
         speech.cancel();
@@ -827,29 +824,23 @@
             size={16}
           />{/if}</IconButton
       >{/if}
-    <Button
-      type="submit"
-      data-composer-send
+    <ChatBoxSend
       disabled={voiceWaiting ||
         !allowed ||
         busy ||
         $draft.attachments.some(
           (item) => item.phase === "queued" || item.phase === "uploading",
         )}
-      aria-busy={$draft.phase === "pending" || undefined}
-      class="tw:rounded-full"
+      pending={$draft.phase === "pending"}
       onmousedown={(event) => event.preventDefault()}
       ontouchend={(event) => {
         if (!busy && allowed) {
           event.preventDefault();
           submit();
         }
-      }}
-      >{#if $draft.phase === "pending"}<Spinner size="2xs" />{/if}{vb.t(
-        "Enviar",
-      )}</Button
+      }}>{vb.t("Enviar")}</ChatBoxSend
     >
-  </form>
+  </ChatBox>
   {#if $draft.phase === "unconfirmed"}<p
       role="status"
       class="tw:m-0 tw:text-xs tw:text-muted-foreground"
