@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
-  import UiSwitch from "./UiSwitch.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import InstallCard from "../pwa/InstallCard.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
@@ -328,7 +327,7 @@
               <div
                 role="group"
                 aria-label={text("waiting", { n: me.waits.length })}
-                class="tw:-mx-4 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-4 tw:[scrollbar-width:none] tw:sm:mx-0 tw:sm:px-0 tw:[&::-webkit-scrollbar]:hidden"
+                class="tw:-mx-4 tw:-mt-1 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-4 tw:py-1 tw:[scrollbar-width:none] tw:sm:-mx-1 tw:sm:px-1 tw:[&::-webkit-scrollbar]:hidden"
               >
                 {#each filters as option (option.kind)}{#if option.kind === "all" || option.count}<Button
                       size="sm"
@@ -409,38 +408,31 @@
           <section
             aria-label={text("home")}
             class={[
-              "tw:min-w-0 tw:space-y-3",
+              "tw:flex tw:min-w-0 tw:flex-col tw:gap-4",
               groups.length && "tw:max-lg:hidden",
             ]}
           >
-            <Heading level={2} class="tw:m-0 tw:text-base tw:font-semibold"
+            <Heading
+              level={2}
+              class="tw:m-0 tw:flex tw:h-7 tw:items-center tw:text-base tw:font-semibold"
               >{text("home")}</Heading
             >
             {#if !me.books.length}<p class="tw:m-0">{text("empty")}</p>{/if}
             <div
               class="tw:grid tw:grid-cols-4 tw:gap-x-2 tw:gap-y-3 tw:sm:grid-cols-6 tw:lg:grid-cols-4"
             >
-              {#each recentRooms(me.books) as room (room.id)}<div
-                  class="tw:min-w-0 tw:space-y-1"
-                >
-                  <RoomTile
-                    {room}
-                    {lang}
-                    compact
-                    now={$account.now}
-                    seen={$account.seen[room.id] ?? 0}
-                    waits={me.waits.filter((wait) => wait.book_id === room.id)}
-                    {onnavigate}
-                    onsettings={onroomsettings}
-                  /><span
-                    class="tw:line-clamp-2 tw:block tw:break-words tw:text-center tw:text-xs tw:leading-4"
-                    >{room.title}</span
-                  >
-                </div>{/each}
+              {#each recentRooms(me.books) as room (room.id)}<RoomTile
+                  {room}
+                  {lang}
+                  now={$account.now}
+                  seen={$account.seen[room.id] ?? 0}
+                  waits={me.waits.filter((wait) => wait.book_id === room.id)}
+                  {onnavigate}
+                  onsettings={onroomsettings}
+                />{/each}
             </div>
           </section>
         </div>
-        <UiSwitch {lang} />
       {/if}
       {#if $account.loading && $account.me}<p role="status" class="tw:m-0">
           {text("refreshing")}

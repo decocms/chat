@@ -1,13 +1,8 @@
 <script lang="ts">
-  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
-  import Avatar from "../../lib/studio/Avatar.svelte";
-  import Icon from "../../lib/studio/Icon.svelte";
-  import { Cloud01 } from "../../lib/studio/icons";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
-  import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitIndicator, type WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import {
@@ -18,6 +13,7 @@
     type RoomTarget,
   } from "../home/model";
   import RailPill from "./RailPill.svelte";
+  import RoomAvatar from "../rooms/RoomAvatar.svelte";
   /** One room in the rail: its icon or marbled tile, the bar when current, and what waits there. */
   let {
     room,
@@ -134,46 +130,14 @@
           }}
         >
           <RailPill state={selected ? "selected" : "idle"} />
-          {#if icon}<Avatar
-              size="md"
-              url={icon}
-              fallback={title}
-              aria-hidden="true"
-              data-room-cover="icon"
-            />{:else}<span data-room-cover="marble" class="tw:contents"
-              ><OrgAvatar name={title} size="md" /></span
-            >{/if}
-          {#if news && !selected}<span
-              role="img"
-              aria-label={text(news === "human" ? "newHuman" : "newAgent")}
-              data-room-badge={news === "human"
-                ? "unread-human"
-                : "unread-agent"}
-              class={cn(
-                "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar",
-                news === "human" ? "tw:bg-brand" : "tw:bg-warning",
-              )}
-            ></span>{/if}
-          {#if busy}<span
-              role="img"
-              aria-label={text("busy")}
-              data-room-badge="busy"
-              class="tw:absolute tw:-bottom-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-sidebar tw:text-xs tw:leading-none tw:text-agent-claude tw:motion-safe:animate-spin"
-              >✻</span
-            >{/if}
-          {#if room.sandboxes_running}<span
-              role="img"
-              aria-label={text("cloud")}
-              data-room-badge="cloud"
-              class="tw:absolute tw:-top-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-sidebar tw:text-warning"
-              ><Icon icon={Cloud01} size={10} /></span
-            >{/if}
-          <WaitBadge
-            solid
+          <RoomAvatar
+            {title}
+            {icon}
+            {lang}
+            unread={selected ? null : news}
+            {busy}
+            cloud={!!room.sandboxes_running}
             {waits}
-            label={(n) => text("waiting", { n })}
-            taskLabel={text("taskPending")}
-            class="tw:absolute tw:-right-1.5 tw:-bottom-1.5"
           />
         </a>
       {/snippet}

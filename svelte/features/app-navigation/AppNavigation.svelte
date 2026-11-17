@@ -6,10 +6,11 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Plus, SearchMd, X } from "../../lib/studio/icons";
+  import { ChevronDown, Plus, SearchMd, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
+  import RoomSwitcher from "./RoomSwitcher.svelte";
   import UserMenu from "./UserMenu.svelte";
   import {
     orderedRooms,
@@ -138,6 +139,8 @@
     }
     return result;
   });
+  // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
+  let switcher = $state(false);
   let dragging = $state<string | null>(null),
     dropTo = $state<string | null>(null);
 </script>
@@ -197,28 +200,42 @@
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   )}
 >
-  <RailButton
-    bind:ref={homeButton}
-    label={text("home")}
-    current={!$nav.roomId}
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) controller.callbacks.home();
-    }}
-    ><img
-      src="/favicon.svg"
-      width="36"
-      height="36"
-      alt=""
-      draggable="false"
-      class="tw:size-9 tw:rounded-xl"
-    /></RailButton
+  <span class="tw:contents tw:max-[900px]:hidden"
+    ><RailButton
+      bind:ref={homeButton}
+      label={text("home")}
+      current={!$nav.roomId}
+      onclick={(event) => {
+        if (event.currentTarget.isConnected) controller.callbacks.home();
+      }}
+      ><img
+        src="/favicon.svg"
+        width="36"
+        height="36"
+        alt=""
+        draggable="false"
+        class="tw:size-9 tw:rounded-xl"
+      /></RailButton
+    ></span
   >
   <span
     aria-hidden="true"
-    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:min-[901px]:h-px tw:min-[901px]:w-6"
+    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
   ></span>
+  <Button
+    variant="ghost"
+    data-native-room-switcher
+    aria-haspopup="dialog"
+    aria-expanded={switcher}
+    class="tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-1 tw:px-2 tw:text-base tw:font-semibold tw:min-[901px]:hidden"
+    onclick={() => (switcher = true)}
+    ><span class="tw:truncate">{text("startTitle")}</span><Icon
+      icon={ChevronDown}
+      class="tw:shrink-0 tw:text-muted-foreground"
+    /></Button
+  >
   <div
-    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:items-center tw:gap-2.5 tw:self-stretch tw:overflow-x-auto tw:px-1 tw:py-1.5 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:-mx-2 tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto tw:min-[901px]:px-2"
+    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:items-center tw:gap-2.5 tw:self-stretch tw:overflow-x-auto tw:max-[900px]:hidden tw:px-1 tw:py-1.5 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:-mx-2 tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto tw:min-[901px]:px-2"
     role="list"
     aria-label={text("home")}
   >
@@ -260,23 +277,36 @@
   </div>
   {#if $personal.me}<span
       aria-hidden="true"
-      class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:min-[901px]:h-px tw:min-[901px]:w-6"
+      class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
     ></span>
-    <UserMenu
-      name={$personal.me.name ?? ""}
-      email={$personal.me.email}
-      avatar={personAvatar($personal.me, $personal.me.email)}
-      friends={$personal.me.friends.length}
+    <div class="tw:flex tw:shrink-0 tw:max-[900px]:order-first">
+      <UserMenu
+        name={$personal.me.name ?? ""}
+        email={$personal.me.email}
+        avatar={personAvatar($personal.me, $personal.me.email)}
+        friends={$personal.me.friends.length}
+        {lang}
+        {theme}
+        {onaccount}
+        {pwa}
+        {onlogout}
+        onsettheme={(next) => {
+          if (onsettheme) onsettheme(next);
+          else if (next !== theme) ontheme();
+        }}
+        {onlanguage}
+      />
+    </div>
+    <RoomSwitcher
+      bind:open={switcher}
+      rooms={$personal.me.books}
+      waits={$personal.me.waits}
+      seen={$personal.seen}
+      now={$personal.now}
+      current={$nav.roomId ?? null}
       {lang}
-      {theme}
-      {onaccount}
-      {pwa}
-      {onlogout}
-      onsettheme={(next) => {
-        if (onsettheme) onsettheme(next);
-        else if (next !== theme) ontheme();
-      }}
-      {onlanguage}
+      onhome={controller.callbacks.home}
+      onnavigate={controller.callbacks.navigate}
     />{/if}
 </div>
 {#if Dialogs}<Dialogs

@@ -13,6 +13,7 @@
     Bell01,
     BellOff01,
     ChevronRight,
+    LayoutAlt01,
     LogOut01,
     Pencil01,
     Settings01,
@@ -20,6 +21,7 @@
     Users01,
   } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
+  import { uiNavigationUrl } from "../../../shared/uiVariant";
   import { homeText, type HomeLanguage } from "../home/copy";
   import NotificationHelpDialog from "../notifications/NotificationHelpDialog.svelte";
   import type { AccountSection } from "../account/session";
@@ -333,6 +335,31 @@
               >{/each}
           </DropdownMenu.RadioGroup>
         </div>
+        <DropdownMenu.CheckboxItem
+          data-user-menu-item="new-ui"
+          class={itemClass}
+          bind:checked={() => true, () => {}}
+          onSelect={() => {
+            // Off = back to the classic app at the same address.
+            if (!active) return;
+            window.location.assign(
+              uiNavigationUrl(
+                window.location.href,
+                window.location.href,
+                "vanilla",
+              ),
+            );
+          }}
+          ><Icon icon={LayoutAlt01} class="tw:size-4" /><span class="tw:flex-1"
+            >{text("newUi")}</span
+          ><span
+            aria-hidden="true"
+            class="tw:relative tw:inline-flex tw:h-5 tw:w-9 tw:shrink-0 tw:rounded-full tw:bg-primary"
+            ><span
+              class="tw:absolute tw:top-0.5 tw:left-0.5 tw:size-4 tw:translate-x-4 tw:rounded-full tw:bg-card tw:shadow-xs"
+            ></span></span
+          ></DropdownMenu.CheckboxItem
+        >
         {#if onlogout}<DropdownMenu.Separator
             class={separatorClass}
           /><DropdownMenu.Item
