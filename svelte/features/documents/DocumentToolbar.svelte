@@ -25,6 +25,8 @@
     compact = false,
     sideFileName,
     only,
+    bare = false,
+    exclude,
   }: {
     owner: DocumentSession;
     room: Room;
@@ -39,6 +41,10 @@
     sideFileName?: string;
     /** Only these panes (the phone's bottom-bar tab), in this order. */
     only?: readonly DocumentPane[];
+    /** Inside the room's single top bar (desktop): no height, border or padding of its own. */
+    bare?: boolean;
+    /** Panes the host already offers elsewhere (the header's ✻ for agents). */
+    exclude?: readonly DocumentPane[];
   } = $props();
   const view = untrack(() => owner.state),
     en = $derived(lang === "en");
@@ -79,7 +85,10 @@
   const items = $derived(
     only
       ? only.flatMap((id) => allItems.filter((item) => item.id === id))
-      : allItems.filter((item) => !compact || item.id !== "board"),
+      : allItems.filter(
+          (item) =>
+            (!compact || item.id !== "board") && !exclude?.includes(item.id),
+        ),
   );
   function choose(event: MouseEvent, id: DocumentPane) {
     event.stopPropagation();
@@ -121,9 +130,11 @@
   data-vb-native
   class={cn(
     "tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:font-sans tw:text-foreground",
-    compact
-      ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
-      : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
+    bare
+      ? ""
+      : compact
+        ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
+        : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
   )}
 >
   <div

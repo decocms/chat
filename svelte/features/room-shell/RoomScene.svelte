@@ -338,6 +338,10 @@
         {layout}
         {current}
         {back}
+        tabs={$view.toolbar}
+        onPane={(pane) => {
+          if (current()) owner.actions.setPane(pane, { open: true });
+        }}
       />{/if}{/snippet}
   {#snippet peek()}{#if $view}<DocumentToolbar
         {...$view.peek}
@@ -382,9 +386,8 @@
         {...$view.composer}
         hidden={$view.composer.hidden || $geometry.boardFull}
       />{/if}{/snippet}
-  {#snippet documentToolbar()}{#if $view}<DocumentToolbar
-        {...$view.toolbar}
-      />{/if}{/snippet}
+  <!-- Desktop pane tabs live in the room header now (one top bar). -->
+  {#snippet documentToolbar()}{/snippet}
   {#snippet document()}{#if $view}
       <div
         use:taskSurface
