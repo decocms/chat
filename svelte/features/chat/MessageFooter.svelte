@@ -103,22 +103,26 @@
         {#each footer.readers.slice(0, 5) as reader (`${reader.receipt.who}|${reader.receipt.email}`)}
           <span
             data-reader-read={reader.read}
-            class="tw:relative tw:mr-1.5 tw:inline-flex"
+            class="tw:relative tw:inline-flex tw:not-first:ml-1"
           >
             <PersonAvatar
               data-avatar="person"
               size="xs"
+              class="tw:size-[18px] tw:shadow-[0_0_0_1.5px_var(--vb-card)]"
               name={vb.name(reader.receipt.email)}
               url={vb.avatarUrl?.(reader.receipt.email)}
             /><AgentMark
-              size="2xs"
+              size="3xs"
+              tint
               via={reader.receipt.who}
-              class="tw:absolute tw:-right-2 tw:-bottom-1.5 tw:shadow-[0_0_0_2px_var(--vb-card)]"
+              class="tw:absolute tw:-right-1 tw:-bottom-1 tw:rounded-full tw:text-[7px] tw:shadow-[0_0_0_1.5px_var(--vb-card)]"
             />
           </span>
         {/each}
         {#if footer.readers.length > 5}<span>+{footer.readers.length - 5}</span
-          >{/if}<span aria-hidden="true">{read ? "✓✓" : "✓"}</span>
+          >{/if}<span aria-hidden="true" class="tw:ml-0.5 tw:text-[11px]"
+          >{read ? "✓✓" : "✓"}</span
+        >
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
