@@ -174,3 +174,31 @@ export function waitGroups(waits: readonly Wait[]) {
         (b.waits[0]?.ts ?? 0) - (a.waits[0]?.ts ?? 0),
     );
 }
+/** The triage filters: your Claude's asks, people's asks (and @vibe's), your tasks in review. */
+export type WaitKind = "claude" | "asks" | "reviews";
+export const waitKind = (wait: Wait): WaitKind =>
+  claudeWait(wait) ? "claude" : wait.ref.startsWith("t") ? "reviews" : "asks";
+/**
+ * A wait's text as one plain line for the home: markdown marks out, links as
+ * their text, bare URLs as host + path, the hook's ⏸/❓ opener and a leading
+ * @mention dropped, whitespace collapsed.
+ */
+export function plainWaitText(value: string) {
+  return value
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(
+      /https?:\/\/(?:www\.)?([^\s/)]+)(\/[^\s)]*)?/g,
+      (_, host: string, path = "") =>
+        host +
+        (path.length > 24 ? path.slice(0, 23) + "…" : path === "/" ? "" : path),
+    )
+    .replace(/(\*\*|__|`+|~~)/g, "")
+    .replace(/^[\s>#*-]*(?:[⏸❓]️?\s*)?/u, "")
+    .replace(
+      /^(?:Seu Claude|Your Claude) (?:pede permissão|pergunta|quer seguir com este plano|asks? (?:for )?permission|asks|wants to go ahead with this plan):?\s*/iu,
+      "",
+    )
+    .replace(/^@[\p{L}\p{N}._-]+[,:]?\s+/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
