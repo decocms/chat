@@ -172,7 +172,7 @@
                       ? "tw:bg-destructive"
                       : agentState === "busy"
                         ? "tw:bg-warning"
-                        : "tw:bg-success",
+                        : "tw:bg-brand",
                   )}
                 ></span>{/if}</Button
             >{/snippet}

@@ -8054,7 +8054,7 @@ describe("People & agents presence", () => {
       ),
     ).toEqual(["listening", "idle"]);
     expect(list[0]!.querySelector("[data-status-dot]")!.className).toContain(
-      "tw:bg-success",
+      "tw:bg-brand",
     );
     expect(list[1]!.querySelector("[data-status-dot]")!.className).toContain(
       "tw:bg-muted-foreground",
@@ -8082,7 +8082,7 @@ describe("People & agents presence", () => {
       "1.3M",
     ]);
     const cases: [number, number, string][] = [
-      [30_000, 100_000, "text-success"],
+      [30_000, 100_000, "text-brand"],
       [60_000, 100_000, "text-warning"],
       [80_000, 100_000, "text-destructive"],
       [250_000, 200_000, "text-destructive"],

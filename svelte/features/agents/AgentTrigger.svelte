@@ -33,8 +33,8 @@
     off: "tw:bg-muted-foreground",
     opening: "tw:bg-warning tw:animate-pulse tw:motion-reduce:animate-none",
     late: "tw:border-2 tw:border-warning tw:bg-background",
-    listening: "tw:bg-success",
-    working: "tw:bg-success",
+    listening: "tw:bg-brand",
+    working: "tw:bg-brand",
   };
   const label = $derived(
     `${roomAgentText(lang, labels[status])}${path ? ` · ${path}` : ""}`,

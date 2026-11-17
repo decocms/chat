@@ -151,7 +151,7 @@
                 : "unread-agent"}
               class={cn(
                 "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar",
-                news === "human" ? "tw:bg-success" : "tw:bg-warning",
+                news === "human" ? "tw:bg-brand" : "tw:bg-warning",
               )}
             ></span>{/if}
           {#if busy}<span
