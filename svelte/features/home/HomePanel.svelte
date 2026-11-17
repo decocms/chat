@@ -503,13 +503,16 @@
             </p>{/if}
         </div>
         <!-- At the foot of the first screen: the fan peeks above the fold. -->
-        <div class="tw:min-h-6 tw:flex-1" aria-hidden="true"></div>
+        <div
+          class="tw:min-h-6 tw:flex-1 tw:max-[720px]:max-h-16"
+          aria-hidden="true"
+        ></div>
         {#if waits.length > 1 && filters.length > 1}<div
             bind:this={filterBar}
             role="group"
             aria-label={text("deskWaits")}
             data-home-filters
-            class="tw:relative tw:z-30 tw:mb-4 tw:flex tw:max-w-full tw:gap-1.5 tw:overflow-x-auto tw:px-1 tw:py-1 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden"
+            class="tw:relative tw:z-30 tw:mb-4 tw:flex tw:max-w-full tw:flex-wrap tw:justify-center tw:gap-1.5 tw:px-1 tw:py-1"
           >
             {#each filters as option (option.kind)}<Button
                 size="sm"
@@ -533,7 +536,7 @@
             aria-label={text("deskWaits")}
             data-home-hand
             class={dealt
-              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-4 tw:gap-4 tw:max-[1000px]:grid-cols-3 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
+              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-4 tw:gap-4 tw:max-[1200px]:grid-cols-3 tw:max-[900px]:grid-cols-2 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
               : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[720px]:-mb-[40px] tw:max-[720px]:h-[300px]"}
           >
             {#each shown as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
@@ -553,7 +556,7 @@
                 class={[
                   "tw:group/card tw:flex tw:flex-col tw:gap-2 tw:overflow-hidden tw:rounded-[22px] tw:bg-card tw:px-[18px] tw:py-4 tw:text-foreground tw:no-underline tw:shadow-[0_0_0_1px_var(--vb-hairline),0_1px_2px_rgb(0_0_0/.04),0_-6px_28px_-12px_rgb(0_0_0/.18)] tw:outline-none tw:transition-shadow tw:duration-150 tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
                   dealt
-                    ? "tw:relative tw:h-[176px] tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
+                    ? "tw:relative tw:min-h-[176px] tw:max-[720px]:min-h-0 tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
                     : [
                         "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-[720px]:h-[210px] tw:max-[720px]:w-[min(340px,calc(100%-16px))]",
                         fanClasses(i, shown.length),
