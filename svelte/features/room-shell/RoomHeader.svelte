@@ -134,12 +134,13 @@
     event.preventDefault();
     layout.toggleDocument();
   }
-  // The room's name or icon in the bar brings the chat back (not its buttons).
+  // The room's name or icon in the bar brings the chat back (not its buttons);
+  // in the chat already, nothing changes.
   function titleClick(event: MouseEvent) {
     if (!current() || !(event.target instanceof Element)) return;
     if (event.target.closest("button, a, input, [role=menu], [role=menuitem]"))
       return;
-    if (inboxOpen || layout.read().boardFull) tochat?.();
+    tochat?.();
   }
 </script>
 
@@ -203,11 +204,7 @@
       class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24 tw:[&_h2]:cursor-pointer"
       onclick={titleClick}
     >
-      <ThreadHeader
-        {...header}
-        compact
-        onhome={inboxOpen || $geometry.boardFull ? tochat : undefined}
-      />
+      <ThreadHeader {...header} compact onhome={tochat} />
     </div>
     <IconButton
       data-native-board-toggle
