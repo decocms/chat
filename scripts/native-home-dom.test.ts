@@ -1044,6 +1044,82 @@ test("native Home renders untrusted room metadata as text and passes exact room 
     heading.classList.contains("tw:[font-variation-settings:normal]"),
   ).toBe(true);
 });
+test("native Home ask box is the room's chat box: emoji, + menu and dictation that keeps listening", async () => {
+  const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
+    lang: "",
+    continuous: false,
+    interimResults: false,
+    onresult: null,
+    onerror: null,
+    onend: null,
+    start() {},
+    stop() {},
+    abort() {},
+  };
+  const previous = Reflect.get(window, "SpeechRecognition");
+  Reflect.set(window, "SpeechRecognition", function SpeechRecognition() {
+    return rec;
+  });
+  cleanups.push(() => Reflect.set(window, "SpeechRecognition", previous));
+  const { personal, rooms, pwa, profile, creator } = await setup();
+  const opened: unknown[] = [],
+    target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        onlanguage: () => {},
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: (trigger?: HTMLElement) => opened.push(trigger),
+        onsettings: () => {},
+        onroomsettings: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const box = target.querySelector<HTMLFormElement>("[data-chat-box]")!;
+  expect(
+    [...box.querySelectorAll("button")].map((button) =>
+      button.getAttribute("aria-label"),
+    ),
+  ).toEqual(["Emoji", "More options", "Dictate message", "Send"]);
+  const input = box.querySelector("textarea")!,
+    mic = box.querySelector<HTMLButtonElement>(
+      'button[aria-label="Dictate message"]',
+    )!;
+  input.focus();
+  mic.click();
+  await flush();
+  expect(mic.getAttribute("aria-pressed")).toBe("true");
+  rec.onresult?.({ results: [[{ transcript: "plan the" }]] });
+  await flush();
+  rec.onresult?.({ results: [[{ transcript: "plan the trip" }]] });
+  await flush();
+  expect(input.value).toBe("plan the trip");
+  expect(mic.getAttribute("aria-pressed")).toBe("true");
+  const more = box.querySelector<HTMLButtonElement>("[data-composer-more]")!;
+  more.click();
+  await flush();
+  box.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
+  await flush();
+  expect(opened).toEqual([more]);
+});
 test("detached native tile link/settings actions cannot navigate after canonical row replacement", async () => {
   const navigation: unknown[] = [],
     settings: unknown[] = [],

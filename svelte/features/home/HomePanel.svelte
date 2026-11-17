@@ -7,9 +7,8 @@
   import Card from "../../lib/studio/Card.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import ChatBox from "../composer/ChatBox.svelte";
-  import ChatBoxInput from "../composer/ChatBoxInput.svelte";
-  import ChatBoxSend from "../composer/ChatBoxSend.svelte";
+  import ChatField from "../composer/ChatField.svelte";
+  import { createApplicationCopy } from "../application/copy";
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import type { HomeBridge } from "./types";
   import { createHomeSession } from "./session";
@@ -66,6 +65,7 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
+  const t = $derived(createApplicationCopy(lang));
   let sendButton = $state<HTMLElement | null>(null);
   const suggestion = $derived($view.result);
   const groups = $derived(waitGroups($account.me?.waits ?? []));
@@ -461,39 +461,37 @@
       >
         <div class="tw:mx-auto tw:max-w-[calc(64rem-4rem)] tw:space-y-2">
           {@render suggestionCard()}
-          <ChatBox
-            aria-busy={!!$view.busy}
-            onsubmit={(event) => {
-              event.preventDefault();
-              void session.suggest();
-            }}
-            ><label for="home-ask" class="tw:sr-only">{text("ask")}</label
-            ><ChatBoxInput
-              id="home-ask"
-              rows={1}
-              maxlength={2000}
-              placeholder={mobile.current
-                ? text("ask")
-                : text("askPlaceholder")}
-              value={$draft.ask}
-              disabled={$view.busy === "send"}
-              oninput={(event) => session.edit(event.currentTarget.value)}
-              onkeydown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.isComposing
-                ) {
-                  event.preventDefault();
-                  void session.suggest();
-                }
-              }}
-            /><ChatBoxSend
-              pending={$view.busy === "route"}
-              disabled={!!$view.busy || !$draft.ask.trim()}
-              >{text("send")}</ChatBoxSend
-            ></ChatBox
+          <ChatField
+            id="home-ask"
+            maxlength={2000}
+            label={text("ask")}
+            placeholder={mobile.current ? text("ask") : text("askPlaceholder")}
+            value={$draft.ask}
+            onedit={(value) => session.edit(value)}
+            onsubmit={() => void session.suggest()}
+            {t}
+            locale={lang === "en" ? "en-US" : "pt-BR"}
+            disabled={$view.busy === "send"}
+            busy={!!$view.busy}
+            pending={$view.busy === "route"}
+            sendDisabled={!$draft.ask.trim()}
           >
+            {#snippet menu(close, trigger)}<Button
+                variant="menu"
+                role="menuitem"
+                onclick={() => {
+                  close();
+                  onnew(trigger ?? undefined);
+                }}>{text("new")}</Button
+              ><Button
+                variant="menu"
+                role="menuitem"
+                onclick={() => {
+                  close();
+                  onsearch();
+                }}>{text("search")} <small>⌘K</small></Button
+              >{/snippet}
+          </ChatField>
         </div>
       </div>{/if}
   </main>
