@@ -360,7 +360,7 @@
         }}
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
-      <div class="tw:px-4">
+      <div>
         <div class={$geometry.boardFull ? "tw:hidden" : ""}>
           {#if $view.banners}<AgentBanners
               {...$view.banners}
@@ -370,7 +370,7 @@
                   : $geometry.documentVisible && !$geometry.boardFull)}
             />{/if}
         </div>
-        <ThreadFiles {...$view.threadFiles} />
+        <div class="tw:px-4"><ThreadFiles {...$view.threadFiles} /></div>
       </div>
     {/if}{/snippet}
   {#snippet chat()}{#if $view}
