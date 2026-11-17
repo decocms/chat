@@ -145,8 +145,8 @@
   }}
   class={[
     continuous
-      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
-      : "tw:group tw:relative tw:mt-2 tw:rounded-control tw:px-3 tw:pt-1 tw:pb-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
+      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-0.5 tw:font-sans tw:text-[0.875rem] tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
+      : "tw:group tw:relative tw:mt-2 tw:rounded-control tw:px-3 tw:pt-1 tw:pb-0.5 tw:font-sans tw:text-[0.875rem] tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
     waiting ? "tw:border-l-2 tw:border-warning tw:bg-warning/10" : "",
     attention ? "tw:animate-pulse tw:motion-reduce:animate-none" : "",
     flash ? "tw:bg-accent" : "",
@@ -182,7 +182,7 @@
             url={vb.avatarUrl?.(m.author)}
           />{/if}{:else}<time
           title={timestamp}
-          class="tw:-ml-3 tw:block tw:pt-0.5 tw:text-right tw:text-xs tw:leading-5 tw:whitespace-nowrap tw:text-muted-foreground tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100"
+          class="tw:-mx-3 tw:block tw:text-center tw:text-xs tw:leading-6 tw:whitespace-nowrap tw:text-muted-foreground tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100"
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
@@ -198,13 +198,14 @@
                 : "tw:text-foreground",
             ]}>{author(m)}</span
           >{#if m.kind === "agent"}<Badge
+              size="sm"
               title={vb.t("Escrito pelo agent dessa pessoa, em nome dela")}
               >agent</Badge
             >{/if}{#if m.tag === "done"}<Badge
+              size="sm"
               class="tw:text-foreground"
               variant="success">✓ {vb.t("entregue")}</Badge
-            >{/if}<time title={timestamp}>{vb.ago(m.ts)} · {vb.hhmm(m.ts)}</time
-          >
+            >{/if}<time title={timestamp}>{vb.hhmm(m.ts)}</time>
         </div>{/if}
       {#if m.reply_to}<Button
           variant="ghost"
