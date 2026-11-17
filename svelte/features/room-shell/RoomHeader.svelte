@@ -83,9 +83,7 @@
           }}><Icon icon={ArrowLeft} size={16} /></IconButton
         >{/snippet}</Snapshot
     >{/key}
-  <div
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-24"
-  >
+  <div class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:min-w-24">
     <ThreadHeader {...header} compact />
   </div>
   <div
