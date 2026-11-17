@@ -5,6 +5,7 @@
   import Popover from "../../lib/studio/Popover.svelte";
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
+  import { QUICK_REACTIONS as QUICK } from "./reactions";
   let {
     message,
     me,
@@ -16,7 +17,6 @@
     actions: ChatActions;
     vb: ChatBridge;
   } = $props();
-  const QUICK = ["👍", "❤️", "😂", "🎉", "👀", "✅", "🙏", "🔥"];
   let open = $state(false);
   const all = $derived(
     Object.entries(message.reactions ?? {}).filter(([, who]) => who.length),
@@ -35,12 +35,14 @@
   }
 </script>
 
+<!-- With a mouse, adding a reaction lives in the message's floating toolbar;
+     this row shows the chips, plus 🙂+ next to them on touch screens. -->
 <div
   data-message-reactions
   class="tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:gap-1 {all.length ||
   open
     ? ''
-    : 'tw:md:-mt-1 tw:md:h-0 tw:md:overflow-visible'}"
+    : 'tw:hidden'}"
 >
   {#each all as [emoji, list] (emoji)}<button
       type="button"
@@ -60,10 +62,7 @@
   <Popover bind:open>
     <PopoverTrigger
       aria-label={vb.t("Reagir a esta mensagem")}
-      class="tw:inline-flex tw:min-h-7 tw:items-center tw:rounded-full tw:border tw:border-border tw:bg-background tw:px-2 tw:text-sm tw:text-muted-foreground tw:transition-opacity tw:duration-150 {all.length ||
-      open
-        ? ''
-        : 'tw:hidden tw:md:inline-flex tw:md:opacity-0 tw:md:group-hover:opacity-100 tw:md:focus:opacity-100'}"
+      class="tw:inline-flex tw:min-h-7 tw:items-center tw:rounded-full tw:border tw:border-border tw:bg-background tw:px-2 tw:text-sm tw:text-muted-foreground tw:pointer-fine:hidden"
       >🙂+</PopoverTrigger
     >
     <PopoverContent

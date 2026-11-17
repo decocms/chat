@@ -307,6 +307,10 @@
   <MessageActions
     bind:this={actionController}
     floating
+    canReact={!origin &&
+      kind !== "issue" &&
+      kind !== "notice" &&
+      kind !== "reminder"}
     message={m}
     roomId={room.id}
     {actions}
