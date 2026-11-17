@@ -20,8 +20,12 @@
       ]
     },
     "fixes": {
-      "pt": [],
-      "en": []
+      "pt": [
+        "No app novo (?ui=svelte), o seu avatar no fim da barra lateral ficou do tamanho dos botões de busca e + ao lado."
+      ],
+      "en": [
+        "In the new app (?ui=svelte), your avatar at the bottom of the sidebar is now the same size as the search and + buttons beside it."
+      ]
     }
   },
   {
