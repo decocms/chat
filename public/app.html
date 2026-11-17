@@ -5079,7 +5079,7 @@ function renderTasks() {
   if (preOf()) { head.innerHTML = `${pick(`<span class="ri">${esc(initials(preOf().title))}</span>`, `<span class="epicName" id="roomName">${esc(preOf().title)}</span>`)}<small class="folderChip">✦ ${t("sugestão do @vibe")}</small>`; wireChev(); document.getElementById("roomName").onclick = () => ROOM_PHONE.matches && openSheet("side"); el.innerHTML = ""; renderPeek(); return; }
   head.innerHTML = epic
     ? `${pick(`<span class="ri" style="background:${color(epic.title)};color:#fff">${esc(initials(epic.title))}</span>`, `<span class="epicName" id="roomName" title="${t("Clique para renomear")}">${esc(epic.title)}</span>`)}<button class="ghost x" id="epicArch" title="${epic.archived ? t("Desarquivar épico") : t("Arquivar épico (concluído)")}" aria-label="${epic.archived ? t("Desarquivar épico") : t("Arquivar épico")}">${icon(epic.archived ? "undo" : "check")}</button><button class="ghost x" id="epicDel" title="${t("Apagar épico")}" aria-label="${t("Apagar épico")}">${icon("trash")}</button>`
-    : `${pick(roomMark("ri roomIco"), `<span class="epicName" id="roomName" title="${esc(S.book?.summary || t("Clique para renomear"))}">${esc(bookTitle())}</span>`)}${S.book?.folder ? `<small class="folderChip">${icon("folder", 12)} ${esc(S.book.folder)}</small>` : ""}`;
+    : `${pick(roomMark("ri roomIco"), `<span class="epicName" id="roomName" title="${esc(S.book?.summary || t("Clique para renomear"))}">${esc(bookTitle())}</span>`)}`;
   // Who is the room waiting on: open tasks with an owner, across every epic.
   const waiting = {};
   for (const t of [...S.epics.flatMap((e) => e.tasks), ...(S.roomTasks || [])]) if (!t.done && t.owner) waiting[t.owner] = (waiting[t.owner] || 0) + 1;
