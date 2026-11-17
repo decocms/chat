@@ -19,6 +19,7 @@
   import DocumentPanel from "../documents/DocumentPanel.svelte";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import AgentBanners from "../agents/AgentBanners.svelte";
+  import AgentTrigger from "../agents/AgentTrigger.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -329,11 +330,21 @@
           if (current()) presentation.openInbox(trigger);
         }}
         hideSheetHandle
-      />{/if}{/snippet}
+      >
+        {#snippet footer(
+          collapsed,
+        )}{#if $view?.trigger}<!-- Your Claude, at the foot of the sidebar: opens the Agents pane. -->
+            <div
+              data-document-pane="agents"
+              data-native-agent-footer
+              class="tw:flex tw:justify-center"
+            >
+              <AgentTrigger {...$view.trigger} row={!collapsed} />
+            </div>{/if}{/snippet}
+      </Sidebar>{/if}{/snippet}
   {#snippet header()}{#if $view}<RoomHeader
         {presentation}
         header={$view.header}
-        trigger={$view.trigger}
         appNavigation={$view.sidebar.appNavigation}
         {layout}
         {current}

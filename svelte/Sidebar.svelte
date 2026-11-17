@@ -57,6 +57,7 @@
     onthreadintent,
     mountSheetHandle,
     hideSheetHandle = false,
+    footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
   const owner = untrack(
@@ -196,6 +197,11 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
+    {#if footer}<div
+        class="tw:mt-auto tw:shrink-0 tw:pt-2 tw:max-[900px]:hidden"
+      >
+        {@render footer(true)}
+      </div>{/if}
   {:else}
     {#if !hideSheetHandle}<button
         type="button"
@@ -211,7 +217,11 @@
     {#snippet thisRoom()}<div
         class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3"
       >
-        <div class="tw:group/room tw:relative tw:shrink-0">
+        <!-- Desktop: the room's own header, the same 52px as the top bar beside it. -->
+        <div
+          data-room-sidebar-header
+          class="tw:group/room tw:relative tw:shrink-0 tw:min-[901px]:-mx-2 tw:min-[901px]:-mt-2 tw:min-[901px]:flex tw:min-[901px]:h-[52px] tw:min-[901px]:flex-col tw:min-[901px]:justify-center tw:min-[901px]:border-b tw:min-[901px]:border-border tw:min-[901px]:px-2"
+        >
           <Tooltip>
             <TooltipTrigger>
               {#snippet child({ props })}
@@ -255,7 +265,7 @@
             label={vb.t("Renomear")}
             size="icon-xs"
             tooltipSide="bottom"
-            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:min-[901px]:top-[0.9rem] tw:min-[901px]:right-3.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
             onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
           >
         </div>
@@ -318,5 +328,8 @@
       />
     </div>
     <MutationStatus {owner} t={vb.t} />
+    {#if footer}<div class="tw:mt-auto tw:shrink-0 tw:max-[900px]:hidden">
+        {@render footer(false)}
+      </div>{/if}
   {/if}
 </section>

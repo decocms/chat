@@ -120,10 +120,13 @@ export async function openNativeRoomPane(
   } else {
     if ((await full.getAttribute("aria-pressed")) === "true")
       await full.click();
+    // The tabs live in the room's top bar and open the pane when it's closed;
+    // your Claude (the Agents pane) sits at the foot of the sidebar.
     const button = page.locator(
-      `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
+      pane === "agents"
+        ? "[data-native-agent-footer] button"
+        : `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
     );
-    // The tabs live in the room's top bar and open the pane when it's closed.
     if (
       (await layout.getAttribute("data-pane")) !== pane ||
       !(await page.locator(content[pane]).isVisible())

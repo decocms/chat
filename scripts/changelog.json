@@ -24,6 +24,7 @@
     ],
     "improvements": {
       "pt": [
+        "No app novo (?ui=svelte), no computador a sala fica num quadro só, como no Discord: barra lateral, chat e painel no mesmo fundo, com uma linha fina entre eles, e o topo da barra lateral (nome da sala) na mesma altura da barra do chat. As abas do painel (Doc, Quadro, Arquivos, Apps, Decisões, Lembretes) ficam no fim dessa barra e não se movem quando você arrasta a divisória. Seu Claude saiu do topo e foi pro pé da barra lateral, com o estado escrito; clicar abre o painel de agentes.",
         "No computador, no app novo (?ui=svelte), a sala tem uma barra só no topo: o nome e a conversa em cima do chat, as abas do painel (Doc, Tarefas, Arquivos, Apps, Decisões, Lembretes) começando na linha que divide chat e painel, e chat e painel numa superfície só. Com o painel fechado, uma aba abre o painel nela. O ✻ do agent aparece uma vez só.",
         "Na caixa de mensagem, as @menções que chamam alguém da sala ficam destacadas enquanto você escreve, e cada uma se apaga inteira com um Backspace (← e → pulam por cima). Uma menção que você digitou letra por letra ainda se corrige letra por letra.",
         "Na caixa de mensagem, `:` e duas letras sugerem emoji como no Slack (`:fi` → 🔥 :fire:); Enter ou Tab põe o emoji, Esc fecha a lista.",
@@ -41,6 +42,7 @@
         "No app novo (?ui=svelte), a caixa \"O que você quer resolver?\" da tela inicial agora é o mesmo campo de mensagem da sala: emoji, +, ditado por voz e o botão de enviar, que virou uma seta."
       ],
       "en": [
+        "In the new app (?ui=svelte), on desktop the room sits in one frame, like Discord: sidebar, chat and pane on one surface with a hairline between them, and the sidebar's top (the room name) as tall as the chat's bar. The pane tabs (Doc, Board, Files, Apps, Decisions, Reminders) sit at the end of that bar and don't move when you drag the divider. Your Claude moved from the top bar to the foot of the sidebar, with its state written out; clicking it opens the Agents panel.",
         "On computers, in the new app (?ui=svelte), a room has one bar on top: the name and thread over the chat, the panel tabs (Doc, Tasks, Files, Apps, Decisions, Reminders) starting at the line between chat and panel, and chat and panel on one surface. With the panel closed, a tab opens it there. Your agent's ✻ shows once.",
         "In the message box, @mentions that reach someone in the room are highlighted as you type, and each one goes away whole with one Backspace (← and → jump over it). A mention you typed letter by letter still fixes letter by letter.",
         "In the message box, `:` plus two letters suggests emoji like Slack (`:fi` → 🔥 :fire:); Enter or Tab puts the emoji in, Esc closes the list.",
