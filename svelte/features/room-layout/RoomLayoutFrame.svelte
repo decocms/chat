@@ -187,7 +187,7 @@
       class={[
         "tw:relative tw:z-30 tw:col-start-2 tw:row-start-1 tw:min-w-0",
         $view.mobile
-          ? "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3"
+          ? "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3"
           : "tw:mt-2 tw:mr-2 tw:flex tw:h-[52px] tw:items-center tw:rounded-t-surface tw:border-b tw:border-border tw:pr-3 tw:pl-5",
         props.overlayOpen && "tw:hidden",
       ]}
