@@ -68,12 +68,14 @@
     },
     "fixes": {
       "pt": [
+        "No app novo (?ui=svelte), um app aberto na aba Apps ocupa o painel até embaixo, em vez de ficar numa faixa curta com o resto vazio.",
         "No app novo (?ui=svelte), o número no ✻ do seu Claude (mensagens na fila) ficou legível: verde-limão como as outras contagens, em vez de branco no laranja.",
         "No celular, no app novo (?ui=svelte), as pastas em Arquivos (agents/, reminders/…) voltaram a ser cartões retangulares como os dos arquivos, em vez de virarem círculos.",
         "No app novo (?ui=svelte), o seu avatar no fim da barra lateral ficou do tamanho dos botões de busca e + ao lado.",
         "No app novo (?ui=svelte), \"Novo épico\" e as sugestões do @vibe vêm logo depois da lista de épicos na barra lateral; o espaço que sobra fica acima de Pessoas e agents."
       ],
       "en": [
+        "In the new app (?ui=svelte), an app opened in the Apps tab fills the panel to the bottom instead of sitting in a short strip with empty space below.",
         "In the new app (?ui=svelte), the number on your Claude's ✻ (queued messages) is readable now: lime like every other count, instead of white on orange.",
         "On phones, in the new app (?ui=svelte), folders in Files (agents/, reminders/…) are rectangular cards like the files again, instead of turning into circles.",
         "In the new app (?ui=svelte), your avatar at the bottom of the sidebar is now the same size as the search and + buttons beside it.",
