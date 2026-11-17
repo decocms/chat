@@ -72,6 +72,8 @@ export type RoomLayoutProps = {
   attention?: Snippet;
   chat: Snippet;
   composer: Snippet;
+  /** The phone's bottom tab bar, a row under the composer on phones only. */
+  tabbar?: Snippet;
   documentToolbar: Snippet;
   document: Snippet;
   board: Snippet;
