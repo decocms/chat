@@ -10,6 +10,13 @@ type PersonalSocketFixture = {
   close(): void;
 };
 import { createHomeApi } from "../svelte/features/home/api";
+import {
+  byImportance,
+  fanClasses,
+  fanSize,
+  fanSlot,
+  inFan,
+} from "../svelte/features/home/deskHand";
 import { createPersonalSession } from "../svelte/features/home/personal";
 import {
   createHomeSession,
@@ -1064,4 +1071,46 @@ test("home rows: wait text is one plain line and every wait has a filter kind", 
   expect(
     ["a1", "b2", "m3", "t4"].map((ref) => waitKind({ ...base, ref })),
   ).toEqual(["claude", "claude", "asks", "reviews"]);
+});
+
+const deskWait = (ref: string, ts: number) => ({
+  book_id: "aaaaaa",
+  room: "Room",
+  ref,
+  thread: "main",
+  topic: null,
+  author: "ana@test.com",
+  author_name: "Ana",
+  text: "Ask " + ref,
+  ts,
+});
+test("desk hand: your Claude first, then asks, then reviews, newest first", () => {
+  const order = byImportance([
+    deskWait("t1", 50),
+    deskWait("m2", 10),
+    deskWait("a3", 5),
+    deskWait("m4", 40),
+    deskWait("b5", 30),
+  ]).map((wait) => wait.ref);
+  expect(order).toEqual(["b5", "a3", "m4", "m2", "t1"]);
+});
+test("desk hand: the fan is odd and at most seven", () => {
+  expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 12].map(fanSize)).toEqual([
+    0, 1, 1, 3, 3, 5, 5, 7, 7, 7,
+  ]);
+});
+test("desk hand: the middle card leads, the rest alternate right and left", () => {
+  expect([0, 1, 2, 3, 4, 5, 6].map(fanSlot)).toEqual([0, 1, -1, 2, -2, 3, -3]);
+  expect(fanClasses(0, 9)).toContain("tw:z-20");
+  expect(fanClasses(1, 9)).toContain("tw:translate-x-[46px]");
+  expect(fanClasses(2, 9)).toContain("tw:translate-x-[-46px]");
+  // Beyond the seventh, a card waits hidden behind the fan (the grid shows it).
+  expect(fanClasses(7, 9)).toContain("tw:opacity-0");
+  expect(inFan(6, 9, false)).toBe(true);
+  expect(inFan(7, 9, false)).toBe(false);
+  // Four waits fan three: the fourth stays behind.
+  expect(inFan(3, 4, false)).toBe(false);
+  // A phone piles five.
+  expect(inFan(4, 9, true)).toBe(true);
+  expect(inFan(5, 9, true)).toBe(false);
 });

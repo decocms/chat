@@ -972,6 +972,20 @@ test("native Home renders untrusted room metadata as text and passes exact room 
             summary: "<script>evil()</script>",
           }),
         ],
+        // The desk home lists rooms only through what waits in them.
+        waits: [
+          {
+            book_id: "aaaaaa",
+            room: "<img src=x onerror=alert(1)>",
+            ref: "t1",
+            thread: "main",
+            topic: null,
+            author: "other@test.com",
+            author_name: "<script>evil()</script>",
+            text: "<b>review</b>",
+            ts: 1,
+          },
+        ],
       }),
   });
   const navigation: unknown[] = [],
@@ -1009,11 +1023,13 @@ test("native Home renders untrusted room metadata as text and passes exact room 
   expect(target.querySelector("[onerror]")).toBe(null);
   expect(target.textContent).toContain("<img src=x onerror=alert(1)>");
   const anchor = target.querySelector<HTMLAnchorElement>(
-    'a[href="/b/aaaaaa?ui=svelte"]',
+    'a[data-home-card][href="/b/aaaaaa?ui=svelte"]',
   )!;
   expect(anchor).not.toBe(null);
   anchor.click();
-  expect(navigation).toEqual([{ roomId: "aaaaaa" }]);
+  expect(navigation).toEqual([
+    { roomId: "aaaaaa", thread: "main", messageId: undefined },
+  ]);
   const heading = target.querySelector("h1")!;
   expect(heading.classList.contains("tw:font-sans")).toBe(true);
   expect(
@@ -1186,7 +1202,7 @@ test("room refresh keeps Home draft/focus, then unmount owns late routing result
   expect(navigation).toEqual([]);
   expect(target.textContent).toBe("");
 });
-test("canonical ask clearance changes native room count to a task dot without hiding the task", async () => {
+test("canonical ask clearance takes the ask card away without hiding the task", async () => {
   const wait = (ref: string): ReturnType<typeof me>["waits"][number] => ({
     book_id: "aaaaaa",
     room: "Room aaaaaa",
@@ -1232,19 +1248,19 @@ test("canonical ask clearance changes native room count to a task dot without hi
     }),
   );
   await flush();
-  const tile = () => target.querySelector('[data-room-id="aaaaaa"]')!;
-  expect(
-    tile().querySelector('[data-wait-kind="asks"]')?.textContent?.trim(),
-  ).toBe("1");
-  expect(tile().querySelector('[data-wait-kind="tasks"]')).toBeNull();
+  const cards = () =>
+    [...target.querySelectorAll<HTMLElement>("[data-home-card]")].map(
+      (card) => card.dataset.homeCard,
+    );
+  // An ask comes before a task in review.
+  expect(cards()).toEqual(["m1", "t2"]);
+  expect(target.querySelector("h1")?.textContent).toContain("2 things");
   // The server's fresh /api/me result, not an optimistic local msg hook, clears m1.
   latest = me({ waits: [wait("t2")] });
   await personal.refresh();
   await flush();
-  expect(tile().querySelector('[data-wait-kind="asks"]')).toBeNull();
-  const dot = tile().querySelector('[data-wait-kind="tasks"]')!;
-  expect(dot.getAttribute("aria-label")).toBe("A task of yours is pending");
-  expect(dot.textContent).toBe("");
+  expect(cards()).toEqual(["t2"]);
+  expect(target.querySelector("h1")?.textContent).toContain("One thing");
   expect(target.textContent).toContain("Task remains actionable");
 });
 test("actual Home mounts three onboarding steps, preserves drafts across Back and skips into ordinary Home", async () => {
