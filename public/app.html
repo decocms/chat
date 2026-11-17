@@ -26,6 +26,7 @@
     --accent: light-dark(oklch(0.5 0.17 248), #5b93ff); --accent-ink: #fff; --ai: var(--accent); --ai-bg: light-dark(oklch(0.95 0.03 245), #142037);
     --ok: light-dark(oklch(0.6 0.14 155), #49c48a); --sun: light-dark(oklch(0.9 0.16 98), #f2dc4a);
     --claude: light-dark(#d97757, #f08c5a);
+    --warn: light-dark(#c56e00, oklch(0.7 0.15 70)); --bad: light-dark(#dc3b30, #f2665c);
     /* tinted surfaces: Claude (warm), delivered (green), mentions, waiting (yellow) */
     --warm-bg: light-dark(oklch(0.975 0.014 55), #1c1612); --warm-line: light-dark(oklch(0.92 0.035 55), #3a2718); --warm-ink: light-dark(oklch(0.32 0.06 40), #f3b48e);
     --ok-bg: light-dark(oklch(0.97 0.03 155), #0f2219); --ok-line: light-dark(oklch(0.86 0.07 155), #1e4232); --ok-ink: light-dark(oklch(0.42 0.12 155), #7fdcae);
@@ -864,12 +865,19 @@
   .ptabs button.sel { color: var(--ink); background: var(--hover); }
   .ptabs .ptDoc { color: var(--ink); }
   .chathead #myClaude { display: none !important; } /* the doc toolbar's ✻ opens Agents */
-  .ptabs .ptAgents { margin-left: auto; margin-right: 6px; position: sticky !important; right: 6px; z-index: 1; background: var(--claude); color: #fff; border-radius: 10px; }
-  .peekAgents, .ptAgents { width: 34px; height: 34px; padding: 0 !important; display: grid !important; place-items: center; flex: none; }
+  /* The agent's ✻ (same as Svelte's AgentMark): round, transparent, orange star when on, grey when off; one badge in
+     the bottom-right corner: a dot, or a count while something waits on the agent (renderAgentsPane sets data-q). */
+  .ptabs .ptAgents { margin-left: auto; margin-right: 6px; position: sticky !important; right: 6px; z-index: 1; background: var(--panel); }
+  .peekAgents, .ptAgents { width: 34px; height: 34px; padding: 0 !important; display: grid !important; place-items: center; flex: none; border-radius: 50% !important; color: var(--mute); }
+  .peekAgents[data-on="true"], .ptAgents[data-on="true"] { color: var(--claude); }
   .peekAgents svg, .ptAgents svg { display: block; }
-  .peekAgents .qN, .ptAgents .qN { position: absolute; right: -6px; bottom: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--bg); color: var(--claude); box-shadow: 0 0 0 1.5px var(--claude); font: 700 10px/16px "Schibsted Grotesk", system-ui, sans-serif; text-align: center; }
-  .peekAgents .qN:empty, .ptAgents .qN:empty { display: none; }
-  .ptabs .ptAgents.sel, .ptabs .ptAgents:hover { background: var(--claude); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--claude); }
+  [data-q="working"] > svg, [data-q="busy"] > svg { animation: agSpin 3s linear infinite; }
+  @keyframes agSpin { to { transform: rotate(360deg); } }
+  .peekAgents .qN, .ptAgents .qN { display: none; position: absolute; right: -3px; bottom: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; color: #fff; box-shadow: 0 0 0 2px var(--bg); font: 700 10px/16px "Schibsted Grotesk", system-ui, sans-serif; text-align: center; font-variant-numeric: tabular-nums; }
+  :is([data-q="blocked"], [data-q="busy"], [data-q="queued"]) .qN:not(:empty) { display: block; }
+  [data-q="blocked"] .qN { background: var(--bad); animation: qPulse 1s ease-in-out infinite; }
+  :is([data-q="busy"], [data-q="queued"]) .qN { background: var(--warn); }
+  .ptabs .ptAgents.sel, .ptabs .ptAgents:hover { background: var(--hover); }
   .doc header .seg { display: none; } /* reading/editing: the bar at the doc's foot */
   .ptabs small { font: 600 12px "Schibsted Grotesk", sans-serif; color: var(--mute); margin-left: 4px; }
   .doc[data-pane="files"] .preview, .doc[data-pane="files"] textarea, .doc[data-pane="files"] .seg { display: none; }
@@ -935,11 +943,13 @@
   .agSwitch i { position: absolute; inset: 0; border-radius: 99px; background: var(--line); transition: background .2s; pointer-events: none; }
   .agSwitch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .3); transition: transform .2s; }
   .agSwitch input:checked + i { background: var(--claude); } .agSwitch input:checked + i::after { transform: translateX(18px); }
-  .qDot { display: none; position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg); }
-  [data-q="idle"] .qDot { display: block; background: oklch(0.7 0.17 150); }
-  [data-q="busy"] .qDot { display: block; background: #fbbf24; animation: qPulse 1.6s ease-in-out infinite; }
-  [data-q="blocked"] .qDot { display: block; width: 12px; height: 12px; background: #ef4444; animation: qPulse 1s ease-in-out infinite; }
-  @keyframes qPulse { 50% { transform: scale(1.35); } }
+  .qDot { display: none; position: absolute; right: 3px; bottom: 3px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg); }
+  :is([data-q="working"], [data-q="listening"]) .qDot { display: block; background: var(--ok); }
+  [data-q="opening"] .qDot { display: block; background: var(--warn); animation: qPulse 1.4s ease-in-out infinite; }
+  [data-q="late"] .qDot { display: block; background: var(--bg); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 2px var(--warn); }
+  [data-q="none"] .qDot { display: block; background: var(--bg); box-shadow: 0 0 0 2px var(--bg), inset 0 0 0 2px var(--mute); }
+  @keyframes qPulse { 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { [data-q] > svg, [data-q] .qDot, [data-q] .qN { animation: none !important; } }
   .peekAgents, .ptAgents { position: relative; } .qN { font-size: 11px; font-weight: 700; }
   .queue { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; } /* minmax: a long message ellipsizes instead of widening the pane */
   .queue:not(.open) .qRow:nth-child(n+5) { display: none; }
@@ -1297,8 +1307,8 @@
     .chathead #myClaude { display: none !important; } /* in the toolbar below on phones */
     .book.boardview .docPeek { display: none; } /* the board takes the screen; the header's picker filters it */
     .chathead #toggleBoard { flex: none; align-self: center; height: 32px; padding: 0 8px; gap: 4px; } .chathead #toggleBoard .lbl { display: none; }
-    .peekRow .peekAgents { background: var(--claude); color: #fff; width: 40px; height: 40px; margin-left: 2px; border-radius: 10px; }
-    .book[data-sheet="doc"][data-pane="agents"] .peekRow .peekAgents { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--claude); background: var(--claude); color: #fff; }
+    .peekRow .peekAgents { width: 40px; height: 40px; margin-left: 2px; }
+    .book[data-sheet="doc"][data-pane="agents"] .peekRow .peekAgents { background: var(--hover); }
     /* Room header on phones: ← home, the thread's name as a switcher (▾ opens the sheet), bell + board; "esperando…" under the title. */
     .chathead { height: auto; min-height: 52px; padding: max(8px, env(safe-area-inset-top)) 12px 8px 6px; align-items: flex-start; gap: 4px; }
     /* ← centered in the space before the title button (its icon used to sit at the box's left edge). */
@@ -2160,8 +2170,13 @@ const EN = {
   "Remover o token do Claude? Sandboxes que já têm o token continuam logados até você apagá-los.": "Remove the Claude token? Sandboxes that already have it stay logged in until you delete them.",
   "sala principal": "main room",
   "épico": "epic",
-  "Fila do seu agent: {n}": "Your agent's queue: {n}",
-  "Seu agent está livre": "Your agent is free",
+  "Agent ouvindo esta sala": "Agent listening to this room",
+  "Agent trabalhando aqui": "Agent working here",
+  "Abrindo seu agent…": "Opening your agent…",
+  "Agent ainda não está ouvindo": "Agent not listening yet",
+  "Agent desligado nesta sala": "Agent off in this room",
+  "Agent não conectado": "Agent not connected",
+  "{n} na fila": "{n} queued",
   "Fila do seu agent": "Your agent's queue",
   "espera você": "waiting for you",
   "fazendo": "doing",
@@ -4303,15 +4318,25 @@ async function toggleClaude() {
 function renderAgentsPane(on, live, path, w) {
   const el = document.getElementById("agentsPane"); if (!el) return;
   const mine = roomAgents.list.filter((a) => a.email === S.me);
-  // The queue: what you asked here (any thread, last 48h) that none of your Claudes closed. On the ✻: a green dot when
-  // your Claude is around with nothing queued, orange + count while something waits on it.
+  // The queue: what you asked here (any thread, last 48h) that none of your Claudes closed. The ✻ (same as Svelte's
+  // AgentMark/agentMark): presence and queue merged into one state, highest first: blocked (in its terminal) > busy
+  // (working, more queued) > queued > working > listening > opening > late > off > none. One badge, bottom right: a dot,
+  // or a count while something waits on the agent.
   const q = myQueue(), around = live || mine.some((a) => Date.now() - a.seen_at < 30 * 60e3);
+  const status = live ? "listening" : noClaude ? "none" : !on ? "off" : around ? "working"
+    : Date.now() - (claudeAsked[S.id] || 0) <= 180e3 ? "opening" : "late";
+  const state = q.some((x) => x.st === "blocked") ? "blocked"
+    : q.length && (status === "working" || q.some((x) => x.st === "doing")) ? "busy"
+    : q.length ? "queued" : status;
+  const head = state === "blocked" ? t("Seu agent espera você no terminal") : {
+    listening: t("Agent ouvindo esta sala"), working: t("Agent trabalhando aqui"), opening: t("Abrindo seu agent…"),
+    late: t("Agent ainda não está ouvindo"), off: t("Agent desligado nesta sala"), none: t("Agent não conectado"),
+  }[status];
   document.querySelectorAll(".peekAgents, .ptAgents").forEach((b) => {
-    // Stopped at a permission prompt in its terminal: a red, pulsing dot and the prompt in the title.
-    const stuck = q.find((x) => x.st === "blocked");
-    b.dataset.q = stuck ? "blocked" : q.length ? "busy" : around ? "idle" : "";
+    b.dataset.q = state;
+    b.dataset.on = String(status !== "off" && status !== "none" || state === "blocked");
     b.querySelector(".qN").textContent = q.length ? String(q.length) : "";
-    b.title = stuck ? t("Seu agent espera você no terminal") : q.length ? t("Fila do seu agent: {n}", { n: q.length }) : around ? t("Seu agent está livre") : "Agents";
+    b.title = q.length ? `${head} · ${t("{n} na fila", { n: q.length })}` : head;
   });
   document.getElementById("docPeek")?.classList.toggle("agLive", live);
   // The rest is the pane itself: drawn only while it's open (renderSide calls this on every change).

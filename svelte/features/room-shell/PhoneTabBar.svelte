@@ -5,6 +5,8 @@
   import { cn } from "../../lib/studio/utils";
   import { MessageCircle01 } from "../../lib/studio/icons";
   import { paneIcons } from "../documents/paneIcons";
+  import AgentMark from "../agents/AgentMark.svelte";
+  import type { AgentMarkView } from "../agents/model";
   import type { DocumentPane } from "../documents/types";
   import type { RoomLayoutController } from "../room-layout/types";
   import { phoneTab, phoneTabPanes, type PhoneTab } from "./panelViews";
@@ -18,7 +20,7 @@
     current,
     lang,
     boardCount,
-    agentState = "",
+    agent = { state: "off", count: 0, on: false },
     agentTitle = "Claude",
     onPane,
   }: {
@@ -26,7 +28,8 @@
     current(): boolean;
     lang: string;
     boardCount?: number | string;
-    agentState?: string;
+    /** The ✻ (`agentMark`), drawn as the Claude tab's icon. */
+    agent?: AgentMarkView;
     agentTitle?: string;
     /** Opens a pane in the doc sheet (no toggle). */
     onPane(pane: DocumentPane): void;
@@ -90,6 +93,7 @@
     <button
       type="button"
       data-phone-tab={tab.id}
+      title={tab.id === "claude" ? agentTitle : undefined}
       aria-current={on ? "page" : undefined}
       class={cn(
         "tw:relative tw:flex tw:min-w-0 tw:cursor-pointer tw:flex-col tw:items-center tw:gap-0.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:py-1 tw:text-[0.6875rem] tw:leading-4 tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
@@ -100,7 +104,13 @@
         class={cn(
           "tw:flex tw:h-7 tw:w-12 tw:items-center tw:justify-center tw:rounded-full tw:transition-colors tw:duration-150 tw:motion-reduce:transition-none",
           on && "tw:bg-accent",
-        )}><Icon icon={tab.icon} size={18} /></span
+        )}
+        >{#if tab.id === "claude"}<AgentMark
+            state={agent.state}
+            count={agent.count}
+            on={agent.on}
+            size={18}
+          />{:else}<Icon icon={tab.icon} size={18} />{/if}</span
       ><span class="tw:max-w-full tw:truncate">{tab.label}</span
       >{#if tab.id === "board" && typeof boardCount === "number" && boardCount}<Count
           value={boardCount}
@@ -108,18 +118,7 @@
             ? `Waiting on you: ${boardCount}`
             : `Esperando você: ${boardCount}`}
           class="tw:absolute tw:top-0 tw:left-[calc(50%+0.375rem)] tw:shadow-[0_0_0_2px_var(--vb-background)]"
-        />{/if}{#if tab.id === "claude" && agentState}<span
-          role="img"
-          aria-label={agentTitle}
-          class={cn(
-            "tw:absolute tw:top-1 tw:left-[calc(50%+0.625rem)] tw:size-2 tw:rounded-full tw:shadow-[0_0_0_2px_var(--vb-background)]",
-            agentState === "blocked"
-              ? "tw:bg-destructive"
-              : agentState === "busy"
-                ? "tw:bg-warning"
-                : "tw:bg-brand",
-          )}
-        ></span>{/if}</button
+        />{/if}</button
     >
   {/each}
 </nav>

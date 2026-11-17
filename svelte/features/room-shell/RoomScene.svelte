@@ -353,7 +353,7 @@
         {current}
         lang={services.language}
         boardCount={$view.toolbar.counts?.board}
-        agentState={$view.toolbar.agentState}
+        agent={$view.toolbar.agent}
         agentTitle={$view.toolbar.agentTitle}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
