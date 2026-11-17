@@ -17,7 +17,7 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Plus, X } from "../../lib/studio/icons";
+  import { Copy01, Plus, RefreshCw01, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
@@ -150,6 +150,9 @@
   // Actions on a person's row wait behind hover (always shown on touch screens).
   const quiet =
     "tw:hidden tw:group-hover/member:inline-flex tw:group-focus-within/member:inline-flex tw:[@media(hover:none)]:inline-flex";
+  // The pending badge gives its place to those actions, so the name keeps its width.
+  const resting =
+    "tw:group-hover/member:hidden tw:group-focus-within/member:hidden tw:[@media(hover:none)]:hidden";
 </script>
 
 {#snippet outcomes()}
@@ -224,28 +227,31 @@
       >{label(email)}</span
     >
     {#if pending}
-      <Badge variant="muted" title={vb.t("Convidada(o), ainda não entrou")}
-        >{vb.t("pendente")}</Badge
+      <Badge
+        variant="muted"
+        class={resting}
+        title={vb.t("Convidada(o), ainda não entrou")}>{vb.t("pendente")}</Badge
       >
-      <Button
+      <IconButton
         variant="ghost"
-        size="xs"
-        class={cn(quiet, "tw:px-1.5")}
+        size="icon-xs"
+        class={quiet}
         data-copyinv={email}
-        title={vb.t(
+        label={vb.t(
           "Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp",
         )}
-        onclick={() => copy(email)}>{vb.t("copiar")}</Button
+        onclick={() => copy(email)}><Icon icon={Copy01} /></IconButton
       >
-      <Button
+      <IconButton
         variant="ghost"
-        size="xs"
-        class={cn(quiet, "tw:px-1.5")}
+        size="icon-xs"
+        class={quiet}
         data-resend={email}
+        label={vb.t("reenviar")}
         disabled={!!$view.pending[email]}
         onclick={() => {
           void session.mutate("resend", email, request || http);
-        }}>{vb.t("reenviar")}</Button
+        }}><Icon icon={RefreshCw01} /></IconButton
       >
     {/if}
     {#if canRemove(room, email)}<IconButton
