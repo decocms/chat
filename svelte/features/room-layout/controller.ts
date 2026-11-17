@@ -146,6 +146,7 @@ export function createRoomLayout(
     geometry?.dispose();
     geometry = null;
   };
+  let paneBeforeBoard = true;
   const controller: RoomLayoutController = {
     state,
     read: () => value,
@@ -168,7 +169,12 @@ export function createRoomLayout(
     toggleBoard() {
       intent(() => {
         const boardFull = !value.boardFull;
-        publish({ boardFull, documentVisible: !boardFull });
+        // Leaving the board brings the pane back as it was (open or closed).
+        if (boardFull) paneBeforeBoard = value.documentVisible;
+        publish({
+          boardFull,
+          documentVisible: boardFull ? false : paneBeforeBoard,
+        });
         if (boardFull) history.close();
         geometry?.sync(value);
       });

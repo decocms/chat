@@ -56,6 +56,7 @@
     oninbox,
     inboxOpen = false,
     onthreadintent,
+    onroomhome,
     mountSheetHandle,
     hideSheetHandle = false,
     footer,
@@ -223,15 +224,23 @@
           data-room-sidebar-header
           class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
         >
-          <RoomMark title={room.book.title} src={roomIcon} />
-          <h2
-            class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
+          <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
+          <button
+            type="button"
+            data-room-home
+            class="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sidebar-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
             title={room.book.summary
               ? `${room.book.title}\n${room.book.summary}`
               : room.book.title}
+            onclick={() => onroomhome?.()}
           >
-            {room.book.title}
-          </h2>
+            <RoomMark title={room.book.title} src={roomIcon} />
+            <h2
+              class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
+            >
+              {room.book.title}
+            </h2>
+          </button>
           <IconButton
             label={vb.t("Renomear")}
             size="icon-xs"

@@ -118,6 +118,14 @@ export async function openNativeRoomPane(
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
+    // Desktop: the board is always full width, behind its toggle (no pane tab).
+    if (pane === "board") {
+      if ((await full.getAttribute("aria-pressed")) !== "true")
+        await full.click();
+      await expect(layout).toHaveAttribute("data-board-full", "true");
+      await expect(page.locator(content.board)).toBeVisible();
+      return;
+    }
     if ((await full.getAttribute("aria-pressed")) === "true")
       await full.click();
     // The tabs live in the room's top bar and open the pane when it's closed;

@@ -36,6 +36,8 @@ export type SidebarProps = {
   oninbox?: (trigger?: HTMLElement) => void;
   inboxOpen?: boolean;
   onthreadintent?: () => boolean;
+  /** Desktop: the room's name or icon at the top brings the chat back. */
+  onroomhome?: () => void;
   /** Pending F50 shell geometry adapter, disposed with its native handle. */
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */

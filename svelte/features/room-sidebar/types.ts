@@ -12,6 +12,8 @@ export type ThreadHeaderProps = {
   titleId?: string;
   /** Phone top bar: keeps the title and drops the epic actions (the sheet header has them). */
   compact?: boolean;
+  /** Desktop: set while the board or inbox fills the middle; the title brings the chat back instead of renaming. */
+  onhome?: () => void;
   roomIcon?: string;
 };
 export type SuggestionPreviewProps = {

@@ -38,6 +38,7 @@
     roomIcon,
     titleId,
     compact = false,
+    onhome,
   }: ThreadHeaderProps = $props();
   const status = untrack(() => owner.state);
   // Secondary text beside the title gives way first; on the phone bar it is dropped (the sheet header shows it).
@@ -134,6 +135,7 @@
       onclick={(event) => {
         if (!event.currentTarget.isConnected) return;
         if (matchMedia("(max-width: 900px)").matches) onopenside();
+        else if (onhome) onhome();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
       }}><span class="tw:truncate">{title}</span></Button
     >

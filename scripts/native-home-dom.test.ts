@@ -856,27 +856,25 @@ test("real RoomShell uses genuine loading/terminal states and directly renders c
   expect(h.target.querySelector("[data-native-composer]")).toBe(null);
   expect(h.target.textContent).not.toContain("Canonical visible message");
 });
-test("real RoomShell retains one Board DOM instance across pane and full-board placements", async () => {
+// Desktop has no board pane: the board is always full width, behind its toggle.
+test("real RoomShell retains one Board DOM instance across full-board openings", async () => {
   const h = await actualRoomShell();
   h.publish(h.canonical);
   await flush();
-  h.services.actions.selectPane("board");
-  await flush();
-  await waitForView(h.target, "[data-board-scope]");
-  const board = h.target.querySelector("[data-board-scope]");
-  expect(board !== null).toBe(true);
   const toggle = h.target.querySelector<HTMLButtonElement>(
     "[data-native-board-toggle]",
   )!;
   expect(toggle !== null).toBe(true);
   toggle.click();
   await flush();
-  expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
+  await waitForView(h.target, "[data-board-scope]");
+  const board = h.target.querySelector("[data-board-scope]");
+  expect(board !== null).toBe(true);
   toggle.click();
   await flush();
   h.services.actions.selectPane("doc");
   await flush();
-  h.services.actions.selectPane("board");
+  toggle.click();
   await flush();
   expect(h.target.querySelectorAll("[data-board-scope]").length).toBe(1);
   expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
@@ -1514,9 +1512,15 @@ test("room Inbox is nonmodal and retains existing Composer, document and Board n
   });
   h.publish(h.canonical);
   await flush();
-  h.services.actions.selectPane("board");
+  // Mount the board (full width), then come back to the chat.
+  const toggle = h.target.querySelector<HTMLButtonElement>(
+    "[data-native-board-toggle]",
+  )!;
+  toggle.click();
   await flush();
   await waitForView(h.target, "[data-board-scope]");
+  toggle.click();
+  await flush();
   const board = h.target.querySelector("[data-board-scope]"),
     documentNode = h.target.querySelector("[data-native-document]"),
     composer = h.target.querySelector("[data-native-composer]");
