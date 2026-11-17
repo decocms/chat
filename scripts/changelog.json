@@ -24,6 +24,11 @@
     ],
     "improvements": {
       "pt": [
+        "No computador, no app novo (?ui=svelte), a sala tem uma barra só no topo: o nome e a conversa em cima do chat, as abas do painel (Doc, Tarefas, Arquivos, Apps, Decisões, Lembretes) começando na linha que divide chat e painel, e chat e painel numa superfície só. Com o painel fechado, uma aba abre o painel nela. O ✻ do agent aparece uma vez só.",
+        "O ✻ do seu agent é o mesmo botão no topo da sala, nas abas do doc e na barra de baixo do celular: estrela laranja quando ligado, cinza quando desligado, e um só selo no canto, um ponto (ouvindo, abrindo, ainda não ouvindo) ou o número de pedidos na fila, vermelho quando ele espera você no terminal. Antes eram dois botões que mostravam metades diferentes.",
+        "No celular, no app novo (?ui=svelte), uma sala já abre com o topo (ícone e nome da sala, a conversa, busca, Caixa de entrada e sua foto) e a barra de baixo no lugar enquanto carrega, então nada pula quando as mensagens chegam.",
+        "No app novo (?ui=svelte), o topo da sala no celular ganhou uma linha fina que o separa do chat, e o aviso \"Seu agent está desligado nesta sala\" virou uma faixa de largura inteira logo abaixo do topo, com Ligar como link, em vez de parecer um botão.",
+        "No celular, no app novo (?ui=svelte), uma sala ganhou uma barra embaixo com Chat, Doc (com Decisões), Quadro, Arquivos (Fixados em cima, depois Arquivos e Apps) e Claude (seu agent, Pessoas e agents, e Lembretes). O topo ficou com voltar, a conversa, busca, Caixa de entrada e sua foto, sem o ⋯. A lista de conversas tem duas abas, Esta sala e Todas as salas, e deixa todo o espaço pros épicos.",
         "No celular, no app novo (?ui=svelte), o topo de uma sala virou uma linha só: o ícone da sala com o nome dela em cima e a conversa embaixo (toque pra trocar de conversa), Doc, Caixa de entrada e ⋯ com Quadro, Arquivos, Apps, Decisões, Lembretes e Agents. A lista de conversas desce do topo e troca de sala pelo mesmo seletor da tela inicial, sem a fileira de salas.",
         "No app novo (?ui=svelte), a tela inicial ficou mais densa: cada pedido é uma linha com quem, quando, o pedido limpo em até duas linhas (sem markdown nem links compridos) e o épico, e filtros no topo separam Seu Claude, Pedidos e Revisões. No celular, a grade de salas sai de baixo quando há pedidos, já que a barra de salas está no topo.",
         "No celular, no app novo (?ui=svelte), a barra do topo da tela inicial virou uma linha só: sua foto (menu da conta), \"Início ▾\", busca e +. O ▾ abre a lista de todas as salas, com os mesmos ícones e contadores da barra de salas do computador, que agora usam o mesmo componente da grade \"Seus vibebooks\".",
@@ -34,6 +39,11 @@
         "No app novo (?ui=svelte), a caixa \"O que você quer resolver?\" da tela inicial agora é o mesmo campo de mensagem da sala: emoji, +, ditado por voz e o botão de enviar, que virou uma seta."
       ],
       "en": [
+        "On computers, in the new app (?ui=svelte), a room has one bar on top: the name and thread over the chat, the panel tabs (Doc, Tasks, Files, Apps, Decisions, Reminders) starting at the line between chat and panel, and chat and panel on one surface. With the panel closed, a tab opens it there. Your agent's ✻ shows once.",
+        "Your agent's ✻ is the same button in the room header, the doc tabs and the phone's bottom bar: an orange star when on, grey when off, and one badge in the corner, a dot (listening, opening, not listening yet) or the number of requests queued, red when it's waiting for you in the terminal. Before, two buttons showed different halves of this.",
+        "On phones, in the new app (?ui=svelte), a room opens with its top bar (the room's icon and name, the thread, search, Inbox and your picture) and the bottom bar already in place while it loads, so nothing jumps when the messages arrive.",
+        "In the new app (?ui=svelte), a room's top bar on phones has a thin line separating it from the chat, and the \"Your agent is off in this room\" notice is now a full-width strip right under the top bar, with Turn on as a link, instead of looking like a button.",
+        "On phones in the new app (?ui=svelte), a room has a bottom bar with Chat, Doc (with Decisions), Board, Files (Pinned on top, then Files and Apps) and Claude (your agent, People & agents, and Reminders). The top bar keeps back, the conversation, search, Inbox and your photo, without the ⋯. The conversation list has two tabs, This room and All rooms, and gives the epics the whole space.",
         "On phones in the new app (?ui=svelte), a room's top bar is one row: the room's icon with its name on top and the conversation under it (tap to switch conversations), Doc, Inbox and ⋯ with Board, Files, Apps, Decisions, Reminders and Agents. The conversation list drops from the top and switches rooms with the same switcher as the home, without the row of rooms.",
         "In the new app (?ui=svelte), the home is denser: each ask is one row with who, when, the ask cleaned up in at most two lines (no markdown or long links) and its epic, and filters at the top split Your Claude, Asks and Reviews. On phones the room grid leaves the bottom when there are asks, since the rooms bar is at the top.",
         "On phones in the new app (?ui=svelte), the home's top bar is one line: your photo (account menu), \"Home ▾\", search and +. The ▾ opens every room, with the same icons and counts as the desktop rooms bar, which now shares one component with the \"Your vibebooks\" grid.",
@@ -46,10 +56,12 @@
     },
     "fixes": {
       "pt": [
+        "No celular, no app novo (?ui=svelte), as pastas em Arquivos (agents/, reminders/…) voltaram a ser cartões retangulares como os dos arquivos, em vez de virarem círculos.",
         "No app novo (?ui=svelte), o seu avatar no fim da barra lateral ficou do tamanho dos botões de busca e + ao lado.",
         "No app novo (?ui=svelte), \"Novo épico\" e as sugestões do @vibe vêm logo depois da lista de épicos na barra lateral; o espaço que sobra fica acima de Pessoas e agents."
       ],
       "en": [
+        "On phones, in the new app (?ui=svelte), folders in Files (agents/, reminders/…) are rectangular cards like the files again, instead of turning into circles.",
         "In the new app (?ui=svelte), your avatar at the bottom of the sidebar is now the same size as the search and + buttons beside it.",
         "In the new app (?ui=svelte), \"New epic\" and @vibe's suggestions now sit right after the epic list in the sidebar; the spare space goes above People & agents."
       ]

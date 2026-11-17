@@ -354,11 +354,10 @@ test("the rail's account menu opens account sections, drives the device notifica
   }
   expect(h.documents).toEqual(["/"]);
 });
-test("the phone room strip has no room tiles: Switch room opens the switcher, and it carries the account menu", async () => {
+test("the phone thread sheet's tabs: This room shows the sidebar, All rooms lists every room", async () => {
   const { default: RoomStrip } =
     await import("../svelte/features/app-navigation/RoomStrip.svelte");
-  const { userMenuKey } =
-    await import("../svelte/features/app-navigation/menuBridge");
+  const { createRawSnippet } = await import("svelte");
   const h = shellFixture();
   h.canonical(
     me({
@@ -368,71 +367,43 @@ test("the phone room strip has no room tiles: Switch room opens the switcher, an
   h.services.start();
   await h.services.personal.refresh();
   cleanups.push(() => h.services.dispose());
-  const sections: string[] = [];
-  const strip = (context?: Map<unknown, unknown>) => {
-    const target = document.createElement("div");
-    document.body.append(target);
-    const component = flushSync(() =>
-      mount(RoomStrip, {
-        target,
-        props: { controller: h.services.navigation, lang: "en" },
-        context,
-      }),
-    );
-    cleanups.push(() => {
-      flushSync(() => {
-        void unmount(component);
-      });
-      target.remove();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(RoomStrip, {
+      target,
+      props: {
+        controller: h.services.navigation,
+        lang: "en",
+        children: createRawSnippet(() => ({
+          render: () => "<p data-this-room>epics</p>",
+        })),
+      },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
     });
-    return target;
-  };
-  // Isolated (no shell): no room tiles and no avatar; Switch room opens every room.
-  const bare = strip();
+    target.remove();
+  });
   await flush();
-  expect(bare.querySelectorAll("[data-room-id]").length).toBe(0);
-  expect(bare.querySelector("[data-native-user-menu-trigger]")).toBe(null);
-  bare.querySelector<HTMLButtonElement>("[data-native-room-switcher]")!.click();
-  await waitForView(document, '[data-vb-native="room-switcher"]');
+  // This room first: the sidebar's own content, no room list, no avatar.
+  expect(target.querySelector("[data-this-room]")).not.toBe(null);
+  expect(target.querySelector('[data-room-scope-panel="all"]')).toBe(null);
+  expect(target.querySelector("[data-native-user-menu-trigger]")).toBe(null);
+  const all = target.querySelector<HTMLElement>('[data-room-scope="all"]')!;
+  expect(all.textContent).toContain("All rooms");
+  all.click();
+  await flush();
+  // All rooms: Home + every room, and the room's own content steps aside.
+  const list = target.querySelector('[data-room-scope-panel="all"]')!;
+  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(4);
   expect(
-    document
-      .querySelector('[data-vb-native="room-switcher"]')!
-      .querySelectorAll("[data-room-avatar]").length,
-  ).toBe(4);
-  // In the shell: the avatar menu sits at the end of the row.
-  const shell = strip(
-    new Map([
-      [
-        userMenuKey,
-        {
-          lang: "en",
-          theme: () => "auto",
-          onsettheme() {},
-          onlanguage() {},
-          onaccount: (section: string) => sections.push(section),
-        },
-      ],
-    ]),
-  );
-  await flush();
-  expect(shell.querySelectorAll("[data-room-id]").length).toBe(0);
-  const trigger = shell.querySelector<HTMLButtonElement>(
-    "[data-native-user-menu-trigger]",
-  )!;
-  trigger.focus();
-  trigger.dispatchEvent(
-    new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-  );
-  await waitForView(document, '[data-user-menu-item="friends"]');
-  document
-    .querySelector<HTMLElement>('[data-user-menu-item="friends"]')!
-    .click();
-  const deadline = Date.now() + 2_000;
-  while (!sections.length && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await flush();
-  }
-  expect(sections).toEqual(["friends"]);
+    target
+      .querySelector('[data-room-scope-panel="room"]')!
+      .className.includes("hidden"),
+  ).toBe(true);
 });
 test("connected old creator controls cannot edit or submit a replacement opening before DOM flush", async () => {
   let creates = 0;

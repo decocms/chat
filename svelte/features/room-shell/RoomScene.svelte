@@ -22,6 +22,9 @@
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
+  import PhoneTabBar from "./PhoneTabBar.svelte";
+  import PhoneRoomSection from "./PhoneRoomSection.svelte";
+  import { phoneTabOf, phoneTabPanes } from "./panelViews";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -331,15 +334,37 @@
         {presentation}
         header={$view.header}
         trigger={$view.trigger}
-        boardCount={$view.toolbar.counts?.board}
-        panes={$view.peek}
+        appNavigation={$view.sidebar.appNavigation}
         {layout}
         {current}
         {back}
+        tabs={$view.toolbar}
+        onPane={(pane) => {
+          if (current()) owner.actions.setPane(pane, { open: true });
+        }}
       />{/if}{/snippet}
-  {#snippet peek()}{#if $view}<DocumentToolbar {...$view.peek} />{/if}{/snippet}
+  {#snippet peek()}{#if $view}<DocumentToolbar
+        {...$view.peek}
+        only={phoneTabPanes[
+          phoneTabOf($geometry.pane) as keyof typeof phoneTabPanes
+        ] ?? undefined}
+        onPane={(pane) => {
+          if (current()) owner.actions.setPane(pane, { open: true });
+        }}
+      />{/if}{/snippet}
+  {#snippet tabbar()}{#if $view}<PhoneTabBar
+        {layout}
+        {current}
+        lang={services.language}
+        boardCount={$view.toolbar.counts?.board}
+        agent={$view.toolbar.agent}
+        agentTitle={$view.toolbar.agentTitle}
+        onPane={(pane) => {
+          if (current()) owner.actions.setPane(pane, { open: true });
+        }}
+      />{/if}{/snippet}
   {#snippet attention()}{#if $view}
-      <div class="tw:px-4">
+      <div>
         <div class={$geometry.boardFull ? "tw:hidden" : ""}>
           {#if $view.banners}<AgentBanners
               {...$view.banners}
@@ -349,7 +374,7 @@
                   : $geometry.documentVisible && !$geometry.boardFull)}
             />{/if}
         </div>
-        <ThreadFiles {...$view.threadFiles} />
+        <div class="tw:px-4"><ThreadFiles {...$view.threadFiles} /></div>
       </div>
     {/if}{/snippet}
   {#snippet chat()}{#if $view}
@@ -361,9 +386,8 @@
         {...$view.composer}
         hidden={$view.composer.hidden || $geometry.boardFull}
       />{/if}{/snippet}
-  {#snippet documentToolbar()}{#if $view}<DocumentToolbar
-        {...$view.toolbar}
-      />{/if}{/snippet}
+  <!-- Desktop pane tabs live in the room header now (one top bar). -->
+  {#snippet documentToolbar()}{/snippet}
   {#snippet document()}{#if $view}
       <div
         use:taskSurface
@@ -399,6 +423,10 @@
           : "tw:hidden"}
         hidden={$geometry.pane !== "files"}
       >
+        {#if $geometry.mobile}<PhoneRoomSection
+            part="pins"
+            sidebar={$view.sidebar}
+          />{/if}
         {#if Files}<Files {...$view.files} />{:else}<DeferredViewStatus
             phase={$filesView.phase}
             lang={services.language}
@@ -468,6 +496,10 @@
             }}
             {current}
           />{/if}{/if}
+      {#if $geometry.mobile && $geometry.pane === "agents"}<PhoneRoomSection
+          part="people"
+          sidebar={$view.sidebar}
+        />{/if}
     {/if}{/snippet}
   {#snippet board()}{#if $view && boardMounted}{#if Board}<Board
           {...$view.board}

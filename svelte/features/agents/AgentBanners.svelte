@@ -116,20 +116,18 @@
       data-native-agent-line
       data-agent-status={status}
       role="status"
-      class="tw:flex tw:min-h-9 tw:items-center tw:gap-2 tw:rounded-surface tw:bg-muted tw:py-1 tw:pr-1 tw:pl-3"
+      class="tw:flex tw:items-center tw:gap-2 tw:border-b tw:border-border tw:bg-muted tw:py-2.5 tw:pr-2 tw:pl-4 tw:min-[901px]:-mx-2"
     >
-      <span aria-hidden="true" class="tw:text-agent-claude-text">✻</span>
-      <button
-        type="button"
-        class="tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:truncate tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sm tw:text-foreground"
-        onclick={open}
-        ><strong class="tw:font-semibold">{text(line.lead)}</strong
-        >{#if line.help}<span
-            class="tw:text-muted-foreground tw:max-[900px]:hidden"
-          >
+      <span aria-hidden="true" class="tw:shrink-0 tw:text-agent-claude-text"
+        >✻</span
+      >
+      <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:leading-5">
+        <span class="tw:font-medium">{text(line.lead)}</span
+        >{#if line.help}<span class="tw:text-muted-foreground">
             {" "}{text(line.help)}</span
-          >{/if}</button
-      ><Button size="sm" class="tw:shrink-0" onclick={act}
+          >{/if}
+      </p>
+      <Button variant="link" size="sm" class="tw:shrink-0" onclick={act}
         >{text(
           status === "none"
             ? copied
@@ -142,19 +140,19 @@
       ><Button
         variant="ghost"
         size="sm"
-        class="tw:shrink-0"
+        class="tw:shrink-0 tw:text-muted-foreground"
         aria-label={text("close")}
         onclick={() => owner.dismissBanner(line.kind)}>×</Button
       >
     </div>{/if}
   {#if $view.setupFeedback || $view.listeningFeedback}<p
       role="status"
-      class="tw:m-0 tw:rounded-surface tw:border tw:border-border tw:p-3 tw:text-success"
+      class="tw:mx-4 tw:my-0 tw:rounded-surface tw:border tw:border-border tw:p-3 tw:text-success"
     >
       ✻ {text($view.setupFeedback ? "setupDone" : "listeningDone")}
     </p>{/if}
   {#if start && $view.room}<div
-      class="tw:flex tw:items-start tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:p-3"
+      class="tw:mx-4 tw:flex tw:items-start tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:p-3"
     >
       <span aria-hidden="true">✻</span>
       <div class="tw:min-w-0 tw:flex-1">
@@ -194,7 +192,7 @@
     </div>
   {/if}
   {#if ask}<div
-      class="tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted tw:p-3"
+      class="tw:mx-4 tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted tw:p-3"
     >
       <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:break-words">
         ⏸ <strong>{text("ask")}</strong> · {ask.topic || text("main")}: {askPreview(

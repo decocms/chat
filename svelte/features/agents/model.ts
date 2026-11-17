@@ -122,3 +122,30 @@ export function agentStatus(
   if (presence.around) return "working";
   return askedAt && now - askedAt <= 180_000 ? "opening" : "late";
 }
+/**
+ * The one ✻ state (header, doc tabs, phone bar): presence and the queue merged,
+ * highest priority first. Blocked wins over everything; work waiting on the agent
+ * (busy, queued) over plain presence.
+ */
+export type AgentMarkState = "blocked" | "busy" | "queued" | AgentStatus;
+export type AgentMarkView = {
+  state: AgentMarkState;
+  count: number;
+  on: boolean;
+};
+export function agentMark(
+  status: AgentStatus,
+  queue: readonly { phase: string | null }[],
+): AgentMarkView {
+  const count = queue.length,
+    on = status !== "none" && status !== "off";
+  const state: AgentMarkState = queue.some((item) => item.phase === "blocked")
+    ? "blocked"
+    : count &&
+        (status === "working" || queue.some((item) => item.phase === "doing"))
+      ? "busy"
+      : count
+        ? "queued"
+        : status;
+  return { state, count, on: on || state === "blocked" };
+}

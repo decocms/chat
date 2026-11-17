@@ -376,11 +376,9 @@ export async function openIntegratedSidebar(page: Page) {
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
     if ((await layout.getAttribute("data-sheet")) !== "side")
+      // Phones: the header's title button (room · thread ▾) opens the list.
       await page
-        .locator("[data-native-room-header] [data-native-thread-header]")
-        .getByRole("button", {
-          name: /^(Switch conversation|Trocar de conversa)$/,
-        })
+        .locator("[data-native-room-header] [data-native-phone-title]")
         .click();
     await expect(layout).toHaveAttribute("data-sheet", "side");
   } else {

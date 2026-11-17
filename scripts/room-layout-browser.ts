@@ -321,51 +321,14 @@ try {
   await expect.poll(hasSheetEntry).toBe(false);
   const samples: unknown[] = [];
   report.samples = samples;
-  checkpoint("mobile/continuous-pending-drag");
-  const openHandle = page.locator("[data-layout-open-drag]");
-  await expect(openHandle).toBeVisible();
-  const handle = await openHandle.boundingBox();
-  assert(handle, "Mobile document opening handle has no geometry");
+  checkpoint("mobile/drag-to-close");
+  // The peek strip (and its opening drag) shows only while the doc sheet is
+  // open (#80): a closed phone room opens the document with its button.
+  await expect(page.locator("[data-layout-open-drag]")).toBeHidden();
   const height = await documentCell.evaluate(
     (node) => node.getBoundingClientRect().height,
   );
   assert(height > 0);
-  await page.mouse.move(handle.x + 5, handle.y + 5);
-  await page.mouse.down();
-  for (const fraction of [0.1, 0.15, 0.2]) {
-    await page.mouse.move(handle.x + 5, handle.y + 5 + height * fraction, {
-      steps: 1,
-    });
-    const actual = await documentCell.evaluate((node) => ({
-      y: new DOMMatrixReadOnly(getComputedStyle(node).transform).m42,
-      height: node.getBoundingClientRect().height,
-      animations: node
-        .getAnimations()
-        .filter(
-          (animation): animation is CSSAnimation =>
-            animation instanceof CSSAnimation &&
-            animation.effect instanceof KeyframeEffect &&
-            animation.effect.target === node,
-        )
-        .map((animation) => ({
-          name: animation.animationName,
-          time: animation.currentTime,
-        })),
-    }));
-    assert(Math.abs(actual.y + height * (1 - fraction)) < 1);
-    assert(Math.abs((await alpha()) - fraction) < 0.01);
-    assert(
-      actual.animations.some(
-        (animation) =>
-          animation.name === "vb-room-sheet" &&
-          typeof animation.time === "number" &&
-          Math.abs(animation.time - fraction * 1000) < 1,
-      ),
-    );
-    samples.push({ fraction, ...actual, opacity: await alpha() });
-  }
-  await page.mouse.up();
-  await expect.poll(alpha).toBe(0);
   await page
     .getByRole("button", { name: "Open document", exact: true })
     .click();
@@ -390,21 +353,9 @@ try {
   await expect.poll(alpha).toBe(0);
   await expect.poll(sheet).toBe("closed");
   checkpoint("mobile/cancel-form-focus-dialog-escape");
-  await page.mouse.move(handle.x + 5, handle.y + 5);
-  await page.mouse.down();
-  await page.mouse.move(handle.x + 5, handle.y + 5 + height * 0.4, {
-    steps: 1,
-  });
-  await openHandle.evaluate((node) =>
-    node.dispatchEvent(
-      new PointerEvent("pointercancel", {
-        pointerId: 1,
-        bubbles: true,
-        clientY: 0,
-      }),
-    ),
-  );
-  await page.mouse.up();
+  await page
+    .getByRole("button", { name: "Open document", exact: true })
+    .click();
   await expect.poll(sheet).toBe("doc");
   await expect.poll(alpha).toBe(1);
   await page.getByRole("button", { name: "Edit form", exact: true }).click();

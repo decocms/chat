@@ -1,75 +1,82 @@
 <script lang="ts">
-  import Button from "../../lib/studio/Button.svelte";
-  import Icon from "../../lib/studio/Icon.svelte";
-  import IconButton from "../../lib/studio/IconButton.svelte";
-  import { ChevronDown, SearchMd } from "../../lib/studio/icons";
+  import type { Snippet } from "svelte";
+  import Tabs from "../../lib/studio/Tabs.svelte";
+  import TabsList from "../../lib/studio/TabsList.svelte";
+  import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
+  import { cn } from "../../lib/studio/utils";
   import { homeText, type HomeLanguage } from "../home/copy";
+  import { unread } from "../home/model";
   import type { AppNavigationSession } from "./controller";
-  import RoomSwitcher from "./RoomSwitcher.svelte";
-  import UserMenu from "./UserMenu.svelte";
-  import { userMenuBridge } from "./menuBridge";
-  import { personAvatar } from "../home/model";
+  import RoomList from "./RoomList.svelte";
+  /**
+   * The top of the phone's thread sheet: This room | All rooms. This room is
+   * the sidebar's own content (`children`, also what desktop shows); All rooms
+   * is the room list, where a tap opens the room. Phones only.
+   */
   let {
     controller,
     lang,
-  }: { controller: AppNavigationSession; lang: HomeLanguage } = $props();
+    children,
+  }: {
+    controller: AppNavigationSession;
+    lang: HomeLanguage;
+    children: Snippet;
+  } = $props();
   const personal = $derived(controller.personal.state),
     nav = $derived(controller.state);
-  // The shell's account menu (absent in isolated mounts): the rail is hidden
-  // in a phone room, so the sheet's top row carries the avatar instead.
-  const menu = userMenuBridge();
-  let switcher = $state(false);
+  let scope = $state<"room" | "all">("room");
+  // Rooms with something new, the open one left out: the All rooms tab's dot.
+  const fresh = $derived(
+    ($personal.me?.books ?? []).filter(
+      (room) =>
+        room.id !== $nav.roomId && unread(room, $personal.seen[room.id] ?? 0),
+    ).length,
+  );
+  const thisRoom = $derived(homeText(lang, "thisRoom")),
+    allRooms = $derived(homeText(lang, "allRooms"));
 </script>
 
-<nav
+<Tabs
+  value={scope}
+  onValueChange={(value) => (scope = value === "all" ? "all" : "room")}
   data-vb-native="room-strip"
-  aria-label={homeText(lang, "home")}
-  class="tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:pb-1 tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:min-[901px]:hidden"
+  class="tw:shrink-0 tw:gap-0 tw:font-sans tw:min-[901px]:hidden"
 >
-  <Button
-    variant="ghost"
-    size="sm"
-    data-native-room-switcher
-    aria-haspopup="dialog"
-    aria-expanded={switcher}
-    class="tw:min-w-0 tw:shrink! tw:gap-1"
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) switcher = true;
-    }}
-    ><span class="tw:truncate">{homeText(lang, "switchRoom")}</span><Icon
-      icon={ChevronDown}
-      size={14}
-    /></Button
+  <TabsList
+    variant="underline"
+    aria-label={homeText(lang, "switchRoom")}
+    class="tw:h-10 tw:w-full"
   >
-  <span class="tw:flex-1"></span>
-  <IconButton
-    label={homeText(lang, "search")}
-    onclick={(event) => {
-      if (event.currentTarget.isConnected)
-        controller.openSearch(event.currentTarget);
-    }}><Icon icon={SearchMd} /></IconButton
-  >{#if menu && $personal.me}<UserMenu
-      name={$personal.me.name ?? ""}
-      email={$personal.me.email}
-      avatar={personAvatar($personal.me, $personal.me.email)}
-      friends={$personal.me.friends.length}
-      lang={menu.lang}
-      theme={menu.theme()}
-      onsettheme={menu.onsettheme}
-      onlanguage={menu.onlanguage}
-      onaccount={menu.onaccount}
-      pwa={menu.pwa}
-      onlogout={menu.onlogout}
-    />{/if}
-</nav>
-{#if $personal.me}<RoomSwitcher
-    bind:open={switcher}
-    rooms={$personal.me.books}
-    waits={$personal.me.waits}
-    seen={$personal.seen}
-    now={$personal.now}
-    current={$nav.roomId ?? null}
-    {lang}
-    onhome={controller.callbacks.home}
-    onnavigate={controller.callbacks.navigate}
-  />{/if}
+    <TabsTrigger value="room" data-room-scope="room" class="tw:flex-1"
+      >{thisRoom}</TabsTrigger
+    >
+    <TabsTrigger value="all" data-room-scope="all" class="tw:flex-1"
+      >{allRooms}{#if fresh}<span
+          role="img"
+          aria-label={homeText(lang, "unreadRooms", { n: fresh })}
+          class="tw:size-1.5 tw:rounded-full tw:bg-brand"
+        ></span>{/if}</TabsTrigger
+    >
+  </TabsList>
+</Tabs>
+{#if scope === "all" && $personal.me}<div
+    data-room-scope-panel="all"
+    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:min-[901px]:hidden"
+  >
+    <RoomList
+      rooms={$personal.me.books}
+      waits={$personal.me.waits}
+      seen={$personal.seen}
+      now={$personal.now}
+      current={$nav.roomId ?? null}
+      {lang}
+      onhome={controller.callbacks.home}
+      onnavigate={controller.callbacks.navigate}
+    />
+  </div>{/if}
+<div
+  data-room-scope-panel="room"
+  class={cn("tw:contents", scope === "all" && "tw:max-[900px]:hidden")}
+>
+  {@render children()}
+</div>

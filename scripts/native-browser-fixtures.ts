@@ -79,30 +79,51 @@ export async function openNativeRoomPane(
   };
   await expect(layout).toBeVisible();
   const full = page.locator("[data-native-board-toggle]");
-  if ((await full.getAttribute("aria-pressed")) === "true") await full.click();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
+    // Phones: the bottom bar (Chat, Doc, Board, Files, Claude) owns the board
+    // and opens the doc sheet; the header's board toggle is desktop only.
+    const tabBar = (tab: string) =>
+      page.locator(`[data-native-phone-tabs] [data-phone-tab="${tab}"]`);
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
     );
     if (pane === "board") {
-      await full.click();
-      await expect(full).toHaveAttribute("aria-pressed", "true");
+      if ((await layout.getAttribute("data-board-full")) !== "true")
+        await tabBar("board").click();
+      await expect(layout).toHaveAttribute("data-board-full", "true");
       await expect(page.locator(content.board)).toBeVisible();
       return;
     }
-    if (
-      (await layout.getAttribute("data-sheet")) !== "doc" ||
-      (await layout.getAttribute("data-pane")) !== pane
-    )
-      await button.click();
+    if ((await layout.getAttribute("data-board-full")) === "true") {
+      await tabBar("chat").click();
+      await expect(layout).not.toHaveAttribute("data-board-full", "true");
+    }
+    // The peek tabs show only while the doc sheet is open (#80): open it from
+    // the bottom bar tab that holds this pane, then pick the pane.
+    if ((await layout.getAttribute("data-sheet")) !== "doc") {
+      const tab =
+        pane === "doc" || pane === "decisions"
+          ? "doc"
+          : pane === "files" || pane === "apps"
+            ? "files"
+            : "claude";
+      await tabBar(tab).click();
+      await expect(layout).toHaveAttribute("data-sheet", "doc");
+    }
+    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
+    if ((await full.getAttribute("aria-pressed")) === "true")
+      await full.click();
     const button = page.locator(
       `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
     );
-    if (!(await button.isVisible()))
-      await page.locator("[data-native-document-toggle]").click();
-    if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
+    // The tabs live in the room's top bar and open the pane when it's closed.
+    if (
+      (await layout.getAttribute("data-pane")) !== pane ||
+      !(await page.locator(content[pane]).isVisible())
+    )
+      await button.click();
   }
   await expect(layout).toHaveAttribute("data-pane", pane);
   // A selected pane or a loading placeholder is not feature readiness. Include
@@ -128,11 +149,9 @@ export async function openNativeSidebar(page: Page) {
   await expect(book).toBeAttached({ timeout: 60_000 });
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
     if ((await book.getAttribute("data-sheet")) !== "side")
+      // Phones: the header's title button (room · thread ▾) opens the list.
       await page
-        .locator("[data-native-thread-header]")
-        .getByRole("button", {
-          name: /^(Switch conversation|Trocar de conversa)$/,
-        })
+        .locator("[data-native-room-header] [data-native-phone-title]")
         .click();
     await expect(book).toHaveAttribute("data-sheet", "side");
   } else {

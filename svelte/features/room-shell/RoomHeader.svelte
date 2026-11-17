@@ -4,6 +4,8 @@
   import ThreadHeader from "../room-sidebar/ThreadHeader.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
+  import DocumentToolbar from "../documents/DocumentToolbar.svelte";
+  import type { DocumentPane } from "../documents/types";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { RoomLayoutController } from "../room-layout/types";
   import IconButton from "../../lib/studio/IconButton.svelte";
@@ -12,24 +14,19 @@
     ArrowLeft,
     ChevronDown,
     Columns03,
-    DotsHorizontal,
-    File02,
     Inbox01,
+    LayoutAlt01,
     LayoutRight,
+    SearchMd,
   } from "../../lib/studio/icons";
-  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
-  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
-  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
-  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
-  import { buttonVariants } from "../../lib/studio/button";
-  import { cn } from "../../lib/studio/utils";
-  import { studioType } from "../../lib/components/type";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { suggestionAt } from "../room-sidebar/model";
-  import { paneIcons, paneLabel } from "../documents/paneIcons";
-  import type { DocumentPane } from "../documents/types";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
+  import UserMenu from "../app-navigation/UserMenu.svelte";
+  import { userMenuBridge } from "../app-navigation/menuBridge";
+  import type { SidebarProps } from "../../sidebar";
+  import { personAvatar } from "../home/model";
   import { isPanelToggleKey } from "./panelViews";
   let {
     presentation,
@@ -38,8 +35,10 @@
     layout,
     current,
     boardCount,
-    panes,
+    appNavigation,
     back,
+    tabs,
+    onPane,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
@@ -47,13 +46,15 @@
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
-    /** The room panels (the doc sheet's tabs): on a phone they live in the ⋯ menu. */
-    panes?: {
-      counts?: Partial<Record<DocumentPane, number | string>>;
-      onPane(pane: DocumentPane): void;
-    };
+    /** Search and the account menu: on a phone the rail is hidden, so the header carries them. */
+    appNavigation?: SidebarProps["appNavigation"];
     back(expectedThread: string): void;
+    /** Desktop: the pane tabs live in this bar (one top bar, the split below it). */
+    tabs?: ComponentProps<typeof DocumentToolbar>;
+    onPane?(pane: DocumentPane): void;
   } = $props();
+  // The shell's account menu (absent in isolated mounts).
+  const menu = userMenuBridge();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
   const live = (event: Event) =>
@@ -68,13 +69,6 @@
       header.room.epics.find((epic) => epic.id === header.thread)?.title ??
       presentation.services.t("Sala principal"),
   );
-  const morePanes: DocumentPane[] = [
-    "files",
-    "apps",
-    "decisions",
-    "reminders",
-    "agents",
-  ];
   const t = (text: string, vars?: Record<string, string | number>) =>
     presentation.services.t(text, vars);
   const mac =
@@ -87,6 +81,19 @@
         : "Alternar painel direito (Ctrl+Alt+B)",
     ),
   );
+  // The pane open beside the chat: the bar becomes two columns lined up with it.
+  const split = $derived(
+    !$geometry.mobile &&
+      $geometry.documentVisible &&
+      !($geometry.boardFull && $geometry.pane === "board"),
+  );
+  // A tab opens the pane when it's closed (or the board is full), then shows that pane.
+  function pickPane(pane: DocumentPane) {
+    if (!current()) return;
+    if (layout.read().boardFull) layout.toggleBoard();
+    if (!layout.read().documentVisible) layout.toggleDocument();
+    onPane?.(pane);
+  }
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.defaultPrevented || !isPanelToggleKey(event, mac) || !current())
       return;
@@ -100,7 +107,13 @@
 <header
   data-vb-native
   data-native-room-header
-  class="tw:@container/room-header tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap"
+  data-room-document-toolbar
+  class={[
+    // No @container here: container queries add layout containment, which turns subgrid off.
+    "tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap",
+    split &&
+      "tw:min-[901px]:col-span-2 tw:min-[901px]:grid tw:min-[901px]:grid-cols-subgrid tw:min-[901px]:gap-0",
+  ]}
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
@@ -144,14 +157,15 @@
       ></span
     ></button
   >
+  <!-- Desktop, left column (over the chat): the thread, then the room's own actions. -->
   <div
-    class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24"
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1 tw:min-[901px]:pr-2"
   >
-    <ThreadHeader {...header} compact />
-  </div>
-  <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:shrink-0 tw:min-[901px]:items-center tw:min-[901px]:justify-end tw:min-[901px]:gap-1"
-  >
+    <div
+      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24"
+    >
+      <ThreadHeader {...header} compact />
+    </div>
     <IconButton
       data-native-board-toggle
       label={t("Quadro de tarefas (kanban)")}
@@ -163,7 +177,7 @@
         if (live(event)) layout.toggleBoard();
       }}
       ><Icon
-        icon={Columns03}
+        icon={tabs ? LayoutAlt01 : Columns03}
         size={16}
       />{#if typeof boardCount === "number" && boardCount}<Count
           value={boardCount}
@@ -171,15 +185,15 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
-    {#if panes}<IconButton
-        data-native-phone-doc
-        label="Doc"
+    {#if appNavigation}<IconButton
+        data-native-phone-search
+        label={t("Buscar")}
         size="icon"
-        aria-pressed={$geometry.sheet === "doc" && $geometry.pane === "doc"}
-        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground tw:min-[901px]:hidden"
+        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:hidden"
         onclick={(event) => {
-          if (live(event)) panes.onPane("doc");
-        }}><Icon icon={File02} size={16} /></IconButton
+          if (live(event))
+            appNavigation.controller.openSearch(event.currentTarget);
+        }}><Icon icon={SearchMd} size={16} /></IconButton
       >{/if}
     <IconButton
       data-native-inbox-toggle
@@ -196,75 +210,66 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
-    <div class="tw:contents">
-      <!-- Desktop: the agent icon leads the icon buttons on the right. -->
-      {#if trigger}<div
-          class="tw:flex tw:max-[900px]:hidden tw:min-[901px]:order-first tw:min-[901px]:mr-1"
-        >
-          <AgentTrigger {...trigger} />
-        </div>{/if}
-      <IconButton
-        data-native-document-toggle
-        label={toggleLabel}
-        tooltipSide="bottom"
-        size="icon"
-        aria-pressed={$geometry.documentVisible}
-        aria-keyshortcuts={mac ? "Alt+Meta+B" : "Control+Alt+B"}
-        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:max-[900px]:hidden"
-        onclick={(event) => {
-          if (live(event)) layout.toggleDocument();
-        }}><Icon icon={LayoutRight} size={16} /></IconButton
+    <!-- Desktop: the room's ✻ is the Agents pane's tab, shown once. -->
+    {#if trigger}<div
+        data-document-pane="agents"
+        class="tw:flex tw:max-[900px]:hidden"
       >
-      {#if panes}<span class="tw:contents tw:min-[901px]:hidden"
-          ><DropdownMenu>
-            <DropdownMenuTrigger
-              data-native-phone-more
-              aria-label={t("Mais opções")}
-              class={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:hidden",
-              )}
-              ><Icon
-                icon={DotsHorizontal}
-                size={16}
-              />{#if typeof boardCount === "number" && boardCount}<Count
-                  value={boardCount}
-                  label={t("Esperando você: {n}", { n: boardCount })}
-                  class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
-                />{/if}</DropdownMenuTrigger
-            >
-            <DropdownMenuContent
-              data-vb-native
-              align="end"
-              class={cn(studioType, "tw:w-56")}
-            >
-              <DropdownMenuItem
-                data-phone-pane="board"
-                onSelect={() => {
-                  if (current()) layout.toggleBoard();
-                }}
-                ><Icon icon={Columns03} /><span class="tw:flex-1"
-                  >{t("Quadro de tarefas (kanban)")}</span
-                >{#if typeof boardCount === "number" && boardCount}<Count
-                    value={boardCount}
-                    label={t("Esperando você: {n}", { n: boardCount })}
-                  />{/if}</DropdownMenuItem
-              >
-              {#each morePanes as pane (pane)}<DropdownMenuItem
-                  data-phone-pane={pane}
-                  onSelect={() => {
-                    if (current()) panes.onPane(pane);
-                  }}
-                  ><Icon icon={paneIcons[pane]} /><span class="tw:flex-1"
-                    >{paneLabel(pane, en)}</span
-                  >{#if panes.counts?.[pane]}<span
-                      class="tw:text-xs tw:text-muted-foreground tw:tabular-nums"
-                      >{panes.counts[pane]}</span
-                    >{/if}</DropdownMenuItem
-                >{/each}
-            </DropdownMenuContent>
-          </DropdownMenu></span
-        >{/if}
-    </div>
+        <AgentTrigger {...trigger} />
+      </div>{/if}
+  </div>
+  <!-- Desktop, right column (over the pane, starting at the split): its tabs and its toggle. -->
+  <div
+    class={[
+      "tw:contents tw:min-[901px]:flex tw:min-[901px]:items-center tw:min-[901px]:gap-1",
+      split
+        ? "tw:min-[901px]:w-0 tw:min-[901px]:min-w-full tw:min-[901px]:pl-2"
+        : "tw:min-[901px]:shrink-0",
+    ]}
+  >
+    {#if tabs}<div
+        data-native-header-tabs
+        class={[
+          "tw:hidden tw:min-w-0 tw:min-[901px]:block",
+          split && "tw:flex-1",
+        ]}
+      >
+        <DocumentToolbar
+          {...tabs}
+          bare
+          exclude={["agents"]}
+          pane={split ? tabs.pane : ("" as DocumentPane)}
+          onPane={pickPane}
+        />
+      </div>{/if}
+    <IconButton
+      data-native-document-toggle
+      label={toggleLabel}
+      tooltipSide="bottom"
+      size="icon"
+      aria-pressed={$geometry.documentVisible}
+      aria-keyshortcuts={mac ? "Alt+Meta+B" : "Control+Alt+B"}
+      class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:max-[900px]:hidden"
+      onclick={(event) => {
+        if (live(event)) layout.toggleDocument();
+      }}><Icon icon={LayoutRight} size={16} /></IconButton
+    >
+    {#if menu && $personal.me}<span
+        data-native-phone-account
+        class="tw:contents tw:min-[901px]:hidden"
+        ><UserMenu
+          name={$personal.me.name ?? ""}
+          email={$personal.me.email}
+          avatar={personAvatar($personal.me, $personal.me.email)}
+          friends={$personal.me.friends.length}
+          lang={menu.lang}
+          theme={menu.theme()}
+          onsettheme={menu.onsettheme}
+          onlanguage={menu.onlanguage}
+          onaccount={menu.onaccount}
+          pwa={menu.pwa}
+          onlogout={menu.onlogout}
+        /></span
+      >{/if}
   </div>
 </header>

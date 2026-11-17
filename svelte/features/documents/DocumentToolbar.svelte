@@ -8,6 +8,8 @@
   import { cn } from "../../lib/studio/utils";
   import Count from "../../lib/components/Count.svelte";
   import { paneIcons, paneLabel } from "./paneIcons";
+  import AgentMark from "../agents/AgentMark.svelte";
+  import type { AgentMarkView } from "../agents/model";
   import type { Room } from "../../../shared/room";
   import type { DocumentPane } from "./types";
   import type { DocumentSession } from "./session";
@@ -18,10 +20,13 @@
     lang,
     counts = {},
     agentTitle = "Agents",
-    agentState = "",
+    agent = { state: "off", count: 0, on: false },
     onPane,
     compact = false,
     sideFileName,
+    only,
+    bare = false,
+    exclude,
   }: {
     owner: DocumentSession;
     room: Room;
@@ -29,10 +34,17 @@
     lang: string;
     counts?: Partial<Record<DocumentPane, number | string>>;
     agentTitle?: string;
-    agentState?: string;
+    /** The ✻ (`agentMark`): drawn in place of the Agents tab's icon. */
+    agent?: AgentMarkView;
     onPane(pane: DocumentPane): void;
     compact?: boolean;
     sideFileName?: string;
+    /** Only these panes (the phone's bottom-bar tab), in this order. */
+    only?: readonly DocumentPane[];
+    /** Inside the room's single top bar (desktop): no height, border or padding of its own. */
+    bare?: boolean;
+    /** Panes the host already offers elsewhere (the header's ✻ for agents). */
+    exclude?: readonly DocumentPane[];
   } = $props();
   const view = untrack(() => owner.state),
     en = $derived(lang === "en");
@@ -71,7 +83,12 @@
       room.book.title,
   );
   const items = $derived(
-    allItems.filter((item) => !compact || item.id !== "board"),
+    only
+      ? only.flatMap((id) => allItems.filter((item) => item.id === id))
+      : allItems.filter(
+          (item) =>
+            (!compact || item.id !== "board") && !exclude?.includes(item.id),
+        ),
   );
   function choose(event: MouseEvent, id: DocumentPane) {
     event.stopPropagation();
@@ -113,9 +130,11 @@
   data-vb-native
   class={cn(
     "tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:font-sans tw:text-foreground",
-    compact
-      ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
-      : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
+    bare
+      ? ""
+      : compact
+        ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
+        : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
   )}
 >
   <div
@@ -128,7 +147,7 @@
       {@const selected = pane === item.id}
       {@const count =
         compact && item.id === "doc" && docCount ? docCount : counts[item.id]}
-      {@const labelled = item.id === "doc" || item.id === "view"}
+      {@const labelled = !!only || item.id === "doc" || item.id === "view"}
       <Tooltip disabled={labelled}>
         <TooltipTrigger>
           {#snippet child({ props })}<Button
@@ -154,9 +173,17 @@
                 labelled && compact && "tw:flex-1 tw:justify-start",
               )}
               onclick={(event: MouseEvent) => choose(event, item.id)}
-              ><Icon icon={paneIcons[item.id]} size={16} />{#if labelled}<span
-                  class="tw:max-w-40 tw:truncate">{item.label}</span
-                >{/if}{#if item.id === "board" && typeof count === "number" && count}<Count
+              >{#if item.id === "agents"}<AgentMark
+                  state={agent.state}
+                  count={agent.count}
+                  on={agent.on}
+                  size={17}
+                />{:else}<Icon
+                  icon={paneIcons[item.id]}
+                  size={16}
+                />{/if}{#if labelled}<span class="tw:max-w-40 tw:truncate"
+                  >{item.label}</span
+                >{/if}{#if item.id === "agents"}{:else if item.id === "board" && typeof count === "number" && count}<Count
                   value={count}
                   label={en
                     ? `Waiting on you: ${count}`
@@ -164,17 +191,7 @@
                 />{:else if count}<span
                   class="tw:min-w-[1.125rem] tw:rounded-full tw:bg-muted tw:px-1 tw:text-center tw:text-xs tw:leading-[1.125rem] tw:text-muted-foreground tw:tabular-nums"
                   >{count}</span
-                >{/if}{#if item.id === "agents" && agentState}<span
-                  aria-label={agentTitle}
-                  class={cn(
-                    "tw:absolute tw:top-1 tw:right-1 tw:size-1.5 tw:rounded-full tw:shadow-[0_0_0_2px_var(--vb-background)]",
-                    agentState === "blocked"
-                      ? "tw:bg-destructive"
-                      : agentState === "busy"
-                        ? "tw:bg-warning"
-                        : "tw:bg-brand",
-                  )}
-                ></span>{/if}</Button
+                >{/if}</Button
             >{/snippet}
         </TooltipTrigger>
         <TooltipContent side="bottom"

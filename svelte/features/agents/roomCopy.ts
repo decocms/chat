@@ -1,3 +1,4 @@
+import type { AgentMarkState, AgentStatus } from "./model";
 const pt = {
   title: "Seus agents nesta sala",
   local: "Claude Code no seu computador",
@@ -82,6 +83,8 @@ const pt = {
   stateLate: "Agent ainda não está ouvindo",
   stateListening: "Agent ouvindo esta sala",
   stateWorking: "Agent trabalhando aqui",
+  stateBlocked: "Seu agent espera você no terminal",
+  queuedCount: "{n} na fila",
   lineNone: "Conecte seu agent para trabalhar aqui.",
   copyPrompt: "Copiar prompt de setup",
   copied: "Copiado",
@@ -172,6 +175,8 @@ const en: Record<RoomAgentCopyKey, string> = {
   stateLate: "Agent not listening yet",
   stateListening: "Agent listening to this room",
   stateWorking: "Agent working here",
+  stateBlocked: "Your agent is waiting for you in the terminal",
+  queuedCount: "{n} queued",
   lineNone: "Connect your agent to work here.",
   copyPrompt: "Copy setup prompt",
   copied: "Copied",
@@ -181,3 +186,26 @@ export const roomAgentText = (
   lang: "pt" | "en",
   key: RoomAgentCopyKey,
 ): string => (lang === "en" ? en : pt)[key];
+const statusKey: Record<AgentStatus, RoomAgentCopyKey> = {
+  none: "stateNone",
+  off: "stateOff",
+  opening: "stateOpening",
+  late: "stateLate",
+  listening: "stateListening",
+  working: "stateWorking",
+};
+/** The ✻'s words: the state, then what waits on it ("Agent working here · 2 queued"). */
+export function agentMarkLabel(
+  lang: "pt" | "en",
+  state: AgentMarkState,
+  status: AgentStatus,
+  count: number,
+): string {
+  const head = roomAgentText(
+    lang,
+    state === "blocked" ? "stateBlocked" : statusKey[status],
+  );
+  return count
+    ? `${head} · ${roomAgentText(lang, "queuedCount").replace("{n}", String(count))}`
+    : head;
+}
