@@ -323,6 +323,7 @@
       kind !== "issue" &&
       kind !== "notice" &&
       kind !== "reminder"}
+    me={room.me}
     message={m}
     roomId={room.id}
     {actions}
