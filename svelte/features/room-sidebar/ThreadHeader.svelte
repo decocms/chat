@@ -38,6 +38,7 @@
     roomIcon,
     titleId,
     compact = false,
+    onhome,
   }: ThreadHeaderProps = $props();
   const status = untrack(() => owner.state);
   // Secondary text beside the title gives way first; on the phone bar it is dropped (the sheet header shows it).
@@ -113,7 +114,8 @@
   data-native-thread-header
   class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:tracking-normal tw:text-foreground"
 >
-  <span class="tw:hidden tw:min-[901px]:contents"
+  <span
+    class={["tw:hidden tw:min-[901px]:contents", onhome && "tw:cursor-pointer"]}
     >{#if !epic && !suggestion}<RoomMark
         {title}
         src={roomIcon}
@@ -129,11 +131,17 @@
       id={titleId}
       variant="ghost"
       size="sm"
-      class="tw:max-w-full tw:min-w-0 tw:justify-start tw:px-2 tw:text-sm tw:font-medium"
+      class={cn(
+        "tw:max-w-full tw:min-w-0 tw:justify-start tw:px-2 tw:text-sm tw:font-medium",
+        // Desktop top bar: plain text with a pointer, no button background.
+        onhome &&
+          "tw:min-[901px]:cursor-pointer tw:min-[901px]:hover:bg-transparent tw:min-[901px]:hover:text-foreground tw:min-[901px]:aria-expanded:bg-transparent",
+      )}
       title={room.book.summary || title}
       onclick={(event) => {
         if (!event.currentTarget.isConnected) return;
         if (matchMedia("(max-width: 900px)").matches) onopenside();
+        else if (onhome) onhome();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
       }}><span class="tw:truncate">{title}</span></Button
     >

@@ -111,9 +111,10 @@ export type NativeApplicationProfileEvidence = NativeApplicationProfile & {
   failure?: string;
   failureSourceFrames?: string[];
 };
-// In a room at desktop width the shell is Studio's frame (the sidebar color
-// around the rail and card panels); elsewhere it is the page background.
-const roomRoles = (width: number): StudioRenderedRole[] =>
+// At desktop width the shell is Studio's frame (the sidebar color around the
+// rail and the framed content), in a room and on Home alike; on phones it is
+// the page background.
+const frameRoles = (width: number): StudioRenderedRole[] =>
   rootRoles.map((role) =>
     role.role === "Root background" && width >= 901
       ? { ...role, role: "Room frame background", cssVariable: "--sidebar" }
@@ -279,7 +280,7 @@ async function renderedFonts(page: Page) {
       [
         "Room title",
         phone
-          ? "[data-native-room-header] [data-native-phone-title] > span > span"
+          ? "[data-native-room-header] [data-native-phone-title] > span:last-child > span:first-child"
           : "[data-native-room-header] h2 button",
         "Inter",
       ],
@@ -396,7 +397,10 @@ async function keyboardOverlays(
   evidence: NativeApplicationProfileEvidence,
 ) {
   const t = createApplicationCopy(profile.lang);
-  await fixture.openSidebar(page);
+  // Phones carry Search in the room header, which the thread sheet covers when
+  // it drops from the top (#80); desktop keeps it in the sidebar.
+  const phone = profile.width <= 900;
+  if (!phone) await fixture.openSidebar(page);
   const search = page
     .getByRole("button", {
       name: homeText(profile.lang, "search"),
@@ -447,8 +451,9 @@ async function keyboardOverlays(
   evidence.keyboard.push(
     "keyboard search open; combobox autofocus; Tab/Shift+Tab contained; Escape closes; exact trigger focus restored",
   );
-  if (profile.width <= 900) {
+  if (phone) {
     const layout = page.locator("[data-native-room-layout]");
+    await fixture.openSidebar(page);
     await expect(layout).toHaveAttribute("data-sheet", "side");
     await page.keyboard.press("Escape");
     await expect
@@ -471,7 +476,7 @@ async function keyboardOverlays(
       )
       .toBe(false);
     evidence.keyboard.push(
-      "Escape inside search preserves the underlying side sheet; the next Escape closes the sheet with confirmed history departure",
+      "Escape closes the mobile side sheet with confirmed history departure",
     );
   }
   const inbox = page.locator("[data-native-inbox-toggle]");
@@ -630,7 +635,7 @@ export async function auditNativeApplicationProfiles(
               evidence: await verifyStudioPalette(
                 page,
                 theme,
-                rootRoles.slice(0, 4),
+                frameRoles(width).slice(0, 4),
               ),
             });
             await axe(page, "Home", evidence);
@@ -755,7 +760,7 @@ export async function auditNativeApplicationProfiles(
               evidence: await verifyStudioPalette(
                 page,
                 theme,
-                roomRoles(width),
+                frameRoles(width),
               ),
             });
             await axe(page, "Room initial", evidence);

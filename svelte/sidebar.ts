@@ -36,10 +36,14 @@ export type SidebarProps = {
   oninbox?: (trigger?: HTMLElement) => void;
   inboxOpen?: boolean;
   onthreadintent?: () => boolean;
+  /** Desktop: the room's name or icon at the top brings the chat back. */
+  onroomhome?: () => void;
   /** Pending F50 shell geometry adapter, disposed with its native handle. */
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */
   hideSheetHandle?: boolean;
+  /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
+  footer?: import("svelte").Snippet<[collapsed: boolean]>;
   friends?: string[];
   vb: SidebarBridge;
   send: SendRoomCommand;

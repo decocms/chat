@@ -45,7 +45,10 @@
     onaccount,
     pwa,
     onlogout,
+    row = false,
   }: UserMenuActions & {
+    /** The room sidebar's foot (desktop): you as a full-width row, the menu opening above it. */
+    row?: boolean;
     name: string;
     email: string;
     avatar?: string;
@@ -149,7 +152,9 @@
   </span>
 {/snippet}
 
-<div class="tw:relative tw:shrink-0">
+<div
+  class={row ? "tw:relative tw:w-full tw:min-w-0" : "tw:relative tw:shrink-0"}
+>
   <DropdownMenu.Root
     bind:open
     onOpenChange={(next) => {
@@ -167,17 +172,36 @@
                 type="button"
                 aria-label={label}
                 data-native-user-menu-trigger
-                class="tw:relative tw:flex tw:size-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+                class={row
+                  ? "tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+                  : "tw:relative tw:flex tw:size-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"}
               >
-                <!-- 16px, the same as the search and + glyphs beside it. -->
-                <PersonAvatar name={label} url={avatar} size="2xs" />
+                {#if row}<span class="tw:relative tw:flex tw:shrink-0"
+                    ><PersonAvatar
+                      name={label}
+                      url={avatar}
+                      class="tw:size-7"
+                    /><span
+                      data-status-dot="online"
+                      class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-brand tw:ring-2 tw:ring-sidebar"
+                    ></span></span
+                  ><span class="tw:flex tw:min-w-0 tw:flex-col"
+                    ><span class="tw:truncate tw:font-medium">{label}</span
+                    ><span
+                      class="tw:truncate tw:text-xs tw:text-muted-foreground"
+                      >Online</span
+                    ></span
+                  >{:else}
+                  <!-- 16px, the same as the search and + glyphs beside it. -->
+                  <PersonAvatar name={label} url={avatar} size="2xs" />{/if}
               </button>
             {/snippet}
           </DropdownMenu.Trigger>
         {/snippet}
       </TooltipTrigger>
-      <TooltipContent side={wide.current ? "right" : "bottom"} sideOffset={8}
-        >{label}</TooltipContent
+      <TooltipContent
+        side={row ? "top" : wide.current ? "right" : "bottom"}
+        sideOffset={8}>{label}</TooltipContent
       >
     </Tooltip>
     <DropdownMenu.Portal>
@@ -194,8 +218,8 @@
         data-vb-native
         data-native-user-menu
         aria-label={text("userMenu")}
-        side={wide.current ? "right" : "bottom"}
-        align="end"
+        side={row ? "top" : wide.current ? "right" : "bottom"}
+        align={row ? "start" : "end"}
         sideOffset={8}
         collisionPadding={8}
         class="tw:z-50 tw:m-0 tw:box-border tw:grid tw:w-72 tw:max-w-[calc(100vw-16px)] tw:gap-0 tw:rounded-2xl tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-lg tw:outline-none"

@@ -12,6 +12,8 @@ export type ThreadHeaderProps = {
   titleId?: string;
   /** Phone top bar: keeps the title and drops the epic actions (the sheet header has them). */
   compact?: boolean;
+  /** Desktop top bar: the title and icon are plain text that bring the chat back (rename lives in the sidebar and the epic's menu). */
+  onhome?: () => void;
   roomIcon?: string;
 };
 export type SuggestionPreviewProps = {

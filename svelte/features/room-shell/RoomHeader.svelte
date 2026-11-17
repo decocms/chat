@@ -3,7 +3,6 @@
   import type { ComponentProps } from "svelte";
   import ThreadHeader from "../room-sidebar/ThreadHeader.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
-  import AgentTrigger from "../agents/AgentTrigger.svelte";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
@@ -16,7 +15,6 @@
     Columns03,
     Inbox01,
     LayoutAlt01,
-    LayoutRight,
     SearchMd,
   } from "../../lib/studio/icons";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
@@ -31,7 +29,6 @@
   let {
     presentation,
     header,
-    trigger,
     layout,
     current,
     boardCount,
@@ -39,10 +36,11 @@
     back,
     tabs,
     onPane,
+    inboxOpen = false,
+    tochat,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
-    trigger: ComponentProps<typeof AgentTrigger> | null;
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
@@ -52,6 +50,10 @@
     /** Desktop: the pane tabs live in this bar (one top bar, the split below it). */
     tabs?: ComponentProps<typeof DocumentToolbar>;
     onPane?(pane: DocumentPane): void;
+    /** The room's inbox fills the middle (it replaces the chat, like the board). */
+    inboxOpen?: boolean;
+    /** Back to the chat: closes the inbox and the full board. */
+    tochat?(): void;
   } = $props();
   // The shell's account menu (absent in isolated mounts).
   const menu = userMenuBridge();
@@ -74,31 +76,71 @@
   const mac =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  const toggleLabel = $derived(
-    t(
-      mac
-        ? "Alternar painel direito (⌥⌘B)"
-        : "Alternar painel direito (Ctrl+Alt+B)",
-    ),
-  );
-  // The pane open beside the chat: the bar becomes two columns lined up with it.
+  // Desktop, two slots: the middle is the chat, the full board or the inbox;
+  // the right pane (doc, files, apps, decisions, reminders) shows only beside
+  // the chat. The pane open beside the chat: its tab shows selected.
   const split = $derived(
     !$geometry.mobile &&
-      $geometry.documentVisible &&
-      !($geometry.boardFull && $geometry.pane === "board"),
+      !inboxOpen &&
+      !$geometry.boardFull &&
+      $geometry.documentVisible,
   );
-  // A tab opens the pane when it's closed (or the board is full), then shows that pane.
+  // A tab brings the chat back, then opens that pane, or closes it when it's
+  // the one already open (this replaced the pane toggle button).
   function pickPane(pane: DocumentPane) {
     if (!current()) return;
-    if (layout.read().boardFull) layout.toggleBoard();
+    if (split && layout.read().pane === pane) {
+      layout.toggleDocument();
+      return;
+    }
+    tochat?.();
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
   }
-  function onwindowkeydown(event: KeyboardEvent) {
-    if (event.defaultPrevented || !isPanelToggleKey(event, mac) || !current())
+  function toggleBoard() {
+    if (inboxOpen) {
+      tochat?.();
+      if (!layout.read().boardFull) layout.toggleBoard();
       return;
+    }
+    layout.toggleBoard();
+  }
+  function toggleInbox(trigger: HTMLElement) {
+    if (inboxOpen) tochat?.();
+    else {
+      if (!layout.read().mobile && layout.read().boardFull)
+        layout.toggleBoard();
+      presentation.openInbox(trigger);
+    }
+  }
+  const editable = (target: EventTarget | null) =>
+    target instanceof HTMLElement &&
+    !!target.closest("input, textarea, select, [contenteditable=true]");
+  function onwindowkeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented || !current()) return;
+    // Esc leaves the inbox or the full board for the chat.
+    if (
+      event.key === "Escape" &&
+      (inboxOpen || (!layout.read().mobile && layout.read().boardFull)) &&
+      !editable(event.target) &&
+      !document.querySelector("[data-dialog-content], [role=dialog]")
+    ) {
+      event.preventDefault();
+      if (inboxOpen) tochat?.();
+      else layout.toggleBoard();
+      return;
+    }
+    if (!isPanelToggleKey(event, mac)) return;
     event.preventDefault();
     layout.toggleDocument();
+  }
+  // The room's name or icon in the bar brings the chat back (not its buttons);
+  // in the chat already, nothing changes.
+  function titleClick(event: MouseEvent) {
+    if (!current() || !(event.target instanceof Element)) return;
+    if (event.target.closest("button, a, input, [role=menu], [role=menuitem]"))
+      return;
+    tochat?.();
   }
 </script>
 
@@ -108,12 +150,7 @@
   data-vb-native
   data-native-room-header
   data-room-document-toolbar
-  class={[
-    // No @container here: container queries add layout containment, which turns subgrid off.
-    "tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap",
-    split &&
-      "tw:min-[901px]:col-span-2 tw:min-[901px]:grid tw:min-[901px]:grid-cols-subgrid tw:min-[901px]:gap-0",
-  ]}
+  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap"
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
@@ -157,24 +194,27 @@
       ></span
     ></button
   >
-  <!-- Desktop, left column (over the chat): the thread, then the room's own actions. -->
+  <!-- Desktop, one bar over chat and pane: the thread, the room's actions, then the pane's tabs at the end. -->
   <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1 tw:min-[901px]:pr-2"
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div
-      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24"
+      data-native-header-title
+      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24 tw:[&_h2]:cursor-pointer"
+      onclick={titleClick}
     >
-      <ThreadHeader {...header} compact />
+      <ThreadHeader {...header} compact onhome={tochat} />
     </div>
     <IconButton
       data-native-board-toggle
       label={t("Quadro de tarefas (kanban)")}
       tooltipSide="bottom"
       size="icon"
-      aria-pressed={$geometry.boardFull}
+      aria-pressed={$geometry.boardFull && !inboxOpen}
       class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground tw:max-[900px]:hidden"
       onclick={(event) => {
-        if (live(event)) layout.toggleBoard();
+        if (live(event)) toggleBoard();
       }}
       ><Icon
         icon={tabs ? LayoutAlt01 : Columns03}
@@ -200,9 +240,10 @@
       label={t("Caixa de entrada")}
       tooltipSide="bottom"
       size="icon"
-      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+      aria-pressed={inboxOpen}
+      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:aria-pressed:bg-accent tw:min-[901px]:aria-pressed:text-foreground"
       onclick={(event) => {
-        if (live(event)) presentation.openInbox(event.currentTarget);
+        if (live(event)) toggleInbox(event.currentTarget);
       }}
       ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
           value={waits.length}
@@ -210,50 +251,26 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
-    <!-- Desktop: the room's ✻ is the Agents pane's tab, shown once. -->
-    {#if trigger}<div
-        data-document-pane="agents"
-        class="tw:flex tw:max-[900px]:hidden"
-      >
-        <AgentTrigger {...trigger} />
-      </div>{/if}
   </div>
-  <!-- Desktop, right column (over the pane, starting at the split): its tabs and its toggle. -->
   <div
-    class={[
-      "tw:contents tw:min-[901px]:flex tw:min-[901px]:items-center tw:min-[901px]:gap-1",
-      split
-        ? "tw:min-[901px]:w-0 tw:min-[901px]:min-w-full tw:min-[901px]:pl-2"
-        : "tw:min-[901px]:shrink-0",
-    ]}
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
-    {#if tabs}<div
+    {#if tabs}<span
+        aria-hidden="true"
+        class="tw:hidden tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:block"
+      ></span>
+      <div
         data-native-header-tabs
-        class={[
-          "tw:hidden tw:min-w-0 tw:min-[901px]:block",
-          split && "tw:flex-1",
-        ]}
+        class="tw:hidden tw:min-w-0 tw:min-[901px]:block"
       >
         <DocumentToolbar
           {...tabs}
           bare
-          exclude={["agents"]}
+          exclude={["agents", "board"]}
           pane={split ? tabs.pane : ("" as DocumentPane)}
           onPane={pickPane}
         />
       </div>{/if}
-    <IconButton
-      data-native-document-toggle
-      label={toggleLabel}
-      tooltipSide="bottom"
-      size="icon"
-      aria-pressed={$geometry.documentVisible}
-      aria-keyshortcuts={mac ? "Alt+Meta+B" : "Control+Alt+B"}
-      class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:max-[900px]:hidden"
-      onclick={(event) => {
-        if (live(event)) layout.toggleDocument();
-      }}><Icon icon={LayoutRight} size={16} /></IconButton
-    >
     {#if menu && $personal.me}<span
         data-native-phone-account
         class="tw:contents tw:min-[901px]:hidden"

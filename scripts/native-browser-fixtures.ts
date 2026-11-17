@@ -98,27 +98,43 @@ export async function openNativeRoomPane(
       await tabBar("chat").click();
       await expect(layout).not.toHaveAttribute("data-board-full", "true");
     }
-    // The peek tabs show only while the doc sheet is open (#80): open it from
-    // the bottom bar tab that holds this pane, then pick the pane.
-    if ((await layout.getAttribute("data-sheet")) !== "doc") {
-      const tab =
-        pane === "doc" || pane === "decisions"
-          ? "doc"
-          : pane === "files" || pane === "apps"
-            ? "files"
-            : "claude";
+    // The peek tabs show only while the doc sheet is open (#80), and only the
+    // panes of the bottom bar tab it was opened from: Doc + Decisions, Files +
+    // Apps, Agents + Reminders. Switch tabs first when the pane is elsewhere.
+    const tab =
+      pane === "doc" || pane === "decisions"
+        ? "doc"
+        : pane === "files" || pane === "apps"
+          ? "files"
+          : "claude";
+    if (
+      (await layout.getAttribute("data-sheet")) !== "doc" ||
+      (await tabBar(tab).getAttribute("aria-current")) !== "page"
+    ) {
       await tabBar(tab).click();
       await expect(layout).toHaveAttribute("data-sheet", "doc");
+      await expect(tabBar(tab)).toHaveAttribute("aria-current", "page");
     }
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
+    // Desktop: the board is always full width, behind its toggle (no pane tab).
+    if (pane === "board") {
+      if ((await full.getAttribute("aria-pressed")) !== "true")
+        await full.click();
+      await expect(layout).toHaveAttribute("data-board-full", "true");
+      await expect(page.locator(content.board)).toBeVisible();
+      return;
+    }
     if ((await full.getAttribute("aria-pressed")) === "true")
       await full.click();
+    // The tabs live in the room's top bar and open the pane when it's closed;
+    // your Claude (the Agents pane) sits at the foot of the sidebar.
     const button = page.locator(
-      `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
+      pane === "agents"
+        ? "[data-native-agent-footer] button"
+        : `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
     );
-    // The tabs live in the room's top bar and open the pane when it's closed.
     if (
       (await layout.getAttribute("data-pane")) !== pane ||
       !(await page.locator(content[pane]).isVisible())

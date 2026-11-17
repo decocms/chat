@@ -54,10 +54,11 @@
       aria-hidden="true"
       class={cn(
         "tw:absolute tw:-right-2 tw:-bottom-1.5 tw:h-4 tw:min-w-4 tw:rounded-full tw:px-1 tw:text-center tw:font-sans tw:text-[0.625rem] tw:leading-4 tw:font-bold tw:tabular-nums tw:shadow-[0_0_0_2px_var(--vb-background)]",
-        tone[state],
+        // A count is text: white on the warning orange is under 4.5:1, so work
+        // waiting uses the app's one count style (lime, as Count); blocked stays red.
         state === "blocked"
-          ? "tw:text-destructive-foreground"
-          : "tw:text-warning-foreground",
+          ? "tw:bg-destructive tw:text-destructive-foreground"
+          : "tw:bg-brand tw:text-brand-foreground",
         pulse && "tw:animate-pulse tw:motion-reduce:animate-none",
       )}>{count > 99 ? "99+" : count}</span
     >{:else if tone[state]}<span

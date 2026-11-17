@@ -20,7 +20,7 @@
   } from "./speech";
   import { createDictationController } from "./dictation";
   import type { FireCaptureFactory } from "./fireAudio";
-  import { insertAt } from "./model";
+  import { insertAt, mentionKey, mentionSegments } from "./model";
   import EmojiPicker from "./EmojiPicker.svelte";
 
   /** The one chat box: the room's composer and the home's ask box both render it,
@@ -58,6 +58,7 @@
     inputProps = {},
     oninputtext,
     onblurfield,
+    mention,
   }: {
     /** The text in the field. */
     value: string;
@@ -108,6 +109,9 @@
     /** After a typed change (not dictation/emoji). */
     oninputtext?: () => void;
     onblurfield?: () => void;
+    /** Whether `@handle` names someone here: known mentions are tinted behind the text and
+     *  Backspace, Delete and the arrows treat each one as a single unit. */
+    mention?: (handle: string) => boolean;
   } = $props();
 
   let active = true,
@@ -116,7 +120,41 @@
     more = $state<HTMLElement | null>(null),
     emoji = $state(false),
     seen = untrack(() => value),
-    counted = 0;
+    counted = 0,
+    mirror = $state<HTMLElement | null>(null),
+    // Where the last typed character went: Backspace right there edits a hand-typed mention letter by letter.
+    typedAt = -1;
+  const segments = $derived(mention ? mentionSegments(value, mention) : []);
+  const tinted = $derived(segments.some((segment) => segment.mention));
+  // The highlight layer and the textarea share these classes (type, padding), so the mirror's
+  // text wraps exactly where the field's does.
+  const FIELD_TYPE =
+    "tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:leading-5 tw:[scrollbar-gutter:stable]";
+  function mentionKeydown(event: KeyboardEvent) {
+    if (
+      !mention ||
+      !textarea ||
+      event.isComposing ||
+      event.shiftKey ||
+      event.altKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      textarea.selectionStart !== textarea.selectionEnd
+    )
+      return false;
+    const at = textarea.selectionStart,
+      step = mentionKey(value, at, event.key, mention, typedAt === at);
+    if (!step) return false;
+    if ("select" in step) {
+      // Leave the key to the browser: it deletes the selection, with undo and an input event.
+      textarea.setSelectionRange(step.select[0], step.select[1]);
+      return false;
+    }
+    event.preventDefault();
+    textarea.setSelectionRange(step.move, step.move);
+    readCaret();
+    return true;
+  }
   const OPEN_DIALOG =
     '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]';
   // Without a draft revision, every change of the text counts as one. Counted when read
@@ -291,6 +329,7 @@
     }
     if (speech.keydown(event)) return;
     if (onkeydown?.(event)) return;
+    if (mentionKeydown(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
       void submit();
@@ -341,7 +380,7 @@
   data-chat-box
   data-native-composer-field
   aria-busy={busy || pending || undefined}
-  class="tw:flex tw:items-end tw:gap-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:rounded-[18px] tw:bg-[var(--vb-studio-input-background)] tw:py-1.5 tw:pr-1.5 tw:pl-1 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
+  class="tw:flex tw:items-end tw:gap-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:py-3 tw:pr-3 tw:pl-2 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
   onsubmit={(event) => {
     event.preventDefault();
     void submit();
@@ -395,38 +434,62 @@
       </div>{/if}
   </div>
   {#if label}<label for={id} class="tw:sr-only">{label}</label>{/if}
-  <Textarea
-    bind:ref={textarea}
-    {id}
-    rows={lines}
-    {maxlength}
-    {placeholder}
-    {value}
-    {...inputProps}
-    disabled={off}
-    class={cn(
-      "tw:block tw:max-h-40 tw:min-h-8 tw:min-w-0 tw:flex-1 tw:resize-none tw:rounded-lg tw:bg-transparent tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:leading-5 tw:shadow-none tw:[field-sizing:content] tw:hover:bg-transparent tw:focus-visible:outline-none",
-      dictating && "tw:ring-2 tw:ring-destructive",
-    )}
-    oninput={(event) => {
-      if (!ok()) return;
-      speech.cancel();
-      onedit(event.currentTarget.value);
-      readCaret();
-      oninputtext?.();
-    }}
-    onselect={readCaret}
-    onclick={readCaret}
-    onkeyup={(event) => {
-      speech.keyup(event);
-      readCaret();
-    }}
-    onkeydown={keydown}
-    onblur={() => {
-      if (!waiting) speech.cancel();
-      onblurfield?.();
-    }}
-  />
+  <div class="tw:relative tw:flex tw:min-w-0 tw:flex-1">
+    {#if mention}<div
+        bind:this={mirror}
+        aria-hidden="true"
+        data-mention-mirror
+        class={cn(
+          "tw:pointer-events-none tw:absolute tw:inset-0 tw:overflow-hidden tw:break-words tw:whitespace-pre-wrap tw:text-transparent",
+          FIELD_TYPE,
+        )}
+      >
+        {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
+                class="tw:rounded-sm tw:bg-primary/15 tw:text-transparent tw:ring-2 tw:ring-primary/15"
+                >{segment.text}</mark
+              >{:else}{segment.text}{/if}{/each}{/if}{"\u200b"}
+      </div>{/if}
+    <Textarea
+      bind:ref={textarea}
+      {id}
+      rows={lines}
+      {maxlength}
+      {placeholder}
+      {value}
+      {...inputProps}
+      disabled={off}
+      class={cn(
+        "tw:relative tw:block tw:max-h-40 tw:min-h-8 tw:min-w-0 tw:flex-1 tw:resize-none tw:rounded-lg tw:bg-transparent tw:shadow-none tw:[field-sizing:content] tw:hover:bg-transparent tw:focus-visible:outline-none",
+        FIELD_TYPE,
+        dictating && "tw:ring-2 tw:ring-destructive",
+      )}
+      onscroll={() => {
+        if (mirror && textarea) mirror.scrollTop = textarea.scrollTop;
+      }}
+      oninput={(event) => {
+        if (!ok()) return;
+        speech.cancel();
+        typedAt =
+          "inputType" in event && event.inputType === "insertText"
+            ? event.currentTarget.selectionStart
+            : -1;
+        onedit(event.currentTarget.value);
+        readCaret();
+        oninputtext?.();
+      }}
+      onselect={readCaret}
+      onclick={readCaret}
+      onkeyup={(event) => {
+        speech.keyup(event);
+        readCaret();
+      }}
+      onkeydown={keydown}
+      onblur={() => {
+        if (!waiting) speech.cancel();
+        onblurfield?.();
+      }}
+    />
+  </div>
   <!-- The mic sits right before send, as in the classic app (Gui #2896). -->
   {#if speech.supported}<IconButton
       size="icon"
