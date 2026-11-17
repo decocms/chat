@@ -154,6 +154,23 @@
   $effect(() => {
     if (inboxOpen) void roomInboxModule.ensure();
   });
+  // The chat back in the middle: the inbox and the full board give way.
+  function toChat() {
+    if (!current()) return;
+    if (inboxOpen) leaveInbox();
+    if (layout.read().boardFull) layout.toggleBoard();
+  }
+  // Desktop has no board pane any more (the board is always full width): a
+  // remembered "board" pane falls back to the doc.
+  $effect(() => {
+    if (
+      !$geometry.mobile &&
+      !$geometry.boardFull &&
+      $geometry.pane === "board" &&
+      current()
+    )
+      untrack(() => owner.actions.setPane("doc"));
+  });
   const boardModule = untrack(() =>
       createDeferredModule(
         () => import("../../Board.svelte").then((module) => module.default),
@@ -332,6 +349,7 @@
         {...$view.sidebar}
         {inboxOpen}
         onthreadintent={leaveInbox}
+        onroomhome={toChat}
         oninbox={(trigger) => {
           if (current()) presentation.openInbox(trigger);
         }}
@@ -369,6 +387,8 @@
         {current}
         {back}
         tabs={$view.toolbar}
+        {inboxOpen}
+        tochat={toChat}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}

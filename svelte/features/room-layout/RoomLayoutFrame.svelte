@@ -183,7 +183,7 @@
       ></div>{/if}
     <div
       bind:this={header}
-      inert={props.overlayOpen || ($view.mobile && $view.sheet === "side")}
+      inert={$view.mobile && (props.overlayOpen || $view.sheet === "side")}
       data-room-header
       class={[
         "tw:relative tw:z-30 tw:col-start-2 tw:row-start-1 tw:min-w-0",
@@ -191,9 +191,10 @@
           ? "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3"
           : [
               "tw:mt-2 tw:mr-2 tw:flex tw:h-[52px] tw:items-center tw:rounded-tr-surface tw:border-b tw:border-border tw:pr-3 tw:pl-5",
-              split && "tw:col-end-4",
+              (split || props.overlayOpen) && "tw:col-end-4",
             ],
-        props.overlayOpen && "tw:hidden",
+        // Desktop keeps the top bar over the inbox (it fills the middle, like the board).
+        $view.mobile && props.overlayOpen && "tw:hidden",
       ]}
     >
       {@render props.header()}
@@ -359,9 +360,11 @@
         data-room-inbox-surface
         inert={$view.mobile && $view.sheet === "side"}
         class={[
-          "tw:z-30 tw:col-start-2 tw:col-end-4 tw:row-start-1 tw:row-end-6 tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:bg-background",
-          // Inside the room's frame, beside the sidebar.
-          !$view.mobile && "tw:my-2 tw:mr-2 tw:rounded-r-surface",
+          "tw:z-30 tw:col-start-2 tw:col-end-4 tw:row-end-6 tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:bg-background",
+          // Phones: over the whole room. Desktop: under the top bar, in the frame.
+          $view.mobile
+            ? "tw:row-start-1"
+            : "tw:row-start-2 tw:mr-2 tw:mb-2 tw:rounded-br-surface",
         ]}
       >
         {@render props.overlay?.()}
