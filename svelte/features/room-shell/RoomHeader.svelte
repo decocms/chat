@@ -3,7 +3,6 @@
   import type { ComponentProps } from "svelte";
   import ThreadHeader from "../room-sidebar/ThreadHeader.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
-  import AgentTrigger from "../agents/AgentTrigger.svelte";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
@@ -31,7 +30,6 @@
   let {
     presentation,
     header,
-    trigger,
     layout,
     current,
     boardCount,
@@ -42,7 +40,6 @@
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
-    trigger: ComponentProps<typeof AgentTrigger> | null;
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
@@ -81,7 +78,7 @@
         : "Alternar painel direito (Ctrl+Alt+B)",
     ),
   );
-  // The pane open beside the chat: the bar becomes two columns lined up with it.
+  // The pane open beside the chat: its tab shows selected.
   const split = $derived(
     !$geometry.mobile &&
       $geometry.documentVisible &&
@@ -108,12 +105,7 @@
   data-vb-native
   data-native-room-header
   data-room-document-toolbar
-  class={[
-    // No @container here: container queries add layout containment, which turns subgrid off.
-    "tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap",
-    split &&
-      "tw:min-[901px]:col-span-2 tw:min-[901px]:grid tw:min-[901px]:grid-cols-subgrid tw:min-[901px]:gap-0",
-  ]}
+  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap"
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
@@ -157,9 +149,9 @@
       ></span
     ></button
   >
-  <!-- Desktop, left column (over the chat): the thread, then the room's own actions. -->
+  <!-- Desktop, one bar over chat and pane: the thread, the room's actions, then the pane's tabs at the end. -->
   <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1 tw:min-[901px]:pr-2"
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
     <div
       class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24"
@@ -210,29 +202,17 @@
           class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</IconButton
     >
-    <!-- Desktop: the room's ✻ is the Agents pane's tab, shown once. -->
-    {#if trigger}<div
-        data-document-pane="agents"
-        class="tw:flex tw:max-[900px]:hidden"
-      >
-        <AgentTrigger {...trigger} />
-      </div>{/if}
   </div>
-  <!-- Desktop, right column (over the pane, starting at the split): its tabs and its toggle. -->
   <div
-    class={[
-      "tw:contents tw:min-[901px]:flex tw:min-[901px]:items-center tw:min-[901px]:gap-1",
-      split
-        ? "tw:min-[901px]:w-0 tw:min-[901px]:min-w-full tw:min-[901px]:pl-2"
-        : "tw:min-[901px]:shrink-0",
-    ]}
+    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
-    {#if tabs}<div
+    {#if tabs}<span
+        aria-hidden="true"
+        class="tw:hidden tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:block"
+      ></span>
+      <div
         data-native-header-tabs
-        class={[
-          "tw:hidden tw:min-w-0 tw:min-[901px]:block",
-          split && "tw:flex-1",
-        ]}
+        class="tw:hidden tw:min-w-0 tw:min-[901px]:block"
       >
         <DocumentToolbar
           {...tabs}

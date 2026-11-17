@@ -39,8 +39,8 @@
   const rightVisible = $derived(
     $view.documentVisible && !($view.boardFull && $view.pane === "board"),
   );
-  // Desktop with the pane open: one top bar across chat and pane (a subgrid, so the
-  // pane tabs start at the split line), one surface under it, a hairline between.
+  // Desktop: one frame (sidebar, chat and the open pane on one surface, hairlines
+  // between them); with the pane open the top bar runs across chat and pane.
   const split = $derived(!$view.mobile && rightVisible && !props.overlayOpen);
   const paneClass = $derived(
     tabs
@@ -148,7 +148,7 @@
               sidePresented ? "tw:visible" : "tw:invisible",
             ]
           : [
-              "tw:col-start-1 tw:row-start-1 tw:row-end-6",
+              "tw:relative tw:z-10 tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:ml-px tw:overflow-hidden tw:rounded-l-surface tw:border-r tw:border-border",
               $view.sidebarCollapsed
                 ? "tw:w-room-sidebar-rail"
                 : "tw:w-room-sidebar",
@@ -177,8 +177,8 @@
         aria-hidden="true"
         data-room-surface="chat"
         class={[
-          "tw:pointer-events-none tw:col-start-2 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:rounded-surface tw:bg-background tw:shadow-edge",
-          split && "tw:col-end-4",
+          "tw:pointer-events-none tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:ml-px tw:rounded-surface tw:bg-background tw:shadow-edge",
+          split || props.overlayOpen ? "tw:col-end-4" : "tw:col-end-3",
         ]}
       ></div>{/if}
     <div
@@ -190,8 +190,8 @@
         $view.mobile
           ? "tw:max-h-[20cqh] tw:overflow-y-auto tw:overscroll-contain tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3"
           : [
-              "tw:mt-2 tw:mr-2 tw:h-[52px] tw:items-center tw:rounded-t-surface tw:border-b tw:border-border tw:pr-3 tw:pl-5",
-              split ? "tw:col-end-4 tw:grid tw:grid-cols-subgrid" : "tw:flex",
+              "tw:mt-2 tw:mr-2 tw:flex tw:h-[52px] tw:items-center tw:rounded-tr-surface tw:border-b tw:border-border tw:pr-3 tw:pl-5",
+              split && "tw:col-end-4",
             ],
         props.overlayOpen && "tw:hidden",
       ]}
@@ -220,7 +220,10 @@
         "tw:col-start-2 tw:row-start-3 tw:min-w-0",
         $view.mobile
           ? "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain"
-          : "tw:mr-2 tw:px-2",
+          : // With the pane open its border is the edge: the banner runs up to it.
+            split
+            ? "tw:px-2"
+            : "tw:mr-2 tw:px-2",
         props.overlayOpen && "tw:hidden",
       ]}
     >
@@ -253,7 +256,7 @@
               : $view.mobile
                 ? "tw:pb-[env(safe-area-inset-bottom)]"
                 : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                  "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface tw:px-2",
+                  "tw:mr-2 tw:mb-2 tw:rounded-br-surface tw:[&>[data-native-composer]]:rounded-br-surface tw:px-2",
           ]}
     >
       {@render props.composer()}
@@ -315,7 +318,7 @@
               "tw:col-start-2 tw:row-start-4 tw:row-end-6 tw:flex tw:h-full",
               $view.mobile
                 ? "tw:w-full"
-                : "tw:mr-2 tw:mb-2 tw:h-auto tw:rounded-b-surface",
+                : "tw:mr-2 tw:mb-2 tw:h-auto tw:rounded-br-surface",
             ]
           : $view.pane === "board" && rightVisible
             ? ["tw:flex", paneClass]
@@ -357,7 +360,8 @@
         inert={$view.mobile && $view.sheet === "side"}
         class={[
           "tw:z-30 tw:col-start-2 tw:col-end-4 tw:row-start-1 tw:row-end-6 tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:bg-background",
-          !$view.mobile && "tw:my-2 tw:mr-2 tw:rounded-surface tw:shadow-edge",
+          // Inside the room's frame, beside the sidebar.
+          !$view.mobile && "tw:my-2 tw:mr-2 tw:rounded-r-surface",
         ]}
       >
         {@render props.overlay?.()}

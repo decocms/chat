@@ -40,6 +40,8 @@ export type SidebarProps = {
   mountSheetHandle?: (node: HTMLElement) => () => void;
   /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */
   hideSheetHandle?: boolean;
+  /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
+  footer?: import("svelte").Snippet<[collapsed: boolean]>;
   friends?: string[];
   vb: SidebarBridge;
   send: SendRoomCommand;

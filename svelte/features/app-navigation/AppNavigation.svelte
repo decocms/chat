@@ -196,11 +196,13 @@
   data-native-app-navigation
   class={cn(
     studioType,
-    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:py-3",
+    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:pt-2 tw:min-[901px]:pb-3",
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   )}
 >
-  <span class="tw:contents tw:max-[900px]:hidden"
+  <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
+  <span
+    class="tw:max-[900px]:hidden tw:min-[901px]:flex tw:min-[901px]:h-[51px] tw:min-[901px]:shrink-0 tw:min-[901px]:items-center"
     ><RailButton
       bind:ref={homeButton}
       label={text("home")}
@@ -220,7 +222,7 @@
   >
   <span
     aria-hidden="true"
-    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
+    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:-mt-2 tw:min-[901px]:h-px tw:min-[901px]:w-6"
   ></span>
   <Button
     variant="ghost"
@@ -275,28 +277,28 @@
       }}
     />
   </div>
-  {#if $personal.me}<span
-      aria-hidden="true"
-      class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
-    ></span>
-    <div class="tw:flex tw:shrink-0 tw:max-[900px]:order-first">
-      <UserMenu
-        name={$personal.me.name ?? ""}
-        email={$personal.me.email}
-        avatar={personAvatar($personal.me, $personal.me.email)}
-        friends={$personal.me.friends.length}
-        {lang}
-        {theme}
-        {onaccount}
-        {pwa}
-        {onlogout}
-        onsettheme={(next) => {
-          if (onsettheme) onsettheme(next);
-          else if (next !== theme) ontheme();
-        }}
-        {onlanguage}
-      />
-    </div>
+  {#if $personal.me}<!-- In a room the account menu moves to the sidebar's foot. -->{#if !inRoom}<span
+        aria-hidden="true"
+        class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
+      ></span>
+      <div class="tw:flex tw:shrink-0 tw:max-[900px]:order-first">
+        <UserMenu
+          name={$personal.me.name ?? ""}
+          email={$personal.me.email}
+          avatar={personAvatar($personal.me, $personal.me.email)}
+          friends={$personal.me.friends.length}
+          {lang}
+          {theme}
+          {onaccount}
+          {pwa}
+          {onlogout}
+          onsettheme={(next) => {
+            if (onsettheme) onsettheme(next);
+            else if (next !== theme) ontheme();
+          }}
+          {onlanguage}
+        />
+      </div>{/if}
     <RoomSwitcher
       bind:open={switcher}
       rooms={$personal.me.books}

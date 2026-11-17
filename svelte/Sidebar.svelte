@@ -18,6 +18,7 @@
     ArrowLeft,
     Inbox01,
     LayoutLeft,
+    MessageCircle01,
     Pencil01,
     Plus,
   } from "./lib/studio/icons";
@@ -57,6 +58,7 @@
     onthreadintent,
     mountSheetHandle,
     hideSheetHandle = false,
+    footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
   const owner = untrack(
@@ -196,6 +198,11 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
+    {#if footer}<div
+        class="tw:mt-auto tw:shrink-0 tw:pt-2 tw:max-[900px]:hidden"
+      >
+        {@render footer(true)}
+      </div>{/if}
   {:else}
     {#if !hideSheetHandle}<button
         type="button"
@@ -211,6 +218,28 @@
     {#snippet thisRoom()}<div
         class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3"
       >
+        <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
+        <div
+          data-room-sidebar-header
+          class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
+        >
+          <RoomMark title={room.book.title} src={roomIcon} />
+          <h2
+            class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
+            title={room.book.summary
+              ? `${room.book.title}\n${room.book.summary}`
+              : room.book.title}
+          >
+            {room.book.title}
+          </h2>
+          <IconButton
+            label={vb.t("Renomear")}
+            size="icon-xs"
+            tooltipSide="bottom"
+            class="tw:shrink-0 tw:text-muted-foreground tw:opacity-0 tw:transition-opacity tw:duration-150 tw:hover:text-sidebar-foreground tw:focus-visible:opacity-100 tw:group-hover/name:opacity-100 tw:motion-reduce:transition-none"
+            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+          >
+        </div>
         <div class="tw:group/room tw:relative tw:shrink-0">
           <Tooltip>
             <TooltipTrigger>
@@ -222,14 +251,26 @@
                   aria-current={!inboxOpen && thread === "main"
                     ? "page"
                     : undefined}
-                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
+                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected) open("main");
                   }}
                 >
-                  <RoomMark title={room.book.title} src={roomIcon} />
+                  <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
+                  <RoomMark
+                    title={room.book.title}
+                    src={roomIcon}
+                    class="tw:min-[901px]:hidden"
+                  /><Icon
+                    icon={MessageCircle01}
+                    size={16}
+                    class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
+                  />
                   <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                    >{room.book.title}</span
+                    ><span class="tw:min-[901px]:hidden">{room.book.title}</span
+                    ><span class="tw:hidden tw:min-[901px]:inline"
+                      >{vb.t("Sala principal")}</span
+                    ></span
                   >
                   <WaitBadge
                     waits={vb.waitsIn("main")}
@@ -255,7 +296,7 @@
             label={vb.t("Renomear")}
             size="icon-xs"
             tooltipSide="bottom"
-            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:min-[901px]:hidden tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
             onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
           >
         </div>
@@ -315,8 +356,28 @@
         {friends}
         vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
         {agents}
+        hideSelf
       />
     </div>
     <MutationStatus {owner} t={vb.t} />
+    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People. -->
+    <div
+      data-sidebar-self
+      class="tw:mt-auto tw:flex tw:shrink-0 tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1 tw:max-[900px]:hidden"
+    >
+      {@render footer?.(false)}
+      <!-- Your own Claudes (context, ✻), as they were under you in People. -->
+      <div class="tw:px-1.5 tw:empty:hidden">
+        <AgentPresenceRows
+          {presence}
+          self
+          email={room.me}
+          t={vb.t}
+          name={vb.name}
+          ago={vb.ago}
+          {locale}
+        />
+      </div>
+    </div>
   {/if}
 </section>

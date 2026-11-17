@@ -17,7 +17,7 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Plus, X } from "../../lib/studio/icons";
+  import { Plus, UserPlus01, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
@@ -26,6 +26,7 @@
     vb,
     agents,
     request,
+    hideSelf = false,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -37,6 +38,8 @@
     };
     agents?: Snippet<[string]>;
     request?: PeopleRequest;
+    /** Desktop sidebar: you sit at its foot, not in the list. */
+    hideSelf?: boolean;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
@@ -55,7 +58,11 @@
     input = $state<HTMLInputElement | null>(null);
   const origin = typeof location === "undefined" ? "" : location.origin;
   const label = (email: string) => room.names?.[email] || vb.name(email);
-  const everyone = $derived([...model.online, ...model.offline]);
+  const everyone = $derived(
+    [...model.online, ...model.offline].filter(
+      (email) => !hideSelf || email !== room.me,
+    ),
+  );
   /** You are always online to yourself: the page you are looking at is connected. */
   const isOnline = (email: string) =>
     room.online.includes(email) || email === room.me;
@@ -326,6 +333,21 @@
         >{/if}{/snippet}
   </SectionHeader>
   {#each everyone as email (email)}{@render member(email)}{/each}
+  <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
+  {#if !everyone.length && !inviting}<button
+      type="button"
+      data-people-empty
+      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid"
+      onclick={openInvite}
+    >
+      <span
+        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+        ><Icon icon={UserPlus01} size={16} /></span
+      >
+      <span class="tw:min-w-0 tw:truncate"
+        >{vb.t("Convidar alguém pra sala")}</span
+      >
+    </button>{/if}
   <form
     id="invite"
     data-invite-form
