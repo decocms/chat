@@ -1,16 +1,12 @@
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
-  import { get } from "svelte/store";
-  import { browserSpeech, browserSpeechClock } from "./speech";
-  import { createDictationController } from "./dictation";
+  import { browserSpeech } from "./speech";
   import { browserFireCapture } from "./fireAudio";
-  import Snapshot from "../../lib/components/Snapshot.svelte";
-  import { onDestroy, onMount, tick, untrack } from "svelte";
+  import { onDestroy, onMount, untrack } from "svelte";
   import type { ComposerProps } from "./types";
   import type { PendingAttachment } from "./model";
   import {
     FILE_ACCEPT,
-    insertAt,
     mentionPicks,
     quoteSnippet,
     composerError,
@@ -22,19 +18,9 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    FaceSmile,
-    File02,
-    Microphone01,
-    Plus,
-    ReverseLeft,
-    X,
-  } from "../../lib/studio/icons";
+  import { File02, ReverseLeft, X } from "../../lib/studio/icons";
   import OrphanDrafts from "./OrphanDrafts.svelte";
-  import ChatBox from "./ChatBox.svelte";
-  import ChatBoxInput from "./ChatBoxInput.svelte";
-  import ChatBoxSend from "./ChatBoxSend.svelte";
-  import EmojiPicker from "./EmojiPicker.svelte";
+  import ChatField from "./ChatField.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
   let {
     room,
@@ -56,14 +42,14 @@
   const draft = entry.state;
   const uid = $props.id();
   let dictating = $state(false),
+    refining = $state(false),
+    voiceWaiting = $state(false),
     voiceIssue = $state("");
   let active = true,
+    field = $state<ChatField | null>(null),
     textarea = $state<HTMLTextAreaElement | null>(null),
     fileInput = $state<HTMLInputElement | null>(null),
     root = $state<HTMLElement | null>(null),
-    menu = $state<HTMLElement | null>(null),
-    plus = $state(false),
-    emoji = $state(false),
     poll = $state(false),
     dragging = $state(false),
     caret = $state(0),
@@ -71,82 +57,19 @@
     pickAt = $state(0),
     mentionClosed = $state(false);
   const ownedSpeechFactory = untrack(() =>
-    speechFactory === undefined
-      ? browserSpeech(window)
-      : speechFactory || undefined,
+    speechFactory === undefined ? browserSpeech(window) : speechFactory,
   );
-  let refining = $state(false),
-    voiceWaiting = $state(false);
   const ownedCaptureFactory = untrack(() =>
-    mediaFactory === undefined
-      ? browserFireCapture(window)
-      : mediaFactory || undefined,
+    mediaFactory === undefined ? browserFireCapture(window) : mediaFactory,
   );
   const ownedVoicePort = untrack(() => voicePort);
-  const speech = createDictationController({
-    capture: ownedCaptureFactory,
-    transcribe: ownedVoicePort
-      ? (audio, signal) => ownedVoicePort.transcribe(audio, signal)
-      : undefined,
-    clock: browserSpeechClock,
-    current: () =>
-      canInteract() && !busy && (!ownedVoicePort || ownedVoicePort.current()),
-    refining: (value) => {
-      if (active) refining = value;
-    },
-    factory: ownedSpeechFactory,
-    coarse: () => window.matchMedia("(pointer: coarse)").matches,
-    locale: untrack(() => vb.locale || "pt-BR"),
-    read: () => {
-      const current = get(entry.state);
-      return {
-        text: current.text,
-        revision: current.revision,
-        start: textarea?.selectionStart ?? current.text.length,
-        end: textarea?.selectionEnd ?? current.text.length,
-      };
-    },
-    write: (text, at) => {
-      if (!canInteract()) return;
-      entry.edit(text);
-      if (textarea) {
-        textarea.value = text;
-        if (at !== undefined) textarea.setSelectionRange(at, at);
-      }
-      readCaret();
-      mentionClosed = true;
-    },
-    canStart: () =>
-      canInteract() &&
-      !voiceWaiting &&
-      document.activeElement === textarea &&
-      !busy &&
-      !document.querySelector(
-        '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
-      ),
-    recording: (value) => {
-      if (active) dictating = value;
-    },
-    error: (value) => {
-      if (active) voiceIssue = value;
-    },
-    ended: () => {
-      void focus(
-        undefined,
-        () =>
-          !document.querySelector(
-            '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
-          ),
-      );
-    },
-  });
+  const transcribe = ownedVoicePort
+    ? (audio: Blob, signal: AbortSignal) =>
+        ownedVoicePort.transcribe(audio, signal)
+    : undefined;
   const detachVoice = untrack(() =>
-    ownedVoicePort?.beforeLeave(() => speech.cancel()),
+    ownedVoicePort?.beforeLeave(() => field?.cancel()),
   );
-  $effect(() => {
-    $draft.revision;
-    untrack(() => speech.sync());
-  });
   const previews = new Map<number, { file: File; url: string }>();
   const allowed = $derived(
     $draft.error !== "draft-limit" &&
@@ -185,9 +108,6 @@
   );
   $effect(() => {
     if (hidden) {
-      speech.cancel();
-      plus = false;
-      emoji = false;
       poll = false;
       mentionClosed = true;
     }
@@ -196,10 +116,7 @@
     const snapshot = room,
       send = request,
       put = upload;
-    untrack(() => {
-      entry.sync(snapshot, send, put);
-      speech.sync();
-    });
+    untrack(() => entry.sync(snapshot, send, put));
   });
   $effect(() => {
     const items = $draft.attachments;
@@ -224,34 +141,18 @@
     previews.set(item.id, { file: item.file, url });
     return url;
   }
-  async function focus(at?: number, permit?: () => boolean) {
-    await tick();
-    if (
-      !active ||
-      hidden ||
-      !allowed ||
-      !textarea?.isConnected ||
-      permit?.() === false
-    )
-      return;
-    textarea.focus();
-    if (at !== undefined) textarea.setSelectionRange(at, at);
-    caret = textarea.selectionStart;
-    selectionEnd = textarea.selectionEnd;
-  }
   const detachFocus = entry.attachFocus(() => {
-    void focus();
+    void field?.focus();
   });
+  let blurTimer: ReturnType<typeof setTimeout> | undefined;
   onDestroy(() => {
     active = false;
-    speech.dispose();
     detachVoice?.();
     clearTimeout(blurTimer);
     detachFocus();
     for (const preview of previews.values()) URL.revokeObjectURL(preview.url);
     previews.clear();
   });
-  let blurTimer: ReturnType<typeof setTimeout> | undefined;
   function canInteract(event?: Event) {
     return (
       active &&
@@ -268,124 +169,22 @@
           event.currentTarget.isConnected))
     );
   }
-  async function submit() {
-    if (!canInteract() || voiceWaiting) return;
-    if (!speech.working()) {
-      speech.cancel();
-      void entry.submit();
-      return;
-    }
-    voiceWaiting = true;
-    try {
-      const snapshot = await speech.finish();
-      if (
-        !snapshot ||
-        !canInteract() ||
-        (ownedVoicePort && !ownedVoicePort.current())
-      )
-        return;
-      const latest = get(entry.state);
-      if (
-        latest.revision !== snapshot.revision ||
-        latest.text !== snapshot.text
-      )
-        return;
-      speech.cancel();
-      if (
-        canInteract() &&
-        (!ownedVoicePort || ownedVoicePort.current()) &&
-        get(entry.state).revision === snapshot.revision
-      )
-        void entry.submit();
-    } finally {
-      if (active) voiceWaiting = false;
-    }
-  }
-  function readCaret() {
-    if (textarea) {
-      caret = textarea.selectionStart;
-      selectionEnd = textarea.selectionEnd;
-    }
-  }
-  function insert(value: string) {
-    if (!active || !allowed || hidden) return;
-    const result = insertAt($draft.text, caret, selectionEnd, value);
-    entry.edit(result.text);
-    mentionClosed = true;
-    void focus(result.caret);
-  }
   function choose(index: number) {
     const pick = items[index];
     if (!active || !allowed || !mentions || !pick) return;
-    const result = insertAt(
-      $draft.text,
-      mentions.start,
-      caret,
-      `@${pick.handle} `,
-    );
-    entry.edit(result.text);
-    mentionClosed = true;
-    void focus(result.caret);
-  }
-  async function openMenu(keyboard = false) {
-    if (!canInteract()) return;
-    speech.cancel();
-    readCaret();
-    plus = true;
-    if (keyboard) {
-      await tick();
-      if (canInteract())
-        menu?.querySelector<HTMLButtonElement>("button")?.focus();
-    }
-  }
-  function menuKeydown(event: KeyboardEvent) {
-    if (!canInteract(event)) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      plus = false;
-      root?.querySelector<HTMLButtonElement>("[data-composer-more]")?.focus();
-      return;
-    }
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-      event.preventDefault();
-      const buttons = [
-        ...(menu?.querySelectorAll<HTMLButtonElement>(
-          "button:not(:disabled)",
-        ) || []),
-      ];
-      if (!buttons.length) return;
-      const current = buttons.findIndex(
-        (button) => button === document.activeElement,
-      );
-      const next =
-        event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? buttons.length - 1
-            : (current +
-                (event.key === "ArrowDown" ? 1 : buttons.length - 1) +
-                buttons.length) %
-              buttons.length;
-      buttons[next].focus();
-    }
+    // Replace the typed "@par" (from its @ to the caret) with the handle.
+    selectionEnd = caret;
+    caret = mentions.start;
+    field?.insert(`@${pick.handle} `);
   }
   function keydown(event: KeyboardEvent) {
-    if (!canInteract(event)) return;
-    if (event.key === "Escape" && dictating) {
-      event.preventDefault();
-      event.stopPropagation();
-      speech.cancel();
-      return;
-    }
-    if (speech.keydown(event)) return;
     if (items.length) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         pickAt =
           (selected + (event.key === "ArrowDown" ? 1 : items.length - 1)) %
           items.length;
-        return;
+        return true;
       }
       if (
         (event.key === "Enter" || event.key === "Tab") &&
@@ -393,25 +192,22 @@
       ) {
         event.preventDefault();
         choose(selected);
-        return;
+        return true;
       }
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
         mentionClosed = true;
-        return;
+        return true;
       }
     }
     if (event.key === "Escape" && $draft.replyId) {
       event.preventDefault();
       event.stopPropagation();
       entry.clearReply();
-      return;
+      return true;
     }
-    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
-      event.preventDefault();
-      submit();
-    }
+    return false;
   }
   onMount(() => {
     // Paste and file drop work anywhere in the room. The Studio layout (#45) has no <main> around the room,
@@ -469,7 +265,7 @@
       if (files.length) {
         event.preventDefault();
         entry.addFiles(files);
-        void focus();
+        void field?.focus();
       }
     };
     const drag = (event: DragEvent) => {
@@ -496,47 +292,16 @@
       if (files.length) {
         event.preventDefault();
         entry.addFiles(files);
-        void focus();
+        void field?.focus();
       }
       dragging = false;
     };
-    const outside = (event: PointerEvent) => {
-      if (
-        plus &&
-        event.target instanceof Node &&
-        !menu?.contains(event.target) &&
-        !root?.querySelector("[data-composer-more]")?.contains(event.target)
-      )
-        plus = false;
-    };
-    const cancelVoice = () => speech.cancel();
-    const voiceEscape = (event: KeyboardEvent) => {
-      if (
-        event.key === "Escape" &&
-        canInteract() &&
-        !document.querySelector(
-          '[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"],dialog[open]',
-        )
-      )
-        speech.cancel();
-    };
-    const visibility = () => {
-      if (document.visibilityState !== "visible") speech.cancel();
-    };
-    document.addEventListener("keydown", voiceEscape, true);
-    document.addEventListener("visibilitychange", visibility);
-    window.addEventListener("blur", cancelVoice);
     document.addEventListener("paste", paste);
-    document.addEventListener("pointerdown", outside);
     main?.addEventListener("dragover", drag);
     main?.addEventListener("dragleave", leave);
     main?.addEventListener("drop", drop);
     return () => {
-      document.removeEventListener("keydown", voiceEscape, true);
-      document.removeEventListener("visibilitychange", visibility);
-      window.removeEventListener("blur", cancelVoice);
       document.removeEventListener("paste", paste);
-      document.removeEventListener("pointerdown", outside);
       main?.removeEventListener("dragover", drag);
       main?.removeEventListener("dragleave", leave);
       main?.removeEventListener("drop", drop);
@@ -667,180 +432,101 @@
         ? "Refining transcription…"
         : "Refinando transcrição…"}
     </p>{/if}
-  <ChatBox
-    data-native-composer-field
-    onsubmit={(event) => {
-      event.preventDefault();
-      submit();
+  <ChatField
+    bind:this={field}
+    bind:textarea
+    bind:caret
+    bind:selectionEnd
+    bind:dictating
+    bind:refining
+    bind:waiting={voiceWaiting}
+    bind:voiceIssue
+    value={$draft.text}
+    revision={$draft.revision}
+    onedit={(text) => {
+      entry.edit(text);
+      mentionClosed = true;
+    }}
+    oninputtext={() => {
+      clearTimeout(blurTimer);
+      pickAt = 0;
+      mentionClosed = false;
+    }}
+    onblurfield={() => {
+      blurTimer = setTimeout(() => {
+        if (active) mentionClosed = true;
+      }, 100);
+    }}
+    onsubmit={() => {
+      if (canInteract()) void entry.submit();
+    }}
+    onkeydown={keydown}
+    t={vb.t}
+    locale={vb.locale || "pt-BR"}
+    id="input"
+    label={vb.t("Mensagem…")}
+    placeholder={vb.t("Mensagem…")}
+    disabled={!allowed || hidden}
+    enabled={() => canInteract()}
+    {busy}
+    pending={$draft.phase === "pending"}
+    sendDisabled={(!$draft.text.trim() && !$draft.attachments.length) ||
+      $draft.attachments.some(
+        (item) => item.phase === "queued" || item.phase === "uploading",
+      )}
+    speechFactory={ownedSpeechFactory}
+    captureFactory={ownedCaptureFactory}
+    {transcribe}
+    inputProps={{
+      "aria-autocomplete": "list",
+      "aria-controls": items.length ? `${uid}-mentions` : undefined,
+      "aria-activedescendant": items.length
+        ? `${uid}-mention-${selected}`
+        : undefined,
+      onfocus: () => clearTimeout(blurTimer),
     }}
   >
-    <IconButton
-      label={vb.t("Emoji")}
-      size="icon"
-      class="tw:text-muted-foreground tw:hover:text-foreground"
-      disabled={voiceWaiting || !allowed}
-      onclick={(event) => {
-        if (canInteract(event)) {
-          speech.cancel();
-          readCaret();
-          emoji = true;
-        }
-      }}><Icon icon={FaceSmile} size={16} /></IconButton
-    >
-    <div class="tw:relative">
-      <IconButton
-        label={vb.t("Mais opções")}
-        size="icon"
-        class="tw:text-muted-foreground tw:hover:text-foreground tw:aria-expanded:bg-accent tw:aria-expanded:text-foreground"
-        data-composer-more
-        aria-haspopup="menu"
-        aria-expanded={plus}
-        disabled={voiceWaiting || !allowed}
-        onpointerdown={(event) => {
-          if (document.activeElement === textarea) event.preventDefault();
-        }}
-        onkeydown={(event) => {
-          if (event.key === "ArrowDown") {
-            event.preventDefault();
-            void openMenu(true);
-          }
-        }}
+    {#snippet menu(close)}<Button
+        variant="menu"
+        role="menuitem"
         onclick={(event) => {
           if (!canInteract(event)) return;
-          if (plus) plus = false;
-          else void openMenu(event.detail === 0);
-        }}><Icon icon={Plus} size={16} /></IconButton
-      >
-      {#if plus}<div
-          bind:this={menu}
-          role="menu"
-          tabindex="-1"
-          class="tw:absolute tw:bottom-full tw:left-0 tw:z-20 tw:mb-2 tw:grid tw:min-w-56 tw:gap-0.5 tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
-          onkeydown={menuKeydown}
-        >
-          <Button
-            variant="menu"
-            role="menuitem"
-            onclick={(event) => {
-              if (!canInteract(event)) return;
-              plus = false;
-              fileInput?.click();
-            }}
-            >{vb.t("Anexar arquivo")} <small>{vb.t("ou Cmd+V")}</small></Button
-          ><Button
-            variant="menu"
-            role="menuitem"
-            onclick={(event) => {
-              if (!canInteract(event)) return;
-              plus = false;
-              const before = $draft.text.slice(0, caret);
-              insert(before && !/\s$/.test(before) ? " @" : "@");
-              mentionClosed = false;
-            }}>{vb.t("Mencionar alguém")} @</Button
-          ><Button
-            variant="menu"
-            role="menuitem"
-            onclick={(event) => {
-              if (!canInteract(event)) return;
-              plus = false;
-              poll = true;
-            }}>{vb.t("Criar votação")}</Button
-          >
-        </div>{/if}
-    </div>
-    <input
-      bind:this={fileInput}
-      type="file"
-      class="tw:hidden"
-      accept={FILE_ACCEPT}
-      multiple
-      hidden
-      onchange={(event) => {
-        if (!canInteract(event)) return;
-        entry.addFiles([...(event.currentTarget.files || [])]);
-        event.currentTarget.value = "";
-      }}
-    />
-    <ChatBoxInput
-      bind:ref={textarea}
-      id="input"
-      rows={Math.min(6, $draft.text.split("\n").length)}
-      aria-label={vb.t("Mensagem…")}
-      placeholder={vb.t("Mensagem…")}
-      value={$draft.text}
-      disabled={voiceWaiting || !allowed}
-      aria-autocomplete="list"
-      aria-controls={items.length ? `${uid}-mentions` : undefined}
-      aria-activedescendant={items.length
-        ? `${uid}-mention-${selected}`
-        : undefined}
-      class={dictating ? "tw:ring-2 tw:ring-destructive" : undefined}
-      oninput={(event) => {
-        if (!canInteract(event)) return;
-        speech.cancel();
-        clearTimeout(blurTimer);
-        entry.edit(event.currentTarget.value);
-        readCaret();
-        pickAt = 0;
-        mentionClosed = false;
-      }}
-      onselect={readCaret}
-      onclick={readCaret}
-      onkeyup={(event) => {
-        speech.keyup(event);
-        readCaret();
-      }}
-      onkeydown={keydown}
-      onfocus={() => clearTimeout(blurTimer)}
-      onblur={() => {
-        if (!voiceWaiting) speech.cancel();
-        blurTimer = setTimeout(() => {
-          if (active) mentionClosed = true;
-        }, 100);
-      }}
-    />
-    <!-- The mic sits right before Enviar, as in the classic app (Gui #2896). -->
-    {#if speech.supported}<IconButton
-        size="icon"
-        aria-busy={refining || undefined}
-        label={vb.t("Ditar mensagem")}
-        title={vb.t("Toque pra ditar (ou segure espaço na caixa)")}
-        aria-pressed={dictating}
-        class={dictating
-          ? "tw:bg-destructive tw:text-destructive-foreground tw:hover:bg-destructive/85 tw:hover:text-destructive-foreground"
-          : "tw:text-muted-foreground tw:hover:text-foreground"}
-        disabled={voiceWaiting || !allowed || busy || refining}
-        onpointerdown={(event) => {
-          if (canInteract(event)) event.preventDefault();
-        }}
+          close();
+          fileInput?.click();
+        }}>{vb.t("Anexar arquivo")} <small>{vb.t("ou Cmd+V")}</small></Button
+      ><Button
+        variant="menu"
+        role="menuitem"
         onclick={(event) => {
           if (!canInteract(event)) return;
-          textarea?.focus();
-          if (dictating) speech.stop();
-          else void speech.start();
-        }}
-        >{#if refining}<Spinner size="xs" />{:else}<Icon
-            icon={Microphone01}
-            size={16}
-          />{/if}</IconButton
-      >{/if}
-    <ChatBoxSend
-      disabled={voiceWaiting ||
-        !allowed ||
-        busy ||
-        $draft.attachments.some(
-          (item) => item.phase === "queued" || item.phase === "uploading",
-        )}
-      pending={$draft.phase === "pending"}
-      onmousedown={(event) => event.preventDefault()}
-      ontouchend={(event) => {
-        if (!busy && allowed) {
-          event.preventDefault();
-          submit();
-        }
-      }}>{vb.t("Enviar")}</ChatBoxSend
-    >
-  </ChatBox>
+          close();
+          const before = $draft.text.slice(0, caret);
+          field?.insert(before && !/\s$/.test(before) ? " @" : "@");
+          mentionClosed = false;
+        }}>{vb.t("Mencionar alguém")} @</Button
+      ><Button
+        variant="menu"
+        role="menuitem"
+        onclick={(event) => {
+          if (!canInteract(event)) return;
+          close();
+          poll = true;
+        }}>{vb.t("Criar votação")}</Button
+      >{/snippet}
+  </ChatField>
+  <input
+    bind:this={fileInput}
+    type="file"
+    class="tw:hidden"
+    accept={FILE_ACCEPT}
+    multiple
+    hidden
+    onchange={(event) => {
+      if (!canInteract(event)) return;
+      entry.addFiles([...(event.currentTarget.files || [])]);
+      event.currentTarget.value = "";
+    }}
+  />
   {#if $draft.phase === "unconfirmed"}<p
       role="status"
       class="tw:m-0 tw:text-xs tw:text-muted-foreground"
@@ -910,9 +596,5 @@
           : vb.t("Não foi possível iniciar o ditado.")}
     </p>{/if}
   <OrphanDrafts {room} {drafts} {vb} />
-  <EmojiPicker {vb} bind:open={emoji} onpick={insert} /><PollCreateDialog
-    {entry}
-    {vb}
-    bind:open={poll}
-  />
+  <PollCreateDialog {entry} {vb} bind:open={poll} />
 </section>

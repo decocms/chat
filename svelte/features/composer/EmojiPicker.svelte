@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
-  import type { ChatBridge } from "../../chatTypes";
   import Dialog from "../../lib/studio/Dialog.svelte";
   import DialogContent from "../../lib/studio/DialogContent.svelte";
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
@@ -9,11 +8,11 @@
   import Button from "../../lib/studio/Button.svelte";
   import { emojiPicks } from "./model";
   let {
-    vb,
+    t,
     open = $bindable(false),
     onpick,
   }: {
-    vb: ChatBridge;
+    t: (text: string) => string;
     open?: boolean;
     onpick: (value: string) => void;
   } = $props();
@@ -39,7 +38,7 @@
   <DialogContent
     data-vb-native
     class="tw:font-sans tw:text-sm tw:text-foreground"
-    closeLabel={vb.t("Fechar")}
+    closeLabel={t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
@@ -54,13 +53,13 @@
     }}
   >
     <DialogHeader>
-      <DialogTitle class="tw:pr-8 tw:font-sans">{vb.t("Emoji")}</DialogTitle>
+      <DialogTitle class="tw:pr-8 tw:font-sans">{t("Emoji")}</DialogTitle>
     </DialogHeader>
     <Input
       type="search"
       bind:ref={search}
-      aria-label={vb.t("Buscar emoji…")}
-      placeholder={vb.t("Buscar emoji…")}
+      aria-label={t("Buscar emoji…")}
+      placeholder={t("Buscar emoji…")}
       value={query}
       oninput={(event) => (query = event.currentTarget.value)}
       onkeydown={(event) => {
