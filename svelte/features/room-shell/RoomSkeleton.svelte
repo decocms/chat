@@ -6,6 +6,7 @@
   import { ArrowLeft } from "../../lib/studio/icons";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import { roomIcon } from "../home/model";
+  import { roomDocumentWidth } from "../room-layout/preview";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
@@ -180,11 +181,12 @@
     </div>
   </main>
 
-  <!-- Doc: its tab bar and a few lines, at the layout's default width (a width
-       someone dragged, vb.docW, can't be applied without inline styles). -->
+  <!-- Doc: its tab bar and a few lines, at the width the room opens with
+       (vb.docW, the same width animation the room's doc cell seeks). -->
   <section
     aria-hidden="true"
-    class="tw:my-2 tw:mr-2 tw:hidden tw:w-[clamp(260px,calc(100cqw-592px),380px)] tw:min-h-0 tw:flex-col tw:rounded-surface tw:bg-background tw:shadow-edge tw:min-[901px]:flex"
+    use:roomDocumentWidth
+    class="tw:my-2 tw:mr-2 tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:rounded-surface tw:bg-background tw:shadow-edge tw:min-[901px]:flex"
   >
     <div
       class="tw:flex tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-0.5 tw:border-b tw:border-border tw:px-2"

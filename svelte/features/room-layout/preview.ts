@@ -1,0 +1,39 @@
+import { createRoomLayoutBrowser } from "./browser";
+import { documentProgress, preferredDocumentWidth } from "./model";
+import { createRoomPlayback } from "./playback";
+
+/** A loading room's doc cell at the width the room will open with: the same
+ * stored preference (vb.docW), clamp and CSS width animation as the real
+ * layout's document cell (sidebar expanded, as a room always opens), so the
+ * panels don't jump when the state lands. The node carries
+ * `tw:animate-room-document-width` and sits right in its inline-size container. */
+export function roomDocumentWidth(node: HTMLElement) {
+  const win = node.ownerDocument.defaultView,
+    root = node.parentElement;
+  if (!win || !root) return {};
+  const preferred = preferredDocumentWidth(
+      createRoomLayoutBrowser(win).storage,
+    ),
+    playback = createRoomPlayback(
+      node,
+      () => "vb-room-document-width",
+      () => {},
+    );
+  // Phones hide the cell (no animation to seek), like geometry's mobile branch.
+  const media = win.matchMedia("(max-width: 900px)");
+  const measure = () => {
+    if (media.matches) playback.suspend();
+    else playback.set(documentProgress(preferred, root.clientWidth, false));
+  };
+  const observer = new ResizeObserver(measure);
+  observer.observe(root);
+  media.addEventListener("change", measure);
+  measure();
+  return {
+    destroy() {
+      observer.disconnect();
+      media.removeEventListener("change", measure);
+      playback.dispose();
+    },
+  };
+}

@@ -43,11 +43,23 @@ export function documentProgress(
     : (documentWidth(value, containerWidth, collapsed) - DOCUMENT_MIN) /
         (maximum - DOCUMENT_MIN);
 }
+/** The doc width someone dragged, per browser (vanilla reads the same key). */
+export const DOCUMENT_WIDTH_KEY = "vb.docW";
 export function storedDocumentWidth(value: string | null) {
   const parsed = Number(value);
   return value !== null && value.trim() && parsed && Number.isFinite(parsed)
     ? Math.round(parsed)
     : DOCUMENT_DEFAULT;
+}
+/** The preferred width as both the room and its loading skeleton read it. */
+export function preferredDocumentWidth(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+) {
+  try {
+    return storedDocumentWidth(storage?.getItem(DOCUMENT_WIDTH_KEY) ?? null);
+  } catch {
+    return DOCUMENT_DEFAULT;
+  }
 }
 export function sheetProgress(
   initial: 0 | 1,
