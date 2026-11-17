@@ -24,6 +24,8 @@
     {...rest}
     class={cn(
       "tw:font-sans tw:z-50 tw:w-fit tw:origin-(--bits-tooltip-content-transform-origin) tw:animate-in tw:rounded-lg tw:bg-foreground tw:px-2 tw:py-1 tw:text-xs tw:font-medium tw:text-balance tw:text-background tw:[--tw-enter-opacity:0] tw:[--tw-enter-scale:.95] tw:data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] tw:data-[side=left]:[--tw-enter-translate-x:0.5rem] tw:data-[side=right]:[--tw-enter-translate-x:-0.5rem] tw:data-[side=top]:[--tw-enter-translate-y:0.5rem] tw:data-[state=closed]:hidden tw:motion-reduce:[animation-duration:0.01ms]",
+      // Handing off within the shared provider: the next tooltip appears in place.
+      "tw:data-[state=instant-open]:animate-none",
       className,
     )}
   >

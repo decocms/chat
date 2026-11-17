@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import AppShell from "./AppShell.svelte";
+  import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import RoomShell from "../room-shell/RoomShell.svelte";
   import { createBrowserApplicationServices } from "./browser";
   import { createRoomResources } from "./roomResources";
@@ -30,8 +31,12 @@
   });
 </script>
 
-<AppShell {services}>
-  {#snippet roomSnippet(presentation)}
-    <RoomShell {presentation} {resources} />
-  {/snippet}
-</AppShell>
+<!-- One provider for the whole app (as shadcn-svelte does): moving between
+     tooltips swaps them at once instead of fading one out and the next in. -->
+<TooltipProvider>
+  <AppShell {services}>
+    {#snippet roomSnippet(presentation)}
+      <RoomShell {presentation} {resources} />
+    {/snippet}
+  </AppShell>
+</TooltipProvider>

@@ -33,3 +33,11 @@ export const AGENT_TILES: Record<AgentProvider, string> = {
 /** The glyph an agent's avatar shows for the model or client it runs on. */
 export const agentMark = (via: string | null | undefined) =>
   AGENT_MARKS[agentProvider(via)];
+/** An agent's name in its provider's color, as its tile (the tokens flip for dark mode). */
+export const AGENT_NAMES: Record<AgentProvider, string> = {
+  claude: "tw:text-agent-claude-text",
+  codex: "tw:text-agent-codex-text",
+  gemini: "tw:text-agent-gemini-text",
+  cursor: "tw:text-agent-cursor-text",
+  copilot: "tw:text-agent-copilot-text",
+};

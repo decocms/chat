@@ -13,9 +13,10 @@
   import Popover from "../../lib/studio/Popover.svelte";
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
+  import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import { cn } from "../../lib/studio/utils";
   import { copyChatText } from "./clipboard";
-  import { QUICK_REACTIONS } from "./reactions";
+  import { QUICK_REACTIONS, noteReaction, topReactions } from "./reactions";
   let {
     message,
     roomId,
@@ -24,6 +25,7 @@
     showLink = true,
     floating = false,
     canReact = false,
+    me = "",
   }: {
     message: ChatMessage;
     roomId: string;
@@ -34,11 +36,22 @@
     floating?: boolean;
     /** Offer the 😊 quick reactions (not on @vibe notices, issues or reminders). */
     canReact?: boolean;
+    /** Who is looking, to mark the quick reactions they already gave. */
+    me?: string;
   } = $props();
   let reacting = $state(false);
+  // Discord-style: the person's three most used reactions sit in the bar itself.
+  let top = $state(topReactions());
+  const mine = (emoji: string) =>
+    !!me && (message.reactions?.[emoji] ?? []).includes(me);
   function react(emoji: string) {
     reacting = false;
-    if (active) void actions.request({ t: "react", id: message.id, emoji });
+    if (!active) return;
+    if (!mine(emoji)) {
+      noteReaction(emoji);
+      top = topReactions();
+    }
+    void actions.request({ t: "react", id: message.id, emoji });
   }
   let issue = $state<"empty" | "clipboard" | null>(null),
     copied = $state(false),
@@ -91,64 +104,81 @@
         "tw:pointer-events-auto tw:translate-y-0 tw:scale-100 tw:opacity-100",
     )}
   >
-    {#if showLink}<IconButton
-        label={vb.t("Copiar o link desta mensagem")}
-        data-native-copylink={message.id}
+    <TooltipProvider>
+      {#if canReact}{#each top as emoji (emoji)}<IconButton
+            label={vb.t("Reagir com {emoji}", { emoji })}
+            data-native-quick-react={emoji}
+            aria-pressed={mine(emoji)}
+            class={cn(
+              "tw:text-base tw:leading-none",
+              floating && "tw:rounded-full",
+              mine(emoji) && "tw:bg-accent",
+            )}
+            onclick={() => react(emoji)}>{emoji}</IconButton
+          >{/each}
+        <div
+          aria-hidden="true"
+          class="tw:mx-0.5 tw:h-4 tw:w-px tw:shrink-0 tw:bg-border"
+        ></div>{/if}
+      {#if canReact}<Popover bind:open={reacting}>
+          <PopoverTrigger>
+            {#snippet child({ props })}
+              <IconButton
+                {...props}
+                label={vb.t("Reagir a esta mensagem")}
+                data-native-react={message.id}
+                class={floating
+                  ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+                  : ""}><Icon icon={FaceSmile} size={16} /></IconButton
+              >
+            {/snippet}
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="end"
+            sideOffset={6}
+            data-vb-native
+            class="tw:flex tw:w-auto tw:gap-0.5 tw:rounded-full tw:p-1 tw:font-sans"
+          >
+            {#each QUICK_REACTIONS as emoji}<button
+                type="button"
+                aria-label={emoji}
+                class="tw:flex tw:size-9 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:text-xl tw:leading-none tw:transition-transform tw:duration-150 tw:ease-out tw:hover:scale-110 tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring tw:motion-reduce:transition-none"
+                onclick={() => react(emoji)}>{emoji}</button
+              >{/each}
+          </PopoverContent>
+        </Popover>{/if}
+      <IconButton
+        label={vb.t("Responder a esta mensagem")}
+        data-native-reply={message.id}
         class={floating
           ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
           : ""}
         onclick={() => {
-          void copy(true);
-        }}><Icon icon={Link01} size={16} /></IconButton
-      >{/if}
-    <IconButton
-      label={vb.t("Copiar o texto desta mensagem")}
-      data-native-copy={message.id}
-      class={floating
-        ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
-        : ""}
-      onclick={() => {
-        void copy();
-      }}><Icon icon={Copy01} size={16} /></IconButton
-    >
-    {#if canReact}<Popover bind:open={reacting}>
-        <PopoverTrigger>
-          {#snippet child({ props })}
-            <IconButton
-              {...props}
-              label={vb.t("Reagir a esta mensagem")}
-              data-native-react={message.id}
-              class={floating
-                ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
-                : ""}><Icon icon={FaceSmile} size={16} /></IconButton
-            >
-          {/snippet}
-        </PopoverTrigger>
-        <PopoverContent
-          side="top"
-          align="end"
-          sideOffset={6}
-          data-vb-native
-          class="tw:flex tw:w-auto tw:gap-0.5 tw:rounded-full tw:p-1 tw:font-sans"
-        >
-          {#each QUICK_REACTIONS as emoji}<button
-              type="button"
-              aria-label={emoji}
-              class="tw:flex tw:size-9 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:text-xl tw:leading-none tw:transition-transform tw:duration-150 tw:ease-out tw:hover:scale-110 tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring tw:motion-reduce:transition-none"
-              onclick={() => react(emoji)}>{emoji}</button
-            >{/each}
-        </PopoverContent>
-      </Popover>{/if}
-    <IconButton
-      label={vb.t("Responder a esta mensagem")}
-      data-native-reply={message.id}
-      class={floating
-        ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
-        : ""}
-      onclick={() => {
-        if (active) actions.reply(message.id);
-      }}><Icon icon={ReverseLeft} size={16} /></IconButton
-    >
+          if (active) actions.reply(message.id);
+        }}><Icon icon={ReverseLeft} size={16} /></IconButton
+      >
+      <IconButton
+        label={vb.t("Copiar o texto desta mensagem")}
+        data-native-copy={message.id}
+        class={floating
+          ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+          : ""}
+        onclick={() => {
+          void copy();
+        }}><Icon icon={Copy01} size={16} /></IconButton
+      >
+      {#if showLink}<IconButton
+          label={vb.t("Copiar o link desta mensagem")}
+          data-native-copylink={message.id}
+          class={floating
+            ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+            : ""}
+          onclick={() => {
+            void copy(true);
+          }}><Icon icon={Link01} size={16} /></IconButton
+        >{/if}
+    </TooltipProvider>
   </div>
   {#if copied || issue}<div
       class={floating

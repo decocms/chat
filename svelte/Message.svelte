@@ -15,6 +15,7 @@
     type MessageFooter as Footer,
   } from "./features/chat/model";
   import AgentMark from "./lib/components/AgentMark.svelte";
+  import { AGENT_NAMES, agentProvider } from "./lib/components/agent";
   import Badge from "./lib/studio/Badge.svelte";
   import Button from "./lib/studio/Button.svelte";
   import MessageActions from "./features/chat/MessageActions.svelte";
@@ -182,7 +183,13 @@
       {#if !continuous}<div
           class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
         >
-          <span class="tw:font-semibold tw:text-foreground">{author(m)}</span
+          <span
+            class={[
+              "tw:font-semibold",
+              m.kind === "agent"
+                ? AGENT_NAMES[agentProvider(m.via)]
+                : "tw:text-foreground",
+            ]}>{author(m)}</span
           >{#if m.kind === "agent"}<Badge
               title={vb.t("Escrito pelo agent dessa pessoa, em nome dela")}
               >agent</Badge
@@ -316,6 +323,7 @@
       kind !== "issue" &&
       kind !== "notice" &&
       kind !== "reminder"}
+    me={room.me}
     message={m}
     roomId={room.id}
     {actions}
