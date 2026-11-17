@@ -126,7 +126,12 @@
     <div
       class="tw:flex tw:basis-full tw:items-center tw:justify-between tw:gap-1 tw:min-[901px]:contents"
     >
-      {#if trigger}<AgentTrigger {...trigger} />{/if}
+      <!-- Desktop: the agent pill leads, so the icon buttons sit together on the right instead of around it. -->
+      {#if trigger}<div
+          class="tw:flex tw:min-[901px]:order-first tw:min-[901px]:mr-1"
+        >
+          <AgentTrigger {...trigger} />
+        </div>{/if}
       <IconButton
         data-native-document-toggle
         label={toggleLabel}
