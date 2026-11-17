@@ -28,8 +28,18 @@ export function createClientBoundaryPolicy(options: { projectRoot: string }) {
   );
   const clean = (id: string) =>
     id.replace(/[?#].*$/, "").replace(/^\/\@fs\//, "/");
+  // Only the part inside the project counts: a worktree under .claude/worktrees is fine.
+  const insideRoot = (id: string) => {
+    if (!isAbsolute(id)) return id;
+    for (const base of roots) {
+      const path = relative(base, id);
+      if (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+        return path;
+    }
+    return id;
+  };
   const privatePath = (id: string) =>
-    id
+    insideRoot(id)
       .split(/[/\\]/)
       .some((part) =>
         /^(?:\.env(?:\..*)?|\.dev\.vars(?:\..*)?|\.git|\.ssh|\.vibebook|\.wrangler|\.api-types|\.claude|\.codex|\.cursor|\.cache|\.vercel|\.netlify)$/i.test(

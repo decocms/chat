@@ -281,7 +281,7 @@
           class="tw:px-3 tw:pt-1 tw:pb-3 tw:min-[640px]:px-4 tw:min-[640px]:pb-4 tw:min-[901px]:px-6"
         >
           <div
-            class="tw:mb-2 tw:flex tw:h-11 tw:items-center tw:gap-2 tw:rounded-[18px] tw:bg-[var(--vb-studio-input-background)] tw:pr-1.5 tw:pl-4 tw:text-muted-foreground tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
+            class="tw:mb-2 tw:flex tw:h-14 tw:items-center tw:gap-2 tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:pr-3 tw:pl-4 tw:text-muted-foreground tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
           >
             <span class="tw:min-w-0 tw:flex-1 tw:truncate"
               >{t("Mensagem…")}</span
