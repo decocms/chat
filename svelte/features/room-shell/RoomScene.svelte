@@ -160,6 +160,22 @@
     if (inboxOpen) leaveInbox();
     if (layout.read().boardFull) layout.toggleBoard();
   }
+  // Desktop, the sidebar's views (chat, inbox, board): each takes the middle.
+  function toggleBoard() {
+    if (!current()) return;
+    if (inboxOpen) {
+      leaveInbox();
+      if (!layout.read().boardFull) layout.toggleBoard();
+      return;
+    }
+    layout.toggleBoard();
+  }
+  function toggleInbox(trigger?: HTMLElement) {
+    if (!current()) return;
+    if (inboxOpen) return toChat();
+    if (!layout.read().mobile && layout.read().boardFull) layout.toggleBoard();
+    presentation.openInbox(trigger);
+  }
   // Desktop has no board pane any more (the board is always full width): a
   // remembered "board" pane falls back to the doc.
   $effect(() => {
@@ -350,9 +366,11 @@
         {inboxOpen}
         onthreadintent={leaveInbox}
         onroomhome={toChat}
-        oninbox={(trigger) => {
-          if (current()) presentation.openInbox(trigger);
-        }}
+        oninbox={toggleInbox}
+        onboard={$geometry.mobile ? undefined : toggleBoard}
+        boardOpen={!$geometry.mobile && $geometry.boardFull && !inboxOpen}
+        boardCount={$view.toolbar.counts?.board}
+        inboxCount={$personal.me?.waits?.length ?? 0}
         hideSheetHandle
       >
         {#snippet footer(
