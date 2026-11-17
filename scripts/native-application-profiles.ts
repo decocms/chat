@@ -396,7 +396,10 @@ async function keyboardOverlays(
   evidence: NativeApplicationProfileEvidence,
 ) {
   const t = createApplicationCopy(profile.lang);
-  await fixture.openSidebar(page);
+  // Phones carry Search in the room header, which the thread sheet covers when
+  // it drops from the top (#80); desktop keeps it in the sidebar.
+  const phone = profile.width <= 900;
+  if (!phone) await fixture.openSidebar(page);
   const search = page
     .getByRole("button", {
       name: homeText(profile.lang, "search"),
@@ -447,8 +450,9 @@ async function keyboardOverlays(
   evidence.keyboard.push(
     "keyboard search open; combobox autofocus; Tab/Shift+Tab contained; Escape closes; exact trigger focus restored",
   );
-  if (profile.width <= 900) {
+  if (phone) {
     const layout = page.locator("[data-native-room-layout]");
+    await fixture.openSidebar(page);
     await expect(layout).toHaveAttribute("data-sheet", "side");
     await page.keyboard.press("Escape");
     await expect
@@ -471,7 +475,7 @@ async function keyboardOverlays(
       )
       .toBe(false);
     evidence.keyboard.push(
-      "Escape inside search preserves the underlying side sheet; the next Escape closes the sheet with confirmed history departure",
+      "Escape closes the mobile side sheet with confirmed history departure",
     );
   }
   const inbox = page.locator("[data-native-inbox-toggle]");
