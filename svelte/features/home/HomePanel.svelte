@@ -8,9 +8,9 @@
   import Card from "../../lib/studio/Card.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import Composer from "../../lib/studio/Composer.svelte";
-  import ComposerInput from "../../lib/studio/ComposerInput.svelte";
-  import ComposerSend from "../../lib/studio/ComposerSend.svelte";
+  import ChatBox from "../composer/ChatBox.svelte";
+  import ChatBoxInput from "../composer/ChatBoxInput.svelte";
+  import ChatBoxSend from "../composer/ChatBoxSend.svelte";
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import type { HomeBridge } from "./types";
   import { createHomeSession } from "./session";
@@ -403,21 +403,22 @@
           )}</Button
         >{/if}
     </div>
-    {#if $account.me}<form
+    {#if $account.me}<div
         data-home-ask="docked"
         class="tw:sticky tw:bottom-0 tw:z-20 tw:mt-auto tw:bg-background tw:px-4 tw:pt-2 tw:pb-[max(0.75rem,env(safe-area-inset-bottom))] tw:sm:px-8 tw:sm:pb-6"
-        aria-busy={!!$view.busy}
-        onsubmit={(event) => {
-          event.preventDefault();
-          void session.suggest();
-        }}
       >
         <div class="tw:mx-auto tw:max-w-[calc(64rem-4rem)] tw:space-y-2">
           {@render suggestionCard()}
-          <Composer size="compact"
+          <ChatBox
+            aria-busy={!!$view.busy}
+            onsubmit={(event) => {
+              event.preventDefault();
+              void session.suggest();
+            }}
             ><label for="home-ask" class="tw:sr-only">{text("ask")}</label
-            ><ComposerInput
+            ><ChatBoxInput
               id="home-ask"
+              rows={1}
               maxlength={2000}
               placeholder={mobile.current
                 ? text("ask")
@@ -435,16 +436,13 @@
                   void session.suggest();
                 }
               }}
-            />{#if $view.busy === "route"}<Spinner
-                size="xs"
-                class="tw:mx-2"
-              />{/if}<ComposerSend
-              type="submit"
-              label={text("find")}
-              state={$view.busy || !$draft.ask.trim() ? "idle" : "ready"}
-            /></Composer
+            /><ChatBoxSend
+              pending={$view.busy === "route"}
+              disabled={!!$view.busy || !$draft.ask.trim()}
+              >{text("send")}</ChatBoxSend
+            ></ChatBox
           >
         </div>
-      </form>{/if}
+      </div>{/if}
   </main>
 {/if}
