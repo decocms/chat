@@ -166,7 +166,8 @@
         ></Badge
       >{/if}
     {#if error && !dueOpen}<ErrorState title={error} compact />{/if}
-    <div class="tw:space-y-2">
+    <!-- One list, compact rows: the title leads, owner and due are captions under it, delete waits for hover. -->
+    <div class="tw:-mx-2 tw:space-y-0.5">
       {#each tasks as task (task.id)}
         <div
           use:attention={task.id}
@@ -174,17 +175,15 @@
           role="group"
           aria-label={task.title}
           class={cn(
-            "tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-control tw:border tw:p-2",
-            task.done
-              ? "tw:border-transparent tw:bg-muted/40 tw:text-muted-foreground"
-              : "tw:border-border tw:bg-card tw:text-card-foreground",
-            !task.done && task.owner === room.me && "tw:border-ring/50",
+            "tw:group/task tw:relative tw:flex tw:items-start tw:gap-2.5 tw:rounded-control tw:py-1.5 tw:pr-8 tw:pl-2 tw:transition-colors tw:duration-150 tw:hover:bg-accent/50",
+            task.done ? "tw:text-muted-foreground" : "tw:text-foreground",
             waiting(task) && "tw:bg-warning/10",
             highlighted.has(task.id) &&
               "tw:animate-pulse tw:motion-reduce:animate-none",
           )}
         >
           <Checkbox
+            class="tw:mt-0.5"
             bind:checked={
               () => task.done,
               () => {
@@ -213,12 +212,12 @@
               }}
             />
           {:else}
-            <div class="tw:min-w-0 tw:flex-1 tw:basis-32 tw:space-y-1">
+            <div class="tw:min-w-0 tw:flex-1">
               <Button
                 data-task-title={task.id}
                 variant="ghost"
                 class={cn(
-                  "tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:rounded-sm tw:p-0 tw:text-left tw:hover:bg-transparent tw:hover:underline",
+                  "tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:rounded-sm tw:p-0 tw:text-left tw:font-normal tw:leading-5 tw:hover:bg-transparent",
                   task.done && "tw:text-muted-foreground tw:line-through",
                 )}
                 title={vb.t("Clique para editar")}
@@ -227,54 +226,66 @@
                   title = task.title;
                 }}>{task.title}</Button
               >
-              {#if task.flags?.length}<Badge
-                  variant="warning"
-                  title={`@vibe: ${task.flags.join(" · ")}`}
-                  class="tw:text-foreground tw:max-w-full"
-                  ><Icon icon={AlertTriangle} /><span class="tw:truncate"
-                    >{task.flags.join(" · ")}</span
-                  ></Badge
-                >{/if}
+              <div
+                class="tw:-ml-1.5 tw:mt-0.5 tw:flex tw:flex-wrap tw:items-center tw:gap-0.5 tw:text-xs tw:text-muted-foreground"
+              >
+                <Select
+                  items={owners}
+                  bind:value={
+                    () => task.owner ?? "",
+                    (owner) => {
+                      dispatch({ t: "task.assign", id: task.id, owner });
+                    }
+                  }
+                >
+                  <SelectTrigger
+                    data-owner={task.id}
+                    aria-label={vb.t("Responsável")}
+                    size="xs"
+                    class="tw:h-6 tw:w-auto tw:max-w-40 tw:px-1.5 tw:font-normal tw:text-muted-foreground tw:hover:text-foreground tw:data-[variant=outline]:rounded-md tw:data-[variant=outline]:bg-transparent tw:data-[variant=outline]:shadow-none tw:data-[variant=outline]:hover:bg-accent tw:data-[placeholder]:text-muted-foreground"
+                  >
+                    <SelectValue placeholder={vb.t("sem dono")} />
+                  </SelectTrigger>
+                  <SelectContent data-vb-native class="tw:font-sans">
+                    {#each owners as owner (owner.value)}<SelectItem
+                        value={owner.value}
+                        label={owner.label}>{owner.label}</SelectItem
+                      >{/each}
+                  </SelectContent>
+                </Select>
+                <Button
+                  data-due={task.id}
+                  variant="ghost"
+                  size="sm"
+                  title={vb.t("Prazo")}
+                  aria-label={task.due
+                    ? `${vb.t("Prazo")}: ${task.due}`
+                    : vb.t("Prazo")}
+                  class={cn(
+                    "tw:h-6 tw:gap-1 tw:rounded-md tw:px-1.5 tw:text-xs tw:font-normal tw:text-muted-foreground tw:hover:text-foreground",
+                    !task.due &&
+                      "tw:opacity-0 tw:group-hover/task:opacity-100 tw:focus-visible:opacity-100 tw:[@media(hover:none)]:opacity-100",
+                  )}
+                  onclick={() => openDue(task)}
+                  ><Icon icon={Calendar} class="tw:size-3" />{task.due ??
+                    ""}</Button
+                >
+                {#if task.flags?.length}<Badge
+                    variant="warning"
+                    title={`@vibe: ${task.flags.join(" · ")}`}
+                    class="tw:max-w-full tw:text-foreground"
+                    ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+                      >{task.flags.join(" · ")}</span
+                    ></Badge
+                  >{/if}
+              </div>
             </div>
           {/if}
-          <Select
-            items={owners}
-            bind:value={
-              () => task.owner ?? "",
-              (owner) => {
-                dispatch({ t: "task.assign", id: task.id, owner });
-              }
-            }
-          >
-            <SelectTrigger
-              data-owner={task.id}
-              aria-label={vb.t("Responsável")}
-              class="tw:w-auto tw:max-w-40 tw:data-[placeholder]:text-foreground"
-            >
-              <SelectValue placeholder={vb.t("sem dono")} />
-            </SelectTrigger>
-            <SelectContent data-vb-native class="tw:font-sans">
-              {#each owners as owner (owner.value)}<SelectItem
-                  value={owner.value}
-                  label={owner.label}>{owner.label}</SelectItem
-                >{/each}
-            </SelectContent>
-          </Select>
-          <Button
-            data-due={task.id}
-            variant="ghost"
-            size="sm"
-            title={vb.t("Prazo")}
-            aria-label={task.due
-              ? `${vb.t("Prazo")}: ${task.due}`
-              : vb.t("Prazo")}
-            onclick={() => openDue(task)}
-            ><Icon icon={Calendar} class="tw:size-3.5" />{task.due ??
-              ""}</Button
-          >
           <IconButton
             data-tdel={task.id}
             label={vb.t("Apagar task")}
+            size="icon-xs"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:text-muted-foreground tw:opacity-0 tw:group-hover/task:opacity-100 tw:focus-visible:opacity-100 tw:[@media(hover:none)]:opacity-100"
             onclick={() => dispatch({ t: "task.del", id: task.id })}
             ><Icon icon={X} /></IconButton
           >
