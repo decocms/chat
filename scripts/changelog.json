@@ -1,5 +1,30 @@
 [
   {
+    "date": "2026-11-17",
+    "slug": "2026-11-17-agent",
+    "title": {
+      "pt": "O agent num ícone",
+      "en": "Your agent in one icon"
+    },
+    "intro": {
+      "pt": "A barra da sala mostra o estado do seu agent num ícone só.",
+      "en": "The room header shows your agent's state in a single icon."
+    },
+    "features": [],
+    "improvements": {
+      "pt": [
+        "No app novo (?ui=svelte), o agent na barra da sala virou um ícone ✻ com um ponto que diz o estado (não conectado, desligado, abrindo, sem ouvir, ouvindo, trabalhando); clicar abre o painel Agents. O aviso grande virou uma linha só, que aparece quando o agent não pode trabalhar na sala."
+      ],
+      "en": [
+        "In the new app (?ui=svelte), the agent in the room header is now a ✻ icon with a dot for its state (not connected, off, opening, not listening, listening, working); clicking it opens the Agents panel. The big notice is now a single line, shown only when the agent can't work in the room."
+      ]
+    },
+    "fixes": {
+      "pt": [],
+      "en": []
+    }
+  },
+  {
     "date": "2026-11-16",
     "slug": "2026-11-16-thread",
     "title": {
