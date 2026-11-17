@@ -18,14 +18,19 @@
     destinations,
     roomIcon,
     targetHref,
-    waitGroups,
-    waitKind,
-    type WaitKind,
+    waitTarget,
+    plainWaitText,
+    claudeWait,
+    personAvatar,
   } from "./model";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Inbox01 } from "../../lib/studio/icons";
+  import { Check, Inbox01 } from "../../lib/studio/icons";
+  import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import RoomTile from "./RoomTile.svelte";
-  import WaitList from "./WaitList.svelte";
+  import { mountCube } from "./cube";
+  import { byImportance, fanClasses, inFan } from "./deskHand";
   import Onboarding from "../onboarding/Onboarding.svelte";
   import { createOnboardingSession } from "../onboarding/session";
   let {
@@ -68,45 +73,75 @@
   const t = $derived(createApplicationCopy(lang));
   let sendButton = $state<HTMLElement | null>(null);
   const suggestion = $derived($view.result);
-  const groups = $derived(waitGroups($account.me?.waits ?? []));
-  // Triage filters over the same groups; a filter with nothing in it hides.
-  let filter = $state<"all" | WaitKind>("all");
-  let expanded = $state<Record<string, boolean>>({});
-  const filters = $derived.by(() => {
-    const waits = $account.me?.waits ?? [];
-    const count = (kind: WaitKind) =>
-      waits.filter((wait) => waitKind(wait) === kind).length;
-    return [
-      { kind: "all" as const, label: text("filterAll"), count: waits.length },
-      {
-        kind: "claude" as const,
-        label: text("filterClaude"),
-        count: count("claude"),
-      },
-      {
-        kind: "asks" as const,
-        label: text("filterAsks"),
-        count: count("asks"),
-      },
-      {
-        kind: "reviews" as const,
-        label: text("filterReviews"),
-        count: count("reviews"),
-      },
-    ];
-  });
-  const shown = $derived(
-    groups
-      .map((group) => ({
-        ...group,
-        total: group.waits.length,
-        waits:
-          filter === "all"
-            ? group.waits
-            : group.waits.filter((wait) => waitKind(wait) === filter),
-      }))
-      .filter((group) => group.waits.length),
+  // The desk home: what waits on you as a hand of cards, most important in the middle.
+  const waits = $derived(byImportance($account.me?.waits ?? []));
+  const headline = $derived(
+    waits.length === 0
+      ? text("deskNone")
+      : waits.length === 1
+        ? text("deskOne")
+        : text("deskMany", { n: waits.length }),
   );
+  let home = $state<HTMLElement | null>(null),
+    hand = $state<HTMLElement | null>(null),
+    cube = $state<HTMLCanvasElement | null>(null),
+    dealt = $state(false);
+  const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
+  const phone = new MediaQuery("(max-width: 720px)");
+  // Scrolling down deals the hand into a grid; back at the top it fans again.
+  function onscroll() {
+    const next = scrollY > 24 ? true : scrollY <= 0 ? false : dealt;
+    if (next !== dealt) void deal(next);
+  }
+  // The deal moves each card from where it stood to where it lands (FLIP):
+  // measured before and after the classes change, played with the Web
+  // Animations API so nothing but the motion lives in script.
+  async function deal(next: boolean) {
+    const cards = hand
+      ? [...hand.querySelectorAll<HTMLElement>("[data-home-card]")]
+      : [];
+    const before = cards.map((card) => card.getBoundingClientRect());
+    dealt = next;
+    if (reducedMotion.current || !cards.length) return;
+    await tick();
+    cards.forEach((card, i) => {
+      const from = before[i];
+      if (!from || !card.isConnected) return;
+      card.getAnimations().forEach((animation) => animation.cancel());
+      const to = card.getBoundingClientRect();
+      if (!to.width || !to.height) return;
+      const final = getComputedStyle(card).transform;
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2),
+        dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      card.animate(
+        [
+          {
+            transform: `translate(${dx}px, ${dy}px) scale(${from.width / to.width}, ${from.height / to.height}) ${final === "none" ? "" : final}`,
+          },
+          { transform: final },
+        ],
+        {
+          duration: 420,
+          delay: Math.min(i, 8) * 18,
+          easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+          fill: "backwards",
+        },
+      );
+    });
+  }
+  $effect(() => {
+    addEventListener("scroll", onscroll, { passive: true });
+    return () => removeEventListener("scroll", onscroll);
+  });
+  $effect(() => {
+    if (cube) return mountCube(cube);
+  });
+  const who = (wait: (typeof waits)[number]) =>
+    claudeWait(wait)
+      ? text("yourClaude")
+      : wait.author === "ai"
+        ? "@vibe"
+        : wait.author_name || wait.author.split("@")[0] || "";
   const plainClick = (event: MouseEvent) =>
     !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
   $effect(() => {
@@ -162,25 +197,45 @@
     }}>{text("archive")}</a
   >{/snippet}
 
-{#snippet setupCard()}<Card class="tw:block tw:space-y-4"
-    ><Heading level={2} class="tw:m-0 tw:text-lg tw:font-semibold"
-      >{text("setup")}</Heading
-    >
-    <p class="tw:m-0 tw:text-muted-foreground">{text("setupHelp")}</p>
-    <code
-      class="tw:block tw:whitespace-pre-wrap tw:break-all tw:rounded-control tw:bg-muted tw:p-3 tw:font-mono tw:text-xs"
-      >{setup}</code
-    ><Button onclick={copy}>{text("copy")}</Button>{#if copyStatus}<p
+<!-- Connecting an agent, inline under the ask box: the agents' marks, the
+     instruction itself and one click to copy it for Claude Code. -->
+{#snippet connectAgent()}<div
+    data-home-connect
+    class="tw:flex tw:max-w-full tw:flex-wrap tw:items-center tw:justify-center tw:gap-2"
+  >
+    <button
+      type="button"
+      title={setup}
+      class="tw:inline-flex tw:h-9 tw:max-w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-full tw:bg-card tw:py-0 tw:pr-1 tw:pl-1.5 tw:text-foreground tw:shadow-edge tw:transition-colors tw:duration-150 tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+      onclick={copy}
+      ><span class="tw:flex tw:shrink-0 tw:items-center tw:-space-x-1.5"
+        >{#each ["claude", "codex", "gemini"] as via (via)}<AgentMark
+            {via}
+            tint
+            size="xs"
+            class="tw:rounded-full tw:ring-2 tw:ring-card"
+          />{/each}</span
+      ><span class="tw:shrink-0 tw:text-sm">{text("setup")}</span><code
+        class="tw:min-w-0 tw:truncate tw:font-mono tw:text-xs tw:text-muted-foreground tw:max-sm:hidden"
+        >{location.host}/llms.txt</code
+      ><span
+        class="tw:inline-flex tw:h-7 tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:bg-muted tw:px-3 tw:text-xs tw:font-medium"
+        >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}{text(
+          copyStatus === "copied" ? "copied" : "deskCopyAgent",
+        )}</span
+      ></button
+    >{#if copyStatus}<p
         role={copyStatus === "copyFailed" ? "alert" : "status"}
+        class={[
+          "tw:m-0 tw:basis-full tw:text-center tw:text-xs",
+          copyStatus === "copyFailed"
+            ? "tw:text-destructive"
+            : "tw:text-muted-foreground",
+        ]}
       >
-        {text(copyStatus === "copyFailed" ? "copyFailed" : "copied")}
-      </p>{/if}<Button
-      variant="ghost"
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) onsettings("agents");
-      }}>{text("agentSettings")}</Button
-    ></Card
-  >{/snippet}
+        {text(copyStatus === "copyFailed" ? "copyFailed" : "deskCopied")}
+      </p>{/if}
+  </div>{/snippet}
 
 {#snippet suggestionCard()}{#if $view.result}{@const choices = destinations(
       $view.result,
@@ -249,56 +304,51 @@
 {#if $onboardingView.visible}
   <Onboarding owner={onboarding} {lang} {onlanguage} />
 {:else}
-  <!-- Home = triage, at every width: what waits on you leads, grouped by room;
-       the ask box is docked at the bottom like a room's composer. Search, + and
-       the account menu (profile, friends, agents, notifications, settings,
-       theme, language, sign out) live in the rail; on wide screens the rooms
-       sit in a column beside the waits. -->
+  <!-- The desk home: the agent's cube, one sentence on what waits on you, the
+       ask box, and what waits as a hand of cards at the foot of the screen
+       (scrolling deals them into a grid). Your rooms follow the cards. -->
   <main
+    bind:this={home}
     data-vb-native="home"
-    data-home-layout="triage"
-    class="tw:flex tw:min-h-full tw:flex-col tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+    data-home-layout="desk"
+    data-home-dealt={dealt ? "" : undefined}
+    class="tw:relative tw:min-h-full tw:overflow-x-clip tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
   >
+    <!-- The first screen: everything down to the fan, which peeks at its foot. -->
     <div
-      class="tw:mx-auto tw:flex tw:w-full tw:max-w-5xl tw:flex-1 tw:flex-col tw:gap-4 tw:px-4 tw:pt-4 tw:pb-6 tw:sm:gap-6 tw:sm:px-8 tw:sm:pt-8"
+      class={[
+        "tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:sm:px-8",
+        waits.length &&
+          "tw:min-h-dvh tw:max-[900px]:min-h-[calc(100dvh-3.5rem)]",
+      ]}
     >
-      <InstallCard owner={pwa} {lang} compact />
-      {#if !$account.me}{#if $account.loading}<p role="status" class="tw:m-0">
-            {text("loading")}
-          </p>{/if}{:else}
-        {@const me = $account.me}
-        <div class="tw:flex tw:items-end tw:justify-between tw:gap-3">
-          <div class="tw:min-w-0">
-            <p
-              class="tw:m-0 tw:flex tw:flex-wrap tw:gap-x-1.5 tw:text-xs tw:leading-5 tw:text-muted-foreground"
-            >
-              <span
-                >{me.name
-                  ? text("greeting", { name: me.name.split(" ")[0] ?? "" })
-                  : text("home")}</span
-              ><span aria-hidden="true">·</span
-              >{@render archiveLink()}{#if !me.name || !me.avatar}<span
-                  aria-hidden="true">·</span
-                ><button
-                  type="button"
-                  class="tw:cursor-pointer tw:rounded-control tw:p-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
-                  onclick={(event) => {
-                    if (event.currentTarget.isConnected) onsettings("profile");
-                  }}>{text("completeProfile")}</button
-                >{/if}
-            </p>
-            <Heading
-              level={1}
-              class="tw:m-0 tw:text-2xl tw:font-semibold tw:leading-8 tw:tracking-tight tw:tabular-nums"
-              >{me.waits.length
-                ? text("waiting", { n: me.waits.length })
-                : text("allClear")}</Heading
-            >
-          </div>
-          <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+      {#if $account.me}{@const me = $account.me}
+        <div
+          class="tw:flex tw:w-full tw:max-w-5xl tw:items-center tw:justify-between tw:gap-3"
+        >
+          <p
+            class="tw:m-0 tw:flex tw:min-w-0 tw:flex-wrap tw:gap-x-1.5 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+          >
+            <span
+              >{me.name
+                ? text("greeting", { name: me.name.split(" ")[0] ?? "" })
+                : text("home")}</span
+            ><span aria-hidden="true">·</span
+            >{@render archiveLink()}{#if !me.name || !me.avatar}<span
+                aria-hidden="true">·</span
+              ><button
+                type="button"
+                class="tw:cursor-pointer tw:rounded-control tw:p-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+                onclick={(event) => {
+                  if (event.currentTarget.isConnected) onsettings("profile");
+                }}>{text("completeProfile")}</button
+              >{/if}
+          </p>
+          <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
             {#if oninbox}<Button
                 data-native-inbox-toggle
-                variant="outline"
+                variant="ghost"
+                size="sm"
                 aria-label={text("inbox")}
                 aria-haspopup="dialog"
                 onclick={(event) => {
@@ -309,190 +359,251 @@
                   >{text("inbox")}</span
                 ></Button
               >{/if}<Button
+              variant="ghost"
+              size="sm"
               class="tw:max-sm:hidden"
               onclick={(event) => {
                 if (event.currentTarget.isConnected) onnew(event.currentTarget);
               }}>{text("new")}</Button
             >
           </div>
-        </div>
-        {#if $account.agents && !$account.agents.agents.length}{@render setupCard()}{/if}
-        <div
-          class="tw:grid tw:gap-6 tw:lg:grid-cols-[minmax(0,1fr)_18rem] tw:lg:items-start"
-        >
-          {#if groups.length}<section
-              aria-label={text("waiting", { n: me.waits.length })}
-              class="tw:min-w-0 tw:space-y-3"
+        </div>{/if}
+      <div class="tw:w-full tw:max-w-xl">
+        <InstallCard owner={pwa} {lang} compact />
+      </div>
+      <section
+        class="tw:mt-[6vh] tw:flex tw:flex-col tw:items-center tw:max-sm:mt-6"
+      >
+        <canvas
+          bind:this={cube}
+          width="512"
+          height="512"
+          aria-hidden="true"
+          class="tw:size-[200px] tw:max-sm:size-[140px]"
+        ></canvas>
+        {#if $account.me}<Heading
+            level={1}
+            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-sm:text-3xl"
+            >{headline}</Heading
+          >{:else if $account.error}<Heading
+            level={1}
+            class="tw:m-0 tw:mt-1 tw:text-center tw:text-3xl tw:font-medium tw:tracking-tight tw:text-balance"
+            >{text("deskLoadFailed")}</Heading
+          >
+          <!-- A known issue gets its sentence; a raw server code stays out of the way. -->
+          {#if homeIssue(lang, $account.error) !== $account.error}<p
+              class="tw:m-0 tw:mt-2 tw:text-muted-foreground"
+              role="alert"
             >
-              <div
-                role="group"
-                aria-label={text("waiting", { n: me.waits.length })}
-                class="tw:-mx-4 tw:-mt-1 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-4 tw:py-1 tw:[scrollbar-width:none] tw:sm:-mx-1 tw:sm:px-1 tw:[&::-webkit-scrollbar]:hidden"
+              {homeIssue(lang, $account.error)}
+            </p>{/if}
+          <Button
+            class="tw:mt-5"
+            variant="outline"
+            disabled={$account.loading}
+            aria-busy={$account.loading || undefined}
+            onclick={(event) => {
+              if (event.currentTarget.isConnected) void personal.refresh();
+            }}
+            >{#if $account.loading}<Spinner size="xs" />{/if}{text(
+              "retry",
+            )}</Button
+          >{:else}<div role="status" aria-label={text("loading")}>
+            <Skeleton class="tw:mt-3 tw:h-9 tw:w-80 tw:max-w-[70vw]" />
+            <Skeleton
+              class="tw:mx-auto tw:mt-7 tw:h-12 tw:w-[576px] tw:max-w-[85vw] tw:rounded-full"
+            />
+          </div>{/if}
+      </section>
+      {#if $account.me}{@const me = $account.me}
+        <div
+          data-home-ask="desk"
+          class="tw:relative tw:z-30 tw:mt-7 tw:flex tw:w-full tw:max-w-[640px] tw:flex-col tw:items-center tw:gap-3 tw:[&>[data-chat-field]]:w-full"
+        >
+          <div
+            class="tw:w-full tw:[&>*]:rounded-[26px] tw:[&>*]:py-2 tw:[&>*]:pl-2"
+          >
+            <ChatField
+              id="home-ask"
+              maxlength={2000}
+              label={text("ask")}
+              placeholder={mobile.current ? text("ask") : text("deskAsk")}
+              value={$draft.ask}
+              onedit={(value) => session.edit(value)}
+              onsubmit={() => void session.suggest()}
+              {t}
+              locale={lang === "en" ? "en-US" : "pt-BR"}
+              disabled={$view.busy === "send"}
+              busy={!!$view.busy}
+              pending={$view.busy === "route"}
+              sendDisabled={!$draft.ask.trim()}
+            >
+              {#snippet menu(close, trigger)}<Button
+                  variant="menu"
+                  role="menuitem"
+                  onclick={() => {
+                    close();
+                    onnew(trigger ?? undefined);
+                  }}>{text("new")}</Button
+                ><Button
+                  variant="menu"
+                  role="menuitem"
+                  onclick={() => {
+                    close();
+                    onsearch();
+                  }}>{text("search")} <small>⌘K</small></Button
+                >{/snippet}
+            </ChatField>
+          </div>
+          <div class="tw:w-full">{@render suggestionCard()}</div>
+          {#if $account.agents && !$account.agents.agents.length}{@render connectAgent()}{/if}
+          {#if $account.loading}<p
+              role="status"
+              class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+            >
+              {text("refreshing")}
+            </p>{/if}
+          {#if $account.error}<p
+              role="alert"
+              class="tw:m-0 tw:text-xs tw:break-words tw:text-destructive"
+            >
+              {homeIssue(lang, $account.error)}
+              <button
+                type="button"
+                class="tw:cursor-pointer tw:p-0 tw:text-foreground tw:underline tw:underline-offset-4"
+                onclick={() => void personal.refresh()}>{text("retry")}</button
               >
-                {#each filters as option (option.kind)}{#if option.kind === "all" || option.count}<Button
-                      size="sm"
-                      variant={filter === option.kind ? "default" : "outline"}
-                      aria-pressed={filter === option.kind}
-                      class="tw:shrink-0"
-                      onclick={() => (filter = option.kind)}
-                      >{option.label}<span
-                        class={[
-                          "tw:tabular-nums",
-                          filter !== option.kind &&
-                            (option.kind === "claude"
-                              ? "tw:text-destructive"
-                              : "tw:text-muted-foreground"),
-                        ]}>{option.count}</span
-                      ></Button
-                    >{/if}{/each}
-              </div>
-              {#each shown as group (group.roomId)}{@const room = me.books.find(
-                  (book) => book.id === group.roomId,
-                )}{@const open = !!expanded[group.roomId]}<Card
-                  data-native-wait-group={group.roomId}
-                  class="tw:block tw:overflow-hidden tw:p-0"
-                >
-                  <a
-                    href={targetHref({ roomId: group.roomId })}
-                    aria-label={text("openRoom", { title: group.title })}
-                    class="tw:flex tw:min-h-10 tw:min-w-0 tw:items-center tw:gap-2 tw:px-3 tw:pt-2.5 tw:pb-1 tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-inset tw:focus-visible:ring-ring"
-                    onclick={(event) => {
-                      if (!plainClick(event)) return;
-                      event.preventDefault();
-                      if (event.currentTarget.isConnected)
-                        onnavigate({ roomId: group.roomId });
-                    }}
+            </p>{/if}
+        </div>
+        <!-- At the foot of the first screen: the fan peeks above the fold. -->
+        <div class="tw:min-h-6 tw:flex-1" aria-hidden="true"></div>
+        {#if waits.length}<nav
+            bind:this={hand}
+            aria-label={text("deskWaits")}
+            data-home-hand
+            class={dealt
+              ? "tw:mt-6 tw:grid tw:w-full tw:max-w-[1120px] tw:grid-cols-4 tw:gap-4 tw:max-[1000px]:grid-cols-3 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
+              : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[720px]:-mb-[40px] tw:max-[720px]:h-[300px]"}
+          >
+            {#each waits as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
+                me.books.find((book) => book.id === wait.book_id)}{@const task =
+                wait.ref.startsWith("t")}{@const front =
+                i === 0}{@const reachable =
+                dealt || inFan(i, waits.length, phone.current)}<a
+                href={targetHref(waitTarget(wait))}
+                data-home-card={wait.ref}
+                data-wait-kind={claudeWait(wait)
+                  ? "claude"
+                  : task
+                    ? "review"
+                    : "ask"}
+                tabindex={reachable ? 0 : -1}
+                aria-hidden={reachable ? undefined : "true"}
+                class={[
+                  "tw:group/card tw:flex tw:flex-col tw:gap-2 tw:overflow-hidden tw:rounded-[22px] tw:bg-card tw:px-[18px] tw:py-4 tw:text-foreground tw:no-underline tw:shadow-[0_0_0_1px_var(--vb-hairline),0_1px_2px_rgb(0_0_0/.04),0_-6px_28px_-12px_rgb(0_0_0/.18)] tw:outline-none tw:transition-shadow tw:duration-150 tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+                  dealt
+                    ? "tw:relative tw:h-[176px] tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
+                    : [
+                        "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-[720px]:h-[210px] tw:max-[720px]:w-[min(340px,calc(100%-16px))]",
+                        fanClasses(i, waits.length),
+                      ],
+                ]}
+                onclick={(event) => {
+                  if (
+                    event.ctrlKey ||
+                    event.metaKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  )
+                    return;
+                  event.preventDefault();
+                  if (event.currentTarget.isConnected)
+                    onnavigate(waitTarget(wait));
+                }}
+                ><span
+                  class={[
+                    "tw:flex tw:flex-col tw:gap-2 tw:transition-opacity tw:duration-200",
+                    !dealt && !front && "tw:opacity-35",
+                  ]}
+                  ><span
+                    class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
                     >{#if room && roomIcon(room)}<img
                         src={roomIcon(room)}
                         alt=""
                         loading="lazy"
-                        class="tw:size-6 tw:shrink-0 tw:rounded-lg tw:object-cover"
-                      />{:else}<OrgAvatar name={group.title} size="xs" />{/if}<b
-                      class="tw:min-w-0 tw:flex-1 tw:truncate tw:text-[13px] tw:font-semibold"
-                      >{group.title}</b
-                    ><span
-                      class="tw:shrink-0 tw:text-xs tw:tabular-nums tw:text-muted-foreground"
-                      ><b class="tw:font-semibold tw:text-foreground"
-                        >{group.total}</b
-                      > ›</span
-                    ></a
-                  >
-                  <WaitList
-                    people={me}
-                    waits={open ? group.waits : group.waits.slice(0, 3)}
-                    {rooms}
-                    {lang}
-                    {ago}
-                    {onnavigate}
-                  />{#if group.waits.length > 3}<button
-                      type="button"
-                      aria-expanded={open}
-                      class="tw:block tw:w-full tw:cursor-pointer tw:border-t tw:border-border tw:py-2.5 tw:pr-3 tw:pl-[3.25rem] tw:text-left tw:text-xs tw:text-muted-foreground tw:outline-none tw:hover:text-foreground tw:focus-visible:ring-2 tw:focus-visible:ring-inset tw:focus-visible:ring-ring"
-                      onclick={() =>
-                        (expanded = { ...expanded, [group.roomId]: !open })}
-                      >{open
-                        ? text("showLess")
-                        : text("moreHere", {
-                            n: group.waits.length - 3,
-                          })}</button
-                    >{/if}
-                </Card>{:else}<p class="tw:m-0 tw:text-muted-foreground">
-                  {text("noneHere")}
-                </p>{/each}
-            </section>{:else}<Card class="tw:block tw:space-y-1 tw:p-4"
-              ><p class="tw:m-0 tw:font-semibold">{text("allClear")}</p>
-              <p class="tw:m-0 tw:text-muted-foreground">
-                {text("allClearHelp")}
-              </p></Card
-            >{/if}
-          <section
-            aria-label={text("home")}
-            class={[
-              "tw:flex tw:min-w-0 tw:flex-col tw:gap-4",
-              groups.length && "tw:max-lg:hidden",
-            ]}
-          >
-            <Heading
-              level={2}
-              class="tw:m-0 tw:flex tw:h-7 tw:items-center tw:text-base tw:font-semibold"
-              >{text("home")}</Heading
-            >
-            {#if !me.books.length}<p class="tw:m-0">{text("empty")}</p>{/if}
-            <div
-              class="tw:grid tw:grid-cols-4 tw:gap-x-2 tw:gap-y-3 tw:sm:grid-cols-6 tw:lg:grid-cols-4"
-            >
-              {#each recentRooms(me.books) as room (room.id)}<RoomTile
-                  {room}
-                  {lang}
-                  now={$account.now}
-                  seen={$account.seen[room.id] ?? 0}
-                  waits={me.waits.filter((wait) => wait.book_id === room.id)}
-                  {onnavigate}
-                  onsettings={onroomsettings}
-                />{/each}
-            </div>
-          </section>
-        </div>
+                        class="tw:size-6 tw:shrink-0 tw:rounded-md tw:object-cover"
+                      />{:else}<OrgAvatar
+                        name={wait.room}
+                        size="xs"
+                      />{/if}<span class="tw:min-w-0 tw:truncate"
+                      >{wait.room}{wait.topic ? ` › ${wait.topic}` : ""}</span
+                    ></span
+                  ><span
+                    class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+                    >{#if task}<Icon icon={Check} size={14} /><span
+                        class="tw:min-w-0 tw:flex-1 tw:truncate"
+                        >{text("deskTask")}</span
+                      >{:else if claudeWait(wait)}<AgentMark
+                        size="2xs"
+                        class="tw:text-[10px]"
+                      /><span
+                        class="tw:min-w-0 tw:flex-1 tw:truncate tw:font-medium tw:text-destructive"
+                        >{who(wait)} · {text("needsYou")}</span
+                      >{:else if wait.author === "ai"}<AgentMark
+                        mark="✦"
+                        size="2xs"
+                        class="tw:text-[10px]"
+                      /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                        >{who(wait)}</span
+                      >{:else}<PersonAvatar
+                        size="2xs"
+                        name={wait.author_name || wait.author}
+                        url={personAvatar(me, wait.author)}
+                      /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                        >{who(wait)}</span
+                      >{/if}<span class="tw:shrink-0 tw:tabular-nums"
+                      >{ago(wait.ts)}</span
+                    ></span
+                  ><b
+                    class="tw:line-clamp-4 tw:text-[17px] tw:leading-[1.3] tw:font-medium tw:tracking-[-0.01em] tw:break-words"
+                    >{plainWaitText(wait.text)}</b
+                  ></span
+                ></a
+              >{/each}
+          </nav>{/if}
       {/if}
-      {#if $account.loading && $account.me}<p role="status" class="tw:m-0">
-          {text("refreshing")}
-        </p>{/if}
-      {#if $account.error}<p
-          role="alert"
-          class="tw:m-0 tw:break-words tw:text-destructive"
-        >
-          {homeIssue(lang, $account.error)}
-        </p>
-        <Button
-          variant="outline"
-          disabled={$account.loading}
-          aria-busy={$account.loading || undefined}
-          onclick={(event) => {
-            if (event.currentTarget.isConnected) void personal.refresh();
-          }}
-          >{#if $account.loading}<Spinner size="xs" />{/if}{text(
-            "retry",
-          )}</Button
-        >{/if}
     </div>
-    {#if $account.me}<div
-        data-home-ask="docked"
-        class="tw:sticky tw:bottom-0 tw:z-20 tw:mt-auto tw:bg-background tw:px-4 tw:pt-2 tw:pb-[max(0.75rem,env(safe-area-inset-bottom))] tw:sm:px-8 tw:sm:pb-6"
+    {#if $account.me}{@const me = $account.me}
+      <div
+        class="tw:flex tw:flex-col tw:items-center tw:px-4 tw:pb-10 tw:sm:px-8"
       >
-        <div class="tw:mx-auto tw:max-w-[calc(64rem-4rem)] tw:space-y-2">
-          {@render suggestionCard()}
-          <ChatField
-            id="home-ask"
-            maxlength={2000}
-            label={text("ask")}
-            placeholder={mobile.current ? text("ask") : text("askPlaceholder")}
-            value={$draft.ask}
-            onedit={(value) => session.edit(value)}
-            onsubmit={() => void session.suggest()}
-            {t}
-            locale={lang === "en" ? "en-US" : "pt-BR"}
-            disabled={$view.busy === "send"}
-            busy={!!$view.busy}
-            pending={$view.busy === "route"}
-            sendDisabled={!$draft.ask.trim()}
+        <section
+          aria-label={text("home")}
+          class={[
+            "tw:flex tw:w-full tw:max-w-5xl tw:flex-col tw:gap-3",
+            waits.length ? "tw:mt-10" : "tw:mt-16",
+          ]}
+        >
+          <Heading
+            level={2}
+            class="tw:m-0 tw:text-sm tw:font-medium tw:text-muted-foreground"
+            >{text("home")}</Heading
           >
-            {#snippet menu(close, trigger)}<Button
-                variant="menu"
-                role="menuitem"
-                onclick={() => {
-                  close();
-                  onnew(trigger ?? undefined);
-                }}>{text("new")}</Button
-              ><Button
-                variant="menu"
-                role="menuitem"
-                onclick={() => {
-                  close();
-                  onsearch();
-                }}>{text("search")} <small>⌘K</small></Button
-              >{/snippet}
-          </ChatField>
-        </div>
+          {#if !me.books.length}<p class="tw:m-0">{text("empty")}</p>{/if}
+          <div
+            class="tw:grid tw:grid-cols-4 tw:gap-x-2 tw:gap-y-3 tw:sm:grid-cols-6 tw:lg:grid-cols-8"
+          >
+            {#each recentRooms(me.books) as room (room.id)}<RoomTile
+                {room}
+                {lang}
+                now={$account.now}
+                seen={$account.seen[room.id] ?? 0}
+                waits={me.waits.filter((wait) => wait.book_id === room.id)}
+                {onnavigate}
+                onsettings={onroomsettings}
+              />{/each}
+          </div>
+        </section>
       </div>{/if}
   </main>
 {/if}

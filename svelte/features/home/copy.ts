@@ -132,6 +132,15 @@ const pt = {
   showLess: "Mostrar menos",
   noneHere: "Nada aqui com esse filtro.",
   update: "Nova versão do vibebook · toque pra atualizar",
+  deskNone: "Nada espera você.",
+  deskOne: "Uma coisa espera você.",
+  deskMany: "{n} coisas esperam você.",
+  deskAsk: "O que você quer resolver? Eu acho a sala e o épico certos.",
+  deskTask: "Sua tarefa, esperando OK",
+  deskCopyAgent: "Copiar pro agent",
+  deskCopied: "Copiado. Cole no Claude Code, na pasta do projeto.",
+  deskLoadFailed: "Não deu pra carregar sua home.",
+  deskWaits: "Esperando você",
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
@@ -268,6 +277,15 @@ const en: Record<keyof typeof pt, string> = {
   showLess: "Show less",
   noneHere: "Nothing here with this filter.",
   update: "New vibebook version · tap to update",
+  deskNone: "Nothing waits on you.",
+  deskOne: "One thing waits on you.",
+  deskMany: "{n} things wait on you.",
+  deskAsk: "What do you want to get done? I'll find the right room and epic.",
+  deskTask: "Your task, waiting for an OK",
+  deskCopyAgent: "Copy for your agent",
+  deskCopied: "Copied. Paste it into Claude Code, in the project folder.",
+  deskLoadFailed: "Couldn't load your home.",
+  deskWaits: "Waiting on you",
 };
 export type HomeLanguage = "pt" | "en";
 export type HomeCopyKey = keyof typeof pt;
