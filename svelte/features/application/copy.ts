@@ -198,6 +198,7 @@ const EN: Readonly<Record<string, string>> = {
   Nome: "Name",
   Fixar: "Pin",
   "Fixar site, repo ou app": "Pin a site, repo or app",
+  "Convidar alguém pra sala": "Invite someone to the room",
   "Fixar na lateral": "Pin to the sidebar",
   "{n} issues dos agents": "{n} issues from agents",
   "Issue de um agent": "Issue from an agent",
