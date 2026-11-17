@@ -73,7 +73,7 @@ const chapters: Ch[] = [
     feats: [
       { t: l("Notas de qualidade", "Quality notes"), d: l("Tarefa sem critério de pronto, duas coisas numa tarefa, épico sem verificação, doc sem escopo: vira uma etiqueta ⚠ que o Claude vê antes de começar.", "A task with no done criterion, two things in one task, an epic with no check, a doc with no scope: each becomes a ⚠ tag your Claude sees before starting."), ui: [c("y", "⚠ sem critério de pronto", "⚠ no done criterion"), c("y", "⚠ sem verificação", "⚠ no check")] },
       { t: l("Cobranças", "Nudges"), d: l("Entrega com tarefas abertas, tarefa parada há 24h: ele menciona quem precisa agir, uma vez.", "A delivery with open tasks, a task stuck for 24h: it mentions whoever needs to act, once.") },
-      { t: l("Sugestões de épico", "Epic suggestions"), d: l("Lendo a conversa, ele propõe épicos tracejados na lateral. Um clique pede pro seu Claude conferir e criar.", "Reading the chat, it proposes dashed epics in the sidebar. One click asks your Claude to check and create it."), ui: [c("", "┆ Criar épico", "┆ Create epic")] },
+      { t: l("Sugestões de épico", "Epic suggestions"), d: l("Um Claude pode propor um épico tracejado na lateral. Um clique pede pro seu Claude conferir e criar.", "A Claude can propose a dashed epic in the sidebar. One click asks your Claude to check and create it."), ui: [c("", "┆ Criar épico", "┆ Create epic")] },
     ],
   },
   {
