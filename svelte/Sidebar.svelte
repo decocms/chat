@@ -208,7 +208,7 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}
       />{/if}
-    <div class="tw:flex tw:min-h-48 tw:flex-1 tw:flex-col tw:gap-3">
+    <div class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3">
       <div class="tw:group/room tw:relative tw:shrink-0">
         <Tooltip>
           <TooltipTrigger>
