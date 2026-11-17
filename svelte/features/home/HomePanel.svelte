@@ -112,10 +112,15 @@
     filter = kind;
     await tick();
     if (!filterBar?.isConnected) return;
-    scrollTo({
-      top: Math.max(filterBar.getBoundingClientRect().top + scrollY - 16, 8),
-      behavior: reducedMotion.current ? "auto" : "smooth",
-    });
+    const box = scroller(),
+      behavior: ScrollBehavior = reducedMotion.current ? "auto" : "smooth";
+    const offset =
+      filterBar.getBoundingClientRect().top -
+      (box ? box.getBoundingClientRect().top : 0) -
+      16;
+    if (box)
+      box.scrollTo({ top: Math.max(box.scrollTop + offset, 8), behavior });
+    else scrollTo({ top: Math.max(scrollY + offset, 8), behavior });
   }
   const headline = $derived(
     waits.length === 0
@@ -131,8 +136,22 @@
   const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
   const phone = new MediaQuery("(max-width: 720px)");
   // Scrolling down deals the hand into a grid; back at the top it fans again.
+  // What scrolls depends on the width: the app frame on a desktop (#92), the
+  // window on a phone. Both are read through the nearest scrolling ancestor.
+  function scroller() {
+    for (let el = home?.parentElement; el; el = el.parentElement) {
+      const overflow = getComputedStyle(el).overflowY;
+      if (overflow === "auto" || overflow === "scroll") return el;
+    }
+    return null;
+  }
+  const scrolled = () => {
+    const box = scroller();
+    return box ? box.scrollTop : scrollY;
+  };
   function onscroll() {
-    const next = scrollY > 4 ? true : scrollY <= 0 ? false : dealt;
+    const y = scrolled();
+    const next = y > 4 ? true : y <= 0 ? false : dealt;
     if (next !== dealt) void deal(next);
   }
   // The deal moves each card from where it stood to where it lands (FLIP):
@@ -172,8 +191,13 @@
     });
   }
   $effect(() => {
-    addEventListener("scroll", onscroll, { passive: true });
-    return () => removeEventListener("scroll", onscroll);
+    // Capture: scroll events from the frame do not bubble to the window.
+    document.addEventListener("scroll", onscroll, {
+      passive: true,
+      capture: true,
+    });
+    return () =>
+      document.removeEventListener("scroll", onscroll, { capture: true });
   });
   $effect(() => {
     if (cube) return mountCube(cube);
@@ -364,7 +388,7 @@
       class={[
         "tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:sm:px-8",
         waits.length &&
-          "tw:min-h-dvh tw:max-[900px]:min-h-[calc(100dvh-3.5rem)]",
+          "tw:min-h-[calc(100dvh-3.5rem)] tw:min-[901px]:min-h-[calc(100dvh-1rem)]",
       ]}
     >
       <div class="tw:w-full tw:max-w-xl">
