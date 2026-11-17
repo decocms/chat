@@ -111,9 +111,10 @@ export type NativeApplicationProfileEvidence = NativeApplicationProfile & {
   failure?: string;
   failureSourceFrames?: string[];
 };
-// In a room at desktop width the shell is Studio's frame (the sidebar color
-// around the rail and card panels); elsewhere it is the page background.
-const roomRoles = (width: number): StudioRenderedRole[] =>
+// At desktop width the shell is Studio's frame (the sidebar color around the
+// rail and the framed content), in a room and on Home alike; on phones it is
+// the page background.
+const frameRoles = (width: number): StudioRenderedRole[] =>
   rootRoles.map((role) =>
     role.role === "Root background" && width >= 901
       ? { ...role, role: "Room frame background", cssVariable: "--sidebar" }
@@ -634,7 +635,7 @@ export async function auditNativeApplicationProfiles(
               evidence: await verifyStudioPalette(
                 page,
                 theme,
-                rootRoles.slice(0, 4),
+                frameRoles(width).slice(0, 4),
               ),
             });
             await axe(page, "Home", evidence);
@@ -759,7 +760,7 @@ export async function auditNativeApplicationProfiles(
               evidence: await verifyStudioPalette(
                 page,
                 theme,
-                roomRoles(width),
+                frameRoles(width),
               ),
             });
             await axe(page, "Room initial", evidence);
