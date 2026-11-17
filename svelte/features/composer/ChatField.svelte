@@ -380,7 +380,7 @@
   data-chat-box
   data-native-composer-field
   aria-busy={busy || pending || undefined}
-  class="tw:flex tw:items-end tw:gap-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:rounded-[18px] tw:bg-[var(--vb-studio-input-background)] tw:py-1.5 tw:pr-1.5 tw:pl-1 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
+  class="tw:flex tw:items-end tw:gap-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:py-3 tw:pr-3 tw:pl-2 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
   onsubmit={(event) => {
     event.preventDefault();
     void submit();
