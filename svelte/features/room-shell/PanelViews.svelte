@@ -85,7 +85,7 @@
   tooltipSide="bottom"
   size="icon"
   aria-pressed={visible}
-  aria-controls={cardId}
+  aria-controls={visible ? cardId : undefined}
   class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
   onclick={toggle}
 >

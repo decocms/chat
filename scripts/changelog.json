@@ -30,11 +30,13 @@
     "improvements": {
       "pt": [
         "No app novo (?ui=svelte), a lista de épicos ganhou um cabeçalho: o + abre o campo de novo épico ali mesmo e o ✦ mostra as sugestões do @vibe, então a lista só tem épicos de verdade.",
-        "No celular, o menu ☰ tem uma linha própria \"Nova UI\" pra abrir o app novo (?ui=svelte), em vez de um botão apertado ao lado do tema."
+        "No celular, o menu ☰ tem uma linha própria \"Nova UI\" pra abrir o app novo (?ui=svelte), em vez de um botão apertado ao lado do tema.",
+        "No app novo (?ui=svelte), a barra da sala cabe na tela de novo: a lista de épicos, os fixados e as pessoas rolam cada um por dentro, sem empurrar o resto pra fora."
       ],
       "en": [
         "In the new app (?ui=svelte), the epic list has a header: + opens the new-epic field in place and ✦ shows @vibe's suggestions, so the list only holds real epics.",
-        "On phones, the ☰ menu has its own \"New UI\" row to open the new app (?ui=svelte), instead of a cramped switch next to the theme."
+        "On phones, the ☰ menu has its own \"New UI\" row to open the new app (?ui=svelte), instead of a cramped switch next to the theme.",
+        "In the new app (?ui=svelte), the room sidebar fits the screen again: the epic list, pins and people each scroll inside themselves instead of pushing the rest out of view."
       ]
     },
     "fixes": {
@@ -1201,12 +1203,8 @@
       ]
     },
     "fixes": {
-      "pt": [
-        "Salas novas ganham título e resumo depois da primeira mensagem"
-      ],
-      "en": [
-        "New rooms get a title and summary after the first message"
-      ]
+      "pt": ["Salas novas ganham título e resumo depois da primeira mensagem"],
+      "en": ["New rooms get a title and summary after the first message"]
     }
   },
   {

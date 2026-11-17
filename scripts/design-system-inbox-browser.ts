@@ -7,6 +7,7 @@ import {
   type Route,
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { settleAnimations } from "./studio-browser";
 import * as z from "zod/mini";
 import { InboxResult, MeResult, OkResult } from "../shared/schemas";
 
@@ -243,6 +244,7 @@ export async function auditDesignSystemInbox(
     await expect(
       roomInbox.getByText("Cross-room target message", { exact: true }),
     ).toHaveCount(0);
+    await settleAnimations(page);
     const axe = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
@@ -367,6 +369,8 @@ export async function auditDesignSystemInbox(
         })
         .first();
     await openGlobal();
+    // The Studio dialog fades in; audit its colors once it is at rest.
+    await settleAnimations(page);
     const modalAxe = await new AxeBuilder({ page })
       .include('[role="dialog"]')
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])

@@ -14,7 +14,11 @@ import * as z from "zod/mini";
 import { MeResult } from "../shared/schemas";
 import { homeText } from "../svelte/features/home/copy";
 import { createApplicationCopy } from "../svelte/features/application/copy";
-import { verifyStudioPalette, type StudioRenderedRole } from "./studio-browser";
+import {
+  settleAnimations,
+  verifyStudioPalette,
+  type StudioRenderedRole,
+} from "./studio-browser";
 import type {
   NativeApplicationAuditFixture,
   NativeApplicationProfile,
@@ -107,6 +111,14 @@ export type NativeApplicationProfileEvidence = NativeApplicationProfile & {
   failure?: string;
   failureSourceFrames?: string[];
 };
+// In a room at desktop width the shell is Studio's frame (the sidebar color
+// around the rail and card panels); elsewhere it is the page background.
+const roomRoles = (width: number): StudioRenderedRole[] =>
+  rootRoles.map((role) =>
+    role.role === "Root background" && width >= 901
+      ? { ...role, role: "Room frame background", cssVariable: "--sidebar" }
+      : role,
+  );
 const rootRoles: StudioRenderedRole[] = [
   {
     role: "Root background",
@@ -134,13 +146,15 @@ const rootRoles: StudioRenderedRole[] = [
   },
   {
     role: "Composer input fill",
-    selector: "[data-native-composer] textarea",
+    // The rounded box is the filled input surface; its textarea is transparent.
+    selector: "[data-native-composer] [data-native-composer-field]",
     property: "background-color",
     cssVariable: "--studio-input-background",
   },
   {
     role: "Composer input label",
-    selector: "[data-native-composer] textarea",
+    // The rounded box is the filled input surface; its textarea is transparent.
+    selector: "[data-native-composer] [data-native-composer-field]",
     property: "color",
     cssVariable: "--foreground",
   },
@@ -313,6 +327,8 @@ async function axe(
   surface: string,
   evidence: NativeApplicationProfileEvidence,
 ): Promise<void> {
+  // Audit what people see at rest, not a dialog halfway through its fade-in.
+  await settleAnimations(page);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
@@ -352,6 +368,9 @@ async function keyboardHomeInbox(
     exact: true,
   });
   await expect(dialog).toBeVisible();
+  // The Inbox loads lazily: a placeholder dialog shows first, then the real
+  // one mounts and fades in. Audit the real one.
+  await expect(page.locator("[data-native-inbox]")).toBeVisible();
   await focusWithin(page, dialog);
   await axe(page, "Home Inbox dialog open", evidence);
   await page.keyboard.press("Escape");
@@ -393,7 +412,8 @@ async function keyboardOverlays(
         role: "Search dialog fill",
         selector: '[role="dialog"]',
         property: "background-color",
-        cssVariable: "--card",
+        // Studio dialogs are the glass surface (DialogContent's bg-glass).
+        cssVariable: "--glass",
       },
       {
         role: "Search dialog label",
@@ -723,7 +743,11 @@ export async function auditNativeApplicationProfiles(
             }
             evidence.palettes.push({
               surface: "Room/Composer/canonical code",
-              evidence: await verifyStudioPalette(page, theme, rootRoles),
+              evidence: await verifyStudioPalette(
+                page,
+                theme,
+                roomRoles(width),
+              ),
             });
             await axe(page, "Room initial", evidence);
             await page.screenshot({
@@ -751,7 +775,17 @@ export async function auditNativeApplicationProfiles(
                 evidence: await verifyStudioPalette(page, theme, [
                   {
                     role: `${pane} pane fill`,
-                    selector,
+                    // On desktop the pane sits on Studio's card surface (a
+                    // backdrop under the toolbar and pane); on phones it is
+                    // the sheet itself.
+                    selector:
+                      profile.width > 900
+                        ? (await page
+                            .locator(selector)
+                            .getAttribute("data-placement")) === "full"
+                          ? '[data-room-surface="chat"]'
+                          : '[data-room-surface="side"]'
+                        : selector,
                     property: "background-color",
                     cssVariable: "--background",
                   },
