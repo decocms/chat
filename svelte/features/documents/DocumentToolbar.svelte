@@ -22,6 +22,7 @@
     onPane,
     compact = false,
     sideFileName,
+    only,
   }: {
     owner: DocumentSession;
     room: Room;
@@ -33,6 +34,8 @@
     onPane(pane: DocumentPane): void;
     compact?: boolean;
     sideFileName?: string;
+    /** Only these panes (the phone's bottom-bar tab), in this order. */
+    only?: readonly DocumentPane[];
   } = $props();
   const view = untrack(() => owner.state),
     en = $derived(lang === "en");
@@ -71,7 +74,9 @@
       room.book.title,
   );
   const items = $derived(
-    allItems.filter((item) => !compact || item.id !== "board"),
+    only
+      ? only.flatMap((id) => allItems.filter((item) => item.id === id))
+      : allItems.filter((item) => !compact || item.id !== "board"),
   );
   function choose(event: MouseEvent, id: DocumentPane) {
     event.stopPropagation();
@@ -128,7 +133,7 @@
       {@const selected = pane === item.id}
       {@const count =
         compact && item.id === "doc" && docCount ? docCount : counts[item.id]}
-      {@const labelled = item.id === "doc" || item.id === "view"}
+      {@const labelled = !!only || item.id === "doc" || item.id === "view"}
       <Tooltip disabled={labelled}>
         <TooltipTrigger>
           {#snippet child({ props })}<Button

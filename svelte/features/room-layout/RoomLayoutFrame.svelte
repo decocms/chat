@@ -22,6 +22,8 @@
       ? "tw:animate-room-document-width-rail"
       : "tw:animate-room-document-width",
   );
+  // The phone room's bottom bar: a sixth grid row, absent on desktop.
+  const tabs = $derived($view.mobile && !!props.tabbar);
   const docPresented = $derived(
     $view.presentedSheet === "doc" || $view.draggingSheet === "doc",
   );
@@ -38,12 +40,15 @@
     $view.documentVisible && !($view.boardFull && $view.pane === "board"),
   );
   const paneClass = $derived(
-    $view.mobile
-      ? "tw:col-start-2 tw:row-start-3 tw:row-end-6 tw:z-20 tw:h-room-document-sheet tw:w-full tw:self-start tw:animate-room-sheet tw:rounded-b-surface tw:shadow-lg tw:has-[form:focus-within]:h-full tw:has-[[contenteditable=true]:focus]:h-full tw:has-[form:focus-within]:rounded-none"
-      : [
-          "tw:col-start-3 tw:row-start-2 tw:row-end-6 tw:mr-2 tw:mb-2 tw:rounded-b-surface",
-          widthClass,
-        ],
+    tabs
+      ? // A tab, not a floor: it fills the space between the header and the bar.
+        "tw:col-start-2 tw:row-start-3 tw:row-end-6 tw:z-20 tw:h-full tw:w-full tw:animate-room-sheet"
+      : $view.mobile
+        ? "tw:col-start-2 tw:row-start-3 tw:row-end-6 tw:z-20 tw:h-room-document-sheet tw:w-full tw:self-start tw:animate-room-sheet tw:rounded-b-surface tw:shadow-lg tw:has-[form:focus-within]:h-full tw:has-[[contenteditable=true]:focus]:h-full tw:has-[form:focus-within]:rounded-none"
+        : [
+            "tw:col-start-3 tw:row-start-2 tw:row-end-6 tw:mr-2 tw:mb-2 tw:rounded-b-surface",
+            widthClass,
+          ],
   );
   function handle(
     node: HTMLElement,
@@ -121,6 +126,7 @@
     bind:this={viewport}
     class={[
       "tw:relative tw:grid tw:w-full tw:min-w-0 tw:animate-room-viewport tw:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] tw:overflow-hidden tw:[container-type:size]",
+      tabs && "tw:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto]!",
       $view.mobile
         ? "tw:grid-cols-[0_minmax(0,1fr)_0] tw:[&_input]:text-base tw:[&_textarea]:text-base tw:[&_select]:text-base"
         : "tw:grid-cols-[auto_minmax(0,1fr)_auto]",
@@ -238,10 +244,12 @@
         ? "tw:hidden"
         : [
             "tw:col-start-2 tw:row-start-5 tw:min-w-0",
-            $view.mobile
-              ? "tw:pb-[env(safe-area-inset-bottom)]"
-              : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface tw:px-2",
+            tabs
+              ? "" // The bar under it carries the home-bar inset.
+              : $view.mobile
+                ? "tw:pb-[env(safe-area-inset-bottom)]"
+                : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
+                  "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface tw:px-2",
           ]}
     >
       {@render props.composer()}
@@ -283,7 +291,7 @@
           $view.sheet !== "doc" ||
           $view.pane === "board"}
         onclick={close}
-        class={$view.mobile
+        class={$view.mobile && !tabs
           ? "tw:flex tw:h-6 tw:shrink-0 tw:touch-none tw:items-center tw:justify-center tw:border-0 tw:bg-background"
           : "tw:hidden"}
         ><span class="tw:h-1 tw:w-10 tw:rounded-full tw:bg-border"
@@ -335,6 +343,13 @@
         ></span></button
       >
     </div>
+    {#if tabs}<div
+        data-room-tabbar
+        inert={$view.sheet === "side"}
+        class="tw:z-30 tw:col-start-2 tw:row-start-6 tw:min-w-0 tw:[[data-native-room-layout]:has([data-room-composer]:focus-within)_&]:hidden"
+      >
+        {@render props.tabbar?.()}
+      </div>{/if}
     {#if props.overlayOpen}<div
         data-room-inbox-surface
         inert={$view.mobile && $view.sheet === "side"}
@@ -370,7 +385,9 @@
       class={!$view.mobile
         ? "tw:hidden"
         : [
-            "tw:col-start-2 tw:row-start-3 tw:row-end-6 tw:animate-room-scrim tw:border-0 tw:bg-scrim tw:p-0",
+            "tw:col-start-2 tw:row-start-3 tw:animate-room-scrim tw:border-0 tw:bg-scrim tw:p-0",
+            // The thread sheet dims the bottom bar too.
+            tabs ? "tw:row-end-7" : "tw:row-end-6",
             $view.presentedSheet === "side"
               ? "tw:absolute tw:inset-0 tw:z-40"
               : "tw:z-10",

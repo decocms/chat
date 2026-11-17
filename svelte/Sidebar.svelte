@@ -206,112 +206,117 @@
       ></button>{/if}
     {#if appNavigation}<RoomStrip
         controller={appNavigation.controller}
-        lang={appNavigation.lang}
-      />{/if}
-    <div class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3">
-      <div class="tw:group/room tw:relative tw:shrink-0">
-        <Tooltip>
-          <TooltipTrigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                type="button"
-                data-room-title
-                aria-current={!inboxOpen && thread === "main"
-                  ? "page"
-                  : undefined}
-                class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected) open("main");
-                }}
-              >
-                <RoomMark title={room.book.title} src={roomIcon} />
-                <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                  >{room.book.title}</span
+        lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
+      >{:else}{@render thisRoom()}{/if}
+    {#snippet thisRoom()}<div
+        class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3"
+      >
+        <div class="tw:group/room tw:relative tw:shrink-0">
+          <Tooltip>
+            <TooltipTrigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  type="button"
+                  data-room-title
+                  aria-current={!inboxOpen && thread === "main"
+                    ? "page"
+                    : undefined}
+                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
+                  onclick={(event) => {
+                    if (event.currentTarget.isConnected) open("main");
+                  }}
                 >
-                <WaitBadge
-                  waits={vb.waitsIn("main")}
-                  label={(n) => vb.t("{n} coisas esperando você", { n })}
-                  taskLabel={vb.t("Tarefa sua pendente")}
-                />
-                <span
-                  class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
-                  >{messageCount(room, "main")}</span
-                >
-              </button>
-            {/snippet}
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
-            >{room.book.summary
-              ? `${room.book.title}\n${room.book.summary}`
-              : room.book.title}</TooltipContent
+                  <RoomMark title={room.book.title} src={roomIcon} />
+                  <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                    >{room.book.title}</span
+                  >
+                  <WaitBadge
+                    waits={vb.waitsIn("main")}
+                    label={(n) => vb.t("{n} coisas esperando você", { n })}
+                    taskLabel={vb.t("Tarefa sua pendente")}
+                  />
+                  <span
+                    class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
+                    >{messageCount(room, "main")}</span
+                  >
+                </button>
+              {/snippet}
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
+              >{room.book.summary
+                ? `${room.book.title}\n${room.book.summary}`
+                : room.book.title}</TooltipContent
+            >
+          </Tooltip>
+          <IconButton
+            label={vb.t("Renomear")}
+            size="icon-xs"
+            tooltipSide="bottom"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
           >
-        </Tooltip>
-        <IconButton
-          label={vb.t("Renomear")}
-          size="icon-xs"
-          tooltipSide="bottom"
-          class="tw:absolute tw:top-1.5 tw:right-1.5 tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
-          onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
-        >
-      </div>
-      {#if thread !== "main" && !thread.startsWith("pre:")}<div
-          class="tw:shrink-0 tw:min-[901px]:hidden"
-        >
-          <ThreadHeader
-            {room}
-            {thread}
-            {owner}
-            {vb}
-            {roomIcon}
-            {onopenside}
-            {onrenameroom}
-          />
-        </div>{/if}
-      <EpicTree
+        </div>
+        {#if thread !== "main" && !thread.startsWith("pre:")}<div
+            class="tw:shrink-0 tw:min-[901px]:hidden"
+          >
+            <ThreadHeader
+              {room}
+              {thread}
+              {owner}
+              {vb}
+              {roomIcon}
+              {onopenside}
+              {onrenameroom}
+            />
+          </div>{/if}
+        <EpicTree
+          {room}
+          {thread}
+          selectionDisabled={inboxOpen}
+          onBeforeOpen={onthreadintent}
+          session={navigation}
+          mutations={owner}
+          {onarchchange}
+          onopen={open}
+          vb={{
+            t: vb.t,
+            name: vb.name,
+            epicBusy: vb.epicBusy,
+            waitsIn: vb.waitsIn,
+          }}
+        />
+      </div>{/snippet}
+    <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. -->
+    <div class="tw:contents tw:max-[900px]:hidden">
+      <PinnedItems
         {room}
-        {thread}
-        selectionDisabled={inboxOpen}
-        onBeforeOpen={onthreadintent}
-        session={navigation}
-        mutations={owner}
-        {onarchchange}
-        onopen={open}
-        vb={{
-          t: vb.t,
-          name: vb.name,
-          epicBusy: vb.epicBusy,
-          waitsIn: vb.waitsIn,
-        }}
+        session={pins}
+        {send}
+        {request}
+        onopenfile={onopenpinfile}
+        onopenapp={onopenpinapp}
+        activeApp={activePinApp}
+        t={vb.t}
+      />
+      {#snippet agents(email: string)}<AgentPresenceRows
+          {presence}
+          self={email === room.me}
+          {email}
+          t={vb.t}
+          name={vb.name}
+          ago={vb.ago}
+          {locale}
+        />{/snippet}
+      <People
+        {room}
+        {friends}
+        vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
+        {agents}
       />
     </div>
-    <PinnedItems
-      {room}
-      session={pins}
-      {send}
-      {request}
-      onopenfile={onopenpinfile}
-      onopenapp={onopenpinapp}
-      activeApp={activePinApp}
-      t={vb.t}
-    />
-    {#snippet agents(email: string)}<AgentPresenceRows
-        {presence}
-        self={email === room.me}
-        {email}
-        t={vb.t}
-        name={vb.name}
-        ago={vb.ago}
-        {locale}
-      />{/snippet}
-    <People
-      {room}
-      {friends}
-      vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
-      {agents}
-    />
     <MutationStatus {owner} t={vb.t} />
   {/if}
 </section>
