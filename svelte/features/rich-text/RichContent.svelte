@@ -52,7 +52,8 @@
     data-vb-native
     class={mode === "human" || (nodes.length === 1 && nodes[0].kind === "text")
       ? "tw:min-w-0 tw:max-w-full tw:overflow-x-auto tw:whitespace-pre-wrap tw:break-words tw:font-sans tw:leading-6 tw:text-foreground"
-      : "tw:min-w-0 tw:max-w-full tw:overflow-x-auto tw:break-words tw:font-sans tw:leading-6 tw:text-foreground"}
+      : // The block margins stay between blocks: a lone paragraph sits as close to the name above it as plain text does.
+        "tw:min-w-0 tw:max-w-full tw:overflow-x-auto tw:break-words tw:font-sans tw:leading-6 tw:text-foreground tw:[&>:first-child]:mt-0 tw:[&>:last-child]:mb-0"}
   >
     <RichNodes {nodes} {actions} />
   </div>{/if}

@@ -207,7 +207,7 @@
         "tw:col-start-2 tw:row-start-3 tw:min-w-0",
         $view.mobile
           ? "tw:max-h-[30cqh] tw:overflow-y-auto tw:overscroll-contain"
-          : "tw:mr-2",
+          : "tw:mr-2 tw:[&>*]:mx-auto tw:[&>*]:max-w-190",
         props.overlayOpen && "tw:hidden",
       ]}
     >
@@ -221,7 +221,8 @@
         ? "tw:hidden"
         : [
             "tw:col-start-2 tw:row-start-4 tw:min-h-0 tw:min-w-0 tw:overflow-y-auto tw:overscroll-contain tw:px-4",
-            !$view.mobile && "tw:mr-2",
+            // A centered reading column, as in t3: lines stay short however wide the window is.
+            !$view.mobile && "tw:mr-2 tw:[&>*]:mx-auto tw:[&>*]:max-w-190",
           ]}
     >
       {@render props.chat()}
@@ -237,7 +238,7 @@
             $view.mobile
               ? "tw:pb-[env(safe-area-inset-bottom)]"
               : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface",
+                "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface tw:[&>[data-native-composer]]:mx-auto tw:[&>[data-native-composer]]:max-w-198",
           ]}
     >
       {@render props.composer()}
