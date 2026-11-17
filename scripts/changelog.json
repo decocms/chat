@@ -13,10 +13,12 @@
     "features": [],
     "improvements": {
       "pt": [
-        "No app novo (?ui=svelte), o agent na barra da sala virou um ícone ✻ com um ponto que diz o estado (não conectado, desligado, abrindo, sem ouvir, ouvindo, trabalhando); clicar abre o painel Agents. O aviso grande virou uma linha só, que aparece quando o agent não pode trabalhar na sala."
+        "No app novo (?ui=svelte), o agent na barra da sala virou um ícone ✻ com um ponto que diz o estado (não conectado, desligado, abrindo, sem ouvir, ouvindo, trabalhando); clicar abre o painel Agents. O aviso grande virou uma linha só, que aparece quando o agent não pode trabalhar na sala.",
+        "A barra da sala não mostra mais o nome da pasta ao lado do título."
       ],
       "en": [
-        "In the new app (?ui=svelte), the agent in the room header is now a ✻ icon with a dot for its state (not connected, off, opening, not listening, listening, working); clicking it opens the Agents panel. The big notice is now a single line, shown only when the agent can't work in the room."
+        "In the new app (?ui=svelte), the agent in the room header is now a ✻ icon with a dot for its state (not connected, off, opening, not listening, listening, working); clicking it opens the Agents panel. The big notice is now a single line, shown only when the agent can't work in the room.",
+        "The room header no longer shows the folder name next to the title."
       ]
     },
     "fixes": {
@@ -1246,8 +1248,12 @@
       ]
     },
     "fixes": {
-      "pt": ["Salas novas ganham título e resumo depois da primeira mensagem"],
-      "en": ["New rooms get a title and summary after the first message"]
+      "pt": [
+        "Salas novas ganham título e resumo depois da primeira mensagem"
+      ],
+      "en": [
+        "New rooms get a title and summary after the first message"
+      ]
     }
   },
   {

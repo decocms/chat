@@ -147,8 +147,7 @@
   >
   {#if suggestion}<span class={[aside, compact && "tw:max-[900px]:hidden"]}
       >✦ {vb.t("sugestão do @vibe")}</span
-    >{:else if room.book.folder && !epic}<span
-      class={[aside, compact && "tw:max-[900px]:hidden"]}
+    >{:else if room.book.folder && !epic && !compact}<span class={aside}
       >{room.book.folder}</span
     >{/if}
   {#if epic}<span
