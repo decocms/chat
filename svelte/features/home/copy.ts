@@ -141,6 +141,16 @@ const pt = {
   deskCopied: "Copiado. Cole no Claude Code, na pasta do projeto.",
   deskLoadFailed: "Não deu pra carregar sua home.",
   deskWaits: "Esperando você",
+  deskHello: "Oi, {name}.",
+  deskHelloAnon: "Oi.",
+  deskQuestion: "O que vamos resolver hoje?",
+  deskSendTo: "Enviar para",
+  deskOr: "Ou",
+  deskFirstRoom: "Criar seu primeiro vibebook",
+  deskFirstRoomHelp:
+    "Uma sala pra conversa, as tarefas e o doc, com seu time e o agent de cada um.",
+  deskConnectHelp: "Cole no Claude Code, dentro da pasta do projeto.",
+  deskAskShort: "O que vamos resolver?",
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
@@ -286,6 +296,16 @@ const en: Record<keyof typeof pt, string> = {
   deskCopied: "Copied. Paste it into Claude Code, in the project folder.",
   deskLoadFailed: "Couldn't load your home.",
   deskWaits: "Waiting on you",
+  deskHello: "Hi, {name}.",
+  deskHelloAnon: "Hi.",
+  deskQuestion: "What are we getting done today?",
+  deskSendTo: "Send to",
+  deskOr: "Or",
+  deskFirstRoom: "Create your first vibebook",
+  deskFirstRoomHelp:
+    "A room for the conversation, the tasks and the doc, with your team and everyone's agent.",
+  deskConnectHelp: "Paste it into Claude Code, inside the project folder.",
+  deskAskShort: "What needs doing?",
 };
 export type HomeLanguage = "pt" | "en";
 export type HomeCopyKey = keyof typeof pt;

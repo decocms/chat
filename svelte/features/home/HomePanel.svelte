@@ -3,8 +3,6 @@
   import { MediaQuery } from "svelte/reactivity";
   import Button from "../../lib/studio/Button.svelte";
   import InstallCard from "../pwa/InstallCard.svelte";
-  import Badge from "../../lib/studio/Badge.svelte";
-  import Card from "../../lib/studio/Card.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import ChatField from "../composer/ChatField.svelte";
@@ -14,7 +12,6 @@
   import { createHomeSession } from "./session";
   import { homeText, homeIssue } from "./copy";
   import {
-    recentRooms,
     destinations,
     roomIcon,
     targetHref,
@@ -28,7 +25,6 @@
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
-  import RoomTile from "./RoomTile.svelte";
   import { mountCube } from "./cube";
   import { byImportance, fanClasses, inFan } from "./deskHand";
   import Onboarding from "../onboarding/Onboarding.svelte";
@@ -90,7 +86,7 @@
   const phone = new MediaQuery("(max-width: 720px)");
   // Scrolling down deals the hand into a grid; back at the top it fans again.
   function onscroll() {
-    const next = scrollY > 24 ? true : scrollY <= 0 ? false : dealt;
+    const next = scrollY > 4 ? true : scrollY <= 0 ? false : dealt;
     if (next !== dealt) void deal(next);
   }
   // The deal moves each card from where it stood to where it lands (FLIP):
@@ -121,8 +117,8 @@
           { transform: final },
         ],
         {
-          duration: 420,
-          delay: Math.min(i, 8) * 18,
+          duration: 280,
+          delay: Math.min(i, 6) * 8,
           easing: "cubic-bezier(0.23, 1, 0.32, 1)",
           fill: "backwards",
         },
@@ -136,6 +132,10 @@
   $effect(() => {
     if (cube) return mountCube(cube);
   });
+  const place = (choice: ReturnType<typeof destinations>[number]) =>
+    choice.book_id
+      ? choice.book_title + (choice.epic_title ? " › " + choice.epic_title : "")
+      : text("newDestination", { title: choice.book_title });
   const who = (wait: (typeof waits)[number]) =>
     claudeWait(wait)
       ? text("yourClaude")
@@ -187,47 +187,42 @@
   }
 </script>
 
-{#snippet archiveLink()}<a
-    href="/archived?ui=svelte"
-    class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
-    onclick={(event) => {
-      if (!plainClick(event)) return;
-      event.preventDefault();
-      if (event.currentTarget.isConnected) onarchived();
-    }}>{text("archive")}</a
-  >{/snippet}
-
 <!-- Connecting an agent, inline under the ask box: the agents' marks, the
      instruction itself and one click to copy it for Claude Code. -->
 {#snippet connectAgent()}<div
     data-home-connect
-    class="tw:flex tw:max-w-full tw:flex-wrap tw:items-center tw:justify-center tw:gap-2"
+    class="tw:flex tw:w-full tw:flex-col tw:gap-2.5 tw:rounded-2xl tw:bg-card tw:p-3 tw:text-left tw:shadow-edge"
   >
-    <button
-      type="button"
-      title={setup}
-      class="tw:inline-flex tw:h-9 tw:max-w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-full tw:bg-card tw:py-0 tw:pr-1 tw:pl-1.5 tw:text-foreground tw:shadow-edge tw:transition-colors tw:duration-150 tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-      onclick={copy}
-      ><span class="tw:flex tw:shrink-0 tw:items-center tw:-space-x-1.5"
+    <div class="tw:flex tw:items-center tw:gap-2.5">
+      <span class="tw:flex tw:shrink-0 tw:items-center tw:-space-x-1.5"
         >{#each ["claude", "codex", "gemini"] as via (via)}<AgentMark
             {via}
             tint
             size="xs"
             class="tw:rounded-full tw:ring-2 tw:ring-card"
           />{/each}</span
-      ><span class="tw:shrink-0 tw:text-sm">{text("setup")}</span><code
-        class="tw:min-w-0 tw:truncate tw:font-mono tw:text-xs tw:text-muted-foreground tw:max-sm:hidden"
-        >{location.host}/llms.txt</code
-      ><span
-        class="tw:inline-flex tw:h-7 tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:bg-muted tw:px-3 tw:text-xs tw:font-medium"
-        >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}{text(
-          copyStatus === "copied" ? "copied" : "deskCopyAgent",
-        )}</span
-      ></button
-    >{#if copyStatus}<p
+      >
+      <b class="tw:min-w-0 tw:flex-1 tw:truncate tw:font-medium"
+        >{text("setup")}</b
+      >
+      <Button size="sm" class="tw:shrink-0" onclick={copy}
+        >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}<span
+          class="tw:max-sm:hidden"
+          >{text(copyStatus === "copied" ? "copied" : "deskCopyAgent")}</span
+        ><span class="tw:sm:hidden"
+          >{text(copyStatus === "copied" ? "copied" : "copy")}</span
+        ></Button
+      >
+    </div>
+    <code
+      class="tw:block tw:rounded-control tw:bg-muted tw:px-3 tw:py-2 tw:font-mono tw:text-xs tw:leading-5 tw:break-words tw:text-foreground tw:select-all"
+      >{setup}</code
+    >{#if !copyStatus}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+        {text("deskConnectHelp")}
+      </p>{:else}<p
         role={copyStatus === "copyFailed" ? "alert" : "status"}
         class={[
-          "tw:m-0 tw:basis-full tw:text-center tw:text-xs",
+          "tw:m-0 tw:text-xs",
           copyStatus === "copyFailed"
             ? "tw:text-destructive"
             : "tw:text-muted-foreground",
@@ -237,62 +232,66 @@
       </p>{/if}
   </div>{/snippet}
 
+<!-- Where the ask goes: one line with the destination and its two buttons, the
+     reason under it, and the other places as chips. -->
 {#snippet suggestionCard()}{#if $view.result}{@const choices = destinations(
       $view.result,
-    )}{@const selected = choices[$view.selected]!}<Card
-      class="tw:block tw:space-y-3 tw:p-4"
-      ><p aria-live="polite" class="tw:m-0 tw:break-words">
-        {selected.book_id
-          ? text("destination", {
-              where:
-                selected.book_title +
-                (selected.epic_title ? " → " + selected.epic_title : ""),
-            })
-          : text($view.result.pick ? "createDestination" : "noDestination", {
-              title: selected.book_title,
-            })}
-      </p>
+    )}{@const selected = choices[$view.selected]!}
+    <div
+      data-home-suggestion
+      class="tw:flex tw:flex-col tw:gap-2 tw:rounded-2xl tw:bg-card tw:p-3 tw:pl-4 tw:text-left tw:shadow-edge"
+    >
+      <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-2">
+        <p
+          aria-live="polite"
+          class="tw:m-0 tw:min-w-0 tw:flex-1 tw:basis-48 tw:break-words"
+        >
+          <span class="tw:text-muted-foreground">{text("deskSendTo")}</span>
+          <b class="tw:font-medium">{place(selected)}</b>
+        </p>
+        <div class="tw:flex tw:shrink-0 tw:gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={$view.busy === "send"}
+            onclick={() => session.cancel()}>{text("cancel")}</Button
+          ><Button
+            size="sm"
+            bind:ref={sendButton}
+            aria-busy={$view.busy === "send" || undefined}
+            disabled={$view.busy === "send"}
+            onclick={() => session.send()}
+            >{#if $view.busy === "send"}<Spinner size="xs" />{/if}{text(
+              "send",
+            )}</Button
+          >
+        </div>
+      </div>
       {#if $view.selected === 0 && $view.result.pick && $view.result.reason}<p
-          class="tw:m-0 tw:text-muted-foreground"
+          class="tw:m-0 tw:text-xs tw:leading-5 tw:text-muted-foreground"
         >
           {$view.result.reason}
         </p>{/if}
-      <div class="tw:flex tw:flex-wrap tw:gap-2">
-        <Button
-          bind:ref={sendButton}
-          aria-busy={$view.busy === "send" || undefined}
-          disabled={$view.busy === "send"}
-          onclick={() => session.send()}
-          >{#if $view.busy === "send"}<Spinner size="xs" />{/if}{text(
-            "send",
-          )}</Button
-        ><Button
-          variant="outline"
-          disabled={$view.busy === "send"}
-          onclick={() => session.cancel()}>{text("cancel")}</Button
+      {#if choices.length > 1}<div
+          class="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5 tw:border-t tw:border-border tw:pt-2"
         >
-      </div>
-      <p class="tw:m-0 tw:text-muted-foreground">{text("another")}</p>
-      <div class="tw:flex tw:flex-wrap tw:gap-2">
-        {#each choices as choice, index}{#if index !== $view.selected}<Button
-              variant="ghost"
-              disabled={!!$view.busy}
-              class="tw:h-auto tw:whitespace-normal tw:text-left"
-              onclick={() => {
-                session.select(index);
-                void tick().then(() => {
-                  if (sendButton?.isConnected) sendButton.focus();
-                });
-              }}
-              >{choice.book_id
-                ? choice.book_title +
-                  (choice.epic_title ? " → " + choice.epic_title : "")
-                : text("newDestination", {
-                    title: choice.book_title,
-                  })}</Button
-            >{/if}{/each}
-      </div></Card
-    >{/if}
+          <span class="tw:text-xs tw:text-muted-foreground"
+            >{text("deskOr")}</span
+          >
+          {#each choices as choice, index}{#if index !== $view.selected}<Button
+                size="sm"
+                variant="outline"
+                disabled={!!$view.busy}
+                class="tw:h-7 tw:max-w-full tw:rounded-full tw:px-3 tw:text-xs"
+                onclick={() => {
+                  session.select(index);
+                  void tick().then(() => {
+                    if (sendButton?.isConnected) sendButton.focus();
+                  });
+                }}><span class="tw:truncate">{place(choice)}</span></Button
+              >{/if}{/each}
+        </div>{/if}
+    </div>{/if}
   {#if $view.error}<p
       role="alert"
       class="tw:m-0 tw:break-words tw:text-destructive"
@@ -322,69 +321,31 @@
           "tw:min-h-dvh tw:max-[900px]:min-h-[calc(100dvh-3.5rem)]",
       ]}
     >
-      {#if $account.me}{@const me = $account.me}
-        <div
-          class="tw:flex tw:w-full tw:max-w-5xl tw:items-center tw:justify-between tw:gap-3"
-        >
-          <p
-            class="tw:m-0 tw:flex tw:min-w-0 tw:flex-wrap tw:gap-x-1.5 tw:text-xs tw:leading-5 tw:text-muted-foreground"
-          >
-            <span
-              >{me.name
-                ? text("greeting", { name: me.name.split(" ")[0] ?? "" })
-                : text("home")}</span
-            ><span aria-hidden="true">·</span
-            >{@render archiveLink()}{#if !me.name || !me.avatar}<span
-                aria-hidden="true">·</span
-              ><button
-                type="button"
-                class="tw:cursor-pointer tw:rounded-control tw:p-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected) onsettings("profile");
-                }}>{text("completeProfile")}</button
-              >{/if}
-          </p>
-          <div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
-            {#if oninbox}<Button
-                data-native-inbox-toggle
-                variant="ghost"
-                size="sm"
-                aria-label={text("inbox")}
-                aria-haspopup="dialog"
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected)
-                    oninbox?.(event.currentTarget);
-                }}
-                ><Icon icon={Inbox01} /><span class="tw:max-sm:hidden"
-                  >{text("inbox")}</span
-                ></Button
-              >{/if}<Button
-              variant="ghost"
-              size="sm"
-              class="tw:max-sm:hidden"
-              onclick={(event) => {
-                if (event.currentTarget.isConnected) onnew(event.currentTarget);
-              }}>{text("new")}</Button
-            >
-          </div>
-        </div>{/if}
       <div class="tw:w-full tw:max-w-xl">
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section
-        class="tw:mt-[6vh] tw:flex tw:flex-col tw:items-center tw:max-sm:mt-6"
+        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-sm:mt-4"
       >
         <canvas
           bind:this={cube}
           width="512"
           height="512"
           aria-hidden="true"
-          class="tw:size-[200px] tw:max-sm:size-[140px]"
+          class="tw:size-[200px] tw:max-sm:size-[112px]"
         ></canvas>
-        {#if $account.me}<Heading
+        {#if $account.me}{@const first =
+            $account.me.name?.split(" ")[0]}<Heading
             level={1}
-            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-sm:text-3xl"
-            >{headline}</Heading
+            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-sm:text-[28px] tw:max-sm:leading-9"
+            >{#if waits.length}{headline}{:else}<!-- Nothing waits: a greeting and a question, the ask box answers it. -->
+              <span class="tw:block"
+                >{first
+                  ? text("deskHello", { name: first })
+                  : text("deskHelloAnon")}</span
+              ><span class="tw:block tw:text-muted-foreground"
+                >{text("deskQuestion")}</span
+              >{/if}</Heading
           >{:else if $account.error}<Heading
             level={1}
             class="tw:m-0 tw:mt-1 tw:text-center tw:text-3xl tw:font-medium tw:tracking-tight tw:text-balance"
@@ -420,14 +381,15 @@
           data-home-ask="desk"
           class="tw:relative tw:z-30 tw:mt-7 tw:flex tw:w-full tw:max-w-[640px] tw:flex-col tw:items-center tw:gap-3 tw:[&>[data-chat-field]]:w-full"
         >
-          <div
-            class="tw:w-full tw:[&>*]:rounded-[26px] tw:[&>*]:py-2 tw:[&>*]:pl-2"
-          >
+          <!-- The room's chat box, as is. -->
+          <div class="tw:w-full">
             <ChatField
               id="home-ask"
               maxlength={2000}
               label={text("ask")}
-              placeholder={mobile.current ? text("ask") : text("deskAsk")}
+              placeholder={mobile.current
+                ? text("deskAskShort")
+                : text("deskAsk")}
               value={$draft.ask}
               onedit={(value) => session.edit(value)}
               onsubmit={() => void session.suggest()}
@@ -456,6 +418,25 @@
             </ChatField>
           </div>
           <div class="tw:w-full">{@render suggestionCard()}</div>
+          {#if !me.books.length}<!-- No rooms yet: one clear way in. -->
+            <div
+              data-home-first-room
+              class="tw:mt-6 tw:flex tw:flex-col tw:items-center tw:gap-3 tw:text-center"
+            >
+              <Button
+                size="lg"
+                class="tw:rounded-full tw:px-6"
+                onclick={(event) => {
+                  if (event.currentTarget.isConnected)
+                    onnew(event.currentTarget);
+                }}>{text("deskFirstRoom")}</Button
+              >
+              <p
+                class="tw:m-0 tw:max-w-sm tw:text-balance tw:text-muted-foreground"
+              >
+                {text("deskFirstRoomHelp")}
+              </p>
+            </div>{/if}
           {#if $account.agents && !$account.agents.agents.length}{@render connectAgent()}{/if}
           {#if $account.loading}<p
               role="status"
@@ -573,37 +554,6 @@
           </nav>{/if}
       {/if}
     </div>
-    {#if $account.me}{@const me = $account.me}
-      <div
-        class="tw:flex tw:flex-col tw:items-center tw:px-4 tw:pb-10 tw:sm:px-8"
-      >
-        <section
-          aria-label={text("home")}
-          class={[
-            "tw:flex tw:w-full tw:max-w-5xl tw:flex-col tw:gap-3",
-            waits.length ? "tw:mt-10" : "tw:mt-16",
-          ]}
-        >
-          <Heading
-            level={2}
-            class="tw:m-0 tw:text-sm tw:font-medium tw:text-muted-foreground"
-            >{text("home")}</Heading
-          >
-          {#if !me.books.length}<p class="tw:m-0">{text("empty")}</p>{/if}
-          <div
-            class="tw:grid tw:grid-cols-4 tw:gap-x-2 tw:gap-y-3 tw:sm:grid-cols-6 tw:lg:grid-cols-8"
-          >
-            {#each recentRooms(me.books) as room (room.id)}<RoomTile
-                {room}
-                {lang}
-                now={$account.now}
-                seen={$account.seen[room.id] ?? 0}
-                waits={me.waits.filter((wait) => wait.book_id === room.id)}
-                {onnavigate}
-                onsettings={onroomsettings}
-              />{/each}
-          </div>
-        </section>
-      </div>{/if}
+    <div class="tw:h-16" aria-hidden="true"></div>
   </main>
 {/if}
