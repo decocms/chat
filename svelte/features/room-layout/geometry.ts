@@ -4,7 +4,8 @@ import {
   documentMaximum,
   documentProgress,
   documentWidth,
-  storedDocumentWidth,
+  preferredDocumentWidth,
+  DOCUMENT_WIDTH_KEY,
   sheetEndpoint,
   sheetEasing,
   DRAG_THRESHOLD,
@@ -220,7 +221,7 @@ export function createRoomGeometry(options: {
       options.read().sidebarCollapsed,
     );
     try {
-      browser.storage?.setItem("vb.docW", String(preferred));
+      browser.storage?.setItem(DOCUMENT_WIDTH_KEY, String(preferred));
     } catch {
       /* Visible resize remains usable. */
     }
@@ -382,13 +383,7 @@ export function createRoomGeometry(options: {
   media.addEventListener("change", mediaChanged);
   reduced.addEventListener("change", motionChanged);
   cells.root.ownerDocument.addEventListener("keydown", escape);
-  try {
-    preferred = storedDocumentWidth(
-      browser.storage?.getItem("vb.docW") ?? null,
-    );
-  } catch {
-    /* Use default. */
-  }
+  preferred = preferredDocumentWidth(browser.storage);
   options.mobile(media.matches);
   measure();
   return {

@@ -6,6 +6,8 @@ import {
   documentWidth,
   documentProgress,
   storedDocumentWidth,
+  preferredDocumentWidth,
+  DOCUMENT_WIDTH_KEY,
   sheetEndpoint,
   sheetEasing,
   hasSheetSurface,
@@ -129,6 +131,27 @@ test("width reserves the real container/rail instead of the browser's unallocate
   expect(storedDocumentWidth("bad")).toBe(380);
   expect(documentProgress(260, 1440, false)).toBe(0);
   expect(documentProgress(848, 1440, false)).toBe(1);
+});
+test("the room and its loading skeleton read one stored doc width", () => {
+  const keys: string[] = [];
+  const storage = (value: string | null) => ({
+    getItem(key: string) {
+      keys.push(key);
+      return value;
+    },
+  });
+  expect(preferredDocumentWidth(storage("520"))).toBe(520);
+  expect(preferredDocumentWidth(storage(null))).toBe(380);
+  expect(preferredDocumentWidth(null)).toBe(380);
+  expect(
+    preferredDocumentWidth({
+      getItem() {
+        throw Error("blocked");
+      },
+    }),
+  ).toBe(380);
+  expect(keys).toEqual([DOCUMENT_WIDTH_KEY, DOCUMENT_WIDTH_KEY]);
+  expect(DOCUMENT_WIDTH_KEY).toBe("vb.docW");
 });
 test("measured fast-close threshold and release curve preserve actual endpoints", () => {
   expect(sheetEndpoint(1, 819, 679.8, 348)).toBe(0);
