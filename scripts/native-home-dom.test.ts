@@ -354,7 +354,7 @@ test("the rail's account menu opens account sections, drives the device notifica
   }
   expect(h.documents).toEqual(["/"]);
 });
-test("the phone room strip carries the account menu and gives up a room tile for it", async () => {
+test("the phone room strip has no room tiles: Switch room opens the switcher, and it carries the account menu", async () => {
   const { default: RoomStrip } =
     await import("../svelte/features/app-navigation/RoomStrip.svelte");
   const { userMenuKey } =
@@ -387,12 +387,19 @@ test("the phone room strip carries the account menu and gives up a room tile for
     });
     return target;
   };
-  // Isolated (no shell): three rooms and no avatar.
+  // Isolated (no shell): no room tiles and no avatar; Switch room opens every room.
   const bare = strip();
   await flush();
-  expect(bare.querySelectorAll("[data-room-id]").length).toBe(3);
+  expect(bare.querySelectorAll("[data-room-id]").length).toBe(0);
   expect(bare.querySelector("[data-native-user-menu-trigger]")).toBe(null);
-  // In the shell: the avatar menu takes the third tile's place.
+  bare.querySelector<HTMLButtonElement>("[data-native-room-switcher]")!.click();
+  await waitForView(document, '[data-vb-native="room-switcher"]');
+  expect(
+    document
+      .querySelector('[data-vb-native="room-switcher"]')!
+      .querySelectorAll("[data-room-avatar]").length,
+  ).toBe(4);
+  // In the shell: the avatar menu sits at the end of the row.
   const shell = strip(
     new Map([
       [
@@ -408,7 +415,7 @@ test("the phone room strip carries the account menu and gives up a room tile for
     ]),
   );
   await flush();
-  expect(shell.querySelectorAll("[data-room-id]").length).toBe(2);
+  expect(shell.querySelectorAll("[data-room-id]").length).toBe(0);
   const trigger = shell.querySelector<HTMLButtonElement>(
     "[data-native-user-menu-trigger]",
   )!;

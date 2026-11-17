@@ -24,6 +24,7 @@
     ],
     "improvements": {
       "pt": [
+        "No celular, no app novo (?ui=svelte), o topo de uma sala virou uma linha só: o ícone da sala com o nome dela em cima e a conversa embaixo (toque pra trocar de conversa), Doc, Caixa de entrada e ⋯ com Quadro, Arquivos, Apps, Decisões, Lembretes e Agents. A lista de conversas desce do topo e troca de sala pelo mesmo seletor da tela inicial, sem a fileira de salas.",
         "No app novo (?ui=svelte), a tela inicial ficou mais densa: cada pedido é uma linha com quem, quando, o pedido limpo em até duas linhas (sem markdown nem links compridos) e o épico, e filtros no topo separam Seu Claude, Pedidos e Revisões. No celular, a grade de salas sai de baixo quando há pedidos, já que a barra de salas está no topo.",
         "No celular, no app novo (?ui=svelte), a barra do topo da tela inicial virou uma linha só: sua foto (menu da conta), \"Início ▾\", busca e +. O ▾ abre a lista de todas as salas, com os mesmos ícones e contadores da barra de salas do computador, que agora usam o mesmo componente da grade \"Seus vibebooks\".",
         "No app novo (?ui=svelte), a chave \"Nova UI\" saiu do fim da tela inicial e foi pro menu da conta (sua foto na barra de salas), junto com Tema e Idioma.",
@@ -33,6 +34,7 @@
         "No app novo (?ui=svelte), a caixa \"O que você quer resolver?\" da tela inicial agora é o mesmo campo de mensagem da sala: emoji, +, ditado por voz e o botão de enviar, que virou uma seta."
       ],
       "en": [
+        "On phones in the new app (?ui=svelte), a room's top bar is one row: the room's icon with its name on top and the conversation under it (tap to switch conversations), Doc, Inbox and ⋯ with Board, Files, Apps, Decisions, Reminders and Agents. The conversation list drops from the top and switches rooms with the same switcher as the home, without the row of rooms.",
         "In the new app (?ui=svelte), the home is denser: each ask is one row with who, when, the ask cleaned up in at most two lines (no markdown or long links) and its epic, and filters at the top split Your Claude, Asks and Reviews. On phones the room grid leaves the bottom when there are asks, since the rooms bar is at the top.",
         "On phones in the new app (?ui=svelte), the home's top bar is one line: your photo (account menu), \"Home ▾\", search and +. The ▾ opens every room, with the same icons and counts as the desktop rooms bar, which now shares one component with the \"Your vibebooks\" grid.",
         "In the new app (?ui=svelte), the \"New UI\" switch moved from the bottom of the home into the account menu (your photo in the rooms bar), next to Theme and Language.",

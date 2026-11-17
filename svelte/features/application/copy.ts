@@ -228,6 +228,7 @@ const EN: Readonly<Record<string, string>> = {
   "1 coisa esperando você": "1 thing waiting on you",
   "{n} coisas esperando você": "{n} things waiting on you",
   "Voltar pra sala principal": "Back to the main thread",
+  "Sala principal": "Main thread",
   "Seus vibebooks": "Your vibebooks",
   "{theme} (clique pra trocar)": "{theme} (click to change)",
   "Tema: {theme}": "Theme: {theme}",
