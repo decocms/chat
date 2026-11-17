@@ -112,6 +112,79 @@ export function mentionPicks(
       .slice(0, 8),
   };
 }
+/** Whether `@handle` reaches someone in this room: @vibe/@ai, @room/@sala/@todos, or a member by
+ *  first name, email local part or its first token (the server's and the sent message's rule). */
+export function knownMention(
+  handle: string,
+  room: Room,
+  names: Readonly<Record<string, string>> = {},
+) {
+  const key = fold(handle);
+  if (!key) return false;
+  if (["vibe", "ai", "room", "sala", "todos"].includes(key)) return true;
+  return room.members.some((email) => {
+    const local = email.split("@")[0];
+    return [
+      (room.names?.[email] || names[email] || "").split(/\s+/)[0],
+      local.split(/[._+-]/)[0],
+      local,
+    ]
+      .map(fold)
+      .includes(key);
+  });
+}
+/** Where the known @mentions sit in a draft: [start (the @), end) pairs, the same rule that
+ *  highlights them in a sent message (`(^|[\s(])@handle`), kept only when `known` names someone. */
+export function mentionSpans(
+  text: string,
+  known: (handle: string) => boolean,
+): [number, number][] {
+  const out: [number, number][] = [];
+  if (!text.includes("@")) return out;
+  for (const match of text.matchAll(/(^|[\s(])@([\p{L}\p{N}._-]+)/gu)) {
+    if (!known(match[2])) continue;
+    const start = match.index + match[1].length;
+    out.push([start, start + match[2].length + 1]);
+  }
+  return out;
+}
+/** The draft split into plain runs and mentions, for the highlight layer behind the field. */
+export function mentionSegments(
+  text: string,
+  known: (handle: string) => boolean,
+) {
+  const out: { text: string; mention: boolean }[] = [];
+  let at = 0;
+  for (const [start, end] of mentionSpans(text, known)) {
+    if (start > at) out.push({ text: text.slice(at, start), mention: false });
+    out.push({ text: text.slice(start, end), mention: true });
+    at = end;
+  }
+  if (at < text.length) out.push({ text: text.slice(at), mention: false });
+  return out;
+}
+/** A key on a collapsed caret next to a mention treats it as one unit:
+ *  Backspace/Delete select the whole mention (the browser's own delete then removes it, so undo
+ *  works), ←/→ jump over it. `typing` = the caret sits right where the person just typed: a
+ *  mention typed by hand still loses one letter per Backspace, so fixing a typo isn't a surprise. */
+export function mentionKey(
+  text: string,
+  caret: number,
+  key: string,
+  known: (handle: string) => boolean,
+  typing = false,
+): { select: [number, number] } | { move: number } | null {
+  if (!["Backspace", "Delete", "ArrowLeft", "ArrowRight"].includes(key))
+    return null;
+  const spans = mentionSpans(text, known);
+  const ending = spans.find(([, end]) => end === caret),
+    starting = spans.find(([start]) => start === caret);
+  if (key === "Backspace" && ending && !typing) return { select: ending };
+  if (key === "Delete" && starting) return { select: starting };
+  if (key === "ArrowLeft" && ending && !typing) return { move: ending[0] };
+  if (key === "ArrowRight" && starting) return { move: starting[1] };
+  return null;
+}
 export function insertAt(
   text: string,
   start: number,
@@ -138,6 +211,32 @@ export function emojiPicks(query: string) {
         ),
     )
     .map(([emoji, name]) => ({ emoji, name }));
+}
+/** Slack-style `:sho` before the caret (2+ letters, after a space or the start, not closed with
+ *  a second `:`): the emoji whose :shortcode: matches, names that start with it first, one row per emoji. */
+export function emojiTyped(text: string, caret: number) {
+  const match = /(^|[\s(])(:([a-z0-9_+-]{2,40}))$/.exec(
+    text.slice(0, caret).toLowerCase(),
+  );
+  if (!match) return null;
+  const query = match[3],
+    seen = new Set<string>(),
+    items: { emoji: string; name: string }[] = [];
+  const table: Readonly<Record<string, string>> = EMOJI;
+  const names = Object.keys(table).filter((name) => name.includes(query));
+  names.sort(
+    (a, b) =>
+      Number(!a.startsWith(query)) - Number(!b.startsWith(query)) ||
+      a.length - b.length,
+  );
+  for (const name of names) {
+    const emoji = table[name];
+    if (seen.has(emoji)) continue;
+    seen.add(emoji);
+    items.push({ emoji, name });
+    if (items.length === 8) break;
+  }
+  return items.length ? { start: caret - match[2].length, items } : null;
 }
 export const quoteSnippet = (message: Message) =>
   (

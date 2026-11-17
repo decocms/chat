@@ -7,7 +7,9 @@
   import type { PendingAttachment } from "./model";
   import {
     FILE_ACCEPT,
+    knownMention,
     mentionPicks,
+    emojiTyped,
     quoteSnippet,
     composerError,
   } from "./model";
@@ -101,7 +103,13 @@
       ? mentionPicks($draft.text, caret, room, vb.knownNames, agents)
       : null,
   );
-  const items = $derived(mentions?.items || []);
+  // `:sho` suggests emoji the same way `@par` suggests people (same list, keys and close rules).
+  const emojis = $derived(
+    !hidden && !mentionClosed && !mentions
+      ? emojiTyped($draft.text, caret)
+      : null,
+  );
+  const items = $derived(mentions?.items || emojis?.items || []);
   const selected = $derived(items.length ? pickAt % items.length : 0);
   const busy = $derived(
     $draft.phase === "pending" || $draft.phase === "unconfirmed",
@@ -170,8 +178,18 @@
     );
   }
   function choose(index: number) {
-    const pick = items[index];
-    if (!active || !allowed || !mentions || !pick) return;
+    if (!active || !allowed) return;
+    if (emojis) {
+      const pick = emojis.items[index];
+      if (!pick) return;
+      // Replace the typed ":sho" (from its colon to the caret) with the emoji.
+      selectionEnd = caret;
+      caret = emojis.start;
+      field?.insert(`${pick.emoji} `);
+      return;
+    }
+    const pick = mentions?.items[index];
+    if (!mentions || !pick) return;
     // Replace the typed "@par" (from its @ to the caret) with the handle.
     selectionEnd = caret;
     caret = mentions.start;
@@ -389,38 +407,56 @@
   {#if items.length}<div
       id={`${uid}-mentions`}
       role="listbox"
-      aria-label={vb.t("Mencionar")}
+      aria-label={emojis ? vb.t("Emoji") : vb.t("Mencionar")}
       class="tw:absolute tw:bottom-full tw:left-3 tw:z-20 tw:max-h-64 tw:max-w-[calc(100%-1.5rem)] tw:overflow-auto tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
     >
-      {#each items as item, index}<button
-          id={`${uid}-mention-${index}`}
-          type="button"
-          role="option"
-          aria-selected={selected === index}
-          class={selected === index
-            ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
-            : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
-          onpointerdown={(event) => {
-            event.preventDefault();
-            choose(index);
-          }}
-          onclick={() => choose(index)}
-          >{#if item.agent}<AgentMark
-              size="xs"
-            />{:else if item.email}<PersonAvatar
-              data-avatar="person"
-              size="xs"
-              name={vb.name(item.email)}
-              url={vb.avatarUrl?.(item.email)}
-            />{:else}<Avatar
-              shape="circle"
-              size="xs"
-              aria-hidden="true"
-              fallback="@"
-            />{/if}<b>@{item.handle}</b><small class="tw:text-muted-foreground"
-            >{vb.t(item.label)}</small
-          ></button
-        >{/each}
+      {#if emojis}{#each emojis.items as item, index}<button
+            id={`${uid}-mention-${index}`}
+            type="button"
+            role="option"
+            aria-selected={selected === index}
+            data-emoji-pick={item.emoji}
+            class={selected === index
+              ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
+              : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
+            onpointerdown={(event) => {
+              event.preventDefault();
+              choose(index);
+            }}
+            onclick={() => choose(index)}
+            ><span aria-hidden="true" class="tw:w-6 tw:text-center tw:text-lg"
+              >{item.emoji}</span
+            ><span class="tw:text-muted-foreground">:{item.name}:</span></button
+          >{/each}{:else}
+        {#each mentions?.items || [] as item, index}<button
+            id={`${uid}-mention-${index}`}
+            type="button"
+            role="option"
+            aria-selected={selected === index}
+            class={selected === index
+              ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
+              : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
+            onpointerdown={(event) => {
+              event.preventDefault();
+              choose(index);
+            }}
+            onclick={() => choose(index)}
+            >{#if item.agent}<AgentMark
+                size="xs"
+              />{:else if item.email}<PersonAvatar
+                data-avatar="person"
+                size="xs"
+                name={vb.name(item.email)}
+                url={vb.avatarUrl?.(item.email)}
+              />{:else}<Avatar
+                shape="circle"
+                size="xs"
+                aria-hidden="true"
+                fallback="@"
+              />{/if}<b>@{item.handle}</b><small
+              class="tw:text-muted-foreground">{vb.t(item.label)}</small
+            ></button
+          >{/each}{/if}
     </div>{/if}
   {#if refining || voiceWaiting}<p
       role="status"
@@ -461,6 +497,7 @@
       if (canInteract()) void entry.submit();
     }}
     onkeydown={keydown}
+    mention={(handle) => knownMention(handle, room, vb.knownNames)}
     t={vb.t}
     locale={vb.locale || "pt-BR"}
     id="input"
