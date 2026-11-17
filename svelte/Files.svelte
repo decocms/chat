@@ -74,10 +74,11 @@
       {#each view.folders as [name, count]}<Button
           data-fdir={view.prefix + name}
           variant="outline"
-          class="tw:h-auto tw:flex-col tw:items-start tw:whitespace-normal tw:p-3"
+          class="tw:h-auto tw:min-w-0 tw:flex-col tw:items-start tw:justify-start tw:gap-2 tw:whitespace-normal tw:rounded-lg tw:p-3 tw:text-left"
           onclick={() => select(view.kind, view.prefix + name, true)}
-          ><Icon icon={Folder} size={16} class="tw:size-8" /><b>{name}/</b
-          ><small
+          ><Icon icon={Folder} size={16} class="tw:size-8" /><b
+            class="tw:break-all">{name}/</b
+          ><small class="tw:text-muted-foreground"
             >{count === 1
               ? vb.t("1 arquivo")
               : vb.t("{n} arquivos", { n: count })}</small
