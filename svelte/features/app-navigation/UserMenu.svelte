@@ -165,14 +165,10 @@
                 type="button"
                 aria-label={label}
                 data-native-user-menu-trigger
-                class="tw:group tw:relative tw:flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-expanded:outline-2 tw:aria-expanded:outline-solid tw:aria-expanded:outline-foreground"
+                class="tw:relative tw:flex tw:size-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
               >
-                <PersonAvatar
-                  name={label}
-                  url={avatar}
-                  size="sm"
-                  class="tw:transition-opacity tw:group-hover:opacity-80 tw:motion-reduce:transition-none"
-                />
+                <!-- 16px, the same as the search and + glyphs beside it. -->
+                <PersonAvatar name={label} url={avatar} size="2xs" />
               </button>
             {/snippet}
           </DropdownMenu.Trigger>
