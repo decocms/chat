@@ -158,7 +158,7 @@
               role="img"
               aria-label={text("busy")}
               data-room-badge="busy"
-              class="tw:absolute tw:-bottom-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-sidebar tw:text-xs tw:leading-none tw:text-sidebar-foreground tw:motion-safe:animate-spin"
+              class="tw:absolute tw:-bottom-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:bg-sidebar tw:text-xs tw:leading-none tw:text-agent-claude tw:motion-safe:animate-spin"
               >✻</span
             >{/if}
           {#if room.sandboxes_running}<span

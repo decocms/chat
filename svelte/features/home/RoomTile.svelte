@@ -148,7 +148,7 @@
           {#if (room.busy_until ?? 0) > now}<span
               role="img"
               aria-label={text("busy")}
-              class="tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:bottom-1.5 tw:left-1.5 tw:text-primary tw:motion-safe:animate-spin"
+              class="tw:absolute tw:grid tw:size-6 tw:place-items-center tw:rounded-full tw:bg-background tw:text-sm tw:font-normal tw:shadow-xs tw:bottom-1.5 tw:left-1.5 tw:text-agent-claude tw:motion-safe:animate-spin"
               >✻</span
             >{/if}
           {#if room.sandboxes_running}<span
