@@ -13,7 +13,7 @@
     via?: string | null;
     /** An explicit glyph (✦ for @vibe) instead of the one `via` picks. */
     mark?: string;
-    size?: "3xs" | "2xs" | "xs" | "sm";
+    size?: "3xs" | "2xs" | "xs" | "sm" | "base";
     /** Color the tile by provider (Claude orange, Codex black, Gemini blue…). */
     tint?: boolean;
     class?: string;
