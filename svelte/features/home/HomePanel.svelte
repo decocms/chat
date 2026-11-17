@@ -19,6 +19,8 @@
     plainWaitText,
     claudeWait,
     personAvatar,
+    waitKind,
+    type WaitKind,
   } from "./model";
   import Icon from "../../lib/studio/Icon.svelte";
   import { Check, Inbox01 } from "../../lib/studio/icons";
@@ -71,6 +73,50 @@
   const suggestion = $derived($view.result);
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
+  // Triage filters over the cards; a filter with nothing in it hides. Picking
+  // one scrolls down to the cards, so they deal out already filtered.
+  let filter = $state<"all" | WaitKind>("all");
+  let filterBar = $state<HTMLElement | null>(null);
+  const filters = $derived.by(() => {
+    const count = (kind: WaitKind) =>
+      waits.filter((wait) => waitKind(wait) === kind).length;
+    return [
+      { kind: "all" as const, label: text("filterAll"), count: waits.length },
+      {
+        kind: "claude" as const,
+        label: text("filterClaude"),
+        count: count("claude"),
+      },
+      {
+        kind: "asks" as const,
+        label: text("filterAsks"),
+        count: count("asks"),
+      },
+      {
+        kind: "reviews" as const,
+        label: text("filterReviews"),
+        count: count("reviews"),
+      },
+    ].filter((option) => option.kind === "all" || option.count);
+  });
+  const shown = $derived(
+    filter === "all"
+      ? waits
+      : waits.filter((wait) => waitKind(wait) === filter),
+  );
+  $effect(() => {
+    // A filter that emptied (its last wait was answered) falls back to all.
+    if (filter !== "all" && !shown.length) filter = "all";
+  });
+  async function pick(kind: "all" | WaitKind) {
+    filter = kind;
+    await tick();
+    if (!filterBar?.isConnected) return;
+    scrollTo({
+      top: Math.max(filterBar.getBoundingClientRect().top + scrollY - 16, 8),
+      behavior: reducedMotion.current ? "auto" : "smooth",
+    });
+  }
   const headline = $derived(
     waits.length === 0
       ? text("deskNone")
@@ -458,19 +504,43 @@
         </div>
         <!-- At the foot of the first screen: the fan peeks above the fold. -->
         <div class="tw:min-h-6 tw:flex-1" aria-hidden="true"></div>
+        {#if waits.length > 1 && filters.length > 1}<div
+            bind:this={filterBar}
+            role="group"
+            aria-label={text("deskWaits")}
+            data-home-filters
+            class="tw:relative tw:z-30 tw:mb-4 tw:flex tw:max-w-full tw:gap-1.5 tw:overflow-x-auto tw:px-1 tw:py-1 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden"
+          >
+            {#each filters as option (option.kind)}<Button
+                size="sm"
+                variant={filter === option.kind ? "default" : "outline"}
+                aria-pressed={filter === option.kind}
+                class="tw:shrink-0 tw:rounded-full"
+                onclick={() => void pick(option.kind)}
+                >{option.label}<span
+                  class={[
+                    "tw:tabular-nums",
+                    filter !== option.kind &&
+                      (option.kind === "claude"
+                        ? "tw:text-destructive"
+                        : "tw:text-muted-foreground"),
+                  ]}>{option.count}</span
+                ></Button
+              >{/each}
+          </div>{/if}
         {#if waits.length}<nav
             bind:this={hand}
             aria-label={text("deskWaits")}
             data-home-hand
             class={dealt
-              ? "tw:mt-6 tw:grid tw:w-full tw:max-w-[1120px] tw:grid-cols-4 tw:gap-4 tw:max-[1000px]:grid-cols-3 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
+              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-4 tw:gap-4 tw:max-[1000px]:grid-cols-3 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
               : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[720px]:-mb-[40px] tw:max-[720px]:h-[300px]"}
           >
-            {#each waits as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
+            {#each shown as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
                 me.books.find((book) => book.id === wait.book_id)}{@const task =
                 wait.ref.startsWith("t")}{@const front =
                 i === 0}{@const reachable =
-                dealt || inFan(i, waits.length, phone.current)}<a
+                dealt || inFan(i, shown.length, phone.current)}<a
                 href={targetHref(waitTarget(wait))}
                 data-home-card={wait.ref}
                 data-wait-kind={claudeWait(wait)
@@ -486,7 +556,7 @@
                     ? "tw:relative tw:h-[176px] tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
                     : [
                         "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-[720px]:h-[210px] tw:max-[720px]:w-[min(340px,calc(100%-16px))]",
-                        fanClasses(i, waits.length),
+                        fanClasses(i, shown.length),
                       ],
                 ]}
                 onclick={(event) => {
