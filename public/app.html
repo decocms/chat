@@ -776,8 +776,16 @@
   .plusMenu { left: 16px; min-width: 220px; }
   .plusMenu svg { color: var(--mute); flex: none; }
   .mentionPop .avatar { width: 24px; height: 24px; font-size: 10px; }
+  .mentionPop .ePick { width: 24px; text-align: center; font-size: 19px; line-height: 1; }
+  .mentionPop .ePick + small { margin-left: 0; }
   .composer textarea { resize: none; min-height: 44px; max-height: 160px; }
   #askText[data-content-size], .composer textarea[data-content-size] { field-sizing: content; }
+  /* Known @mentions in the draft: a mirror of the text sits behind the (transparent) textarea and tints them.
+     Its type and box are copied from the textarea in JS, so it wraps at the same places. */
+  .inWrap { position: relative; flex: 1; min-width: 0; display: flex; background: var(--panel); border-radius: 10px; }
+  .inWrap textarea { position: relative; flex: 1; background: transparent; scrollbar-gutter: stable; }
+  .inHl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: transparent; white-space: pre-wrap; overflow-wrap: break-word; border: 1px solid transparent; scrollbar-gutter: stable; }
+  .inHl mark { background: var(--mention-bg); color: transparent; border-radius: 4px; box-shadow: 0 0 0 2px var(--mention-bg); }
 
   .doc { position: relative; border-left: 1px solid var(--line); display: flex; flex-direction: column; background: var(--bg); min-width: 0; }
   /* collapsible sidebar */
@@ -1343,8 +1351,8 @@
     .composer { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
     /* Typing = the keyboard is up: the home-bar inset under the composer is just a gap above the keys. */
     .composer:focus-within { padding-bottom: 8px; }
-    .composer textarea { scrollbar-width: none; }
-    .composer textarea::-webkit-scrollbar { display: none; }
+    .composer textarea, .inHl { scrollbar-width: none; }
+    .composer textarea::-webkit-scrollbar, .inHl::-webkit-scrollbar { display: none; }
     .agentNudge { margin: 10px 12px 0; } .claudeBar, .askBar { margin: 8px 12px 0; }
     .setupCmd { flex-direction: column; } .setupCmd .primary { padding: 10px; }
     .home { padding: max(14px, env(safe-area-inset-top)) 14px 60px; }
@@ -3565,7 +3573,7 @@ function onEvent(ev, id) {
     case "online": S.online = ev.online; renderSide(); return;
     case "blocked": {
       const input = document.getElementById("input");
-      if (input && !input.value) input.value = ev.text;
+      if (input && !input.value) { input.value = ev.text; input.dispatchEvent(new Event("input", { bubbles: true })); }
       alert(t("Não enviei: parece {reason}. Segredo não entra na sala, nem pra você nem pros agents. Manda por um canal seguro.", { reason: ev.reason }));
       return;
     }
@@ -3709,7 +3717,7 @@ function renderBook() {
             <button type="button" role="menuitem" id="pollBtn">${icon("chart")} ${t("Criar votação")}</button>
           </div>
           <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,text/html,.html,.htm,text/markdown,.md,text/plain,.txt,text/csv,.csv,audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm,.flac" multiple hidden />
-          <textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar (ou segure espaço na caixa)")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
+          <div class="inWrap"><div class="inHl" id="inputHl" aria-hidden="true"></div><textarea id="input" rows="1" placeholder="${t("Mensagem…")}"></textarea></div>${SR ? `<button type="button" class="ghost icon micBtn" id="micBtn" title="${t("Toque pra ditar (ou segure espaço na caixa)")}" aria-label="${t("Ditar mensagem")}">${icon("mic", 18)}</button>` : ""}<button class="primary" id="sendBtn">${t("Enviar")}</button>
         </div>
       </form>
     </main>
@@ -3889,20 +3897,21 @@ function renderBook() {
   const closePop = () => { pop.hidden = true; picks = []; atStart = -1; };
   const choose = (i) => {
     const p = picks[i]; if (!p) return;
-    const caret = input.selectionStart;
-    input.value = `${input.value.slice(0, atStart)}@${p.handle} ${input.value.slice(caret)}`;
-    const at = atStart + p.handle.length + 2;
+    const caret = input.selectionStart, put = p.emoji ? `${p.emoji} ` : `@${p.handle} `;
+    input.value = `${input.value.slice(0, atStart)}${put}${input.value.slice(caret)}`;
+    const at = atStart + put.length;
     input.setSelectionRange(at, at); closePop(); input.focus(); input.oninput();
   };
   const renderPop = () => {
-    pop.innerHTML = picks.map((p, i) => `<button type="button" role="option" class="${i === pickAt ? "sel" : ""}" data-i="${i}">${p.email ? avatar(p.email) : `<span class="avatar">${icon("bell", 14)}</span>`}<b>@${esc(p.handle)}</b><small>${esc(p.label)}</small></button>`).join("");
+    pop.setAttribute("aria-label", picks[0]?.emoji ? t("Emoji") : t("Mencionar"));
+    pop.innerHTML = picks.map((p, i) => p.emoji ? `<button type="button" role="option" class="${i === pickAt ? "sel" : ""}" data-i="${i}"><span class="ePick">${p.emoji}</span><small>:${esc(p.name)}:</small></button>` : `<button type="button" role="option" class="${i === pickAt ? "sel" : ""}" data-i="${i}">${p.email ? avatar(p.email) : `<span class="avatar">${icon("bell", 14)}</span>`}<b>@${esc(p.handle)}</b><small>${esc(p.label)}</small></button>`).join("");
     pop.hidden = !picks.length;
   };
   pop.onmousedown = (e) => { const b = e.target.closest("[data-i]"); if (b) { e.preventDefault(); choose(Number(b.dataset.i)); } };
   const updatePop = () => {
     const before = input.value.slice(0, input.selectionStart);
     const m = before.match(/(^|\s)@([\p{L}\p{N}._-]*)$/u);
-    if (!m) return closePop();
+    if (!m) return emojiTyped(before);
     atStart = before.length - m[2].length - 1;
     const q = fold(m[2]);
     const people = [...(S.members || []).filter((e) => e !== S.me).map((e) => ({ email: e, handle: handleOf(e), label: name(e) === handleOf(e) ? e : name(e) }))];
@@ -3912,12 +3921,60 @@ function renderBook() {
     picks = people.filter((p) => !q || p.handle.startsWith(q) || fold(p.label).includes(q)).slice(0, 8);
     pickAt = 0; renderPop();
   };
+  // Slack-style `:sho` (2+ letters after a space or the start, not closed with a second ":"): the emoji whose
+  // :shortcode: matches, names starting with it first, one row each; Enter/Tab puts the emoji in. Same rule as the
+  // Svelte composer's emojiTyped (svelte/features/composer/model.ts).
+  const emojiTyped = (before) => {
+    const m = before.toLowerCase().match(/(^|[\s(])(:([a-z0-9_+-]{2,40}))$/);
+    if (!m) return closePop();
+    const q = m[3], seen = new Set(), out = [];
+    const names = Object.keys(EMOJI).filter((n) => n.includes(q)).sort((a, b) => (!a.startsWith(q)) - (!b.startsWith(q)) || a.length - b.length);
+    for (const n of names) { if (seen.has(EMOJI[n])) continue; seen.add(EMOJI[n]); out.push({ emoji: EMOJI[n], name: n }); if (out.length === 8) break; }
+    if (!out.length) return closePop();
+    atStart = before.length - m[2].length; picks = out; pickAt = 0; renderPop();
+  };
   // Grow/shrink the box only when its line count changes. Setting height to "auto" and reading scrollHeight on every
   // key laid out the whole room twice per keystroke: 264 ms per key in an 80-message room (Gui 14/11: "depois de 30
   // chars fica ultra lagado, no celular trava").
+  // Known @mentions in the draft are tinted behind the text and act as one unit: Backspace/Delete take the whole
+  // mention, ←/→ jump over it (a mention just typed by hand still loses one letter per Backspace). Same rule as
+  // the Svelte composer's mentionKey (svelte/features/composer/model.ts).
+  const hl = document.getElementById("inputHl");
+  const mentionSpans = (v) => {
+    const out = []; if (!v.includes("@")) return out;
+    for (const m of v.matchAll(/(^|[\s(])@([\p{L}\p{N}._-]+)/gu)) { if (!mentionTarget(m[2])) continue; const s = m.index + m[1].length; out.push([s, s + m[2].length + 1]); }
+    return out;
+  };
+  let hlText = "", typedAt = -1;
+  const paintHl = () => {
+    const v = input.value; if (v === hlText) return; hlText = v;
+    const sp = mentionSpans(v);
+    if (!sp.length) { if (hl.firstChild) hl.textContent = ""; return; }
+    let h = "", at = 0;
+    for (const [s, z] of sp) { h += `${esc(v.slice(at, s))}<mark>${esc(v.slice(s, z))}</mark>`; at = z; }
+    hl.innerHTML = `${h}${esc(v.slice(at))}​`; // no layout read here: the textarea's scroll event keeps it aligned
+  };
+  const HL_BOX = ["fontFamily", "fontSize", "fontWeight", "fontStyle", "letterSpacing", "wordSpacing", "lineHeight", "textIndent", "tabSize", "boxSizing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"];
+  const copyHlBox = () => { const st = getComputedStyle(input); for (const k of HL_BOX) hl.style[k] = st[k]; hl.scrollTop = input.scrollTop; };
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(copyHlBox).observe(input); else copyHlBox();
+  input.addEventListener("scroll", () => { hl.scrollTop = input.scrollTop; });
+  input.addEventListener("input", (e) => { typedAt = e.inputType === "insertText" ? input.selectionStart : -1; });
+  const mentionStep = (e) => {
+    if (e.isComposing || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey || input.selectionStart !== input.selectionEnd) return false;
+    if (!["Backspace", "Delete", "ArrowLeft", "ArrowRight"].includes(e.key)) return false;
+    const at = input.selectionStart, sp = mentionSpans(input.value), typing = typedAt === at;
+    const end = sp.find(([, z]) => z === at), start = sp.find(([s]) => s === at);
+    // Select it and leave the key to the browser: its own delete keeps undo and fires input.
+    if (e.key === "Backspace" && end && !typing) { input.setSelectionRange(end[0], end[1]); return false; }
+    if (e.key === "Delete" && start) { input.setSelectionRange(start[0], start[1]); return false; }
+    const to = e.key === "ArrowLeft" && end && !typing ? end[0] : e.key === "ArrowRight" && start ? start[1] : -1;
+    if (to < 0) return false;
+    e.preventDefault(); input.setSelectionRange(to, to); return true;
+  };
   input.oninput = () => {
     resizeTextarea(input);
-    if (input.value.includes("@")) updatePop(); else if (!pop.hidden) closePop();
+    paintHl();
+    if (input.value.includes("@") || input.value.includes(":")) updatePop(); else if (!pop.hidden) closePop();
   };
   input.onblur = () => setTimeout(closePop, 100);
   input.onkeydown = (e) => {
@@ -3926,6 +3983,7 @@ function renderBook() {
       if ((e.key === "Enter" || e.key === "Tab") && !e.isComposing) { e.preventDefault(); return choose(pickAt); }
       if (e.key === "Escape") { e.preventDefault(); return closePop(); }
     }
+    if (mentionStep(e)) return;
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); document.getElementById("composer").requestSubmit(); }
   };
   // Attachments: paste, drop or 📎. Upload right away; send once all are done.

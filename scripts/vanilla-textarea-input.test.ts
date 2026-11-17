@@ -55,13 +55,15 @@ function fixture(
     roomEnd = html.indexOf("  input.onblur =", roomStart);
   if (roomStart < 0 || roomEnd < roomStart)
     throw Error("Actual room input handler missing");
-  let mentions = 0;
+  let mentions = 0,
+    painted = 0;
   const roomInput: () => void = new Function(
     "input",
     "resizeTextarea",
     "updatePop",
     "pop",
     "closePop",
+    "paintHl",
     `${html.slice(roomStart, roomEnd)};return input.oninput;`,
   )(
     input,
@@ -69,6 +71,7 @@ function fixture(
     () => mentions++,
     { hidden: true },
     () => {},
+    () => painted++,
   );
   const homeStart = html.indexOf(
       "  ta.oninput =",
@@ -90,6 +93,7 @@ function fixture(
     reads: () => reads,
     marks: () => marks,
     mentions: () => mentions,
+    painted: () => painted,
   };
 }
 test("actual default room/Home input handlers avoid synchronous height measurement when browser sizing is supported", () => {
@@ -111,6 +115,7 @@ test("actual default room/Home input handlers avoid synchronous height measureme
   expect(f.marks()).toBe(1);
   expect(f.attributes.get("data-content-size")).toBe("");
   expect(f.mentions()).toBe(100); // Mention handling is not deferred or removed.
+  expect(f.painted()).toBe(100); // The mention highlight follows every edit.
   expect(html).toContain(
     "#askText[data-content-size], .composer textarea[data-content-size] { field-sizing: content; }",
   );

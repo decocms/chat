@@ -10,6 +10,11 @@ import {
   normalizeFile,
   fileIssue,
   mentionPicks,
+  knownMention,
+  mentionSpans,
+  mentionSegments,
+  mentionKey,
+  emojiTyped,
   emojiPicks,
   insertAt,
   matchingMessage,
@@ -163,6 +168,55 @@ test("mention aliases exclude self, include own sandbox, match labels and cap ei
     text: "hello 🔥",
     caret: 8,
   });
+});
+test("a typed :shortcode suggests emoji after two letters, prefix matches first, not once closed", () => {
+  expect(emojiTyped("oi :f", 5)).toBeNull();
+  const fire = emojiTyped("oi :fi", 6);
+  expect(fire?.start).toBe(3);
+  expect(fire?.items[0]).toEqual({ emoji: "🔥", name: "fire" });
+  expect(fire!.items.length).toBeLessThanOrEqual(8);
+  // One row per emoji even when two names share it (thumbsup / +1).
+  const thumbs = emojiTyped(":thumbs", 7)!.items.map((item) => item.emoji);
+  expect(new Set(thumbs).size).toBe(thumbs.length);
+  expect(emojiTyped("10:30", 5)).toBeNull();
+  expect(emojiTyped("oi :fire:", 9)).toBeNull();
+  expect(emojiTyped("oi :zzzzqq", 10)).toBeNull();
+  expect(emojiTyped("(:ROCK", 6)?.items[0].emoji).toBe("🚀");
+});
+test("known mentions in a draft are spans, segments and one unit for Backspace, Delete and arrows", () => {
+  const r = room(),
+    known = (handle: string) => knownMention(handle, r);
+  expect(["jose", "José", "you", "vibe", "room", "todos"].map(known)).toEqual([
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+  ]);
+  expect(known("nobody")).toBe(false);
+  const text = "oi @jose e @nobody (@vibe) x@jose";
+  expect(mentionSpans(text, known)).toEqual([
+    [3, 8],
+    [20, 25],
+  ]);
+  expect(
+    mentionSegments(text, known)
+      .filter((part) => part.mention)
+      .map((part) => part.text),
+  ).toEqual(["@jose", "@vibe"]);
+  expect(mentionSegments("plain", known)).toEqual([
+    { text: "plain", mention: false },
+  ]);
+  // Backspace right after a mention selects all of it; typed by hand it stays letter by letter.
+  expect(mentionKey(text, 8, "Backspace", known)).toEqual({ select: [3, 8] });
+  expect(mentionKey(text, 8, "Backspace", known, true)).toBeNull();
+  expect(mentionKey(text, 3, "Delete", known)).toEqual({ select: [3, 8] });
+  expect(mentionKey(text, 8, "ArrowLeft", known)).toEqual({ move: 3 });
+  expect(mentionKey(text, 3, "ArrowRight", known)).toEqual({ move: 8 });
+  expect(mentionKey(text, 9, "Backspace", known)).toBeNull();
+  expect(mentionKey(text, 5, "Backspace", known)).toBeNull();
+  expect(mentionKey(text, 8, "Enter", known)).toBeNull();
 });
 test("account room/thread draft scopes stay separate and reset invalidates old owners", () => {
   const h = harness();

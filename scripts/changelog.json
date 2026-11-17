@@ -25,6 +25,8 @@
     "improvements": {
       "pt": [
         "No computador, no app novo (?ui=svelte), a sala tem uma barra só no topo: o nome e a conversa em cima do chat, as abas do painel (Doc, Tarefas, Arquivos, Apps, Decisões, Lembretes) começando na linha que divide chat e painel, e chat e painel numa superfície só. Com o painel fechado, uma aba abre o painel nela. O ✻ do agent aparece uma vez só.",
+        "Na caixa de mensagem, as @menções que chamam alguém da sala ficam destacadas enquanto você escreve, e cada uma se apaga inteira com um Backspace (← e → pulam por cima). Uma menção que você digitou letra por letra ainda se corrige letra por letra.",
+        "Na caixa de mensagem, `:` e duas letras sugerem emoji como no Slack (`:fi` → 🔥 :fire:); Enter ou Tab põe o emoji, Esc fecha a lista.",
         "O ✻ do seu agent é o mesmo botão no topo da sala, nas abas do doc e na barra de baixo do celular: estrela laranja quando ligado, cinza quando desligado, e um só selo no canto, um ponto (ouvindo, abrindo, ainda não ouvindo) ou o número de pedidos na fila, vermelho quando ele espera você no terminal. Antes eram dois botões que mostravam metades diferentes.",
         "No celular, no app novo (?ui=svelte), uma sala já abre com o topo (ícone e nome da sala, a conversa, busca, Caixa de entrada e sua foto) e a barra de baixo no lugar enquanto carrega, então nada pula quando as mensagens chegam.",
         "No app novo (?ui=svelte), o topo da sala no celular ganhou uma linha fina que o separa do chat, e o aviso \"Seu agent está desligado nesta sala\" virou uma faixa de largura inteira logo abaixo do topo, com Ligar como link, em vez de parecer um botão.",
@@ -40,6 +42,8 @@
       ],
       "en": [
         "On computers, in the new app (?ui=svelte), a room has one bar on top: the name and thread over the chat, the panel tabs (Doc, Tasks, Files, Apps, Decisions, Reminders) starting at the line between chat and panel, and chat and panel on one surface. With the panel closed, a tab opens it there. Your agent's ✻ shows once.",
+        "In the message box, @mentions that reach someone in the room are highlighted as you type, and each one goes away whole with one Backspace (← and → jump over it). A mention you typed letter by letter still fixes letter by letter.",
+        "In the message box, `:` plus two letters suggests emoji like Slack (`:fi` → 🔥 :fire:); Enter or Tab puts the emoji in, Esc closes the list.",
         "Your agent's ✻ is the same button in the room header, the doc tabs and the phone's bottom bar: an orange star when on, grey when off, and one badge in the corner, a dot (listening, opening, not listening yet) or the number of requests queued, red when it's waiting for you in the terminal. Before, two buttons showed different halves of this.",
         "On phones, in the new app (?ui=svelte), a room opens with its top bar (the room's icon and name, the thread, search, Inbox and your picture) and the bottom bar already in place while it loads, so nothing jumps when the messages arrive.",
         "In the new app (?ui=svelte), a room's top bar on phones has a thin line separating it from the chat, and the \"Your agent is off in this room\" notice is now a full-width strip right under the top bar, with Turn on as a link, instead of looking like a button.",
