@@ -236,7 +236,8 @@
             "tw:col-start-2 tw:row-start-5 tw:min-w-0",
             $view.mobile
               ? "tw:pb-[env(safe-area-inset-bottom)]"
-              : "tw:mr-2 tw:mb-2 tw:overflow-hidden tw:rounded-b-surface",
+              : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
+                "tw:mr-2 tw:mb-2 tw:rounded-b-surface tw:[&>[data-native-composer]]:rounded-b-surface",
           ]}
     >
       {@render props.composer()}
