@@ -148,7 +148,7 @@
               sidePresented ? "tw:visible" : "tw:invisible",
             ]
           : [
-              "tw:relative tw:z-10 tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:overflow-hidden tw:rounded-l-surface tw:border-r tw:border-border",
+              "tw:relative tw:z-10 tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:ml-px tw:overflow-hidden tw:rounded-l-surface tw:border-r tw:border-border",
               $view.sidebarCollapsed
                 ? "tw:w-room-sidebar-rail"
                 : "tw:w-room-sidebar",
@@ -177,7 +177,7 @@
         aria-hidden="true"
         data-room-surface="chat"
         class={[
-          "tw:pointer-events-none tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:rounded-surface tw:bg-background tw:shadow-edge",
+          "tw:pointer-events-none tw:col-start-1 tw:row-start-1 tw:row-end-6 tw:my-2 tw:mr-2 tw:ml-px tw:rounded-surface tw:bg-background tw:shadow-edge",
           split || props.overlayOpen ? "tw:col-end-4" : "tw:col-end-3",
         ]}
       ></div>{/if}

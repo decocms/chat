@@ -325,11 +325,28 @@
         {friends}
         vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
         {agents}
+        hideSelf
       />
     </div>
     <MutationStatus {owner} t={vb.t} />
-    {#if footer}<div class="tw:mt-auto tw:shrink-0 tw:max-[900px]:hidden">
-        {@render footer(false)}
-      </div>{/if}
+    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People. -->
+    <div
+      data-sidebar-self
+      class="tw:mt-auto tw:flex tw:shrink-0 tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1 tw:max-[900px]:hidden"
+    >
+      {@render footer?.(false)}
+      <!-- Your own Claudes (context, ✻), as they were under you in People. -->
+      <div class="tw:px-1.5 tw:empty:hidden">
+        <AgentPresenceRows
+          {presence}
+          self
+          email={room.me}
+          t={vb.t}
+          name={vb.name}
+          ago={vb.ago}
+          {locale}
+        />
+      </div>
+    </div>
   {/if}
 </section>

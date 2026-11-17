@@ -41,7 +41,7 @@
     data-native-agent-trigger
     data-agent-status={mark.state}
     title={label}
-    class="tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-sidebar-accent/60 tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+    class="tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
     onclick={() => {
       if (owner.current()) onopen();
     }}

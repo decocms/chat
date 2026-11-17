@@ -20,6 +20,9 @@
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
+  import UserMenu from "../app-navigation/UserMenu.svelte";
+  import { userMenuBridge } from "../app-navigation/menuBridge";
+  import { personAvatar } from "../home/model";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -52,6 +55,9 @@
   } = $props();
   const services = untrack(() => presentation.services),
     captured = untrack(() => scope);
+  // The account menu sits at the sidebar's foot in a room (desktop), under your Claude.
+  const menu = userMenuBridge(),
+    personal = untrack(() => services.personal.state);
   let active = true,
     scoped: RoomScope | undefined;
   const current = () => active && services.ownsRoom(captured);
@@ -340,7 +346,20 @@
               class="tw:flex tw:justify-center"
             >
               <AgentTrigger {...$view.trigger} row={!collapsed} />
-            </div>{/if}{/snippet}
+            </div>{/if}{#if menu && $personal.me && !collapsed}<UserMenu
+              row
+              name={$personal.me.name ?? ""}
+              email={$personal.me.email}
+              avatar={personAvatar($personal.me, $personal.me.email)}
+              friends={$personal.me.friends.length}
+              lang={menu.lang}
+              theme={menu.theme()}
+              onsettheme={menu.onsettheme}
+              onlanguage={menu.onlanguage}
+              onaccount={menu.onaccount}
+              pwa={menu.pwa}
+              onlogout={menu.onlogout}
+            />{/if}{/snippet}
       </Sidebar>{/if}{/snippet}
   {#snippet header()}{#if $view}<RoomHeader
         {presentation}

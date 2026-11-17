@@ -26,6 +26,7 @@
     vb,
     agents,
     request,
+    hideSelf = false,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -37,6 +38,8 @@
     };
     agents?: Snippet<[string]>;
     request?: PeopleRequest;
+    /** Desktop sidebar: you sit at its foot, not in the list. */
+    hideSelf?: boolean;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
@@ -55,7 +58,11 @@
     input = $state<HTMLInputElement | null>(null);
   const origin = typeof location === "undefined" ? "" : location.origin;
   const label = (email: string) => room.names?.[email] || vb.name(email);
-  const everyone = $derived([...model.online, ...model.offline]);
+  const everyone = $derived(
+    [...model.online, ...model.offline].filter(
+      (email) => !hideSelf || email !== room.me,
+    ),
+  );
   /** You are always online to yourself: the page you are looking at is connected. */
   const isOnline = (email: string) =>
     room.online.includes(email) || email === room.me;
