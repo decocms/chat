@@ -145,8 +145,8 @@
   }}
   class={[
     continuous
-      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-1 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
-      : "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-3 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
+      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
+      : "tw:group tw:relative tw:mt-2 tw:rounded-control tw:px-3 tw:pt-1 tw:pb-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
     waiting ? "tw:border-l-2 tw:border-warning tw:bg-warning/10" : "",
     attention ? "tw:animate-pulse tw:motion-reduce:animate-none" : "",
     flash ? "tw:bg-accent" : "",
@@ -155,14 +155,20 @@
       : "",
   ]}
 >
-  <div class="tw:flex tw:items-start tw:gap-3">
-    <div class="tw:w-8 tw:shrink-0">
+  <div class="tw:flex tw:items-start tw:gap-4">
+    <div class="tw:w-10 tw:shrink-0">
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
-            class="tw:text-sm"
+            size="base"
+            class="tw:text-base"
           />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->
-          <div class="tw:relative tw:size-8" title={author(m)}>
-            <AgentMark via={m.via} tint class="tw:text-base" /><PersonAvatar
+          <div class="tw:relative tw:size-10" title={author(m)}>
+            <AgentMark
+              via={m.via}
+              tint
+              size="base"
+              class="tw:text-lg"
+            /><PersonAvatar
               size="2xs"
               data-avatar="person"
               name={vb.name(m.author)}
@@ -170,16 +176,17 @@
               class="tw:absolute tw:-right-1.5 tw:-bottom-1.5 tw:ring-2 tw:ring-background"
             />
           </div>{:else}<PersonAvatar
-            size="sm"
+            size="base"
             data-avatar="person"
             name={author(m)}
             url={vb.avatarUrl?.(m.author)}
           />{/if}{:else}<time
           title={timestamp}
-          class="tw:text-xs tw:text-muted-foreground">{vb.hhmm(m.ts)}</time
+          class="tw:-ml-3 tw:block tw:pt-0.5 tw:text-right tw:text-xs tw:leading-5 tw:whitespace-nowrap tw:text-muted-foreground tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100"
+          >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <div data-message-body class="tw:min-w-0 tw:flex-1 tw:space-y-2">
+    <div data-message-body class="tw:min-w-0 tw:flex-1 tw:space-y-1">
       {#if !continuous}<div
           class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
         >
