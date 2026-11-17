@@ -98,17 +98,22 @@ export async function openNativeRoomPane(
       await tabBar("chat").click();
       await expect(layout).not.toHaveAttribute("data-board-full", "true");
     }
-    // The peek tabs show only while the doc sheet is open (#80): open it from
-    // the bottom bar tab that holds this pane, then pick the pane.
-    if ((await layout.getAttribute("data-sheet")) !== "doc") {
-      const tab =
-        pane === "doc" || pane === "decisions"
-          ? "doc"
-          : pane === "files" || pane === "apps"
-            ? "files"
-            : "claude";
+    // The peek tabs show only while the doc sheet is open (#80), and only the
+    // panes of the bottom bar tab it was opened from: Doc + Decisions, Files +
+    // Apps, Agents + Reminders. Switch tabs first when the pane is elsewhere.
+    const tab =
+      pane === "doc" || pane === "decisions"
+        ? "doc"
+        : pane === "files" || pane === "apps"
+          ? "files"
+          : "claude";
+    if (
+      (await layout.getAttribute("data-sheet")) !== "doc" ||
+      (await tabBar(tab).getAttribute("aria-current")) !== "page"
+    ) {
       await tabBar(tab).click();
       await expect(layout).toHaveAttribute("data-sheet", "doc");
+      await expect(tabBar(tab)).toHaveAttribute("aria-current", "page");
     }
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
