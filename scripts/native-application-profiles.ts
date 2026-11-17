@@ -272,8 +272,17 @@ async function renderedFonts(page: Page) {
     await session.send("CSS.enable");
     const { root } = await session.send("DOM.getDocument");
     const evidence = [];
+    // Phones (≤900px) show the header's title button; the desktop thread
+    // header is hidden there and renders no glyphs.
+    const phone = (page.viewportSize()?.width ?? 1440) <= 900;
     for (const [role, selector, family] of [
-      ["Room title", "[data-native-room-header] h2 button", "Inter"],
+      [
+        "Room title",
+        phone
+          ? "[data-native-room-header] [data-native-phone-title] > span > span"
+          : "[data-native-room-header] h2 button",
+        "Inter",
+      ],
       ["Canonical code", "[data-chat-message] pre code", "CommitMono"],
     ] as const) {
       const { nodeId } = await session.send("DOM.querySelector", {
