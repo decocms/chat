@@ -35,7 +35,7 @@
 <svelte:head><title>{text("archive")} · vibebook</title></svelte:head>
 <main
   data-vb-native="archived"
-  class="tw:min-h-dvh tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground tw:sm:p-8"
+  class="tw:min-h-dvh tw:min-[901px]:min-h-full tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground tw:sm:p-8"
 >
   <div class="tw:mx-auto tw:max-w-5xl tw:space-y-6">
     <header

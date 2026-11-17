@@ -231,7 +231,8 @@
   class={[
     $application.route.kind === "room"
       ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:bg-sidebar"
-      : "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr] tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:grid-rows-[auto]",
+      : // Desktop: the same frame as a room, the rail outside it and the page scrolling inside.
+        "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr] tw:min-[901px]:h-dvh tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:grid-rows-[minmax(0,1fr)] tw:min-[901px]:overflow-hidden tw:min-[901px]:bg-sidebar",
     "tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground",
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
@@ -256,7 +257,7 @@
       data-native-application-route
       class={$application.route.kind === "room"
         ? "tw:col-start-1 tw:row-start-1 tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:min-[901px]:col-start-2"
-        : "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1"}
+        : "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:mr-2 tw:min-[901px]:ml-px tw:min-[901px]:min-h-0 tw:min-[901px]:overflow-y-auto tw:min-[901px]:overscroll-contain tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge"}
     >
       {#if $application.route.kind === "home"}{#if Home}<Home
             {...home}
