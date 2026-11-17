@@ -35,9 +35,9 @@ export const agentMark = (via: string | null | undefined) =>
   AGENT_MARKS[agentProvider(via)];
 /** An agent's name in its provider's color, as its tile (the tokens flip for dark mode). */
 export const AGENT_NAMES: Record<AgentProvider, string> = {
-  claude: "tw:text-agent-claude",
-  codex: "tw:text-agent-codex",
-  gemini: "tw:text-agent-gemini",
-  cursor: "tw:text-agent-cursor",
-  copilot: "tw:text-agent-copilot",
+  claude: "tw:text-agent-claude-text",
+  codex: "tw:text-agent-codex-text",
+  gemini: "tw:text-agent-gemini-text",
+  cursor: "tw:text-agent-cursor-text",
+  copilot: "tw:text-agent-copilot-text",
 };
