@@ -3,6 +3,7 @@
 // on them (D1 waits) and the mentions held back (D1 digest_items). Nothing new since the last one: no e-mail.
 // ponytail: one time zone for everyone (São Paulo, no DST); per-person zones when someone outside Brazil asks.
 import { emailHtml, escapeHtml } from "./auth";
+import { mailFrom, publicOrigin } from "./host";
 import type { Env } from "./index";
 import { unsubscribeUrl } from "./mentionmail";
 import { waitsFor } from "./rooms";
@@ -71,7 +72,7 @@ export async function sendDigests(env: Env, now = Date.now(), only?: string) {
 
 async function digestMail(env: Env, to: string, lang: "pt" | "en", morning: boolean, waits: Wait[], items: Item[]) {
   const t = T[lang];
-  const origin = env.PUBLIC_ORIGIN || "https://vibebook.dev";
+  const origin = publicOrigin(env);
   const link = (book: string, thread: string, msg?: number) => `${origin}/b/${book}${thread && thread !== "main" ? `?t=${thread}` : ""}${msg ? `#m${msg}` : ""}`;
   const row = (where: string, text: string, url: string) =>
     `<li style="margin:0 0 10px"><span style="color:#6b7383;font-size:13px">${escapeHtml(where)}</span><br>${escapeHtml(text.slice(0, 240))} <a href="${url}" style="color:#1d5fc4">${t.open}</a></li>`;
@@ -85,6 +86,7 @@ async function digestMail(env: Env, to: string, lang: "pt" | "en", morning: bool
     `${wl.length ? `<p style="margin:0 0 8px;font-weight:700">${t.waits}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${wl.join("")}</ul>` : ""}
 ${il.length ? `<p style="margin:0 0 8px;font-weight:700">${t.mentions}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${il.join("")}</ul>` : ""}
 <p style="font-size:12px;color:#8a93a3;margin:20px 0 0;padding-top:16px;border-top:1px solid #eef1f6">${t.why} <a href="${unsub}" style="color:#8a93a3">${t.off}</a></p>`,
+    origin,
   );
   const text = [
     t.title(morning),
@@ -92,5 +94,5 @@ ${il.length ? `<p style="margin:0 0 8px;font-weight:700">${t.mentions}</p><ul st
     items.length ? `\n${t.mentions}:\n${items.map((i) => `- ${i.room} · ${i.author}: ${i.text.slice(0, 240)}`).join("\n")}` : "",
     `\n${t.off}: ${unsub}`,
   ].join("\n");
-  return { to, from: { email: "mention@vibebook.dev", name: "vibebook" }, subject: t.subject(waits.length + items.length), text, html };
+  return { to, from: { email: mailFrom(env, "mention"), name: "vibebook" }, subject: t.subject(waits.length + items.length), text, html };
 }

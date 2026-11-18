@@ -1,6 +1,7 @@
 // Native notifications (Web Push, VAPID): ported from tama (api/notifications/webpush.ts), pure Web Crypto, no deps.
 // VAPID JWT (RFC 8292, ES256) + aes128gcm payload encryption (RFC 8188 + RFC 8291). Subscriptions in D1 push_subs.
 import type { Env } from "./index";
+import { publicOrigin } from "./host";
 
 type Bytes = Uint8Array<ArrayBuffer>;
 const b64d = (s: string): Bytes => {
@@ -31,7 +32,7 @@ async function vapidJwt(env: Env, endpoint: string) {
   const u = new URL(endpoint);
   const head = b64e(enc(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   // Subject: the site, not anyone's email (push services see it).
-  const body = b64e(enc(JSON.stringify({ aud: `${u.protocol}//${u.host}`, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "https://vibebook.dev" })));
+  const body = b64e(enc(JSON.stringify({ aud: `${u.protocol}//${u.host}`, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: publicOrigin(env) })));
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc(`${head}.${body}`));
   return `vapid t=${head}.${body}.${b64e(sig)}, k=${b64e(pub)}`;
 }

@@ -6,6 +6,7 @@
 // leaves the country list whole to click through.
 import { isDmId } from "../shared/dm";
 import type { Env } from "./index";
+import { isOwnHost } from "./host";
 import { eventDimensions } from "./storedContainers";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -43,7 +44,7 @@ const str = (v: unknown) => (typeof v === "string" && v ? v : "");
 function refHost(ref: string): string {
   try {
     const host = new URL(ref).hostname.replace(/^www\./, "").toLowerCase();
-    return !host || host === "vibebook.dev" || host === "localhost" ? "(direct)" : host;
+    return !host || isOwnHost(host) || host === "localhost" ? "(direct)" : host;
   } catch {
     return "(direct)";
   }
