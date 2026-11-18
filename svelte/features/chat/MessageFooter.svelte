@@ -24,7 +24,7 @@
 
 <div
   data-message-footer
-  class="tw:mt-2 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+  class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
 >
   {#each footer.statuses as status (`${status.ack.who}|${status.ack.email}`)}
     <span
