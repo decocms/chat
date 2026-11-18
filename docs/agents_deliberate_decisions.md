@@ -407,4 +407,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: "Seus deco.chats". "Seus chats".
 - Risk: low
 - Undo: Revert the commit.
+
+### 2026-11-18 · fix/studio-verified · The Studio identity comes from the id_token
+- Agent: claude-opus-5-5
+- Context: Sign-in with deco failed for everyone. Studio (Better Auth `mcp()` plugin) lists `/api/auth/mcp/userinfo` in its metadata, but that path answers 404. Studio signs its `id_token` with a throwaway HS256 key, so no one can check the signature.
+- Decision: The callback reads `email`, `email_verified` and `name` from the `id_token` that the token endpoint returns. It checks that `aud` is our client id and that `email_verified` is true. It does not check the signature: the token comes directly from Studio's token endpoint over TLS for a PKCE-bound code (OIDC Core 3.1.3.7 permits this). The step that fails goes to the Worker log.
+- Other options: Add a userinfo endpoint or a real signing key to Studio first (a change in another repo). Call Studio's session API with the access token (it returns no email).
+- Risk: low
+- Undo: Revert this commit.
 - Status: open

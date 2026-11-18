@@ -8,7 +8,7 @@ const pt = {
   network: "Algo deu errado. Tenta de novo.",
   timeout: "Ainda não recebi a confirmação. Confira antes de tentar de novo.",
   studioError:
-    "Não deu certo entrar com a deco (a conta precisa de um email verificado). Tenta de novo.",
+    "Não deu certo entrar com a deco. Tenta de novo. Se continuar, confirme o email da sua conta no Studio.",
   missing: "Sala não encontrada",
   missingBody: "O link pode estar errado, ou a sala não existe mais.",
   open: "Abrir o deco.chat",
@@ -64,7 +64,7 @@ const en: Record<keyof typeof pt, string> = {
   network: "Something went wrong. Try again.",
   timeout: "We haven't received confirmation yet. Check before trying again.",
   studioError:
-    "Sign-in with deco didn't work (the account needs a verified email). Try again.",
+    "Sign-in with deco didn't work. Try again. If it keeps failing, confirm your account's email in Studio.",
   missing: "Room not found",
   missingBody: "The link may be wrong, or the room no longer exists.",
   open: "Open deco.chat",

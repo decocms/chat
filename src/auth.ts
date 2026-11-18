@@ -14,8 +14,12 @@ const SessionPayload = z.object({ email: z.string(), iat: z.number() });
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // deco Studio is the identity provider (OAuth 2.1 + PKCE, public client: no secret here).
 const StudioClient = z.object({ client_id: z.string().check(z.minLength(1)) });
-const StudioToken = z.object({ access_token: z.string().check(z.minLength(1)) });
+const StudioToken = z.object({ id_token: z.string().check(z.minLength(1)) });
+// The id_token claims. Studio (Better Auth mcp plugin) has no userinfo endpoint (it answers 404) and signs the
+// id_token with a throwaway key, so the signature can't be checked. It comes straight from Studio's token endpoint
+// over TLS for a PKCE-bound code, which OIDC Core 3.1.3.7 accepts in place of the signature. `aud` must be our client.
 const StudioIdentity = z.object({
+  aud: z.string(),
   email: z.string().check(z.regex(EMAIL_RE)),
   // A Studio account with an unverified email must not become that email here.
   email_verified: z.literal(true),
@@ -183,11 +187,15 @@ auth.get("/studio/start", async (c) => {
 auth.get("/studio/callback", async (c) => {
   const [state, next, verifier] = (getCookie(c, "vb_oauth") ?? "").split("|");
   deleteCookie(c, "vb_oauth", { path: "/auth" });
-  const fail = () => c.redirect(loginUrl("?error=studio"));
-  if (!state || !verifier || state !== c.req.query("state") || !c.req.query("code")) return fail();
+  // The step that failed goes to the Worker log; the person sees one message.
+  const fail = (step: string) => {
+    console.warn("studio login failed", { step });
+    return c.redirect(loginUrl("?error=studio"));
+  };
+  if (!state || !verifier || state !== c.req.query("state") || !c.req.query("code")) return fail("state");
   const origin = new URL(c.req.url).origin, studio = studioOrigin(c.env);
   const clientId = await c.env.OAUTH_KV.get(`studio-client:${origin}`);
-  if (!clientId) return fail();
+  if (!clientId) return fail("client");
   const tok = await fetch(`${studio}/api/auth/mcp/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
@@ -199,11 +207,18 @@ auth.get("/studio/callback", async (c) => {
       code_verifier: verifier,
     }),
   }).then(async (r) => (r.ok ? StudioToken.safeParse(await r.json()) : null)).catch(() => null);
-  if (!tok?.success) return fail();
-  const info = await fetch(`${studio}/api/auth/mcp/userinfo`, {
-    headers: { authorization: `Bearer ${tok.data.access_token}`, accept: "application/json" },
-  }).then(async (r) => (r.ok ? StudioIdentity.safeParse(await r.json()) : null)).catch(() => null);
-  if (!info?.success) return fail();
+  if (!tok?.success) return fail("token");
+  const info = (() => {
+    try {
+      const part = tok.data.id_token.split(".")[1] ?? "";
+      const bytes = Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
+      return StudioIdentity.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
+    } catch {
+      return null;
+    }
+  })();
+  if (!info?.success) return fail(info?.error.issues.some((i) => i.path[0] === "email_verified") ? "unverified" : "id_token");
+  if (info.data.aud !== clientId) return fail("aud");
   const email = info.data.email.toLowerCase();
   await startSession(c, email);
   c.executionCtx.waitUntil(track(c.env, "login", { user: email, dims: { method: "studio" } }));

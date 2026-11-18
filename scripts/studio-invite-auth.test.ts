@@ -190,15 +190,28 @@ test("Studio callback checks state, verifier and client before any provider or D
   }
 });
 
-test("Studio token and userinfo boundaries reject malformed or unverified identity before session or writes", async () => {
+/** An id_token as Studio sends it: the signature can't be checked (throwaway key), only the claims matter. */
+const b64 = (text: string) =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+const idToken = (claims: unknown) =>
+  `${b64(JSON.stringify({ alg: "HS256" }))}.${b64(JSON.stringify(claims))}.c2ln`;
+const verified = (more: Record<string, unknown> = {}) => ({
+  aud: "fixture-client",
+  email: "fixture@example.test",
+  email_verified: true,
+  ...more,
+});
+
+test("Studio token and id_token boundaries reject malformed, foreign or unverified identity before session or writes", async () => {
   const f = fixture(),
     originalFetch = globalThis.fetch,
     calls: string[] = [];
   f.client("fixture-client");
-  let token: unknown = { access_token: "synthetic-studio-token" },
-    profile: unknown = { email: "fixture@example.test", email_verified: true },
+  let token: unknown = { id_token: idToken(verified()) },
     tokenStatus = 200,
-    profileStatus = 200,
     invalidJSON = false,
     networkError = false;
   const provider = spyOn(globalThis, "fetch").mockImplementation(
@@ -210,32 +223,28 @@ test("Studio token and userinfo boundaries reject malformed or unverified identi
         const url = String(input);
         calls.push(url);
         if (networkError) throw Error("Controlled provider failure");
-        if (url === `${STUDIO}/api/auth/mcp/token`) {
-          const body = new URLSearchParams(String(init?.body));
-          expect(body.get("code_verifier")).toBe("fixture-verifier");
-          expect(body.get("client_id")).toBe("fixture-client");
-          expect(body.get("redirect_uri")).toBe(
-            "https://vibebook.test/auth/studio/callback",
-          );
-          return invalidJSON
-            ? new Response("not JSON")
-            : Response.json(token, { status: tokenStatus });
-        }
-        expect(url).toBe(`${STUDIO}/api/auth/mcp/userinfo`);
-        expect(new Headers(init?.headers).get("authorization")).toBe(
-          "Bearer synthetic-studio-token",
+        expect(url).toBe(`${STUDIO}/api/auth/mcp/token`);
+        const body = new URLSearchParams(String(init?.body));
+        expect(body.get("code_verifier")).toBe("fixture-verifier");
+        expect(body.get("client_id")).toBe("fixture-client");
+        expect(body.get("redirect_uri")).toBe(
+          "https://vibebook.test/auth/studio/callback",
         );
-        return Response.json(profile, { status: profileStatus });
+        return invalidJSON
+          ? new Response("not JSON")
+          : Response.json(token, { status: tokenStatus });
       },
       { preconnect: originalFetch.preconnect },
     ),
   );
   const rejected = async () => {
+    calls.length = 0;
     const response = await f.request(callback, oauthCookie());
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/login?error=studio");
     expect(response.headers.get("set-cookie")).not.toContain("vb_session=");
     expect(f.writes).toHaveLength(0);
+    expect(calls.length).toBeLessThanOrEqual(1);
   };
   try {
     for (const invalid of [
@@ -243,15 +252,24 @@ test("Studio token and userinfo boundaries reject malformed or unverified identi
       [],
       {},
       { error: "denied" },
-      { access_token: "" },
-      { access_token: 42 },
+      { access_token: "only-an-access-token" },
+      { id_token: "" },
+      { id_token: 42 },
+      { id_token: "not-a-jwt" },
+      { id_token: "a.%%%.c" },
+      { id_token: idToken({}) },
+      { id_token: idToken(verified({ email_verified: undefined })) },
+      { id_token: idToken(verified({ email_verified: false })) },
+      { id_token: idToken(verified({ email_verified: "true" })) },
+      { id_token: idToken(verified({ email: "not-an-email" })) },
+      { id_token: idToken(verified({ name: 4 })) },
+      // Issued to another client: not for us.
+      { id_token: idToken(verified({ aud: "other-client" })) },
     ]) {
       token = invalid;
-      calls.length = 0;
       await rejected();
-      expect(calls).toHaveLength(1);
     }
-    token = { access_token: "synthetic-studio-token" };
+    token = { id_token: idToken(verified()) };
     tokenStatus = 401;
     await rejected();
     tokenStatus = 200;
@@ -260,45 +278,20 @@ test("Studio token and userinfo boundaries reject malformed or unverified identi
     invalidJSON = false;
     networkError = true;
     await rejected();
-    networkError = false;
-    for (const invalid of [
-      null,
-      [],
-      {},
-      { email: "fixture@example.test" },
-      { email: "fixture@example.test", email_verified: false },
-      { email: "fixture@example.test", email_verified: "true" },
-      { email: "not-an-email", email_verified: true },
-      { email: "fixture@example.test", email_verified: true, name: 4 },
-    ]) {
-      profile = invalid;
-      await rejected();
-    }
-    profile = { email: "fixture@example.test", email_verified: true };
-    profileStatus = 403;
-    await rejected();
   } finally {
     provider.mockRestore();
   }
 });
 
-test("Studio verified identity starts the session, keeps a safe next and a bounded optional name", async () => {
+test("Studio verified identity starts the session, keeps a safe next and a bounded optional UTF-8 name", async () => {
   const f = fixture(),
     originalFetch = globalThis.fetch;
   f.client("fixture-client");
-  let profile: unknown = {
-    email: "Fixture@example.test",
-    email_verified: true,
-    name: null,
-  };
+  let claims: unknown = verified({ email: "Fixture@example.test", name: null });
   const provider = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
-      async (input: Parameters<typeof globalThis.fetch>[0]) =>
-        Response.json(
-          String(input).endsWith("/token")
-            ? { access_token: "synthetic-token" }
-            : profile,
-        ),
+      async () =>
+        Response.json({ access_token: "x", id_token: idToken(claims) }),
       { preconnect: originalFetch.preconnect },
     ),
   );
@@ -319,16 +312,15 @@ test("Studio verified identity starts the session, keeps a safe next and a bound
     expect(
       f.writes.filter((write) => write.sql.includes("INSERT INTO users")),
     ).toHaveLength(0);
-    profile = {
+    claims = verified({
       email: "Fixture@example.test",
-      email_verified: true,
-      name: `  ${"N".repeat(80)}  `,
-    };
+      name: `  João ${"N".repeat(80)}  `,
+    });
     response = await f.request(callback, oauthCookie("https://foreign.test/"));
     expect(response.headers.get("location")).toBe("/");
     await f.settled();
     const write = f.writes.find((w) => w.sql.includes("INSERT INTO users"));
-    expect(write?.values).toContain("N".repeat(60));
+    expect(write?.values).toContain(`João ${"N".repeat(55)}`);
     expect(write?.values).toContain("fixture@example.test");
   } finally {
     provider.mockRestore();
