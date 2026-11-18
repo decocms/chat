@@ -20,6 +20,7 @@
   "durable_objects": { "bindings": [{ "name": "BOOK", "class_name": "Book" }, { "name": "DOC_ROOMS", "class_name": "DocRoom" }, { "name": "PEOPLE", "class_name": "Person" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Book"] }, { "tag": "v2", "new_sqlite_classes": ["DocRoom"] }, { "tag": "v3", "new_sqlite_classes": ["Person"] }],
   "workers_dev": true,
+  "routes": [{ "pattern": "chat.decocms.com", "custom_domain": true }],
   "send_email": [{ "name": "EMAIL" }],
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "21d1c87a65a344729b7b707f36ebb203" }],
   "services": [{ "binding": "SITE", "service": "chat-site" }],
