@@ -7,6 +7,7 @@
   import { createLoginSession } from "./session";
   import AuthFrame from "./AuthFrame.svelte";
   import Button from "../../lib/studio/Button.svelte";
+  import ProviderIcon from "./ProviderIcon.svelte";
   import { buttonVariants } from "../../lib/studio/button";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
@@ -61,23 +62,23 @@
   {:else}
     {#if $view.phase === "email"}
       <p class="tw:m-0 tw:text-muted-foreground">{text("welcome")}</p>
-      <div class="tw:flex tw:flex-col tw:gap-2">
+      <div class="tw:flex tw:flex-col tw:gap-2 tw:pt-3">
         {#if $view.context.providers.google}<a
             class={buttonVariants({ variant: "outline" })}
             href={`/auth/google/start?next=${encodeURIComponent(next)}`}
             onclick={(event) => {
               if ($view.busy) event.preventDefault();
-            }}>{text("google")}</a
+            }}><ProviderIcon provider="google" />{text("google")}</a
           >{/if}
         {#if $view.context.providers.github}<a
             class={buttonVariants({ variant: "outline" })}
             href={`/auth/github/start?next=${encodeURIComponent(next)}`}
             onclick={(event) => {
               if ($view.busy) event.preventDefault();
-            }}>{text("github")}</a
+            }}><ProviderIcon provider="github" />{text("github")}</a
           >{/if}
         {#if $view.context.providers.google || $view.context.providers.github}<p
-            class="tw:m-0 tw:text-center tw:text-muted-foreground"
+            class="tw:m-0 tw:mt-1 tw:flex tw:items-center tw:gap-3 tw:text-xs tw:text-muted-foreground tw:before:h-px tw:before:flex-1 tw:before:bg-border tw:before:content-[''] tw:after:h-px tw:after:flex-1 tw:after:bg-border tw:after:content-['']"
           >
             {text("or")}
           </p>{/if}
