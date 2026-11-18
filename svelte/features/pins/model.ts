@@ -20,6 +20,15 @@ export type PinTarget =
       /** Type and size from the file record, e.g. "PDF · 2.1 MB". */
       detail: string;
     }
+  | {
+      /** An https site shown inside the room (a tunnel to someone's local dev): opens in the live window, not a tab. */
+      kind: "live";
+      href: string;
+      label: string;
+      host: string;
+      /** Who pinned it (email), for "fixado por". */
+      author: string;
+    }
   | { kind: "file-unloaded"; id: string; label: string }
   | { kind: "app"; app: PinAppTarget; label: string }
   | {
@@ -73,6 +82,23 @@ export function resolvePin(
       label: pin.title || host,
       detail: `${host}${url.pathname.replace(/\/+$/, "")}`,
       github: host === "github.com" || host.endsWith(".github.com"),
+    };
+  }
+  if (pin.kind === "live") {
+    const href = normalizePinLink(pin.ref);
+    if (!href)
+      return {
+        kind: "unavailable",
+        label: pin.title || pin.ref,
+        reason: "Link inválido",
+      };
+    const host = new URL(href).host.replace(/^www\./, "");
+    return {
+      kind: "live",
+      href,
+      label: pin.title || host,
+      host,
+      author: pin.author ?? "",
     };
   }
   if (pin.kind === "file") {

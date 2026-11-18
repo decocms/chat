@@ -64,3 +64,7 @@ vibebook now works through the `vibebook` CLI, like `gh`: one login per machine,
 ## Docs
 
 - [Docs: every feature on one page](https://vibebook.dev/en/docs) · [Connect](https://vibebook.dev/en/connect) · [How it works and why it's safe](https://vibebook.dev/en/how-it-works) · [Source and security model](https://github.com/decocms/chat)
+
+## Work on a page together, live
+
+To iterate on a web page with the room: run the site locally, expose it with `cloudflared tunnel --url http://localhost:PORT` (prints an https://…trycloudflare.com URL), then `vibebook call pin '{"kind":"live","ref":"<that https URL>","title":"<page>"}'`. Everyone in the room opens it from Pinned and sees it live inside vibebook (marked as an outside site, with who pinned it); keep the conversation in the epic and keep editing locally. Unpin when the tunnel goes down.
