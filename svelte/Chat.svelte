@@ -119,22 +119,27 @@
           AGENT_TILES[agentProvider(workers[0].who)],
         ]}
       >
-        <div class="tw:flex tw:shrink-0 tw:-space-x-1.5">
-          {#each workers.slice(0, 4) as worker (`${worker.who}|${worker.email}`)}<span
-              class="tw:relative"
-              ><span
+        <!-- One squircle per kind of agent (two Claudes are still one ✻), with the people they work for stacked on its corner. -->
+        <div class="tw:flex tw:shrink-0 tw:items-end">
+          <span class="tw:flex tw:-space-x-1.5">
+            {#each [...new Set(workers.map( (w) => agentProvider(w.who) ))].slice(0, 3) as provider (provider)}<span
                 aria-hidden="true"
                 data-avatar="agent"
                 class="tw:grid tw:size-8 tw:place-items-center tw:rounded-[0.625rem] tw:bg-current/15 tw:text-base tw:leading-none"
-                >{agentMark(worker.who)}</span
-              ><PersonAvatar
+                >{agentMark(
+                  workers.find((w) => agentProvider(w.who) === provider)?.who,
+                )}</span
+              >{/each}
+          </span>
+          <span class="tw:-mb-1 tw:-ml-2.5 tw:flex tw:-space-x-1.5"
+            >{#each [...new Set(workers.map((w) => w.email))].slice(0, 4) as email (email)}<PersonAvatar
                 data-avatar="person"
                 size="2xs"
-                email={worker.email}
-                version={vb.avatarVersion(worker.email)}
-                class="tw:absolute tw:-right-1 tw:-bottom-1 tw:shadow-[0_0_0_2px_currentColor]"
-              /></span
-            >{/each}
+                {email}
+                version={vb.avatarVersion(email)}
+                class="tw:shadow-[0_0_0_2px_currentColor]"
+              />{/each}</span
+          >
         </div>
         <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:break-words tw:font-medium">
           {workers
