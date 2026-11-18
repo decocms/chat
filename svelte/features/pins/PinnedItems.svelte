@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, tick } from "svelte";
+  import { onDestroy, tick, untrack } from "svelte";
   import { ContextMenu } from "bits-ui";
   import type { Attachment, Room } from "../../../shared/room";
   import type { SendRoomCommand } from "../../../shared/commands";
@@ -24,6 +24,7 @@
   } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
+  import { readCollapsed, writeCollapsed } from "../room-sidebar/collapsed";
   import { readable, type Readable } from "svelte/store";
   import {
     pinAppInitials,
@@ -53,6 +54,7 @@
     onopenapp,
     activeApp,
     t,
+    collapsible = false,
   }: {
     room: Room;
     session: PinsSession;
@@ -63,7 +65,14 @@
     /** The app open in the right pane, if any; its pinned row is shown selected. */
     activeApp?: Readable<{ connection: string; tool: string } | null>;
     t: (text: string, vars?: Record<string, string | number>) => string;
+    /** Desktop sidebar: the title folds the list, remembered per browser. */
+    collapsible?: boolean;
   } = $props();
+  let collapsed = $state(untrack(() => collapsible) && readCollapsed("pins"));
+  function toggleCollapsed() {
+    collapsed = !collapsed;
+    writeCollapsed("pins", collapsed);
+  }
   let disposed = false;
   onDestroy(() => {
     disposed = true;
@@ -355,6 +364,7 @@
     }
   });
   async function open() {
+    if (collapsed) toggleCollapsed();
     if (!interactive()) return;
     const current = session;
     openPinDraft(current);
@@ -411,19 +421,20 @@
     ></span
   >{/snippet}
 
-<!-- In the sidebar it gives way to the epics, down to its title and ~3 rows (one row or none: its own height). -->
 <section
-  class={cn(
-    "tw:max-h-[20%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
-    rows.length > 1 ? "tw:min-h-32 tw:shrink" : "tw:shrink-0",
-  )}
+  class="tw:shrink-0 tw:space-y-0.5 tw:overflow-x-clip tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"
   data-native-pins
   data-vb-native
 >
-  <SectionHeader id={`pins-title-${room.id}`} title={t("Fixados")}>
+  <SectionHeader
+    id={`pins-title-${room.id}`}
+    title={t("Fixados")}
+    {collapsed}
+    ontoggle={collapsible ? toggleCollapsed : undefined}
+  >
     {#snippet action()}{#if !$pinState.adding}<IconButton
           label={t("Fixar um link")}
           size="icon-xs"
@@ -434,290 +445,300 @@
         >{/if}{/snippet}
   </SectionHeader>
 
-  {#if $pinState.adding}
-    <form
-      class="tw:space-y-3 tw:rounded-lg tw:bg-card tw:p-3 tw:shadow-edge"
-      onsubmit={submit}
-      aria-label={t("Fixar um link")}
-    >
-      <div class="tw:space-y-1.5">
-        <Label for={fieldId}>{t("Link pra fixar")}</Label>
-        <Input
-          id={fieldId}
-          name="url"
-          bind:ref={urlInput}
-          value={$pinState.draft.url}
-          onkeydown={escape}
-          oninput={(event) => updateDraft({ url: event.currentTarget.value })}
-          required
-          maxlength={2000}
-          autocomplete="url"
-          placeholder={t("Cole um link (site, repo, painel…)")}
-          disabled={!live}
-          aria-invalid={$pinState.issue?.kind === "invalid-link" || undefined}
-        />
-      </div>
-      <div class="tw:space-y-1.5">
-        <Label for={`${fieldId}-title`}>{t("Nome (opcional)")}</Label>
-        <Input
-          id={`${fieldId}-title`}
-          name="title"
-          value={$pinState.draft.title}
-          onkeydown={escape}
-          oninput={(event) => updateDraft({ title: event.currentTarget.value })}
-          maxlength={80}
-          disabled={!live}
-        />
-      </div>
-      <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={!live}
-          onclick={close}
-          onkeydown={escape}>{t("Cancelar")}</Button
-        >
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!live || !!$pinState.pending}
-          onkeydown={escape}>{t("Fixar")}</Button
-        >
-      </div>
-    </form>
-  {/if}
-
-  {#if $pinState.pending}
-    <p
-      role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
-    >
-      {t("Aguardando confirmação…")}
-    </p>
-  {/if}
-  {#if $pinState.issue?.kind === "already-pinned"}
-    <p
-      role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
-    >
-      {issueTitle($pinState.issue)}
-    </p>
-  {:else if $pinState.issue}<ErrorState
-      compact
-      title={issueTitle($pinState.issue)}
-      description={$pinState.issue.detail}
-    />{/if}
-  {#if $pinState.fileIssue}<ErrorState
-      compact
-      title={issueTitle({ kind: $pinState.fileIssue })}
-    />{/if}
-  {#if unknownFiles && ($pinState.filesPending || $pinState.fileIssue)}
-    <Button variant="ghost" size="sm" disabled={!live} onclick={retryFiles}
-      >{t("Tentar carregar novamente")}</Button
-    >
-  {/if}
-
-  {#if copyResult === "copied"}
-    <p
-      role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
-      data-pin-copy="copied"
-    >
-      {t("Link copiado")}
-    </p>
-  {:else if copyResult === "failed"}
-    <p
-      role="alert"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
-      data-pin-copy="failed"
-    >
-      {t("Não consegui copiar o link.")}
-    </p>
-  {/if}
-  {#if rows.length}
-    <span id={hintId} class="tw:sr-only">{t("Shift+F10 abre mais ações")}</span>
-    <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
-      {#each rows as { pin, target } (pin.id)}
-        {@const selected =
-          target.kind === "app" && samePinApp(target.app, $openApp)}
-        <li
-          class={cn(
-            "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-lg tw:bg-sidebar tw:transition-colors tw:duration-150 tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
-            selected &&
-              "tw:bg-sidebar-accent tw:font-medium tw:text-sidebar-accent-foreground",
-            menuPin === pin.id && "tw:bg-sidebar-accent",
-          )}
-          data-pin-id={pin.id}
-          data-pin-kind={target.kind === "file-unloaded" ? "file" : target.kind}
-          data-pin-opens={target.kind === "link"
-            ? "tab"
-            : target.kind === "unavailable"
-              ? undefined
-              : "inline"}
-          data-selected={selected || undefined}
-          onclickcapture={swallowLongPressClick}
-        >
-          <ContextMenu.Root
-            bind:open={
-              () => menuPin === pin.id,
-              (open) => {
-                if (open) menuPin = pin.id;
-                else if (menuPin === pin.id) menuPin = null;
-              }
-            }
+  {#if !collapsed}<!-- folded: the title alone -->
+    {#if $pinState.adding}
+      <form
+        class="tw:space-y-3 tw:rounded-lg tw:bg-card tw:p-3 tw:shadow-edge"
+        onsubmit={submit}
+        aria-label={t("Fixar um link")}
+      >
+        <div class="tw:space-y-1.5">
+          <Label for={fieldId}>{t("Link pra fixar")}</Label>
+          <Input
+            id={fieldId}
+            name="url"
+            bind:ref={urlInput}
+            value={$pinState.draft.url}
+            onkeydown={escape}
+            oninput={(event) => updateDraft({ url: event.currentTarget.value })}
+            required
+            maxlength={2000}
+            autocomplete="url"
+            placeholder={t("Cole um link (site, repo, painel…)")}
+            disabled={!live}
+            aria-invalid={$pinState.issue?.kind === "invalid-link" || undefined}
+          />
+        </div>
+        <div class="tw:space-y-1.5">
+          <Label for={`${fieldId}-title`}>{t("Nome (opcional)")}</Label>
+          <Input
+            id={`${fieldId}-title`}
+            name="title"
+            value={$pinState.draft.title}
+            onkeydown={escape}
+            oninput={(event) =>
+              updateDraft({ title: event.currentTarget.value })}
+            maxlength={80}
+            disabled={!live}
+          />
+        </div>
+        <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!live}
+            onclick={close}
+            onkeydown={escape}>{t("Cancelar")}</Button
           >
-            <ContextMenu.Trigger disabled={!live}>
-              {#snippet child({ props })}
-                {@const trigger = rowTrigger(
-                  props,
-                  pin.id,
-                  target.kind === "unavailable",
-                )}
-                {#if target.kind === "link"}
-                  <a
-                    {...trigger}
-                    href={target.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onclick={(event) => {
-                      if (!interactive()) event.preventDefault();
-                    }}
-                    class={rowClass}
-                  >
-                    <span
-                      class={kindClass}
-                      data-pin-icon={target.github ? "github" : "globe"}
-                      ><Icon
-                        icon={target.github ? GitBranch01 : Globe02}
-                        size={16}
-                        class="tw:text-muted-foreground"
-                      /></span
-                    >{@render text(target.label, target.detail)}<Icon
-                      icon={LinkExternal01}
-                      class={markerClass}
-                    /><span class="tw:sr-only">{t("abre em nova aba")}</span>
-                  </a>
-                {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
-                  <Button
-                    {...trigger}
-                    variant="ghost"
-                    class={cn(
-                      rowClass,
-                      "tw:justify-start tw:font-normal tw:hover:bg-transparent",
-                    )}
-                    disabled={!live}
-                    aria-current={selected ? "true" : undefined}
-                    onclick={(event) => {
-                      if (!event.defaultPrevented) activate(pin.id);
-                    }}
-                  >
-                    {#if target.kind === "app"}<span
-                        class={cn(
-                          kindClass,
-                          "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
-                          pinAppTint(target.app),
-                        )}
-                        data-pin-icon="tile"
-                        aria-hidden="true">{pinAppInitials(target.label)}</span
-                      >{:else}<span class={kindClass} data-pin-icon="file"
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!live || !!$pinState.pending}
+            onkeydown={escape}>{t("Fixar")}</Button
+          >
+        </div>
+      </form>
+    {/if}
+
+    {#if $pinState.pending}
+      <p
+        role="status"
+        class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      >
+        {t("Aguardando confirmação…")}
+      </p>
+    {/if}
+    {#if $pinState.issue?.kind === "already-pinned"}
+      <p
+        role="status"
+        class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      >
+        {issueTitle($pinState.issue)}
+      </p>
+    {:else if $pinState.issue}<ErrorState
+        compact
+        title={issueTitle($pinState.issue)}
+        description={$pinState.issue.detail}
+      />{/if}
+    {#if $pinState.fileIssue}<ErrorState
+        compact
+        title={issueTitle({ kind: $pinState.fileIssue })}
+      />{/if}
+    {#if unknownFiles && ($pinState.filesPending || $pinState.fileIssue)}
+      <Button variant="ghost" size="sm" disabled={!live} onclick={retryFiles}
+        >{t("Tentar carregar novamente")}</Button
+      >
+    {/if}
+
+    {#if copyResult === "copied"}
+      <p
+        role="status"
+        class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+        data-pin-copy="copied"
+      >
+        {t("Link copiado")}
+      </p>
+    {:else if copyResult === "failed"}
+      <p
+        role="alert"
+        class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
+        data-pin-copy="failed"
+      >
+        {t("Não consegui copiar o link.")}
+      </p>
+    {/if}
+    {#if rows.length}
+      <span id={hintId} class="tw:sr-only"
+        >{t("Shift+F10 abre mais ações")}</span
+      >
+      <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
+        {#each rows as { pin, target } (pin.id)}
+          {@const selected =
+            target.kind === "app" && samePinApp(target.app, $openApp)}
+          <li
+            class={cn(
+              "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-lg tw:bg-sidebar tw:transition-colors tw:duration-150 tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
+              selected &&
+                "tw:bg-sidebar-accent tw:font-medium tw:text-sidebar-accent-foreground",
+              menuPin === pin.id && "tw:bg-sidebar-accent",
+            )}
+            data-pin-id={pin.id}
+            data-pin-kind={target.kind === "file-unloaded"
+              ? "file"
+              : target.kind}
+            data-pin-opens={target.kind === "link"
+              ? "tab"
+              : target.kind === "unavailable"
+                ? undefined
+                : "inline"}
+            data-selected={selected || undefined}
+            onclickcapture={swallowLongPressClick}
+          >
+            <ContextMenu.Root
+              bind:open={
+                () => menuPin === pin.id,
+                (open) => {
+                  if (open) menuPin = pin.id;
+                  else if (menuPin === pin.id) menuPin = null;
+                }
+              }
+            >
+              <ContextMenu.Trigger disabled={!live}>
+                {#snippet child({ props })}
+                  {@const trigger = rowTrigger(
+                    props,
+                    pin.id,
+                    target.kind === "unavailable",
+                  )}
+                  {#if target.kind === "link"}
+                    <a
+                      {...trigger}
+                      href={target.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onclick={(event) => {
+                        if (!interactive()) event.preventDefault();
+                      }}
+                      class={rowClass}
+                    >
+                      <span
+                        class={kindClass}
+                        data-pin-icon={target.github ? "github" : "globe"}
                         ><Icon
-                          icon={File02}
+                          icon={target.github ? GitBranch01 : Globe02}
                           size={16}
                           class="tw:text-muted-foreground"
                         /></span
-                      >{/if}{@render text(
-                      target.label,
-                      target.kind === "file-unloaded"
-                        ? t(
-                            $pinState.filesPending
-                              ? "Carregando arquivo…"
-                              : "Carregar arquivo",
-                          )
-                        : target.kind === "app"
-                          ? t("App")
-                          : target.detail,
-                    )}<Icon icon={ChevronRight} class={markerClass} />
-                  </Button>
-                {:else}
-                  <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
-                  <div
-                    {...trigger}
-                    class={cn(rowClass, "tw:text-muted-foreground")}
-                  >
-                    <span class={kindClass}
-                      ><Icon icon={AlertTriangle} size={16} /></span
-                    >{@render text(target.label, t(target.reason))}
-                  </div>
-                {/if}
-              {/snippet}
-            </ContextMenu.Trigger>
-            <ContextMenu.Portal>
-              <ContextMenu.Content
-                id={menuId(pin.id)}
-                data-vb-native
-                data-pin-menu={pin.id}
-                aria-label={t("Ações de {name}", { name: target.label })}
-                collisionPadding={8}
-                onOpenAutoFocus={(event) => focusFirstItem(event, pin.id)}
-                onInteractOutside={dismissedByRow}
-                class={cn(
-                  studioType,
-                  "tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-lg tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none",
-                )}
-              >
-                {#if target.kind === "link"}
-                  {@const href = target.href}
-                  <ContextMenu.Item
-                    class={menuItemClass}
-                    onSelect={() => openInNewTab(href)}
-                    >{t("Abrir em nova aba")}</ContextMenu.Item
-                  >
-                  <ContextMenu.Item
-                    class={menuItemClass}
-                    onSelect={() => copyLink(href)}
-                    >{t("Copiar link")}</ContextMenu.Item
-                  >
-                {:else if target.kind !== "unavailable"}
-                  <ContextMenu.Item
-                    class={menuItemClass}
-                    onSelect={() => activate(pin.id)}
-                    >{t("Abrir")}</ContextMenu.Item
-                  >
-                {/if}
-                {#if target.kind !== "unavailable"}
-                  <ContextMenu.Separator
-                    class="tw:-mx-1 tw:my-1 tw:h-px tw:bg-border"
-                  />
-                {/if}
-                <ContextMenu.Item
+                      >{@render text(target.label, target.detail)}<Icon
+                        icon={LinkExternal01}
+                        class={markerClass}
+                      /><span class="tw:sr-only">{t("abre em nova aba")}</span>
+                    </a>
+                  {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
+                    <Button
+                      {...trigger}
+                      variant="ghost"
+                      class={cn(
+                        rowClass,
+                        "tw:justify-start tw:font-normal tw:hover:bg-transparent",
+                      )}
+                      disabled={!live}
+                      aria-current={selected ? "true" : undefined}
+                      onclick={(event) => {
+                        if (!event.defaultPrevented) activate(pin.id);
+                      }}
+                    >
+                      {#if target.kind === "app"}<span
+                          class={cn(
+                            kindClass,
+                            "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
+                            pinAppTint(target.app),
+                          )}
+                          data-pin-icon="tile"
+                          aria-hidden="true"
+                          >{pinAppInitials(target.label)}</span
+                        >{:else}<span class={kindClass} data-pin-icon="file"
+                          ><Icon
+                            icon={File02}
+                            size={16}
+                            class="tw:text-muted-foreground"
+                          /></span
+                        >{/if}{@render text(
+                        target.label,
+                        target.kind === "file-unloaded"
+                          ? t(
+                              $pinState.filesPending
+                                ? "Carregando arquivo…"
+                                : "Carregar arquivo",
+                            )
+                          : target.kind === "app"
+                            ? t("App")
+                            : target.detail,
+                      )}<Icon icon={ChevronRight} class={markerClass} />
+                    </Button>
+                  {:else}
+                    <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
+                    <div
+                      {...trigger}
+                      class={cn(rowClass, "tw:text-muted-foreground")}
+                    >
+                      <span class={kindClass}
+                        ><Icon icon={AlertTriangle} size={16} /></span
+                      >{@render text(target.label, t(target.reason))}
+                    </div>
+                  {/if}
+                {/snippet}
+              </ContextMenu.Trigger>
+              <ContextMenu.Portal>
+                <ContextMenu.Content
+                  id={menuId(pin.id)}
+                  data-vb-native
+                  data-pin-menu={pin.id}
+                  aria-label={t("Ações de {name}", { name: target.label })}
+                  collisionPadding={8}
+                  onOpenAutoFocus={(event) => focusFirstItem(event, pin.id)}
+                  onInteractOutside={dismissedByRow}
                   class={cn(
-                    menuItemClass,
-                    "tw:text-destructive tw:data-highlighted:bg-destructive/10 tw:data-highlighted:text-destructive",
+                    studioType,
+                    "tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-lg tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none",
                   )}
-                  data-pin-unpin
-                  disabled={!!$pinState.pending}
-                  onSelect={() => remove(pin.id)}
-                  >{t("Desafixar")}</ContextMenu.Item
                 >
-              </ContextMenu.Content>
-            </ContextMenu.Portal>
-          </ContextMenu.Root>
-        </li>
-      {/each}
-    </ul>
-  {:else if !$pinState.adding}
-    <button
-      type="button"
-      data-pin-empty
-      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
-      disabled={!live}
-      onclick={open}
-    >
-      <span
-        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
-        ><Icon icon={Pin02} size={16} /></span
+                  {#if target.kind === "link"}
+                    {@const href = target.href}
+                    <ContextMenu.Item
+                      class={menuItemClass}
+                      onSelect={() => openInNewTab(href)}
+                      >{t("Abrir em nova aba")}</ContextMenu.Item
+                    >
+                    <ContextMenu.Item
+                      class={menuItemClass}
+                      onSelect={() => copyLink(href)}
+                      >{t("Copiar link")}</ContextMenu.Item
+                    >
+                  {:else if target.kind !== "unavailable"}
+                    <ContextMenu.Item
+                      class={menuItemClass}
+                      onSelect={() => activate(pin.id)}
+                      >{t("Abrir")}</ContextMenu.Item
+                    >
+                  {/if}
+                  {#if target.kind !== "unavailable"}
+                    <ContextMenu.Separator
+                      class="tw:-mx-1 tw:my-1 tw:h-px tw:bg-border"
+                    />
+                  {/if}
+                  <ContextMenu.Item
+                    class={cn(
+                      menuItemClass,
+                      "tw:text-destructive tw:data-highlighted:bg-destructive/10 tw:data-highlighted:text-destructive",
+                    )}
+                    data-pin-unpin
+                    disabled={!!$pinState.pending}
+                    onSelect={() => remove(pin.id)}
+                    >{t("Desafixar")}</ContextMenu.Item
+                  >
+                </ContextMenu.Content>
+              </ContextMenu.Portal>
+            </ContextMenu.Root>
+          </li>
+        {/each}
+      </ul>
+    {:else if !$pinState.adding}
+      <button
+        type="button"
+        data-pin-empty
+        class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
+        disabled={!live}
+        onclick={open}
       >
-      <span class="tw:min-w-0 tw:truncate">{t("Fixar site, repo ou app")}</span>
-    </button>
+        <span
+          class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+          ><Icon icon={Pin02} size={16} /></span
+        >
+        <span class="tw:min-w-0 tw:truncate"
+          >{t("Fixar site, repo ou app")}</span
+        >
+      </button>
+    {/if}
   {/if}
 </section>
