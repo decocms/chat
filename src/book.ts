@@ -2429,10 +2429,8 @@ export class Book extends DurableObject<Env> {
       .bind(bookId)
       .all();
     const lastId = (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0;
-    // Requests an agent already took (ack) or that already became an epic are not for @vibe to suggest again.
-    const handled = new Set([...this.sql.exec<{ id: number }>(`SELECT msg_id AS id FROM acks UNION SELECT from_msg AS id FROM epics WHERE from_msg IS NOT NULL`).toArray().map((r) => r.id)]);
     const transcript = this.messages(undefined, 80)
-      .map((m) => `[${m.thread === "main" ? "principal" : m.thread}]${handled.has(m.id) ? " [já em andamento]" : ""} ${m.author}: ${m.text}`)
+      .map((m) => `[${m.thread === "main" ? "principal" : m.thread}] ${m.author}: ${m.text}`)
       .join("\n");
     try {
       const { output, usage } = await generateText({
@@ -2442,16 +2440,11 @@ export class Book extends DurableObject<Env> {
             title: z.string().describe("título curto e específico do vibebook, máx 6 palavras"),
             folder: z.string().describe("pasta para organizar; reutilize uma pasta existente se fizer sentido"),
             summary: z.string().describe("uma frase curta (máx 20 palavras) dizendo do que se trata e em que pé está; sem emails, sem 'o usuário'"),
-            suggested_epics: z
-              .array(z.object({ title: z.string(), why: z.string().describe("uma frase: por que vale um épico, a partir do que a conversa disse; sem emails"), tasks: z.array(z.string()).max(8) }))
-              .max(3)
-              .describe("épicos que ainda NÃO existem e valeria criar; nunca para pedidos marcados [já em andamento] nem para o que um épico existente já cobre, mesmo com outro nome; vazio se nada novo"),
           }),
         }),
         prompt: `Classifique este vibebook (documento compartilhado com chat e épicos).
-Escreva título, resumo e épicos sugeridos (título, por quê, tarefas) no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
+Escreva título e resumo no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
 Pastas que essas pessoas já usam: ${folders.results.map((f) => f.folder).join(", ") || "(nenhuma)"}
-Épicos existentes: ${this.epics().map((e) => e.title).join(", ") || "(nenhum)"}
 Documento:
 ${(this.get("doc") ?? "").slice(0, 4000)}
 
@@ -2465,11 +2458,8 @@ ${transcript}`,
       const title = this.get("title_locked") || (current && current.title !== "Novo vibebook") ? undefined : output.title;
       const summary = output.summary.replace(/\s+/g, " ").trim().slice(0, 180);
       await this.touch({ title, folder: output.folder, summary });
-      const existing = new Set([...this.epics().map((e) => epicKey(e.title)), ...this.suggestions().map((s) => epicKey(s.title))]);
-      const suggestions = await this.keepNewSuggestions([...this.suggestions(), ...output.suggested_epics.filter((s) => !existing.has(epicKey(s.title)))].slice(-5));
-      this.set("suggestions", JSON.stringify(suggestions));
+      // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_epic stays theirs.
       this.broadcast({ t: "meta", title, folder: output.folder, summary });
-      this.broadcast({ t: "suggestions", suggestions: this.suggestions() });
     } catch (e) {
       // Negative cache: mark as classified anyway so a failing provider isn't retried every alarm.
       console.error("classify failed", String(e));
