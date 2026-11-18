@@ -3,6 +3,8 @@
   import RoomStrip from "./features/app-navigation/RoomStrip.svelte";
   import DmNav from "./features/app-navigation/DmNav.svelte";
   import SidebarFoot from "./features/app-navigation/SidebarFoot.svelte";
+  import SearchField from "./features/app-navigation/SearchField.svelte";
+  import { homeText } from "./features/home/copy";
   import { navRow } from "./lib/components/navRow";
   import People from "./People.svelte";
   import EpicTree from "./features/navigation/EpicTree.svelte";
@@ -249,7 +251,10 @@
         />{:else}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
           thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
         <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">
-          {@render roomHeader()}{@render roomThreads()}
+          {@render roomHeader()}{#if appNavigation}<SearchField
+              controller={appNavigation.controller}
+              label={homeText(appNavigation.lang, "search")}
+            />{/if}{@render roomThreads()}
         </div>{/if}{/snippet}
     {#snippet roomHeader()}
       <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
