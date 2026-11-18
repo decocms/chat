@@ -76,7 +76,7 @@
 <section
   data-vb-native
   data-native-agent-settings
-  class="space-y-4 font-sans text-sm tracking-normal [font-variation-settings:normal] text-foreground"
+  class="space-y-3 font-sans text-sm tracking-normal [font-variation-settings:normal] text-foreground"
 >
   {#if !$view.grants && $view.loading}<p
       role="status"
@@ -94,36 +94,48 @@
       >
     </div>{/if}
   {#if $view.grants?.agents.length}
-    <Heading level={2}>{text("connectedTitle")}</Heading>
-    {#each groups as group (group.client)}<section
-        class="space-y-2 rounded-control border border-border p-3"
-      >
-        <Heading level={3}>{group.client} · {group.rows.length}</Heading
-        >{#each group.rows as { grant } (grant.id)}<label
-            class="flex items-start gap-2 rounded-control p-2"
-            ><Checkbox
-              bind:checked={
-                () => selected.has(grant.id),
-                (checked) => {
-                  if (active) change(grant.id, checked);
+    <!-- One card: a header row per client, then one row per connection (check to remove). -->
+    <div
+      class="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border"
+      aria-label={text("connectedTitle")}
+      role="group"
+    >
+      {#each groups as group (group.client)}<section
+          class="divide-y divide-border"
+        >
+          <Heading
+            level={3}
+            class="m-0 flex items-center justify-between bg-muted/40 px-4 py-2.5 font-sans text-[0.8125rem] font-semibold"
+            >{group.client}<span
+              class="text-xs font-normal text-muted-foreground"
+              >{group.rows.length}</span
+            ></Heading
+          >{#each group.rows as { grant } (grant.id)}<label
+              class="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 hover:bg-accent/40"
+              ><Checkbox
+                bind:checked={
+                  () => selected.has(grant.id),
+                  (checked) => {
+                    if (active) change(grant.id, checked);
+                  }
                 }
-              }
-            /><span
-              >{text("connectedAt")}
-              {vb.ago(grant.connected_at)}<small
-                class="block text-xs text-muted-foreground"
-                >{grant.used_at
-                  ? `${text("used")} ${vb.ago(grant.used_at)}`
-                  : text(
-                      grant.used_at === null ? "neverUsed" : "unknownUse",
-                    )}</small
-              ></span
-            ></label
-          >{/each}
-      </section>{/each}
-    <div class="flex flex-wrap gap-2">
+              /><span class="flex min-w-0 flex-col gap-0.5"
+                ><span>{text("connectedAt")} {vb.ago(grant.connected_at)}</span
+                ><small class="text-xs text-muted-foreground"
+                  >{grant.used_at
+                    ? `${text("used")} ${vb.ago(grant.used_at)}`
+                    : text(
+                        grant.used_at === null ? "neverUsed" : "unknownUse",
+                      )}</small
+                ></span
+              ></label
+            >{/each}
+        </section>{/each}
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
       <Button
         variant="outline"
+        size="sm"
         disabled={busy}
         onclick={(event) => {
           if (active && event.currentTarget.isConnected)
@@ -134,19 +146,22 @@
             );
         }}>{text("markOld")}</Button
       ><Button
+        size="sm"
+        variant="outline"
+        class="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
         disabled={busy || !selected.size}
         onclick={(event) => {
           if (event.currentTarget.isConnected) ask();
         }}>{text("revoke")} ({selected.size})</Button
-      ><Button
+      ><span class="flex-1"></span><Button
         variant="ghost"
+        size="sm"
         disabled={$view.loading}
         onclick={() => {
           if (active) void owner.refresh();
         }}>{text("refresh")}</Button
       >
     </div>
-    <p class="m-0 text-muted-foreground">{text("connectedHelp")}</p>
   {:else if $view.grants}<SetupInstructions
       {origin}
       {lang}
