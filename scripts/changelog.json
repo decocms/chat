@@ -45,8 +45,12 @@
       ]
     },
     "fixes": {
-      "pt": [],
-      "en": []
+      "pt": [
+        "No celular, tocar na caixa de mensagem (e em qualquer campo de texto) não dá mais zoom na tela."
+      ],
+      "en": [
+        "On phones, tapping the message box (or any text field) no longer zooms the screen in."
+      ]
     }
   },
   {
