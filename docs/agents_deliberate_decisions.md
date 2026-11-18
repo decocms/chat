@@ -199,3 +199,26 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The words of the MCP instructions changed, and agents follow them. No tool name, argument or JSON shape changed.
 - Undo: Revert the commit. The plugin version goes back to 0.24.13.
 - Status: open
+
+### 2026-11-18 · feat/guidelines-check · A ratchet baseline for the guidelines check
+- Agent: claude-opus-5-5
+- Context: The human asked for `scripts/guidelines-check.ts` with a baseline for old violations. The human did not say what a lower count does.
+- Decision: The baseline has a count for each rule and file. A higher count fails. A lower count also fails and tells you to run `--update`, so that the baseline goes down with the code.
+- Other options: Accept a lower count without a failure. Then a fixed violation can come back without a failure.
+- Risk: low. A person who fixes old code must also commit the new baseline.
+- Undo: Remove the `decreased` failure in `scripts/guidelines-check.ts`.
+- Status: open
+
+### 2026-11-18 · feat/guidelines-check · Scope and exemptions of the guidelines check
+- Agent: claude-opus-5-5
+- Context: The rules in `docs/stack.md` do not say exactly which text is a color, a breakpoint or a component level.
+- Decision:
+  - Colors: the check reads only `tw:` classes: a hex value in an arbitrary value (`tw:bg-[#fff]`, `tw:shadow-[…#0000000d]`), or a palette color (`tw:bg-red-500`, `tw:bg-white`). A hex string in TypeScript data (avatar palettes, brand icons in SVG) is not a violation.
+  - Breakpoints: container queries (`tw:@min-3xl:`) are not screen breakpoints. The check permits them.
+  - `fetch`: the check reads `svelte/features/`, `svelte/lib/` and the root files of `svelte/`. The gallery, the parity stories and `svelte/build/` are development tools.
+  - Comment lines are not checked.
+  - Atomic level: a component has the lowest level of the stories that import it, because stories also import smaller components as helpers.
+- Other options: Read all hex strings, or treat container queries as breakpoints. These options give many false failures.
+- Risk: low. A hard-coded color in an inline `style` attribute is not found.
+- Undo: Change the regular expressions in `scripts/guidelines-check.ts`.
+- Status: open

@@ -25,9 +25,12 @@ Rules:
 ## Check
 
 1. Run `bun run check`. It runs types, the i18n check, unit and DOM tests, boundary checks and the format check.
-2. If you changed the browser, run the browser tests for that area (`test:*:browser` scripts in `package.json`). They need Playwright Chromium (`bunx playwright install chromium`).
-3. If you changed the agent tools, run `bun scripts/agent-check.ts` against local development.
-4. If you changed the router rules or questions, run `bun scripts/router-bench.ts`.
+2. If `check:guidelines` fails, read its output. It shows each new violation of the rules in `stack.md`, `folder-map.md` and `writing.md`.
+   - Fix the new violation. Do not add it to the baseline.
+   - If you removed old violations, the check also fails. Run `bun scripts/guidelines-check.ts --update`. Commit `scripts/data/guidelines-baseline.json`.
+3. If you changed the browser, run the browser tests for that area (`test:*:browser` scripts in `package.json`). They need Playwright Chromium (`bunx playwright install chromium`).
+4. If you changed the agent tools, run `bun scripts/agent-check.ts` against local development.
+5. If you changed the router rules or questions, run `bun scripts/router-bench.ts`.
 
 ## CI
 
