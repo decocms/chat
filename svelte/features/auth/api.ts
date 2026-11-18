@@ -95,7 +95,8 @@ export function createAuthApi(fetcher?: FetchLike) {
         await json(
           await auth.room[":id"].$get(
             { param: { id: encodeURIComponent(id) } },
-            { init: { signal } },
+            // A membership proof: never from the HTTP cache.
+            { init: { signal, cache: "no-store" } },
           ),
         ),
       );

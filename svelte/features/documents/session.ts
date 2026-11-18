@@ -560,9 +560,7 @@ export function createDocumentSession(options: Options) {
       const access =
         options.access ??
         ((id: string, signal?: AbortSignal) =>
-          createAuthApi((input, init) =>
-            fetch(input, { ...init, cache: "no-store" }),
-          ).access(id, signal));
+          createAuthApi().access(id, signal));
       void Promise.resolve()
         .then(() => (current() ? access(target.roomId, signal) : null))
         .then(async (proof) => {
