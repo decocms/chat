@@ -615,7 +615,7 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
-    if (url.pathname.startsWith("/migrate/")) return handleMigrate(request, env);
+    if (url.pathname.startsWith("/migrate/")) return handleMigrate(request, env, ensureSchema);
     if (url.pathname.startsWith("/ui/")) return uiSwitch(request);
     return providerFor(url.origin, appHandler).fetch(selectUi(request, env), env, ctx);
   },

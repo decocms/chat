@@ -258,3 +258,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Copy the epic doc section into `docs/`.
 - Status: open
+
+### 2026-11-18 · feat/cf-migration · Copy all data again on each run
+- Agent: claude-opus-5-5
+- Context: The human said that the move has no maintenance mode. The old Worker keeps writes until the switch.
+- Decision: Each run of `scripts/migrate.ts` copies D1, the rooms and KV from the start. `--resume` continues only a run that stopped. R2 skips keys with the same size and etag on the target.
+- Other options: Skip the rooms and tables that a previous run copied.
+- Risk: medium. Data that people write between the last run and the switch stays only on the old Worker.
+- Undo: Make `--resume` the default in `scripts/migrate.ts`.
+- Status: open
