@@ -42,6 +42,7 @@ The rule: quick CI on pull requests, long CI on `main`.
 - Do not make a browser test run on pull requests. Do not make it block the merge.
 - The other workflows (`performance`, `app-hmr`, `font-forensics`, `chunk-diagnostics`) run only when you add their label (`run-performance`, `run-hmr`, …) or run them by hand.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
+- If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 
 ## Generated files to commit
 
@@ -81,12 +82,12 @@ Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worke
 
 **Warning: Never leave `main` red. A red `main` is a failed check on the newest commit of `main`.**
 
-1. Open a pull request.
+1. Open a pull request. Fill in each section of `.github/pull_request_template.md`.
 2. Rebase the branch on the newest `main` (`git fetch origin && git rebase origin/main`). Push it.
 3. Enable automerge: `gh pr merge <number> --auto --squash`.
 4. Wait for the merge. If `verify` fails, fix the branch and push again.
 5. After the merge, watch the checks of the merged commit on `main` (`gh run list --branch main --commit <sha>`, `gh run watch <id>`). This includes the browser jobs.
-6. If a check on `main` fails, open a new pull request with the fix at once. Use the same procedure. Do not start other work before `main` is green.
+6. If a check on `main` fails, open a new pull request with the fix at once. Use the same procedure. Do not start other work before `main` is green. The open `main-red` issue shows the failed jobs. It closes when `main` is green.
 7. Look at the Workers Builds deploy in the Deployments tab of the Worker.
 8. Check the change in production.
 9. Report the release in the project room.

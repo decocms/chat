@@ -131,3 +131,30 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the paragraph.
 - Status: open
+
+### 2026-11-18 · ci/main-red-and-pr-template · Mention the GitHub login of the commit author
+- Agent: claude-opus-5-5
+- Context: The human asked to mention the commit author, with only a real login. The `workflow_run` payload gives the commit author name and email, but no login.
+- Decision: The workflow asks the commits API for `author.login`. If GitHub cannot resolve it, the workflow uses `workflow_run.actor.login`. It mentions only a login that has letters, digits and `-` (no bots).
+- Other options: Mention only `workflow_run.actor.login`. For a squash automerge, that is the person who enabled automerge, not always the author.
+- Risk: low
+- Undo: Change the `login=` lines in `.github/workflows/main-red.yml`.
+- Status: open
+
+### 2026-11-18 · ci/main-red-and-pr-template · One open main-red issue, retitled to the newest commit
+- Agent: claude-opus-5-5
+- Context: The human asked to comment on the open `main-red` issue if one exists. The issue title has a short sha.
+- Decision: The workflow comments on the open issue and changes its title to the newest red commit. It also ignores runs from forks with a branch called `main`, and it treats `timed_out` jobs as failed jobs.
+- Other options: Keep the first title. Then the title names a commit that is possibly not the cause now.
+- Risk: low
+- Undo: Remove the `gh issue edit` line.
+- Status: open
+
+### 2026-11-18 · ci/main-red-and-pr-template · Write an allowed list of Markdown files
+- Agent: claude-opus-5-5
+- Context: The human asked to add the template path to the allowed list in `docs/writing.md`. That file had no list.
+- Decision: I added rule 6 with all the Markdown files in git now, plus the template. I added `herdr-plugin/README.md` because it is in git.
+- Other options: Write only the template path.
+- Risk: low
+- Undo: Remove rule 6 in `docs/writing.md`.
+- Status: open

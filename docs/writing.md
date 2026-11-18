@@ -36,3 +36,4 @@ Write all Markdown files in this repository in Simplified Technical English (ASD
 3. Do not write a document for each feature. The code is the reference for features.
 4. If a change makes a document wrong, update the document in the same commit.
 5. Do not keep reports, plans or evidence in the repository. Put them in the project room or in the pull request.
+6. Write Markdown only in these files: `README.md`, `AGENTS.md`, `docs/*.md`, `herdr-plugin/README.md`, the plugin prompt files (`claude-plugin/commands/*.md`, `claude-plugin/skills/*/SKILL.md`) and `.github/pull_request_template.md`.
