@@ -30,12 +30,15 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     epic: z.optional(z.nullable(z.string())),
   }),
   z.object({ t: z.literal("doc.version"), id: num }),
-  // "O que precisa de você" as one or two written lines (Gui #2602): the card's own items, summarized with the thread.
+  // Old tabs still send it (the automatic card, removed for brief.ask): accepted and ignored.
   z.object({
     t: z.literal("needs.summary"),
     thread: z.string(),
     items: z.array(z.string()),
   }),
+  // "O que precisa de mim aqui" (Gui #3011): asks your own Claude; brief.dismiss drops one of yours.
+  z.object({ t: z.literal("brief.ask"), thread: z.string() }),
+  z.object({ t: z.literal("brief.dismiss"), id: num }),
   z.object({ t: z.literal("title"), title: z.string() }),
   z.object({ t: z.literal("epic"), title: z.string() }),
   z.object({ t: z.literal("epic.owner"), id, owner: z.string() }),

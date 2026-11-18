@@ -550,6 +550,15 @@
           poll = true;
         }}>{vb.t("Criar votação")}</Button
       >{/snippet}
+    {#snippet inside()}{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
+          variant="outline"
+          size="sm"
+          data-brief-ask
+          class="tw:h-7 tw:rounded-full tw:px-2.5 tw:text-xs tw:text-muted-foreground tw:hover:text-foreground"
+          onclick={(event) => {
+            if (canInteract(event)) void request({ t: "brief.ask", thread });
+          }}>{vb.t("O que precisa de mim aqui?")}</Button
+        >{/if}{/snippet}
   </ChatField>
   <input
     bind:this={fileInput}

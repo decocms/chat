@@ -65,6 +65,7 @@ Workflow:
 - When you refer to an earlier message in the room (\"the buttons above\", \"what Marina asked\"), link it: [the buttons above](#m<id>) with its read_room id; the room turns that into a jump to the message. An epic links the same way: [its title](#e<epic id>) opens its thread (#doc:<epic id> its doc). Or answer it directly with reply_to. A message that is a reply carries reply_quote (who wrote the message it answers and the start of its text): read it with the reply, e.g. a bare \"@you\" replying to a question is that question.
 - When you need your human to pick between options or say yes/no ("do I do it?", which files to delete, which approach), post the question with choices (a yes/no gets e.g. ["Sim, faz", "Não", "Ajustar antes"]) (and multi: true for several): the room shows buttons and their pick arrives as their message replying to yours. Don't ask them to type numbers.
 - Every message from your human gets an ack (doing when you pick it up, done when finished, idle when it needs nothing from you): read_room lists the ones from the last 48h that none of your human's agents acked as unacked, so nothing you skipped stays hidden. A short answer (no work to deliver) goes out as a post with reply_to = their message: that closes your ack; work you deliver gets done: true. Read every new message read_room returns, not only the last few: two can arrive seconds apart. When post returns unread_from_your_human, your human wrote that while you worked: handle it before going on. When you notice you failed (you skipped or ignored a message of your human's, a tool call failed and you gave up, you reported something wrong), call report_issue right away with what happened, then fix it and say so in the room.
+- read_room brief_requests = your human pressed "O que precisa de mim aqui?" in a thread: handle them first. Read that thread, then brief_reply (brief_id, text) in 2-4 short lines, second person, what there waits on them and why; only they see it, no ack or epic.
 - A request is an epic, almost always: when your human asks you for a piece of work, (1) start_epic for it with 2-5 concrete tasks (each one checkable), (2) post in the epic (thread = its id) how you'll do it in 2-4 lines, or the question that blocks you if something is unclear, (3) unless you asked something, do it right away without waiting for an OK, moving each task to doing and done as you go, (4) post the result with done: true. If the work ships somewhere (deploy, publish, release): once it's out, update_epic prod: "deployed"; then open it in production, check it really works, and update_epic prod: "verified" with prod_note saying what you checked (URL, what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod". With every task done the epic archives itself and shows as finished; if your human writes in it again, it reopens: add the new tasks there and run the same loop. Only quick answers and clarifications stay where they were asked. An epic you worked in archives itself only once every task is done AND the thread has your delivery (done: true) saying what you tested, plus a screenshot when there's something to see (upload it with thread = the epic id); verification that needs a person = a task in review with its owner, which keeps the epic open.
 - Answer in the doc beside the chat (Gui #2589, #2592): when your human asks a question or for an analysis, right after the ack and before researching anything, start_epic for it with answer: true (the epic and its doc open to their right at once, with a "Claude is writing" placeholder; its doc is only the answer: no task list in it, no tasks on you; a question vibebook already turned into an answer epic by itself comes back from start_epic as that epic), and write the answer into that epic's doc with update_doc as you go, so it fills in live; post the answer itself in one or two lines in that epic's thread (thread = the epic id, never the main thread, Gui #2815; the number or conclusion, with a link to the doc); the doc does not repeat it: under the title it goes straight to the card or app, then short notes (Gui #2785). Simple answer (numbers, status, a table, a chart) = a \`\`\`card fenced block with the card's JSON (same spec as post's card) inside the doc; complex one (a page, a mockup, an interactive view, or any new format they ask for) = first a line [[app:room/<name>]] at the top of the doc (under the title), then upload_file apps/<name>.html (it shows up there, embedded; uploading never switches their screen to the Apps tab, only app_open does when they ask to open an app), where it runs embedded; otherwise short markdown. Then keep talking in the chat and improve what's in the doc with each turn (update_doc again; uploading the same apps/<name>.html updates it). Never a markdown table where a card fits.
 - Deploy banner (required): every push to main that deploys, and every CLI publish, gets one native banner in the room's main thread once the build is green: post with thread \"main\" and a card (Card titled \"🚀 No ar · <commit or version>\", one Field per change a person would notice, Actions with a LinkButton to each epic it came from (#e<epic id>) and one to the commit). Not a plain text line.
@@ -529,6 +530,21 @@ const TOOLS = [
         },
       },
       required: ["room_id", "file_id"],
+    },
+  },
+  {
+    name: "brief_reply",
+    description:
+      'Answer your human\'s "O que precisa de mim aqui?" (read_room brief_requests): 2-4 short lines, second person, what in that thread waits on them and why it matters now, only from what is in the room. Only your human sees it, never the room; no ack or epic needed.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        room_id: { type: "string" },
+        brief_id: { type: "number", description: "from read_room brief_requests" },
+        text: { type: "string", description: "2-4 short lines, ≤600 chars" },
+        model: { type: "string" },
+      },
+      required: ["room_id", "brief_id", "text"],
     },
   },
   {
@@ -1207,6 +1223,7 @@ const ROOM_SCOPED_DENY = new Set([
 
 const WRITES_AS_MODEL = new Set([
   "post",
+  "brief_reply",
   "upload_file",
   "upload_link",
   "save_reminder",
@@ -1271,6 +1288,32 @@ async function call(
           if (due(`rules:${me.agent}:${b.id}:${b.n}`, 600_000))
             await gate(env, me, b.id, true).catch((e) => console.error("router rules", String(e)));
       for (;;) {
+        // Your human asked "O que precisa de mim aqui?" (Book.briefAsk): wakes once, read_room carries brief_requests.
+        const briefs = (
+          await db
+            .prepare(
+              `SELECT w.book_id AS id, b.title FROM brief_wake w JOIN books b ON b.id = w.book_id WHERE w.email = ? AND (? = '' OR w.book_id = ?) GROUP BY w.book_id`,
+            )
+            .bind(me.email, only, only)
+            .all<{ id: string; title: string }>()
+        ).results;
+        if (briefs.length) {
+          await db
+            .prepare(
+              `DELETE FROM brief_wake WHERE email = ? AND (? = '' OR book_id = ?)`,
+            )
+            .bind(me.email, only, only)
+            .run();
+          return {
+            new: briefs.map((b) => ({
+              room_id: b.id,
+              title: b.title,
+              brief: true,
+              url: `${origin}/b/${b.id}`,
+            })),
+            next: "your human asked you what needs them there: call read_room on these rooms and answer brief_requests with brief_reply",
+          };
+        }
         const r = await unread(only);
         // The router (src/router.ts): rooms whose new messages it handled (ignored/answered) don't wake this Claude;
         // its cursor moves past them, and the next check sees nothing new there.
@@ -2155,6 +2198,19 @@ async function call(
       }
       throw new Error(
         `${name} is ${type}; only images and HTML/text can be read here`,
+      );
+    }
+    case "brief_reply": {
+      const id = await room();
+      const text = Array.from(str(a.text).trim()).slice(0, 600).join("");
+      if (!text) throw new Error("text is required");
+      if (findSecret(text))
+        throw new Error("blocked: looks like a secret; say it without the value");
+      return bookStub(env, id).briefReply(
+        me.email,
+        Number(a.brief_id),
+        text,
+        str(a.model).slice(0, 60),
       );
     }
     case "ack": {

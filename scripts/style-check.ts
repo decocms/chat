@@ -48,7 +48,6 @@ if (native) {
     "svelte/features/pwa",
     "svelte/features/notifications",
     "svelte/features/chat",
-    "svelte/features/needs-you",
     "svelte/features/rich-text",
     "svelte/features/chat-interactive",
     "svelte/features/home",
