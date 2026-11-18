@@ -17,6 +17,7 @@ import { auth, authServices, EMAIL_RE, identify } from "./auth";
 import type { Book } from "./book";
 import { connect, providerFor } from "./connect";
 import { handleMcp, isAdminMcp } from "./mcp";
+import { handleMigrate } from "./migrate";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
 import { growthReport, productReport } from "./reports";
@@ -83,6 +84,8 @@ export type Env = {
   FIRE_API?: string;
   DEV_EMAIL?: string;
   MCP_AUTH_TOKEN?: string;
+  /** Only while moving to another Cloudflare account: turns on /migrate/* (src/migrate.ts). Remove after. */
+  MIGRATE_TOKEN?: string;
 };
 
 export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
@@ -612,6 +615,7 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
+    if (url.pathname.startsWith("/migrate/")) return handleMigrate(request, env);
     if (url.pathname.startsWith("/ui/")) return uiSwitch(request);
     return providerFor(url.origin, appHandler).fetch(selectUi(request, env), env, ctx);
   },

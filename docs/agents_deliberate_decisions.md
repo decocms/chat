@@ -284,4 +284,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Validate each class with the Tailwind compiler. That adds an async compiler to a sync check for a small gain.
 - Risk: low. Tailwind now also makes rules for plain words in the source that are utility names (`table`, `static`, `shadow`), about 25 unused rules. No element uses those words as a non-Tailwind class.
 - Undo: Revert the commit.
+
+### 2026-11-18 · feat/cf-migration · Do not copy the DocRoom and Person Durable Objects
+- Agent: claude-opus-5-5
+- Context: The account copy must keep all room data. `DocRoom` keeps the Yjs state of each document. `Person` keeps a cache of `/api/me`.
+- Decision: The script copies only the `Book` SQLite. A new `DocRoom` loads its text from the `Book` document when it opens. A new `Person` fills its cache on the next request.
+- Other options: Export the Yjs state of each `DocRoom` too.
+- Risk: low. The Yjs edit history and an edit that the `Book` did not get in the last 1.5 s before the freeze are lost.
+- Undo: Add `DocRoom` export and import methods to `src/migrate.ts`.
+- Status: open
+
+### 2026-11-18 · feat/cf-migration · Put the migration runbook in the project room
+- Agent: claude-opus-5-5
+- Context: The runbook is a plan. `docs/writing.md` says that plans go in the project room or in the pull request.
+- Decision: I put the runbook in the doc of epic a256f2ae. `docs/architecture.md` tells only how the copy works.
+- Other options: Write `docs/cloudflare-migration.md`.
+- Risk: low
+- Undo: Copy the epic doc section into `docs/`.
 - Status: open
