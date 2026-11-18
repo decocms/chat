@@ -4,7 +4,7 @@ import { transcribeSpeech, WHISPER_MODEL } from "./speechToText";
 import type { ApiServices } from "./api";
 import type { Env } from "./index";
 import * as z from "zod/mini";
-import { LISTEN_FRESH, poke } from "./person";
+import { LISTEN_FRESH, poke, pokeRoommates } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
 import type { UiVariant } from "../shared/uiVariant";
@@ -14,7 +14,7 @@ import { startRoom } from "./start-room";
 import { canDm, dmIds, openDmWith } from "./dm";
 import { findSecret } from "./secrets";
 import { isDmId, MUTUAL } from "../shared/dm";
-import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, TYPES_ERROR, waitsFor } from "./rooms";
+import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
 import { track } from "./track";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
@@ -66,7 +66,10 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
       `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
-         (SELECT group_concat(email) FROM members m2 WHERE m2.book_id = b.id) AS members
+         (SELECT group_concat(email) FROM members m2 WHERE m2.book_id = b.id) AS members,
+         -- A DM's other person, whom your other lists may not know (no shared room, no connection): name + picture.
+         (SELECT u.name FROM members p JOIN users u ON u.email = p.email WHERE b.dm IS NOT NULL AND p.book_id = b.id AND p.email != m.email) AS peer_name,
+         (SELECT u.avatar FROM members p JOIN users u ON u.email = p.email WHERE b.dm IS NOT NULL AND p.book_id = b.id AND p.email != m.email) AS peer_avatar
        FROM books b JOIN members m ON m.book_id = b.id
        LEFT JOIN human_reads r ON r.email = m.email AND r.book_id = b.id
        WHERE m.email = ? AND m.archived_at IS NULL AND (b.dm IS NULL OR b.last_msg_id IS NOT NULL) ORDER BY b.updated_at DESC`,
@@ -140,16 +143,18 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
 }
 
 export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, req0: Request): ApiServices {
+  const en = reqLang(req0) === "en";
   return {
+    en,
     isMember: (roomId) => isMember(env.DB, roomId, email),
     allowStt:async()=> (await env.UPLOAD_LIMIT.limit({key:`stt:${email}`})).success,
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
-    humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread),
-    storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }),
+    humanPost: (roomId, text, thread) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en),
+    storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),
     fileTypes: FILE_TYPES,
     maxBytes,
-    sizeError,
-    typesError: TYPES_ERROR,
+    sizeError: (type) => sizeError(type, en),
+    typesError: typesError(en),
     sql: async (query, ...binds) => { await env.DB.prepare(query).bind(...binds).run(); },
     sqlBatch: async (query, rows) => { const st = env.DB.prepare(query); await env.DB.batch(rows.map((r) => st.bind(...r))); return; },
     track: (name, dims) => ctx.waitUntil(track(env, name, { user: email, ...(dims ? { dims } : {}) })),
@@ -171,7 +176,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     // that waits for their yes. The answer never says whether that email has an account.
     connect: async (who, text) => {
       const msg = (text ?? "").trim().slice(0, 2000);
-      if (msg && findSecret(msg)) return { error: "Não enviei: parece um segredo. Segredo não entra na conversa." };
+      if (msg && findSecret(msg)) return { error: en ? "Not sent: it looks like a secret. Secrets don't go in the conversation." : "Não enviei: parece um segredo. Segredo não entra na conversa." };
       // Sharing a room already lets you talk: an old request between you is moot and its message isn't replayed.
       const shared = await canDm(env.DB, email, who);
       const theirs = await env.DB.prepare(`SELECT 1 FROM friends WHERE a = ? AND b = ? AND declined_at IS NULL`).bind(who, email).first();
@@ -213,10 +218,10 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     invite: (roomId, who) => inviteMember(env, ctx, new URL(req0.url).origin, email, roomId, who, reqLang(req0)),
     removeMember: async (roomId, who) => {
       const book = await env.DB.prepare(`SELECT owner FROM books WHERE id = ?`).bind(roomId).first<{ owner: string }>();
-      if (who === book?.owner) return { error: "O dono não pode ser removido.", status: 400 };
+      if (who === book?.owner) return { error: en ? "The owner can't be removed." : "O dono não pode ser removido.", status: 400 };
       // Someone who joined (a member with an account); an invite still waiting can be taken back by anyone in the room.
       const joined = !!(await env.DB.prepare(`SELECT 1 FROM members m JOIN users u ON u.email = m.email WHERE m.book_id = ? AND m.email = ?`).bind(roomId, who).first());
-      if (joined && email !== book?.owner) return { error: "Só quem criou o vibebook remove quem já entrou.", status: 403 };
+      if (joined && email !== book?.owner) return { error: en ? "Only whoever created the vibebook can remove someone who already joined." : "Só quem criou o vibebook remove quem já entrou.", status: 403 };
       await env.DB.batch([
         env.DB.prepare(`DELETE FROM members WHERE book_id = ? AND email = ?`).bind(roomId, who),
         // An invite still waiting is taken back; a declined one stays, so the room can't ask again during the hold.
@@ -280,16 +285,18 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     saveSecret: (table, value) => saveKey(env, email, value, table),
     checkFreestyleKey: (key) => checkFreestyleKey(env, key),
     listenFresh: LISTEN_FRESH,
-    sandboxes: sandboxOps(env, ctx, email, new URL(req0.url).origin),
+    sandboxes: sandboxOps(env, ctx, email, new URL(req0.url).origin, en),
     me: () => meFor(env, ctx, email, req0),
     allowUpload: async () => (await env.UPLOAD_LIMIT.limit({ key: email })).success,
     saveAvatar: async (type, bytes) => {
       await env.FILES.put(`avatars/${email}`, bytes, { httpMetadata: { contentType: type } });
       const v = Date.now();
       await env.DB.prepare(`UPDATE users SET avatar = ?, avatar_src = 'own' WHERE email = ?`).bind(v, email).run();
+      // Everyone who draws you (their rail, DM list, skeleton) carries the version in their own /api/me.
+      ctx.waitUntil(pokeRoommates(env, email, { t: "me" }));
       return v;
     },
-    setRoomIcon: (roomId, img) => setRoomIcon(env, roomId, img),
+    setRoomIcon: (roomId, img) => setRoomIcon(env, roomId, img, en),
     connections: connOps(env, ctx, email, new URL(req0.url).origin, track),
     grants: grantOps(env, ctx, email),
     consentContext: () => consentContext(env, req0, email),

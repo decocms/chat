@@ -34,6 +34,7 @@
   import MutationStatus from "./features/room-sidebar/MutationStatus.svelte";
   import { createRoomMutations } from "./features/room-sidebar/session";
   import { messageCount } from "./features/room-sidebar/model";
+  import { dmPeer } from "./features/room-scope/model";
   import type { SidebarProps } from "./sidebar";
   let {
     appNavigation,
@@ -73,6 +74,7 @@
   const external = untrack(() => !!mutations);
   // A DM (src/dm.ts): its sidebar is your DM list; the DM is only a conversation (no threads, views or epics).
   const dm = $derived(!!room.book.dm);
+  const peer = $derived(dmPeer(room));
   const owner = untrack(
     () => mutations ?? createRoomMutations(room.me, room.id),
   );
@@ -175,13 +177,17 @@
         onclick={(event) => {
           if (event.currentTarget.isConnected) open(epic.id);
         }}
-        >{#if epic.id === "main"}<RoomMark
+        >{#if epic.id === "main" && peer}<PersonAvatar
+            email={peer}
+            version={vb.avatarVersion(peer)}
+            class="tw:size-7"
+          />{:else if epic.id === "main"}<RoomMark
             title={room.book.title}
             src={roomIcon}
             class="tw:size-7"
           />{:else}<PersonAvatar
-            name={epic.owner ? vb.name(epic.owner) : epic.title}
-            url={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+            email={epic.owner}
+            version={epic.owner ? vb.avatarVersion(epic.owner) : undefined}
             class="tw:size-7"
           />{/if}{#if epic.tasks.length}<Progress
             value={(done / epic.tasks.length) * 100}
@@ -216,8 +222,8 @@
           ? "tw:relative tw:flex tw:rounded-full tw:ring-2 tw:ring-brand"
           : "tw:relative tw:flex tw:rounded-full"}
         ><PersonAvatar
-          name={vb.name(email)}
-          url={vb.avatarUrl?.(email)}
+          {email}
+          version={vb.avatarVersion(email)}
           class="tw:size-7"
         /></span
       >{/each}
@@ -424,6 +430,7 @@
           vb={{
             t: vb.t,
             name: vb.name,
+            avatarVersion: vb.avatarVersion,
             epicBusy: vb.epicBusy,
             waitsIn: vb.waitsIn,
           }}
@@ -453,7 +460,12 @@
         <People
           {room}
           {friends}
-          vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
+          vb={{
+            t: vb.t,
+            name: vb.name,
+            ago: vb.ago,
+            avatarVersion: vb.avatarVersion,
+          }}
           {agents}
           hideSelf
         />

@@ -73,8 +73,8 @@
 >
   {#snippet leading()}<RoomAvatar
       {title}
-      icon={dm ? dm.avatar : roomIcon(room)}
-      person={!!dm}
+      icon={roomIcon(room)}
+      person={dm}
       {lang}
       surface={variant === "sidebar" ? "sidebar" : "background"}
       unread={selected ? null : unread(room, seen)}

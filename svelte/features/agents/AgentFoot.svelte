@@ -121,11 +121,8 @@
           : a.seen_at
             ? text("footSeen", { ago: ago(a.seen_at) })
             : "",
-      !a.machine && a.client && !/vibebook CLI/i.test(a.client)
-        ? a.client
-        : !a.machine
-          ? text("footByHand")
-          : "",
+      // Its client only when it says something (a connector by name); "started by hand" was noise.
+      !a.machine && a.client && !/vibebook CLI/i.test(a.client) ? a.client : "",
       percent(a) === null ? "" : `${percent(a)}%`,
     ]
       .filter(Boolean)
@@ -265,20 +262,23 @@
       data-agent-status={mark.state}
       class="tw:grid tw:gap-0.5"
     >
-      <div
-        class="tw:flex tw:items-center tw:gap-1.5 tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
-      >
-        <span class="tw:flex-1"
-          >{text(machines.length ? "footAgents" : "footOthers")}</span
+      <!-- The group's title and "deliver to all" only when there is more than one thing to switch: one agent has its own. -->
+      {#if machines.length + others.length > 1}<div
+          class="tw:flex tw:items-center tw:gap-1.5 tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
         >
-        <span class="tw:font-normal tw:normal-case">{text("footDeliver")}</span>
-        <Switch
-          checked={anyOn}
-          onCheckedChange={(on) => deliver({ all: true }, on)}
-          aria-label={text("footAllSwitch")}
-          class="tw:scale-90"
-        />
-      </div>
+          <span class="tw:flex-1"
+            >{text(machines.length ? "footAgents" : "footOthers")}</span
+          >
+          <span class="tw:font-normal tw:normal-case"
+            >{text("footDeliver")}</span
+          >
+          <Switch
+            checked={anyOn}
+            onCheckedChange={(on) => deliver({ all: true }, on)}
+            aria-label={text("footAllSwitch")}
+            class="tw:scale-90"
+          />
+        </div>{/if}
       {#each machines as m (m.id)}
         {@const kids = agentsOf(m)}
         <div
@@ -346,16 +346,5 @@
           a.delivery === false,
           true,
         )}{/each}
-      {#if !machines.length}<p
-          class="tw:m-0 tw:px-2.5 tw:pb-1.5 tw:pl-12 tw:text-[0.6875rem] tw:text-muted-foreground"
-        >
-          {text("footConnectHere")}
-          <button
-            type="button"
-            class={lnk}
-            onclick={() => void copy("setup", install)}
-            >{label("setup", text("footConnectHereLink"))}</button
-          >
-        </p>{/if}
     </div>{/if}
 {/if}

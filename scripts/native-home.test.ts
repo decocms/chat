@@ -2,6 +2,9 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import { waitIndicator } from "../svelte/features/waits/model";
+import { avatarKey, avatarUrl } from "../shared/avatar";
+import { dmPeer, roomAvatarVersion } from "../svelte/features/room-scope/model";
+import type { Room } from "../shared/room";
 type PersonalSocketFixture = {
   readyState: WebSocket["readyState"];
   onopen: WebSocket["onopen"];
@@ -40,6 +43,9 @@ import {
   roomMatches,
   waitGroups,
   dmEntries,
+  titleOwnDm,
+  personVersion,
+  roomLabel,
 } from "../svelte/features/home/model";
 import {
   contacts,
@@ -1144,8 +1150,96 @@ test("DMs: every conversation you've had is listed, named from your rooms' peopl
     ["stranger@test.com", "stranger@test.com"],
     ["ana@test.com", "Ana"],
   ]);
-  expect(dms.talked[1]!.avatar).toBe("/api/avatar/ana%40test.com?v=3");
+  expect(dms.talked[1]!.version).toBe(3);
   expect("untalked" in dms).toBe(false);
+});
+test("a person's picture URL always carries its version; none without one", () => {
+  expect(avatarUrl("ana@test.com", 3)).toBe("/api/avatar/ana%40test.com?v=3");
+  expect(avatarUrl("ana@test.com", null)).toBeUndefined();
+  expect(avatarUrl("ana@test.com", 0)).toBeUndefined();
+});
+test("an email names one picture and one face whatever its case or spaces", () => {
+  expect(avatarKey(" Ana@Test.COM ")).toBe("ana@test.com");
+  expect(avatarUrl("Ana@Test.com", 3)).toBe(avatarUrl("ana@test.com", 3));
+});
+test("a DM peer you share no room with still gets their name and picture from the DM row", () => {
+  const value = me({
+    books: [
+      room("dm00000000000000000003", {
+        dm: 1,
+        title: "Me · Bia",
+        members: "me@test.com,bia@test.com",
+        peer_name: "Bia",
+        peer_avatar: 5,
+      }),
+    ],
+  });
+  const [bia] = dmEntries(value)!.talked;
+  expect([bia!.name, bia!.version]).toEqual(["Bia", 5]);
+  expect(personVersion(value, "bia@test.com")).toBe(5);
+  // Lists across rooms name a DM after the other person, yours after you.
+  expect(roomLabel(value, "dm00000000000000000003", "Me · Bia", "en")).toBe(
+    "Bia",
+  );
+  expect(roomLabel(value, value.dm, "Me", "en")).toBe("You");
+  expect(roomLabel(value, "aaaaaa", "Room aaaaaa", "en")).toBe("Room aaaaaa");
+});
+test("one version rule: yours is your own; anyone else's is the newest any source knows", () => {
+  const value = me({
+    avatar: 2,
+    people: [{ email: "ana@test.com", name: "Ana", avatar: 4, rooms: [] }],
+    friends: [
+      {
+        email: "ana@test.com",
+        name: "Ana",
+        avatar: 9,
+        joined: 1,
+        shared: 1,
+        dm: "dm00000000000000000004",
+      },
+    ],
+  });
+  expect(personVersion(value, "ana@test.com")).toBe(9);
+  const scene = (avatars: Record<string, number>) =>
+    ({ avatars }) as unknown as Room;
+  // The room knows an older picture than your home: the newer wins, both ways.
+  expect(
+    roomAvatarVersion(scene({ "ana@test.com": 6 }), value, "ana@test.com"),
+  ).toBe(9);
+  expect(
+    roomAvatarVersion(scene({ "ana@test.com": 12 }), value, "ana@test.com"),
+  ).toBe(12);
+  expect(roomAvatarVersion(null, value, "ana@test.com")).toBe(9);
+  expect(
+    roomAvatarVersion(scene({}), value, "nobody@test.com"),
+  ).toBeUndefined();
+  // Yours is always me.avatar, whatever the room says.
+  expect(
+    roomAvatarVersion(scene({ "me@test.com": 99 }), value, "me@test.com"),
+  ).toBe(2);
+});
+test("a DM's peer: you only in your own DM, never your face for someone else's", () => {
+  const dm = (members: string[], isDm = true) =>
+    ({ me: "me@test.com", members, book: { dm: isDm } }) as unknown as Room;
+  expect(dmPeer(dm(["me@test.com"]))).toBe("me@test.com");
+  expect(dmPeer(dm(["me@test.com", "ana@test.com"]))).toBe("ana@test.com");
+  expect(dmPeer(dm([]))).toBeUndefined();
+  expect(dmPeer(dm(["me@test.com", "ana@test.com"], false))).toBeNull();
+});
+test("your own DM is titled in the app's language, not the room's; other rooms keep the server's title", () => {
+  const own = {
+    me: "me@test.com",
+    members: ["me@test.com"],
+    book: { title: "Você", dm: true },
+  };
+  expect(titleOwnDm(own, "en").book.title).toBe("You");
+  expect(titleOwnDm(own, "pt")).toBe(own);
+  const pair = { ...own, members: ["me@test.com", "ana@test.com"] };
+  expect(
+    titleOwnDm({ ...pair, book: { title: "Ana", dm: true } }, "en").book.title,
+  ).toBe("Ana");
+  const solo = { ...own, book: { title: "Você", dm: false } };
+  expect(titleOwnDm(solo, "en")).toBe(solo);
 });
 test("new message search: people from your rooms, then connections, accents ignored, never yourself", () => {
   const value = me({

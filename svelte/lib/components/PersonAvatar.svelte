@@ -1,23 +1,33 @@
 <script lang="ts">
   import type { HTMLAttributes } from "svelte/elements";
+  import { avatarKey, avatarUrl } from "../../../shared/avatar";
   import Avatar from "../studio/Avatar.svelte";
   import type { AvatarSize } from "../studio/avatar";
   import { beam } from "./boring";
 
-  /** A person: their picture when they have one, else the face their name draws. */
+  /**
+   * A person, the one way every surface draws them: their picture at `version`
+   * when they have one, else the face their email draws (seeded by the email,
+   * so the same person looks the same everywhere, whatever label sits beside it).
+   * Presentational: the caller passes the version it knows (`me.avatar`, a
+   * room's `avatars`, a friend's `avatar`). No email = nobody (an epic
+   * without an owner): the generic person icon.
+   */
   let {
-    name,
-    url,
+    email,
+    version,
     size = "xs",
     class: className,
     ...rest
   }: Omit<HTMLAttributes<HTMLDivElement>, "style" | "class" | "children"> & {
-    name: string;
-    url?: string;
+    email: string | null | undefined;
+    /** The picture's version (`users.avatar`); none = the generated face. */
+    version?: number | null;
     size?: AvatarSize;
     class?: string;
   } = $props();
-  const face = $derived(beam(name));
+  const face = $derived(beam(avatarKey(email ?? "")));
+  const url = $derived(email ? avatarUrl(email, version) : "icon://user");
 </script>
 
 {#snippet generated()}
@@ -61,6 +71,7 @@
   shape="circle"
   {size}
   {url}
+  muted={!email}
   fallback={generated}
   aria-hidden="true"
   class={className}

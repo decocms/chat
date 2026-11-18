@@ -112,13 +112,10 @@ const pt = {
   footListening: "ouvindo",
   footSeen: "visto {ago}",
   footMuted: "entrega desligada",
-  footByHand: "iniciado à mão",
   footAllSwitch: "Entregar pra todos os seus agents aqui",
   footMachineSwitch: "Entregar pros agents de {name} aqui",
   footAgentSwitch: "Entregar pra este agent",
   footGoTerminal: "Ir pro terminal de {name}",
-  footConnectHere: "Abrir e fechar agents daqui?",
-  footConnectHereLink: "Conectar este computador",
   copyFailed: "Não deu para copiar",
 } as const;
 export type RoomAgentCopyKey = keyof typeof pt;
@@ -235,13 +232,10 @@ const en: Record<RoomAgentCopyKey, string> = {
   footListening: "listening",
   footSeen: "seen {ago}",
   footMuted: "delivery off",
-  footByHand: "started by hand",
   footAllSwitch: "Deliver to all your agents here",
   footMachineSwitch: "Deliver to {name}'s agents here",
   footAgentSwitch: "Deliver to this agent",
   footGoTerminal: "Go to {name}'s terminal",
-  footConnectHere: "Open and close agents from here?",
-  footConnectHereLink: "Connect this computer",
   copyFailed: "Couldn't copy",
 };
 export const roomAgentText = (

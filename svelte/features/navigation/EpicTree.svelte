@@ -6,7 +6,6 @@
   import InlineAdd from "../../lib/components/InlineAdd.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
-  import Avatar from "../../lib/studio/Avatar.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
@@ -73,6 +72,7 @@
     vb: {
       t: (text: string, vars?: Record<string, string | number>) => string;
       name: (email: string) => string;
+      avatarVersion: (email: string) => number | null | undefined;
       epicBusy: (epic: Epic) => string | null;
       waitsIn: (thread: string) => readonly WaitReference[];
     };
@@ -392,21 +392,13 @@
                   onopen(epic.id);
                 }}
               >
-                {#if epic.owner}<PersonAvatar
-                    name={vb.name(epic.owner)}
-                    url={room.avatars?.[epic.owner]
-                      ? `/api/avatar/${encodeURIComponent(epic.owner)}?v=${room.avatars[epic.owner]}`
-                      : undefined}
-                    class="tw:size-5"
-                  />{:else}<Avatar
-                    shape="circle"
-                    size="xs"
-                    muted
-                    url="icon://user"
-                    fallback=""
-                    aria-hidden="true"
-                    class="tw:size-5"
-                  />{/if}
+                <PersonAvatar
+                  email={epic.owner}
+                  version={epic.owner
+                    ? vb.avatarVersion(epic.owner)
+                    : undefined}
+                  class="tw:size-5"
+                />
                 <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
                   >{epic.title}{#if epic.archived}<span
                       class="tw:ml-1 tw:text-xs tw:text-muted-foreground"

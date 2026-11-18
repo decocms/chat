@@ -44,7 +44,7 @@
     onopen,
     vb,
   }: Pick<PanelProps, "room" | "thread" | "send" | "onopen"> & {
-    vb: Pick<PanelProps["vb"], "t" | "name">;
+    vb: Pick<PanelProps["vb"], "t" | "name" | "avatarVersion">;
   } = $props();
   const uid = $props.id();
   const model = $derived(boardModel(room, thread));
@@ -506,8 +506,8 @@
         {#if task.owner}<PersonAvatar
             data-avatar="person"
             size="xs"
-            name={vb.name(task.owner)}
-            url={`/api/avatar/${encodeURIComponent(task.owner)}`}
+            email={task.owner}
+            version={vb.avatarVersion(task.owner)}
           /><span
             >{task.owner === room.me ? vb.t("você") : vb.name(task.owner)}</span
           >{/if}

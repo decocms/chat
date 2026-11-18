@@ -3,6 +3,7 @@
   import type { ThreadHeaderProps } from "./types";
   import { epicIdentity, suggestionAt } from "./model";
   import RoomMark from "./RoomMark.svelte";
+  import { dmPeer } from "../room-scope/model";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
@@ -46,6 +47,8 @@
     "tw:min-w-0 tw:shrink-[2] tw:truncate tw:text-xs tw:text-muted-foreground";
   const epic = $derived(room.epics.find((item) => item.id === thread));
   const suggestion = $derived(suggestionAt(room, thread));
+  // A DM's main thread: the other person's face, the same as in your DM list.
+  const peer = $derived(dmPeer(room));
   const title = $derived(suggestion?.title ?? epic?.title ?? room.book.title);
   const busy = $derived(
     $status.phase === "pending" || $status.phase === "unconfirmed",
@@ -116,13 +119,17 @@
 >
   <span
     class={["tw:hidden tw:min-[901px]:contents", onhome && "tw:cursor-pointer"]}
-    >{#if !epic && !suggestion}<RoomMark
+    >{#if !epic && !suggestion && peer}<PersonAvatar
+        email={peer}
+        version={vb.avatarVersion(peer)}
+        class="tw:size-6"
+      />{:else if !epic && !suggestion}<RoomMark
         {title}
         src={roomIcon}
         class="tw:size-6"
       />{:else}<PersonAvatar
-        name={epic?.owner ? vb.name(epic.owner) : title}
-        url={epic?.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+        email={epic?.owner}
+        version={epic?.owner ? vb.avatarVersion(epic.owner) : undefined}
         class="tw:size-6"
       />{/if}</span
   >

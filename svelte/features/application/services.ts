@@ -25,7 +25,7 @@ import {
 import { createAppsAuthority } from "../apps/authority";
 import { createApplicationPersonalChannel } from "./personal-channel";
 import type { createPersonalConnection } from "../home/connection";
-import { copyRoomTarget, type RoomTarget } from "../home/model";
+import { copyRoomTarget, titleOwnDm, type RoomTarget } from "../home/model";
 import type { HomeSettings } from "../home/types";
 import type { DocumentPane } from "../documents/types";
 import type {
@@ -133,6 +133,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         `/ws/${id}?t=${encodeURIComponent(thread)}&ui=svelte${code ? `&rc=${encodeURIComponent(code)}` : ""}`, // ui: the Book counts bytes per app
       ),
     connection: options.roomConnection,
+    present: (room) => titleOwnDm(room, browser.language ?? "pt"),
     acceptIdentity: (value) => personal.acceptIdentity(value),
     // This executes before RootRoomSession cache insertion AND state publication.
     cacheAllowed: (room) =>

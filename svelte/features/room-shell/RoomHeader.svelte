@@ -19,10 +19,10 @@
   import { suggestionAt } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
-  import UserMenu from "../app-navigation/UserMenu.svelte";
+  import AccountRow from "../app-navigation/AccountRow.svelte";
   import { userMenuBridge } from "../app-navigation/menuBridge";
   import type { SidebarProps } from "../../sidebar";
-  import { personAvatar } from "../home/model";
+  import { dmPeer, roomAvatarVersion } from "../room-scope/model";
   import { isPanelToggleKey } from "./panelViews";
   let {
     presentation,
@@ -62,6 +62,8 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected;
   const waits = $derived($personal.me?.waits ?? []);
+  // A DM's face stands for it, the same as in your DM list.
+  const peer = $derived(dmPeer(header.room));
   const en = $derived(presentation.services.language === "en");
   // Phone title: the room small on top, the open thread under it.
   const threadTitle = $derived(
@@ -137,6 +139,14 @@
 </script>
 
 <svelte:window onkeydown={onwindowkeydown} />
+<!-- The tab's name follows the room (the server's <title> only names the first page, in the room's language). -->
+<svelte:head
+  ><title
+    >{header.room.book.title
+      ? `${header.room.book.title} · vibebook`
+      : "vibebook"}</title
+  ></svelte:head
+>
 
 <header
   data-vb-native
@@ -170,6 +180,12 @@
     ><RoomAvatar
       title={header.room.book.title}
       icon={header.roomIcon}
+      person={peer
+        ? {
+            email: peer,
+            version: roomAvatarVersion(header.room, $personal.me, peer),
+          }
+        : null}
       lang={en ? "en" : "pt"}
       surface="background"
     /><span class="tw:flex tw:min-w-0 tw:flex-col"
@@ -229,11 +245,7 @@
   <div
     class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
-    {#if tabs}<span
-        aria-hidden="true"
-        class="tw:hidden tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:block"
-      ></span>
-      <div
+    {#if tabs}<div
         data-native-header-tabs
         class="tw:hidden tw:min-w-0 tw:min-[901px]:block"
       >
@@ -248,18 +260,7 @@
     {#if menu && $personal.me}<span
         data-native-phone-account
         class="tw:contents tw:min-[901px]:hidden"
-        ><UserMenu
-          name={$personal.me.name ?? ""}
-          email={$personal.me.email}
-          avatar={personAvatar($personal.me, $personal.me.email)}
-          lang={menu.lang}
-          theme={menu.theme()}
-          onsettheme={menu.onsettheme}
-          onlanguage={menu.onlanguage}
-          onaccount={menu.onaccount}
-          pwa={menu.pwa}
-          onlogout={menu.onlogout}
-        /></span
+        ><AccountRow me={$personal.me} row={false} /></span
       >{/if}
   </div>
 </header>

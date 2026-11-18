@@ -7,7 +7,8 @@ mock.module("cloudflare:workers", () => ({
   WorkerEntrypoint: class {},
   env: {},
 }));
-const { meFor } = await import("../src/services");
+const { meFor, services } = await import("../src/services");
+const { pokeRoommates } = await import("../src/person");
 import type { Env } from "../src/index";
 
 // GET /api/me's cache in the Person DO (src/person.ts), with a fake DO and a fake D1 that counts reads.
@@ -158,4 +159,87 @@ test("an answer computed before a poke is not stored after it (race guard kept)"
   await p;
   await flush();
   expect(f.stored()).toBeNull();
+});
+
+// A changed picture reaches everyone who draws it: you and each person you share a room with (DMs too), one query.
+function roommatesEnv() {
+  const db = new Database(":memory:");
+  db.run("CREATE TABLE members (book_id TEXT, email TEXT)");
+  db.run("CREATE TABLE users (email TEXT, avatar INTEGER, avatar_src TEXT)");
+  const rows: [string, string][] = [
+    ["r1", "a@x.com"],
+    ["r1", "b@x.com"],
+    ["dm1", "a@x.com"],
+    ["dm1", "c@x.com"],
+    ["r2", "b@x.com"],
+    ["r2", "d@x.com"],
+  ];
+  for (let i = 0; i < 120; i++) rows.push(["big", `p${i}@x.com`]);
+  rows.push(["big", "a@x.com"]);
+  for (const [book, email] of rows)
+    db.run("INSERT INTO members VALUES (?, ?)", [book, email]);
+  const poked: { email: string; body: string }[] = [];
+  const DB = {
+    prepare(sql: string) {
+      let args: unknown[] = [];
+      const st = {
+        bind: (...values: unknown[]) => ((args = values), st),
+        all: async () => ({
+          results: db.query(sql).all(...(args as [])) as unknown[],
+        }),
+        first: async () => db.query(sql).get(...(args as [])),
+        run: async () => (db.query(sql).run(...(args as [])), {}),
+      };
+      return st;
+    },
+  };
+  const env = {
+    DB,
+    FILES: { put: async () => {} },
+    PEOPLE: {
+      idFromName: (x: string) => x,
+      get: (email: string) => ({
+        fetch: async (_url: string, init?: RequestInit) => {
+          poked.push({ email, body: String(init?.body) });
+          return new Response(null, { status: 204 });
+        },
+      }),
+    },
+  } as unknown as Env;
+  return { env, poked, close: () => db.close() };
+}
+
+test("a changed picture pokes you and everyone you share a room or DM with, past the 50-per-call cap", async () => {
+  const f = roommatesEnv();
+  try {
+    await pokeRoommates(f.env, "A@x.com", { t: "me" });
+    const emails = f.poked.map((p) => p.email);
+    expect(new Set(emails).size).toBe(emails.length);
+    expect(emails).toContain("a@x.com");
+    expect(emails).toContain("b@x.com");
+    expect(emails).toContain("c@x.com"); // the DM peer
+    expect(emails).not.toContain("d@x.com"); // b's roommate, not yours
+    expect(emails).toHaveLength(1 + 2 + 120);
+    expect(f.poked.every((p) => p.body === '{"t":"me"}')).toBe(true);
+  } finally {
+    f.close();
+  }
+});
+
+test("saving your picture pokes the people who draw it", async () => {
+  const f = roommatesEnv();
+  try {
+    const waits: Promise<unknown>[] = [];
+    const svc = services(
+      f.env,
+      { waitUntil: (p) => void waits.push(p) },
+      "a@x.com",
+      req,
+    );
+    expect(await svc.saveAvatar("image/png", new ArrayBuffer(1))).toBeNumber();
+    await Promise.all(waits);
+    expect(f.poked.map((p) => p.email)).toContain("c@x.com");
+  } finally {
+    f.close();
+  }
 });
