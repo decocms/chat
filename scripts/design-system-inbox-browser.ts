@@ -109,15 +109,22 @@ export async function auditDesignSystemInbox(
   };
   let data: InboxResult = { waits: [], mentions: [], tasks: [] };
   const meUrl = (url: URL) => url.pathname === "/api/me";
+  // Set when the audit tears its routes down: a profile read still in flight
+  // then finds its route already handled, which is not a failure.
+  let tearingDown = false;
   const meRoute = async (route: Route) => {
-    const response = await route.fetch();
-    assert(response.ok());
-    const me = MeResult.parse(await response.json());
-    result.profileReads++;
-    await route.fulfill({
-      response,
-      json: MeResult.parse({ ...me, waits: data.waits }),
-    });
+    try {
+      const response = await route.fetch();
+      assert(response.ok());
+      const me = MeResult.parse(await response.json());
+      result.profileReads++;
+      await route.fulfill({
+        response,
+        json: MeResult.parse({ ...me, waits: data.waits }),
+      });
+    } catch (error) {
+      if (!tearingDown) throw error;
+    }
   };
   const resolveRoute = (route: Route) => {
     assert.equal(held, null, "Only one owned resolve at a time");
@@ -374,6 +381,7 @@ export async function auditDesignSystemInbox(
       });
       held = null;
     }
+    tearingDown = true;
     await page.unroute("**/api/inbox", inboxRoute).catch(() => {
       result.cleanup.push("unroute-inbox");
     });
