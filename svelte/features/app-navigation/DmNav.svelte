@@ -77,7 +77,6 @@
       now={$personal.now}
       {lang}
       status
-      note={entry.self ? homeText(lang, "youMeta") : undefined}
       selected={current === entry.room.id}
       onnavigate={controller.callbacks.navigate}
     />

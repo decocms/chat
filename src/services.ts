@@ -286,7 +286,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     saveAvatar: async (type, bytes) => {
       await env.FILES.put(`avatars/${email}`, bytes, { httpMetadata: { contentType: type } });
       const v = Date.now();
-      await env.DB.prepare(`UPDATE users SET avatar = ? WHERE email = ?`).bind(v, email).run();
+      await env.DB.prepare(`UPDATE users SET avatar = ?, avatar_src = 'own' WHERE email = ?`).bind(v, email).run();
       return v;
     },
     setRoomIcon: (roomId, img) => setRoomIcon(env, roomId, img),
