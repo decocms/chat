@@ -72,6 +72,10 @@
     },
     "fixes": {
       "pt": [
+        "No celular, tocar na caixa de mensagem (e em qualquer campo de texto) não dá mais zoom na tela."
+      ],
+      "en": [
+        "On phones, tapping the message box (or any text field) no longer zooms the screen in.",
         "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup.",
         "Seu Claude não aparece mais duas vezes na lateral: os avisos de permissão e de pergunta do plugin agora falam como o mesmo Claude da conversa.",
         "No app novo, os agents na nuvem (sandbox do freestyle) voltaram a ter entrada fixa: \"Agent na nuvem\" no rodapé de agents da lateral abre a chave do freestyle, criar sandbox e terminal."

@@ -41,7 +41,7 @@
       event.stopPropagation();
       oncancel();
     }}
-    class="tw:m-0 tw:h-9 tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:shadow-none tw:outline-none tw:placeholder:text-muted-foreground"
+    class="tw:m-0 tw:h-9 tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:font-sans tw:text-sm tw:pointer-coarse:text-[16px] tw:leading-5 tw:text-sidebar-foreground tw:shadow-none tw:outline-none tw:placeholder:text-muted-foreground"
   />
   <IconButton
     type="submit"

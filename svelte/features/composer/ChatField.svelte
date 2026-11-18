@@ -132,7 +132,7 @@
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
   const FIELD_TYPE =
-    "tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:leading-5 tw:[scrollbar-gutter:stable]";
+    "tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:pointer-coarse:text-[16px] tw:leading-5 tw:[scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
     if (
       !mention ||

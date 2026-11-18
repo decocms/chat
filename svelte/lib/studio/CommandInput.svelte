@@ -52,7 +52,7 @@
     bind:ref
     data-slot="command-input"
     class={cn(
-      "tw:placeholder:text-muted-foreground tw:flex tw:w-full tw:rounded-md tw:bg-transparent tw:text-sm tw:outline-hidden tw:disabled:cursor-not-allowed tw:disabled:opacity-50",
+      "tw:placeholder:text-muted-foreground tw:flex tw:w-full tw:rounded-md tw:bg-transparent tw:text-sm tw:pointer-coarse:text-[16px] tw:outline-hidden tw:disabled:cursor-not-allowed tw:disabled:opacity-50",
       height,
       className,
     )}
