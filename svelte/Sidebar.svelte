@@ -116,19 +116,11 @@
   class={cn(
     studioType,
     "tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:overflow-x-hidden tw:bg-sidebar tw:p-2 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
-    // Expanded: one scroll for the whole sidebar (epics, pins, people, each its
-    // own height), with the room's rows pinned on top and you at the foot.
+    // Expanded, each section scrolls inside itself (epics, pins, people) down
+    // to its minimum; only below those minimums does the sidebar scroll whole.
     collapsed
       ? "tw:items-center tw:gap-2 tw:overflow-y-auto tw:overscroll-contain"
       : "tw:gap-6 tw:overflow-y-auto tw:overscroll-contain",
-    // Where the section titles stick: right under the room's pinned rows (desktop header 52px with its
-    // 8px bleed, main thread 36px, then 36px per view row: inbox, board). Keep in step with those rows.
-    !collapsed &&
-      (onboard
-        ? oninbox
-          ? "tw:[--vb-sidebar-top:164px]"
-          : "tw:[--vb-sidebar-top:128px]"
-        : "tw:[--vb-sidebar-top:92px]"),
   )}
 >
   {#if collapsed}
@@ -242,153 +234,143 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
       >{:else}{@render thisRoom()}{/if}
-    {#snippet thisRoom()}<div class="tw:contents">
-        <!-- The room's own rows (header, main thread, inbox, board) stay on top while the sidebar scrolls
-          (-top-2: sticky offsets start inside the sidebar's 8px padding); the section titles stick right
-          under them (--vb-sidebar-top, set on the sidebar). -->
+    {#snippet thisRoom()}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
+      thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
+      <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">
+        <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
         <div
-          data-room-sidebar-top
-          class="tw:sticky tw:-top-2 tw:z-20 tw:-mt-2 tw:-mb-3 tw:flex tw:shrink-0 tw:flex-col tw:gap-3 tw:bg-sidebar tw:pt-2"
+          data-room-sidebar-header
+          class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
         >
-          <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
-          <div
-            data-room-sidebar-header
-            class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
+          <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
+          <button
+            type="button"
+            data-room-home
+            class="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sidebar-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+            title={room.book.summary
+              ? `${room.book.title}\n${room.book.summary}`
+              : room.book.title}
+            onclick={() => onroomhome?.()}
           >
-            <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
-            <button
-              type="button"
-              data-room-home
-              class="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sidebar-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
-              title={room.book.summary
-                ? `${room.book.title}\n${room.book.summary}`
-                : room.book.title}
-              onclick={() => onroomhome?.()}
+            <RoomMark title={room.book.title} src={roomIcon} />
+            <h2
+              class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
             >
-              <RoomMark title={room.book.title} src={roomIcon} />
-              <h2
-                class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
-              >
-                {room.book.title}
-              </h2>
-            </button>
-            <IconButton
-              label={vb.t("Renomear")}
-              size="icon-xs"
-              tooltipSide="bottom"
-              class="tw:shrink-0 tw:text-muted-foreground tw:opacity-0 tw:transition-opacity tw:duration-150 tw:hover:text-sidebar-foreground tw:focus-visible:opacity-100 tw:group-hover/name:opacity-100 tw:motion-reduce:transition-none"
-              onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
-            >
-          </div>
-          <div class="tw:group/room tw:relative tw:shrink-0">
-            <Tooltip>
-              <TooltipTrigger>
-                {#snippet child({ props })}
-                  <button
-                    {...props}
-                    type="button"
-                    data-room-title
-                    aria-current={!inboxOpen && !boardOpen && thread === "main"
-                      ? "page"
-                      : undefined}
-                    class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
-                    onclick={(event) => {
-                      if (!event.currentTarget.isConnected) return;
-                      // Desktop: the main thread is also the chat view (leaves the full board).
-                      if (boardOpen) onroomhome?.();
-                      open("main");
-                    }}
-                  >
-                    <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
-                    <RoomMark
-                      title={room.book.title}
-                      src={roomIcon}
-                      class="tw:min-[901px]:hidden"
-                    /><Icon
-                      icon={MessageCircle01}
-                      size={16}
-                      class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
-                    />
-                    <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                      ><span class="tw:min-[901px]:hidden"
-                        >{room.book.title}</span
-                      ><span class="tw:hidden tw:min-[901px]:inline"
-                        >{vb.t("Sala principal")}</span
-                      ></span
-                    >
-                    <WaitBadge
-                      waits={vb.waitsIn("main")}
-                      label={(n) => vb.t("{n} coisas esperando você", { n })}
-                      taskLabel={vb.t("Tarefa sua pendente")}
-                    />
-                    <span
-                      class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
-                      >{messageCount(room, "main")}</span
-                    >
-                  </button>
-                {/snippet}
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
-                >{room.book.summary
-                  ? `${room.book.title}\n${room.book.summary}`
-                  : room.book.title}</TooltipContent
-              >
-            </Tooltip>
-            <IconButton
-              label={vb.t("Renomear")}
-              size="icon-xs"
-              tooltipSide="bottom"
-              class="tw:absolute tw:top-1.5 tw:right-1.5 tw:min-[901px]:hidden tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
-              onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
-            >
-          </div>
-          {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
-            <div
-              data-room-views
-              class="tw:-mt-3 tw:flex tw:shrink-0 tw:flex-col"
-            >
-              {#if oninbox}<button
+              {room.book.title}
+            </h2>
+          </button>
+          <IconButton
+            label={vb.t("Renomear")}
+            size="icon-xs"
+            tooltipSide="bottom"
+            class="tw:shrink-0 tw:text-muted-foreground tw:opacity-0 tw:transition-opacity tw:duration-150 tw:hover:text-sidebar-foreground tw:focus-visible:opacity-100 tw:group-hover/name:opacity-100 tw:motion-reduce:transition-none"
+            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+          >
+        </div>
+        <div class="tw:group/room tw:relative tw:shrink-0">
+          <Tooltip>
+            <TooltipTrigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
                   type="button"
-                  data-native-inbox-toggle
-                  aria-pressed={inboxOpen}
-                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+                  data-room-title
+                  aria-current={!inboxOpen && !boardOpen && thread === "main"
+                    ? "page"
+                    : undefined}
+                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
                   onclick={(event) => {
-                    if (event.currentTarget.isConnected)
-                      oninbox?.(event.currentTarget);
+                    if (!event.currentTarget.isConnected) return;
+                    // Desktop: the main thread is also the chat view (leaves the full board).
+                    if (boardOpen) onroomhome?.();
+                    open("main");
                   }}
-                  ><Icon
-                    icon={Inbox01}
+                >
+                  <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
+                  <RoomMark
+                    title={room.book.title}
+                    src={roomIcon}
+                    class="tw:min-[901px]:hidden"
+                  /><Icon
+                    icon={MessageCircle01}
                     size={16}
-                    class="tw:shrink-0 tw:text-muted-foreground"
-                  /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                    >{vb.t("Caixa de entrada")}</span
-                  >{#if inboxCount}<Count
-                      value={inboxCount}
-                      label={vb.t("Esperando você: {n}", { n: inboxCount })}
-                    />{/if}</button
-                >{/if}<button
+                    class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
+                  />
+                  <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                    ><span class="tw:min-[901px]:hidden">{room.book.title}</span
+                    ><span class="tw:hidden tw:min-[901px]:inline"
+                      >{vb.t("Sala principal")}</span
+                    ></span
+                  >
+                  <WaitBadge
+                    waits={vb.waitsIn("main")}
+                    label={(n) => vb.t("{n} coisas esperando você", { n })}
+                    taskLabel={vb.t("Tarefa sua pendente")}
+                  />
+                  <span
+                    class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
+                    >{messageCount(room, "main")}</span
+                  >
+                </button>
+              {/snippet}
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
+              >{room.book.summary
+                ? `${room.book.title}\n${room.book.summary}`
+                : room.book.title}</TooltipContent
+            >
+          </Tooltip>
+          <IconButton
+            label={vb.t("Renomear")}
+            size="icon-xs"
+            tooltipSide="bottom"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:min-[901px]:hidden tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+          >
+        </div>
+        {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
+          <div data-room-views class="tw:-mt-3 tw:flex tw:shrink-0 tw:flex-col">
+            {#if oninbox}<button
                 type="button"
-                data-native-board-toggle
-                aria-pressed={boardOpen}
+                data-native-inbox-toggle
+                aria-pressed={inboxOpen}
                 class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
                 onclick={(event) => {
-                  if (event.currentTarget.isConnected) onboard?.();
+                  if (event.currentTarget.isConnected)
+                    oninbox?.(event.currentTarget);
                 }}
                 ><Icon
-                  icon={LayoutAlt01}
+                  icon={Inbox01}
                   size={16}
                   class="tw:shrink-0 tw:text-muted-foreground"
                 /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                  >{vb.t("Quadro de tarefas")}</span
-                >{#if typeof boardCount === "number" && boardCount}<Count
-                    value={boardCount}
-                    label={vb.t("Esperando você: {n}", { n: boardCount })}
+                  >{vb.t("Caixa de entrada")}</span
+                >{#if inboxCount}<Count
+                    value={inboxCount}
+                    label={vb.t("Esperando você: {n}", { n: inboxCount })}
                   />{/if}</button
-              >
-            </div>{/if}
-        </div>
+              >{/if}<button
+              type="button"
+              data-native-board-toggle
+              aria-pressed={boardOpen}
+              class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+              onclick={(event) => {
+                if (event.currentTarget.isConnected) onboard?.();
+              }}
+              ><Icon
+                icon={LayoutAlt01}
+                size={16}
+                class="tw:shrink-0 tw:text-muted-foreground"
+              /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                >{vb.t("Quadro de tarefas")}</span
+              >{#if typeof boardCount === "number" && boardCount}<Count
+                  value={boardCount}
+                  label={vb.t("Esperando você: {n}", { n: boardCount })}
+                />{/if}</button
+            >
+          </div>{/if}
         {#if thread !== "main" && !thread.startsWith("pre:")}<div
             class="tw:shrink-0 tw:min-[901px]:hidden"
           >
@@ -422,7 +404,6 @@
     <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. -->
     <div class="tw:contents tw:max-[900px]:hidden">
       <PinnedItems
-        collapsible
         {room}
         session={pins}
         {send}
@@ -447,14 +428,13 @@
         vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
         {agents}
         hideSelf
-        collapsible
       />
     </div>
     <MutationStatus {owner} t={vb.t} />
     <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People.
-      Sticky: the sidebar scrolls behind you. -->
+      Sticky: when the sidebar is too short and scrolls whole, you stay in view (the sections scroll behind). -->
     <div
-      class="tw:sticky tw:bottom-0 tw:z-20 tw:mt-auto tw:-mb-2 tw:shrink-0 tw:bg-sidebar tw:pb-2 tw:max-[900px]:hidden"
+      class="tw:sticky tw:bottom-0 tw:z-10 tw:mt-auto tw:-mb-2 tw:shrink-0 tw:bg-sidebar tw:pb-2 tw:max-[900px]:hidden"
     >
       <div
         data-sidebar-self

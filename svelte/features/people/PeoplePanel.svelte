@@ -20,7 +20,6 @@
   import { Plus, UserPlus01, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
-  import { readCollapsed, writeCollapsed } from "../room-sidebar/collapsed";
   let {
     room,
     friends = [],
@@ -28,7 +27,6 @@
     agents,
     request,
     hideSelf = false,
-    collapsible = false,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -42,14 +40,7 @@
     request?: PeopleRequest;
     /** Desktop sidebar: you sit at its foot, not in the list. */
     hideSelf?: boolean;
-    /** Desktop sidebar: the title folds the list, remembered per browser. */
-    collapsible?: boolean;
   } = $props();
-  let collapsed = $state(untrack(() => collapsible) && readCollapsed("people"));
-  function toggleCollapsed() {
-    collapsed = !collapsed;
-    writeCollapsed("people", collapsed);
-  }
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
   const view = session.state;
@@ -121,7 +112,6 @@
     return session.mutate(action, email, request || http);
   }
   async function openInvite() {
-    if (collapsed) toggleCollapsed();
     inviting = true;
     await tick();
     input?.focus();
@@ -285,7 +275,13 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class="tw:shrink-0 tw:space-y-0.5 tw:overflow-x-clip tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
+  class={cn(
+    "tw:mt-auto tw:max-h-[32%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
+    // In the sidebar it gives way to the epics, down to its title and ~3 rows.
+    everyone.length + (room.requests?.length ?? 0) > 1
+      ? "tw:min-h-32 tw:shrink"
+      : "tw:shrink-0",
+  )}
 >
   {#if room.requests?.length}<div class="tw:mb-6 tw:space-y-0.5">
       <SectionHeader title={vb.t("Pedindo pra entrar")} level={4} />
@@ -332,11 +328,7 @@
           >
         </div>{/each}
     </div>{/if}
-  <SectionHeader
-    title={vb.t("Pessoas e agents")}
-    {collapsed}
-    ontoggle={collapsible ? toggleCollapsed : undefined}
-  >
+  <SectionHeader title={vb.t("Pessoas e agents")}>
     {#snippet action()}{#if !inviting}<IconButton
           size="icon-xs"
           tooltipSide="bottom"
@@ -346,52 +338,50 @@
           onclick={openInvite}><Icon icon={Plus} /></IconButton
         >{/if}{/snippet}
   </SectionHeader>
-  {#if !collapsed}<!-- folded: the title alone (and who's asking to join, above it) -->
-    {#each everyone as email (email)}{@render member(email)}{/each}
-    <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
-    {#if !everyone.length && !inviting}<button
-        type="button"
-        data-people-empty
-        class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid"
-        onclick={openInvite}
-      >
-        <span
-          class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
-          ><Icon icon={UserPlus01} size={16} /></span
-        >
-        <span class="tw:min-w-0 tw:truncate"
-          >{vb.t("Convidar alguém pra sala")}</span
-        >
-      </button>{/if}
-    <form
-      id="invite"
-      data-invite-form
-      class={inviting ? "" : "tw:hidden"}
-      onsubmit={submitInvite}
+  {#each everyone as email (email)}{@render member(email)}{/each}
+  <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
+  {#if !everyone.length && !inviting}<button
+      type="button"
+      data-people-empty
+      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid"
+      onclick={openInvite}
     >
-      <InlineAdd
-        type="email"
-        bind:ref={input}
-        bind:value={() => $view.draft, (value) => session.edit(value)}
-        placeholder={vb.t("convidar por email")}
-        aria-label={vb.t("convidar por email")}
-        list={`${ids}-friends`}
-        autocomplete="off"
-        autocapitalize="none"
-        spellcheck={false}
-        enterkeyhint="send"
-        confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
-        confirmLabel={vb.t("convidar por email")}
-        cancelLabel={vb.t("Cancelar")}
-        oncancel={closeInvite}
-      />
-      <datalist id={`${ids}-friends`}
-        >{#each model.friends as email (email)}<option value={email}
-            >{label(email)}</option
-          >{/each}</datalist
+      <span
+        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+        ><Icon icon={UserPlus01} size={16} /></span
       >
-    </form>
-  {/if}
+      <span class="tw:min-w-0 tw:truncate"
+        >{vb.t("Convidar alguém pra sala")}</span
+      >
+    </button>{/if}
+  <form
+    id="invite"
+    data-invite-form
+    class={inviting ? "" : "tw:hidden"}
+    onsubmit={submitInvite}
+  >
+    <InlineAdd
+      type="email"
+      bind:ref={input}
+      bind:value={() => $view.draft, (value) => session.edit(value)}
+      placeholder={vb.t("convidar por email")}
+      aria-label={vb.t("convidar por email")}
+      list={`${ids}-friends`}
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck={false}
+      enterkeyhint="send"
+      confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
+      confirmLabel={vb.t("convidar por email")}
+      cancelLabel={vb.t("Cancelar")}
+      oncancel={closeInvite}
+    />
+    <datalist id={`${ids}-friends`}
+      >{#each model.friends as email (email)}<option value={email}
+          >{label(email)}</option
+        >{/each}</datalist
+    >
+  </form>
   {@render outcomes()}
 </section>
 <ConfirmDialog
