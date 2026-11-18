@@ -3873,7 +3873,8 @@ describe("stable native sidebar integration", () => {
     expect(title).not.toBeNull();
     expect(title!.textContent).toContain(room.book.title);
     expect(title!.hasAttribute("title")).toBe(false);
-    expect(title!.getAttribute("data-state")).toBe("closed");
+    // No hover tooltip on the main thread row (it repeated the room's name and summary).
+    expect(title!.hasAttribute("data-state")).toBe(false);
     expect(title!.getAttribute("aria-current")).toBeNull();
     title!.click();
     expect(h.opened).toEqual(["main"]);
