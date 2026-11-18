@@ -89,7 +89,7 @@ Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worke
 
 `bun run deploy` from a computer is for hotfixes only. Ask a human first.
 
-The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) has no Workers Builds yet. Deploy it from an up-to-date `main`: `bun run build:app-document && bun run build:mcp && npx wrangler deploy -c wrangler.deco.jsonc`. Always give `-c wrangler.deco.jsonc`: else wrangler uses the account of `wrangler.jsonc`.
+The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys with Workers Builds. Each push to `main` of `decocms/chat` runs `bun run build:app-document && bun run build:mcp`, then `npx wrangler deploy -c wrangler.deco.jsonc`. Preview builds for other branches are off. For a hotfix from a computer, use the same commands. Always give `-c wrangler.deco.jsonc`: else wrangler uses the account of `wrangler.jsonc`.
 
 ## Roll back
 
