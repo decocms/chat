@@ -772,9 +772,7 @@ test("personal query contracts preserve first duplicates, search normalization a
   ]) {
     const url = `http://localhost/api/me?${query}`;
     expect((await f.app.request(url)).status).toBe(200);
-    expect(uiVariant(url)).toBe(
-      query.startsWith("ui=svelte&") ? "svelte" : "vanilla",
-    );
+    expect(uiVariant(url)).toBe("svelte"); // first value wins; unknown = the default (Svelte)
   }
   if (false) {
     // @ts-expect-error inferred ui accepts a string, not an untyped numeric value.

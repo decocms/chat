@@ -2285,13 +2285,14 @@ const t = (pt, vars) => {
   return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
 };
 const langSwitch = () => `<span class="langSw" role="group" aria-label="Idioma / Language">${["pt", "en"].map((l) => `<button type="button" class="${LANG === l ? "sel" : ""}" data-lang="${l}" aria-pressed="${LANG === l}">${l.toUpperCase()}</button>`).join("<i>·</i>")}</span>`;
-// The opt-in Svelte app (?ui=svelte). `cls` lets the phone drawer give it a full row of its own.
-const uiSwitch = (cls = "langSw") => `<label class="${cls}"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}" ${new URL(location.href).searchParams.get("ui") === "svelte" ? "checked" : ""}> <span>${t("Nova UI")}</span></label>`;
+// Svelte is the default app since Nov 2026; this one is the fallback. The switch goes back to it for this device
+// (/ui/svelte clears the vb_ui cookie, src/ui-select.ts). `cls` lets the phone drawer give it a full row of its own.
+const uiSwitch = (cls = "langSw") => `<label class="${cls}"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}"> <span>${t("Nova UI")}</span></label>`;
 document.addEventListener("change", (event) => {
   if (!(event.target instanceof HTMLInputElement) || !event.target.matches("[data-ui-switch]") || !event.target.isConnected) return;
   const next = new URL(location.href);
-  if (event.target.checked) next.searchParams.set("ui", "svelte"); else next.searchParams.delete("ui");
-  location.href = next.pathname + next.search + next.hash;
+  next.searchParams.delete("ui");
+  location.href = `/ui/${event.target.checked ? "svelte" : "vanilla"}?next=${encodeURIComponent(next.pathname + next.search + next.hash)}`;
 });
 
 document.addEventListener("click", (e) => {

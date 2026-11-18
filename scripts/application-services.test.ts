@@ -601,7 +601,7 @@ test("known Personal global 401 revokes private scope and caches before login re
   await settle();
   expect(h.documentNavigations).toHaveLength(1);
   expect(h.documentNavigations[0]).toContain("/login?");
-  expect(h.documentNavigations[0]).toContain("ui=svelte");
+  expect(h.documentNavigations[0]).not.toContain("&ui="); // Svelte is the default: the login needs no marker
   h.connections[0]!.callbacks.onEvent(event(canonical()));
   h.channels[0]!.options.onAccount();
   h.flushQueued();

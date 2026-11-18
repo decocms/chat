@@ -8,6 +8,7 @@
 //   metadata, dynamic client registration, PKCE S256). vibebook keeps the resulting grant (it identifies the person and
 //   their org on that server, nothing else), sealed, never sent to a browser, an iframe or an agent.
 import type { Env } from "./index";
+import { uiVariant } from "../shared/uiVariant";
 import { checkUrl } from "./reader";
 import { seal, unseal } from "./sandbox";
 import { protectedResourceMetadata, authorizationServerMetadata, clientRegistration, providerGrant, providerOAuthError, type AuthorizationServerMetadata, type ProviderGrant } from "./mcpOAuthResponses";
@@ -97,7 +98,7 @@ export async function startAuth(env: Env, origin: string, o: { email: string; bo
   const client = await clientFor(env, issuer, as, redirect);
   // An opaque presentation hint only; the exact full state remains the DB key.
   // This keeps expired/replayed native callbacks on the native error surface.
-  const state = `${new URL(o.back, origin).searchParams.get("ui") === "svelte" ? "svelte." : ""}${rand()}`, verifier = rand(48);
+  const state = `${uiVariant(new URL(o.back, origin)) === "svelte" ? "svelte." : ""}${rand()}`, verifier = rand(48);
   const challenge = b64u(await crypto.subtle.digest("SHA-256", te.encode(verifier)));
   await env.DB.prepare(`INSERT INTO mcp_oauth_states (state, email, book_id, conn_id, resource, issuer, verifier, back, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(state, o.email, o.book, o.cid, o.resource, issuer, verifier, o.back, Date.now() + 10 * 60e3).run();

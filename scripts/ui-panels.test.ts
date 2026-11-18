@@ -908,13 +908,13 @@ describe("native Svelte room panels", () => {
         "profile",
         "agents",
         "notifications",
+        "new-ui",
         "settings",
         null,
         null,
         null,
         null,
         null,
-        "new-ui",
         "logout",
       ]);
       for (const [name, section] of [
@@ -943,7 +943,8 @@ describe("native Svelte room panels", () => {
       expect(menu() !== null).toBe(true);
       flushSync(() => state.update((value) => ({ ...value, muted: true })));
       expect(item("notifications").getAttribute("aria-checked")).toBe("false");
-      // A refusal (denied, unsupported, iPhone Safari) opens the help dialog.
+      // A browser that refused still gets the sound: the switch follows
+      // vb.mute, toggles in place and opens no dialog.
       flushSync(() =>
         state.update((value) => ({ ...value, permission: "denied" })),
       );
@@ -951,16 +952,17 @@ describe("native Svelte room panels", () => {
       item("notifications").click();
       await settle();
       expect(bells).toHaveLength(2);
-      expect(menu()).toBeNull();
-      expect(document.body.textContent).toContain("Notifications are blocked.");
-      dismissDialogs();
-      await settle();
-      // No push here: the row hides.
-      flushSync(() => push.set({ status: "unavailable", error: "no-key" }));
-      await openMenu();
-      expect(
-        menu()!.querySelector('[data-user-menu-item="notifications"]'),
-      ).toBeNull();
+      expect(menu() !== null).toBe(true);
+      expect(document.querySelector("[role=dialog]")).toBeNull();
+      // Never asked yet: off, so the first tap asks.
+      flushSync(() =>
+        state.update((value) => ({
+          ...value,
+          muted: false,
+          permission: "default",
+        })),
+      );
+      expect(item("notifications").getAttribute("aria-checked")).toBe("false");
       // Sign out runs the application's flow.
       item("logout").click();
       await settle();
@@ -971,7 +973,7 @@ describe("native Svelte room panels", () => {
       target.remove();
     }
   }, 30_000);
-  test("account menu: arrow keys move, Esc returns focus to the avatar, no friends row, push trouble opens help", async () => {
+  test("account menu: arrow keys move, Esc returns focus to the avatar, no friends row, push trouble never opens a dialog", async () => {
     const { default: UserMenu } =
       await import("../svelte/features/app-navigation/UserMenu.svelte");
     const bells: boolean[] = [];
@@ -1070,33 +1072,18 @@ describe("native Svelte room panels", () => {
       await key("Escape");
       expect(menu()).toBeNull();
       expect(document.activeElement === trigger).toBe(true);
-      // The server turns out to have no push key while the menu is open: the
-      // focused row stays until the next opening.
-      await openMenu();
-      flushSync(() => push.set({ status: "unavailable", error: "no-key" }));
-      await settle();
-      expect(item("notifications") !== null).toBe(true);
-      await key("Escape");
-      await openMenu();
-      expect(item("notifications")).toBeNull();
-      await key("Escape");
-      // Failed setup: the row says so and opens the help dialog (retry,
-      // test, mute) instead of toggling.
-      flushSync(() => push.set({ status: "failed", error: "subscribe" }));
-      await openMenu();
-      expect(
-        item("notifications")!.querySelector(
-          "[data-user-menu-notifications-problem]",
-        )?.textContent,
-      ).toBe("Notifications need attention");
-      item("notifications")!.click();
-      await settle();
-      expect(bells).toHaveLength(0);
-      expect(refreshes).toBe(1);
-      expect(menu()).toBeNull();
-      expect(document.body.textContent).toContain("Notification setup failed");
-      dismissDialogs();
-      await settle();
+      // No push key on the server, or a failed setup: the switch stays (it
+      // also drives the sound) and just toggles, no help dialog.
+      for (const status of ["unavailable", "failed"]) {
+        flushSync(() => push.set({ status, error: "x" }));
+        await openMenu();
+        expect(item("notifications") !== null).toBe(true);
+        item("notifications")!.click();
+        await settle();
+        expect(document.querySelector("[role=dialog]")).toBeNull();
+        await key("Escape");
+      }
+      expect(bells).toHaveLength(2);
     } finally {
       await unmount(instance);
       target.remove();

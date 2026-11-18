@@ -4,6 +4,7 @@ import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api"
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
 import { uiNavigationUrl, uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
+import { selectUi, uiSwitch } from "./ui-select";
 import "server-only";
 import { type Context, Hono } from "hono";
 import { cookieLang, reqLang } from "./lang";
@@ -34,6 +35,8 @@ export { DocRoom } from "./docroom";
 
 export type Env = {
   DB: D1Database;
+  /** "vanilla" sends every page to the vanilla app (rollback without a code deploy); anything else = Svelte. */
+  UI_DEFAULT?: string;
   /** Web Push (VAPID, base64url): public = 65-byte P-256 point, private = 32-byte scalar. Missing: no native notifications. */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
@@ -233,6 +236,7 @@ const shell = async (c: { env: Env; req: { url: string; raw: Request } }) => {
   const asset = await c.env.ASSETS.fetch(new Request(new URL(uiShellPath(c.req.url), c.req.url), c.req.raw));
   const res = new Response(asset.body, asset);
   res.headers.set("x-vibebook-ui", uiVariant(c.req.url));
+  res.headers.append("vary", "Cookie"); // which shell depends on the vb_ui cookie (src/ui-select.ts)
   const v = res.headers.get("etag");
   return res.status === 200 && v ? new HTMLRewriter().on("head", { element: (el) => { el.append(`<meta name="vb-v" content="${v.replace(/[^\w-]/g, "")}" />`, { html: true }); } }).transform(res) : res;
 };
@@ -597,7 +601,8 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
-    return providerFor(url.origin, appHandler).fetch(request, env, ctx);
+    if (url.pathname.startsWith("/ui/")) return uiSwitch(request);
+    return providerFor(url.origin, appHandler).fetch(selectUi(request, env), env, ctx);
   },
   // 11:00 and 21:00 UTC = 8h and 18h in São Paulo: the catch-up e-mail.
   scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {

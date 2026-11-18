@@ -7,7 +7,7 @@ import * as z from "zod/mini";
 import { LISTEN_FRESH, poke } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
-import { uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
+import type { UiVariant } from "../shared/uiVariant";
 import { MeBook, MeData, MeFriend, MeFriendRequest, MeInvite, MePerson, MeResult, MeSentRequest, MeWait } from "../shared/schemas";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
@@ -28,10 +28,11 @@ const appVersions = new Map<UiVariant, string>();
 const ProfileName = z.pick(MeData, { name: true });
 const ProfileAvatar = z.pick(MeData, { avatar: true });
 async function currentVersion(env: Env, url: string) {
-  const variant = uiVariant(url);
+  // An API call says its app (the Svelte app sends ui=svelte); none = the vanilla app, which never sent one.
+  const variant: UiVariant = new URL(url).searchParams.get("ui") === "svelte" ? "svelte" : "vanilla";
   let version = appVersions.get(variant);
   if (version === undefined) {
-    version = ((await env.ASSETS.fetch(new Request(new URL(uiShellPath(url), url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
+    version = ((await env.ASSETS.fetch(new Request(new URL(variant === "svelte" ? "/app-svelte" : "/app", url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
     appVersions.set(variant, version);
   }
   return version;

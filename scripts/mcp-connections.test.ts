@@ -165,7 +165,7 @@ test("native signin preserves membership/missing/rate HTTP failures using typed 
     expect(html).toContain('name="vb-page" content="connection-error"');
     expect(html).toContain(`name="vb-connection-failure" content="${failure}"`);
     expect(html).not.toContain("style=");
-    const vanilla = await fixture.request(path);
+    const vanilla = await fixture.request(`${path}?ui=vanilla`);
     expect(vanilla.status).toBe(status);
     expect(vanilla.headers.get("content-type")).toContain("application/json");
   }
@@ -185,7 +185,7 @@ test("native callback provider refusal/replayed state never echoes provider secr
     "style=",
   ])
     expect(html).not.toContain(value);
-  expect(html).toContain('href="/app"');
+  expect(html).toContain('href="/app?ui=vanilla"'); // the noscript fallback: the vanilla app
   expect(fixture.consumes()).toBe(0);
   const replay = await fixture.request(
     "/api/mcp-oauth/callback?state=svelte.CONSUMED_STATE&code=SECRET",
@@ -196,7 +196,7 @@ test("native callback provider refusal/replayed state never echoes provider secr
   );
   expect(fixture.consumes()).toBe(1);
   const vanilla = await fixture.request(
-    "/api/mcp-oauth/callback?error=access_denied&error_description=Old+provider+message",
+    "/api/mcp-oauth/callback?ui=vanilla&error=access_denied&error_description=Old+provider+message",
   );
   expect(vanilla.status).toBe(400);
   expect(await vanilla.text()).toContain("Old provider message");
@@ -234,7 +234,7 @@ test("native and vanilla authorization preserve the fixed provider callback and 
     for (const native of [true, false]) {
       const fixture = routes();
       const response = await fixture.request(
-        `/api/books/abcdef/connections/abc123/signin${native ? "?ui=svelte" : ""}`,
+        `/api/books/abcdef/connections/abc123/signin${native ? "?ui=svelte" : "?ui=vanilla"}`,
       );
       expect(response.status).toBe(302);
       const location = response.headers.get("location");
@@ -251,7 +251,7 @@ test("native and vanilla authorization preserve the fixed provider callback and 
         native,
       );
       expect(String(fixture.insertedStates[0]?.[7])).toContain(
-        native ? "ui=svelte" : "/b/abcdef#app:abc123",
+        native ? "/b/abcdef#app:abc123" : "ui=vanilla",
       );
     }
   } finally {
@@ -313,8 +313,12 @@ test("signed-out native HTML connection navigation keeps401 before any OAuth han
   for (const [path, method, accept] of [
     [callback, "GET", "application/json"],
     [callback, "POST", "text/html"],
-    ["/api/mcp-oauth/callback?state=VANILLA", "GET", "text/html"],
-    ["/api/books/abcdef/connections/abc123/signin", "GET", "text/html"],
+    ["/api/mcp-oauth/callback?state=VANILLA&ui=vanilla", "GET", "text/html"],
+    [
+      "/api/books/abcdef/connections/abc123/signin?ui=vanilla",
+      "GET",
+      "text/html",
+    ],
     ["/api/me?ui=svelte", "GET", "text/html"],
   ]) {
     const response = await app.request(

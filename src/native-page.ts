@@ -95,7 +95,7 @@ export async function nativeAuthPage(
     );
     if (asset.status !== 200) throw new Error("Native shell missing");
     const standard = new URL(request.url);
-    standard.searchParams.delete("ui");
+    standard.searchParams.set("ui", "vanilla"); // the noscript link: the vanilla app
     // A callback contains an OAuth code/state or provider error details. None
     // belong in the generated document, including its noscript fallback URL.
     const fallback =
@@ -117,8 +117,8 @@ export async function nativeAuthPage(
       },
       page === "connection-error"
         ? fallback
-          ? `/b/${fallback}`
-          : "/app"
+          ? `/b/${fallback}?ui=vanilla`
+          : "/app?ui=vanilla"
         : standard.pathname + standard.search,
     );
     return new Response(html, { status: options.status ?? 200, headers });
