@@ -53,7 +53,7 @@
     onnavigate: (target: RoomTarget) => void;
   } = $props();
   const title = $derived(
-    dm ? (dm.self ? selfLabel : dm.name) : (room.title ?? "vibebook"),
+    dm ? (dm.self ? selfLabel : dm.name) : (room.title ?? "deco.chat"),
   );
   const meta = $derived(
     status ? (roomStatus(room, seen, waits, now, lang)[0] ?? note) : undefined,

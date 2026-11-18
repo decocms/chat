@@ -1,8 +1,8 @@
 const pt = {
   inbox: "Caixa de entrada",
-  home: "Seus vibebooks",
+  home: "Suas salas",
   greeting: "Oi, {name}",
-  rooms: "{n} vibebooks",
+  rooms: "{n} salas",
   friends: "Amigos",
   dms: "Mensagens diretas",
   you: "Você",
@@ -30,7 +30,7 @@ const pt = {
   findConversation: "Encontrar ou começar uma conversa",
   archive: "Arquivo",
   back: "Voltar",
-  new: "Novo vibebook",
+  new: "Nova sala",
   newShort: "Novo",
   profile: "Seu perfil",
   settings: "Conta e configurações",
@@ -55,7 +55,7 @@ const pt = {
   searchClose: "fechar",
   partial: "Algumas salas não puderam ser consultadas. Tente de novo.",
   empty:
-    "Nenhum vibebook ainda. Crie um, chame quem trabalha com você e conecte seu agent.",
+    "Nenhuma sala ainda. Crie uma, chame quem trabalha com você e conecte seu agent.",
   summary: "Ainda sem resumo. O @vibe escreve um quando a conversa andar.",
   ask: "O que você quer resolver?",
   askPlaceholder:
@@ -156,7 +156,7 @@ const pt = {
   moreHere: "+{n} mais nesta sala",
   showLess: "Mostrar menos",
   noneHere: "Nada aqui com esse filtro.",
-  update: "Nova versão do vibebook · toque pra atualizar",
+  update: "Nova versão do deco.chat · toque pra atualizar",
   deskNone: "Nada espera você.",
   deskOne: "Uma coisa espera você.",
   deskMany: "{n} coisas esperam você.",
@@ -171,7 +171,7 @@ const pt = {
   deskQuestion: "O que vamos resolver hoje?",
   deskSendTo: "Enviar para",
   deskOr: "Ou",
-  deskFirstRoom: "Criar seu primeiro vibebook",
+  deskFirstRoom: "Criar sua primeira sala",
   deskFirstRoomHelp:
     "Uma sala pra conversa, as tarefas e o doc, com seu time e o agent de cada um.",
   deskConnectHelp: "Cole no Claude Code, dentro da pasta do projeto.",
@@ -179,9 +179,9 @@ const pt = {
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
-  home: "Your vibebooks",
+  home: "Your rooms",
   greeting: "Hi, {name}",
-  rooms: "{n} vibebooks",
+  rooms: "{n} rooms",
   friends: "Friends",
   dms: "Direct messages",
   you: "You",
@@ -209,7 +209,7 @@ const en: Record<keyof typeof pt, string> = {
   findConversation: "Find or start a conversation",
   archive: "Archive",
   back: "Back",
-  new: "New vibebook",
+  new: "New room",
   newShort: "New",
   profile: "Your profile",
   settings: "Account and settings",
@@ -233,8 +233,7 @@ const en: Record<keyof typeof pt, string> = {
   searchOpen: "open",
   searchClose: "close",
   partial: "Some rooms could not be searched. Try again.",
-  empty:
-    "No vibebooks yet. Create one, invite your team and connect your agent.",
+  empty: "No rooms yet. Create one, invite your team and connect your agent.",
   summary:
     "No summary yet. @vibe will write one when the conversation gets going.",
   ask: "What do you want to work on?",
@@ -335,7 +334,7 @@ const en: Record<keyof typeof pt, string> = {
   moreHere: "+{n} more in this room",
   showLess: "Show less",
   noneHere: "Nothing here with this filter.",
-  update: "New vibebook version · tap to update",
+  update: "New deco.chat version · tap to update",
   deskNone: "Nothing waits on you.",
   deskOne: "One thing waits on you.",
   deskMany: "{n} things wait on you.",
@@ -350,7 +349,7 @@ const en: Record<keyof typeof pt, string> = {
   deskQuestion: "What are we getting done today?",
   deskSendTo: "Send to",
   deskOr: "Or",
-  deskFirstRoom: "Create your first vibebook",
+  deskFirstRoom: "Create your first room",
   deskFirstRoomHelp:
     "A room for the conversation, the tasks and the doc, with your team and everyone's agent.",
   deskConnectHelp: "Paste it into Claude Code, inside the project folder.",

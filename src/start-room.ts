@@ -67,7 +67,7 @@ export async function startRoom(env: Env, ctx: { waitUntil(p: Promise<unknown>):
     if (who && who !== email && !invited.includes(who)) invited.push(who);
     else if (!who) unknown.push(p.slice(0, 60));
   }
-  const id = await createBook(env, email, shortTitle(title || text.replace(/^novo vibebook\s*[-–:]?\s*/i, "")) || undefined);
+  const id = await createBook(env, email, shortTitle(title || text.replace(/^(?:novo vibebook|nova sala)\s*[-–:]?\s*/i, "")) || undefined);
   await env.DB.prepare(`UPDATE members SET claude_on = 1 WHERE book_id = ? AND email = ?`).bind(id, email).run();
   await bookStub(env, id).humanPost(id, email, text, "main");
   for (const who of invited.slice(0, 5)) await inviteMember(env, ctx, origin, email, id, who, lang);

@@ -45,8 +45,8 @@
     <ErrorState
       title={services.t(
         snapshot.phase === "removed"
-          ? "Você foi removido deste vibebook."
-          : "Sem acesso a este vibebook. Peça para alguém de dentro te convidar.",
+          ? "Você foi removido desta sala."
+          : "Sem acesso a esta sala. Peça para alguém de dentro te convidar.",
       )}
     />
     {#if snapshot.phase === "unavailable"}<Button
@@ -55,9 +55,7 @@
           if (current(event)) services.actions.retryRoom();
         }}>{services.t("Verificar acesso novamente")}</Button
       >{/if}
-    <Button variant="ghost" onclick={home}
-      >{services.t("seus vibebooks")}</Button
-    >
+    <Button variant="ghost" onclick={home}>{services.t("suas salas")}</Button>
   </main>{:else}<div
     data-native-room-status={snapshot.phase}
     data-room-generation={snapshot.generation}

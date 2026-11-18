@@ -66,7 +66,7 @@
           ? dm.self
             ? homeText(lang, "you")
             : dm.name
-          : (room.title ?? "vibebook"),
+          : (room.title ?? "deco.chat"),
         detail: dm ? "" : (room.folder ?? ""),
         room,
         person: dm ? { email: dm.email, version: dm.version } : undefined,

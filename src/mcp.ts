@@ -11,7 +11,7 @@ const MCP_APP_MIME = "text/html;profile=mcp-app";
 const HTML = bundledHtml;
 
 const RESOURCES = [
-  { uri: "ui://vibebook/admin", name: "Back office", description: "KPIs, atividade por dia, funil, uso da AI, pessoas e vibebooks." },
+  { uri: "ui://vibebook/admin", name: "Back office", description: "KPIs, atividade por dia, funil, uso da AI, pessoas e salas." },
   { uri: "ui://vibebook/traffic", name: "Tráfego", description: "Page views com filtro cruzado: páginas, origens, países, navegador, rede." },
 ];
 
@@ -19,7 +19,7 @@ const TOOLS = [
   {
     name: "admin_overview",
     description:
-      "Back office do vibebook: usuários, vibebooks, mensagens e chamadas @ai no período, atividade por dia, funil (landing → login → vibebook → convite → @ai), uso da AI por modo, usuários recentes e vibebooks mais ativos.",
+      "Back office do deco.chat: usuários, salas, mensagens e chamadas @ai no período, atividade por dia, funil (landing → login → sala → convite → @ai), uso da AI por modo, usuários recentes e vibebooks mais ativos.",
     inputSchema: { type: "object", properties: { days: { type: "number", description: "Janela em dias (1-90, padrão 30)" } } },
     _meta: { ui: { resourceUri: "ui://vibebook/admin" } },
     run: (env: Env, a: Record<string, unknown>) => adminOverview(env, Number(a.days) || undefined),
@@ -79,7 +79,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
           protocolVersion: "2024-11-05",
           capabilities: { tools: { listChanged: false }, resources: {} },
           serverInfo: { name: "vibebook", version: "0.1.0" },
-          instructions: "Back office do vibebook (somente leitura). Comece por admin_overview; para tráfego e origens use traffic_overview.",
+          instructions: "Back office do deco.chat (somente leitura). Comece por admin_overview; para tráfego e origens use traffic_overview.",
         };
         break;
       case "ping":

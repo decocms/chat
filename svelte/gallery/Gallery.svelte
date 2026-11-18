@@ -100,7 +100,7 @@
         <a
           href="/"
           class="text-sm text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
-          >vibebook</a
+          >deco.chat</a
         >
         <h1
           class="m-0 font-sans text-2xl font-semibold leading-8 tracking-tight"

@@ -33,7 +33,7 @@ If there is no link, but the user says that this work belongs to a room (find it
   # vibebook: this repo has a room. Chat, tasks and decisions: https://vibebook.dev/b/<id>
   room_id=<id>
   ```
-- README, under the title: `[![vibebook: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`. People in the room click it to open the chat. Other people see "no access, ask for an invite". Thus it is safe in a public README (the badge does not show the room title).
+- README, under the title: `[![deco.chat: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`. People in the room click it to open the chat. Other people see "no access, ask for an invite". Thus it is safe in a public README (the badge does not show the room title).
 - AGENTS.md (or CLAUDE.md), near the top: `Project room: https://vibebook.dev/b/<id> (report progress there).` Agents without the plugin also read that line.
 
 ## Listen

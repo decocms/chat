@@ -4,7 +4,7 @@
   let props: ComponentProps<typeof DeferredViewStatus> = $props();
 </script>
 
-<svelte:head><title>vibebook</title></svelte:head>
+<svelte:head><title>deco.chat</title></svelte:head>
 <main aria-busy={props.phase === "idle" || props.phase === "loading"}>
   <DeferredViewStatus {...props} />
 </main>

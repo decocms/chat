@@ -4,7 +4,7 @@ export { AUDIO_TYPES, FILE_TYPES, MAX_FILE_BYTES, MAX_AUDIO_BYTES, maxBytes } fr
 import type { UploadFileResponse } from "../shared/rpc";
 import { checkEmbed } from "./embed";
 import { poke } from "./person";
-// Room (vibebook) operations shared by the app API and the agent MCP.
+// Room (deco.chat) operations shared by the app API and the agent MCP.
 import type { Lang } from "./lang";
 import { emailHtml, escapeHtml, inviteLink } from "./auth";
 import type { Env } from "./index";
@@ -72,7 +72,7 @@ export async function createBook(env: Env, email: string, title?: string) {
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO books (id, title, folder, summary, owner, created_at, updated_at) VALUES (?, ?, NULL, '', ?, ?, ?)`).bind(
       id,
-      (title || "Novo vibebook").slice(0, 120),
+      (title || "Nova sala").slice(0, 120),
       email,
       now,
       now,
@@ -105,28 +105,28 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
       env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>(),
       env.DB.prepare(`SELECT lang FROM users WHERE email = ?`).bind(who).first<{ lang: string | null }>(),
     ]);
-    // The invitee's own language when they've used vibebook, else the inviter's (likely the same team).
+    // The invitee's own language when they've used deco.chat, else the inviter's (likely the same team).
     const en = (known?.lang ?? inviterLang) === "en";
     const url = await inviteLink(env, origin, who, bookId);
-    const title = book?.title ?? (en ? "a vibebook" : "um vibebook");
+    const title = book?.title ?? (en ? "a room" : "uma sala");
     const name = inviter.split("@")[0];
     const connect = `${origin}/llms.txt`; // the setup guide for every client
     const setup = `Read ${origin}/llms.txt and set up vibebook for this project. Room: ${origin}/b/${bookId}`;
     ctx.waitUntil(
       env.EMAIL.send({
         to: who,
-        from: { email: mailFrom(env, "convite"), name: "vibebook" },
+        from: { email: mailFrom(env, "convite"), name: "deco.chat" },
         // No replyTo: a reply would quote the sign-in link back to the inviter.
-        subject: en ? `${name} invited you to the vibebook "${title}"` : `${name} te chamou pro vibebook "${title}"`,
+        subject: en ? `${name} invited you to the room "${title}"` : `${name} te chamou pra sala "${title}"`,
         text: en
-          ? `${inviter} invited you to the vibebook "${title}".\n\nOpen it: ${url}\n\nBring your Claude: paste this in Claude Code, inside the project folder:\n${setup}\nOther clients: ${connect}`
-          : `${inviter} te convidou para o vibebook "${title}".\n\nEntra aqui: ${url}\n\nTraga seu Claude: cole isto no Claude Code, dentro da pasta do projeto:\n${setup}\nOutros clientes: ${connect}`,
+          ? `${inviter} invited you to the room "${title}".\n\nOpen it: ${url}\n\nBring your Claude: paste this in Claude Code, inside the project folder:\n${setup}\nOther clients: ${connect}`
+          : `${inviter} te convidou para a sala "${title}".\n\nEntra aqui: ${url}\n\nTraga seu Claude: cole isto no Claude Code, dentro da pasta do projeto:\n${setup}\nOutros clientes: ${connect}`,
         html: emailHtml(
-          en ? `${escapeHtml(name)} invited you to vibebook` : `${escapeHtml(name)} te chamou pro vibebook`,
+          en ? `${escapeHtml(name)} invited you to deco.chat` : `${escapeHtml(name)} te chamou pro deco.chat`,
           `<p style="font-size:18px;font-weight:700">${escapeHtml(title)}</p><p>${
             en
-              ? `${escapeHtml(inviter)} wants to run this project with you on vibebook: a room with chat, a doc and tasks, where your Claude and ${escapeHtml(name)}'s talk too.`
-              : `${escapeHtml(inviter)} quer tocar esse projeto com você no vibebook: uma sala com chat, documento e tarefas, onde o seu Claude e o de ${escapeHtml(name)} também conversam.`
+              ? `${escapeHtml(inviter)} wants to run this project with you on deco.chat: a room with chat, a doc and tasks, where your Claude and ${escapeHtml(name)}'s talk too.`
+              : `${escapeHtml(inviter)} quer tocar esse projeto com você no deco.chat: uma sala com chat, documento e tarefas, onde o seu Claude e o de ${escapeHtml(name)} também conversam.`
           }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${o.joined ? (en ? "Open the room" : "Abrir a sala") : en ? "See the invite" : "Ver o convite"}</a></p><p style="font-size:13px;color:#6b7383">${
             en ? "The button signs you in and works for 24h. After that, just sign in with your email." : "O botão já te deixa logado e vale por 24h. Depois disso é só entrar com seu email."
           }</p>
@@ -158,7 +158,7 @@ export async function setRoomIcon(env: Env, bookId: string, img: { type: string;
 }
 
 // Files: images, PDF, HTML, Markdown, plain text, CSV and audio (no SVG: it can carry script without our sandbox applying to <img>).
-// HTML is served under a sandbox CSP with no same-origin (see fileHeaders), so it can't touch vibebook.dev.
+// HTML is served under a sandbox CSP with no same-origin (see fileHeaders), so it can't touch the app origin.
 // Audio: recordings already made (iPhone's Voice Memos exports .m4a, recorders .mp3/.wav); played with <audio> in the app.
 /** reminders/<name>.md: a room reminder (Book.reminderFile reads its schedule). */
 export const REMINDER_FILE = /^reminders\/([^\\/\u0000-\u001f]{1,60})\.md$/i;

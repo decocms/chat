@@ -32,7 +32,7 @@
   });
 </script>
 
-<svelte:head><title>{text("archive")} · vibebook</title></svelte:head>
+<svelte:head><title>{text("archive")} · deco.chat</title></svelte:head>
 <main
   data-vb-native="archived"
   class="min-h-dvh md:min-h-full bg-background p-4 font-sans text-sm leading-6 text-foreground md:p-8"
@@ -68,7 +68,7 @@
     <div class="grid gap-4 md:grid-cols-2">
       {#each $view.books as room (room.id)}<Card class="block space-y-3"
           ><OrgAvatar
-            name={room.title ?? "vibebook"}
+            name={room.title ?? "deco.chat"}
             class="h-24 w-full rounded-control grayscale-60"
           />
           <Heading level={2} class="m-0 break-words text-lg font-semibold"

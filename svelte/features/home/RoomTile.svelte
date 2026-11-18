@@ -32,7 +32,7 @@
   } = $props();
   const news = $derived(unread(room, seen));
   const waiting = $derived(waitIndicator(waits));
-  const title = $derived(room.title ?? "vibebook");
+  const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
   const text = (
     key: Parameters<typeof homeText>[1],

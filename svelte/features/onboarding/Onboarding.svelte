@@ -81,7 +81,7 @@
     <a
       href="/"
       class="flex-1 font-sans text-2xl font-semibold tracking-normal text-primary no-underline"
-      >vibebook</a
+      >deco.chat</a
     >
     <div aria-label={text("language")} class="flex gap-1">
       <Button

@@ -294,7 +294,7 @@
   const noApp = readable(null);
   const openApp = $derived(activeApp ?? noApp);
   // Row: [kind icon] label / detail [marker]. The marker says what a click does:
-  // "external" leaves vibebook in a new tab, the chevron opens inside it.
+  // "external" leaves deco.chat in a new tab, the chevron opens inside it.
   const rowClass =
     "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border-0 bg-transparent px-2 font-sans text-sm text-inherit no-underline outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring";
   const kindClass =

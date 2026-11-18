@@ -213,7 +213,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       if (who === book?.owner) return { error: en ? "The owner can't be removed." : "O dono não pode ser removido.", status: 400 };
       // Someone who joined (a member with an account); an invite still waiting can be taken back by anyone in the room.
       const joined = !!(await env.DB.prepare(`SELECT 1 FROM members m JOIN users u ON u.email = m.email WHERE m.book_id = ? AND m.email = ?`).bind(roomId, who).first());
-      if (joined && email !== book?.owner) return { error: en ? "Only whoever created the vibebook can remove someone who already joined." : "Só quem criou o vibebook remove quem já entrou.", status: 403 };
+      if (joined && email !== book?.owner) return { error: en ? "Only whoever created the room can remove someone who already joined." : "Só quem criou a sala remove quem já entrou.", status: 403 };
       await env.DB.batch([
         env.DB.prepare(`DELETE FROM members WHERE book_id = ? AND email = ?`).bind(roomId, who),
         // An invite still waiting is taken back; a declined one stays, so the room can't ask again during the hold.

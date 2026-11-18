@@ -36,7 +36,7 @@ function whisperInput(audio: Uint8Array, query: SttQuery) {
   return {
     audio: audioBase64(audio),
     language: (query.lang || "pt").slice(0, 5),
-    initial_prompt: (query.prompt ?? "vibebook").slice(0, 600),
+    initial_prompt: (query.prompt ?? "deco.chat").slice(0, 600),
     vad_filter: true,
   };
 }

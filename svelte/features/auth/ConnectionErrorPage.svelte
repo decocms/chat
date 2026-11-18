@@ -15,24 +15,24 @@
     en: {
       title: "Could not sign in to the connection",
       failed:
-        "Sign-in could not be completed. Return to vibebook and try again from Apps.",
+        "Sign-in could not be completed. Return to deco.chat and try again from Apps.",
       forbidden: "You must be a member of this room to use its connections.",
       missing: "This connection is unavailable or has been removed.",
       rate: "Too many attempts. Wait a minute before trying again.",
       "signed-out":
-        "Your vibebook session has ended. Return to vibebook and sign in before trying again from Apps.",
-      back: "Back to vibebook",
+        "Your deco.chat session has ended. Return to deco.chat and sign in before trying again from Apps.",
+      back: "Back to deco.chat",
     },
     pt: {
       title: "Não deu pra entrar na conexão",
       failed:
-        "Não foi possível concluir o login. Volte ao vibebook e tente novamente pela aba Apps.",
+        "Não foi possível concluir o login. Volte ao deco.chat e tente novamente pela aba Apps.",
       forbidden: "Você precisa estar nesta sala para usar as conexões dela.",
       missing: "Esta conexão não está disponível ou foi removida.",
       rate: "Muitas tentativas. Espere um minuto antes de tentar novamente.",
       "signed-out":
-        "Sua sessão do vibebook terminou. Volte ao vibebook e entre antes de tentar novamente pela aba Apps.",
-      back: "Voltar ao vibebook",
+        "Sua sessão do deco.chat terminou. Volte ao deco.chat e entre antes de tentar novamente pela aba Apps.",
+      back: "Voltar ao deco.chat",
     },
   } as const;
   const room = $derived(

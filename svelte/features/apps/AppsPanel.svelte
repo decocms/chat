@@ -252,7 +252,7 @@
           />
           <p class="text-xs text-muted-foreground">
             {props.t(
-              "Sem token aqui: se o servidor pedir login, cada pessoa entra com a própria conta dela, e o vibebook só diz quem é e de qual sala.",
+              "Sem token aqui: se o servidor pedir login, cada pessoa entra com a própria conta dela, e o deco.chat só diz quem é e de qual sala.",
             )}
           </p>
           <RadioGroup
@@ -357,10 +357,12 @@
                 data-native-connection-mode={mode}
                 title={props.t(
                   mode === "direct"
-                    ? "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você."
-                    : "As chamadas passam pelo vibebook (o servidor não libera chamada direta ou pede login).",
+                    ? "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você."
+                    : "As chamadas passam pelo deco.chat (o servidor não libera chamada direta ou pede login).",
                 )}
-                >{props.t(mode === "direct" ? "direto" : "via vibebook")}</Badge
+                >{props.t(
+                  mode === "direct" ? "direto" : "via deco.chat",
+                )}</Badge
               >{/if}<Button
               variant="ghost"
               disabled={busy}
@@ -389,7 +391,7 @@
               >
             </p>{:else}<p class="text-sm">
               {props.t(
-                "Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.",
+                "Entre em {host} com a sua conta pra usar. O deco.chat não guarda token: só diz quem é você e de qual sala.",
                 { host: item.host },
               )}
             </p>

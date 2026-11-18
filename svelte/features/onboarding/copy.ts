@@ -8,7 +8,7 @@ const pt = {
   photo: "Adicionar foto (opcional)",
   claudeTitle: "Conecte seu Claude",
   claudeHelp:
-    "No vibebook cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:",
+    "No deco.chat cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:",
   back: "Voltar",
   skipClaude: "Pular por agora",
   roomTitle: "Sua primeira sala",
@@ -39,7 +39,7 @@ const en: Record<OnboardingCopy, string> = {
   photo: "Add a photo (optional)",
   claudeTitle: "Connect your Claude",
   claudeHelp:
-    "In vibebook everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
+    "In deco.chat everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
   back: "Back",
   skipClaude: "Skip for now",
   roomTitle: "Your first room",

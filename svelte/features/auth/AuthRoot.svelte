@@ -27,7 +27,7 @@
 </script>
 
 {#key metadata ? metadata.page + url.origin + url.pathname + url.search + url.hash + String(metadata.autoAccess) + String(metadata.consentFailure) : "invalid"}
-  {#if !metadata}<AuthFrame title="vibebook"
+  {#if !metadata}<AuthFrame title="deco.chat"
       ><p role="alert">{authText("en", "configError")}</p></AuthFrame
     >
   {:else if metadata.page === "login"}<LoginPage
