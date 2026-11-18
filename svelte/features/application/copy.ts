@@ -568,8 +568,6 @@ const EN: Readonly<Record<string, string>> = {
   "novo épico": "new epic",
   Arquivados: "Archived",
   Outro: "Other",
-  "escolha e envie pela caixa de mensagem":
-    "pick, then send from the message box",
   Todos: "All",
   "Esse épico não existe mais nesta sala.":
     "That epic is no longer in this room.",
