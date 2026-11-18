@@ -116,7 +116,7 @@
       data-native-agent-line
       data-agent-status={status}
       role="status"
-      class="tw:flex tw:items-center tw:gap-2 tw:border-b tw:border-border tw:bg-muted tw:py-2.5 tw:pr-2 tw:pl-4 tw:min-[901px]:-mx-2"
+      class="tw:flex tw:items-center tw:gap-2 tw:border-b tw:border-border tw:bg-muted tw:py-2.5 tw:pr-2 tw:pl-4 tw:md:-mx-2"
     >
       <span aria-hidden="true" class="tw:shrink-0 tw:text-agent-claude-text"
         >✻</span

@@ -60,7 +60,7 @@
     >
     <DialogContent
       data-vb-native
-      class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:max-w-none"
+      class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-none"
       closeLabel={vb.t("Fechar")}
       preventScroll={false}
       preventBodyPointerEvents={false}

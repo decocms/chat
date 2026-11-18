@@ -34,7 +34,7 @@
   data-live-frame={href}
   role="dialog"
   aria-label={t("Site externo · {host}", { host })}
-  class="tw:fixed tw:inset-0 tw:z-40 tw:flex tw:flex-col tw:overflow-hidden tw:bg-background tw:font-sans tw:text-foreground tw:shadow-2xl tw:min-[901px]:inset-auto tw:min-[901px]:right-4 tw:min-[901px]:bottom-4 tw:min-[901px]:h-[min(640px,75vh)] tw:min-[901px]:w-[min(880px,62vw)] tw:min-[901px]:rounded-surface tw:min-[901px]:border tw:min-[901px]:border-warning/40"
+  class="tw:fixed tw:inset-0 tw:z-40 tw:flex tw:flex-col tw:overflow-hidden tw:bg-background tw:font-sans tw:text-foreground tw:shadow-2xl tw:md:inset-auto tw:md:right-4 tw:md:bottom-4 tw:md:h-[min(640px,75vh)] tw:md:w-[min(880px,62vw)] tw:md:rounded-surface tw:md:border tw:md:border-warning/40"
 >
   <div
     class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:border-b tw:border-warning/30 tw:bg-warning/15 tw:py-1 tw:pr-1 tw:pl-3 tw:text-xs"

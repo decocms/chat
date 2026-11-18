@@ -10,7 +10,7 @@
   class="tw:flex tw:min-h-dvh tw:items-center tw:justify-center tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
 >
   <div class="tw:w-full tw:max-w-md">
-    <Card class="tw:block tw:space-y-5 tw:p-6 tw:min-[901px]:p-8">
+    <Card class="tw:block tw:space-y-5 tw:p-6 tw:md:p-8">
       <a
         href="/"
         class="tw:inline-flex tw:items-center tw:gap-2 tw:rounded-control tw:text-lg tw:font-semibold tw:text-foreground tw:no-underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"

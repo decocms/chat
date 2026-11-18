@@ -42,14 +42,18 @@
 - Do not write other CSS: no `<style>` blocks, no CSS files, no inline `style` for design.
 - Do not load external CSS. The only exception is CSS that a dependency ships (for example `@xterm/xterm/css/xterm.css`). Import it in `tailwind.css`.
 - Use theme tokens for colors (`tw:bg-background`, `tw:text-muted-foreground`, `tw:border-border`, …). Do not use hard-coded colors (`#hex`, `tw:bg-[#…]`, palette colors such as `tw:bg-red-500`). If no token has the correct meaning, add a token to `tailwind.css`, for light and dark.
+- Use the built-in tokens of the theme before hard-coded values: breakpoints (`md`), spacing (`tw:p-4`, `tw:gap-2`), sizes (`tw:size-8`), radius (`tw:rounded-lg`), font sizes (`tw:text-sm`) and shadows. Use an arbitrary value (`tw:p-[13px]`, `tw:text-[28px]`) only if no token can do it. If you need the same arbitrary value in two places, add a token to `tailwind.css`.
 - Give each clickable element `tw:cursor-pointer`. Give it `tw:cursor-not-allowed` when it is disabled.
 
 ## Screen sizes
 
-- The app has two layouts: mobile and desktop. There are only two breakpoints.
-  - Mobile: width 900px or less (`tw:max-[900px]:`).
-  - Desktop: width 901px or more (`tw:min-[901px]:`).
-- Do not add other breakpoints. This includes `sm:`, `md:`, `lg:`, other `max-[…]`/`min-[…]` widths and `matchMedia` or `MediaQuery` with another width. `bun run check:guidelines` fails on them.
+- The app has two layouts: mobile and desktop. The theme has one breakpoint token, `md` (`--breakpoint-md: 901px` in `svelte/styles/tailwind.css`). The theme removes all other breakpoint tokens.
+  - Mobile: width 900px or less. Use `tw:max-md:`.
+  - Desktop: width 901px or more. Use `tw:md:`.
+- Do not write a pixel breakpoint (`tw:max-[900px]:`, `tw:min-[901px]:`, other `max-[…]`/`min-[…]`). Do not use `sm:`, `lg:` or `xl:`.
+- In TypeScript, use `MOBILE_QUERY` from `svelte/lib/breakpoints.ts` for `matchMedia` and `MediaQuery`. Do not write a width media query as a literal.
+- To move the breakpoint, change `--breakpoint-md` and `MOBILE_QUERY` together.
+- `bun run check:guidelines` fails on each of these violations.
 - If a layout must change inside the desktop width, use a container query (`tw:@container`) or an automatic grid (`tw:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`). Do not add a breakpoint.
 - When you design a new UI, design the mobile layout and the desktop layout together. Show both in the plan, and test both (390px and 1440px wide).
 

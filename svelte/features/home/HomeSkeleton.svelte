@@ -18,15 +18,13 @@
     aria-busy="true"
     class="tw:relative tw:min-h-full tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
   >
-    <div
-      class="tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:min-[901px]:px-8"
-    >
+    <div class="tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:md:px-8">
       <section
-        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-[900px]:mt-4"
+        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-md:mt-4"
       >
         <div
           aria-hidden="true"
-          class="tw:size-[200px] tw:max-[900px]:size-[112px]"
+          class="tw:size-[200px] tw:max-md:size-[112px]"
         ></div>
         {@render bars()}
       </section>

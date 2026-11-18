@@ -1,3 +1,4 @@
+import { MOBILE_QUERY } from "../../lib/breakpoints";
 import { createRoomPlayback, type RoomPlayback } from "./playback";
 import {
   clamp,
@@ -32,7 +33,7 @@ export function createRoomGeometry(options: {
     candidateWindow = cells.root.ownerDocument.defaultView;
   if (!candidateWindow) throw Error("Missing room layout window");
   const win: Window = candidateWindow;
-  const media = win.matchMedia("(max-width: 900px)"),
+  const media = win.matchMedia(MOBILE_QUERY),
     reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
   let active = true,
     rootWidth = cells.root.clientWidth,

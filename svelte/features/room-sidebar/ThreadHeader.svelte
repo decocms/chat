@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import { onDestroy, untrack } from "svelte";
   import type { ThreadHeaderProps } from "./types";
   import { epicIdentity, suggestionAt } from "./model";
@@ -117,8 +118,7 @@
   data-native-thread-header
   class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:tracking-normal tw:text-foreground"
 >
-  <span
-    class={["tw:hidden tw:min-[901px]:contents", onhome && "tw:cursor-pointer"]}
+  <span class={["tw:hidden tw:md:contents", onhome && "tw:cursor-pointer"]}
     >{#if !epic && !suggestion && peer}<PersonAvatar
         email={peer}
         version={vb.avatarVersion(peer)}
@@ -142,12 +142,12 @@
         "tw:max-w-full tw:min-w-0 tw:justify-start tw:px-2 tw:text-sm tw:font-medium",
         // Desktop top bar: plain text with a pointer, no button background.
         onhome &&
-          "tw:min-[901px]:cursor-pointer tw:min-[901px]:hover:bg-transparent tw:min-[901px]:hover:text-foreground tw:min-[901px]:aria-expanded:bg-transparent",
+          "tw:md:cursor-pointer tw:md:hover:bg-transparent tw:md:hover:text-foreground tw:md:aria-expanded:bg-transparent",
       )}
       title={room.book.summary || title}
       onclick={(event) => {
         if (!event.currentTarget.isConnected) return;
-        if (matchMedia("(max-width: 900px)").matches) onopenside();
+        if (matchMedia(MOBILE_QUERY).matches) onopenside();
         else if (onhome) onhome();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
       }}><span class="tw:truncate">{title}</span></Button
@@ -155,19 +155,17 @@
   </h2>
   <IconButton
     label={vb.t("Trocar de conversa")}
-    class="tw:min-[901px]:hidden"
+    class="tw:md:hidden"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onopenside();
     }}><Icon icon={ChevronDown} /></IconButton
   >
-  {#if suggestion}<span class={[aside, compact && "tw:max-[900px]:hidden"]}
+  {#if suggestion}<span class={[aside, compact && "tw:max-md:hidden"]}
       >✦ {vb.t("sugestão do @vibe")}</span
     >{:else if room.book.folder && !epic && !compact}<span class={aside}
       >{room.book.folder}</span
     >{/if}
-  {#if epic}<span
-      class={compact ? "tw:hidden tw:min-[901px]:contents" : "tw:contents"}
-    >
+  {#if epic}<span class={compact ? "tw:hidden tw:md:contents" : "tw:contents"}>
       <DropdownMenu>
         <DropdownMenuTrigger
           data-thread-actions={epic.id}

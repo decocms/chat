@@ -599,7 +599,7 @@
           >
             <DialogContent
               data-vb-native
-              class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:min-[901px]:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
+              class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:md:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
               closeLabel={services.language === "en"
                 ? "Close file"
                 : "Fechar arquivo"}

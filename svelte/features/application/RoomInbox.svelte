@@ -121,7 +121,7 @@
 <section
   data-native-room-inbox
   aria-label={t("Caixa de entrada")}
-  class="tw:grid tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-cols-1 tw:overflow-auto tw:bg-background tw:font-sans tw:text-foreground tw:min-[901px]:grid-cols-[minmax(0,1fr)_auto] tw:min-[901px]:overflow-hidden"
+  class="tw:grid tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-cols-1 tw:overflow-auto tw:bg-background tw:font-sans tw:text-foreground tw:md:grid-cols-[minmax(0,1fr)_auto] tw:md:overflow-hidden"
 >
   <div data-room-inbox-chat class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col">
     <header
@@ -255,10 +255,10 @@
     use:width
     data-room-inbox-doc
     class={[
-      "tw:min-h-0 tw:w-full tw:min-w-0 tw:space-y-4 tw:overflow-auto tw:border-t tw:border-border tw:bg-card tw:p-5 tw:min-[901px]:border-t-0 tw:min-[901px]:border-l",
+      "tw:min-h-0 tw:w-full tw:min-w-0 tw:space-y-4 tw:overflow-auto tw:border-t tw:border-border tw:bg-card tw:p-5 tw:md:border-t-0 tw:md:border-l",
       sidebarCollapsed
-        ? "tw:min-[901px]:animate-room-document-width-rail"
-        : "tw:min-[901px]:animate-room-document-width",
+        ? "tw:md:animate-room-document-width-rail"
+        : "tw:md:animate-room-document-width",
     ]}
   >
     <h1

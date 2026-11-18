@@ -1,5 +1,6 @@
 import { getContext, setContext } from "svelte";
 import { tv, type VariantProps } from "tailwind-variants";
+import { MOBILE_QUERY } from "../breakpoints";
 
 export type SidebarContext = {
   readonly state: "expanded" | "collapsed";
@@ -27,7 +28,7 @@ export function useSidebar(): SidebarContext {
 }
 
 /** Below this viewport width the sidebar is a sheet. */
-export const SIDEBAR_MOBILE_QUERY = "(max-width: 900px)";
+export const SIDEBAR_MOBILE_QUERY = MOBILE_QUERY;
 
 export const sidebarMenuButtonVariants = tv(
   {

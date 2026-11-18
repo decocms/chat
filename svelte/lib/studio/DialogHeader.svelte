@@ -20,7 +20,7 @@
   data-slot="dialog-header"
   {...rest}
   class={cn(
-    "tw:flex tw:flex-col tw:gap-1 tw:text-center tw:min-[901px]:text-left",
+    "tw:flex tw:flex-col tw:gap-1 tw:text-center tw:md:text-left",
     className,
   )}
 >

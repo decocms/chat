@@ -267,3 +267,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the change to `scripts/changelog.json`.
 - Status: open
+
+### 2026-11-18 · fix/two-breakpoints · The md token is 901px, not 900px
+- Agent: claude-opus-5-5
+- Context: The human asked to make the built-in `md` token the breakpoint ("md become 900"), instead of pixel values in classes. Tailwind's `md:` means width ≥ md, and `max-md:` means width < md.
+- Decision: `--breakpoint-md: 901px`, and all other breakpoint tokens removed (`--breakpoint-*: initial`). Thus `max-md:` is 900px or less (mobile) and `md:` is 901px or more (desktop): the same split as before. TypeScript uses `MOBILE_QUERY` (`(max-width: 900px)`) from `svelte/lib/breakpoints.ts`.
+- Other options: `--breakpoint-md: 900px`. Then a 900px screen changes from mobile to desktop.
+- Risk: low
+- Undo: Change `--breakpoint-md` in `svelte/styles/tailwind.css` and `MOBILE_QUERY` together.
+- Status: open

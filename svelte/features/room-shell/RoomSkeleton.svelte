@@ -99,18 +99,18 @@
 <div
   data-vb-native
   data-room-skeleton
-  class="tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:overflow-hidden tw:bg-background tw:font-sans tw:text-sm tw:text-foreground tw:[container-type:inline-size] tw:min-[901px]:bg-sidebar tw:min-[901px]:py-2 tw:min-[901px]:pr-2 tw:min-[901px]:pl-px"
+  class="tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:overflow-hidden tw:bg-background tw:font-sans tw:text-sm tw:text-foreground tw:[container-type:inline-size] tw:md:bg-sidebar tw:md:py-2 tw:md:pr-2 tw:md:pl-px"
 >
   <!-- Desktop: the room's one frame (RoomLayoutFrame): sidebar, one top bar over
        chat and doc, hairlines between. Phones: just the chat column below. -->
   <div
-    class="tw:contents tw:min-[901px]:grid tw:min-[901px]:min-h-0 tw:min-[901px]:grid-cols-[auto_minmax(0,1fr)_auto] tw:min-[901px]:grid-rows-[52px_minmax(0,1fr)] tw:min-[901px]:overflow-hidden tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge"
+    class="tw:contents tw:md:grid tw:md:min-h-0 tw:md:grid-cols-[auto_minmax(0,1fr)_auto] tw:md:grid-rows-[52px_minmax(0,1fr)] tw:md:overflow-hidden tw:md:rounded-surface tw:md:bg-background tw:md:shadow-edge"
   >
     <!-- Sidebar: the room's name, the main thread, epics, Pinned, People, then
        your Claude and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
-      class="tw:hidden tw:w-room-sidebar tw:min-h-0 tw:flex-col tw:gap-6 tw:border-r tw:border-border tw:bg-sidebar tw:px-2 tw:pb-2 tw:text-sidebar-foreground tw:min-[901px]:row-span-2 tw:min-[901px]:flex"
+      class="tw:hidden tw:w-room-sidebar tw:min-h-0 tw:flex-col tw:gap-6 tw:border-r tw:border-border tw:bg-sidebar tw:px-2 tw:pb-2 tw:text-sidebar-foreground tw:md:row-span-2 tw:md:flex"
     >
       {#if dm}<div class="tw:flex tw:min-h-0 tw:flex-col tw:pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
@@ -188,7 +188,7 @@
     <!-- Desktop: one top bar over chat and doc: the room, its actions, then the doc's tabs at the end. -->
     <header
       aria-hidden="true"
-      class="tw:hidden tw:min-w-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:pr-3 tw:pl-5 tw:min-[901px]:col-span-2 tw:min-[901px]:flex"
+      class="tw:hidden tw:min-w-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:pr-3 tw:pl-5 tw:md:col-span-2 tw:md:flex"
     >
       {@render mark("tw:size-6")}
       {#if title}<span
@@ -216,7 +216,7 @@
     <main class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:bg-background">
       <!-- Phones: RoomHeader's row, in RoomLayoutFrame's header cell. -->
       <header
-        class="tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3 tw:min-[901px]:hidden"
+        class="tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3 tw:md:hidden"
       >
         <IconButton
           label={t("Seus vibebooks")}
@@ -283,7 +283,7 @@
       </header>
 
       <div
-        class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden tw:px-4 tw:min-[901px]:px-6"
+        class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden tw:px-4 tw:md:px-6"
       >
         <div
           class="tw:flex tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:py-8 tw:text-center"
@@ -318,9 +318,7 @@
 
       <!-- The composer; on phones the tab bar under it carries the home-bar inset. -->
       <div aria-hidden="true" class="tw:shrink-0">
-        <div
-          class="tw:px-3 tw:pt-1 tw:pb-3 tw:min-[901px]:pb-4 tw:min-[901px]:px-6"
-        >
+        <div class="tw:px-3 tw:pt-1 tw:pb-3 tw:md:pb-4 tw:md:px-6">
           <div
             class="tw:mb-2 tw:flex tw:h-14 tw:items-center tw:gap-2 tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:pr-3 tw:pl-4 tw:text-muted-foreground tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
           >
@@ -335,7 +333,7 @@
       <!-- Phones: PhoneTabBar, Chat selected. -->
       <nav
         aria-hidden="true"
-        class="tw:grid tw:shrink-0 tw:grid-cols-5 tw:border-t tw:border-border tw:bg-background tw:px-1 tw:pt-1 tw:pb-[max(0.375rem,env(safe-area-inset-bottom))] tw:min-[901px]:hidden"
+        class="tw:grid tw:shrink-0 tw:grid-cols-5 tw:border-t tw:border-border tw:bg-background tw:px-1 tw:pt-1 tw:pb-[max(0.375rem,env(safe-area-inset-bottom))] tw:md:hidden"
       >
         {#each tabs as tab (tab.id)}
           {@const on = tab.id === "chat"}
@@ -360,7 +358,7 @@
     {#if !dm}<section
         aria-hidden="true"
         use:roomDocumentWidth
-        class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
+        class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:md:flex"
       >
         <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
           {@render line("tw:w-2/5", "tw:h-4")}

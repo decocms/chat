@@ -157,7 +157,7 @@
         {#if $view.me}<div
             data-vb-native
             data-native-account
-            class="tw:mx-auto tw:w-full tw:max-w-2xl tw:flex tw:flex-col tw:gap-12 tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:px-8 tw:min-[901px]:py-10"
+            class="tw:mx-auto tw:w-full tw:max-w-2xl tw:flex tw:flex-col tw:gap-12 tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:text-foreground tw:md:px-8 tw:md:py-10"
           >
             <Heading level={1} class="tw:m-0 tw:font-sans tw:text-2xl"
               >{text("title")}</Heading

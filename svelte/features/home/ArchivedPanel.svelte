@@ -35,7 +35,7 @@
 <svelte:head><title>{text("archive")} · vibebook</title></svelte:head>
 <main
   data-vb-native="archived"
-  class="tw:min-h-dvh tw:min-[901px]:min-h-full tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground tw:min-[901px]:p-8"
+  class="tw:min-h-dvh tw:md:min-h-full tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground tw:md:p-8"
 >
   <div class="tw:mx-auto tw:max-w-5xl tw:space-y-6">
     <header
@@ -67,7 +67,7 @@
     {#if $view.loading}<p role="status">
         {text($view.loaded ? "refreshing" : "loading")}
       </p>{/if}
-    <div class="tw:grid tw:gap-4 tw:min-[901px]:grid-cols-2">
+    <div class="tw:grid tw:gap-4 tw:md:grid-cols-2">
       {#each $view.books as room (room.id)}<Card class="tw:block tw:space-y-3"
           ><OrgAvatar
             name={room.title ?? "vibebook"}

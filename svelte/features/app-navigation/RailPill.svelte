@@ -10,5 +10,5 @@
 {#if state === "selected"}<span
     aria-hidden="true"
     data-rail-pill={state}
-    class="tw:pointer-events-none tw:absolute tw:-bottom-2 tw:left-1/2 tw:h-[3px] tw:w-6 tw:-translate-x-1/2 tw:rounded-t-full tw:bg-foreground tw:min-[901px]:top-1/2 tw:min-[901px]:bottom-auto tw:min-[901px]:-left-4 tw:min-[901px]:h-6 tw:min-[901px]:w-[3px] tw:min-[901px]:translate-x-0 tw:min-[901px]:-translate-y-1/2 tw:min-[901px]:rounded-t-none tw:min-[901px]:rounded-r-full"
+    class="tw:pointer-events-none tw:absolute tw:-bottom-2 tw:left-1/2 tw:h-[3px] tw:w-6 tw:-translate-x-1/2 tw:rounded-t-full tw:bg-foreground tw:md:top-1/2 tw:md:bottom-auto tw:md:-left-4 tw:md:h-6 tw:md:w-[3px] tw:md:translate-x-0 tw:md:-translate-y-1/2 tw:md:rounded-t-none tw:md:rounded-r-full"
   ></span>{/if}
