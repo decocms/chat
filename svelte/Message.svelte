@@ -243,11 +243,11 @@
               size="base"
               class="tw:text-lg"
             /><PersonAvatar
-              size="2xs"
+              size="xs"
               data-avatar="person"
               email={m.author}
               version={vb.avatarVersion(m.author)}
-              class="tw:absolute tw:-right-1.5 tw:-bottom-1.5 tw:ring-2 tw:ring-background"
+              class="tw:absolute tw:-right-1.5 tw:-bottom-1.5 tw:size-5 tw:ring-2 tw:ring-background"
             />
           </div>{:else}<PersonAvatar
             size="base"
