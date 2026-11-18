@@ -115,6 +115,8 @@ export async function roomScopeFixture(
         ...before,
         documentVisible: !before.documentVisible,
       })),
+    revealDocument: () =>
+      state.update((before) => ({ ...before, documentVisible: true })),
     toggleBoard() {},
     toggleSidebar() {},
     openSheet() {},
