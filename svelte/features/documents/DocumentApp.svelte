@@ -8,6 +8,11 @@
   import type { DocumentAppMarker, DocumentAppSize } from "./appMarkers";
   import Button from "../../lib/studio/Button.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
+  import Select from "../../lib/studio/Select.svelte";
+  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
+  import SelectValue from "../../lib/studio/SelectValue.svelte";
+  import SelectContent from "../../lib/studio/SelectContent.svelte";
+  import SelectItem from "../../lib/studio/SelectItem.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { LinkExternal01 } from "../../lib/studio/icons";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -31,6 +36,11 @@
     open(): void;
   } = $props();
   let active = true;
+  const sizes = $derived([
+    { value: "p", label: props.t("Pequeno") },
+    { value: "m", label: props.t("Médio") },
+    { value: "g", label: props.t("Grande") },
+  ]);
   const markerKey = untrack(() => documentAppKey(marker));
   const owner = untrack(() =>
     createAppsSession(props.api, {
@@ -82,22 +92,32 @@
   >
     <b class="tw:min-w-0 tw:flex-1 tw:truncate">{marker.tool}</b>
     {#key source}<Snapshot value={{ source, marker }}
-        >{#snippet children(rendered)}<div
-            role="group"
-            aria-label={props.t("Tamanho")}
-            class="tw:flex tw:gap-1"
-          >
-            {#each ["p", "m", "g"] as size}<Button
-                variant={marker.size === size ? "secondary" : "ghost"}
-                onclick={(event) => {
-                  if (
-                    connected(event) &&
-                    (size === "p" || size === "m" || size === "g")
-                  )
-                    resize(rendered.source, rendered.marker, size);
-                }}>{size.toUpperCase()}</Button
-              >{/each}
-          </div>{/snippet}</Snapshot
+        >{#snippet children(
+          rendered,
+        )}<!-- One select for the height (Gui #3153), not three buttons. --><Select
+            items={sizes}
+            bind:value={
+              () => rendered.marker.size,
+              (size) => {
+                if (
+                  active &&
+                  current(markerKey) &&
+                  (size === "p" || size === "m" || size === "g")
+                )
+                  resize(rendered.source, rendered.marker, size);
+              }
+            }
+            ><SelectTrigger
+              size="xs"
+              aria-label={props.t("Tamanho")}
+              class="tw:w-auto"><SelectValue /></SelectTrigger
+            ><SelectContent data-vb-native class="tw:font-sans"
+              >{#each sizes as item (item.value)}<SelectItem
+                  value={item.value}
+                  label={item.label}>{item.label}</SelectItem
+                >{/each}</SelectContent
+            ></Select
+          >{/snippet}</Snapshot
       >{/key}
     <IconButton
       label={props.t("Abrir no painel Apps")}
