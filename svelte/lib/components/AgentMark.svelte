@@ -32,7 +32,8 @@
   {#snippet fallback()}{#if tint}<span
         data-agent-tile={agentProvider(via)}
         class={cn(
-          "tw:grid tw:size-full tw:place-items-center",
+          // leading-none: the inherited line height pushed the glyph below the tile's center (most visible in the tiny badges).
+          "tw:grid tw:size-full tw:place-items-center tw:leading-none",
           AGENT_TILES[agentProvider(via)],
         )}>{glyph}</span
       >{:else}{glyph}{/if}{/snippet}
