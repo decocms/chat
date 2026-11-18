@@ -20,6 +20,7 @@ export type PanelRoom = Pick<
 >;
 export type PanelBridge = Bridge & {
   name: (email: string) => string;
+  avatarVersion: (email: string) => number | null | undefined;
   locale?: string;
 };
 export type Send = SendRoomCommand;

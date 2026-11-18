@@ -39,7 +39,7 @@
         t: sidebar.vb.t,
         name: sidebar.vb.name,
         ago: sidebar.vb.ago,
-        avatarUrl: sidebar.vb.avatarUrl,
+        avatarVersion: sidebar.vb.avatarVersion,
       }}
       {agents}
     />{/if}

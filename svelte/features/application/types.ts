@@ -62,6 +62,8 @@ export type ApplicationBrowser = {
   logoutWarning(): void;
   logoutFailure(): void;
   shellVersion: string | null;
+  /** The language the app shows (pt when absent). */
+  language?: "pt" | "en";
   storage?: Pick<Storage, "getItem" | "setItem"> | null;
   clock?: AgentClock;
 };

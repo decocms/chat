@@ -102,6 +102,8 @@ import {
 export type Bind = string | number | null;
 /** What the typed routes may do, bound to the signed-in person. Authorization stays in each route (isMember). */
 export interface ApiServices {
+  /** The signed-in person reads English (reqLang): the error texts below follow it. */
+  en: boolean;
   /** Is the signed-in person a member of this room? */
   isMember(roomId: string): Promise<boolean>;
   allowStt():Promise<boolean>;
@@ -305,7 +307,8 @@ export const api = roomPosts
     return c.json(ok, 200);
   })
   .post("/api/push/test", async (c) => {
-    const sent = await c.get("svc").pushToMe({ title: "vibebook", body: "Notificações ligadas neste aparelho ✓", url: "/app", tag: "test" });
+    const svc = c.get("svc");
+    const sent = await svc.pushToMe({ title: "vibebook", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/app", tag: "test" });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
   // ✓ on a wait: "I answered elsewhere / not for me" (asks only).
@@ -502,11 +505,12 @@ export const roomApi = accountApi
   })
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));
 
+const tooManyAsks = (en: boolean) => ({ error: en ? "Too many requests in a row. Wait a minute." : "Muitos pedidos seguidos. Espera um minuto." }) satisfies ErrorBody;
 // Slice 5: your name, new rooms and the home's router. Model answers are parsed with their schema before they leave.
 export const homeApi = roomApi
   .post("/api/me", body(SetNameBody), async (c) => {
     const clean = (c.req.valid("json").name ?? "").replace(/[<>"@\p{Cc}]/gu, "").replace(/\s+/g, " ").trim().slice(0, 60);
-    if (!clean) return c.json({ error: "Nome vazio." } satisfies ErrorBody, 400);
+    if (!clean) return c.json({ error: c.get("svc").en ? "Empty name." : "Nome vazio." } satisfies ErrorBody, 400);
     await c.get("svc").sql(`UPDATE users SET name = ? WHERE email = ?`, clean, c.get("email"));
     return c.json({ ok: true as const, name: clean } satisfies SetNameResult, 200);
   })
@@ -516,28 +520,28 @@ export const homeApi = roomApi
     return c.json({ id } satisfies CreateRoomResult, 200);
   })
   .post("/api/books/start", body(TextBody), async (c) => {
-    const text = (c.req.valid("json").text ?? "").trim();
-    if (!text) return c.json({ error: "Escreva o que é e com quem." } satisfies ErrorBody, 400);
-    const out = await c.get("svc").startRoom(text);
-    if (out === false) return c.json({ error: "Muitos pedidos seguidos. Espera um minuto." } satisfies ErrorBody, 429);
+    const svc = c.get("svc"), text = (c.req.valid("json").text ?? "").trim();
+    if (!text) return c.json({ error: svc.en ? "Write what it is and who it's with." : "Escreva o que é e com quem." } satisfies ErrorBody, 400);
+    const out = await svc.startRoom(text);
+    if (out === false) return c.json(tooManyAsks(svc.en), 429);
     return c.json(StartRoomResult.parse(out) satisfies StartRoomResult, 200);
   })
   .post("/api/route", body(TextBody), async (c) => {
     const svc = c.get("svc");
     if (!svc.sameOrigin) return c.json({ error: "bad origin" } satisfies ErrorBody, 403);
     const text = (c.req.valid("json").text ?? "").trim();
-    if (!text) return c.json({ error: "Escreva alguma coisa." } satisfies ErrorBody, 400);
+    if (!text) return c.json({ error: svc.en ? "Write something." : "Escreva alguma coisa." } satisfies ErrorBody, 400);
     try {
       const out = await svc.routeHome(text);
-      if (out === false) return c.json({ error: "Muitos pedidos seguidos. Espera um minuto." } satisfies ErrorBody, 429);
+      if (out === false) return c.json(tooManyAsks(svc.en), 429);
       return c.json(RouteResult.parse(out) satisfies RouteResult, 200);
     } catch {
-      return c.json({ error: "Não consegui sugerir agora. Escolha a sala na lista abaixo." } satisfies ErrorBody, 502);
+      return c.json({ error: svc.en ? "Couldn't suggest one right now. Pick the room from the list below." : "Não consegui sugerir agora. Escolha a sala na lista abaixo." } satisfies ErrorBody, 502);
     }
   });
 
 // Slice 6: your freestyle.sh key and Claude subscription token (cloud agents). Only "connected" ever comes back.
-const tooMany = { error: "Muitas tentativas. Espera um minuto." } satisfies ErrorBody;
+const tooMany = (en: boolean) => ({ error: en ? "Too many tries. Wait a minute." : "Muitas tentativas. Espera um minuto." }) satisfies ErrorBody;
 export const keysApi = homeApi
   .get("/api/freestyle", async (c) => {
     const rows = await c.get("svc").sqlAll(`SELECT 1 FROM freestyle_keys WHERE email = ?`, c.get("email"));
@@ -545,11 +549,11 @@ export const keysApi = homeApi
   })
   .post("/api/freestyle", body(FreestyleKeyBody), async (c) => {
     const svc = c.get("svc");
-    if (!(await svc.allowSecretTry(`fs:${c.get("email")}`))) return c.json(tooMany, 429);
+    if (!(await svc.allowSecretTry(`fs:${c.get("email")}`))) return c.json(tooMany(svc.en), 429);
     const key = (c.req.valid("json").key ?? "").trim();
-    if (key.length < 16 || key.length > 400) return c.json({ error: "Essa não parece uma API key do freestyle." } satisfies ErrorBody, 400);
+    if (key.length < 16 || key.length > 400) return c.json({ error: svc.en ? "That doesn't look like a freestyle API key." : "Essa não parece uma API key do freestyle." } satisfies ErrorBody, 400);
     const refused = await svc.checkFreestyleKey(key);
-    if (refused !== null) return c.json({ error: `O freestyle recusou a key: ${refused}` } satisfies ErrorBody, 400);
+    if (refused !== null) return c.json({ error: svc.en ? `freestyle refused the key: ${refused}` : `O freestyle recusou a key: ${refused}` } satisfies ErrorBody, 400);
     await svc.saveSecret("freestyle_keys", key);
     svc.track("freestyle_connected");
     return c.json(ok, 200);
@@ -561,10 +565,10 @@ export const keysApi = homeApi
   // The person's Claude subscription token (from `claude setup-token` in their own terminal): sandboxes start logged in.
   .post("/api/claude-token", body(ClaudeTokenBody), async (c) => {
     const svc = c.get("svc");
-    if (!(await svc.allowSecretTry(`ct:${c.get("email")}`))) return c.json(tooMany, 429);
+    if (!(await svc.allowSecretTry(`ct:${c.get("email")}`))) return c.json(tooMany(svc.en), 429);
     // The terminal wraps the long token over lines: copied, it comes with spaces/newlines in the middle.
     const tok = (c.req.valid("json").token ?? "").replace(/\s+/g, "");
-    if (!/^sk-ant-[A-Za-z0-9_.-]{20,2000}$/.test(tok)) return c.json({ error: "Isso não parece um token do claude setup-token (começa com sk-ant-)." } satisfies ErrorBody, 400);
+    if (!/^sk-ant-[A-Za-z0-9_.-]{20,2000}$/.test(tok)) return c.json({ error: svc.en ? "That doesn't look like a token from claude setup-token (it starts with sk-ant-)." : "Isso não parece um token do claude setup-token (começa com sk-ant-)." } satisfies ErrorBody, 400);
     await svc.saveSecret("claude_tokens", tok);
     svc.track("claude_token_saved");
     return c.json(ok, 200);
@@ -786,20 +790,20 @@ const imageHeaders = validator("header", (value, c) => {
   return r.success ? r.data : c.json({ error: "bad request" } satisfies ErrorBody, 400);
 });
 const mediaType = (h: { "content-type"?: string }) => (h["content-type"] ?? "").split(";")[0].trim().toLowerCase();
-const slowDown = { error: "Muitos uploads. Espera um minuto." } satisfies ErrorBody;
+const slowDown = (en: boolean) => ({ error: en ? "Too many uploads. Wait a minute." : "Muitos uploads. Espera um minuto." }) satisfies ErrorBody;
 export const uploadsApi = meApi
   .post("/api/me/avatar", imageHeaders, async (c) => {
     const svc = c.get("svc");
     if (!svc.sameOrigin) return c.json({ error: "bad origin" } satisfies ErrorBody, 403);
     const type = mediaType(c.req.valid("header"));
-    if (!AVATAR_TYPES.includes(type)) return c.json({ error: "Use uma imagem PNG, JPEG ou WebP." } satisfies ErrorBody, 415);
+    if (!AVATAR_TYPES.includes(type)) return c.json({ error: svc.en ? "Use a PNG, JPEG or WebP image." : "Use uma imagem PNG, JPEG ou WebP." } satisfies ErrorBody, 415);
     let bytes:ArrayBuffer;
     try { bytes=await requestBytes(c.req.raw,1_000_000); }
     catch(error){
-      if(error instanceof RequestBytesError)return c.json({ error: "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
+      if(error instanceof RequestBytesError)return c.json({ error: svc.en ? "Image empty or over 1MB." : "Imagem vazia ou maior que 1MB." } satisfies ErrorBody, 413);
       throw error;
     }
-    if (!(await svc.allowUpload())) return c.json(slowDown, 429);
+    if (!(await svc.allowUpload())) return c.json(slowDown(svc.en), 429);
     const avatar = await svc.saveAvatar(type, bytes);
     svc.track("avatar_set");
     return c.json({ ok: true as const, avatar } satisfies AvatarResult, 200);
@@ -808,7 +812,7 @@ export const uploadsApi = meApi
     const svc = c.get("svc"), id = c.req.param("id");
     if (!svc.sameOrigin) return c.json({ error: "bad origin" } satisfies ErrorBody, 403);
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
-    if (!(await svc.allowUpload())) return c.json(slowDown, 429);
+    if (!(await svc.allowUpload())) return c.json(slowDown(svc.en), 429);
     const type = mediaType(c.req.valid("header"));
     try {
       // A JSON body removes the icon; anything else is the image (setRoomIcon checks type and size).
@@ -817,7 +821,7 @@ export const uploadsApi = meApi
       else {
         try { image={type,body:await requestBytes(c.req.raw,256_000)}; }
         catch(error){
-          if(error instanceof RequestBytesError)return c.json({error:"Ícone vazio ou maior que 256KB."} satisfies ErrorBody,400);
+          if(error instanceof RequestBytesError)return c.json({error:svc.en?"Icon empty or over 256KB.":"Ícone vazio ou maior que 256KB."} satisfies ErrorBody,400);
           throw error;
         }
       }

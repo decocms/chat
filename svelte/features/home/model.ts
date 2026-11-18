@@ -40,7 +40,8 @@ export type DmEntry = {
   email: string;
   /** Their name (or email); for "Você" the view writes its own label. */
   name: string;
-  avatar?: string;
+  /** Their picture's version (PersonAvatar); yours is `me.avatar`. */
+  version?: number | null;
   room: RoomSummary;
   self: boolean;
 };
@@ -77,7 +78,7 @@ export function dmEntries(me: MeResult | null) {
   const entry = (email: string, id: string): DmEntry => ({
     email,
     name: personName(me, email),
-    avatar: personAvatar(me, email),
+    version: personVersion(me, email),
     room: made.get(id) ?? standIn(id, [...new Set([me.email, email])]),
     self: email === me.email,
   });
@@ -93,10 +94,44 @@ export function dmEntries(me: MeResult | null) {
     .sort((a, b) => (b.room.updated_at ?? 0) - (a.room.updated_at ?? 0));
   return { self: entry(me.email, me.dm), talked };
 }
+/**
+ * Your own DM ("Você") read in the language the app shows. The server titles
+ * it in the room's language (src/dm.ts `dmTitle`: its owner's saved one), so an
+ * English app opened on a Portuguese account would show "Você". Same object
+ * when nothing changes, so stores don't redraw.
+ */
+export function titleOwnDm<
+  R extends {
+    me: string;
+    members: readonly string[];
+    book: { title: string; dm?: boolean | null };
+  },
+>(room: R, lang: HomeLanguage): R {
+  if (!room.book.dm || room.members.some((email) => email !== room.me))
+    return room;
+  const title = homeText(lang, "you");
+  return room.book.title === title
+    ? room
+    : { ...room, book: { ...room.book, title } };
+}
 /** The DMs a room switcher lists: "Você" and the ones you've talked in. */
 export function switcherDms(me: MeResult | null) {
   const dms = dmEntries(me);
   return dms ? [dms.self, ...dms.talked] : [];
+}
+/** The DM this room id is, when it's one of yours: whom it's with (its face and name stand for it). */
+export const dmEntry = (me: MeResult | null, roomId: string) =>
+  switcherDms(me).find((entry) => entry.room.id === roomId);
+/** A room's name in a list across rooms (waits, the inbox's All tab): a DM is named after the other person ("Você"
+ *  for your own, in the app's language), not with the pair title its row keeps (src/dm.ts). */
+export function roomLabel(
+  me: MeResult | null,
+  roomId: string,
+  title: string,
+  lang: HomeLanguage,
+) {
+  const dm = dmEntry(me, roomId);
+  return dm ? (dm.self ? homeText(lang, "you") : dm.name) : title;
 }
 /** The DMs someone wrote in that you haven't read (not "Você", not the open one), newest first, each with about how
  *  many messages are new (message ids are per room, so the gap counts them): the rail shows them under Home. */
@@ -176,23 +211,37 @@ export const unread = (room: RoomSummary, seen = 0) =>
     : room.last_agent_id > Math.max(room.read_id, seen)
       ? "agent"
       : null;
-/** A person's picture URL at a version (undefined without one: initials are drawn instead). */
-export const avatarUrl = (email: string, version: number | null | undefined) =>
-  version ? `/api/avatar/${encodeURIComponent(email)}?v=${version}` : undefined;
-/** What your home knows about someone: a person from your rooms, a connection, or who wrote to you. */
-const known = (me: MeResult | null, email: string) =>
-  me?.people?.find((person) => person.email === email) ??
-  me?.friends.find((friend) => friend.email === email) ??
-  me?.requests.find((request) => request.email === email);
-export function personAvatar(me: MeResult | null, email: string) {
-  return avatarUrl(
-    email,
-    me?.email === email ? me.avatar : known(me, email)?.avatar,
+/** What your home knows about someone: a person from your rooms, a connection, who wrote to you, or a DM's other side. */
+const known = (me: MeResult | null, email: string) => [
+  ...(me?.people ?? []).filter((person) => person.email === email),
+  ...(me?.friends ?? []).filter((friend) => friend.email === email),
+  ...(me?.requests ?? []).filter((request) => request.email === email),
+  ...(me?.books ?? [])
+    .filter(
+      (room) =>
+        room.dm && email !== me?.email && roomMembers(room).includes(email),
+    )
+    .map((room) => ({ name: room.peer_name, avatar: room.peer_avatar })),
+];
+/** The newest of picture versions (they are timestamps): every source agrees on the newest one it has seen. */
+export const newestVersion = (
+  versions: readonly (number | null | undefined)[],
+) =>
+  versions.reduce<number | null | undefined>(
+    (best, v) => (v && (!best || v > best) ? v : best),
+    undefined,
   );
-}
+/** The version of someone's picture your home knows (PersonAvatar draws it): yours is always `me.avatar`, anyone
+ *  else's the newest any home list carries. The home half of `roomAvatarVersion`, so both agree on the same data. */
+export const personVersion = (me: MeResult | null, email: string) =>
+  me?.email === email
+    ? me.avatar
+    : newestVersion(known(me, email).map((who) => who.avatar));
 /** Their name when your home knows it, else their email. */
 export const personName = (me: MeResult | null, email: string) =>
-  (me?.email === email ? me.name : known(me, email)?.name) || email;
+  (me?.email === email
+    ? me.name
+    : known(me, email).find((who) => who.name)?.name) || email;
 export const roomMembers = (room: RoomSummary) =>
   (room.members ?? "").split(",").filter(Boolean);
 export const roomIcon = (room: RoomSummary) =>

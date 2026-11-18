@@ -109,8 +109,8 @@
               ><PersonAvatar
                 data-avatar="person"
                 size="xs"
-                name={vb.name(email)}
-                url={vb.avatarUrl?.(email)}
+                {email}
+                version={vb.avatarVersion(email)}
                 class="tw:ring-2 tw:ring-card"
               /></span
             >{/each}</span

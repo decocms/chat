@@ -26,7 +26,8 @@
   import DeferredRouteStatus from "../deferred-view/DeferredRouteStatus.svelte";
   import HomeSkeleton from "../home/HomeSkeleton.svelte";
   import type { HomeBridge } from "../home/types";
-  import { avatarUrl, personAvatar } from "../home/model";
+  import { roomAvatarVersion } from "../room-scope/model";
+  import { roomLabel } from "../home/model";
   import {
     provideUserMenu,
     type UserMenuActions,
@@ -151,12 +152,8 @@
       ? $personal.me.name
       : $personal.me?.friends.find((friend) => friend.email === email)?.name) ||
     email.split("@")[0]!;
-  const avatar = (email: string) => {
-    const version = $room.room?.avatars?.[email];
-    return version
-      ? avatarUrl(email, version)
-      : personAvatar($personal.me, email);
-  };
+  const avatar = (email: string) =>
+    roomAvatarVersion($room.room, $personal.me, email);
   const home = $derived<HomeBridge>({
     pwa: services.pwa,
     personal: services.personal,
@@ -418,7 +415,9 @@
                 all={$inboxView.all}
                 vb={{ t: services.t, ago }}
                 {displayName}
-                avatarUrl={avatar}
+                avatarVersion={avatar}
+                roomLabel={(roomId, title) =>
+                  roomLabel($personal.me, roomId, title, services.language)}
                 ontab={(all) => inbox.tab(binding, all)}
                 onclose={() => inbox.close(binding)}
                 onresolve={(wait) => inbox.resolve(binding, wait)}

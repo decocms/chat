@@ -59,6 +59,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     [];
   const saved: { table: string; value: string }[] = [];
   const svc: ApiServices = {
+    en: false,
     isMember: async () => true,
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),

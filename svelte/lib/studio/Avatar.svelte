@@ -62,8 +62,11 @@
     cn("tw:flex tw:size-full tw:items-center tw:justify-center", color),
   );
 
+  // The fallback waits a beat for each image (a cached one lands without a flash of initials). The wait starts over
+  // when the URL changes (a new picture version), so a tile drawn earlier behaves like one drawn now.
   let waited = $state(false);
   $effect(() => {
+    waited = false;
     if (!url) return;
     const timer = setTimeout(() => {
       waited = true;
