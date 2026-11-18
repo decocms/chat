@@ -550,14 +550,25 @@ try {
       // Svelte is the default; vanilla is the fallback, by URL or by this device's choice.
       const unselected = await owner.context.request.get(`${base}/b/${roomA}`);
       assert.equal(unselected.headers()["x-vibebook-ui"], "svelte");
-      for (const fallback of [
-        owner.context.request.get(`${base}/b/${roomA}?ui=vanilla`),
-        owner.context.request.get(`${base}/b/${roomA}`, {
-          headers: { cookie: "vb_ui=vanilla" },
-        }),
-      ]) {
+      // An explicit Cookie header replaces the context's cookies: keep the session in it.
+      const session = (await owner.context.cookies(base))
+        .map((cookie) => `${cookie.name}=${cookie.value}`)
+        .join("; ");
+      for (const [how, fallback] of [
+        ["url", owner.context.request.get(`${base}/b/${roomA}?ui=vanilla`)],
+        [
+          "device",
+          owner.context.request.get(`${base}/b/${roomA}`, {
+            headers: { cookie: `${session}; vb_ui=vanilla` },
+          }),
+        ],
+      ] as const) {
         const response = await fallback;
-        assert.equal(response.headers()["x-vibebook-ui"], "vanilla");
+        assert.equal(
+          response.headers()["x-vibebook-ui"],
+          "vanilla",
+          `vanilla fallback by ${how}`,
+        );
         assert(
           !(await response.text()).includes("/svelte-preview/app.js"),
           "The vanilla fallback must not load the Svelte app",
