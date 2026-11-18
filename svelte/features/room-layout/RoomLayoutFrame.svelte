@@ -238,8 +238,8 @@
         ? "tw:hidden"
         : [
             "tw:col-start-2 tw:row-start-4 tw:min-h-0 tw:min-w-0 tw:overflow-y-auto tw:overscroll-contain tw:px-4",
-            // Its own layer in a DM switch, so the conversation lifts in (browser.viewTransition).
-            "tw:vt-dm:[view-transition-name:dm-chat]",
+            // Its own layer in a room switch, so the conversation lifts in (browser.viewTransition).
+            "tw:vt-room:[view-transition-name:room-chat]",
             // Full width as in Discord and Slack, with 24px gutters (16px on mobile) lined up with the composer and the cards above.
             !$view.mobile && "tw:mr-2 tw:px-6",
           ]}

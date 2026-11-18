@@ -10,7 +10,7 @@ import { HomeFailure } from "../svelte/features/home/api";
 import {
   applicationRoute,
   createApplicationRouter,
-  dmTransition,
+  roomTransition,
 } from "../svelte/features/app-navigation/router";
 import { createDocumentDrafts } from "../svelte/features/documents/session";
 import { targetHref } from "../svelte/features/home/model";
@@ -810,20 +810,24 @@ test("reentrant navigation during canonical legacy URL publication cancels the o
   h.services.dispose();
 });
 
-test("only moves between DMs, or between the home and a DM, animate", () => {
+test("switching rooms or DMs, or between the home and one, animates; a thread in the same room doesn't", () => {
   const dmA = `dm${"a".repeat(20)}`,
     dmB = `dm${"b".repeat(20)}`,
     at = (path: string) => applicationRoute(`http://vb.test${path}`);
-  expect(dmTransition(at(`/b/${dmA}`), at(`/b/${dmB}`))).toBe(true);
-  expect(dmTransition(at("/app"), at(`/b/${dmA}`))).toBe(true);
-  expect(dmTransition(at(`/b/${dmA}`), at("/app"))).toBe(true);
-  expect(dmTransition(at(`/b/${dmA}`), at(`/b/${dmA}?t=e1`))).toBe(false);
-  expect(dmTransition(at(`/b/${dmA}`), at("/b/cccccc"))).toBe(false);
-  expect(dmTransition(at("/app"), at("/b/cccccc"))).toBe(false);
-  expect(dmTransition(at(`/b/${dmA}`), at("/archived"))).toBe(false);
+  expect(roomTransition(at(`/b/${dmA}`), at(`/b/${dmB}`))).toBe(true);
+  expect(roomTransition(at("/app"), at(`/b/${dmA}`))).toBe(true);
+  expect(roomTransition(at(`/b/${dmA}`), at("/app"))).toBe(true);
+  expect(roomTransition(at(`/b/${dmA}`), at("/b/cccccc"))).toBe(true);
+  expect(roomTransition(at("/b/cccccc"), at("/b/dddddd"))).toBe(true);
+  expect(roomTransition(at("/app"), at("/b/cccccc"))).toBe(true);
+  expect(roomTransition(at("/b/cccccc"), at("/app"))).toBe(true);
+  expect(roomTransition(at(`/b/${dmA}`), at(`/b/${dmA}?t=e1`))).toBe(false);
+  expect(roomTransition(at("/b/cccccc"), at("/b/cccccc?t=e1"))).toBe(false);
+  expect(roomTransition(at(`/b/${dmA}`), at("/archived"))).toBe(false);
+  expect(roomTransition(at("/archived"), at("/b/cccccc"))).toBe(false);
 });
 
-test("a DM switch starts its view transition before anything changes, holds it for the room's state, and only the latest runs", async () => {
+test("a room switch starts its view transition before anything changes, holds it for the room's state, and only the latest runs", async () => {
   const updates: (() => Promise<void> | void)[] = [];
   const dmA = `dm${"a".repeat(20)}`,
     dmB = `dm${"b".repeat(20)}`;
@@ -859,9 +863,11 @@ test("a DM switch starts its view transition before anything changes, holds it f
   expect(get(h.services.state).route.kind).toBe("home");
   void updates[3]!();
   expect(h.services.rootRoom.read().roomId).toBe(dmB);
-  // A room that isn't a DM opens at once.
+  // A room that isn't a DM switches the same way.
   h.services.actions.navigate({ roomId: "cccccc" });
-  expect(updates).toHaveLength(4);
+  expect(updates).toHaveLength(5);
+  expect(h.services.rootRoom.read().roomId).toBe(dmB);
+  void updates[4]!();
   expect(h.services.rootRoom.read().roomId).toBe("cccccc");
   h.services.dispose();
 });

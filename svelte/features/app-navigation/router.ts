@@ -1,5 +1,4 @@
 import { uiNavigationUrl } from "../../../shared/uiVariant";
-import { isDmId } from "../../../shared/dm";
 import {
   targetHref,
   messageIdentity,
@@ -14,14 +13,16 @@ export type ApplicationRoute =
   | { kind: "document"; url: string };
 export const roomIdFromPath = (pathname: string) =>
   pathname.match(/^\/b\/([a-z0-9]{6,40})\/?$/)?.[1] ?? null;
-/** A move between your DMs, or between the home and a DM: the DM column stays
- * put, so the app animates it (a view transition, browser.viewTransition). */
-export function dmTransition(from: ApplicationRoute, to: ApplicationRoute) {
-  const dm = (route: ApplicationRoute) =>
-    route.kind === "room" && isDmId(route.target.roomId);
+/** Opening another room or DM, or moving between the home and one: the room is
+ * rebuilt, so the app animates it (a view transition, browser.viewTransition).
+ * A thread inside the same room isn't a switch. */
+export function roomTransition(from: ApplicationRoute, to: ApplicationRoute) {
   if (from.kind === "room" && to.kind === "room")
-    return from.target.roomId !== to.target.roomId && dm(from) && dm(to);
-  return (from.kind === "home" && dm(to)) || (dm(from) && to.kind === "home");
+    return from.target.roomId !== to.target.roomId;
+  return (
+    (from.kind === "home" && to.kind === "room") ||
+    (from.kind === "room" && to.kind === "home")
+  );
 }
 /** Local presentation only; reloading the serialized URL returns to main. */
 export type PresentationThread = `pre:${number}`;

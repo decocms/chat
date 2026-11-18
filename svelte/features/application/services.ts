@@ -13,7 +13,7 @@ import { createAppNavigationSession } from "../app-navigation/controller";
 import {
   applicationRoute,
   createApplicationRouter,
-  dmTransition,
+  roomTransition,
   roomIdFromPath,
   type ApplicationRoute,
   type PresentationThread,
@@ -257,11 +257,11 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     activate: activateRoute,
   });
   let transitions = 0;
-  /** Runs a navigation; a DM switch runs inside a view transition, started
+  /** Runs a navigation; a room switch runs inside a view transition, started
    * before anything changes so the browser captures the screen as it was. */
   function animated(to: ApplicationRoute, run: () => void) {
     const intent = ++transitions;
-    if (!browser.viewTransition || !dmTransition(get(state).route, to))
+    if (!browser.viewTransition || !roomTransition(get(state).route, to))
       return run();
     browser.viewTransition(() => {
       // A newer navigation came first: only the latest one runs.

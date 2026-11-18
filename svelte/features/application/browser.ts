@@ -64,8 +64,8 @@ export function createBrowserApplicationServices(options: {
         void update();
         return;
       }
-      // The chat's layer name applies only while a DM switch runs (the vt-dm variant).
-      root.dataset.vt = "dm";
+      // The chat's layer name applies only while a room switch runs (the vt-room variant).
+      root.dataset.vt = "room";
       const transition = doc.startViewTransition(async () => {
         await Promise.race([
           update(),
@@ -86,7 +86,7 @@ export function createBrowserApplicationServices(options: {
               duration: 140,
               easing: "ease-in",
               fill: "both",
-              pseudoElement: "::view-transition-old(dm-chat)",
+              pseudoElement: "::view-transition-old(room-chat)",
             },
           );
           root.animate(
@@ -99,7 +99,7 @@ export function createBrowserApplicationServices(options: {
               delay: 60,
               easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
               fill: "both",
-              pseudoElement: "::view-transition-new(dm-chat)",
+              pseudoElement: "::view-transition-new(room-chat)",
             },
           );
         },
