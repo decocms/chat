@@ -35,9 +35,6 @@
 </script>
 
 <script lang="ts">
-  import Button from "../../lib/studio/Button.svelte";
-  import Icon from "../../lib/studio/Icon.svelte";
-  import { SearchMd } from "../../lib/studio/icons";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
   import { dmEntries, waitsByRoom, type DmEntry } from "../home/model";
@@ -46,6 +43,7 @@
   import Requests from "./Requests.svelte";
   import HomeRow from "./HomeRow.svelte";
   import RoomLink from "./RoomLink.svelte";
+  import SearchField from "./SearchField.svelte";
   /**
    * Your home's own sidebar, like a room's: Home, "Você" (you and your
    * Claude), "Pedidos" (invites and message requests waiting for your yes),
@@ -88,17 +86,7 @@
   use:keepRow
   class="tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:font-sans"
 >
-  <Button
-    variant="outline"
-    class="tw:w-full tw:shrink-0 tw:justify-start tw:gap-2 tw:font-normal tw:text-muted-foreground"
-    onclick={(event) => {
-      if (event.currentTarget.isConnected)
-        controller.openSearch(event.currentTarget);
-    }}
-    ><Icon icon={SearchMd} size={16} /><span class="tw:truncate"
-      >{homeText(lang, "findConversation")}</span
-    ></Button
-  >
+  <SearchField {controller} label={homeText(lang, "findConversation")} />
   {#if dms}<ul
       class="tw:m-0 tw:flex tw:min-h-0 tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-y-auto tw:p-0"
     >

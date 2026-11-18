@@ -222,3 +222,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A hard-coded color in an inline `style` attribute is not found.
 - Undo: Change the regular expressions in `scripts/guidelines-check.ts`.
 - Status: open
+
+### 2026-11-18 · feat/room-sidebar-search · The DM search box in the room sidebar
+- Agent: claude-opus-5-5
+- Context: The human asked to put the search box of the DM sidebar in the room sidebar too. The box was a button inside `DmNav.svelte`.
+- Decision: The box is now `svelte/features/app-navigation/SearchField.svelte`. `DmNav.svelte` and the room sidebar (`svelte/Sidebar.svelte`, under the room header) use it. Both open the same search dialog (⌘K), which searches all rooms. The label in a room is "Buscar" / "Search", because the long placeholder is cut in the sidebar and "Find or start a conversation" is about DMs.
+- Other options: A search for only this room. The search API searches all rooms, so this needs a server change. Copy the button into `Sidebar.svelte`. Then the two copies can become different.
+- Risk: low. The rail on desktop also has a search button, so the room has two ways to open search (the DM sidebar already had two).
+- Undo: Remove `SearchField` from `svelte/Sidebar.svelte`.
+- Status: open
