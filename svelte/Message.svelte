@@ -102,6 +102,42 @@
   );
   const group = $derived(m.group || [m]);
   const reminder = $derived(reminderParts(m));
+  // An agent's card usually comes with its title again as the message text (the fallback for notifications):
+  // when the text is one line whose words are all in the card's title, the card alone says it.
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+  const echoesCard = $derived.by(() => {
+    let title = "";
+    try {
+      // Only the root's title: the card itself is parsed (and checked) where it's drawn, in the deferred body.
+      const raw = m.card ? (JSON.parse(m.card) as unknown) : null;
+      if (
+        raw &&
+        typeof raw === "object" &&
+        "root" in raw &&
+        "elements" in raw
+      ) {
+        const { root, elements } = raw as {
+          root: unknown;
+          elements: Record<string, { props?: { title?: unknown } } | undefined>;
+        };
+        const value =
+          typeof root === "string" ? elements?.[root]?.props?.title : undefined;
+        if (typeof value === "string") title = value;
+      }
+    } catch {
+      title = "";
+    }
+    if (!title || !m.text || m.text.includes("\n")) return false;
+    const inTitle = new Set(words(title));
+    const said = words(m.text);
+    return said.length > 0 && said.every((word) => inTitle.has(word));
+  });
   const author = (message: ChatMessage) =>
     message.author === "ai"
       ? "@vibe"
@@ -259,7 +295,7 @@
                 })
               : vb.t("pensando…")}{typing ? "…" : ""}
           </p>
-        {:else if m.text}{@render rich(
+        {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
           )}{/if}
