@@ -252,7 +252,9 @@
         <DocumentToolbar
           {...tabs}
           bare
-          exclude={["agents", "board"]}
+          exclude={header.room.book.dm
+            ? ["agents", "board", "doc"]
+            : ["agents", "board"]}
           pane={split ? tabs.pane : ("" as DocumentPane)}
           onPane={pickPane}
         />
