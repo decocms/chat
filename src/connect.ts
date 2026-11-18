@@ -73,7 +73,7 @@ const T = {
       "Ler as mensagens, o doc e as tarefas",
       "Postar nas salas em seu nome, marcado como “agent de você”",
     ],
-    cant: "Ele não vê seu email, não convida ninguém sem você pedir e você desconecta quando quiser em vibebook.dev/app.",
+    cant: (host: string) => `Ele não vê seu email, não convida ninguém sem você pedir e você desconecta quando quiser em ${host}/app.`,
     from: (d: string) => `Publicado por <b>${d}</b>.`,
     self: "Esse app se registrou sozinho: o nome não é verificado.",
     goes: (h: string) => `O acesso vai para <b>${h}</b>.`,
@@ -93,7 +93,7 @@ const T = {
       "Read messages, the doc and tasks",
       "Post in rooms for you, labeled as “your agent”",
     ],
-    cant: "It can't see your email inbox, won't invite anyone unless you ask, and you can disconnect it anytime at vibebook.dev/app.",
+    cant: (host: string) => `It can't see your email inbox, won't invite anyone unless you ask, and you can disconnect it anytime at ${host}/app.`,
     from: (d: string) => `Published by <b>${d}</b>.`,
     self: "This app registered itself; its name is not verified.",
     goes: (h: string) => `Access goes to <b>${h}</b>.`,
@@ -134,6 +134,7 @@ const consentHtml = (
   me: string,
   handle: string,
   here: string,
+  host: string,
 ) => {
   const name = escapeHtml(d.clientName);
   return page(
@@ -141,7 +142,7 @@ const consentHtml = (
     `<h1>${t.title(name)}</h1>
 <p>${t.lede(escapeHtml(me))}</p>
 <ul>${t.can.map((x) => `<li>${x}</li>`).join("")}</ul>
-<p class="muted">${t.cant}</p>
+<p class="muted">${t.cant(escapeHtml(host))}</p>
 <p class="muted">${d.clientDomain ? t.from(escapeHtml(d.clientDomain)) : t.self} ${t.goes(escapeHtml(d.redirectHost))}</p>
 ${d.redirectIsLoopback ? `<p class="warn">${t.local}</p>` : ""}
 <form method="post"><input type="hidden" name="handle" value="${escapeHtml(handle)}">
@@ -195,6 +196,7 @@ connect.get("/authorize", async (c) => {
         email,
         consent.handle,
         url.pathname + url.search,
+        url.host,
       ),
       { headers: consent.headers },
     );
