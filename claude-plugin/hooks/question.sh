@@ -14,6 +14,8 @@ const call = (tool, args) => { try { return JSON.parse(execFileSync("vibebook", 
 const callA = (tool, args) => new Promise((r) => execFile("vibebook", ["call", tool, JSON.stringify(args)], { encoding: "utf8", timeout: 60000 }, (e, out) => { try { r(JSON.parse(out)); } catch { r({}); } }));
 let d = ""; process.stdin.on("data", (c) => (d += c)).on("end", async () => {
   let j = {}; try { j = JSON.parse(d); } catch {}
+  // The CLI names its agent after the Claude Code session; the env of a hook lacks it (Gui #3181: one Claude listed twice).
+  if (!process.env.CLAUDE_CODE_SESSION_ID && j.session_id) process.env.CLAUDE_CODE_SESSION_ID = String(j.session_id);
   const qs = (j.tool_input?.questions || []).slice(0, 4);
   if (!qs.length) return;
   const end = Date.now() + (Number(process.env.VIBEBOOK_QUESTION_WAIT) || 600) * 1000;
