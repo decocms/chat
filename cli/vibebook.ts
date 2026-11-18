@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.6.18";
+const VERSION = "1.6.19";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -65,6 +65,15 @@ function repoRoot() {
   } catch {
     return process.cwd();
   }
+}
+/** The name the room shows next to the model. A git worktree's folder is a random name (t3-04d58198, Valls 17/11):
+ * use the main checkout's folder instead (git-common-dir is <main>/.git there), else the folder's own name. */
+function repoName(root: string) {
+  try {
+    const common = execSync("git rev-parse --path-format=absolute --git-common-dir", { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    if (basename(common) === ".git" && dirname(common) !== root) return basename(dirname(common));
+  } catch {}
+  return basename(root);
 }
 const linkedRoom = (root: string) => readFileSync(join(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
 function roomHere(root: string): string | undefined {
@@ -352,7 +361,7 @@ async function callTool(name: string, args: Record<string, unknown>, agent: stri
   const root = repoRoot();
   // search spans every room by default (its room_id means "only this one"), so the folder's room isn't filled in.
   if (props.includes("room_id") && args.room_id === undefined && name !== "search" && roomHere(root)) args.room_id = roomHere(root);
-  if (props.includes("repo") && args.repo === undefined) args.repo = basename(root);
+  if (props.includes("repo") && args.repo === undefined) args.repo = repoName(root);
   const model = flag("model") ?? process.env.VIBEBOOK_MODEL;
   if (props.includes("model") && args.model === undefined && model) args.model = model;
   // Inside an agent app other than a terminal (Antigravity runs Gemini through this CLI), the room shows the app too:

@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.18";
+var VERSION = "1.6.19";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -62,6 +62,14 @@ function repoRoot() {
   } catch {
     return process.cwd();
   }
+}
+function repoName(root) {
+  try {
+    const common = execSync("git rev-parse --path-format=absolute --git-common-dir", { cwd: root, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    if (basename(common) === ".git" && dirname(common) !== root)
+      return basename(dirname(common));
+  } catch {}
+  return basename(root);
 }
 var linkedRoom = (root) => readFileSync(join(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
 function roomHere(root) {
@@ -389,7 +397,7 @@ async function callTool(name, args, agent, tools) {
   if (props.includes("room_id") && args.room_id === undefined && name !== "search" && roomHere(root))
     args.room_id = roomHere(root);
   if (props.includes("repo") && args.repo === undefined)
-    args.repo = basename(root);
+    args.repo = repoName(root);
   const model = flag("model") ?? process.env.VIBEBOOK_MODEL;
   if (props.includes("model") && args.model === undefined && model)
     args.model = model;
@@ -620,7 +628,7 @@ async function herdrSync(agent, tools) {
   for (const [room, title] of on) {
     const e = map[room] ??= {};
     if (e.workspace && live.has(e.workspace)) {
-      const label = wsList.find((w2) => w2.workspace_id === e.workspace)?.label;
+      const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
       if (label !== undefined && label !== title.slice(0, 40))
         try {
           herdr("workspace", "rename", e.workspace, title.slice(0, 40));
@@ -1181,7 +1189,7 @@ async function main() {
                 if (await check(0))
                   return;
               } catch {
-                await new Promise((r2) => setTimeout(r2, 15000));
+                await new Promise((r) => setTimeout(r, 15000));
               }
               last = Date.now();
             }
