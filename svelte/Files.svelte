@@ -5,6 +5,8 @@
   import { File02, Folder, Pin02, Upload01 } from "./lib/studio/icons";
   import IconButton from "./lib/studio/IconButton.svelte";
   import Spinner from "./lib/studio/Spinner.svelte";
+  import LoadingState from "./lib/components/LoadingState.svelte";
+  import PaneLoading from "./lib/components/PaneLoading.svelte";
   import { filesModel, fileKinds } from "./features/files/model";
   import type { FilesProps } from "./features/files/types";
   import { kb } from "./panels";
@@ -186,7 +188,9 @@
       askLabel={vb.t("Peça pro seu Claude")}
       onask={ask}
     />{/if}
-  {#if $fileState.loading}<p role="status">{vb.t("Carregando…")}</p>{/if}
+  {#if $fileState.loading}{#if room.files?.length}<LoadingState
+        label={vb.t("Carregando…")}
+      />{:else}<PaneLoading label={vb.t("Carregando…")} />{/if}{/if}
   {#if $fileState.loadError}<p role="alert" class="tw:text-destructive">
       {issueText($fileState.loadError)}
     </p>

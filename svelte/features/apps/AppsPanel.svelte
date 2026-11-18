@@ -24,6 +24,8 @@
   import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
   import PaneHeader from "../../lib/components/PaneHeader.svelte";
   import { paneIcons } from "../documents/paneIcons";
+  import LoadingState from "../../lib/components/LoadingState.svelte";
+  import PaneLoading from "../../lib/components/PaneLoading.svelte";
   let { props }: { props: AppsProps } = $props();
   const owner = untrack(() => props.owner),
     view = untrack(() => owner.state),
@@ -187,11 +189,9 @@
             {props}
             requireOpeningConsent={$view.requireOpeningConsent}
           />{/key}
-      {:else if $view.loading || (!$view.error && ($view.connections === null || !props.room.filesAll))}<p
-          role="status"
-        >
-          {props.t("Carregando…")}
-        </p>
+      {:else if $view.loading || (!$view.error && ($view.connections === null || !props.room.filesAll))}<PaneLoading
+          label={props.t("Carregando…")}
+        />
       {:else}<div class="tw:space-y-2">
           <p role="alert">
             {props.t(
@@ -284,12 +284,7 @@
             >
           </div>
         </form>{/if}
-      {#if $view.loading}<p
-          role="status"
-          class="tw:text-sm tw:text-muted-foreground"
-        >
-          {props.t("Carregando…")}
-        </p>{/if}
+      {#if $view.loading}<LoadingState label={props.t("Carregando…")} />{/if}
       {#if $view.error}<p
           role="alert"
           class="tw:break-words tw:text-sm tw:text-destructive"

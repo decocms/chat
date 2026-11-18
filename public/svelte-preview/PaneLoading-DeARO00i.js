@@ -1,0 +1,1 @@
+import{lt as e,st as t}from"./Button-BYSyQZ70.js";import{$t as n,L as r}from"./shared-BhtCiB8K.js";import{t as i}from"./Spinner-Dycu3e6i.js";var a=e(`<div class="tw:flex tw:h-full tw:min-h-40 tw:flex-1 tw:items-center tw:justify-center tw:text-muted-foreground"><!></div>`);function o(e,o){var s=a(),c=r(s);i(c,{size:`sm`,get label(){return o.label}}),n(s),t(e,s)}export{o as t};

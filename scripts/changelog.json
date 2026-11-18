@@ -44,7 +44,8 @@
         "Na lateral, cada Claude seu aparece com o nome da sala que ele ouve (o mesmo da aba do herdr), e a pasta fica no hover.",
         "Uma conversa direta abre só com a conversa: o painel do lado começa fechado e a barra de cima não tem mais o botão Doc (Arquivos, Apps, Decisões e Lembretes continuam lá).",
         "A tela de entrar ganhou o logo do vibebook e os ícones do Google e do GitHub nos botões.",
-        "Doc, Arquivos, Apps, Decisões e Lembretes vazios agora dizem a mesma coisa do mesmo jeito: o que vai aparecer ali, um botão para fazer você mesmo e um pedido pronto para o seu Claude, que vai para a caixa de mensagem com um clique."
+        "Doc, Arquivos, Apps, Decisões e Lembretes vazios agora dizem a mesma coisa do mesmo jeito: o que vai aparecer ali, um botão para fazer você mesmo e um pedido pronto para o seu Claude, que vai para a caixa de mensagem com um clique.",
+        "Arquivos, Apps, Decisões e Lembretes mostram um spinner no meio do painel enquanto carregam, em vez de \"Carregando…\" escrito."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -67,7 +68,8 @@
         "In the sidebar, each of your Claudes shows the name of the room it listens to (the same as its herdr tab), with the folder on hover.",
         "A direct conversation opens on just the conversation: the side panel starts closed and the top bar no longer has the Doc button (Files, Apps, Decisions and Reminders are still there).",
         "The sign-in screen now has the vibebook logo and the Google and GitHub icons on their buttons.",
-        "Empty Doc, Files, Apps, Decisions and Reminders tabs now look and read the same: what will show up there, a button to do it yourself, and a ready prompt for your Claude that lands in the message box in one click."
+        "Empty Doc, Files, Apps, Decisions and Reminders tabs now look and read the same: what will show up there, a button to do it yourself, and a ready prompt for your Claude that lands in the message box in one click.",
+        "Files, Apps, Decisions and Reminders show a spinner in the middle of the panel while they load, instead of a written \"Loading…\"."
       ]
     },
     "fixes": {
