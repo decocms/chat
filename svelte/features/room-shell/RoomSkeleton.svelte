@@ -358,16 +358,16 @@
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same
        width animation the room's doc cell seeks); its tabs are in the top bar. -->
     {#if !dm}<section
-      aria-hidden="true"
-      use:roomDocumentWidth
-      class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
-    >
-      <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
-        {@render line("tw:w-2/5", "tw:h-4")}
-        {@render line("tw:w-full")}
-        {@render line("tw:w-5/6")}
-        {@render line("tw:w-3/5")}
-      </div>
-    </section>{/if}
+        aria-hidden="true"
+        use:roomDocumentWidth
+        class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
+      >
+        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
+          {@render line("tw:w-2/5", "tw:h-4")}
+          {@render line("tw:w-full")}
+          {@render line("tw:w-5/6")}
+          {@render line("tw:w-3/5")}
+        </div>
+      </section>{/if}
   </div>
 </div>
