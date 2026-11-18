@@ -76,9 +76,7 @@
     machines.some((m) => m.on) || others.some((a) => a.delivery !== false),
   );
   const empty = $derived(!machines.length && !mine.length);
-  const install = $derived(
-    `curl -fsSL ${origin}/setup.sh | sh`,
-  );
+  const install = $derived(`curl -fsSL ${origin}/setup.sh | sh`);
   let copied = $state(""),
     timer: ReturnType<typeof setTimeout> | undefined,
     active = true;
