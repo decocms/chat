@@ -33,7 +33,6 @@ import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
 import { track } from "./track";
-import { dumpInfo, dumpRows, finishLoad, loadRows, type MigrateRow } from "./migrate";
 import { pushTo } from "./webpush";
 import { AGENT_RULES } from "../shared/agentRules";
 
@@ -143,19 +142,6 @@ export class Book extends DurableObject<Env> {
   }
   set(k: string, v: string) {
     this.sql.exec(`INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v`, k, v);
-  }
-  // ---- moving to another Cloudflare account (src/migrate.ts, behind MIGRATE_TOKEN) ----
-  migrateInfo() {
-    return dumpInfo(this.sql);
-  }
-  migrateRows(table: string, after: number, limit: number) {
-    return dumpRows(this.sql, table, after, limit);
-  }
-  migrateLoad(table: string, rows: MigrateRow[], reset: boolean) {
-    return loadRows(this.ctx.storage, table, rows, reset);
-  }
-  migrateFinish(seq: Record<string, number>) {
-    return finishLoad(this.ctx.storage, seq);
   }
   /** @vibe's notes on the room doc (grade()): what a sharp scope still misses. */
   docNotes(): string[] {

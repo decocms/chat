@@ -311,3 +311,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Data that people write between the last run and the switch stays only on the old Worker.
 - Undo: Make `--resume` the default in `scripts/migrate.ts`.
 - Status: open
+
+### 2026-11-18 · chore/remove-migration · The migration code leaves after one copy
+- Agent: claude-opus-5-5
+- Context: The first copy from vibebook.dev to chat.decocms.com passed. The human said that vibebook.dev retires, so no final copy runs before a switch.
+- Decision: I removed `src/migrate.ts`, the `Book` migrate methods, the `/migrate/*` route, `MIGRATE_TOKEN` in `Env` and `scripts/migrate.ts`. The `migration-dump/` line stays in `.gitignore` while local dumps exist. Data written on vibebook.dev after the copy stays there.
+- Other options: Keep the code until a final copy at the switch.
+- Risk: medium
+- Undo: Revert this commit.
+- Status: open

@@ -8,5 +8,5 @@ cli/cli.mjs
 .svelte-check/
 .api-types/
 
-# Cloudflare account move (scripts/migrate.ts): room dumps and KV export, never committed
+# Dumps from the Nov 2026 Cloudflare account move (production data and a token): never commit them
 migration-dump/
