@@ -1,0 +1,89 @@
+name: main red
+
+# Makes a red main visible. When CI on main fails, this opens an issue with the
+# label `main-red` (or comments on the open one). When CI on main passes, it
+# closes the open `main-red` issues. Only GITHUB_TOKEN: no secret, no post to a
+# vibebook room (vibebook keeps no credentials).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: main-red
+  cancel-in-progress: false
+
+jobs:
+  report:
+    # Only pushes to this repository's main (a fork's branch called main also matches `branches`).
+    if: >-
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      ACTOR: ${{ github.event.workflow_run.actor.login }}
+      COMMIT_TITLE: ${{ github.event.workflow_run.display_title }}
+      AUTHOR_NAME: ${{ github.event.workflow_run.head_commit.author.name }}
+    steps:
+      - name: Open or update the main-red issue
+        if: ${{ github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'cancelled' }}
+        run: |
+          set -euo pipefail
+          short="${SHA:0:7}"
+          gh label create main-red --color B60205 \
+            --description "CI failed on main" 2>/dev/null || true
+
+          # The GitHub login of the commit author (GitHub resolves it from the email).
+          # If GitHub cannot resolve it, use the login that started the run. Never mention a bot.
+          login="$(gh api "repos/$GH_REPO/commits/$SHA" --jq '.author.login // empty' 2>/dev/null || true)"
+          [ -n "$login" ] || login="$ACTOR"
+          mention=""
+          if [[ "$login" =~ ^[A-Za-z0-9-]+$ ]]; then mention="@$login"; fi
+
+          jobs="$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" --paginate \
+            --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out") | "- [\(.name)](\(.html_url)): \(.conclusion)"')"
+          [ -n "$jobs" ] || jobs="- (no failed job found; see the run)"
+
+          {
+            echo "CI on \`main\` is **$CONCLUSION**."
+            echo
+            echo "- Run: $RUN_URL"
+            echo "- Commit: [\`$short\`](https://github.com/$GH_REPO/commit/$SHA) $COMMIT_TITLE"
+            echo "- Author: $AUTHOR_NAME ${mention}"
+            echo
+            echo "Failed jobs:"
+            echo
+            echo "$jobs"
+            echo
+            echo "Open a pull request with the fix at once (docs/workflow.md, Release). This issue closes when CI on \`main\` is green."
+          } > body.md
+
+          number="$(gh issue list --label main-red --state open --limit 1 --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file body.md
+            gh issue edit "$number" --title "main is red: $short"
+          else
+            gh issue create --title "main is red: $short" --label main-red --body-file body.md
+          fi
+
+      - name: Close the main-red issues
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        run: |
+          set -euo pipefail
+          for number in $(gh issue list --label main-red --state open --limit 50 --json number --jq '.[].number'); do
+            gh issue close "$number" --reason completed \
+              --comment "CI on \`main\` is green again at \`${SHA:0:7}\`: $RUN_URL"
+          done
