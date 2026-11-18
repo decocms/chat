@@ -71,7 +71,7 @@
     footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
-  // A DM (src/dm.ts): its sidebar is your DM list, with this conversation's threads under its row.
+  // A DM (src/dm.ts): its sidebar is your DM list; the DM is only a conversation (no threads, views or epics).
   const dm = $derived(!!room.book.dm);
   const owner = untrack(
     () => mutations ?? createRoomMutations(room.me, room.id),
@@ -239,10 +239,10 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
       >{:else}{@render thisRoom()}{/if}
-    {#snippet thisRoom()}{#if dm && appNavigation}<DmNav
+    {#snippet thisRoom()}{#if dm && appNavigation}<!-- A DM is only a conversation: its row, no threads, views or epics under it. -->
+        <DmNav
           controller={appNavigation.controller}
           lang={appNavigation.lang}
-          threads={roomThreads}
         />{:else}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
           thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
         <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">

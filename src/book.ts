@@ -1161,8 +1161,8 @@ export class Book extends DurableObject<Env> {
   async answerIntent(msgId: number, email: string, text: string) {
     const bookId = this.get("book_id");
     if (!bookId || text.length < 12 || this.env.MODEL_JUDGE === "off") return;
-    // A question to a friend in your DM is for them, not an answer epic; your own DM ("Você") works like a room.
-    if (this.isDm && (await this.members()).length > 1) return;
+    // A DM is only a conversation (no epics, Nov 2026): not even your own ("Você").
+    if (this.isDm) return;
     const listening = await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first();
     if (!listening) return;
     const r = await decide(this.env, { message: text.slice(0, 1500) }, {
@@ -1747,6 +1747,8 @@ export class Book extends DurableObject<Env> {
   }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
     this.bind(bookId);
+    // A DM is only a conversation: an epic asked for here goes to the room it belongs to.
+    if (this.isDm) return { ok: false, error: "A DM has no epics. Create it in the room it belongs to (start_epic with that room's room_id; inbox lists the rooms), then say in this DM where it went, with the link." };
     // Owner: the one asked for when it's a member, else whoever the agent works for (they asked for it).
     const members = await this.members();
     // Backlog (kept for later, nobody on it yet): no owner unless one is given.
@@ -2144,6 +2146,7 @@ export class Book extends DurableObject<Env> {
         await this.renameRoom(this.get("book_id") ?? "", String(m.title ?? ""));
         return;
       case "epic":
+        if (this.isDm) return new Refused("a DM has no epics");
         if (String(m.title ?? "").trim()) {
           const id = this.createEpic(String(m.title).trim());
           this.sql.exec(`UPDATE epics SET owner = ? WHERE id = ?`, email, id);

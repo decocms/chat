@@ -11,10 +11,12 @@
   import { cn } from "../../lib/studio/utils";
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
+  import RailDm from "./RailDm.svelte";
   import RoomSwitcher from "./RoomSwitcher.svelte";
   import AccountRow from "./AccountRow.svelte";
   import {
     switcherDms,
+    unreadDms,
     dmIds,
     orderedRooms,
     roomsOnly,
@@ -139,6 +141,10 @@
     !$nav.roomId || dmIds($personal.me).has($nav.roomId) || isDmId($nav.roomId),
   );
   const talkedDms = $derived(switcherDms($personal.me));
+  // Desktop: DMs with something new sit under Home, a picture with a count each (like Discord).
+  const freshDms = $derived(
+    unreadDms($personal.me, $personal.seen, $nav.roomId ?? null),
+  );
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
   let dragging = $state<string | null>(null),
@@ -223,6 +229,26 @@
     aria-hidden="true"
     class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:-mt-2 tw:min-[901px]:h-px tw:min-[901px]:w-6"
   ></span>
+  <!-- Desktop: DMs with something new, right under Home (like Discord); the room tiles follow. -->
+  {#if freshDms.length}<div
+      data-rail-dms
+      class="tw:flex tw:shrink-0 tw:flex-col tw:items-center tw:gap-2.5 tw:py-1.5 tw:max-[900px]:hidden"
+    >
+      <div
+        role="list"
+        aria-label={text("dms")}
+        class="tw:flex tw:flex-col tw:items-center tw:gap-2.5"
+      >
+        {#each freshDms as entry (entry.room.id)}<RailDm
+            {entry}
+            count={entry.count}
+            {lang}
+            onnavigate={controller.callbacks.navigate}
+          />{/each}
+      </div>
+      <span aria-hidden="true" class="tw:h-px tw:w-6 tw:bg-sidebar-border"
+      ></span>
+    </div>{/if}
   <Button
     variant="ghost"
     data-native-room-switcher
