@@ -245,11 +245,7 @@
   <div
     class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"
   >
-    {#if tabs}<span
-        aria-hidden="true"
-        class="tw:hidden tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border tw:min-[901px]:block"
-      ></span>
-      <div
+    {#if tabs}<div
         data-native-header-tabs
         class="tw:hidden tw:min-w-0 tw:min-[901px]:block"
       >
