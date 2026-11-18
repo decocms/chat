@@ -2,12 +2,11 @@ import "server-only";
 
 /**
  * Where this Worker lives, for what can't read it from the request: emails, push, links in the alarm.
- * vibebook.dev sets nothing and keeps these defaults; the deco account's Worker (wrangler.deco.jsonc) sets
- * PUBLIC_ORIGIN = https://chat.decocms.com and MAIL_DOMAIN to the domain Email Sending is set up for.
+ * wrangler.jsonc sets PUBLIC_ORIGIN = https://chat.decocms.com and MAIL_DOMAIN to the domain Email Sending is set up for.
  */
 type HostEnv = { PUBLIC_ORIGIN?: string; MAIL_DOMAIN?: string };
 
-export const DEFAULT_ORIGIN = "https://vibebook.dev";
+export const DEFAULT_ORIGIN = "https://chat.decocms.com";
 export const publicOrigin = (env: HostEnv) => (env.PUBLIC_ORIGIN || DEFAULT_ORIGIN).replace(/\/+$/, "");
 export const publicHost = (env: HostEnv) => new URL(publicOrigin(env)).host;
 /** `login`, `mention`, `convite` … @ the mail domain. */

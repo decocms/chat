@@ -346,3 +346,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-18 · fix/chat-previews · Worker Previews get their own storage, email and secret
+- Agent: claude-opus-5-5
+- Context: The human asked for working branch previews of `chat` and for `wrangler.jsonc` to be the `chat` configuration (the vibebook configuration is removed). Worker Previews inherit no bindings, so a preview build without a `previews` block fails or gives error 1101.
+- Decision: The `previews` block binds new resources in the deco account: D1 `chat-preview`, KV `chat-preview-oauth`, R2 `chat-preview-files`. Each Preview gets its own Durable Object storage. The Preview base config has its own random `SESSION_SECRET`. Previews also get `EMAIL`, because sign-in is by emailed code. Preview builds are on in Workers Builds.
+- Other options: Bind Previews to the production D1, KV and R2 (real data in public preview URLs). Give Previews no `EMAIL` (nobody can sign in).
+- Risk: medium
+- Undo: Remove the `previews` block, turn off preview builds and delete the three `chat-preview*` resources.
+- Status: open
