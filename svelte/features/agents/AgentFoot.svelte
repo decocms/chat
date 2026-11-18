@@ -201,16 +201,29 @@
             ><span class="tw:text-muted-foreground"
               >{text("footThisComputerSub")}</span
             ></span
-          ><button
-            type="button"
-            data-agent-setup="computer"
-            class={cn(
-              btn,
-              "tw:border-primary tw:bg-primary tw:text-primary-foreground tw:hover:bg-primary/90",
-            )}
-            onclick={() => void copy("setup", install)}
-            >{label("setup", text("footCopySetup"))}</button
-          >
+          >{#if $view.data.claude_on && $runner.where}<span
+              data-agent-setup="opening"
+              class="tw:text-xs tw:text-agent-claude-text tw:animate-pulse tw:motion-reduce:animate-none"
+              >{text("footOpening")}</span
+            >{:else if $view.data.claude_on}<button
+              type="button"
+              data-agent-setup="computer"
+              class={btn}
+              onclick={() => void copy("setup", install)}
+              >{label("setup", text("footCopySetup"))}</button
+            >{:else}<button
+              type="button"
+              data-agent-setup="turn-on"
+              class={cn(
+                btn,
+                "tw:border-primary tw:bg-primary tw:text-primary-foreground tw:hover:bg-primary/90",
+              )}
+              onclick={() => {
+                // The old ✻ Ligar Claude (Gui #3106): every vibebook herdr, old or new, opens a Claude for a room that's
+                // on. On, with no runner answering here, the setup that installs one.
+                if (owner.current()) void owner.toggle();
+              }}>{text("footTurnOn")}</button
+            >{/if}
         </div>
         <div class={opt}>
           <span class="tw:grid tw:min-w-0"
