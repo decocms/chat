@@ -35,7 +35,8 @@
         "O ponto de \"online\" do computador no rodapé da barra lateral agora é verde-limão, a mesma cor de agent ouvindo.",
         "A foto (ou o rostinho gerado) de cada pessoa agora é a mesma em todo lugar: na lista de mensagens diretas, no seu rodapé, no topo de uma conversa direta, nas mensagens, em Pessoas, no quadro e na caixa de entrada. Uma conversa direta mostra o rosto e o nome da outra pessoa no topo (também enquanto carrega), no que espera você e na caixa de entrada, e uma foto trocada aparece na hora em todo lugar, também para quem está nas suas salas e conversas.",
         "No app em inglês, a sua conversa com você mesmo se chama \"You\" no topo, no celular e no nome da aba (antes aparecia \"Você\"), e a sugestão do @room, a citação de uma votação e a aba de agents do celular também seguem o idioma do app.",
-        "Quem usa o vibebook em inglês não vê mais português solto: avisos de erro, notificações no celular, a página de desligar os emails de menção, a do código do terminal e o resumo por email agora vêm em inglês."
+        "Quem usa o vibebook em inglês não vê mais português solto: avisos de erro, notificações no celular, a página de desligar os emails de menção, a do código do terminal e o resumo por email agora vêm em inglês.",
+        "Site ao vivo na sala: fixe um endereço https como \"ao vivo\" (por exemplo um túnel `cloudflared` pro seu localhost) e todo mundo vê a página dentro do vibebook, numa janela marcada como site externo, com quem fixou, recarregar e abrir em nova aba. Os apps da sala também podem mostrar páginas https dentro deles."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -49,17 +50,13 @@
         "The computer's \"online\" dot at the foot of the sidebar is now lime, the same color as a listening agent.",
         "Each person's picture (or generated face) is now the same everywhere: the direct messages list, your row at the bottom, the top of a direct conversation, messages, People, the board and the inbox. A direct conversation shows the other person's face and name at the top (while it loads too), in what's waiting on you and in the inbox, and a changed picture shows up everywhere right away, for the people in your rooms and conversations too.",
         "In the English app, your conversation with yourself is called \"You\" at the top, on phones and in the tab's name (it used to show \"Você\"), and the @room suggestion, a quoted poll and the phone's agents tab follow the app's language too.",
-        "Using vibebook in English no longer shows stray Portuguese: error messages, phone notifications, the page that turns off mention emails, the terminal code page and the catch-up email now come in English."
+        "Using vibebook in English no longer shows stray Portuguese: error messages, phone notifications, the page that turns off mention emails, the terminal code page and the catch-up email now come in English.",
+        "Live site in a room: pin an https address as \"live\" (say a `cloudflared` tunnel to your localhost) and everyone sees the page inside vibebook, in a window marked as an outside site, with who pinned it, reload and open in a new tab. Room apps can show https pages inside them too."
       ]
     },
     "fixes": {
       "pt": [
         "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup."
-      ],
-      "en": [
-        "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",
-        "A lateral de uma sala voltou a listar só os seus Claudes desta sala, não todos os que estão ouvindo nas outras.",
-        "A barra de cima da sala perdeu o divisor solto antes das abas do painel (Doc, Arquivos…)."
       ],
       "en": [
         "A room's sidebar lists only your Claudes for that room again, not every one listening in your other rooms.",

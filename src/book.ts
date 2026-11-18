@@ -1616,7 +1616,8 @@ export class Book extends DurableObject<Env> {
   }
 
   // Pinned: what's always at hand in the room (the live site, the landing, the repo, an app or file of the room),
-  // shared by everyone, in the sidebar above the people. ≤20; a link is http(s) only; an app or file must exist here.
+  // shared by everyone, in the sidebar above the people. ≤20; a link is http(s) only; a live site (kind "live") is https
+  // only and opens inside the app; an app or file must exist here.
   pins() {
     return this.sql.exec<{ id: string; kind: string; ref: string; title: string; author: string; ts: number }>(`SELECT * FROM pins ORDER BY ts`).toArray();
   }
@@ -1628,6 +1629,12 @@ export class Book extends DurableObject<Env> {
       try { u = new URL(/^[a-z]+:\/\//i.test(ref) ? ref : `https://${ref}`); } catch { return { ok: false, error: "not a valid URL" }; }
       if (u.protocol !== "https:" && u.protocol !== "http:") return { ok: false, error: "only http(s) links" };
       ref = u.href;
+    } else if (kind === "live") { // a site shown live in the room (a tunnel to someone's local dev): https only
+      let u: URL;
+      try { u = new URL(/^[a-z]+:\/\//i.test(ref) ? ref : `https://${ref}`); } catch { return { ok: false, error: "not a valid URL" }; }
+      const loopback = u.protocol === "http:" && /^(127\.0\.0\.1|localhost)$/.test(u.hostname) && !!this.env.DEV_EMAIL;
+      if (u.protocol !== "https:" && !loopback) return { ok: false, error: "a live pin must be https (e.g. a cloudflared tunnel URL)" };
+      ref = u.href;
     } else if (kind === "app" && /^[a-f0-9]{12}\/[\w.-]{1,100}$/.test(ref)) { // an MCP connection's app: <connection id>/<tool>
       const [cid, tool] = ref.split("/");
       const c = await this.env.DB.prepare(`SELECT tools FROM mcp_connections WHERE id = ? AND book_id = ?`).bind(cid, this.get("book_id")).first<{ tools: string }>();
@@ -1638,7 +1645,7 @@ export class Book extends DurableObject<Env> {
       if (!this.sql.exec(`SELECT 1 FROM files WHERE name = ?`, `apps/${ref}.html`).toArray().length) return { ok: false, error: `no room app apps/${ref}.html in this room` };
     } else if (kind === "file") {
       if (!this.sql.exec(`SELECT 1 FROM files WHERE id = ?`, ref).toArray().length) return { ok: false, error: `no file ${ref} in this room` };
-    } else return { ok: false, error: "kind must be link, app or file" };
+    } else return { ok: false, error: "kind must be link, live, app or file" };
     const secret = findSecret(`${ref} ${title}`);
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret})` };
     const had = this.sql.exec<{ id: string }>(`SELECT id FROM pins WHERE kind = ? AND ref = ?`, kind, ref).toArray()[0];
@@ -1654,7 +1661,7 @@ export class Book extends DurableObject<Env> {
   /** The room's MCP connections changed (src/mcpconn.ts): open tabs refetch the Apps tab. */
   connsChanged() { this.broadcast({ t: "conns" }); }
   pinDel(id: string) {
-    const n = this.sql.exec(`DELETE FROM pins WHERE id = ? OR (kind = 'link' AND ref = ?)`, id, id).rowsWritten;
+    const n = this.sql.exec(`DELETE FROM pins WHERE id = ? OR (kind IN ('link', 'live') AND ref = ?)`, id, id).rowsWritten;
     if (n) this.broadcast({ t: "pins", pins: this.pins() });
     return n ? { ok: true } : { ok: false, error: `no pin ${id}` };
   }
