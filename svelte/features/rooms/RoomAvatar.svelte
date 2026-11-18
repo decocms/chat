@@ -79,8 +79,8 @@
     />{:else}<span data-room-cover="marble" class="tw:contents"
       ><OrgAvatar name={title} {size} /></span
     >{/if}
-  <!-- New messages from people: red, like an unread DM in the rail (with the count when known). Only agents wrote:
-       a quiet gray dot. Lime stays for what waits on you (the WaitBadge). -->
+  <!-- Something new: red, like an unread DM in the rail. People wrote: the count (when known). Only agents wrote: a
+       small red dot, no number. Lime stays for what waits on you (the WaitBadge). -->
   {#if unread === "human"}<span
       role="img"
       aria-label={text("newHuman")}
@@ -96,7 +96,7 @@
       aria-label={text("newAgent")}
       data-room-badge="unread-agent"
       class={cn(
-        "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:bg-muted-foreground tw:ring-2",
+        "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:bg-destructive tw:ring-2",
         ring,
       )}
     ></span>{/if}
