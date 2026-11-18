@@ -25,7 +25,7 @@ async function fixture() {
   const controller = createAppNavigationSession(
     personal,
     rooms,
-    { navigate() {}, home() {}, archived() {}, settings() {} },
+    { navigate() {}, home() {}, archived() {} },
     timer.clock,
   );
   const late = deferred<{ name: string }>();

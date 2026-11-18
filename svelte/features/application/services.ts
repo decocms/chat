@@ -26,7 +26,7 @@ import { createAppsAuthority } from "../apps/authority";
 import { createApplicationPersonalChannel } from "./personal-channel";
 import type { createPersonalConnection } from "../home/connection";
 import { copyRoomTarget, titleOwnDm, type RoomTarget } from "../home/model";
-import type { HomeSettings } from "../home/types";
+import { settingsHref, type SettingsSection } from "../account/settings";
 import type { DocumentPane } from "../documents/types";
 import type {
   ApplicationBrowser,
@@ -192,7 +192,6 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       navigate: (value) => navigate(value),
       home: () => navigate("/app"),
       archived: () => navigate("/archived"),
-      settings: (section) => openAccount(section),
       rename: (id, title) =>
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
@@ -550,11 +549,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         if (active && epoch === intent) activateRoute();
       });
   }
-  function openAccount(section: HomeSettings = "all", trigger?: HTMLElement) {
+  /** Your settings are a page (/settings); a section is its anchor. The page opens the account session (AppShell). */
+  function openAccount(section?: SettingsSection) {
     if (!active || !started || resettingIdentity || sessionDenied) return;
-    account.close();
-    options.device?.cancel();
-    account.open(section, trigger);
+    navigate(settingsHref(section));
   }
   function syncAgents() {
     const snapshot = root.read();

@@ -12,6 +12,8 @@ const pt = {
   creating: "criando",
   error: "erro",
   title: "Sandboxes",
+  room: "Sala",
+  noRooms: "Crie uma sala primeiro: cada sandbox ouve uma sala.",
   description: "Seu Claude rodando na nuvem, com uma máquina por sala.",
   key: "Chave do Freestyle",
   token: "Token do Claude",
@@ -89,6 +91,8 @@ const en: Record<SandboxCopyKey, string> = {
   creating: "creating",
   error: "error",
   title: "Sandboxes",
+  room: "Room",
+  noRooms: "Create a room first: each sandbox listens to one room.",
   description:
     "Your Claude running in the cloud, with a machine for each room.",
   key: "Freestyle key",

@@ -20,6 +20,16 @@
           "pt": "O interruptor \"Nova UI\" guarda a escolha neste aparelho (inclusive no app instalado no celular): desligado, toda página abre no app antigo até você ligar de novo, pelo menu da conta no computador ou pelo ☰ no celular.",
           "en": "The \"New UI\" switch remembers your choice on this device (including the app installed on your phone): off, every page opens in the old app until you turn it back on, from the account menu on computers or the ☰ on phones."
         }
+      },
+      {
+        "title": {
+          "pt": "Configurações numa página só",
+          "en": "Settings on one page"
+        },
+        "text": {
+          "pt": "Clicar em você, no pé da barra lateral, abre a página de Configurações: perfil, seus agents, agents na nuvem e este aparelho (notificações, tema, idioma, Nova UI, Face ID). A chave do Freestyle e o token do Claude agora ficam lá, e \"Agent na nuvem\" numa sala leva direto pra essa seção, já na sala.",
+          "en": "Clicking yourself at the foot of the sidebar opens the Settings page: profile, your agents, cloud agents and this device (notifications, theme, language, New UI, Face ID). The Freestyle key and the Claude token now live there, and \"Cloud agent\" in a room takes you straight to that section, on that room."
+        }
       }
     ],
     "improvements": {

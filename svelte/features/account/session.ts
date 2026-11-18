@@ -3,7 +3,6 @@ import type { MeResult, LoginsResult } from "../../../shared/schemas";
 import type { PersonalSession } from "../home/personal";
 import { createAuthOwner, authClock, type AuthClock } from "../auth/owner";
 import { AccountFailure, type AccountApi } from "./api";
-export type AccountSection = "all" | "profile" | "agents";
 export type AccountBinding = {
   account: string;
   revision: number;
@@ -12,8 +11,7 @@ export type AccountBinding = {
 export type AccountState = {
   binding: AccountBinding | null;
   open: boolean;
-  presentation: "dialog" | "inline";
-  section: AccountSection;
+  presentation: "page" | "inline";
   me: MeResult | null;
   phase: "idle" | "pending" | "confirming" | "unconfirmed" | "error";
   error: string;
@@ -31,8 +29,7 @@ export function createAccountSession(
   const state = writable<AccountState>({
     binding: null,
     open: false,
-    presentation: "dialog",
-    section: "all",
+    presentation: "page",
     me: null,
     phase: "idle",
     error: "",
@@ -47,8 +44,7 @@ export function createAccountSession(
     identity = get(personal.state).identityRevision,
     sequence = 0,
     pageEpoch = 0,
-    timer: unknown | null = null,
-    trigger: HTMLElement | null = null;
+    timer: unknown | null = null;
   let operation: { ticket: number; ack: boolean; change?: Change } | null =
     null;
   const cancel = () => {
@@ -93,12 +89,10 @@ export function createAccountSession(
       reads.cancel();
       account = "";
       identity = next.identityRevision;
-      trigger = null;
       state.set({
         binding: null,
         open: false,
-        presentation: "dialog",
-        section: "all",
+        presentation: "page",
         me: null,
         phase: "idle",
         error: "",
@@ -194,11 +188,7 @@ export function createAccountSession(
       },
     );
   }
-  function activate(
-    section: AccountSection,
-    element: HTMLElement | undefined,
-    presentation: "dialog" | "inline",
-  ) {
+  function activate(presentation: "page" | "inline") {
     if (!active) return;
     const me = personal.peek();
     if (!me) return;
@@ -207,12 +197,10 @@ export function createAccountSession(
     reads.cancel();
     account = me.email;
     identity = get(personal.state).identityRevision;
-    trigger = element?.isConnected ? element : null;
     state.set({
       binding: { account, revision: identity, generation: pageEpoch },
-      open: presentation === "dialog",
+      open: presentation === "page",
       presentation,
-      section,
       me,
       phase: "idle",
       error: "",
@@ -220,17 +208,18 @@ export function createAccountSession(
       loginsLoading: false,
       loginsError: "",
     });
-    if (presentation === "dialog") logins();
+    if (presentation === "page") logins();
     return get(state).binding;
   }
   return {
     state,
-    open(section: AccountSection = "all", element?: HTMLElement) {
-      activate(section, element, "dialog");
+    /** The settings page is showing (AppShell opens it on /settings, closes it when you leave). */
+    open() {
+      activate("page");
     },
     openInline() {
       if (get(state).open) return null;
-      return activate("profile", undefined, "inline") ?? null;
+      return activate("inline") ?? null;
     },
     close(expected?: AccountBinding) {
       if (expected && get(state).binding !== expected) return;
@@ -241,12 +230,11 @@ export function createAccountSession(
         ...s,
         binding: null,
         open: false,
-        presentation: "dialog",
+        presentation: "page",
         logins: null,
         loginsLoading: false,
       }));
     },
-    returnFocus: () => (trigger?.isConnected ? trigger : null),
     owns: (binding: AccountBinding) =>
       active &&
       get(state).binding !== null &&
@@ -293,13 +281,11 @@ export function createAccountSession(
       reads.dispose();
       writes.dispose();
       unsubscribe();
-      trigger = null;
       account = "";
       state.set({
         binding: null,
         open: false,
-        presentation: "dialog",
-        section: "all",
+        presentation: "page",
         me: null,
         phase: "idle",
         error: "",

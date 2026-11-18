@@ -6,8 +6,8 @@
   import Checkbox from "../../lib/studio/Checkbox.svelte";
   import AgentPresenceRows from "../room-sidebar/AgentPresenceRows.svelte";
   import SetupInstructions from "./SetupInstructions.svelte";
-  import SandboxPanel from "../sandboxes/SandboxPanel.svelte";
-  import TerminalDialog from "../sandboxes/TerminalDialog.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import { settingsHref, settingsText } from "../account/settings";
   import type { RoomAgentSession } from "./room";
   import type { AgentFormatting } from "./types";
   import { agentPresence, agentQueue } from "./model";
@@ -213,11 +213,12 @@
         surface="background"
       />
     </section>{/if}
-  <SandboxPanel
-    owner={owner.sandboxes}
-    credentials={owner.credentials}
-    terminal={owner.terminal}
-    {lang}
-  />
+  <!-- Cloud agents (freestyle key, Claude token, sandboxes) live in your settings, on this room. -->
+  <a
+    href={settingsHref("cloud", owner.roomId)}
+    data-nav
+    data-native-cloud-settings
+    class={buttonVariants({ variant: "outline", class: "tw:no-underline" })}
+    >☁ {settingsText(lang, "cloud")}</a
+  >
 </section>
-<TerminalDialog owner={owner.terminal} {lang} />

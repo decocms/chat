@@ -819,277 +819,37 @@ describe("native Svelte room panels", () => {
       }
     }
   }, 30_000);
-  test("account menu: items open their account sections, the switch drives the device push service, sign out runs the given flow", async () => {
-    const { default: UserMenu } =
-      await import("../svelte/features/app-navigation/UserMenu.svelte");
-    const sections: [string, Element | undefined][] = [];
-    const bells: boolean[] = [];
-    let bellResult = true,
-      logouts = 0;
-    const state = writable({
-      permission: "granted" as NotificationPermission | "unsupported",
-      muted: false,
-      iosWeb: false,
-      ios: false,
-      testing: false,
-      sent: null as number | null,
-      error: "",
-    });
-    const push = writable({ status: "on", error: "" });
-    const pwa = {
-      state,
-      push,
-      async bell() {
-        bells.push(true);
-        return bellResult;
-      },
-      mute() {},
-      refresh: async () => {},
-      retry() {},
-      test: async () => {},
-    } as unknown as import("../svelte/features/pwa/service").PwaService;
-    const target = document.createElement("div");
-    document.body.append(target);
-    const instance = flushSync(() =>
-      mount(UserMenu, {
-        target,
-        props: {
-          name: "Gimenes",
-          email: "gimenes@test",
-          lang: "en",
-          theme: "auto",
-          onsettheme() {},
-          onlanguage() {},
-          onaccount: (section: string, trigger?: HTMLElement) =>
-            sections.push([section, trigger]),
-          pwa,
-          onlogout: () => logouts++,
-        },
-      }),
-    );
-    const settle = async () => {
-      for (let frame = 0; frame < 6; frame++) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => resolve()),
+  test("account row: you at a sidebar's foot (or a phone's top bar) is a link to your settings page", async () => {
+    const { default: AccountRow } =
+      await import("../svelte/features/app-navigation/AccountRow.svelte");
+    const me = {
+      email: "ana@example.test",
+      name: "Ana",
+      avatar: null,
+    } as unknown as import("../shared/schemas").MeResult;
+    for (const row of [true, false]) {
+      const target = document.createElement("div");
+      document.body.append(target);
+      const instance = flushSync(() =>
+        mount(AccountRow, { target, props: { me, row, current: !row } }),
+      );
+      try {
+        const link = target.querySelector<HTMLAnchorElement>(
+          "a[data-native-account-row]",
         );
-        flushSync();
-        await tick();
+        expect(link?.getAttribute("href")).toBe("/settings");
+        // The shell follows data-nav links in place (no reload).
+        expect(link?.hasAttribute("data-nav")).toBe(true);
+        expect(link?.getAttribute("aria-label")).toBe("Ana");
+        expect(link?.getAttribute("aria-current")).toBe(row ? null : "page");
+        expect(target.textContent?.includes("Ana")).toBe(row);
+        expect(target.querySelector("[data-native-user-menu]")).toBeNull();
+      } finally {
+        await unmount(instance);
+        target.remove();
       }
-    };
-    const trigger = target.querySelector<HTMLButtonElement>(
-      "[data-native-user-menu-trigger]",
-    )!;
-    const menu = () =>
-      document.querySelector<HTMLElement>("[data-native-user-menu]");
-    const item = (name: string) =>
-      menu()!.querySelector<HTMLElement>(`[data-user-menu-item="${name}"]`)!;
-    const openMenu = async () => {
-      trigger.focus();
-      trigger.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
-      await settle();
-      expect(menu()?.getAttribute("role")).toBe("menu");
-    };
-    try {
-      // The round person avatar and a styled tooltip, never the native title.
-      expect(trigger.hasAttribute("title")).toBe(false);
-      expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
-      expect(
-        trigger.querySelector("[data-slot=avatar]")?.getAttribute("class"),
-      ).toContain("tw:rounded-full");
-      await openMenu();
-      expect(item("friends")).toBeNull();
-      expect(
-        [...menu()!.querySelectorAll("[role^=menuitem]")].map((el) =>
-          el.getAttribute("data-user-menu-item"),
-        ),
-      ).toEqual([
-        "profile",
-        "agents",
-        "notifications",
-        "new-ui",
-        "settings",
-        null,
-        null,
-        null,
-        null,
-        null,
-        "logout",
-      ]);
-      for (const [name, section] of [
-        ["profile", "profile"],
-        ["agents", "agents"],
-        ["settings", "all"],
-      ] as const) {
-        if (!menu()) await openMenu();
-        item(name).click();
-        await settle();
-        expect(menu()).toBeNull();
-        expect(sections.at(-1)?.[0]).toBe(section);
-        // Account settings hand focus back to the avatar when they close.
-        expect(sections.at(-1)?.[1] === trigger).toBe(true);
-      }
-      expect(sections).toHaveLength(3);
-      // The switch shows this device's state and toggles through the service.
-      await openMenu();
-      expect(item("notifications").getAttribute("role")).toBe(
-        "menuitemcheckbox",
-      );
-      expect(item("notifications").getAttribute("aria-checked")).toBe("true");
-      item("notifications").click();
-      await settle();
-      expect(bells).toHaveLength(1);
-      expect(menu() !== null).toBe(true);
-      flushSync(() => state.update((value) => ({ ...value, muted: true })));
-      expect(item("notifications").getAttribute("aria-checked")).toBe("false");
-      // A browser that refused still gets the sound: the switch follows
-      // vb.mute, toggles in place and opens no dialog.
-      flushSync(() =>
-        state.update((value) => ({ ...value, permission: "denied" })),
-      );
-      bellResult = false;
-      item("notifications").click();
-      await settle();
-      expect(bells).toHaveLength(2);
-      expect(menu() !== null).toBe(true);
-      expect(document.querySelector("[role=dialog]")).toBeNull();
-      // Never asked yet: off, so the first tap asks.
-      flushSync(() =>
-        state.update((value) => ({
-          ...value,
-          muted: false,
-          permission: "default",
-        })),
-      );
-      expect(item("notifications").getAttribute("aria-checked")).toBe("false");
-      // Sign out runs the application's flow.
-      item("logout").click();
-      await settle();
-      expect(logouts).toBe(1);
-      expect(sections).toHaveLength(3);
-    } finally {
-      await unmount(instance);
-      target.remove();
     }
-  }, 30_000);
-  test("account menu: arrow keys move, Esc returns focus to the avatar, no friends row, push trouble never opens a dialog", async () => {
-    const { default: UserMenu } =
-      await import("../svelte/features/app-navigation/UserMenu.svelte");
-    const bells: boolean[] = [];
-    let refreshes = 0;
-    const state = writable({
-      permission: "granted" as NotificationPermission | "unsupported",
-      muted: false,
-      iosWeb: false,
-      ios: false,
-      testing: false,
-      sent: null as number | null,
-      error: "",
-    });
-    const push = writable({ status: "on", error: "" });
-    const pwa = {
-      state,
-      push,
-      async bell() {
-        bells.push(true);
-        return true;
-      },
-      mute() {},
-      refresh: async () => {
-        refreshes++;
-      },
-      retry() {},
-      test: async () => {},
-    } as unknown as import("../svelte/features/pwa/service").PwaService;
-    const target = document.createElement("div");
-    document.body.append(target);
-    const instance = flushSync(() =>
-      mount(UserMenu, {
-        target,
-        props: {
-          name: "Gimenes",
-          email: "gimenes@test",
-          lang: "en",
-          theme: "auto",
-          onsettheme() {},
-          onlanguage() {},
-          onaccount() {},
-          pwa,
-          onlogout() {},
-        },
-      }),
-    );
-    const settle = async () => {
-      for (let frame = 0; frame < 6; frame++) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => resolve()),
-        );
-        flushSync();
-        await tick();
-      }
-    };
-    const trigger = target.querySelector<HTMLButtonElement>(
-      "[data-native-user-menu-trigger]",
-    )!;
-    const menu = () =>
-      document.querySelector<HTMLElement>("[data-native-user-menu]");
-    const item = (name: string) =>
-      menu()?.querySelector<HTMLElement>(`[data-user-menu-item="${name}"]`) ??
-      null;
-    const key = async (name: string) => {
-      (document.activeElement ?? document.body).dispatchEvent(
-        new KeyboardEvent("keydown", { key: name, bubbles: true }),
-      );
-      await settle();
-    };
-    const openMenu = async () => {
-      trigger.focus();
-      await key("Enter");
-      expect(menu()?.getAttribute("role")).toBe("menu");
-    };
-    try {
-      await openMenu();
-      // Friends left the menu (Nov 2026): people come from your rooms.
-      expect(item("friends")).toBeNull();
-      // Arrow keys walk the items in order.
-      const first = document.activeElement;
-      await key("ArrowDown");
-      const second = document.activeElement;
-      expect(second !== first).toBe(true);
-      expect(
-        (second as HTMLElement | null)?.getAttribute("data-user-menu-item"),
-      ).toBe(
-        (first as HTMLElement | null)?.getAttribute("data-user-menu-item") ===
-          "profile"
-          ? "agents"
-          : "profile",
-      );
-      await key("ArrowUp");
-      expect(document.activeElement === first).toBe(true);
-      // Esc closes and hands focus back to the avatar.
-      await key("Escape");
-      expect(menu()).toBeNull();
-      expect(document.activeElement === trigger).toBe(true);
-      // No push key on the server, or a failed setup: the switch stays (it
-      // also drives the sound) and just toggles, no help dialog.
-      for (const status of ["unavailable", "failed"]) {
-        flushSync(() => push.set({ status, error: "x" }));
-        await openMenu();
-        expect(item("notifications") !== null).toBe(true);
-        item("notifications")!.click();
-        await settle();
-        expect(document.querySelector("[role=dialog]")).toBeNull();
-        await key("Escape");
-      }
-      expect(bells).toHaveLength(2);
-    } finally {
-      await unmount(instance);
-      target.remove();
-    }
-  }, 30_000);
+  });
   test("one avatar language: people are round beam faces, agents square marks, rooms marble tiles", async () => {
     const { default: PersonAvatar } =
       await import("../svelte/lib/components/PersonAvatar.svelte");
@@ -6802,6 +6562,9 @@ describe("native account", () => {
           agentSettings: createRawSnippet(() => ({
             render: () => "<span></span>",
           })),
+          cloud: createRawSnippet(() => ({
+            render: () => "<span></span>",
+          })),
         },
       }),
     );
@@ -6818,7 +6581,7 @@ describe("native account", () => {
       device.dispose();
       trigger.remove();
     });
-    owner.open("profile", trigger);
+    owner.open();
     flushSync();
     await tick();
     await tick();
@@ -6864,7 +6627,7 @@ describe("native account", () => {
     );
     await h.settle();
     expect(h.names).toHaveLength(1);
-    h.owner.open("profile");
+    h.owner.open();
     flushSync();
     await tick();
     expect(
@@ -6914,7 +6677,7 @@ describe("native account", () => {
       me: h.me({ email: "b@test", name: "Account B" }),
       identityRevision: value.identityRevision + 1,
     }));
-    h.owner.open("profile");
+    h.owner.open();
     // Old DOM remains connected until Svelte flushes. Its captured open/account token must already be invalid.
     expect(oldForm.isConnected).toBe(true);
     oldForm.dispatchEvent(
@@ -6936,7 +6699,7 @@ describe("native account", () => {
     input.dispatchEvent(new window.Event("input", { bubbles: true }));
     const oldForm = input.closest("form")!;
     h.owner.close();
-    h.owner.open("profile");
+    h.owner.open();
     expect(oldForm.isConnected).toBe(true);
     oldForm.dispatchEvent(
       new window.Event("submit", { bubbles: true, cancelable: true }),

@@ -3,7 +3,6 @@ import { get, writable } from "svelte/store";
 import type { CommandOutcome } from "../../../shared/commands";
 import type { PersonalSession } from "../home/personal";
 import type { RoomsSession } from "../rooms/session";
-import type { HomeSettings } from "../home/types";
 import type { RoomTarget } from "../home/model";
 import { orderedRooms } from "../home/model";
 import { createNewRoomSession } from "../home/session";
@@ -13,7 +12,6 @@ export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
   home: () => void;
   archived: () => void;
-  settings: (section: HomeSettings) => void;
   rename?: (id: string, title: string) => Promise<CommandOutcome>;
   /** Answers a message request: accept opens the DM with their first message, decline closes it (rejects on failure). */
   answerRequest?: (email: string, accept: boolean) => Promise<void>;

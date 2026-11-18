@@ -52,8 +52,8 @@
       </DialogHeader>
       <p class="tw:text-muted-foreground">
         {en
-          ? "Prefer the previous version? Turn off New UI in your account menu (your picture) to go back on this device. You can switch again any time."
-          : "Prefere a versão anterior? Desligue Nova UI no menu da sua conta (sua foto) para voltar neste aparelho. Dá pra trocar de novo quando quiser."}
+          ? "Prefer the previous version? Turn off New UI in Settings (click yourself at the foot of the sidebar) to go back on this device. You can switch again any time."
+          : "Prefere a versão anterior? Desligue Nova UI nas Configurações (clique em você, no pé da barra lateral) para voltar neste aparelho. Dá pra trocar de novo quando quiser."}
       </p>
       <DialogFooter>
         <Button

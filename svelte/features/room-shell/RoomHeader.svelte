@@ -20,7 +20,6 @@
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import { userMenuBridge } from "../app-navigation/menuBridge";
   import type { SidebarProps } from "../../sidebar";
   import { dmPeer, roomAvatarVersion } from "../room-scope/model";
   import { isPanelToggleKey } from "./panelViews";
@@ -42,7 +41,7 @@
     layout: RoomLayoutController;
     current(): boolean;
     boardCount?: number | string;
-    /** Search and the account menu: on a phone the rail is hidden, so the header carries them. */
+    /** Search and your settings: on a phone the rail is hidden, so the header carries them. */
     appNavigation?: SidebarProps["appNavigation"];
     back(expectedThread: string): void;
     /** Desktop: the pane tabs live in this bar (one top bar, the split below it). */
@@ -53,8 +52,6 @@
     /** Back to the chat: closes the inbox and the full board. */
     tochat?(): void;
   } = $props();
-  // The shell's account menu (absent in isolated mounts).
-  const menu = userMenuBridge();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
   const live = (event: Event) =>
@@ -259,7 +256,7 @@
           onPane={pickPane}
         />
       </div>{/if}
-    {#if menu && $personal.me}<span
+    {#if $personal.me}<span
         data-native-phone-account
         class="tw:contents tw:min-[901px]:hidden"
         ><AccountRow me={$personal.me} row={false} /></span

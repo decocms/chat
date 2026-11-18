@@ -7,7 +7,7 @@ import { UI_COOKIE, type UiVariant } from "../shared/uiVariant";
 
 /** Page navigations whose route picks a UI. API calls, sockets and assets keep their own `?ui=` (or none). */
 const PAGE =
-  /^\/(?:app|archived|login|authorize|b\/[a-z0-9]+|api\/books\/[a-z0-9]+\/(?:files\/[0-9a-f]+|connections\/[a-z0-9]+\/signin)|api\/mcp-oauth\/callback)\/?$/;
+  /^\/(?:app|archived|settings|login|authorize|b\/[a-z0-9]+|api\/books\/[a-z0-9]+\/(?:files\/[0-9a-f]+|connections\/[a-z0-9]+\/signin)|api\/mcp-oauth\/callback)\/?$/;
 
 const cookieUi = (request: Request) =>
   /(?:^|;\s*)vb_ui=vanilla(?:;|$)/.test(request.headers.get("cookie") ?? "") ? "vanilla" : null;

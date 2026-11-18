@@ -269,7 +269,6 @@ test("room denial stays latched across old canonical snapshots and recovers only
       "room",
       fixture.api,
       account,
-      credentials,
       { origin: "https://vibebook.dev" },
     ),
     room = fixtureRoom();
@@ -277,7 +276,6 @@ test("room denial stays latched across old canonical snapshots and recovers only
   await flush();
   owner.sync({ ...room }, "main", [], false, false);
   expect(owner.current()).toBe(false);
-  expect(owner.sandboxes.current()).toBe(false);
   fixture.api.room = async () => ({
     claude_on: false,
     agents: [],
@@ -399,7 +397,6 @@ test("denied room retry has a deadline and preserves its denial latch after netw
     "room",
     fixture.api,
     account,
-    credentials,
     { origin: "https://vibebook.dev", clock: time.owner },
   );
   owner.sync(fixtureRoom(), "main", [], false, false);
@@ -587,7 +584,9 @@ test("known session loss from toggle clears shared room/account/wait/credential 
       ok: true,
     }))!;
   await owner.refresh();
-  await owner.sandboxes.refresh();
+  // Settings › Cloud agents for the same room, open while the session is lost.
+  const cloud = service.cloud("me@test", "room")!;
+  await cloud.sandboxes.refresh();
   fixture.api.toggle = async () => {
     throw new AgentsFailure(UNAUTHENTICATED.error, 401);
   };
@@ -596,9 +595,9 @@ test("known session loss from toggle clears shared room/account/wait/credential 
   expect(get(account.state).grants).toBeNull();
   expect(get(owner.state).room).toBeNull();
   expect(get(owner.state).waits.length).toBe(0);
-  expect(get(owner.sandboxes.state).data).toBeNull();
-  expect(owner.credentials.current()).toBe(false);
-  expect(get(owner.terminal.state).open).toBe(false);
+  expect(get(cloud.sandboxes.state).data).toBeNull();
+  expect(cloud.credentials.current()).toBe(false);
+  expect(get(cloud.terminal.state).open).toBe(false);
   service.sync({ ...room }, "main", [], false, false, async () => ({
     ok: true,
   }));
@@ -688,14 +687,9 @@ test("canonical membership removal clears retained room projections and stale sn
   const fixture = apiFixture(),
     account = createAgentAccountSession("me@test", { api: fixture.api }),
     credentials = createSandboxCredentials("me@test", fixture.api),
-    owner = createRoomAgentSession(
-      "me@test",
-      "room",
-      fixture.api,
-      account,
-      credentials,
-      { origin: "https://vibebook.dev" },
-    );
+    owner = createRoomAgentSession("me@test", "room", fixture.api, account, {
+      origin: "https://vibebook.dev",
+    });
   const room = fixtureRoom();
   owner.sync(room, "main", [], false, false);
   await owner.refresh();
