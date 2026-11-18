@@ -55,7 +55,7 @@
       >{allRooms}{#if fresh}<span
           role="img"
           aria-label={homeText(lang, "unreadRooms", { n: fresh })}
-          class="tw:size-1.5 tw:rounded-full tw:bg-brand"
+          class="tw:size-1.5 tw:rounded-full tw:bg-destructive"
         ></span>{/if}</TabsTrigger
     >
   </TabsList>

@@ -21,6 +21,7 @@
     size = "md",
     surface = "sidebar",
     unread = null,
+    count = 0,
     busy = false,
     cloud = false,
     waits = [],
@@ -35,6 +36,8 @@
     surface?: "sidebar" | "background";
     /** Who wrote since you last looked: a person or only agents. */
     unread?: "human" | "agent" | null;
+    /** How many messages are new (with unread "human"): drawn in the red badge, like an unread DM's. */
+    count?: number;
     /** A Claude is working in the room. */
     busy?: boolean;
     /** A cloud sandbox is running for the room. */
@@ -76,14 +79,25 @@
     />{:else}<span data-room-cover="marble" class="tw:contents"
       ><OrgAvatar name={title} {size} /></span
     >{/if}
-  {#if unread}<span
+  <!-- New messages from people: red, like an unread DM in the rail (with the count when known). Only agents wrote:
+       a quiet gray dot. Lime stays for what waits on you (the WaitBadge). -->
+  {#if unread === "human"}<span
       role="img"
-      aria-label={text(unread === "human" ? "newHuman" : "newAgent")}
-      data-room-badge={unread === "human" ? "unread-human" : "unread-agent"}
+      aria-label={text("newHuman")}
+      data-room-badge="unread-human"
       class={cn(
-        "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:ring-2",
+        "tw:absolute tw:-top-1.5 tw:-right-1.5 tw:flex tw:items-center tw:justify-center tw:rounded-full tw:bg-destructive tw:font-semibold tw:leading-none tw:tabular-nums tw:text-destructive-foreground tw:ring-2",
+        count > 0 ? "tw:h-4 tw:min-w-4 tw:px-1 tw:text-[10px]" : "tw:size-2.5",
         ring,
-        unread === "human" ? "tw:bg-brand" : "tw:bg-warning",
+      )}
+      >{#if count > 0}{count > 99 ? "99+" : count}{/if}</span
+    >{:else if unread === "agent"}<span
+      role="img"
+      aria-label={text("newAgent")}
+      data-room-badge="unread-agent"
+      class={cn(
+        "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:bg-muted-foreground tw:ring-2",
+        ring,
       )}
     ></span>{/if}
   {#if busy}<span
