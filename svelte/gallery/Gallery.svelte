@@ -91,7 +91,7 @@
 
 <main
   data-vb-native
-  class="tw:m-0 tw:box-border tw:min-h-dvh tw:bg-background tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:font-normal tw:leading-5 tw:text-foreground tw:sm:px-8"
+  class="tw:m-0 tw:box-border tw:min-h-dvh tw:bg-background tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:font-normal tw:leading-5 tw:text-foreground tw:min-[901px]:px-8"
   data-gallery
 >
   <div class="tw:mx-auto tw:max-w-6xl tw:space-y-6">
@@ -122,7 +122,7 @@
         ><Badge>{theme}</Badge>
       </div>
     </header>
-    <div class="tw:grid tw:grid-cols-1 tw:gap-5 tw:md:grid-cols-2">
+    <div class="tw:grid tw:grid-cols-1 tw:gap-5 tw:min-[901px]:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Actions</CardTitle>
@@ -389,7 +389,7 @@
           onretry={() => (status = "Retry requested")}
         /></Card
       >
-      <Card class="tw:md:col-span-2">
+      <Card class="tw:min-[901px]:col-span-2">
         <CardHeader><CardTitle>Typography</CardTitle></CardHeader>
         <Heading level={3} class="tw:text-xl tw:leading-7 tw:tracking-tight">
           Inter variable — headings and UI

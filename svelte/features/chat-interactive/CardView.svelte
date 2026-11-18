@@ -174,7 +174,7 @@
   {:else if element.type === "Fields"}<dl
       class={[
         "tw:m-0 tw:grid tw:grid-cols-1 tw:gap-x-6 tw:gap-y-3",
-        element.children.length > 1 && "tw:sm:grid-cols-2",
+        element.children.length > 1 && "tw:min-[901px]:grid-cols-2",
       ]}
     >
       {#each element.children as id}{@render draw(card.elements[id])}{/each}

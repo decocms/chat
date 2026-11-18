@@ -20,7 +20,7 @@
   data-slot="alert-dialog-header"
   {...rest}
   class={cn(
-    "tw:flex tw:flex-col tw:gap-1 tw:text-center tw:sm:text-left",
+    "tw:flex tw:flex-col tw:gap-1 tw:text-center tw:min-[901px]:text-left",
     className,
   )}
 >

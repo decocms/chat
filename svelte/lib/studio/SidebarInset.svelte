@@ -21,7 +21,7 @@
   data-slot="sidebar-inset"
   {...rest}
   class={cn(
-    "tw:bg-background tw:relative tw:flex tw:w-full tw:flex-1 tw:flex-col tw:min-w-0 tw:md:peer-data-[variant=inset]:m-2 tw:md:peer-data-[variant=inset]:ml-0 tw:md:peer-data-[variant=inset]:rounded-xl tw:md:peer-data-[variant=inset]:shadow-sm tw:md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+    "tw:bg-background tw:relative tw:flex tw:w-full tw:flex-1 tw:flex-col tw:min-w-0 tw:min-[901px]:peer-data-[variant=inset]:m-2 tw:min-[901px]:peer-data-[variant=inset]:ml-0 tw:min-[901px]:peer-data-[variant=inset]:rounded-xl tw:min-[901px]:peer-data-[variant=inset]:shadow-sm tw:min-[901px]:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
     className,
   )}
 >

@@ -49,7 +49,8 @@
 - The app has two layouts: mobile and desktop. There are only two breakpoints.
   - Mobile: width 900px or less (`tw:max-[900px]:`).
   - Desktop: width 901px or more (`tw:min-[901px]:`).
-- Do not add other breakpoints. Old code also uses `max-[720px]`, `sm:` and `md:`. If you change that code, move it to the two breakpoints.
+- Do not add other breakpoints. This includes `sm:`, `md:`, `lg:`, other `max-[…]`/`min-[…]` widths and `matchMedia` or `MediaQuery` with another width. `bun run check:guidelines` fails on them.
+- If a layout must change inside the desktop width, use a container query (`tw:@container`) or an automatic grid (`tw:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`). Do not add a breakpoint.
 - When you design a new UI, design the mobile layout and the desktop layout together. Show both in the plan, and test both (390px and 1440px wide).
 
 ## Tools

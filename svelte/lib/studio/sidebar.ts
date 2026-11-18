@@ -27,7 +27,7 @@ export function useSidebar(): SidebarContext {
 }
 
 /** Below this viewport width the sidebar is a sheet. */
-export const SIDEBAR_MOBILE_QUERY = "(max-width: 767px)";
+export const SIDEBAR_MOBILE_QUERY = "(max-width: 900px)";
 
 export const sidebarMenuButtonVariants = tv(
   {

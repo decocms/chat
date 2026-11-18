@@ -52,7 +52,7 @@
   }: HomeBridge = $props();
   const account = $derived(personal.state),
     draft = $derived(personal.draft);
-  const mobile = new MediaQuery("(max-width:720px)");
+  const mobile = new MediaQuery("(max-width: 900px)");
   const session = untrack(() => createHomeSession(personal, onnavigate)),
     view = session.state;
   const onboarding = untrack(() => {
@@ -135,7 +135,7 @@
     cube = $state<HTMLCanvasElement | null>(null),
     dealt = $state(false);
   const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
-  const phone = new MediaQuery("(max-width: 720px)");
+  const phone = new MediaQuery("(max-width: 900px)");
   // Scrolling down deals the hand into a grid; back at the top it fans again.
   // What scrolls depends on the width: the app frame on a desktop (#92), the
   // window on a phone. Both are read through the nearest scrolling ancestor.
@@ -278,9 +278,9 @@
       >
       <Button size="sm" class="tw:shrink-0" onclick={copy}
         >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}<span
-          class="tw:max-sm:hidden"
+          class="tw:max-[900px]:hidden"
           >{text(copyStatus === "copied" ? "copied" : "deskCopyAgent")}</span
-        ><span class="tw:sm:hidden"
+        ><span class="tw:min-[901px]:hidden"
           >{text(copyStatus === "copied" ? "copied" : "copy")}</span
         ></Button
       >
@@ -387,7 +387,7 @@
     <!-- The first screen: everything down to the fan, which peeks at its foot. -->
     <div
       class={[
-        "tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:sm:px-8",
+        "tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:min-[901px]:px-8",
         waits.length &&
           "tw:min-h-[calc(100dvh-3.5rem)] tw:min-[901px]:min-h-[calc(100dvh-1rem)]",
       ]}
@@ -396,19 +396,19 @@
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section
-        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-sm:mt-4"
+        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-[900px]:mt-4"
       >
         <canvas
           bind:this={cube}
           width="512"
           height="512"
           aria-hidden="true"
-          class="tw:size-[200px] tw:max-sm:size-[112px]"
+          class="tw:size-[200px] tw:max-[900px]:size-[112px]"
         ></canvas>
         {#if $account.me}{@const first =
             $account.me.name?.split(" ")[0]}<Heading
             level={1}
-            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-sm:text-[28px] tw:max-sm:leading-9"
+            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-[900px]:text-[28px] tw:max-[900px]:leading-9"
             >{#if waits.length}{headline}{:else}<!-- Nothing waits: a greeting and a question, the ask box answers it. -->
               <span class="tw:block"
                 >{first
@@ -524,7 +524,7 @@
         </div>
         <!-- At the foot of the first screen: the fan peeks above the fold. -->
         <div
-          class="tw:min-h-6 tw:flex-1 tw:max-[720px]:max-h-16"
+          class="tw:min-h-6 tw:flex-1 tw:max-[900px]:max-h-16"
           aria-hidden="true"
         ></div>
         {#if waits.length > 1 && filters.length > 1}<div
@@ -556,8 +556,8 @@
             aria-label={text("deskWaits")}
             data-home-hand
             class={dealt
-              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-4 tw:gap-4 tw:max-[1200px]:grid-cols-3 tw:max-[900px]:grid-cols-2 tw:max-[720px]:grid-cols-1 tw:max-[720px]:gap-3"
-              : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[720px]:-mb-[40px] tw:max-[720px]:h-[300px]"}
+              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] tw:gap-4 tw:max-[900px]:grid-cols-1 tw:max-[900px]:gap-3"
+              : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[900px]:-mb-[40px] tw:max-[900px]:h-[300px]"}
           >
             {#each shown as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
                 me.books.find((book) => book.id === wait.book_id)}{@const dm =
@@ -577,9 +577,9 @@
                 class={[
                   "tw:group/card tw:flex tw:flex-col tw:gap-2 tw:overflow-hidden tw:rounded-[22px] tw:bg-card tw:px-[18px] tw:py-4 tw:text-foreground tw:no-underline tw:shadow-[0_0_0_1px_var(--vb-hairline),0_1px_2px_rgb(0_0_0/.04),0_-6px_28px_-12px_rgb(0_0_0/.18)] tw:outline-none tw:transition-shadow tw:duration-150 tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
                   dealt
-                    ? "tw:relative tw:min-h-[176px] tw:max-[720px]:min-h-0 tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
+                    ? "tw:relative tw:min-h-[176px] tw:max-[900px]:min-h-0 tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
                     : [
-                        "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-[720px]:h-[210px] tw:max-[720px]:w-[min(340px,calc(100%-16px))]",
+                        "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-[900px]:h-[210px] tw:max-[900px]:w-[min(340px,calc(100%-16px))]",
                         fanClasses(i, shown.length),
                       ],
                 ]}

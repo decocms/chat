@@ -50,7 +50,7 @@
 {:else}
   <div
     class={cn(
-      "tw:group/sidebar tw:peer tw:text-sidebar-foreground tw:hidden tw:md:flex tw:flex-col tw:shrink-0 tw:overflow-hidden",
+      "tw:group/sidebar tw:peer tw:text-sidebar-foreground tw:hidden tw:min-[901px]:flex tw:flex-col tw:shrink-0 tw:overflow-hidden",
       "tw:transition-[width] tw:duration-150 tw:ease-out tw:motion-reduce:transition-none",
       isExpanded ? "tw:w-(--sidebar-width)" : "tw:w-(--sidebar-width-icon)",
     )}

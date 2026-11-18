@@ -39,16 +39,16 @@ const FAN: Record<number, string> = {
 };
 // Phone pile, by depth: each card behind peeks 13px over the one in front, a little smaller and fainter.
 const PILE = [
-  "tw:max-[720px]:z-20 tw:max-[720px]:translate-x-0 tw:max-[720px]:translate-y-[52px] tw:max-[720px]:rotate-0 tw:max-[720px]:scale-100 tw:max-[720px]:opacity-100 tw:max-[720px]:pointer-events-auto",
-  "tw:max-[720px]:z-[19] tw:max-[720px]:translate-x-0 tw:max-[720px]:translate-y-[39px] tw:max-[720px]:rotate-[-2.5deg] tw:max-[720px]:scale-[0.95] tw:max-[720px]:opacity-[0.88] tw:max-[720px]:pointer-events-auto",
-  "tw:max-[720px]:z-[18] tw:max-[720px]:translate-x-0 tw:max-[720px]:translate-y-[26px] tw:max-[720px]:rotate-[2deg] tw:max-[720px]:scale-[0.9] tw:max-[720px]:opacity-[0.76] tw:max-[720px]:pointer-events-auto",
-  "tw:max-[720px]:z-[17] tw:max-[720px]:translate-x-0 tw:max-[720px]:translate-y-[13px] tw:max-[720px]:rotate-[-2.5deg] tw:max-[720px]:scale-[0.85] tw:max-[720px]:opacity-[0.64] tw:max-[720px]:pointer-events-auto",
-  "tw:max-[720px]:z-[16] tw:max-[720px]:translate-x-0 tw:max-[720px]:translate-y-0 tw:max-[720px]:rotate-[2deg] tw:max-[720px]:scale-[0.8] tw:max-[720px]:opacity-[0.52] tw:max-[720px]:pointer-events-auto",
+  "tw:max-[900px]:z-20 tw:max-[900px]:translate-x-0 tw:max-[900px]:translate-y-[52px] tw:max-[900px]:rotate-0 tw:max-[900px]:scale-100 tw:max-[900px]:opacity-100 tw:max-[900px]:pointer-events-auto",
+  "tw:max-[900px]:z-[19] tw:max-[900px]:translate-x-0 tw:max-[900px]:translate-y-[39px] tw:max-[900px]:rotate-[-2.5deg] tw:max-[900px]:scale-[0.95] tw:max-[900px]:opacity-[0.88] tw:max-[900px]:pointer-events-auto",
+  "tw:max-[900px]:z-[18] tw:max-[900px]:translate-x-0 tw:max-[900px]:translate-y-[26px] tw:max-[900px]:rotate-[2deg] tw:max-[900px]:scale-[0.9] tw:max-[900px]:opacity-[0.76] tw:max-[900px]:pointer-events-auto",
+  "tw:max-[900px]:z-[17] tw:max-[900px]:translate-x-0 tw:max-[900px]:translate-y-[13px] tw:max-[900px]:rotate-[-2.5deg] tw:max-[900px]:scale-[0.85] tw:max-[900px]:opacity-[0.64] tw:max-[900px]:pointer-events-auto",
+  "tw:max-[900px]:z-[16] tw:max-[900px]:translate-x-0 tw:max-[900px]:translate-y-0 tw:max-[900px]:rotate-[2deg] tw:max-[900px]:scale-[0.8] tw:max-[900px]:opacity-[0.52] tw:max-[900px]:pointer-events-auto",
 ];
 const HIDDEN =
   "tw:z-0 tw:translate-y-[80px] tw:opacity-0 tw:pointer-events-none";
 const PILE_HIDDEN =
-  "tw:max-[720px]:z-0 tw:max-[720px]:opacity-0 tw:max-[720px]:pointer-events-none";
+  "tw:max-[900px]:z-0 tw:max-[900px]:opacity-0 tw:max-[900px]:pointer-events-none";
 
 /** The classes that place card i of n in the fan (desktop) and the pile (phone). */
 export function fanClasses(i: number, n: number) {
