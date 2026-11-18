@@ -859,6 +859,7 @@ const EN: Readonly<Record<string, string>> = {
   "Claude conectado: sandboxes novos já sobem logados":
     "Claude connected: new sandboxes start logged in",
   "seu agent no sandbox": "your agent in the sandbox",
+  "todos na sala": "everyone in the room",
   "Quadro de tarefas": "Task board",
   "Nova versão do vibebook · toque pra atualizar":
     "New vibebook version · tap to update",

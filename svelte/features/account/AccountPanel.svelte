@@ -186,10 +186,8 @@
                 <div class="tw:flex tw:items-center tw:gap-3">
                   <PersonAvatar
                     size="lg"
-                    name={$view.me.name || $view.me.email}
-                    url={$view.me.avatar
-                      ? `/api/avatar/${encodeURIComponent($view.me.email)}?v=${$view.me.avatar}`
-                      : undefined}
+                    email={$view.me.email}
+                    version={$view.me.avatar}
                   />
                   <div class="tw:min-w-0 tw:break-words">
                     <p class="tw:font-medium">

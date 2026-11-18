@@ -24,7 +24,7 @@
     busy = false,
     cloud = false,
     waits = [],
-    person = false,
+    person = null,
     class: className,
   }: {
     title: string;
@@ -40,8 +40,8 @@
     /** A cloud sandbox is running for the room. */
     cloud?: boolean;
     waits?: readonly WaitReference[];
-    /** A DM: the other person's face (their picture, else the face their name draws), not a room's tile. */
-    person?: boolean;
+    /** A DM: the other person (you in "Você") drawn as PersonAvatar, not a room's tile. */
+    person?: { email: string; version?: number | null } | null;
     class?: string;
   } = $props();
   const text = (
@@ -62,8 +62,8 @@
   class={cn("tw:relative tw:inline-flex tw:shrink-0", className)}
 >
   {#if person}<PersonAvatar
-      name={title}
-      url={icon ?? undefined}
+      email={person.email}
+      version={person.version}
       {size}
       aria-hidden="true"
       data-room-cover="person"

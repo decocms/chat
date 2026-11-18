@@ -8,7 +8,7 @@ import { poke } from "./person";
 import type { Lang } from "./lang";
 import { emailHtml, escapeHtml, inviteLink } from "./auth";
 import type { Env } from "./index";
-import { findSecret } from "./secrets";
+import { findSecret, secretName } from "./secrets";
 import { track } from "./track";
 import { INBOX_MENTIONS_SQL } from "./digestItems";
 
@@ -141,14 +141,14 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
 
 // A room's icon (e.g. its site's favicon), shared by the room: R2 `icons/<book>`, books.icon = version (null = none).
 export const ICON_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/x-icon", "image/vnd.microsoft.icon"];
-export async function setRoomIcon(env: Env, bookId: string, img: { type: string; body: ArrayBuffer } | null): Promise<number | null> {
+export async function setRoomIcon(env: Env, bookId: string, img: { type: string; body: ArrayBuffer } | null, en = false): Promise<number | null> {
   if (!img) {
     await env.FILES.delete(`icons/${bookId}`);
     await env.DB.prepare(`UPDATE books SET icon = NULL WHERE id = ?`).bind(bookId).run();
     return null;
   }
-  if (!ICON_TYPES.includes(img.type)) throw new Error("Use PNG, JPEG, WebP, GIF ou ICO (SVG não).");
-  if (!img.body.byteLength || img.body.byteLength > 256_000) throw new Error("Ícone vazio ou maior que 256KB.");
+  if (!ICON_TYPES.includes(img.type)) throw new Error(en ? "Use PNG, JPEG, WebP, GIF or ICO (not SVG)." : "Use PNG, JPEG, WebP, GIF ou ICO (SVG não).");
+  if (!img.body.byteLength || img.body.byteLength > 256_000) throw new Error(en ? "Icon empty or over 256KB." : "Ícone vazio ou maior que 256KB.");
   await env.FILES.put(`icons/${bookId}`, img.body, { httpMetadata: { contentType: img.type } });
   const v = Date.now();
   await env.DB.prepare(`UPDATE books SET icon = ? WHERE id = ?`).bind(v, bookId).run();
@@ -160,20 +160,22 @@ export async function setRoomIcon(env: Env, bookId: string, img: { type: string;
 // Audio: recordings already made (iPhone's Voice Memos exports .m4a, recorders .mp3/.wav); played with <audio> in the app.
 /** reminders/<name>.md: a room reminder (Book.reminderFile reads its schedule). */
 export const REMINDER_FILE = /^reminders\/([^\\/\u0000-\u001f]{1,60})\.md$/i;
-export const TYPES_ERROR = "Tipo de arquivo não suportado (imagens, PDF, HTML, Markdown, texto, CSV e áudio).";
-export const sizeError = (type: string) => `Arquivo vazio ou maior que ${maxBytes(type) / 1024 / 1024}MB.`;
+// Agents get the Portuguese (en = false); a person's upload follows their language (src/services.ts).
+export const typesError = (en = false) => (en ? "File type not supported (images, PDF, HTML, Markdown, text, CSV and audio)." : "Tipo de arquivo não suportado (imagens, PDF, HTML, Markdown, texto, CSV e áudio).");
+export const TYPES_ERROR = typesError();
+export const sizeError = (type: string, en = false) => (en ? `File empty or over ${maxBytes(type) / 1024 / 1024}MB.` : `Arquivo vazio ou maior que ${maxBytes(type) / 1024 / 1024}MB.`);
 export type StoredFile = UploadFileResponse;
 
 /** Validates and stores one file in R2 + the room's index. Throws an Error whose message is user-facing. */
-export async function storeFile(env: Env, bookId: string, email: string, type: string, body: ArrayBuffer, rawName: string, authority?: { requireMember: true }): Promise<StoredFile> {
-  if (!FILE_TYPES.includes(type)) throw new Error(TYPES_ERROR);
-  if (!body.byteLength || body.byteLength > maxBytes(type)) throw new Error(sizeError(type));
+export async function storeFile(env: Env, bookId: string, email: string, type: string, body: ArrayBuffer, rawName: string, authority?: { requireMember: true }, en = false): Promise<StoredFile> {
+  if (!FILE_TYPES.includes(type)) throw new Error(typesError(en));
+  if (!body.byteLength || body.byteLength > maxBytes(type)) throw new Error(sizeError(type, en));
   const text = type.startsWith("text/") ? new TextDecoder().decode(body) : "";
   if (text) {
     const secret = findSecret(text);
-    if (secret) throw new Error(`Não subi: o arquivo parece ter ${secret}. Segredo não entra na sala.`);
+    if (secret) throw new Error(en ? `Not uploaded: the file seems to contain a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não subi: o arquivo parece ter ${secret}. Segredo não entra na sala.`);
   }
-  if (!(await env.UPLOAD_LIMIT.limit({ key: email })).success) throw new Error("Muitos uploads. Espera um minuto.");
+  if (!(await env.UPLOAD_LIMIT.limit({ key: email })).success) throw new Error(en ? "Too many uploads. Wait a minute." : "Muitos uploads. Espera um minuto.");
   const rem = type === "text/markdown" ? REMINDER_FILE.exec(rawName.trim()) : null;
   const agentMd = type === "text/markdown" ? /^agents\/([^\\/\u0000-\u001f]{1,60})\.md$/i.exec(rawName.trim()) : null; // a sandbox's CLAUDE.md (src/sandbox.ts)
   const appHtml = type === "text/html" ? /^apps\/([\w.-]{1,60})\.html$/i.exec(rawName.trim()) : null; // a room app (Conexões → Esta sala)

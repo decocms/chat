@@ -253,7 +253,7 @@ auth.get("/google/callback", async (c) => {
       .bind(info.data.email.toLowerCase(), Date.now(), gname)
       .run()
       .catch(() => {});
-  if (info.data.picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, info.data.email, "google", info.data.picture).then(async (ok) => { if (ok) await (await import("./person")).poke(c.env, [info.data.email.toLowerCase()], { t: "me" }); }).catch(() => {}));
+  if (info.data.picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, info.data.email, "google", info.data.picture).then(async (ok) => { if (ok) await (await import("./person")).pokeRoommates(c.env, info.data.email, { t: "me" }); }).catch(() => {}));
   return c.redirect(safeNext(next));
 });
 
@@ -342,7 +342,7 @@ auth.get("/github/callback", async (c) => {
       .run()
       .catch(() => {});
   const picture = githubAvatar(profile);
-  if (picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, email, "github", picture).then(async (ok) => { if (ok) await (await import("./person")).poke(c.env, [email.toLowerCase()], { t: "me" }); }).catch(() => {}));
+  if (picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, email, "github", picture).then(async (ok) => { if (ok) await (await import("./person")).pokeRoommates(c.env, email, { t: "me" }); }).catch(() => {}));
   return c.redirect(safeNext(next));
 });
 

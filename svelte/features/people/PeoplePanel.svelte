@@ -35,7 +35,7 @@
       t: (text: string, vars?: Record<string, string | number>) => string;
       name: (email: string) => string;
       ago: (ts: number) => string;
-      avatarUrl?: (email: string) => string | undefined;
+      avatarVersion: (email: string) => number | null | undefined;
     };
     agents?: Snippet<[string]>;
     request?: PeopleRequest;
@@ -77,11 +77,6 @@
               "Ainda não recebi a confirmação. Confira antes de tentar de novo.",
             )
           : issue;
-  const avatarUrl = (email: string) =>
-    vb.avatarUrl?.(email) ||
-    (room.avatars?.[email]
-      ? `/api/avatar/${encodeURIComponent(email)}?v=${room.avatars[email]}`
-      : undefined);
   $effect(() => {
     session.sync(room);
     if (
@@ -203,8 +198,8 @@
   <div class={cn(row, !here && "tw:text-muted-foreground")} data-person={email}>
     {#if pending}<span class="tw:flex tw:shrink-0"
         ><PersonAvatar
-          name={label(email)}
-          url={avatarUrl(email)}
+          {email}
+          version={vb.avatarVersion(email)}
           class="tw:size-5"
         /></span
       >{:else}
@@ -215,8 +210,8 @@
           data-presence={here ? "online" : "offline"}
           class="tw:relative tw:flex tw:shrink-0 tw:cursor-default tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring"
           ><PersonAvatar
-            name={label(email)}
-            url={avatarUrl(email)}
+            {email}
+            version={vb.avatarVersion(email)}
             class="tw:size-5"
           /><span
             data-status-dot={here ? "online" : "offline"}
@@ -299,8 +294,8 @@
           title={`${access.email} · ${vb.t("pediu {ago}", { ago: vb.ago(access.ts) })}`}
         >
           <PersonAvatar
-            name={access.name || access.email}
-            url={avatarUrl(access.email)}
+            email={access.email}
+            version={vb.avatarVersion(access.email)}
             class="tw:size-5"
           />
           <span class="tw:min-w-0 tw:flex-1">

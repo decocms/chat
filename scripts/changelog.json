@@ -32,7 +32,10 @@
         "Trocar de conversa nas mensagens diretas ficou suave: a lista fica parada, a linha que você clicou não sai do lugar e a conversa nova entra com um esmaecido, sem piscar a tela de carregamento de sala.",
         "Trocar de sala também ficou suave, pela barra de salas, pelo início ou voltando no navegador: a tela não pisca mais o carregamento e a conversa nova entra com um esmaecido.",
         "Entrar com Google ou GitHub agora usa a sua foto de lá como foto de perfil, e atualiza a cada login. Se você subir uma foto no vibebook, ela fica.",
-        "O ponto de \"online\" do computador no rodapé da barra lateral agora é verde-limão, a mesma cor de agent ouvindo."
+        "O ponto de \"online\" do computador no rodapé da barra lateral agora é verde-limão, a mesma cor de agent ouvindo.",
+        "A foto (ou o rostinho gerado) de cada pessoa agora é a mesma em todo lugar: na lista de mensagens diretas, no seu rodapé, no topo de uma conversa direta, nas mensagens, em Pessoas, no quadro e na caixa de entrada. Uma conversa direta mostra o rosto e o nome da outra pessoa no topo (também enquanto carrega), no que espera você e na caixa de entrada, e uma foto trocada aparece na hora em todo lugar, também para quem está nas suas salas e conversas.",
+        "No app em inglês, a sua conversa com você mesmo se chama \"You\" no topo, no celular e no nome da aba (antes aparecia \"Você\"), e a sugestão do @room, a citação de uma votação e a aba de agents do celular também seguem o idioma do app.",
+        "Quem usa o vibebook em inglês não vê mais português solto: avisos de erro, notificações no celular, a página de desligar os emails de menção, a do código do terminal e o resumo por email agora vêm em inglês."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -43,7 +46,10 @@
         "Switching between direct messages is smooth now: the list stays put, the row you clicked doesn't move, and the new conversation fades in, without flashing a room's loading screen.",
         "Switching rooms is smooth too, from the room rail, the home or the browser's back button: no more loading flash, and the new conversation fades in.",
         "Signing in with Google or GitHub now uses your picture from there as your profile picture, refreshed on each sign-in. If you upload a picture in vibebook, that one stays.",
-        "The computer's \"online\" dot at the foot of the sidebar is now lime, the same color as a listening agent."
+        "The computer's \"online\" dot at the foot of the sidebar is now lime, the same color as a listening agent.",
+        "Each person's picture (or generated face) is now the same everywhere: the direct messages list, your row at the bottom, the top of a direct conversation, messages, People, the board and the inbox. A direct conversation shows the other person's face and name at the top (while it loads too), in what's waiting on you and in the inbox, and a changed picture shows up everywhere right away, for the people in your rooms and conversations too.",
+        "In the English app, your conversation with yourself is called \"You\" at the top, on phones and in the tab's name (it used to show \"Você\"), and the @room suggestion, a quoted poll and the phone's agents tab follow the app's language too.",
+        "Using vibebook in English no longer shows stray Portuguese: error messages, phone notifications, the page that turns off mention emails, the terminal code page and the catch-up email now come in English."
       ]
     },
     "fixes": {

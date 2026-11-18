@@ -29,7 +29,7 @@ import { z } from "zod";
 import type { Env } from "./index";
 import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, ROOM_TAGS, tagsOf, unsubscribeUrl } from "./mentionmail";
 import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
-import { findSecret } from "./secrets";
+import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
 import { track } from "./track";
@@ -464,7 +464,7 @@ export class Book extends DurableObject<Env> {
         const thread = r.thread === "main" || this.epics().some((e) => e.id === r.thread) ? r.thread : "main";
         // Old set_reminder rows (no file) posted as the person; file reminders are @vibe speaking for them.
         if (r.name) this.addMessage(thread, "ai", `⏰ **${r.name}** · ${this.en ? "reminder from" : "lembrete de"} ${(names[r.owner] ?? r.owner.split("@")[0]).split(" ")[0]}\n\n${r.text}`, { tag: "reminder", forWho: r.owner });
-        else this.addMessage(thread, r.owner, `⏰ Lembrete: ${r.text}`, { tag: "reminder" });
+        else this.addMessage(thread, r.owner, `⏰ ${this.en ? "Reminder" : "Lembrete"}: ${r.text}`, { tag: "reminder" });
         const f = this.nextFire(r.cron!, r.tz, now);
         if ("next" in f) this.sql.exec(`UPDATE reminders SET next_at = ? WHERE id = ?`, f.next, r.id);
         else this.sql.exec(`UPDATE reminders SET next_at = NULL, error = ? WHERE id = ?`, f.error, r.id);
@@ -675,7 +675,8 @@ export class Book extends DurableObject<Env> {
   private pushedAt = new Map<string, number>();
   /** A native notification (web push) to these people's devices, unless they have this room open; ≤1 per person per
    *  room every 20s (the tag also folds them into one per room on the device). Mentions, asks for you, your Claude's ⏸/❓. */
-  async notify(emails: string[], title: string, body: string, msgId: number, thread: string) {
+  /** `title` as a function is written in each recipient's language (users.lang). */
+  async notify(emails: string[], title: string | ((en: boolean) => string), body: string, msgId: number, thread: string) {
     const bookId = this.get("book_id");
     if (!bookId || !this.env.VAPID_PUBLIC_KEY) return;
     const here = new Set(this.online()), now = Date.now();
@@ -684,8 +685,21 @@ export class Book extends DurableObject<Env> {
     to.forEach((e) => this.pushedAt.set(e, now));
     // A DM's push is titled by who wrote (its stored "A · B" title says nothing more).
     const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "vibebook");
-    const sent = await pushTo(this.env, to, { title: room ? `${title} · ${room}` : title, body, url: `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`, tag: `vb-${bookId}` });
+    const url = `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`;
+    const langs = typeof title === "string" ? null : await this.langs(to);
+    const groups = langs ? [false, true].map((en) => ({ en, to: to.filter((e) => (langs[e] === "en") === en) })).filter((g) => g.to.length) : [{ en: false, to }];
+    let sent = 0;
+    for (const g of groups) {
+      const t = typeof title === "string" ? title : title(g.en);
+      sent += await pushTo(this.env, g.to, { title: room ? `${t} · ${room}` : t, body, url, tag: `vb-${bookId}` });
+    }
     if (sent) await track(this.env, "push_sent", { dims: { book: bookId, n: sent } });
+  }
+  /** users.lang of each of these people (missing = pt). */
+  async langs(emails: string[]): Promise<Record<string, string | null>> {
+    if (!emails.length) return {};
+    const r = await this.env.DB.prepare(`SELECT email, lang FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; lang: string | null }>();
+    return Object.fromEntries(r.results.map((u) => [u.email, u.lang]));
   }
   sockets(except?: WebSocket) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
@@ -782,7 +796,7 @@ export class Book extends DurableObject<Env> {
     const who = human && this.isDm ? members.filter((e) => e !== m.author) : mentioned(m.text, members, await this.names(), m.author, human);
     if (!who.length) return;
     const nm = (await this.names())[m.author] || m.author.split("@")[0];
-    this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? `agent de ${nm}` : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
+    this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? (en) => (en ? `${nm}'s agent` : `agent de ${nm}`) : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
     const delay = this.env.DEV_EMAIL ? 5_000 : MAIL_DELAY_MS; // local dev: see it in seconds
     for (const e of who) this.sql.exec(`INSERT OR IGNORE INTO mail_q (email, msg_id, due) VALUES (?, ?, ?)`, e, m.id, m.ts + delay);
     await this.wakeAt(m.ts + delay);
@@ -853,7 +867,8 @@ export class Book extends DurableObject<Env> {
     const thread = rows.at(-1)!.thread as string;
     const epicRow = thread === "main" ? null : this.epics().find((e) => e.id === thread) ?? null;
     const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
-    const label = (r: Record<string, unknown>) => (r.kind === "agent" ? `${r.via || "Claude"} de ${nm(r.author as string)}` : nm(r.author as string));
+    // Who wrote each mention, in the recipient's language ("Ana's Claude" / "Claude de Ana").
+    const label = (r: Record<string, unknown>) => (r.kind === "agent" ? (lang === "en" ? `${nm(r.author as string)}'s ${r.via || "Claude"}` : `${r.via || "Claude"} de ${nm(r.author as string)}`) : nm(r.author as string));
     const recent = this.messages(thread, 14).filter((x) => x.text);
     const facts: MailFacts = {
       to,
@@ -1523,10 +1538,10 @@ export class Book extends DurableObject<Env> {
     );
     this.pushAcks(`msg_id = ? AND agent = ?`, id, agent);
     this.ctx.waitUntil(this.markBusy(false));
-    this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note || "uma pergunta no terminal" : null));
+    this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
     return { ok: true, message_id: id };
   }
-  /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null). */
+  /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null; "" = no note). */
   async blockedWait(email: string, msgId: number, text: string | null) {
     const bookId = this.get("book_id"); if (!bookId) return;
     if (text === null) {
@@ -1536,9 +1551,13 @@ export class Book extends DurableObject<Env> {
     }
     const m = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, msgId).toArray()[0];
     const topic = m && m.thread !== "main" ? this.epics().find((e) => e.id === m.thread)?.title ?? "" : "";
-    this.ctx.waitUntil(this.notify([email], "⏸ Seu Claude espera você no terminal", text, msgId, m?.thread ?? "main"));
+    const blocked = (en: boolean) => (en ? "⏸ Your agent is waiting for you in the terminal" : "⏸ Seu agent espera você no terminal");
+    // The wait and the push are that person's alone: in their language.
+    const en = (await this.langs([email]))[email] === "en";
+    text ||= en ? "a question in the terminal" : "uma pergunta no terminal";
+    this.ctx.waitUntil(this.notify([email], blocked(en), text, msgId, m?.thread ?? "main"));
     await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`)
-      .bind(bookId, `b${msgId}`, email, m?.thread ?? "main", topic, `⏸ Seu Claude espera você no terminal: ${text}`, Date.now())
+      .bind(bookId, `b${msgId}`, email, m?.thread ?? "main", topic, `${blocked(en)}: ${text}`, Date.now())
       .run();
     await poke(this.env, [email], { t: "me" });
   }
@@ -1550,7 +1569,8 @@ export class Book extends DurableObject<Env> {
       if (r.meta.changes) await poke(this.env, [email], { t: "me" });
       return;
     }
-    this.ctx.waitUntil(this.notify([email], text.startsWith("❓") ? "❓ Seu Claude pergunta" : "⏸ Seu Claude pede permissão", text.replace(/^\S+ Seu Claude [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
+    const q = text.startsWith("❓");
+    this.ctx.waitUntil(this.notify([email], (en) => (q ? (en ? "❓ Your agent asks" : "❓ Seu agent pergunta") : en ? "⏸ Your agent asks for permission" : "⏸ Seu agent pede permissão"), text.replace(/^\S+ Seu Claude [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
     const topic = thread !== "main" ? this.epics().find((e) => e.id === thread)?.title ?? "" : "";
     await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`)
       .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now())
@@ -1719,13 +1739,14 @@ export class Book extends DurableObject<Env> {
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
   }
-  async humanPost(bookId: string, email: string, raw: string, thread = "main"): Promise<PostMessageResponse> {
+  /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast. */
+  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false): Promise<PostMessageResponse> {
     this.bind(bookId);
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
-    if (!text) return { ok: false, error: "Mensagem vazia." };
+    if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
     const secret = findSecret(text);
-    if (secret) return { ok: false, error: `Não enviei: parece ${secret}. Segredo não entra na sala.` };
+    if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
     const m = this.addMessage(thread, email, text);
     this.reopenIfArchived(thread);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
@@ -1783,7 +1804,7 @@ export class Book extends DurableObject<Env> {
       this.epicsChanged();
       // Opening an epic for a request is taking it: the request shows "X está fazendo isso".
       if (agent && !backlog) this.agentAck(bookId, agent, email, via || "agent", Number(src));
-    } else if (!backlog) this.addMessage("main", email, `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`, { kind: "agent", via: via || undefined });
+    } else if (!backlog) this.addMessage("main", email, this.en ? `↳ became the epic **${t}**: the conversation and progress continue there.` : `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`, { kind: "agent", via: via || undefined });
     const epic = this.epics().find((e) => e.id === id);
     const opened = answer ? await this.agentOpenDoc(bookId, email, id) : null;
     return { ok: true, epic_id: id, thread: id, tasks: epic?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], ...(opened ? { doc_opened_in_tabs: "opened_in_tabs" in opened ? opened.opened_in_tabs : 0 } : {}) };
@@ -2245,8 +2266,10 @@ export class Book extends DurableObject<Env> {
         // Accepting is the person asking their Claude for it, not the epic itself: the suggestion may be stale, so it
         // goes into the main thread as their request (their listening Claude wakes), and the Claude checks, sharpens
         // and creates the epic from that message.
-        const tasks = picked.tasks.length ? `\n${this.en ? "Suggested tasks" : "Tarefas sugeridas"}:\n${picked.tasks.map((t) => `- ${t}`).join("\n")}` : "";
-        this.addMessage("main", email, this.en
+        // Posted as that person: in their own language, not the room owner's.
+        const en = (await this.langs([email]))[email] === "en";
+        const tasks = picked.tasks.length ? `\n${en ? "Suggested tasks" : "Tarefas sugeridas"}:\n${picked.tasks.map((t) => `- ${t}`).join("\n")}` : "";
+        this.addMessage("main", email, en
           ? `I accept this epic suggestion: “${picked.title}”.${picked.why ? ` ${picked.why}` : ""}${tasks}\n\nIt may be stale: check what still makes sense, update it, improve the doc and tasks, and create the epic for me.`
           : `Aceito esta sugestão de épico: “${picked.title}”.${picked.why ? ` ${picked.why}` : ""}${tasks}\n\nPode estar velha: confere o que ainda faz sentido, atualiza, melhora o doc e as tarefas e cria o épico pra mim.`);
         return this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
@@ -2453,7 +2476,7 @@ export class Book extends DurableObject<Env> {
         const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author);
         const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, m.id).toArray().map((x) => x.author));
         const asked = others.filter((e, i) => (tagged.includes(e) || (i < 12 && yes(`p${i}`, 0.7))) && !later.has(e));
-        if (asked.length) this.ctx.waitUntil(this.notify(asked, `${nm(m.author)} espera sua resposta`, m.text.replace(/\s+/g, " "), m.id, m.thread));
+        if (asked.length) this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm(m.author)} is waiting for your answer` : `${nm(m.author)} espera sua resposta`), m.text.replace(/\s+/g, " "), m.id, m.thread));
         await DB.batch([
           ...asked.map((e) =>
             DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(bookId, `m${m.id}`, e, m.thread, topic(m.thread), m.author, m.text.slice(0, 280), m.ts),

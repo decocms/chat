@@ -18,7 +18,9 @@
     waitTarget,
     plainWaitText,
     claudeWait,
-    personAvatar,
+    personVersion,
+    dmEntry,
+    roomLabel,
     waitKind,
     type WaitKind,
   } from "./model";
@@ -559,7 +561,8 @@
               : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-[720px]:-mb-[40px] tw:max-[720px]:h-[300px]"}
           >
             {#each shown as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
-                me.books.find((book) => book.id === wait.book_id)}{@const task =
+                me.books.find((book) => book.id === wait.book_id)}{@const dm =
+                dmEntry(me, wait.book_id)}{@const task =
                 wait.ref.startsWith("t")}{@const front =
                 i === 0}{@const reachable =
                 dealt || inFan(i, shown.length, phone.current)}<a
@@ -600,7 +603,11 @@
                   ]}
                   ><span
                     class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
-                    >{#if room && roomIcon(room)}<img
+                    >{#if dm}<PersonAvatar
+                        email={dm.email}
+                        version={dm.version}
+                        class="tw:size-6"
+                      />{:else if room && roomIcon(room)}<img
                         src={roomIcon(room)}
                         alt=""
                         loading="lazy"
@@ -609,7 +616,9 @@
                         name={wait.room}
                         size="xs"
                       />{/if}<span class="tw:min-w-0 tw:truncate"
-                      >{wait.room}{wait.topic ? ` › ${wait.topic}` : ""}</span
+                      >{roomLabel(me, wait.book_id, wait.room, lang)}{wait.topic
+                        ? ` › ${wait.topic}`
+                        : ""}</span
                     ></span
                   ><span
                     class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
@@ -630,8 +639,8 @@
                         >{who(wait)}</span
                       >{:else}<PersonAvatar
                         size="2xs"
-                        name={wait.author_name || wait.author}
-                        url={personAvatar(me, wait.author)}
+                        email={wait.author}
+                        version={personVersion(me, wait.author)}
                       /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
                         >{who(wait)}</span
                       >{/if}<span class="tw:shrink-0 tw:tabular-nums"

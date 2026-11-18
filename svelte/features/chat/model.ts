@@ -60,12 +60,9 @@ export function foldMessages(list: readonly ChatMessage[]) {
   }
   return out;
 }
-export const messageSnippet = (m: ChatMessage) =>
-  (
-    m.text ||
-    m.files?.map((f) => f.name).join(", ") ||
-    (m.poll ? "votação" : "")
-  )
+/** `poll` names a poll with no text, in the app's language. */
+export const messageSnippet = (m: ChatMessage, poll = "votação") =>
+  (m.text || m.files?.map((f) => f.name).join(", ") || (m.poll ? poll : ""))
     .replace(/\*\*|`|^[#>]+ ?/gm, "")
     .replace(/\s+/g, " ")
     .trim()

@@ -6,7 +6,6 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
-  import { avatarUrl } from "../home/model";
   import type { MeFriendRequest, MeInvite } from "../../../shared/schemas";
   /**
    * "Pedidos": what waits for your yes. A room invite (Entrar joins and opens
@@ -45,8 +44,8 @@
 
 {#snippet row(
   key: string,
-  name: string,
-  url: string | undefined,
+  email: string,
+  version: number | null | undefined,
   title: string,
   meta: string,
   preview: string | null | undefined,
@@ -56,7 +55,7 @@
     <div
       class="tw:flex tw:items-start tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5"
     >
-      <PersonAvatar size="sm" {name} {url} />
+      <PersonAvatar size="sm" {email} {version} />
       <div class="tw:min-w-0 tw:flex-1">
         <p class="tw:m-0 tw:truncate tw:text-sm tw:font-medium">{title}</p>
         <p class="tw:m-0 tw:truncate tw:text-xs tw:text-muted-foreground">
@@ -97,8 +96,8 @@
     <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
       {#each invites as invite (invite.book_id)}{@render row(
           `room:${invite.book_id}`,
-          invite.inviter_name || invite.inviter,
-          avatarUrl(invite.inviter, invite.inviter_avatar),
+          invite.inviter,
+          invite.inviter_avatar,
           invite.title,
           homeText(lang, "inviteFrom", {
             who: invite.inviter_name || invite.inviter,
@@ -113,8 +112,8 @@
         )}{/each}
       {#each requests as request (request.email)}{@render row(
           `dm:${request.email}`,
-          request.name || request.email,
-          avatarUrl(request.email, request.avatar),
+          request.email,
+          request.avatar,
           request.name || request.email,
           homeText(lang, "wantsToTalk"),
           request.msg,
