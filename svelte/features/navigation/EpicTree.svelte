@@ -332,7 +332,7 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    "tw:m-0 tw:box-border tw:flex tw:min-h-[max(12rem,40dvh)] tw:grow tw:basis-0 tw:flex-col tw:p-0 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
+    "tw:m-0 tw:box-border tw:flex tw:min-h-[max(10rem,min(40dvh,calc(100dvh_-_36rem)))] tw:grow tw:basis-0 tw:flex-col tw:p-0 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
   )}
 >
   {#snippet panel(value: string)}

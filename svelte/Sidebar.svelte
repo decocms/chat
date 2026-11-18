@@ -116,11 +116,11 @@
   class={cn(
     studioType,
     "tw:flex tw:h-full tw:min-h-[32rem] tw:flex-col tw:overflow-x-hidden tw:bg-sidebar tw:p-2 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
-    // Expanded, each section scrolls inside itself (epics, pins, people);
-    // only the collapsed icon rail scrolls as a whole.
+    // Expanded, each section scrolls inside itself (epics, pins, people) down
+    // to its minimum; only below those minimums does the sidebar scroll whole.
     collapsed
       ? "tw:items-center tw:gap-2 tw:overflow-y-auto tw:overscroll-contain"
-      : "tw:gap-6 tw:overflow-y-hidden",
+      : "tw:gap-6 tw:overflow-y-auto tw:overscroll-contain",
   )}
 >
   {#if collapsed}
