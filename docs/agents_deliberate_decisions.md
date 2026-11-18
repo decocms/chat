@@ -165,6 +165,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Also delete `app-hmr`, `chunk-diagnostics` and `capture-studio.ts`. Live code still uses what they test or make.
 - Risk: low. No check in `bun run check` or `ci.yml` used the deleted files.
 - Undo: `git revert` the commit of this branch.
+
+### 2026-11-18 · fix/client-boundary-worktree · Declared dependency roots for the client boundary
+- Agent: claude-opus-5-5
+- Context: `check:client-boundary` failed in a checkout under `.claude/worktrees/`. The fixture project is a temp directory, but it aliases `tailwindcss` from the checkout's `node_modules`, so the private-directory test read the whole checkout path.
+- Decision: `createClientBoundaryPolicy` and `clientBoundary` take an optional `dependencyRoots`. For a file under `<dependency root>/node_modules/`, only the part after the dependency root is tested. Other files outside the project still have their full path tested. The fixture declares the checkout as a dependency root.
+- Other options: Test only the part after the last `node_modules` segment of any path. That needs no option, but it also accepts files such as `~/.ssh/node_modules/x.js`.
+- Risk: low. Production builds do not pass the option. Their behavior does not change.
+- Undo: Remove the option and the fixture argument.
 - Status: open
 
 ### 2026-11-18 · ci/main-red-skip-superseded · Ignore a cancelled CI run when main has a newer commit

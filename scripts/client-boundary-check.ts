@@ -116,7 +116,9 @@ try {
       publicDir: join(root, "public"),
       logLevel: "silent",
       plugins: [
-        clientBoundary({ projectRoot: root }),
+        // The fixture lives in a temp dir but aliases this checkout's
+        // node_modules; the checkout path itself may contain .claude/.
+        clientBoundary({ projectRoot: root, dependencyRoots: [projectRoot] }),
         ...(withTailwind ? [tailwindcss()] : []),
       ],
       resolve: {
