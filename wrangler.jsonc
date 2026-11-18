@@ -1,7 +1,9 @@
 {
+  // The Worker `chat` (chat.decocms.com) in deco's Cloudflare account. Workers Builds deploys `main` and makes a
+  // Worker Preview for each other branch (see docs/workflow.md).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vibebook",
-  "account_id": "55dd6d847f366735ef6e0f860c7bdc51",
+  "name": "chat",
+  "account_id": "c95fc4cec7fc52453228d9db170c372c",
   "main": "src/index.ts",
   "rules": [{ "type": "Text", "globs": ["dist-mcp/*.html"], "fallthrough": true }],
   "compatibility_date": "2026-10-01",
@@ -13,14 +15,15 @@
     "binding": "ASSETS",
     "run_worker_first": ["/", "/archived", "/settings", "/login", "/b/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*", "/api/*", "/ws/*", "/ws-me", "/auth/*"]
   },
-  "d1_databases": [{ "binding": "DB", "database_name": "vibebook", "database_id": "8b1e10e7-ff7d-4d40-94b1-e3d9b88c4a23" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "chat", "database_id": "8bcfa4db-cab3-4282-91ce-97f81d551565" }],
   "durable_objects": { "bindings": [{ "name": "BOOK", "class_name": "Book" }, { "name": "DOC_ROOMS", "class_name": "DocRoom" }, { "name": "PEOPLE", "class_name": "Person" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Book"] }, { "tag": "v2", "new_sqlite_classes": ["DocRoom"] }, { "tag": "v3", "new_sqlite_classes": ["Person"] }],
-  "routes": [{ "pattern": "vibebook.dev", "custom_domain": true }],
+  "workers_dev": true,
+  "routes": [{ "pattern": "chat.decocms.com", "custom_domain": true }],
   "send_email": [{ "name": "EMAIL" }],
-  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "dfed86f52e7740d3bf9311b26b03ac16" }],
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "21d1c87a65a344729b7b707f36ebb203" }],
   "ai": { "binding": "AI" },
-  "r2_buckets": [{ "binding": "FILES", "bucket_name": "vibebook-files" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "chat-files" }],
   "ratelimits": [
     { "name": "AI_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
     { "name": "LOGIN_LIMIT", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
@@ -34,17 +37,52 @@
     "MODEL_CLASSIFY": "deepseek/deepseek-v4.1-flash",
     "MODEL_FAST": "anthropic/claude-haiku-5.5",
     "MODEL_JUDGE": "~typesafe/jev-latest",
-    // MCP tool `metrics` (src/reports.ts) works only in these rooms (vibebook-growth, vibebook-product); the daily
-    // posts are reminders/*.md there. CF_ANALYTICS_TOKEN is a secret (read-only analytics).
+    // MCP tool `metrics` (src/reports.ts) works only in these rooms; the daily posts are reminders/*.md there.
     "METRICS_ROOMS": "c635b3ffbf93,f94aedb83899",
     "ISSUES_ROOM": "f94aedb83899",
     // Rooms where agents of several people may keep talking with no human (no pause after AGENT_STREAK_MAX).
     "AGENT_STREAK_OFF": "8517909cec03",
-    "CF_ACCOUNT_ID": "55dd6d847f366735ef6e0f860c7bdc51"
+    "CF_ACCOUNT_ID": "c95fc4cec7fc52453228d9db170c372c",
+    // src/host.ts: links, logo and push subject; emails come from login@/mention@/convite@ this domain once
+    // Cloudflare Email Sending is set up for it.
+    "PUBLIC_ORIGIN": "https://chat.decocms.com",
+    "MAIL_DOMAIN": "chat.decocms.com",
+    "CF_ZONE": "decocms.com"
   },
-  // No cron: removes the one the daily reports used (scheduled posts are room reminders now).
-  "triggers": { "crons": ["0 11,21 * * *"] },
+  // Off: the 8h/18h digest mails real people. Turn it on when Email Sending is set up.
+  "triggers": { "crons": [] },
+  "observability": { "enabled": true },
+  // Worker Previews (one per branch) inherit nothing from above. They get their own D1, KV and R2, so a branch never
+  // touches production data, and each Preview gets its own Durable Object storage. No routes, no cron.
+  // Their SESSION_SECRET is a different one: `npx wrangler preview base-config secret put SESSION_SECRET`.
+  "previews": {
+    "d1_databases": [{ "binding": "DB", "database_name": "chat-preview", "database_id": "dba6ccd9-4848-4407-b35d-3d49787d0236" }],
+    "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "16a482f026fa44b5832e749289384b91" }],
+    "r2_buckets": [{ "binding": "FILES", "bucket_name": "chat-preview-files" }],
+    "durable_objects": { "bindings": [{ "name": "BOOK", "class_name": "Book" }, { "name": "DOC_ROOMS", "class_name": "DocRoom" }, { "name": "PEOPLE", "class_name": "Person" }] },
+    "ai": { "binding": "AI" },
+    // Sign-in is by emailed code, so a Preview needs EMAIL too. Its D1 holds only the people who use that Preview.
+    "send_email": [{ "name": "EMAIL" }],
+    "ratelimits": [
+      { "name": "AI_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+      { "name": "LOGIN_LIMIT", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
+      { "name": "UPLOAD_LIMIT", "namespace_id": "1004", "simple": { "limit": 30, "period": 60 } },
+      { "name": "AGENT_LIMIT", "namespace_id": "1005", "simple": { "limit": 30, "period": 60 } }
+    ],
+    "vars": {
+      "MODEL_ROUTE": "deepseek/deepseek-v4.1-flash",
+      "MODEL_CLASSIFY": "deepseek/deepseek-v4.1-flash",
+      "MODEL_FAST": "anthropic/claude-haiku-5.5",
+      "MODEL_JUDGE": "~typesafe/jev-latest",
+      "METRICS_ROOMS": "c635b3ffbf93,f94aedb83899",
+      "ISSUES_ROOM": "f94aedb83899",
+      "AGENT_STREAK_OFF": "8517909cec03",
+      "CF_ACCOUNT_ID": "c95fc4cec7fc52453228d9db170c372c",
+      "PUBLIC_ORIGIN": "https://chat.decocms.com",
+      "MAIL_DOMAIN": "chat.decocms.com",
+      "CF_ZONE": "decocms.com"
+    }
+  },
   // Local dev serves as http://127.0.0.1:8797 (OAuth accepts http only on a loopback IP; :8787 is taken here).
-  "dev": { "port": 8797, "host": "127.0.0.1:8797", "upstream_protocol": "http" },
-  "observability": { "enabled": true }
+  "dev": { "port": 8797, "host": "127.0.0.1:8797", "upstream_protocol": "http" }
 }

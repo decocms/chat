@@ -89,7 +89,11 @@ Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worke
 
 `bun run deploy` from a computer is for hotfixes only. Ask a human first.
 
-The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys with Workers Builds. Each push to `main` of `decocms/chat` runs `bun run build:app-document && bun run build:mcp`, then `npx wrangler deploy -c wrangler.deco.jsonc`. Preview builds for other branches are off. For a hotfix from a computer, use the same commands. Always give `-c wrangler.deco.jsonc`: else wrangler uses the account of `wrangler.jsonc`.
+The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys with Workers Builds. `wrangler.jsonc` is its configuration.
+
+- Each push to `main` runs `bun run build:app-document && bun run build:mcp`, then `npx wrangler deploy`.
+- Each push to another branch runs the same build, then `npx wrangler preview`. That makes a Worker Preview at `https://<branch>-chat.deco-cx.workers.dev`. The Preview uses the `previews` block of `wrangler.jsonc`: its own D1 (`chat-preview`), KV and R2 (`chat-preview-files`), its own Durable Object storage and its own `SESSION_SECRET`. It never touches production data. Preview URLs are public.
+- To make a Preview from a computer: `npx wrangler preview --name <name>`. To delete it: `npx wrangler preview delete --name <name>`.
 
 ## Roll back
 
