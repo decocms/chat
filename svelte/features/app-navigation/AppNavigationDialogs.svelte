@@ -8,15 +8,9 @@
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
   import { TINTS } from "../../../shared/schemas";
-  import {
-    roomMatches,
-    targetHref,
-    epicTarget,
-    messageTarget,
-    type RoomTarget,
-  } from "../home/model";
   import { homeText, homeIssue, type HomeLanguage } from "../home/copy";
   import { roomIconPng } from "../rooms/images";
+  import SearchPalette from "./SearchPalette.svelte";
   import type {
     NavigationDialogOwners,
     NavigationDialogIntent,
@@ -46,7 +40,6 @@
     draft = $derived(controller.personal.draft),
     nav = $derived(controller.state),
     mutations = $derived(controller.rooms.state),
-    search = $derived(controller.search.state),
     creator = $derived(controller.creator.state);
   const text = (
     key: Parameters<typeof homeText>[1],
@@ -62,29 +55,7 @@
   const renameRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.renameId),
   );
-  const rows = $derived([
-    ...roomMatches($personal.me?.books ?? [], $search.query).map((room) => ({
-      key: "room:" + room.id,
-      target: { roomId: room.id } as RoomTarget,
-      title: room.title ?? "vibebook",
-      detail: room.folder ?? "",
-    })),
-    ...($search.result?.epics ?? []).map((epic) => ({
-      key: "epic:" + epic.room_id + ":" + epic.id,
-      target: epicTarget(epic),
-      title: epic.title,
-      detail: epic.room + (epic.archived ? " · " + text("archive") : ""),
-    })),
-    ...($search.result?.messages ?? []).map((message) => ({
-      key: "msg:" + message.room_id + ":" + message.id,
-      target: messageTarget(message),
-      title:
-        message.snippet || message.files.map((file) => file.name).join(", "),
-      detail: message.room + (message.topic ? " › " + message.topic : ""),
-    })),
-  ]);
-  let searchInput = $state<HTMLInputElement | null>(null),
-    createInput = $state<HTMLTextAreaElement | null>(null),
+  let createInput = $state<HTMLTextAreaElement | null>(null),
     archiveCancel = $state<HTMLButtonElement | null>(null),
     renameInput = $state<HTMLInputElement | null>(null);
   let mounted = false,
@@ -151,112 +122,13 @@
 {#each openings as opening (opening.revision)}<Snapshot value={opening}
     >{#snippet children(intent)}
       {#if intent.kind === "search"}
-        <TitledDialog
-          open={$search.open}
-          title={text("search")}
-          closeLabel={text("close")}
-          onOpenChange={(open) => {
-            if (!open && current(intent)) controller.search.close();
-          }}
-          initialFocus={() => searchInput}
+        <SearchPalette
+          search={controller.search}
+          me={$personal.me}
+          {lang}
+          live={() => current(intent)}
           returnFocus={() => focusBack(intent)}
-        >
-          <Input
-            bind:ref={searchInput}
-            role="combobox"
-            aria-label={text("search")}
-            aria-autocomplete="list"
-            aria-expanded="true"
-            aria-controls="native-room-results"
-            aria-activedescendant={rows[$search.selected]
-              ? `native-result-${$search.selected}`
-              : undefined}
-            placeholder={text("searchPlaceholder")}
-            value={$search.query}
-            oninput={(event) => {
-              if (current(intent) && event.currentTarget.isConnected)
-                controller.search.edit(event.currentTarget.value);
-            }}
-            onkeydown={(event) => {
-              if (!current(intent) || !event.currentTarget.isConnected) return;
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault();
-                controller.search.move(event.key === "ArrowDown" ? 1 : -1);
-              } else if (event.key === "Enter" && !event.isComposing) {
-                event.preventDefault();
-                controller.search.activate();
-              }
-            }}
-          />
-          <div
-            id="native-room-results"
-            role="listbox"
-            aria-label={text("search")}
-            class="space-y-1"
-          >
-            {#each rows as row, index (row.key)}<a
-                href={targetHref(row.target)}
-                role="option"
-                id={`native-result-${index}`}
-                aria-selected={$search.selected === index}
-                tabindex="-1"
-                class={$search.selected === index
-                  ? "block w-full rounded-lg bg-accent p-3 text-left text-foreground no-underline"
-                  : "block w-full rounded-lg bg-transparent p-3 text-left text-foreground no-underline hover:bg-accent"}
-                onclick={(event) => {
-                  if (!current(intent) || !event.currentTarget.isConnected) {
-                    event.preventDefault();
-                    return;
-                  }
-                  if (
-                    event.ctrlKey ||
-                    event.metaKey ||
-                    event.shiftKey ||
-                    event.altKey ||
-                    event.button !== 0
-                  )
-                    return;
-                  event.preventDefault();
-                  if (current(intent) && event.currentTarget.isConnected)
-                    controller.search.activateTarget(row.target);
-                }}
-                ><b class="block break-words text-sm font-medium">{row.title}</b
-                ><small class="break-words text-muted-foreground"
-                  >{row.detail}</small
-                ></a
-              >{/each}
-          </div>
-          {#if !rows.length && !$search.loading}<p>
-              {text(
-                $search.query.trim().length >= 2
-                  ? "noConversations"
-                  : "noMatches",
-              )}
-            </p>{/if}{#if $search.loading}<p role="status">
-              {text("searching")}
-            </p>{/if}{#if $search.result?.failed}<p role="status">
-              {text("partial")}
-            </p>
-            <Button
-              variant="outline"
-              onclick={(event) => {
-                if (current(intent) && event.currentTarget.isConnected)
-                  controller.search.edit($search.query);
-              }}>{text("retry")}</Button
-            >{/if}{#if $search.error}<p
-              role="alert"
-              class="break-words text-destructive"
-            >
-              {homeIssue(lang, $search.error)}
-            </p>
-            <Button
-              variant="outline"
-              onclick={(event) => {
-                if (current(intent) && event.currentTarget.isConnected)
-                  controller.search.edit($search.query);
-              }}>{text("retry")}</Button
-            >{/if}
-        </TitledDialog>
+        />
       {:else if intent.kind === "create"}
         {#if $creator.binding}{#key $creator.binding}<Snapshot
               value={$creator.binding}

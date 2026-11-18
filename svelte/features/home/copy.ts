@@ -48,6 +48,11 @@ const pt = {
   noConversations: "Nada nas conversas.",
   epics: "Épicos",
   conversations: "Nas conversas",
+  searchRooms: "Salas",
+  searchDms: "Mensagens diretas",
+  searchMove: "navegar",
+  searchOpen: "abrir",
+  searchClose: "fechar",
   partial: "Algumas salas não puderam ser consultadas. Tente de novo.",
   empty:
     "Nenhum vibebook ainda. Crie um, chame quem trabalha com você e conecte seu agent.",
@@ -222,6 +227,11 @@ const en: Record<keyof typeof pt, string> = {
   noConversations: "Nothing in conversations.",
   epics: "Epics",
   conversations: "In conversations",
+  searchRooms: "Rooms",
+  searchDms: "Direct messages",
+  searchMove: "navigate",
+  searchOpen: "open",
+  searchClose: "close",
   partial: "Some rooms could not be searched. Try again.",
   empty:
     "No vibebooks yet. Create one, invite your team and connect your agent.",
