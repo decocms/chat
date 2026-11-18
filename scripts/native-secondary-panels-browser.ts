@@ -244,10 +244,13 @@ try {
   await input.fill(invitedEmail);
   await input.press("Enter");
   await expect
-    .poll(() => roomStore.get()?.members.includes(invitedEmail))
+    .poll(() => roomStore.get()?.invited?.includes(invitedEmail))
     .toBe(true);
   await openPeople(page);
   await expect(people.locator(`[data-person="${invitedEmail}"]`)).toBeVisible();
+  await expect(
+    people.locator(`[data-person="${invitedEmail}"] [data-invite-state]`),
+  ).toBeVisible();
   await expect(
     people.getByRole("alert").filter({ hasText: /copiar|copy/i }),
   ).toBeVisible();

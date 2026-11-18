@@ -491,6 +491,12 @@ try {
       );
       assert(invite.ok());
       OkResult.parse(await invite.json());
+      // Invites wait for a yes: the peer joins.
+      const joined = await peer.context.request.post(
+        `${base}/api/books/${roomA}/invite`,
+        { headers: { origin: base }, data: { yes: true } },
+      );
+      assert(joined.ok(), `Join status ${joined.status()}`);
       epic = z.object({ epic_id: z.string() }).parse(
         await agent("start_epic", {
           room_id: roomA,
