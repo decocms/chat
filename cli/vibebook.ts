@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.6.20";
+const VERSION = "1.6.21";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -890,6 +890,21 @@ const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for yo
 Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --origin for a local server.`;
 
 // ---- The hub: one WebSocket per machine for every listening Claude ----
+
+// A notice on the person's socket. It is a JSON-RPC notification ({jsonrpc, method, params}, src/person.ts); the tagged
+// JSON ({t, ...}) of a server from before 1.6.21 is still read.
+function hubNotice(raw: string): ({ t: string } & Record<string, unknown>) | null {
+  let m: unknown;
+  try { m = JSON.parse(raw); } catch { return null; }
+  if (!m || typeof m !== "object" || Array.isArray(m)) return null;
+  const o = m as Record<string, unknown>;
+  if (o.jsonrpc === "2.0") {
+    if (typeof o.method !== "string" || "id" in o) return null;
+    const params = o.params && typeof o.params === "object" && !Array.isArray(o.params) ? o.params : {};
+    return { ...(params as Record<string, unknown>), t: o.method };
+  }
+  return typeof o.t === "string" ? (o as { t: string } & Record<string, unknown>) : null;
+}
 // `vibebook listen` used to long-poll the server (a request every 50s, D1 checked every 3s, per Claude). Now the first
 // listener starts `vibebook hub` (detached, one per machine: ~/.vibebook/hub.json), which keeps one hibernating socket
 // on the person's channel and serves the local listeners: GET 127.0.0.1:<port>/wait?book=<room|*>&since=<gen> answers
@@ -943,15 +958,16 @@ async function hub() {
   let sock: WebSocket | null = null, ping: ReturnType<typeof setInterval> | undefined;
   const connect = async () => {
     const s = await session();
-    const ws = new (WebSocket as any)(`${s.origin.replace(/^http/, "ws")}/mcp`, { headers: { authorization: `Bearer ${s.access_token}` } }) as WebSocket;
+    const ws = new (WebSocket as any)(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } }) as WebSocket;
     sock = ws;
     let closed = false;
     const again = () => { if (closed) return; closed = true; clearInterval(ping); setTimeout(() => connect().catch(again), backoff); backoff = Math.min(backoff * 2, 60_000); };
     ws.onopen = () => { backoff = 1000; bump(); bumpAgents(); ping = setInterval(() => { try { ws.send("ping"); } catch {} }, 45_000); }; // (re)connected: everyone checks once
     ws.onmessage = (e) => {
       try {
-        const m = JSON.parse(String(e.data));
-        if (m.t === "me" && m.book) bump(m.book);
+        const m = hubNotice(String(e.data));
+        if (!m) return;
+        if (m.t === "me" && typeof m.book === "string" && m.book) bump(m.book);
         if (m.t === "agents") bumpAgents();
         // The room's ↗ (POST /api/books/:id/focus): hand it to this machine's herdr runner. A machine without the room
         // answers 404 and nothing happens.

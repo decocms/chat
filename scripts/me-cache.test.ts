@@ -8,7 +8,7 @@ mock.module("cloudflare:workers", () => ({
   env: {},
 }));
 const { meFor, services } = await import("../src/services");
-const { pokeRoommates } = await import("../src/person");
+const { Person, pokeRoommates, socketWire } = await import("../src/person");
 import type { Env } from "../src/index";
 
 // GET /api/me's cache in the Person DO (src/person.ts), with a fake DO and a fake D1 that counts reads.
@@ -242,4 +242,37 @@ test("saving your picture pokes the people who draw it", async () => {
   } finally {
     f.close();
   }
+});
+
+// The person socket: the app and a new CLI hub get JSON-RPC, an older CLI hub keeps the tagged JSON.
+test("socketWire: /ws-me and /mcp?wire=jsonrpc get JSON-RPC, plain /mcp stays tagged", () => {
+  expect(socketWire(new URL("https://x/ws-me"))).toBe("jsonrpc");
+  expect(socketWire(new URL("https://x/mcp?wire=jsonrpc"))).toBe("jsonrpc");
+  expect(socketWire(new URL("https://x/mcp"))).toBe("tagged");
+});
+
+test("Person poke sends each socket its own format", async () => {
+  const sent: Record<string, string[]> = { jsonrpc: [], tagged: [] };
+  const sockets = (["jsonrpc", "tagged"] as const).map((wire) => ({
+    wire,
+    send: (frame: string) => sent[wire].push(frame),
+  }));
+  const person = Object.create(Person.prototype);
+  person.ctx = {
+    getWebSockets: () => sockets,
+    getTags: (ws: { wire: string }) => [ws.wire],
+    storage: {
+      get: async () => 0,
+      put: async () => {},
+      delete: async () => {},
+    },
+  };
+  const body = JSON.stringify({ t: "agents", book: "r1" });
+  await person.fetch(
+    new Request("https://person/poke", { method: "POST", body }),
+  );
+  expect(sent.tagged).toEqual([body]);
+  expect(sent.jsonrpc.map((frame) => JSON.parse(frame))).toEqual([
+    { jsonrpc: "2.0", method: "agents", params: { book: "r1" } },
+  ]);
 });

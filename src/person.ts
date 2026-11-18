@@ -16,8 +16,7 @@ export class Person extends DurableObject<Env> {
   async fetch(req: Request) {
     if (req.headers.get("upgrade") === "websocket") {
       const [client, server] = Object.values(new WebSocketPair());
-      // The app (/ws-me) gets JSON-RPC notifications; the CLI hub (/mcp) keeps the tagged JSON that installed CLIs read.
-      this.ctx.acceptWebSocket(server, [new URL(req.url).pathname === "/ws-me" ? "jsonrpc" : "tagged"]);
+      this.ctx.acceptWebSocket(server, [socketWire(new URL(req.url))]);
       return new Response(null, { status: 101, webSocket: client });
     }
     const path = new URL(req.url).pathname;
@@ -47,6 +46,12 @@ export class Person extends DurableObject<Env> {
   }
   webSocketMessage() {} // the app only listens
   webSocketClose(ws: WebSocket) { try { ws.close(); } catch {} }
+}
+
+/** The format a socket gets. The app (/ws-me) and a CLI hub from 1.6.21 (/mcp?wire=jsonrpc) get JSON-RPC
+ * notifications. An older CLI hub (/mcp) gets the tagged JSON that it reads. */
+export function socketWire(url: URL): "jsonrpc" | "tagged" {
+  return url.pathname === "/ws-me" || url.searchParams.get("wire") === "jsonrpc" ? "jsonrpc" : "tagged";
 }
 
 /** Tell these people's open apps that something changed. Fire and forget, ≤50 people per call. */

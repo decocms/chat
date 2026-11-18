@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.20";
+var VERSION = "1.6.21";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -922,6 +922,24 @@ var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you 
   vibebook update                install the latest version
 
 Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --origin for a local server.`;
+function hubNotice(raw) {
+  let m;
+  try {
+    m = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!m || typeof m !== "object" || Array.isArray(m))
+    return null;
+  const o = m;
+  if (o.jsonrpc === "2.0") {
+    if (typeof o.method !== "string" || "id" in o)
+      return null;
+    const params = o.params && typeof o.params === "object" && !Array.isArray(o.params) ? o.params : {};
+    return { ...params, t: o.method };
+  }
+  return typeof o.t === "string" ? o : null;
+}
 var HUB = join(HOME, "hub.json");
 var hubPort = () => {
   const h = readJson(HUB, null);
@@ -1015,7 +1033,7 @@ async function hub() {
   let sock = null, ping;
   const connect = async () => {
     const s = await session();
-    const ws = new WebSocket(`${s.origin.replace(/^http/, "ws")}/mcp`, { headers: { authorization: `Bearer ${s.access_token}` } });
+    const ws = new WebSocket(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } });
     sock = ws;
     let closed = false;
     const again = () => {
@@ -1038,8 +1056,10 @@ async function hub() {
     };
     ws.onmessage = (e) => {
       try {
-        const m = JSON.parse(String(e.data));
-        if (m.t === "me" && m.book)
+        const m = hubNotice(String(e.data));
+        if (!m)
+          return;
+        if (m.t === "me" && typeof m.book === "string" && m.book)
           bump(m.book);
         if (m.t === "agents")
           bumpAgents();

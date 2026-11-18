@@ -30,7 +30,7 @@
     - A command that needs an answer is a request (`id`). The server sends one response: `result`, or `error` with a reason.
     - A command without an answer, and each event that the server pushes, is a notification (no `id`).
     - Each side validates the other side's messages.
-    - Exception: the CLI hub on the `Person` socket (`/mcp`) still gets tagged JSON, because installed CLIs read that format.
+    - The CLI hub (`vibebook listen`) connects to `/mcp?wire=jsonrpc` and gets JSON-RPC too. A CLI before 1.6.21 connects to `/mcp` and gets the old tagged JSON (`{ t, ... }`). Keep that legacy path until old CLIs are gone.
   - Document text: the Yjs protocol on `/yjs/:name`. This is the only channel that is not RPC.
 - Do not call `fetch` directly from the Svelte app.
 - Do not use `any`, and do not use a type cast to hide a type error.
