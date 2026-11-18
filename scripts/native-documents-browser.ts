@@ -1,4 +1,5 @@
 // Real loopback Worker/Book/DocRoom verification. No canonical/API/provider mocks.
+import { receivedEvent, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { request as httpRequest } from "node:http";
@@ -102,21 +103,11 @@ function relay(context: BrowserContext) {
     page.on("websocket", (socket) => {
       if (!new URL(socket.url()).pathname.startsWith("/ws/")) return;
       socket.on("framesent", (event) => {
-        if (typeof event.payload !== "string") return;
-        try {
-          if (JSON.parse(event.payload).t === "doc") stats.fullTextCommands++;
-        } catch {
-          /* Not a JSON command. */
-        }
+        if (sentFrame(event.payload)?.t === "doc") stats.fullTextCommands++;
       });
       socket.on("framereceived", (event) => {
-        if (typeof event.payload !== "string") return;
-        try {
-          const frame = JSON.parse(event.payload);
-          if (frame.t === "doc") frame.stale ? stats.stale++ : stats.fetched++;
-        } catch {
-          /* Ignore non-JSON. */
-        }
+        const frame = receivedEvent(event.payload);
+        if (frame?.t === "doc") frame.stale ? stats.stale++ : stats.fetched++;
       });
     }),
   );

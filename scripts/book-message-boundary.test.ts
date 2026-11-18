@@ -1,4 +1,5 @@
 // Stored message and actual Book method fixtures, including bounded SQLite-backed D1 reads; no real DO scheduling.
+import { decodeServerMessage } from "../shared/jsonRpc";
 import { expect, mock, test } from "bun:test";
 import { MessageSchema } from "../shared/room";
 import {
@@ -14,6 +15,12 @@ import {
 import { cachedTools } from "../src/mcpTools";
 import type { bookStub } from "../src/rooms";
 import { sendTo } from "./book-test-wire";
+/** A frame the Book pushed, as the tagged event it carries (a JSON-RPC notification, method = t). */
+const notification = (frame: string) => {
+  const message = decodeServerMessage(frame);
+  if (message?.kind !== "notification") throw Error("Not a notification");
+  return message.message;
+};
 type RemoteAgentRead = Awaited<
   ReturnType<ReturnType<typeof bookStub>["agentRead"]>
 >;
@@ -255,7 +262,7 @@ test("actual Book messages/older use validated rows and raw pagination count rem
     row.author,
     { t: "older", thread: "main" },
   );
-  const value: unknown = JSON.parse(frames[0]);
+  const value: unknown = notification(frames[0]);
   if (
     !value ||
     typeof value !== "object" ||
@@ -408,7 +415,7 @@ test("actual open_file validates stored metadata and targets only the requesting
   expect(
     invoke("agentOpenFile", receiver, "abcdef", "member@example.test", file.id),
   ).toMatchObject({ ok: true, opened_in_tabs: 1 });
-  expect(JSON.parse(frames[0])).toEqual({ t: "openSide", file });
+  expect(notification(frames[0])).toEqual({ t: "openSide", file });
   expect(args[0][1]).toBe(file.id);
   for (const value of [
     { ...file, size: "4" },
@@ -627,7 +634,7 @@ test("actual openDoc rechecks queued-call membership and validates exact room/ep
         ),
       ).toMatchObject({ ok: true, opened_in_tabs: 1 });
     }
-    expect(h.frames.map((value) => JSON.parse(value))).toEqual([
+    expect(h.frames.map(notification)).toEqual([
       { t: "openDoc", epic: "" },
       { t: "openDoc", epic: "e1" },
     ]);

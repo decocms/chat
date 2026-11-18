@@ -1,3 +1,4 @@
+import { encodeCall } from "../shared/jsonRpc";
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./index";
 import type { PersonEvent } from "../shared/person";
@@ -15,7 +16,8 @@ export class Person extends DurableObject<Env> {
   async fetch(req: Request) {
     if (req.headers.get("upgrade") === "websocket") {
       const [client, server] = Object.values(new WebSocketPair());
-      this.ctx.acceptWebSocket(server);
+      // The app (/ws-me) gets JSON-RPC notifications; the CLI hub (/mcp) keeps the tagged JSON that installed CLIs read.
+      this.ctx.acceptWebSocket(server, [new URL(req.url).pathname === "/ws-me" ? "jsonrpc" : "tagged"]);
       return new Response(null, { status: 101, webSocket: client });
     }
     const path = new URL(req.url).pathname;
@@ -38,7 +40,9 @@ export class Person extends DurableObject<Env> {
       await this.ctx.storage.delete("me");
       await this.ctx.storage.put("gen", ((await this.ctx.storage.get<number>("gen")) ?? 0) + 1);
     }
-    for (const ws of this.ctx.getWebSockets()) try { ws.send(msg); } catch {}
+    let rpc: string | undefined;
+    for (const ws of this.ctx.getWebSockets())
+      try { ws.send(this.ctx.getTags(ws)[0] === "jsonrpc" ? (rpc ??= encodeCall(JSON.parse(msg) as PersonEvent)) : msg); } catch {}
     return new Response(null, { status: 204 });
   }
   webSocketMessage() {} // the app only listens

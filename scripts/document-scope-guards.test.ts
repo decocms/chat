@@ -1,7 +1,7 @@
 // Unit boundaries around actual Book prototype methods, not real Durable Objects/SQLite/Yjs sockets.
 import { expect, mock, spyOn, test } from "bun:test";
 import type { RoomCommand } from "../shared/commands";
-import { CommandResultSchema } from "../shared/commands";
+import { encodeCall, RpcErrorCode } from "../shared/jsonRpc";
 import { parseRoomEvent } from "../shared/validation";
 import { sendTo } from "./book-test-wire";
 mock.module("cloudflare:workers", () => ({
@@ -132,17 +132,21 @@ test("actual correlated doc dispatch refuses a deleted target before mutation an
   const h = fixture();
   await Reflect.apply(Book.prototype.webSocketMessage, h.receiver, [
     h.ws,
-    JSON.stringify({
-      t: "doc",
-      epic: "deleted",
-      text: "DO NOT RETARGET",
-      cid: "doc-missing",
-    }),
+    encodeCall(
+      {
+        t: "doc",
+        epic: "deleted",
+        text: "DO NOT RETARGET",
+      },
+      "doc-missing",
+    ),
   ]);
-  expect(
-    h.frames.map((raw) => CommandResultSchema.parse(JSON.parse(raw))),
-  ).toEqual([
-    { t: "result", cid: "doc-missing", ok: false, error: "unknown epic" },
+  expect(h.frames.map((raw) => JSON.parse(raw))).toEqual([
+    {
+      jsonrpc: "2.0",
+      id: "doc-missing",
+      error: { code: RpcErrorCode.REFUSED, message: "unknown epic" },
+    },
   ]);
   expect(h.docWrites).toEqual([]);
   expect(h.values.get("doc")).toBe("UNCHANGED ROOM");
@@ -173,16 +177,18 @@ test("absent null and empty epic retain the legacy root-document dispatch semant
     const h = fixture();
     await Reflect.apply(Book.prototype.webSocketMessage, h.receiver, [
       h.ws,
-      JSON.stringify({
-        t: "doc",
-        text: "ROOT ONLY",
-        ...(epic === undefined ? {} : { epic }),
-        cid: "doc-root",
-      }),
+      encodeCall(
+        {
+          t: "doc",
+          text: "ROOT ONLY",
+          ...(epic === undefined ? {} : { epic }),
+        },
+        "doc-root",
+      ),
     ]);
-    expect(
-      h.frames.map((raw) => CommandResultSchema.parse(JSON.parse(raw))),
-    ).toEqual([{ t: "result", cid: "doc-root", ok: true }]);
+    expect(h.frames.map((raw) => JSON.parse(raw))).toEqual([
+      { jsonrpc: "2.0", id: "doc-root", result: null },
+    ]);
     expect(h.docWrites).toEqual([{ text: "ROOT ONLY", epic: undefined }]);
     expect(h.values.get("doc")).toBe("ROOT ONLY");
     expect(h.values.get("doc:live")).toBe("LIVE EPIC");
@@ -291,11 +297,13 @@ test("actual doc.get reads root storage for absent null and empty target while p
     const h = fixture();
     await Reflect.apply(Book.prototype.webSocketMessage, h.receiver, [
       h.ws,
-      JSON.stringify({
-        t: "doc.get",
-        ...(epic === undefined ? {} : { epic }),
-        cid: "doc-read",
-      }),
+      encodeCall(
+        {
+          t: "doc.get",
+          ...(epic === undefined ? {} : { epic }),
+        },
+        "doc-read",
+      ),
     ]);
     expect(h.reads).toEqual(["doc"]);
     expect(parseRoomEvent(h.frames[0])).toEqual({
@@ -304,10 +312,10 @@ test("actual doc.get reads root storage for absent null and empty target while p
       text: "UNCHANGED ROOM",
       fetched: true,
     });
-    expect(CommandResultSchema.parse(JSON.parse(h.frames[1]))).toEqual({
-      t: "result",
-      cid: "doc-read",
-      ok: true,
+    expect(JSON.parse(h.frames[1])).toEqual({
+      jsonrpc: "2.0",
+      id: "doc-read",
+      result: null,
     });
     expect(h.writes).toEqual([]);
   }
@@ -316,7 +324,7 @@ test("actual doc.get reads only the supplied live epic and refuses a deleted epi
   const live = fixture();
   await Reflect.apply(Book.prototype.webSocketMessage, live.receiver, [
     live.ws,
-    JSON.stringify({ t: "doc.get", epic: "live", cid: "doc-live" }),
+    encodeCall({ t: "doc.get", epic: "live" }, "doc-live"),
   ]);
   expect(live.reads).toEqual(["doc:live"]);
   expect(parseRoomEvent(live.frames[0])).toEqual({
@@ -329,13 +337,15 @@ test("actual doc.get reads only the supplied live epic and refuses a deleted epi
   const missing = fixture();
   await Reflect.apply(Book.prototype.webSocketMessage, missing.receiver, [
     missing.ws,
-    JSON.stringify({ t: "doc.get", epic: "deleted", cid: "doc-missing-read" }),
+    encodeCall({ t: "doc.get", epic: "deleted" }, "doc-missing-read"),
   ]);
   expect(missing.reads).toEqual([]);
-  expect(
-    missing.frames.map((raw) => CommandResultSchema.parse(JSON.parse(raw))),
-  ).toEqual([
-    { t: "result", cid: "doc-missing-read", ok: false, error: "unknown epic" },
+  expect(missing.frames.map((raw) => JSON.parse(raw))).toEqual([
+    {
+      jsonrpc: "2.0",
+      id: "doc-missing-read",
+      error: { code: RpcErrorCode.REFUSED, message: "unknown epic" },
+    },
   ]);
   expect(missing.values.get("doc")).toBe("UNCHANGED ROOM");
   expect(missing.writes).toEqual([]);

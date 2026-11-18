@@ -43,7 +43,8 @@ Rules:
 - The Durable Objects use WebSocket hibernation. An idle socket costs nothing.
 - The app does not poll. When a value changes, the server sends a "poke" to the `Person`. The open tabs then fetch again one time.
 - Send only the data that changed. A large snapshot to each tab is a known problem.
-- Every send to room sockets goes through `Book.sendTo`. It counts bytes for each event type.
+- Every send to room sockets goes through `Book.sendTo`. It sends a JSON-RPC notification and counts bytes for each event type.
+- `Book.webSocketMessage` answers each JSON-RPC request with exactly one response. It does not answer a notification.
 
 ## Agents
 

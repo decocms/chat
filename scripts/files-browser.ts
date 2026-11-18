@@ -1,5 +1,6 @@
 // Requires an already built Svelte preview and a loopback Worker with DEV_EMAIL.
 // This script creates isolated rooms through public APIs; it never fabricates room state.
+import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -47,16 +48,6 @@ let failedPage: Page | undefined;
 const step = (name: string) => {
   result.step = name;
   console.log(name);
-};
-const object = (raw: string | Buffer): Record<string, unknown> | null => {
-  try {
-    const parsed = z
-      .record(z.string(), z.unknown())
-      .safeParse(JSON.parse(raw.toString()));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
 };
 try {
   const context = await browser.newContext({
@@ -161,13 +152,15 @@ try {
       const server = socket.connectToServer();
       sockets.push(socket);
       socket.onMessage((raw) => {
-        const command = object(raw);
+        const command = sentFrame(raw.toString());
         if (command) sent.push(command);
         server.send(raw);
       });
       server.onMessage((raw) => {
-        const frame = object(raw);
-        if (frame?.t === "result") receipts.push(frame);
+        const received = receivedFrame(raw.toString());
+        if (received?.kind === "response")
+          receipts.push({ id: received.id, ok: received.outcome.ok });
+        const frame = received?.kind === "event" ? received.event : null;
         if (frame?.t === "state") {
           snapshots++;
           initialIDs = z
@@ -316,20 +309,20 @@ try {
     .reverse()
     .find((command) => command.t === "pin.add" && command.ref === newest.id);
   assert(
-    addCommand && typeof addCommand.cid === "string",
-    "Browser pin must use correlated request",
+    addCommand && typeof addCommand.id === "string",
+    "Browser pin must be a JSON-RPC request",
   );
   await expect
     .poll(() =>
       receipts.some(
-        (receipt) => receipt.cid === addCommand.cid && receipt.ok === true,
+        (receipt) => receipt.id === addCommand.id && receipt.ok === true,
       ),
     )
     .toBe(true);
   result.delayedCanonicalFaultInjection = {
     mode: "Authentic pins broadcasts withheld while actual correlated success receipt is forwarded; payloads untouched",
     heldFrames: heldPins.length,
-    requestCID: addCommand.cid,
+    requestID: addCommand.id,
     naturalNetworkOrdering: false,
   };
   await expect(pin(newest.id)).toBeDisabled();

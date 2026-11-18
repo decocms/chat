@@ -1,5 +1,6 @@
 // Integrated NativeApplication/RoomScope against a real disposable loopback
 // Worker. Fixtures enter through public HTTP/MCP, never SQL or fabricated WS.
+import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -304,15 +305,12 @@ function observe(page: Page, roomId: string) {
     }
     if (path !== `/ws/${roomId}`) return;
     socket.on("framesent", ({ payload }) => {
-      try {
-        const value: unknown = JSON.parse(payload.toString());
-        if (record(value) && typeof value.t === "string")
-          sent[value.t] = (sent[value.t] ?? 0) + 1;
-      } catch {
-        /* Non-JSON data is not a Book command. */
-      }
+      const value = sentFrame(payload.toString());
+      if (value) sent[value.t] = (sent[value.t] ?? 0) + 1;
     });
     socket.on("framereceived", ({ payload }) => {
+      // Responses to the app's requests are not events.
+      if (receivedFrame(payload.toString())?.kind === "response") return;
       try {
         const event = parseRoomEvent(payload.toString());
         received[event.t] = (received[event.t] ?? 0) + 1;

@@ -1,7 +1,7 @@
 // Room events the Book sends over the WebSocket (M1): one schema per `t`, the RoomEvent type is derived from them.
+// On the wire each event is a JSON-RPC notification, method = t (shared/jsonRpc.ts).
 // Browser-safe: zod/mini only. A valid event is passed on as sent (extra keys are ignored, as before).
 import * as z from "zod/mini";
-import { CommandResultSchema } from "./commands";
 import {
   AccessRequestSchema,
   AckSchema,
@@ -130,7 +130,6 @@ export const RoomEventSchemas = {
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
   blocked: event("blocked", { text: str, reason: str }),
-  result: CommandResultSchema,
 };
 type Schemas = typeof RoomEventSchemas;
 export type RoomEvent = {

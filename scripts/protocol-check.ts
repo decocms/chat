@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import type { RoomCommand } from "../shared/commands";
+import {
+  encodeCall,
+  encodeError,
+  encodeResult,
+  RpcErrorCode,
+} from "../shared/jsonRpc";
 import type { RoomEvent } from "../shared/room";
 import {
   isPostMessageRequest,
@@ -10,7 +16,7 @@ import {
 } from "../shared/validation";
 import {
   createRoomApi,
-  receiveRoomEvent,
+  receiveRoomMessage,
   sendRoomCommand,
   type FetchLike,
 } from "../svelte/transport";
@@ -87,8 +93,31 @@ const state: RoomEvent = {
     },
   ],
 };
-assert.deepEqual(parseRoomEvent(JSON.stringify(state)), state);
-assert.deepEqual(receiveRoomEvent(JSON.stringify(state)), state);
+assert.deepEqual(parseRoomEvent(encodeCall(state)), state);
+assert.deepEqual(receiveRoomMessage(encodeCall(state)), {
+  kind: "event",
+  event: state,
+});
+assert.deepEqual(receiveRoomMessage(encodeResult("r-1")), {
+  kind: "response",
+  id: "r-1",
+  outcome: { ok: true },
+});
+assert.deepEqual(
+  receiveRoomMessage(
+    encodeError("r-2", { code: RpcErrorCode.REFUSED, message: "unknown epic" }),
+  ),
+  {
+    kind: "response",
+    id: "r-2",
+    outcome: { ok: false, error: "unknown epic" },
+  },
+);
+// The old tagged frame is not a JSON-RPC message.
+assert.throws(
+  () => receiveRoomMessage(JSON.stringify(state)),
+  /Invalid room message/,
+);
 const legacy = {
   ...state,
   epics: state.epics.map((epic) => ({
@@ -100,24 +129,24 @@ const legacy = {
     enabled: reminder.enabled ? 1 : 0,
   })),
 };
-assert.deepEqual(parseRoomEvent(JSON.stringify(legacy)), state);
+assert.deepEqual(parseRoomEvent(encodeCall(legacy)), state);
 assert.deepEqual(
   parseRoomEvent(
-    JSON.stringify({ t: "epicsPatch", changed: legacy.epics, order: ["epic"] }),
+    encodeCall({ t: "epicsPatch", changed: legacy.epics, order: ["epic"] }),
   ),
   { t: "epicsPatch", changed: state.epics, order: ["epic"] },
 );
 assert.throws(
   () =>
     parseRoomEvent(
-      JSON.stringify({
+      encodeCall({
         ...state,
         epics: [{ ...state.epics[0], tasks: [{ ...task, done: 2 }] }],
       }),
     ),
   /Invalid room event/,
 );
-assert.throws(() => receiveRoomEvent(new ArrayBuffer(0)), /JSON text/);
+assert.throws(() => receiveRoomMessage(new ArrayBuffer(0)), /JSON text/);
 assert(
   !isRoomEvent({
     ...state,
@@ -132,7 +161,10 @@ assert(
 );
 assert(!isRoomEvent({ ...state, reminders: [{ id: "bad", enabled: "yes" }] }));
 assert(!isRoomEvent({ t: "invented-event" }));
-assert.throws(() => parseRoomEvent('{"t":"msg","m":{}}'), /Invalid room event/);
+assert.throws(
+  () => parseRoomEvent(encodeCall({ t: "msg", m: {} })),
+  /Invalid room event/,
+);
 const commands: RoomCommand[] = [
   { t: "task.status", id: "task", status: "review" },
   { t: "suggestion", i: 0 },
@@ -141,22 +173,14 @@ const commands: RoomCommand[] = [
   { t: "epic.order", ids: ["epic"] },
 ];
 for (const command of commands)
-  assert.deepEqual(parseRoomCommand(JSON.stringify(command)), command);
+  assert.deepEqual(parseRoomCommand(encodeCall(command)), command);
 assert(!isRoomCommand({ t: "task.status", id: "task", status: "invalid" }));
 assert(!isRoomCommand({ t: "epic.order", ids: [1] }));
 assert(!isRoomCommand({ t: "reminder.enable", id: "reminder", on: "yes" }));
 assert(!isRoomCommand({ t: "msg", thread: "main", files: [{}] }));
 assert.throws(() => parseRoomCommand("null"), /Invalid room command/);
-assert.deepEqual(parseRoomCommand('{"t":"decision.del","id":"42"}'), {
-  t: "decision.del",
-  id: 42,
-});
 assert.throws(
-  () => parseRoomCommand('{"t":"decision.del","id":"invalid"}'),
-  /Invalid room command/,
-);
-assert.throws(
-  () => parseRoomCommand('{"t":"decision.del","id":"999999999999999999999"}'),
+  () => parseRoomCommand(encodeCall({ t: "decision.del", id: "42" })),
   /Invalid room command/,
 );
 const sent: string[] = [];
@@ -167,7 +191,11 @@ assert.equal(
   ),
   true,
 );
-assert.deepEqual(JSON.parse(sent[0]!), commands[0]);
+assert.deepEqual(JSON.parse(sent[0]!), {
+  jsonrpc: "2.0",
+  method: "task.status",
+  params: { id: "task", status: "review" },
+});
 assert.equal(sendRoomCommand(null, commands[0]!), false);
 assert.equal(
   sendRoomCommand(
@@ -275,43 +303,56 @@ assert(
 );
 assert(isRoomEvent({ t: "doc", text: "" }));
 assert(isRoomEvent({ t: "doc", epic: "epic", stale: true }));
-assert.throws(() => parseRoomEvent('{"t":"doc"}'), /Invalid room event/);
+assert.throws(
+  () => parseRoomEvent(encodeCall({ t: "doc" })),
+  /Invalid room event/,
+);
 
-// Correlated commands (#1899): cid travels beside the command, results are their own event.
+// JSON-RPC calls: a request carries an id (read even when the call is invalid), a notification does not.
 {
-  const { parseCommandEnvelope, isRoomEvent: isEvent } =
-    await import("../shared/validation");
-  assert.deepEqual(parseCommandEnvelope('{"t":"files.get","cid":"c1"}'), {
-    cid: "c1",
-    command: { t: "files.get", cid: "c1" },
-  });
-  assert.deepEqual(parseCommandEnvelope('{"t":"files.get"}'), {
+  const { parseRoomCall } = await import("../shared/validation");
+  assert.deepEqual(parseRoomCall(encodeCall({ t: "files.get" }, "c1")), {
+    id: "c1",
     command: { t: "files.get" },
   });
-  assert.deepEqual(parseCommandEnvelope('{"t":"nope","cid":"c2"}'), {
-    cid: "c2",
-    command: null,
+  assert.deepEqual(parseRoomCall(encodeCall({ t: "files.get" })), {
+    id: undefined,
+    command: { t: "files.get" },
   });
-  assert.deepEqual(parseCommandEnvelope("not json"), { command: null });
+  assert.deepEqual(parseRoomCall(encodeCall({ t: "nope" }, "c2")), {
+    id: "c2",
+    command: null,
+    error: { code: RpcErrorCode.INVALID_PARAMS, message: "invalid command" },
+  });
+  assert.deepEqual(parseRoomCall("not json"), {
+    id: undefined,
+    command: null,
+    error: { code: RpcErrorCode.PARSE, message: "parse error" },
+  });
+  assert.deepEqual(
+    parseRoomCall('{"jsonrpc":"1.0","id":"c3","method":"files.get"}'),
+    {
+      id: "c3",
+      command: null,
+      error: { code: RpcErrorCode.INVALID_REQUEST, message: "invalid request" },
+    },
+  );
   assert.equal(
-    parseCommandEnvelope(`{"t":"files.get","cid":"${"x".repeat(65)}"}`).cid,
+    parseRoomCall(encodeCall({ t: "files.get" }, "x".repeat(65))).id,
     undefined,
   );
-  assert.equal(
-    parseCommandEnvelope('{"t":"decision.del","id":"7","cid":"c3"}').command?.t,
-    "decision.del",
-  );
-  assert(isEvent({ t: "result", cid: "c1", ok: true }));
-  assert(isEvent({ t: "result", cid: "c1", ok: false, error: "x" }));
-  assert(!isEvent({ t: "result", cid: "c1", ok: false }));
-  console.log("PASS correlated command envelope and result events");
+  assert.equal(parseRoomCall('{"t":"files.get"}').command, null);
+  console.log("PASS JSON-RPC requests, notifications and responses");
 }
 
-assert.deepEqual(parseRoomEvent('{"t":"openApp","ref":"room/demo"}'), {
-  t: "openApp",
-  ref: "room/demo",
-});
+assert.deepEqual(
+  parseRoomEvent(encodeCall({ t: "openApp", ref: "room/demo" })),
+  {
+    t: "openApp",
+    ref: "room/demo",
+  },
+);
 assert.throws(
-  () => parseRoomEvent('{"t":"openApp","ref":null}'),
+  () => parseRoomEvent(encodeCall({ t: "openApp", ref: null })),
   /Invalid room event/,
 );

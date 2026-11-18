@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import * as z from "zod/mini";
-import { RoomCommandSchema, CommandResultSchema } from "../shared/commands";
+import { RoomCommandSchema } from "../shared/commands";
 import { createRoomApi } from "../svelte/transport";
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -102,14 +102,18 @@ try {
   report.loadedVersion = await page
     .locator('meta[name="vb-v"]')
     .getAttribute("content");
+  // A JSON-RPC request (shared/jsonRpc.ts), sent by hand from the page.
+  const { t: method, ...params } = RoomCommandSchema.parse({
+    t: "msg",
+    thread: "main",
+    text: "Real attachment crop fixtures",
+    files: ids,
+  });
   const command = {
-    ...RoomCommandSchema.parse({
-      t: "msg",
-      thread: "main",
-      text: "Real attachment crop fixtures",
-      files: ids,
-    }),
-    cid: "attachment-geometry",
+    jsonrpc: "2.0",
+    id: "attachment-geometry",
+    method,
+    params,
   };
   const result: unknown = await page.evaluate(
     ({ roomId, command }) =>
@@ -125,16 +129,12 @@ try {
         ws.onmessage = (event) => {
           if (typeof event.data !== "string") return;
           const value: unknown = JSON.parse(event.data);
-          if (!value || typeof value !== "object" || !("t" in value)) return;
-          if (value.t === "state" && !sent) {
+          if (!value || typeof value !== "object") return;
+          if ("method" in value && value.method === "state" && !sent) {
             sent = true;
             ws.send(JSON.stringify(command));
           }
-          if (
-            value.t === "result" &&
-            "cid" in value &&
-            value.cid === command.cid
-          ) {
+          if ("id" in value && value.id === command.id) {
             clearTimeout(timer);
             ws.close();
             resolve(value);
@@ -149,7 +149,7 @@ try {
     { roomId, command },
   );
   assert(
-    CommandResultSchema.parse(result).ok,
+    typeof result === "object" && result !== null && "result" in result,
     "Backend must accept the real attachment message",
   );
   const metrics: unknown[] = [];
