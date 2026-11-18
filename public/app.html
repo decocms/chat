@@ -670,16 +670,6 @@
   .replyBar span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .replyBar button { padding: 2px 8px; }
   .endMark { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; font-size: 13px; color: var(--mute); }
-  .needsYou { margin: 16px 0 8px; border: 1px solid color-mix(in oklch, var(--wait-ink) 35%, var(--line)); background: var(--wait-bg); border-radius: 14px; padding: 10px 12px; }
-  .needsYou .nyHead { display: flex; align-items: center; gap: 8px; } .needsYou .nyHead small { color: var(--mute); flex: 1; }
-  .needsYou ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
-  .needsYou .nySum { margin: 6px 0 4px; font-size: 14.5px; line-height: 1.45; color: var(--ink); }
-  .needsYou .nySum.wait { display: grid; gap: 6px; } .needsYou .nySum.wait i { height: 11px; border-radius: 6px; background: color-mix(in oklch, var(--wait-ink) 18%, transparent); animation: skel 1.4s linear infinite; } .needsYou .nySum.wait i + i { width: 60%; }
-  .needsYou details > summary { cursor: pointer; font-size: 12.5px; color: var(--mute); }
-  .needsYou li { display: flex; align-items: center; gap: 6px; }
-  .needsYou .nyGo { flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left; background: none; border: 0; padding: 6px 4px; border-radius: 8px; color: var(--ink); font: inherit; }
-  button.nyGo { cursor: pointer; } button.nyGo:hover { background: color-mix(in oklch, var(--ink) 6%, transparent); }
-  .needsYou .nyGo small { color: var(--mute); font-size: 12px; }
   .endMark::before, .endMark::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .endMark b { color: var(--ok-ink); font-weight: 600; }
   .prodStage { margin: 6px auto 10px; max-width: 520px; display: grid; gap: 2px; text-align: center; font-size: 13px; color: var(--mute); padding: 10px 14px; border: 1px dashed var(--line); border-radius: 12px; }
@@ -3524,7 +3514,6 @@ function onEvent(ev, id) {
     case "epics": S.epics = ev.epics; if (ev.roomTasks) S.roomTasks = ev.roomTasks;
       if (thread !== "main" && !isPre() && !S.epics.some((e) => e.id === thread)) thread = "main"; renderSide(); renderTasks(); renderKanban(); syncEnd(); if (thread === "main") refreshThreadCards(); return;
     case "docNotes": S.docNotes = ev.notes; renderDoc(); return;
-    case "needsSummary": needSum[`${S.id}|${ev.thread}`] = ev.text; if (ev.thread === thread) syncEnd(); return;
     case "reactions": for (const m of allMsgs()) if (m.id === ev.id) m.reactions = ev.reactions; redrawReacts(ev.id); return;
     case "docVersions": if (ev.epic === (docEpic() ?? "")) { verList = ev; renderVerPicker(); } return;
     case "docVersion": if (ev.epic === (docEpic() ?? "")) { verView = ev; renderDoc(true); } return;
@@ -5510,46 +5499,7 @@ function syncEnd() {
     : `<div class="prodStage"><b>🚀 ${t("No ar")}</b><span>${t("Falta o agent verificar em prod.")}</span></div>`;
   if (e?.archived) el.insertAdjacentHTML("beforeend", `<div class="endMark"><b>✓ ${t("Agent fez")}</b><span>${t("Escreva aqui pra continuar: ele reabre.")}</span></div>`);
   if (stage) el.insertAdjacentHTML("beforeend", stage);
-  el.querySelector(".needsYou")?.remove();
-  const nd = needsYou();
-  if (nd) el.insertAdjacentHTML("beforeend", nd);
 }
-// "O que precisa de você aqui" (Gui 14/11): at the end of a thread, only for you, what in it waits on you: asks and
-// your Claude's ⏸/❓ (D1 waits), your tasks here that aren't done. ✓ resolves an ask (like the home's ✓) or hides an
-// item; Dispensar hides the card until something new shows up. Kept in this browser.
-const needKey = () => `vb.needs.${S.id}.${thread}`;
-const needGot = () => { try { return new Set(JSON.parse(localStorage.getItem(needKey()) || "[]")); } catch { return new Set(); } };
-const needPut = (keys) => { try { localStorage.setItem(needKey(), JSON.stringify([...keys].slice(-200))); } catch {} };
-function needItems() {
-  if (!S || isPre()) return [];
-  const ws = waitsIn(thread), wt = new Set(ws.filter((w) => w.ref.startsWith("t")).map((w) => w.ref.slice(1)));
-  const tasks = thread === "main" ? S.roomTasks || [] : S.epics.find((e) => e.id === thread)?.tasks || [];
-  return [
-    ...ws.map((w) => ({ key: `w:${w.ref}`, w, msg: /^[mab]\d+$/.test(w.ref) ? Number(w.ref.slice(1)) : 0, text: w.text, sub: w.ref.startsWith("t") ? t("sua tarefa esperando OK") : w.ref.startsWith("m") ? t("{who} pediu", { who: esc(name(w.author)) }) : t("seu Claude espera você") })),
-    ...tasks.filter((x) => x.owner === S.me && !x.done && !wt.has(x.id)).map((x) => ({ key: `t:${x.id}:${x.status}`, text: x.title, sub: x.status === "doing" ? t("sua tarefa, fazendo") : x.status === "review" ? t("sua tarefa esperando OK") : t("sua tarefa, a fazer") })),
-  ];
-}
-// The card leads with one or two written lines (Gui #2602): the Book's needs.summary over these same items and the
-// thread; the items fold under them. Asked again only when the items change.
-const needSum = {}; let needAsked = "";
-function needsYou() {
-  if (S.epics.find((e) => e.id === thread)?.answer) return ""; // a question's epic is only the answer (Gui #2798)
-  const got = needGot(), items = needItems().filter((x) => !got.has(x.key));
-  if (!items.length) return "";
-  const texts = items.map((x) => x.text), ask = JSON.stringify([S.id, thread, texts]);
-  if (ask !== needAsked && send({ t: "needs.summary", thread, items: texts })) needAsked = ask;
-  const sum = needSum[`${S.id}|${thread}`];
-  return `<div class="needsYou" role="region" aria-label="${t("O que precisa de você aqui")}"><div class="nyHead"><b>${t("O que precisa de você aqui")}</b><small>${t("só você vê")}</small><button type="button" class="ghost" data-ny-all>${t("Dispensar")}</button></div>${sum ? `<p class="nySum">${esc(sum)}</p>` : `<p class="nySum wait"><i></i><i></i></p>`}<details${sum ? "" : " open"}><summary>${t("{n} itens", { n: items.length })}</summary><ul>${items.map((x) => `<li>${x.msg ? `<button type="button" class="nyGo" data-goto="${x.msg}">` : `<span class="nyGo">`}<span>${esc(x.text.length > 200 ? `${x.text.slice(0, 198)}…` : x.text)}</span><small>${x.sub}</small>${x.msg ? "</button>" : "</span>"}<button type="button" class="ghost" data-ny="${esc(x.key)}" title="${t("Feito / não é comigo")}" aria-label="${t("Feito / não é comigo")}">${icon("check")}</button></li>`).join("")}</ul></details></div>`;
-}
-document.addEventListener("click", (ev) => {
-  const b = ev.target.closest?.(".needsYou [data-ny], .needsYou [data-ny-all]"); if (!b) return;
-  const got = needGot(), items = needItems();
-  for (const x of b.dataset.nyAll !== undefined ? items : items.filter((x) => x.key === b.dataset.ny)) {
-    got.add(x.key);
-    if (x.w?.ref.startsWith("m")) { myWaits = myWaits.filter((y) => y !== x.w); api("/api/waits/resolve", { book_id: x.w.book_id, ref: x.w.ref }).catch(() => {}); }
-  }
-  needPut(got); syncEnd(); renderSide();
-});
 // Replies: ↩ (hover) or a swipe right (touch) quotes a message above the composer; the sent message carries
 // reply_to and shows that quote, which scrolls to the original and flashes it.
 let replyTo = null;
@@ -5613,7 +5563,7 @@ document.addEventListener("click", (ev) => {
   if (cl) return copyLink(Number(cl.dataset.copylink));
   const ml = ev.target.closest("a.mlink[data-msg]");
   if (ml) { ev.preventDefault(); return goToMsg(Number(ml.dataset.msg)); }
-  const q = ev.target.closest(".quote[data-goto], .nyGo[data-goto]"); if (!q) return;
+  const q = ev.target.closest(".quote[data-goto]"); if (!q) return;
   goToMsg(Number(q.dataset.goto));
 });
 // A message referenced by a reply quote or a [link](#m123): switch to its thread if needed, then scroll to it and flash.

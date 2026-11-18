@@ -70,6 +70,8 @@ export function reduceRoom(
     }
     case "docNotes":
       return { ...s, docNotes: event.notes };
+    case "briefs":
+      return { ...s, briefs: event.briefs };
     case "doc": {
       const docs = { ...s.docs };
       if (event.stale) {
