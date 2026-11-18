@@ -12,9 +12,7 @@
   import {
     ArrowLeft,
     ChevronDown,
-    Columns03,
     Inbox01,
-    LayoutAlt01,
     SearchMd,
   } from "../../lib/studio/icons";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
@@ -96,14 +94,6 @@
     tochat?.();
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
-  }
-  function toggleBoard() {
-    if (inboxOpen) {
-      tochat?.();
-      if (!layout.read().boardFull) layout.toggleBoard();
-      return;
-    }
-    layout.toggleBoard();
   }
   function toggleInbox(trigger: HTMLElement) {
     if (inboxOpen) tochat?.();
@@ -206,25 +196,6 @@
     >
       <ThreadHeader {...header} compact onhome={tochat} />
     </div>
-    <IconButton
-      data-native-board-toggle
-      label={t("Quadro de tarefas (kanban)")}
-      tooltipSide="bottom"
-      size="icon"
-      aria-pressed={$geometry.boardFull && !inboxOpen}
-      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground tw:max-[900px]:hidden"
-      onclick={(event) => {
-        if (live(event)) toggleBoard();
-      }}
-      ><Icon
-        icon={tabs ? LayoutAlt01 : Columns03}
-        size={16}
-      />{#if typeof boardCount === "number" && boardCount}<Count
-          value={boardCount}
-          label={t("Esperando você: {n}", { n: boardCount })}
-          class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
-        />{/if}</IconButton
-    >
     {#if appNavigation}<IconButton
         data-native-phone-search
         label={t("Buscar")}
@@ -235,22 +206,23 @@
             appNavigation.controller.openSearch(event.currentTarget);
         }}><Icon icon={SearchMd} size={16} /></IconButton
       >{/if}
-    <IconButton
-      data-native-inbox-toggle
-      label={t("Caixa de entrada")}
-      tooltipSide="bottom"
-      size="icon"
-      aria-pressed={inboxOpen}
-      class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:aria-pressed:bg-accent tw:min-[901px]:aria-pressed:text-foreground"
-      onclick={(event) => {
-        if (live(event)) toggleInbox(event.currentTarget);
-      }}
-      ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
-          value={waits.length}
-          label={t("Esperando você: {n}", { n: waits.length })}
-          class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
-        />{/if}</IconButton
-    >
+    <!-- Phones: the inbox in the bar. Desktop: it and the board are views in the sidebar, under the main thread. -->
+    {#if $geometry.mobile}<IconButton
+        data-native-inbox-toggle
+        label={t("Caixa de entrada")}
+        tooltipSide="bottom"
+        size="icon"
+        aria-pressed={inboxOpen}
+        class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:aria-pressed:bg-accent tw:min-[901px]:aria-pressed:text-foreground"
+        onclick={(event) => {
+          if (live(event)) toggleInbox(event.currentTarget);
+        }}
+        ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
+            value={waits.length}
+            label={t("Esperando você: {n}", { n: waits.length })}
+            class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+          />{/if}</IconButton
+      >{/if}
   </div>
   <div
     class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"

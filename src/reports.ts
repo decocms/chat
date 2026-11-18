@@ -286,7 +286,7 @@ const COST_EVENTS: Record<string, "jev" | "llm"> = {
   reminder_parse: "llm",
   mention_mail: "llm",
   mention_mail_preview: "llm",
-  ai_run: "llm",
+  // ai_run (the old @vibe chat, removed Nov 2026) is left out: its history stays in D1 and the admin.
 };
 export async function aiSpend(env: Env, now = Date.now()): Promise<AiSpend> {
   const names = Object.keys(COST_EVENTS);
