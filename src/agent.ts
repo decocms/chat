@@ -954,7 +954,7 @@ const TOOLS = [
   {
     name: "start_epic",
     description:
-      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one there, or from_message_id). Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic archives itself.",
+      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one there, or from_message_id). Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic archives itself. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_epic there with its room_id, and answer in the DM with the link.",
     inputSchema: {
       type: "object",
       properties: {
