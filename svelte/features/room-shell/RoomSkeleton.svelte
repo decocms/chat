@@ -357,7 +357,7 @@
 
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same
        width animation the room's doc cell seeks); its tabs are in the top bar. -->
-    <section
+    {#if !dm}<section
       aria-hidden="true"
       use:roomDocumentWidth
       class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
@@ -368,6 +368,6 @@
         {@render line("tw:w-5/6")}
         {@render line("tw:w-3/5")}
       </div>
-    </section>
+    </section>{/if}
   </div>
 </div>
