@@ -780,6 +780,10 @@ const EN: Readonly<Record<string, string>> = {
   "Reagir com {emoji}": "React with {emoji}",
   "{n} itens": "{n} items",
   "Claude de {who}": "{who}'s Claude",
+  "{names} e mais {n}": "{names} and {n} more",
+  "{names} e {last}": "{names} and {last}",
+  "{people} reagiu": "{people} reacted",
+  "{people} reagiram": "{people} reacted",
   "Escrito pelo agent dessa pessoa, em nome dela":
     "Written by this person's agent, on their behalf",
   "Reporta algo entregue": "Reports something delivered",
