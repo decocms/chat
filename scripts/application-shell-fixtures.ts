@@ -104,7 +104,6 @@ export function shellFixture(
     accountApi: {
       logins: async () => ({
         logins: [],
-        providers: { google: false, github: false },
       }),
       name: async (name) => {
         names.push(name);

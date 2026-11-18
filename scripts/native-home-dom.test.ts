@@ -885,7 +885,6 @@ async function setup(overrides: Parameters<typeof homeApi>[0] = {}) {
 const profileApi: AccountApi = {
   logins: async () => ({
     logins: [],
-    providers: { google: false, github: false },
   }),
   name: async (name) => ({ ok: true, name }),
   avatar: async () => ({ ok: true, avatar: 1 }),

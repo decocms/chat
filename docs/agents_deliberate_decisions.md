@@ -381,4 +381,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: A new path such as `/mcp/ws`. The `Sec-WebSocket-Protocol` header.
 - Risk: low
 - Undo: Revert the CLI change and `socketWire`.
+
+### 2026-11-18 · feat/studio-login · Sign-in is with deco Studio only
+- Agent: claude-opus-5-5
+- Context: The humans (the CTO and the owner) decided that chat signs people in with their deco Studio account, and that Google, GitHub and the emailed code go away. Studio is an OAuth 2.1 server with dynamic client registration (`/api/auth/mcp/*`).
+- Decision: `/auth/studio/start` and `/auth/studio/callback` use OAuth 2.1 with PKCE as a public client, so chat keeps no client secret. Each origin registers itself at Studio the first time and keeps the client id in `OAUTH_KV`, so production, branch previews and local dev work with no configuration. The callback accepts only `email_verified: true`, because an unverified Studio email must not take an account here. The Studio picture is not copied: the old avatar code accepted only Google and GitHub hosts and is removed.
+- Other options: One client id in `wrangler.jsonc` (previews could not sign in). Read the Studio session cookie (it belongs to `studio.decocms.com` only). Keep the emailed code as a fallback.
+- Risk: medium
+- Undo: Revert this commit and set the Google and GitHub secrets again.
 - Status: open

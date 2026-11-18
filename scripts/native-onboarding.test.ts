@@ -46,7 +46,6 @@ async function fixture(
       {
         logins: async () => ({
           logins: [],
-          providers: { google: false, github: false },
         }),
         name: async (name) => ({ ok: true, name }),
         avatar: async () => ({ ok: true, avatar: 1 }),
