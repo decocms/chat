@@ -85,6 +85,7 @@ const room = (message = prompt): Room => ({
 const vb: ChatBridge = {
   t: (text) => text,
   name: (email) => email,
+  avatarVersion: () => undefined,
   ago: () => "now",
   hhmm: () => "09:00",
   waiting: () => false,

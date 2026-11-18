@@ -12,7 +12,7 @@ export type ChatBridge = {
   knownNames?: Readonly<Record<string, string>>;
   pageUrl?: string;
   locale?: string;
-  avatarUrl?: (email: string) => string | undefined;
+  avatarVersion: (email: string) => number | null | undefined;
   ago: (ts: number) => string;
   hhmm: (ts: number) => string;
   dateTime?: (ts: number) => string;

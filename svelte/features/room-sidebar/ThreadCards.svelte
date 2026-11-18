@@ -48,8 +48,8 @@
     }}
   >
     <PersonAvatar
-      name={epic.owner ? vb.name(epic.owner) : epic.title}
-      url={epic.owner ? vb.avatarUrl?.(epic.owner) : undefined}
+      email={epic.owner}
+      version={epic.owner ? vb.avatarVersion(epic.owner) : undefined}
       size="sm"
     />
     <span class="tw:min-w-0 tw:flex-1"

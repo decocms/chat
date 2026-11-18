@@ -209,13 +209,14 @@ export async function agentFile(env: Env, bookId: string, email: string, name: s
   return md;
 }
 
-/** A new sandbox for this person in this room (the app's Criar sandbox, MCP sandbox_create). Throws a user-facing Error. */
-export async function createSandbox(env: Env, email: string, bookId: string, rawName: string, origin: string) {
+/** A new sandbox for this person in this room (the app's Criar sandbox, MCP sandbox_create). Throws a user-facing Error
+ *  (in English when `en`: the app passes its person's language, agents get the Portuguese). */
+export async function createSandbox(env: Env, email: string, bookId: string, rawName: string, origin: string, en = false) {
   useEnv(env);
   const k = await loadKey(env, email).catch(() => null);
-  if (!k) throw new Error("Conecte sua conta do freestyle.sh primeiro.");
+  if (!k) throw new Error(en ? "Connect your freestyle.sh account first." : "Conecte sua conta do freestyle.sh primeiro.");
   const n = await env.DB.prepare(`SELECT count(*) AS n FROM sandboxes WHERE book_id = ? AND email = ?`).bind(bookId, email).first<{ n: number }>();
-  if ((n?.n ?? 0) >= MAX_PER_ROOM) throw new Error(`No máximo ${MAX_PER_ROOM} sandboxes seus por sala.`);
+  if ((n?.n ?? 0) >= MAX_PER_ROOM) throw new Error(en ? `At most ${MAX_PER_ROOM} sandboxes of yours per room.` : `No máximo ${MAX_PER_ROOM} sandboxes seus por sala.`);
   const book = await env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
   const title = String(book?.title ?? "sala");
   const name = slug(rawName || title);
@@ -238,7 +239,7 @@ export async function createSandbox(env: Env, email: string, bookId: string, raw
 
 /** Runs the setup again from the room's current agents/<name>.md, in the foreground (up to ~4.5 min): fresh vibebook
  * login and Claude token, a syntax check, the setup, and Claude restarted in tmux. Returns the log's last lines. */
-export async function redoSetup(env: Env, email: string, sid: string, origin: string) {
+export async function redoSetup(env: Env, email: string, sid: string, origin: string, en = false) {
   useEnv(env);
   const r = sandboxSetup(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ?`).bind(sid, email).first());
   const k = await loadKey(env, email).catch(() => null);
@@ -258,7 +259,7 @@ export async function redoSetup(env: Env, email: string, sid: string, origin: st
   const out = redact(`${x.stdout ?? ""}${x.stderr ?? ""}`.trim());
   const ready = /^READY$/m.test(out);
   await env.DB.prepare(`UPDATE sandboxes SET ready = ? WHERE id = ?`).bind(ready ? 1 : 0, r.id).run();
-  return { ok: ready, log: out.slice(-2500), error: ready ? undefined : "o setup não terminou: veja o log no card" };
+  return { ok: ready, log: out.slice(-2500), error: ready ? undefined : en ? "the setup didn't finish: see the log on the card" : "o setup não terminou: veja o log no card" };
 }
 
 // A sandbox appeared, changed state or went away: the room's Pessoas and everyone's rail (☁) follow, no polling.
@@ -266,7 +267,7 @@ const roomChanged = (env: Env, book: string) => Promise.all([pokeRoom(env, book,
 
 /** The person's sandboxes, for the typed routes (src/api.ts, slice 8 → ApiServices.sandboxes). Membership of the room
  *  is checked by the route; every sandbox here is looked up by id AND the signed-in email, so nobody acts on another's. */
-export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string) {
+export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string, en = false) {
   useEnv(env);
   const key = () => loadKey(env, email).catch(() => null);
   const mine = async (sid: string) => sandboxTarget(await env.DB.prepare(`SELECT * FROM sandboxes WHERE id = ? AND email = ?`).bind(sid, email).first());
@@ -280,7 +281,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
         let metrics = sandboxMetrics(r.raw);
         let providerFailed = false;
         try {
-          if (!k) throw new Error("freestyle desconectado");
+          if (!k) throw new Error(en ? "freestyle disconnected" : "freestyle desconectado");
           const vm = await fs(k, "GET", `/v5/vms/${r.vm_id}`, undefined, FsVm);
           // totalRunSeconds counts finished runs; a running VM adds the current one (since its last state change).
           state = vm.state;
@@ -296,7 +297,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
             const o = await fs(k, "POST", `/v5/vms/${r.vm_id}/exec-await`, { command: "if [ -f ~/.vibebook-setup-done ]; then echo done; elif [ -f ~/vibebook-setup.log ]; then tail -n 2 ~/vibebook-setup.log | cut -c1-160; else echo nolog; fi", timeoutMs: 10000 }, FsExec);
             const out = (o.stdout ?? "").trim();
             if (out === "done") { r.ready = true; await env.DB.prepare(`UPDATE sandboxes SET ready = 1 WHERE id = ?`).bind(r.id).run(); }
-            else log = out === "nolog" ? "o setup não começou (sem log)" : out.split("\n").pop() || (o.stderr ?? "").slice(0, 160);
+            else log = out === "nolog" ? (en ? "the setup didn't start (no log)" : "o setup não começou (sem log)") : out.split("\n").pop() || (o.stderr ?? "").slice(0, 160);
           }
         } catch (e) {
           providerFailed = true;
@@ -314,7 +315,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
     },
     /** Throws an Error whose message is user-facing (no key, the room's limit, freestyle's refusal). */
     async create(roomId: string, name: string) {
-      const r = await createSandbox(env, email, roomId, name, origin);
+      const r = await createSandbox(env, email, roomId, name, origin, en);
       track("sandbox_created", roomId);
       ctx.waitUntil(roomChanged(env, roomId));
       return r;
@@ -329,7 +330,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
       return null;
     },
     /** Run the setup again (it skips what's already installed): for a sandbox stuck preparing. Throws on failure. */
-    setup: (sid: string) => redoSetup(env, email, sid, origin),
+    setup: (sid: string) => redoSetup(env, email, sid, origin, en),
     /** false = no such sandbox of yours. */
     async remove(sid: string) {
       const r = await mine(sid), k = await key();

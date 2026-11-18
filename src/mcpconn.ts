@@ -207,7 +207,12 @@ export async function retireTokens(env: Env) {
     const done = await env.DB.prepare(`UPDATE mcp_connections SET enc = NULL, iv = NULL WHERE id = ? AND enc IS NOT NULL`).bind(r.id).run();
     if (!done.meta.changes) continue;
     sessions.forEach((_, k) => k.startsWith(`${r.id}:`) && sessions.delete(k));
-    await bookStub(env, r.book_id).vibePost(r.book_id, "main", `🔑 @${r.owner.split("@")[0]}, a conexão **${r.title}** usava um token colado, que o vibebook apagou: agora cada pessoa entra no ${new URL(r.url).host} com a própria conta (aba Apps → Entrar). Nada mais guarda a sua senha ou chave aqui.`).catch(() => {});
+    // In the room's language (its owner's, like everything @vibe writes there: Book.en).
+    const en = (await env.DB.prepare(`SELECT u.lang FROM books b JOIN users u ON u.email = b.owner WHERE b.id = ?`).bind(r.book_id).first<{ lang: string | null }>())?.lang === "en";
+    const host = new URL(r.url).host, at = `@${r.owner.split("@")[0]}`;
+    await bookStub(env, r.book_id).vibePost(r.book_id, "main", en
+      ? `🔑 ${at}, the connection **${r.title}** used a pasted token, which vibebook deleted: now each person signs in to ${host} with their own account (Apps tab → Sign in). Nothing here keeps your password or key anymore.`
+      : `🔑 ${at}, a conexão **${r.title}** usava um token colado, que o vibebook apagou: agora cada pessoa entra no ${host} com a própria conta (aba Apps → Entrar). Nada mais guarda a sua senha ou chave aqui.`).catch(() => {});
     await bookStub(env, r.book_id).connsChanged().catch(() => {});
   }
 }

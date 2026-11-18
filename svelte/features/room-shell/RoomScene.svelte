@@ -18,6 +18,7 @@
   import Composer from "../../Composer.svelte";
   import DocumentPanel from "../documents/DocumentPanel.svelte";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
+  import { isDmId } from "../../../shared/dm";
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
@@ -70,6 +71,7 @@
         captured.roomGeneration,
       ]),
       current,
+      documentHidden: isDmId(captured.roomId),
       onDocumentClosed: () => scoped?.actions.closeDocument(),
       onPane: (pane) => {
         if (current() && get(services.state).pane !== pane)

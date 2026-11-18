@@ -12,7 +12,8 @@
   import type { ApplicationInbox, InboxBinding } from "./inbox";
   import type { BrowserApplicationServices } from "./browser";
   import type { Wait } from "../../types";
-  import { personAvatar } from "../home/model";
+  import { roomAvatarVersion } from "../room-scope/model";
+  import { roomLabel } from "../home/model";
   import {
     roomInboxModel,
     inboxTopic,
@@ -65,12 +66,8 @@
       hour: "2-digit",
       minute: "2-digit",
     }).format(ts);
-  const avatar = (email: string) => {
-    const version = $root.room?.avatars?.[email];
-    return version
-      ? `/api/avatar/${encodeURIComponent(email)}?v=${version}`
-      : personAvatar($personal.me, email);
-  };
+  const avatar = (email: string) =>
+    roomAvatarVersion($root.room, $personal.me, email);
   const topic = (message: RoomInboxMessage) =>
     inboxTopic(message, $root.room) ?? t("sala principal");
   const status = (value: string) =>
@@ -201,8 +198,8 @@
                   />{:else}<PersonAvatar
                     data-avatar="person"
                     size="sm"
-                    name={name(row)}
-                    url={avatar(row.author)}
+                    email={row.author}
+                    version={avatar(row.author)}
                   />{/if}
                 <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
                   <span
@@ -223,8 +220,9 @@
                       )}</span
                     >{/if}
                   <span class="tw:text-xs tw:text-muted-foreground"
-                    >{$inbox.all ? `${row.room} › ` : ""}{topic(row) ||
-                      t("épico")}</span
+                    >{$inbox.all
+                      ? `${roomLabel($personal.me, row.book, row.room, services.language)} › `
+                      : ""}{topic(row) || t("épico")}</span
                   >
                   <span
                     class="tw:line-clamp-6 tw:break-words tw:whitespace-pre-wrap"
@@ -313,7 +311,12 @@
                     owner.openTask(opening, row);
                 }}
                 >{group.epic || t("sala principal")}{#if $inbox.all}<span>
-                    · {group.room}</span
+                    · {roomLabel(
+                      $personal.me,
+                      group.bookId,
+                      group.room,
+                      services.language,
+                    )}</span
                   >{/if}</Button
               >{/snippet}</Snapshot
           >{/key}

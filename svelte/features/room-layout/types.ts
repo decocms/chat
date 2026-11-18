@@ -99,6 +99,8 @@ export type RoomLayoutOptions = {
   onDocumentClosed(): void;
   onPane?(pane: DocumentPane): void;
   sidebarCollapsed?: boolean;
+  /** The side pane starts closed (a DM: no doc to show). */
+  documentHidden?: boolean;
   browser?: RoomLayoutBrowser;
 };
 export type RoomLayoutBrowser = {

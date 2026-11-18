@@ -16,8 +16,9 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Count from "../../lib/components/Count.svelte";
-  import { paneIcons } from "../documents/paneIcons";
-  import { personAvatar, roomIcon } from "../home/model";
+  import { paneIcons, paneLabel } from "../documents/paneIcons";
+  import { roomIcon, switcherDms } from "../home/model";
+  import { homeText } from "../home/copy";
   import { roomDocumentWidth } from "../room-layout/preview";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
@@ -44,9 +45,21 @@
   const room = $derived(
     roomId ? $personal.me?.books.find((book) => book.id === roomId) : undefined,
   );
-  const title = $derived(room?.title ?? "");
   const icon = $derived(room ? roomIcon(room) : undefined);
   const me = $derived($personal.me);
+  // A DM: the other person's face (you in "Você"), the same entry your DM list draws.
+  const peer = $derived(
+    dm ? switcherDms(me).find((entry) => entry.room.id === roomId) : undefined,
+  );
+  // A DM is named after the other person (yours reads "Você"/"You" in the app's language), as its header will be:
+  // the row's own title is the pair's ("Gui · Ana", src/dm.ts).
+  const title = $derived(
+    peer
+      ? peer.self
+        ? homeText(services.language, "you")
+        : peer.name
+      : (room?.title ?? ""),
+  );
   const waits = $derived(me?.waits.length ?? 0);
   const en = $derived(services.language === "en");
   const t = (text: string, vars?: Record<string, string | number>) =>
@@ -57,13 +70,25 @@
     { id: "doc", label: "Doc", icon: paneIcons.doc },
     { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
     { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },
-    { id: "claude", label: "Claude", icon: paneIcons.agents },
+    {
+      id: "claude",
+      label: paneLabel("agents", en),
+      icon: paneIcons.agents,
+    },
   ]);
 </script>
 
-{#snippet mark(size: string)}
-  {#if title}<RoomMark {title} src={icon} class={size} />{:else}<Skeleton
-      class={["tw:shrink-0 tw:rounded-md", size].join(" ")}
+{#snippet mark(size: string, square = "")}
+  {#if peer}<PersonAvatar
+      email={peer.email}
+      version={peer.version}
+      class={size}
+    />{:else if title}<RoomMark
+      {title}
+      src={icon}
+      class={[size, square].join(" ")}
+    />{:else}<Skeleton
+      class={["tw:shrink-0 tw:rounded-md", size, square].join(" ")}
     />{/if}
 {/snippet}
 
@@ -140,8 +165,8 @@
           <!-- You are online while the room loads: UserMenu's row as it will land. -->
           {#if me}<span class="tw:relative tw:flex tw:shrink-0"
               ><PersonAvatar
-                name={me.name || me.email}
-                url={personAvatar(me, me.email)}
+                email={me.email}
+                version={me.avatar}
                 class="tw:size-7"
               /><span
                 data-status-dot="online"
@@ -179,7 +204,6 @@
           ><Skeleton class="tw:size-4 tw:rounded-full" /></span
         >
       {/each}
-      <span class="tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border"></span>
       <Skeleton class="tw:h-7 tw:w-16 tw:shrink-0 tw:rounded-full" />
       {#each [0, 1, 2, 3, 4, 5] as slot (slot)}
         <span class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
@@ -206,6 +230,7 @@
           {#if title}<RoomAvatar
               {title}
               {icon}
+              person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
             />{:else}<Skeleton
@@ -221,7 +246,7 @@
             <span
               class="tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-base tw:leading-5 tw:font-semibold"
               >{#if thread === "main"}<span class="tw:truncate"
-                  >{t("Sala principal")}</span
+                  >{t(dm ? "Conversa" : "Sala principal")}</span
                 >{:else}<span class="tw:flex tw:h-5 tw:items-center"
                   >{@render line("tw:w-32")}</span
                 >{/if}<Icon
@@ -250,8 +275,8 @@
           aria-hidden="true"
           class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
           >{#if me}<PersonAvatar
-              name={me.name || me.email}
-              url={personAvatar(me, me.email)}
+              email={me.email}
+              version={me.avatar}
               size="2xs"
             />{:else}<Skeleton class="tw:size-4 tw:rounded-full" />{/if}</span
         >
@@ -263,7 +288,7 @@
         <div
           class="tw:flex tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:py-8 tw:text-center"
         >
-          {@render mark("tw:size-12 tw:rounded-xl")}
+          {@render mark("tw:size-12", "tw:rounded-xl")}
           {#if title}<p
               class="tw:m-0 tw:max-w-full tw:truncate tw:text-base tw:font-semibold"
             >
@@ -332,17 +357,17 @@
 
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same
        width animation the room's doc cell seeks); its tabs are in the top bar. -->
-    <section
-      aria-hidden="true"
-      use:roomDocumentWidth
-      class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
-    >
-      <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
-        {@render line("tw:w-2/5", "tw:h-4")}
-        {@render line("tw:w-full")}
-        {@render line("tw:w-5/6")}
-        {@render line("tw:w-3/5")}
-      </div>
-    </section>
+    {#if !dm}<section
+        aria-hidden="true"
+        use:roomDocumentWidth
+        class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:min-[901px]:flex"
+      >
+        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
+          {@render line("tw:w-2/5", "tw:h-4")}
+          {@render line("tw:w-full")}
+          {@render line("tw:w-5/6")}
+          {@render line("tw:w-3/5")}
+        </div>
+      </section>{/if}
   </div>
 </div>

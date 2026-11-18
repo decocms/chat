@@ -109,7 +109,7 @@
     else void owner.runner.focus(owner.roomId);
   }
   const who = (a: Agent) =>
-    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.repo ? ` · ${a.repo}` : ""}`;
+    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
   const percent = (a: Agent) =>
     a.context ? Math.round((a.context.tokens / a.context.window) * 100) : null;
   const line = (a: Agent, muted: boolean) =>
@@ -121,11 +121,8 @@
           : a.seen_at
             ? text("footSeen", { ago: ago(a.seen_at) })
             : "",
-      !a.machine && a.client && !/vibebook CLI/i.test(a.client)
-        ? a.client
-        : !a.machine
-          ? text("footByHand")
-          : "",
+      // Its client only when it says something (a connector by name); "started by hand" was noise.
+      !a.machine && a.client && !/vibebook CLI/i.test(a.client) ? a.client : "",
       percent(a) === null ? "" : `${percent(a)}%`,
     ]
       .filter(Boolean)
@@ -156,7 +153,9 @@
         >✻</span
       >{/if}
     <span class={cn("tw:grid tw:min-w-0 tw:flex-1", muted && "tw:opacity-50")}>
-      <span class="tw:truncate tw:text-[0.8125rem]"
+      <span
+        class="tw:truncate tw:text-[0.8125rem]"
+        title={a.room && a.repo ? a.repo : undefined}
         >{#if a.listening && mark.state === "busy" && !muted}<span
             class="tw:inline-block tw:animate-[spin_3s_linear_infinite] tw:text-agent-claude tw:motion-reduce:animate-none"
             >✻</span
@@ -204,16 +203,29 @@
             ><span class="tw:text-muted-foreground"
               >{text("footThisComputerSub")}</span
             ></span
-          ><button
-            type="button"
-            data-agent-setup="computer"
-            class={cn(
-              btn,
-              "tw:border-primary tw:bg-primary tw:text-primary-foreground tw:hover:bg-primary/90",
-            )}
-            onclick={() => void copy("setup", install)}
-            >{label("setup", text("footCopySetup"))}</button
-          >
+          >{#if $view.data.claude_on && $runner.where}<span
+              data-agent-setup="opening"
+              class="tw:text-xs tw:text-agent-claude-text tw:animate-pulse tw:motion-reduce:animate-none"
+              >{text("footOpening")}</span
+            >{:else if $view.data.claude_on}<button
+              type="button"
+              data-agent-setup="computer"
+              class={btn}
+              onclick={() => void copy("setup", install)}
+              >{label("setup", text("footCopySetup"))}</button
+            >{:else}<button
+              type="button"
+              data-agent-setup="turn-on"
+              class={cn(
+                btn,
+                "tw:border-primary tw:bg-primary tw:text-primary-foreground tw:hover:bg-primary/90",
+              )}
+              onclick={() => {
+                // The old ✻ Ligar Claude (Gui #3106): every vibebook herdr, old or new, opens a Claude for a room that's
+                // on. On, with no runner answering here, the setup that installs one.
+                if (owner.current()) void owner.toggle();
+              }}>{text("footTurnOn")}</button
+            >{/if}
         </div>
         <div class={opt}>
           <span class="tw:grid tw:min-w-0"
@@ -252,20 +264,23 @@
       data-agent-status={mark.state}
       class="tw:grid tw:gap-0.5"
     >
-      <div
-        class="tw:flex tw:items-center tw:gap-1.5 tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
-      >
-        <span class="tw:flex-1"
-          >{text(machines.length ? "footAgents" : "footOthers")}</span
+      <!-- The group's title and "deliver to all" only when there is more than one thing to switch: one agent has its own. -->
+      {#if machines.length + others.length > 1}<div
+          class="tw:flex tw:items-center tw:gap-1.5 tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
         >
-        <span class="tw:font-normal tw:normal-case">{text("footDeliver")}</span>
-        <Switch
-          checked={anyOn}
-          onCheckedChange={(on) => deliver({ all: true }, on)}
-          aria-label={text("footAllSwitch")}
-          class="tw:scale-90"
-        />
-      </div>
+          <span class="tw:flex-1"
+            >{text(machines.length ? "footAgents" : "footOthers")}</span
+          >
+          <span class="tw:font-normal tw:normal-case"
+            >{text("footDeliver")}</span
+          >
+          <Switch
+            checked={anyOn}
+            onCheckedChange={(on) => deliver({ all: true }, on)}
+            aria-label={text("footAllSwitch")}
+            class="tw:scale-90"
+          />
+        </div>{/if}
       {#each machines as m (m.id)}
         {@const kids = agentsOf(m)}
         <div
@@ -282,7 +297,7 @@
               class="tw:size-4"
             /><span
               class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar {m.online
-                ? 'tw:bg-success'
+                ? 'tw:bg-brand'
                 : 'tw:bg-warning'}"
             ></span></button
           ><span class="tw:grid tw:min-w-0 tw:flex-1"
@@ -333,16 +348,24 @@
           a.delivery === false,
           true,
         )}{/each}
-      {#if !machines.length}<p
-          class="tw:m-0 tw:px-2.5 tw:pb-1.5 tw:pl-12 tw:text-[0.6875rem] tw:text-muted-foreground"
-        >
-          {text("footConnectHere")}
-          <button
-            type="button"
-            class={lnk}
-            onclick={() => void copy("setup", install)}
-            >{label("setup", text("footConnectHereLink"))}</button
-          >
-        </p>{/if}
+      <!-- Cloud agents (freestyle sandboxes) stay one click away once you have agents (Gui #3173). -->
+      <button
+        type="button"
+        data-agent-cloud
+        class="tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:text-xs tw:text-muted-foreground tw:hover:bg-muted tw:hover:text-foreground"
+        onclick={() => {
+          if (!owner.current()) return;
+          onopen();
+          // Straight to the sandboxes (freestyle key, create, terminal), below the pane's other sections.
+          setTimeout(
+            () =>
+              document
+                .querySelector("[data-native-sandboxes]")
+                ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+            150,
+          );
+        }}
+        ><Icon icon={Cloud01} class="tw:size-4" />{text("footAddCloud")}</button
+      >
     </div>{/if}
 {/if}

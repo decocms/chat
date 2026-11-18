@@ -12,5 +12,19 @@ const PATTERNS: [string, RegExp][] = [
   ["senha", /\b(?:password|senha|passwd|secret|api[_-]?key|token)\s*[:=]\s*\S{8,}/i],
 ];
 
+const EN: Record<string, string> = {
+  "chave privada": "private key",
+  "chave de API (sk-)": "API key (sk-)",
+  "chave Stripe": "Stripe key",
+  "token Shopify": "Shopify token",
+  "token GitHub": "GitHub token",
+  "chave AWS": "AWS key",
+  "chave Google": "Google key",
+  "token Slack": "Slack token",
+  senha: "password",
+};
+/** A name findSecret returned, in English (for a person who reads English; agents and the app's events keep the Portuguese). */
+export const secretName = (name: string) => EN[name] ?? name;
+
 /** Name of the first secret shape found in `text`, or null. */
 export const findSecret = (text: string) => PATTERNS.find(([, re]) => re.test(text))?.[0] ?? null;

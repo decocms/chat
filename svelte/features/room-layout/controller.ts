@@ -79,7 +79,7 @@ export function createRoomLayout(
     pane: "doc",
     sheet: null,
     boardFull: false,
-    documentVisible: true,
+    documentVisible: !options.documentHidden,
     sidebarCollapsed: options.sidebarCollapsed ?? false,
     mobile: false,
     closingUnconfirmed: false,

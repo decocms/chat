@@ -76,9 +76,15 @@ import { agentMarkLabel } from "../agents/roomCopy";
 import type { RoomAgentSession } from "../agents/room";
 import type { RichActions, RichNavigation } from "../rich-text/types";
 import type { ComposerUpload } from "../composer/types";
+import type { ComposerEntry } from "../composer/drafts";
 import type { DocumentPane } from "../documents/types";
 import { createRoomApi } from "../../transport";
-import { roomMessages, roomName, roomAvatar, roomMention } from "./model";
+import {
+  roomMessages,
+  roomName,
+  roomAvatarVersion,
+  roomMention,
+} from "./model";
 import type {
   RoomScopeOptions,
   RoomScopePresentation,
@@ -608,6 +614,19 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     if (!current() || defer(() => setPane(pane, value))) return;
     layout.setPane(pane, value);
   }
+  /** A panel's empty state hands its prompt to your Claude: it lands in this
+   * thread's composer, focused, and waits for you to press Send. */
+  function composeIn(thread: string, fill: (entry: ComposerEntry) => void) {
+    if (!current() || thread.startsWith("pre:")) return;
+    const entry = resources.composer.entry({
+      account: scope.account,
+      roomId: scope.roomId,
+      thread,
+    });
+    fill(entry);
+    if (layout.read().sheet) layout.closeSheet();
+    entry.focus();
+  }
   function reply(id: number, draft?: { thread: string; text: string }) {
     if (!current() || defer(() => reply(id, draft))) return;
     const value = room()!,
@@ -816,6 +835,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
         const revision = ++chatRevision;
         const appProps: import("../apps/types").AppsProps = {
+          ask: (prompt) => {
+            if (owned()) composeIn(thread, (entry) => entry.edit(prompt));
+          },
           connectionModes: direct.state,
           owner: apps,
           api: appApi,
@@ -860,7 +882,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             ),
             ...(me()?.name ? { [value.me]: me()!.name! } : {}),
           },
-          avatarUrl: (email) => roomAvatar(value, me(), email),
+          avatarVersion: (email) => roomAvatarVersion(value, me(), email),
           hhmm: (ts) => chatTime(locale, ts),
           dateTime: (ts) => chatDateTime(locale, ts),
           waiting: (id) =>
@@ -883,11 +905,22 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         const panel = {
           room: value,
           thread,
-          vb: { t, ago, name, locale },
+          vb: { t, ago, name, locale, avatarVersion: bridge.avatarVersion },
           send: threadSend,
           request: threadRequest,
           waits,
           onopen: pickThread,
+          ...(thread.startsWith("pre:")
+            ? {}
+            : {
+                ask: (prompt: string) => {
+                  if (owned()) composeIn(thread, (entry) => entry.edit(prompt));
+                },
+                attach: (files: readonly File[]) => {
+                  if (owned())
+                    composeIn(thread, (entry) => entry.addFiles(files));
+                },
+              }),
         };
         const actions: ChatActions = {
           ...rich,
@@ -983,7 +1016,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           t,
           ago,
           name,
-          avatarUrl: bridge.avatarUrl,
+          avatarVersion: bridge.avatarVersion,
           epicBusy: (epic: Room["epics"][number]) => {
             const worker = threadWorkers(value, epic.id, Date.now())[0];
             return worker

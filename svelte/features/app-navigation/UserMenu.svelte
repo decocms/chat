@@ -33,7 +33,7 @@
   let {
     name,
     email,
-    avatar,
+    version,
     lang,
     theme,
     onsettheme,
@@ -47,7 +47,8 @@
     row?: boolean;
     name: string;
     email: string;
-    avatar?: string;
+    /** Your picture's version (`me.avatar`). */
+    version?: number | null;
     lang: HomeLanguage;
     theme: UserMenuTheme;
     onsettheme: (theme: UserMenuTheme) => void;
@@ -108,7 +109,7 @@
 </script>
 
 {#snippet who()}
-  <PersonAvatar name={label} url={avatar} size="base" />
+  <PersonAvatar {email} {version} size="base" />
   <span class="tw:grid tw:min-w-0 tw:flex-1 tw:text-left">
     <span class="tw:truncate tw:font-medium">{label}</span>
     {#if name && name !== email}<span
@@ -137,11 +138,7 @@
                   : "tw:relative tw:flex tw:size-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-expanded:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"}
               >
                 {#if row}<span class="tw:relative tw:flex tw:shrink-0"
-                    ><PersonAvatar
-                      name={label}
-                      url={avatar}
-                      class="tw:size-7"
-                    /><span
+                    ><PersonAvatar {email} {version} class="tw:size-7" /><span
                       data-status-dot="online"
                       class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-brand tw:ring-2 tw:ring-sidebar"
                     ></span></span
@@ -153,7 +150,7 @@
                     ></span
                   >{:else}
                   <!-- 16px, the same as the search and + glyphs beside it. -->
-                  <PersonAvatar name={label} url={avatar} size="2xs" />{/if}
+                  <PersonAvatar {email} {version} size="2xs" />{/if}
               </button>
             {/snippet}
           </DropdownMenu.Trigger>

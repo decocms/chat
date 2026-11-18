@@ -37,6 +37,7 @@ export function createBrowserApplicationServices(options: {
   }
   let latestTransition: ViewTransition | null = null;
   const browser: ApplicationBrowser = {
+    language,
     origin: win.location.origin,
     href: () => win.location.href,
     history: win.history,

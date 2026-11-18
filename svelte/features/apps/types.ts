@@ -9,6 +9,8 @@ export type AppBridgeModule = Pick<
   "createNativeAppBridge" | "appToolInfo" | "remoteToolResult"
 >;
 export type AppsProps = {
+  /** Put a prompt for your Claude in the composer (the empty tab's "Ask your Claude"). */
+  ask?: (prompt: string) => void;
   owner: AppsSession;
   api: AppsApi;
   connectionModes?: Readable<ReadonlyMap<string, ConnectionMode>>;

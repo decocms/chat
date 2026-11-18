@@ -109,8 +109,8 @@
               data-avatar="person"
               size="xs"
               class="tw:size-[18px] tw:shadow-[0_0_0_1.5px_var(--vb-card)]"
-              name={vb.name(reader.receipt.email)}
-              url={vb.avatarUrl?.(reader.receipt.email)}
+              email={reader.receipt.email}
+              version={vb.avatarVersion(reader.receipt.email)}
             /><AgentMark
               size="3xs"
               tint
@@ -135,8 +135,8 @@
               <PersonAvatar
                 data-avatar="person"
                 size="xs"
-                name={vb.name(reader.receipt.email)}
-                url={vb.avatarUrl?.(reader.receipt.email)}
+                email={reader.receipt.email}
+                version={vb.avatarVersion(reader.receipt.email)}
               /><span class="tw:min-w-0 tw:flex-1 tw:break-words"
                 >{who(reader.receipt.who, reader.receipt.email)}</span
               ><span>{vb.t(reader.read ? "leu" : "recebeu")}</span>

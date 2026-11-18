@@ -10,7 +10,11 @@
     prettyModel,
   } from "./features/chat/model";
   import Button from "./lib/studio/Button.svelte";
-  import AgentMark from "./lib/components/AgentMark.svelte";
+  import {
+    AGENT_TILES,
+    agentMark,
+    agentProvider,
+  } from "./lib/components/agent";
   import NeedsYou from "./features/needs-you/NeedsYou.svelte";
   import { productionStatuses } from "./features/chat/production";
   let {
@@ -106,45 +110,48 @@
               "Discussão deste épico. Os agents leem as tarefas, o doc e a sala principal.",
             )}
       </p>{/if}
-    {#if workers.length}<div
+    {#if workers.length}<!-- Who is working here, in the agent's own color (a full block, like its tile): the agent is the
+         squircle, the person it works for the small round picture on its corner. -->
+      <div
         data-chat-working
-        class="tw:mx-3 tw:mt-4 tw:flex tw:items-start tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted/30 tw:p-4"
+        data-agent-tile={agentProvider(workers[0].who)}
+        class={[
+          "tw:mx-3 tw:mt-4 tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:px-4 tw:py-3",
+          AGENT_TILES[agentProvider(workers[0].who)],
+        ]}
       >
-        <div class="tw:flex tw:shrink-0 tw:-space-x-2">
+        <div class="tw:flex tw:shrink-0 tw:-space-x-1.5">
           {#each workers.slice(0, 4) as worker (`${worker.who}|${worker.email}`)}<span
               class="tw:relative"
+              ><span
+                aria-hidden="true"
+                data-avatar="agent"
+                class="tw:grid tw:size-8 tw:place-items-center tw:rounded-[0.625rem] tw:bg-current/15 tw:text-base tw:leading-none"
+                >{agentMark(worker.who)}</span
               ><PersonAvatar
                 data-avatar="person"
-                size="sm"
-                name={vb.name(worker.email)}
-                url={vb.avatarUrl?.(worker.email)}
-              /><AgentMark
                 size="2xs"
-                via={worker.who}
-                class="tw:absolute tw:-bottom-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-card)]"
+                email={worker.email}
+                version={vb.avatarVersion(worker.email)}
+                class="tw:absolute tw:-right-1 tw:-bottom-1 tw:shadow-[0_0_0_2px_currentColor]"
               /></span
             >{/each}
         </div>
-        <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
-          <p class="tw:m-0 tw:break-words tw:font-medium">
-            {workers
-              .map((w) =>
-                vb.t("{via} de {who}", {
-                  via: prettyModel(w.who),
-                  who: vb.name(w.email),
-                }),
-              )
-              .join(", ")}
-            {vb.t(
-              workers.length === 1
-                ? "está trabalhando nisso"
-                : "estão trabalhando nisso",
-            )}
-          </p>
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            {vb.t("O andamento e a entrega aparecem aqui nesta thread.")}
-          </p>
-        </div>
+        <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:break-words tw:font-medium">
+          {workers
+            .map((w) =>
+              vb.t("{via} de {who}", {
+                via: prettyModel(w.who),
+                who: vb.name(w.email),
+              }),
+            )
+            .join(", ")}
+          {vb.t(
+            workers.length === 1
+              ? "está trabalhando nisso"
+              : "estão trabalhando nisso",
+          )}
+        </p>
         <span
           aria-hidden="true"
           class="tw:animate-spin tw:motion-reduce:animate-none">✻</span

@@ -60,6 +60,19 @@ export async function pokeRoom(env: Env, bookId: string, msg: PersonEvent) {
   return poke(env, r.results.map((x) => x.email), msg);
 }
 
+/** This person and everyone they share a room with, DMs included (one D1 query, ≤200 people): a changed picture
+ * reaches the other people's rails, DM lists and room skeletons, which carry its version from their own /api/me. */
+export async function pokeRoommates(env: Env, email: string, msg: PersonEvent) {
+  const me = email.toLowerCase();
+  const r = await env.DB.prepare(
+    `SELECT DISTINCT y.email FROM members x JOIN members y ON y.book_id = x.book_id WHERE x.email = ? AND y.email != x.email LIMIT 200`,
+  ).bind(me).all<{ email: string }>();
+  const all = [me, ...r.results.map((x) => x.email)];
+  const parts = [];
+  for (let i = 0; i < all.length; i += 50) parts.push(poke(env, all.slice(i, i + 50), msg));
+  return Promise.all(parts);
+}
+
 /** How recent a listener's last call must be to count as listening: the CLI's hub checks in at least every 10 min
  * (a long-poll listener every 50s). */
 export const LISTEN_FRESH = 12 * 60_000;

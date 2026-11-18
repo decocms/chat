@@ -11,7 +11,6 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { navRow } from "../../lib/components/navRow";
   import { homeText, type HomeLanguage } from "../home/copy";
-  import { avatarUrl } from "../home/model";
   import { isEmail } from "../people/model";
   import type { MeResult } from "../../../shared/schemas";
   import { contacts, matchContacts } from "./contacts";
@@ -168,8 +167,8 @@
               onclick={() => go(person.email)}
               ><PersonAvatar
                 size="sm"
-                name={person.name || person.email}
-                url={avatarUrl(person.email, person.avatar)}
+                email={person.email}
+                version={person.avatar}
               /><span class="tw:min-w-0 tw:flex-1">
                 <span class="tw:block tw:truncate"
                   >{person.name || person.email}</span
@@ -189,7 +188,7 @@
               class={navRow({ class: "tw:w-full tw:text-left" })}
               disabled={busy}
               onclick={() => (target = typed)}
-              ><PersonAvatar size="sm" name={typed} /><span
+              ><PersonAvatar size="sm" email={typed} /><span
                 class="tw:min-w-0 tw:flex-1 tw:truncate"
                 >{text("writeTo", { email: typed })}</span
               ></button
@@ -211,7 +210,7 @@
                 data-sent-request={request.email}
                 class="tw:flex tw:items-center tw:gap-2 tw:px-2 tw:py-1"
               >
-                <PersonAvatar size="sm" name={request.email} /><span
+                <PersonAvatar size="sm" email={request.email} /><span
                   class="tw:min-w-0 tw:flex-1"
                   ><span class="tw:block tw:truncate tw:text-sm"
                     >{request.email}</span

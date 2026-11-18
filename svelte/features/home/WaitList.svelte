@@ -12,7 +12,7 @@
     plainWaitText,
     targetHref,
     waitTarget,
-    personAvatar,
+    personVersion,
     type Wait,
     type RoomTarget,
   } from "./model";
@@ -73,8 +73,8 @@
         />{:else}<PersonAvatar
           size="sm"
           class="tw:mt-0.5"
-          name={wait.author_name || wait.author}
-          url={personAvatar(people, wait.author)}
+          email={wait.author}
+          version={personVersion(people, wait.author)}
         />{/if}
       <a
         class="tw:min-w-0 tw:flex-1 tw:rounded-control tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"

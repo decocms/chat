@@ -217,6 +217,8 @@ export const RoomAgent = z.object({
   client: z.optional(str),
   machine: z.optional(str),
   delivery: z.optional(z.boolean()),
+  /** Only on your own agents: the title of the room it listens to (null = all rooms or none). */
+  room: z.optional(str),
 });
 /** Your machines (src/delivery.ts): computers running `vibebook herdr` and your sandboxes in this room. */
 export const RoomMachine = z.object({
@@ -417,6 +419,9 @@ export const MeBook = z.object({
   members: str,
   /** 1 = a direct-message room (src/dm.ts): listed with your DMs, not with the rooms. */
   dm: z.optional(num),
+  /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */
+  peer_name: z.optional(str),
+  peer_avatar: z.optional(num),
 });
 export const MeFriend = z.object({
   email: z.string(),

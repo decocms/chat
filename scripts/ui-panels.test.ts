@@ -121,6 +121,7 @@ const vb: PanelBridge = {
     s.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? "")),
   ago: () => "agora",
   name: (email) => email,
+  avatarVersion: () => undefined,
   locale: "en-US",
 };
 const fixture = (): Room => ({
@@ -1100,10 +1101,10 @@ describe("native Svelte room panels", () => {
     const classes = (el: Element | null | undefined) =>
       (el?.getAttribute("class") ?? "").split(/\s+/);
     const cases: [Component<any>, Record<string, unknown>][] = [
-      [PersonAvatar, { name: "Ana Souza", "data-avatar": "person" }],
+      [PersonAvatar, { email: "ana@test.com", "data-avatar": "person" }],
       [
         PersonAvatar,
-        { name: "Ana Souza", size: "2xs", "data-avatar": "person" },
+        { email: "ana@test.com", size: "2xs", "data-avatar": "person" },
       ],
       [AgentMark, { mark: "✻" }],
       [AgentMark, { via: "codex", size: "2xs", class: "tw:text-success" }],
@@ -1149,9 +1150,9 @@ describe("native Svelte room panels", () => {
     for (const person of seen.person) {
       expect(classes(person)).toContain("tw:rounded-full");
       expect(person.getAttribute("aria-hidden")).toBe("true");
-      // No picture: the face the name draws, never initials.
+      // No picture: the face the email draws (whatever label is beside it), never initials.
       expect(person.querySelector("svg > rect")?.getAttribute("fill")).toBe(
-        beam("Ana Souza").background,
+        beam("ana@test.com").background,
       );
       expect(person.textContent?.trim()).toBe("");
     }
@@ -1383,7 +1384,7 @@ describe("native Svelte room panels", () => {
     expect(target.textContent).toContain("decidido");
     update({ ...room, decisions: [] });
     expect(target.querySelector("[data-ddel]")).toBeNull();
-    expect(target.textContent).toContain("O que a sala decidir");
+    expect(target.textContent).toContain("Nenhuma decisão ainda");
   });
   test("decision deletion requires confirmation, restores cancellation focus and waits for canonical removal", async () => {
     const room = fixture();
@@ -1876,6 +1877,7 @@ describe("native Svelte chat", () => {
   ): import("../svelte/chatTypes").ChatBridge => ({
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     hhmm: () => "09:00",
     waiting: () => false,
@@ -5478,6 +5480,7 @@ describe("native composer ownership and interactions", () => {
   const chatBridge: import("../svelte/chatTypes").ChatBridge = {
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     hhmm: () => "09:00",
     waiting: () => false,
@@ -6362,6 +6365,7 @@ describe("native room sidebar header and suggestion ownership", () => {
   const bridge: SidebarProps["vb"] = {
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     epicBusy: () => null,
     waitsIn: () => [],
@@ -6527,6 +6531,7 @@ describe("native room sidebar header and suggestion ownership", () => {
         vb: {
           t: vb.t,
           name: vb.name,
+          avatarVersion: vb.avatarVersion,
           ago: vb.ago,
           hhmm: () => "09:00",
           waiting: () => false,
@@ -6579,6 +6584,7 @@ describe("native room sidebar header and suggestion ownership", () => {
       vb: {
         t: vb.t,
         name: vb.name,
+        avatarVersion: vb.avatarVersion,
         ago: vb.ago,
         hhmm: () => "09:00",
         waiting: () => false,
@@ -6644,6 +6650,7 @@ describe("native collapsed sidebar and typed presence", () => {
       vb: {
         t: vb.t,
         name: vb.name,
+        avatarVersion: vb.avatarVersion,
         ago: vb.ago,
         epicBusy: () => null,
         waitsIn: () => [],
@@ -7537,6 +7544,23 @@ test("native needs-you endcard captures visible rows and rejects old connected c
 });
 
 // Controlled bridge dependency only: real iframe/MessagePort privacy is covered by the browser suite.
+/** A doc app's height select (Gui #3153): open it from the keyboard and pick the option with that label. */
+async function pickSize(root: Element, label: string) {
+  const trigger = root.querySelector<HTMLElement>("[data-select-trigger]")!;
+  trigger.focus();
+  trigger.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+  );
+  await new Promise((done) => setTimeout(done, 50));
+  const item = [
+    ...document.querySelectorAll<HTMLElement>("[data-select-item]"),
+  ].find((option) => option.textContent?.trim() === label)!;
+  item.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, pointerType: "mouse" }),
+  );
+  item.click();
+  await new Promise((done) => setTimeout(done, 0));
+}
 test("document inline Apps keep independent consent and stable frames, and revoke removed-marker callbacks before flush", async () => {
   const { createAppsSession } = await import("../svelte/features/apps/session");
   const protocol = await import("../svelte/features/apps/bridge");
@@ -7764,8 +7788,8 @@ test("document inline Apps keep independent consent and stable frames, and revok
   await settled();
   expect([...target.querySelectorAll("iframe")]).toEqual(frames);
   expect(calls).toHaveLength(2);
-  button(target.querySelector("[data-document-app]")!, "G").click();
-  await settled();
+  // The height is one select (Gui #3153): open it, pick one.
+  await pickSize(target.querySelector("[data-document-app]")!, "Grande");
   expect(get(owner.state).text).toContain("screen|g");
   expect([...target.querySelectorAll("iframe")]).toEqual(frames);
   expect(calls).toHaveLength(2);
@@ -7822,7 +7846,10 @@ test("document inline Apps keep independent consent and stable frames, and revok
   await settled();
   expect([...target.querySelectorAll("iframe")]).toEqual(nestedFrames);
   expect(calls).toHaveLength(nestedCalls);
-  button(target.querySelector("blockquote [data-document-app]")!, "P").click();
+  await pickSize(
+    target.querySelector("blockquote [data-document-app]")!,
+    "Pequeno",
+  );
   await settled();
   expect(get(owner.state).text).toContain("> [[app:abcdef123456/screen|p]]");
   expect([...target.querySelectorAll("iframe")]).toEqual(nestedFrames);
