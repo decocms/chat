@@ -122,8 +122,7 @@
   class={cn(
     studioType,
     "flex h-full min-h-[32rem] flex-col overflow-x-hidden bg-sidebar p-2 text-sm leading-5 text-sidebar-foreground",
-    // Expanded, each section scrolls inside itself (epics, pins, people) down
-    // to its minimum; only below those minimums does the sidebar scroll whole.
+    // Expanded, the sections take their full height and the sidebar scrolls whole.
     collapsed
       ? "items-center gap-2 overflow-y-auto overscroll-contain"
       : "gap-6 overflow-y-auto overscroll-contain",
@@ -246,9 +245,8 @@
         <DmNav
           controller={appNavigation.controller}
           lang={appNavigation.lang}
-        />{:else}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
-          thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
-        <div class="flex flex-auto flex-col gap-3">
+        />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
+        <div class="flex shrink-0 flex-col gap-3">
           {@render roomHeader()}{#if appNavigation}<SearchField
               controller={appNavigation.controller}
               label={homeText(appNavigation.lang, "search")}

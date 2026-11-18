@@ -149,3 +149,33 @@ export function reorderEpics(
   ids.splice(ids.indexOf(to) + (after ? 1 : 0), 0, from);
   return ids.every((id, index) => id === epics[index]?.id) ? null : ids;
 }
+
+/** How many unpinned epics the sidebar lists before "Ver mais". */
+export const EPIC_PAGE = 15;
+
+/**
+ * The sidebar's order: pinned epics first (in the room's shared order, which
+ * their drag sets), then the rest by when their thread last spoke, newest
+ * first. The server's `last` is when the room loaded; the messages that arrived
+ * since (the ones this client holds) move an epic up live.
+ */
+export function sidebarEpics(
+  epics: readonly Epic[],
+  messages: readonly Message[],
+) {
+  const seen = new Map<string, number>();
+  for (const message of messages)
+    seen.set(
+      message.thread,
+      Math.max(seen.get(message.thread) ?? 0, message.ts),
+    );
+  const when = (epic: Epic) => Math.max(epic.last ?? 0, seen.get(epic.id) ?? 0);
+  return [
+    ...epics.filter((epic) => epic.pinned),
+    ...epics
+      .filter((epic) => !epic.pinned)
+      .map((epic, index) => ({ epic, index, at: when(epic) }))
+      .sort((a, b) => b.at - a.at || a.index - b.index)
+      .map(({ epic }) => epic),
+  ];
+}

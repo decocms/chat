@@ -3866,7 +3866,9 @@ describe("stable native sidebar integration", () => {
     );
   test("native order shortcut submits a full permutation without mutating the room or using stale targets", async () => {
     const room = fixture();
-    room.epics.push({ id: "other", title: "Other", tasks: [] });
+    // Only pinned epics take a hand-made order (the rest follow recency).
+    room.epics[0] = { ...room.epics[0], pinned: true };
+    room.epics.push({ id: "other", title: "Other", tasks: [], pinned: true });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
       '[data-epic-thread="e"]',
@@ -3886,7 +3888,9 @@ describe("stable native sidebar integration", () => {
   }, 30_000);
   test("confirmed epic ordering restores disabled-control focus without stealing an intervening field", async () => {
     const room = fixture();
-    room.epics.push({ id: "other", title: "Other", tasks: [] });
+    // Only pinned epics take a hand-made order (the rest follow recency).
+    room.epics[0] = { ...room.epics[0], pinned: true };
+    room.epics.push({ id: "other", title: "Other", tasks: [], pinned: true });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
       '[data-epic-thread="e"]',
@@ -3928,7 +3932,9 @@ describe("stable native sidebar integration", () => {
   }, 30_000);
   test("epic ordering focus callbacks cannot target a replaced room view", async () => {
     const room = fixture();
-    room.epics.push({ id: "other", title: "Other", tasks: [] });
+    // Only pinned epics take a hand-made order (the rest follow recency).
+    room.epics[0] = { ...room.epics[0], pinned: true };
+    room.epics.push({ id: "other", title: "Other", tasks: [], pinned: true });
     const rendered = sidebar(room);
     const down = rendered.target.querySelector<HTMLButtonElement>(
       '[data-epic-thread="e"]',

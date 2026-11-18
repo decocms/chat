@@ -420,12 +420,9 @@
     ></span
   >{/snippet}
 
-<!-- In the sidebar it gives way to the epics, down to its title and ~3 rows (one row or none: its own height). -->
+<!-- In the sidebar it takes its full height: the whole sidebar scrolls, never a list inside it. -->
 <section
-  class={cn(
-    "max-h-[20%] space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain bg-sidebar font-sans text-sm leading-5 text-sidebar-foreground outline-none",
-    rows.length > 1 ? "min-h-32 shrink" : "shrink-0",
-  )}
+  class="shrink-0 space-y-0.5 bg-sidebar font-sans text-sm leading-5 text-sidebar-foreground outline-none"
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"
