@@ -351,89 +351,9 @@ export async function auditDesignSystemInbox(
     await expect(crossRoomMessage).toContainText("Cross-room target message");
     result.phases.push(result.phase);
 
-    result.phase = "Home Inbox modal resolve cancellation and fresh opening";
-    await page.goto(`${base}/app?ui=svelte`);
-    const dialog = page.getByRole("dialog", { name: "Inbox", exact: true });
-    async function openGlobal() {
-      await trigger.click();
-      await expect(dialog).toBeVisible();
-      await expect(
-        dialog.getByRole("link").filter({ hasText: data.waits[0]!.text }),
-      ).toBeVisible();
-    }
-    const resolveButton = () =>
-      dialog
-        .getByRole("button", {
-          name: "Done (I answered elsewhere, or it's not for me)",
-          exact: true,
-        })
-        .first();
-    await openGlobal();
-    // The Studio dialog fades in; audit its colors once it is at rest.
-    await settleAnimations(page);
-    const modalAxe = await new AxeBuilder({ page })
-      .include('[role="dialog"]')
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-      .analyze();
-    await writeFile(
-      `${output}/global-inbox-axe.json`,
-      JSON.stringify(modalAxe.violations, null, 2) + "\n",
-    );
-    assert.deepEqual(modalAxe.violations, []);
-    await expect(dialog.getByRole("tablist")).toHaveCount(0);
-    await expect(dialog.getByRole("link")).toHaveCount(5);
-    for (const text of [
-      initial.text,
-      "Controlled review approval",
-      "Cross-room target message",
-      "Controlled Inbox mention",
-      "Controlled open task",
-    ]) {
-      await expect(
-        dialog.getByRole("link").filter({ hasText: text }),
-      ).toBeVisible();
-    }
-    await resolveButton().click();
-    await expect.poll(() => held !== null).toBe(true);
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(trigger).toBeFocused();
-    await finish(200);
-    await expect(dialog).toHaveCount(0);
-    await openGlobal();
-    await resolveButton().click();
-    await expect.poll(() => held !== null).toBe(true);
-    await page.keyboard.press("Escape");
-    data = InboxResult.parse({
-      ...data,
-      waits: [
-        { ...initial, text: "New opening reader request" },
-        ...data.waits.slice(1),
-      ],
-    });
-    await openGlobal();
-    const fresh = await dialog.getAttribute("id");
-    assert(fresh);
-    await finish(200);
-    await expect(dialog).toHaveAttribute("id", fresh);
-    await expect(
-      dialog
-        .getByRole("link")
-        .filter({ hasText: "New opening reader request" }),
-    ).toBeVisible();
-    result.phases.push(result.phase);
-
-    result.phase = "recoverable resolve error, modal focus and search Escape";
-    await resolveButton().click();
-    await expect.poll(() => held !== null).toBe(true);
-    await finish(500);
-    await expect(dialog.getByRole("alert")).toContainText(
-      "Couldn't resolve this request",
-    );
-    await expect(resolveButton()).toBeEnabled();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(trigger).toBeFocused();
+    // The desk home (#97) shows what waits as cards, with no Inbox button:
+    // the Inbox lives in the room (above). Search still closes with Escape.
+    result.phase = "search Escape";
     await page.keyboard.press("Control+k");
     const search = page.getByRole("dialog", {
       name: "Search",
@@ -442,7 +362,6 @@ export async function auditDesignSystemInbox(
     await expect(search).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(search).toHaveCount(0);
-    await expect(trigger).toBeFocused();
     assert(result.inboxReads > 0 && result.profileReads > 0);
     result.phases.push(result.phase);
     result.status = "passed";

@@ -619,7 +619,9 @@ try {
       );
       await expect(a.locator('[data-vb-native="update"]')).toHaveCount(0);
       await a
-        .locator(`[data-vb-native="home"] [data-room-id="${roomA}"] a`)
+        .locator(
+          `[data-vb-native="room-navigation"] [data-room-id="${roomA}"] a`,
+        )
         .click();
       await expect(
         a.locator("[data-native-app-shell] [data-native-room-layout]"),
@@ -641,7 +643,9 @@ try {
         .click();
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       await a
-        .locator(`[data-vb-native="home"] [data-room-id="${roomB}"] a`)
+        .locator(
+          `[data-vb-native="room-navigation"] [data-room-id="${roomB}"] a`,
+        )
         .click();
       await expect(composer).toBeVisible();
       await expect(composer).toHaveValue("");
