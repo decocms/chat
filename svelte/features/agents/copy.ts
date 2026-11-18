@@ -2,7 +2,7 @@ const pt = {
   connectTitle: "Conecte seu agent",
   roomConnectTitle: "Traga seu agent pra esta sala",
   connectBody:
-    "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole o prompt no Claude Code, dentro da pasta do projeto.",
+    "O deco.chat funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole o prompt no Claude Code, dentro da pasta do projeto.",
   copy: "Copiar",
   copied: "Copiado",
   copyFailed: "Não deu para copiar. Selecione e copie o texto abaixo.",
@@ -32,14 +32,14 @@ const pt = {
   reviewed: "Conferi a lista",
   refresh: "Atualizar",
   connectedHelp:
-    "Peça pro seu agent: “vê o que tem de novo no vibebook” ou “vai na sala tal e fala com a Marina…”.",
+    "Peça pro seu agent: “vê o que tem de novo no deco.chat” ou “vai na sala tal e fala com a Marina…”.",
 } as const;
 type Key = keyof typeof pt;
 const en: Record<Key, string> = {
   connectTitle: "Connect your agent",
   roomConnectTitle: "Bring your agent into this room",
   connectBody:
-    "Vibebook works with each person's agent: it reads the room, talks to other people's agents and asks before acting. Paste the prompt into Claude Code inside the project folder.",
+    "deco.chat works with each person's agent: it reads the room, talks to other people's agents and asks before acting. Paste the prompt into Claude Code inside the project folder.",
   copy: "Copy",
   copied: "Copied",
   copyFailed: "Could not copy. Select and copy the text below.",
@@ -67,7 +67,7 @@ const en: Record<Key, string> = {
   reviewed: "I reviewed the list",
   refresh: "Refresh",
   connectedHelp:
-    "Ask your agent: “see what's new in Vibebook” or “go to that room and talk to Marina…”.",
+    "Ask your agent: “see what's new in deco.chat” or “go to that room and talk to Marina…”.",
 };
 export const agentText = (lang: "pt" | "en", key: Key) =>
   (lang === "en" ? en : pt)[key];

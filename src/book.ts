@@ -57,7 +57,7 @@ export const epicDocSeed = (title: string, why = "") =>
 /** Epic titles compared without numbering, case or accents: "2. Primeira limpeza" = "primeira limpeza". */
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
-const DEFAULT_TITLE = "Novo vibebook";
+const DEFAULT_TITLE = "Nova sala";
 
 const CLASSIFY_DELAY_MS = 30_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
@@ -687,7 +687,7 @@ export class Book extends DurableObject<Env> {
     if (!to.length) return;
     to.forEach((e) => this.pushedAt.set(e, now));
     // A DM's push is titled by who wrote (its stored "A · B" title says nothing more).
-    const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "vibebook");
+    const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "deco.chat");
     const url = `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`;
     const langs = typeof title === "string" ? null : await this.langs(to);
     const groups = langs ? [false, true].map((en) => ({ en, to: to.filter((e) => (langs[e] === "en") === en) })).filter((g) => g.to.length) : [{ en: false, to }];
@@ -876,7 +876,7 @@ export class Book extends DurableObject<Env> {
     const facts: MailFacts = {
       to,
       toName,
-      room: { id: bookId, title: book?.title ?? "vibebook" },
+      room: { id: bookId, title: book?.title ?? "deco.chat" },
       epic: epicRow ? { id: epicRow.id, title: epicRow.title } : null,
       mentions: rows.map((r) => ({ from: label(r), text: r.text as string, ts: r.ts as number })),
       context: recent.map((x) => `${x.kind === "agent" ? `${x.via || "Claude"} de ${nm(x.author)}` : nm(x.author)}: ${x.text.slice(0, 400)}`).join("\n"),
@@ -910,7 +910,7 @@ export class Book extends DurableObject<Env> {
     const { html, text } = mailBody(facts, copy, url, await unsubscribeUrl(this.env.SESSION_SECRET, origin, to), lastAuthor !== "ai");
     await this.env.EMAIL.send({
       to,
-      from: { email: mailFrom(this.env, "mention"), name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via vibebook` }, // "@vibe" in a display name is risky
+      from: { email: mailFrom(this.env, "mention"), name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via deco.chat` }, // "@vibe" in a display name is risky
       ...(lastAuthor !== "ai" ? { replyTo: lastAuthor } : {}),
       subject: copy.subject,
       text,
@@ -2550,12 +2550,12 @@ export class Book extends DurableObject<Env> {
         model: this.model(this.env.MODEL_CLASSIFY, true),
         output: Output.object({
           schema: z.object({
-            title: z.string().describe("título curto e específico do vibebook, máx 6 palavras"),
+            title: z.string().describe("título curto e específico da sala, máx 6 palavras"),
             folder: z.string().describe("pasta para organizar; reutilize uma pasta existente se fizer sentido"),
             summary: z.string().describe("uma frase curta (máx 20 palavras) dizendo do que se trata e em que pé está; sem emails, sem 'o usuário'"),
           }),
         }),
-        prompt: `Classifique este vibebook (documento compartilhado com chat e épicos).
+        prompt: `Classifique esta sala (documento compartilhado com chat e épicos).
 Escreva título e resumo no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
 Pastas que essas pessoas já usam: ${folders.results.map((f) => f.folder).join(", ") || "(nenhuma)"}
 Documento:
@@ -2568,7 +2568,7 @@ ${transcript}`,
       this.ctx.waitUntil(track(this.env, "classify", { dims: { book: bookId, model: this.env.MODEL_CLASSIFY, ok: true, cost: +costOf(usage).toFixed(6) } }));
       // Rename only rooms still on the default name: a title someone chose (create_room, the home box, a rename) stays.
       const current = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
-      const title = this.get("title_locked") || (current && current.title !== "Novo vibebook") ? undefined : output.title;
+      const title = this.get("title_locked") || (current && current.title !== DEFAULT_TITLE && current.title !== "Novo vibebook") ? undefined : output.title;
       const summary = output.summary.replace(/\s+/g, " ").trim().slice(0, 180);
       await this.touch({ title, folder: output.folder, summary });
       // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_epic stays theirs.

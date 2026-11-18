@@ -31,7 +31,7 @@ Set up vibebook for the project in the current directory. Room: $ARGUMENTS. If i
      # vibebook: this repo has a room. Chat, tasks and decisions: https://vibebook.dev/b/<id>
      room_id=<id>
      ```
-   - README, immediately under the title: `[![vibebook: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`
+   - README, immediately under the title: `[![deco.chat: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`
    - AGENTS.md (or CLAUDE.md; if neither exists, make AGENTS.md), near the top: `Project room: https://vibebook.dev/b/<id> (report progress there).`
 7. **Open the channel.** Run `vibebook call read_room --model "<your model name>"`. Tell me in one or two lines what is there. Then run `vibebook listen --model "<your model name>"` with Bash `run_in_background`. It stops only when there are unread messages. Then run read_room, do what is necessary, and start it again in the same way. Do not mention the restart or the silence.
 8. **Announce.** Post one line in the room: this repository is linked and you listen. Include the name of the repository. After that, follow the vibebook skill: report task starts, important commits, pull requests ready for review, deploys and blockers in the room.

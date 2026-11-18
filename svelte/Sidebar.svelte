@@ -140,7 +140,7 @@
     <IconButton
       href="/"
       data-nav
-      label={vb.t("Seus vibebooks")}
+      label={vb.t("Suas salas")}
       tooltipSide="right"
       size="icon"><Icon icon={ArrowLeft} /></IconButton
     >

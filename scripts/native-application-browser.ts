@@ -635,7 +635,7 @@ try {
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
         .locator('[data-vb-native="room-navigation"]')
-        .getByRole("button", { name: "Your vibebooks", exact: true })
+        .getByRole("button", { name: "Your rooms", exact: true })
         .click();
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       await a

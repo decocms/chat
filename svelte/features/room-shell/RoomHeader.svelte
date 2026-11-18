@@ -140,8 +140,8 @@
 <svelte:head
   ><title
     >{header.room.book.title
-      ? `${header.room.book.title} · vibebook`
-      : "vibebook"}</title
+      ? `${header.room.book.title} · deco.chat`
+      : "deco.chat"}</title
   ></svelte:head
 >
 
@@ -155,7 +155,7 @@
       >{#snippet children(expectedThread)}<IconButton
           label={t(
             expectedThread === "main"
-              ? "Seus vibebooks"
+              ? "Suas salas"
               : "Voltar pra sala principal",
           )}
           tooltipSide="bottom"

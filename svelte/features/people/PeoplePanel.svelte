@@ -390,13 +390,13 @@
     ? vb.t("Recusar o pedido de {email}?", { email: deletion.email })
     : isInvited(room, deletion?.email || "")
       ? vb.t("Cancelar o convite de {email}?", { email: deletion?.email || "" })
-      : vb.t("Remover {email} deste vibebook?", {
+      : vb.t("Remover {email} desta sala?", {
           email: deletion?.email || "",
         })}
   description={deletion?.email}
   confirmLabel={deletion?.action === "deny"
     ? vb.t("Recusar")
-    : vb.t("Remover do vibebook")}
+    : vb.t("Remover da sala")}
   cancelLabel={vb.t("Cancelar")}
   busy={!!(
     deletion &&

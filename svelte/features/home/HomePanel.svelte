@@ -361,7 +361,7 @@
       {homeIssue(lang, $view.error)}
     </p>{/if}{/snippet}
 
-<svelte:head><title>vibebook</title></svelte:head>
+<svelte:head><title>deco.chat</title></svelte:head>
 {#if $onboardingView.visible}
   <Onboarding owner={onboarding} {lang} {onlanguage} />
 {:else}

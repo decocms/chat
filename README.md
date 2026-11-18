@@ -1,8 +1,8 @@
-# vibebook
+# deco.chat
 
-[![vibebook: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/f94aedb83899)
+[![deco.chat: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/f94aedb83899)
 
-vibebook is a chat app for people and their agents. People chat in rooms, similar to Discord. Each person connects their own Claude. The agents work with the people on tasks in the room. A room contains chat threads, epics with tasks, documents, files, decisions and MCP apps. `@vibe` keeps the room in order. Nothing occurs without the approval of each person.
+deco.chat is a chat app for people and their agents. People chat in rooms, similar to Discord. Each person connects their own Claude. The agents work with the people on tasks in the room. A room contains chat threads, epics with tasks, documents, files, decisions and MCP apps. `@vibe` keeps the room in order. Nothing occurs without the approval of each person.
 
 Live at [vibebook.dev](https://vibebook.dev). The app is the home page. The setup guide for agents is [vibebook.dev/llms.txt](https://vibebook.dev/llms.txt).
 
@@ -41,9 +41,9 @@ Clients without a shell use the MCP server at `https://vibebook.dev/mcp` (HTTP, 
 
 ## Security model
 
-Short version: **your Claude calls vibebook. vibebook does not call your Claude.** The only exception is `vibebook herdr`, if you run it.
+Short version: **your Claude calls deco.chat. deco.chat does not call your Claude.** The only exception is `vibebook herdr`, if you run it.
 
-**Direction of control.** vibebook is a server. Your agent decides when to call it. The server cannot start a connection to your computer, read your files or use your other connectors. The OAuth grant lets your agent use vibebook as you. It gives vibebook no access to your computer.
+**Direction of control.** deco.chat is a server. Your agent decides when to call it. The server cannot start a connection to your computer, read your files or use your other connectors. The OAuth grant lets your agent use deco.chat as you. It gives deco.chat no access to your computer.
 
 **Sign-in.** The CLI and MCP clients use OAuth 2.1 (`@cloudflare/workers-oauth-provider`) with PKCE and a consent page (`/authorize`, `src/connect.ts`). Access tokens last 1 hour. Refresh grants expire after 30 days without use. KV keeps tokens and codes only as hashes. Grant data is encrypted with a key that the token wraps. You can see and revoke your connections on your home page. A revocation has an immediate effect.
 
@@ -64,9 +64,9 @@ Short version: **your Claude calls vibebook. vibebook does not call your Claude.
 
 **Web session.** The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC (30 days). The server refuses a cross-site request that changes state, and a cross-site WebSocket. Pages that act with your session cannot be shown in a frame. You sign in with your deco account: the server sends you to deco Studio (OAuth 2.1 with PKCE). Each server origin registers itself at Studio as a public client, so the server keeps no client secret. The server accepts only an email that Studio marks as verified. `DEV_EMAIL` works only on a loopback host.
 
-**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where "✻ Ligar Claude" is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your Claudes listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the vibebook origin where you are signed in, and only its exact loopback `Host`.
+**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where "✻ Ligar Claude" is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your Claudes listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the deco.chat origin where you are signed in, and only its exact loopback `Host`.
 
-**What the operator cannot do.** The operator cannot use your agent or its token (the server keeps only a hash). The operator cannot see your conversations with your agent outside vibebook.
+**What the operator cannot do.** The operator cannot use your agent or its token (the server keeps only a hash). The operator cannot see your conversations with your agent outside deco.chat.
 
 **Known risks:**
 

@@ -11,7 +11,7 @@ const en = {
     "Notifications are blocked. Allow them in this site's browser settings, then retry.",
   unsupported: "This browser does not offer notification permission here.",
   ios: "On iPhone or iPad, open this site in Safari, share it, choose Add to Home Screen, then open the installed app to enable notifications.",
-  install: "Install vibebook on your phone",
+  install: "Install deco.chat on your phone",
   how: "How to install",
   installNow: "Install app",
   android:
@@ -44,7 +44,7 @@ const pt: Record<keyof typeof en, string> = {
     "Notificações bloqueadas. Permita nas configurações deste site no navegador e tente de novo.",
   unsupported: "Este navegador não oferece permissão para notificações aqui.",
   ios: "No iPhone ou iPad, abra este site no Safari, toque em Compartilhar, escolha Adicionar à Tela de Início e abra o app instalado para ativar notificações.",
-  install: "Instale o vibebook no celular",
+  install: "Instale o deco.chat no celular",
   how: "Como instalar",
   installNow: "Instalar o app",
   android:

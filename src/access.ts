@@ -6,16 +6,16 @@ import type { AccessContext } from "../shared/schemas";
 
 export type AccessState = "out" | "ask" | "asked" | "invited" | "missing";
 
-const DESC = "Sala no vibebook: chat, doc e tarefas pras pessoas e os Claudes delas trabalharem juntos.";
+const DESC = "Sala no deco.chat: chat, doc e tarefas pras pessoas e os Claudes delas trabalharem juntos.";
 
-/** <head> tags that make a shared room link render as a card: vibebook's image + the room's name. */
+/** <head> tags that make a shared room link render as a card: deco.chat's image + the room's name. */
 export function roomMeta(origin: string, id: string, title: string | null) {
-  const t = escapeHtml(title ? `${title} · vibebook` : "vibebook");
-  const name = escapeHtml(title ?? "vibebook");
+  const t = escapeHtml(title ? `${title} · deco.chat` : "deco.chat");
+  const name = escapeHtml(title ?? "deco.chat");
   return `<title>${t}</title>
 <meta name="description" content="${DESC}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="vibebook" />
+<meta property="og:site_name" content="deco.chat" />
 <meta property="og:title" content="${name}" />
 <meta property="og:description" content="${DESC}" />
 <meta property="og:url" content="${origin}/b/${id}" />

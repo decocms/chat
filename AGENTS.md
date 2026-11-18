@@ -1,8 +1,8 @@
-# vibebook: instructions for agents
+# deco.chat: instructions for agents
 
 Project room: https://vibebook.dev/b/f94aedb83899. Report progress there (see the `vibebook` skill of the plugin).
 
-vibebook is a chat app, similar to Discord, that runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude) that works with them on tasks. Rooms also contain files, documents, tasks and MCP apps.
+deco.chat is a chat app, similar to Discord, that runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude) that works with them on tasks. Rooms also contain files, documents, tasks and MCP apps.
 
 This file contains only the global rules. Read the specific document before you change an area.
 
@@ -17,9 +17,9 @@ This file contains only the global rules. Read the specific document before you 
 
 ## Rules that are always true
 
-1. vibebook is a collaboration surface. It is not an MCP proxy and it is not a credential vault.
-   - Clients connect to vibebook. vibebook does not call the MCP server or the machine of a person.
-   - vibebook signs only the identity and the room (`X-Vibebook-Identity`).
+1. deco.chat is a collaboration surface. It is not an MCP proxy and it is not a credential vault.
+   - Clients connect to deco.chat. deco.chat does not call the MCP server or the machine of a person.
+   - deco.chat signs only the identity and the room (`X-Vibebook-Identity`).
    - Do not add token storage. Do not add server-side calls into the tools of a person.
    - Exception (approved for now): the freestyle.sh API key and the Claude token for cloud sandboxes. Do not add more exceptions.
 2. Use Cloudflare features when they help: Durable Objects, D1, R2, KV, Workers AI, Email, Rate Limits.

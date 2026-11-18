@@ -399,3 +399,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. When merges come faster than one CI run, no commit gets its browser jobs until the merges stop.
 - Undo: Set `cancel-in-progress` back to `${{ github.event_name == 'pull_request' }}`.
 - Status: open
+
+### 2026-11-18 · feat/rename-deco-chat · A room is a "sala" or "room", not a "deco.chat"
+- Agent: claude-opus-5-5
+- Context: The human asked to rename vibebook to deco.chat in the app. The UI used "vibebook" for the product and also as the noun for one room ("Seus vibebooks", "Novo vibebook").
+- Decision: The product name is "deco.chat". The noun for one room is "sala" (PT) or "room" (EN): "Suas salas", "Nova sala". The default room title is "Nova sala". A room titled "Novo vibebook" still gets an automatic title.
+- Other options: "Seus deco.chats". "Seus chats".
+- Risk: low
+- Undo: Revert the commit.
+- Status: open

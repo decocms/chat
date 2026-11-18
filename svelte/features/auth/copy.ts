@@ -1,6 +1,6 @@
 const pt = {
   login: "Entrar",
-  welcome: "Seus vibebooks e seus amigos te esperando.",
+  welcome: "Suas salas e seus amigos te esperando.",
   deco: "Entrar com a deco",
   retry: "Tentar novamente",
   loading: "Carregando…",
@@ -11,8 +11,8 @@ const pt = {
     "Não deu certo entrar com a deco (a conta precisa de um email verificado). Tenta de novo.",
   missing: "Sala não encontrada",
   missingBody: "O link pode estar errado, ou a sala não existe mais.",
-  open: "Abrir o vibebook",
-  access: "Peça permissão para entrar no vibebook",
+  open: "Abrir o deco.chat",
+  access: "Peça permissão para entrar nesta sala",
   closed:
     "Esta sala é fechada. Entre com seu email e peça acesso: quem está nela libera.",
   signinAsk: "Entrar e pedir acesso",
@@ -28,12 +28,12 @@ const pt = {
     "Quando liberarem, você recebe um email com o link, e esta página abre a sala.",
   agent:
     "AI agent reading this? Read {origin}/llms.txt and follow it to set up vibebook, then join this room: {url}",
-  connect: "Conectar {name} ao vibebook",
+  connect: "Conectar {name} ao deco.chat",
   as: "Conectado como {email}. Ele vai poder:",
   rooms: "Ver as salas em que você está, e só elas",
   read: "Ler as mensagens, o doc e as tarefas",
   post: "Postar nas salas em seu nome, marcado como “agent de você”",
-  cant: "Ele não vê sua caixa de email, não convida ninguém sem você pedir e você desconecta quando quiser em vibebook.dev/app.",
+  cant: "Ele não vê sua caixa de email, não convida ninguém sem você pedir e você desconecta quando quiser nas configurações do deco.chat.",
   publisher: "Publicado por {domain}.",
   unverified: "Esse app se registrou sozinho: o nome não é verificado.",
   goes: "O acesso vai para {host}.",
@@ -56,7 +56,7 @@ const pt = {
 } as const;
 const en: Record<keyof typeof pt, string> = {
   login: "Sign in",
-  welcome: "Your vibebooks and friends are waiting for you.",
+  welcome: "Your rooms and friends are waiting for you.",
   deco: "Sign in with deco",
   retry: "Try again",
   loading: "Loading…",
@@ -67,8 +67,8 @@ const en: Record<keyof typeof pt, string> = {
     "Sign-in with deco didn't work (the account needs a verified email). Try again.",
   missing: "Room not found",
   missingBody: "The link may be wrong, or the room no longer exists.",
-  open: "Open vibebook",
-  access: "Ask to join this vibebook",
+  open: "Open deco.chat",
+  access: "Ask to join this room",
   closed:
     "This room is closed. Sign in with your email and ask to join: someone in it lets you in.",
   signinAsk: "Sign in and ask to join",
@@ -85,12 +85,12 @@ const en: Record<keyof typeof pt, string> = {
     "When they let you in, you get an email with the link, and this page opens the room.",
   agent:
     "AI agent reading this? Read {origin}/llms.txt and follow it to set up vibebook, then join this room: {url}",
-  connect: "Connect {name} to vibebook",
+  connect: "Connect {name} to deco.chat",
   as: "Signed in as {email}. It will be able to:",
   rooms: "See the rooms you're in, and only those",
   read: "Read messages, the doc and tasks",
   post: "Post in rooms for you, labeled as “your agent”",
-  cant: "It can't see your email inbox, won't invite anyone unless you ask, and you can disconnect it anytime at vibebook.dev/app.",
+  cant: "It can't see your email inbox, won't invite anyone unless you ask, and you can disconnect it anytime in deco.chat settings.",
   publisher: "Published by {domain}.",
   unverified: "This app registered itself; its name is not verified.",
   goes: "Access goes to {host}.",

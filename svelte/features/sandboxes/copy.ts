@@ -47,7 +47,7 @@ const pt = {
   credentialRemoveBody:
     "Esta credencial deixará de estar disponível para seus sandboxes.",
   removeKeyBody:
-    "Os sandboxes continuam no Freestyle, mas o vibebook não poderá ligar, pausar ou abrir o terminal sem a chave.",
+    "Os sandboxes continuam no Freestyle, mas o deco.chat não poderá ligar, pausar ou abrir o terminal sem a chave.",
   removeTokenBody:
     "Sandboxes que já têm o token continuam logados até você apagá-los.",
   costHelp: "Rodando, cerca de US$0,13/hora na sua conta; pausado, só o disco.",
@@ -126,7 +126,7 @@ const en: Record<SandboxCopyKey, string> = {
   credentialRemoveBody:
     "This credential will no longer be available to your sandboxes.",
   removeKeyBody:
-    "The sandboxes remain in Freestyle, but Vibebook cannot start, pause or open their terminal without the key.",
+    "The sandboxes remain in Freestyle, but deco.chat cannot start, pause or open their terminal without the key.",
   removeTokenBody:
     "Sandboxes that already have the token remain logged in until you delete them.",
   costHelp:

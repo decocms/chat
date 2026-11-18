@@ -62,7 +62,7 @@
         )
       : 0,
   );
-  const title = $derived(room.title ?? "vibebook");
+  const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
   const details = $derived(roomStatus(room, seen, waits, now, lang));
   const icon = $derived(roomIcon(room));

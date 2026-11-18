@@ -1,6 +1,6 @@
 // Mention emails: someone @mentions you and you don't read it within MAIL_DELAY_MS → one email, written by the fast
 // model (what they want from you, in one line, plus the context), with the room/epic/people and a button back.
-// Your email inbox is the vibebook inbox. Queue + timing live in the Book (mail_q); this file is the pure parts.
+// Your email inbox is the deco.chat inbox. Queue + timing live in the Book (mail_q); this file is the pure parts.
 import type { Lang } from "./lang";
 import { emailHtml, escapeHtml, hmac, safeEqual } from "./auth";
 
@@ -45,7 +45,7 @@ export const plainCopy = (f: MailFacts): MailCopy => ({
   context: [],
 });
 
-export const COPY_PROMPT = (f: MailFacts) => `Você escreve o email que avisa ${f.toName} que foi mencionada(o) numa sala do vibebook e ainda não viu.
+export const COPY_PROMPT = (f: MailFacts) => `Você escreve o email que avisa ${f.toName} que foi mencionada(o) numa sala do deco.chat e ainda não viu.
 Objetivo: em 5 segundos ${f.toName} entende o que querem dela(e) e se precisa agir.
 Sala: ${f.room.title}${f.epic ? `\nÉpico (assunto): ${f.epic.title}` : ""}
 Pessoas na conversa: ${f.people.join(", ")}
@@ -64,8 +64,8 @@ export async function unsubscribeUrl(secret: string, origin: string, email: stri
 export const validUnsub = async (secret: string, email: string, sig: string) => safeEqual(sig, await hmac(secret, `mail-off:${email}`));
 
 const MAIL_T = {
-  pt: { mentioned: "te mencionou em", tasks: "Suas tarefas abertas aqui", reply: "Responder no vibebook", inConv: "Na conversa:", replyTo: (w: string) => `Responder este email vai direto para ${w}.`, why: "Você recebe isto quando alguém te menciona e você não viu em 5 minutos.", off: "Não quero esses emails", replyText: "Responder:" },
-  en: { mentioned: "mentioned you in", tasks: "Your open tasks here", reply: "Reply on vibebook", inConv: "In the conversation:", replyTo: (w: string) => `Replying to this email goes straight to ${w}.`, why: "You get this when someone mentions you and you haven't seen it in 5 minutes.", off: "Stop these emails", replyText: "Reply:" },
+  pt: { mentioned: "te mencionou em", tasks: "Suas tarefas abertas aqui", reply: "Responder no deco.chat", inConv: "Na conversa:", replyTo: (w: string) => `Responder este email vai direto para ${w}.`, why: "Você recebe isto quando alguém te menciona e você não viu em 5 minutos.", off: "Não quero esses emails", replyText: "Responder:" },
+  en: { mentioned: "mentioned you in", tasks: "Your open tasks here", reply: "Reply on deco.chat", inConv: "In the conversation:", replyTo: (w: string) => `Replying to this email goes straight to ${w}.`, why: "You get this when someone mentions you and you haven't seen it in 5 minutes.", off: "Stop these emails", replyText: "Reply:" },
 };
 export function mailBody(f: MailFacts, c: MailCopy, url: string, unsub: string, replyable = true) {
   const t = MAIL_T[f.lang];

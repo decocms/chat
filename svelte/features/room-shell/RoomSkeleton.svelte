@@ -211,7 +211,7 @@
         class="flex min-w-0 shrink-0 items-center gap-1 border-b border-border bg-background px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:hidden"
       >
         <IconButton
-          label={t("Seus vibebooks")}
+          label={t("Suas salas")}
           size="icon"
           class="rounded-full"
           onclick={onhome}><Icon icon={ArrowLeft} size={16} /></IconButton
