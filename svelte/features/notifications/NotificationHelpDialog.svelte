@@ -13,7 +13,7 @@
   /**
    * This device's notification settings and help: permission state, the
    * denied/iOS/unsupported explanations, mute, retry and a test push. Shared by
-   * the account menu's notifications switch and the bell in account settings.
+   * the notifications switch on the settings page.
    */
   let {
     owner,

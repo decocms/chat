@@ -46,7 +46,6 @@
     onhome,
     onarchived,
     onnew,
-    onsettings,
     onroomsettings,
     onsearch,
     oninbox,

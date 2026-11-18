@@ -7,10 +7,7 @@ import {
   type WebSocketRoute,
 } from "@playwright/test";
 import * as z from "zod/mini";
-import {
-  nativeBrowserFixtures,
-  openNativeRoomPane,
-} from "./native-browser-fixtures";
+import { nativeBrowserFixtures } from "./native-browser-fixtures";
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
 assert(
@@ -109,15 +106,21 @@ try {
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(`${base}/b/${room}?ui=svelte`, {
+  // Cloud agents live in Settings, on the room you pick (here, from the room's link).
+  const cloud = `${base}/settings?room=${room}&ui=svelte#cloud`;
+  await page.goto(cloud, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
   report.loadedVersion = await page
     .locator('meta[name="vb-v"]')
     .getAttribute("content");
-  await openNativeRoomPane(page, "agents");
-  const pane = page.locator("[data-native-agents]");
+  // A new account first sees the New UI welcome.
+  await page
+    .getByRole("button", { name: "Got it", exact: true })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
+  const pane = page.locator("#cloud");
   await expect(pane.getByText(machine.name, { exact: false })).toBeVisible();
   await pane.getByRole("button", { name: "Terminal", exact: true }).click();
   const terminal = page.locator("[data-native-terminal-renderer]");
@@ -240,7 +243,7 @@ try {
   await expect(terminal).toHaveCount(0);
   await expect(page.locator(".xterm")).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await openNativeRoomPane(page, "agents");
+  await page.goto(cloud, { waitUntil: "domcontentloaded" });
   await pane.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(terminal).toHaveAttribute("data-terminal-phase", "connected");
   assert.equal(connections, 2);

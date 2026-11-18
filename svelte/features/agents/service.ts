@@ -1,3 +1,4 @@
+import { get } from "svelte/store";
 import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../roomConnection";
 import type { Wait } from "../home/model";
@@ -7,6 +8,8 @@ import { createAgentsApi, type AgentsApi } from "./api";
 import { createAgentAccountSession } from "./account";
 import { createRoomAgentSession, type RoomAgentSession } from "./room";
 import { createSandboxCredentials } from "../sandboxes/credentials";
+import { createSandboxSession } from "../sandboxes/session";
+import { createTerminalSession } from "../sandboxes/terminalSession";
 import { agentClock, type AgentClock } from "./lease";
 /** One authenticated document owns these actors. Identity reset is synchronous and must precede room/account replacement. */
 export function createAgentsService(options: {
@@ -25,7 +28,11 @@ export function createAgentsService(options: {
     active = true,
     sessionDenied = false,
     attached: RoomAgentSession | null = null;
-  const rooms = new Map<string, RoomAgentSession>();
+  const rooms = new Map<string, RoomAgentSession>(),
+    clouds = new Set<{
+      sandboxes: ReturnType<typeof createSandboxSession>;
+      terminal: ReturnType<typeof createTerminalSession>;
+    }>();
   let attachment: object | null = null;
   const refreshTimers = new Map<string, unknown>();
   let personal: ReturnType<typeof createAgentAccountSession> | null = null,
@@ -65,12 +72,16 @@ export function createAgentsService(options: {
     personal?.deny();
     credentials?.deny();
     for (const room of rooms.values()) room.deny(true);
+    for (const cloud of clouds) {
+      cloud.terminal.close(undefined, false);
+      cloud.sandboxes.deny(true);
+    }
     options.onChanged?.();
     options.onUnauthorized?.();
   }
   function roomActor(id: string) {
     if (!personal || !credentials) throw Error("Agent account unavailable");
-    return createRoomAgentSession(account, id, api, personal, credentials, {
+    return createRoomAgentSession(account, id, api, personal, {
       origin: options.origin,
       clock,
       storage: options.storage,
@@ -100,10 +111,9 @@ export function createAgentsService(options: {
       clock,
       onUnauthorized: deny,
       onChanged: () => {
-        if (active && attached?.current()) {
-          void attached.sandboxes.refresh(true);
-          invalidate();
-        }
+        // A saved or removed credential settles once a sandbox read reports it.
+        for (const cloud of clouds) void cloud.sandboxes.refresh(true);
+        invalidate();
       },
     });
   }
@@ -127,6 +137,50 @@ export function createAgentsService(options: {
     account(email: string) {
       identity(email);
       return personal;
+    },
+    /** Settings › Cloud agents: one room's sandboxes with your account's freestyle key and Claude token (shared
+     * with the room's own scope). The caller disposes it when the picked room changes or the page closes. */
+    cloud(email: string, roomId: string) {
+      identity(email);
+      if (!active || !credentials) return null;
+      let live = true;
+      const current = () =>
+        live && active && account === email && !sessionDenied;
+      const sandboxes = createSandboxSession(email, roomId, api, credentials, {
+          clock,
+          current,
+          onUnauthorized: deny,
+          // A sandbox made, paused or removed here shows in that room's agents (its sidebar foot).
+          onChanged: () => invalidate(roomId),
+        }),
+        terminal = createTerminalSession(email, roomId, api, {
+          clock,
+          origin: options.origin,
+          current,
+          onUnauthorized: deny,
+          canOpen: (id, vmId) =>
+            sandboxes.current() &&
+            !!get(sandboxes.state).data?.sandboxes.some(
+              (card) =>
+                card.id === id &&
+                card.vm_id === vmId &&
+                card.state !== "deleted",
+            ),
+        });
+      sandboxes.visible(true);
+      const scope = { sandboxes, terminal };
+      clouds.add(scope);
+      return {
+        sandboxes,
+        terminal,
+        credentials,
+        dispose() {
+          live = false;
+          clouds.delete(scope);
+          terminal.dispose();
+          sandboxes.dispose();
+        },
+      };
     },
     sync(
       room: Room,

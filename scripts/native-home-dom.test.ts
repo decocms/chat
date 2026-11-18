@@ -221,7 +221,7 @@ test("direct Account composition preserves native profile confirmation and suppl
   await h.services.personal.refresh();
   await flush();
   expect(get(h.services.account.state).phase).toBe("idle");
-  h.services.actions.openAccount("all");
+  h.services.actions.openAccount();
   await flush();
   expect(document.querySelector("[data-native-notifications]") !== null).toBe(
     true,
@@ -230,40 +230,8 @@ test("direct Account composition preserves native profile confirmation and suppl
     true,
   );
 });
-test("the rail's account menu opens account sections, drives the device notifications and signs out through the application flow", async () => {
-  let bells = 0;
-  // A browser that already allows notifications on this device.
-  const allowed = {
-    permission: "granted",
-    requestPermission: async () => "granted",
-  };
-  for (const scope of [window, globalThis]) {
-    const prior = Object.getOwnPropertyDescriptor(scope, "Notification");
-    Object.defineProperty(scope, "Notification", {
-      value: allowed,
-      configurable: true,
-      writable: true,
-    });
-    cleanups.push(() => {
-      if (prior) Object.defineProperty(scope, "Notification", prior);
-      else Reflect.deleteProperty(scope, "Notification");
-    });
-  }
-  const h = shellFixture(
-      {},
-      {
-        pwa: () => {
-          const service = createPwaService();
-          return {
-            ...service,
-            bell() {
-              bells++;
-              return service.bell();
-            },
-          };
-        },
-      },
-    ),
+test("you at the sidebar's foot open the settings page: every section on it, leaving closes it, sign out runs the application flow", async () => {
+  const h = shellFixture(),
     target = document.createElement("div");
   document.body.append(target);
   const component = flushSync(() =>
@@ -278,76 +246,39 @@ test("the rail's account menu opens account sections, drives the device notifica
     }),
   );
   await flush();
-  await waitForView(target, "[data-native-user-menu-trigger]");
-  const trigger = target.querySelector<HTMLButtonElement>(
-    "[data-native-user-menu-trigger]",
+  await waitForView(target, "a[data-native-account-row]");
+  // A plain click on a data-nav link: the shell follows it in place.
+  const row = target.querySelector<HTMLAnchorElement>(
+    "a[data-native-account-row]",
   )!;
-  const item = async (name: string) => {
-    if (!document.querySelector("[data-native-user-menu]")) {
-      trigger.focus();
-      trigger.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
-    }
-    await waitForView(document, `[data-user-menu-item="${name}"]`);
-    return document.querySelector<HTMLElement>(
-      `[data-user-menu-item="${name}"]`,
-    )!;
-  };
-  for (const [name, section] of [
-    ["profile", "profile"],
-    ["agents", "agents"],
-    ["settings", "all"],
-  ] as const) {
-    (await item(name)).click();
-    const deadline = Date.now() + 2_000;
-    while (!get(h.services.account.state).open && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await flush();
-    }
-    expect(get(h.services.account.state).open).toBe(true);
-    expect(get(h.services.account.state).section).toBe(section);
-    expect(h.services.account.returnFocus() === trigger).toBe(true);
-    if (name === "profile") {
-      // The loading placeholder gives way to the settings without pulling
-      // focus back to the avatar: it lands on the name field.
-      const focused = Date.now() + 2_000;
-      while (
-        document.activeElement?.id !== "account-name" &&
-        Date.now() < focused
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await flush();
-      }
-      expect(document.activeElement?.id).toBe("account-name");
-    }
-    if (name !== "settings") {
-      h.services.account.close();
-      await flush();
-      continue;
-    }
-    // Closed by the person (Esc), the dialog hands focus back to the avatar.
-    await waitForView(document, "[role=dialog]");
-    (document.activeElement ?? document.body).dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-    );
-    const closed = Date.now() + 2_000;
-    while (
-      (get(h.services.account.state).open ||
-        document.activeElement !== trigger) &&
-      Date.now() < closed
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await flush();
-    }
-    expect(get(h.services.account.state).open).toBe(false);
-    expect(document.activeElement === trigger).toBe(true);
+  h.navigate(new MouseEvent("click", { button: 0, cancelable: true }), row);
+  await waitForView(document, "#account-name");
+  expect(new URL(h.href()).pathname).toBe("/settings");
+  expect(get(h.services.state).route.kind).toBe("settings");
+  expect(get(h.services.account.state).open).toBe(true);
+  // One page, one anchor per section (the sidebar's rows).
+  for (const id of ["profile", "agents", "cloud", "device"])
+    expect(document.getElementById(id) !== null).toBe(true);
+  expect(document.querySelector("[data-native-notifications]") !== null).toBe(
+    true,
+  );
+  expect(document.querySelector("[data-native-user-menu]")).toBeNull();
+  // Going home leaves the page: the account session closes with it.
+  h.services.actions.home();
+  const left = Date.now() + 2_000;
+  while (get(h.services.account.state).open && Date.now() < left) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
   }
-  (await item("notifications")).click();
-  await flush();
-  expect(bells).toBe(1);
-  expect(get(h.services.pwa.state).muted).toBe(true);
-  (await item("logout")).click();
+  expect(get(h.services.account.state).open).toBe(false);
+  h.services.actions.openAccount();
+  await waitForView(document, "#account-name");
+  const signOut = [
+    ...document.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((button) =>
+    /^(Sair|Sign out)$/.test(button.textContent?.trim() ?? ""),
+  )!;
+  signOut.click();
   const deadline = Date.now() + 2_000;
   while (!h.documents.includes("/") && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 0));

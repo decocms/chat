@@ -231,3 +231,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The rail on desktop also has a search button, so the room has two ways to open search (the DM sidebar already had two).
 - Undo: Remove `SearchField` from `svelte/Sidebar.svelte`.
 - Status: open
+
+### 2026-11-18 · feat/settings-page · Cloud agents on the settings page
+- Agent: claude-opus-5-5
+- Context: The human asked for one settings page (no menu, no dialog) that the account row opens. Sandboxes belong to one room, but the settings page is not in a room.
+- Decision: The Cloud agents section has a room picker. It starts on the room you came from (`/settings?room=<id>#cloud`), else the room you opened last. "Cloud agent" in a room's sidebar foot and the phone agents pane are links to that section. The room agent session no longer makes its own sandbox and terminal sessions. I added `CloudSettings.svelte` and `SettingsNav.svelte`, because no existing component shows sandboxes outside a room or lists page sections in the sidebar.
+- Other options: Keep sandboxes in the room agents pane and put only the keys on the settings page. That keeps two places for one feature. Make sandboxes account-wide. That changes the server model.
+- Risk: medium
+- Undo: Revert the commit. The account menu, the account sheet and the sandbox panel in the agents pane come back.
+- Status: open

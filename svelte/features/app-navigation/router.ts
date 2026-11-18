@@ -9,6 +9,8 @@ import { appRouteTarget } from "../apps/model";
 export type ApplicationRoute =
   | { kind: "home" }
   | { kind: "archived" }
+  /** Your account, agents, cloud agents and this device; `#profile`, `#cloud`… scroll to a section. */
+  | { kind: "settings" }
   | { kind: "room"; target: RoomTarget }
   | { kind: "document"; url: string };
 export const roomIdFromPath = (pathname: string) =>
@@ -31,6 +33,7 @@ export function applicationRoute(href: string): ApplicationRoute {
     roomId = roomIdFromPath(url.pathname);
   if (url.pathname === "/app" || url.pathname === "/") return { kind: "home" };
   if (url.pathname === "/archived") return { kind: "archived" };
+  if (url.pathname === "/settings") return { kind: "settings" };
   if (roomId) {
     const mid = /^#m(\d+)$/.exec(url.hash)?.[1],
       file = /^#f([a-z0-9]+)$/.exec(url.hash)?.[1],

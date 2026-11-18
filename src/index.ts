@@ -203,7 +203,7 @@ app.use("*", async (c, next) => {
 //   so no site can overlay an invisible "Permitir" on the consent page (clickjacking).
 // The Studio site's paths never see the session cookie (toSite), so Studio's own origin may call them.
 const CROSS_OK = /^\/(deco|_serverFn|_site)\//;
-const NO_FRAME = /^\/(app|archived|login|b\/|authorize|auth\/|mail\/)/;
+const NO_FRAME = /^\/(app|archived|settings|login|b\/|authorize|auth\/|mail\/)/;
 app.use("*", async (c, next) => {
   const url = new URL(c.req.url);
   const origin = c.req.header("origin");
@@ -292,6 +292,12 @@ app.get("/archived", async (c) => {
   const email = await identify(c);
   const next = uiNavigationUrl("/archived", c.req.url, uiVariant(c.req.url));
   return email ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl(`/login?next=${encodeURIComponent(next)}`, c.req.url, uiVariant(c.req.url)));
+});
+// Settings (your profile, agents, cloud agents, this device): Svelte only; the classic app keeps its account sheet.
+app.get("/settings", async (c) => {
+  const email = await identify(c), ui = uiVariant(c.req.url);
+  if (!email) return c.redirect(uiNavigationUrl(`/login?next=${encodeURIComponent(uiNavigationUrl("/settings", c.req.url, ui))}`, c.req.url, ui));
+  return ui === "svelte" ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl("/app", c.req.url, ui));
 });
 // A room link: members get the app; anyone else (and link-preview bots) a page with the room's name and "Pedir
 // acesso". The title is readable by whoever holds the link, on purpose: that's what makes the shared card useful.

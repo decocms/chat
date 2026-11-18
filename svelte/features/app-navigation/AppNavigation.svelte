@@ -302,7 +302,7 @@
       }}
     />
   </div>
-  {#if $personal.me}<!-- In a room, and on the home's desktop, the account menu sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
+  {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
           aria-hidden="true"
           class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
         ></span>{/if}

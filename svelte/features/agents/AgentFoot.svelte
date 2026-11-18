@@ -5,6 +5,7 @@
   import Progress from "../../lib/studio/Progress.svelte";
   import { Cloud01, type IconNode } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
+  import { settingsHref } from "../account/settings";
   import { prettyModel } from "../chat/model";
   import type { RoomAgentSession } from "./room";
   import {
@@ -103,9 +104,11 @@
   ) => {
     if (owner.current()) void owner.delivery(target, on);
   };
+  // Cloud agents (freestyle key, Claude token, sandboxes) live in Settings, on this room.
+  const cloud = $derived(settingsHref("cloud", owner.roomId));
   function goTo(m: RoomMachine) {
     if (!owner.current()) return;
-    if (m.kind === "sandbox" || !$runner.available) onopen();
+    if (!$runner.available) onopen();
     else void owner.runner.focus(owner.roomId);
   }
   const who = (a: Agent) =>
@@ -234,13 +237,11 @@
             ><span class="tw:text-muted-foreground"
               >{text("footSandboxSub")}</span
             ></span
-          ><button
-            type="button"
+          ><a
+            href={cloud}
+            data-nav
             data-agent-setup="sandbox"
-            class={btn}
-            onclick={() => {
-              if (owner.current()) onopen();
-            }}>{text("footSetUp")}</button
+            class={cn(btn, "tw:no-underline")}>{text("footSetUp")}</a
           >
         </div>
         <div class={opt}>
@@ -287,11 +288,14 @@
           data-agent-machine={m.id}
           class="tw:flex tw:min-h-11 tw:min-w-0 tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5"
         >
-          <button
-            type="button"
+          <!-- A sandbox opens Settings › Cloud agents (its terminal is there); a computer focuses its terminal. -->
+          <svelte:element
+            this={m.kind === "sandbox" ? "a" : "button"}
+            {...m.kind === "sandbox"
+              ? { href: cloud, "data-nav": "" }
+              : { type: "button", onclick: () => goTo(m) }}
             title={text("footGoTerminal", { name: m.name })}
             class="tw:relative tw:flex tw:size-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:p-0 tw:bg-muted tw:text-foreground tw:hover:opacity-80"
-            onclick={() => goTo(m)}
             ><Icon
               icon={m.kind === "sandbox" ? Cloud01 : LAPTOP}
               class="tw:size-4"
@@ -299,7 +303,7 @@
               class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar {m.online
                 ? 'tw:bg-brand'
                 : 'tw:bg-warning'}"
-            ></span></button
+            ></span></svelte:element
           ><span class="tw:grid tw:min-w-0 tw:flex-1"
             ><span class="tw:truncate tw:text-sm tw:font-medium">{m.name}</span
             >{#if !m.online && m.kind !== "sandbox"}<span
@@ -349,27 +353,16 @@
           true,
         )}{/each}
       <!-- Cloud agents (freestyle sandboxes) stay one click away once you have agents (Gui #3173). -->
-      <button
-        type="button"
+      <a
+        href={cloud}
+        data-nav
         data-agent-cloud
-        class="tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:text-xs tw:text-muted-foreground tw:hover:bg-muted tw:hover:text-foreground"
-        onclick={() => {
-          if (!owner.current()) return;
-          onopen();
-          // Straight to the sandboxes (freestyle key, create, terminal), below the pane's other sections.
-          setTimeout(
-            () =>
-              document
-                .querySelector("[data-native-sandboxes]")
-                ?.scrollIntoView({ block: "start", behavior: "smooth" }),
-            150,
-          );
-        }}
+        class="tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:text-xs tw:text-muted-foreground tw:no-underline tw:hover:bg-muted tw:hover:text-foreground"
         ><span
           aria-hidden="true"
           class="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center"
           ><Icon icon={Cloud01} class="tw:size-4" /></span
-        >{text("footAddCloud")}</button
+        >{text("footAddCloud")}</a
       >
     </div>{/if}
 {/if}

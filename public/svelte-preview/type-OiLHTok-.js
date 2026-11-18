@@ -1,0 +1,1 @@
+var e=`tw:font-sans tw:antialiased tw:[font-feature-settings:'cv01','cv02','cv03','cv04','cv08','cv10','ss08'] tw:[font-optical-sizing:auto]`;export{e as t};

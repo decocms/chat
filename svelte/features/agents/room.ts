@@ -15,9 +15,6 @@ import {
 } from "./model";
 import { createLocalRunner } from "./runner";
 import type { AgentAccountSession, AgentAccountState } from "./account";
-import { createSandboxSession } from "../sandboxes/session";
-import { createTerminalSession } from "../sandboxes/terminalSession";
-import type { SandboxCredentials } from "../sandboxes/credentials";
 export type RoomAgentState = {
   room: Room | null;
   thread: string;
@@ -46,7 +43,6 @@ export function createRoomAgentSession(
   roomId: string,
   api: AgentsApi,
   accountOwner: AgentAccountSession,
-  credentials: SandboxCredentials,
   options: {
     origin: string;
     clock?: AgentClock;
@@ -133,34 +129,6 @@ export function createRoomAgentSession(
   const scoped = () => active && attached && member;
   const current = () => scoped() && !denied;
   const mutable = () => current() && (options.allowMutation?.() ?? true);
-  const sandboxes = createSandboxSession(account, roomId, api, credentials, {
-    clock,
-    current,
-    allowMutation: options.allowMutation,
-    onUnauthorized: options.onUnauthorized,
-    onMembershipDenied: deny,
-    onChanged: () => {
-      if (active) {
-        options.onChanged?.();
-        if (attached) void refresh(true);
-      }
-    },
-  });
-  const terminal = createTerminalSession(account, roomId, api, {
-    clock,
-    origin: options.origin,
-    current,
-    onUnauthorized: options.onUnauthorized,
-    canOpen: (id, vmId) =>
-      sandboxes.current() &&
-      !!get(sandboxes.state).data?.sandboxes.some(
-        (card) =>
-          card.id === id && card.vm_id === vmId && card.state !== "deleted",
-      ),
-  });
-  const stopSandbox = sandboxes.state.subscribe(() => {
-    if (active) terminal.reconcile();
-  });
   function feedback(
     kind: "setupFeedback" | "listeningFeedback",
     milliseconds: number,
@@ -228,7 +196,6 @@ export function createRoomAgentSession(
           if (!scoped() || ticket !== readTicket) return;
           denied = false;
           identityRequired = false;
-          sandboxes.authorize(true);
           const previous = get(state),
             before = agentPresence(previous.data, account, clock.now()),
             after = agentPresence(data, account, clock.now());
@@ -297,9 +264,6 @@ export function createRoomAgentSession(
     ])
       cancelTimer(name);
     runner.cancel();
-    terminal.close(undefined, false);
-    sandboxes.deny(sessionLost);
-    sandboxes.visible(false);
     state.update((value) => ({
       ...value,
       room: null,
@@ -322,9 +286,6 @@ export function createRoomAgentSession(
     roomId,
     state,
     runner,
-    sandboxes,
-    credentials,
-    terminal,
     current,
     deny,
     refresh,
@@ -355,8 +316,6 @@ export function createRoomAgentSession(
           waits: denied || !member ? [] : waits,
           pane,
         }));
-      sandboxes.authorize(room.members.includes(account) && !denied);
-      sandboxes.visible(current() && pane && visible);
       settleDismiss();
       if (first) {
         unsubscribeAccount?.();
@@ -378,7 +337,6 @@ export function createRoomAgentSession(
         }
       }
       if (!current()) {
-        terminal.close(undefined, false);
         runner.cancel();
         cancelTimer("clock");
         if (!member && (!denied || before.room || before.data)) deny();
@@ -612,11 +570,7 @@ export function createRoomAgentSession(
       if (active) state.update((value) => ({ ...value, welcome: false }));
     },
     hasPending() {
-      return (
-        !!pendingToggle ||
-        !!pendingDismiss ||
-        ["pending", "unconfirmed"].includes(get(sandboxes.state).phase)
-      );
+      return !!pendingToggle || !!pendingDismiss;
     },
     detach() {
       attached = false;
@@ -626,8 +580,6 @@ export function createRoomAgentSession(
       reader.cancel();
       readPromise = null;
       runner.cancel();
-      terminal.close(undefined, false);
-      sandboxes.visible(false);
       unsubscribeAccount?.();
       unsubscribeAccount = null;
       for (const name of ["clock", "setupFeedback", "listeningFeedback"])
@@ -654,9 +606,6 @@ export function createRoomAgentSession(
       reader.cancel();
       toggleLease.cancel();
       runner.dispose();
-      terminal.dispose();
-      sandboxes.dispose();
-      stopSandbox();
       unsubscribeAccount?.();
       unsubscribeSource();
       for (const timer of timers.values()) clock.cancel(timer);

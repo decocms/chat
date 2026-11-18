@@ -167,7 +167,7 @@ test("skip cancels polling and preserves browser reload flags without cancelling
   h.owner.skipClaude();
   expect(h.flags.get(ONBOARDING_SKIP_CLAUDE)).toBe("1");
   expect(get(h.owner.state).step).toBe(3);
-  h.profile.open("profile");
+  h.profile.open();
   const modal = get(h.profile.state).binding;
   h.owner.skipHome();
   expect(h.flags.get(ONBOARDING_DONE)).toBe("1");
@@ -276,7 +276,7 @@ test("connect polling is bounded and never restarts from passive canonical rende
 test("a disposed inline owner cannot close replacement profile or room dialogs", async () => {
   const h = await fixture();
   const oldProfile = get(h.owner.state).profileBinding!;
-  h.profile.open("profile");
+  h.profile.open();
   const newProfile = get(h.profile.state).binding;
   h.profile.close(oldProfile);
   expect(get(h.profile.state).binding === newProfile).toBe(true);

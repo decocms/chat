@@ -12,6 +12,7 @@
   import { createApplicationInbox } from "./inbox";
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
+  import SettingsNav from "../app-navigation/SettingsNav.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
@@ -28,10 +29,6 @@
   import type { HomeBridge } from "../home/types";
   import { roomAvatarVersion } from "../room-scope/model";
   import { roomLabel } from "../home/model";
-  import {
-    provideUserMenu,
-    type UserMenuActions,
-  } from "../app-navigation/menuBridge";
   let {
     services,
     roomSnippet,
@@ -101,11 +98,28 @@
     if (!$application.sessionDenied) {
       if ($application.route.kind === "home") void homeModule.ensure();
       if ($application.route.kind === "archived") void archivedModule.ensure();
-      if ($accountView.open) void accountModule.ensure();
+      if ($application.route.kind === "settings") void accountModule.ensure();
       if ($inboxView.binding && !$inboxView.binding.roomScope)
         void inboxModule.ensure();
     }
   });
+  // The settings page owns the account session while it's open (a page now, not a sheet).
+  $effect(() => {
+    const onSettings =
+      !$application.sessionDenied && $application.route.kind === "settings";
+    if (onSettings && $personal.me && !$accountView.open)
+      untrack(() => services.account.open());
+    else if (!onSettings && $accountView.open)
+      untrack(() => services.account.close());
+  });
+  // Home and settings share one frame: the rail, a sidebar (your DMs, or the settings' sections) and the page.
+  const settings = $derived($application.route.kind === "settings"),
+    paged = $derived($application.route.kind === "home" || settings);
+  const settingsRoom = $derived(
+    $application.route.kind === "settings"
+      ? new URL($application.href).searchParams.get("room")
+      : null,
+  );
   const ago = (ts: number) => {
     const minutes = Math.round((Date.now() - ts) / 60000);
     return minutes < 1
@@ -116,11 +130,6 @@
           ? `${Math.round(minutes / 60)} h`
           : `${Math.round(minutes / 1440)} d`;
   };
-  function nextTheme() {
-    if (!current()) return;
-    theme = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto";
-    effects.setTheme(theme);
-  }
   function chooseTheme(next: ApplicationTheme) {
     if (!current() || next === theme) return;
     theme = next;
@@ -129,23 +138,6 @@
   const language = (value: "pt" | "en") => {
     if (current() && value !== services.language) effects.setLanguage(value);
   };
-  // The avatar menu's actions, the same in the rail and in a phone room's sheet.
-  const menuActions: UserMenuActions = {
-    onaccount: (section, trigger) => {
-      if (current()) services.actions.openAccount(section, trigger);
-    },
-    pwa: untrack(() => services.pwa),
-    onlogout: () => {
-      if (current()) void services.actions.logout(false);
-    },
-  };
-  provideUserMenu({
-    ...menuActions,
-    lang: untrack(() => services.language),
-    theme: () => theme,
-    onsettheme: chooseTheme,
-    onlanguage: language,
-  });
   const displayName = (email: string) =>
     $room.room?.names?.[email] ||
     ($personal.me?.email === email
@@ -173,9 +165,6 @@
     },
     onnew: (trigger) => {
       if (current()) services.navigation.openCreate(trigger);
-    },
-    onsettings: (section) => {
-      if (current()) services.actions.openAccount(section);
     },
     onroomsettings: (id, trigger) => {
       if (current()) services.navigation.openSettings(id, trigger);
@@ -236,7 +225,7 @@
       : // Desktop: the same frame as a room, the rail outside it and the page scrolling inside; the home has your DM list beside it.
         [
           "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr_auto] tw:min-[901px]:h-dvh tw:min-[901px]:grid-rows-[minmax(0,1fr)] tw:min-[901px]:overflow-hidden tw:min-[901px]:bg-sidebar",
-          $application.route.kind === "home"
+          paged
             ? "tw:min-[901px]:grid-cols-[68px_273px_minmax(0,1fr)]"
             : "tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)]",
         ],
@@ -250,26 +239,39 @@
     {#if $personal.me}<AppNavigation
         controller={services.navigation}
         inRoom={$application.route.kind === "room"}
-        accountInSidebar={$application.route.kind === "home"}
+        accountInSidebar={paged}
         lang={services.language}
         onreload={() => {
           if (current()) services.actions.reload();
         }}
       />{/if}
-    {#if $personal.me && $application.route.kind === "home"}<!-- Desktop: one framed surface under the DM list and the page,
+    {#if $personal.me && paged}<!-- Desktop: one framed surface under the DM list and the page,
       the same as a room's (RoomLayoutFrame), so the list doesn't jump when you go from a DM back home. -->
       <div
         aria-hidden="true"
         data-home-surface
         class="tw:hidden tw:min-[901px]:col-start-2 tw:min-[901px]:col-end-4 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:mr-2 tw:min-[901px]:ml-px tw:min-[901px]:block tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge"
       ></div>
-      <!-- Your DMs: beside the home on desktop (the sidebar of that surface), under it on a phone. -->
+      <!-- Your DMs (or the settings' sections): beside the page on desktop (the sidebar of that surface); the DMs
+        go under the home on a phone, where the settings need no list. -->
       <aside
         data-native-home-dms
-        class="tw:col-start-1 tw:row-start-3 tw:min-w-0 tw:px-4 tw:pt-2 tw:pb-8 tw:min-[901px]:relative tw:min-[901px]:z-10 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:ml-px tw:min-[901px]:flex tw:min-[901px]:min-h-0 tw:min-[901px]:flex-col tw:min-[901px]:rounded-l-surface tw:min-[901px]:border-r tw:min-[901px]:border-border tw:min-[901px]:bg-sidebar tw:min-[901px]:px-2 tw:min-[901px]:py-2"
+        class="{settings
+          ? 'tw:hidden tw:min-[901px]:flex'
+          : ''} tw:col-start-1 tw:row-start-3 tw:min-w-0 tw:px-4 tw:pt-2 tw:pb-8 tw:min-[901px]:relative tw:min-[901px]:z-10 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:ml-px tw:min-[901px]:flex tw:min-[901px]:min-h-0 tw:min-[901px]:flex-col tw:min-[901px]:rounded-l-surface tw:min-[901px]:border-r tw:min-[901px]:border-border tw:min-[901px]:bg-sidebar tw:min-[901px]:px-2 tw:min-[901px]:py-2"
       >
-        <DmNav controller={services.navigation} lang={services.language} />
-        <SidebarFoot><AccountRow me={$personal.me} /></SidebarFoot>
+        {#if settings}<SettingsNav
+            lang={services.language}
+            onhome={() => {
+              if (current()) services.actions.home();
+            }}
+          />{:else}<DmNav
+            controller={services.navigation}
+            lang={services.language}
+          />{/if}
+        <SidebarFoot
+          ><AccountRow me={$personal.me} current={settings} /></SidebarFoot
+        >
       </aside>{/if}
     <div
       data-native-application-route
@@ -277,7 +279,7 @@
         ? "tw:col-start-1 tw:row-start-1 tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:min-[901px]:col-start-2"
         : [
             "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:mr-2 tw:min-[901px]:min-h-0 tw:min-[901px]:overflow-y-auto tw:min-[901px]:overscroll-contain",
-            $application.route.kind === "home"
+            paged
               ? // Inside the home's surface, right of the DM list: that surface draws the frame.
                 "tw:relative tw:min-[901px]:col-start-3 tw:min-[901px]:rounded-r-surface"
               : "tw:min-[901px]:col-start-2 tw:min-[901px]:ml-px tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge",
@@ -312,6 +314,34 @@
             }}
             {current}
           />{/if}
+      {:else if settings}{#if AccountSettings}<AccountSettings
+            owner={services.account}
+            device={services.device}
+            pwa={services.pwa}
+            agents={services.agents}
+            origin={effects.origin}
+            lang={services.language}
+            vb={{ t: services.t, ago }}
+            room={settingsRoom}
+            {theme}
+            onTheme={chooseTheme}
+            onLanguage={language}
+            onArchive={() => {
+              if (current()) services.actions.archived();
+            }}
+            onLogout={(all) => {
+              if (current() && services.account.current())
+                void services.actions.logout(all);
+            }}
+          />{:else}<DeferredRouteStatus
+            phase={$accountModuleView.phase}
+            lang={services.language}
+            label={services.language === "en" ? "Settings" : "Configurações"}
+            retry={() => {
+              void accountModule.retry();
+            }}
+            {current}
+          />{/if}
       {:else if $application.route.kind === "room"}<div
           data-native-room-root
           class="tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden"
@@ -319,84 +349,6 @@
           {@render roomSnippet({ services, openInbox, inbox })}
         </div>{/if}
     </div>
-    {#if AccountSettings}
-      <AccountSettings
-        owner={services.account}
-        device={services.device}
-        pwa={services.pwa}
-        agents={services.agents}
-        origin={effects.origin}
-        lang={services.language}
-        vb={{ t: services.t, ago }}
-        {theme}
-        onTheme={nextTheme}
-        onLanguage={language}
-        onArchive={() => {
-          if (current()) {
-            services.account.close();
-            services.actions.archived();
-          }
-        }}
-        onLogout={(all) => {
-          if (current() && services.account.current())
-            void services.actions.logout(all);
-        }}
-      />
-    {:else if $accountView.open && $accountView.binding}{#key $accountView.binding}<Snapshot
-          value={$accountView.binding}
-          >{#snippet children(binding)}<Dialog
-              open
-              onOpenChange={(open) => {
-                if (
-                  !open &&
-                  !AccountSettings &&
-                  current() &&
-                  services.account.owns(binding)
-                )
-                  services.account.close(binding);
-              }}
-            >
-              <DialogContent
-                data-vb-native
-                class="tw:top-auto tw:bottom-0 tw:left-0 tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:rounded-b-none tw:max-h-[90dvh] tw:overflow-auto tw:sm:top-0 tw:sm:right-0 tw:sm:left-auto tw:sm:h-full tw:sm:max-h-none tw:sm:w-96 tw:sm:max-w-96 tw:sm:rounded-none tw:font-sans tw:text-sm tw:text-foreground"
-                closeLabel={services.t("Fechar")}
-                preventScroll={false}
-                preventBodyPointerEvents={false}
-                preventOverflowTextSelection={false}
-                onCloseAutoFocus={(event) => {
-                  // Still open: the loaded settings replace this placeholder
-                  // and take focus themselves, so leave it off the trigger.
-                  if (get(accountView).open) {
-                    event.preventDefault();
-                    return;
-                  }
-                  const target = services.account.returnFocus();
-                  if (target?.isConnected) {
-                    event.preventDefault();
-                    target.focus();
-                  }
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle class="tw:pr-8 tw:font-sans"
-                    >{services.language === "en"
-                      ? "Your account"
-                      : "Sua conta"}</DialogTitle
-                  >
-                </DialogHeader><DeferredViewStatus
-                  phase={$accountModuleView.phase}
-                  lang={services.language}
-                  label={services.language === "en"
-                    ? "Your account"
-                    : "Sua conta"}
-                  retry={() => {
-                    void accountModule.retry();
-                  }}
-                  current={() => current() && services.account.owns(binding)}
-                />
-              </DialogContent>
-            </Dialog>{/snippet}</Snapshot
-        >{/key}{/if}
     {#if $inboxView.binding && !$inboxView.binding.roomScope}{#key $inboxView.binding}<Snapshot
           value={$inboxView.binding}
         >

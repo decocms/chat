@@ -985,7 +985,6 @@ test("navigation account reset releases private rename draft and return-focus re
       navigate: () => {},
       home: () => {},
       archived: () => {},
-      settings: () => {},
       rename: async () => ({ ok: true }),
     });
   const trigger = { isConnected: true } as HTMLElement;

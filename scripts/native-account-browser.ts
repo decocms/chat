@@ -58,14 +58,15 @@ try {
   report.loadedVersion = await page
     .locator('meta[name="vb-v"]')
     .getAttribute("content");
+  // A new account first sees the New UI welcome.
   await page
-    .getByRole("button", { name: "Your profile", exact: true })
-    .first()
-    .click();
-  const dialog = page.getByRole("dialog", {
-    name: "Your account",
-    exact: true,
-  });
+    .getByRole("button", { name: "Got it", exact: true })
+    .click({ timeout: 10_000 })
+    .catch(() => {});
+  // You, at the sidebar's foot, is a link to the settings page.
+  await page.locator("[data-native-account-row]:visible").first().click();
+  await expect(page).toHaveURL(/\/settings/);
+  const dialog = page.locator("[data-native-account]");
   await expect(dialog).toBeVisible();
   assert.equal(
     (await cdp.send("WebAuthn.getCredentials", { authenticatorId })).credentials
@@ -155,7 +156,6 @@ try {
       .length,
     1,
   );
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await page.reload({ waitUntil: "domcontentloaded" });
   const screen = page.locator("[data-device-lock]");
   await expect(screen).toBeVisible();
@@ -165,10 +165,8 @@ try {
     .getByRole("button", { name: "Unlock with Face ID", exact: true })
     .click();
   await expect(screen).not.toBeVisible();
-  await page
-    .getByRole("button", { name: "Your profile", exact: true })
-    .first()
-    .click();
+  // The reload stays on the settings page.
+  await expect(dialog).toBeVisible();
   await lock.uncheck();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("vb.lock")))

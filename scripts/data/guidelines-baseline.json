@@ -6,8 +6,6 @@
     "svelte/lib/studio/Tooltip.svelte": 1
   },
   "breakpoint": {
-    "svelte/features/account/AccountPanel.svelte": 1,
-    "svelte/features/application/AppShell.svelte": 8,
     "svelte/features/auth/AuthFrame.svelte": 1,
     "svelte/features/chat-interactive/CardChart.svelte": 1,
     "svelte/features/chat-interactive/CardTable.svelte": 1,

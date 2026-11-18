@@ -162,7 +162,7 @@
           {@render line("tw:w-28", "tw:h-2.5")}
         </div>
         <div class="tw:flex tw:h-11 tw:items-center tw:gap-2.5 tw:px-2.5">
-          <!-- You are online while the room loads: UserMenu's row as it will land. -->
+          <!-- You are online while the room loads: AccountRow as it will land. -->
           {#if me}<span class="tw:relative tw:flex tw:shrink-0"
               ><PersonAvatar
                 email={me.email}
