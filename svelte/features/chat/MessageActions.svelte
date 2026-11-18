@@ -4,7 +4,7 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Copy01, Link01, ReverseLeft } from "../../lib/studio/icons";
+  import { Check, Copy01, Link01, ReverseLeft } from "../../lib/studio/icons";
   import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import { cn } from "../../lib/studio/utils";
   import { copyChatText } from "./clipboard";
@@ -38,20 +38,23 @@
     void actions.request({ t: "react", id: message.id, emoji });
   }
   let issue = $state<"empty" | "clipboard" | null>(null),
-    copied = $state(false),
+    copied = $state<"text" | "link" | null>(null),
     retryLink = $state(false);
   let active = true,
-    sequence = 0;
+    sequence = 0,
+    reset: ReturnType<typeof setTimeout> | undefined;
   onDestroy(() => {
     active = false;
     sequence++;
+    clearTimeout(reset);
   });
   export async function copy(link = false) {
     if (!active) return;
     retryLink = link;
     const token = ++sequence;
     issue = null;
-    copied = false;
+    copied = null;
+    clearTimeout(reset);
     const text = link
       ? `${location.origin}/b/${roomId}${message.thread && message.thread !== "main" ? `?t=${encodeURIComponent(message.thread)}` : ""}#m${message.id}`
       : message.text || message.files?.map((f) => f.name).join("\n") || "";
@@ -62,8 +65,12 @@
     try {
       await copyChatText(text);
       if (active && token === sequence) {
-        copied = true;
+        // The button itself says it: its icon turns into ✓ and its tooltip reads "Copied", for a moment.
+        copied = link ? "link" : "text";
         navigator.vibrate?.(15);
+        reset = setTimeout(() => {
+          if (active && token === sequence) copied = null;
+        }, 1500);
       }
     } catch {
       if (active && token === sequence) issue = "clipboard";
@@ -112,36 +119,50 @@
         }}><Icon icon={ReverseLeft} size={16} /></IconButton
       >
       <IconButton
-        label={vb.t("Copiar o texto desta mensagem")}
+        label={copied === "text"
+          ? vb.t("Copiado")
+          : vb.t("Copiar o texto desta mensagem")}
         data-native-copy={message.id}
         class={floating
           ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
           : ""}
         onclick={() => {
           void copy();
-        }}><Icon icon={Copy01} size={16} /></IconButton
+        }}
+        ><Icon
+          icon={copied === "text" ? Check : Copy01}
+          size={16}
+        /></IconButton
       >
       {#if showLink}<IconButton
-          label={vb.t("Copiar o link desta mensagem")}
+          label={copied === "link"
+            ? vb.t("Copiado")
+            : vb.t("Copiar o link desta mensagem")}
           data-native-copylink={message.id}
           class={floating
             ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
             : ""}
           onclick={() => {
             void copy(true);
-          }}><Icon icon={Link01} size={16} /></IconButton
+          }}
+          ><Icon
+            icon={copied === "link" ? Check : Link01}
+            size={16}
+          /></IconButton
         >{/if}
     </TooltipProvider>
   </div>
-  {#if copied || issue}<div
+  <!-- Floating toolbar: the button shows it (✓ + tooltip), this is for screen readers. Inline (phones): a word. -->
+  {#if copied}<span
+      role="status"
+      class={floating ? "tw:sr-only" : "tw:text-xs tw:text-muted-foreground"}
+      >{vb.t("Copiado")}</span
+    >{/if}
+  {#if issue}<div
       class={floating
         ? "tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1"
         : "tw:contents"}
     >
-      {#if copied}<span
-          role="status"
-          class="tw:text-xs tw:text-muted-foreground">{vb.t("Copiado")}</span
-        >{/if}
       {#if issue}<span role="alert" class="tw:text-xs tw:text-destructive"
           >{vb.t(
             issue === "empty"
