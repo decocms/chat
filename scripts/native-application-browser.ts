@@ -404,7 +404,7 @@ async function expectThread(page: Page, roomId: string, thread = "main") {
         thread: url.searchParams.get("t") ?? "main",
       };
     })
-    .toEqual({ path: "/b/" + roomId, ui: "svelte", thread });
+    .toEqual({ path: "/b/" + roomId, ui: null, thread }); // Svelte is the default: no marker
 }
 async function nativeEdit(page: Page) {
   await openIntegratedPane(page, "doc");
@@ -547,12 +547,22 @@ try {
         ),
         html = await selected.text();
       assert.equal(selected.headers()["x-vibebook-ui"], "svelte");
+      // Svelte is the default; vanilla is the fallback, by URL or by this device's choice.
       const unselected = await owner.context.request.get(`${base}/b/${roomA}`);
-      assert.equal(unselected.headers()["x-vibebook-ui"], "vanilla");
-      assert(
-        !(await unselected.text()).includes("/svelte-preview/app.js"),
-        "Unselected vanilla default must remain",
-      );
+      assert.equal(unselected.headers()["x-vibebook-ui"], "svelte");
+      for (const fallback of [
+        owner.context.request.get(`${base}/b/${roomA}?ui=vanilla`),
+        owner.context.request.get(`${base}/b/${roomA}`, {
+          headers: { cookie: "vb_ui=vanilla" },
+        }),
+      ]) {
+        const response = await fallback;
+        assert.equal(response.headers()["x-vibebook-ui"], "vanilla");
+        assert(
+          !(await response.text()).includes("/svelte-preview/app.js"),
+          "The vanilla fallback must not load the Svelte app",
+        );
+      }
       const entry = html.match(
           /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
         )?.[1],
@@ -571,7 +581,7 @@ try {
         epic,
         fileId,
         codeMessageId,
-        vanillaDefault: true,
+        svelteDefault: true,
         entrySha256: createHash("sha256")
           .update(await entryResponse.body())
           .digest("hex"),
@@ -1049,7 +1059,7 @@ try {
       vanilla.on("pageerror", (error) =>
         errors.push(localBrowserError(error, base)),
       );
-      await vanilla.goto(`${base}/b/${roomA}`);
+      await vanilla.goto(`${base}/b/${roomA}?ui=vanilla`);
       documentCheckpoint("vanilla-real-room-ready");
       await expect(vanilla.locator(".book:not(.skel)")).toBeAttached();
       const welcome = vanilla.locator("dialog.welcome[open]");

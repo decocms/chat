@@ -116,6 +116,11 @@ export async function auditInlineAppOpen(
           width: 1440,
         });
         ownerContext = owned.context;
+        // A vanilla user since Svelte became the default: this device chose vanilla.
+        if (variant === "vanilla")
+          await ownerContext.addCookies([
+            { name: "vb_ui", value: "vanilla", url: fixture.base },
+          ]);
         const page = owned.page;
         page.on("pageerror", (error) =>
           result.pageErrors.push(localBrowserError(error, fixture.base)),
@@ -186,7 +191,7 @@ export async function auditInlineAppOpen(
         await page.goto(
           fixture.base +
             `/api/books/${roomId}/connections/${connection.id}/signin` +
-            (variant === "svelte" ? "?ui=svelte" : ""),
+            (variant === "svelte" ? "?ui=svelte" : "?ui=vanilla"),
         );
         await expect(page.locator("#fixture-provider-approve")).toBeVisible();
         await page.locator("#fixture-provider-approve").click();
@@ -229,6 +234,11 @@ export async function auditInlineAppOpen(
           width: 1440,
         });
         authorContext = author.context;
+        // A vanilla user since Svelte became the default: this device chose vanilla.
+        if (variant === "vanilla")
+          await authorContext.addCookies([
+            { name: "vb_ui", value: "vanilla", url: fixture.base },
+          ]);
         const identity = await authorContext.request.get(
           `${fixture.base}/api/dev/as?email=${encodeURIComponent(authorEmail)}`,
         );
@@ -381,7 +391,7 @@ export async function auditInlineAppOpen(
           "initial document has no remote execution before reader Allow",
           async () => {
             await page.goto(
-              `${fixture.base}/b/${roomId}${variant === "svelte" ? "?ui=svelte" : ""}`,
+              `${fixture.base}/b/${roomId}${variant === "svelte" ? "?ui=svelte" : "?ui=vanilla"}`,
             );
             if (variant === "svelte") {
               await fixture.openPane(page, "doc");
