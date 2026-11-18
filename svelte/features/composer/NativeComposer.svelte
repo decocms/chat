@@ -610,9 +610,12 @@
     >
       {composerError($draft.error, vb.t)}
     </p>{/if}
+  <!-- A plain send needs no line under the chat (the message showing up says it): "Sent" is for screen readers only. -->
   {#if $draft.notice}<p
       role="status"
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      class={$draft.notice === "sent"
+        ? "tw:sr-only"
+        : "tw:m-0 tw:text-xs tw:text-muted-foreground"}
     >
       {$draft.notice === "sent"
         ? vb.t("Enviado")
