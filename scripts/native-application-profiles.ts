@@ -12,6 +12,7 @@ import {
 } from "@playwright/test";
 import * as z from "zod/mini";
 import { MeResult } from "../shared/schemas";
+import { desktopAgentsPane } from "./native-browser-fixtures";
 import { homeText } from "../svelte/features/home/copy";
 import { createApplicationCopy } from "../svelte/features/application/copy";
 import {
@@ -747,6 +748,12 @@ export async function auditNativeApplicationProfiles(
               "decisions",
               "reminders",
             ] as const) {
+              if (
+                pane === "agents" &&
+                width > 900 &&
+                !(await desktopAgentsPane(page))
+              )
+                continue;
               await fixture.openPane(page, pane);
               const selector =
                 pane === "board" ? "[data-room-board]" : "[data-room-document]";
