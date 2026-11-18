@@ -17,7 +17,6 @@
   import AgentMark from "./lib/components/AgentMark.svelte";
   import { AGENT_NAMES, agentProvider } from "./lib/components/agent";
   import Badge from "./lib/studio/Badge.svelte";
-  import Button from "./lib/studio/Button.svelte";
   import MessageActions from "./features/chat/MessageActions.svelte";
   import MessageFooter from "./features/chat/MessageFooter.svelte";
   import MessageReactions from "./features/chat/MessageReactions.svelte";
@@ -88,7 +87,8 @@
       },
     };
   }
-  const continuous = $derived(continues(previous, m));
+  // A reply always opens with its own header (and the quote line above it), like Discord.
+  const continuous = $derived(!m.reply_to && continues(previous, m));
   const kind = $derived(messageKind(m));
   const quote = $derived(
     m.reply_to
@@ -102,6 +102,42 @@
   );
   const group = $derived(m.group || [m]);
   const reminder = $derived(reminderParts(m));
+  // An agent's card usually comes with its title again as the message text (the fallback for notifications):
+  // when the text is one line whose words are all in the card's title, the card alone says it.
+  const words = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+  const echoesCard = $derived.by(() => {
+    let title = "";
+    try {
+      // Only the root's title: the card itself is parsed (and checked) where it's drawn, in the deferred body.
+      const raw = m.card ? (JSON.parse(m.card) as unknown) : null;
+      if (
+        raw &&
+        typeof raw === "object" &&
+        "root" in raw &&
+        "elements" in raw
+      ) {
+        const { root, elements } = raw as {
+          root: unknown;
+          elements: Record<string, { props?: { title?: unknown } } | undefined>;
+        };
+        const value =
+          typeof root === "string" ? elements?.[root]?.props?.title : undefined;
+        if (typeof value === "string") title = value;
+      }
+    } catch {
+      title = "";
+    }
+    if (!title || !m.text || m.text.includes("\n")) return false;
+    const inTitle = new Set(words(title));
+    const said = words(m.text);
+    return said.length > 0 && said.every((word) => inTitle.has(word));
+  });
   const author = (message: ChatMessage) =>
     message.author === "ai"
       ? "@vibe"
@@ -155,6 +191,44 @@
       : "",
   ]}
 >
+  {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
+       curls up into a small picture, the author and the start of their message; a click jumps there. -->
+    <button
+      type="button"
+      data-native-quote={m.reply_to}
+      title={vb.t("Ver a mensagem respondida")}
+      class="tw:group/quote tw:relative tw:mb-1 tw:flex tw:h-[22px] tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:pl-14 tw:text-left tw:font-sans tw:text-[0.8125rem] tw:leading-none tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+      onclick={() => {
+        if (active) actions.navigate(m.reply_to!, quote?.thread);
+      }}
+    >
+      <span
+        aria-hidden="true"
+        class="tw:pointer-events-none tw:absolute tw:top-1/2 tw:-bottom-1 tw:left-[19px] tw:w-[29px] tw:rounded-tl-md tw:border-t-2 tw:border-l-2 tw:border-solid tw:border-r-0 tw:border-b-0 tw:border-muted-foreground/35"
+      ></span>
+      {#if quote}{#if quote.author === "ai"}<span
+            aria-hidden="true"
+            class="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:text-[0.6875rem]"
+            >✦</span
+          >{:else}<PersonAvatar
+            size="2xs"
+            email={quote.author}
+            version={vb.avatarVersion(quote.author)}
+            class="tw:shrink-0"
+          />{/if}<span
+          class={[
+            "tw:shrink-0 tw:font-medium",
+            quote.kind === "agent"
+              ? AGENT_NAMES[agentProvider(quote.via)]
+              : "tw:text-foreground/80",
+          ]}>@{author(quote)}</span
+        ><span
+          class="tw:min-w-0 tw:truncate tw:group-hover/quote:text-foreground"
+          >{messageSnippet(quote, vb.t("votação"))}</span
+        >{:else}<span class="tw:truncate tw:italic"
+          >{vb.t("mensagem anterior")}</span
+        >{/if}
+    </button>{/if}
   <div class="tw:flex tw:items-start tw:gap-4">
     <div class="tw:w-10 tw:shrink-0">
       {#if !continuous}{#if m.author === "ai"}<AgentMark
@@ -188,11 +262,12 @@
     </div>
     <div data-message-body class="tw:min-w-0 tw:flex-1 tw:space-y-1">
       {#if !continuous}<div
-          class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+          class="tw:-mb-1 tw:flex tw:h-5 tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
         >
           <span
             class={[
-              "tw:font-semibold",
+              // The name is as big as the message under it; only the weight differs.
+              "tw:text-[0.875rem] tw:leading-5 tw:font-semibold",
               m.kind === "agent"
                 ? AGENT_NAMES[agentProvider(m.via)]
                 : "tw:text-foreground",
@@ -207,19 +282,6 @@
               variant="success">✓ {vb.t("entregue")}</Badge
             >{/if}<time title={timestamp}>{vb.hhmm(m.ts)}</time>
         </div>{/if}
-      {#if m.reply_to}<Button
-          variant="ghost"
-          size="sm"
-          class="tw:h-auto tw:max-w-full tw:justify-start tw:whitespace-normal tw:border-l-2 tw:border-border tw:text-left tw:text-muted-foreground"
-          data-native-quote={m.reply_to}
-          title={vb.t("Ver a mensagem respondida")}
-          onclick={() => {
-            if (active) actions.navigate(m.reply_to!, quote?.thread);
-          }}
-          ><span aria-hidden="true">↩</span>{quote
-            ? `${author(quote)} · ${messageSnippet(quote, vb.t("votação"))}`
-            : vb.t("mensagem anterior")}</Button
-        >{/if}
       {#if kind === "regular"}
         {#if !m.text && (typing || (m.author === "ai" && !m.poll))}<p
             data-message-typing
@@ -233,7 +295,7 @@
                 })
               : vb.t("pensando…")}{typing ? "…" : ""}
           </p>
-        {:else if m.text}{@render rich(
+        {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
           )}{/if}
