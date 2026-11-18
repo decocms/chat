@@ -24,6 +24,8 @@ vibebook upload <file> --message "antes" --thread <epic>
 vibebook herdr                     # one Claude Code per room in herdr, in the room's folder: "✻ Ligar Claude" opens it, off closes it (vibebook.dev/herdr)
 ```
 
+A new computer in one line (the room sidebar's "This computer → Copy setup"): `curl -fsSL https://vibebook.dev/setup.sh | sh` installs the CLI, the Claude Code plugin, herdr and its vibebook plugin, logs in and opens herdr, skipping whatever is already there.
+
 Each Claude Code session is its own agent (its own read cursor): the id is the folder plus the session, which survives `--resume`, so reopening a session continues where it stopped, two sessions in one folder don't take each other's messages, and People shows each one (with a warning when 2+ of yours listen to the same room). Outside Claude Code (a plain terminal, the herdr runner) it's the folder.
 
 **Releasing the CLI.** Bump `cli/package.json` and `VERSION` in `cli/vibebook.ts`, `bun run build:cli`, commit, then `git tag cli-v<version> && git push origin cli-v<version>`. The workflow `.github/workflows/publish-cli.yml` builds and publishes to npm with Trusted Publishing (GitHub's OIDC token, no npm token anywhere, no login) and provenance. People who installed with `install.sh` get it from vibebook.dev (`vibebook update`), which follows the deploy, not npm.

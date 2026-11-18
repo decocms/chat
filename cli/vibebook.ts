@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.6.19";
+const VERSION = "1.6.20";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -1089,8 +1089,12 @@ async function main() {
       try {
         if (appMode) happ("ls");
         else execFileSync("herdr", ["status"], { stdio: "ignore" });
-      } catch {
-        return die(appMode ? "Herdr (the desktop app) isn't open, or herdr-app isn't installed (https://herdr.dev)" : "herdr not found or not running (https://herdr.dev)");
+      } catch (e) {
+        if (appMode) return die("Herdr (the desktop app) isn't open, or herdr-app isn't installed (https://herdr.dev)");
+        // Say which step is missing: herdr isn't installed (the one-line setup does it all), or it's installed but closed.
+        return die((e as { code?: string }).code === "ENOENT"
+          ? "herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:\n  curl -fsSL https://vibebook.dev/setup.sh | sh"
+          : "herdr isn't open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its \"vibebook\" tab runs this for you.");
       }
       // One runner per machine: a second one (the herdr plugin's pane plus a manual `vibebook herdr`) would open every
       // room twice. The pid file is released on exit; a stale one (dead pid) is taken over.
