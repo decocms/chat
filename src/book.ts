@@ -2418,8 +2418,13 @@ export class Book extends DurableObject<Env> {
       if (m.author !== "ai" && m.text.trim() && Date.now() - m.ts < 7 * 864e5 && others.length) {
         const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author).all<{ ref: string; text: string }>()).results;
         const q: Record<string, Question> = {};
+        // Each person here talks to their own Claude in the room: a bare ask ("faz um gráfico", "quantas pessoas…") is
+        // for the author's Claude, and an agent's "você" is its own human. Read as asks of everyone else, those filled
+        // other members' inbox with someone else's requests and daily reports (Valls, 18/11: 25 of 29 were Guilherme's).
+        const own = (e: string) =>
+          m.kind === "agent" ? ` Ela foi escrita pelo agent de ${nm(m.author)}: "você", "seu" e "suas" nela são ${nm(m.author)}, não ${nm(e)}.` : "";
         others.slice(0, 12).forEach((e, i) => {
-          q[`p${i}`] = { type: "noul", instructions: `Esta mensagem pede algo a ${nm(e)}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${nm(e)}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${nm(e)} em especial.` };
+          q[`p${i}`] = { type: "noul", instructions: `Esta mensagem pede algo a ${nm(e)}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${nm(e)}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${nm(e)} em especial. Nesta sala cada pessoa conversa com o próprio Claude: um pedido ou pergunta que não nomeia ninguém é pro Claude de quem escreveu, não pra ${nm(e)}; responda sim só se ela nomeia ${nm(e)} ou fala claramente com ${nm(e)}.${own(e)}` };
         });
         open.forEach((w, i) => {
           q[`r${i}`] = { type: "noul", instructions: `Esta mensagem responde ou resolve este pedido feito antes a ${nm(m.author)}: "${w.text.slice(0, 300)}"?` };
