@@ -7,7 +7,7 @@
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
-  import Checkbox from "../../lib/studio/Checkbox.svelte";
+  import Switch from "../../lib/studio/Switch.svelte";
   import UiSwitch from "../home/UiSwitch.svelte";
   import ThemeIcon from "../app-navigation/ThemeIcon.svelte";
   import ToggleGroup from "../../lib/studio/ToggleGroup.svelte";
@@ -146,9 +146,13 @@
     { value: "light", label: "themeLight" },
     { value: "dark", label: "themeDark" },
   ] as const;
-  const section = "flex scroll-mt-6 flex-col gap-4";
+  // Each section: a title and one line of what it is, then a card of rows (label on the left, control on the right).
+  const section = "flex scroll-mt-6 flex-col gap-3";
+  const card =
+    "overflow-hidden rounded-xl border border-border bg-card divide-y divide-border";
   const rowClass =
-    "flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2";
+    "flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3";
+  const hint = "m-0 text-xs leading-4 text-muted-foreground";
 </script>
 
 {#if $view.binding && $view.open}{#key $view.binding}<Snapshot
@@ -157,137 +161,173 @@
         {#if $view.me}<div
             data-vb-native
             data-native-account
-            class="mx-auto w-full max-w-2xl flex flex-col gap-12 px-4 py-8 font-sans text-sm text-foreground md:px-8 md:py-10"
+            class="mx-auto w-full max-w-2xl flex flex-col gap-10 px-4 py-8 font-sans text-sm text-foreground md:px-8 md:py-12"
           >
-            <Heading level={1} class="m-0 font-sans text-2xl"
+            {#snippet head(title: string)}<Heading
+                level={2}
+                class="m-0 px-1 font-sans text-[0.9375rem] font-semibold"
+                >{title}</Heading
+              >{/snippet}
+            <Heading level={1} class="m-0 px-1 font-sans text-2xl"
               >{text("title")}</Heading
             >
             <section id="profile" class={section}>
-              <Heading level={2} class="m-0 text-base"
-                >{text("profile")}</Heading
-              >
-              <div class="flex items-center gap-3">
-                <PersonAvatar
-                  size="lg"
-                  email={$view.me.email}
-                  version={$view.me.avatar}
-                />
-                <div class="min-w-0 flex-1 break-words">
-                  <p class="m-0 font-medium">
-                    {$view.me.name || $view.me.email}
-                  </p>
-                  <p class="m-0 text-sm text-muted-foreground">
-                    {$view.me.email}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onclick={(event) => {
-                    if (live(event, rendered)) photo?.click();
-                  }}>{en ? "Change photo" : "Trocar foto"}</Button
-                ><input
-                  bind:this={photo}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  aria-label={en ? "Profile photo" : "Foto do perfil"}
-                  class="sr-only"
-                  onchange={(event) => {
-                    const file = event.currentTarget.files?.[0];
-                    if (live(event, rendered) && file && !busy)
-                      owner.photo((current) => avatarImage(file, current));
-                    event.currentTarget.value = "";
-                  }}
-                />
-              </div>
-              <form
-                class="flex flex-col gap-2"
-                onsubmit={(event) => {
-                  event.preventDefault();
-                  if (live(event, rendered) && !busy) owner.rename(name);
-                }}
-              >
-                <Label for="account-name">{en ? "Your name" : "Seu nome"}</Label
-                >
-                <div class="flex gap-2">
-                  <Input
-                    id="account-name"
-                    value={name}
-                    oninput={(event) => {
-                      if (live(event, rendered))
-                        name = event.currentTarget.value;
-                    }}
-                    required
-                    maxlength={60}
-                    autocomplete="given-name"
-                    disabled={busy}
-                  /><Button type="submit" disabled={busy}
-                    >{en ? "Save name" : "Salvar nome"}</Button
-                  >
-                </div>
-              </form>
-              {#if $view.phase === "pending" || $view.phase === "confirming"}<p
-                  role="status"
-                  class="m-0 text-sm text-muted-foreground"
-                >
-                  {en ? "Waiting for confirmation…" : "Esperando confirmação…"}
-                </p>{/if}
-              {#if $view.phase === "error"}<p
-                  role="alert"
-                  class="m-0 text-sm text-destructive"
-                >
-                  {en
-                    ? "Could not save this change. Check the details and try again."
-                    : "Não deu para salvar esta mudança. Confira os dados e tente de novo."}
-                </p>{/if}
-              {#if $view.phase === "unconfirmed"}<div
-                  role="alert"
-                  class="space-y-2 text-sm"
-                >
-                  <p class="m-0">
-                    {en
-                      ? "This change is unconfirmed. It may have been saved. Refresh before trying again."
-                      : "Esta mudança não foi confirmada. Ela pode ter sido salva. Atualize antes de tentar de novo."}
-                  </p>
+              {@render head(text("profile"))}
+              <div class={card}>
+                <div class={rowClass}>
+                  <div class="flex min-w-0 items-center gap-3">
+                    <PersonAvatar
+                      size="lg"
+                      email={$view.me.email}
+                      version={$view.me.avatar}
+                    />
+                    <div class="min-w-0 break-words">
+                      <p class="m-0 font-medium">
+                        {$view.me.name || $view.me.email}
+                      </p>
+                      <p class={hint}>{$view.me.email}</p>
+                    </div>
+                  </div>
                   <Button
                     variant="outline"
+                    size="sm"
+                    disabled={busy}
                     onclick={(event) => {
-                      if (live(event, rendered)) owner.refresh();
-                    }}>{en ? "Refresh" : "Atualizar"}</Button
-                  ><Button
-                    variant="outline"
-                    onclick={(event) => {
-                      if (live(event, rendered)) owner.review();
+                      if (live(event, rendered)) photo?.click();
+                    }}>{en ? "Change photo" : "Trocar foto"}</Button
+                  ><input
+                    bind:this={photo}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    aria-label={en ? "Profile photo" : "Foto do perfil"}
+                    class="sr-only"
+                    onchange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      if (live(event, rendered) && file && !busy)
+                        owner.photo((current) => avatarImage(file, current));
+                      event.currentTarget.value = "";
                     }}
-                    >{en
-                      ? "Review and try again"
-                      : "Revisar e tentar de novo"}</Button
+                  />
+                </div>
+                <form
+                  class={rowClass}
+                  onsubmit={(event) => {
+                    event.preventDefault();
+                    if (live(event, rendered) && !busy) owner.rename(name);
+                  }}
+                >
+                  <Label for="account-name" class="font-normal"
+                    >{en ? "Your name" : "Seu nome"}</Label
                   >
-                </div>{/if}
-              <div class="flex flex-col gap-2">
-                <Heading level={3} class="m-0 text-sm"
+                  <div class="flex w-full gap-2 md:w-auto">
+                    <!-- Not a login field: password managers stay out of it. -->
+                    <Input
+                      id="account-name"
+                      value={name}
+                      oninput={(event) => {
+                        if (live(event, rendered))
+                          name = event.currentTarget.value;
+                      }}
+                      required
+                      maxlength={60}
+                      autocomplete="off"
+                      data-1p-ignore
+                      data-bwignore
+                      data-lpignore="true"
+                      data-form-type="other"
+                      disabled={busy}
+                      class="h-9 min-w-0 flex-1 md:w-56"
+                    /><Button
+                      type="submit"
+                      size="sm"
+                      class="h-9"
+                      disabled={busy || name === lastName}
+                      >{en ? "Save" : "Salvar"}</Button
+                    >
+                  </div>
+                </form>
+                {#if $view.phase === "pending" || $view.phase === "confirming"}<p
+                    role="status"
+                    class="m-0 px-4 py-3 text-sm text-muted-foreground"
+                  >
+                    {en
+                      ? "Waiting for confirmation…"
+                      : "Esperando confirmação…"}
+                  </p>{/if}
+                {#if $view.phase === "error"}<p
+                    role="alert"
+                    class="m-0 px-4 py-3 text-sm text-destructive"
+                  >
+                    {en
+                      ? "Could not save this change. Check the details and try again."
+                      : "Não deu para salvar esta mudança. Confira os dados e tente de novo."}
+                  </p>{/if}
+                {#if $view.phase === "unconfirmed"}<div
+                    role="alert"
+                    class="flex flex-col gap-2 px-4 py-3 text-sm"
+                  >
+                    <p class="m-0">
+                      {en
+                        ? "This change is unconfirmed. It may have been saved. Refresh before trying again."
+                        : "Esta mudança não foi confirmada. Ela pode ter sido salva. Atualize antes de tentar de novo."}
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={(event) => {
+                          if (live(event, rendered)) owner.refresh();
+                        }}>{en ? "Refresh" : "Atualizar"}</Button
+                      ><Button
+                        variant="outline"
+                        size="sm"
+                        onclick={(event) => {
+                          if (live(event, rendered)) owner.review();
+                        }}
+                        >{en
+                          ? "Review and try again"
+                          : "Revisar e tentar de novo"}</Button
+                      >
+                    </div>
+                  </div>{/if}
+              </div>
+            </section>
+            <section class={section} aria-labelledby="settings-signin">
+              <div class="flex flex-col gap-0.5 px-1">
+                <Heading
+                  level={3}
+                  id="settings-signin"
+                  class="m-0 font-sans text-[0.9375rem] font-semibold"
                   >{en ? "How you sign in" : "Como você entra"}</Heading
                 >
-                {#if $view.loginsLoading}<p role="status" class="m-0">
+              </div>
+              <div class={card}>
+                {#if $view.loginsLoading}<p
+                    role="status"
+                    class="m-0 px-4 py-3 text-muted-foreground"
+                  >
                     {en ? "Loading…" : "Carregando…"}
-                  </p>{:else if $view.loginsError}<p role="alert" class="m-0">
-                    {en
-                      ? "Could not load sign-in history."
-                      : "Não deu para carregar o histórico de entrada."}
-                  </p>
-                  <Button
-                    variant="outline"
-                    onclick={(event) => {
-                      if (live(event, rendered)) owner.logins();
-                    }}>{en ? "Retry" : "Tentar de novo"}</Button
-                  >{:else if $view.logins}<ul
-                    class="m-0 list-none space-y-2 p-0"
+                  </p>{:else if $view.loginsError}<div class={rowClass}>
+                    <p role="alert" class="m-0">
+                      {en
+                        ? "Could not load sign-in history."
+                        : "Não deu para carregar o histórico de entrada."}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onclick={(event) => {
+                        if (live(event, rendered)) owner.logins();
+                      }}>{en ? "Retry" : "Tentar de novo"}</Button
+                    >
+                  </div>{:else if $view.logins}<ul
+                    class="m-0 list-none divide-y divide-border p-0"
                   >
                     {#each loginRows as row}{@const used =
                         $view.logins.logins.find(
                           (item) => item.method === row.method,
                         )}
-                      <li class="flex justify-between gap-2">
+                      <li class={rowClass}>
                         <span>{row.label}</span><span
                           class="text-xs text-muted-foreground"
                           >{used
@@ -302,26 +342,19 @@
                         >
                       </li>{/each}
                   </ul>{/if}
-                <p class="m-0 text-xs text-muted-foreground">
-                  {en
-                    ? "Google and GitHub use their email's account. A different email means a different account."
-                    : "Google e GitHub entram na conta do email deles: se for outro email, vira outra conta."}
-                </p>
               </div>
             </section>
             <section id="agents" data-native-account-agents class={section}>
-              <Heading level={2} class="m-0 text-base">{text("agents")}</Heading
-              >
+              {@render head(text("agents"))}
               {@render agentSettings()}
             </section>
             <section id="cloud" class={section}>
-              <Heading level={2} class="m-0 text-base">{text("cloud")}</Heading>
-              {@render cloud()}
+              {@render head(text("cloud"))}
+              <div class="{card} p-4">{@render cloud()}</div>
             </section>
             <section id="device" class={section}>
-              <Heading level={2} class="m-0 text-base">{text("device")}</Heading
-              >
-              <div class="divide-y divide-border">
+              {@render head(text("device"))}
+              <div class={card}>
                 <div class={rowClass}>
                   <span>{home("notifications")}</span>{@render notifications()}
                 </div>
@@ -367,80 +400,101 @@
                   >
                 </div>
                 <!-- Off = the classic app on this device. -->
-                <div class={rowClass}><UiSwitch lang={en ? "en" : "pt"} /></div>
-                <div class="flex flex-col gap-1 py-3">
-                  <label class="flex items-center gap-2"
-                    ><Checkbox
-                      bind:checked={
-                        () => $lock.enabled,
-                        (wanted) => {
-                          const account = $view.me?.email;
-                          if (
-                            active &&
-                            owner.owns(rendered) &&
-                            draftAccount === rendered.account &&
-                            account
-                          )
-                            void device.configure(wanted, account, () =>
-                              owner.owns(rendered),
-                            );
-                        }
-                      }
-                      disabled={!$lock.supported || $lock.busy}
-                    /><span
+                <div class={rowClass}>
+                  <UiSwitch lang={en ? "en" : "pt"} row />
+                </div>
+                <label class="{rowClass} cursor-pointer">
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    <span id="settings-lock"
                       >{en
                         ? "Require Face ID when opening"
                         : "Exigir Face ID ao abrir"}</span
-                    ></label
-                  >
-                  <p class="m-0 text-xs text-muted-foreground">
-                    {en
-                      ? "A local lock on this device; your login session stays the same."
-                      : "Uma trava local neste aparelho; sua sessão continua a mesma."}
-                  </p>
-                  {#if !$lock.supported}<p
-                      class="m-0 text-xs text-muted-foreground"
                     >
-                      {en
-                        ? "Unavailable in this browser."
-                        : "Não disponível neste navegador."}
-                    </p>{/if}{#if $lock.error}<p
-                      role="alert"
-                      class="m-0 text-sm text-destructive"
-                    >
-                      {en
-                        ? "Device authentication was cancelled or failed. Try again."
-                        : "A autenticação do aparelho foi cancelada ou falhou. Tente de novo."}
-                    </p>{/if}
-                </div>
+                    {#if !$lock.supported}<p class={hint}>
+                        {en
+                          ? "Unavailable in this browser."
+                          : "Não disponível neste navegador."}
+                      </p>{/if}
+                    {#if $lock.error}<p
+                        role="alert"
+                        class="m-0 text-xs text-destructive"
+                      >
+                        {en
+                          ? "Device authentication was cancelled or failed. Try again."
+                          : "A autenticação do aparelho foi cancelada ou falhou. Tente de novo."}
+                      </p>{/if}
+                  </div>
+                  <Switch
+                    aria-labelledby="settings-lock"
+                    bind:checked={
+                      () => $lock.enabled,
+                      (wanted) => {
+                        const account = $view.me?.email;
+                        if (
+                          active &&
+                          owner.owns(rendered) &&
+                          draftAccount === rendered.account &&
+                          account
+                        )
+                          void device.configure(wanted, account, () =>
+                            owner.owns(rendered),
+                          );
+                      }
+                    }
+                    disabled={!$lock.supported || $lock.busy}
+                  />
+                </label>
               </div>
             </section>
-            <section
-              class="flex flex-wrap gap-2 border-t border-border pt-6"
-              aria-label={en ? "Account" : "Conta"}
-            >
-              <Button
-                variant="outline"
-                onclick={(event) => {
-                  if (live(event, rendered)) onArchive();
-                }}>{en ? "Archived rooms" : "Salas arquivadas"}</Button
-              ><span class="flex-1"></span><Button
-                onclick={(event) => {
-                  if (live(event, rendered)) onLogout(false);
-                }}>{en ? "Sign out" : "Sair"}</Button
-              ><Button
-                variant="outline"
-                onclick={(event) => {
-                  if (live(event, rendered) && $view.me)
-                    logoutAll = {
-                      account: $view.me.email,
-                      binding: rendered,
-                    };
-                }}
-                >{en
-                  ? "Sign out on every device"
-                  : "Sair de todos os aparelhos"}</Button
-              >
+            <section class={section} aria-label={en ? "Account" : "Conta"}>
+              {@render head(en ? "Account" : "Conta")}
+              <div class={card}>
+                <div class={rowClass}>
+                  <span>{en ? "Archived rooms" : "Salas arquivadas"}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={(event) => {
+                      if (live(event, rendered)) onArchive();
+                    }}>{en ? "Open" : "Abrir"}</Button
+                  >
+                </div>
+                <div class={rowClass}>
+                  <span
+                    >{en
+                      ? "Sign out of this device"
+                      : "Sair deste aparelho"}</span
+                  >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={(event) => {
+                      if (live(event, rendered)) onLogout(false);
+                    }}>{en ? "Sign out" : "Sair"}</Button
+                  >
+                </div>
+                <div class={rowClass}>
+                  <div class="flex min-w-0 flex-col gap-0.5">
+                    <span
+                      >{en
+                        ? "Sign out on every device"
+                        : "Sair de todos os aparelhos"}</span
+                    >
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onclick={(event) => {
+                      if (live(event, rendered) && $view.me)
+                        logoutAll = {
+                          account: $view.me.email,
+                          binding: rendered,
+                        };
+                    }}>{en ? "Sign out everywhere" : "Sair de tudo"}</Button
+                  >
+                </div>
+              </div>
             </section>
           </div>{/if}
         {#if logoutAll && logoutAll.binding === rendered}{#key logoutAll}<Snapshot

@@ -50,8 +50,7 @@ const pt = {
     "Os sandboxes continuam no Freestyle, mas o vibebook não poderá ligar, pausar ou abrir o terminal sem a chave.",
   removeTokenBody:
     "Sandboxes que já têm o token continuam logados até você apagá-los.",
-  costHelp:
-    "Um agent na nuvem para esta sala, configurado por agents/<nome>.md nos arquivos. Rodando custa cerca de US$0,13/hora na sua conta; pausado, só o disco.",
+  costHelp: "Rodando, cerca de US$0,13/hora na sua conta; pausado, só o disco.",
   secretHelp:
     "A credencial é enviada apenas para a configuração da sua conta e não é exibida novamente.",
   keyHelp: "Crie sua chave na API do Freestyle.",
@@ -131,7 +130,7 @@ const en: Record<SandboxCopyKey, string> = {
   removeTokenBody:
     "Sandboxes that already have the token remain logged in until you delete them.",
   costHelp:
-    "A cloud agent for this room, configured by agents/<name>.md in Files. Running costs about US$0.13/hour on your account; paused machines only cost disk storage.",
+    "Running costs about US$0.13/hour on your account; paused, only the disk.",
   secretHelp:
     "The credential is sent only to your account configuration and is never displayed again.",
   keyHelp: "Create your key in the Freestyle API.",

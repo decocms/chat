@@ -131,7 +131,6 @@
       onclick={() => void owner.refresh(true)}>{text("refresh")}</Button
     >
   </div>
-  <p class="m-0 text-muted-foreground">{text("description")}</p>
   {#if $view.loading && !$view.data}<p role="status">{text("loading")}</p>{/if}
   {#if $view.readError}<p role="alert" class="text-destructive">
       {text("readFailed")}
@@ -158,9 +157,6 @@
             >{/if}
         </div>
         {#if !configured}
-          <p class="m-0 text-xs text-muted-foreground">
-            {text(kind === "key" ? "keyHelp" : "tokenHelp")}
-          </p>
           {@const command =
             kind === "key"
               ? "npx freestyle@latest tokens create vibebook"
@@ -198,9 +194,6 @@
               />{/if}
             <Button type="submit" disabled={busy}>{text("save")}</Button>
           </form>
-          <p class="m-0 text-xs text-muted-foreground">
-            {text("secretHelp")}
-          </p>
         {/if}
       </div>
     {/each}

@@ -6662,7 +6662,7 @@ describe("native account", () => {
   test("unsupported device lock is explicit, never invokes a prompt and has an accessible label", async () => {
     await account();
     const checkbox = document.querySelector<HTMLButtonElement>(
-      '[data-native-account] button[role="checkbox"]',
+      '[data-native-account] [aria-labelledby="settings-lock"]',
     );
     expect(checkbox?.disabled).toBe(true);
     expect(checkbox?.closest("label")?.textContent).toContain(
