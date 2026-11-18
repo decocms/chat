@@ -44,6 +44,7 @@
     enabled = () => true,
     onkeydown,
     menu,
+    inside,
     speechFactory,
     captureFactory,
     transcribe,
@@ -91,6 +92,8 @@
     /** Items of the + menu; `close` closes it, `trigger` is the + button (stays in the page,
      *  so a dialog opened from the menu can return focus to it). Without it the + is disabled. */
     menu?: Snippet<[close: () => void, trigger: HTMLElement | null]>;
+    /** Shown at the right end of the field while it's empty (the room's "O que precisa de mim aqui?"). */
+    inside?: Snippet;
     speechFactory?: SpeechFactory | null;
     captureFactory?: FireCaptureFactory | null;
     transcribe?: (audio: Blob, signal: AbortSignal) => Promise<string>;
@@ -489,6 +492,11 @@
         onblurfield?.();
       }}
     />
+    {#if inside && !value && !off}<div
+        class="tw:absolute tw:top-1/2 tw:right-1 tw:-translate-y-1/2"
+      >
+        {@render inside()}
+      </div>{/if}
   </div>
   <!-- The mic sits right before send, as in the classic app (Gui #2896). -->
   {#if speech.supported}<IconButton

@@ -101,7 +101,6 @@ export const ASK_OPENER = /^(⏸ Seu Claude (pede permissão|quer seguir)|❓ Se
 export class Book extends DurableObject<Env> {
   sql: SqlStorage;
   receiptsT: ReturnType<typeof setTimeout> | 0 = 0; // a coalesced receipts push is pending (receipt())
-  needsSent = new WeakMap<WebSocket, { k: string; at: number }>(); // last needsSummary per socket (needs.summary)
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -126,6 +125,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS doc_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, doc TEXT, text TEXT, by TEXT, msg_id INTEGER, ts INTEGER);
       CREATE INDEX IF NOT EXISTS doc_versions_doc ON doc_versions (doc, id);
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
+      CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
     for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
@@ -1194,36 +1194,39 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     await this.agentOpenDoc(bookId, email, id);
   }
-  /** "O que precisa de você aqui" written as one or two lines (Gui #2602): what in this thread waits on this person and
-   *  why, from the card's own items + the thread's last messages, not the task list again. MODEL_FAST, cached per
-   *  person, thread and inputs (DO meta `needs:<email>:<thread>` = key + text), ≤30 new ones per room per hour. */
-  async needsSummary(thread: string, email: string, items: string[]) {
-    const msgs = this.messages(thread, 15).filter((m) => m.text).map((m) => `${m.kind === "agent" ? "Claude" : m.author === "ai" ? "@vibe" : m.author.split("@")[0]}: ${m.text.replace(/\s+/g, " ").slice(0, 240)}`);
-    const title = thread === "main" ? this.get("title") ?? "" : this.epics().find((e) => e.id === thread)?.title ?? "";
-    const input = JSON.stringify([title, items, msgs.slice(-6)]);
-    let h = 5381; for (let i = 0; i < input.length; i++) h = (h * 33 + input.charCodeAt(i)) | 0;
-    const key = (h >>> 0).toString(36), slot = `needs:${email}:${thread}`;
-    const cached = this.get(slot);
-    if (cached?.startsWith(`${key}\n`)) return { key, text: cached.slice(key.length + 1) };
-    const hour = Math.floor(Date.now() / 3600e3), used = Number(this.get(`needs_n:${hour}`) ?? 0);
-    if (used >= 30 || !this.env.OPENROUTER_API_KEY) return null;
-    this.set(`needs_n:${hour}`, String(used + 1));
-    const who = (await this.names())[email] ?? email.split("@")[0];
-    try {
-      const { output, usage } = await generateText({
-        model: this.model(this.env.MODEL_FAST, true),
-        maxOutputTokens: 200,
-        output: Output.object({ schema: z.object({ summary: z.string().describe(this.en ? "one or two short sentences" : "uma ou duas frases curtas") }) }),
-        prompt: `${this.en ? "Write in English." : "Escreva em português."} ${who} opened "${title}". In one or two short sentences, tell ${who} what here waits on them and why it matters now (what is blocked, who is waiting, what decision), using the items and the conversation. Don't list the items one by one; don't greet; second person ("you"/"você").\n\nItems waiting on ${who}:\n- ${items.join("\n- ")}\n\nRecent conversation:\n${msgs.join("\n") || "(none)"}`,
-      });
-      const text = output.summary.replace(/\s+/g, " ").trim().slice(0, 400);
-      this.set(slot, `${key}\n${text}`);
-      this.ctx.waitUntil(track(this.env, "needs_summary", { user: email, dims: { book: this.get("book_id") ?? "", cost: +costOf(usage).toFixed(6) } }));
-      return { key, text };
-    } catch (e) {
-      console.error("needs summary", String(e));
-      return null;
-    }
+  /** "O que precisa de mim aqui" (Gui #3011): asked by a person, answered by their own Claude (brief_reply). Never a
+   *  room message: only that person's sockets and their Claudes' read_room ever see it. Last 48h, ≤20. */
+  briefsFor(email: string) {
+    return this.sql
+      .exec<{ id: number; thread: string; ts: number; text: string | null; answered_at: number | null; model: string | null }>(
+        `SELECT id, thread, ts, text, answered_at, model FROM briefs WHERE email = ? AND ts > ? ORDER BY id DESC LIMIT 20`,
+        email, Date.now() - 2 * 864e5,
+      )
+      .toArray()
+      .reverse();
+  }
+  sendBriefs(email: string) {
+    this.sendTo(this.sockets().filter((ws) => this.ctx.getTags(ws)[0] === email), { t: "briefs", briefs: this.briefsFor(email) } satisfies RoomEvent);
+  }
+  async briefAsk(email: string, thread: string) {
+    const bookId = this.get("book_id") ?? "";
+    const open = this.sql.exec<{ id: number }>(`SELECT id FROM briefs WHERE email = ? AND thread = ? AND answered_at IS NULL AND ts > ?`, email, thread, Date.now() - 600_000).toArray()[0];
+    const id = open?.id ?? (this.sql.exec<{ id: number }>(`INSERT INTO briefs (thread, email, ts) VALUES (?, ?, ?) RETURNING id`, thread, email, Date.now()).one().id);
+    this.sendBriefs(email);
+    if (open || !bookId) return;
+    // Wakes this person's listening Claudes (wait_for_messages reads brief_wake; the CLI hub wakes on the poke).
+    await this.env.DB.prepare(`INSERT OR IGNORE INTO brief_wake (email, book_id, brief_id, ts) VALUES (?, ?, ?, ?)`).bind(email, bookId, id, Date.now()).run();
+    await poke(this.env, [email], { t: "me", book: bookId });
+    this.ctx.waitUntil(track(this.env, "brief_ask", { user: email, dims: { book: bookId } }));
+  }
+  /** brief_reply: only a brief of the agent's own human. */
+  briefReply(email: string, id: number, text: string, model: string) {
+    const row = this.sql.exec(`SELECT id FROM briefs WHERE id = ? AND email = ?`, id, email).toArray()[0];
+    if (!row) return { ok: false as const, error: "no such brief of your human in this room" };
+    this.sql.exec(`UPDATE briefs SET text = ?, answered_at = ?, model = ? WHERE id = ?`, text, Date.now(), model || null, id);
+    this.sendBriefs(email);
+    this.ctx.waitUntil(track(this.env, "brief_reply", { user: email, dims: { book: this.get("book_id") ?? "", model } }));
+    return { ok: true as const };
   }
   /** What a fresh co-editing doc starts with: the stored markdown (an epic without one gets its seed); null = no such epic. */
   docSeed(bookId: string, epic?: string): string | null {
@@ -1376,6 +1379,13 @@ export class Book extends DurableObject<Env> {
         // Emoji reactions (Gui #2724): emoji → who (names; "<name>'s Claude" for agents).
         reactions: m.reactions ? Object.fromEntries(Object.entries(m.reactions).map(([e, list]) => [e, list.map((w) => (w.endsWith("#agent") ? `${who(w.slice(0, -6))}'s Claude` : who(w)))])) : undefined,
       }));
+    // "O que precisa de mim aqui" your human asked you for (only they see your answer): handle these first.
+    const briefs = email
+      ? this.sql
+          .exec(`SELECT id, thread, ts FROM briefs WHERE email = ? AND answered_at IS NULL AND ts > ? ORDER BY id`, email, Date.now() - 2 * 864e5)
+          .toArray()
+          .map((b) => ({ brief_id: b.id as number, thread: threadName(b.thread as string), epic_id: b.thread as string, asked_at: new Date(b.ts as number).toISOString() }))
+      : [];
     const lastId = (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0;
     return {
       // Rides on every read (Gui #2617: a Claude on an older skill answered a question in the chat): the rule reaches
@@ -1423,6 +1433,12 @@ export class Book extends DurableObject<Env> {
             .filter((m) => !forOther(String(m.text ?? "")))
             .map((m) => ({ message_id: m.id as number, thread: threadName(m.thread as string), text: String(m.text ?? "").slice(0, 300), at: new Date(m.ts as number).toISOString() }))
         : undefined,
+      ...(briefs.length
+        ? {
+            brief_requests: briefs,
+            brief_how: "Each brief_requests item is your human asking \"what needs me here?\" about that thread. Read it (read_room with epic_id), then brief_reply (brief_id, text) in 2-4 short lines, second person: what in that thread waits on them and why it matters now. No greeting, no list, nothing that isn't in the room. Only they see it; no ack or epic needed.",
+          }
+        : {}),
       last_id: lastId,
       paused: this.agentStreak("main") >= AGENT_STREAK_MAX,
     };
@@ -2059,6 +2075,7 @@ export class Book extends DurableObject<Env> {
         decisions: this.decisions(),
         pins: this.pins(),
         suggestions: this.suggestions(),
+        briefs: this.briefsFor(email),
         members: people.members,
         invited: people.invited,
         pending: people.pending,
@@ -2141,18 +2158,17 @@ export class Book extends DurableObject<Env> {
         if (e?.archived) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
         return this.sendTo([ws], { t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true });
       }
-      case "needs.summary": {
+      // The automatic card is gone (Gui #3011); old tabs may still ask: ignored.
+      case "needs.summary":
+        return;
+      case "brief.ask": {
         const thread = String(m.thread ?? "");
         if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return new Refused("unknown thread");
-        const items = (Array.isArray(m.items) ? m.items : []).map((x) => String(x).slice(0, 200)).filter(Boolean).slice(0, 10);
-        if (!items.length) return;
-        const r = await this.needsSummary(thread, email, items);
-        // Same answer to the same socket within a minute: skip. Tabs still on the old app re-asked on every reply.
-        const k = `${thread}|${r?.key}`, seen = this.needsSent.get(ws);
-        if (!r || (seen?.k === k && Date.now() - seen.at < 60_000)) return;
-        this.needsSent.set(ws, { k, at: Date.now() });
-        return this.sendTo([ws], { t: "needsSummary", thread, key: r.key, text: r.text });
+        return this.briefAsk(email, thread);
       }
+      case "brief.dismiss":
+        this.sql.exec(`DELETE FROM briefs WHERE id = ? AND email = ?`, Number(m.id), email);
+        return this.sendBriefs(email);
       case "doc.versions": {
         const epic = String(m.epic ?? "");
         if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");

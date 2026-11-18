@@ -10,12 +10,12 @@
     prettyModel,
   } from "./features/chat/model";
   import Button from "./lib/studio/Button.svelte";
+  import AgentMark from "./lib/components/AgentMark.svelte";
   import {
     AGENT_TILES,
     agentMark,
     agentProvider,
   } from "./lib/components/agent";
-  import NeedsYou from "./features/needs-you/NeedsYou.svelte";
   import { productionStatuses } from "./features/chat/production";
   let {
     room,
@@ -25,14 +25,13 @@
     more = false,
     origin = null,
     replyCount = 0,
-    needsYou,
     vb,
     actions,
     onloadolder,
   }: ChatProps = $props();
-  // A question's epic is only the answer (Gui #2798): no "O que precisa de você" card there.
-  const answerEpic = $derived(
-    !!room.epics.find((e) => e.id === thread)?.answer,
+  // "O que precisa de mim aqui" (Gui #3011): your latest ask in this thread, answered by your Claude; only you get it.
+  const brief = $derived(
+    room.briefs?.filter((item) => item.thread === thread).at(-1),
   );
   let now = $state(Date.now());
   onMount(() => {
@@ -198,10 +197,50 @@
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
       </div>{/if}
-    {#if needsYou && !answerEpic}<NeedsYou
-        {...needsYou}
-        {vb}
-        request={actions.request}
-      />{/if}
+    {#if brief}<section
+        data-native-brief
+        aria-label={vb.t("O que precisa de mim aqui?")}
+        class="tw:mx-3 tw:mt-4 tw:space-y-1.5 tw:rounded-surface tw:border tw:border-dashed tw:border-border tw:bg-muted/40 tw:p-3"
+      >
+        <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs">
+          <AgentMark size="2xs" />
+          <b class="tw:font-semibold">{vb.t("O que precisa de mim aqui?")}</b>
+          <span class="tw:rounded-full tw:bg-muted tw:px-2 tw:py-0.5"
+            >{vb.t("só você vê")}</span
+          >
+          <span class="tw:flex-1"></span><Button
+            size="sm"
+            variant="ghost"
+            onclick={(event) => {
+              if (event.currentTarget.isConnected)
+                void actions.request({ t: "brief.dismiss", id: brief.id });
+            }}>{vb.t("Dispensar")}</Button
+          >
+        </div>
+        {#if brief.text}<p
+            data-brief-text
+            class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-sm tw:leading-6"
+          >
+            {brief.text}
+          </p>
+          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+            {brief.answered_at
+              ? [
+                  brief.model ? prettyModel(brief.model) : "",
+                  new Date(brief.answered_at).toLocaleTimeString(
+                    vb.locale || "pt-BR",
+                    { hour: "2-digit", minute: "2-digit" },
+                  ),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : ""}
+          </p>{:else}<p
+            role="status"
+            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          >
+            {vb.t("Pedi pro seu Claude… ele responde quando estiver ouvindo.")}
+          </p>{/if}
+      </section>{/if}
   </section>
 {/key}
