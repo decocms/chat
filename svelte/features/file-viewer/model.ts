@@ -42,11 +42,11 @@ export function fileTargetFromURL(
 }
 export function fileURL(input: FileTarget, escape = false) {
   const target = FileTarget.parse(input);
-  return `/api/books/${target.roomId}/files/${target.id}?ui=svelte${escape ? "&esc=1" : ""}`;
+  return `/api/books/${target.roomId}/files/${target.id}${escape ? "?esc=1" : ""}`;
 }
 export function fileRoomURL(input: FileTarget) {
   const target = FileTarget.parse(input);
-  return `/b/${target.roomId}?ui=svelte#f${target.id}`;
+  return `/b/${target.roomId}#f${target.id}`;
 }
 export function sameFile(a: Attachment, b: Attachment) {
   return (

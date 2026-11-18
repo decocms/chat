@@ -75,7 +75,7 @@ export function appIdentity(
     : null;
 }
 export function signinUrl(roomId: string, connectionId: string) {
-  return `/api/books/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}/signin?ui=svelte`;
+  return `/api/books/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}/signin`;
 }
 export function safeOpenLink(raw: string): string | null {
   try {

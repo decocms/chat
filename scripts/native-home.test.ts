@@ -103,7 +103,7 @@ test("wait links preserve numeric message identity and task thread navigation", 
     text: "Please",
     ts: 1,
   };
-  expect(targetHref(waitTarget(wait))).toBe("/b/aaaaaa?ui=svelte&t=epic-1#m42");
+  expect(targetHref(waitTarget(wait))).toBe("/b/aaaaaa?t=epic-1#m42");
   expect(waitTarget({ ...wait, ref: "t42" })).toEqual({
     roomId: "aaaaaa",
     thread: "epic-1",
@@ -364,7 +364,7 @@ test("search debounce/close ignores stale remote results while local room target
   personal.dispose();
 });
 test("room→Home→Back activates room lifecycle and same-room targets avoid reconnect", () => {
-  let href = "https://vb.test/b/aaaaaa?ui=svelte";
+  let href = "https://vb.test/b/aaaaaa";
   const entries = [href],
     activated: string[] = [],
     same: unknown[] = [];
@@ -399,7 +399,7 @@ test("room→Home→Back activates room lifecycle and same-room targets avoid re
       throw Error("unexpected document navigation");
     },
   });
-  router.go("/app");
+  router.go("/");
   expect(activated).toEqual(["home"]);
   entries.pop();
   href = entries[0]!;

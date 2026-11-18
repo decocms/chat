@@ -40,10 +40,10 @@
     vars?: Record<string, string>,
   ) => authText(lang, key, vars);
   const roomURL = $derived(
-    `/b/${encodeURIComponent(id)}?ui=svelte${fileId ? `#f${fileId}` : ""}`,
+    `/b/${encodeURIComponent(id)}${fileId ? `#f${fileId}` : ""}`,
   );
   const loginURL = $derived(
-    `/login?ui=svelte&next=${encodeURIComponent(fileId ? roomURL : roomURL + "&pedir=1")}`,
+    `/login?next=${encodeURIComponent(fileId ? roomURL : roomURL + "?pedir=1")}`,
   );
   onMount(() => {
     void session.load();
@@ -72,7 +72,7 @@
     >
       {text("missingBody")}
     </p>
-    <a class={buttonVariants()} href="/app?ui=svelte">{text("open")}</a>
+    <a class={buttonVariants()} href="/">{text("open")}</a>
   {:else if $view.context?.state === "out" || $view.signedOut}<p
       class="m-0 text-muted-foreground"
     >

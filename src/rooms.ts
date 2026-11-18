@@ -110,7 +110,7 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
     const url = await inviteLink(env, origin, who, bookId);
     const title = book?.title ?? (en ? "a vibebook" : "um vibebook");
     const name = inviter.split("@")[0];
-    const connect = `${origin}/${en ? "en" : "pt"}/connect`;
+    const connect = `${origin}/llms.txt`; // the setup guide for every client
     const setup = `Read ${origin}/llms.txt and set up vibebook for this project. Room: ${origin}/b/${bookId}`;
     ctx.waitUntil(
       env.EMAIL.send({

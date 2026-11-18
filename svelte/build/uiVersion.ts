@@ -41,7 +41,7 @@ export async function versionAppShell(
     hash.update(content);
   });
   const version = hash.digest("hex").slice(0, UI_VERSION_HEX_LENGTH);
-  const shellPath = join(publicDirectory, "app-svelte.html");
+  const shellPath = join(publicDirectory, "app.html");
   const shell = await readFile(shellPath, "utf8");
   // Do not hash the shell or inject another line: that would either make each
   // rebuild change its own input or couple the HTML layout to build metadata.

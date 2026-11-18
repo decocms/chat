@@ -268,9 +268,9 @@ export const messageIdentity = (value: string | number | undefined) => {
   return Number.isSafeInteger(id) && id > 0 ? id : undefined;
 };
 export function targetHref(target: RoomTarget) {
-  const query = new URLSearchParams({ ui: "svelte" });
+  const query = new URLSearchParams();
   if (target.thread && target.thread !== "main") query.set("t", target.thread);
-  return `/b/${encodeURIComponent(target.roomId)}?${query}${target.fileId ? "#f" + encodeURIComponent(target.fileId) : target.messageId ? "#m" + target.messageId : target.document ? "#doc" : target.app ? (appRouteHash(target.app) ?? "") : ""}`;
+  return `/b/${encodeURIComponent(target.roomId)}${query.size ? `?${query}` : ""}${target.fileId ? "#f" + encodeURIComponent(target.fileId) : target.messageId ? "#m" + target.messageId : target.document ? "#doc" : target.app ? (appRouteHash(target.app) ?? "") : ""}`;
 }
 export function waitTarget(wait: Wait): RoomTarget {
   const id = /^[mab](\d+)$/.exec(wait.ref)?.[1];

@@ -8,7 +8,7 @@ import { writable } from "svelte/store";
 import type { AuthApi } from "../svelte/features/auth/api";
 import type { NativeAuthMetadata } from "../shared/nativeAuth";
 const environment = new Window({
-  url: "https://vibebook.test/login?ui=svelte",
+  url: "https://vibebook.test/login",
 });
 // One environment boundary: Svelte sees the same Happy DOM constructors as the mounted DOM nodes.
 for (const name of [
@@ -85,7 +85,7 @@ const { readNativeAuthMetadata, restoreAuthTheme } =
   await import("../svelte/features/auth/mount");
 const login = {
   providers: { email: true as const, google: true, github: true },
-  next: "/app",
+  next: "/",
   error: null,
 };
 const consent = {
@@ -101,7 +101,7 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
   return {
     login: async () => login,
     start: async () => ({ ok: true }),
-    verify: async () => ({ ok: true, next: "/app" }),
+    verify: async () => ({ ok: true, next: "/" }),
     access: async () => ({ state: "out", title: "<Room>", email: null }),
     ask: async () => ({ ok: true }),
     answerInvite: async () => ({ ok: true }),
@@ -140,10 +140,10 @@ async function render(
           metadata: { page, lang, autoAccess: false, consentFailure },
           href:
             page === "file-access"
-              ? "https://vibebook.test/api/books/abcdef/files/aa?ui=svelte"
+              ? "https://vibebook.test/api/books/abcdef/files/aa"
               : page === "access"
-                ? "https://vibebook.test/b/abcdef?ui=svelte"
-                : `https://vibebook.test/${page === "consent" ? "authorize?ui=svelte&client_id=client" : "login?ui=svelte"}`,
+                ? "https://vibebook.test/b/abcdef"
+                : `https://vibebook.test/${page === "consent" ? "authorize?client_id=client" : "login"}`,
           api: http,
           navigate: (url: string) => navigations.push(url),
         },
@@ -211,10 +211,7 @@ test("access escapes room data and never requests membership from a bare link", 
   expect(target.querySelector("Room")).toBeNull();
   expect(asks).toBe(0);
   const link = target.querySelector<HTMLAnchorElement>('a[href^="/login?"]')!;
-  expect(link.href).toContain("ui=svelte");
-  expect(new URL(link.href).searchParams.get("next")).toBe(
-    "/b/abcdef?ui=svelte&pedir=1",
-  );
+  expect(new URL(link.href).searchParams.get("next")).toBe("/b/abcdef?pedir=1");
 });
 test("consent uses the real same-origin browser form and defaults to denial; external client data stays text", async () => {
   const { target } = await render("consent");
@@ -229,9 +226,7 @@ test("consent uses the real same-origin browser form and defaults to denial; ext
     'form[action^="/authorize"]',
   )!;
   expect(form.method).toBe("post");
-  expect(form.getAttribute("action")).toBe(
-    "/authorize?ui=svelte&client_id=client",
-  );
+  expect(form.getAttribute("action")).toBe("/authorize?client_id=client");
   expect(
     form.querySelector<HTMLInputElement>('input[name="handle"]')!.value,
   ).toBe(consent.handle);
@@ -246,7 +241,7 @@ test("consent uses the real same-origin browser form and defaults to denial; ext
     target
       .querySelector('form[action="/auth/logout"] input[name="next"]')
       ?.getAttribute("value"),
-  ).toBe("/authorize?ui=svelte&client_id=client");
+  ).toBe("/authorize?client_id=client");
 });
 test("public metadata rejects unknown page discriminants and never routes them into legacy UI", () => {
   document.head.innerHTML =
@@ -295,9 +290,7 @@ test("changing a native page URL disposes the old context before a late response
       finish = resolve;
     },
   );
-  const href = writable(
-    "https://vibebook.test/authorize?ui=svelte&client_id=old",
-  );
+  const href = writable("https://vibebook.test/authorize?client_id=old");
   const target = document.createElement("div");
   document.body.append(target);
   const navigations: string[] = [];
@@ -320,7 +313,7 @@ test("changing a native page URL disposes the old context before a late response
     ),
   );
   await settle();
-  href.set("https://vibebook.test/authorize?ui=svelte&client_id=new");
+  href.set("https://vibebook.test/authorize?client_id=new");
   await settle();
   expect(target.textContent).toContain("New app");
   expect(
@@ -397,7 +390,7 @@ test("consent sign-out cleanup keeps real POST and original query, then submits 
       mount(AuthLogoutForm, {
         target,
         props: {
-          next: "/authorize?ui=svelte&client_id=original",
+          next: "/authorize?client_id=original",
           lang: "en",
           onBegin: () => {
             begun++;
@@ -412,7 +405,7 @@ test("consent sign-out cleanup keeps real POST and original query, then submits 
   expect(form.getAttribute("action")).toBe("/auth/logout");
   expect(
     form.querySelector<HTMLInputElement>('input[name="next"]')?.value,
-  ).toBe("/authorize?ui=svelte&client_id=original");
+  ).toBe("/authorize?client_id=original");
   expect(form.querySelector('input[name="handle"]')).toBe(null);
   let submits = 0;
   form.requestSubmit = () => {
@@ -437,7 +430,7 @@ test("unconfirmed sign-out cleanup requires explicit continuation and exposes sa
       mount(AuthLogoutForm, {
         target,
         props: {
-          next: "/authorize?ui=svelte&client_id=original",
+          next: "/authorize?client_id=original",
           lang: "en",
           onBegin: () => {},
           cleanup: async () => ({
@@ -464,7 +457,7 @@ test("unconfirmed sign-out cleanup requires explicit continuation and exposes sa
     "Continue signing out",
   );
   expect(target.querySelector("a")?.getAttribute("href")).toBe(
-    "/authorize?ui=svelte&client_id=original",
+    "/authorize?client_id=original",
   );
   const explicit = new Event("submit", { bubbles: true, cancelable: true });
   form.dispatchEvent(explicit);
@@ -489,7 +482,7 @@ test("disposed consent sign-out cleanup cannot submit its detached form", async 
     mount(AuthLogoutForm, {
       target,
       props: {
-        next: "/authorize?ui=svelte",
+        next: "/authorize",
         lang: "en",
         onBegin: () => {},
         cleanup: () => pending,
@@ -520,7 +513,7 @@ test("an already submitted consent blocks idle account-switch cleanup", async ()
       mount(AuthLogoutForm, {
         target,
         props: {
-          next: "/authorize?ui=svelte",
+          next: "/authorize",
           lang: "en",
           blocked: true,
           onBegin: () => {},
@@ -556,9 +549,7 @@ test("native file access is a grant-free context with safe sign-in continuation"
   expect(asks).toBe(0);
   expect(navigations).toEqual([]);
   const link = target.querySelector<HTMLAnchorElement>('a[href^="/login"]')!;
-  expect(new URL(link.href).searchParams.get("next")).toBe(
-    "/b/abcdef?ui=svelte#faa",
-  );
+  expect(new URL(link.href).searchParams.get("next")).toBe("/b/abcdef#faa");
   expect(target.textContent).toContain("Only room members can open this file");
 });
 test("native file access asks only explicitly and retains exact version after the request", async () => {
@@ -585,7 +576,7 @@ test("native file access asks only explicitly and retains exact version after th
   button.click();
   await settle();
   expect(asks).toBe(1);
-  expect(navigations).toEqual(["/b/abcdef?ui=svelte#faa"]);
+  expect(navigations).toEqual(["/b/abcdef#faa"]);
 });
 
 test("native connection failure shows only typed localized copy and a safe continuation without API replay", async () => {
@@ -623,7 +614,7 @@ test("native connection failure shows only typed localized copy and a safe conti
     expect(target.querySelector('[role="alert"]')?.textContent).toContain(
       lang === "en" ? "Wait a minute" : "Espere um minuto",
     );
-    expect(target.querySelector('a[href="/app?ui=svelte"]')).not.toBeNull();
+    expect(target.querySelector('a[href="/"]')).not.toBeNull();
     expect(target.querySelector("button")).toBeNull();
     for (const secret of [
       "PRIVATE_STATE",

@@ -52,7 +52,7 @@ export function createHomeApi(fetcher?: FetchLike) {
         .then((response) => read(response, InboxResult)),
     me: (signal?: AbortSignal) =>
       api.me
-        .$get({ query: { ui: "svelte" } }, { init: { signal } })
+        .$get({ query: {} }, { init: { signal } })
         .then((response) => read(response, MeResult)),
     archived: (signal?: AbortSignal) =>
       api.archived

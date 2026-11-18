@@ -15,22 +15,9 @@ async function snapshot() {
     ),
   );
   assets.push([
-    "app-svelte.html",
-    await readFile(
-      new URL("../public/app-svelte.html", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  assets.push([
     "app.html",
     await readFile(new URL("../public/app.html", import.meta.url), "utf8"),
   ]);
-  for (const name of ["svelte/ui.js", "collab.js"]) {
-    assets.push([
-      name,
-      await readFile(new URL(`../public/${name}`, import.meta.url), "utf8"),
-    ]);
-  }
   return new Map(assets);
 }
 const before = await snapshot();
@@ -45,7 +32,7 @@ const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
 );
 if (changed.length) {
   console.error(
-    `Generated UI assets were stale: ${changed.join(", ")}. Review and commit public/app-svelte.html and all public/svelte-preview JS/CSS assets, then rerun check.`,
+    `Generated UI assets were stale: ${changed.join(", ")}. Review and commit public/app.html and all public/svelte-preview JS/CSS assets, then rerun check.`,
   );
   process.exit(1);
 }

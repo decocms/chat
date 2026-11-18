@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { readdir, readFile, unlink, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { projectRoot } from "../svelte/build/clientBoundary";
 import { buildBrowser } from "./browser-build";
@@ -33,9 +32,7 @@ export async function buildAppDocument(
   options: {
     root?: string;
     bootstrap?: string;
-    host?: string;
     module?: string;
-    shell?: string;
     signal?: AbortSignal;
   } = {},
 ) {
@@ -66,44 +63,5 @@ export async function buildAppDocument(
     options.module ?? join(root, "shared/generated/appDocumentBootstrap.ts"),
     bootstrapModule(bootstrapJS),
   );
-  const host = await buildBrowser(
-    {
-      entrypoints: [options.host ?? join(root, "browser/app-document/host.ts")],
-    },
-    root,
-  );
-  if (host.outputs.length !== 1)
-    throw new Error("App host must be one browser module");
-  const hostJS = await host.outputs[0]!.text();
-  assertCurrent();
-  const digest = createHash("sha256").update(hostJS).digest("hex").slice(0, 20);
-  const asset = "app-document-host." + digest + ".js";
-  const publicRoot = join(root, "public");
-  const shellPath = options.shell ?? join(publicRoot, "app.html");
-  const shell = await readFile(shellPath, "utf8");
-  let imports = 0;
-  const next = shell.replace(
-    /\/app-document-host(?:\.[a-f0-9]{20})?\.js/g,
-    () => {
-      imports++;
-      return "/" + asset;
-    },
-  );
-  if (imports !== 1)
-    throw new Error(
-      "Vanilla shell must import its app document host exactly once",
-    );
-  assertCurrent();
-  await writeChanged(join(publicRoot, asset), hostJS);
-  assertCurrent();
-  if (next !== shell) await writeFile(shellPath, next);
-  assertCurrent();
-  for (const file of await readdir(publicRoot))
-    if (
-      /^app-document-host(?:\.[a-f0-9]{20})?\.js$/.test(file) &&
-      file !== asset
-    )
-      await unlink(join(publicRoot, file));
-  return { asset, digest };
 }
 if (import.meta.main) await buildAppDocument();

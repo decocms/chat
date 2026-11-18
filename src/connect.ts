@@ -19,7 +19,6 @@ import type {
   ConsentContext,
   ConsentError,
 } from "../shared/schemas";
-import { uiNavigationUrl, uiVariant } from "../shared/uiVariant";
 import { withAgentGrant, type AgentProps } from "./agentGrant";
 import { grantMetadata } from "./grantMetadata";
 export type { AgentProps } from "./agentGrant";
@@ -61,111 +60,12 @@ export function providerFor(
   return p;
 }
 
-type Lang = "pt" | "en";
-const lang = (c: Context): Lang => reqLang(c.req.raw);
-
-const T = {
-  pt: {
-    title: (n: string) => `Conectar ${n} ao vibebook`,
-    lede: (me: string) => `Conectado como <b>${me}</b>. Ele vai poder:`,
-    can: [
-      "Ver as salas em que você está, e só elas",
-      "Ler as mensagens, o doc e as tarefas",
-      "Postar nas salas em seu nome, marcado como “agent de você”",
-    ],
-    cant: (host: string) => `Ele não vê seu email, não convida ninguém sem você pedir e você desconecta quando quiser em ${host}/app.`,
-    from: (d: string) => `Publicado por <b>${d}</b>.`,
-    self: "Esse app se registrou sozinho: o nome não é verificado.",
-    goes: (h: string) => `O acesso vai para <b>${h}</b>.`,
-    local:
-      "Isso manda o acesso para um app no seu computador. Continue só se você acabou de pedir pra conectar.",
-    allow: "Permitir",
-    deny: "Cancelar",
-    other: "Não é você? Entrar com outro email",
-    expired:
-      "Esse pedido expirou ou já foi usado. Volte ao seu agent e tente conectar de novo.",
-  },
-  en: {
-    title: (n: string) => `Connect ${n} to vibebook`,
-    lede: (me: string) => `Signed in as <b>${me}</b>. It will be able to:`,
-    can: [
-      "See the rooms you're in, and only those",
-      "Read messages, the doc and tasks",
-      "Post in rooms for you, labeled as “your agent”",
-    ],
-    cant: (host: string) => `It can't see your email inbox, won't invite anyone unless you ask, and you can disconnect it anytime at ${host}/app.`,
-    from: (d: string) => `Published by <b>${d}</b>.`,
-    self: "This app registered itself; its name is not verified.",
-    goes: (h: string) => `Access goes to <b>${h}</b>.`,
-    local:
-      "This sends access to an app on your computer. Continue only if you just asked to connect.",
-    allow: "Allow",
-    deny: "Cancel",
-    other: "Not you? Sign in with another email",
-    expired:
-      "This request expired or was already used. Go back to your agent and connect again.",
-  },
-};
-
-const page = (
-  title: string,
-  body: string,
-) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#1d5fc4"><title>${title}</title><link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Schibsted+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  html, body { margin: 0; background: oklch(0.5 0.17 248); color: oklch(0.2 0.02 250); color-scheme: light; }
-  body { font: 16px/1.5 "Schibsted Grotesk", system-ui, sans-serif; min-height: 100dvh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
-  .card { background: #fff; border-radius: 22px; padding: 28px; max-width: 460px; width: 100%; box-shadow: 0 40px 80px -30px oklch(0.15 0.1 250 / .7); box-sizing: border-box; }
-  h1 { font: 400 28px/1.1 Caprasimo, Georgia, serif; margin: 0 0 14px; }
-  ul { padding-left: 20px; margin: 8px 0 16px; } li + li { margin-top: 4px; }
-  .muted { color: oklch(0.45 0.02 250); font-size: 14px; }
-  .warn { background: oklch(0.95 0.06 95); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
-  .row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-  button { font: 700 15px/1 inherit; font-family: inherit; border: 0; border-radius: 999px; padding: 13px 22px; cursor: pointer; }
-  .yes { background: oklch(0.9 0.16 98); color: oklch(0.2 0.06 250); box-shadow: 0 4px 0 oklch(0.72 0.14 90); }
-  .no { background: transparent; box-shadow: inset 0 0 0 2px oklch(0.91 0.01 245); }
-  .other { margin-top: 14px; } .other button { background: none; padding: 0; font: 600 14px/1.4 inherit; font-family: inherit; color: oklch(0.45 0.13 250); text-decoration: underline; }
-</style></head><body><div class="card">${body}</div></body></html>`;
-
-const consentHtml = (
-  t: (typeof T)[Lang],
-  d: ConsentDescription & { redirectIsLoopback?: boolean },
-  me: string,
-  handle: string,
-  here: string,
-  host: string,
-) => {
-  const name = escapeHtml(d.clientName);
-  return page(
-    t.title(name),
-    `<h1>${t.title(name)}</h1>
-<p>${t.lede(escapeHtml(me))}</p>
-<ul>${t.can.map((x) => `<li>${x}</li>`).join("")}</ul>
-<p class="muted">${t.cant(escapeHtml(host))}</p>
-<p class="muted">${d.clientDomain ? t.from(escapeHtml(d.clientDomain)) : t.self} ${t.goes(escapeHtml(d.redirectHost))}</p>
-${d.redirectIsLoopback ? `<p class="warn">${t.local}</p>` : ""}
-<form method="post"><input type="hidden" name="handle" value="${escapeHtml(handle)}">
-<div class="row"><button class="yes" name="decision" value="approve">${t.allow}</button><button class="no" name="decision" value="deny">${t.deny}</button></div></form>
-<form class="other" method="post" action="/auth/logout"><input type="hidden" name="next" value="${escapeHtml(here)}"><button>${t.other}</button></form>`,
-  );
-};
-
 export const connect = new Hono<{ Bindings: Env }>();
 
+// An error that carries its own redirect (back to the client) follows it; anything else is the Worker's error.
 const fail = (c: Context, e: unknown) => {
   if (e instanceof AuthorizationError && e.redirectTo)
     return c.redirect(e.redirectTo, 302);
-  if (e instanceof AuthorizationError || e instanceof CimdFetchError) {
-    const t = T[lang(c)];
-    return c.html(
-      page(
-        "vibebook",
-        `<h1>vibebook</h1><p>${e instanceof AuthorizationError ? escapeHtml(e.description ?? t.expired) : t.expired}</p>`,
-      ),
-      400,
-    );
-  }
   throw e;
 };
 
@@ -174,35 +74,16 @@ connect.get("/authorize", async (c) => {
   const url = new URL(c.req.url);
   if (!email)
     return c.redirect(
-      uiNavigationUrl(
-        `/login?next=${encodeURIComponent(url.pathname + url.search)}`,
-        url,
-        uiVariant(url),
-      ),
+      `/login?next=${encodeURIComponent(url.pathname + url.search)}`,
     );
   try {
     const oauth = c.env.OAUTH_PROVIDER;
     const request = await oauth.parseAuthRequest(c.req.raw);
-    const details = await oauth.describeConsent(request);
-    // Validate the original request before serving native UI. Its typed context GET creates the consent transaction.
-    if (uiVariant(url) === "svelte")
-      return nativeAuthPage(c.env, c.req.raw, "consent");
-    const consent = await oauth.beginConsent(request);
-    consent.headers.set("content-type", "text/html; charset=utf-8");
-    return new Response(
-      consentHtml(
-        T[lang(c)],
-        details,
-        email,
-        consent.handle,
-        url.pathname + url.search,
-        url.host,
-      ),
-      { headers: consent.headers },
-    );
+    // Validate the original request before serving the page. Its typed context GET creates the consent transaction.
+    await oauth.describeConsent(request);
+    return nativeAuthPage(c.env, c.req.raw, "consent");
   } catch (e) {
     if (
-      uiVariant(url) === "svelte" &&
       (e instanceof AuthorizationError || e instanceof CimdFetchError) &&
       !(e instanceof AuthorizationError && e.redirectTo)
     )
@@ -247,10 +128,7 @@ connect.post("/authorize", async (c) => {
     approved.headers.set("location", redirectTo);
     return new Response(null, { status: 302, headers: approved.headers });
   } catch (e) {
-    if (
-      uiVariant(c.req.url) === "svelte" &&
-      !(e instanceof AuthorizationError && e.redirectTo)
-    ) {
+    if (!(e instanceof AuthorizationError && e.redirectTo)) {
       const known =
         e instanceof AuthorizationError || e instanceof CimdFetchError;
       // Presentation only: the provider still owns all validation/consumption and success headers.

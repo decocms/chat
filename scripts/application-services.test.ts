@@ -44,7 +44,7 @@ function event(room: Room): RoomEvent {
   return { t: "state", ...state };
 }
 function fixture(
-  initial = "http://vb.test/app",
+  initial = "http://vb.test/",
   shellVersion: string | null = "development",
   /** When given, the browser has view transitions: their updates land here. */
   transitions?: (() => Promise<void> | void)[],
@@ -621,7 +621,7 @@ test("known Personal global 401 revokes private scope and caches before login re
 });
 
 test("release availability compares the shell ETag, stays quiet on fresh load and recognizes a later release", async () => {
-  const h = fixture("http://vb.test/app?ui=svelte", "current-html-etag");
+  const h = fixture("http://vb.test/", "current-html-etag");
   h.canonical(me({ v: "current-html-etag" }));
   h.services.start();
   await settle();
@@ -815,12 +815,12 @@ test("switching rooms or DMs, or between the home and one, animates; a thread in
     dmB = `dm${"b".repeat(20)}`,
     at = (path: string) => applicationRoute(`http://vb.test${path}`);
   expect(roomTransition(at(`/b/${dmA}`), at(`/b/${dmB}`))).toBe(true);
-  expect(roomTransition(at("/app"), at(`/b/${dmA}`))).toBe(true);
-  expect(roomTransition(at(`/b/${dmA}`), at("/app"))).toBe(true);
+  expect(roomTransition(at("/"), at(`/b/${dmA}`))).toBe(true);
+  expect(roomTransition(at(`/b/${dmA}`), at("/"))).toBe(true);
   expect(roomTransition(at(`/b/${dmA}`), at("/b/cccccc"))).toBe(true);
   expect(roomTransition(at("/b/cccccc"), at("/b/dddddd"))).toBe(true);
-  expect(roomTransition(at("/app"), at("/b/cccccc"))).toBe(true);
-  expect(roomTransition(at("/b/cccccc"), at("/app"))).toBe(true);
+  expect(roomTransition(at("/"), at("/b/cccccc"))).toBe(true);
+  expect(roomTransition(at("/b/cccccc"), at("/"))).toBe(true);
   expect(roomTransition(at(`/b/${dmA}`), at(`/b/${dmA}?t=e1`))).toBe(false);
   expect(roomTransition(at("/b/cccccc"), at("/b/cccccc?t=e1"))).toBe(false);
   expect(roomTransition(at(`/b/${dmA}`), at("/archived"))).toBe(false);

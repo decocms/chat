@@ -91,7 +91,7 @@ if (native) {
   await collect("svelte");
   await collect("collab");
   await collect("browser");
-  files.push("public/app-svelte.html");
+  files.push("public/app.html");
 }
 for (const file of files.sort()) {
   const source = await readFile(join(projectRoot, file), "utf8");

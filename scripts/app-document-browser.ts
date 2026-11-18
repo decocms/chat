@@ -4,13 +4,20 @@ import { chromium, expect, type Browser, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildAppDocument } from "./build-app-document";
+import { buildBrowser } from "./browser-build";
+import { projectRoot } from "../svelte/build/clientBoundary";
 
 const output = resolve(
   process.env.TEST_OUTPUT ?? "/tmp/vibebook-app-document-browser",
 );
 await mkdir(output, { recursive: true });
-const { asset } = await buildAppDocument();
-const hostFile = Bun.file(resolve("public", asset));
+await buildAppDocument();
+// The host is bundled into the Svelte app; this page loads it on its own.
+const hostBuild = await buildBrowser(
+  { entrypoints: [resolve(projectRoot, "browser/app-document/host.ts")] },
+  projectRoot,
+);
+const hostFile = await hostBuild.outputs[0]!.text();
 let replacementRequests = 0;
 const server = Bun.serve({
   hostname: "127.0.0.1",

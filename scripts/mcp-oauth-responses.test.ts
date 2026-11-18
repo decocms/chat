@@ -132,7 +132,7 @@ function fixture(
     resource: "https://resource.example/mcp",
     issuer: "https://provider.example",
     verifier: "stored-pkce-verifier",
-    back: "/b/abcdef?ui=svelte",
+    back: "/b/abcdef",
     expires_at: options.expired ? 0 : Date.now() + 60000,
   };
   const env = {
@@ -260,7 +260,6 @@ test("actual startAuth falls back past malformed metadata, then keeps PKCE/fixed
     if (typeof storedState !== "string")
       throw Error("Missing stored OAuth state");
     expect(target.searchParams.get("state")).toBe(storedState);
-    expect(target.searchParams.get("state")?.startsWith("svelte.")).toBe(true);
     expect(target.searchParams.get("scope")).toBe("read write");
     expect(
       h.requests.some((row) => row.url.includes("openid-configuration")),

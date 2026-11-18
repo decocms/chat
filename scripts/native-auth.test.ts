@@ -85,7 +85,7 @@ function timer() {
     },
   };
 }
-test("continuations stay on supported local routes and preserve explicit selection", () => {
+test("continuations stay on supported local routes and drop ?ui=", () => {
   for (const unsafe of [
     "//evil.test/app",
     "https://evil.test/app",
@@ -97,20 +97,19 @@ test("continuations stay on supported local routes and preserve explicit selecti
     "javascript:alert(1)",
     "/api/private",
   ])
-    expect(authContinuation(unsafe, "https://vibebook.test")).toBe(
-      "/app?ui=svelte",
-    );
+    expect(authContinuation(unsafe, "https://vibebook.test")).toBe("/");
   expect(
     authContinuation(
       "/authorize?client_id=x&redirect_uri=https%3A%2F%2Fagent.test%2Fcallback",
       "https://vibebook.test",
     ),
   ).toBe(
-    "/authorize?client_id=x&redirect_uri=https%3A%2F%2Fagent.test%2Fcallback&ui=svelte",
+    "/authorize?client_id=x&redirect_uri=https%3A%2F%2Fagent.test%2Fcallback",
   );
   expect(
     authContinuation("/b/abcdef?t=epic#file", "https://vibebook.test"),
-  ).toBe("/b/abcdef?t=epic&ui=svelte#file");
+  ).toBe("/b/abcdef?t=epic#file");
+  expect(authContinuation("/?ui=svelte", "https://vibebook.test")).toBe("/");
   expect(
     authContinuation("/api/books/abcdef/files/123abc", "https://vibebook.test"),
   ).toBe("/api/books/abcdef/files/123abc");
@@ -122,16 +121,14 @@ test("continuations stay on supported local routes and preserve explicit selecti
 });
 test("native shell allowlists only versioned emitted assets and public metadata", () => {
   const version = "0123456789abcdef0123";
-  const shell = `<link href="https://fonts.googleapis.com/a"><link href="/app-svelte.css?v=${version}"><link rel="stylesheet" href="/svelte-preview/ui.css?v=${version}"><script src="/vendor/marked.js"></script><nav>legacy</nav><script type="module" src="/svelte-preview/app.js?v=${version}"></script>`;
+  const shell = `<link href="https://fonts.googleapis.com/a"><link href="/app.css?v=${version}"><link rel="stylesheet" href="/svelte-preview/ui.css?v=${version}"><script src="/vendor/marked.js"></script><nav>legacy</nav><script type="module" src="/svelte-preview/app.js?v=${version}"></script>`;
   for (const page of ["login", "access", "consent", "file-access"] as const) {
     const html = nativeAuthHtml(shell, { page, lang: "en", autoAccess: false });
     expect(html).toContain(`content="${page}"`);
     expect(html).toContain(`name="vb-v" content="${version}"`);
     expect(html).toContain(`/svelte-preview/app.js?v=${version}`);
     expect(html).toContain(`/svelte-preview/ui.css?v=${version}`);
-    expect(html).not.toMatch(
-      /legacy|vendor|googleapis|app-svelte\.css|<style|<nav/,
-    );
+    expect(html).not.toMatch(/legacy|vendor|googleapis|app\.css|<style|<nav/);
     expect(html).not.toContain("handle");
     expect(html).not.toContain("email");
   }
@@ -269,7 +266,7 @@ test("login verification rejects unsafe returned next and expired/disposed resul
   await session.submit();
   session.code("123456");
   await session.submit();
-  expect(destinations).toEqual(["/app?ui=svelte"]);
+  expect(destinations).toEqual(["/"]);
   session.dispose();
   const old = deferred<{ ok: true; next: string }>();
   const stale = createLoginSession(
@@ -286,7 +283,7 @@ test("login verification rejects unsafe returned next and expired/disposed resul
   const pending = stale.submit();
   stale.dispose();
   const before = get(stale.state);
-  old.resolve({ ok: true, next: "/app" });
+  old.resolve({ ok: true, next: "/" });
   await pending;
   stale.email("changed@test.com");
   stale.back();
@@ -350,7 +347,7 @@ test("access sends no bare-link request, auto-request is explicit and ask errors
   expect(asks).toBe(0);
   await bare.ask();
   expect(asks).toBe(1);
-  expect(destinations).toEqual(["/b/abcdef?ui=svelte"]);
+  expect(destinations).toEqual(["/b/abcdef"]);
   bare.dispose();
   const auto = createAccessSession(
     api({
@@ -398,7 +395,7 @@ test("asked access polls real context, handles approval and disposal suppresses 
   time.fire();
   await Promise.resolve();
   await Promise.resolve();
-  expect(destinations).toEqual(["/b/abcdef?ui=svelte"]);
+  expect(destinations).toEqual(["/b/abcdef"]);
   session.dispose();
   expect(time.jobs.size).toBe(0);
   const late = deferred<Awaited<ReturnType<AuthApi["access"]>>>();
@@ -493,7 +490,7 @@ test("signed-out consent and access mutations expose recovery without navigating
   expect(get(consent.state)).toEqual(before);
   expect(time.jobs.size).toBe(0);
 });
-test("native shell rejects mixed asset generations and escapes the standard no-JS URL", () => {
+test("native shell rejects mixed asset generations and its no-JS text has no link", () => {
   const a = "a".repeat(20),
     b = "b".repeat(20),
     shell = `<link href="/svelte-preview/ui.css?v=${a}"><script src="/svelte-preview/app.js?v=${a}"></script>`;
@@ -504,15 +501,13 @@ test("native shell rejects mixed asset generations and escapes the standard no-J
       autoAccess: false,
     }),
   ).toThrow("mismatched");
-  const html = nativeAuthHtml(
-    shell,
-    { page: "consent", lang: "en", autoAccess: false },
-    '/authorize?client_id=x&state="quoted"',
-  );
-  expect(html).toContain(
-    'href="/authorize?client_id=x&amp;state=&quot;quoted&quot;"',
-  );
+  const html = nativeAuthHtml(shell, {
+    page: "consent",
+    lang: "en",
+    autoAccess: false,
+  });
   expect(html).toContain("<noscript>");
+  expect(html).not.toContain("<a href");
 });
 
 test("failed consent metadata creates no handle and retry remains explicit;500 presentation stays500", async () => {
@@ -577,7 +572,7 @@ test("native file-access shell preserves denial status and no-store/frame bounda
     expect(response.headers.get("x-frame-options")).toBe("DENY");
     const html = await response.text();
     expect(html).toContain('name="vb-page" content="file-access"');
-    expect(html).not.toMatch(/app-svelte\.css|vendor|<style/);
+    expect(html).not.toMatch(/app\.css|vendor|<style/);
   }
 });
 test("file access uses grant-free context and preserves exact file continuation only after explicit ask", async () => {
@@ -601,7 +596,7 @@ test("file access uses grant-free context and preserves exact file continuation 
   expect(destinations).toEqual([]);
   await session.ask();
   expect(asks).toBe(1);
-  expect(destinations).toEqual(["/b/abcdef?ui=svelte#faa"]);
+  expect(destinations).toEqual(["/b/abcdef#faa"]);
   session.dispose();
 });
 

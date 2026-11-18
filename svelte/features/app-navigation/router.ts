@@ -1,4 +1,3 @@
-import { uiNavigationUrl } from "../../../shared/uiVariant";
 import {
   targetHref,
   messageIdentity,
@@ -31,7 +30,7 @@ export type PresentationThread = `pre:${number}`;
 export function applicationRoute(href: string): ApplicationRoute {
   const url = new URL(href),
     roomId = roomIdFromPath(url.pathname);
-  if (url.pathname === "/app" || url.pathname === "/") return { kind: "home" };
+  if (url.pathname === "/") return { kind: "home" };
   if (url.pathname === "/archived") return { kind: "archived" };
   if (url.pathname === "/settings") return { kind: "settings" };
   if (roomId) {
@@ -84,7 +83,7 @@ export function createApplicationRouter(options: {
       options.document(url.href);
       return;
     }
-    const selected = uiNavigationUrl(url, options.current(), "svelte"),
+    const selected = url.pathname + url.search + url.hash,
       serializedRoute = applicationRoute(
         new URL(selected, options.current()).href,
       ),

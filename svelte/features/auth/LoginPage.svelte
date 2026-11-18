@@ -47,9 +47,7 @@
         (phase === "email" ? emailInput : codeInput)?.focus();
       });
   });
-  const next = $derived(
-    authContinuation($view.context?.next ?? "/app", origin),
-  );
+  const next = $derived(authContinuation($view.context?.next ?? "/", origin));
 </script>
 
 <AuthFrame title={$view.phase === "email" ? text("login") : text("check")}>

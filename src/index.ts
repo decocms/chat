@@ -3,14 +3,12 @@ import { mountAppDocumentFiles, isAppDocumentNavigation } from "./appDocumentFil
 import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api";
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
-import { uiNavigationUrl, uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
-import { selectUi, uiSwitch } from "./ui-select";
 import "server-only";
 import { type Context, Hono } from "hono";
 import { cookieLang, reqLang } from "./lang";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
-import { accessPage, filePage, roomAccess, roomMeta } from "./access";
+import { roomAccess, roomMeta } from "./access";
 import { openDm } from "./dm";
 import { nativeAuthPage, nativeConnectionSignedOut } from "./native-page";
 import { auth, authServices, EMAIL_RE, identify } from "./auth";
@@ -35,14 +33,10 @@ export { DocRoom } from "./docroom";
 
 export type Env = {
   DB: D1Database;
-  /** "vanilla" sends every page to the vanilla app (rollback without a code deploy); anything else = Svelte. */
-  UI_DEFAULT?: string;
   /** Web Push (VAPID, base64url): public = 65-byte P-256 point, private = 32-byte scalar. Missing: no native notifications. */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   ASSETS: Fetcher;
-  /** The landing as a deco Studio site (site/, Worker vibebook-site). Missing or failing: the static page in public/. */
-  SITE?: Fetcher;
   BOOK: DurableObjectNamespace<Book>;
   /** The app's push channel per person (src/person.ts). */
   PEOPLE: DurableObjectNamespace;
@@ -181,16 +175,6 @@ const migrate = (db: D1Database) =>
 
 
 const app = new Hono<Ctx>();
-// A request to the Studio site without our cookies (the session never leaves this Worker) and without its set-cookies
-// back. Authorization stays: it's Studio's own token for the site's admin endpoints.
-async function toSite(site: Fetcher, req: Request) {
-  const fwd = new Request(req);
-  fwd.headers.delete("cookie");
-  const res = await site.fetch(fwd);
-  const out = new Response(res.body, res);
-  out.headers.delete("set-cookie");
-  return out;
-}
 const knownUsers = new Set<string>();
 
 let tokensRetired: Promise<unknown> | undefined; // once per isolate: old pasted MCP tokens are dropped (retireTokens)
@@ -205,14 +189,12 @@ app.use("*", async (c, next) => {
 //   cross-site, is refused: the session cookie is SameSite=Lax already, this is the second lock (also for /ws, /yjs).
 // - Pages that act with your session (the app, login, OAuth consent, mail links) can't be framed by anyone,
 //   so no site can overlay an invisible "Permitir" on the consent page (clickjacking).
-// The Studio site's paths never see the session cookie (toSite), so Studio's own origin may call them.
-const CROSS_OK = /^\/(deco|_serverFn|_site)\//;
-const NO_FRAME = /^\/(app|archived|settings|login|b\/|authorize|auth\/|mail\/)/;
+const NO_FRAME = /^\/($|archived|settings|login|b\/|authorize|auth\/|mail\/)/;
 app.use("*", async (c, next) => {
   const url = new URL(c.req.url);
   const origin = c.req.header("origin");
   const writes = !["GET", "HEAD", "OPTIONS"].includes(c.req.method) || c.req.header("upgrade")?.toLowerCase() === "websocket";
-  if (writes && !CROSS_OK.test(url.pathname) && ((origin && origin !== url.origin) || c.req.header("sec-fetch-site") === "cross-site"))
+  if (writes && ((origin && origin !== url.origin) || c.req.header("sec-fetch-site") === "cross-site"))
     return c.json(CROSS_SITE, 403);
   await next();
   if (NO_FRAME.test(url.pathname) && c.res.status !== 101) {
@@ -239,69 +221,29 @@ const pageview = async (c: Context<Ctx>, res: Response, user?: string | null) =>
 // The page carries its own version (the asset's etag) in <meta name="vb-v">, and /api/me says the current one: the
 // app shows "Nova versão" when they differ (an installed PWA keeps an old page around for days).
 const shell = async (c: { env: Env; req: { url: string; raw: Request } }) => {
-  const asset = await c.env.ASSETS.fetch(new Request(new URL(uiShellPath(c.req.url), c.req.url), c.req.raw));
+  const asset = await c.env.ASSETS.fetch(new Request(new URL("/app", c.req.url), c.req.raw));
   const res = new Response(asset.body, asset);
-  res.headers.set("x-vibebook-ui", uiVariant(c.req.url));
-  res.headers.append("vary", "Cookie"); // which shell depends on the vb_ui cookie (src/ui-select.ts)
   const v = res.headers.get("etag");
   return res.status === 200 && v ? new HTMLRewriter().on("head", { element: (el) => { el.append(`<meta name="vb-v" content="${v.replace(/[^\w-]/g, "")}" />`, { html: true }); } }).transform(res) : res;
 };
-// Landing and demo live at /pt and /en. "/" and "/demo" pick one: cookie first, then the browser's main
-// language (pt unless it starts with "en"). Opening /pt or /en remembers the choice.
-const LANG_COOKIE = "vb_lang";
-const pickLang = reqLang;
-for (const path of ["", "/demo", "/docs", "/changelog", "/connect", "/how-it-works", "/herdr", "/agents", "/mcp-identity"]) {
-  app.get(path || "/", (c) => {
-    const url = new URL(c.req.url);
-    const res = c.redirect(`/${pickLang(c.req.raw)}${path}${url.search}`, 302);
-    res.headers.set("vary", "Accept-Language, Cookie");
-    return res;
-  });
-  for (const lang of ["pt", "en"])
-    app.get(`/${lang}${path}`, async (c) => {
-      // Every page here is static (public/pt.html, public/en.html, public/<lang>/*.html). The Studio site (site/,
-      // binding SITE) no longer serves the home since the Nov 2026 landing; its /_site, /deco routes stay below.
-      // The home comes from the Studio-editable site (site/); if it's down, the static copy in public/ answers.
-      const fromSite = !path && c.env.SITE ? await toSite(c.env.SITE, c.req.raw).catch(() => null) : null;
-      const asset = fromSite && fromSite.status < 500 ? fromSite : await c.env.ASSETS.fetch(c.req.raw);
-      const res = new Response(asset.body, asset);
-      res.headers.append("set-cookie", `${LANG_COOKIE}=${lang}; Max-Age=31536000; Path=/; SameSite=Lax`);
-      return pageview(c, res);
-    });
-}
-// The site's files (/_site) and Studio's endpoints (/deco/meta, /deco/render, /deco/invoke, /_serverFn). Safe on this
-// origin because (Nov 2026 review): the site never gets the session cookie (toSite strips it), its sections render
-// props only as text, and Studio's preview (/deco/render, props from the URL) answers in a CSP sandbox: an opaque
-// origin that can't read vibebook.dev's cookies or call its APIs even if a prop got through.
-for (const prefix of ["/_site/*", "/deco/*", "/_serverFn/*"])
-  app.all(prefix, async (c) => {
-    if (!c.env.SITE) return c.notFound();
-    const res = await toSite(c.env.SITE, c.req.raw);
-    if (c.req.path.startsWith("/_site/")) res.headers.set("access-control-allow-origin", "*"); // the sandboxed preview loads them cross-origin
-    // Every response, not just text/html: an SVG or XHTML from these paths would otherwise run on vibebook.dev.
-    res.headers.set("content-security-policy", "sandbox allow-scripts allow-forms allow-popups allow-modals");
-    res.headers.set("x-content-type-options", "nosniff");
-    return res;
-  });
 // Already signed in: /login goes straight to the app (or to ?next=, which the client keeps safe).
 app.get("/login", async (c) => {
-  if ((await identify(c)) && !c.req.query("next")) return c.redirect(uiNavigationUrl("/app", c.req.url, uiVariant(c.req.url)));
-  return pageview(c, uiVariant(c.req.url) === "svelte" ? await nativeAuthPage(c.env, c.req.raw, "login") : await shell(c));
+  if ((await identify(c)) && !c.req.query("next")) return c.redirect("/");
+  return pageview(c, await nativeAuthPage(c.env, c.req.raw, "login"));
 });
-app.get("/app", async (c) => {
+// The app is the home page (Nov 2026: the landing left this repo). Signed out: the login.
+app.get("/", async (c) => {
   const email = await identify(c);
-  return email ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl("/login", c.req.url, uiVariant(c.req.url)));
+  return email ? pageview(c, await shell(c), email) : c.redirect("/login");
 });
 app.get("/archived", async (c) => {
   const email = await identify(c);
-  const next = uiNavigationUrl("/archived", c.req.url, uiVariant(c.req.url));
-  return email ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl(`/login?next=${encodeURIComponent(next)}`, c.req.url, uiVariant(c.req.url)));
+  return email ? pageview(c, await shell(c), email) : c.redirect(`/login?next=${encodeURIComponent("/archived")}`);
 });
-// Settings (your profile, agents, cloud agents, this device): Svelte only; the classic app keeps its account sheet.
+// Settings: your profile, agents, cloud agents, this device.
 app.get("/settings", async (c) => {
-  const email = await identify(c), ui = uiVariant(c.req.url);
-  if (!email) return c.redirect(uiNavigationUrl(`/login?next=${encodeURIComponent(uiNavigationUrl("/settings", c.req.url, ui))}`, c.req.url, ui));
-  return ui === "svelte" ? pageview(c, await shell(c), email) : c.redirect(uiNavigationUrl("/app", c.req.url, ui));
+  const email = await identify(c);
+  return email ? pageview(c, await shell(c), email) : c.redirect(`/login?next=${encodeURIComponent("/settings")}`);
 });
 // A room link: members get the app; anyone else (and link-preview bots) a page with the room's name and "Pedir
 // acesso". The title is readable by whoever holds the link, on purpose: that's what makes the shared card useful.
@@ -314,15 +256,9 @@ app.get("/b/*", async (c) => {
   const { state, title, inviter } = await roomAccess(c.env.DB, id, email ?? null);
   if (state === "member")
     return pageview(c, new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, title ?? ""), { html: true }); } }).transform(await shell(c)), email ?? undefined);
-  if (uiVariant(url) === "svelte") {
-    const autoAccess = url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`);
-    const native = await nativeAuthPage(c.env, c.req.raw, "access", {autoAccess,status:state === "missing" ? 404 : 200});
-    const res = native.status === 503 ? native : new HTMLRewriter().on("title", {element: (el) => {el.replace(roomMeta(url.origin,id,state === "missing" ? null : title),{html:true});}}).transform(native);
-    return pageview(c,res,email ?? undefined);
-  }
-  const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, inviter, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
-  res.headers.set("x-frame-options", "DENY");
-  res.headers.set("content-security-policy", "frame-ancestors 'none'");
+  const autoAccess = url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`);
+  const native = await nativeAuthPage(c.env, c.req.raw, "access", { autoAccess, status: state === "missing" ? 404 : 200 });
+  const res = native.status === 503 ? native : new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, state === "missing" ? null : title), { html: true }); } }).transform(native);
   return pageview(c, res, email ?? undefined);
 });
 
@@ -396,7 +332,7 @@ app.get("/mail/:onoff{off|on}", async (c) => {
   const en = (row?.lang ?? reqLang(c.req.raw)) === "en";
   c.executionCtx.waitUntil(track(c.env, on ? "mention_mail_on" : "mention_mail_off", { user: email }));
   const back = `/mail/${on ? "off" : "on"}?e=${encodeURIComponent(email)}&s=${encodeURIComponent(c.req.query("s") ?? "")}`;
-  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>vibebook</title><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:460px;margin:60px auto;padding:0 20px;color:#1a2130"><h1 style="font-size:22px">${en ? (on ? "Mention emails on." : "Done, no more mention emails.") : on ? "Emails de menção ligados." : "Pronto, sem emails de menção."}</h1><p>${en ? (on ? "When someone mentions you and you don't see it within 5 minutes, you get an email." : "You still see your mentions on vibebook.") : on ? "Quando alguém te mencionar e você não vir em 5 minutos, chega um email." : "Você continua vendo as menções no vibebook."}</p><p><a href="${back}">${en ? (on ? "Turn them off again" : "I changed my mind, I want the emails") : on ? "Desligar de novo" : "Mudei de ideia, quero os emails"}</a> · <a href="/app">${en ? "Open vibebook" : "Abrir o vibebook"}</a></p></body>`);
+  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>vibebook</title><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:460px;margin:60px auto;padding:0 20px;color:#1a2130"><h1 style="font-size:22px">${en ? (on ? "Mention emails on." : "Done, no more mention emails.") : on ? "Emails de menção ligados." : "Pronto, sem emails de menção."}</h1><p>${en ? (on ? "When someone mentions you and you don't see it within 5 minutes, you get an email." : "You still see your mentions on vibebook.") : on ? "Quando alguém te mencionar e você não vir em 5 minutos, chega um email." : "Você continua vendo as menções no vibebook."}</p><p><a href="${back}">${en ? (on ? "Turn them off again" : "I changed my mind, I want the emails") : on ? "Desligar de novo" : "Mudei de ideia, quero os emails"}</a> · <a href="/">${en ? "Open vibebook" : "Abrir o vibebook"}</a></p></body>`);
 });
 
 // `vibebook login --paste` (a cloud sandbox, an SSH box): the consent page lands here and shows the code to paste
@@ -424,8 +360,8 @@ app.use("*", async (c, next) => {
     const connection = nativeConnectionSignedOut(c.env, c.req.raw);
     if (connection) return connection;
     const file = fileLink(c);
-    if(file && uiVariant(c.req.url)==='svelte' && /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(new URL(c.req.url).pathname))return nativeAuthPage(c.env,c.req.raw,'file-access',{status:401});
-    return file ? c.html(filePage({ id: file, path: new URL(c.req.url).pathname, signedIn: false, lang: reqLang(c.req.raw) }), 401) : c.json(UNAUTHENTICATED, 401);
+    if (file && /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(new URL(c.req.url).pathname)) return nativeAuthPage(c.env, c.req.raw, "file-access", { status: 401 });
+    return c.json(UNAUTHENTICATED, 401);
   }
   // The users row once per isolate, off the request path: a D1 write here cost every request a round trip.
   if (!knownUsers.has(email)) {
@@ -546,8 +482,8 @@ mountAppDocumentFiles(app);
 app.get("/api/books/:id/files/:fid", async (c) => {
   const id = c.req.param("id");
   if (!(await isMember(c.env.DB, id, c.get("email")))) {
-    if(fileLink(c) && uiVariant(c.req.url)==='svelte' && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param('fid')))return nativeAuthPage(c.env,c.req.raw,'file-access',{status:403});
-    return fileLink(c) ? c.html(filePage({ id, path: "", signedIn: true, lang: reqLang(c.req.raw) }), 403) : c.json({ error: "forbidden" }, 403);
+    if (fileLink(c) && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param("fid"))) return nativeAuthPage(c.env, c.req.raw, "file-access", { status: 403 });
+    return c.json({ error: "forbidden" }, 403);
   }
   // Range: iOS Safari's <audio> plays only what answers 206 to a byte range (also lets any player seek).
   const ranged = !!c.req.header("range");
@@ -591,7 +527,7 @@ app.get("/ws/:id", async (c) => {
   c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
   // t = the thread the app opens on: only it comes with its 60 newest messages and its doc (Book.roomWindow).
   const rc = (c.req.query("rc") ?? "").replace(/\D/g, "").slice(0, 4); // a reconnect's previous close code (ws_state)
-  const req = new Request(`https://book/ws?book=${id}&t=${encodeURIComponent(c.req.query("t") ?? "main")}${rc ? `&rc=${rc}` : ""}${c.req.query("ui") === "svelte" ? "&ui=svelte" : ""}`, c.req.raw);
+  const req = new Request(`https://book/ws?book=${id}&t=${encodeURIComponent(c.req.query("t") ?? "main")}${rc ? `&rc=${rc}` : ""}`, c.req.raw);
   req.headers.set("x-email", c.get("email"));
   return bookStub(c.env, id).fetch(req);
 });
@@ -616,8 +552,7 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
-    if (url.pathname.startsWith("/ui/")) return uiSwitch(request);
-    return providerFor(url.origin, appHandler).fetch(selectUi(request, env), env, ctx);
+    return providerFor(url.origin, appHandler).fetch(request, env, ctx);
   },
   // 11:00 and 21:00 UTC = 8h and 18h in São Paulo: the catch-up e-mail.
   scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {

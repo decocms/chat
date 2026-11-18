@@ -6927,7 +6927,7 @@ test("denied native agent metadata can recover through explicit read-only retry"
         JSON.stringify(
           denied
             ? UNAUTHENTICATED
-            : String(input).includes("/api/me?")
+            : new URL(String(input), "https://x.test").pathname === "/api/me"
               ? {
                   email: "me@test",
                   name: null,

@@ -1,7 +1,5 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import type { Env } from "../src/index";
 import { SandboxesResult } from "../shared/schemas";
 import {
@@ -325,62 +323,7 @@ test("incomplete provider snapshots retain previous metrics and never claim a kn
   }
 });
 
-test("default vanilla estimate predicate and native sidebar honor uncertainty without hiding exact zero", async () => {
-  const html = await readFile(
-    resolve(import.meta.dirname, "../public/app.html"),
-    "utf8",
-  );
-  const declaration = html.match(/^const sbxCostUnknown = .*;$/m)?.[0];
-  if (!declaration) throw Error("Missing actual vanilla cost predicate");
-  const unknown = new Function(`${declaration}; return sbxCostUnknown;`)();
-  expect(unknown({ cost_unknown: true, created_at: 0 })).toBe(true);
-  expect(unknown({ created_at: 0 })).toBe(false);
-  expect(html).toContain('x.cost_unknown ? t("Estimativa indisponível")');
-  const start = html.indexOf("function sbxHtml() {");
-  const end = html.indexOf("\nfunction wireSbx()", start);
-  expect(start).toBeGreaterThan(0);
-  expect(end).toBeGreaterThan(start);
-  // Execute the real default application's card renderer, with only document
-  // surroundings stubbed. No mirrored estimate conditional substitutes for it.
-  const render = new Function(
-    "sbx",
-    "S",
-    "t",
-    "esc",
-    "icon",
-    "SBX_STATE",
-    "usd",
-    `${html.slice(start, end)}; return sbxHtml();`,
-  );
-  const card = {
-    id: "s",
-    name: null,
-    state: "paused",
-    ready: true,
-    cost: 0,
-    created_at: 0,
-    cost_unknown: true,
-  };
-  const markup = () =>
-    render(
-      {
-        id: "room",
-        connected: true,
-        claude: true,
-        list: [card],
-        busy: "",
-        logs: {},
-      },
-      { id: "room" },
-      (value: string) => value,
-      (value: unknown) => String(value ?? ""),
-      () => "",
-      { paused: "pausado" },
-      (value: number) => `USD(${value})`,
-    );
-  expect(markup()).toContain(">Estimativa indisponível</span>");
-  card.cost_unknown = false;
-  expect(markup()).toContain(">USD(0)</span>");
+test("the sidebar cost honors uncertainty without hiding exact zero", () => {
   expect(
     sandboxCost(
       {

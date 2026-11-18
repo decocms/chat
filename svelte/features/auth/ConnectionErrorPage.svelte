@@ -40,7 +40,7 @@
       /^\/api\/books\/([a-z0-9]{6,40})\/connections\//,
     )?.[1],
   );
-  const back = $derived(room ? `/b/${room}?ui=svelte` : "/app?ui=svelte");
+  const back = $derived(room ? `/b/${room}` : "/");
 </script>
 
 <AuthFrame title={copy[lang].title}>

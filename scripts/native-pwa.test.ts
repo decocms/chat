@@ -255,23 +255,19 @@ describe("native push ownership", () => {
     }
   });
 });
-test("notification navigation preserves each existing tab's opt-in and defaults new windows to vanilla", () => {
+test("notification navigation keeps the room target, drops ?ui= and refuses unsafe targets", () => {
   const origin = "https://vibebook.example.test",
     target = "/b/abc123?t=thread#m1";
-  const native = new URL(
-    notificationTarget(target, origin, `${origin}/app?ui=svelte`),
-  );
-  expect(native.searchParams.get("ui")).toBe("svelte");
+  const native = new URL(notificationTarget(target, origin));
+  expect(native.searchParams.has("ui")).toBe(false);
   expect(native.searchParams.get("t")).toBe("thread");
   expect(
     new URL(
-      notificationTarget("/b/abc123?ui=svelte#m1", origin, `${origin}/app`),
+      notificationTarget("/b/abc123?ui=svelte#m1", origin),
     ).searchParams.has("ui"),
   ).toBe(false);
   expect(
-    new URL(notificationTarget("/app?ui=svelte", origin)).searchParams.has(
-      "ui",
-    ),
+    new URL(notificationTarget("/?ui=svelte", origin)).searchParams.has("ui"),
   ).toBe(false);
   for (const unsafe of [
     "https://evil.example.test/b/abc123",
@@ -279,7 +275,7 @@ test("notification navigation preserves each existing tab's opt-in and defaults 
     "/auth/logout",
     "//evil.example.test/app",
   ])
-    expect(new URL(notificationTarget(unsafe, origin)).pathname).toBe("/app");
+    expect(new URL(notificationTarget(unsafe, origin)).pathname).toBe("/");
 });
 test("only emitted stable worker assets are public; raw worker realm source and symlink escapes remain private", async () => {
   const root = await mkdtemp(join(tmpdir(), "vibebook-worker-policy-"));

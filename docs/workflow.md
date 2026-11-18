@@ -55,13 +55,9 @@ Some build output is in git. If you change the source, build it and commit the o
 
 | Source | Command | Output to commit |
 |---|---|---|
-| `svelte/`, `shared/`, `service-worker/` | `bun run build:ui` | `public/app-svelte.html`, all of `public/svelte-preview/`, `public/sw.js` |
+| `svelte/`, `shared/`, `service-worker/` | `bun run build:ui` | `public/app.html`, all of `public/svelte-preview/`, `public/sw.js` |
 | `collab/` | `bun run build:collab` | `public/collab.js` |
 | `cli/` | `bun run build:cli` | `public/cli.mjs`, `cli/cli.mjs` |
-| `vanilla/inbox/` | `bun run build:vanilla-ui` | `public/svelte/ui.js` |
-| `scripts/changelog.json` | `bun scripts/changelog.ts` | `public/{pt,en}/changelog.html` |
-| `scripts/docs.ts` | `bun scripts/docs.ts` | `public/{pt,en}/docs.html` |
-| `scripts/personas.ts` | `bun scripts/personas.ts` | `public/{pt,en}.html`, persona pages |
 | `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 
 Do not commit `dist-mcp/` or `.api-types/`. The build makes them.
@@ -71,16 +67,9 @@ Do not commit `dist-mcp/` or `.api-types/`. The build makes them.
 - Put each new UI string through `t("texto em pt")` and add its English text. `bun scripts/i18n-check.ts` fails if a key is missing.
 - Write each public page in Portuguese and English.
 
-## Changelog and public docs
+## Tell people
 
-If a person can see the change:
-
-1. Add a line to `scripts/changelog.json`. Use the top release if it has the same date. Else, start a new release.
-2. For a feature, write 1 to 3 sentences. Add a screenshot from a test room (`cwebp -q 80 -resize 1400 0`, into `public/changelog/`).
-3. Update the chapter in `scripts/docs.ts`.
-4. Run the two generators and commit the output.
-
-Do not add chores, refactors or tests to the changelog.
+If a person can see the change, say what changed in the release message in the project room. There is no changelog page.
 
 ## Release (deploy)
 
@@ -100,10 +89,10 @@ Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worke
 
 `bun run deploy` from a computer is for hotfixes only. Ask a human first.
 
+The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) has no Workers Builds yet. Deploy it from an up-to-date `main`: `bun run build:app-document && bun run build:mcp && npx wrangler deploy -c wrangler.deco.jsonc`. Always give `-c wrangler.deco.jsonc`: else wrangler uses the account of `wrangler.jsonc`.
+
 ## Roll back
 
-- Browser app for all people: set the Worker variable `UI_DEFAULT=vanilla`.
-- Browser app for one device: the "Nova UI" switch, or `/ui/vanilla`.
 - Worker code: revert the commit on `main`. Workers Builds deploys the revert.
 
 ## Release the CLI

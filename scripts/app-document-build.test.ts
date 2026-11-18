@@ -26,29 +26,18 @@ test("classic bootstrap rejects missing/duplicate nonces and HTML script termina
   ).toContain("export const appDocumentBootstrap =");
 });
 
-test("build emits classic bootstrap string before bundling the guarded browser host", async () => {
+test("build emits the classic bootstrap string and leaves an unchanged module alone", async () => {
   const root = await mkdtemp(join(tmpdir(), "vibebook-app-document-build-"));
   try {
     await mkdir(join(root, "browser/app-document"), { recursive: true });
     await mkdir(join(root, "shared/generated"), { recursive: true });
-    await mkdir(join(root, "public"), { recursive: true });
     await writeFile(
       join(root, "browser/app-document/bootstrap.ts"),
       'window.addEventListener("message",()=>{ console.info("__VIBEBOOK_APP_DOCUMENT_NONCE__") });',
     );
-    await writeFile(
-      join(root, "browser/app-document/host.ts"),
-      'export {appDocumentBootstrap} from "../../shared/generated/appDocumentBootstrap";',
-    );
-    await writeFile(
-      join(root, "public/app.html"),
-      '<script type="module">import("/app-document-host.js")</script>',
-    );
-    const { asset } = await buildAppDocument({ root });
-    const generated = await readFile(
-      join(root, "shared/generated/appDocumentBootstrap.ts"),
-      "utf8",
-    );
+    await buildAppDocument({ root });
+    const path = join(root, "shared/generated/appDocumentBootstrap.ts");
+    const generated = await readFile(path, "utf8");
     const json = generated.match(
       /export const appDocumentBootstrap = (.*);\n$/,
     )?.[1];
@@ -57,36 +46,22 @@ test("build emits classic bootstrap string before bundling the guarded browser h
     expect(typeof script).toBe("string");
     expect(script).not.toMatch(/\b(?:import|export)\s/);
     expect(script).toContain("__VIBEBOOK_APP_DOCUMENT_NONCE__");
-    expect(await readFile(join(root, "public", asset), "utf8")).toContain(
-      "__VIBEBOOK_APP_DOCUMENT_NONCE__",
-    );
-    expect(await readFile(join(root, "public/app.html"), "utf8")).toContain(
-      asset,
-    );
-    const paths = [
-      join(root, "shared/generated/appDocumentBootstrap.ts"),
-      join(root, "public", asset),
-      join(root, "public/app.html"),
-    ];
-    const identities = await Promise.all(
-      paths.map((path) => stat(path, { bigint: true })),
-    );
-    expect((await buildAppDocument({ root })).asset).toBe(asset);
-    const after = await Promise.all(
-      paths.map((path) => stat(path, { bigint: true })),
-    );
-    expect(after.map((file) => [file.ino, file.mtimeNs])).toEqual(
-      identities.map((file) => [file.ino, file.mtimeNs]),
-    );
-    // Native resolution must still reject a backend import, including a raw bundle request.
+    const identity = await stat(path, { bigint: true });
+    await buildAppDocument({ root });
+    const after = await stat(path, { bigint: true });
+    expect([after.ino, after.mtimeNs]).toEqual([
+      identity.ino,
+      identity.mtimeNs,
+    ]);
+    // Native resolution must still reject a backend import.
     await mkdir(join(root, "src"));
     await writeFile(
       join(root, "src/private.ts"),
       'export const secret="backend-only"',
     );
     await writeFile(
-      join(root, "browser/app-document/host.ts"),
-      'export {secret} from "../../src/private";',
+      join(root, "browser/app-document/bootstrap.ts"),
+      'import {secret} from "../../src/private"; console.info(secret, "__VIBEBOOK_APP_DOCUMENT_NONCE__");',
     );
     await expect(buildAppDocument({ root })).rejects.toThrow(
       "Browser build failed",

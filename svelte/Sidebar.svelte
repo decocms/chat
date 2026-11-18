@@ -138,7 +138,7 @@
       onclick={ontogglerail}><Icon icon={LayoutLeft} /></IconButton
     >
     <IconButton
-      href="/app?ui=svelte"
+      href="/"
       data-nav
       label={vb.t("Seus vibebooks")}
       tooltipSide="right"

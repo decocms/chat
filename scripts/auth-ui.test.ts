@@ -23,36 +23,28 @@ const go = async (path: string, init?: RequestInit) => {
 };
 const next = (p: string) => encodeURIComponent(p);
 
-test("provider start without a client id returns to the login in the same UI", async () => {
-  expect(await go(`/google/start?next=${next("/b/abc?ui=vanilla")}`)).toBe(
-    "/login?ui=vanilla",
-  );
-  expect(await go(`/github/start?next=${next("/archived?ui=vanilla")}`)).toBe(
-    "/login?ui=vanilla",
-  );
+test("provider start without a client id returns to the login", async () => {
   expect(await go(`/google/start?next=${next("/b/abc")}`)).toBe("/login");
-  expect(
-    await go(`/google/start?next=${next("https://evil.example/?ui=vanilla")}`),
-  ).toBe("/login");
+  expect(await go(`/github/start?next=${next("/archived")}`)).toBe("/login");
+  expect(await go(`/google/start?next=${next("https://evil.example/")}`)).toBe(
+    "/login",
+  );
 });
 
-test("a failed provider callback keeps the UI carried by its next", async () => {
+test("a failed provider callback returns to the login with its error", async () => {
   const cookie = (n: string) => ({
     headers: { cookie: `vb_oauth=${encodeURIComponent(`s|${n}`)}` },
   });
-  expect(
-    await go("/google/callback?state=x&code=y", cookie("/app?ui=vanilla")),
-  ).toBe("/login?error=google&ui=vanilla");
-  expect(
-    await go("/github/callback?state=x&code=y", cookie("/app?ui=vanilla")),
-  ).toBe("/login?error=github&ui=vanilla");
-  expect(await go("/google/callback?state=x&code=y", cookie("/app"))).toBe(
+  expect(await go("/google/callback?state=x&code=y", cookie("/"))).toBe(
     "/login?error=google",
+  );
+  expect(await go("/github/callback?state=x&code=y", cookie("/"))).toBe(
+    "/login?error=github",
   );
   expect(await go("/github/callback")).toBe("/login?error=github");
 });
 
-test("the consent page's sign-out form returns to the login in the same UI", async () => {
+test("the consent page's sign-out form returns to the login with its next", async () => {
   // The real services (logout and loginUrl need no bindings) behind the typed route.
   const app = new Hono<AuthCtx>()
     .use("/auth/*", async (c, next) => {
@@ -77,9 +69,6 @@ test("the consent page's sign-out form returns to the login in the same UI", asy
         env,
       )
     ).headers.get("location");
-  expect(await out("/b/abc?ui=vanilla")).toBe(
-    `/login?next=${next("/b/abc?ui=vanilla")}&ui=vanilla`,
-  );
   expect(await out("/b/abc")).toBe(`/login?next=${next("/b/abc")}`);
 });
 
@@ -89,7 +78,7 @@ function authFixture(over: Partial<AuthServices> = {}) {
   const svc: AuthServices = {
     providers: { google: true, github: false, email: true },
     sameOrigin: true,
-    safeNext: (n) => (n?.startsWith("/b/") ? n : "/app"),
+    safeNext: (n) => (n?.startsWith("/b/") ? n : "/"),
     loginUrl: (_n, q) => `/login${q}`,
     emailStart: async (email) => (
       calls.push(email),
@@ -98,7 +87,7 @@ function authFixture(over: Partial<AuthServices> = {}) {
     emailVerify: async (b) => (
       calls.push(b),
       b.code === "123456"
-        ? { ok: true, next: "/app" }
+        ? { ok: true, next: "/" }
         : { error: "Wrong code.", status: 400 }
     ),
     logout: () => void calls.push("logout"),
@@ -129,7 +118,7 @@ test("login context: providers, a safe next and only known provider errors", asy
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({
     providers: { google: true, github: false, email: true },
-    next: "/app",
+    next: "/",
     error: "google",
   });
   const r2 = await client.auth.context.$get({
@@ -165,7 +154,7 @@ test("email start and verify: body checked, origin checked, service status passe
   const ok = await client.auth.email.verify.$post({
     json: { email: "a@x.dev", code: "123456", next: "/b/abc" },
   });
-  expect(await ok.json()).toEqual({ ok: true, next: "/app" });
+  expect(await ok.json()).toEqual({ ok: true, next: "/" });
   const wrong = await client.auth.email.verify.$post({
     json: { email: "a@x.dev", code: "000000" },
   });
@@ -209,16 +198,4 @@ test("logout answers JSON to the app; logout-all reports a signed-out caller", a
   const all = await client.auth["logout-all"].$post();
   expect(all.status).toBe(401);
   expect(await all.json()).toEqual({ error: "unauthenticated" });
-});
-
-test("an MCP sign-in started from the vanilla app comes back to the same app, on the connection", async () => {
-  const { uiNavigationUrl, uiVariant } = await import("../shared/uiVariant");
-  const back = (signin: string) =>
-    uiNavigationUrl("/b/abc#app:c1", signin, uiVariant(signin));
-  expect(
-    back("https://vibebook.dev/api/books/abc/connections/c1/signin?ui=vanilla"),
-  ).toBe("/b/abc?ui=vanilla#app:c1");
-  expect(back("https://vibebook.dev/api/books/abc/connections/c1/signin")).toBe(
-    "/b/abc#app:c1",
-  );
 });

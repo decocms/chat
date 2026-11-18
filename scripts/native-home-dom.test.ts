@@ -1,5 +1,5 @@
 // Component-level Happy DOM fixtures only. No Worker, real browser, auth or room is represented.
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { plugin } from "bun";
 import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
@@ -24,7 +24,7 @@ import {
   settle,
   suggestion,
 } from "./native-home-fixtures";
-const environment = new Window({ url: "https://vibebook.test/app?ui=svelte" });
+const environment = new Window({ url: "https://vibebook.test/" });
 for (const name of [
   "window",
   "document",
@@ -126,8 +126,6 @@ afterEach(() => {
   document.body.replaceChildren();
   localStorage.clear();
 });
-// The one-off "new vibebook" welcome (NewUiWelcome) has its own test below; the app fixtures here have seen it.
-beforeEach(() => localStorage.setItem("vb.newUiWelcomed", "1"));
 const flush = async () => {
   await settle();
   flushSync();
@@ -956,7 +954,7 @@ test("native Home renders untrusted room metadata as text and passes exact room 
   expect(target.querySelector("[onerror]")).toBe(null);
   expect(target.textContent).toContain("<img src=x onerror=alert(1)>");
   const anchor = target.querySelector<HTMLAnchorElement>(
-    'a[data-home-card][href="/b/aaaaaa?ui=svelte"]',
+    'a[data-home-card][href="/b/aaaaaa"]',
   )!;
   expect(anchor).not.toBe(null);
   anchor.click();
@@ -1737,31 +1735,6 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
   request.querySelector<HTMLButtonElement>('[aria-label="Decline"]')!.click();
   await flush();
   expect(answers).toEqual([["bia@test.com", false]]);
-});
-
-test("the new-vibebook welcome shows once to a returning person, never to a new account", async () => {
-  const { mount, unmount, flushSync } = await import("svelte");
-  const { default: NewUiWelcome } =
-    await import("../svelte/features/onboarding/NewUiWelcome.svelte");
-  const open = async (returning: boolean) => {
-    const target = document.createElement("div");
-    document.body.append(target);
-    const instance = flushSync(() =>
-      mount(NewUiWelcome, { target, props: { returning, lang: "en" } }),
-    );
-    await flush();
-    const shown =
-      document.querySelector("[data-new-ui-welcome]")?.textContent ?? "";
-    await unmount(instance);
-    target.remove();
-    return shown;
-  };
-  localStorage.clear();
-  expect(await open(false)).toBe("");
-  expect(await open(true)).toBe(""); // the new account's first visit already counted
-  localStorage.clear();
-  expect(await open(true)).toContain("Welcome to the new vibebook");
-  expect(await open(true)).toBe("");
 });
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {

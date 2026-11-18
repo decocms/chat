@@ -98,7 +98,7 @@
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div class="space-y-2">
         <a
-          href="/app?ui=svelte"
+          href="/"
           class="text-sm text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
           >vibebook</a
         >

@@ -251,7 +251,7 @@ test("Google verified identity accepts nullable profile and preserves session, s
       name: `  ${"N".repeat(80)}  `,
     };
     response = await f.request(callback, oauthCookie("https://foreign.test/"));
-    expect(response.headers.get("location")).toBe("/app");
+    expect(response.headers.get("location")).toBe("/");
     await f.settled();
     expect(
       f.writes.find((write) => write.sql.includes("INSERT INTO users"))?.values,

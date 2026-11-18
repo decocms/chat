@@ -10,7 +10,6 @@ import {
   type ConnectionIdentityPorts,
 } from "../src/connectionIdentity";
 import type { StoredConnection } from "../src/connectionRows";
-import { uiVariant } from "../shared/uiVariant";
 
 // Compile-time route contracts must come from the actual validator chain, not a
 // client-side query cast/wrapper that could hide missing server inference.
@@ -773,7 +772,6 @@ test("personal query contracts preserve first duplicates, search normalization a
   ]) {
     const url = `http://localhost/api/me?${query}`;
     expect((await f.app.request(url)).status).toBe(200);
-    expect(uiVariant(url)).toBe("svelte"); // first value wins; unknown = the default (Svelte)
   }
   if (false) {
     // @ts-expect-error inferred ui accepts a string, not an untyped numeric value.

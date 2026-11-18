@@ -12,8 +12,7 @@ async function fixture(run: (directory: string) => Promise<void>) {
   try {
     await mkdir(join(directory, "svelte-preview"));
     await Promise.all([
-      writeFile(join(directory, "app.html"), "unchanged vanilla shell"),
-      writeFile(join(directory, "app-svelte.html"), shell),
+      writeFile(join(directory, "app.html"), shell),
       writeFile(join(directory, "svelte-preview/ui.css"), "body{color:blue}"),
       writeFile(
         join(directory, "svelte-preview/app.js"),
@@ -68,27 +67,24 @@ describe("app shell content version", () => {
       const path = join(directory, "svelte-preview/ui.css");
       await writeFile(path, ".bg-card{background:white}");
       await writeFile(
-        join(directory, "app-svelte.html"),
+        join(directory, "app.html"),
         shell.replace(/<link[^>]+>\n/, ""),
       );
       await expect(versionAppShell(directory)).rejects.toThrow(
         "ui.css exactly once",
       );
-      await writeFile(join(directory, "app-svelte.html"), shell);
+      await writeFile(join(directory, "app.html"), shell);
       const first = await versionAppShell(directory);
-      expect(
-        await readFile(join(directory, "app-svelte.html"), "utf8"),
-      ).toContain(`/svelte-preview/ui.css?v=${first}`);
+      expect(await readFile(join(directory, "app.html"), "utf8")).toContain(
+        `/svelte-preview/ui.css?v=${first}`,
+      );
       await writeFile(path, ".bg-card{background:ivory}");
       expect(await versionAppShell(directory)).not.toBe(first);
     }));
   test("unchanged builds are stable, preserve layout and use the same version for CSS/JS", () =>
     fixture(async (directory) => {
       const version = await versionAppShell(directory);
-      const updated = await readFile(
-        join(directory, "app-svelte.html"),
-        "utf8",
-      );
+      const updated = await readFile(join(directory, "app.html"), "utf8");
       expect(updated).toBe(
         shell
           .replace(
@@ -102,12 +98,7 @@ describe("app shell content version", () => {
       );
       expect(updated.split("\n").length).toBe(shell.split("\n").length);
       expect(await versionAppShell(directory)).toBe(version);
-      expect(await readFile(join(directory, "app-svelte.html"), "utf8")).toBe(
-        updated,
-      );
-      expect(await readFile(join(directory, "app.html"), "utf8")).toBe(
-        "unchanged vanilla shell",
-      );
+      expect(await readFile(join(directory, "app.html"), "utf8")).toBe(updated);
     }));
   test("every emitted JS chunk and CSS affect the shell version", () =>
     fixture(async (directory) => {
@@ -147,11 +138,11 @@ describe("app shell content version", () => {
       const changed = await versionAppShell(directory);
       expect(changed).not.toBe(editor);
       const modified = (
-        await readFile(join(directory, "app-svelte.html"), "utf8")
+        await readFile(join(directory, "app.html"), "utf8")
       ).replace("<!doctype html>", "<!doctype html><!-- copy change -->");
-      await writeFile(join(directory, "app-svelte.html"), modified);
+      await writeFile(join(directory, "app.html"), modified);
       expect(await versionAppShell(directory)).toBe(changed);
-      expect(await readFile(join(directory, "app-svelte.html"), "utf8")).toBe(
+      expect(await readFile(join(directory, "app.html"), "utf8")).toBe(
         modified,
       );
     }));
@@ -163,23 +154,15 @@ describe("app shell content version", () => {
         "not browser runtime",
       );
       await writeFile(
-        join(directory, "collab.js"),
-        "independent vanilla editor release",
-      );
-      await writeFile(
         join(directory, "app.html"),
-        "independent vanilla HTML release",
-      );
-      await writeFile(
-        join(directory, "app-svelte.html"),
         shell
           .replace("/svelte-preview/ui.css", "/svelte-preview/ui.css?v=old")
           .replace("/svelte-preview/app.js", "/svelte-preview/app.js?v=old"),
       );
       expect(await versionAppShell(directory)).toBe(current);
-      expect(
-        await readFile(join(directory, "app-svelte.html"), "utf8"),
-      ).not.toContain("?v=old");
+      expect(await readFile(join(directory, "app.html"), "utf8")).not.toContain(
+        "?v=old",
+      );
     }));
   test("Vite writes the version after emission and unchanged rebuilds keep the shell identical", () =>
     fixture(async (directory) => {
@@ -204,22 +187,20 @@ describe("app shell content version", () => {
           },
         });
       await compile();
-      const first = await readFile(join(directory, "app-svelte.html"), "utf8");
+      const first = await readFile(join(directory, "app.html"), "utf8");
       expect(first).toMatch(/app\.js\?v=[0-9a-f]{20}/);
       await compile();
-      expect(await readFile(join(directory, "app-svelte.html"), "utf8")).toBe(
-        first,
-      );
+      expect(await readFile(join(directory, "app.html"), "utf8")).toBe(first);
       await writeFile(join(client, "entry.ts"), "export const value = 2;");
       await compile();
-      expect(
-        await readFile(join(directory, "app-svelte.html"), "utf8"),
-      ).not.toBe(first);
+      expect(await readFile(join(directory, "app.html"), "utf8")).not.toBe(
+        first,
+      );
     }));
   test("fails clearly instead of publishing an unversioned or incomplete shell", () =>
     fixture(async (directory) => {
       await writeFile(
-        join(directory, "app-svelte.html"),
+        join(directory, "app.html"),
         "<div>missing asset references</div>",
       );
       await expect(versionAppShell(directory)).rejects.toThrow("exactly once");
