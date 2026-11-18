@@ -275,7 +275,7 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class="tw:mt-auto tw:max-h-[32%] tw:shrink-0 tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
+  class="tw:mt-auto tw:max-h-[32%] tw:shrink tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
 >
   {#if room.requests?.length}<div class="tw:mb-6 tw:space-y-0.5">
       <SectionHeader title={vb.t("Pedindo pra entrar")} level={4} />

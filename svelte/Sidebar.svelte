@@ -234,9 +234,9 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
       >{:else}{@render thisRoom()}{/if}
-    {#snippet thisRoom()}<div
-        class="tw:flex tw:min-h-0 tw:flex-initial tw:flex-col tw:gap-3"
-      >
+    {#snippet thisRoom()}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
+      thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
+      <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">
         <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
         <div
           data-room-sidebar-header
