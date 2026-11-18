@@ -13,8 +13,14 @@
     <Card class="tw:block tw:space-y-5 tw:p-6 tw:sm:p-8">
       <a
         href="/"
-        class="tw:inline-flex tw:rounded-control tw:text-lg tw:font-semibold tw:text-foreground tw:no-underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-        >vibebook</a
+        class="tw:inline-flex tw:items-center tw:gap-2 tw:rounded-control tw:text-lg tw:font-semibold tw:text-foreground tw:no-underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+        ><img
+          src="/favicon.svg"
+          alt=""
+          width="32"
+          height="32"
+          class="tw:size-8 tw:rounded-lg"
+        />vibebook</a
       >
       <h1
         class="tw:m-0 tw:break-words tw:text-2xl tw:font-semibold tw:leading-8 tw:tracking-tight"
