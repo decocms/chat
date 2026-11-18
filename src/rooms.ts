@@ -15,10 +15,50 @@ import { INBOX_MENTIONS_SQL } from "./digestItems";
 export const isMember = async (db: D1Database, bookId: string, email: string) =>
   !!(await db.prepare(`SELECT 1 FROM members WHERE book_id = ? AND email = ?`).bind(bookId, email).first());
 
-/** `a` asks `b` to be friends (a row a→b). Friends = both rows: `b` adding `a` back accepts. A friendship needs
- *  both sides because it opens a DM between them (src/dm.ts). Rows made before Nov 2026 were written both ways. */
+/** `a` accepts `b` (a row a→b). A connection = both rows, and it lets the two DM without sharing a room (src/dm.ts).
+ *  A lone row b→a is b's message request to a; a accepting writes a→b. */
 export const befriend = (db: D1Database, a: string, b: string) =>
-  db.prepare(`INSERT INTO friends (a, b, created_at) VALUES (?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET created_at = excluded.created_at`).bind(a, b, Date.now()).run();
+  db.prepare(`INSERT INTO friends (a, b, created_at) VALUES (?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET declined_at = NULL`).bind(a, b, Date.now()).run();
+
+/** How long a turned-down invite keeps the room from asking again (and shows as "recusou" in People). */
+export const DECLINE_HOLD_MS = 7 * 86_400_000;
+
+/** Puts `who` in the room: they said yes to an invite, or asked to join and were let in. */
+export async function joinRoom(env: Env, bookId: string, who: string) {
+  await env.DB.batch([
+    env.DB.prepare(`INSERT OR IGNORE INTO members (book_id, email) VALUES (?, ?)`).bind(bookId, who),
+    env.DB.prepare(`DELETE FROM invites WHERE book_id = ? AND email = ?`).bind(bookId, who),
+  ]);
+  await bookStub(env, bookId).fetch("https://book/members-changed", { method: "POST" });
+}
+
+/** The invitee's answer: yes joins the room, no is kept (People shows "recusou") so the room can't ask again for a week. */
+export async function answerInvite(env: Env, bookId: string, who: string, yes: boolean): Promise<boolean> {
+  const inv = await env.DB.prepare(`SELECT inviter FROM invites WHERE book_id = ? AND email = ? AND declined_at IS NULL`).bind(bookId, who).first<{ inviter: string }>();
+  if (!inv) return false;
+  if (yes) await joinRoom(env, bookId, who);
+  else {
+    await env.DB.prepare(`UPDATE invites SET declined_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), bookId, who).run();
+    await bookStub(env, bookId).fetch("https://book/members-changed", { method: "POST" });
+  }
+  await poke(env, [who, inv.inviter], { t: "me" });
+  return true;
+}
+
+/** Your room invites waiting for an answer (the home's Pedidos). */
+export async function invitesFor(db: D1Database, email: string) {
+  return (
+    await db
+      .prepare(
+        `SELECT i.book_id, b.title, b.icon, i.inviter, u.name AS inviter_name, u.avatar AS inviter_avatar, i.created_at,
+                (SELECT count(*) FROM members m WHERE m.book_id = i.book_id) AS people
+           FROM invites i JOIN books b ON b.id = i.book_id LEFT JOIN users u ON u.email = i.inviter
+          WHERE i.email = ? AND i.declined_at IS NULL ORDER BY i.created_at DESC LIMIT 20`,
+      )
+      .bind(email)
+      .all<{ book_id: string; title: string; icon: number | null; inviter: string; inviter_name: string | null; inviter_avatar: number | null; created_at: number; people: number }>()
+  ).results;
+}
 
 export const bookStub = (env: Env, id: string) => env.BOOK.get(env.BOOK.idFromName(id));
 /** The co-editing relay for a room's doc (epic = "" for the room's own doc). */
@@ -41,12 +81,24 @@ export async function createBook(env: Env, email: string, title?: string) {
   return id;
 }
 
-/** Adds `who` to the room, befriends, emails a magic link (rate-limited per inviter) and tells the DO. */
-export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, origin: string, inviter: string, bookId: string, who: string, inviterLang: Lang = "pt") {
-  await env.DB.prepare(`INSERT OR IGNORE INTO members (book_id, email) VALUES (?, ?)`).bind(bookId, who).run();
-  await befriend(env.DB, inviter, who);
-  ctx.waitUntil(poke(env, [who, inviter], { t: "me" })); // the room and the friend request show up at once
-  ctx.waitUntil(track(env, "invite_sent", { user: inviter, dims: { book: bookId } }));
+/** Invites `who`: the invite waits for their yes (the home's Pedidos, or the room's link), so a room can't pull anyone
+ *  in. Emails a magic link (rate-limited per inviter) and tells the DO. A room that was turned down asks again only
+ *  after a week; "invited" is the answer either way, so the inviter can't tell. */
+export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, origin: string, inviter: string, bookId: string, who: string, inviterLang: Lang = "pt", o: { joined?: boolean } = {}) {
+  if (o.joined) {
+    // Let in from an access request: they're a member already, the email only tells them.
+  } else if (await isMember(env.DB, bookId, who)) {
+    // A member added before invites waited for a yes who never signed in: "reenviar" sends the email again.
+    if (await env.DB.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first()) return;
+  } else {
+    const was = await env.DB.prepare(`SELECT declined_at FROM invites WHERE book_id = ? AND email = ?`).bind(bookId, who).first<{ declined_at: number | null }>();
+    if (was?.declined_at && Date.now() - was.declined_at < DECLINE_HOLD_MS) return;
+    await env.DB.prepare(`INSERT INTO invites (book_id, email, inviter, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (book_id, email) DO UPDATE SET inviter = excluded.inviter, created_at = excluded.created_at, declined_at = NULL`)
+      .bind(bookId, who, inviter, Date.now())
+      .run();
+    ctx.waitUntil(track(env, "invite_sent", { user: inviter, dims: { book: bookId } }));
+  }
+  ctx.waitUntil(poke(env, [who, inviter], { t: "me" })); // the invite shows up in their Pedidos at once
   if (!env.DEV_EMAIL && (await env.LOGIN_LIMIT.limit({ key: `invite:${inviter}` })).success) {
     const [book, known] = await Promise.all([
       env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>(),
@@ -74,7 +126,7 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
             en
               ? `${escapeHtml(inviter)} wants to run this project with you on vibebook: a room with chat, a doc and tasks, where your Claude and ${escapeHtml(name)}'s talk too.`
               : `${escapeHtml(inviter)} quer tocar esse projeto com você no vibebook: uma sala com chat, documento e tarefas, onde o seu Claude e o de ${escapeHtml(name)} também conversam.`
-          }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${en ? "Open the room" : "Abrir a sala"}</a></p><p style="font-size:13px;color:#6b7383">${
+          }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${o.joined ? (en ? "Open the room" : "Abrir a sala") : en ? "See the invite" : "Ver o convite"}</a></p><p style="font-size:13px;color:#6b7383">${
             en ? "The button signs you in and works for 24h. After that, just sign in with your email." : "O botão já te deixa logado e vale por 24h. Depois disso é só entrar com seu email."
           }</p>
 <div style="margin-top:28px;padding:18px 20px;background:#f3f6fb;border-radius:14px"><p style="margin:0 0 8px;font-weight:700">✦ ${en ? "Bring your Claude" : "Traga seu Claude"}</p><p style="margin:0 0 8px">${

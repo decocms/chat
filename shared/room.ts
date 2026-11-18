@@ -165,6 +165,10 @@ export const RoomSnapshotSchema = z.object({
   names: opt(z.record(str, str)),
   avatars: opt(z.record(str, num)),
   pending: opt(strings),
+  /** Invited and not in (src/rooms.ts invites): waiting for their yes, then the ones who said no. Not members. */
+  invited: opt(strings),
+  /** Invited, said no (src/rooms.ts answerInvite): shown in People as "recusou". */
+  declined: opt(strings),
   requests: opt(z.array(AccessRequestSchema)),
   suggestions: z.array(SuggestionSchema),
   files: opt(z.array(AttachmentSchema)),

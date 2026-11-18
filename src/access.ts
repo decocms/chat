@@ -6,7 +6,7 @@ import type { AccessContext } from "../shared/schemas";
 import type { Lang } from "./lang";
 import { uiNavigationUrl, type UiVariant } from "../shared/uiVariant";
 
-export type AccessState = "out" | "ask" | "asked" | "missing";
+export type AccessState = "out" | "ask" | "asked" | "invited" | "missing";
 
 const DESC = "Sala no vibebook: chat, doc e tarefas pras pessoas e os Claudes delas trabalharem juntos.";
 
@@ -18,6 +18,7 @@ const T = {
     askP: (e: string) => `Você entrou como <b>${e}</b>. Quem está na sala vê seu pedido e libera.`, askBtn: "Pedir acesso", asking: "Pedindo…",
     err429: "Muitos pedidos agora. Tente de novo em um minuto.", err: "Não deu pra pedir agora. Tente de novo.",
     sent: "✓ Pedido enviado.", sentP: "Quando liberarem, você recebe um email com o link, e esta página abre a sala.",
+    invK: "Convite para um vibebook", invP: (who: string) => `<b>${who}</b> te chamou pra esta sala. Você só entra se quiser: até lá, nada dela chega em você.`, join: "Entrar na sala", decline: "Recusar", declined: "Convite recusado.",
     fileK: "Arquivo de uma sala do vibebook", fileInH: "Você não está nesta sala", fileInP: "Só quem está na sala abre os arquivos dela. Peça acesso: quem está nela libera.", fileInBtn: "Pedir acesso à sala",
     fileOutH: "Entre para ver este arquivo", fileOutP: "Os arquivos de uma sala são só de quem está nela. Entre com seu email: se você já está na sala, o arquivo abre.", fileOutBtn: "Entrar",
     adH: "Ainda não usa o vibebook?", adP: "Chat, doc e tarefas pra você, seu time e os Claudes de cada um trabalharem juntos no mesmo projeto.", adA: "Criar meu primeiro vibebook →",
@@ -28,6 +29,7 @@ const T = {
     askP: (e: string) => `You're signed in as <b>${e}</b>. People in the room see your request and let you in.`, askBtn: "Ask to join", asking: "Asking…",
     err429: "Too many requests right now. Try again in a minute.", err: "Couldn't send the request. Try again.",
     sent: "✓ Request sent.", sentP: "When they let you in, you get an email with the link, and this page opens the room.",
+    invK: "An invite to a vibebook", invP: (who: string) => `<b>${who}</b> invited you to this room. You only join if you want to: until then, nothing from it reaches you.`, join: "Join the room", decline: "Decline", declined: "Invite declined.",
     fileK: "A file from a vibebook room", fileInH: "You're not in this room", fileInP: "Only people in the room can open its files. Ask to join: someone in it lets you in.", fileInBtn: "Ask to join the room",
     fileOutH: "Sign in to see this file", fileOutP: "A room's files are only for the people in it. Sign in with your email: if you're in the room, the file opens.", fileOutBtn: "Sign in",
     adH: "Not on vibebook yet?", adP: "Chat, doc and tasks for you, your team and each person's Claude to work on the same project together.", adA: "Create my first vibebook →",
@@ -63,11 +65,14 @@ export async function roomAccess(db: D1Database, id: string, email: string | nul
   if (!book || (book.dm && !(email && (await isMember(db, id, email))))) return { state: "missing", title: null, email };
   if (!email) return { state: "out", title: book.title, email: null };
   if (await isMember(db, id, email)) return { state: "member", title: book.title, email };
+  // Invited and not answered: the page asks for the yes (an invite no longer makes you a member by itself).
+  const inv = await db.prepare(`SELECT i.inviter, u.name FROM invites i LEFT JOIN users u ON u.email = i.inviter WHERE i.book_id = ? AND i.email = ? AND i.declined_at IS NULL`).bind(id, email).first<{ inviter: string; name: string | null }>();
+  if (inv) return { state: "invited", title: book.title, email, inviter: inv.name || inv.inviter };
   const asked = await db.prepare(`SELECT 1 FROM access_requests WHERE book_id = ? AND email = ?`).bind(id, email).first();
   return { state: asked ? "asked" : "ask", title: book.title, email };
 }
 
-export function accessPage(o: { origin: string; id: string; title: string | null; state: AccessState; email?: string; auto?: boolean; lang?: Lang; ui?: UiVariant }) {
+export function accessPage(o: { origin: string; id: string; title: string | null; state: AccessState; email?: string; inviter?: string; auto?: boolean; lang?: Lang; ui?: UiVariant }) {
   const t = T[o.lang ?? "pt"];
   const title = escapeHtml(o.title ?? "");
   const next = encodeURIComponent(uiNavigationUrl(`/b/${o.id}?pedir=1`, o.origin, o.ui ?? "vanilla"));
@@ -76,6 +81,8 @@ export function accessPage(o: { origin: string; id: string; title: string | null
   const body =
     o.state === "missing"
       ? `<h1>${t.missingH}</h1><p>${t.missingP}</p><a class="btn" href="/app">${t.open}</a>`
+      : o.state === "invited"
+        ? `<p class="k">${t.invK}</p><h1>${title}</h1><p id="msg">${t.invP(escapeHtml(o.inviter ?? ""))}</p><div id="acts" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="join" type="button">${t.join}</button><button class="btn" id="no" type="button" style="background:transparent;color:inherit;border:1px solid currentColor">${t.decline}</button></div><p class="err" id="err" hidden></p>`
       : `<p class="k">${t.k}</p><h1>${title}</h1>${
           o.state === "out"
             ? `<p>${t.outP}</p><a class="btn" href="${escapeHtml(login)}">${t.outBtn}</a>`
@@ -84,7 +91,24 @@ export function accessPage(o: { origin: string; id: string; title: string | null
               : `<p class="ok">${t.sent}</p><p>${t.sentP}</p>`
         }`;
   const script =
-    o.state === "ask"
+    o.state === "invited"
+      ? `<script>
+const err = document.getElementById("err");
+async function answer(yes) {
+  for (const b of document.querySelectorAll("#acts button")) b.disabled = true;
+  const r = await fetch("/api/books/${o.id}/invite", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ yes }) }).catch(() => null);
+  if (r && r.ok) {
+    if (yes) return location.replace(${JSON.stringify(room)});
+    document.getElementById("msg").textContent = ${JSON.stringify(t.declined)};
+    return document.getElementById("acts").remove();
+  }
+  for (const b of document.querySelectorAll("#acts button")) b.disabled = false;
+  err.hidden = false; err.textContent = ${JSON.stringify(t.err)};
+}
+document.getElementById("join").onclick = () => answer(true);
+document.getElementById("no").onclick = () => answer(false);
+</script>`
+      : o.state === "ask"
       ? `<script>
 const b = document.getElementById("ask"), err = document.getElementById("err");
 async function ask() {

@@ -99,6 +99,8 @@ export function reduceRoom(
         ...s,
         members: event.members,
         pending: event.pending,
+        invited: event.invited,
+        declined: event.declined,
         requests: event.requests ?? s.requests,
         names: event.names ?? s.names,
         avatars: event.avatars ?? s.avatars,

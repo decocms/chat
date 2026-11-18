@@ -243,6 +243,12 @@ export async function auditInlineAppOpen(
           ).email,
           authorEmail,
         );
+        // Invites wait for a yes: the author joins.
+        const joined = await authorContext.request.post(
+          `${fixture.base}/api/books/${roomId}/invite`,
+          { headers: { origin: fixture.base }, data: { yes: true } },
+        );
+        assert(joined.ok(), `Join status ${joined.status()}`);
         const authorAgent = await nativeTestAgent(author.page, fixture.base);
         let doc = `# Inline opening proof\n\n[[app:${connection.id}/mutate_a|m]]\n\n[[app:${connection.id}/mutate_b|m]]\n`;
         const update = async (source: string) => {

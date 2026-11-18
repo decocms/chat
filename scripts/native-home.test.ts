@@ -39,7 +39,12 @@ import {
   targetHref,
   roomMatches,
   waitGroups,
+  dmEntries,
 } from "../svelte/features/home/model";
+import {
+  contacts,
+  matchContacts,
+} from "../svelte/features/app-navigation/contacts";
 import {
   deferred,
   homeApi,
@@ -1113,4 +1118,73 @@ test("desk hand: the middle card leads, the rest alternate right and left", () =
   // A phone piles five.
   expect(inFan(4, 9, true)).toBe(true);
   expect(inFan(5, 9, true)).toBe(false);
+});
+test("DMs: every conversation you've had is listed, named from your rooms' people, newest first", () => {
+  const value = me({
+    books: [
+      room("aaaaaa"),
+      room("dm00000000000000000001", {
+        dm: 1,
+        members: "me@test.com,ana@test.com",
+        updated_at: 50,
+      }),
+      room("dm00000000000000000002", {
+        dm: 1,
+        members: "me@test.com,stranger@test.com",
+        updated_at: 90,
+      }),
+    ],
+    people: [
+      { email: "ana@test.com", name: "Ana", avatar: 3, rooms: ["Room aaaaaa"] },
+    ],
+  });
+  const dms = dmEntries(value)!;
+  expect(dms.self.self).toBe(true);
+  expect(dms.talked.map((dm) => [dm.email, dm.name])).toEqual([
+    ["stranger@test.com", "stranger@test.com"],
+    ["ana@test.com", "Ana"],
+  ]);
+  expect(dms.talked[1]!.avatar).toBe("/api/avatar/ana%40test.com?v=3");
+  expect("untalked" in dms).toBe(false);
+});
+test("new message search: people from your rooms, then connections, accents ignored, never yourself", () => {
+  const value = me({
+    people: [
+      {
+        email: "joao@test.com",
+        name: "João Silva",
+        avatar: null,
+        rooms: ["X"],
+      },
+      { email: "me@test.com", name: "Me", avatar: null, rooms: ["X"] },
+    ],
+    friends: [
+      {
+        email: "old@test.com",
+        name: "Old Friend",
+        avatar: null,
+        joined: 1,
+        shared: 0,
+        dm: "dm00000000000000000003",
+      },
+      {
+        email: "joao@test.com",
+        name: "João Silva",
+        avatar: null,
+        joined: 1,
+        shared: 1,
+        dm: "dm00000000000000000004",
+      },
+    ],
+  });
+  const list = contacts(value);
+  expect(list.map((person) => person.email)).toEqual([
+    "joao@test.com",
+    "old@test.com",
+  ]);
+  expect(matchContacts(list, "joao si").map((p) => p.email)).toEqual([
+    "joao@test.com",
+  ]);
+  expect(matchContacts(list, "nobody")).toEqual([]);
+  expect(matchContacts(list, "")).toHaveLength(2);
 });

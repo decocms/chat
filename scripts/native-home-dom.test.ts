@@ -294,7 +294,6 @@ test("the rail's account menu opens account sections, drives the device notifica
   };
   for (const [name, section] of [
     ["profile", "profile"],
-    ["friends", "friends"],
     ["agents", "agents"],
     ["settings", "all"],
   ] as const) {
@@ -959,8 +958,9 @@ const profileApi: AccountApi = {
   }),
   name: async (name) => ({ ok: true, name }),
   avatar: async () => ({ ok: true, avatar: 1 }),
-  addFriend: async () => ({ ok: true }),
-  removeFriend: async () => ({ ok: true }),
+  connect: async () => ({ ok: true as const }),
+  dismiss: async () => ({ ok: true as const }),
+  answerInvite: async () => ({ ok: true as const }),
 };
 test("native Home renders untrusted room metadata as text and passes exact room identity", async () => {
   const { personal, rooms, pwa, profile, creator } = await setup({
@@ -1744,4 +1744,64 @@ test("real RoomShell rejects connected card-A intent after same-ID canonical msg
   if (!sent || sent.t !== "msg") throw Error("Expected current card reply");
   expect(sent.reply_to).toBe(1);
   expect(sent.text).toBe("approve");
+});
+test("Pedidos: an invite's Entrar joins, a message request shows its first message and × declines", async () => {
+  const { default: Requests } =
+    await import("../svelte/features/app-navigation/Requests.svelte");
+  const joins: [string, boolean][] = [],
+    answers: [string, boolean][] = [];
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Requests, {
+      target,
+      props: {
+        lang: "en",
+        invites: [
+          {
+            book_id: "aaaaaa",
+            title: "Trip",
+            icon: null,
+            inviter: "ana@test.com",
+            inviter_name: "Ana",
+            inviter_avatar: null,
+            people: 3,
+            created_at: 1,
+          },
+        ],
+        requests: [
+          { email: "bia@test.com", name: "Bia", avatar: null, msg: "hi there" },
+        ],
+        onjoin: async (room: string, yes: boolean) => {
+          joins.push([room, yes]);
+        },
+        onanswer: async (email: string, yes: boolean) => {
+          answers.push([email, yes]);
+        },
+      },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    target.remove();
+  });
+  await flush();
+  const invite = target.querySelector<HTMLElement>(
+    '[data-request="room:aaaaaa"]',
+  )!;
+  expect(invite.textContent).toContain("Ana invited you · 3 people");
+  [...invite.querySelectorAll("button")]
+    .find((button) => button.textContent?.trim() === "Join")!
+    .click();
+  await flush();
+  expect(joins).toEqual([["aaaaaa", true]]);
+  const request = target.querySelector<HTMLElement>(
+    '[data-request="dm:bia@test.com"]',
+  )!;
+  expect(request.textContent).toContain("hi there");
+  request.querySelector<HTMLButtonElement>('[aria-label="Decline"]')!.click();
+  await flush();
+  expect(answers).toEqual([["bia@test.com", false]]);
 });

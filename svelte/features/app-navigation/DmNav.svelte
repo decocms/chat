@@ -7,12 +7,14 @@
   import { homeText, type HomeLanguage } from "../home/copy";
   import { dmEntries, waitsByRoom, type DmEntry } from "../home/model";
   import type { AppNavigationSession } from "./controller";
-  import FriendRequests from "./FriendRequests.svelte";
+  import NewMessage from "./NewMessage.svelte";
+  import Requests from "./Requests.svelte";
   import HomeRow from "./HomeRow.svelte";
   import RoomLink from "./RoomLink.svelte";
   /**
    * Your home's own sidebar, like a room's: Home, "Você" (you and your
-   * Claude), then a row per friend, your DMs (src/dm.ts). The open DM expands
+   * Claude), "Pedidos" (invites and message requests waiting for your yes),
+   * then the conversations you've had (src/dm.ts), with a `+` to start one. The open DM expands
    * in place into its threads (`threads`, the room sidebar's own). Search
    * finds a person or a conversation (⌘K).
    */
@@ -33,7 +35,7 @@
   const current = $derived($nav.roomId ?? null);
 </script>
 
-{#snippet dm(entry: DmEntry, faded = false)}<li>
+{#snippet dm(entry: DmEntry)}<li>
     <RoomLink
       room={entry.room}
       dm={entry}
@@ -44,7 +46,6 @@
       {lang}
       status
       note={entry.self ? homeText(lang, "youMeta") : undefined}
-      {faded}
       selected={current === entry.room.id}
       children={current === entry.room.id ? threads : undefined}
       onnavigate={controller.callbacks.navigate}
@@ -79,23 +80,27 @@
         />
       </li>
       {@render dm(dms.self)}
-      {#if $personal.me?.requests.length}<li class="tw:mt-3">
-          <FriendRequests
+      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
+          class="tw:mt-3"
+        >
+          <Requests
+            invites={$personal.me.invites ?? []}
             requests={$personal.me.requests}
             {lang}
-            onanswer={controller.callbacks.answerFriend}
+            onjoin={controller.callbacks.answerInvite}
+            onanswer={controller.callbacks.answerRequest}
           />
         </li>{/if}
-      {#if dms.talked.length || dms.untalked.length}<li class="tw:mt-3">
-          <SectionHeader title={homeText(lang, "dms")} />
-        </li>{/if}
+      <li class="tw:mt-3">
+        <SectionHeader title={homeText(lang, "dms")}
+          >{#snippet action()}{#if $personal.me}<NewMessage
+                me={$personal.me}
+                {lang}
+                onconnect={controller.callbacks.connect}
+                ondismiss={controller.callbacks.dismiss}
+              />{/if}{/snippet}</SectionHeader
+        >
+      </li>
       {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}
-      {#if dms.untalked.length}<li class="tw:mt-2">
-          <SectionHeader level={4} title={homeText(lang, "notTalked")} />
-        </li>
-        {#each dms.untalked as entry (entry.room.id)}{@render dm(
-            entry,
-            true,
-          )}{/each}{/if}
     </ul>{/if}
 </nav>

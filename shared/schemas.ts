@@ -428,12 +428,56 @@ export const MeFriend = z.object({
   /** The id of your DM room with them (src/dm.ts); the room exists once one of you writes. */
   dm: z.string(),
 });
-/** Someone who asked to be your friend (POST /api/friends with their email accepts, DELETE declines). */
+/** Someone outside your rooms who wrote to you: their first message waits for your yes (POST /api/friends with
+ *  their email accepts and opens the DM with it, DELETE declines). */
 export const MeFriendRequest = z.object({
   email: z.string(),
   name: str,
   avatar: num,
+  /** Their first message (absent on requests made before Nov 2026). */
+  msg: z.optional(str),
 });
+/** A message you sent someone outside your rooms that waits for their yes (DELETE /api/friends/:email cancels).
+ *  Only the email: whether that address has an account isn't yours to know until they answer. */
+export const MeSentRequest = z.object({
+  email: z.string(),
+  msg: str,
+  /** 1 = they said no (D1 boolean); it stays closed. */
+  declined: z.number(),
+});
+export type MeSentRequest = z.infer<typeof MeSentRequest>;
+/** A room you were invited to and haven't answered (POST /api/books/:id/invite {yes}). */
+export const MeInvite = z.object({
+  book_id: z.string(),
+  title: z.string(),
+  icon: num,
+  inviter: z.string(),
+  inviter_name: str,
+  inviter_avatar: num,
+  people: z.number(),
+  created_at: z.number(),
+});
+export type MeInvite = z.infer<typeof MeInvite>;
+/** Someone you share a room with: you can DM them without asking (POST /api/friends opens it). */
+export const MePerson = z.object({
+  email: z.string(),
+  name: str,
+  avatar: num,
+  /** The rooms you share, newest first (≤2 titles). */
+  rooms: z.array(z.string()),
+});
+export type MePerson = z.infer<typeof MePerson>;
+/** Writing to someone: `id` = the DM, open now; no id = it went as a message request. */
+export const ConnectBody = z.object({
+  email: z.string(),
+  text: z.optional(z.string()),
+});
+export const ConnectResult = z.object({
+  ok: z.literal(true),
+  id: z.optional(z.string()),
+});
+export type ConnectResult = z.infer<typeof ConnectResult>;
+export const InviteAnswerBody = z.object({ yes: z.boolean() });
 export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
@@ -455,10 +499,14 @@ export const MeData = z.object({
   dm: z.string(),
   books: z.array(MeBook),
   friends: z.array(MeFriend),
-  /** Friend requests waiting on you (a friendship opens a DM, so it needs both sides). */
+  /** Message requests waiting on you: people outside your rooms who wrote to you. */
   requests: z.array(MeFriendRequest),
-  /** Emails you asked to be friends with that haven't answered yet. */
-  sent: z.array(z.string()),
+  /** Your message requests to people outside your rooms. */
+  sent: z.array(MeSentRequest),
+  /** Room invites waiting on you. */
+  invites: z.array(MeInvite),
+  /** People you share a room with (the new-message search), most recent rooms first, ≤200. */
+  people: z.array(MePerson),
   waits: z.array(MeWait),
 });
 export type MeData = z.infer<typeof MeData>;
@@ -559,9 +607,11 @@ export type EmailVerifyResult = z.infer<typeof EmailVerifyResult>;
 /** A room link's page for someone who may not be in it (the access page): the title is readable by whoever holds the
  *  link, on purpose (the shared card). state: missing room, signed out, can ask, already asked, or already a member. */
 export const AccessContext = z.object({
-  state: z.enum(["missing", "out", "ask", "asked", "member"]),
+  state: z.enum(["missing", "out", "ask", "asked", "invited", "member"]),
   title: z.nullable(z.string()),
   email: z.nullable(z.string()),
+  /** state "invited": who invited you (name, else email). */
+  inviter: z.optional(z.string()),
 });
 export type AccessContext = z.infer<typeof AccessContext>;
 

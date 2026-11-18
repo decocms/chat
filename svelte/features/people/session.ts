@@ -1,6 +1,7 @@
 import { get, writable } from "svelte/store";
 import {
   canAct,
+  isListed,
   normalizeEmail,
   type PeopleAction,
   type PeopleRoom,
@@ -65,9 +66,9 @@ export function createPeopleSession(roomId: string, clock = defaultClock) {
   const canonical = (email: string, action: PeopleAction) =>
     !!room &&
     (action === "remove"
-      ? !room.members.includes(email)
+      ? !isListed(room, email)
       : action === "invite"
-        ? room.members.includes(email)
+        ? isListed(room, email)
         : action === "approve"
           ? room.members.includes(email) &&
             !room.requests?.some((r) => r.email === email)
@@ -82,7 +83,7 @@ export function createPeopleSession(roomId: string, clock = defaultClock) {
       for (const [email, op] of operations) {
         const obsolete =
           op.action === "remove"
-            ? !next.members.includes(email)
+            ? !isListed(next, email)
             : (op.action === "approve" || op.action === "deny") &&
               !next.requests?.some((r) => r.email === email);
         // Remote removal makes the action obsolete, without claiming that our request succeeded.
@@ -123,7 +124,7 @@ export function createPeopleSession(roomId: string, clock = defaultClock) {
             ...s,
             issues: {
               ...s.issues,
-              [email]: room!.members.includes(email)
+              [email]: isListed(room!, email)
                 ? "already-member"
                 : "invalid-email",
             },

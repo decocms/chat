@@ -131,6 +131,7 @@ export function createAccessSession(
     busy: false,
     error: "",
     signedOut: false,
+    declined: false,
   });
   const owner = createAuthOwner(clock);
   let active = true,
@@ -180,6 +181,25 @@ export function createAccessSession(
       fail,
     );
   }
+  /** Your answer to the room's invite: yes joins and opens it, no closes the invite. */
+  function answer(yes: boolean) {
+    if (
+      !active ||
+      get(state).loading ||
+      get(state).busy ||
+      get(state).context?.state !== "invited"
+    )
+      return;
+    state.update((s) => ({ ...s, busy: true, error: "" }));
+    return owner.run(
+      (signal) => api.answerInvite(id, yes, signal),
+      () => {
+        if (yes) navigate(target);
+        else state.update((s) => ({ ...s, busy: false, declined: true }));
+      },
+      fail,
+    );
+  }
   function load() {
     if (!active || get(state).loading || get(state).busy) return;
     stopPoll();
@@ -207,6 +227,7 @@ export function createAccessSession(
     state,
     load,
     ask,
+    answer,
     dispose() {
       active = false;
       stopPoll();

@@ -50,6 +50,7 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
       title: "<Room>",
     }),
     ask: async () => ({ ok: true }),
+    answerInvite: async () => ({ ok: true }),
     consent: async () => consent,
     ...overrides,
   };

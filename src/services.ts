@@ -8,12 +8,13 @@ import { LISTEN_FRESH, poke } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
 import { uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
-import { MeBook, MeData, MeFriend, MeFriendRequest, MeResult, MeWait } from "../shared/schemas";
+import { MeBook, MeData, MeFriend, MeFriendRequest, MeInvite, MePerson, MeResult, MeSentRequest, MeWait } from "../shared/schemas";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
-import { dmIds } from "./dm";
-import { isDmId, MUTUAL, pairKey } from "../shared/dm";
-import { befriend, bookStub, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, TYPES_ERROR, waitsFor } from "./rooms";
+import { canDm, dmIds, openDmWith } from "./dm";
+import { findSecret } from "./secrets";
+import { isDmId, MUTUAL } from "../shared/dm";
+import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, TYPES_ERROR, waitsFor } from "./rooms";
 import { track } from "./track";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
@@ -37,6 +38,18 @@ async function currentVersion(env: Env, url: string) {
 }
 
 /** GET /api/me: served from your Person DO while nothing changed (rooms, waits and your own writes poke it stale). */
+/** You and `col` share a room (both joined, not a DM); binds ?1 = you. */
+const SHARED = (col: string) =>
+  `EXISTS (SELECT 1 FROM members x JOIN members y ON y.book_id = x.book_id JOIN books k ON k.id = x.book_id AND k.dm IS NULL WHERE x.email = ?1 AND y.email = ${col})`;
+const roomTitles = (json: string) => {
+  try {
+    const list: unknown = JSON.parse(json);
+    return Array.isArray(list) ? list.filter((t): t is string => typeof t === "string").slice(0, 2) : [];
+  } catch {
+    return [];
+  }
+};
+
 export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, req: Request): Promise<MeResult> {
   const db = env.DB;
   const person = env.PEOPLE.get(env.PEOPLE.idFromName(email));
@@ -47,7 +60,7 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     if (hit.success) return { ...hit.data, v: await currentVersion(env, req.url), cached: true };
   }
   // One round trip's worth: the four reads run together.
-  const [books, friends, requests, sent, me, waits] = await Promise.all([
+  const [books, friends, requests, sent, invites, people, me, waits] = await Promise.all([
     db.prepare(
       `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id,
@@ -64,12 +77,23 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
        FROM friends f LEFT JOIN users u ON u.email = f.b
        WHERE f.a = ? AND ${MUTUAL} ORDER BY shared DESC, f.b`,
     ).bind(email).all(),
-    // Who asked to be your friend and you haven't answered (adding them back accepts, removing declines).
+    // Message requests: people outside your rooms who wrote to you and you haven't answered. A request from someone
+    // you now share a room with is moot (you can just talk), so it's left out, like the rows old room invites wrote.
     db.prepare(
-      `SELECT f.a AS email, u.name, u.avatar FROM friends f LEFT JOIN users u ON u.email = f.a
-       WHERE f.b = ? AND NOT EXISTS (SELECT 1 FROM friends r WHERE r.a = f.b AND r.b = f.a) ORDER BY f.created_at DESC LIMIT 20`,
+      `SELECT f.a AS email, u.name, u.avatar, f.msg FROM friends f LEFT JOIN users u ON u.email = f.a
+       WHERE f.b = ?1 AND f.declined_at IS NULL AND NOT ${MUTUAL} AND NOT ${SHARED("f.a")} ORDER BY f.created_at DESC LIMIT 20`,
     ).bind(email).all(),
-    db.prepare(`SELECT f.b AS email FROM friends f WHERE f.a = ? AND NOT ${MUTUAL} ORDER BY f.created_at DESC`).bind(email).all<{ email: string }>(),
+    db.prepare(`SELECT f.b AS email, f.msg, f.declined_at IS NOT NULL AS declined FROM friends f WHERE f.a = ?1 AND NOT ${MUTUAL} AND NOT ${SHARED("f.b")} ORDER BY f.created_at DESC LIMIT 50`).bind(email).all(),
+    invitesFor(db, email),
+    // People you share a room with (both joined), for "Nova mensagem": the rooms you share, most recent first.
+    db.prepare(
+      `SELECT y.email, u.name, u.avatar, max(k.updated_at) AS last,
+              (SELECT json_group_array(t) FROM (SELECT k2.title AS t FROM members x2 JOIN members y2 ON y2.book_id = x2.book_id
+                 JOIN books k2 ON k2.id = x2.book_id AND k2.dm IS NULL WHERE x2.email = ?1 AND y2.email = y.email ORDER BY k2.updated_at DESC LIMIT 2)) AS rooms
+         FROM members x JOIN members y ON y.book_id = x.book_id AND y.email != x.email
+         JOIN books k ON k.id = x.book_id AND k.dm IS NULL LEFT JOIN users u ON u.email = y.email
+        WHERE x.email = ?1 GROUP BY y.email ORDER BY last DESC LIMIT 200`,
+    ).bind(email).all<{ email: string; name: string | null; avatar: number | null; rooms: string }>(),
     db.prepare(`SELECT name, avatar, lang FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
     waitsFor(db, email),
   ]);
@@ -103,7 +127,9 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     dm: dms.get(email.toLowerCase())!,
     friends: keep("friends", MeFriend, friends.results.map((f) => ({ ...f, joined: Number(f.joined ?? 0), shared: Number(f.shared ?? 0), dm: dms.get(String(f.email).toLowerCase()) }))),
     requests: keep("requests", MeFriendRequest, requests.results),
-    sent: keep("sent", z.string(), sent.results.map((r) => r.email)),
+    sent: keep("sent", MeSentRequest, sent.results.map((r) => ({ ...r, declined: Number(r.declined ?? 0) }))),
+    invites: keep("invites", MeInvite, invites),
+    people: keep("people", MePerson, people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) }))),
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -139,26 +165,63 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     inbox: () => inbox(env, email),
     loginProviders: { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), github: !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) },
     isEmail: (s) => EMAIL_RE.test(s),
-    // A request (or, if they asked you, the yes): they see it at once, not when their cached /api/me next expires.
-    befriend: async (who) => { await befriend(env.DB, email, who); ctx.waitUntil(poke(env, [who], { t: "me" })); },
-    // Declines a request, cancels yours or ends the friendship; a friendship's DM is emptied for both, so either side can leave it.
-    unfriend: async (who) => {
+    // Writing to someone (the + "Nova mensagem"): their request to you → accept it (their first message lands in the DM);
+    // someone you can DM (a room in common, a connection, yourself) → the DM opens now; anyone else → a message request
+    // that waits for their yes. The answer never says whether that email has an account.
+    connect: async (who, text) => {
+      const msg = (text ?? "").trim().slice(0, 2000);
+      if (msg && findSecret(msg)) return { error: "Não enviei: parece um segredo. Segredo não entra na conversa." };
+      // Sharing a room already lets you talk: an old request between you is moot and its message isn't replayed.
+      const shared = await canDm(env.DB, email, who);
+      const theirs = await env.DB.prepare(`SELECT 1 FROM friends WHERE a = ? AND b = ? AND declined_at IS NULL`).bind(who, email).first();
+      if (theirs && !shared) await befriend(env.DB, email, who);
+      const id = await openDmWith(env, email, who);
+      if (id) {
+        const dm = bookStub(env, id);
+        // Taken once (a double accept can't post it twice), then posted as them.
+        const first = theirs ? await env.DB.prepare(`SELECT msg FROM friends WHERE a = ? AND b = ? AND msg IS NOT NULL`).bind(who, email).first<{ msg: string }>() : null;
+        const took = first && (await env.DB.prepare(`UPDATE friends SET msg = NULL WHERE a = ? AND b = ? AND msg = ?`).bind(who, email, first.msg).run()).meta.changes === 1;
+        if (took && !shared) await dm.humanPost(id, who, first.msg);
+        if (msg) await dm.humanPost(id, email, msg);
+        ctx.waitUntil(poke(env, [email, who], { t: "me" }));
+        ctx.waitUntil(track(env, theirs ? "dm_request_accepted" : "dm_opened", { user: email }));
+        return { id };
+      }
+      if (!(await env.LOGIN_LIMIT.limit({ key: `dmreq:${email}` })).success) return { error: "rate" };
+      // A request they turned down stays closed; sending again changes nothing (and says nothing).
+      await env.DB.prepare(`INSERT INTO friends (a, b, created_at, msg) VALUES (?, ?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET msg = excluded.msg, created_at = excluded.created_at WHERE friends.declined_at IS NULL`)
+        .bind(email, who, Date.now(), msg || null)
+        .run();
+      ctx.waitUntil(poke(env, [email, who], { t: "me" }));
+      ctx.waitUntil(track(env, "dm_request_sent", { user: email }));
+      return {};
+    },
+    // Declines their message request, or cancels yours. A conversation that already exists isn't touched.
+    dismiss: async (who) => {
       await env.DB.batch([
-        env.DB.prepare(`DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)`).bind(email, who, who, email),
-        env.DB.prepare(`DELETE FROM members WHERE book_id IN (SELECT id FROM books WHERE dm = ?)`).bind(pairKey(email, who)),
+        env.DB.prepare(`UPDATE friends SET declined_at = ?3 WHERE a = ?1 AND b = ?2 AND declined_at IS NULL AND NOT EXISTS (SELECT 1 FROM friends r WHERE r.a = ?2 AND r.b = ?1)`).bind(who, email, Date.now()),
+        env.DB.prepare(`DELETE FROM friends WHERE a = ?1 AND b = ?2 AND declined_at IS NULL AND NOT EXISTS (SELECT 1 FROM friends r WHERE r.a = ?2 AND r.b = ?1)`).bind(email, who),
       ]);
       ctx.waitUntil(poke(env, [email, who], { t: "me" }));
-      // Open tabs of that DM lose their socket and live doc now, like a removed member's.
-      const dm = await env.DB.prepare(`SELECT id FROM books WHERE dm = ?`).bind(pairKey(email, who)).first<{ id: string }>();
-      if (dm) ctx.waitUntil(bookStub(env, dm.id).fetch("https://book/members-changed", { method: "POST" }));
+    },
+    answerInvite: async (roomId, yes) => {
+      const done = await answerInvite(env, roomId, email, yes);
+      if (done) ctx.waitUntil(track(env, yes ? "invite_accepted" : "invite_declined", { user: email, dims: { book: roomId } }));
+      return done;
     },
     invite: (roomId, who) => inviteMember(env, ctx, new URL(req0.url).origin, email, roomId, who, reqLang(req0)),
     removeMember: async (roomId, who) => {
       const book = await env.DB.prepare(`SELECT owner FROM books WHERE id = ?`).bind(roomId).first<{ owner: string }>();
       if (who === book?.owner) return { error: "O dono não pode ser removido.", status: 400 };
-      const joined = !!(await env.DB.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first());
+      // Someone who joined (a member with an account); an invite still waiting can be taken back by anyone in the room.
+      const joined = !!(await env.DB.prepare(`SELECT 1 FROM members m JOIN users u ON u.email = m.email WHERE m.book_id = ? AND m.email = ?`).bind(roomId, who).first());
       if (joined && email !== book?.owner) return { error: "Só quem criou o vibebook remove quem já entrou.", status: 403 };
-      await env.DB.prepare(`DELETE FROM members WHERE book_id = ? AND email = ?`).bind(roomId, who).run();
+      await env.DB.batch([
+        env.DB.prepare(`DELETE FROM members WHERE book_id = ? AND email = ?`).bind(roomId, who),
+        // An invite still waiting is taken back; a declined one stays, so the room can't ask again during the hold.
+        env.DB.prepare(`DELETE FROM invites WHERE book_id = ? AND email = ? AND declined_at IS NULL`).bind(roomId, who),
+      ]);
+      ctx.waitUntil(poke(env, [who], { t: "me" }));
       await bookStub(env, roomId).fetch("https://book/members-changed", { method: "POST" });
       return null;
     },
@@ -184,7 +247,9 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       if (!req) return false;
       if (approve) {
         await env.DB.prepare(`DELETE FROM access_requests WHERE book_id = ? AND email = ?`).bind(roomId, req.email).run();
-        await inviteMember(env, ctx, new URL(req0.url).origin, email, roomId, req.email, reqLang(req0));
+        // Asking to join was their yes: they're in now (the page they asked from opens the room, the email tells them).
+        await joinRoom(env, roomId, req.email);
+        await inviteMember(env, ctx, new URL(req0.url).origin, email, roomId, req.email, reqLang(req0), { joined: true });
       } else await env.DB.prepare(`UPDATE access_requests SET denied = 1 WHERE book_id = ? AND email = ?`).bind(roomId, req.email).run();
       await bookStub(env, roomId).fetch("https://book/requests-changed", { method: "POST" });
       return true;

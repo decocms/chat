@@ -176,8 +176,9 @@ function fixture(
       }),
       name: async (name) => ({ ok: true, name }),
       avatar: async () => ({ ok: true, avatar: 1 }),
-      addFriend: async () => ({ ok: true }),
-      removeFriend: async () => ({ ok: true }),
+      connect: async () => ({ ok: true as const }),
+      dismiss: async () => ({ ok: true as const }),
+      answerInvite: async () => ({ ok: true as const }),
     },
     onIdentityReset: () => {
       identityResets++;

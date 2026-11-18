@@ -1045,7 +1045,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             pins,
             send,
             request,
-            friends: me()?.friends.map((friend) => friend.email),
+            friends: (me()?.people ?? []).map((person) => person.email),
             appNavigation: { controller: services.navigation, lang },
             ontogglerail: () => {
               if (current()) layout.toggleSidebar();

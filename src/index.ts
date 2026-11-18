@@ -24,7 +24,7 @@ import { validUnsub } from "./mentionmail";
 import { sendDigests } from "./digest";
 
 import { jwks } from "./mcpauth";
-import { befriend, bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
+import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
 import { pushTo } from "./webpush";
 export { Book } from "./book";
@@ -113,6 +113,9 @@ const SCHEMA = [
   // What each person has seen in each room in the app (the switcher's unread dots).
   // One-time upload links for agents: the file goes from disk (curl) to R2 without passing through the model.
   `CREATE TABLE IF NOT EXISTS invite_used (sig TEXT PRIMARY KEY, ts INTEGER)`,
+  // A room invite waits for a yes (src/rooms.ts inviteMember/answerInvite): members are only people who joined.
+  `CREATE TABLE IF NOT EXISTS invites (book_id TEXT, email TEXT, inviter TEXT, created_at INTEGER, declined_at INTEGER, PRIMARY KEY (book_id, email))`,
+  `CREATE INDEX IF NOT EXISTS invites_email ON invites (email)`,
   `CREATE TABLE IF NOT EXISTS upload_links (token TEXT PRIMARY KEY, email TEXT, agent TEXT, book_id TEXT, filename TEXT, type TEXT, message TEXT, thread TEXT, model TEXT, expires_at INTEGER, used INTEGER DEFAULT 0)`,
   // "Esperando você": what someone is waiting on a person for. ref = m<message id> (Jev read the message as an ask
   // to them; deleted when Jev reads their later post in that thread as the answer, or they tick it) or t<task id>
@@ -157,7 +160,7 @@ const SCHEMA = [
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
-const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`];
+const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`];
 // Only when the schema text changed since the last run (a cold isolate used to send ~60 DDL writes to the primary).
 const schemaKey = (alters: string[]) => { let h = 0; for (const ch of [...SCHEMA, ...alters].join(";")) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return String(h); };
 export const ensureSchema = (db: D1Database) =>
@@ -292,7 +295,7 @@ app.get("/b/*", async (c) => {
   const id = url.pathname.match(/^\/b\/([a-z0-9]{6,40})/)?.[1] ?? "";
   // Your DM with a friend (or your own) is made the first time either of you opens it (src/dm.ts).
   if (email) await openDm(c.env, id, email);
-  const { state, title } = await roomAccess(c.env.DB, id, email ?? null);
+  const { state, title, inviter } = await roomAccess(c.env.DB, id, email ?? null);
   if (state === "member")
     return pageview(c, new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, title ?? ""), { html: true }); } }).transform(await shell(c)), email ?? undefined);
   if (uiVariant(url) === "svelte") {
@@ -301,7 +304,7 @@ app.get("/b/*", async (c) => {
     const res = native.status === 503 ? native : new HTMLRewriter().on("title", {element: (el) => {el.replace(roomMeta(url.origin,id,state === "missing" ? null : title),{html:true});}}).transform(native);
     return pageview(c,res,email ?? undefined);
   }
-  const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
+  const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, inviter, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
   res.headers.set("x-frame-options", "DENY");
   res.headers.set("content-security-policy", "frame-ancestors 'none'");
   return pageview(c, res, email ?? undefined);

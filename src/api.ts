@@ -64,6 +64,9 @@ import {
   ArchivedRoom,
   type ArchivedResult,
   EmailBody,
+  ConnectBody,
+  ConnectResult,
+  InviteAnswerBody,
   LoginsResult,
   type SearchResult,
   SearchQuery,
@@ -127,8 +130,13 @@ export interface ApiServices {
   inbox(): Promise<InboxResult>;
   loginProviders: { google: boolean; github: boolean };
   isEmail(s: string): boolean;
-  befriend(email: string): Promise<void>;
-  unfriend(email: string): Promise<void>;
+  /** Write to someone: `id` = the DM is open (a room in common, a connection, or their request accepted); `{}` = it
+   *  went as a message request. Never says whether the email has an account. */
+  connect(email: string, text?: string): Promise<{ id?: string; error?: string }>;
+  /** Decline their message request, or cancel yours. */
+  dismiss(email: string): Promise<void>;
+  /** Your answer to a room invite; false = no invite waiting. */
+  answerInvite(roomId: string, yes: boolean): Promise<boolean>;
   invite(roomId: string, email: string): Promise<void>;
   /** Remove someone from a room: the owner can't be removed; only the owner removes someone who already joined. */
   removeMember(roomId: string, email: string): Promise<{ error: string; status: 400 | 403 } | null>;
@@ -365,15 +373,21 @@ export const accountApi = api
     const rows = await svc.sqlAll(`SELECT COALESCE(json_extract(dims, '$.method'), 'email') AS method, MAX(ts) AS last, COUNT(*) AS n FROM events WHERE user = ? AND name = 'login' GROUP BY 1`, c.get("email"));
     return c.json(LoginsResult.parse({ logins: rows, providers: svc.loginProviders }) satisfies LoginsResult, 200);
   })
-  .post("/api/friends", body(EmailBody, "invalid email"), async (c) => {
-    const svc = c.get("svc"), who = c.req.valid("json").email.trim().toLowerCase();
-    if (!svc.isEmail(who) || who === c.get("email")) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
-    await svc.befriend(who);
-    return c.json(ok, 200);
+  .post("/api/friends", body(ConnectBody, "invalid email"), async (c) => {
+    const svc = c.get("svc"), { email, text } = c.req.valid("json"), who = email.trim().toLowerCase();
+    if (!svc.isEmail(who)) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
+    const r = await svc.connect(who, text);
+    if (r.error === "rate") return c.json({ error: "rate limited" } satisfies ErrorBody, 429);
+    if (r.error) return c.json({ error: r.error } satisfies ErrorBody, 400);
+    return c.json((r.id ? { ok: true as const, id: r.id } : { ok: true as const }) satisfies ConnectResult, 200);
   })
   .delete("/api/friends/:email", async (c) => {
     const me = c.get("email"), who = decodeURIComponent(c.req.param("email")).toLowerCase();
-    if (who !== me) await c.get("svc").unfriend(who);
+    if (who !== me) await c.get("svc").dismiss(who);
+    return c.json(ok, 200);
+  })
+  .post("/api/books/:id/invite", body(InviteAnswerBody), async (c) => {
+    if (!(await c.get("svc").answerInvite(c.req.param("id"), c.req.valid("json").yes))) return c.json({ error: "no invite" } satisfies ErrorBody, 404);
     return c.json(ok, 200);
   })
   .post("/api/books/:id/members", body(EmailBody, "invalid email"), async (c) => {

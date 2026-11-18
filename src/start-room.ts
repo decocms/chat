@@ -1,6 +1,6 @@
 import { providerCost } from "./providerMetadata";
 // "Novo vibebook" in one step: the person says what it is and with whom. One cheap model call (MODEL_ROUTE, reasoning
-// off) turns that into a short title and the people it names; names are matched against the person's friends here
+// off) turns that into a short title and the people it names; names are matched against the person's connections and the people in their rooms here
 // (never by the model), emails are taken as written. Then: the room, its first message, the invites, and the
 // person's Claude switched on for it (vibebook herdr opens it where it runs).
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
@@ -53,8 +53,13 @@ export async function startRoom(env: Env, ctx: { waitUntil(p: Promise<unknown>):
   } catch {
     // Model down: the room still opens, titled from the text.
   }
+  // Who a name can mean: your connections and the people you share a room with.
   const friends = (
-    await env.DB.prepare(`SELECT f.b AS email, u.name FROM friends f LEFT JOIN users u ON u.email = f.b WHERE f.a = ? AND ${MUTUAL}`).bind(email).all<{ email: string; name: string | null }>()
+    await env.DB.prepare(
+      `SELECT e AS email, u.name FROM (SELECT f.b AS e FROM friends f WHERE f.a = ?1 AND ${MUTUAL}
+         UNION SELECT y.email FROM members x JOIN members y ON y.book_id = x.book_id AND y.email != x.email JOIN books k ON k.id = x.book_id AND k.dm IS NULL WHERE x.email = ?1)
+       LEFT JOIN users u ON u.email = e`,
+    ).bind(email).all<{ email: string; name: string | null }>()
   ).results;
   const invited: string[] = [], unknown: string[] = [];
   for (const p of people) {

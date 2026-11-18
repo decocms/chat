@@ -28,7 +28,7 @@ import { generateText, type LanguageModel, Output } from "ai";
 import { z } from "zod";
 import type { Env } from "./index";
 import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, ROOM_TAGS, tagsOf, unsubscribeUrl } from "./mentionmail";
-import { docRoomStub } from "./rooms";
+import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
@@ -500,7 +500,22 @@ export class Book extends DurableObject<Env> {
     this.ctx.waitUntil(track(this.env, "suggest_check", { dims: { book: this.get("book_id") ?? undefined, n: list.length, model: this.env.MODEL_JUDGE, cost: +r.cost.toFixed(6) } }));
     return list.filter((_, i) => (r.answers[`s${i}`]?.noul ?? 0) < 0.5);
   }
-  // Invited but never signed in.
+  /** Room invites waiting for a yes, and the ones turned down (D1 invites, src/rooms.ts). Not members: People shows
+   *  them, nothing else in the room reaches them. */
+  async invited(): Promise<{ waiting: string[]; declined: string[] }> {
+    const id = this.get("book_id");
+    if (!id) return { waiting: [], declined: [] };
+    const r = (await this.env.DB.prepare(`SELECT email, declined_at FROM invites WHERE book_id = ? AND (declined_at IS NULL OR declined_at > ?) ORDER BY created_at`).bind(id, Date.now() - DECLINE_HOLD_MS).all<{ email: string; declined_at: number | null }>()).results;
+    return { waiting: r.filter((x) => !x.declined_at).map((x) => x.email), declined: r.filter((x) => x.declined_at).map((x) => x.email) };
+  }
+  /** What People lists: the members, and apart from them the invitees (`invited`: waiting, then declined); `pending`
+   *  marks who hasn't come in yet (old never-signed-in members and waiting invitees), `declined` who said no. */
+  async people() {
+    const [members, old, inv] = await Promise.all([this.members(), this.pending(), this.invited()]);
+    const invited = [...inv.waiting, ...inv.declined].filter((e) => !members.includes(e));
+    return { members, invited, pending: [...new Set([...old, ...inv.waiting])], declined: inv.declined };
+  }
+  // Members who were added before invites waited for a yes (Nov 2026) and never signed in.
   async pending(): Promise<string[]> {
     const id = this.get("book_id");
     if (!id) return [];
@@ -1953,7 +1968,8 @@ export class Book extends DurableObject<Env> {
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
-      this.broadcast({ t: "members", members, pending: await this.pending(), requests: await this.requests(), names: await this.names(), avatars: await this.avatars() });
+      const people = await this.people();
+      this.broadcast({ t: "members", members: people.members, invited: people.invited, pending: people.pending, declined: people.declined, requests: await this.requests(), names: await this.names(), avatars: await this.avatars() });
       this.broadcast({ t: "online", online: this.online() });
       return new Response("ok");
     }
@@ -1975,9 +1991,9 @@ export class Book extends DurableObject<Env> {
     if (this.autoArchive()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
-    const [book, members, pending, requests, names, avatars] = await Promise.all([
+    const [book, people, requests, names, avatars] = await Promise.all([
       this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
-      this.members(), this.pending(), this.requests(), this.names(), this.avatars(),
+      this.people(), this.requests(), this.names(), this.avatars(),
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const state: Extract<RoomEvent, {t:"state"}> = {
@@ -2002,8 +2018,10 @@ export class Book extends DurableObject<Env> {
         decisions: this.decisions(),
         pins: this.pins(),
         suggestions: this.suggestions(),
-        members,
-        pending,
+        members: people.members,
+        invited: people.invited,
+        pending: people.pending,
+        declined: people.declined,
         requests,
         names,
         avatars,

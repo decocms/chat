@@ -194,11 +194,32 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
           : Promise.resolve({ ok: false, error: "offline" }),
-      answerFriend: async (email, accept) => {
+      answerRequest: async (email, accept) => {
         const signal = AbortSignal.timeout(15_000);
-        await (accept
-          ? accountApi.addFriend(email, signal)
-          : accountApi.removeFriend(email, signal));
+        if (!accept) await accountApi.dismiss(email, signal);
+        else {
+          const { id } = await accountApi.connect(email, undefined, signal);
+          if (id) navigate(`/b/${id}`);
+        }
+        personal.invalidate();
+      },
+      answerInvite: async (room, yes) => {
+        await accountApi.answerInvite(room, yes, AbortSignal.timeout(15_000));
+        personal.invalidate();
+        if (yes) navigate(`/b/${room}`);
+      },
+      connect: async (email, text) => {
+        const { id } = await accountApi.connect(
+          email,
+          text,
+          AbortSignal.timeout(15_000),
+        );
+        personal.invalidate();
+        if (id) navigate(`/b/${id}`);
+        return id;
+      },
+      dismiss: async (email) => {
+        await accountApi.dismiss(email, AbortSignal.timeout(15_000));
         personal.invalidate();
       },
     },

@@ -18,7 +18,6 @@
     Pencil01,
     Settings01,
     Stars01,
-    Users01,
   } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import { uiNavigationUrl } from "../../../shared/uiVariant";
@@ -29,7 +28,7 @@
   import type { UserMenuActions, UserMenuTheme } from "./menuBridge";
   /**
    * The person's avatar at the end of the rail. It opens the account menu:
-   * who is signed in (edit profile), friends, agents, this device's
+   * who is signed in (edit profile), agents, this device's
    * notifications, settings, theme, language and sign out. A real menu: arrow
    * keys move, Esc closes and focus returns to the avatar.
    */
@@ -39,7 +38,6 @@
     avatar,
     lang,
     theme,
-    friends = 0,
     onsettheme,
     onlanguage,
     onaccount,
@@ -54,8 +52,6 @@
     avatar?: string;
     lang: HomeLanguage;
     theme: UserMenuTheme;
-    /** How many friends the person has (the row hides its count at 0). */
-    friends?: number;
     onsettheme: (theme: UserMenuTheme) => void;
     onlanguage: (lang: HomeLanguage) => void;
   } = $props();
@@ -243,19 +239,6 @@
             class={separatorClass}
           />{/if}
         {#if onaccount}<DropdownMenu.Item
-            data-user-menu-item="friends"
-            class={itemClass}
-            onSelect={() => account("friends")}
-            ><Icon icon={Users01} class="tw:size-4" /><span class="tw:flex-1"
-              >{text("friends")}</span
-            >{#if friends > 0}<span
-                class="tw:text-xs tw:tabular-nums tw:text-muted-foreground"
-                >{friends}</span
-              >{/if}<Icon
-              icon={ChevronRight}
-              class="tw:size-4 tw:text-muted-foreground"
-            /></DropdownMenu.Item
-          ><DropdownMenu.Item
             data-user-menu-item="agents"
             class={itemClass}
             onSelect={() => account("agents")}

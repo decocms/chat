@@ -1,5 +1,57 @@
 [
   {
+    "date": "2026-11-18",
+    "slug": "2026-11-18-pedidos",
+    "title": {
+      "pt": "Ninguém entra numa sala nem te escreve sem o seu sim",
+      "en": "Nobody pulls you into a room or messages you without your yes"
+    },
+    "intro": {
+      "pt": "Convites de sala e mensagens de quem você não conhece agora esperam você aceitar, numa lista só, \"Pedidos\". Pedido de amizade deixou de existir: com quem está numa sala com você, é só conversar.",
+      "en": "Room invites and messages from people you don't know now wait for you to accept, in one list, \"Requests\". Friend requests are gone: with anyone who shares a room with you, just talk."
+    },
+    "features": [
+      {
+        "title": {
+          "pt": "Convites esperam o seu sim",
+          "en": "Invites wait for your yes"
+        },
+        "text": {
+          "pt": "Ser convidado pra uma sala não te põe mais nela: o convite aparece em \"Pedidos\" (e no email, que leva à página do convite) com Entrar ou Recusar. Até você entrar, nada da sala chega em você. Na sala, quem convidou vê a pessoa em \"Convidados\", como aguardando ou recusou. Quem pediu acesso pelo link e foi liberado entra direto.",
+          "en": "Being invited to a room no longer puts you in it: the invite shows up in \"Requests\" (and in the email, which leads to the invite page) with Join or Decline. Until you join, nothing from the room reaches you. In the room, whoever invited sees the person under \"Invited\", as waiting or declined. Someone who asked to join through the link and was let in joins right away."
+        },
+        "image": "changelog/2026-11-18-convite.webp",
+        "alt": {
+          "pt": "Página de convite de uma sala de teste com Entrar na sala e Recusar",
+          "en": "Invite page of a test room with Join the room and Decline"
+        }
+      },
+      {
+        "title": {
+          "pt": "Mensagem pra qualquer pessoa",
+          "en": "Message anyone"
+        },
+        "text": {
+          "pt": "No app novo (?ui=svelte), o + em \"Mensagens diretas\" abre \"Nova mensagem\": quem está numa sala com você abre a conversa na hora. Pra qualquer outro email, você escreve a primeira mensagem e ela chega como um pedido; a conversa só abre quando a pessoa aceitar. Recusado, não dá pra mandar de novo, e a resposta nunca diz se o email tem conta. A lista de conversas mostra só com quem você já falou, e Amigos saiu da conta e do menu.",
+          "en": "In the new app (?ui=svelte), the + on \"Direct messages\" opens \"New message\": anyone who shares a room with you opens the conversation right away. For any other email, you write the first message and it arrives as a request; the conversation opens only once they accept. Once declined it can't be sent again, and the answer never says whether the email has an account. The conversation list shows only people you've talked to, and Friends left the account panel and the menu."
+        },
+        "image": "changelog/2026-11-18-pedidos.webp",
+        "alt": {
+          "pt": "Coluna de mensagens com Pedidos: um convite de sala com Entrar e uma mensagem de alguém de fora com Aceitar",
+          "en": "Messages column with Requests: a room invite with Join and a message from someone outside with Accept"
+        }
+      }
+    ],
+    "improvements": {
+      "pt": [],
+      "en": []
+    },
+    "fixes": {
+      "pt": [],
+      "en": []
+    }
+  },
+  {
     "date": "2026-11-17",
     "slug": "2026-11-17-agent",
     "title": {

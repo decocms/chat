@@ -252,7 +252,6 @@
           name={$personal.me.name ?? ""}
           email={$personal.me.email}
           avatar={personAvatar($personal.me, $personal.me.email)}
-          friends={$personal.me.friends.length}
           lang={menu.lang}
           theme={menu.theme()}
           onsettheme={menu.onsettheme}
