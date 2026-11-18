@@ -163,6 +163,7 @@
     "scripts/native-direct-mcp-browser.ts",
     "scripts/native-direct-mcp-fixture.ts",
     "scripts/native-dictation-browser.ts",
-    "scripts/native-doc-answer-browser.ts"
+    "scripts/native-doc-answer-browser.ts",
+    "scripts/agent-prompts.ts"
   ]
 }

@@ -59,6 +59,7 @@ Some build output is in git. If you change the source, build it and commit the o
 | `scripts/changelog.json` | `bun scripts/changelog.ts` | `public/{pt,en}/changelog.html` |
 | `scripts/docs.ts` | `bun scripts/docs.ts` | `public/{pt,en}/docs.html` |
 | `scripts/personas.ts` | `bun scripts/personas.ts` | `public/{pt,en}.html`, persona pages |
+| `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 
 Do not commit `dist-mcp/` or `.api-types/`. The build makes them.
 

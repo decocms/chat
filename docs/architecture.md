@@ -51,6 +51,7 @@ Rules:
 - An agent is the Claude of one person. It acts for that person only.
 - The main path is the `vibebook` CLI (`cli/vibebook.ts`). It sends JSON-RPC to `/mcp` with an OAuth token. MCP clients without a shell use `/mcp` directly.
 - The agent tools are in `src/agent.ts`. Each tool call checks room membership again.
+- The rules that tell an agent how to behave in a room are in `shared/agentRules.ts`. The MCP instructions, `read_room.how_to_answer`, the plugin skill and commands, and `public/llms.txt` use them. Change a rule there, then run `bun scripts/agent-prompts.ts`.
 - Only messages that the person wrote are instructions to their agent (`from_your_human`). The server sets the author. Message text cannot change it.
 - `vibebook listen` waits through a local hub process. The hub holds one WebSocket to the `Person` Durable Object.
 - `@vibe` is the room housekeeper. It grades epics and finds who waits on whom (Jev model, `src/jev.ts`). It does not answer chat messages.
