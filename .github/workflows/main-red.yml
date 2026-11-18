@@ -43,6 +43,14 @@ jobs:
         run: |
           set -euo pipefail
           short="${SHA:0:7}"
+          # A newer push cancels a queued run (CI concurrency). That is not a red main.
+          if [ "$CONCLUSION" = "cancelled" ]; then
+            head="$(gh api "repos/$GH_REPO/commits/main" --jq .sha)"
+            if [ "$head" != "$SHA" ]; then
+              echo "Cancelled run of $short, but main is now at ${head:0:7}. Nothing to report."
+              exit 0
+            fi
+          fi
           gh label create main-red --color B60205 \
             --description "CI failed on main" 2>/dev/null || true
 
