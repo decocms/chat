@@ -555,8 +555,6 @@ const EN: Readonly<Record<string, string>> = {
   "visto há {ago}": "seen {ago} ago",
   "está trabalhando nisso": "is working on this",
   "estão trabalhando nisso": "are working on this",
-  "O andamento e a entrega aparecem aqui nesta thread.":
-    "Progress and the delivery show up here in this thread.",
   "Alguém está esperando você aqui": "Someone is waiting on you here",
   "{n} coisas esperando você aqui": "{n} things waiting on you here",
   arquivado: "archived",
