@@ -1,4 +1,5 @@
 // URL guard for anything the Worker fetches on someone's behalf (set_room_icon): public http(s) only.
+import { isOwnHost } from "./host";
 
 /** Returns a normalized URL string, or an error message for URLs we refuse to fetch. */
 export function checkUrl(raw: string): { url: string } | { error: string } {
@@ -17,8 +18,7 @@ export function checkUrl(raw: string): { url: string } | { error: string } {
     /\.(local|internal|localhost|lan|home|arpa)$/.test(host) ||
     /^[\d.]+$/.test(host) || // IPv4 literal
     host.includes(":") || // IPv6 literal
-    host === "vibebook.dev" ||
-    host.endsWith(".vibebook.dev")
+    isOwnHost(host)
   )
     return { error: "endereço não permitido" };
   if (raw.length > 2000) return { error: "URL longa demais" };

@@ -33,6 +33,7 @@ import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
 import { track } from "./track";
+import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { AGENT_RULES } from "../shared/agentRules";
 
@@ -902,13 +903,13 @@ export class Book extends DurableObject<Env> {
     } catch (e) {
       console.error("mention mail copy failed", String(e));
     }
-    const origin = this.env.PUBLIC_ORIGIN || "https://vibebook.dev";
+    const origin = publicOrigin(this.env);
     const url = `${origin}/b/${bookId}${epicRow ? `?t=${epicRow.id}` : ""}`;
     const lastAuthor = rows.at(-1)!.author as string;
     const { html, text } = mailBody(facts, copy, url, await unsubscribeUrl(this.env.SESSION_SECRET, origin, to), lastAuthor !== "ai");
     await this.env.EMAIL.send({
       to,
-      from: { email: "mention@vibebook.dev", name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via vibebook` }, // "@vibe" in a display name is risky
+      from: { email: mailFrom(this.env, "mention"), name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via vibebook` }, // "@vibe" in a display name is risky
       ...(lastAuthor !== "ai" ? { replyTo: lastAuthor } : {}),
       subject: copy.subject,
       text,
