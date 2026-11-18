@@ -109,7 +109,7 @@
     else void owner.runner.focus(owner.roomId);
   }
   const who = (a: Agent) =>
-    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.repo ? ` · ${a.repo}` : ""}`;
+    `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
   const percent = (a: Agent) =>
     a.context ? Math.round((a.context.tokens / a.context.window) * 100) : null;
   const line = (a: Agent, muted: boolean) =>
@@ -153,7 +153,9 @@
         >✻</span
       >{/if}
     <span class={cn("tw:grid tw:min-w-0 tw:flex-1", muted && "tw:opacity-50")}>
-      <span class="tw:truncate tw:text-[0.8125rem]"
+      <span
+        class="tw:truncate tw:text-[0.8125rem]"
+        title={a.room && a.repo ? a.repo : undefined}
         >{#if a.listening && mark.state === "busy" && !muted}<span
             class="tw:inline-block tw:animate-[spin_3s_linear_infinite] tw:text-agent-claude tw:motion-reduce:animate-none"
             >✻</span
