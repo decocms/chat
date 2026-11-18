@@ -70,7 +70,8 @@
     room.epics.find((epic) => epic.id === $view.target?.epicId),
   );
   // The top bar (bare): counts sit on the icon's top-right corner, like the
-  // inbox's, instead of beside it.
+  // inbox's, instead of beside it. Only Reminders (and the board's lime "waiting on
+  // you") keeps a count; how many files, apps or decisions there are is noise.
   const corner =
     "tw:pointer-events-none tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]";
   const short = (value: number | string) =>
@@ -199,7 +200,7 @@
                     ? `Waiting on you: ${count}`
                     : `Esperando você: ${count}`}
                   class={bare ? corner : undefined}
-                />{:else if count}<span
+                />{:else if count && (item.id === "reminders" || item.id === "doc")}<span
                   class={cn(
                     "tw:min-w-[1.125rem] tw:rounded-full tw:bg-muted tw:px-1 tw:text-center tw:text-xs tw:leading-[1.125rem] tw:text-muted-foreground tw:tabular-nums",
                     // Same pill as the inbox's count; gray (lime is only for what waits on you).
