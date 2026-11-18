@@ -954,6 +954,29 @@ const EN: Readonly<Record<string, string>> = {
   "Documento e arquivos da sala": "Room doc and files",
   Ligado: "On",
   ligado: "on",
+  "Peça pro seu Claude": "Ask your Claude",
+  "Nenhuma decisão ainda": "No decisions yet",
+  "O que a sala decide e cada aprovação, com quem decidiu e quando, pra ninguém precisar caçar no chat.":
+    "What the room agrees on and every approval, with who decided and when, so nobody has to dig through the chat.",
+  "Lê a conversa desta sala e registra as decisões que a gente já tomou.":
+    "Read this room's conversation and log the decisions we've already made.",
+  "Nenhum lembrete ainda": "No reminders yet",
+  "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu Claude faz.":
+    "Something that runs on a schedule. When it's due, @vibe posts it in the room and your Claude does it.",
+  "Todo dia útil às 8h, posta um resumo do que mudou nesta sala.":
+    "Every weekday at 8am, post a summary of what changed in this room.",
+  "Nenhum arquivo ainda": "No files yet",
+  "Tudo que for compartilhado nesta sala fica aqui: imagens, PDFs, áudios, HTML. Você também pode colar ou arrastar no chat.":
+    "Everything shared in this room lands here: images, PDFs, audio, HTML. You can also paste or drop them in the chat.",
+  "Sobe nesta sala capturas de tela do que você já fez.":
+    "Upload screenshots of what you've built so far to this room.",
+  "Enviar arquivo": "Upload a file",
+  "Conectar app": "Connect an app",
+  "Nenhum app ainda": "No apps yet",
+  "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu Claude pode fazer uma, ou você conecta um app que já usa.":
+    "Small tools that live in this room: a poll, a dashboard, a tracker. Your Claude can build one, or you can connect an app you already use.",
+  "Faz um app de enquete pra esta sala, pra gente votar.":
+    "Build a poll app for this room so we can vote.",
   "Nenhum lembrete ainda. Clique em Novo lembrete, ou peça pro seu agent: “todo dia às 8h, me manda o resumo do que mudou”.":
     "No reminders yet. Click New reminder, or ask your agent: “every day at 8am, send me a summary of what changed”.",
   "Cole uma imagem no chat (Cmd+V), arraste um arquivo ou use o clipe. Tudo que for enviado neste vibebook fica aqui.":

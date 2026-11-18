@@ -327,27 +327,29 @@
           }}>{en ? "Try again" : "Tentar novamente"}</Button
         >
       </p>{/if}
-    <footer class="tw:flex tw:p-3">
-      <Button
-        disabled={!editable}
-        variant={$view.mode === "edit" ? "default" : "outline"}
-        class="tw:w-full tw:rounded-full"
-        aria-pressed={$view.mode === "edit"}
-        onclick={(event) => {
-          if (connected(event))
-            owner.mode($view.mode === "edit" ? "preview" : "edit");
-        }}
-        >{#if $view.mode !== "edit"}<Icon
-            icon={Pencil01}
-            size={16}
-          />{/if}{$view.mode === "edit"
-          ? en
-            ? "Done"
-            : "Pronto"
-          : en
-            ? "Edit"
-            : "Editar"}</Button
-      >
-    </footer>
+    <!-- An empty doc carries its own "Start writing"; the foot bar comes back once there is text. -->
+    {#if $view.mode === "edit" || $view.text.trim()}
+      <footer class="tw:flex tw:p-3">
+        <Button
+          disabled={!editable}
+          variant={$view.mode === "edit" ? "default" : "outline"}
+          class="tw:w-full tw:rounded-full"
+          aria-pressed={$view.mode === "edit"}
+          onclick={(event) => {
+            if (connected(event))
+              owner.mode($view.mode === "edit" ? "preview" : "edit");
+          }}
+          >{#if $view.mode !== "edit"}<Icon
+              icon={Pencil01}
+              size={16}
+            />{/if}{$view.mode === "edit"
+            ? en
+              ? "Done"
+              : "Pronto"
+            : en
+              ? "Edit"
+              : "Editar"}</Button
+        >
+      </footer>{/if}
   {/if}
 </section>
