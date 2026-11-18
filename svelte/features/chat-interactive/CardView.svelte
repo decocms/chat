@@ -269,7 +269,11 @@
   data-native-card
   data-native-card-readonly={readOnly || undefined}
   data-vb-native
-  class="space-y-2 font-sans text-sm text-foreground"
+  class={[
+    "space-y-2 font-sans text-sm text-foreground",
+    // In the chat a card gets a little room from the line above it (in a doc it sits as it is).
+    !readOnly && "pt-1.5",
+  ]}
 >
   {@render draw(card.elements[card.root])}
   {#if status.phase !== "idle"}<p

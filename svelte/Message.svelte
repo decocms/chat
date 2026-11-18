@@ -182,7 +182,7 @@
   class={[
     continuous
       ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
-      : "group relative mt-2 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+      : "group relative mt-3 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
     flash ? "bg-accent" : "",
@@ -367,18 +367,21 @@
             {actions}
             {vb}
           />{/each}{/if}
-      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. -->
-      <div class="flex flex-wrap items-center justify-between gap-x-3">
-        {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
-            message={m}
-            me={room.me}
-            {actions}
-            {vb}
-          />{/if}
-        {#if footer && !origin}<div class="ml-auto">
-            <MessageFooter {footer} {vb} />
-          </div>{/if}
-      </div>
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
+           is something in it: an empty bar spread a run of messages from the same person apart. -->
+      {#if (footer && !origin) || (!origin && Object.values(m.reactions ?? {}).some((who) => who.length))}<div
+          class="flex flex-wrap items-center justify-between gap-x-3"
+        >
+          {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
+              message={m}
+              me={room.me}
+              {actions}
+              {vb}
+            />{/if}
+          {#if footer && !origin}<div class="ml-auto">
+              <MessageFooter {footer} {vb} />
+            </div>{/if}
+        </div>{/if}
     </div>
   </div>
   <MessageActions

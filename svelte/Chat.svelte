@@ -51,7 +51,7 @@
   <section
     data-chat-timeline
     data-vb-native
-    class="space-y-1 pb-4 font-sans text-sm text-foreground"
+    class="pb-4 font-sans text-sm text-foreground"
   >
     {#if more}<div class="flex justify-center p-3">
         <Button variant="outline" size="sm" id="olderBtn" onclick={onloadolder}
