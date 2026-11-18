@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import {
   expect as baseExpect,
   type Locator,
@@ -8,7 +7,7 @@ import {
 const expect = baseExpect.configure({ timeout: 30_000 });
 /** UI-only adaptation. HTTP/R2 fixtures, SDK protocol and capability assertions are shared. */
 export type AppNavigationUIDriver = {
-  variant: "svelte" | "vanilla";
+  variant: "svelte";
   frameSelector: string;
   containerSelector: string;
   openRoom(page: Page, base: string, roomId: string): Promise<void>;
@@ -34,34 +33,3 @@ export function nativeAppNavigationDriver(
         .getByRole("button", { name: /capability-probe/ }),
   };
 }
-
-export const vanillaAppNavigationDriver: AppNavigationUIDriver = {
-  variant: "vanilla",
-  frameSelector: "#appsPane iframe.connFrame",
-  containerSelector: "#appsPane",
-  async openRoom(page, base, roomId) {
-    // A vanilla user since Svelte became the default: this device chose vanilla (the switch's cookie), so plain
-    // room URLs, reloads and full-page navigations stay vanilla.
-    await page
-      .context()
-      .addCookies([{ name: "vb_ui", value: "vanilla", url: base }]);
-    const response = await page.goto(`${base}/b/${roomId}`);
-    assert.equal(
-      response?.headers()["x-vibebook-ui"],
-      "vanilla",
-      "Vanilla probe must get the vanilla app from the device's choice",
-    );
-    await expect(page.locator(".book .chat")).toBeVisible();
-  },
-  async openApps(page) {
-    const tab = page.locator('.ptabs button[data-pane="apps"]');
-    await expect(tab).toBeVisible();
-    if ((await page.locator('.doc[data-pane="apps"]').count()) === 0)
-      await tab.click();
-    await expect(
-      page.locator('.doc[data-pane="apps"] #appsPane'),
-    ).toBeVisible();
-  },
-  openButton: (page) =>
-    page.locator('#appsPane button[data-conn-open="room/capability-probe"]'),
-};

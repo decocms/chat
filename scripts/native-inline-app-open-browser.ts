@@ -93,7 +93,9 @@ export async function auditInlineAppOpen(
   try {
     server = await startInlineAppFixture(fixture.base);
     evidence.sdk = server.sdk;
-    for (const variant of ["svelte", "vanilla"] as const) {
+    const variants: InlineVariant[] = ["svelte"];
+    // The Svelte app is the only app since #181; the vanilla branches below are dead until they are removed.
+    for (const variant of variants) {
       const marker = "Inline canonical " + randomBytes(16).toString("hex");
       const result: InlineAppOpenEvidence["variants"][number] = {
         variant,

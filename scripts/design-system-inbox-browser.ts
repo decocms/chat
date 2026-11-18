@@ -108,6 +108,7 @@ export async function auditDesignSystemInbox(
     await route.fulfill({ response, json: InboxResult.parse(data) });
   };
   let data: InboxResult = { waits: [], mentions: [], tasks: [] };
+  const meUrl = (url: URL) => url.pathname === "/api/me";
   const meRoute = async (route: Route) => {
     const response = await route.fetch();
     assert(response.ok());
@@ -182,7 +183,8 @@ export async function auditDesignSystemInbox(
       ],
     });
     await page.route("**/api/inbox", inboxRoute);
-    await page.route("**/api/me?ui=svelte", meRoute);
+    // The app asks for /api/me without the old ?ui=svelte marker since #181.
+    await page.route(meUrl, meRoute);
     await page.route("**/api/waits/resolve", resolveRoute);
     const trigger = page.locator("[data-native-inbox-toggle]");
     const roomInbox = page.locator("[data-native-room-inbox]");
@@ -305,9 +307,7 @@ export async function auditDesignSystemInbox(
       .click();
     await expect(page).toHaveURL(
       (url) =>
-        url.pathname === `/b/${first.id}` &&
-        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
-        url.hash === `#m${mention.id}`,
+        url.pathname === `/b/${first.id}` && url.hash === `#m${mention.id}`,
     );
     await expect(roomInbox).toHaveCount(0);
     await expect(page.locator("[data-room-chat]")).toContainText(
@@ -320,7 +320,6 @@ export async function auditDesignSystemInbox(
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/b/${first.id}` &&
-        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
         !url.hash &&
         !url.searchParams.has("t"),
     );
@@ -342,9 +341,7 @@ export async function auditDesignSystemInbox(
     await crossRoomOpen.click();
     await expect(page).toHaveURL(
       (url) =>
-        url.pathname === `/b/${second.id}` &&
-        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
-        url.hash === `#m${other.id}`,
+        url.pathname === `/b/${second.id}` && url.hash === `#m${other.id}`,
     );
     const crossRoomMessage = page.locator(`[data-room-chat] #m${other.id}`);
     await expect(crossRoomMessage).toHaveCount(1);
@@ -380,7 +377,7 @@ export async function auditDesignSystemInbox(
     await page.unroute("**/api/inbox", inboxRoute).catch(() => {
       result.cleanup.push("unroute-inbox");
     });
-    await page.unroute("**/api/me?ui=svelte", meRoute).catch(() => {
+    await page.unroute(meUrl, meRoute).catch(() => {
       result.cleanup.push("unroute-profile");
     });
     await page.unroute("**/api/waits/resolve", resolveRoute).catch(() => {
