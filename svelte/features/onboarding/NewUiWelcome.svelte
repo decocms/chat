@@ -35,7 +35,7 @@
     <DialogContent
       data-vb-native
       data-new-ui-welcome
-      class="tw:font-sans tw:text-sm tw:text-foreground tw:sm:max-w-md"
+      class="tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-md"
       closeLabel={en ? "Close" : "Fechar"}
     >
       <DialogHeader>

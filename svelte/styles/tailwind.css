@@ -652,7 +652,10 @@
   --animate-collapsible-up: collapsible-up 0.2s ease-out;
 }
 
+/* Two layouts only: mobile = max-md (900px or less), desktop = md (901px or more). */
 @theme {
+  --breakpoint-*: initial;
+  --breakpoint-md: 901px;
   --animate-room-sheet: vb-room-sheet 1s linear both paused;
   --animate-room-scrim: vb-room-scrim 1s linear both paused;
   --animate-room-document-width: vb-room-document-width 1s linear both paused;

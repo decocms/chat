@@ -1,6 +1,7 @@
 import { createRoomLayoutBrowser } from "./browser";
 import { documentProgress, preferredDocumentWidth } from "./model";
 import { createRoomPlayback } from "./playback";
+import { MOBILE_QUERY } from "../../lib/breakpoints";
 
 /** A loading room's doc cell at the width the room will open with: the same
  * stored preference (vb.docW), clamp and CSS width animation as the real
@@ -20,7 +21,7 @@ export function roomDocumentWidth(node: HTMLElement) {
       () => {},
     );
   // Phones hide the cell (no animation to seek), like geometry's mobile branch.
-  const media = win.matchMedia("(max-width: 900px)");
+  const media = win.matchMedia(MOBILE_QUERY);
   const measure = () => {
     if (media.matches) playback.suspend();
     else playback.set(documentProgress(preferred, root.clientWidth, false));

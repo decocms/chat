@@ -20,7 +20,7 @@
   data-slot="breadcrumb-list"
   {...rest}
   class={cn(
-    "tw:flex tw:items-center tw:gap-1.5 tw:text-sm tw:sm:gap-2 tw:overflow-hidden tw:text-muted-foreground",
+    "tw:flex tw:items-center tw:gap-1.5 tw:text-sm tw:md:gap-2 tw:overflow-hidden tw:text-muted-foreground",
     className,
   )}
 >

@@ -1,0 +1,1 @@
+var e=`(max-width: 900px)`;export{e as t};

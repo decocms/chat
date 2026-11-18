@@ -240,3 +240,39 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium
 - Undo: Revert the commit. The account menu, the account sheet and the sandbox panel in the agents pane come back.
 - Status: open
+
+### 2026-11-18 · fix/two-breakpoints · Map the old breakpoints to mobile and desktop
+- Agent: claude-opus-5-5
+- Context: The human asked to move all old breakpoints (114) to the two breakpoints (mobile ≤900px, desktop ≥901px).
+- Decision: `max-[720px]` and `max-sm` became mobile (`max-[900px]`). `sm`, `md` and `min-[640px]` became desktop (`min-[901px]`). `SIDEBAR_MOBILE_QUERY` changed from 767px to 900px. Screens from 641px to 900px now get the mobile layout everywhere, as the room already did.
+- Other options: Map `sm` to mobile-first rules one by one. That keeps a tablet layout, which the two-breakpoint rule does not permit.
+- Risk: medium. Tablets and narrow windows now see the phone home page and phone dialogs.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-18 · fix/two-breakpoints · Home cards use an automatic grid
+- Agent: claude-opus-5-5
+- Context: The home "waiting on you" grid had 4 columns, 3 below 1200px, 2 below 900px and 1 below 720px. The 1200px step is a breakpoint inside the desktop width.
+- Decision: Desktop uses `grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`: 4 columns at the 1120px maximum width, fewer when the space is smaller. Mobile uses 1 column.
+- Other options: A container query, or 4 fixed columns on all desktop widths (cards too narrow at 901px).
+- Risk: low
+- Undo: Restore the old grid classes in `svelte/features/home/HomePanel.svelte`.
+- Status: open
+
+### 2026-11-18 · fix/two-breakpoints · Repair the duplicate key in the changelog
+- Agent: claude-opus-5-5
+- Context: `scripts/changelog.json` had two `"en"` keys in the fixes of 2026-11-18. The first held three Portuguese lines. JSON parsers keep only the last key, so the public changelog did not show those Portuguese fixes.
+- Decision: I moved the three Portuguese lines to `pt` and the English line to `en`.
+- Other options: Leave it. Then the Portuguese changelog stays incomplete.
+- Risk: low
+- Undo: Revert the change to `scripts/changelog.json`.
+- Status: open
+
+### 2026-11-18 · fix/two-breakpoints · The md token is 901px, not 900px
+- Agent: claude-opus-5-5
+- Context: The human asked to make the built-in `md` token the breakpoint ("md become 900"), instead of pixel values in classes. Tailwind's `md:` means width ≥ md, and `max-md:` means width < md.
+- Decision: `--breakpoint-md: 901px`, and all other breakpoint tokens removed (`--breakpoint-*: initial`). Thus `max-md:` is 900px or less (mobile) and `md:` is 901px or more (desktop): the same split as before. TypeScript uses `MOBILE_QUERY` (`(max-width: 900px)`) from `svelte/lib/breakpoints.ts`.
+- Other options: `--breakpoint-md: 900px`. Then a 900px screen changes from mobile to desktop.
+- Risk: low
+- Undo: Change `--breakpoint-md` in `svelte/styles/tailwind.css` and `MOBILE_QUERY` together.
+- Status: open

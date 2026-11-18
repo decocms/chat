@@ -149,7 +149,7 @@
   data-vb-native
   data-native-room-header
   data-room-document-toolbar
-  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:min-[901px]:flex-nowrap"
+  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:md:flex-nowrap"
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
@@ -160,7 +160,7 @@
           )}
           tooltipSide="bottom"
           size="icon"
-          class="tw:rounded-full tw:min-[901px]:hidden"
+          class="tw:rounded-full tw:md:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
           }}><Icon icon={ArrowLeft} size={16} /></IconButton
@@ -170,7 +170,7 @@
     type="button"
     data-native-phone-title
     aria-label={t("Trocar de conversa")}
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-1.5 tw:py-1 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:min-[901px]:hidden"
+    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-1.5 tw:py-1 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:md:hidden"
     onclick={(event) => {
       if (live(event)) header.onopenside();
     }}
@@ -201,12 +201,12 @@
   >
   <!-- Desktop, one bar over chat and pane: the thread, the room's actions, then the pane's tabs at the end. -->
   <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:flex-1 tw:min-[901px]:items-center tw:min-[901px]:gap-1"
+    class="tw:contents tw:md:flex tw:md:min-w-0 tw:md:flex-1 tw:md:items-center tw:md:gap-1"
   >
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div
       data-native-header-title
-      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:min-[901px]:flex tw:min-[901px]:min-w-24 tw:[&_h2]:cursor-pointer"
+      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:md:flex tw:md:min-w-24 tw:[&_h2]:cursor-pointer"
       onclick={titleClick}
     >
       <ThreadHeader {...header} compact onhome={tochat} />
@@ -215,7 +215,7 @@
         data-native-phone-search
         label={t("Buscar")}
         size="icon"
-        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:hidden"
+        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:md:hidden"
         onclick={(event) => {
           if (live(event))
             appNavigation.controller.openSearch(event.currentTarget);
@@ -228,7 +228,7 @@
         tooltipSide="bottom"
         size="icon"
         aria-pressed={inboxOpen}
-        class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:min-[901px]:aria-pressed:bg-accent tw:min-[901px]:aria-pressed:text-foreground"
+        class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:md:aria-pressed:bg-accent tw:md:aria-pressed:text-foreground"
         onclick={(event) => {
           if (live(event)) toggleInbox(event.currentTarget);
         }}
@@ -240,11 +240,11 @@
       >{/if}
   </div>
   <div
-    class="tw:contents tw:min-[901px]:flex tw:min-[901px]:min-w-0 tw:min-[901px]:shrink tw:min-[901px]:items-center tw:min-[901px]:gap-1"
+    class="tw:contents tw:md:flex tw:md:min-w-0 tw:md:shrink tw:md:items-center tw:md:gap-1"
   >
     {#if tabs}<div
         data-native-header-tabs
-        class="tw:hidden tw:min-w-0 tw:min-[901px]:block"
+        class="tw:hidden tw:min-w-0 tw:md:block"
       >
         <DocumentToolbar
           {...tabs}
@@ -258,7 +258,7 @@
       </div>{/if}
     {#if $personal.me}<span
         data-native-phone-account
-        class="tw:contents tw:min-[901px]:hidden"
+        class="tw:contents tw:md:hidden"
         ><AccountRow me={$personal.me} row={false} /></span
       >{/if}
   </div>

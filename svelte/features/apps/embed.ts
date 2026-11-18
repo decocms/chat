@@ -1,3 +1,4 @@
+import { MOBILE_QUERY } from "../../lib/breakpoints";
 import type { Room, Attachment } from "../../../shared/room";
 import type { ChatEmbedControls } from "../../chatTypes";
 import type { RequestRoomCommand } from "../../roomConnection";
@@ -150,7 +151,7 @@ export function mountNativeChatApp(options: {
           },
           locale: options.locale,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          platform: matchMedia("(max-width: 900px)").matches ? "mobile" : "web",
+          platform: matchMedia(MOBILE_QUERY).matches ? "mobile" : "web",
           user: { email: account, name: options.name(account) },
           room: { id: roomId, title: room.book.title },
         };
