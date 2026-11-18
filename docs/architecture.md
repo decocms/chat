@@ -38,6 +38,13 @@ Rules:
 - Change schemas only by addition. The Worker makes D1 tables with `ensureSchema` (`CREATE TABLE IF NOT EXISTS` and the `ALTERS` list in `src/index.ts`). The `Book` makes its own tables in `src/book.ts`. Do not drop or rename a column.
 - Keep assets in R2. Do not keep file bytes in SQLite or D1.
 
+Copy to another Cloudflare account: D1, R2 and KV have Cloudflare export tools. Durable Objects do not have one.
+
+- `src/migrate.ts` serves `/migrate/*`. It reads and writes the SQLite of each `Book`, table by table, and keeps `sqlite_sequence`.
+- `/migrate/*` exists only when the secret `MIGRATE_TOKEN` is set. It accepts only that Bearer token. Remove the secret after the copy.
+- `bun scripts/migrate.ts export|import|verify` copies the rooms. `kv-export|kv-import` copies `OAUTH_KV`. The dumps go to `migration-dump/`, which git ignores.
+- The script does not copy `DocRoom` or `Person`. A `DocRoom` loads its text from the `Book` document when it opens. A `Person` keeps only a cache.
+
 ## Real-time messages
 
 - The browser opens one WebSocket to the room (`/ws/:id` → `Book`) and one to the person (`/ws-me` → `Person`).
