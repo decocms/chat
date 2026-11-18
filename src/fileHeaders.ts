@@ -3,10 +3,11 @@ import { FILE_TYPES } from "../shared/composition";
 
 // Uploaded HTML runs in an opaque origin: scripts may run (reports draw charts) but can't reach vibebook.dev's
 // cookies or storage, can't fetch anything, submit forms, open popups or navigate the top page. Images only from
-// here or data: (no tracking pixels); fonts from Google Fonts.
+// here or data: (no tracking pixels); fonts from Google Fonts. It may frame https pages (a room app that shows a
+// live preview, e.g. a tunnel to someone's dev server); nested frames inherit the sandbox, so no forms or popups.
 const HTML_CSP =
   "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
-  "font-src https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
+  "font-src https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'none'; frame-src https:; form-action 'none'; base-uri 'none'; frame-ancestors 'self'";
 const FILE_CSP =
   "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'";
 
