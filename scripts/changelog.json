@@ -40,7 +40,8 @@
         "Quem usa o vibebook em inglês não vê mais português solto: avisos de erro, notificações no celular, a página de desligar os emails de menção, a do código do terminal e o resumo por email agora vêm em inglês.",
         "Apps embutidos no doc ocupam a largura toda do doc e \"Abrir no painel Apps\" virou só o ícone ↗.",
         "Na lateral, cada Claude seu aparece com o nome da sala que ele ouve (o mesmo da aba do herdr), e a pasta fica no hover.",
-        "Uma conversa direta abre só com a conversa: o painel do lado começa fechado e a barra de cima não tem mais o botão Doc (Arquivos, Apps, Decisões e Lembretes continuam lá)."
+        "Uma conversa direta abre só com a conversa: o painel do lado começa fechado e a barra de cima não tem mais o botão Doc (Arquivos, Apps, Decisões e Lembretes continuam lá).",
+        "A tela de entrar ganhou o logo do vibebook e os ícones do Google e do GitHub nos botões."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -59,17 +60,13 @@
         "Using vibebook in English no longer shows stray Portuguese: error messages, phone notifications, the page that turns off mention emails, the terminal code page and the catch-up email now come in English.",
         "Apps embedded in a doc take the doc's whole width and \"Open in the Apps panel\" is now just the ↗ icon.",
         "In the sidebar, each of your Claudes shows the name of the room it listens to (the same as its herdr tab), with the folder on hover.",
-        "A direct conversation opens on just the conversation: the side panel starts closed and the top bar no longer has the Doc button (Files, Apps, Decisions and Reminders are still there)."
+        "A direct conversation opens on just the conversation: the side panel starts closed and the top bar no longer has the Doc button (Files, Apps, Decisions and Reminders are still there).",
+        "The sign-in screen now has the vibebook logo and the Google and GitHub icons on their buttons."
       ]
     },
     "fixes": {
       "pt": [
         "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup."
-      ],
-      "en": [
-        "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup.",
-        "A lateral de uma sala voltou a listar só os seus Claudes desta sala, não todos os que estão ouvindo nas outras.",
-        "A barra de cima da sala perdeu o divisor solto antes das abas do painel (Doc, Arquivos…)."
       ],
       "en": [
         "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",

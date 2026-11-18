@@ -218,7 +218,10 @@ test("access escapes room data and never requests membership from a bare link", 
 });
 test("consent uses the real same-origin browser form and defaults to denial; external client data stays text", async () => {
   const { target } = await render("consent");
-  expect(target.querySelector("img")).toBeNull();
+  // No image from the client: the only one is vibebook's own logo.
+  expect(
+    [...target.querySelectorAll("img")].map((img) => img.getAttribute("src")),
+  ).toEqual(["/favicon.svg"]);
   expect(target.textContent).toContain(consent.client_name);
   expect(target.textContent).toContain("name is not verified");
   expect(target.textContent).toContain("Continue only if");
