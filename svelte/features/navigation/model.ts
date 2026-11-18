@@ -151,7 +151,7 @@ export function reorderEpics(
 }
 
 /** How many unpinned epics the sidebar lists before "Ver mais". */
-export const EPIC_PAGE = 15;
+export const EPIC_PAGE = 10;
 
 /**
  * The sidebar's order: pinned epics first (in the room's shared order, which
