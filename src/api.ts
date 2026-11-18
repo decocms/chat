@@ -597,9 +597,10 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
     // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
+       LEFT JOIN books lb ON lb.id = ag.listen_room
        ${deliveryJoins("?1")}
        WHERE substr(ag.id, 1, 2) != 'n_' AND (((ag.listen_room = ?1 OR ag.listen_room IS NULL) AND ag.listening_at > ?2) OR r.seen_at > ?3
          OR (ag.email = ?4 AND r.seen_at > ?5))
@@ -650,7 +651,9 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         all_rooms: !a.listen_room,
         // How full its context was at its last call (only from the CLI inside Claude Code); older than 1h = unknown.
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
-        ...(a.email === me0 ? { id: a.id, client: a.client, machine: a.machine_id, delivery: a.delivers !== 0 } : {}),
+        // Yours also say which room each one listens to: the herdr tab is named after it (Gui #3120), clearer than
+        // the folder when one folder serves several rooms. Only yours: another person's room titles aren't yours to see.
+        ...(a.email === me0 ? { id: a.id, client: a.client, machine: a.machine_id, delivery: a.delivers !== 0, room: a.listen_title ?? null } : {}),
       };
     }),
     machines: [
