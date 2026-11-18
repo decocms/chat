@@ -77,7 +77,7 @@
   );
   const empty = $derived(!machines.length && !mine.length);
   const install = $derived(
-    `curl -fsSL ${origin}/install.sh | sh && vibebook herdr`,
+    `curl -fsSL ${origin}/setup.sh | sh`,
   );
   let copied = $state(""),
     timer: ReturnType<typeof setTimeout> | undefined,
