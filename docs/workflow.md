@@ -82,6 +82,7 @@ Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worke
 3. Enable automerge: `gh pr merge <number> --auto --squash`.
 4. Wait for the merge. If `verify` fails, fix the branch and push again.
 5. After the merge, watch the checks of the merged commit on `main` (`gh run list --branch main --commit <sha>`, `gh run watch <id>`). This includes the browser jobs.
+   - A newer push to `main` cancels the older run. If your run is cancelled, watch the run of the newest commit on `main`. It contains your change.
 6. If a check on `main` fails, open a new pull request with the fix at once. Use the same procedure. Do not start other work before `main` is green. The open `main-red` issue shows the failed jobs. It closes when `main` is green.
 7. Look at the Workers Builds deploy in the Deployments tab of the Worker.
 8. Check the change in production.

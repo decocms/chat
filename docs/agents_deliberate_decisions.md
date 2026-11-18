@@ -390,3 +390,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium
 - Undo: Revert this commit and set the Google and GitHub secrets again.
 - Status: open
+
+### 2026-11-18 · ci/cancel-superseded-main · A newer push to main cancels the running CI
+- Agent: claude-opus-5-5
+- Context: The human asked that a new commit on `main` cancels the other runs and that only the latest commit runs. Before, a newer push replaced only a queued run. A running run (browser jobs, about 15 minutes) always finished.
+- Decision: `cancel-in-progress: true` for every branch in `ci.yml`. `main-red.yml` already ignores a cancelled run when `main` moved on.
+- Other options: Cancel only queued runs (the old behavior).
+- Risk: low. When merges come faster than one CI run, no commit gets its browser jobs until the merges stop.
+- Undo: Set `cancel-in-progress` back to `${{ github.event_name == 'pull_request' }}`.
+- Status: open
