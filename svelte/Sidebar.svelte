@@ -431,23 +431,28 @@
       />
     </div>
     <MutationStatus {owner} t={vb.t} />
-    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People. -->
+    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People.
+      Sticky: when the sidebar is too short and scrolls whole, you stay in view (the sections scroll behind). -->
     <div
-      data-sidebar-self
-      class="tw:mt-auto tw:flex tw:shrink-0 tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1 tw:max-[900px]:hidden"
+      class="tw:sticky tw:bottom-0 tw:z-10 tw:mt-auto tw:-mb-2 tw:shrink-0 tw:bg-sidebar tw:pb-2 tw:max-[900px]:hidden"
     >
-      {@render footer?.(false)}
-      <!-- Your own Claudes (context, ✻), as they were under you in People. -->
-      <div class="tw:px-1.5 tw:empty:hidden">
-        <AgentPresenceRows
-          {presence}
-          self
-          email={room.me}
-          t={vb.t}
-          name={vb.name}
-          ago={vb.ago}
-          {locale}
-        />
+      <div
+        data-sidebar-self
+        class="tw:flex tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1"
+      >
+        {@render footer?.(false)}
+        <!-- Your own Claudes (context, ✻), as they were under you in People. -->
+        <div class="tw:px-1.5 tw:empty:hidden">
+          <AgentPresenceRows
+            {presence}
+            self
+            email={room.me}
+            t={vb.t}
+            name={vb.name}
+            ago={vb.ago}
+            {locale}
+          />
+        </div>
       </div>
     </div>
   {/if}
