@@ -267,3 +267,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Data that people write between the last run and the switch stays only on the old Worker.
 - Undo: Make `--resume` the default in `scripts/migrate.ts`.
 - Status: open
+
+### 2026-11-18 · feat/deco-account · Name the Workers in the deco account `chat` and `chat-site`
+- Agent: claude-opus-5-5
+- Context: The human asked to set up the deco Cloudflare account for the move to `chat.decocms.com`. The CTO wants to call the app "chat".
+- Decision: The Workers are `chat` and `chat-site`, D1 `chat`, R2 `chat-files`, KV `chat-oauth`. The Durable Object data belongs to the Worker name, so a later rename would leave the rooms behind.
+- Other options: Keep the names `vibebook` and `vibebook-site`.
+- Risk: low
+- Undo: Before the final copy, delete the Workers and deploy them with other names.
+- Status: open
