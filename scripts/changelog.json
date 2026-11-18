@@ -62,12 +62,14 @@
     },
     "fixes": {
       "pt": [
-        "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup."
+        "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup.",
+        "No app novo, os agents na nuvem (sandbox do freestyle) voltaram a ter entrada fixa: \"Agent na nuvem\" no rodapé de agents da lateral abre a chave do freestyle, criar sandbox e terminal."
       ],
       "en": [
         "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",
         "A room's sidebar lists only your Claudes for that room again, not every one listening in your other rooms.",
-        "The room's top bar lost the stray divider before the panel's tabs (Doc, Files…)."
+        "The room's top bar lost the stray divider before the panel's tabs (Doc, Files…).",
+        "In the new app, cloud agents (freestyle sandboxes) have a fixed entry again: \"Cloud agent\" at the foot of the sidebar's agents opens the freestyle key, create sandbox and terminal."
       ]
     }
   },
