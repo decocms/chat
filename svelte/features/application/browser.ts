@@ -1,3 +1,4 @@
+import { tick } from "svelte";
 import { createApplicationServices } from "./services";
 import type { ApplicationBrowser } from "./types";
 import { createPwaService } from "../pwa/service";
@@ -34,6 +35,7 @@ export function createBrowserApplicationServices(options: {
   } catch {
     /* Disabled browser storage is supported. */
   }
+  let latestTransition: ViewTransition | null = null;
   const browser: ApplicationBrowser = {
     origin: win.location.origin,
     href: () => win.location.href,
@@ -53,6 +55,60 @@ export function createBrowserApplicationServices(options: {
       return () => win.removeEventListener("popstate", callback);
     },
     enqueue: (callback) => win.queueMicrotask(callback),
+    viewTransition(update) {
+      const root = doc.documentElement;
+      if (
+        typeof doc.startViewTransition !== "function" ||
+        win.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      ) {
+        void update();
+        return;
+      }
+      // The chat's layer name applies only while a DM switch runs (the vt-dm variant).
+      root.dataset.vt = "dm";
+      const transition = doc.startViewTransition(async () => {
+        await Promise.race([
+          update(),
+          new Promise((done) => win.setTimeout(done, 300)),
+        ]);
+        await tick();
+      });
+      latestTransition = transition;
+      // The old conversation fades up and out, the new one rises in; the rest crossfades.
+      void transition.ready.then(
+        () => {
+          root.animate(
+            [
+              { opacity: 1, transform: "none" },
+              { opacity: 0, transform: "translateY(-6px)" },
+            ],
+            {
+              duration: 140,
+              easing: "ease-in",
+              fill: "both",
+              pseudoElement: "::view-transition-old(dm-chat)",
+            },
+          );
+          root.animate(
+            [
+              { opacity: 0, transform: "translateY(6px)" },
+              { opacity: 1, transform: "none" },
+            ],
+            {
+              duration: 200,
+              delay: 60,
+              easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+              fill: "both",
+              pseudoElement: "::view-transition-new(dm-chat)",
+            },
+          );
+        },
+        () => {},
+      );
+      void transition.finished.finally(() => {
+        if (latestTransition === transition) delete root.dataset.vt;
+      });
+    },
     navigateDocument: (href) => {
       win.location.href = href;
     },

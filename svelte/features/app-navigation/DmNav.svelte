@@ -1,3 +1,39 @@
+<script lang="ts" module>
+  // Opening a DM draws a new list (the room is rebuilt): the row you clicked
+  // stays where it was on screen, so the list doesn't jump under the pointer.
+  let anchor: { id: string; top: number } | null = null;
+  const link = (row: Element | null | undefined) =>
+    row?.querySelector<HTMLElement>(":scope > a") ?? null;
+  function keepRow(node: HTMLElement) {
+    const remember = (event: MouseEvent) => {
+      const row =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>("li[data-dm]")
+          : null;
+      const rowLink = link(row);
+      anchor =
+        row && rowLink
+          ? {
+              id: row.dataset.dm ?? "",
+              top: rowLink.getBoundingClientRect().top,
+            }
+          : null;
+    };
+    node.addEventListener("click", remember, true);
+    const selected = anchor
+      ? link(node.querySelector(`li[data-dm="${anchor.id}"]`))
+      : null;
+    if (anchor && selected?.hasAttribute("aria-current")) {
+      let box = selected.parentElement;
+      while (box && box.scrollHeight <= box.clientHeight)
+        box = box.parentElement;
+      if (box)
+        box.scrollTop += selected.getBoundingClientRect().top - anchor.top;
+    }
+    return { destroy: () => node.removeEventListener("click", remember, true) };
+  }
+</script>
+
 <script lang="ts">
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -31,7 +67,7 @@
   const current = $derived($nav.roomId ?? null);
 </script>
 
-{#snippet dm(entry: DmEntry)}<li>
+{#snippet dm(entry: DmEntry)}<li data-dm={entry.room.id}>
     <RoomLink
       room={entry.room}
       dm={entry}
@@ -50,6 +86,7 @@
 <nav
   aria-label={homeText(lang, "dms")}
   data-dm-nav
+  use:keepRow
   class="tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:font-sans"
 >
   <Button

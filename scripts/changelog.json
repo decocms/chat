@@ -28,14 +28,16 @@
         "No menu da sua conta, Notificações é um interruptor só: liga e desliga o som e os avisos do navegador juntos, sem janela de ajuda. Nova UI fica logo abaixo.",
         "No celular, sua foto na tela inicial foi para a direita da barra de cima, depois da busca e do +.",
         "Abrir uma sala com muitos épicos arquivados ficou bem mais leve: os arquivados chegam sem as tarefas já feitas (elas vêm quando você abre o épico), e só vão os registros dos Claudes das mensagens que estão na tela.",
-        "O aviso \"Seu agent está desligado nesta sala\" saiu do topo da conversa: o interruptor de entrega no rodapé da barra lateral já mostra isso."
+        "O aviso \"Seu agent está desligado nesta sala\" saiu do topo da conversa: o interruptor de entrega no rodapé da barra lateral já mostra isso.",
+        "Trocar de conversa nas mensagens diretas ficou suave: a lista fica parada, a linha que você clicou não sai do lugar e a conversa nova entra com um esmaecido, sem piscar a tela de carregamento de sala."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
         "In your account menu, Notifications is a single switch: it turns sound and browser notifications on and off together, with no help dialog. New UI sits right below it.",
         "On phones, your picture on the home screen moved to the right of the top bar, after search and +.",
         "Opening a room with many archived epics is much lighter: archived epics arrive without their finished tasks (they load when you open the epic), and only the Claudes' status rows for the messages on screen come along.",
-        "The \"Your agent is off in this room\" notice left the top of the conversation: the delivery switch at the foot of the sidebar already shows it."
+        "The \"Your agent is off in this room\" notice left the top of the conversation: the delivery switch at the foot of the sidebar already shows it.",
+        "Switching between direct messages is smooth now: the list stays put, the row you clicked doesn't move, and the new conversation fades in, without flashing a room's loading screen."
       ]
     },
     "fixes": {

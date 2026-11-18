@@ -13,7 +13,9 @@ import { createAppNavigationSession } from "../app-navigation/controller";
 import {
   applicationRoute,
   createApplicationRouter,
+  dmTransition,
   roomIdFromPath,
+  type ApplicationRoute,
   type PresentationThread,
 } from "../app-navigation/router";
 import {
@@ -254,6 +256,42 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     },
     activate: activateRoute,
   });
+  let transitions = 0;
+  /** Runs a navigation; a DM switch runs inside a view transition, started
+   * before anything changes so the browser captures the screen as it was. */
+  function animated(to: ApplicationRoute, run: () => void) {
+    const intent = ++transitions;
+    if (!browser.viewTransition || !dmTransition(get(state).route, to))
+      return run();
+    browser.viewTransition(() => {
+      // A newer navigation came first: only the latest one runs.
+      if (!active || intent !== transitions) return;
+      run();
+      if (to.kind === "room") return roomReady(to.target.roomId);
+    });
+  }
+  function pop() {
+    if (!active || sessionDenied) return;
+    animated(applicationRoute(browser.href()), () => {
+      if (active && !sessionDenied) router.pop();
+    });
+  }
+  /** Settles once the room's state is in (or it is refused, or left). */
+  function roomReady(roomId: string) {
+    return new Promise<void>((resolve) => {
+      const stop = root.state.subscribe((snapshot) => {
+        if (
+          snapshot.roomId !== roomId ||
+          snapshot.room ||
+          snapshot.phase === "removed" ||
+          snapshot.phase === "unavailable"
+        ) {
+          resolve();
+          browser.enqueue(() => stop());
+        }
+      });
+    });
+  }
   const channel = createApplicationPersonalChannel({
     personal,
     agents,
@@ -477,7 +515,11 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       };
       return;
     }
-    router.go(value, replace, presentationThread);
+    const to =
+      typeof value === "string"
+        ? applicationRoute(new URL(value, browser.href()).href)
+        : ({ kind: "room", target: value } as const);
+    animated(to, () => router.go(value, replace, presentationThread));
   }
   function resetIdentity() {
     const revision = get(personal.state).identityRevision;
@@ -586,9 +628,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     },
     router: {
       go: navigate,
-      pop: () => {
-        if (active && !sessionDenied) router.pop();
-      },
+      pop,
       generation: router.generation,
     },
     roomScope,
@@ -674,9 +714,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     start() {
       if (!active || started) return;
       started = true;
-      stopPop = browser.listenPop(() => {
-        if (active && !sessionDenied) router.pop();
-      });
+      stopPop = browser.listenPop(pop);
       stopVisibility = browser.listenVisibility(() => {
         if (!active) return;
         options.device?.visibility(!browser.visible());
