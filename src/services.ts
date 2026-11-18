@@ -162,7 +162,6 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return out;
     },
     inbox: () => inbox(env, email),
-    loginProviders: { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), github: !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) },
     isEmail: (s) => EMAIL_RE.test(s),
     // Writing to someone (the + "Nova mensagem"): their request to you → accept it (their first message lands in the DM);
     // someone you can DM (a room in common, a connection, yourself) → the DM opens now; anyone else → a message request

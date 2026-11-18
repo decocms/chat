@@ -35,7 +35,6 @@
       search={url.search}
       origin={url.origin}
       lang={metadata.lang}
-      {navigate}
     />
   {:else if metadata.page === "access"}{#if roomId}<AccessPage
         {api}

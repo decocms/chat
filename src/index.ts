@@ -58,10 +58,8 @@ export type Env = {
   MAIL_DOMAIN?: string;
   /** Cloudflare zone of the product report's traffic numbers (src/reports.ts); default vibebook.dev. */
   CF_ZONE?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
+  /** deco Studio, the identity provider (src/auth.ts). Default https://studio.decocms.com. */
+  STUDIO_ORIGIN?: string;
   MODEL_ROUTE: string;
   // Daily reports (src/reports.ts): rooms to post in, and the read-only Cloudflare analytics token (secret).
   METRICS_ROOMS?: string;

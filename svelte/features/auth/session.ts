@@ -6,37 +6,24 @@ import type {
 } from "../../../shared/schemas";
 import { AuthFailure, type AuthApi } from "./api";
 import { authClock, createAuthOwner, type AuthClock } from "./owner";
-import { authContinuation, consentReturn } from "./navigation";
+import { consentReturn } from "./navigation";
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : "network";
 export function createLoginSession(
   api: AuthApi,
   search: string,
-  origin: string,
-  navigate: (url: string) => void,
   clock: AuthClock = authClock,
 ) {
   const state = writable({
     context: null as LoginContext | null,
-    phase: "email" as "email" | "code",
-    email: "",
-    code: "",
     loading: false,
-    busy: false,
     error: "",
   });
   const owner = createAuthOwner(clock);
-  const fail = (error: unknown) =>
-    state.update((s) => ({
-      ...s,
-      loading: false,
-      busy: false,
-      error: errorText(error),
-    }));
   return {
     state,
     load() {
-      if (!owner.active() || get(state).loading || get(state).busy) return;
+      if (!owner.active() || get(state).loading) return;
       state.update((s) => ({ ...s, loading: true, error: "" }));
       return owner.run(
         (signal) => api.login(search, signal),
@@ -47,69 +34,12 @@ export function createLoginSession(
             loading: false,
             error: context.error ?? "",
           })),
-        fail,
-      );
-    },
-    email(value: string) {
-      if (!owner.active()) return;
-      state.update((s) => ({ ...s, email: value }));
-    },
-    code(value: string) {
-      if (!owner.active()) return;
-      state.update((s) => ({
-        ...s,
-        code: value.replace(/\D/g, "").slice(0, 6),
-      }));
-    },
-    back() {
-      if (!owner.active()) return;
-      owner.cancel();
-      state.update((s) => ({
-        ...s,
-        phase: "email",
-        code: "",
-        busy: false,
-        error: "",
-      }));
-    },
-    submit() {
-      if (!owner.active()) return;
-      const s = get(state);
-      if (!s.context || s.busy) return;
-      const email = s.email.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        fail(new Error("invalid-email"));
-        return;
-      }
-      if (s.phase === "code" && !/^\d{6}$/.test(s.code)) {
-        fail(new Error("invalid-code"));
-        return;
-      }
-      state.update((value) => ({ ...value, email, busy: true, error: "" }));
-      if (s.phase === "email")
-        return owner.run(
-          (signal) => api.start(email, signal),
-          () =>
-            state.update((value) => ({
-              ...value,
-              phase: "code",
-              code: "",
-              busy: false,
-            })),
-          fail,
-        );
-      return owner.run(
-        (signal) =>
-          api.verify(
-            email,
-            s.code,
-            authContinuation(s.context!.next, origin),
-            signal,
-          ),
-        (result) => {
-          navigate(authContinuation(result.next, origin));
-        },
-        fail,
+        (error) =>
+          state.update((s) => ({
+            ...s,
+            loading: false,
+            error: errorText(error),
+          })),
       );
     },
     dispose() {

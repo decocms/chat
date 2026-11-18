@@ -10,38 +10,50 @@ import { Hono } from "hono";
 import { hc } from "hono/client";
 import type { AuthAppType, AuthCtx, AuthServices } from "../src/api";
 
-// The Svelte preview is opt-in by URL (?ui=svelte): every redirect back to the login keeps it when the person was
-// going to a Svelte page, and vanilla stays vanilla. No provider is configured here, so start goes back to /login.
-const env = { SESSION_SECRET: "test" };
+// Sign-in is with deco Studio. This origin already has a client id in KV, so start needs no network.
+const env = {
+  SESSION_SECRET: "test",
+  OAUTH_KV: {
+    get: async (key: string) =>
+      key === "studio-client:http://127.0.0.1:8797" ? "fixture-client" : null,
+    put: async () => {},
+  },
+};
 const go = async (path: string, init?: RequestInit) => {
   const r = await auth.request(
     `http://127.0.0.1:8797${path}`,
     { redirect: "manual", ...init },
     env,
   );
-  return r.headers.get("location");
+  return {
+    location: r.headers.get("location"),
+    cookie: r.headers.get("set-cookie"),
+  };
 };
 const next = (p: string) => encodeURIComponent(p);
 
-test("provider start without a client id returns to the login", async () => {
-  expect(await go(`/google/start?next=${next("/b/abc")}`)).toBe("/login");
-  expect(await go(`/github/start?next=${next("/archived")}`)).toBe("/login");
-  expect(await go(`/google/start?next=${next("https://evil.example/")}`)).toBe(
-    "/login",
+test("Studio start keeps only a safe next in the state cookie", async () => {
+  const safe = await go(`/studio/start?next=${next("/b/abc")}`);
+  expect(safe.location).toStartWith(
+    "https://studio.decocms.com/api/auth/mcp/authorize?",
   );
+  expect(decodeURIComponent(safe.cookie!)).toContain("|/b/abc|");
+  const evil = await go(`/studio/start?next=${next("https://evil.example/")}`);
+  expect(decodeURIComponent(evil.cookie!)).toContain("|/|");
+  expect(decodeURIComponent(evil.cookie!)).not.toContain("evil.example");
 });
 
-test("a failed provider callback returns to the login with its error", async () => {
-  const cookie = (n: string) => ({
-    headers: { cookie: `vb_oauth=${encodeURIComponent(`s|${n}`)}` },
+test("a failed Studio callback returns to the login with its error", async () => {
+  const cookie = (value: string) => ({
+    headers: { cookie: `vb_oauth=${encodeURIComponent(value)}` },
   });
-  expect(await go("/google/callback?state=x&code=y", cookie("/"))).toBe(
-    "/login?error=google",
-  );
-  expect(await go("/github/callback?state=x&code=y", cookie("/"))).toBe(
-    "/login?error=github",
-  );
-  expect(await go("/github/callback")).toBe("/login?error=github");
+  expect(
+    (await go("/studio/callback?state=x&code=y", cookie("s|/|v"))).location,
+  ).toBe("/login?error=studio");
+  expect(
+    (await go("/studio/callback?state=s&code=y", cookie("s|/"))).location,
+  ).toBe("/login?error=studio");
+  expect((await go("/studio/callback")).location).toBe("/login?error=studio");
 });
 
 test("the consent page's sign-out form returns to the login with its next", async () => {
@@ -76,20 +88,9 @@ test("the consent page's sign-out form returns to the login with its next", asyn
 function authFixture(over: Partial<AuthServices> = {}) {
   const calls: unknown[] = [];
   const svc: AuthServices = {
-    providers: { google: true, github: false, email: true },
     sameOrigin: true,
     safeNext: (n) => (n?.startsWith("/b/") ? n : "/"),
     loginUrl: (_n, q) => `/login${q}`,
-    emailStart: async (email) => (
-      calls.push(email),
-      email === "slow@x.dev" ? { error: "wait", status: 429 } : { ok: true }
-    ),
-    emailVerify: async (b) => (
-      calls.push(b),
-      b.code === "123456"
-        ? { ok: true, next: "/" }
-        : { error: "Wrong code.", status: 400 }
-    ),
     logout: () => void calls.push("logout"),
     logoutAll: async () => ({ error: "unauthenticated", status: 401 }),
     roomAccess: async (id) =>
@@ -110,69 +111,17 @@ function authFixture(over: Partial<AuthServices> = {}) {
   return { client, calls };
 }
 
-test("login context: providers, a safe next and only known provider errors", async () => {
+test("login context: a safe next and only the known Studio error", async () => {
   const { client } = authFixture();
   const r = await client.auth.context.$get({
-    query: { next: "https://evil.example/", error: "google" },
+    query: { next: "https://evil.example/", error: "studio" },
   });
   expect(r.status).toBe(200);
-  expect(await r.json()).toEqual({
-    providers: { google: true, github: false, email: true },
-    next: "/",
-    error: "google",
-  });
+  expect(await r.json()).toEqual({ next: "/", error: "studio" });
   const r2 = await client.auth.context.$get({
     query: { next: "/b/abc?ui=svelte", error: "<script>" },
   });
-  expect(await r2.json()).toEqual({
-    providers: { google: true, github: false, email: true },
-    next: "/b/abc?ui=svelte",
-    error: null,
-  });
-  expect(await (await client.auth.providers.$get()).json()).toEqual({
-    google: true,
-    github: false,
-    email: true,
-  });
-});
-
-test("email start and verify: body checked, origin checked, service status passed through", async () => {
-  const { client, calls } = authFixture();
-  expect(
-    (await client.auth.email.start.$post({ json: { email: "a@x.dev" } }))
-      .status,
-  ).toBe(200);
-  const slow = await client.auth.email.start.$post({
-    json: { email: "slow@x.dev" },
-  });
-  expect(slow.status).toBe(429);
-  expect(await slow.json()).toEqual({ error: "wait" });
-  const bad = await client.auth.email.start.$post({
-    json: { email: 7 as never },
-  });
-  expect(bad.status).toBe(400);
-  const ok = await client.auth.email.verify.$post({
-    json: { email: "a@x.dev", code: "123456", next: "/b/abc" },
-  });
-  expect(await ok.json()).toEqual({ ok: true, next: "/" });
-  const wrong = await client.auth.email.verify.$post({
-    json: { email: "a@x.dev", code: "000000" },
-  });
-  expect(wrong.status).toBe(400);
-  expect(calls).toHaveLength(4); // the malformed body never reached the service
-  const cross = authFixture({ sameOrigin: false });
-  expect(
-    (await cross.client.auth.email.start.$post({ json: { email: "a@x.dev" } }))
-      .status,
-  ).toBe(403);
-  expect(
-    (
-      await cross.client.auth.email.verify.$post({
-        json: { email: "a@x.dev", code: "123456" },
-      })
-    ).status,
-  ).toBe(403);
-  expect(cross.calls).toHaveLength(0);
+  expect(await r2.json()).toEqual({ next: "/b/abc?ui=svelte", error: null });
 });
 
 test("a room link's context for the access page", async () => {

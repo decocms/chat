@@ -25,8 +25,8 @@ import {
 } from "../src/native-page";
 import { authIssue } from "../svelte/features/auth/copy";
 import { NativeAuthMetadata } from "../shared/nativeAuth";
-const login = {
-  providers: { email: true as const, google: true, github: false },
+import type { LoginContext } from "../shared/schemas";
+const login: LoginContext = {
   next: "/b/abcdef?pedir=1",
   error: null,
 };
@@ -42,8 +42,6 @@ const consent = {
 function api(overrides: Partial<AuthApi> = {}): AuthApi {
   return {
     login: async () => login,
-    start: async () => ({ ok: true }),
-    verify: async () => ({ ok: true, next: login.next }),
     access: async () => ({
       state: "ask",
       email: "me@test.com",
@@ -167,21 +165,14 @@ test("typed auth adapters validate malformed success and contextual errors", asy
     calls.push({ url: String(input), init });
     return response.clone();
   });
-  expect((await http.login("?next=%2Fb%2Fabcdef&error=google")).next).toBe(
+  expect((await http.login("?next=%2Fb%2Fabcdef&error=studio")).next).toBe(
     login.next,
   );
   expect(calls[0]!.url).toContain("next=%2Fb%2Fabcdef");
-  response = new Response('{"ok":true}');
-  await http.start("me@test.com");
-  expect(JSON.parse(String(calls[1]!.init?.body))).toEqual({
-    email: "me@test.com",
-  });
-  response = new Response('{"ok":false}');
-  await expect(http.start("me@test.com")).rejects.toThrow();
+  response = new Response('{"next":"/","error":"google"}');
+  await expect(http.login("")).rejects.toThrow();
   response = new Response('{"error":"rate limited"}', { status: 429 });
-  await expect(http.verify("me@test.com", "123456", "/app")).rejects.toThrow(
-    "rate limited",
-  );
+  await expect(http.login("")).rejects.toThrow("rate limited");
   response = new Response("not-json");
   await expect(http.access("abcdef")).rejects.toThrow();
   response = new Response(JSON.stringify(consent));
@@ -202,94 +193,54 @@ test("typed auth adapters validate malformed success and contextual errors", asy
       expect(error.returnTo).toContain("https://agent.test");
   }
 });
-test("login rejects duplicates, retains failed code and navigates only after validated success", async () => {
+test("login loads its context once at a time, shows the Studio error and stops after dispose", async () => {
   const time = timer(),
-    answer = deferred<{ ok: true }>(),
-    destinations: string[] = [];
-  let starts = 0;
+    answer = deferred<LoginContext>();
+  let loads = 0;
   const session = createLoginSession(
     api({
-      start: async () => {
-        starts++;
+      login: async () => {
+        loads++;
         return answer.promise;
       },
-      verify: async () => {
-        throw new Error("Wrong code.");
-      },
     }),
-    "",
-    "https://vibebook.test",
-    (url) => destinations.push(url),
+    "?error=studio",
     time.clock,
   );
-  await session.load();
-  session.email(" ME@Test.com ");
-  const first = session.submit();
-  session.submit();
-  expect(starts).toBe(1);
-  answer.resolve({ ok: true });
+  const first = session.load();
+  session.load();
+  expect(loads).toBe(1);
+  answer.resolve({ ...login, error: "studio" });
   await first;
   expect(get(session.state)).toMatchObject({
-    phase: "code",
-    email: "me@test.com",
-    busy: false,
-  });
-  session.code("12x3456");
-  await session.submit();
-  expect(get(session.state)).toMatchObject({
-    code: "123456",
-    error: "Wrong code.",
-    busy: false,
-  });
-  expect(destinations).toEqual([]);
-  session.back();
-  expect(get(session.state)).toMatchObject({
-    phase: "email",
-    email: "me@test.com",
-    code: "",
+    loading: false,
+    error: "studio",
+    context: { next: login.next },
   });
   session.dispose();
   expect(time.jobs.size).toBe(0);
+  const before = get(session.state);
+  await session.load();
+  expect(get(session.state)).toEqual(before);
 });
-test("login verification rejects unsafe returned next and expired/disposed results cannot navigate", async () => {
-  const time = timer(),
-    destinations: string[] = [];
+test("login load failure keeps no context and shows the error", async () => {
+  const time = timer();
   const session = createLoginSession(
-    api({ verify: async () => ({ ok: true, next: "https://evil.test/" }) }),
+    api({
+      login: async () => {
+        throw new Error("network");
+      },
+    }),
     "",
-    "https://vibebook.test",
-    (url) => destinations.push(url),
     time.clock,
   );
   await session.load();
-  session.email("me@test.com");
-  await session.submit();
-  session.code("123456");
-  await session.submit();
-  expect(destinations).toEqual(["/"]);
+  expect(get(session.state)).toMatchObject({
+    context: null,
+    loading: false,
+    error: "network",
+  });
   session.dispose();
-  const old = deferred<{ ok: true; next: string }>();
-  const stale = createLoginSession(
-    api({ verify: () => old.promise }),
-    "",
-    "https://vibebook.test",
-    (url) => destinations.push(url),
-    time.clock,
-  );
-  await stale.load();
-  stale.email("me@test.com");
-  await stale.submit();
-  stale.code("123456");
-  const pending = stale.submit();
-  stale.dispose();
-  const before = get(stale.state);
-  old.resolve({ ok: true, next: "/" });
-  await pending;
-  stale.email("changed@test.com");
-  stale.back();
-  await stale.load();
-  expect(get(stale.state)).toEqual(before);
-  expect(destinations).toHaveLength(1);
 });
 test("owner times out requests, aborts transport and prevents old callbacks from stealing retry", async () => {
   const time = timer(),

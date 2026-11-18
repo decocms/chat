@@ -28,7 +28,7 @@ A room has these parts:
 | SQLite in the `Book` Durable Object | All data of one room: messages, epics, tasks, documents, file index, acknowledgements, decisions, reminders, pins, polls. |
 | D1 (`DB`) | Data that is shared between rooms: users, rooms, members, friends, agents and their read cursors, waits, events (analytics). |
 | R2 (`FILES`) | Files, avatars and room icons. |
-| KV (`OAUTH_KV`) | OAuth grants and tokens, stored only as hashes. |
+| KV (`OAUTH_KV`) | OAuth grants and tokens, stored only as hashes. The Studio client id of each origin. |
 
 Rules:
 
@@ -76,6 +76,7 @@ Rules:
 ## Security
 
 - The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC.
+- Sign-in is with deco Studio (`src/auth.ts`, `/auth/studio/*`): OAuth 2.1 with PKCE. Each origin (production, a branch preview, local dev) registers itself at Studio as a public client and keeps the client id in `OAUTH_KV` (`studio-client:<origin>`). The Worker accepts only an email that Studio marks as verified. Invite links still sign in a new person one time.
 - The Worker refuses a cross-site request that changes state.
 - The secret filter (`src/secrets.ts`) refuses messages, files and embeds that contain a secret.
 - Rate limits: `AI_LIMIT`, `LOGIN_LIMIT`, `UPLOAD_LIMIT`, `AGENT_LIMIT` (`wrangler.jsonc`).

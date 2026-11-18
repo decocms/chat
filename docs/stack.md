@@ -8,7 +8,7 @@
 | Durable Objects (SQLite) | `Book` (room), `DocRoom` (document), `Person` (person). |
 | D1, R2, KV | Shared index, files, OAuth. See [architecture.md](architecture.md). |
 | Workers AI | Speech-to-text (`@cf/openai/whisper-large-v3-turbo`). |
-| Email Sending | Sign-in codes, invites and mention emails. |
+| Email Sending | Invites and mention emails. |
 | OpenRouter | Text models and Jev (`MODEL_*` variables). |
 
 ## Languages and libraries

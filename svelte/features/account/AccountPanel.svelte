@@ -112,31 +112,26 @@
       lastName = me.name ?? "";
     }
   });
+  const used = (method: string) =>
+    !!$view.logins?.logins.some((row) => row.method === method);
   const loginRows = $derived(
     [
       {
-        method: "email",
-        label: en ? "Email code" : "Código por email",
+        method: "studio",
+        label: en ? "deco account" : "Conta deco",
         show: true,
       },
       {
-        method: "google",
-        label: "Google",
-        show:
-          $view.logins?.providers.google ||
-          $view.logins?.logins.some((row) => row.method === "google"),
+        method: "email",
+        label: en ? "Email code" : "Código por email",
+        show: used("email"),
       },
-      {
-        method: "github",
-        label: "GitHub",
-        show:
-          $view.logins?.providers.github ||
-          $view.logins?.logins.some((row) => row.method === "github"),
-      },
+      { method: "google", label: "Google", show: used("google") },
+      { method: "github", label: "GitHub", show: used("github") },
       {
         method: "invite",
         label: en ? "Invite link" : "Link de convite",
-        show: $view.logins?.logins.some((row) => row.method === "invite"),
+        show: used("invite"),
       },
     ].filter((row) => row.show),
   );

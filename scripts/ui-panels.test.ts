@@ -6524,7 +6524,6 @@ describe("native account", () => {
       {
         logins: async () => ({
           logins: [],
-          providers: { google: false, github: false },
         }),
         name: async (name) => {
           names.push(name);
