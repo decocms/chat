@@ -6,11 +6,25 @@ import { fileURLToPath } from "node:url";
 import type { Plugin, ResolverFunction } from "vite";
 import { canonicalFilesystemPath } from "./filesystemPaths";
 
+type ClientBoundaryOptions = {
+  projectRoot: string;
+  /** Other checkouts whose node_modules the build may read (the boundary fixtures alias this repository's packages). */
+  dependencyRoots?: string[];
+};
+
 /** Shared by browser builders; keep backend and private configuration out of emitted assets. */
-export function createClientBoundaryPolicy(options: { projectRoot: string }) {
+export function createClientBoundaryPolicy(options: ClientBoundaryOptions) {
   const logicalRoot = resolve(options.projectRoot);
   const root = realpathSync(logicalRoot);
   const roots = [...new Set([logicalRoot, root])];
+  const dependencyRoots = [
+    ...new Set(
+      (options.dependencyRoots ?? []).flatMap((base) => {
+        const logical = resolve(base);
+        return [logical, realpathSync(logical)];
+      }),
+    ),
+  ];
   const serverRoots = roots.flatMap((base) =>
     ["src", "packages/server-only"].flatMap((path) => {
       const file = resolve(base, path);
@@ -28,13 +42,23 @@ export function createClientBoundaryPolicy(options: { projectRoot: string }) {
   );
   const clean = (id: string) =>
     id.replace(/[?#].*$/, "").replace(/^\/\@fs\//, "/");
+  const below = (base: string, id: string) => {
+    const path = relative(base, id);
+    return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path)
+      ? path
+      : undefined;
+  };
   // Only the part inside the project counts: a worktree under .claude/worktrees is fine.
+  // A declared dependency root counts the same way, but only for its node_modules.
   const insideRoot = (id: string) => {
     if (!isAbsolute(id)) return id;
     for (const base of roots) {
-      const path = relative(base, id);
-      if (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
-        return path;
+      const path = below(base, id);
+      if (path !== undefined) return path;
+    }
+    for (const base of dependencyRoots) {
+      const path = below(base, id);
+      if (path !== undefined && /^node_modules[/\\]/.test(path)) return path;
     }
     return id;
   };
@@ -122,7 +146,7 @@ export function createClientBoundaryPolicy(options: { projectRoot: string }) {
 }
 
 /** Backend code is not a browser dependency. Check every module in Vite's graph, including dependencies. */
-export function clientBoundary(options: { projectRoot: string }): Plugin {
+export function clientBoundary(options: ClientBoundaryOptions): Plugin {
   const { assertClient } = createClientBoundaryPolicy(options);
   let publicDir = "";
   return {
