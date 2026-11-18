@@ -58,8 +58,9 @@ const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true" width="28" height="28"
 
 /** Where someone stands with a room from its link: the /b/* page and the typed GET /auth/room/:id read the same. */
 export async function roomAccess(db: D1Database, id: string, email: string | null): Promise<AccessContext> {
-  const book = /^[a-z0-9]{6,40}$/.test(id) ? await db.prepare(`SELECT title FROM books WHERE id = ?`).bind(id).first<{ title: string }>() : null;
-  if (!book) return { state: "missing", title: null, email };
+  const book = /^[a-z0-9]{6,40}$/.test(id) ? await db.prepare(`SELECT title, dm FROM books WHERE id = ?`).bind(id).first<{ title: string; dm: string | null }>() : null;
+  // A DM is private to its two people: to anyone else it doesn't exist (no title, no "ask to join").
+  if (!book || (book.dm && !(email && (await isMember(db, id, email))))) return { state: "missing", title: null, email };
   if (!email) return { state: "out", title: book.title, email: null };
   if (await isMember(db, id, email)) return { state: "member", title: book.title, email };
   const asked = await db.prepare(`SELECT 1 FROM access_requests WHERE book_id = ? AND email = ?`).bind(id, email).first();

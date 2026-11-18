@@ -3,7 +3,7 @@
   import SheetContent from "../../lib/studio/SheetContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { WaitReference } from "../waits/model";
-  import type { RoomSummary, RoomTarget } from "../home/model";
+  import type { DmEntry, RoomSummary, RoomTarget } from "../home/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import RoomList from "./RoomList.svelte";
   /**
@@ -18,6 +18,7 @@
     seen,
     now,
     current = null,
+    dms = [],
     lang,
     onhome,
     onnavigate,
@@ -29,6 +30,8 @@
     now: number;
     /** The open room's id; null on Home. */
     current?: string | null;
+    /** Your DMs, after the rooms. */
+    dms?: readonly DmEntry[];
     lang: HomeLanguage;
     onhome: () => void;
     onnavigate: (target: RoomTarget) => void;
@@ -53,6 +56,7 @@
     <SheetTitle class="tw:sr-only">{homeText(lang, "switchRoom")}</SheetTitle>
     <RoomList
       {rooms}
+      {dms}
       {waits}
       {seen}
       {now}

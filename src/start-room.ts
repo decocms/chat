@@ -8,6 +8,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { Env } from "./index";
 import { bookStub, createBook, inviteMember } from "./rooms";
+import { MUTUAL } from "../shared/dm";
 import type { Lang } from "./lang";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,7 +54,7 @@ export async function startRoom(env: Env, ctx: { waitUntil(p: Promise<unknown>):
     // Model down: the room still opens, titled from the text.
   }
   const friends = (
-    await env.DB.prepare(`SELECT f.b AS email, u.name FROM friends f LEFT JOIN users u ON u.email = f.b WHERE f.a = ?`).bind(email).all<{ email: string; name: string | null }>()
+    await env.DB.prepare(`SELECT f.b AS email, u.name FROM friends f LEFT JOIN users u ON u.email = f.b WHERE f.a = ? AND ${MUTUAL}`).bind(email).all<{ email: string; name: string | null }>()
   ).results;
   const invited: string[] = [], unknown: string[] = [];
   for (const p of people) {

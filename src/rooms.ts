@@ -15,11 +15,10 @@ import { INBOX_MENTIONS_SQL } from "./digestItems";
 export const isMember = async (db: D1Database, bookId: string, email: string) =>
   !!(await db.prepare(`SELECT 1 FROM members WHERE book_id = ? AND email = ?`).bind(bookId, email).first());
 
-export const befriend = (db: D1Database, a: string, b: string) => {
-  const now = Date.now();
-  const q = `INSERT OR IGNORE INTO friends (a, b, created_at) VALUES (?, ?, ?)`;
-  return db.batch([db.prepare(q).bind(a, b, now), db.prepare(q).bind(b, a, now)]);
-};
+/** `a` asks `b` to be friends (a row a→b). Friends = both rows: `b` adding `a` back accepts. A friendship needs
+ *  both sides because it opens a DM between them (src/dm.ts). Rows made before Nov 2026 were written both ways. */
+export const befriend = (db: D1Database, a: string, b: string) =>
+  db.prepare(`INSERT INTO friends (a, b, created_at) VALUES (?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET created_at = excluded.created_at`).bind(a, b, Date.now()).run();
 
 export const bookStub = (env: Env, id: string) => env.BOOK.get(env.BOOK.idFromName(id));
 /** The co-editing relay for a room's doc (epic = "" for the room's own doc). */
@@ -45,8 +44,8 @@ export async function createBook(env: Env, email: string, title?: string) {
 /** Adds `who` to the room, befriends, emails a magic link (rate-limited per inviter) and tells the DO. */
 export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, origin: string, inviter: string, bookId: string, who: string, inviterLang: Lang = "pt") {
   await env.DB.prepare(`INSERT OR IGNORE INTO members (book_id, email) VALUES (?, ?)`).bind(bookId, who).run();
-  ctx.waitUntil(poke(env, [who], { t: "me" })); // the room shows up in their rail at once
   await befriend(env.DB, inviter, who);
+  ctx.waitUntil(poke(env, [who, inviter], { t: "me" })); // the room and the friend request show up at once
   ctx.waitUntil(track(env, "invite_sent", { user: inviter, dims: { book: bookId } }));
   if (!env.DEV_EMAIL && (await env.LOGIN_LIMIT.limit({ key: `invite:${inviter}` })).success) {
     const [book, known] = await Promise.all([

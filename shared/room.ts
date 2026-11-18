@@ -17,6 +17,8 @@ export const BookMetaSchema = z.object({
   owner: str,
   summary: maybe(str),
   folder: maybe(str),
+  /** A direct-message room (src/dm.ts): titled with the other person for each side. */
+  dm: maybe(z.boolean()),
 });
 export type BookMeta = z.infer<typeof BookMetaSchema>;
 export const SuggestionSchema = z.object({

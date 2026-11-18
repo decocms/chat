@@ -1,5 +1,6 @@
 <script lang="ts">
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Avatar from "../../lib/studio/Avatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { Cloud01 } from "../../lib/studio/icons";
@@ -23,6 +24,7 @@
     busy = false,
     cloud = false,
     waits = [],
+    person = false,
     class: className,
   }: {
     title: string;
@@ -38,6 +40,8 @@
     /** A cloud sandbox is running for the room. */
     cloud?: boolean;
     waits?: readonly WaitReference[];
+    /** A DM: the other person's face (their picture, else the face their name draws), not a room's tile. */
+    person?: boolean;
     class?: string;
   } = $props();
   const text = (
@@ -57,7 +61,13 @@
   data-room-avatar={size}
   class={cn("tw:relative tw:inline-flex tw:shrink-0", className)}
 >
-  {#if icon}<Avatar
+  {#if person}<PersonAvatar
+      name={title}
+      url={icon ?? undefined}
+      {size}
+      aria-hidden="true"
+      data-room-cover="person"
+    />{:else if icon}<Avatar
       {size}
       url={icon}
       fallback={title}

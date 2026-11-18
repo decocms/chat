@@ -396,9 +396,9 @@ test("the phone thread sheet's tabs: This room shows the sidebar, All rooms list
   expect(all.textContent).toContain("All rooms");
   all.click();
   await flush();
-  // All rooms: Home + every room, and the room's own content steps aside.
+  // All rooms: Home + every room + "Você" (your own DM), and the room's own content steps aside.
   const list = target.querySelector('[data-room-scope-panel="all"]')!;
-  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(4);
+  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(5);
   expect(
     target
       .querySelector('[data-room-scope-panel="room"]')!
@@ -1370,8 +1370,6 @@ async function pendingNavigation(
       props: {
         controller: h.services.navigation,
         lang: "en",
-        ontheme() {},
-        onlanguage() {},
         loadDialogs: () => code.promise,
       },
     }),

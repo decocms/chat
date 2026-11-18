@@ -3,6 +3,7 @@ import { requestBytes, RequestBytesError } from "./requestBytes";
 import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
+import { isDmId } from "../shared/dm";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
 // The vanilla app calls the same paths with the same payloads. Routes move here slice by slice
@@ -124,6 +125,7 @@ export interface ApiServices {
   loginProviders: { google: boolean; github: boolean };
   isEmail(s: string): boolean;
   befriend(email: string): Promise<void>;
+  unfriend(email: string): Promise<void>;
   invite(roomId: string, email: string): Promise<void>;
   /** Remove someone from a room: the owner can't be removed; only the owner removes someone who already joined. */
   removeMember(roomId: string, email: string): Promise<{ error: string; status: 400 | 403 } | null>;
@@ -366,12 +368,14 @@ export const accountApi = api
   })
   .delete("/api/friends/:email", async (c) => {
     const me = c.get("email"), who = decodeURIComponent(c.req.param("email")).toLowerCase();
-    await c.get("svc").sql(`DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)`, me, who, who, me);
+    if (who !== me) await c.get("svc").unfriend(who);
     return c.json(ok, 200);
   })
   .post("/api/books/:id/members", body(EmailBody, "invalid email"), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    // A DM is for its two people (src/dm.ts): start a room to bring a third.
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
     const who = c.req.valid("json").email.trim().toLowerCase();
     if (!svc.isEmail(who)) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
     await svc.invite(id, who);
@@ -380,6 +384,7 @@ export const accountApi = api
   .delete("/api/books/:id/members/:email", async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
     const no = await svc.removeMember(id, decodeURIComponent(c.req.param("email")).toLowerCase());
     if (no?.status === 400) return c.json({ error: no.error } satisfies ErrorBody, 400);
     if (no) return c.json({ error: no.error } satisfies ErrorBody, 403);

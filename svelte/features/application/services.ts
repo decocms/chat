@@ -115,11 +115,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     onIdentityChange: resetIdentity,
   });
   const rooms = createRoomsSession(personal, browser.clock);
-  const account = createAccountSession(
-    personal,
-    options.accountApi ?? createAccountApi(),
-    browser.clock,
-  );
+  const accountApi = options.accountApi ?? createAccountApi();
+  const account = createAccountSession(personal, accountApi, browser.clock);
   const agents = createAgentsService({
     origin: browser.origin,
     api: options.agentsApi,
@@ -197,6 +194,13 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
           : Promise.resolve({ ok: false, error: "offline" }),
+      answerFriend: async (email, accept) => {
+        const signal = AbortSignal.timeout(15_000);
+        await (accept
+          ? accountApi.addFriend(email, signal)
+          : accountApi.removeFriend(email, signal));
+        personal.invalidate();
+      },
     },
     browser.clock,
   );

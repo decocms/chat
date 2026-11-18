@@ -4,6 +4,7 @@
 // aggregated in JS. That makes cross-filtering free: each ranking respects every
 // active filter EXCEPT its own, so clicking "BR" filters pages and sources but
 // leaves the country list whole to click through.
+import { isDmId } from "../shared/dm";
 import type { Env } from "./index";
 import { eventDimensions } from "./storedContainers";
 
@@ -195,10 +196,10 @@ export async function adminOverview(env: Pick<Env, "DB">, daysIn?: number) {
   const db = env.DB;
   const [users, books, newUsers, newBooks, activeBooks, recentUsers, topBooks, latestBooks] = await Promise.all([
     db.prepare(`SELECT count(*) AS n FROM users`).first<{ n: number }>(),
-    db.prepare(`SELECT count(*) AS n FROM books`).first<{ n: number }>(),
+    db.prepare(`SELECT count(*) AS n FROM books WHERE dm IS NULL`).first<{ n: number }>(),
     db.prepare(`SELECT count(*) AS n FROM users WHERE created_at >= ?`).bind(since).first<{ n: number }>(),
-    db.prepare(`SELECT count(*) AS n FROM books WHERE created_at >= ?`).bind(since).first<{ n: number }>(),
-    db.prepare(`SELECT count(*) AS n FROM books WHERE updated_at >= ?`).bind(since).first<{ n: number }>(),
+    db.prepare(`SELECT count(*) AS n FROM books WHERE dm IS NULL AND created_at >= ?`).bind(since).first<{ n: number }>(),
+    db.prepare(`SELECT count(*) AS n FROM books WHERE dm IS NULL AND updated_at >= ?`).bind(since).first<{ n: number }>(),
     db
       .prepare(
         `SELECT u.email, u.name, u.created_at, (SELECT count(*) FROM members m WHERE m.email = u.email) AS books,
@@ -211,13 +212,13 @@ export async function adminOverview(env: Pick<Env, "DB">, daysIn?: number) {
       .prepare(
         `SELECT b.id, b.title, b.folder, b.owner, b.created_at, b.updated_at,
            (SELECT count(*) FROM members m WHERE m.book_id = b.id) AS members
-         FROM books b ORDER BY b.updated_at DESC LIMIT 20`,
+         FROM books b WHERE b.dm IS NULL ORDER BY b.updated_at DESC LIMIT 20`,
       )
       .all<Record<string, unknown>>(),
     db
       .prepare(
         `SELECT b.id, b.title, b.owner, b.created_at, (SELECT count(*) FROM members m WHERE m.book_id = b.id) AS members
-         FROM books b ORDER BY b.created_at DESC LIMIT 10`,
+         FROM books b WHERE b.dm IS NULL ORDER BY b.created_at DESC LIMIT 10`,
       )
       .all<Record<string, unknown>>(),
   ]);
@@ -240,7 +241,7 @@ export async function adminOverview(env: Pick<Env, "DB">, daysIn?: number) {
       if (e.user) (writersByBook.get(b) ?? writersByBook.set(b, new Set()).get(b)!).add(e.user);
       if (e.dims.agent) agentMsgsByBook.set(b, (agentMsgsByBook.get(b) ?? 0) + 1);
     }
-  const together = [...writersByBook].filter(([, w]) => w.size >= 2).sort((a, b) => b[1].size - a[1].size || (msgsByBook.get(b[0]) ?? 0) - (msgsByBook.get(a[0]) ?? 0));
+  const together = [...writersByBook].filter(([id, w]) => w.size >= 2 && !isDmId(id)).sort((a, b) => b[1].size - a[1].size || (msgsByBook.get(b[0]) ?? 0) - (msgsByBook.get(a[0]) ?? 0));
   const togetherIds = together.slice(0, 10).map(([id]) => id);
   const [titles, ret] = await Promise.all([
     togetherIds.length
