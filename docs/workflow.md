@@ -40,7 +40,9 @@ The rule: quick CI on pull requests, long CI on `main`.
 | `ci`: the result of the three jobs above | pull requests and `main` | Yes (on a pull request, the browser jobs are skipped) |
 
 - Do not make a browser test run on pull requests. Do not make it block the merge.
-- The other workflows (`performance`, `app-hmr`, `font-forensics`, `chunk-diagnostics`) run only when you add their label (`run-performance`, `run-hmr`, …) or run them by hand.
+- Two workflows run only when you add their label to a pull request, or when you run them by hand:
+  - `app-hmr` (label `run-hmr`): hot reload of `bun run dev:app`.
+  - `chunk-diagnostics` (label `run-chunk-diagnostics`): which modules go into each chunk of the browser build.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
 - If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 

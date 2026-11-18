@@ -157,4 +157,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Write only the template path.
 - Risk: low
 - Undo: Remove rule 6 in `docs/writing.md`.
+
+### 2026-11-18 · chore/remove-migration-tooling · Delete the migration-only tooling
+- Agent: claude-opus-5-5
+- Context: The task told me to delete the tooling that only the finished Svelte migration used, and to keep all that a live check uses. I selected each file.
+- Decision: I deleted the `performance` and `font-forensics` workflows, `scripts/ui-metrics*.ts` (a vanilla against Svelte benchmark), the migration inventory (`migration-inventory.ts`, `inventory-*.ts`, `reconcile-inventory.ts`, `scripts/data/baseline.json`, `scripts/data/inventory.json`), the font experiment (`font-forensics-browser.ts`, `font-css-range-browser.ts`, `scripts/font-forensics/`, `scripts/fixtures/font-forensics/`), their tests and package scripts (`measure:ui`, `capture:inventory`), and three root screenshots. I kept `app-hmr` and `chunk-diagnostics`, because `dev:app` and the chunk plugin in `svelte/vite.config.ts` are live. I kept `capture-studio.ts`, because it makes `studio-tokens.json`, which the browser-ui job reads.
+- Other options: Also delete `app-hmr`, `chunk-diagnostics` and `capture-studio.ts`. Live code still uses what they test or make.
+- Risk: low. No check in `bun run check` or `ci.yml` used the deleted files.
+- Undo: `git revert` the commit of this branch.
 - Status: open
