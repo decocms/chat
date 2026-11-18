@@ -365,7 +365,11 @@
             150,
           );
         }}
-        ><Icon icon={Cloud01} class="tw:size-4" />{text("footAddCloud")}</button
+        ><span
+          aria-hidden="true"
+          class="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center"
+          ><Icon icon={Cloud01} class="tw:size-4" /></span
+        >{text("footAddCloud")}</button
       >
     </div>{/if}
 {/if}
