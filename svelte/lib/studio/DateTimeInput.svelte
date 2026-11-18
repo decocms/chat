@@ -162,8 +162,8 @@
   const displayError = $derived(error || localError);
 </script>
 
-<div class={cn("tw:flex tw:gap-1", className)}>
-  <div class="tw:relative tw:flex-1">
+<div class={cn("flex gap-1", className)}>
+  <div class="relative flex-1">
     <Input
       {id}
       bind:value={inputValue}
@@ -173,13 +173,12 @@
       {placeholder}
       {disabled}
       class={cn(
-        "tw:h-8 tw:text-sm",
-        displayError &&
-          "tw:border-destructive tw:focus-visible:ring-destructive",
+        "h-8 text-sm",
+        displayError && "border-destructive focus-visible:ring-destructive",
       )}
     />
     {#if displayError}
-      <p class="tw:text-destructive tw:mt-1 tw:text-xs tw:text-pretty">
+      <p class="text-destructive mt-1 text-xs text-pretty">
         {displayError}
       </p>
     {/if}
@@ -191,17 +190,17 @@
           {...props}
           variant="outline"
           size="icon"
-          class="tw:h-8 tw:w-8 tw:shrink-0"
+          class="h-8 w-8 shrink-0"
           {disabled}
         >
-          <Icon icon={CalendarIcon} class="tw:h-4 tw:w-4" />
+          <Icon icon={CalendarIcon} class="h-4 w-4" />
         </Button>
       {/snippet}
     </PopoverTrigger>
     <!-- Bits UI would focus the first button; react-day-picker's `initialFocus` puts focus on the day. -->
     <PopoverContent
       bind:ref={content}
-      class="tw:w-auto tw:p-0"
+      class="w-auto p-0"
       align="end"
       onOpenAutoFocus={(event) => {
         event.preventDefault();
@@ -217,10 +216,8 @@
         selected={currentDate ? toCalendarDate(currentDate) : undefined}
         onSelect={handleDateSelect}
       />
-      <div class="tw:border-border tw:border-t tw:p-3">
-        <label
-          for={timeId}
-          class="tw:text-muted-foreground tw:mb-1.5 tw:block tw:text-xs"
+      <div class="border-border border-t p-3">
+        <label for={timeId} class="text-muted-foreground mb-1.5 block text-xs"
           >Time</label
         >
         <Input
@@ -228,7 +225,7 @@
           type="time"
           value={timeValue}
           oninput={handleTimeChange}
-          class="tw:h-8 tw:text-sm"
+          class="h-8 text-sm"
         />
       </div>
     </PopoverContent>

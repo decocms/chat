@@ -17,23 +17,23 @@
   } = $props();
 </script>
 
-<div data-pane-header class="tw:flex tw:min-h-8 tw:items-start tw:gap-2">
-  <div class="tw:min-w-0 tw:flex-1">
-    <div class="tw:flex tw:items-center tw:gap-2">
+<div data-pane-header class="flex min-h-8 items-start gap-2">
+  <div class="min-w-0 flex-1">
+    <div class="flex items-center gap-2">
       <h2
-        class="tw:m-0 tw:font-sans tw:text-base tw:leading-8 tw:font-semibold tw:tracking-normal"
+        class="m-0 font-sans text-base leading-8 font-semibold tracking-normal"
       >
         {title}
       </h2>
-      {#if count}<Badge class="tw:tabular-nums">{count}</Badge>{/if}
+      {#if count}<Badge class="tabular-nums">{count}</Badge>{/if}
     </div>
     {#if description}<p
-        class="tw:m-0 tw:max-w-prose tw:text-sm tw:leading-5 tw:text-muted-foreground"
+        class="m-0 max-w-prose text-sm leading-5 text-muted-foreground"
       >
         {description}
       </p>{/if}
   </div>
-  {#if action}<div class="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+  {#if action}<div class="flex shrink-0 items-center gap-2">
       {@render action()}
     </div>{/if}
 </div>

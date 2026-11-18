@@ -15,24 +15,25 @@ const svelte = (text: string, path = "svelte/features/x/X.svelte") =>
 test("colors: only theme tokens", () => {
   expect(
     svelte(
-      '<div class="tw:bg-background tw:text-muted-foreground tw:border-border/50"></div>',
+      '<div class="bg-background text-muted-foreground border-border/50"></div>',
     ),
   ).toEqual([]);
-  expect(svelte('<div class="tw:bg-[#fff]"></div>')).toEqual(["color"]);
-  expect(svelte('<div class="tw:hover:text-[#1a2b3c]/70"></div>')).toEqual([
+  expect(svelte('<div class="bg-[#fff]"></div>')).toEqual(["color"]);
+  expect(svelte('<div class="hover:text-[#1a2b3c]/70"></div>')).toEqual([
+    "color",
+  ]);
+  expect(svelte('<div class="shadow-[0_1px_2px_0_#0000000d]"></div>')).toEqual([
+    "color",
+  ]);
+  expect(svelte('<div class="bg-red-500 dark:text-white"></div>')).toEqual([
+    "color",
+    "color",
+  ]);
+  expect(svelte('<div class="border-t-slate-200/40"></div>')).toEqual([
     "color",
   ]);
   expect(
-    svelte('<div class="tw:shadow-[0_1px_2px_0_#0000000d]"></div>'),
-  ).toEqual(["color"]);
-  expect(
-    svelte('<div class="tw:bg-red-500 tw:dark:text-white"></div>'),
-  ).toEqual(["color", "color"]);
-  expect(svelte('<div class="tw:border-t-slate-200/40"></div>')).toEqual([
-    "color",
-  ]);
-  expect(
-    svelte('<div class="tw:text-sm tw:bg-transparent tw:shadow-md"></div>'),
+    svelte('<div class="text-sm bg-transparent shadow-md"></div>'),
   ).toEqual([]);
   // A hex value outside a class string is data (avatar palettes, brand icons).
   expect(
@@ -42,18 +43,14 @@ test("colors: only theme tokens", () => {
 
 test("breakpoints: only the md token (md = desktop, max-md = mobile)", () => {
   expect(
-    svelte('<div class="tw:max-md:hidden tw:md:flex tw:md:hover:flex"></div>'),
+    svelte('<div class="max-md:hidden md:flex md:hover:flex"></div>'),
   ).toEqual([]);
-  expect(svelte('<div class="tw:sm:flex"></div>')).toEqual(["breakpoint"]);
-  expect(svelte('<div class="tw:lg:flex"></div>')).toEqual(["breakpoint"]);
-  expect(svelte('<div class="tw:max-sm:flex"></div>')).toEqual(["breakpoint"]);
-  expect(svelte('<div class="tw:max-[720px]:p-2"></div>')).toEqual([
-    "breakpoint",
-  ]);
-  expect(svelte('<div class="tw:min-[901px]:p-2"></div>')).toEqual([
-    "breakpoint",
-  ]);
-  expect(svelte('<div class="tw:@min-3xl:grid"></div>')).toEqual([]);
+  expect(svelte('<div class="sm:flex"></div>')).toEqual(["breakpoint"]);
+  expect(svelte('<div class="lg:flex"></div>')).toEqual(["breakpoint"]);
+  expect(svelte('<div class="max-sm:flex"></div>')).toEqual(["breakpoint"]);
+  expect(svelte('<div class="max-[720px]:p-2"></div>')).toEqual(["breakpoint"]);
+  expect(svelte('<div class="min-[901px]:p-2"></div>')).toEqual(["breakpoint"]);
+  expect(svelte('<div class="@min-3xl:grid"></div>')).toEqual([]);
   expect(svelte("const m = matchMedia(MOBILE_QUERY);", "svelte/a.ts")).toEqual(
     [],
   );

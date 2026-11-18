@@ -175,7 +175,7 @@
   {/if}
 {/snippet}
 
-{#snippet taskSlot()}<section data-document-tasks class="tw:my-3">
+{#snippet taskSlot()}<section data-document-tasks class="my-3">
     <Tasks {...taskProps} thread={epic ?? "main"} />
   </section>{/snippet}
 {#snippet cardSlot(source: string, node: import("../rich-text/types").RichNode)}
@@ -200,31 +200,31 @@
 {#snippet writing()}{#if writer}<div
       role="status"
       data-doc-writing
-      class="tw:my-4 tw:grid tw:gap-2"
+      class="my-4 grid gap-2"
     >
-      <b class="tw:text-sm tw:font-semibold tw:text-primary"
+      <b class="text-sm font-semibold text-primary"
         >✻ {props.lang === "en"
           ? `${writer.who || "Claude"} is writing the answer…`
           : `${writer.who || "Claude"} está escrevendo a resposta…`}</b
       >
-      {#each ["tw:w-full", "tw:w-full", "tw:w-full", "tw:w-1/2"] as width}<i
-          class="tw:block tw:h-3 tw:animate-pulse tw:rounded-md tw:bg-muted {width}"
+      {#each ["w-full", "w-full", "w-full", "w-1/2"] as width}<i
+          class="block h-3 animate-pulse rounded-md bg-muted {width}"
         ></i>{/each}
     </div>{/if}{/snippet}
 <div
   data-document-preview
   data-vb-native
-  class="tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-auto tw:p-4 tw:font-sans tw:text-foreground tw:break-words"
+  class="min-h-0 min-w-0 flex-1 overflow-auto p-4 font-sans text-foreground break-words"
 >
   {#if !epic && text.trim() && props.room.docNotes?.length}<aside
       aria-label={props.lang === "en"
         ? "Document review"
         : "Revisão do documento"}
-      class="tw:mb-3 tw:space-y-1 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:p-3 tw:text-sm tw:text-muted-foreground"
+      class="mb-3 space-y-1 rounded-control border border-border bg-muted p-3 text-sm text-muted-foreground"
     >
-      {#each props.room.docNotes as note}<p class="tw:m-0">{note}</p>{/each}
+      {#each props.room.docNotes as note}<p class="m-0">{note}</p>{/each}
     </aside>{/if}
-  {#if aside}<div class="tw:float-right tw:mb-1 tw:ml-3 tw:mt-1">
+  {#if aside}<div class="float-right mb-1 ml-3 mt-1">
       {@render aside()}
     </div>{/if}
   {#if !text.trim()}{@const en =
@@ -263,7 +263,7 @@
     />{/if}
   {#if literal && text.trim()}<p
       role="status"
-      class="tw:my-2 tw:text-xs tw:text-muted-foreground"
+      class="my-2 text-xs text-muted-foreground"
     >
       {props.lang === "en"
         ? "Preview shown as plain text. The full document remains available to read, copy and edit."
@@ -271,7 +271,7 @@
     </p>{/if}
   {#each blocks as block, index (blockKey(block, index))}
     {#if "tasks" in block}{@render writing()}
-      <section data-document-tasks class="tw:my-3">
+      <section data-document-tasks class="my-3">
         <Tasks {...taskProps} thread={epic ?? "main"} />
       </section>
     {:else}{@const diagram = mermaidSource(
@@ -283,8 +283,8 @@
           lang={props.lang}
         />{:else}<div
           class={block.node.kind === "text"
-            ? "tw:whitespace-pre-wrap tw:break-words"
-            : "tw:min-w-0"}
+            ? "whitespace-pre-wrap break-words"
+            : "min-w-0"}
         >
           <RichNodes
             nodes={[block.node]}

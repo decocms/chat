@@ -23,9 +23,9 @@
     translate="no"
     {...rest}
     class={cn(
-      "tw:font-sans tw:z-50 tw:w-fit tw:origin-(--bits-tooltip-content-transform-origin) tw:animate-in tw:rounded-lg tw:bg-foreground tw:px-2 tw:py-1 tw:text-xs tw:font-medium tw:text-balance tw:text-background tw:[--tw-enter-opacity:0] tw:[--tw-enter-scale:.95] tw:data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] tw:data-[side=left]:[--tw-enter-translate-x:0.5rem] tw:data-[side=right]:[--tw-enter-translate-x:-0.5rem] tw:data-[side=top]:[--tw-enter-translate-y:0.5rem] tw:data-[state=closed]:hidden tw:motion-reduce:[animation-duration:0.01ms]",
+      "font-sans z-50 w-fit origin-(--bits-tooltip-content-transform-origin) animate-in rounded-lg bg-foreground px-2 py-1 text-xs font-medium text-balance text-background [--tw-enter-opacity:0] [--tw-enter-scale:.95] data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] data-[side=left]:[--tw-enter-translate-x:0.5rem] data-[side=right]:[--tw-enter-translate-x:-0.5rem] data-[side=top]:[--tw-enter-translate-y:0.5rem] data-[state=closed]:hidden motion-reduce:[animation-duration:0.01ms]",
       // Handing off within the shared provider: the next tooltip appears in place.
-      "tw:data-[state=instant-open]:animate-none",
+      "data-[state=instant-open]:animate-none",
       className,
     )}
   >
@@ -34,7 +34,7 @@
       {#snippet child({ props })}
         <span {...props}>
           <svg
-            class="tw:z-50 tw:size-2.5 tw:translate-y-[calc(-50%_-_2px)] tw:rotate-45 tw:rounded-[2px] tw:bg-foreground tw:fill-foreground"
+            class="z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground"
             width="10"
             height="5"
             viewBox="0 0 30 10"

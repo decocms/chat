@@ -110,24 +110,23 @@
 <div
   data-vb-native
   data-native-agent-banners
-  class="tw:space-y-3 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-3 font-sans text-sm text-foreground"
 >
   {#if line}<div
       data-native-agent-line
       data-agent-status={status}
       role="status"
-      class="tw:flex tw:items-center tw:gap-2 tw:border-b tw:border-border tw:bg-muted tw:py-2.5 tw:pr-2 tw:pl-4 tw:md:-mx-2"
+      class="flex items-center gap-2 border-b border-border bg-muted py-2.5 pr-2 pl-4 md:-mx-2"
     >
-      <span aria-hidden="true" class="tw:shrink-0 tw:text-agent-claude-text"
-        >✻</span
-      >
-      <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:leading-5">
-        <span class="tw:font-medium">{text(line.lead)}</span
-        >{#if line.help}<span class="tw:text-muted-foreground">
+      <span aria-hidden="true" class="shrink-0 text-agent-claude-text">✻</span>
+      <p class="m-0 min-w-0 flex-1 leading-5">
+        <span class="font-medium">{text(line.lead)}</span>{#if line.help}<span
+            class="text-muted-foreground"
+          >
             {" "}{text(line.help)}</span
           >{/if}
       </p>
-      <Button variant="link" size="sm" class="tw:shrink-0" onclick={act}
+      <Button variant="link" size="sm" class="shrink-0" onclick={act}
         >{text(
           status === "none"
             ? copied
@@ -140,24 +139,24 @@
       ><Button
         variant="ghost"
         size="sm"
-        class="tw:shrink-0 tw:text-muted-foreground"
+        class="shrink-0 text-muted-foreground"
         aria-label={text("close")}
         onclick={() => owner.dismissBanner(line.kind)}>×</Button
       >
     </div>{/if}
   {#if $view.setupFeedback || $view.listeningFeedback}<p
       role="status"
-      class="tw:mx-4 tw:my-0 tw:rounded-surface tw:border tw:border-border tw:p-3 tw:text-success"
+      class="mx-4 my-0 rounded-surface border border-border p-3 text-success"
     >
       ✻ {text($view.setupFeedback ? "setupDone" : "listeningDone")}
     </p>{/if}
   {#if start && $view.room}<div
-      class="tw:mx-4 tw:flex tw:items-start tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:p-3"
+      class="mx-4 flex items-start gap-3 rounded-surface border border-border p-3"
     >
       <span aria-hidden="true">✻</span>
-      <div class="tw:min-w-0 tw:flex-1">
+      <div class="min-w-0 flex-1">
         <strong>{text("starting")}</strong>
-        <ul class="tw:m-0 tw:list-none tw:space-y-1 tw:p-0">
+        <ul class="m-0 list-none space-y-1 p-0">
           <li>✓ {text("roomCreated")}</li>
           <li>
             {$view.room.members.length > 1
@@ -192,9 +191,9 @@
     </div>
   {/if}
   {#if ask}<div
-      class="tw:mx-4 tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted tw:p-3"
+      class="mx-4 flex items-center gap-3 rounded-surface border border-border bg-muted p-3"
     >
-      <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:break-words">
+      <p class="m-0 min-w-0 flex-1 break-words">
         ⏸ <strong>{text("ask")}</strong> · {ask.topic || text("main")}: {askPreview(
           ask.text,
         )}
@@ -210,14 +209,14 @@
 >
   <DialogContent
     data-vb-native
-    class="tw:max-h-[90dvh] tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground"
+    class="max-h-[90dvh] overflow-auto font-sans text-sm text-foreground"
     closeLabel={text("close")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
   >
-    <DialogHeader class="tw:pr-8">
-      <DialogTitle class="tw:font-sans"
+    <DialogHeader class="pr-8">
+      <DialogTitle class="font-sans"
         >{step === 0
           ? `${text("welcome")} ${$view.room?.book.title || text("main")}`
           : text(
@@ -225,7 +224,7 @@
             )}</DialogTitle
       >
     </DialogHeader>
-    <p class="tw:m-0 tw:text-muted-foreground">
+    <p class="m-0 text-muted-foreground">
       {step === 0
         ? `${name($view.room?.book.owner || "")} ${text("welcomeBody")}`
         : text(
@@ -242,11 +241,10 @@
         {lang}
         current={owner.current}
       />{/if}
-    <div class="tw:flex tw:items-center tw:gap-2">
+    <div class="flex items-center gap-2">
       <span
         aria-label={`${step + 1} / 4`}
-        class="tw:flex-1 tw:text-xs tw:text-muted-foreground"
-        >{step + 1} / 4</span
+        class="flex-1 text-xs text-muted-foreground">{step + 1} / 4</span
       ><Button
         variant="ghost"
         onclick={() => {

@@ -33,7 +33,7 @@
           data-slot="sidebar-trigger"
           variant="ghost"
           size="icon"
-          class={cn("tw:size-7", className)}
+          class={cn("size-7", className)}
           onclick={(event) => {
             onclick?.(event);
             sidebar.toggleSidebar();
@@ -41,16 +41,16 @@
           {...rest}
         >
           <Icon icon={LayoutLeft} />
-          <span class="tw:sr-only">Toggle Sidebar</span>
+          <span class="sr-only">Toggle Sidebar</span>
         </Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent side="bottom" class="tw:flex tw:items-center tw:gap-1.5">
+    <TooltipContent side="bottom" class="flex items-center gap-1.5">
       Collapse sidebar
-      <span class="tw:flex tw:items-center tw:gap-0.5">
+      <span class="flex items-center gap-0.5">
         {#each KEYS as key (key)}
           <kbd
-            class="tw:inline-flex tw:items-center tw:justify-center tw:min-w-5 tw:h-5 tw:px-1 tw:rounded-sm tw:border tw:border-[#fff]/20 tw:bg-[#fff]/10 tw:text-[#fff]/70 tw:text-xs tw:font-mono"
+            class="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-sm border border-[#fff]/20 bg-[#fff]/10 text-[#fff]/70 text-xs font-mono"
             >{key}</kbd
           >
         {/each}

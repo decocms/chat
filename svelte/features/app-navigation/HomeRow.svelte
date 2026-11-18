@@ -29,7 +29,7 @@
   onopen={onhome}
 >
   {#snippet leading()}<span
-      class="tw:grid tw:size-9 tw:shrink-0 tw:place-items-center tw:rounded-[0.6875rem] tw:bg-muted"
+      class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
       ><Icon icon={Home02} /></span
     >{/snippet}
   {#snippet trailing()}{#if waits}<Count

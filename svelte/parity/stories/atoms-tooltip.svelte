@@ -21,12 +21,12 @@
     <TooltipContent>Add a new connection to this project</TooltipContent>
   </Tooltip>
 {:else if story === "sides"}
-  <div class="tw:flex tw:items-center tw:gap-4">
+  <div class="flex items-center gap-4">
     {#each SIDES as side (side)}
       <Tooltip>
         <TooltipTrigger>
           {#snippet child({ props })}
-            <Button {...props} variant="outline" class="tw:capitalize">
+            <Button {...props} variant="outline" class="capitalize">
               {side}
             </Button>
           {/snippet}

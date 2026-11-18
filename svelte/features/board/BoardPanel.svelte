@@ -255,9 +255,9 @@
   data-vb-native
   data-board-scope={model.scope ?? "all"}
   aria-label={vb.t("Quadro de tarefas")}
-  class="tw:m-0 tw:box-border tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-3 tw:rounded-surface tw:bg-background tw:p-3 tw:font-sans tw:text-sm tw:text-foreground"
+  class="m-0 box-border flex min-h-0 min-w-0 flex-1 flex-col gap-3 rounded-surface bg-background p-3 font-sans text-sm text-foreground"
 >
-  <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+  <p class="m-0 text-xs text-muted-foreground">
     {model.title ??
       (model.scope ? selectedTarget.title : vb.t("Todos os épicos"))}
   </p>
@@ -269,12 +269,12 @@
           : error}
       compact
     />{/if}
-  <p role="status" aria-live="polite" class="tw:sr-only">{announcement}</p>
-  <p id={`${uid}-keys`} class="tw:sr-only">
+  <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
+  <p id={`${uid}-keys`} class="sr-only">
     {vb.t("Arraste, ou use ← →. Clique pra abrir o épico.")}
   </p>
   <Tabs
-    class="tw:min-h-0 tw:flex-1 tw:overflow-hidden"
+    class="min-h-0 flex-1 overflow-hidden"
     value={mode}
     onValueChange={changeMode}
   >
@@ -285,16 +285,14 @@
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class="tw:min-h-0">{@render panel(view.value)}</TabsContent
+        class="min-h-0">{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>
   {#snippet panel(value: string)}
     {#if value === mode}
       {#if value === "board"}
-        <div class="tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-auto tw:pb-2">
-          <div
-            class="tw:grid tw:grid-cols-[repeat(4,minmax(15rem,1fr))] tw:gap-3"
-          >
+        <div class="h-full min-h-0 min-w-0 overflow-auto pb-2">
+          <div class="grid grid-cols-[repeat(4,minmax(15rem,1fr))] gap-3">
             {#each lanes as lane (lane.value)}
               {@const tasks = model.tasks.filter(
                 (task) => task.status === lane.value,
@@ -317,24 +315,22 @@
                 }}
                 ondrop={(event) => drop(event, lane.value)}
                 class={cn(
-                  "tw:min-w-0 tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-muted/40 tw:p-3",
-                  over === lane.value && "tw:ring-2 tw:ring-ring",
+                  "min-w-0 space-y-3 rounded-surface border border-border bg-muted/40 p-3",
+                  over === lane.value && "ring-2 ring-ring",
                 )}
               >
                 <h3
-                  class="tw:m-0 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+                  class="m-0 flex items-center justify-between gap-2 font-sans text-sm font-semibold leading-5 tracking-normal"
                 >
                   {vb.t(lane.label)}<Badge>{tasks.length}</Badge>
                 </h3>
-                <div class="tw:space-y-3">
+                <div class="space-y-3">
                   {#each tasks as task (task.id)}{@render card(
                       task,
                       `board:${task.id}`,
                       false,
                     )}
-                  {:else}<p
-                      class="tw:m-0 tw:py-4 tw:text-xs tw:text-muted-foreground"
-                    >
+                  {:else}<p class="m-0 py-4 text-xs text-muted-foreground">
                       {vb.t(
                         lane.value === "todo"
                           ? "Nada a fazer."
@@ -347,16 +343,16 @@
           </div>
         </div>
       {:else}
-        <div class="tw:h-full tw:min-h-0 tw:space-y-5 tw:overflow-auto">
+        <div class="h-full min-h-0 space-y-5 overflow-auto">
           {#if mine.length}<section
-              class="tw:space-y-2"
+              class="space-y-2"
               aria-label={vb.t("Esperando você")}
             >
               <h3
-                class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+                class="m-0 flex items-center gap-2 font-sans text-sm font-semibold leading-5 tracking-normal"
               >
                 {vb.t("Esperando você")}<Badge
-                  class="tw:text-foreground"
+                  class="text-foreground"
                   variant="warning">{mine.length}</Badge
                 >
               </h3>
@@ -367,11 +363,11 @@
                 )}{/each}
             </section>{/if}
           {#each openGroups as group (group.id)}<section
-              class="tw:space-y-2"
+              class="space-y-2"
               aria-label={group.title}
             >
               <h3
-                class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:leading-5 tw:tracking-normal"
+                class="m-0 flex items-center gap-2 font-sans text-sm font-semibold leading-5 tracking-normal"
               >
                 {group.title}<Badge>{group.tasks.length}</Badge>
               </h3>
@@ -389,10 +385,10 @@
   {/snippet}
   <form
     onsubmit={add}
-    class="tw:flex tw:shrink-0 tw:flex-wrap tw:items-end tw:gap-2"
+    class="flex shrink-0 flex-wrap items-end gap-2"
     data-board-add
   >
-    <div class="tw:min-w-36 tw:flex-1 tw:space-y-1">
+    <div class="min-w-36 flex-1 space-y-1">
       <Label for={`${uid}-title`}>{vb.t("Nova tarefa")}</Label>
       <Input
         id={`${uid}-title`}
@@ -401,7 +397,7 @@
         bind:value={title}
       />
     </div>
-    {#if !model.scope}<div class="tw:min-w-32 tw:flex-1 tw:space-y-1">
+    {#if !model.scope}<div class="min-w-32 flex-1 space-y-1">
         <Label for={`${uid}-epic`}>{vb.t("Épico")}</Label>
         <Select
           items={targetItems}
@@ -418,11 +414,11 @@
           <SelectTrigger
             id={`${uid}-epic`}
             aria-invalid={!targetValid}
-            class="tw:w-full"
+            class="w-full"
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent data-vb-native class="tw:font-sans">
+          <SelectContent data-vb-native class="font-sans">
             {#each targetItems as target (target.value)}<SelectItem
                 value={target.value}
                 label={target.label}
@@ -463,12 +459,10 @@
       over = null;
     }}
     class={cn(
-      "tw:relative tw:min-w-0 tw:rounded-control tw:border tw:border-border tw:bg-card tw:text-card-foreground tw:shadow-xs",
-      row && "tw:flex tw:flex-wrap tw:items-center",
-      dragging === task.id && "tw:opacity-50",
-      task.status !== "done" &&
-        task.owner === room.me &&
-        "tw:ring-1 tw:ring-ring/20",
+      "relative min-w-0 rounded-control border border-border bg-card text-card-foreground shadow-xs",
+      row && "flex flex-wrap items-center",
+      dragging === task.id && "opacity-50",
+      task.status !== "done" && task.owner === room.me && "ring-1 ring-ring/20",
     )}
   >
     <button
@@ -479,29 +473,29 @@
       onclick={() => onopen?.(task.epicId)}
       onkeydown={(event) => keyboard(event, task, key)}
       class={cn(
-        "tw:block tw:w-full tw:min-w-0 tw:flex-1 tw:space-y-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-3 tw:text-left tw:font-sans tw:text-sm tw:text-card-foreground tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
-        !row && "tw:pr-10",
+        "block w-full min-w-0 flex-1 space-y-2 rounded-control border-0 bg-transparent p-3 text-left font-sans text-sm text-card-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+        !row && "pr-10",
       )}
     >
       <span
         class={cn(
-          "tw:block tw:break-words tw:font-medium",
-          task.status === "done" && "tw:line-through",
+          "block break-words font-medium",
+          task.status === "done" && "line-through",
         )}>{task.title}</span
       >
       {#if task.flags?.length}<Badge
           variant="warning"
           title={`@vibe: ${task.flags.join(" · ")}`}
-          class="tw:text-foreground tw:max-w-full"
-          ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+          class="text-foreground max-w-full"
+          ><Icon icon={AlertTriangle} /><span class="truncate"
             >{task.flags.join(" · ")}</span
           ></Badge
         >{/if}
       <span
-        class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+        class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
       >
-        <Badge class="tw:max-w-full"
-          ><span class="tw:truncate">{task.epicTitle}</span></Badge
+        <Badge class="max-w-full"
+          ><span class="truncate">{task.epicTitle}</span></Badge
         >
         {#if task.owner}<PersonAvatar
             data-avatar="person"
@@ -511,7 +505,7 @@
           /><span
             >{task.owner === room.me ? vb.t("você") : vb.name(task.owner)}</span
           >{/if}
-        {#if task.due}<span class="tw:inline-flex tw:items-center tw:gap-1"
+        {#if task.due}<span class="inline-flex items-center gap-1"
             ><Icon icon={Calendar} size={12} />{task.due}</span
           >{/if}
       </span>
@@ -521,15 +515,10 @@
         draggable="true"
         aria-hidden="true"
         title={vb.t("Arraste, ou use ← →. Clique pra abrir o épico.")}
-        class="tw:absolute tw:right-2 tw:top-2 tw:grid tw:size-7 tw:cursor-grab tw:place-items-center tw:rounded-md tw:text-muted-foreground tw:active:cursor-grabbing"
+        class="absolute right-2 top-2 grid size-7 cursor-grab place-items-center rounded-md text-muted-foreground active:cursor-grabbing"
         ><Icon icon={DotsGrid} size={16} /></span
       >{/if}
-    <div
-      class={cn(
-        "tw:min-w-32 tw:space-y-1 tw:p-3",
-        !row && "tw:border-t tw:border-border",
-      )}
-    >
+    <div class={cn("min-w-32 space-y-1 p-3", !row && "border-t border-border")}>
       <Label for={`${uid}-${key}`}>{vb.t("Status")}</Label>
       <Select
         items={options}
@@ -543,11 +532,11 @@
         <SelectTrigger
           id={`${uid}-${key}`}
           aria-label={`${vb.t("Status")}: ${task.title}`}
-          class="tw:w-full"
+          class="w-full"
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent data-vb-native class="tw:font-sans">
+        <SelectContent data-vb-native class="font-sans">
           {#each options as option (option.value)}<SelectItem
               value={option.value}
               label={option.label}>{option.label}</SelectItem

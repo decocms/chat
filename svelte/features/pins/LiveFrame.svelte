@@ -34,14 +34,14 @@
   data-live-frame={href}
   role="dialog"
   aria-label={t("Site externo · {host}", { host })}
-  class="tw:fixed tw:inset-0 tw:z-40 tw:flex tw:flex-col tw:overflow-hidden tw:bg-background tw:font-sans tw:text-foreground tw:shadow-2xl tw:md:inset-auto tw:md:right-4 tw:md:bottom-4 tw:md:h-[min(640px,75vh)] tw:md:w-[min(880px,62vw)] tw:md:rounded-surface tw:md:border tw:md:border-warning/40"
+  class="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background font-sans text-foreground shadow-2xl md:inset-auto md:right-4 md:bottom-4 md:h-[min(640px,75vh)] md:w-[min(880px,62vw)] md:rounded-surface md:border md:border-warning/40"
 >
   <div
-    class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:border-b tw:border-warning/30 tw:bg-warning/15 tw:py-1 tw:pr-1 tw:pl-3 tw:text-xs"
+    class="flex min-w-0 items-center gap-2 border-b border-warning/30 bg-warning/15 py-1 pr-1 pl-3 text-xs"
   >
-    <Icon icon={Globe02} size={14} class="tw:shrink-0 tw:text-warning" />
-    <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-      ><b class="tw:font-semibold">{t("Site externo")}</b> · {host}{by
+    <Icon icon={Globe02} size={14} class="shrink-0 text-warning" />
+    <span class="min-w-0 flex-1 truncate"
+      ><b class="font-semibold">{t("Site externo")}</b> · {host}{by
         ? ` · ${t("fixado por {name}", { name: by })}`
         : ""}</span
     >
@@ -54,7 +54,7 @@
       rel="noopener noreferrer"
       aria-label={t("Abrir em nova aba")}
       title={t("Abrir em nova aba")}
-      class="tw:flex tw:size-8 tw:items-center tw:justify-center tw:rounded-lg tw:text-foreground tw:hover:bg-muted"
+      class="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-muted"
       ><Icon icon={LinkExternal01} size={16} /></a
     >
     <IconButton label={t("Fechar")} onclick={onclose}
@@ -66,6 +66,6 @@
       title={t("Site externo · {host}", { host })}
       sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
       referrerpolicy="no-referrer"
-      class="tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-white"
+      class="min-h-0 w-full flex-1 border-0 bg-white"
     ></iframe>{/key}
 </div>

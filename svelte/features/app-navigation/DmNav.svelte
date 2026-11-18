@@ -84,11 +84,11 @@
   aria-label={homeText(lang, "dms")}
   data-dm-nav
   use:keepRow
-  class="tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:font-sans"
+  class="flex min-h-0 flex-col gap-3 font-sans"
 >
   <SearchField {controller} label={homeText(lang, "findConversation")} />
   {#if dms}<ul
-      class="tw:m-0 tw:flex tw:min-h-0 tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-y-auto tw:p-0"
+      class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0"
     >
       <li>
         <HomeRow
@@ -100,7 +100,7 @@
       </li>
       {@render dm(dms.self)}
       {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
-          class="tw:mt-3"
+          class="mt-3"
         >
           <Requests
             invites={$personal.me.invites ?? []}
@@ -110,7 +110,7 @@
             onanswer={controller.callbacks.answerRequest}
           />
         </li>{/if}
-      <li class="tw:mt-3">
+      <li class="mt-3">
         <SectionHeader title={homeText(lang, "dms")}
           >{#snippet action()}{#if $personal.me}<NewMessage
                 me={$personal.me}

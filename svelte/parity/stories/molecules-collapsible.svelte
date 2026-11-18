@@ -10,9 +10,9 @@
 </script>
 
 {#if story === "default"}
-  <Collapsible class="tw:w-80 tw:space-y-2">
-    <div class="tw:flex tw:items-center tw:justify-between">
-      <span class="tw:text-sm tw:font-medium">3 pinned projects</span>
+  <Collapsible class="w-80 space-y-2">
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-medium">3 pinned projects</span>
       <CollapsibleTrigger>
         {#snippet child({ props })}
           <Button
@@ -26,43 +26,33 @@
         {/snippet}
       </CollapsibleTrigger>
     </div>
-    <div
-      class="tw:rounded-md tw:border tw:border-border tw:px-4 tw:py-2 tw:text-sm"
-    >
+    <div class="rounded-md border border-border px-4 py-2 text-sm">
       Storefront redesign
     </div>
-    <CollapsibleContent class="tw:space-y-2">
-      <div
-        class="tw:rounded-md tw:border tw:border-border tw:px-4 tw:py-2 tw:text-sm"
-      >
+    <CollapsibleContent class="space-y-2">
+      <div class="rounded-md border border-border px-4 py-2 text-sm">
         Checkout experiments
       </div>
-      <div
-        class="tw:rounded-md tw:border tw:border-border tw:px-4 tw:py-2 tw:text-sm"
-      >
+      <div class="rounded-md border border-border px-4 py-2 text-sm">
         Internal admin tools
       </div>
     </CollapsibleContent>
   </Collapsible>
 {:else if story === "open-by-default"}
-  <Collapsible open class="tw:w-80 tw:space-y-2">
+  <Collapsible open class="w-80 space-y-2">
     <CollapsibleTrigger>
       {#snippet child({ props })}
-        <Button
-          {...props}
-          variant="outline"
-          class="tw:w-full tw:justify-between"
-        >
+        <Button {...props} variant="outline" class="w-full justify-between">
           Advanced options <Icon icon={ChevronDown} />
         </Button>
       {/snippet}
     </CollapsibleTrigger>
     <CollapsibleContent
-      class="tw:space-y-1 tw:rounded-md tw:border tw:border-border tw:p-4 tw:text-sm tw:text-muted-foreground"
+      class="space-y-1 rounded-md border border-border p-4 text-sm text-muted-foreground"
     >
-      <p class="tw:text-pretty">Request timeout: 30 seconds</p>
-      <p class="tw:text-pretty">Retry policy: exponential backoff</p>
-      <p class="tw:text-pretty">Audit logging: enabled</p>
+      <p class="text-pretty">Request timeout: 30 seconds</p>
+      <p class="text-pretty">Retry policy: exponential backoff</p>
+      <p class="text-pretty">Audit logging: enabled</p>
     </CollapsibleContent>
   </Collapsible>
 {/if}

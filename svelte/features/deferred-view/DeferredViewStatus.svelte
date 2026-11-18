@@ -19,7 +19,7 @@
 {#if phase === "error"}<section
     data-deferred-view
     aria-label={label}
-    class="tw:space-y-3 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
+    class="space-y-3 p-4 font-sans text-sm text-foreground"
   >
     <p role="alert">
       {lang === "en"
@@ -36,7 +36,7 @@
     data-deferred-view
     aria-label={label}
     aria-busy="true"
-    class="tw:flex tw:h-full tw:flex-col"
+    class="flex h-full flex-col"
   >
     <PaneLoading label={lang === "en" ? "Loading…" : "Carregando…"} />
   </section>{/if}

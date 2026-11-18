@@ -53,12 +53,12 @@
 <section
   data-vb-native
   data-native-agents
-  class="tw:space-y-5 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-5 p-4 font-sans text-sm text-foreground"
 >
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     <Heading
       level={2}
-      class="tw:m-0 tw:flex-1 tw:font-sans tw:text-lg tw:font-semibold tw:tracking-normal"
+      class="m-0 flex-1 font-sans text-lg font-semibold tracking-normal"
       >{text("title")}</Heading
     ><Button
       variant="ghost"
@@ -67,25 +67,23 @@
       onclick={() => void owner.refresh(true)}>{text("retry")}</Button
     >
   </div>
-  {#if $view.readError}<p role="alert" class="tw:text-destructive">
+  {#if $view.readError}<p role="alert" class="text-destructive">
       {text("readFailed")}
     </p>{/if}
-  <div
-    class="tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:p-3"
-  >
-    <div class="tw:flex tw:items-center tw:gap-3">
+  <div class="space-y-2 rounded-surface border border-border p-3">
+    <div class="flex items-center gap-3">
       <AgentMark
         size="xs"
         mark="✻"
         class={presence.live
-          ? "tw:text-sm tw:font-normal tw:text-success"
+          ? "text-sm font-normal text-success"
           : presence.on
-            ? "tw:text-sm tw:font-normal tw:text-warning"
-            : "tw:text-sm tw:font-normal tw:text-muted-foreground"}
+            ? "text-sm font-normal text-warning"
+            : "text-sm font-normal text-muted-foreground"}
       />
-      <div class="tw:min-w-0 tw:flex-1">
-        <strong class="tw:block">{text("local")}</strong><small
-          class="tw:block tw:break-words tw:text-muted-foreground"
+      <div class="min-w-0 flex-1">
+        <strong class="block">{text("local")}</strong><small
+          class="block break-words text-muted-foreground"
           >{presence.on
             ? `${text("on")} · ${text(presence.live ? "listening" : presence.around ? "working" : "notListening")}`
             : text("off")}{#if path}
@@ -107,17 +105,17 @@
         aria-label={text(presence.on ? "turnOff" : "turnOn")}
       />
     </div>
-    <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+    <p class="m-0 text-xs text-muted-foreground">
       {text("localHelp")}
     </p>
-    {#if $runner.focusError}<p role="alert" class="tw:text-destructive">
+    {#if $runner.focusError}<p role="alert" class="text-destructive">
         {text($runner.focusBlocked ? "focusBlocked" : "focusFailed")}
       </p>{/if}
     {#if $view.togglePhase === "pending"}<p role="status">
         {text("pending")}
       </p>{:else if $view.togglePhase === "error"}<p
         role="alert"
-        class="tw:text-destructive"
+        class="text-destructive"
       >
         {text("failed")}
       </p>{:else if $view.togglePhase === "unconfirmed"}<p role="status">
@@ -138,23 +136,23 @@
     waiting={false}
     current={owner.current}
   />
-  <section class="tw:space-y-2" aria-label={text("queue")}>
+  <section class="space-y-2" aria-label={text("queue")}>
     <Heading
       level={3}
-      class="tw:m-0 tw:font-sans tw:text-base tw:font-semibold tw:tracking-normal"
+      class="m-0 font-sans text-base font-semibold tracking-normal"
       >{text("queue")} {queue.length || ""}</Heading
     >
     {#each queue.slice(0, shown) as item (item.message.id)}<div
-        class="tw:flex tw:items-center tw:gap-2"
+        class="flex items-center gap-2"
       >
         <Button
           variant="ghost"
-          class="tw:h-auto tw:min-w-0 tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left"
+          class="h-auto min-w-0 flex-1 justify-start whitespace-normal text-left"
           onclick={() => navigate(item.message.id, item.message.thread)}
           title={`${$view.room?.epics.find((epic) => epic.id === item.message.thread)?.title || text("main")} · ${vb.ago(item.message.ts)}`}
-          ><span class="tw:min-w-0 tw:flex-1 tw:break-words"
+          ><span class="min-w-0 flex-1 break-words"
             >{item.message.text.replace(/\s+/g, " ").slice(0, 120)}</span
-          ><span class="tw:text-xs tw:text-muted-foreground"
+          ><span class="text-xs text-muted-foreground"
             >{text(
               item.phase === "blocked"
                 ? "blocked"
@@ -170,7 +168,7 @@
           onclick={() => void owner.dismiss(item.message.id)}
           aria-label={text("dismiss")}>×</Button
         >
-      </div>{:else}<p class="tw:text-muted-foreground">
+      </div>{:else}<p class="text-muted-foreground">
         {text("queueEmpty")}
       </p>{/each}
     {#if queue.length > shown}<Button
@@ -185,7 +183,7 @@
       >{/if}
     {#if $view.dismissPhase === "error"}<p
         role="alert"
-        class="tw:text-destructive"
+        class="text-destructive"
       >
         {text("failed")}
       </p>{:else if $view.dismissPhase === "pending"}<p role="status">
@@ -200,7 +198,7 @@
   {#if presence.mine.length}<section aria-label={text("connected")}>
       <Heading
         level={3}
-        class="tw:m-0 tw:font-sans tw:text-base tw:font-semibold tw:tracking-normal"
+        class="m-0 font-sans text-base font-semibold tracking-normal"
         >{text("connected")}</Heading
       ><AgentPresenceRows
         self
@@ -218,7 +216,7 @@
     href={settingsHref("cloud", owner.roomId)}
     data-nav
     data-native-cloud-settings
-    class={buttonVariants({ variant: "outline", class: "tw:no-underline" })}
+    class={buttonVariants({ variant: "outline", class: "no-underline" })}
     >☁ {settingsText(lang, "cloud")}</a
   >
 </section>

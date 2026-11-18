@@ -19,26 +19,26 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default"}
     <Calendar
       mode="single"
       bind:selected={date}
-      class="tw:rounded-lg tw:border tw:border-border"
+      class="rounded-lg border border-border"
     />
   {:else if story === "range"}
     <Calendar
       mode="range"
       bind:selected={range}
       numberOfMonths={2}
-      class="tw:rounded-lg tw:border tw:border-border"
+      class="rounded-lg border border-border"
     />
   {:else if story === "past-days-disabled"}
     <Calendar
       mode="single"
       bind:selected={free}
       disabled={{ before: now }}
-      class="tw:rounded-lg tw:border tw:border-border"
+      class="rounded-lg border border-border"
     />
   {/if}
 </div>

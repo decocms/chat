@@ -18,7 +18,7 @@
 {/snippet}
 
 {#if story === "playground"}
-  <div class="tw:w-64">
+  <div class="w-64">
     <MetricCard
       label="Mobile conversion"
       value="1.84%"
@@ -33,7 +33,7 @@
     rows={["Metric"]}
   >
     {#snippet cell(_row, index)}
-      <div class="tw:w-64">
+      <div class="w-64">
         <MetricCard
           label="Mobile conversion"
           value="1.84%"
@@ -46,7 +46,7 @@
   </Matrix>
 {:else if story === "clickable"}
   <MetricCard
-    class="tw:w-64"
+    class="w-64"
     interactive
     onclick={() => {}}
     label="Tasks done"

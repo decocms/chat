@@ -35,11 +35,11 @@
     <DialogContent
       data-vb-native
       data-new-ui-welcome
-      class="tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-md"
+      class="font-sans text-sm text-foreground md:max-w-md"
       closeLabel={en ? "Close" : "Fechar"}
     >
       <DialogHeader>
-        <DialogTitle class="tw:pr-8 tw:font-sans"
+        <DialogTitle class="pr-8 font-sans"
           >{en
             ? "Welcome to the new vibebook"
             : "Bem-vindo ao vibebook novo"}</DialogTitle
@@ -50,7 +50,7 @@
             : "O vibebook está de cara nova. Suas salas, conversas, docs e tarefas estão todos aqui, do jeito que você deixou."}</DialogDescription
         >
       </DialogHeader>
-      <p class="tw:text-muted-foreground">
+      <p class="text-muted-foreground">
         {en
           ? "Prefer the previous version? Turn off New UI in Settings (click yourself at the foot of the sidebar) to go back on this device. You can switch again any time."
           : "Prefere a versão anterior? Desligue Nova UI nas Configurações (clique em você, no pé da barra lateral) para voltar neste aparelho. Dá pra trocar de novo quando quiser."}

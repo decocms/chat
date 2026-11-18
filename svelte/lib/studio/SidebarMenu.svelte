@@ -22,7 +22,7 @@
   data-sidebar="menu"
   {...rest}
   class={cn(
-    "tw:flex tw:w-full tw:min-w-0 tw:list-none tw:flex-col tw:gap-1 tw:group-data-[state=collapsed]/sidebar:items-center",
+    "flex w-full min-w-0 list-none flex-col gap-1 group-data-[state=collapsed]/sidebar:items-center",
     className,
   )}
 >

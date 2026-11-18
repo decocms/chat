@@ -16,6 +16,6 @@
   data-slot="entity-card"
   size="tile"
   interactive={Boolean(rest.onclick) || Boolean(rest.child)}
-  class={cn("tw:min-w-0", className)}
+  class={cn("min-w-0", className)}
   {...rest}
 />

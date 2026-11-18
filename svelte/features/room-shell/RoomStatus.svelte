@@ -40,7 +40,7 @@
     data-vb-native
     data-native-room-status={snapshot.phase}
     data-room-generation={snapshot.generation}
-    class="tw:mx-auto tw:flex tw:min-h-[50dvh] tw:w-full tw:max-w-xl tw:flex-col tw:justify-center tw:gap-4 tw:p-6 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+    class="mx-auto flex min-h-[50dvh] w-full max-w-xl flex-col justify-center gap-4 p-6 font-sans text-sm leading-6 text-foreground"
   >
     <ErrorState
       title={services.t(
@@ -61,7 +61,7 @@
   </main>{:else}<div
     data-native-room-status={snapshot.phase}
     data-room-generation={snapshot.generation}
-    class="tw:contents"
+    class="contents"
   >
     <RoomSkeleton {roomId} {thread} {services} onhome={home} />
   </div>{/if}

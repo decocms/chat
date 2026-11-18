@@ -106,7 +106,7 @@
 {/snippet}
 
 <TooltipProvider>
-  <div class="tw:w-[34rem] tw:leading-[1.5]">
+  <div class="w-[34rem] leading-[1.5]">
     {#if story === "default"}
       <Composer>
         <ComposerInput
@@ -144,19 +144,19 @@
       <div>
         <ComposerTray>
           <div
-            class="tw:text-muted-foreground tw:flex tw:items-center tw:gap-2 tw:px-2 tw:py-1 tw:text-xs"
+            class="text-muted-foreground flex items-center gap-2 px-2 py-1 text-xs"
           >
-            <Icon icon={CheckCircle} class="tw:text-success tw:size-3.5" />
-            <span class="tw:flex-1">Building the banner · 3 of 5</span>
+            <Icon icon={CheckCircle} class="text-success size-3.5" />
+            <span class="flex-1">Building the banner · 3 of 5</span>
           </div>
           <div
-            class="tw:flex tw:items-center tw:gap-2 tw:rounded-[0.625rem] tw:px-2 tw:py-1 tw:text-xs"
+            class="flex items-center gap-2 rounded-[0.625rem] px-2 py-1 text-xs"
           >
             <Icon
               icon={CornerDownRight}
-              class="tw:text-muted-foreground tw:size-3.5"
+              class="text-muted-foreground size-3.5"
             />
-            <span class="tw:flex-1 tw:truncate"
+            <span class="flex-1 truncate"
               >Also make a square version for Instagram</span
             >
             <Button size="xs" variant="ghost">Send now</Button>
@@ -186,8 +186,8 @@
         <ComposerDropZone>Drop files to attach</ComposerDropZone>
       </Composer>
     {:else if story === "mentions"}
-      <div class="tw:flex tw:flex-col tw:gap-2">
-        <ComposerSuggestions class="tw:mx-3">
+      <div class="flex flex-col gap-2">
+        <ComposerSuggestions class="mx-3">
           <ComposerSuggestion active title="Mobile conversion" meta="Goal">
             {#snippet icon()}<Icon icon={Target04} />{/snippet}
           </ComposerSuggestion>
@@ -216,7 +216,7 @@
         </Composer>
         <ComposerFooter>
           <Icon icon={Stars01} />
-          <span class="tw:flex-1"
+          <span class="flex-1"
             >Connect your tools so the agent can act on them</span
           >
           <Button size="xs" variant="ghost">Connect</Button>

@@ -22,6 +22,6 @@
   {rows}
   {...rest}
   class={cn(
-    "tw:placeholder:text-subtle-foreground tw:field-sizing-content tw:max-h-60 tw:min-w-0 tw:flex-1 tw:resize-none tw:bg-transparent tw:px-4 tw:pt-3.5 tw:pb-1 tw:text-sm tw:pointer-coarse:text-[16px] tw:leading-relaxed tw:outline-none tw:disabled:cursor-not-allowed tw:group-data-[size=compact]/composer:px-2 tw:group-data-[size=compact]/composer:py-1 tw:[scrollbar-width:thin] tw:[scrollbar-color:transparent_transparent] tw:hover:[scrollbar-color:var(--vb-border)_transparent]",
+    "placeholder:text-subtle-foreground field-sizing-content max-h-60 min-w-0 flex-1 resize-none bg-transparent px-4 pt-3.5 pb-1 text-sm pointer-coarse:text-[16px] leading-relaxed outline-none disabled:cursor-not-allowed group-data-[size=compact]/composer:px-2 group-data-[size=compact]/composer:py-1 [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:var(--vb-border)_transparent]",
     className,
   )}></textarea>

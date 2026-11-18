@@ -19,7 +19,7 @@
       {...props}
       data-slot="avatar"
       class={cn(
-        "tw:relative tw:flex tw:size-8 tw:shrink-0 tw:overflow-hidden tw:rounded-full",
+        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
         className,
       )}>{@render children?.()}</span
     >

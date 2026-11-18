@@ -21,7 +21,7 @@
   data-slot="sidebar-wrapper"
   {...rest}
   class={cn(
-    "tw:group/sidebar-wrapper tw:has-data-[variant=inset]:bg-sidebar tw:flex tw:h-full tw:w-full tw:[--sidebar-width:15rem] tw:[--sidebar-width-icon:4.5rem]",
+    "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-full w-full [--sidebar-width:15rem] [--sidebar-width-icon:4.5rem]",
     className,
   )}
 >

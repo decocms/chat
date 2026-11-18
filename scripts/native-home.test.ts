@@ -1111,11 +1111,11 @@ test("desk hand: the fan is odd and at most seven", () => {
 });
 test("desk hand: the middle card leads, the rest alternate right and left", () => {
   expect([0, 1, 2, 3, 4, 5, 6].map(fanSlot)).toEqual([0, 1, -1, 2, -2, 3, -3]);
-  expect(fanClasses(0, 9)).toContain("tw:z-20");
-  expect(fanClasses(1, 9)).toContain("tw:translate-x-[46px]");
-  expect(fanClasses(2, 9)).toContain("tw:translate-x-[-46px]");
+  expect(fanClasses(0, 9)).toContain("z-20");
+  expect(fanClasses(1, 9)).toContain("translate-x-[46px]");
+  expect(fanClasses(2, 9)).toContain("translate-x-[-46px]");
   // Beyond the seventh, a card waits hidden behind the fan (the grid shows it).
-  expect(fanClasses(7, 9)).toContain("tw:opacity-0");
+  expect(fanClasses(7, 9)).toContain("opacity-0");
   expect(inFan(6, 9, false)).toBe(true);
   expect(inFan(7, 9, false)).toBe(false);
   // Four waits fan three: the fourth stays behind.

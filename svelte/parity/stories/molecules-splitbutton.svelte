@@ -63,21 +63,21 @@
     {#snippet icon()}<Icon icon={GitBranch01} />{/snippet}
   </SplitButton>
 {:else if story === "variants"}
-  <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     {#each VARIANTS as [variant, label] (variant)}
       <SplitButton {...args} {variant} {label} />
     {/each}
   </div>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     {#each SIZES as [size, label] (size)}
       <SplitButton {...args} {size} {label} />
     {/each}
   </div>
 {:else if story === "keyboard-navigation"}
-  <div class="tw:space-y-4">
+  <div class="space-y-4">
     <div>
-      <p class="tw:mb-2 tw:text-sm tw:text-pretty tw:text-muted-foreground">
+      <p class="mb-2 text-sm text-pretty text-muted-foreground">
         Press Tab to focus, Space/Enter to activate
       </p>
       <SplitButton
@@ -87,7 +87,7 @@
       />
     </div>
     <div>
-      <p class="tw:mb-2 tw:text-sm tw:text-pretty tw:text-muted-foreground">
+      <p class="mb-2 text-sm text-pretty text-muted-foreground">
         Disabled primary with menu: Tab to menu, arrows navigate, disabled items
         show tooltip
       </p>

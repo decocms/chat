@@ -333,28 +333,28 @@
   data-vb-native
   {hidden}
   class={hidden
-    ? "tw:hidden"
-    : "tw:relative tw:shrink-0 tw:space-y-2 tw:bg-background tw:px-3 tw:pt-1 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground tw:md:px-4 tw:md:pb-4"}
+    ? "hidden"
+    : "relative shrink-0 space-y-2 bg-background px-3 pt-1 pb-3 font-sans text-sm text-foreground md:px-4 md:pb-4"}
 >
   {#if dragging}<div
       role="status"
-      class="tw:rounded-control tw:border-2 tw:border-dashed tw:border-primary tw:bg-primary/10 tw:p-4 tw:text-center"
+      class="rounded-control border-2 border-dashed border-primary bg-primary/10 p-4 text-center"
     >
       {vb.t("Anexar arquivo")}
     </div>{/if}
-  {#if $draft.attachments.length}<div class="tw:flex tw:flex-wrap tw:gap-2">
+  {#if $draft.attachments.length}<div class="flex flex-wrap gap-2">
       {#each $draft.attachments as item (item.id)}{@const image = preview(item)}
         <div
           data-composer-attachment={item.id}
-          class="tw:relative tw:flex tw:w-32 tw:flex-col tw:gap-1 tw:rounded-control tw:border tw:border-border tw:bg-card tw:p-2"
+          class="relative flex w-32 flex-col gap-1 rounded-control border border-border bg-card p-2"
         >
           {#if image}<img
               src={image}
               alt={item.name}
-              class="tw:h-20 tw:w-full tw:rounded-sm tw:object-cover"
+              class="h-20 w-full rounded-sm object-cover"
             />{:else}<Icon icon={File02} size={16} />{/if}<span
-            class="tw:break-words tw:text-xs">{item.name}</span
-          ><span role="status" class="tw:text-xs tw:text-muted-foreground"
+            class="break-words text-xs">{item.name}</span
+          ><span role="status" class="text-xs text-muted-foreground"
             >{item.phase === "queued" || item.phase === "uploading"
               ? vb.t("Enviando…")
               : item.phase === "error"
@@ -369,7 +369,7 @@
             >{/if}<IconButton
             label={vb.t("Remover anexo")}
             size="icon-xs"
-            class="tw:absolute tw:right-1 tw:top-1 tw:rounded-full tw:bg-card tw:shadow-edge"
+            class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
             onclick={(event) => {
               if (canInteract(event)) entry.removeFile(item.id);
             }}><Icon icon={X} size={14} /></IconButton
@@ -378,10 +378,10 @@
     </div>{/if}
   {#if $draft.replyId}<div
       data-composer-reply
-      class="tw:flex tw:items-center tw:gap-2 tw:rounded-control tw:border-l-2 tw:border-foreground tw:bg-muted tw:p-2"
+      class="flex items-center gap-2 rounded-control border-l-2 border-foreground bg-muted p-2"
     >
       <Icon icon={ReverseLeft} size={16} />
-      <div class="tw:min-w-0 tw:flex-1 tw:text-xs">
+      <div class="min-w-0 flex-1 text-xs">
         {#if reply}<b
             >{reply.author === "ai"
               ? "@vibe"
@@ -391,7 +391,7 @@
                     who: vb.name(reply.author),
                   })
                 : vb.name(reply.author)}</b
-          ><span class="tw:block tw:truncate"
+          ><span class="block truncate"
             >{!reply.text && reply.poll
               ? vb.t("votação")
               : quoteSnippet(reply)}</span
@@ -408,7 +408,7 @@
       id={`${uid}-mentions`}
       role="listbox"
       aria-label={emojis ? vb.t("Emoji") : vb.t("Mencionar")}
-      class="tw:absolute tw:bottom-full tw:left-3 tw:z-20 tw:max-h-64 tw:max-w-[calc(100%-1.5rem)] tw:overflow-auto tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
+      class="absolute bottom-full left-3 z-20 max-h-64 max-w-[calc(100%-1.5rem)] overflow-auto rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised"
     >
       {#if emojis}{#each emojis.items as item, index}<button
             id={`${uid}-mention-${index}`}
@@ -417,16 +417,16 @@
             aria-selected={selected === index}
             data-emoji-pick={item.emoji}
             class={selected === index
-              ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
-              : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
+              ? "flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg bg-accent px-2 py-1.5 text-left"
+              : "flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-accent"}
             onpointerdown={(event) => {
               event.preventDefault();
               choose(index);
             }}
             onclick={() => choose(index)}
-            ><span aria-hidden="true" class="tw:w-6 tw:text-center tw:text-lg"
+            ><span aria-hidden="true" class="w-6 text-center text-lg"
               >{item.emoji}</span
-            ><span class="tw:text-muted-foreground">:{item.name}:</span></button
+            ><span class="text-muted-foreground">:{item.name}:</span></button
           >{/each}{:else}
         {#each mentions?.items || [] as item, index}<button
             id={`${uid}-mention-${index}`}
@@ -434,8 +434,8 @@
             role="option"
             aria-selected={selected === index}
             class={selected === index
-              ? "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:bg-accent tw:px-2 tw:py-1.5 tw:text-left"
-              : "tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-left tw:hover:bg-accent"}
+              ? "flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg bg-accent px-2 py-1.5 text-left"
+              : "flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-accent"}
             onpointerdown={(event) => {
               event.preventDefault();
               choose(index);
@@ -453,15 +453,15 @@
                 size="xs"
                 aria-hidden="true"
                 fallback="@"
-              />{/if}<b>@{item.handle}</b><small
-              class="tw:text-muted-foreground">{vb.t(item.label)}</small
+              />{/if}<b>@{item.handle}</b><small class="text-muted-foreground"
+              >{vb.t(item.label)}</small
             ></button
           >{/each}{/if}
     </div>{/if}
   {#if refining || voiceWaiting}<p
       role="status"
       data-composer-transcribing
-      class="tw:m-0 tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+      class="m-0 flex items-center gap-2 text-xs text-muted-foreground"
     >
       <Spinner size="2xs" />
       {vb.locale?.startsWith("en")
@@ -554,7 +554,7 @@
           variant="outline"
           size="sm"
           data-brief-ask
-          class="tw:h-7 tw:rounded-full tw:px-2.5 tw:text-xs tw:text-muted-foreground tw:hover:text-foreground"
+          class="h-7 rounded-full px-2.5 text-xs text-muted-foreground hover:text-foreground"
           onclick={(event) => {
             if (canInteract(event)) void request({ t: "brief.ask", thread });
           }}>{vb.t("O que precisa de mim aqui?")}</Button
@@ -563,7 +563,7 @@
   <input
     bind:this={fileInput}
     type="file"
-    class="tw:hidden"
+    class="hidden"
     accept={FILE_ACCEPT}
     multiple
     hidden
@@ -575,21 +575,21 @@
   />
   {#if $draft.phase === "unconfirmed"}<p
       role="status"
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      class="m-0 text-xs text-muted-foreground"
     >
       {vb.t(
         "Ainda sem confirmação. Confira a sala antes de enviar novamente.",
       )}{#if candidateTarget}<Button
           variant="link"
           size="sm"
-          class="tw:h-auto tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+          class="h-auto text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
           onclick={(event) => {
             if (canInteract(event) && candidateTarget)
               navigate(candidateTarget);
           }}>{vb.t("Ver mensagem correspondente")}</Button
         >{/if}
     </p>
-    <div class="tw:flex tw:flex-wrap tw:gap-2">
+    <div class="flex flex-wrap gap-2">
       <Button
         size="sm"
         variant="outline"
@@ -606,7 +606,7 @@
     </div>
   {:else if $draft.error}<p
       role="alert"
-      class="tw:m-0 tw:break-words tw:text-xs tw:text-destructive"
+      class="m-0 break-words text-xs text-destructive"
     >
       {composerError($draft.error, vb.t)}
     </p>{/if}
@@ -614,8 +614,8 @@
   {#if $draft.notice}<p
       role="status"
       class={$draft.notice === "sent"
-        ? "tw:sr-only"
-        : "tw:m-0 tw:text-xs tw:text-muted-foreground"}
+        ? "sr-only"
+        : "m-0 text-xs text-muted-foreground"}
     >
       {$draft.notice === "sent"
         ? vb.t("Enviado")
@@ -630,14 +630,11 @@
   {#if dictating}<p
       role="status"
       data-composer-dictating
-      class="tw:m-0 tw:text-xs tw:text-destructive"
+      class="m-0 text-xs text-destructive"
     >
       {vb.t("Ouvindo… Escape para parar.")}
     </p>{/if}
-  {#if voiceIssue}<p
-      role="status"
-      class="tw:m-0 tw:text-xs tw:text-destructive"
-    >
+  {#if voiceIssue}<p role="status" class="m-0 text-xs text-destructive">
       {voiceIssue === "not-allowed"
         ? vb.t("O navegador não deixou usar o microfone.")
         : voiceIssue === "invalid-result"

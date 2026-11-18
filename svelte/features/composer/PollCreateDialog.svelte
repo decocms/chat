@@ -63,24 +63,24 @@
 <Dialog bind:open>
   <DialogContent
     data-vb-native
-    class="tw:font-sans tw:text-sm tw:text-foreground"
+    class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
   >
     <DialogHeader>
-      <DialogTitle class="tw:font-sans">{vb.t("Nova votação")}</DialogTitle>
+      <DialogTitle class="font-sans">{vb.t("Nova votação")}</DialogTitle>
     </DialogHeader>
     <form
       bind:this={form}
-      class="tw:grid tw:gap-4"
+      class="grid gap-4"
       onsubmit={(event) => {
         event.preventDefault();
         if (allowed(event)) void entry.createPoll();
       }}
     >
-      <Label class="tw:grid tw:gap-2"
+      <Label class="grid gap-2"
         >{vb.t("Pergunta (ex.: Qual cruzeiro?)")}<Input
           required
           maxlength={POLL_QUESTION_LIMIT}
@@ -92,7 +92,7 @@
           }}
         /></Label
       >
-      <div class="tw:grid tw:gap-2">
+      <div class="grid gap-2">
         {#each $draft.poll.options as value, index}<Input
             aria-label={vb.t("Opção {n}", { n: index + 1 })}
             maxlength={POLL_OPTION_LIMIT}
@@ -103,14 +103,14 @@
       </div>
       <Button
         variant="link"
-        class="tw:h-auto tw:justify-self-start tw:px-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+        class="h-auto justify-self-start px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
         disabled={busy || $draft.poll.options.length >= POLL_MAX_OPTIONS}
         onclick={(event) => {
           if (allowed(event))
             entry.editPoll({ options: [...$draft.poll.options, ""] });
         }}>+ {vb.t("opção")}</Button
       >
-      <label class="tw:flex tw:items-center tw:gap-2"
+      <label class="flex items-center gap-2"
         ><Checkbox
           checked={$draft.poll.multi}
           disabled={busy}
@@ -121,7 +121,7 @@
       >
       {#if $draft.pollError}<p
           role="alert"
-          class="tw:m-0 tw:text-sm tw:text-destructive"
+          class="m-0 text-sm text-destructive"
         >
           {$draft.pollError === "poll-invalid"
             ? vb.t("Coloque pelo menos 2 opções.")
@@ -132,7 +132,7 @@
               : $draft.pollError}
         </p>{/if}
       {#if $draft.pollPhase === "unconfirmed"}<p
-          class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+          class="m-0 text-xs text-muted-foreground"
         >
           {vb.t("Confira a votação na sala antes de tentar novamente.")}
         </p>
@@ -142,7 +142,7 @@
             if (allowed(event)) entry.reviewPoll();
           }}>{vb.t("Conferi a sala; manter rascunho")}</Button
         >{/if}
-      <div class="tw:flex tw:justify-end tw:gap-2">
+      <div class="flex justify-end gap-2">
         <Button variant="outline" onclick={() => (open = false)}
           >{vb.t("Cancelar")}</Button
         ><Button

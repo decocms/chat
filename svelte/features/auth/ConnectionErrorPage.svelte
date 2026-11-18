@@ -44,7 +44,7 @@
 </script>
 
 <AuthFrame title={copy[lang].title}>
-  <p role="alert" class="tw:m-0 tw:text-muted-foreground">
+  <p role="alert" class="m-0 text-muted-foreground">
     {copy[lang][failure]}
   </p>
   <a class={buttonVariants()} href={back}>{copy[lang].back}</a>

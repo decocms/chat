@@ -35,16 +35,16 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default"}
     <IconButton label="Copy value" variant="ghost" size="icon-sm">
       <Icon icon={Copy01} />
     </IconButton>
   {:else if story === "row-actions"}
     <div
-      class="tw:flex tw:items-center tw:gap-1 tw:rounded-lg tw:border tw:border-border tw:px-3 tw:py-2"
+      class="flex items-center gap-1 rounded-lg border border-border px-3 py-2"
     >
-      <span class="tw:mr-auto tw:font-mono tw:text-xs">API_BASE_URL</span>
+      <span class="mr-auto font-mono text-xs">API_BASE_URL</span>
       <IconButton label="Edit value">
         <Icon icon={Pencil01} />
       </IconButton>

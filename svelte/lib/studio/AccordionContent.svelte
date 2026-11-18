@@ -17,11 +17,9 @@
   bind:ref
   data-slot="accordion-content"
   {...rest}
-  class="tw:data-[state=closed]:animate-accordion-up tw:data-[state=open]:animate-accordion-down tw:overflow-hidden tw:text-sm tw:[--radix-accordion-content-height:var(--bits-accordion-content-height)]"
+  class="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm [--radix-accordion-content-height:var(--bits-accordion-content-height)]"
 >
-  <div
-    class={cn("tw:text-muted-foreground tw:px-3 tw:pt-1 tw:pb-3", className)}
-  >
+  <div class={cn("text-muted-foreground px-3 pt-1 pb-3", className)}>
     {@render children?.()}
   </div>
 </AccordionPrimitive.Content>

@@ -22,7 +22,7 @@
   aria-label="pagination"
   data-slot="pagination"
   {...rest}
-  class={cn("tw:mx-auto tw:flex tw:w-full tw:justify-center", className)}
+  class={cn("mx-auto flex w-full justify-center", className)}
 >
   {@render children?.()}
 </nav>

@@ -52,21 +52,19 @@
   yesLabel: string,
   answer: ((yes: boolean) => Promise<void>) | undefined,
 )}<li data-request={key}>
-    <div
-      class="tw:flex tw:items-start tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5"
-    >
+    <div class="flex items-start gap-2 rounded-lg px-2 py-1.5">
       <PersonAvatar size="sm" {email} {version} />
-      <div class="tw:min-w-0 tw:flex-1">
-        <p class="tw:m-0 tw:truncate tw:text-sm tw:font-medium">{title}</p>
-        <p class="tw:m-0 tw:truncate tw:text-xs tw:text-muted-foreground">
+      <div class="min-w-0 flex-1">
+        <p class="m-0 truncate text-sm font-medium">{title}</p>
+        <p class="m-0 truncate text-xs text-muted-foreground">
           {meta}
         </p>
         {#if preview}<p
-            class="tw:m-0 tw:mt-0.5 tw:line-clamp-2 tw:text-xs tw:break-words tw:text-foreground"
+            class="m-0 mt-0.5 line-clamp-2 text-xs break-words text-foreground"
           >
             “{preview}”
           </p>{/if}
-        <div class="tw:mt-1.5 tw:flex tw:items-center tw:gap-1">
+        <div class="mt-1.5 flex items-center gap-1">
           <Button
             size="xs"
             disabled={!!busy || !answer}
@@ -83,7 +81,7 @@
         </div>
         {#if failed === key}<p
             role="alert"
-            class="tw:m-0 tw:mt-1 tw:text-xs tw:text-destructive"
+            class="m-0 mt-1 text-xs text-destructive"
           >
             {homeText(lang, "requestFailed")}
           </p>{/if}
@@ -93,7 +91,7 @@
 
 {#if invites.length || requests.length}<section data-requests>
     <SectionHeader level={4} title={homeText(lang, "requests")} />
-    <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
+    <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
       {#each invites as invite (invite.book_id)}{@render row(
           `room:${invite.book_id}`,
           invite.inviter,

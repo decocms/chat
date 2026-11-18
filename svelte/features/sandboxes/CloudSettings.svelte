@@ -44,18 +44,18 @@
   });
 </script>
 
-<div class="tw:flex tw:flex-col tw:gap-4">
+<div class="flex flex-col gap-4">
   <!-- Always shown, even with one room: it names the room these sandboxes listen to. -->
-  {#if rooms.length}<div class="tw:flex tw:flex-col tw:gap-1">
+  {#if rooms.length}<div class="flex flex-col gap-1">
       <Label for="cloud-room">{text("room")}</Label>
       <Select
         items={rooms.map((r) => ({ value: r.id, label: r.title }))}
         bind:value={() => roomId ?? "", (value) => (picked = value)}
       >
-        <SelectTrigger id="cloud-room" data-cloud-room class="tw:w-full">
+        <SelectTrigger id="cloud-room" data-cloud-room class="w-full">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent data-vb-native class="tw:font-sans">
+        <SelectContent data-vb-native class="font-sans">
           {#each rooms as r (r.id)}<SelectItem value={r.id} label={r.title}
               >{r.title}</SelectItem
             >{/each}
@@ -70,9 +70,7 @@
       /><TerminalDialog
         owner={scope.terminal}
         {lang}
-      />{/key}{:else if !rooms.length}<p
-      class="tw:m-0 tw:text-muted-foreground"
-    >
+      />{/key}{:else if !rooms.length}<p class="m-0 text-muted-foreground">
       {text("noRooms")}
     </p>{/if}
 </div>

@@ -8,15 +8,15 @@
 </script>
 
 {#if story === "default"}
-  <div class="tw:grid tw:w-96 tw:gap-2">
+  <div class="grid w-96 gap-2">
     <Label for="api-key">API key</Label>
     <PasswordInput id="api-key" bind:value />
-    <p class="tw:text-sm tw:text-pretty tw:text-muted-foreground">
+    <p class="text-sm text-pretty text-muted-foreground">
       Use the buttons to reveal or copy the token.
     </p>
   </div>
 {:else if story === "empty"}
-  <div class="tw:w-96">
+  <div class="w-96">
     <PasswordInput value="" placeholder="Paste your access token" />
   </div>
 {/if}

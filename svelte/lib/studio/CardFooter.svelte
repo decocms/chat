@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="card-footer"
   {...rest}
-  class={cn("tw:flex tw:items-center tw:gap-2", className)}
+  class={cn("flex items-center gap-2", className)}
 >
   {@render children?.()}
 </div>

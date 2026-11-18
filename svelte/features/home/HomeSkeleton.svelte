@@ -8,24 +8,17 @@
 </script>
 
 {#snippet bars()}<div role="status" aria-label={label}>
-    <Skeleton class="tw:mt-3 tw:h-9 tw:w-80 tw:max-w-[70vw]" />
-    <Skeleton
-      class="tw:mx-auto tw:mt-7 tw:h-12 tw:w-[576px] tw:max-w-[85vw] tw:rounded-full"
-    />
+    <Skeleton class="mt-3 h-9 w-80 max-w-[70vw]" />
+    <Skeleton class="mx-auto mt-7 h-12 w-[576px] max-w-[85vw] rounded-full" />
   </div>{/snippet}
 
 {#if page}<main
     aria-busy="true"
-    class="tw:relative tw:min-h-full tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+    class="relative min-h-full bg-background font-sans text-sm leading-6 text-foreground"
   >
-    <div class="tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:md:px-8">
-      <section
-        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-md:mt-4"
-      >
-        <div
-          aria-hidden="true"
-          class="tw:size-[200px] tw:max-md:size-[112px]"
-        ></div>
+    <div class="flex flex-col items-center px-4 pt-4 md:px-8">
+      <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
+        <div aria-hidden="true" class="size-[200px] max-md:size-[112px]"></div>
         {@render bars()}
       </section>
     </div>

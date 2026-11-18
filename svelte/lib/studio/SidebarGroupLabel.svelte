@@ -18,7 +18,7 @@
   } = $props();
   const classes = $derived(
     cn(
-      "tw:hidden tw:shrink-0 tw:items-center tw:rounded-md tw:px-1 tw:py-1 tw:text-xs tw:font-medium tw:text-sidebar-foreground/70 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:[&>svg]:size-4 tw:[&>svg]:shrink-0",
+      "hidden shrink-0 items-center rounded-md px-1 py-1 text-xs font-medium text-sidebar-foreground/70 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 [&>svg]:size-4 [&>svg]:shrink-0",
       className,
     ),
   );

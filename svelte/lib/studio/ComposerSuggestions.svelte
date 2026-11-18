@@ -22,7 +22,7 @@
   role="listbox"
   {...rest}
   class={cn(
-    "tw:bg-glass tw:backdrop-blur-[32px] tw:shadow-glass-panel tw:flex tw:flex-col tw:rounded-2xl tw:p-1.5",
+    "bg-glass backdrop-blur-[32px] shadow-glass-panel flex flex-col rounded-2xl p-1.5",
     className,
   )}
 >

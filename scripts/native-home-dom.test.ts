@@ -520,7 +520,7 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
     [...root.querySelectorAll("[data-avatar], [data-slot=avatar]")].map((el) =>
       el.getAttribute("data-avatar") === "agent"
         ? ["agent", el.textContent?.trim()]
-        : [el.classList.contains("tw:rounded-full") ? "person" : "", ""],
+        : [el.classList.contains("rounded-full") ? "person" : "", ""],
     );
   const home = document.createElement("div");
   document.body.append(home);
@@ -964,10 +964,10 @@ test("native Home renders untrusted room metadata as text and passes exact room 
     { roomId: "aaaaaa", thread: "main", messageId: undefined },
   ]);
   const heading = target.querySelector("h1")!;
-  expect(heading.classList.contains("tw:font-sans")).toBe(true);
-  expect(
-    heading.classList.contains("tw:[font-variation-settings:normal]"),
-  ).toBe(true);
+  expect(heading.classList.contains("font-sans")).toBe(true);
+  expect(heading.classList.contains("[font-variation-settings:normal]")).toBe(
+    true,
+  );
 });
 test("native Home ask box is the room's chat box: emoji, + menu and dictation that keeps listening", async () => {
   const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {

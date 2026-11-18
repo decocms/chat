@@ -16,7 +16,7 @@
   title={label}
   data-count={value}
   class={cn(
-    "tw:h-[1.125rem] tw:min-w-[1.125rem] tw:bg-brand tw:px-1 tw:leading-none tw:tabular-nums tw:text-brand-foreground",
+    "h-[1.125rem] min-w-[1.125rem] bg-brand px-1 leading-none tabular-nums text-brand-foreground",
     className,
   )}>{value}</Badge
 >

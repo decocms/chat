@@ -21,7 +21,7 @@
   data-slot="skeleton"
   {...rest}
   class={cn(
-    "tw:bg-secondary-hover tw:animate-pulse tw:rounded-md tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1]",
+    "bg-secondary-hover animate-pulse rounded-md motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1]",
     className,
   )}
 >

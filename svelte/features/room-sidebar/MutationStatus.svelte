@@ -9,22 +9,22 @@
 
 {#if $status.phase === "pending"}<p
     role="status"
-    class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+    class="m-0 text-xs text-muted-foreground"
   >
     {t("Aguardando confirmação…")}
   </p>{/if}
 {#if $status.phase === "error"}<p
     role="alert"
-    class="tw:m-0 tw:text-sm tw:text-destructive"
+    class="m-0 text-sm text-destructive"
   >
     {t("Não deu pra enviar agora. Tente de novo.")}
     {$status.error}
   </p>{/if}
 {#if $status.phase === "unconfirmed"}<div
     role="status"
-    class="tw:space-y-2 tw:text-sm tw:text-muted-foreground"
+    class="space-y-2 text-sm text-muted-foreground"
   >
-    <p class="tw:m-0">
+    <p class="m-0">
       {t("Ainda sem confirmação. Confira a sala antes de enviar novamente.")}
     </p>
     <Button

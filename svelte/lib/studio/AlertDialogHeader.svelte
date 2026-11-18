@@ -19,10 +19,7 @@
   bind:this={ref}
   data-slot="alert-dialog-header"
   {...rest}
-  class={cn(
-    "tw:flex tw:flex-col tw:gap-1 tw:text-center tw:md:text-left",
-    className,
-  )}
+  class={cn("flex flex-col gap-1 text-center md:text-left", className)}
 >
   {@render children?.()}
 </div>

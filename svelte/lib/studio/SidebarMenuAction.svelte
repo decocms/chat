@@ -18,7 +18,7 @@
     child?: Snippet<[{ props: Record<string, unknown> }]>;
     children?: Snippet;
   } = $props();
-  const classes = $derived(cn("tw:hidden", className));
+  const classes = $derived(cn("hidden", className));
 </script>
 
 {#if child}

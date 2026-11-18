@@ -27,16 +27,16 @@ if (!load) {
   const layout = module.layouts?.[story] ?? "centered";
   if (layout === "centered") {
     document.body.classList.add(
-      "tw:box-border",
-      "tw:flex",
-      "tw:min-h-screen",
-      "tw:items-center",
-      "tw:justify-center",
-      "tw:p-4",
+      "box-border",
+      "flex",
+      "min-h-screen",
+      "items-center",
+      "justify-center",
+      "p-4",
     );
-    root.classList.add("tw:m-auto", "tw:box-border", "tw:p-4");
+    root.classList.add("m-auto", "box-border", "p-4");
   } else if (layout === "padded") {
-    document.body.classList.add("tw:p-4");
+    document.body.classList.add("p-4");
   }
   mount(module.default, { target: root, props: { story } });
   document.body.dataset.parityReady = "true";

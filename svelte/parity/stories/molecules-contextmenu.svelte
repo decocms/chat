@@ -22,11 +22,11 @@
 {#if story === "default"}
   <ContextMenu>
     <ContextMenuTrigger
-      class="tw:flex tw:h-40 tw:w-80 tw:items-center tw:justify-center tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:text-sm tw:text-muted-foreground"
+      class="flex h-40 w-80 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground"
     >
       Right-click here
     </ContextMenuTrigger>
-    <ContextMenuContent class="tw:w-52">
+    <ContextMenuContent class="w-52">
       <ContextMenuItem>
         Open project
         <ContextMenuShortcut>⌘O</ContextMenuShortcut>
@@ -37,7 +37,7 @@
       </ContextMenuItem>
       <ContextMenuSub>
         <ContextMenuSubTrigger>Share</ContextMenuSubTrigger>
-        <ContextMenuSubContent class="tw:w-44">
+        <ContextMenuSubContent class="w-44">
           <ContextMenuItem>Copy link</ContextMenuItem>
           <ContextMenuItem>Invite teammate</ContextMenuItem>
           <ContextMenuItem>Export as JSON</ContextMenuItem>
@@ -53,11 +53,11 @@
 {:else if story === "with-selection-items"}
   <ContextMenu>
     <ContextMenuTrigger
-      class="tw:flex tw:h-40 tw:w-80 tw:items-center tw:justify-center tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:text-sm tw:text-muted-foreground"
+      class="flex h-40 w-80 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground"
     >
       Right-click for view options
     </ContextMenuTrigger>
-    <ContextMenuContent class="tw:w-52">
+    <ContextMenuContent class="w-52">
       <ContextMenuCheckboxItem bind:checked={pinned}>
         Pin to sidebar
       </ContextMenuCheckboxItem>

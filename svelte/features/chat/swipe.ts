@@ -9,12 +9,12 @@ export function swipeMessage(
   let active = true,
     start: { x: number; y: number; dx: number; locked: boolean } | null = null;
   const classes = [
-    "tw:translate-x-5",
-    "tw:translate-x-10",
-    "tw:translate-x-20",
-    "tw:-translate-x-5",
-    "tw:-translate-x-10",
-    "tw:-translate-x-20",
+    "translate-x-5",
+    "translate-x-10",
+    "translate-x-20",
+    "-translate-x-5",
+    "-translate-x-10",
+    "-translate-x-20",
   ];
   const reset = () => {
     node.classList.remove(...classes);

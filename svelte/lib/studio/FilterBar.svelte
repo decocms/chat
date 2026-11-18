@@ -190,18 +190,16 @@
 </script>
 
 {#snippet header(column: FilterColumn, title: string)}
-  <div class="tw:px-2 tw:py-1.5 tw:flex tw:items-center tw:gap-2">
+  <div class="px-2 py-1.5 flex items-center gap-2">
     <Button
       variant="ghost"
       size="icon"
-      class="tw:h-6 tw:w-6"
+      class="h-6 w-6"
       onclick={() => back(column)}
     >
       <Icon icon={ArrowLeft} size={16} />
     </Button>
-    <p
-      class="tw:text-xs tw:text-pretty tw:text-muted-foreground tw:uppercase tw:font-mono"
-    >
+    <p class="text-xs text-pretty text-muted-foreground uppercase font-mono">
       {title}
     </p>
   </div>
@@ -212,8 +210,8 @@
   {#if renderUserFilter}
     {@render renderUserFilter({ users: availableUsers, onSelect })}
   {:else}
-    <Command class="tw:border-0">
-      <CommandInput placeholder="Search users..." class="tw:h-9" />
+    <Command class="border-0">
+      <CommandInput placeholder="Search users..." class="h-9" />
       <CommandList>
         <CommandEmpty>No users found.</CommandEmpty>
         <CommandGroup>
@@ -222,7 +220,7 @@
               {#if renderUserItem}
                 {@render renderUserItem(user)}
               {:else}
-                <span class="tw:truncate">{user.name ?? user.id}</span>
+                <span class="truncate">{user.name ?? user.id}</span>
               {/if}
             </CommandItem>
           {/each}
@@ -234,10 +232,8 @@
 
 {#snippet dropdownContent()}
   {#if !selectedColumn}
-    <div class="tw:px-2 tw:py-1.5">
-      <p
-        class="tw:text-xs tw:text-pretty tw:text-muted-foreground tw:uppercase tw:font-mono"
-      >
+    <div class="px-2 py-1.5">
+      <p class="text-xs text-pretty text-muted-foreground uppercase font-mono">
         Select to filter
       </p>
     </div>
@@ -254,7 +250,7 @@
       </DropdownMenuItem>
     {/each}
   {:else if selectedOperator && isUserColumn(selectedColumn) && availableUsers.length === 0 && !renderUserFilter}
-    <div class="tw:px-2 tw:py-3 tw:text-sm tw:text-muted-foreground">
+    <div class="px-2 py-3 text-sm text-muted-foreground">
       No users available for filtering.
     </div>
   {:else}
@@ -279,7 +275,7 @@
         </DropdownMenuItem>
       {/each}
     {:else if isTextColumn(column)}
-      <div class="tw:p-2">
+      <div class="p-2">
         <!-- svelte-ignore a11y_autofocus -->
         <Input
           autofocus
@@ -292,11 +288,11 @@
               addFilter(column, operator, filterValue);
             }
           }}
-          class="tw:h-8"
+          class="h-8"
         />
         <Button
           size="sm"
-          class="tw:w-full tw:mt-2"
+          class="w-full mt-2"
           onclick={() => {
             if (filterValue) addFilter(column, operator, filterValue);
           }}
@@ -320,7 +316,7 @@
   {/if}
 {/snippet}
 
-<div class="tw:flex tw:items-center tw:gap-2 tw:flex-wrap">
+<div class="flex items-center gap-2 flex-wrap">
   {#each filters as filter (filter.id)}
     {@const editing = addingFilter && editingFilterId === filter.id}
     {@const userData =
@@ -339,25 +335,25 @@
         {#snippet child({ props })}
           <div
             {...props}
-            class="tw:group tw:flex tw:items-center tw:gap-1 tw:px-3 tw:h-8 tw:bg-accent tw:rounded-lg tw:text-sm tw:cursor-pointer tw:hover:bg-secondary-hover tw:transition-colors"
+            class="group flex items-center gap-1 px-3 h-8 bg-accent rounded-lg text-sm cursor-pointer hover:bg-secondary-hover transition-colors"
             onclick={() => editFilter(filter)}
           >
             {#if userData}
-              <div class="tw:flex tw:items-center tw:gap-2">
+              <div class="flex items-center gap-2">
                 <!-- The colon is its own text node, as in React: one node measures 1/64px narrower. -->
-                <span class="tw:text-muted-foreground"
+                <span class="text-muted-foreground"
                   >{COLUMN_LABELS[filter.column]}{#if true}:{/if}</span
                 >
                 {#if renderUserItem}
                   {@render renderUserItem(userData)}
                 {:else}
-                  <span class="tw:text-foreground">
+                  <span class="text-foreground">
                     {userData.name ?? userData.id}
                   </span>
                 {/if}
               </div>
             {:else}
-              <span class="tw:text-foreground">{getFilterLabel(filter)}</span>
+              <span class="text-foreground">{getFilterLabel(filter)}</span>
             {/if}
             <button
               type="button"
@@ -365,7 +361,7 @@
                 event.stopPropagation();
                 removeFilter(filter.id);
               }}
-              class="tw:flex tw:items-center tw:justify-center tw:w-0 tw:opacity-0 tw:group-hover:w-4 tw:group-hover:opacity-100 tw:text-muted-foreground tw:hover:text-foreground tw:transition-all tw:overflow-hidden tw:cursor-pointer tw:disabled:cursor-not-allowed"
+              class="flex items-center justify-center w-0 opacity-0 group-hover:w-4 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all overflow-hidden cursor-pointer disabled:cursor-not-allowed"
             >
               <Icon icon={X} size={16} />
             </button>
@@ -377,7 +373,7 @@
         <DropdownMenuContent
           bind:ref={contentRef}
           align="start"
-          class="tw:w-64 tw:outline-none"
+          class="w-64 outline-none"
           onOpenAutoFocus={focusPanel}
         >
           {@render dropdownContent()}
@@ -401,7 +397,7 @@
           {...props}
           variant="ghost"
           size="sm"
-          class="tw:h-8 tw:text-muted-foreground tw:hover:text-foreground"
+          class="h-8 text-muted-foreground hover:text-foreground"
         >
           <Icon icon={Plus} size={16} />
           Add filter
@@ -411,7 +407,7 @@
     <DropdownMenuContent
       bind:ref={contentRef}
       align="start"
-      class="tw:w-64 tw:outline-none"
+      class="w-64 outline-none"
       onOpenAutoFocus={focusPanel}
     >
       {@render dropdownContent()}

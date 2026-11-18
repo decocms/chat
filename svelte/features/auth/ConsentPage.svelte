@@ -39,31 +39,31 @@
     ? text("connect", { name: $view.context.client_name })
     : text("consentError")}
 >
-  {#if $view.loading}<p role="status" class="tw:m-0 tw:text-muted-foreground">
+  {#if $view.loading}<p role="status" class="m-0 text-muted-foreground">
       {text("loading")}
     </p>
   {:else if $view.context}
-    <p class="tw:m-0 tw:break-words">
+    <p class="m-0 break-words">
       {text("as", { email: $view.context.email })}
     </p>
-    <ul class="tw:m-0 tw:list-disc tw:space-y-1 tw:pl-5">
+    <ul class="m-0 list-disc space-y-1 pl-5">
       <li>{text("rooms")}</li>
       <li>{text("read")}</li>
       <li>{text("post")}</li>
     </ul>
-    <p class="tw:m-0 tw:text-muted-foreground">{text("cant")}</p>
-    <p class="tw:m-0 tw:break-words tw:text-muted-foreground">
+    <p class="m-0 text-muted-foreground">{text("cant")}</p>
+    <p class="m-0 break-words text-muted-foreground">
       {$view.context.client_domain
         ? text("publisher", { domain: $view.context.client_domain })
         : text("unverified")}
       {text("goes", { host: $view.context.redirect_host })}
     </p>
-    <p class="tw:m-0 tw:break-words tw:text-xs tw:text-muted-foreground">
+    <p class="m-0 break-words text-xs text-muted-foreground">
       {text("scope")}: {$view.context.scope.join(", ")}
     </p>
     {#if $view.context.redirect_is_loopback}<p
         role="note"
-        class="tw:m-0 tw:rounded-control tw:border tw:border-warning tw:bg-warning/10 tw:p-3 tw:text-foreground"
+        class="m-0 rounded-control border border-warning bg-warning/10 p-3 text-foreground"
       >
         {text("local")}
       </p>{/if}
@@ -71,7 +71,7 @@
       method="post"
       action={`/authorize${search}`}
       aria-busy={submitted}
-      class="tw:flex tw:flex-wrap tw:gap-2"
+      class="flex flex-wrap gap-2"
       onsubmit={(event) => {
         if (submitted || leaving) event.preventDefault();
         else submitted = true;
@@ -92,7 +92,7 @@
         aria-disabled={submitted || leaving}>{text("allow")}</Button
       >
     </form>
-    {#if submitted}<p role="status" class="tw:m-0 tw:text-muted-foreground">
+    {#if submitted}<p role="status" class="m-0 text-muted-foreground">
         {text("waiting")}
       </p>{/if}
     <AuthLogoutForm
@@ -103,7 +103,7 @@
         leaving = true;
       }}
     />
-  {:else}<p role="alert" class="tw:m-0 tw:break-words tw:text-destructive">
+  {:else}<p role="alert" class="m-0 break-words text-destructive">
       {authIssue(lang, $view.error)}
     </p>
     {#if $view.signedOut}<a

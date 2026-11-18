@@ -289,17 +289,17 @@
     first.focus();
   }
   const menuItemClass =
-    "tw:relative tw:flex tw:cursor-pointer tw:select-none tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-sm tw:outline-hidden tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
+    "relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-sm outline-hidden data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50";
   const pinState = $derived(session.state);
   const noApp = readable(null);
   const openApp = $derived(activeApp ?? noApp);
   // Row: [kind icon] label / detail [marker]. The marker says what a click does:
   // "external" leaves vibebook in a new tab, the chevron opens inside it.
   const rowClass =
-    "tw:flex tw:h-9 tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:font-sans tw:text-sm tw:text-inherit tw:no-underline tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring";
+    "flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border-0 bg-transparent px-2 font-sans text-sm text-inherit no-underline outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring";
   const kindClass =
-    "tw:inline-grid tw:size-5 tw:shrink-0 tw:place-items-center tw:overflow-hidden tw:rounded-md";
-  const markerClass = "tw:size-3.5 tw:shrink-0 tw:text-muted-foreground";
+    "inline-grid size-5 shrink-0 place-items-center overflow-hidden rounded-md";
+  const markerClass = "size-3.5 shrink-0 text-muted-foreground";
   const rows = $derived(
     (room.pins ?? []).map((pin) => ({ pin, target: resolvePin(pin, room) })),
   );
@@ -412,10 +412,10 @@
 </script>
 
 {#snippet text(label: string, detail: string)}<span
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:items-baseline tw:gap-1.5 tw:text-left"
+    class="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
     data-pin-text
-    ><span class="tw:min-w-0 tw:shrink tw:truncate">{label}</span><span
-      class="tw:min-w-0 tw:flex-1 tw:truncate tw:text-xs tw:font-normal tw:text-muted-foreground"
+    ><span class="min-w-0 shrink truncate">{label}</span><span
+      class="min-w-0 flex-1 truncate text-xs font-normal text-muted-foreground"
       >{detail}</span
     ></span
   >{/snippet}
@@ -423,8 +423,8 @@
 <!-- In the sidebar it gives way to the epics, down to its title and ~3 rows (one row or none: its own height). -->
 <section
   class={cn(
-    "tw:max-h-[20%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
-    rows.length > 1 ? "tw:min-h-32 tw:shrink" : "tw:shrink-0",
+    "max-h-[20%] space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain bg-sidebar font-sans text-sm leading-5 text-sidebar-foreground outline-none",
+    rows.length > 1 ? "min-h-32 shrink" : "shrink-0",
   )}
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
@@ -445,11 +445,11 @@
 
   {#if $pinState.adding}
     <form
-      class="tw:space-y-3 tw:rounded-lg tw:bg-card tw:p-3 tw:shadow-edge"
+      class="space-y-3 rounded-lg bg-card p-3 shadow-edge"
       onsubmit={submit}
       aria-label={t("Fixar um link")}
     >
-      <div class="tw:space-y-1.5">
+      <div class="space-y-1.5">
         <Label for={fieldId}>{t("Link pra fixar")}</Label>
         <Input
           id={fieldId}
@@ -466,7 +466,7 @@
           aria-invalid={$pinState.issue?.kind === "invalid-link" || undefined}
         />
       </div>
-      <div class="tw:space-y-1.5">
+      <div class="space-y-1.5">
         <Label for={`${fieldId}-title`}>{t("Nome (opcional)")}</Label>
         <Input
           id={`${fieldId}-title`}
@@ -478,7 +478,7 @@
           disabled={!live}
         />
       </div>
-      <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -499,7 +499,7 @@
   {#if $pinState.pending}
     <p
       role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="m-0 px-2 font-sans text-xs leading-5 text-muted-foreground"
     >
       {t("Aguardando confirmação…")}
     </p>
@@ -507,7 +507,7 @@
   {#if $pinState.issue?.kind === "already-pinned"}
     <p
       role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="m-0 px-2 font-sans text-xs leading-5 text-muted-foreground"
     >
       {issueTitle($pinState.issue)}
     </p>
@@ -529,7 +529,7 @@
   {#if copyResult === "copied"}
     <p
       role="status"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-muted-foreground"
+      class="m-0 px-2 font-sans text-xs leading-5 text-muted-foreground"
       data-pin-copy="copied"
     >
       {t("Link copiado")}
@@ -537,24 +537,24 @@
   {:else if copyResult === "failed"}
     <p
       role="alert"
-      class="tw:m-0 tw:px-2 tw:font-sans tw:text-xs tw:leading-5 tw:text-destructive"
+      class="m-0 px-2 font-sans text-xs leading-5 text-destructive"
       data-pin-copy="failed"
     >
       {t("Não consegui copiar o link.")}
     </p>
   {/if}
   {#if rows.length}
-    <span id={hintId} class="tw:sr-only">{t("Shift+F10 abre mais ações")}</span>
-    <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
+    <span id={hintId} class="sr-only">{t("Shift+F10 abre mais ações")}</span>
+    <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
       {#each rows as { pin, target } (pin.id)}
         {@const selected =
           target.kind === "app" && samePinApp(target.app, $openApp)}
         <li
           class={cn(
-            "tw:relative tw:flex tw:min-w-0 tw:items-center tw:rounded-lg tw:bg-sidebar tw:transition-colors tw:duration-150 tw:pointer-coarse:select-none tw:[-webkit-touch-callout:none] tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent",
+            "relative flex min-w-0 items-center rounded-lg bg-sidebar transition-colors duration-150 pointer-coarse:select-none [-webkit-touch-callout:none] hover:bg-sidebar-accent focus-within:bg-sidebar-accent",
             selected &&
-              "tw:bg-sidebar-accent tw:font-medium tw:text-sidebar-accent-foreground",
-            menuPin === pin.id && "tw:bg-sidebar-accent",
+              "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+            menuPin === pin.id && "bg-sidebar-accent",
           )}
           data-pin-id={pin.id}
           data-pin-kind={target.kind === "file-unloaded" ? "file" : target.kind}
@@ -599,12 +599,12 @@
                       ><Icon
                         icon={target.github ? GitBranch01 : Globe02}
                         size={16}
-                        class="tw:text-muted-foreground"
+                        class="text-muted-foreground"
                       /></span
                     >{@render text(target.label, target.detail)}<Icon
                       icon={LinkExternal01}
                       class={markerClass}
-                    /><span class="tw:sr-only">{t("abre em nova aba")}</span>
+                    /><span class="sr-only">{t("abre em nova aba")}</span>
                   </a>
                 {:else if target.kind === "live"}
                   <Button
@@ -612,7 +612,7 @@
                     variant="ghost"
                     class={cn(
                       rowClass,
-                      "tw:justify-start tw:font-normal tw:hover:bg-transparent",
+                      "justify-start font-normal hover:bg-transparent",
                     )}
                     disabled={!live}
                     aria-pressed={liveOpen === pin.id}
@@ -621,12 +621,12 @@
                     }}
                   >
                     <span
-                      class={cn(kindClass, "tw:bg-warning/15")}
+                      class={cn(kindClass, "bg-warning/15")}
                       data-pin-icon="live"
                       ><Icon
                         icon={Globe02}
                         size={16}
-                        class="tw:text-warning"
+                        class="text-warning"
                       /></span
                     >{@render text(
                       target.label,
@@ -639,7 +639,7 @@
                     variant="ghost"
                     class={cn(
                       rowClass,
-                      "tw:justify-start tw:font-normal tw:hover:bg-transparent",
+                      "justify-start font-normal hover:bg-transparent",
                     )}
                     disabled={!live}
                     aria-current={selected ? "true" : undefined}
@@ -650,7 +650,7 @@
                     {#if target.kind === "app"}<span
                         class={cn(
                           kindClass,
-                          "tw:text-[0.625rem] tw:font-semibold tw:leading-none",
+                          "text-[0.625rem] font-semibold leading-none",
                           pinAppTint(target.app),
                         )}
                         data-pin-icon="tile"
@@ -659,7 +659,7 @@
                         ><Icon
                           icon={File02}
                           size={16}
-                          class="tw:text-muted-foreground"
+                          class="text-muted-foreground"
                         /></span
                       >{/if}{@render text(
                       target.label,
@@ -678,7 +678,7 @@
                   <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
                   <div
                     {...trigger}
-                    class={cn(rowClass, "tw:text-muted-foreground")}
+                    class={cn(rowClass, "text-muted-foreground")}
                   >
                     <span class={kindClass}
                       ><Icon icon={AlertTriangle} size={16} /></span
@@ -698,7 +698,7 @@
                 onInteractOutside={dismissedByRow}
                 class={cn(
                   studioType,
-                  "tw:z-50 tw:m-0 tw:box-border tw:min-w-44 tw:max-w-[calc(100vw-16px)] tw:rounded-lg tw:border tw:border-solid tw:border-border tw:bg-popover tw:p-1 tw:text-sm tw:text-popover-foreground tw:shadow-md tw:outline-none",
+                  "z-50 m-0 box-border min-w-44 max-w-[calc(100vw-16px)] rounded-lg border border-solid border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none",
                 )}
               >
                 {#if target.kind === "link"}
@@ -721,14 +721,12 @@
                   >
                 {/if}
                 {#if target.kind !== "unavailable"}
-                  <ContextMenu.Separator
-                    class="tw:-mx-1 tw:my-1 tw:h-px tw:bg-border"
-                  />
+                  <ContextMenu.Separator class="-mx-1 my-1 h-px bg-border" />
                 {/if}
                 <ContextMenu.Item
                   class={cn(
                     menuItemClass,
-                    "tw:text-destructive tw:data-highlighted:bg-destructive/10 tw:data-highlighted:text-destructive",
+                    "text-destructive data-highlighted:bg-destructive/10 data-highlighted:text-destructive",
                   )}
                   data-pin-unpin
                   disabled={!!$pinState.pending}
@@ -745,15 +743,14 @@
     <button
       type="button"
       data-pin-empty
-      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
+      class="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid disabled:cursor-not-allowed disabled:opacity-50"
       disabled={!live}
       onclick={open}
     >
-      <span
-        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+      <span class="flex size-5 shrink-0 items-center justify-center"
         ><Icon icon={Pin02} size={16} /></span
       >
-      <span class="tw:min-w-0 tw:truncate">{t("Fixar site, repo ou app")}</span>
+      <span class="min-w-0 truncate">{t("Fixar site, repo ou app")}</span>
     </button>
   {/if}
 </section>

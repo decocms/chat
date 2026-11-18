@@ -19,7 +19,7 @@
   bind:ref
   data-slot="radio-group"
   {...rest}
-  class={cn("tw:grid tw:gap-3", className)}
+  class={cn("grid gap-3", className)}
 >
   {@render children?.()}
 </RadioGroupPrimitive.Root>

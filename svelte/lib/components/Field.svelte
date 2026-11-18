@@ -21,9 +21,7 @@
   );
 </script>
 
-<div
-  class="tw:grid tw:grid-cols-1 tw:gap-1.5 tw:font-sans tw:text-sm tw:text-foreground"
->
+<div class="grid grid-cols-1 gap-1.5 font-sans text-sm text-foreground">
   <Label for={id}>{label}</Label>
   {@render children({
     id,
@@ -34,8 +32,8 @@
       id={descriptionId}
       role={error ? "alert" : undefined}
       class={error
-        ? "tw:m-0 tw:text-xs tw:font-medium tw:leading-4 tw:text-foreground"
-        : "tw:m-0 tw:text-xs tw:leading-4 tw:text-muted-foreground"}
+        ? "m-0 text-xs font-medium leading-4 text-foreground"
+        : "m-0 text-xs leading-4 text-muted-foreground"}
     >
       {error || hint}
     </p>{/if}

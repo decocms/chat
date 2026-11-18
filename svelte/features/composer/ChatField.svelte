@@ -132,7 +132,7 @@
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
   const FIELD_TYPE =
-    "tw:px-1.5 tw:py-1.5 tw:text-[15px] tw:pointer-coarse:text-[16px] tw:leading-5 tw:[scrollbar-gutter:stable]";
+    "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 [scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
     if (
       !mention ||
@@ -383,7 +383,7 @@
   data-chat-box
   data-native-composer-field
   aria-busy={busy || pending || undefined}
-  class="tw:flex tw:items-end tw:gap-0.5 tw:font-sans tw:text-sm tw:text-foreground tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:py-3 tw:pr-3 tw:pl-2 tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] tw:transition-shadow tw:duration-150 tw:ease-[var(--vb-ease-out-cubic)] tw:focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
+  class="flex items-end gap-0.5 font-sans text-sm text-foreground rounded-[22px] bg-[var(--vb-studio-input-background)] py-3 pr-3 pl-2 shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d] transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
   onsubmit={(event) => {
     event.preventDefault();
     void submit();
@@ -392,7 +392,7 @@
   <IconButton
     label={t("Emoji")}
     size="icon"
-    class="tw:text-muted-foreground tw:hover:text-foreground"
+    class="text-muted-foreground hover:text-foreground"
     disabled={off}
     onclick={() => {
       if (!ok()) return;
@@ -401,11 +401,11 @@
       emoji = true;
     }}><Icon icon={FaceSmile} size={16} /></IconButton
   >
-  <div class="tw:relative">
+  <div class="relative">
     <IconButton
       label={t("Mais opções")}
       size="icon"
-      class="tw:text-muted-foreground tw:hover:text-foreground tw:aria-expanded:bg-accent tw:aria-expanded:text-foreground"
+      class="text-muted-foreground hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground"
       bind:ref={more}
       data-composer-more
       aria-haspopup="menu"
@@ -430,25 +430,25 @@
         bind:this={menuNode}
         role="menu"
         tabindex="-1"
-        class="tw:absolute tw:bottom-full tw:left-0 tw:z-20 tw:mb-2 tw:grid tw:min-w-56 tw:gap-0.5 tw:rounded-xl tw:bg-popover tw:p-1 tw:text-popover-foreground tw:shadow-edge-raised"
+        class="absolute bottom-full left-0 z-20 mb-2 grid min-w-56 gap-0.5 rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised"
         onkeydown={menuKeydown}
       >
         {@render menu(closeMenu, more)}
       </div>{/if}
   </div>
-  {#if label}<label for={id} class="tw:sr-only">{label}</label>{/if}
-  <div class="tw:relative tw:flex tw:min-w-0 tw:flex-1">
+  {#if label}<label for={id} class="sr-only">{label}</label>{/if}
+  <div class="relative flex min-w-0 flex-1">
     {#if mention}<div
         bind:this={mirror}
         aria-hidden="true"
         data-mention-mirror
         class={cn(
-          "tw:pointer-events-none tw:absolute tw:inset-0 tw:overflow-hidden tw:break-words tw:whitespace-pre-wrap tw:text-transparent",
+          "pointer-events-none absolute inset-0 overflow-hidden break-words whitespace-pre-wrap text-transparent",
           FIELD_TYPE,
         )}
       >
         {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
-                class="tw:rounded-sm tw:bg-primary/15 tw:text-transparent tw:ring-2 tw:ring-primary/15"
+                class="rounded-sm bg-primary/15 text-transparent ring-2 ring-primary/15"
                 >{segment.text}</mark
               >{:else}{segment.text}{/if}{/each}{/if}{"\u200b"}
       </div>{/if}
@@ -462,9 +462,9 @@
       {...inputProps}
       disabled={off}
       class={cn(
-        "tw:relative tw:block tw:max-h-40 tw:min-h-8 tw:min-w-0 tw:flex-1 tw:resize-none tw:rounded-lg tw:bg-transparent tw:shadow-none tw:[field-sizing:content] tw:hover:bg-transparent tw:focus-visible:outline-none",
+        "relative block max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-lg bg-transparent shadow-none [field-sizing:content] hover:bg-transparent focus-visible:outline-none",
         FIELD_TYPE,
-        dictating && "tw:ring-2 tw:ring-destructive",
+        dictating && "ring-2 ring-destructive",
       )}
       onscroll={() => {
         if (mirror && textarea) mirror.scrollTop = textarea.scrollTop;
@@ -493,7 +493,7 @@
       }}
     />
     {#if inside && !value && !off}<div
-        class="tw:absolute tw:top-1/2 tw:right-1 tw:-translate-y-1/2"
+        class="absolute top-1/2 right-1 -translate-y-1/2"
       >
         {@render inside()}
       </div>{/if}
@@ -506,8 +506,8 @@
       title={t("Toque pra ditar (ou segure espaço na caixa)")}
       aria-pressed={dictating}
       class={dictating
-        ? "tw:bg-destructive tw:text-destructive-foreground tw:hover:bg-destructive/85 tw:hover:text-destructive-foreground"
-        : "tw:text-muted-foreground tw:hover:text-foreground"}
+        ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
+        : "text-muted-foreground hover:text-foreground"}
       disabled={off || busy || refining}
       onpointerdown={(event) => {
         if (ok()) event.preventDefault();
@@ -530,7 +530,7 @@
     label={t("Enviar")}
     data-composer-send
     aria-busy={pending || undefined}
-    class="tw:rounded-full"
+    class="rounded-full"
     disabled={off || busy || sendDisabled}
     onmousedown={(event) => event.preventDefault()}
     ontouchend={(event) => {

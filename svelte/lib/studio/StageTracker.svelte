@@ -35,20 +35,20 @@
 {#snippet content(label: string, index: number)}
   {@const state = stageStateAt(index, current)}
   {#if variant === "numbered"}
-    <span class="tw:flex tw:items-center tw:gap-2">
+    <span class="flex items-center gap-2">
       <span class={stageNumberVariants({ state })}>
         {#if state === "done"}
-          <Icon icon={Check} class="tw:size-3.5" />
+          <Icon icon={Check} class="size-3.5" />
         {:else}
           {index + 1}
         {/if}
       </span>
       <span
         class={cn(
-          "tw:text-sm tw:whitespace-nowrap",
+          "text-sm whitespace-nowrap",
           state === "upcoming"
-            ? "tw:text-muted-foreground"
-            : "tw:text-foreground tw:font-medium",
+            ? "text-muted-foreground"
+            : "text-foreground font-medium",
         )}>{label}</span
       >
     </span>
@@ -62,23 +62,23 @@
   data-slot="stage-tracker"
   data-variant={variant}
   {...rest}
-  class={cn("tw:flex tw:items-center tw:gap-2 tw:leading-[1.5]", className)}
+  class={cn("flex items-center gap-2 leading-[1.5]", className)}
 >
   {#each stages as label, index (label)}
     {@const clickable =
       onStageClick !== undefined &&
       index !== current &&
       (index < current || (visited?.has(index) ?? false))}
-    <li class="tw:flex tw:items-center tw:gap-2">
+    <li class="flex items-center gap-2">
       {#if index > 0}
         <span
           aria-hidden="true"
           class={cn(
-            "tw:h-px",
-            variant === "numbered" ? "tw:mx-1 tw:w-8" : "tw:w-6",
+            "h-px",
+            variant === "numbered" ? "mx-1 w-8" : "w-6",
             variant === "numbered" && index <= current
-              ? "tw:bg-foreground"
-              : "tw:bg-border",
+              ? "bg-foreground"
+              : "bg-border",
           )}
         ></span>
       {/if}
@@ -86,7 +86,7 @@
         <button
           type="button"
           onclick={() => onStageClick?.(index)}
-          class="tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:cursor-pointer tw:rounded-full tw:transition-opacity tw:hover:opacity-70 tw:disabled:cursor-not-allowed"
+          class="focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 cursor-pointer rounded-full transition-opacity hover:opacity-70 disabled:cursor-not-allowed"
         >
           {@render content(label, index)}
         </button>

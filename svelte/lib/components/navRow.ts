@@ -8,14 +8,14 @@ import { tv, type VariantProps } from "tailwind-variants";
  * the state lives in the markup, not in a class.
  */
 export const navRow = tv({
-  base: "tw:flex tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:border-0 tw:bg-transparent tw:text-left tw:font-sans tw:no-underline tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring",
+  base: "flex w-full min-w-0 cursor-pointer items-center border-0 bg-transparent text-left font-sans no-underline outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
   variants: {
     variant: {
       sidebar:
-        "tw:min-h-9 tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1 tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:aria-[current=true]:bg-sidebar-accent tw:aria-[current=true]:font-medium tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium",
-      list: "tw:min-h-12 tw:gap-3 tw:rounded-control tw:px-2 tw:text-foreground tw:hover:bg-accent tw:aria-[current=page]:bg-accent tw:aria-[current=true]:bg-accent",
+        "min-h-9 gap-2 rounded-lg px-2 py-1 text-sm text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=true]:bg-sidebar-accent aria-[current=true]:font-medium aria-pressed:bg-sidebar-accent aria-pressed:font-medium",
+      list: "min-h-12 gap-3 rounded-control px-2 text-foreground hover:bg-accent aria-[current=page]:bg-accent aria-[current=true]:bg-accent",
     },
-    faded: { true: "tw:text-muted-foreground" },
+    faded: { true: "text-muted-foreground" },
   },
   defaultVariants: { variant: "sidebar" },
 });

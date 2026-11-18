@@ -32,19 +32,16 @@
   bind:this={ref}
   data-slot="composer-recording"
   {...rest}
-  class={cn("tw:flex tw:items-center tw:gap-2 tw:p-2 tw:pl-4", className)}
+  class={cn("flex items-center gap-2 p-2 pl-4", className)}
 >
   <span
-    class="tw:bg-destructive tw:size-2 tw:shrink-0 tw:animate-pulse tw:rounded-full tw:motion-reduce:animate-none"
+    class="bg-destructive size-2 shrink-0 animate-pulse rounded-full motion-reduce:animate-none"
   ></span>
-  <div
-    aria-hidden="true"
-    class="tw:flex tw:h-6 tw:flex-1 tw:items-center tw:gap-[3px]"
-  >
+  <div aria-hidden="true" class="flex h-6 flex-1 items-center gap-[3px]">
     {#each levels as level, index (index)}
       <span
         class={cn(
-          "tw:bg-foreground/70 tw:w-[3px] tw:rounded-full tw:transition-[height] tw:duration-100",
+          "bg-foreground/70 w-[3px] rounded-full transition-[height] duration-100",
           composerLevelHeight(level),
         )}
       ></span>

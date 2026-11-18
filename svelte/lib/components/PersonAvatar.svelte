@@ -31,7 +31,7 @@
 </script>
 
 {#snippet generated()}
-  <svg viewBox="0 0 36 36" fill="none" aria-hidden="true" class="tw:size-full">
+  <svg viewBox="0 0 36 36" fill="none" aria-hidden="true" class="size-full">
     <rect width="36" height="36" fill={face.background} />
     <rect
       width="36"

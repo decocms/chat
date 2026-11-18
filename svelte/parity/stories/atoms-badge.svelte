@@ -25,11 +25,11 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default"}
     <Badge variant="default" size="default">Active</Badge>
   {:else if story === "variants"}
-    <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <Badge>Default</Badge>
       <Badge variant="success">On track</Badge>
       <Badge variant="warning">Behind</Badge>
@@ -40,9 +40,9 @@
       <Badge variant="outline">Checkout</Badge>
     </div>
   {:else if story === "sizes"}
-    <div class="tw:flex tw:flex-col tw:gap-2">
+    <div class="flex flex-col gap-2">
       {#each SIZES as size (size)}
-        <div class="tw:flex tw:items-center tw:gap-2">
+        <div class="flex items-center gap-2">
           <Badge {size}>14</Badge>
           <Badge {size} variant="success"><BadgeDot /> Working</Badge>
           <Badge {size} variant="warning"><BadgeDot /> Behind</Badge>
@@ -51,17 +51,17 @@
       {/each}
     </div>
   {:else if story === "with-icon"}
-    <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <Badge variant="success"><Icon icon={CheckCircle} /> Verified</Badge>
       <Badge size="icon" aria-label="Add tag"><Icon icon={Plus} /></Badge>
     </div>
   {:else if story === "status-row"}
-    <div class="tw:flex tw:items-center tw:gap-3 tw:text-sm">
-      <span class="tw:text-foreground">production-db</span>
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-foreground">production-db</span>
       <Badge variant="success">Healthy</Badge>
-      <span class="tw:text-foreground">staging-db</span>
+      <span class="text-foreground">staging-db</span>
       <Badge variant="warning">Degraded</Badge>
-      <span class="tw:text-foreground">legacy-api</span>
+      <span class="text-foreground">legacy-api</span>
       <Badge variant="destructive">Offline</Badge>
     </div>
   {:else if story === "tones"}

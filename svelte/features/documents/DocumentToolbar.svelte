@@ -73,7 +73,7 @@
   // inbox's, instead of beside it. Only Reminders (and the board's lime "waiting on
   // you") keeps a count; how many files, apps or decisions there are is noise.
   const corner =
-    "tw:pointer-events-none tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]";
+    "pointer-events-none absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]";
   const short = (value: number | string) =>
     typeof value === "number" && value > 99 ? "99+" : value;
   const docCount = $derived(
@@ -136,12 +136,12 @@
 <div
   data-vb-native
   class={cn(
-    "tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:font-sans tw:text-foreground",
+    "flex min-w-0 items-center gap-2 font-sans text-foreground",
     bare
       ? ""
       : compact
-        ? "tw:border-b tw:border-border tw:bg-background tw:p-2"
-        : "tw:h-[52px] tw:border-b tw:border-border tw:px-2",
+        ? "border-b border-border bg-background p-2"
+        : "h-[52px] border-b border-border px-2",
   )}
 >
   <div
@@ -149,9 +149,9 @@
     aria-label={en ? "Room panels" : "Painéis da sala"}
     onkeydown={key}
     class={cn(
-      "tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-0.5 tw:overflow-x-auto tw:[scrollbar-width:none]",
+      "flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]",
       // overflow-x clips vertically too: room for the corner badges (-top-1, -right-1).
-      bare && "tw:-my-1.5 tw:py-1.5 tw:pr-1.5",
+      bare && "-my-1.5 py-1.5 pr-1.5",
     )}
   >
     {#each items as item (item.id)}
@@ -178,10 +178,10 @@
                   ? item.label
                   : undefined}
               class={cn(
-                "tw:relative tw:shrink-0 tw:gap-1.5 tw:text-muted-foreground tw:hover:text-foreground",
-                labelled ? "tw:px-2.5" : "tw:px-2",
-                selected && "tw:bg-accent tw:text-foreground",
-                labelled && compact && "tw:flex-1 tw:justify-start",
+                "relative shrink-0 gap-1.5 text-muted-foreground hover:text-foreground",
+                labelled ? "px-2.5" : "px-2",
+                selected && "bg-accent text-foreground",
+                labelled && compact && "flex-1 justify-start",
               )}
               onclick={(event: MouseEvent) => choose(event, item.id)}
               >{#if item.id === "agents"}<AgentMark
@@ -192,7 +192,7 @@
                 />{:else}<Icon
                   icon={paneIcons[item.id]}
                   size={16}
-                />{/if}{#if labelled}<span class="tw:max-w-40 tw:truncate"
+                />{/if}{#if labelled}<span class="max-w-40 truncate"
                   >{item.label}</span
                 >{/if}{#if item.id === "agents"}{:else if item.id === "board" && typeof count === "number" && count}<Count
                   value={count}
@@ -202,12 +202,12 @@
                   class={bare ? corner : undefined}
                 />{:else if count && (item.id === "reminders" || item.id === "doc")}<span
                   class={cn(
-                    "tw:min-w-[1.125rem] tw:rounded-full tw:bg-muted tw:px-1 tw:text-center tw:text-xs tw:leading-[1.125rem] tw:text-muted-foreground tw:tabular-nums",
+                    "min-w-[1.125rem] rounded-full bg-muted px-1 text-center text-xs leading-[1.125rem] text-muted-foreground tabular-nums",
                     // Same pill as the inbox's count; gray (lime is only for what waits on you).
                     bare &&
                       [
                         corner,
-                        "tw:h-[1.125rem] tw:bg-muted-foreground tw:font-medium tw:leading-[1.125rem] tw:text-background",
+                        "h-[1.125rem] bg-muted-foreground font-medium leading-[1.125rem] text-background",
                       ].join(" "),
                   )}>{bare ? short(count) : count}</span
                 >{/if}</Button

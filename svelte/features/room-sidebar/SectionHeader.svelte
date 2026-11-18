@@ -22,17 +22,17 @@
 <!-- A section's title stays put while its own list scrolls under it. -->
 <div
   class={[
-    "tw:flex tw:h-7 tw:items-center tw:justify-between tw:gap-2 tw:pr-0.5 tw:pl-2",
-    level === 3 && "tw:sticky tw:top-0 tw:z-10 tw:bg-sidebar",
+    "flex h-7 items-center justify-between gap-2 pr-0.5 pl-2",
+    level === 3 && "sticky top-0 z-10 bg-sidebar",
   ]}
   data-section-header
 >
   <svelte:element
     this={`h${level}`}
-    class="tw:m-0 tw:min-w-0 tw:truncate tw:font-sans tw:text-xs tw:leading-4 tw:font-medium tw:tracking-normal tw:text-muted-foreground"
+    class="m-0 min-w-0 truncate font-sans text-xs leading-4 font-medium tracking-normal text-muted-foreground"
     ><span {id}>{title}</span></svelte:element
   >
-  {#if action}<div class="tw:flex tw:shrink-0 tw:items-center tw:gap-1">
+  {#if action}<div class="flex shrink-0 items-center gap-1">
       {@render action()}
     </div>{/if}
 </div>

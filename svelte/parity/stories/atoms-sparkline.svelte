@@ -5,7 +5,7 @@
 </script>
 
 <!-- Studio's page sets line-height 1.5, which sizes the line an inline sparkline sits on. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "playground"}
     <Sparkline values={[10, 11, 10, 12, 12, 12, 12, 13, 14, 14]} />
   {:else if story === "falling"}

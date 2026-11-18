@@ -41,28 +41,28 @@
   value={scope}
   onValueChange={(value) => (scope = value === "all" ? "all" : "room")}
   data-vb-native="room-strip"
-  class="tw:shrink-0 tw:gap-0 tw:font-sans tw:md:hidden"
+  class="shrink-0 gap-0 font-sans md:hidden"
 >
   <TabsList
     variant="underline"
     aria-label={homeText(lang, "switchRoom")}
-    class="tw:h-10 tw:w-full"
+    class="h-10 w-full"
   >
-    <TabsTrigger value="room" data-room-scope="room" class="tw:flex-1"
+    <TabsTrigger value="room" data-room-scope="room" class="flex-1"
       >{thisRoom}</TabsTrigger
     >
-    <TabsTrigger value="all" data-room-scope="all" class="tw:flex-1"
+    <TabsTrigger value="all" data-room-scope="all" class="flex-1"
       >{allRooms}{#if fresh}<span
           role="img"
           aria-label={homeText(lang, "unreadRooms", { n: fresh })}
-          class="tw:size-1.5 tw:rounded-full tw:bg-destructive"
+          class="size-1.5 rounded-full bg-destructive"
         ></span>{/if}</TabsTrigger
     >
   </TabsList>
 </Tabs>
 {#if scope === "all" && $personal.me}<div
     data-room-scope-panel="all"
-    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:md:hidden"
+    class="flex min-h-0 flex-1 flex-col md:hidden"
   >
     <RoomList
       rooms={roomsOnly($personal.me.books)}
@@ -78,7 +78,7 @@
   </div>{/if}
 <div
   data-room-scope-panel="room"
-  class={cn("tw:contents", scope === "all" && "tw:max-md:hidden")}
+  class={cn("contents", scope === "all" && "max-md:hidden")}
 >
   {@render children()}
 </div>

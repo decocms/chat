@@ -63,20 +63,20 @@
     type="submit"
     aria-busy={phase === "pending" || undefined}
     disabled={phase === "pending" || (phase === "idle" && blocked)}
-    class="tw:h-auto tw:whitespace-normal tw:p-0 tw:text-left"
+    class="h-auto whitespace-normal p-0 text-left"
     >{#if phase === "pending"}<Spinner size="xs" />{/if}{text(
       phase === "unconfirmed" ? "continueLogout" : "other",
     )}</Button
   >
   {#if phase === "unconfirmed"}<p
       role="alert"
-      class="tw:m-0 tw:break-words tw:text-destructive"
+      class="m-0 break-words text-destructive"
     >
       {text("logoutCleanup")}
     </p>
     <a
       href={next}
-      class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+      class="text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
       >{text("reviewAgain")}</a
     >{/if}
 </form>

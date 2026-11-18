@@ -24,7 +24,7 @@
   aria-hidden="true"
   {...rest}
   class={cn(
-    "tw:[&>svg]:size-3.5 tw:text-muted-foreground tw:opacity-50 tw:list-none tw:shrink-0",
+    "[&>svg]:size-3.5 text-muted-foreground opacity-50 list-none shrink-0",
     className,
   )}
 >

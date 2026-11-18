@@ -33,10 +33,10 @@
       if (!event.defaultPrevented) selectTextOnAutoFocus(ref);
     }}
     class={cn(
-      "tw:text-popover-foreground tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:data-[state=closed]:[--tw-exit-opacity:0] tw:data-[state=open]:[--tw-enter-opacity:0] tw:data-[state=closed]:[--tw-exit-scale:.95] tw:data-[state=open]:[--tw-enter-scale:.95] tw:data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] tw:data-[side=left]:[--tw-enter-translate-x:0.5rem] tw:data-[side=right]:[--tw-enter-translate-x:-0.5rem] tw:data-[side=top]:[--tw-enter-translate-y:0.5rem] tw:z-50 tw:w-72 tw:origin-(--bits-popover-content-transform-origin) tw:rounded-[var(--vb-studio-surface-radius,0.625rem)] tw:overflow-hidden tw:outline-hidden",
+      "text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-exit-opacity:0] data-[state=open]:[--tw-enter-opacity:0] data-[state=closed]:[--tw-exit-scale:.95] data-[state=open]:[--tw-enter-scale:.95] data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] data-[side=left]:[--tw-enter-translate-x:0.5rem] data-[side=right]:[--tw-enter-translate-x:-0.5rem] data-[side=top]:[--tw-enter-translate-y:0.5rem] z-50 w-72 origin-(--bits-popover-content-transform-origin) rounded-[var(--vb-studio-surface-radius,0.625rem)] overflow-hidden outline-hidden",
       variant === "glass"
-        ? "tw:bg-glass tw:backdrop-blur-[32px] tw:shadow-glass-panel tw:rounded-[0.875rem] tw:px-3.5 tw:py-3"
-        : "tw:bg-popover tw:border-border tw:border tw:p-4 tw:shadow-md",
+        ? "bg-glass backdrop-blur-[32px] shadow-glass-panel rounded-[0.875rem] px-3.5 py-3"
+        : "bg-popover border-border border p-4 shadow-md",
       className,
     )}
     {...rest}

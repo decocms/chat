@@ -3,22 +3,22 @@ import { tv, type VariantProps } from "tailwind-variants";
 /** Ported 1:1 from @decocms/ui `avatar.tsx`. `solid` is for people and for marks that sit alone, like an org in the rail. */
 export const AVATAR_COLORS = {
   tint: [
-    "tw:bg-brand-lime-tint tw:text-brand-green-dark tw:dark:bg-brand/20 tw:dark:text-brand",
-    "tw:bg-brand-purple-tint tw:text-brand-purple-dark tw:dark:bg-brand-purple/20 tw:dark:text-brand-purple",
-    "tw:bg-brand-yellow-tint tw:text-brand-yellow-dark tw:dark:bg-brand-yellow/20 tw:dark:text-brand-yellow",
-    "tw:bg-brand-blue-tint tw:text-brand-blue-dark tw:dark:bg-brand-blue/20 tw:dark:text-brand-blue",
+    "bg-brand-lime-tint text-brand-green-dark dark:bg-brand/20 dark:text-brand",
+    "bg-brand-purple-tint text-brand-purple-dark dark:bg-brand-purple/20 dark:text-brand-purple",
+    "bg-brand-yellow-tint text-brand-yellow-dark dark:bg-brand-yellow/20 dark:text-brand-yellow",
+    "bg-brand-blue-tint text-brand-blue-dark dark:bg-brand-blue/20 dark:text-brand-blue",
   ],
   solid: [
-    "tw:bg-brand tw:text-brand-green-dark",
-    "tw:bg-brand-purple tw:text-brand-purple-dark",
-    "tw:bg-brand-yellow tw:text-brand-yellow-dark",
-    "tw:bg-brand-blue tw:text-brand-blue-dark",
+    "bg-brand text-brand-green-dark",
+    "bg-brand-purple text-brand-purple-dark",
+    "bg-brand-yellow text-brand-yellow-dark",
+    "bg-brand-blue text-brand-blue-dark",
   ],
 } as const;
 
 export type AvatarTone = keyof typeof AVATAR_COLORS;
 
-export const MUTED_COLOR = "tw:bg-muted tw:text-muted-foreground";
+export const MUTED_COLOR = "bg-muted text-muted-foreground";
 
 export function getColorFromString(input: string, tone: AvatarTone): string {
   let hash = 0;
@@ -40,36 +40,36 @@ export function getInitials(name: string): string {
 /** Initials at ~40% of the tile; a square's radius is ~30% of its side, as the org rail's. */
 export const avatarVariants = tv(
   {
-    base: "tw:font-medium",
+    base: "font-medium",
     variants: {
       shape: {
-        circle: "tw:rounded-full",
+        circle: "rounded-full",
         square: "",
       },
       size: {
-        "3xs": "tw:size-3 tw:text-[0.4375rem]",
-        "2xs": "tw:size-4 tw:text-[0.5625rem]",
-        xs: "tw:size-6 tw:text-[0.625rem]",
-        sm: "tw:size-8 tw:text-xs",
-        md: "tw:size-9 tw:text-sm",
-        base: "tw:size-10 tw:text-sm",
-        lg: "tw:size-12 tw:text-lg",
-        xl: "tw:size-16 tw:text-2xl",
-        "2xl": "tw:size-20 tw:text-3xl",
-        "3xl": "tw:size-32 tw:text-5xl",
+        "3xs": "size-3 text-[0.4375rem]",
+        "2xs": "size-4 text-[0.5625rem]",
+        xs: "size-6 text-[0.625rem]",
+        sm: "size-8 text-xs",
+        md: "size-9 text-sm",
+        base: "size-10 text-sm",
+        lg: "size-12 text-lg",
+        xl: "size-16 text-2xl",
+        "2xl": "size-20 text-3xl",
+        "3xl": "size-32 text-5xl",
       },
     },
     compoundVariants: [
-      { shape: "square", size: "3xs", class: "tw:rounded-[0.1875rem]" },
-      { shape: "square", size: "2xs", class: "tw:rounded-sm" },
-      { shape: "square", size: "xs", class: "tw:rounded-lg" },
-      { shape: "square", size: "sm", class: "tw:rounded-[0.625rem]" },
-      { shape: "square", size: "md", class: "tw:rounded-[0.6875rem]" },
-      { shape: "square", size: "base", class: "tw:rounded-xl" },
-      { shape: "square", size: "lg", class: "tw:rounded-[0.875rem]" },
-      { shape: "square", size: "xl", class: "tw:rounded-[1.125rem]" },
-      { shape: "square", size: "2xl", class: "tw:rounded-[1.375rem]" },
-      { shape: "square", size: "3xl", class: "tw:rounded-[2.25rem]" },
+      { shape: "square", size: "3xs", class: "rounded-[0.1875rem]" },
+      { shape: "square", size: "2xs", class: "rounded-sm" },
+      { shape: "square", size: "xs", class: "rounded-lg" },
+      { shape: "square", size: "sm", class: "rounded-[0.625rem]" },
+      { shape: "square", size: "md", class: "rounded-[0.6875rem]" },
+      { shape: "square", size: "base", class: "rounded-xl" },
+      { shape: "square", size: "lg", class: "rounded-[0.875rem]" },
+      { shape: "square", size: "xl", class: "rounded-[1.125rem]" },
+      { shape: "square", size: "2xl", class: "rounded-[1.375rem]" },
+      { shape: "square", size: "3xl", class: "rounded-[2.25rem]" },
     ],
     defaultVariants: { shape: "square", size: "base" },
   },
@@ -82,8 +82,8 @@ export const avatarImageVariants = tv(
   {
     variants: {
       objectFit: {
-        contain: "tw:object-contain",
-        cover: "tw:object-cover",
+        contain: "object-contain",
+        cover: "object-cover",
       },
     },
     defaultVariants: { objectFit: "cover" },

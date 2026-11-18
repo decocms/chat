@@ -38,23 +38,21 @@
     options={frameworks}
     value={preselected}
     onChange={(next) => (preselected = next)}
-    width="tw:w-[240px]"
+    width="w-[240px]"
   />
 {:else if story === "custom-item-rendering"}
   <Combobox
     options={members}
     value={member}
     onChange={(next) => (member = next)}
-    width="tw:w-[260px]"
+    width="w-[260px]"
     placeholder="Assign to..."
     searchPlaceholder="Search members..."
     emptyMessage="No member found."
   >
     {#snippet renderItem(option, isSelected)}
-      <div
-        class="tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2"
-      >
-        <span class={isSelected ? "tw:font-medium" : undefined}>
+      <div class="flex w-full items-center justify-between gap-2">
+        <span class={isSelected ? "font-medium" : undefined}>
           {option.label}
         </span>
         <Badge variant="outline">{String(option.role)}</Badge>

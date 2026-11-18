@@ -8,10 +8,7 @@
   });
 </script>
 
-<section
-  data-layout-fixture-board
-  class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-2"
->
+<section data-layout-fixture-board class="flex min-h-0 flex-1 flex-col gap-2">
   <label for="layout-fixture-board-draft">Retained Board draft</label>
   <Textarea id="layout-fixture-board-draft" bind:value={draft} />
   <output data-layout-fixture-board-value>{draft}</output>

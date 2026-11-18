@@ -20,7 +20,7 @@
   bind:this={ref}
   data-slot="entity-card-title"
   {...rest}
-  class={cn("tw:truncate tw:text-sm tw:font-medium", className)}
+  class={cn("truncate text-sm font-medium", className)}
 >
   {@render children?.()}
 </div>

@@ -43,14 +43,14 @@
         aria-label={label}
         aria-current={current ? "page" : undefined}
         class={cn(
-          "tw:relative tw:flex tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:border-0 tw:bg-transparent tw:p-0 tw:text-sidebar-foreground tw:outline-offset-2 tw:transition-colors tw:duration-150 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:motion-reduce:transition-none",
+          "relative flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-sidebar-foreground outline-offset-2 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring motion-reduce:transition-none",
           children
-            ? "tw:size-9 tw:rounded-xl"
-            : "tw:size-8 tw:rounded-full tw:text-muted-foreground tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground",
+            ? "size-9 rounded-xl"
+            : "size-8 rounded-full text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
         )}
       >
         {#if current}<RailPill state="selected" />{/if}
-        {#if icon}<Icon {icon} class="tw:size-4" />{/if}{@render children?.()}
+        {#if icon}<Icon {icon} class="size-4" />{/if}{@render children?.()}
       </button>
     {/snippet}
   </TooltipTrigger>

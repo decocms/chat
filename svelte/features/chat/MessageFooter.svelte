@@ -24,22 +24,21 @@
 
 <div
   data-message-footer
-  class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+  class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
 >
   {#each footer.statuses as status (`${status.ack.who}|${status.ack.email}`)}
     <span
       data-ack-state={status.kind}
       class={status.kind === "blocked"
-        ? "tw:whitespace-pre-wrap tw:break-words tw:text-warning"
-        : "tw:whitespace-pre-wrap tw:break-words"}
+        ? "whitespace-pre-wrap break-words text-warning"
+        : "whitespace-pre-wrap break-words"}
     >
       {#if status.kind === "blocked"}⏸ {vb.t("{who} espera você no terminal", {
           who: who(status.ack.who, status.ack.email),
         })}{status.ack.note ? `: ${status.ack.note}` : ""}
       {:else if status.kind === "doing"}<span
           aria-hidden="true"
-          class="tw:inline-block tw:animate-spin tw:motion-reduce:animate-none"
-          >✻</span
+          class="inline-block animate-spin motion-reduce:animate-none">✻</span
         >
         {vb.t("{who} está fazendo isso", {
           who: who(status.ack.who, status.ack.email),
@@ -63,7 +62,7 @@
     <div
       role="group"
       aria-label={label}
-      class="tw:relative"
+      class="relative"
       onpointerenter={() => {
         hovered = true;
         dismissed = false;
@@ -75,7 +74,7 @@
       <Button
         variant="ghost"
         size="sm"
-        class="tw:h-auto tw:gap-1 tw:px-1 tw:py-1"
+        class="h-auto gap-1 px-1 py-1"
         aria-label={label}
         aria-expanded={shown}
         aria-controls={`${ids}-readers`}
@@ -103,41 +102,41 @@
         {#each footer.readers.slice(0, 5) as reader (`${reader.receipt.who}|${reader.receipt.email}`)}
           <span
             data-reader-read={reader.read}
-            class="tw:relative tw:inline-flex tw:not-first:ml-1"
+            class="relative inline-flex not-first:ml-1"
           >
             <PersonAvatar
               data-avatar="person"
               size="xs"
-              class="tw:size-[18px] tw:shadow-[0_0_0_1.5px_var(--vb-card)]"
+              class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
               email={reader.receipt.email}
               version={vb.avatarVersion(reader.receipt.email)}
             /><AgentMark
               size="3xs"
               tint
               via={reader.receipt.who}
-              class="tw:absolute tw:-right-1 tw:-bottom-1 tw:rounded-full tw:text-[7px] tw:shadow-[0_0_0_1.5px_var(--vb-card)]"
+              class="absolute -right-1 -bottom-1 rounded-full text-[7px] shadow-[0_0_0_1.5px_var(--vb-card)]"
             />
           </span>
         {/each}
         {#if footer.readers.length > 5}<span>+{footer.readers.length - 5}</span
-          >{/if}<span aria-hidden="true" class="tw:ml-0.5 tw:text-[11px]"
+          >{/if}<span aria-hidden="true" class="ml-0.5 text-[11px]"
           >{read ? "✓✓" : "✓"}</span
         >
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
           role="tooltip"
-          class="tw:absolute tw:bottom-full tw:right-0 tw:z-20 tw:mb-2 tw:w-72 tw:max-w-[80vw] tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:bg-popover tw:p-3 tw:text-popover-foreground tw:shadow-md"
+          class="absolute bottom-full right-0 z-20 mb-2 w-72 max-w-[80vw] space-y-2 rounded-surface border border-border bg-popover p-3 text-popover-foreground shadow-md"
         >
           {#each footer.readers as reader (`${reader.receipt.who}|${reader.receipt.email}`)}<div
-              class="tw:flex tw:items-center tw:gap-2"
+              class="flex items-center gap-2"
             >
               <PersonAvatar
                 data-avatar="person"
                 size="xs"
                 email={reader.receipt.email}
                 version={vb.avatarVersion(reader.receipt.email)}
-              /><span class="tw:min-w-0 tw:flex-1 tw:break-words"
+              /><span class="min-w-0 flex-1 break-words"
                 >{who(reader.receipt.who, reader.receipt.email)}</span
               ><span>{vb.t(reader.read ? "leu" : "recebeu")}</span>
             </div>{/each}

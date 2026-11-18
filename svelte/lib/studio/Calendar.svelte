@@ -44,31 +44,30 @@
 
   const CAPTION = { month: "long", year: "numeric" } as const;
   const CELL =
-    "tw:relative tw:p-0 tw:text-center tw:text-sm tw:tabular-nums tw:focus-within:relative tw:focus-within:z-20 tw:data-selected:bg-accent";
-  const CELL_SINGLE = "tw:data-selected:rounded-md";
+    "relative p-0 text-center text-sm tabular-nums focus-within:relative focus-within:z-20 data-selected:bg-accent";
+  const CELL_SINGLE = "data-selected:rounded-md";
   const CELL_RANGE =
-    "tw:data-range-end:rounded-r-md tw:data-range-start:rounded-l-md tw:first:data-selected:rounded-l-md tw:last:data-selected:rounded-r-md";
-  const DAY = "tw:size-8 tw:p-0 tw:font-normal";
+    "data-range-end:rounded-r-md data-range-start:rounded-l-md first:data-selected:rounded-l-md last:data-selected:rounded-r-md";
+  const DAY = "size-8 p-0 font-normal";
   const DAY_DISABLED =
-    "tw:data-disabled:pointer-events-none tw:data-disabled:not-data-selected:text-muted-foreground tw:data-disabled:not-data-selected:opacity-40";
+    "data-disabled:pointer-events-none data-disabled:not-data-selected:text-muted-foreground data-disabled:not-data-selected:opacity-40";
   const DAY_SELECTED =
-    "tw:data-selected:bg-primary tw:data-selected:text-primary-foreground tw:data-selected:hover:bg-primary tw:data-selected:hover:text-primary-foreground";
+    "data-selected:bg-primary data-selected:text-primary-foreground data-selected:hover:bg-primary data-selected:hover:text-primary-foreground";
   const DAY_SELECTED_OUTSIDE =
-    "tw:data-selected:bg-primary tw:data-selected:text-muted-foreground tw:data-selected:hover:bg-primary tw:data-selected:hover:text-muted-foreground";
+    "data-selected:bg-primary data-selected:text-muted-foreground data-selected:hover:bg-primary data-selected:hover:text-muted-foreground";
   const DAY_RANGE_EDGE =
-    "tw:data-range-start:bg-primary tw:data-range-start:text-primary-foreground tw:data-range-start:hover:bg-primary tw:data-range-start:hover:text-primary-foreground tw:data-range-end:bg-primary tw:data-range-end:text-primary-foreground tw:data-range-end:hover:bg-primary tw:data-range-end:hover:text-primary-foreground";
+    "data-range-start:bg-primary data-range-start:text-primary-foreground data-range-start:hover:bg-primary data-range-start:hover:text-primary-foreground data-range-end:bg-primary data-range-end:text-primary-foreground data-range-end:hover:bg-primary data-range-end:hover:text-primary-foreground";
   const DAY_RANGE_MIDDLE =
-    "tw:data-range-middle:bg-accent tw:data-range-middle:text-accent-foreground";
+    "data-range-middle:bg-accent data-range-middle:text-accent-foreground";
   const DAY_RANGE_MIDDLE_OUTSIDE =
-    "tw:data-range-middle:bg-accent tw:data-range-middle:text-muted-foreground tw:data-range-middle:hover:text-muted-foreground";
+    "data-range-middle:bg-accent data-range-middle:text-muted-foreground data-range-middle:hover:text-muted-foreground";
   const ARROWS: Record<string, number | undefined> = {
     ArrowLeft: -1,
     ArrowRight: 1,
     ArrowUp: -7,
     ArrowDown: 7,
   };
-  const NAV =
-    "tw:size-7 tw:bg-transparent tw:p-0 tw:opacity-50 tw:hover:opacity-100";
+  const NAV = "size-7 bg-transparent p-0 opacity-50 hover:opacity-100";
 </script>
 
 <script lang="ts">
@@ -232,9 +231,9 @@
       buttonVariants({ variant: "ghost" }),
       DAY,
       DAY_DISABLED,
-      isToday(date, timeZone) && "tw:bg-accent tw:text-accent-foreground",
-      outside && "tw:text-muted-foreground",
-      outside && !showOutsideDays && "tw:invisible",
+      isToday(date, timeZone) && "bg-accent text-accent-foreground",
+      outside && "text-muted-foreground",
+      outside && !showOutsideDays && "invisible",
       range ? DAY_RANGE_EDGE : outside ? DAY_SELECTED_OUTSIDE : DAY_SELECTED,
       range && (outside ? DAY_RANGE_MIDDLE_OUTSIDE : DAY_RANGE_MIDDLE),
     );
@@ -242,20 +241,18 @@
 </script>
 
 {#snippet grids(months: Month<DateValue>[], weekdays: string[])}
-  <div class="tw:flex tw:flex-col tw:gap-2 tw:md:flex-row">
+  <div class="flex flex-col gap-2 md:flex-row">
     {#each months as shown, index (shown.value.toString())}
-      <div class="tw:flex tw:flex-col tw:gap-4">
-        <div
-          class="tw:relative tw:flex tw:w-full tw:items-center tw:justify-center tw:pt-1"
-        >
+      <div class="flex flex-col gap-4">
+        <div class="relative flex w-full items-center justify-center pt-1">
           <div
-            class="tw:text-sm tw:font-medium"
+            class="text-sm font-medium"
             aria-live="polite"
             role="presentation"
           >
             {caption.format(shown.value.toDate(timeZone))}
           </div>
-          <div class="tw:flex tw:items-center tw:gap-1">
+          <div class="flex items-center gap-1">
             {#if index === 0}
               <CalendarPrimitive.PrevButton>
                 {#snippet child({ props: button })}
@@ -266,10 +263,10 @@
                     class={cn(
                       buttonVariants({ variant: "outline" }),
                       NAV,
-                      "tw:left-1",
+                      "left-1",
                     )}
                   >
-                    <Icon icon={ChevronLeft} class="tw:size-4" />
+                    <Icon icon={ChevronLeft} class="size-4" />
                   </button>
                 {/snippet}
               </CalendarPrimitive.PrevButton>
@@ -284,24 +281,22 @@
                     class={cn(
                       buttonVariants({ variant: "outline" }),
                       NAV,
-                      "tw:right-1",
+                      "right-1",
                     )}
                   >
-                    <Icon icon={ChevronRight} class="tw:size-4" />
+                    <Icon icon={ChevronRight} class="size-4" />
                   </button>
                 {/snippet}
               </CalendarPrimitive.NextButton>
             {/if}
           </div>
         </div>
-        <CalendarPrimitive.Grid
-          class="tw:w-full tw:border-collapse tw:space-x-1"
-        >
+        <CalendarPrimitive.Grid class="w-full border-collapse space-x-1">
           <CalendarPrimitive.GridHead>
-            <CalendarPrimitive.GridRow class="tw:flex">
+            <CalendarPrimitive.GridRow class="flex">
               {#each weekdays as weekday (weekday)}
                 <CalendarPrimitive.HeadCell
-                  class="tw:text-muted-foreground tw:w-8 tw:rounded-md tw:text-[0.8rem] tw:font-normal tw:tabular-nums"
+                  class="text-muted-foreground w-8 rounded-md text-[0.8rem] font-normal tabular-nums"
                   >{weekday.slice(0, 2)}</CalendarPrimitive.HeadCell
                 >
               {/each}
@@ -309,7 +304,7 @@
           </CalendarPrimitive.GridHead>
           <CalendarPrimitive.GridBody>
             {#each shown.weeks as week (week[0]?.toString())}
-              <CalendarPrimitive.GridRow class="tw:mt-2 tw:flex tw:w-full">
+              <CalendarPrimitive.GridRow class="mt-2 flex w-full">
                 {#each week as date (date.toString())}
                   <Cell
                     {date}
@@ -343,7 +338,7 @@
       attributes.onkeydown?.(event);
       if (!event.defaultPrevented) keydown(event);
     }}
-    class={cn("tw:p-3 tw:leading-[1.5]", className)}
+    class={cn("p-3 leading-[1.5]", className)}
   >
     {#snippet children({ months, weekdays })}
       {@render grids(months, weekdays)}
@@ -363,7 +358,7 @@
       attributes.onkeydown?.(event);
       if (!event.defaultPrevented) keydown(event);
     }}
-    class={cn("tw:p-3 tw:leading-[1.5]", className)}
+    class={cn("p-3 leading-[1.5]", className)}
   >
     {#snippet children({ months, weekdays })}
       {@render grids(months, weekdays)}
@@ -383,7 +378,7 @@
       attributes.onkeydown?.(event);
       if (!event.defaultPrevented) keydown(event);
     }}
-    class={cn("tw:p-3 tw:leading-[1.5]", className)}
+    class={cn("p-3 leading-[1.5]", className)}
   >
     {#snippet children({ months, weekdays })}
       {@render grids(months, weekdays)}

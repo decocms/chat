@@ -10,11 +10,11 @@
 </script>
 
 <div
-  class="tw:sticky tw:bottom-0 tw:z-10 tw:mt-auto tw:-mb-2 tw:shrink-0 tw:bg-sidebar tw:pb-2 tw:max-md:hidden"
+  class="sticky bottom-0 z-10 mt-auto -mb-2 shrink-0 bg-sidebar pb-2 max-md:hidden"
 >
   <div
     data-sidebar-self
-    class="tw:flex tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1"
+    class="flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
   >
     {@render children()}
   </div>

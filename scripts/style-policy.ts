@@ -38,12 +38,6 @@ export function auditHTML(file: string, source: string): StyleViolation[] {
         reason,
       });
     if (attrs.has("style")) add("Inline HTML style attribute");
-    if (
-      (attrs.get("class") ?? "")
-        .split(/\s+/)
-        .some((name) => name && name !== "dark" && !name.startsWith("tw:"))
-    )
-      add("First-party class outside the Tailwind namespace");
     if ("tagName" in node) {
       if (node.tagName === "style") add("HTML style block");
       if (
@@ -97,14 +91,6 @@ export function auditPresentation(
       line: source.slice(0, offset).split("\n").length,
       reason,
     });
-  const classText = (text: string, offset: number) => {
-    if (
-      text
-        .split(/\s+/)
-        .some((name) => name && name !== "dark" && !name.startsWith("tw:"))
-    )
-      add(offset, "First-party class outside the Tailwind namespace");
-  };
   const classExpression = (text: string, offset: number) => {
     const ast = ts.createSourceFile(
       file,
@@ -114,29 +100,13 @@ export function auditPresentation(
       ts.ScriptKind.TS,
     );
     const visit = (node: ts.Node): void => {
-      if (ts.isStringLiteralLike(node))
-        classText(node.text, offset + node.getStart(ast) - 1);
-      else if (
-        ts.isParenthesizedExpression(node) ||
-        ts.isExpressionStatement(node)
-      )
+      if (ts.isParenthesizedExpression(node) || ts.isExpressionStatement(node))
         visit(node.expression);
       else if (ts.isConditionalExpression(node)) {
         visit(node.whenTrue);
         visit(node.whenFalse);
       } else if (ts.isArrayLiteralExpression(node))
         node.elements.forEach(visit);
-      else if (ts.isObjectLiteralExpression(node))
-        for (const property of node.properties) {
-          if (
-            ts.isPropertyAssignment(property) &&
-            !ts.isComputedPropertyName(property.name)
-          )
-            classText(
-              property.name.getText(ast).replace(/^["']|["']$/g, ""),
-              offset + property.getStart(ast) - 1,
-            );
-        }
       else if (
         ts.isBinaryExpression(node) &&
         [
@@ -459,23 +429,6 @@ export function auditPresentation(
               classExpression(
                 source.slice(part.expression.start, part.expression.end),
                 part.expression.start,
-              );
-            if (
-              part &&
-              typeof part === "object" &&
-              "type" in part &&
-              part.type === "Text" &&
-              "data" in part &&
-              typeof part.data === "string" &&
-              part.data
-                .split(/\s+/)
-                .some(
-                  (name) => name && name !== "dark" && !name.startsWith("tw:"),
-                )
-            )
-              add(
-                value.start,
-                "First-party class outside the Tailwind namespace",
               );
           }
         }

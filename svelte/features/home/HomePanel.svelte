@@ -263,41 +263,39 @@
      instruction itself and one click to copy it for Claude Code. -->
 {#snippet connectAgent()}<div
     data-home-connect
-    class="tw:flex tw:w-full tw:flex-col tw:gap-2.5 tw:rounded-2xl tw:bg-card tw:p-3 tw:text-left tw:shadow-edge"
+    class="flex w-full flex-col gap-2.5 rounded-2xl bg-card p-3 text-left shadow-edge"
   >
-    <div class="tw:flex tw:items-center tw:gap-2.5">
-      <span class="tw:flex tw:shrink-0 tw:items-center tw:-space-x-1.5"
+    <div class="flex items-center gap-2.5">
+      <span class="flex shrink-0 items-center -space-x-1.5"
         >{#each ["claude", "codex", "gemini"] as via (via)}<AgentMark
             {via}
             tint
             size="xs"
-            class="tw:rounded-full tw:ring-2 tw:ring-card"
+            class="rounded-full ring-2 ring-card"
           />{/each}</span
       >
-      <b class="tw:min-w-0 tw:flex-1 tw:truncate tw:font-medium"
-        >{text("setup")}</b
-      >
-      <Button size="sm" class="tw:shrink-0" onclick={copy}
+      <b class="min-w-0 flex-1 truncate font-medium">{text("setup")}</b>
+      <Button size="sm" class="shrink-0" onclick={copy}
         >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}<span
-          class="tw:max-md:hidden"
+          class="max-md:hidden"
           >{text(copyStatus === "copied" ? "copied" : "deskCopyAgent")}</span
-        ><span class="tw:md:hidden"
+        ><span class="md:hidden"
           >{text(copyStatus === "copied" ? "copied" : "copy")}</span
         ></Button
       >
     </div>
     <code
-      class="tw:block tw:rounded-control tw:bg-muted tw:px-3 tw:py-2 tw:font-mono tw:text-xs tw:leading-5 tw:break-words tw:text-foreground tw:select-all"
+      class="block rounded-control bg-muted px-3 py-2 font-mono text-xs leading-5 break-words text-foreground select-all"
       >{setup}</code
-    >{#if !copyStatus}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+    >{#if !copyStatus}<p class="m-0 text-xs text-muted-foreground">
         {text("deskConnectHelp")}
       </p>{:else}<p
         role={copyStatus === "copyFailed" ? "alert" : "status"}
         class={[
-          "tw:m-0 tw:text-xs",
+          "m-0 text-xs",
           copyStatus === "copyFailed"
-            ? "tw:text-destructive"
-            : "tw:text-muted-foreground",
+            ? "text-destructive"
+            : "text-muted-foreground",
         ]}
       >
         {text(copyStatus === "copyFailed" ? "copyFailed" : "deskCopied")}
@@ -311,17 +309,14 @@
     )}{@const selected = choices[$view.selected]!}
     <div
       data-home-suggestion
-      class="tw:flex tw:flex-col tw:gap-2 tw:rounded-2xl tw:bg-card tw:p-3 tw:pl-4 tw:text-left tw:shadow-edge"
+      class="flex flex-col gap-2 rounded-2xl bg-card p-3 pl-4 text-left shadow-edge"
     >
-      <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-x-3 tw:gap-y-2">
-        <p
-          aria-live="polite"
-          class="tw:m-0 tw:min-w-0 tw:flex-1 tw:basis-48 tw:break-words"
-        >
-          <span class="tw:text-muted-foreground">{text("deskSendTo")}</span>
-          <b class="tw:font-medium">{place(selected)}</b>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p aria-live="polite" class="m-0 min-w-0 flex-1 basis-48 break-words">
+          <span class="text-muted-foreground">{text("deskSendTo")}</span>
+          <b class="font-medium">{place(selected)}</b>
         </p>
-        <div class="tw:flex tw:shrink-0 tw:gap-1.5">
+        <div class="flex shrink-0 gap-1.5">
           <Button
             size="sm"
             variant="ghost"
@@ -340,34 +335,29 @@
         </div>
       </div>
       {#if $view.selected === 0 && $view.result.pick && $view.result.reason}<p
-          class="tw:m-0 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+          class="m-0 text-xs leading-5 text-muted-foreground"
         >
           {$view.result.reason}
         </p>{/if}
       {#if choices.length > 1}<div
-          class="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5 tw:border-t tw:border-border tw:pt-2"
+          class="flex flex-wrap items-center gap-1.5 border-t border-border pt-2"
         >
-          <span class="tw:text-xs tw:text-muted-foreground"
-            >{text("deskOr")}</span
-          >
+          <span class="text-xs text-muted-foreground">{text("deskOr")}</span>
           {#each choices as choice, index}{#if index !== $view.selected}<Button
                 size="sm"
                 variant="outline"
                 disabled={!!$view.busy}
-                class="tw:h-7 tw:max-w-full tw:rounded-full tw:px-3 tw:text-xs"
+                class="h-7 max-w-full rounded-full px-3 text-xs"
                 onclick={() => {
                   session.select(index);
                   void tick().then(() => {
                     if (sendButton?.isConnected) sendButton.focus();
                   });
-                }}><span class="tw:truncate">{place(choice)}</span></Button
+                }}><span class="truncate">{place(choice)}</span></Button
               >{/if}{/each}
         </div>{/if}
     </div>{/if}
-  {#if $view.error}<p
-      role="alert"
-      class="tw:m-0 tw:break-words tw:text-destructive"
-    >
+  {#if $view.error}<p role="alert" class="m-0 break-words text-destructive">
       {homeIssue(lang, $view.error)}
     </p>{/if}{/snippet}
 
@@ -383,55 +373,53 @@
     data-vb-native="home"
     data-home-layout="desk"
     data-home-dealt={dealt ? "" : undefined}
-    class="tw:relative tw:min-h-full tw:overflow-x-clip tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+    class="relative min-h-full overflow-x-clip bg-background font-sans text-sm leading-6 text-foreground"
   >
     <!-- The first screen: everything down to the fan, which peeks at its foot. -->
     <div
       class={[
-        "tw:flex tw:flex-col tw:items-center tw:px-4 tw:pt-4 tw:md:px-8",
+        "flex flex-col items-center px-4 pt-4 md:px-8",
         waits.length &&
-          "tw:min-h-[calc(100dvh-3.5rem)] tw:md:min-h-[calc(100dvh-1rem)]",
+          "min-h-[calc(100dvh-3.5rem)] md:min-h-[calc(100dvh-1rem)]",
       ]}
     >
-      <div class="tw:w-full tw:max-w-xl">
+      <div class="w-full max-w-xl">
         <InstallCard owner={pwa} {lang} compact />
       </div>
-      <section
-        class="tw:mt-[10vh] tw:flex tw:flex-col tw:items-center tw:max-md:mt-4"
-      >
+      <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
         <canvas
           bind:this={cube}
           width="512"
           height="512"
           aria-hidden="true"
-          class="tw:size-[200px] tw:max-md:size-[112px]"
+          class="size-[200px] max-md:size-[112px]"
         ></canvas>
         {#if $account.me}{@const first =
             $account.me.name?.split(" ")[0]}<Heading
             level={1}
-            class="tw:m-0 tw:mt-1 tw:text-center tw:text-4xl tw:font-medium tw:tracking-tight tw:text-balance tw:tabular-nums tw:max-md:text-[28px] tw:max-md:leading-9"
+            class="m-0 mt-1 text-center text-4xl font-medium tracking-tight text-balance tabular-nums max-md:text-[28px] max-md:leading-9"
             >{#if waits.length}{headline}{:else}<!-- Nothing waits: a greeting and a question, the ask box answers it. -->
-              <span class="tw:block"
+              <span class="block"
                 >{first
                   ? text("deskHello", { name: first })
                   : text("deskHelloAnon")}</span
-              ><span class="tw:block tw:text-muted-foreground"
+              ><span class="block text-muted-foreground"
                 >{text("deskQuestion")}</span
               >{/if}</Heading
           >{:else if $account.error}<Heading
             level={1}
-            class="tw:m-0 tw:mt-1 tw:text-center tw:text-3xl tw:font-medium tw:tracking-tight tw:text-balance"
+            class="m-0 mt-1 text-center text-3xl font-medium tracking-tight text-balance"
             >{text("deskLoadFailed")}</Heading
           >
           <!-- A known issue gets its sentence; a raw server code stays out of the way. -->
           {#if homeIssue(lang, $account.error) !== $account.error}<p
-              class="tw:m-0 tw:mt-2 tw:text-muted-foreground"
+              class="m-0 mt-2 text-muted-foreground"
               role="alert"
             >
               {homeIssue(lang, $account.error)}
             </p>{/if}
           <Button
-            class="tw:mt-5"
+            class="mt-5"
             variant="outline"
             disabled={$account.loading}
             aria-busy={$account.loading || undefined}
@@ -446,10 +434,10 @@
       {#if $account.me}{@const me = $account.me}
         <div
           data-home-ask="desk"
-          class="tw:relative tw:z-30 tw:mt-7 tw:flex tw:w-full tw:max-w-[640px] tw:flex-col tw:items-center tw:gap-3 tw:[&>[data-chat-field]]:w-full"
+          class="relative z-30 mt-7 flex w-full max-w-[640px] flex-col items-center gap-3 [&>[data-chat-field]]:w-full"
         >
           <!-- The room's chat box, as is. -->
-          <div class="tw:w-full">
+          <div class="w-full">
             <ChatField
               id="home-ask"
               maxlength={2000}
@@ -484,70 +472,65 @@
                 >{/snippet}
             </ChatField>
           </div>
-          <div class="tw:w-full">{@render suggestionCard()}</div>
+          <div class="w-full">{@render suggestionCard()}</div>
           {#if !me.books.length}<!-- No rooms yet: one clear way in. -->
             <div
               data-home-first-room
-              class="tw:mt-6 tw:flex tw:flex-col tw:items-center tw:gap-3 tw:text-center"
+              class="mt-6 flex flex-col items-center gap-3 text-center"
             >
               <Button
                 size="lg"
-                class="tw:rounded-full tw:px-6"
+                class="rounded-full px-6"
                 onclick={(event) => {
                   if (event.currentTarget.isConnected)
                     onnew(event.currentTarget);
                 }}>{text("deskFirstRoom")}</Button
               >
-              <p
-                class="tw:m-0 tw:max-w-sm tw:text-balance tw:text-muted-foreground"
-              >
+              <p class="m-0 max-w-sm text-balance text-muted-foreground">
                 {text("deskFirstRoomHelp")}
               </p>
             </div>{/if}
           {#if $account.agents && !$account.agents.agents.length}{@render connectAgent()}{/if}
           {#if $account.loading}<p
               role="status"
-              class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+              class="m-0 text-xs text-muted-foreground"
             >
               {text("refreshing")}
             </p>{/if}
           {#if $account.error}<p
               role="alert"
-              class="tw:m-0 tw:text-xs tw:break-words tw:text-destructive"
+              class="m-0 text-xs break-words text-destructive"
             >
               {homeIssue(lang, $account.error)}
               <button
                 type="button"
-                class="tw:cursor-pointer tw:p-0 tw:text-foreground tw:underline tw:underline-offset-4"
+                class="cursor-pointer p-0 text-foreground underline underline-offset-4"
                 onclick={() => void personal.refresh()}>{text("retry")}</button
               >
             </p>{/if}
         </div>
         <!-- At the foot of the first screen: the fan peeks above the fold. -->
-        <div
-          class="tw:min-h-6 tw:flex-1 tw:max-md:max-h-16"
-          aria-hidden="true"
-        ></div>
+        <div class="min-h-6 flex-1 max-md:max-h-16" aria-hidden="true"></div>
         {#if waits.length > 1 && filters.length > 1}<div
             bind:this={filterBar}
             role="group"
             aria-label={text("deskWaits")}
             data-home-filters
-            class="tw:relative tw:z-30 tw:mb-4 tw:flex tw:max-w-full tw:flex-wrap tw:justify-center tw:gap-1.5 tw:px-1 tw:py-1"
+            class="relative z-30 mb-4 flex max-w-full flex-wrap justify-center gap-1.5 px-1 py-1"
           >
             {#each filters as option (option.kind)}<Button
                 size="sm"
                 variant={filter === option.kind ? "default" : "outline"}
                 aria-pressed={filter === option.kind}
-                class="tw:shrink-0 tw:rounded-full"
+                class="shrink-0 rounded-full"
                 onclick={() => void pick(option.kind)}
                 >{option.label}<span
                   class={[
-                    "tw:tabular-nums",
+                    "tabular-nums",
                     filter !== option.kind &&
                       (option.kind === "claude"
-                        ? "tw:text-destructive"
-                        : "tw:text-muted-foreground"),
+                        ? "text-destructive"
+                        : "text-muted-foreground"),
                   ]}>{option.count}</span
                 ></Button
               >{/each}
@@ -557,8 +540,8 @@
             aria-label={text("deskWaits")}
             data-home-hand
             class={dealt
-              ? "tw:grid tw:min-h-[calc(100dvh-5rem)] tw:w-full tw:max-w-[1120px] tw:content-start tw:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] tw:gap-4 tw:max-md:grid-cols-1 tw:max-md:gap-3"
-              : "tw:relative tw:-mb-[148px] tw:h-[380px] tw:w-full tw:shrink-0 tw:max-md:-mb-[40px] tw:max-md:h-[300px]"}
+              ? "grid min-h-[calc(100dvh-5rem)] w-full max-w-[1120px] content-start grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-4 max-md:grid-cols-1 max-md:gap-3"
+              : "relative -mb-[148px] h-[380px] w-full shrink-0 max-md:-mb-[40px] max-md:h-[300px]"}
           >
             {#each shown as wait, i (wait.book_id + ":" + wait.ref)}{@const room =
                 me.books.find((book) => book.id === wait.book_id)}{@const dm =
@@ -576,11 +559,11 @@
                 tabindex={reachable ? 0 : -1}
                 aria-hidden={reachable ? undefined : "true"}
                 class={[
-                  "tw:group/card tw:flex tw:flex-col tw:gap-2 tw:overflow-hidden tw:rounded-[22px] tw:bg-card tw:px-[18px] tw:py-4 tw:text-foreground tw:no-underline tw:shadow-[0_0_0_1px_var(--vb-hairline),0_1px_2px_rgb(0_0_0/.04),0_-6px_28px_-12px_rgb(0_0_0/.18)] tw:outline-none tw:transition-shadow tw:duration-150 tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+                  "group/card flex flex-col gap-2 overflow-hidden rounded-[22px] bg-card px-[18px] py-4 text-foreground no-underline shadow-[0_0_0_1px_var(--vb-hairline),0_1px_2px_rgb(0_0_0/.04),0_-6px_28px_-12px_rgb(0_0_0/.18)] outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-ring",
                   dealt
-                    ? "tw:relative tw:min-h-[176px] tw:max-md:min-h-0 tw:hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
+                    ? "relative min-h-[176px] max-md:min-h-0 hover:shadow-[0_0_0_1px_var(--vb-input),0_8px_24px_-8px_rgb(0_0_0/.25)]"
                     : [
-                        "tw:absolute tw:top-0 tw:right-0 tw:left-0 tw:mx-auto tw:h-[320px] tw:w-[340px] tw:origin-bottom tw:max-md:h-[210px] tw:max-md:w-[min(340px,calc(100%-16px))]",
+                        "absolute top-0 right-0 left-0 mx-auto h-[320px] w-[340px] origin-bottom max-md:h-[210px] max-md:w-[min(340px,calc(100%-16px))]",
                         fanClasses(i, shown.length),
                       ],
                 ]}
@@ -598,56 +581,53 @@
                 }}
                 ><span
                   class={[
-                    "tw:flex tw:flex-col tw:gap-2 tw:transition-opacity tw:duration-200",
-                    !dealt && !front && "tw:opacity-35",
+                    "flex flex-col gap-2 transition-opacity duration-200",
+                    !dealt && !front && "opacity-35",
                   ]}
                   ><span
-                    class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+                    class="flex min-w-0 items-center gap-2 text-xs leading-5 text-muted-foreground"
                     >{#if dm}<PersonAvatar
                         email={dm.email}
                         version={dm.version}
-                        class="tw:size-6"
+                        class="size-6"
                       />{:else if room && roomIcon(room)}<img
                         src={roomIcon(room)}
                         alt=""
                         loading="lazy"
-                        class="tw:size-6 tw:shrink-0 tw:rounded-md tw:object-cover"
+                        class="size-6 shrink-0 rounded-md object-cover"
                       />{:else}<OrgAvatar
                         name={wait.room}
                         size="xs"
-                      />{/if}<span class="tw:min-w-0 tw:truncate"
+                      />{/if}<span class="min-w-0 truncate"
                       >{roomLabel(me, wait.book_id, wait.room, lang)}{wait.topic
                         ? ` › ${wait.topic}`
                         : ""}</span
                     ></span
                   ><span
-                    class="tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-xs tw:leading-5 tw:text-muted-foreground"
+                    class="flex min-w-0 items-center gap-2 text-xs leading-5 text-muted-foreground"
                     >{#if task}<Icon icon={Check} size={14} /><span
-                        class="tw:min-w-0 tw:flex-1 tw:truncate"
-                        >{text("deskTask")}</span
+                        class="min-w-0 flex-1 truncate">{text("deskTask")}</span
                       >{:else if claudeWait(wait)}<AgentMark
                         size="2xs"
-                        class="tw:text-[10px]"
+                        class="text-[10px]"
                       /><span
-                        class="tw:min-w-0 tw:flex-1 tw:truncate tw:font-medium tw:text-destructive"
+                        class="min-w-0 flex-1 truncate font-medium text-destructive"
                         >{who(wait)} · {text("needsYou")}</span
                       >{:else if wait.author === "ai"}<AgentMark
                         mark="✦"
                         size="2xs"
-                        class="tw:text-[10px]"
-                      /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                        >{who(wait)}</span
+                        class="text-[10px]"
+                      /><span class="min-w-0 flex-1 truncate">{who(wait)}</span
                       >{:else}<PersonAvatar
                         size="2xs"
                         email={wait.author}
                         version={personVersion(me, wait.author)}
-                      /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                        >{who(wait)}</span
-                      >{/if}<span class="tw:shrink-0 tw:tabular-nums"
+                      /><span class="min-w-0 flex-1 truncate">{who(wait)}</span
+                      >{/if}<span class="shrink-0 tabular-nums"
                       >{ago(wait.ts)}</span
                     ></span
                   ><b
-                    class="tw:line-clamp-4 tw:text-[17px] tw:leading-[1.3] tw:font-medium tw:tracking-[-0.01em] tw:break-words"
+                    class="line-clamp-4 text-[17px] leading-[1.3] font-medium tracking-[-0.01em] break-words"
                     >{plainWaitText(wait.text)}</b
                   ></span
                 ></a
@@ -655,6 +635,6 @@
           </nav>{/if}
       {/if}
     </div>
-    <div class="tw:h-16" aria-hidden="true"></div>
+    <div class="h-16" aria-hidden="true"></div>
   </main>
 {/if}

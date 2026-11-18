@@ -15,14 +15,14 @@
 </script>
 
 {#if story === "playground"}
-  <div class="tw:w-96">
+  <div class="w-96">
     <TagsInput
       placeholder="Add a keyword"
       value={["checkout", "black friday"]}
     />
   </div>
 {:else if story === "emails"}
-  <div class="tw:grid tw:w-96 tw:gap-2">
+  <div class="grid w-96 gap-2">
     <Label for="invite">Invite by email</Label>
     <TagsInput
       id="invite"
@@ -31,7 +31,7 @@
       placeholder="name@company.com"
     />
     <p
-      class="tw:text-[0.75rem] tw:leading-4 tw:text-pretty tw:text-muted-foreground tw:tabular-nums"
+      class="text-[0.75rem] leading-4 text-pretty text-muted-foreground tabular-nums"
     >
       {emails.filter((e) => !isEmail(e)).length} address needs fixing
     </p>
@@ -42,7 +42,7 @@
     rows={ROWS}
   >
     {#snippet cell(_row, index)}
-      <div class="tw:w-56">
+      <div class="w-56">
         {#if index === 0}
           <TagsInput placeholder="Add a keyword" />
         {:else if index === 1}

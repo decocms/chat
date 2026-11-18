@@ -83,11 +83,11 @@
 <div
   data-native-permission
   data-vb-native
-  class="tw:space-y-2 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-2 font-sans text-sm text-foreground"
 >
   {#if answer}<p
       role="status"
-      class="tw:m-0 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:p-3"
+      class="m-0 rounded-control border border-border bg-muted p-3"
     >
       {approved
         ? "✓ " + vb.t("Aprovado por {who}", { who: vb.name(answer.author) })
@@ -95,10 +95,10 @@
         answer.ts,
       )}
     </p>
-  {:else if choices.closed}<p class="tw:m-0 tw:text-muted-foreground">
+  {:else if choices.closed}<p class="m-0 text-muted-foreground">
       {vb.t("foi pro terminal")}
     </p>
-  {:else if actionable}<div class="tw:flex tw:flex-wrap tw:gap-2">
+  {:else if actionable}<div class="flex flex-wrap gap-2">
       <Button
         data-native-permission-value="Aprovar"
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
@@ -110,18 +110,17 @@
         onclick={(event) => select("Negar", event)}>{vb.t("Negar")}</Button
       >
     </div>
-  {:else}<div class="tw:flex tw:flex-wrap tw:gap-2">
+  {:else}<div class="flex flex-wrap gap-2">
       {#each choices.options as option}<span
-          class="tw:rounded-control tw:border tw:border-border tw:px-3 tw:py-2"
-          >{option}</span
+          class="rounded-control border border-border px-3 py-2">{option}</span
         >{/each}
     </div>
-    <small class="tw:text-muted-foreground"
+    <small class="text-muted-foreground"
       >{vb.t("esperando {who}", { who: vb.name(message.author) })}</small
     >{/if}
   {#if status.phase !== "idle"}<p
       role={status.phase === "error" ? "alert" : "status"}
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      class="m-0 text-xs text-muted-foreground"
     >
       {status.phase === "pending"
         ? vb.t("Enviando…")

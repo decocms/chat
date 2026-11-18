@@ -92,11 +92,11 @@
 
 {#if part === "picker" && list.length}<div
     data-doc-versions
-    class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+    class="flex items-center gap-2 text-xs text-muted-foreground"
   >
     <select
       aria-label={en ? "Doc versions" : "Versões do doc"}
-      class="tw:max-w-full tw:rounded-control tw:border tw:border-border tw:bg-background tw:px-2 tw:py-1 tw:text-xs tw:text-foreground"
+      class="max-w-full rounded-control border border-border bg-background px-2 py-1 text-xs text-foreground"
       onfocus={() => props.send({ t: "doc.versions", epic })}
       onchange={pick}
       ><option value="" selected={!open}
@@ -110,13 +110,13 @@
   </div>{/if}
 {#if part === "open" && open}<div
     data-doc-version-open
-    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-auto"
+    class="flex min-h-0 flex-1 flex-col overflow-auto"
   >
     <div
       role="status"
-      class="tw:m-3 tw:mb-0 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:p-3 tw:text-sm"
+      class="m-3 mb-0 flex flex-wrap items-center gap-2 rounded-control border border-border bg-muted p-3 text-sm"
     >
-      <b class="tw:w-full"
+      <b class="w-full"
         >{en ? "Version" : "Versão"}
         {number} · {when(open.ts)} · {who(open.by)}</b
       ><Button size="sm" variant="ghost" onclick={chat}

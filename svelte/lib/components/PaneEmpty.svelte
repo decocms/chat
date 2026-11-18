@@ -33,14 +33,12 @@
   {#if ask && onask}<button
       type="button"
       data-pane-ask
-      class="tw:flex tw:max-w-xs tw:cursor-pointer tw:items-start tw:gap-2 tw:rounded-xl tw:border-0 tw:bg-agent-claude/10 tw:px-3 tw:py-2 tw:text-left tw:font-sans tw:text-[0.8125rem] tw:leading-snug tw:text-foreground tw:transition-colors tw:hover:bg-agent-claude/15 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring"
+      class="flex max-w-xs cursor-pointer items-start gap-2 rounded-xl border-0 bg-agent-claude/10 px-3 py-2 text-left font-sans text-[0.8125rem] leading-snug text-foreground transition-colors hover:bg-agent-claude/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       onclick={() => onask(ask)}
+      ><span aria-hidden="true" class="font-semibold text-agent-claude-text"
+        >✻</span
       ><span
-        aria-hidden="true"
-        class="tw:font-semibold tw:text-agent-claude-text">✻</span
-      ><span
-        ><small class="tw:block tw:text-xs tw:text-muted-foreground"
-          >{askLabel}</small
+        ><small class="block text-xs text-muted-foreground">{askLabel}</small
         >“{ask}”</span
       ></button
     >{/if}

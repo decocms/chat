@@ -19,10 +19,7 @@
   bind:this={ref}
   data-slot="command-shortcut"
   {...rest}
-  class={cn(
-    "tw:text-muted-foreground tw:ml-auto tw:text-xs tw:tracking-widest",
-    className,
-  )}
+  class={cn("text-muted-foreground ml-auto text-xs tracking-widest", className)}
 >
   {@render children?.()}
 </span>

@@ -29,9 +29,9 @@
 </script>
 
 <InputGroup size="sm" class={className}>
-  <InputGroupAddon class="tw:pr-0">
+  <InputGroupAddon class="pr-0">
     {#if isSearching}
-      <Spinner class="tw:size-4" />
+      <Spinner class="size-4" />
     {:else}
       <Icon icon={SearchMd} />
     {/if}

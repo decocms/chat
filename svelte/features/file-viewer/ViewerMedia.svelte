@@ -54,7 +54,7 @@
     alt={name}
     onload={onready}
     {onerror}
-    class="tw:mx-auto tw:block tw:max-h-[70dvh] tw:max-w-full tw:object-contain"
+    class="mx-auto block max-h-[70dvh] max-w-full object-contain"
   />
 {:else if content.kind === "audio"}
   <audio
@@ -65,7 +65,7 @@
     onloadedmetadata={onready}
     {onerror}
     aria-label={name}
-    class="tw:mx-auto tw:block tw:w-full tw:max-w-xl"
+    class="mx-auto block w-full max-w-xl"
   ></audio>
 {:else if content.kind === "html"}
   <iframe
@@ -76,7 +76,7 @@
     referrerpolicy="no-referrer"
     onload={onready}
     {onerror}
-    class="tw:block tw:h-[70dvh] tw:w-full tw:border-0 tw:bg-background"
+    class="block h-[70dvh] w-full border-0 bg-background"
   ></iframe>
 {:else if content.kind === "pdf"}
   <iframe
@@ -86,6 +86,6 @@
     referrerpolicy="no-referrer"
     onload={onready}
     {onerror}
-    class="tw:block tw:h-[70dvh] tw:w-full tw:border-0 tw:bg-background"
+    class="block h-[70dvh] w-full border-0 bg-background"
   ></iframe>
 {/if}

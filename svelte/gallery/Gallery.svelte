@@ -86,34 +86,32 @@
     { value: "members", label: "Members" },
     { value: "disabled", label: "Unavailable", disabled: true },
   ];
-  const overlay = "tw:font-sans tw:text-sm tw:text-foreground";
+  const overlay = "font-sans text-sm text-foreground";
 </script>
 
 <main
   data-vb-native
-  class="tw:m-0 tw:box-border tw:min-h-dvh tw:bg-background tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:font-normal tw:leading-5 tw:text-foreground tw:md:px-8"
+  class="m-0 box-border min-h-dvh bg-background px-4 py-8 font-sans text-sm font-normal leading-5 text-foreground md:px-8"
   data-gallery
 >
-  <div class="tw:mx-auto tw:max-w-6xl tw:space-y-6">
-    <header
-      class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4"
-    >
-      <div class="tw:space-y-2">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <header class="flex flex-wrap items-start justify-between gap-4">
+      <div class="space-y-2">
         <a
           href="/app?ui=svelte"
-          class="tw:text-sm tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+          class="text-sm text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
           >vibebook</a
         >
         <h1
-          class="tw:m-0 tw:font-sans tw:text-2xl tw:font-semibold tw:leading-8 tw:tracking-tight"
+          class="m-0 font-sans text-2xl font-semibold leading-8 tracking-tight"
         >
           Component gallery
         </h1>
-        <p class="tw:m-0 tw:text-muted-foreground">
+        <p class="m-0 text-muted-foreground">
           Shared primitives, Studio tokens, and one Tailwind entry.
         </p>
       </div>
-      <div class="tw:flex tw:items-center tw:gap-2">
+      <div class="flex items-center gap-2">
         <IconButton
           label={theme === "light" ? "Use dark theme" : "Use light theme"}
           variant="outline"
@@ -122,7 +120,7 @@
         ><Badge>{theme}</Badge>
       </div>
     </header>
-    <div class="tw:grid tw:grid-cols-1 tw:gap-5 tw:md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Actions</CardTitle>
@@ -130,7 +128,7 @@
             >Variants share focus, disabled and loading behavior.</CardDescription
           >
         </CardHeader>
-        <div class="tw:flex tw:flex-wrap tw:gap-2">
+        <div class="flex flex-wrap gap-2">
           {#each variants as variant}<Button
               {variant}
               onclick={() => {
@@ -139,7 +137,7 @@
               }}>{variant}</Button
             >{/each}
         </div>
-        <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <Button disabled>Disabled</Button><Button disabled aria-busy="true"
             ><Spinner size="xs" />Saving</Button
           ><Button size="sm" variant="outline">Small</Button><IconButton
@@ -157,7 +155,7 @@
             <TooltipContent>Search rooms</TooltipContent>
           </Tooltip>
         </div>
-        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+        <p class="m-0 text-xs text-muted-foreground">
           Actions: {count}
         </p>
       </Card>
@@ -210,19 +208,19 @@
             >Keyboard controls use native semantics or Bits UI behavior.</CardDescription
           >
         </CardHeader>
-        <div class="tw:flex tw:items-center tw:gap-2">
+        <div class="flex items-center gap-2">
           <Checkbox id="gallery-checkbox" bind:checked /><Label
             for="gallery-checkbox">Include archived rooms</Label
           >
         </div>
-        <div class="tw:flex tw:items-center tw:gap-2">
+        <div class="flex items-center gap-2">
           <Switch id="gallery-switch" bind:checked={enabled} /><Label
             for="gallery-switch">Notifications</Label
           >
         </div>
         <RadioGroup aria-label="Room visibility" bind:value={choice}>
           {#each visibility as item (item.value)}
-            <div class="tw:flex tw:items-center tw:gap-2">
+            <div class="flex items-center gap-2">
               <RadioGroupItem
                 id={`gallery-radio-${item.value}`}
                 value={item.value}
@@ -236,10 +234,10 @@
               items={filters}
               bind:value={filter}
             >
-              <SelectTrigger {...props} class="tw:w-full">
+              <SelectTrigger {...props} class="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent data-vb-native class="tw:font-sans">
+              <SelectContent data-vb-native class="font-sans">
                 {#each filters as item (item.value)}<SelectItem
                     value={item.value}
                     label={item.label}>{item.label}</SelectItem
@@ -249,7 +247,7 @@
         >
         <output
           data-selection-state
-          class="tw:block tw:text-xs tw:text-muted-foreground"
+          class="block text-xs text-muted-foreground"
           aria-live="polite">{choice} · {filter}</output
         >
       </Card>
@@ -261,7 +259,7 @@
             Bits UI.</CardDescription
           >
         </CardHeader>
-        <div class="tw:flex tw:flex-wrap tw:gap-2">
+        <div class="flex flex-wrap gap-2">
           <Dialog>
             <DialogTrigger>
               {#snippet child({ props })}<Button {...props} variant="outline"
@@ -277,7 +275,7 @@
               preventOverflowTextSelection={false}
             >
               <DialogHeader>
-                <DialogTitle class="tw:font-sans">Edit room</DialogTitle>
+                <DialogTitle class="font-sans">Edit room</DialogTitle>
                 <DialogDescription
                   >Changes apply to the current room.</DialogDescription
                 >
@@ -309,13 +307,13 @@
               preventOverflowTextSelection={false}
             >
               <SheetHeader>
-                <SheetTitle class="tw:font-sans">Room details</SheetTitle>
+                <SheetTitle class="font-sans">Room details</SheetTitle>
                 <SheetDescription
                   >A responsive sheet shares the dialog behavior.</SheetDescription
                 >
               </SheetHeader>
-              <div class="tw:grid tw:gap-4 tw:px-4">
-                <p class="tw:m-0 tw:text-muted-foreground">
+              <div class="grid gap-4 px-4">
+                <p class="m-0 text-muted-foreground">
                   The same dialog primitives support mobile and desktop layouts.
                 </p>
                 <Input aria-label="Sheet note" placeholder="Add a note" />
@@ -331,9 +329,7 @@
               >{/each}
           </TabsList>
           {#each settings as item (item.value)}<TabsContent value={item.value}
-              ><p
-                class="tw:m-0 tw:rounded-control tw:border tw:border-border tw:p-3"
-              >
+              ><p class="m-0 rounded-control border border-border p-3">
                 {item.value === "general" ? "General settings" : "Room members"}
               </p></TabsContent
             >{/each}
@@ -341,31 +337,28 @@
       </Card>
       <Card>
         <CardHeader><CardTitle>Identity and feedback</CardTitle></CardHeader>
-        <div class="tw:flex tw:items-center tw:gap-3">
+        <div class="flex items-center gap-3">
           <PersonAvatar size="sm" email="ana@example.com" /><PersonAvatar
             size="sm"
             email="bruno@example.com"
           /><PersonAvatar size="sm" email="sample@example.com" /><AgentMark
             via="claude-opus-5-5"
-          /><AgentMark via="codex" /><span class="tw:text-muted-foreground"
+          /><AgentMark via="codex" /><span class="text-muted-foreground"
             >People are round faces; agents are square marks.</span
           >
         </div>
         <Separator />
-        <div class="tw:flex tw:flex-wrap tw:gap-2">
+        <div class="flex flex-wrap gap-2">
           <Badge>Default</Badge><Badge variant="brand">Selected</Badge><Badge
-            class="tw:text-foreground"
+            class="text-foreground"
             variant="success">Complete</Badge
-          ><Badge class="tw:text-foreground" variant="warning">Waiting</Badge
-          ><Badge class="tw:text-foreground" variant="destructive">Failed</Badge
-          >
+          ><Badge class="text-foreground" variant="warning">Waiting</Badge
+          ><Badge class="text-foreground" variant="destructive">Failed</Badge>
         </div>
-        <div class="tw:flex tw:items-center tw:gap-3">
-          <Skeleton class="tw:size-9 tw:rounded-full" />
-          <div class="tw:flex-1 tw:space-y-2">
-            <Skeleton class="tw:h-3 tw:w-3/4" /><Skeleton
-              class="tw:h-3 tw:w-1/2"
-            />
+        <div class="flex items-center gap-3">
+          <Skeleton class="size-9 rounded-full" />
+          <div class="flex-1 space-y-2">
+            <Skeleton class="h-3 w-3/4" /><Skeleton class="h-3 w-1/2" />
           </div>
         </div>
       </Card>
@@ -389,25 +382,25 @@
           onretry={() => (status = "Retry requested")}
         /></Card
       >
-      <Card class="tw:md:col-span-2">
+      <Card class="md:col-span-2">
         <CardHeader><CardTitle>Typography</CardTitle></CardHeader>
-        <Heading level={3} class="tw:text-xl tw:leading-7 tw:tracking-tight">
+        <Heading level={3} class="text-xl leading-7 tracking-tight">
           Inter variable — headings and UI
         </Heading>
-        <p class="tw:m-0 tw:text-sm tw:leading-5">
+        <p class="m-0 text-sm leading-5">
           Body 400 · medium 500 · semibold 500 · bold 600. English and
           Portuguese: Olá, colaboração, ações.
         </p>
-        <p class="tw:m-0 tw:text-muted-foreground">
+        <p class="m-0 text-muted-foreground">
           Muted text uses the Studio semantic role.
         </p>
         <pre
-          class="tw:m-0 tw:overflow-auto tw:rounded-control tw:border tw:border-border tw:bg-muted tw:p-3 tw:font-mono tw:text-sm tw:leading-6"><code
+          class="m-0 overflow-auto rounded-control border border-border bg-muted p-3 font-mono text-sm leading-6"><code
             >const room = "fully typed";</code
           ></pre>
       </Card>
     </div>
-    <p role="status" class="tw:min-h-5 tw:text-sm tw:text-muted-foreground">
+    <p role="status" class="min-h-5 text-sm text-muted-foreground">
       {status}
     </p>
   </div>

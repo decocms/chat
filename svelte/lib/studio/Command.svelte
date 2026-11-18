@@ -30,7 +30,7 @@
     onStateChange?.(state);
   }}
   class={cn(
-    "tw:bg-popover tw:text-popover-foreground tw:flex tw:h-full tw:w-full tw:flex-col tw:overflow-hidden tw:rounded-md",
+    "bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
     className,
   )}
   {...rest}

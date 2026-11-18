@@ -299,20 +299,11 @@
   });
 </script>
 
-<div
-  data-native-app-frame
-  class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-2"
->
-  {#if loading}<p
-      role="status"
-      class="tw:p-3 tw:text-sm tw:text-muted-foreground"
-    >
+<div data-native-app-frame class="flex min-h-0 flex-1 flex-col gap-2">
+  {#if loading}<p role="status" class="p-3 text-sm text-muted-foreground">
       {props.t("Carregando…")}
     </p>{/if}
-  {#if error}<div
-      role="alert"
-      class="tw:space-y-2 tw:p-3 tw:text-sm tw:text-destructive"
-    >
+  {#if error}<div role="alert" class="space-y-2 p-3 text-sm text-destructive">
       <p>{error}</p>
       <Button
         variant="outline"
@@ -321,7 +312,7 @@
         }}>{props.t("Tentar de novo")}</Button
       >
     </div>{/if}
-  {#if declined}<div role="status" class="tw:space-y-2 tw:p-3">
+  {#if declined}<div role="status" class="space-y-2 p-3">
       <p>{props.t("App não aberto.")}</p>
       <Button
         variant="outline"
@@ -336,20 +327,20 @@
         {#snippet children(intent)}
           <section
             aria-label={props.t("Permissão do app")}
-            class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:bg-card tw:p-3"
+            class="space-y-2 rounded-control border border-border bg-card p-3"
             aria-live="polite"
           >
-            <p class="tw:text-sm">
+            <p class="text-sm">
               {props.t("Este app quer {what}, como você:", {
                 what: intent.what,
               })}
             </p>
             <blockquote
-              class="tw:m-0 tw:max-h-32 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:font-mono tw:text-xs"
+              class="m-0 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-xs"
             >
               {intent.detail}
             </blockquote>
-            <div class="tw:flex tw:gap-2">
+            <div class="flex gap-2">
               <Button
                 variant="outline"
                 onclick={(event) => {
@@ -365,14 +356,14 @@
       >{/key}{/if}
   {#if signinNeeded && selected && selected.connection !== "room"}<p
       role="alert"
-      class="tw:text-sm"
+      class="text-sm"
     >
       <a
         href={signinUrl(props.room.id, selected.connection)}
         onclick={(event) => {
           if (!connected(event)) event.preventDefault();
         }}
-        class="tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+        class="text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current focus-visible:outline-2 focus-visible:outline-ring"
         >{props.t("Entrar")}</a
       >
     </p>{/if}
@@ -382,8 +373,8 @@
     sandbox="allow-scripts allow-forms"
     title={selected?.tool || "App"}
     class={inline
-      ? "tw:min-h-0 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"
-      : "tw:min-h-80 tw:w-full tw:flex-1 tw:border-0 tw:bg-background"}
+      ? "min-h-0 w-full flex-1 border-0 bg-background"
+      : "min-h-80 w-full flex-1 border-0 bg-background"}
     hidden={!!error || declined || !!$openingQuestion}
   ></iframe>
 </div>

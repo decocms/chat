@@ -19,41 +19,39 @@
       {/snippet}
     </PopoverTrigger>
     <PopoverContent>
-      <div class="tw:grid tw:gap-4">
-        <div class="tw:grid tw:gap-1">
-          <h4 class="tw:leading-none tw:font-medium tw:text-balance">
-            Rate limits
-          </h4>
-          <p class="tw:text-sm tw:text-pretty tw:text-muted-foreground">
+      <div class="grid gap-4">
+        <div class="grid gap-1">
+          <h4 class="leading-none font-medium text-balance">Rate limits</h4>
+          <p class="text-sm text-pretty text-muted-foreground">
             Requests per minute allowed for this API key.
           </p>
         </div>
-        <div class="tw:grid tw:gap-2">
-          <div class="tw:grid tw:grid-cols-3 tw:items-center tw:gap-4">
+        <div class="grid gap-2">
+          <div class="grid grid-cols-3 items-center gap-4">
             <Label for="rpm">Requests</Label>
-            <Input id="rpm" value="600" class="tw:col-span-2 tw:h-8" />
+            <Input id="rpm" value="600" class="col-span-2 h-8" />
           </div>
-          <div class="tw:grid tw:grid-cols-3 tw:items-center tw:gap-4">
+          <div class="grid grid-cols-3 items-center gap-4">
             <Label for="burst">Burst</Label>
-            <Input id="burst" value="100" class="tw:col-span-2 tw:h-8" />
+            <Input id="burst" value="100" class="col-span-2 h-8" />
           </div>
         </div>
       </div>
     </PopoverContent>
   </Popover>
 {:else if story === "alignment"}
-  <div class="tw:flex tw:gap-2">
+  <div class="flex gap-2">
     {#each ALIGNMENTS as align (align)}
       <Popover>
         <PopoverTrigger>
           {#snippet child({ props })}
-            <Button {...props} variant="outline" class="tw:capitalize">
+            <Button {...props} variant="outline" class="capitalize">
               Align {align}
             </Button>
           {/snippet}
         </PopoverTrigger>
-        <PopoverContent {align} class="tw:w-56">
-          <p class="tw:text-sm tw:text-pretty">
+        <PopoverContent {align} class="w-56">
+          <p class="text-sm text-pretty">
             This popover is aligned to the {align} of its trigger.
           </p>
         </PopoverContent>

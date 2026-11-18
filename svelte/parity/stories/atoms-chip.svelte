@@ -17,7 +17,7 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "playground"}
     <Chip size="sm">
       {#snippet child({ props })}
@@ -38,11 +38,8 @@
               {#if size === "sm"}
                 <Icon icon={Target04} /> Mobile conversion
               {:else}
-                <ProjectIcon
-                  color="blue"
-                  class="tw:size-[1.625rem] tw:rounded-full"
-                >
-                  <Icon icon={Globe02} class="tw:size-3.5" />
+                <ProjectIcon color="blue" class="size-[1.625rem] rounded-full">
+                  <Icon icon={Globe02} class="size-3.5" />
                 </ProjectIcon>
                 Site Editor <ChipMeta>Site</ChipMeta>
               {/if}

@@ -24,7 +24,7 @@
   bind:this={ref}
   data-slot="form-item"
   {...rest}
-  class={cn("tw:grid tw:gap-2", className)}
+  class={cn("grid gap-2", className)}
 >
   {@render children?.()}
 </div>

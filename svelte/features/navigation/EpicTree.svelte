@@ -316,7 +316,7 @@
     ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
   ]);
   const dashedRow =
-    "tw:mt-0.5 tw:flex tw:h-9 tw:w-full tw:shrink-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid";
+    "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
   const views = $derived([
     { value: "active", label: vb.t("Épicos"), disabled: false },
     {
@@ -332,14 +332,14 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    "tw:m-0 tw:box-border tw:flex tw:min-h-[max(12rem,40dvh)] tw:grow tw:basis-0 tw:flex-col tw:p-0 tw:text-sm tw:leading-5 tw:text-sidebar-foreground",
+    "m-0 box-border flex min-h-[max(12rem,40dvh)] grow basis-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
   )}
 >
   {#snippet panel(value: string)}
     {#if value === mode}
       <ul
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
-        class="tw:m-0 tw:flex tw:min-h-0 tw:flex-initial tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:p-0"
+        class="m-0 flex min-h-0 flex-initial list-none flex-col gap-0.5 overflow-x-hidden overflow-y-auto overscroll-contain p-0"
       >
         {#each rows as row (row.epic.id)}
           {@const epic = row.epic}
@@ -355,22 +355,21 @@
             }}
             id={rowIds.get(epic.id)}
             data-epic={epic.id}
-            class="tw:group/row tw:relative"
+            class="group/row relative"
           >
             <div
               role="group"
               aria-label={epic.title}
               class={cn(
-                "tw:flex tw:items-center tw:rounded-lg tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:group-has-[[data-state=open]]/row:bg-sidebar-accent",
-                current &&
-                  "tw:bg-sidebar-accent tw:text-sidebar-accent-foreground",
+                "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent group-has-[[data-state=open]]/row:bg-sidebar-accent",
+                current && "bg-sidebar-accent text-sidebar-accent-foreground",
               )}
             >
               <Button
                 variant="ghost"
                 class={cn(
-                  "tw:h-9 tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-2 tw:rounded-lg tw:px-2 tw:text-left tw:font-normal tw:transition-[padding] tw:duration-150 tw:ease-out tw:hover:bg-transparent tw:group-hover/row:pr-9 tw:group-focus-within/row:pr-9 tw:group-has-[[data-state=open]]/row:pr-9 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
-                  current && "tw:font-medium",
+                  "h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none [@media(hover:none)]:pr-9",
+                  current && "font-medium",
                 )}
                 data-epic-thread={epic.id}
                 title={epic.owner
@@ -397,11 +396,11 @@
                   version={epic.owner
                     ? vb.avatarVersion(epic.owner)
                     : undefined}
-                  class="tw:size-5"
+                  class="size-5"
                 />
-                <span class="tw:min-w-0 tw:flex-1 tw:truncate" data-epic-title
+                <span class="min-w-0 flex-1 truncate" data-epic-title
                   >{epic.title}{#if epic.archived}<span
-                      class="tw:ml-1 tw:text-xs tw:text-muted-foreground"
+                      class="ml-1 text-xs text-muted-foreground"
                       >({vb.t("Arquivado")})</span
                     >{/if}</span
                 >
@@ -410,8 +409,7 @@
                     aria-label={vb.t("{who} está trabalhando", {
                       who: working,
                     })}
-                    class="tw:shrink-0 tw:text-xs tw:text-muted-foreground"
-                    >✻</span
+                    class="shrink-0 text-xs text-muted-foreground">✻</span
                   >{/if}
                 <WaitBadge
                   waits={vb.waitsIn(epic.id)}
@@ -436,18 +434,18 @@
                           ? "Verificado em prod"
                           : "No ar, falta verificar em prod",
                     )}
-                    class="tw:flex tw:shrink-0 tw:text-muted-foreground"
+                    class="flex shrink-0 text-muted-foreground"
                     ><Icon
                       icon={changes
                         ? RefreshCw01
                         : epic.prod.stage === "verified"
                           ? CheckCircle
                           : Rocket01}
-                      class="tw:size-3.5"
+                      class="size-3.5"
                     /></span
                   >{/if}
                 {#if epic.tasks.length}<span
-                    class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
+                    class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
                     >{epic.tasks.filter((task) => task.done).length}/{epic.tasks
                       .length}</span
                   >{/if}
@@ -457,16 +455,16 @@
               <DropdownMenuTrigger
                 data-epic-actions={epic.id}
                 aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
-                class="tw:absolute tw:top-1.5 tw:right-1.5 tw:flex tw:size-6 tw:translate-x-1 tw:scale-90 tw:items-center tw:justify-center tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:group-hover/row:translate-x-0 tw:group-hover/row:scale-100 tw:group-hover/row:opacity-100 tw:data-[state=open]:translate-x-0 tw:data-[state=open]:scale-100 tw:data-[state=open]:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+                class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
                 ><Icon
                   icon={DotsHorizontal}
-                  class="tw:size-4"
+                  class="size-4"
                 /></DropdownMenuTrigger
               >
               <DropdownMenuContent
                 data-vb-native
                 align="end"
-                class={cn(studioType, "tw:w-56")}
+                class={cn(studioType, "w-56")}
               >
                 {#if value === "active"}
                   <DropdownMenuItem
@@ -485,7 +483,7 @@
                   >
                   <DropdownMenuSeparator />
                 {/if}
-                <DropdownMenuLabel class="tw:text-xs tw:text-muted-foreground"
+                <DropdownMenuLabel class="text-xs text-muted-foreground"
                   >{vb.t("Dono do épico")}</DropdownMenuLabel
                 >
                 <DropdownMenuRadioGroup
@@ -500,7 +498,7 @@
                   {#each owners as owner (owner.value)}<DropdownMenuRadioItem
                       value={owner.value}
                       disabled={mutationBusy}
-                      ><span class="tw:min-w-0 tw:truncate">{owner.label}</span
+                      ><span class="min-w-0 truncate">{owner.label}</span
                       ></DropdownMenuRadioItem
                     >{/each}
                 </DropdownMenuRadioGroup>
@@ -513,7 +511,7 @@
         {#if creating}
           <form
             id="newEpic"
-            class="tw:mt-0.5 tw:shrink-0"
+            class="mt-0.5 shrink-0"
             onsubmit={add}
             onfocusout={(event) => {
               const next = event.relatedTarget;
@@ -522,7 +520,7 @@
               if (!$navigation.draft.trim()) closeCreate(false);
             }}
           >
-            <Label for={`${uid}-new`} class="tw:sr-only"
+            <Label for={`${uid}-new`} class="sr-only"
               >{vb.t("Novo épico")}</Label
             >
             <InlineAdd
@@ -551,11 +549,10 @@
             onclick={openCreate}
             class={dashedRow}
           >
-            <span
-              class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+            <span class="flex size-5 shrink-0 items-center justify-center"
               ><Icon icon={Plus} size={16} /></span
             >
-            <span class="tw:min-w-0 tw:truncate">{vb.t("Novo épico")}</span>
+            <span class="min-w-0 truncate">{vb.t("Novo épico")}</span>
           </button>
         {/if}
         {#if room.suggestions.length}
@@ -565,16 +562,12 @@
             aria-expanded={suggestionsOpen}
             aria-controls={suggestionsOpen ? `${uid}-suggestions` : undefined}
             onclick={toggleSuggestions}
-            class={cn(
-              dashedRow,
-              suggestionsOpen && "tw:text-sidebar-foreground",
-            )}
+            class={cn(dashedRow, suggestionsOpen && "text-sidebar-foreground")}
           >
-            <span
-              class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+            <span class="flex size-5 shrink-0 items-center justify-center"
               ><Icon icon={Stars01} size={16} /></span
             >
-            <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+            <span class="min-w-0 flex-1 truncate"
               >{vb.t("{n} sugestões do @vibe", {
                 n: room.suggestions.length,
               })}</span
@@ -583,8 +576,8 @@
               icon={ChevronDown}
               size={16}
               class={cn(
-                "tw:shrink-0 tw:transition-transform tw:duration-150 tw:motion-reduce:transition-none",
-                suggestionsOpen && "tw:rotate-180",
+                "shrink-0 transition-transform duration-150 motion-reduce:transition-none",
+                suggestionsOpen && "rotate-180",
               )}
             />
           </button>
@@ -593,12 +586,12 @@
               id={`${uid}-suggestions`}
               role="group"
               aria-label={vb.t("Sugestões do @vibe")}
-              class="tw:mt-0.5 tw:flex tw:shrink-0 tw:flex-col tw:gap-0.5"
+              class="mt-0.5 flex shrink-0 flex-col gap-0.5"
             >
               {#each room.suggestions as suggestion, index}
                 <Button
                   variant="ghost"
-                  class="tw:h-9 tw:w-full tw:justify-start tw:gap-2 tw:rounded-lg tw:px-2 tw:text-left tw:font-normal tw:text-muted-foreground tw:hover:bg-sidebar-accent tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:aria-[current=page]:text-sidebar-foreground"
+                  class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-muted-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-foreground"
                   aria-current={thread === `pre:${index}` ? "page" : undefined}
                   title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
                   data-suggestion={index}
@@ -606,15 +599,14 @@
                     if (onBeforeOpen && !onBeforeOpen()) return;
                     onopen(`pre:${index}`);
                   }}
-                  ><span
-                    aria-hidden="true"
-                    class="tw:w-5 tw:shrink-0 tw:text-center">✦</span
-                  ><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                  ><span aria-hidden="true" class="w-5 shrink-0 text-center"
+                    >✦</span
+                  ><span class="min-w-0 flex-1 truncate"
                     >{suggestion.title}</span
                   >{#if suggestion.tasks.length}<span
-                      class="tw:shrink-0 tw:text-xs tw:tabular-nums"
+                      class="shrink-0 text-xs tabular-nums"
                       >{suggestion.tasks.length}</span
-                    >{/if}<span class="tw:sr-only"
+                    >{/if}<span class="sr-only"
                     >{vb.t("sugestão do @vibe")}</span
                   ></Button
                 >
@@ -628,23 +620,23 @@
   <Tabs
     value={mode}
     onValueChange={switchMode}
-    class="tw:min-h-0 tw:flex-initial tw:gap-2"
+    class="min-h-0 flex-initial gap-2"
   >
-    <TabsList aria-label={vb.t("Épicos")} class="tw:w-full tw:shrink-0">
+    <TabsList aria-label={vb.t("Épicos")} class="w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
           disabled={view.disabled}
-          class="tw:flex-1">{view.label}</TabsTrigger
+          class="flex-1">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class="tw:flex tw:h-auto tw:min-h-0 tw:flex-initial tw:flex-col"
+        class="flex h-auto min-h-0 flex-initial flex-col"
         >{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>
-  <p role="status" aria-live="polite" class="tw:sr-only">{announcement}</p>
-  {#if error}<p role="alert" class="tw:m-0 tw:text-sm tw:text-destructive">
+  <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
+  {#if error}<p role="alert" class="m-0 text-sm text-destructive">
       {error}
     </p>{/if}
 </section>

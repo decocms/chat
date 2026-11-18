@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="pagination-content"
   {...rest}
-  class={cn("tw:flex tw:flex-row tw:items-center tw:gap-1", className)}
+  class={cn("flex flex-row items-center gap-1", className)}
 >
   {@render children?.()}
 </ul>

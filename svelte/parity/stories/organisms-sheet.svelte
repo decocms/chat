@@ -30,12 +30,12 @@
           Update the member's display name and role, then save.
         </SheetDescription>
       </SheetHeader>
-      <div class="tw:grid tw:gap-4 tw:px-4">
-        <div class="tw:grid tw:gap-2">
+      <div class="grid gap-4 px-4">
+        <div class="grid gap-2">
           <Label for="member-name">Name</Label>
           <Input id="member-name" value="Ana Souza" />
         </div>
-        <div class="tw:grid tw:gap-2">
+        <div class="grid gap-2">
           <Label for="member-role">Role</Label>
           <Input id="member-role" value="Admin" />
         </div>
@@ -51,12 +51,12 @@
     </SheetContent>
   </Sheet>
 {:else if story === "sides"}
-  <div class="tw:flex tw:flex-wrap tw:gap-2">
+  <div class="flex flex-wrap gap-2">
     {#each SIDES as side (side)}
       <Sheet>
         <SheetTrigger>
           {#snippet child({ props })}
-            <Button {...props} variant="outline" class="tw:capitalize">
+            <Button {...props} variant="outline" class="capitalize">
               {side}
             </Button>
           {/snippet}

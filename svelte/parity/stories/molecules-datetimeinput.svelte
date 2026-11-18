@@ -14,20 +14,20 @@
 {#snippet text(content: string)}{content}{/snippet}
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default" || story === "absolute-date"}
-    <div class="tw:w-80 tw:space-y-2">
+    <div class="w-80 space-y-2">
       <DateTimeInput bind:value />
-      <p class="tw:text-muted-foreground tw:text-xs tw:text-pretty">
+      <p class="text-muted-foreground text-xs text-pretty">
         Value: {@render text(value)}
       </p>
     </div>
   {:else if story === "with-error"}
-    <div class="tw:w-80">
+    <div class="w-80">
       <DateTimeInput value="now-24h" error="'From' must be before 'To'" />
     </div>
   {:else if story === "disabled"}
-    <div class="tw:w-80">
+    <div class="w-80">
       <DateTimeInput value="now-24h" disabled />
     </div>
   {/if}

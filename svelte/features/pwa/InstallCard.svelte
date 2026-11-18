@@ -35,12 +35,11 @@
     data-vb-native
     data-native-install
     data-compact
-    class="tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:py-2 tw:pr-2 tw:pl-3 tw:font-sans tw:text-sm tw:text-foreground"
+    class="space-y-2 rounded-surface border border-border bg-card py-2 pr-2 pl-3 font-sans text-sm text-foreground"
   >
-    <div class="tw:flex tw:items-center tw:gap-3">
-      <img src="/icon-192.png" alt="" class="tw:size-8 tw:rounded-lg" /><span
-        class="tw:min-w-0 tw:flex-1 tw:font-medium tw:leading-5"
-        >{text("install")}</span
+    <div class="flex items-center gap-3">
+      <img src="/icon-192.png" alt="" class="size-8 rounded-lg" /><span
+        class="min-w-0 flex-1 font-medium leading-5">{text("install")}</span
       >{#if !$view.ios || $view.safari}<Button
           size="sm"
           variant="outline"
@@ -61,28 +60,22 @@
     </div>
     {#if $view.steps || ($view.ios && !$view.safari)}<p
         role="status"
-        class="tw:m-0 tw:pr-1 tw:leading-6 tw:text-muted-foreground"
+        class="m-0 pr-1 leading-6 text-muted-foreground"
       >
         {$view.ios ? text("ios") : text("android")}
       </p>{/if}
-    {#if $view.error === "install"}<p
-        role="alert"
-        class="tw:m-0 tw:text-destructive"
-      >
+    {#if $view.error === "install"}<p role="alert" class="m-0 text-destructive">
         {text("failed")}
       </p>{/if}
   </section>{:else if !$view.standalone && !$view.dismissed && $view.coarse}
   <section
     data-vb-native
     data-native-install
-    class="tw:mb-4 tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
+    class="mb-4 space-y-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-foreground"
   >
-    <div class="tw:flex tw:items-center tw:gap-3">
-      <img
-        src="/icon-192.png"
-        alt=""
-        class="tw:size-10 tw:rounded-control"
-      /><Heading class="tw:flex-1 tw:text-lg">{text("install")}</Heading
+    <div class="flex items-center gap-3">
+      <img src="/icon-192.png" alt="" class="size-10 rounded-control" /><Heading
+        class="flex-1 text-lg">{text("install")}</Heading
       ><IconButton
         label={text("close")}
         onclick={(event) => {
@@ -90,7 +83,7 @@
         }}><Icon icon={X} /></IconButton
       >
     </div>
-    <p class="tw:m-0 tw:text-muted-foreground">{text("benefits")}</p>
+    <p class="m-0 text-muted-foreground">{text("benefits")}</p>
     {#if !$view.ios || $view.safari}<Button
         disabled={$view.installBusy}
         aria-busy={$view.installBusy || undefined}
@@ -103,11 +96,11 @@
       >{/if}
     {#if $view.steps || ($view.ios && !$view.safari)}<p
         role="status"
-        class="tw:m-0 tw:leading-6"
+        class="m-0 leading-6"
       >
         {$view.ios ? text("ios") : text("android")}
       </p>{/if}
-    {#if $view.error === "install"}<p role="alert" class="tw:text-destructive">
+    {#if $view.error === "install"}<p role="alert" class="text-destructive">
         {text("failed")}
       </p>{/if}
   </section>{/if}

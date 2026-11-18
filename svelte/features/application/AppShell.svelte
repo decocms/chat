@@ -221,18 +221,18 @@
   data-native-app-shell
   class={[
     $application.route.kind === "room"
-      ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:md:grid-cols-[68px_minmax(0,1fr)] tw:md:bg-sidebar"
+      ? "grid h-dvh min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden md:grid-cols-[68px_minmax(0,1fr)] md:bg-sidebar"
       : // Desktop: the same frame as a room, the rail outside it and the page scrolling inside; the home has your DM list beside it.
         [
-          "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr_auto] tw:md:h-dvh tw:md:grid-rows-[minmax(0,1fr)] tw:md:overflow-hidden tw:md:bg-sidebar",
+          "grid min-h-dvh grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] md:h-dvh md:grid-rows-[minmax(0,1fr)] md:overflow-hidden md:bg-sidebar",
           paged
-            ? "tw:md:grid-cols-[68px_273px_minmax(0,1fr)]"
-            : "tw:md:grid-cols-[68px_minmax(0,1fr)]",
+            ? "md:grid-cols-[68px_273px_minmax(0,1fr)]"
+            : "md:grid-cols-[68px_minmax(0,1fr)]",
         ],
-    "tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground",
+    "bg-background font-sans text-sm leading-6 text-foreground",
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
-    "tw:[&_*]:[scrollbar-color:transparent_transparent] tw:[&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] tw:[&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
+    "[&_*]:[scrollbar-color:transparent_transparent] [&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] [&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
   ]}
 >
   {#if !$application.sessionDenied}
@@ -250,15 +250,15 @@
       <div
         aria-hidden="true"
         data-home-surface
-        class="tw:hidden tw:md:col-start-2 tw:md:col-end-4 tw:md:row-start-1 tw:md:my-2 tw:md:mr-2 tw:md:ml-px tw:md:block tw:md:rounded-surface tw:md:bg-background tw:md:shadow-edge"
+        class="hidden md:col-start-2 md:col-end-4 md:row-start-1 md:my-2 md:mr-2 md:ml-px md:block md:rounded-surface md:bg-background md:shadow-edge"
       ></div>
       <!-- Your DMs (or the settings' sections): beside the page on desktop (the sidebar of that surface); the DMs
         go under the home on a phone, where the settings need no list. -->
       <aside
         data-native-home-dms
         class="{settings
-          ? 'tw:hidden tw:md:flex'
-          : ''} tw:col-start-1 tw:row-start-3 tw:min-w-0 tw:px-4 tw:pt-2 tw:pb-8 tw:md:relative tw:md:z-10 tw:md:col-start-2 tw:md:row-start-1 tw:md:my-2 tw:md:ml-px tw:md:flex tw:md:min-h-0 tw:md:flex-col tw:md:rounded-l-surface tw:md:border-r tw:md:border-border tw:md:bg-sidebar tw:md:px-2 tw:md:py-2"
+          ? 'hidden md:flex'
+          : ''} col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
       >
         {#if settings}<SettingsNav
             lang={services.language}
@@ -276,13 +276,13 @@
     <div
       data-native-application-route
       class={$application.route.kind === "room"
-        ? "tw:col-start-1 tw:row-start-1 tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:md:col-start-2"
+        ? "col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden md:col-start-2"
         : [
-            "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:md:row-start-1 tw:md:my-2 tw:md:mr-2 tw:md:min-h-0 tw:md:overflow-y-auto tw:md:overscroll-contain",
+            "col-start-1 row-start-2 min-w-0 md:row-start-1 md:my-2 md:mr-2 md:min-h-0 md:overflow-y-auto md:overscroll-contain",
             paged
               ? // Inside the home's surface, right of the DM list: that surface draws the frame.
-                "tw:relative tw:md:col-start-3 tw:md:rounded-r-surface"
-              : "tw:md:col-start-2 tw:md:ml-px tw:md:rounded-surface tw:md:bg-background tw:md:shadow-edge",
+                "relative md:col-start-3 md:rounded-r-surface"
+              : "md:col-start-2 md:ml-px md:rounded-surface md:bg-background md:shadow-edge",
           ]}
     >
       {#if $application.route.kind === "home"}{#if Home}<Home
@@ -344,7 +344,7 @@
           />{/if}
       {:else if $application.route.kind === "room"}<div
           data-native-room-root
-          class="tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden"
+          class="h-full min-h-0 min-w-0 overflow-hidden"
         >
           {@render roomSnippet({ services, openInbox, inbox })}
         </div>{/if}
@@ -397,14 +397,14 @@
               >
                 <DialogContent
                   data-vb-native
-                  class="tw:font-sans tw:text-sm tw:text-foreground"
+                  class="font-sans text-sm text-foreground"
                   closeLabel={services.t("Fechar")}
                   preventScroll={false}
                   preventBodyPointerEvents={false}
                   preventOverflowTextSelection={false}
                 >
                   <DialogHeader>
-                    <DialogTitle class="tw:pr-8 tw:font-sans"
+                    <DialogTitle class="pr-8 font-sans"
                       >{services.t("Caixa de entrada")}</DialogTitle
                     >
                   </DialogHeader><DeferredViewStatus

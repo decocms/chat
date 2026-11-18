@@ -14,7 +14,7 @@ test("HTML parsing catches embedded styles and stylesheet links, including templ
   expect(
     auditHTML(
       "app.html",
-      '<link rel="stylesheet" href="/svelte-preview/ui.css?v=abc"><div class="tw:bg-card"></div>',
+      '<link rel="stylesheet" href="/svelte-preview/ui.css?v=abc"><div class="bg-card"></div>',
     ),
   ).toEqual([]);
 });
@@ -30,10 +30,7 @@ test("native component audit rejects style blocks, directives, markup and CSSOM 
     '<script lang="ts">const markup = `<span style="color:${color}">bad</span>`;</script>',
     '<script lang="ts">element.style.color = "red";</script>',
     '<script lang="ts">const {style: presentation} = document.body; presentation.color = "red";</script>',
-    '<p class={"legacy-message"}></p>',
-    '<p class={cn("legacy-message")}></p>',
-    '<p class={active ? "tw:block" : "legacy-message"}></p>',
-    "<p class={`tw:bg-${color}`}></p>",
+    "<p class={`bg-${color}`}></p>",
     "<button onclick={() => { document.body.style.color = String(1); }}>Click</button>",
     '<script lang="ts">const load = () => import("some-theme/theme.css");</script>',
     '<script lang="ts">export * from "some-theme/theme.css";</script>',
@@ -48,7 +45,7 @@ test("native component audit rejects style blocks, directives, markup and CSSOM 
   expect(
     auditPresentation(
       "svelte/lib/components/Test.svelte",
-      '<script lang="ts">let value = $state("hello");</script><p class="tw:text-foreground">{value}</p>',
+      '<script lang="ts">let value = $state("hello");</script><p class="text-foreground">{value}</p>',
     ),
   ).toEqual([]);
 });
@@ -57,7 +54,7 @@ test("closed card variants select Tailwind utilities without permitting CSSOM or
   expect(
     auditPresentation(
       file,
-      '<p class={element.props.style === "bold" ? "tw:font-semibold" : "tw:font-normal"}>Card</p>',
+      '<p class={element.props.style === "bold" ? "font-semibold" : "font-normal"}>Card</p>',
     ),
   ).toEqual([]);
   for (const source of [

@@ -22,18 +22,18 @@
   data-slot="scroll-area-scrollbar"
   {orientation}
   class={cn(
-    "tw:touch-none tw:p-px tw:transition-colors tw:select-none",
+    "touch-none p-px transition-colors select-none",
     orientation === "vertical" &&
-      "tw:h-full tw:w-2.5 tw:border-l tw:border-border tw:border-l-transparent",
+      "h-full w-2.5 border-l border-border border-l-transparent",
     orientation === "horizontal" &&
-      "tw:h-2.5 tw:flex-col tw:border-t tw:border-border tw:border-t-transparent",
-    hideScrollbar && "tw:hidden",
+      "h-2.5 flex-col border-t border-border border-t-transparent",
+    hideScrollbar && "hidden",
     className,
   )}
   {...rest}
 >
   <ScrollAreaPrimitive.Thumb
     data-slot="scroll-area-thumb"
-    class="tw:relative tw:flex-1 tw:rounded-full tw:bg-border"
+    class="relative flex-1 rounded-full bg-border"
   />
 </ScrollAreaPrimitive.Scrollbar>

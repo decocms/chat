@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="breadcrumb-item"
   {...rest}
-  class={cn("tw:inline-flex tw:items-center tw:gap-1.5 tw:min-w-0", className)}
+  class={cn("inline-flex items-center gap-1.5 min-w-0", className)}
 >
   {@render children?.()}
 </li>

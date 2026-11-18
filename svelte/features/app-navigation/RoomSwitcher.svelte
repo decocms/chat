@@ -51,9 +51,9 @@
     }}
     tabindex={-1}
     data-vb-native="room-switcher"
-    class="tw:max-h-[80dvh] tw:gap-2 tw:outline-none tw:rounded-b-2xl tw:px-3 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3 tw:font-sans tw:text-sm"
+    class="max-h-[80dvh] gap-2 outline-none rounded-b-2xl px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 font-sans text-sm"
   >
-    <SheetTitle class="tw:sr-only">{homeText(lang, "switchRoom")}</SheetTitle>
+    <SheetTitle class="sr-only">{homeText(lang, "switchRoom")}</SheetTitle>
     <RoomList
       {rooms}
       {dms}

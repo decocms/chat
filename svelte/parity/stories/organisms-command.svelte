@@ -25,9 +25,7 @@
 </script>
 
 {#if story === "default"}
-  <Command
-    class="tw:w-96 tw:rounded-lg tw:border-border tw:border tw:shadow-md"
-  >
+  <Command class="w-96 rounded-lg border-border border shadow-md">
     <CommandInput placeholder="Type a command or search..." />
     <CommandList>
       <CommandEmpty>No results found.</CommandEmpty>
@@ -61,7 +59,7 @@
 {:else if story === "as-dialog"}
   <Button variant="outline" onclick={() => (open = true)}>
     Open command palette
-    <span class="tw:text-muted-foreground tw:text-xs">⌘K</span>
+    <span class="text-muted-foreground text-xs">⌘K</span>
   </Button>
   <CommandDialog bind:open>
     <CommandInput placeholder="Search projects, connections, members..." />

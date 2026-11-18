@@ -181,13 +181,13 @@
   }}
   class={[
     continuous
-      ? "tw:group tw:relative tw:rounded-control tw:px-3 tw:py-0.5 tw:font-sans tw:text-[0.875rem] tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55"
-      : "tw:group tw:relative tw:mt-2 tw:rounded-control tw:px-3 tw:pt-1 tw:pb-0.5 tw:font-sans tw:text-[0.875rem] tw:text-foreground tw:transition-colors tw:duration-150 tw:pointer-fine:hover:bg-accent/55",
-    waiting ? "tw:border-l-2 tw:border-warning tw:bg-warning/10" : "",
-    attention ? "tw:animate-pulse tw:motion-reduce:animate-none" : "",
-    flash ? "tw:bg-accent" : "",
+      ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
+      : "group relative mt-2 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+    waiting ? "border-l-2 border-warning bg-warning/10" : "",
+    attention ? "animate-pulse motion-reduce:animate-none" : "",
+    flash ? "bg-accent" : "",
     fireHot
-      ? "tw:after:pointer-events-none tw:after:absolute tw:after:inset-0 tw:after:animate-pulse tw:after:rounded-surface tw:after:ring-2 tw:after:ring-warning tw:motion-reduce:after:animate-none"
+      ? "after:pointer-events-none after:absolute after:inset-0 after:animate-pulse after:rounded-surface after:ring-2 after:ring-warning motion-reduce:after:animate-none"
       : "",
   ]}
 >
@@ -197,57 +197,55 @@
       type="button"
       data-native-quote={m.reply_to}
       title={vb.t("Ver a mensagem respondida")}
-      class="tw:group/quote tw:relative tw:mb-1 tw:flex tw:h-[22px] tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:pl-14 tw:text-left tw:font-sans tw:text-[0.8125rem] tw:leading-[18px] tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+      class="group/quote relative mb-1 flex h-[22px] w-full min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 pl-14 text-left font-sans text-[0.8125rem] leading-[18px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onclick={() => {
         if (active) actions.navigate(m.reply_to!, quote?.thread);
       }}
     >
       <span
         aria-hidden="true"
-        class="tw:pointer-events-none tw:absolute tw:top-1/2 tw:-bottom-1 tw:left-[19px] tw:w-[29px] tw:rounded-tl-md tw:border-t-2 tw:border-l-2 tw:border-solid tw:border-r-0 tw:border-b-0 tw:border-muted-foreground/35"
+        class="pointer-events-none absolute top-1/2 -bottom-1 left-[19px] w-[29px] rounded-tl-md border-t-2 border-l-2 border-solid border-r-0 border-b-0 border-muted-foreground/35"
       ></span>
       {#if quote}{#if quote.author === "ai"}<span
             aria-hidden="true"
-            class="tw:flex tw:size-4 tw:shrink-0 tw:items-center tw:justify-center tw:text-[0.6875rem]"
+            class="flex size-4 shrink-0 items-center justify-center text-[0.6875rem]"
             >✦</span
           >{:else}<PersonAvatar
             size="2xs"
             email={quote.author}
             version={vb.avatarVersion(quote.author)}
-            class="tw:shrink-0"
+            class="shrink-0"
           />{/if}<span
           class={[
-            "tw:shrink-0 tw:font-medium",
+            "shrink-0 font-medium",
             quote.kind === "agent"
               ? AGENT_NAMES[agentProvider(quote.via)]
-              : "tw:text-foreground/80",
+              : "text-foreground/80",
           ]}>@{author(quote)}</span
-        ><span
-          class="tw:min-w-0 tw:truncate tw:group-hover/quote:text-foreground"
+        ><span class="min-w-0 truncate group-hover/quote:text-foreground"
           >{messageSnippet(quote, vb.t("votação"))}</span
-        >{:else}<span class="tw:truncate tw:italic"
-          >{vb.t("mensagem anterior")}</span
+        >{:else}<span class="truncate italic">{vb.t("mensagem anterior")}</span
         >{/if}
     </button>{/if}
-  <div class="tw:flex tw:items-start tw:gap-4">
-    <div class="tw:w-10 tw:shrink-0">
+  <div class="flex items-start gap-4">
+    <div class="w-10 shrink-0">
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
             size="base"
-            class="tw:text-base"
+            class="text-base"
           />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->
-          <div class="tw:relative tw:size-10" title={author(m)}>
+          <div class="relative size-10" title={author(m)}>
             <AgentMark
               via={m.via}
               tint
               size="base"
-              class="tw:text-lg"
+              class="text-lg"
             /><PersonAvatar
               size="xs"
               data-avatar="person"
               email={m.author}
               version={vb.avatarVersion(m.author)}
-              class="tw:absolute tw:-right-1.5 tw:-bottom-1.5 tw:size-5 tw:ring-2 tw:ring-background"
+              class="absolute -right-1.5 -bottom-1.5 size-5 ring-2 ring-background"
             />
           </div>{:else}<PersonAvatar
             size="base"
@@ -256,21 +254,21 @@
             version={vb.avatarVersion(m.author)}
           />{/if}{:else}<time
           title={timestamp}
-          class="tw:-mx-3 tw:block tw:text-center tw:text-xs tw:leading-6 tw:whitespace-nowrap tw:text-muted-foreground tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100"
+          class="-mx-3 block text-center text-xs leading-6 whitespace-nowrap text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
           >{vb.hhmm(m.ts)}</time
         >{/if}
     </div>
-    <div data-message-body class="tw:min-w-0 tw:flex-1 tw:space-y-1">
+    <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
-          class="tw:-mb-0.5 tw:flex tw:h-5 tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+          class="-mb-0.5 flex h-5 flex-wrap items-center gap-2 text-xs text-muted-foreground"
         >
           <span
             class={[
               // The name is as big as the message under it; only the weight differs.
-              "tw:text-[0.875rem] tw:leading-5 tw:font-semibold",
+              "text-[0.875rem] leading-5 font-semibold",
               m.kind === "agent"
                 ? AGENT_NAMES[agentProvider(m.via)]
-                : "tw:text-foreground",
+                : "text-foreground",
             ]}>{author(m)}</span
           >{#if m.kind === "agent"}<Badge
               size="sm"
@@ -278,7 +276,7 @@
               >agent</Badge
             >{/if}{#if m.tag === "done"}<Badge
               size="sm"
-              class="tw:text-foreground"
+              class="text-foreground"
               variant="success">✓ {vb.t("entregue")}</Badge
             >{/if}<time title={timestamp}>{vb.hhmm(m.ts)}</time>
         </div>{/if}
@@ -286,7 +284,7 @@
         {#if !m.text && (typing || (m.author === "ai" && !m.poll))}<p
             data-message-typing
             role="status"
-            class="tw:m-0 tw:text-muted-foreground"
+            class="m-0 text-muted-foreground"
           >
             {typing
               ? vb.typingNote?.(m.id) ||
@@ -312,9 +310,9 @@
             {actions}
             {vb}
           />{/if}
-      {:else if kind === "reminder"}<details class="tw:space-y-2">
+      {:else if kind === "reminder"}<details class="space-y-2">
           <summary
-            class="tw:cursor-pointer tw:rounded-control tw:leading-6 tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+            class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
             >⏰ {#if reminder.name}<b>{reminder.name}</b>
             {/if}{reminder.head} · {reminder.runs.length > 1
               ? `${vb.t("rodou {n}×", { n: reminder.runs.length })} · `
@@ -322,14 +320,14 @@
           >{#if reminder.body}{@render rich(
               reminder.body,
             )}{/if}{#if reminder.runs.length > 1}<p
-              class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+              class="m-0 text-xs text-muted-foreground"
             >
               {reminder.runs.map(day).join(" · ")}
             </p>{/if}
         </details>
-      {:else if kind === "issue"}<details class="tw:space-y-3">
+      {:else if kind === "issue"}<details class="space-y-3">
           <summary
-            class="tw:cursor-pointer tw:rounded-control tw:leading-6 tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+            class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
             >⚠ <b
               >{group.length > 1
                 ? vb.t("{n} issues dos agents", { n: group.length })
@@ -338,12 +336,11 @@
             {issueParts(m).body.replace(/\s+/g, " ").slice(0, 140)} ·
             <time title={timestamp}>{day(m.ts)}</time></summary
           >{#each [...group].reverse() as issue (issue.id)}<div
-              class="tw:space-y-2 tw:border-l-2 tw:border-border tw:pl-3"
+              class="space-y-2 border-l-2 border-border pl-3"
             >
-              <time class="tw:text-xs tw:text-muted-foreground"
-                >{day(issue.ts)}</time
+              <time class="text-xs text-muted-foreground">{day(issue.ts)}</time
               >{@render rich(issueParts(issue).head)}
-              <p class="tw:m-0 tw:whitespace-pre-wrap tw:break-words">
+              <p class="m-0 whitespace-pre-wrap break-words">
                 {issueParts(issue).body}
               </p>
               <MessageActions
@@ -355,9 +352,9 @@
               />
             </div>{/each}
         </details>
-      {:else}<details class="tw:space-y-2">
+      {:else}<details class="space-y-2">
           <summary
-            class="tw:cursor-pointer tw:rounded-control tw:leading-6 tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+            class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
             >✦ {@render rich(
               m.text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim(),
               "inline",
@@ -371,16 +368,14 @@
             {vb}
           />{/each}{/if}
       <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. -->
-      <div
-        class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-3"
-      >
+      <div class="flex flex-wrap items-center justify-between gap-x-3">
         {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
             message={m}
             me={room.me}
             {actions}
             {vb}
           />{/if}
-        {#if footer && !origin}<div class="tw:ml-auto">
+        {#if footer && !origin}<div class="ml-auto">
             <MessageFooter {footer} {vb} />
           </div>{/if}
       </div>

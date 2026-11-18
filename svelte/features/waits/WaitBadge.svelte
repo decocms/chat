@@ -21,16 +21,14 @@
   } = $props();
   const indicator = $derived(waitIndicator(waits));
   const ring = $derived(
-    surface === "sidebar"
-      ? "tw:ring-2 tw:ring-sidebar"
-      : "tw:ring-2 tw:ring-background",
+    surface === "sidebar" ? "ring-2 ring-sidebar" : "ring-2 ring-background",
   );
 </script>
 
 {#if indicator.asks}<span
     data-wait-kind="asks"
     data-wait-from={indicator.claude ? "claude" : "person"}
-    class={cn("tw:inline-flex tw:shrink-0", className)}
+    class={cn("inline-flex shrink-0", className)}
     ><Count
       value={indicator.asks}
       label={label(indicator.asks)}
@@ -42,7 +40,7 @@
     aria-label={taskLabel}
     title={taskLabel}
     class={cn(
-      "tw:inline-block tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-brand tw:ring-1 tw:ring-brand-foreground/30",
+      "inline-block size-2 shrink-0 rounded-full bg-brand ring-1 ring-brand-foreground/30",
       solid && ring,
       className,
     )}

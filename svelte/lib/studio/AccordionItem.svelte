@@ -15,8 +15,5 @@
   bind:ref
   data-slot="accordion-item"
   {...rest}
-  class={cn(
-    "tw:border-border tw:border-b tw:py-1 tw:last:border-b-0",
-    className,
-  )}
+  class={cn("border-border border-b py-1 last:border-b-0", className)}
 />

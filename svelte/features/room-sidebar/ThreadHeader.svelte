@@ -44,8 +44,7 @@
   }: ThreadHeaderProps = $props();
   const status = untrack(() => owner.state);
   // Secondary text beside the title gives way first; on the phone bar it is dropped (the sheet header shows it).
-  const aside =
-    "tw:min-w-0 tw:shrink-[2] tw:truncate tw:text-xs tw:text-muted-foreground";
+  const aside = "min-w-0 shrink-[2] truncate text-xs text-muted-foreground";
   const epic = $derived(room.epics.find((item) => item.id === thread));
   const suggestion = $derived(suggestionAt(room, thread));
   // A DM's main thread: the other person's face, the same as in your DM list.
@@ -116,33 +115,33 @@
 <div
   data-vb-native
   data-native-thread-header
-  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-nowrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:tracking-normal tw:text-foreground"
+  class="flex min-w-0 flex-1 flex-nowrap items-center gap-1 font-sans text-sm tracking-normal text-foreground"
 >
-  <span class={["tw:hidden tw:md:contents", onhome && "tw:cursor-pointer"]}
+  <span class={["hidden md:contents", onhome && "cursor-pointer"]}
     >{#if !epic && !suggestion && peer}<PersonAvatar
         email={peer}
         version={vb.avatarVersion(peer)}
-        class="tw:size-6"
+        class="size-6"
       />{:else if !epic && !suggestion}<RoomMark
         {title}
         src={roomIcon}
-        class="tw:size-6"
+        class="size-6"
       />{:else}<PersonAvatar
         email={epic?.owner}
         version={epic?.owner ? vb.avatarVersion(epic.owner) : undefined}
-        class="tw:size-6"
+        class="size-6"
       />{/if}</span
   >
-  <h2 class="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-sm tw:font-medium">
+  <h2 class="m-0 min-w-0 overflow-hidden text-sm font-medium">
     <Button
       id={titleId}
       variant="ghost"
       size="sm"
       class={cn(
-        "tw:max-w-full tw:min-w-0 tw:justify-start tw:px-2 tw:text-sm tw:font-medium",
+        "max-w-full min-w-0 justify-start px-2 text-sm font-medium",
         // Desktop top bar: plain text with a pointer, no button background.
         onhome &&
-          "tw:md:cursor-pointer tw:md:hover:bg-transparent tw:md:hover:text-foreground tw:md:aria-expanded:bg-transparent",
+          "md:cursor-pointer md:hover:bg-transparent md:hover:text-foreground md:aria-expanded:bg-transparent",
       )}
       title={room.book.summary || title}
       onclick={(event) => {
@@ -150,22 +149,22 @@
         if (matchMedia(MOBILE_QUERY).matches) onopenside();
         else if (onhome) onhome();
         else if (!suggestion) epic ? begin("rename") : onrenameroom();
-      }}><span class="tw:truncate">{title}</span></Button
+      }}><span class="truncate">{title}</span></Button
     >
   </h2>
   <IconButton
     label={vb.t("Trocar de conversa")}
-    class="tw:md:hidden"
+    class="md:hidden"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onopenside();
     }}><Icon icon={ChevronDown} /></IconButton
   >
-  {#if suggestion}<span class={[aside, compact && "tw:max-md:hidden"]}
+  {#if suggestion}<span class={[aside, compact && "max-md:hidden"]}
       >✦ {vb.t("sugestão do @vibe")}</span
     >{:else if room.book.folder && !epic && !compact}<span class={aside}
       >{room.book.folder}</span
     >{/if}
-  {#if epic}<span class={compact ? "tw:hidden tw:md:contents" : "tw:contents"}>
+  {#if epic}<span class={compact ? "hidden md:contents" : "contents"}>
       <DropdownMenu>
         <DropdownMenuTrigger
           data-thread-actions={epic.id}
@@ -177,7 +176,7 @@
         <DropdownMenuContent
           data-vb-native
           align="end"
-          class={cn(studioType, "tw:w-52")}
+          class={cn(studioType, "w-52")}
         >
           <DropdownMenuItem disabled={busy} onSelect={() => begin("rename")}
             ><Icon icon={Pencil01} />{vb.t("Renomear")}</DropdownMenuItem
@@ -213,8 +212,8 @@
   bind:open={rename}
   title={vb.t("Nome do épico:")}
   closeLabel={vb.t("Cancelar")}
-  ><form onsubmit={save} class="tw:space-y-3">
-    <Label class="tw:flex-col tw:items-stretch tw:gap-1.5"
+  ><form onsubmit={save} class="space-y-3">
+    <Label class="flex-col items-stretch gap-1.5"
       >{vb.t("Nome do épico:")}<Input
         bind:value
         maxlength={200}
@@ -222,7 +221,7 @@
         required
       /></Label
     >
-    <div class="tw:flex tw:justify-end">
+    <div class="flex justify-end">
       <Button type="submit" disabled={busy || !value.trim()}
         >{vb.t("Salvar")}</Button
       >

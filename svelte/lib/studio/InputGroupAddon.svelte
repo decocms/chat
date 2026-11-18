@@ -20,10 +20,7 @@
   bind:this={ref}
   data-slot="input-group-addon"
   {...rest}
-  class={cn(
-    "tw:text-muted-foreground tw:flex tw:shrink-0 tw:items-center tw:px-2",
-    className,
-  )}
+  class={cn("text-muted-foreground flex shrink-0 items-center px-2", className)}
 >
   {@render children?.()}
 </span>

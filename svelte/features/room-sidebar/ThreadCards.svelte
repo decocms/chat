@@ -38,7 +38,7 @@
   <Button
     variant="outline"
     data-thread-card={epic.id}
-    class="tw:mt-2 tw:h-auto tw:w-full tw:justify-start tw:gap-3 tw:rounded-xl tw:p-3 tw:text-left tw:font-normal tw:whitespace-normal"
+    class="mt-2 h-auto w-full justify-start gap-3 rounded-xl p-3 text-left font-normal whitespace-normal"
     onclick={(event) => {
       if (
         event.currentTarget.isConnected &&
@@ -52,9 +52,9 @@
       version={epic.owner ? vb.avatarVersion(epic.owner) : undefined}
       size="sm"
     />
-    <span class="tw:min-w-0 tw:flex-1"
-      ><strong class="tw:block tw:font-medium">{epic.title}</strong><small
-        class="tw:block tw:text-xs tw:text-muted-foreground"
+    <span class="min-w-0 flex-1"
+      ><strong class="block font-medium">{epic.title}</strong><small
+        class="block text-xs text-muted-foreground"
         >{epic.archived ? `✓ ${vb.t("concluído")} · ` : ""}{epic.tasks.length
           ? `${vb.t("{d}/{n} tarefas", { d: epic.tasks.filter((task) => task.status === "done").length, n: epic.tasks.length })} · `
           : ""}{count === 1
@@ -63,15 +63,15 @@
           ? ` · ${vb.ago(last.ts) === vb.t("agora") ? vb.t("agora") : vb.t("última há {ago}", { ago: vb.ago(last.ts) })}`
           : ""}</small
       ></span
-    ><Icon icon={ArrowRight} class="tw:text-muted-foreground" />
+    ><Icon icon={ArrowRight} class="text-muted-foreground" />
   </Button>
-  {#if files.length}<div class="tw:flex tw:flex-wrap tw:gap-2 tw:py-2">
+  {#if files.length}<div class="flex flex-wrap gap-2 py-2">
       {#each files.slice(0, 6) as file (file.name)}<a
           href={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}?ui=svelte`}
           target="_blank"
           rel="noopener noreferrer"
           title={file.name}
-          class="tw:inline-flex tw:h-7 tw:max-w-full tw:items-center tw:gap-1.5 tw:rounded-full tw:bg-card tw:px-2.5 tw:text-xs tw:text-foreground tw:no-underline tw:shadow-edge tw:hover:bg-accent"
+          class="inline-flex h-7 max-w-full items-center gap-1.5 rounded-full bg-card px-2.5 text-xs text-foreground no-underline shadow-edge hover:bg-accent"
           onclick={(event) => {
             if (
               !event.currentTarget.isConnected ||
@@ -90,11 +90,11 @@
               name: file.name,
             });
           }}
-          ><Icon icon={File02} size={14} /><span class="tw:truncate"
+          ><Icon icon={File02} size={14} /><span class="truncate"
             >{file.name}</span
           >{#if file.n > 1}<small>v{file.n}</small>{/if}</a
         >{/each}{#if files.length > 6}<small
-          class="tw:text-xs tw:text-muted-foreground">+{files.length - 6}</small
+          class="text-xs text-muted-foreground">+{files.length - 6}</small
         >{/if}
     </div>{/if}
 {/each}

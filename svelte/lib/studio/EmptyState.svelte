@@ -39,12 +39,12 @@
   {:else if icon}
     <div class={emptyStateIconVariants({ tone })}>{@render icon()}</div>
   {/if}
-  <div class="tw:flex tw:max-w-xs tw:flex-col tw:items-center tw:gap-1">
-    <h3 class="tw:text-foreground tw:text-sm tw:font-medium tw:text-balance">
+  <div class="flex max-w-xs flex-col items-center gap-1">
+    <h3 class="text-foreground text-sm font-medium text-balance">
       {title}
     </h3>
     {#if description}
-      <div class="tw:text-muted-foreground tw:text-sm">
+      <div class="text-muted-foreground text-sm">
         {#if typeof description === "string"}{description}{:else}{@render description()}{/if}
       </div>
     {/if}

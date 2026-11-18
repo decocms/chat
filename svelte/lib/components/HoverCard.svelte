@@ -40,7 +40,7 @@
         collisionPadding={8}
         class={cn(
           studioType,
-          "tw:z-50 tw:w-64 tw:max-w-[calc(100vw-16px)] tw:space-y-2.5 tw:rounded-surface tw:bg-popover tw:px-3 tw:py-2.5 tw:text-xs tw:leading-4 tw:text-popover-foreground tw:shadow-edge-raised tw:outline-hidden",
+          "z-50 w-64 max-w-[calc(100vw-16px)] space-y-2.5 rounded-surface bg-popover px-3 py-2.5 text-xs leading-4 text-popover-foreground shadow-edge-raised outline-hidden",
         )}>{@render children()}</TooltipPrimitive.Content
       >
     </TooltipPrimitive.Portal>

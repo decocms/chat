@@ -25,7 +25,7 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "playground"}
     <ProjectIcon color="blue" size="default"
       ><Icon icon={Globe02} /></ProjectIcon

@@ -77,7 +77,7 @@
 
 {#if story === "default"}
   <Select>
-    <SelectTrigger class="tw:w-56">
+    <SelectTrigger class="w-56">
       <SelectValue placeholder="Select a role" />
     </SelectTrigger>
     <SelectContent>
@@ -88,10 +88,10 @@
   </Select>
 {:else if story === "with-descriptions"}
   <Select value="manual" items={MODES}>
-    <SelectTrigger class="tw:w-44">
+    <SelectTrigger class="w-44">
       <SelectValue />
     </SelectTrigger>
-    <SelectContent class="tw:max-w-80">
+    <SelectContent class="max-w-80">
       <SelectItem
         value="off"
         label="Off"
@@ -116,10 +116,10 @@
     </SelectContent>
   </Select>
 {:else if story === "with-groups"}
-  <div class="tw:grid tw:gap-2">
+  <div class="grid gap-2">
     <Label for="model">Default model</Label>
     <Select value="claude-sonnet" items={MODELS}>
-      <SelectTrigger id="model" class="tw:w-64">
+      <SelectTrigger id="model" class="w-64">
         <SelectValue placeholder="Select a model" />
       </SelectTrigger>
       <SelectContent>
@@ -147,7 +147,7 @@
     </Select>
   </div>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     {#each SIZES as size (size)}
       <Select value="production" items={ENVIRONMENTS}>
         <SelectTrigger {size}>
@@ -164,7 +164,7 @@
   </div>
 {:else if story === "disabled"}
   <Select value="us-east" items={REGIONS} disabled>
-    <SelectTrigger class="tw:w-56">
+    <SelectTrigger class="w-56">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>
@@ -175,7 +175,7 @@
   </Select>
 {:else if story === "with-disabled-item"}
   <Select>
-    <SelectTrigger class="tw:w-56">
+    <SelectTrigger class="w-56">
       <SelectValue placeholder="Select a plan" />
     </SelectTrigger>
     <SelectContent>
@@ -191,9 +191,9 @@
     </SelectContent>
   </Select>
 {:else if story === "styles"}
-  <div class="tw:flex tw:flex-col tw:gap-2">
+  <div class="flex flex-col gap-2">
     {#each VARIANTS as variant (variant)}
-      <div class="tw:flex tw:items-center tw:gap-2">
+      <div class="flex items-center gap-2">
         {#each STYLE_SIZES as size (size)}
           <Select value="all" items={PROJECTS}>
             <SelectTrigger {variant} {size}>

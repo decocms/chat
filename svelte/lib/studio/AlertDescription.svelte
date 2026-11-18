@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="alert-description"
   {...rest}
-  class={cn("tw:text-muted-foreground tw:leading-relaxed", className)}
+  class={cn("text-muted-foreground leading-relaxed", className)}
 >
   {@render children?.()}
 </div>

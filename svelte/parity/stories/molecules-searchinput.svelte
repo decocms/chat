@@ -7,11 +7,11 @@
 </script>
 
 {#if story === "default"}
-  <div class="tw:w-72">
+  <div class="w-72">
     <SearchInput bind:value placeholder="Search connections..." />
   </div>
 {:else if story === "searching"}
-  <div class="tw:w-72">
+  <div class="w-72">
     <SearchInput
       value="slack"
       onChange={() => {}}
@@ -20,7 +20,7 @@
     />
   </div>
 {:else if story === "disabled"}
-  <div class="tw:w-72">
+  <div class="w-72">
     <SearchInput
       value=""
       onChange={() => {}}

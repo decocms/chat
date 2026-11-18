@@ -17,7 +17,7 @@
   data-slot="collapsible-content"
   {...rest}
   class={cn(
-    "tw:overflow-hidden tw:data-[state=closed]:animate-collapsible-up tw:data-[state=open]:animate-collapsible-down tw:motion-reduce:animate-none",
+    "overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none",
     className,
   )}
 />

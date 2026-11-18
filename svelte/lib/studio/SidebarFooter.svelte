@@ -21,7 +21,7 @@
   data-slot="sidebar-footer"
   data-sidebar="footer"
   {...rest}
-  class={cn("tw:flex tw:flex-col tw:gap-2 tw:p-2", className)}
+  class={cn("flex flex-col gap-2 p-2", className)}
 >
   {@render children?.()}
 </div>

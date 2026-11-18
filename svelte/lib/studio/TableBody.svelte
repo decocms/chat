@@ -22,6 +22,6 @@
   bind:this={ref}
   data-slot="table-body"
   {...rest}
-  class={cn("tw:[&_tr:last-child]:border-0", className)}
+  class={cn("[&_tr:last-child]:border-0", className)}
   >{@render children?.()}</tbody
 >

@@ -16,7 +16,7 @@
   data-slot="avatar-fallback"
   {...rest}
   class={cn(
-    "tw:bg-muted tw:flex tw:size-full tw:items-center tw:justify-center tw:rounded-full",
+    "bg-muted flex size-full items-center justify-center rounded-full",
     className,
   )}
 />

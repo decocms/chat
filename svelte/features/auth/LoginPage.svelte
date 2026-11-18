@@ -53,7 +53,7 @@
 </script>
 
 <AuthFrame title={$view.phase === "email" ? text("login") : text("check")}>
-  {#if $view.loading}<p role="status" class="tw:m-0 tw:text-muted-foreground">
+  {#if $view.loading}<p role="status" class="m-0 text-muted-foreground">
       {text("loading")}
     </p>
   {:else if !$view.context}<Button onclick={() => session.load()}
@@ -61,8 +61,8 @@
     >
   {:else}
     {#if $view.phase === "email"}
-      <p class="tw:m-0 tw:text-muted-foreground">{text("welcome")}</p>
-      <div class="tw:flex tw:flex-col tw:gap-2 tw:pt-3">
+      <p class="m-0 text-muted-foreground">{text("welcome")}</p>
+      <div class="flex flex-col gap-2 pt-3">
         {#if $view.context.providers.google}<a
             class={buttonVariants({ variant: "outline" })}
             href={`/auth/google/start?next=${encodeURIComponent(next)}`}
@@ -78,16 +78,16 @@
             }}><ProviderIcon provider="github" />{text("github")}</a
           >{/if}
         {#if $view.context.providers.google || $view.context.providers.github}<p
-            class="tw:m-0 tw:mt-1 tw:flex tw:items-center tw:gap-3 tw:text-xs tw:text-muted-foreground tw:before:h-px tw:before:flex-1 tw:before:bg-border tw:before:content-[''] tw:after:h-px tw:after:flex-1 tw:after:bg-border tw:after:content-['']"
+            class="m-0 mt-1 flex items-center gap-3 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border before:content-[''] after:h-px after:flex-1 after:bg-border after:content-['']"
           >
             {text("or")}
           </p>{/if}
       </div>
-    {:else}<p class="tw:m-0 tw:break-words tw:text-muted-foreground">
+    {:else}<p class="m-0 break-words text-muted-foreground">
         {text("sent", { email: $view.email })}
       </p>{/if}
     <form
-      class="tw:space-y-3"
+      class="space-y-3"
       onsubmit={(event) => {
         event.preventDefault();
         void session.submit();
@@ -123,7 +123,7 @@
         />{/if}
       <Button
         type="submit"
-        class="tw:w-full"
+        class="w-full"
         disabled={$view.busy}
         aria-busy={$view.busy || undefined}
         >{#if $view.busy}<Spinner size="xs" />{/if}{$view.phase === "email"
@@ -138,7 +138,7 @@
   {/if}
   {#if $view.error}<p
       role="alert"
-      class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-destructive"
+      class="m-0 whitespace-pre-wrap break-words text-destructive"
     >
       {authIssue(lang, $view.error)}
     </p>{/if}

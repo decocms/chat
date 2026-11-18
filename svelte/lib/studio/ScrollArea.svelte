@@ -19,15 +19,15 @@
 <ScrollAreaPrimitive.Root
   bind:ref
   data-slot="scroll-area"
-  class={cn("tw:relative tw:h-full tw:w-full", className)}
+  class={cn("relative h-full w-full", className)}
   {...rest}
 >
   <ScrollAreaPrimitive.Viewport
     bind:ref={viewportRef}
     data-slot="scroll-area-viewport"
-    class="tw:h-full tw:w-full tw:overflow-auto tw:rounded-[inherit] tw:transition-[color,box-shadow] tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2"
+    class="h-full w-full overflow-auto rounded-[inherit] transition-[color,box-shadow] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2"
   >
-    <div class="tw:flex tw:min-w-0 tw:flex-col">{@render children?.()}</div>
+    <div class="flex min-w-0 flex-col">{@render children?.()}</div>
   </ScrollAreaPrimitive.Viewport>
   <ScrollBar {hideScrollbar} />
   <ScrollAreaPrimitive.Corner />

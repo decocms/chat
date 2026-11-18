@@ -13,6 +13,6 @@
 <PopoverPrimitive.Trigger
   bind:ref
   data-slot="popover-trigger"
-  class={cn("tw:cursor-pointer tw:disabled:cursor-not-allowed", className)}
+  class={cn("cursor-pointer disabled:cursor-not-allowed", className)}
   {...rest}
 />

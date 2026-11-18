@@ -26,15 +26,15 @@
     {align}
     {collisionPadding}
     class={cn(
-      "tw:outline-none tw:bg-popover tw:text-popover-foreground tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:data-[state=closed]:[--tw-exit-opacity:0] tw:data-[state=open]:[--tw-enter-opacity:0] tw:data-[state=closed]:[--tw-exit-scale:.95] tw:data-[state=open]:[--tw-enter-scale:.95] tw:data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] tw:data-[side=left]:[--tw-enter-translate-x:0.5rem] tw:data-[side=right]:[--tw-enter-translate-x:-0.5rem] tw:data-[side=top]:[--tw-enter-translate-y:0.5rem] tw:relative tw:z-50 tw:max-h-(--bits-select-content-available-height) tw:min-w-[8rem] tw:origin-(--bits-select-content-transform-origin) tw:overflow-x-hidden tw:overflow-y-auto tw:rounded-[var(--vb-studio-surface-radius,0.625rem)] tw:border-border tw:border tw:shadow-md tw:[scrollbar-width:thin] tw:[scrollbar-color:transparent_transparent] tw:hover:[scrollbar-color:var(--vb-border)_transparent]",
-      "tw:data-[side=bottom]:translate-y-1 tw:data-[side=left]:-translate-x-1 tw:data-[side=right]:translate-x-1 tw:data-[side=top]:-translate-y-1",
+      "outline-none bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-exit-opacity:0] data-[state=open]:[--tw-enter-opacity:0] data-[state=closed]:[--tw-exit-scale:.95] data-[state=open]:[--tw-enter-scale:.95] data-[side=bottom]:[--tw-enter-translate-y:-0.5rem] data-[side=left]:[--tw-enter-translate-x:0.5rem] data-[side=right]:[--tw-enter-translate-x:-0.5rem] data-[side=top]:[--tw-enter-translate-y:0.5rem] relative z-50 max-h-(--bits-select-content-available-height) min-w-[8rem] origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-[var(--vb-studio-surface-radius,0.625rem)] border-border border shadow-md [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:var(--vb-border)_transparent]",
+      "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
       className,
     )}
     {...rest}
   >
     {#if !hideScrollButtons}<SelectScrollUpButton />{/if}
     <SelectPrimitive.Viewport
-      class="tw:h-[var(--bits-select-anchor-height)] tw:w-full tw:min-w-[var(--bits-select-anchor-width)] tw:scroll-my-1 tw:p-1"
+      class="h-[var(--bits-select-anchor-height)] w-full min-w-[var(--bits-select-anchor-width)] scroll-my-1 p-1"
     >
       {@render children?.()}
     </SelectPrimitive.Viewport>

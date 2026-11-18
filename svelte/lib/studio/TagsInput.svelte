@@ -72,7 +72,7 @@
 <div
   data-slot="tags-input"
   class={cn(
-    "tw:flex tw:min-h-[var(--vb-studio-control-height,2.25rem)] tw:w-full tw:flex-wrap tw:items-center tw:gap-1 tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:px-1.5 tw:py-1.5 tw:text-sm tw:pointer-coarse:text-[16px] tw:shadow-edge tw:transition-[background-color,box-shadow] tw:hover:bg-sidebar tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-2 tw:has-[:focus-visible]:outline-ring tw:has-[:focus-visible]:outline-solid tw:has-[input:disabled]:pointer-events-none tw:has-[input:disabled]:text-subtle-foreground",
+    "flex min-h-[var(--vb-studio-control-height,2.25rem)] w-full flex-wrap items-center gap-1 rounded-[var(--vb-studio-control-radius,0.625rem)] bg-[var(--vb-studio-input-background)] px-1.5 py-1.5 text-sm pointer-coarse:text-[16px] shadow-edge transition-[background-color,box-shadow] hover:bg-sidebar has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-solid has-[input:disabled]:pointer-events-none has-[input:disabled]:text-subtle-foreground",
     className,
   )}
 >
@@ -81,10 +81,7 @@
     <Badge
       variant={valid ? "outline" : "destructive"}
       size="lg"
-      class={cn(
-        "tw:gap-1 tw:bg-card tw:pr-1",
-        !valid && "tw:bg-destructive/10",
-      )}
+      class={cn("gap-1 bg-card pr-1", !valid && "bg-destructive/10")}
     >
       {tag}
       <button
@@ -92,9 +89,9 @@
         onclick={() => remove(tag)}
         aria-label={removeLabel(tag)}
         {disabled}
-        class="tw:flex tw:size-4 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid tw:disabled:cursor-not-allowed"
+        class="flex size-4 cursor-pointer items-center justify-center rounded-full hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid disabled:cursor-not-allowed"
       >
-        <Icon icon={X} class="tw:size-3" />
+        <Icon icon={X} class="size-3" />
       </button>
     </Badge>
   {/each}
@@ -128,6 +125,6 @@
     }}
     placeholder={value.length === 0 ? placeholder : undefined}
     {disabled}
-    class="tw:min-w-[8ch] tw:flex-1 tw:bg-transparent tw:px-1.5 tw:outline-none tw:placeholder:text-subtle-foreground"
+    class="min-w-[8ch] flex-1 bg-transparent px-1.5 outline-none placeholder:text-subtle-foreground"
   />
 </div>

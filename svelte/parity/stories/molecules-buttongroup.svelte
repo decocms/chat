@@ -33,14 +33,14 @@
 {:else if story === "with-text"}
   <ButtonGroup>
     <ButtonGroupText>https://</ButtonGroupText>
-    <Input placeholder="acme.deco.page" class="tw:w-56" />
+    <Input placeholder="acme.deco.page" class="w-56" />
     <Button variant="outline" aria-label="Copy URL">
       <Icon icon={Copy01} /> Copy
     </Button>
   </ButtonGroup>
 {:else if story === "with-input"}
   <ButtonGroup>
-    <Input placeholder="Search members..." class="tw:w-64" />
+    <Input placeholder="Search members..." class="w-64" />
     <Button variant="outline" aria-label="Search">
       <Icon icon={SearchMd} />
     </Button>

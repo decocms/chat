@@ -21,7 +21,7 @@
   data-slot="sidebar-header"
   data-sidebar="header"
   {...rest}
-  class={cn("tw:flex tw:flex-col tw:gap-2 tw:p-2", className)}
+  class={cn("flex flex-col gap-2 p-2", className)}
 >
   {@render children?.()}
 </div>

@@ -43,7 +43,7 @@
 </script>
 
 {#if story === "default" || story === "with-filters"}
-  <div class="tw:w-[640px]">
+  <div class="w-[640px]">
     <FilterBar
       {filters}
       onFiltersChange={(next) => (filters = next)}
@@ -51,20 +51,20 @@
     />
   </div>
 {:else if story === "custom-user-rendering"}
-  <div class="tw:w-[640px]">
+  <div class="w-[640px]">
     <FilterBar
       {filters}
       onFiltersChange={(next) => (filters = next)}
       availableUsers={teamMembers}
     >
       {#snippet renderUserItem(user)}
-        <span class="tw:flex tw:items-center tw:gap-2">
+        <span class="flex items-center gap-2">
           <span
-            class="tw:flex tw:size-5 tw:items-center tw:justify-center tw:rounded-full tw:bg-primary tw:text-[10px] tw:font-medium tw:text-primary-foreground"
+            class="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground"
           >
             {initials(user.name ?? user.id)}
           </span>
-          <span class="tw:truncate">{user.name ?? user.id}</span>
+          <span class="truncate">{user.name ?? user.id}</span>
         </span>
       {/snippet}
     </FilterBar>

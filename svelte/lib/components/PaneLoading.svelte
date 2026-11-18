@@ -5,7 +5,7 @@
 </script>
 
 <div
-  class="tw:flex tw:h-full tw:min-h-40 tw:flex-1 tw:items-center tw:justify-center tw:text-muted-foreground"
+  class="flex h-full min-h-40 flex-1 items-center justify-center text-muted-foreground"
 >
   <Spinner size="sm" {label} />
 </div>

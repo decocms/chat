@@ -24,19 +24,10 @@
   data-slot="sidebar-menu-skeleton"
   data-sidebar="menu-skeleton"
   {...rest}
-  class={cn(
-    "tw:flex tw:h-10 tw:items-center tw:gap-2 tw:rounded-md tw:px-2",
-    className,
-  )}
+  class={cn("flex h-10 items-center gap-2 rounded-md px-2", className)}
 >
   {#if showIcon}
-    <Skeleton
-      class="tw:size-4 tw:rounded-md"
-      data-sidebar="menu-skeleton-icon"
-    />
+    <Skeleton class="size-4 rounded-md" data-sidebar="menu-skeleton-icon" />
   {/if}
-  <Skeleton
-    class={cn("tw:h-4 tw:flex-1", width)}
-    data-sidebar="menu-skeleton-text"
-  />
+  <Skeleton class={cn("h-4 flex-1", width)} data-sidebar="menu-skeleton-text" />
 </div>

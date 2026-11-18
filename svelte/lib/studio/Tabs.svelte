@@ -22,5 +22,5 @@
   data-slot="tabs"
   data-variant={variant}
   {...rest}
-  class={cn("tw:flex tw:flex-col tw:gap-2", className)}
+  class={cn("flex flex-col gap-2", className)}
 />

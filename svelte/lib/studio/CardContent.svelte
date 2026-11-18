@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="card-content"
   {...rest}
-  class={cn("tw:text-sm", className)}
+  class={cn("text-sm", className)}
 >
   {@render children?.()}
 </div>

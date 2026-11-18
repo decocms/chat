@@ -29,7 +29,7 @@
 <span
   data-vb-native
   data-native-notifications
-  class="tw:inline-flex tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground"
+  class="inline-flex items-center gap-1 font-sans text-sm text-foreground"
 >
   <IconButton
     {label}

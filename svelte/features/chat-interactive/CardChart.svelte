@@ -39,31 +39,31 @@
 </script>
 
 {#snippet figure()}
-  <figure class="tw:m-0 tw:space-y-2">
+  <figure class="m-0 space-y-2">
     {#if chart.title}<figcaption
-        class="tw:whitespace-pre-wrap tw:text-sm tw:font-medium"
+        class="whitespace-pre-wrap text-sm font-medium"
       >
         {chart.title}
       </figcaption>{/if}
     {#if view.series.length > 1}<div
         data-card-chart-legend
-        class="tw:flex tw:flex-wrap tw:gap-x-3 tw:gap-y-1 tw:text-xs"
+        class="flex flex-wrap gap-x-3 gap-y-1 text-xs"
       >
         {#each view.series as series}<span
-            class="tw:inline-flex tw:items-center tw:gap-1"
+            class="inline-flex items-center gap-1"
             ><svg
               viewBox="0 0 10 10"
               aria-hidden="true"
-              class={["tw:size-2.5", series.color]}
+              class={["size-2.5", series.color]}
               ><rect width="10" height="10" fill="currentColor" /></svg
             >{series.name}</span
           >{/each}
       </div>{/if}
     {#if chart.kind === "line"}
-      <div class="tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-2">
+      <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
         <div
           data-card-chart-axis
-          class="tw:flex tw:h-28 tw:flex-col tw:justify-between tw:text-xs tw:tabular-nums tw:text-muted-foreground"
+          class="flex h-28 flex-col justify-between text-xs tabular-nums text-muted-foreground"
         >
           {#each view.axis as label}<span>{label}</span>{/each}
         </div>
@@ -72,7 +72,7 @@
           role="img"
           viewBox="-4 -4 308 108"
           preserveAspectRatio="none"
-          class="tw:h-28 tw:w-full tw:overflow-visible"
+          class="h-28 w-full overflow-visible"
         >
           {#each [0, 50, 100] as y}<line
               x1="0"
@@ -81,7 +81,7 @@
               y2={y}
               stroke="currentColor"
               stroke-width="1"
-              class="tw:text-border"
+              class="text-border"
             />{/each}
           {#each view.series as series}<polyline
               points={series.points}
@@ -102,24 +102,22 @@
         </svg>
       </div>
       <div
-        class="tw:flex tw:justify-between tw:gap-2 tw:pl-8 tw:text-xs tw:text-muted-foreground"
+        class="flex justify-between gap-2 pl-8 text-xs text-muted-foreground"
       >
         <span>{view.labels[0]}</span>{#if view.mid}<span>{view.mid}</span
           >{/if}<span>{view.labels.at(-1)}</span>
       </div>
     {:else}
       {#each view.labels as label, index}<div
-          class="tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] tw:items-center tw:gap-2 tw:text-xs"
+          class="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-center gap-2 text-xs"
         >
-          <span class="tw:whitespace-pre-wrap tw:break-words">{label}</span>
+          <span class="whitespace-pre-wrap break-words">{label}</span>
           <svg
             viewBox={`0 0 100 ${view.series.length * 8}`}
             preserveAspectRatio="none"
             role="img"
             aria-label={view.hits[index].title}
-            class={view.series.length > 2
-              ? "tw:h-8 tw:w-full"
-              : "tw:h-4 tw:w-full"}
+            class={view.series.length > 2 ? "h-8 w-full" : "h-4 w-full"}
           >
             {#each view.series as series, seriesIndex}<rect
                 x="0"
@@ -135,7 +133,7 @@
                 ></rect
               >{/each}
           </svg>
-          <b class="tw:tabular-nums"
+          <b class="tabular-nums"
             >{view.series
               .map((series) => chartNumber(series.values[index]))
               .join(" · ")}</b
@@ -144,7 +142,7 @@
     {/if}
   </figure>
 {/snippet}
-<div data-native-card-chart class="tw:space-y-2">
+<div data-native-card-chart class="space-y-2">
   {#if inline}{@render figure()}{:else}<Dialog {open} {onOpenChange}>
       <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
         ><Icon icon={BarChartSquare02} size={16} />{chart.title ||
@@ -153,14 +151,14 @@
       >
       <DialogContent
         data-vb-native
-        class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-none"
+        class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto font-sans text-sm text-foreground md:max-w-none"
         closeLabel={vb.t("Fechar")}
         preventScroll={false}
         preventBodyPointerEvents={false}
         preventOverflowTextSelection={false}
       >
         <DialogHeader>
-          <DialogTitle class="tw:pr-8 tw:font-sans"
+          <DialogTitle class="pr-8 font-sans"
             >{chart.title || vb.t("Gráfico")}</DialogTitle
           >
         </DialogHeader>

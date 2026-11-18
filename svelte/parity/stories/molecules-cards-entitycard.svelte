@@ -29,7 +29,7 @@
 {/snippet}
 
 {#if story === "project"}
-  <EntityCard onclick={() => {}} class="tw:w-72">
+  <EntityCard onclick={() => {}} class="w-72">
     <EntityCardHeader icon={projectIcon}>
       {#snippet trailing()}
         <Badge variant="success"><BadgeDot /> Live</Badge>
@@ -40,7 +40,7 @@
   </EntityCard>
 {:else if story === "connection"}
   <TooltipProvider>
-    <EntityCard onclick={() => {}} class="tw:w-72">
+    <EntityCard onclick={() => {}} class="w-72">
       <EntityCardHeader>
         {#snippet icon()}
           <Avatar fallback="Slack" size="sm" />
@@ -67,7 +67,7 @@
         <EntityCard
           onclick={() => {}}
           tabindex={0}
-          class="tw:w-56"
+          class="w-56"
           data-pseudo={STATES[index]}
         >
           <EntityCardHeader icon={projectIcon} />
@@ -75,7 +75,7 @@
           <EntityCardDescription>Updated 3 hours ago</EntityCardDescription>
         </EntityCard>
       {:else}
-        <div class="tw:w-56"><EntityCardSkeleton /></div>
+        <div class="w-56"><EntityCardSkeleton /></div>
       {/if}
     {/snippet}
   </Matrix>

@@ -49,7 +49,7 @@
 
 {#if story === "default"}
   <form
-    class="tw:grid tw:w-96 tw:gap-6"
+    class="grid w-96 gap-6"
     onsubmit={(event) => {
       event.preventDefault();
       profileSubmitted = true;
@@ -108,10 +108,8 @@
       </FormItem>
     </FormField>
     <FormField name="notifications">
-      <FormItem
-        class="tw:flex tw:flex-row tw:items-center tw:justify-between tw:gap-4"
-      >
-        <div class="tw:grid tw:gap-1">
+      <FormItem class="flex flex-row items-center justify-between gap-4">
+        <div class="grid gap-1">
           <FormLabel>Email notifications</FormLabel>
           <FormDescription>
             Receive updates about activity in your projects.
@@ -124,11 +122,11 @@
         </FormControl>
       </FormItem>
     </FormField>
-    <Button type="submit" class="tw:justify-self-start">Save changes</Button>
+    <Button type="submit" class="justify-self-start">Save changes</Button>
   </form>
 {:else if story === "with-validation"}
   <form
-    class="tw:grid tw:w-96 tw:gap-6"
+    class="grid w-96 gap-6"
     onsubmit={(event) => {
       event.preventDefault();
       slugChecked = true;
@@ -154,7 +152,7 @@
         <FormMessage />
       </FormItem>
     </FormField>
-    <Button type="submit" class="tw:justify-self-start">
+    <Button type="submit" class="justify-self-start">
       Create organization
     </Button>
   </form>

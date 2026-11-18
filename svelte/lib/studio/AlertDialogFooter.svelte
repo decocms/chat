@@ -20,7 +20,7 @@
   data-slot="alert-dialog-footer"
   {...rest}
   class={cn(
-    "tw:flex tw:flex-col-reverse tw:gap-2 tw:md:flex-row tw:md:justify-end",
+    "flex flex-col-reverse gap-2 md:flex-row md:justify-end",
     className,
   )}
 >

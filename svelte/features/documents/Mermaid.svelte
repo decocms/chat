@@ -82,20 +82,17 @@
 <figure
   bind:this={container}
   aria-label={lang === "en" ? "Diagram" : "Diagrama"}
-  class="tw:my-3 tw:overflow-x-auto tw:rounded-control tw:border tw:border-border tw:bg-card tw:p-4 tw:text-foreground tw:[&_svg]:max-w-full tw:[&_svg]:h-auto tw:[&_path]:stroke-current tw:[&_path]:fill-none tw:[&_line]:stroke-current tw:[&_rect]:stroke-current tw:[&_rect]:fill-muted tw:[&_polygon]:stroke-current tw:[&_polygon]:fill-muted tw:[&_text]:fill-current tw:[&_text]:font-sans tw:[&_text]:text-sm"
+  class="my-3 overflow-x-auto rounded-control border border-border bg-card p-4 text-foreground [&_svg]:max-w-full [&_svg]:h-auto [&_path]:stroke-current [&_path]:fill-none [&_line]:stroke-current [&_rect]:stroke-current [&_rect]:fill-muted [&_polygon]:stroke-current [&_polygon]:fill-muted [&_text]:fill-current [&_text]:font-sans [&_text]:text-sm"
 >
-  {#if loading}<p role="status" class="tw:m-0 tw:text-muted-foreground">
+  {#if loading}<p role="status" class="m-0 text-muted-foreground">
       {lang === "en" ? "Loading diagram…" : "Carregando diagrama…"}
-    </p>{:else if error}<p
-      role="status"
-      class="tw:m-0 tw:text-muted-foreground"
-    >
+    </p>{:else if error}<p role="status" class="m-0 text-muted-foreground">
       {lang === "en"
         ? "Diagram could not be rendered. Its source is shown below."
         : "Não foi possível desenhar o diagrama. O código está abaixo."}
     </p>
     <pre
-      class="tw:overflow-auto tw:whitespace-pre-wrap tw:font-mono tw:text-xs">{source}</pre>{:else}<RichNodes
+      class="overflow-auto whitespace-pre-wrap font-mono text-xs">{source}</pre>{:else}<RichNodes
       {nodes}
       {actions}
     />{/if}

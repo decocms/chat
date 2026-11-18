@@ -27,21 +27,21 @@
     aria-label={label}
     aria-current={current ? "page" : undefined}
     class={row
-      ? "tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:no-underline tw:transition-colors tw:hover:bg-sidebar-accent tw:aria-[current=page]:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
-      : "tw:relative tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:aria-[current=page]:bg-sidebar-accent tw:motion-reduce:transition-none tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"}
+      ? "flex h-11 w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 text-left font-sans text-sm text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+      : "relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent motion-reduce:transition-none outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"}
   >
-    {#if row}<span class="tw:relative tw:flex tw:shrink-0"
+    {#if row}<span class="relative flex shrink-0"
         ><PersonAvatar
           email={me.email}
           version={me.avatar}
-          class="tw:size-7"
+          class="size-7"
         /><span
           data-status-dot="online"
-          class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-brand tw:ring-2 tw:ring-sidebar"
+          class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-brand ring-2 ring-sidebar"
         ></span></span
-      ><span class="tw:flex tw:min-w-0 tw:flex-col"
-        ><span class="tw:truncate tw:font-medium">{label}</span><span
-          class="tw:truncate tw:text-xs tw:text-muted-foreground">Online</span
+      ><span class="flex min-w-0 flex-col"
+        ><span class="truncate font-medium">{label}</span><span
+          class="truncate text-xs text-muted-foreground">Online</span
         ></span
       >{:else}
       <!-- 16px, the same as the search and + glyphs beside it. -->

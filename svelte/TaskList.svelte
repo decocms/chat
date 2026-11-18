@@ -142,11 +142,11 @@
 {#if list}
   <section
     data-vb-native
-    class="tw:m-0 tw:box-border tw:space-y-3 tw:rounded-surface tw:bg-background tw:p-3 tw:font-sans tw:text-sm tw:text-foreground"
+    class="m-0 box-border space-y-3 rounded-surface bg-background p-3 font-sans text-sm text-foreground"
     aria-label={vb.t("Tarefas")}
   >
-    <header class="tw:flex tw:items-center tw:gap-3">
-      <h3 class="tw:m-0 tw:font-sans tw:text-sm tw:font-semibold">
+    <header class="flex items-center gap-3">
+      <h3 class="m-0 font-sans text-sm font-semibold">
         {vb.t("Tarefas")}
       </h3>
       <Badge>{done}/{list.tasks.length}</Badge>
@@ -154,20 +154,20 @@
         aria-label={vb.t("Tarefas")}
         value={(done / Math.max(1, list.tasks.length)) * 100}
         aria-valuetext={`${done}/${list.tasks.length}`}
-        class="tw:ml-auto tw:max-w-24"
+        class="ml-auto max-w-24"
       />
     </header>
     {#if list.flags?.length}<Badge
         variant="warning"
         title={`@vibe: ${list.flags.join(" · ")}`}
-        class="tw:text-foreground tw:max-w-full"
-        ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+        class="text-foreground max-w-full"
+        ><Icon icon={AlertTriangle} /><span class="truncate"
           >{list.flags.join(" · ")}</span
         ></Badge
       >{/if}
     {#if error && !dueOpen}<ErrorState title={error} compact />{/if}
     <!-- One list, compact rows: the title leads, owner and due are captions under it, delete waits for hover. -->
-    <div class="tw:-mx-2 tw:space-y-0.5">
+    <div class="-mx-2 space-y-0.5">
       {#each tasks as task (task.id)}
         <div
           use:attention={task.id}
@@ -175,15 +175,15 @@
           role="group"
           aria-label={task.title}
           class={cn(
-            "tw:group/task tw:relative tw:flex tw:items-start tw:gap-2.5 tw:rounded-control tw:py-1.5 tw:pr-8 tw:pl-2 tw:transition-colors tw:duration-150 tw:hover:bg-accent/50",
-            task.done ? "tw:text-muted-foreground" : "tw:text-foreground",
-            waiting(task) && "tw:bg-warning/10",
+            "group/task relative flex items-start gap-2.5 rounded-control py-1.5 pr-8 pl-2 transition-colors duration-150 hover:bg-accent/50",
+            task.done ? "text-muted-foreground" : "text-foreground",
+            waiting(task) && "bg-warning/10",
             highlighted.has(task.id) &&
-              "tw:animate-pulse tw:motion-reduce:animate-none",
+              "animate-pulse motion-reduce:animate-none",
           )}
         >
           <Checkbox
-            class="tw:mt-0.5"
+            class="mt-0.5"
             bind:checked={
               () => task.done,
               () => {
@@ -196,7 +196,7 @@
             <Input
               data-task-edit={task.id}
               aria-label={vb.t("Clique para editar")}
-              class="tw:min-w-32 tw:flex-1"
+              class="min-w-32 flex-1"
               bind:ref={editInput}
               bind:value={title}
               onblur={() => save(task)}
@@ -212,13 +212,13 @@
               }}
             />
           {:else}
-            <div class="tw:min-w-0 tw:flex-1">
+            <div class="min-w-0 flex-1">
               <Button
                 data-task-title={task.id}
                 variant="ghost"
                 class={cn(
-                  "tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:rounded-sm tw:p-0 tw:text-left tw:font-normal tw:leading-5 tw:hover:bg-transparent",
-                  task.done && "tw:text-muted-foreground tw:line-through",
+                  "h-auto w-full justify-start whitespace-normal rounded-sm p-0 text-left font-normal leading-5 hover:bg-transparent",
+                  task.done && "text-muted-foreground line-through",
                 )}
                 title={vb.t("Clique para editar")}
                 onclick={() => {
@@ -227,7 +227,7 @@
                 }}>{task.title}</Button
               >
               <div
-                class="tw:-ml-1.5 tw:mt-0.5 tw:flex tw:flex-wrap tw:items-center tw:gap-0.5 tw:text-xs tw:text-muted-foreground"
+                class="-ml-1.5 mt-0.5 flex flex-wrap items-center gap-0.5 text-xs text-muted-foreground"
               >
                 <Select
                   items={owners}
@@ -242,11 +242,11 @@
                     data-owner={task.id}
                     aria-label={vb.t("Responsável")}
                     size="xs"
-                    class="tw:h-6 tw:w-auto tw:max-w-40 tw:px-1.5 tw:font-normal tw:text-muted-foreground tw:hover:text-foreground tw:data-[variant=outline]:rounded-md tw:data-[variant=outline]:bg-transparent tw:data-[variant=outline]:shadow-none tw:data-[variant=outline]:hover:bg-accent tw:data-[placeholder]:text-muted-foreground"
+                    class="h-6 w-auto max-w-40 px-1.5 font-normal text-muted-foreground hover:text-foreground data-[variant=outline]:rounded-md data-[variant=outline]:bg-transparent data-[variant=outline]:shadow-none data-[variant=outline]:hover:bg-accent data-[placeholder]:text-muted-foreground"
                   >
                     <SelectValue placeholder={vb.t("sem dono")} />
                   </SelectTrigger>
-                  <SelectContent data-vb-native class="tw:font-sans">
+                  <SelectContent data-vb-native class="font-sans">
                     {#each owners as owner (owner.value)}<SelectItem
                         value={owner.value}
                         label={owner.label}>{owner.label}</SelectItem
@@ -262,19 +262,19 @@
                     ? `${vb.t("Prazo")}: ${task.due}`
                     : vb.t("Prazo")}
                   class={cn(
-                    "tw:h-6 tw:gap-1 tw:rounded-md tw:px-1.5 tw:text-xs tw:font-normal tw:text-muted-foreground tw:hover:text-foreground",
+                    "h-6 gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground",
                     !task.due &&
-                      "tw:opacity-0 tw:group-hover/task:opacity-100 tw:focus-visible:opacity-100 tw:[@media(hover:none)]:opacity-100",
+                      "opacity-0 group-hover/task:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
                   )}
                   onclick={() => openDue(task)}
-                  ><Icon icon={Calendar} class="tw:size-3" />{task.due ??
+                  ><Icon icon={Calendar} class="size-3" />{task.due ??
                     ""}</Button
                 >
                 {#if task.flags?.length}<Badge
                     variant="warning"
                     title={`@vibe: ${task.flags.join(" · ")}`}
-                    class="tw:max-w-full tw:text-foreground"
-                    ><Icon icon={AlertTriangle} /><span class="tw:truncate"
+                    class="max-w-full text-foreground"
+                    ><Icon icon={AlertTriangle} /><span class="truncate"
                       >{task.flags.join(" · ")}</span
                     ></Badge
                   >{/if}
@@ -285,7 +285,7 @@
             data-tdel={task.id}
             label={vb.t("Apagar task")}
             size="icon-xs"
-            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:text-muted-foreground tw:opacity-0 tw:group-hover/task:opacity-100 tw:focus-visible:opacity-100 tw:[@media(hover:none)]:opacity-100"
+            class="absolute top-1.5 right-1.5 text-muted-foreground opacity-0 group-hover/task:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
             onclick={() => dispatch({ t: "task.del", id: task.id })}
             ><Icon icon={X} /></IconButton
           >
@@ -294,7 +294,7 @@
     </div>
     <form
       id="newTask"
-      class="tw:flex tw:items-center tw:gap-2"
+      class="flex items-center gap-2"
       onsubmit={(event) => {
         event.preventDefault();
         if (
@@ -327,7 +327,7 @@
   >
     <DialogContent
       data-vb-native
-      class="tw:font-sans tw:text-sm tw:text-foreground"
+      class="font-sans text-sm text-foreground"
       closeLabel={vb.t("Fechar")}
       preventScroll={false}
       preventBodyPointerEvents={false}
@@ -339,7 +339,7 @@
       }}
     >
       <DialogHeader>
-        <DialogTitle class="tw:font-sans">{vb.t("Prazo")}</DialogTitle>
+        <DialogTitle class="font-sans">{vb.t("Prazo")}</DialogTitle>
         <DialogDescription
           >{vb.t(
             "Prazo (ex.: sex, qua 23h, 06/11). Vazio tira o prazo:",
@@ -347,7 +347,7 @@
         >
       </DialogHeader>
       <form
-        class="tw:grid tw:grid-cols-1 tw:gap-4"
+        class="grid grid-cols-1 gap-4"
         onsubmit={(event) => {
           event.preventDefault();
           if (
@@ -365,7 +365,7 @@
             />{/snippet}
         </Field>
         {#if error}<ErrorState title={error} compact />{/if}
-        <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <Button variant="outline" onclick={closeDue}
             >{vb.t("Cancelar")}</Button
           ><Button type="submit">{vb.t("Salvar")}</Button>

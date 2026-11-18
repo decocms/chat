@@ -1,11 +1,11 @@
 <script lang="ts" module>
   const SIDES = {
     right:
-      "tw:data-[state=closed]:[--tw-exit-translate-x:100%] tw:data-[state=open]:[--tw-enter-translate-x:100%] tw:inset-y-0 tw:right-0 tw:h-full tw:w-3/4 tw:border-border tw:border-l",
-    left: "tw:data-[state=closed]:[--tw-exit-translate-x:-100%] tw:data-[state=open]:[--tw-enter-translate-x:-100%] tw:inset-y-0 tw:left-0 tw:h-full tw:w-3/4 tw:border-border tw:border-r",
-    top: "tw:data-[state=closed]:[--tw-exit-translate-y:-100%] tw:data-[state=open]:[--tw-enter-translate-y:-100%] tw:inset-x-0 tw:top-0 tw:h-auto tw:border-border tw:border-b",
+      "data-[state=closed]:[--tw-exit-translate-x:100%] data-[state=open]:[--tw-enter-translate-x:100%] inset-y-0 right-0 h-full w-3/4 border-border border-l",
+    left: "data-[state=closed]:[--tw-exit-translate-x:-100%] data-[state=open]:[--tw-enter-translate-x:-100%] inset-y-0 left-0 h-full w-3/4 border-border border-r",
+    top: "data-[state=closed]:[--tw-exit-translate-y:-100%] data-[state=open]:[--tw-enter-translate-y:-100%] inset-x-0 top-0 h-auto border-border border-b",
     bottom:
-      "tw:data-[state=closed]:[--tw-exit-translate-y:100%] tw:data-[state=open]:[--tw-enter-translate-y:100%] tw:inset-x-0 tw:bottom-0 tw:h-auto tw:border-border tw:border-t",
+      "data-[state=closed]:[--tw-exit-translate-y:100%] data-[state=open]:[--tw-enter-translate-y:100%] inset-x-0 bottom-0 h-auto border-border border-t",
   } as const;
 </script>
 
@@ -36,7 +36,7 @@
 <SheetPrimitive.Portal>
   <SheetPrimitive.Overlay
     data-slot="sheet-overlay"
-    class="tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:data-[state=closed]:[--tw-exit-opacity:0] tw:data-[state=open]:[--tw-enter-opacity:0] tw:fixed tw:inset-0 tw:z-50 tw:bg-[rgb(0_0_0/0.5)]"
+    class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-exit-opacity:0] data-[state=open]:[--tw-enter-opacity:0] fixed inset-0 z-50 bg-[rgb(0_0_0/0.5)]"
   />
   <SheetPrimitive.Content
     bind:ref
@@ -46,10 +46,10 @@
       if (!event.defaultPrevented) selectTextOnAutoFocus(ref);
     }}
     class={cn(
-      "tw:bg-background tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:fixed tw:z-50 tw:flex tw:flex-col tw:gap-4 tw:shadow-lg tw:transition tw:ease-in-out tw:data-[state=closed]:duration-200 tw:data-[state=open]:duration-200",
+      "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-200 data-[state=open]:duration-200",
       SIDES[side],
       (side === "left" || side === "right") &&
-        (size === "lg" ? "tw:w-full tw:md:max-w-xl" : "tw:md:max-w-sm"),
+        (size === "lg" ? "w-full md:max-w-xl" : "md:max-w-sm"),
       className,
     )}
     {...rest}
@@ -57,10 +57,10 @@
     {@render children?.()}
     {#if !hideCloseButton}
       <SheetPrimitive.Close
-        class="tw:absolute tw:top-4 tw:right-4 tw:cursor-pointer tw:rounded-lg tw:opacity-70 tw:transition-opacity tw:hover:opacity-100 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:disabled:pointer-events-none tw:disabled:cursor-not-allowed"
+        class="absolute top-4 right-4 cursor-pointer rounded-lg opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed"
       >
-        <Icon icon={X} class="tw:size-4" />
-        <span class="tw:sr-only">Close</span>
+        <Icon icon={X} class="size-4" />
+        <span class="sr-only">Close</span>
       </SheetPrimitive.Close>
     {/if}
   </SheetPrimitive.Content>

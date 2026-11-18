@@ -10,7 +10,7 @@
   });
 </script>
 
-<label class="tw:inline-flex tw:min-h-11 tw:items-center tw:gap-2 tw:text-sm">
+<label class="inline-flex min-h-11 items-center gap-2 text-sm">
   <Switch
     data-ui-switch
     bind:ref={control}

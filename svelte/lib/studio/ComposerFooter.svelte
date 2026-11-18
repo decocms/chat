@@ -21,7 +21,7 @@
   data-slot="composer-footer"
   {...rest}
   class={cn(
-    "tw:bg-muted tw:text-muted-foreground tw:-mt-4 tw:flex tw:items-center tw:gap-2 tw:rounded-b-2xl tw:px-4 tw:pt-6 tw:pb-3 tw:text-xs tw:[&_svg]:size-4 tw:[&_svg]:stroke-[1.33]",
+    "bg-muted text-muted-foreground -mt-4 flex items-center gap-2 rounded-b-2xl px-4 pt-6 pb-3 text-xs [&_svg]:size-4 [&_svg]:stroke-[1.33]",
     className,
   )}
 >

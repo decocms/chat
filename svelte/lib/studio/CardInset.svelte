@@ -20,7 +20,7 @@
   bind:this={ref}
   data-slot="card-inset"
   {...rest}
-  class={cn("tw:bg-muted tw:rounded-lg tw:p-3", className)}
+  class={cn("bg-muted rounded-lg p-3", className)}
 >
   {@render children?.()}
 </div>

@@ -23,7 +23,7 @@
     preserveAspectRatio="xMidYMid slice"
     fill="none"
     aria-hidden="true"
-    class="tw:size-full"
+    class="size-full"
   >
     <defs>
       <filter
@@ -45,7 +45,7 @@
     />
     <path
       filter={`url(#${uid})`}
-      class="tw:mix-blend-overlay"
+      class="mix-blend-overlay"
       d="M22.216 24L0 46.75l14.108 38.129L78 86l-3.081-59.276-22.378 4.005 12.972 20.186-23.35 27.395L22.215 24z"
       fill={mark.second}
       transform={mark.secondTransform}

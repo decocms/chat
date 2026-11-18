@@ -57,7 +57,7 @@
 
 <article
   data-room-id={room.id}
-  class="tw:min-w-0"
+  class="min-w-0"
   oncontextmenu={(event) => {
     if (!event.currentTarget.isConnected || !onsettings) return;
     event.preventDefault();
@@ -73,7 +73,7 @@
           {...props}
           href={targetHref({ roomId: room.id })}
           aria-label={description}
-          class="tw:flex tw:min-w-0 tw:flex-col tw:items-center tw:gap-1.5 tw:rounded-control tw:p-1 tw:text-foreground tw:no-underline tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+          class="flex min-w-0 flex-col items-center gap-1.5 rounded-control p-1 text-foreground no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onclick={(event) => {
             if (
               !event.currentTarget.isConnected ||
@@ -97,7 +97,7 @@
             cloud={!!room.sandboxes_running}
             {waits}
           /><span
-            class="tw:line-clamp-2 tw:w-full tw:break-words tw:text-center tw:text-xs tw:leading-4"
+            class="line-clamp-2 w-full break-words text-center text-xs leading-4"
             >{title}</span
           ></a
         >{/snippet}</TooltipTrigger

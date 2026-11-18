@@ -3,16 +3,16 @@ import { tv, type VariantProps } from "tailwind-variants";
 /** Ported from @decocms/ui `command.tsx`: the menu-row recipe, exported so a row OUTSIDE a `Command` is the same row. Bits UI marks the highlighted row with a bare `data-selected`, where cmdk wrote `data-selected="true"`. */
 export const commandItemVariants = tv(
   {
-    base: "tw:[&_svg:not([class*='text-'])]:text-muted-foreground tw:relative tw:flex tw:min-h-8 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-sm tw:px-2 tw:py-1.5 tw:text-sm tw:outline-hidden tw:select-none tw:data-[disabled]:pointer-events-none tw:data-[disabled]:opacity-50 tw:[&_svg]:pointer-events-none tw:[&_svg]:shrink-0 tw:[&_svg:not([class*='size-'])]:size-4",
+    base: "[&_svg:not([class*='text-'])]:text-muted-foreground relative flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     variants: {
       highlight: {
         selected:
-          "tw:data-[selected]:bg-accent tw:data-[selected]:text-accent-foreground",
-        hover: "tw:w-full tw:hover:bg-accent tw:hover:text-accent-foreground",
+          "data-[selected]:bg-accent data-[selected]:text-accent-foreground",
+        hover: "w-full hover:bg-accent hover:text-accent-foreground",
       },
       size: {
         default: "",
-        lg: "tw:min-h-11 tw:gap-3 tw:rounded-lg tw:px-2.5 tw:py-2",
+        lg: "min-h-11 gap-3 rounded-lg px-2.5 py-2",
       },
     },
     defaultVariants: { highlight: "selected", size: "default" },

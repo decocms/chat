@@ -13,7 +13,7 @@
   bind:ref
   data-slot="dialog-overlay"
   class={cn(
-    "tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:data-[state=closed]:[--tw-exit-opacity:0] tw:data-[state=open]:[--tw-enter-opacity:0] tw:fixed tw:inset-0 tw:z-50 tw:bg-scrim",
+    "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-exit-opacity:0] data-[state=open]:[--tw-enter-opacity:0] fixed inset-0 z-50 bg-scrim",
     className,
   )}
   {...rest}

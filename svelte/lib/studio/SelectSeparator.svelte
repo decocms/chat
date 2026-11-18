@@ -18,8 +18,5 @@
   aria-hidden="true"
   data-slot="select-separator"
   {...rest}
-  class={cn(
-    "tw:bg-border tw:pointer-events-none tw:-mx-1 tw:my-1 tw:h-px",
-    className,
-  )}
+  class={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
 ></div>

@@ -9,11 +9,11 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "playground"}
     <AgentAvatar src={AGENT_FACE} size={26} alt="deco agent" />
   {:else if story === "sizes"}
-    <div class="tw:flex tw:items-center tw:gap-3">
+    <div class="flex items-center gap-3">
       {#each SIZES as size (size)}
         <AgentAvatar src={AGENT_FACE} {size} alt="deco agent" />
       {/each}

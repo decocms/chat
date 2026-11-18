@@ -20,7 +20,7 @@
   bind:this={ref}
   data-slot="composer-attachments"
   {...rest}
-  class={cn("tw:flex tw:flex-wrap tw:gap-2 tw:px-3 tw:pt-3", className)}
+  class={cn("flex flex-wrap gap-2 px-3 pt-3", className)}
 >
   {@render children?.()}
 </div>

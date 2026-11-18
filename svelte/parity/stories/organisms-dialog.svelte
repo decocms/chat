@@ -28,7 +28,7 @@
           The project slug stays the same; only the display name changes.
         </DialogDescription>
       </DialogHeader>
-      <div class="tw:grid tw:gap-2">
+      <div class="grid gap-2">
         <Label for="project-name">Project name</Label>
         <Input id="project-name" value="Checkout service" />
       </div>

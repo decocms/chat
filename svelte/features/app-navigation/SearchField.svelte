@@ -17,11 +17,11 @@
 <Button
   variant="outline"
   data-sidebar-search
-  class="tw:w-full tw:shrink-0 tw:justify-start tw:gap-2 tw:font-normal tw:text-muted-foreground"
+  class="w-full shrink-0 justify-start gap-2 font-normal text-muted-foreground"
   onclick={(event) => {
     if (event.currentTarget.isConnected)
       controller.openSearch(event.currentTarget);
   }}
-  ><Icon icon={SearchMd} size={16} /><span class="tw:truncate">{label}</span
+  ><Icon icon={SearchMd} size={16} /><span class="truncate">{label}</span
   ></Button
 >

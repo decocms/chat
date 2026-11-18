@@ -24,20 +24,20 @@ const AGENT_MARKS: Record<AgentProvider, string> = {
 };
 /** The tinted tile behind an agent's glyph: text glyphs on the provider's color, not brand logos. */
 export const AGENT_TILES: Record<AgentProvider, string> = {
-  claude: "tw:bg-agent-claude tw:text-agent-claude-foreground",
-  codex: "tw:bg-agent-codex tw:text-agent-codex-foreground",
-  gemini: "tw:bg-agent-gemini tw:text-agent-gemini-foreground",
-  cursor: "tw:bg-agent-cursor tw:text-agent-cursor-foreground",
-  copilot: "tw:bg-agent-copilot tw:text-agent-copilot-foreground",
+  claude: "bg-agent-claude text-agent-claude-foreground",
+  codex: "bg-agent-codex text-agent-codex-foreground",
+  gemini: "bg-agent-gemini text-agent-gemini-foreground",
+  cursor: "bg-agent-cursor text-agent-cursor-foreground",
+  copilot: "bg-agent-copilot text-agent-copilot-foreground",
 };
 /** The glyph an agent's avatar shows for the model or client it runs on. */
 export const agentMark = (via: string | null | undefined) =>
   AGENT_MARKS[agentProvider(via)];
 /** An agent's name in its provider's color, as its tile (the tokens flip for dark mode). */
 export const AGENT_NAMES: Record<AgentProvider, string> = {
-  claude: "tw:text-agent-claude-text",
-  codex: "tw:text-agent-codex-text",
-  gemini: "tw:text-agent-gemini-text",
-  cursor: "tw:text-agent-cursor-text",
-  copilot: "tw:text-agent-copilot-text",
+  claude: "text-agent-claude-text",
+  codex: "text-agent-codex-text",
+  gemini: "text-agent-gemini-text",
+  cursor: "text-agent-cursor-text",
+  copilot: "text-agent-copilot-text",
 };

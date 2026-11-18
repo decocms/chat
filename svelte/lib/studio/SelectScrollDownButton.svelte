@@ -17,11 +17,8 @@
 <SelectPrimitive.ScrollDownButton
   bind:ref
   data-slot="select-scroll-down-button"
-  class={cn(
-    "tw:flex tw:cursor-default tw:items-center tw:justify-center tw:py-1",
-    className,
-  )}
+  class={cn("flex cursor-default items-center justify-center py-1", className)}
   {...rest}
 >
-  <Icon icon={ChevronDown} class="tw:size-4" />
+  <Icon icon={ChevronDown} class="size-4" />
 </SelectPrimitive.ScrollDownButton>

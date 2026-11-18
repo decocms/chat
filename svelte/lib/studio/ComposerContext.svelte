@@ -18,10 +18,10 @@
   const clamped = $derived(Math.min(1, Math.max(0, value)));
   const tone = $derived(
     clamped >= 0.95
-      ? "tw:text-destructive"
+      ? "text-destructive"
       : clamped >= 0.8
-        ? "tw:text-warning"
-        : "tw:text-muted-foreground",
+        ? "text-warning"
+        : "text-muted-foreground",
   );
 </script>
 
@@ -31,16 +31,12 @@
   data-slot="composer-context"
   {...rest}
   class={cn(
-    "tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:tabular-nums tw:inline-flex tw:h-7 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:px-2 tw:text-xs tw:transition-colors tw:disabled:cursor-not-allowed",
+    "hover:bg-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 tabular-nums inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-2 text-xs transition-colors disabled:cursor-not-allowed",
     tone,
     className,
   )}
 >
-  <svg
-    viewBox="0 0 16 16"
-    aria-hidden="true"
-    class="tw:size-3.5! tw:-rotate-90"
-  >
+  <svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5! -rotate-90">
     <circle
       cx="8"
       cy="8"

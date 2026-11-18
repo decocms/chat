@@ -55,7 +55,7 @@
     <ToggleGroupItem value="month">Month</ToggleGroupItem>
   </ToggleGroup>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:flex-col tw:items-start tw:gap-4">
+  <div class="flex flex-col items-start gap-4">
     <ToggleGroup type="single" size="sm" variant="outline">
       <ToggleGroupItem value="list">List</ToggleGroupItem>
       <ToggleGroupItem value="grid">Grid</ToggleGroupItem>
@@ -75,7 +75,7 @@
     <ToggleGroupItem value="italic">Italic</ToggleGroupItem>
   </ToggleGroup>
 {:else if story === "segmented"}
-  <div class="tw:flex tw:flex-col tw:items-start tw:gap-3">
+  <div class="flex flex-col items-start gap-3">
     <ToggleGroup type="single" variant="segmented" value="preview">
       <ToggleGroupItem value="preview">Preview</ToggleGroupItem>
       <ToggleGroupItem value="code">Code</ToggleGroupItem>

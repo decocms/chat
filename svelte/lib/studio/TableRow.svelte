@@ -23,7 +23,7 @@
   data-slot="table-row"
   {...rest}
   class={cn(
-    "tw:data-[state=selected]:bg-muted tw:border-border tw:border-b tw:transition-colors",
+    "data-[state=selected]:bg-muted border-border border-b transition-colors",
     className,
   )}>{@render children?.()}</tr
 >

@@ -192,7 +192,7 @@
             id="native-room-results"
             role="listbox"
             aria-label={text("search")}
-            class="tw:space-y-1"
+            class="space-y-1"
           >
             {#each rows as row, index (row.key)}<a
                 href={targetHref(row.target)}
@@ -201,8 +201,8 @@
                 aria-selected={$search.selected === index}
                 tabindex="-1"
                 class={$search.selected === index
-                  ? "tw:block tw:w-full tw:rounded-lg tw:bg-accent tw:p-3 tw:text-left tw:text-foreground tw:no-underline"
-                  : "tw:block tw:w-full tw:rounded-lg tw:bg-transparent tw:p-3 tw:text-left tw:text-foreground tw:no-underline tw:hover:bg-accent"}
+                  ? "block w-full rounded-lg bg-accent p-3 text-left text-foreground no-underline"
+                  : "block w-full rounded-lg bg-transparent p-3 text-left text-foreground no-underline hover:bg-accent"}
                 onclick={(event) => {
                   if (!current(intent) || !event.currentTarget.isConnected) {
                     event.preventDefault();
@@ -220,9 +220,8 @@
                   if (current(intent) && event.currentTarget.isConnected)
                     controller.search.activateTarget(row.target);
                 }}
-                ><b class="tw:block tw:break-words tw:text-sm tw:font-medium"
-                  >{row.title}</b
-                ><small class="tw:break-words tw:text-muted-foreground"
+                ><b class="block break-words text-sm font-medium">{row.title}</b
+                ><small class="break-words text-muted-foreground"
                   >{row.detail}</small
                 ></a
               >{/each}
@@ -246,7 +245,7 @@
               }}>{text("retry")}</Button
             >{/if}{#if $search.error}<p
               role="alert"
-              class="tw:break-words tw:text-destructive"
+              class="break-words text-destructive"
             >
               {homeIssue(lang, $search.error)}
             </p>
@@ -281,7 +280,7 @@
                   returnFocus={() => focusBack(intent)}
                 >
                   <form
-                    class="tw:space-y-3"
+                    class="space-y-3"
                     aria-busy={$creator.busy}
                     onsubmit={(event) => {
                       event.preventDefault();
@@ -330,7 +329,7 @@
                         }
                       }}
                     />
-                    <div class="tw:flex tw:flex-wrap tw:gap-2">
+                    <div class="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         onclick={(event) => {
@@ -352,7 +351,7 @@
                     </div>
                     {#if $creator.error}<p
                         role="alert"
-                        class="tw:break-words tw:text-destructive"
+                        class="break-words text-destructive"
                       >
                         {homeIssue(lang, $creator.error)}
                       </p>{/if}
@@ -371,9 +370,9 @@
           returnFocus={() => focusBack(intent)}
         >
           {#if selectedRoom}{@const room = selectedRoom}
-            <fieldset class="tw:m-0 tw:space-y-2 tw:border-0 tw:p-0">
+            <fieldset class="m-0 space-y-2 border-0 p-0">
               <legend>{text("tint")}</legend>
-              <div class="tw:flex tw:flex-wrap tw:gap-2">
+              <div class="flex flex-wrap gap-2">
                 {#each [null, ...TINTS] as tint}<Button
                     size="sm"
                     variant={room.tint === tint ? "secondary" : "outline"}
@@ -386,14 +385,14 @@
                   >{/each}
               </div>
             </fieldset>
-            <div class="tw:space-y-2">
+            <div class="space-y-2">
               <Label for="native-room-icon">{text("icon")}</Label><input
                 id="native-room-icon"
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
                 disabled={imageBusy || !!$mutations.pending[`icon:${room.id}`]}
                 onchange={(event) => upload(event, intent)}
-                class="tw:block tw:w-full tw:rounded-lg tw:border tw:border-input tw:p-2 tw:text-sm"
+                class="block w-full rounded-lg border border-input p-2 text-sm"
               />{#if room.icon}<Button
                   variant="outline"
                   disabled={!!$mutations.pending[`icon:${room.id}`]}
@@ -403,7 +402,7 @@
                   }}>{text("removeIcon")}</Button
                 >{/if}
             </div>
-            <div class="tw:flex tw:flex-wrap tw:gap-2">
+            <div class="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 disabled={!!$mutations.pending.order}
@@ -434,12 +433,12 @@
             </div>
             {#each [`tint:${room.id}`, `icon:${room.id}`, "order"] as key}{#if $mutations.issues[key]}<p
                   role="alert"
-                  class="tw:break-words tw:text-destructive"
+                  class="break-words text-destructive"
                 >
                   {homeIssue(lang, $mutations.issues[key]!)}
                 </p>{/if}{/each}{#if imageError}<p
                 role="alert"
-                class="tw:break-words tw:text-destructive"
+                class="break-words text-destructive"
               >
                 {homeIssue(lang, imageError)}
               </p>{/if}
@@ -457,7 +456,7 @@
           initialFocus={() => archiveCancel}
           returnFocus={() => focusBack(intent)}
         >
-          {#if archiveRoom}<div class="tw:flex tw:flex-wrap tw:gap-2">
+          {#if archiveRoom}<div class="flex flex-wrap gap-2">
               <Button
                 bind:ref={archiveCancel}
                 variant="outline"
@@ -481,7 +480,7 @@
             </div>
             {#if $mutations.issues[`archive:${archiveRoom.id}`]}<p
                 role="alert"
-                class="tw:break-words tw:text-destructive"
+                class="break-words text-destructive"
               >
                 {homeIssue(
                   lang,
@@ -501,7 +500,7 @@
           returnFocus={() => focusBack(intent)}
         >
           {#if renameRoom}<form
-              class="tw:space-y-3"
+              class="space-y-3"
               onsubmit={(event) => {
                 event.preventDefault();
                 if (!current(intent) || !event.currentTarget.isConnected)
@@ -522,7 +521,7 @@
                 disabled={$nav.renameBusy ||
                   !!$mutations.pending[`rename:${renameRoom.id}`]}
               />
-              <div class="tw:flex tw:flex-wrap tw:gap-2">
+              <div class="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   onclick={(event) => {
@@ -543,7 +542,7 @@
               </div>
               {#if $mutations.issues[`rename:${renameRoom.id}`]}<p
                   role="alert"
-                  class="tw:break-words tw:text-destructive"
+                  class="break-words text-destructive"
                 >
                   {homeIssue(
                     lang,

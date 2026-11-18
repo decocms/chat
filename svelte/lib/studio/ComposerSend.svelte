@@ -33,13 +33,13 @@
   disabled={state === "idle"}
   {...rest}
   class={cn(
-    "tw:disabled:bg-muted tw:disabled:text-subtle-foreground tw:shrink-0 tw:disabled:opacity-100 tw:[&_svg]:text-current!",
+    "disabled:bg-muted disabled:text-subtle-foreground shrink-0 disabled:opacity-100 [&_svg]:text-current!",
     className,
   )}
 >
   {@render children?.()}
   {#if state === "streaming"}
-    <Icon icon={StopSquare} class="tw:fill-current" />
+    <Icon icon={StopSquare} class="fill-current" />
   {:else}
     <Icon icon={ArrowUp} />
   {/if}

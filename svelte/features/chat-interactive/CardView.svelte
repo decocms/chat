@@ -114,43 +114,43 @@
       (child) => card.elements[child]?.type === "Actions",
     )}<CardBox
       size="flush"
-      class="tw:max-w-[36rem] tw:gap-0 tw:overflow-hidden tw:font-sans tw:text-sm tw:[&_h2]:whitespace-pre-wrap tw:[&_p]:whitespace-pre-wrap"
+      class="max-w-[36rem] gap-0 overflow-hidden font-sans text-sm [&_h2]:whitespace-pre-wrap [&_p]:whitespace-pre-wrap"
     >
       {#snippet child({ props })}<section {...props}>
           <!-- Title, the content, then the actions as real buttons in a footer of their own. -->
           {#if element.props.title}<header
-              class="tw:flex tw:flex-col tw:gap-0.5 tw:px-4 tw:pt-3.5 tw:pb-1"
+              class="flex flex-col gap-0.5 px-4 pt-3.5 pb-1"
             >
               <h2
-                class="tw:m-0 tw:font-sans tw:text-[0.9375rem] tw:leading-6 tw:font-semibold tw:tracking-normal"
+                class="m-0 font-sans text-[0.9375rem] leading-6 font-semibold tracking-normal"
               >
                 {element.props.title}
               </h2>
               {#if element.props.subtitle}<p
-                  class="tw:m-0 tw:text-xs tw:leading-4 tw:text-muted-foreground"
+                  class="m-0 text-xs leading-4 text-muted-foreground"
                 >
                   {element.props.subtitle}
                 </p>{/if}
             </header>{/if}
           {#if body.length}<div
               class={[
-                "tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pb-4",
-                element.props.title ? "tw:pt-2" : "tw:pt-4",
+                "flex flex-col gap-3 px-4 pb-4",
+                element.props.title ? "pt-2" : "pt-4",
               ]}
             >
               {#each body as id}{@render draw(card.elements[id], id)}{/each}
             </div>{/if}
           {#each footer as id}<div
               data-native-card-actions
-              class="tw:border-t tw:border-border tw:bg-muted/40 tw:px-4 tw:py-2.5"
+              class="border-t border-border bg-muted/40 px-4 py-2.5"
             >
               {@render draw(card.elements[id], id)}
             </div>{/each}
         </section>{/snippet}
     </CardBox>
-  {:else if element.type === "Section"}<section class="tw:space-y-2">
+  {:else if element.type === "Section"}<section class="space-y-2">
       {#if element.props.title}<h5
-          class="tw:m-0 tw:whitespace-pre-wrap tw:font-sans tw:text-sm tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
+          class="m-0 whitespace-pre-wrap font-sans text-sm font-semibold tracking-normal [font-variation-settings:normal]"
         >
           {element.props.title}
         </h5>{/if}{#each element.children as id}{@render draw(
@@ -159,13 +159,13 @@
     </section>
   {:else if element.type === "Text"}<p
       class={[
-        "tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:font-sans tw:leading-6",
+        "m-0 whitespace-pre-wrap break-words font-sans leading-6",
         element.props.style === "bold"
-          ? "tw:font-semibold"
+          ? "font-semibold"
           : element.props.style === "muted"
-            ? "tw:text-muted-foreground"
+            ? "text-muted-foreground"
             : element.props.style === "code"
-              ? "tw:rounded-control tw:bg-muted tw:p-2 tw:font-mono tw:text-xs"
+              ? "rounded-control bg-muted p-2 font-mono text-xs"
               : "",
       ]}
     >
@@ -173,21 +173,19 @@
     </p>
   {:else if element.type === "Fields"}<dl
       class={[
-        "tw:m-0 tw:grid tw:grid-cols-1 tw:gap-x-6 tw:gap-y-3",
-        element.children.length > 1 && "tw:md:grid-cols-2",
+        "m-0 grid grid-cols-1 gap-x-6 gap-y-3",
+        element.children.length > 1 && "md:grid-cols-2",
       ]}
     >
       {#each element.children as id}{@render draw(card.elements[id])}{/each}
     </dl>
-  {:else if element.type === "Field"}<div
-      class="tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5"
-    >
+  {:else if element.type === "Field"}<div class="flex min-w-0 flex-col gap-0.5">
       <dt
-        class="tw:whitespace-pre-wrap tw:text-xs tw:leading-4 tw:font-medium tw:text-muted-foreground"
+        class="whitespace-pre-wrap text-xs leading-4 font-medium text-muted-foreground"
       >
         {element.props.label}
       </dt>
-      <dd class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:leading-5">
+      <dd class="m-0 whitespace-pre-wrap break-words leading-5">
         {element.props.value}
         {#if element.props.delta}<Badge
             variant={fieldDeltaTone(element.props.delta, element.props.good)}
@@ -195,7 +193,7 @@
           >{/if}
       </dd>
       {#if element.props.trend}<small
-          class="tw:block tw:whitespace-pre-wrap tw:text-xs tw:text-muted-foreground"
+          class="block whitespace-pre-wrap text-xs text-muted-foreground"
           >{element.props.trend}</small
         >{/if}
     </div>
@@ -215,22 +213,20 @@
       open={expanded === id}
       onOpenChange={(open) => (expanded = open ? id : null)}
     />
-  {:else if element.type === "Divider"}<hr class="tw:my-3 tw:border-border" />
+  {:else if element.type === "Divider"}<hr class="my-3 border-border" />
   {:else if element.type === "Image"}<img
       src={element.props.url}
       alt={element.props.alt || ""}
       loading="lazy"
-      class="tw:block tw:max-w-full tw:rounded-control tw:object-contain"
+      class="block max-w-full rounded-control object-contain"
     />
-  {:else if element.type === "Actions"}<div
-      class="tw:flex tw:flex-wrap tw:gap-2"
-    >
+  {:else if element.type === "Actions"}<div class="flex flex-wrap gap-2">
       {#each element.children as id}{@render draw(card.elements[id])}{/each}
     </div>
   {:else if element.type === "Button"}{@const value =
       element.props.value || element.props.label}{#if actionable}<Button
         data-native-card-answer={value}
-        class="tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left"
+        class="h-auto min-h-8 whitespace-pre-wrap text-left"
         size="sm"
         variant={element.props.style === "danger"
           ? "destructive"
@@ -242,15 +238,15 @@
       >{:else}<span
         data-native-card-picked={answer?.text === value ? value : undefined}
         class={answer?.text === value
-          ? "tw:inline-flex tw:items-center tw:gap-1 tw:whitespace-pre-wrap tw:rounded-button tw:border tw:border-primary tw:bg-primary/10 tw:px-3 tw:py-1.5 tw:text-sm"
-          : "tw:inline-flex tw:items-center tw:whitespace-pre-wrap tw:rounded-button tw:border tw:border-border tw:px-3 tw:py-1.5 tw:text-sm tw:text-muted-foreground"}
+          ? "inline-flex items-center gap-1 whitespace-pre-wrap rounded-button border border-primary bg-primary/10 px-3 py-1.5 text-sm"
+          : "inline-flex items-center whitespace-pre-wrap rounded-button border border-border px-3 py-1.5 text-sm text-muted-foreground"}
         >{#if answer?.text === value}<Icon
             icon={Check}
             size={16}
           />{/if}{element.props.label}</span
       >{/if}
   {:else if element.type === "LinkButton"}{#if element.props.url.startsWith("#")}<Button
-        class="tw:h-8 tw:gap-1.5 tw:whitespace-nowrap"
+        class="h-8 gap-1.5 whitespace-nowrap"
         size="sm"
         variant={element.props.style === "primary" ? "default" : "outline"}
         onclick={(event) => navigate(element.props.url, event)}
@@ -264,7 +260,7 @@
             variant: element.props.style === "primary" ? "default" : "outline",
             size: "sm",
           }),
-          "tw:h-8 tw:gap-1.5 tw:whitespace-nowrap tw:no-underline",
+          "h-8 gap-1.5 whitespace-nowrap no-underline",
         )}>{element.props.label}<Icon icon={LinkExternal01} size={14} /></a
       >{/if}
   {/if}
@@ -273,12 +269,12 @@
   data-native-card
   data-native-card-readonly={readOnly || undefined}
   data-vb-native
-  class="tw:space-y-2 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-2 font-sans text-sm text-foreground"
 >
   {@render draw(card.elements[card.root])}
   {#if status.phase !== "idle"}<p
       role={status.phase === "error" ? "alert" : "status"}
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      class="m-0 text-xs text-muted-foreground"
     >
       {status.phase === "pending"
         ? vb.t("Enviando…")

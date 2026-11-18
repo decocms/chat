@@ -31,7 +31,7 @@
     data-slot="form-message"
     id={field.formMessageId}
     {...rest}
-    class={cn("tw:text-destructive tw:text-sm tw:text-pretty", className)}
+    class={cn("text-destructive text-sm text-pretty", className)}
   >
     {#if message !== undefined}{message}{:else}{@render children?.()}{/if}
   </p>
