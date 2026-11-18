@@ -16,8 +16,5 @@
     "svelte/lib/studio/TabsList.svelte": 1,
     "svelte/lib/studio/toggle.ts": 1,
     "svelte/lib/studio/ToggleGroup.svelte": 1
-  },
-  "fetch": {
-    "svelte/features/documents/session.ts": 1
   }
 }
