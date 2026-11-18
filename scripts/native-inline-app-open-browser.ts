@@ -544,7 +544,15 @@ export async function auditInlineAppOpen(
                 "Native prose update remounted an authorized iframe",
               );
             assert.deepEqual(meter.initial, before.initial);
-            await button("mutate_a", /^P$/).click();
+            if (variant === "svelte") {
+              // Svelte's height is one select (Pequeno / Médio / Grande, #141), vanilla keeps P M G.
+              await widget("mutate_a")
+                .locator('[aria-label="Tamanho"], [aria-label="Size"]')
+                .click();
+              await page
+                .getByRole("option", { name: /^(Pequeno|Small)$/ })
+                .click();
+            } else await button("mutate_a", /^P$/).click();
             await expect
               .poll(async () =>
                 (await canonicalDoc()).includes(`/mutate_a|p]]`),
