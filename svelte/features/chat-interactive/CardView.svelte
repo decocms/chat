@@ -108,25 +108,44 @@
 </script>
 
 {#snippet draw(element: CardEl, id = card.root)}
-  {#if element.type === "Card"}<CardBox
-      class="tw:font-sans tw:text-sm tw:[&_h2]:whitespace-pre-wrap tw:[&_p]:whitespace-pre-wrap"
+  {#if element.type === "Card"}{@const body = element.children.filter(
+      (child) => card.elements[child]?.type !== "Actions",
+    )}{@const footer = element.children.filter(
+      (child) => card.elements[child]?.type === "Actions",
+    )}<CardBox
+      size="flush"
+      class="tw:max-w-[36rem] tw:gap-0 tw:overflow-hidden tw:font-sans tw:text-sm tw:[&_h2]:whitespace-pre-wrap tw:[&_p]:whitespace-pre-wrap"
     >
       {#snippet child({ props })}<section {...props}>
-          {#if element.props.title}<div class="tw:space-y-1">
+          <!-- Title, the content, then the actions as real buttons in a footer of their own. -->
+          {#if element.props.title}<header
+              class="tw:flex tw:flex-col tw:gap-0.5 tw:px-4 tw:pt-3.5 tw:pb-1"
+            >
               <h2
-                class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal"
+                class="tw:m-0 tw:font-sans tw:text-[0.9375rem] tw:leading-6 tw:font-semibold tw:tracking-normal"
               >
                 {element.props.title}
               </h2>
               {#if element.props.subtitle}<p
-                  class="tw:m-0 tw:text-sm tw:leading-5 tw:text-muted-foreground"
+                  class="tw:m-0 tw:text-xs tw:leading-4 tw:text-muted-foreground"
                 >
                   {element.props.subtitle}
                 </p>{/if}
-            </div>{/if}{#each element.children as id}{@render draw(
-              card.elements[id],
-              id,
-            )}{/each}
+            </header>{/if}
+          {#if body.length}<div
+              class={[
+                "tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pb-4",
+                element.props.title ? "tw:pt-2" : "tw:pt-4",
+              ]}
+            >
+              {#each body as id}{@render draw(card.elements[id], id)}{/each}
+            </div>{/if}
+          {#each footer as id}<div
+              data-native-card-actions
+              class="tw:border-t tw:border-border tw:bg-muted/40 tw:px-4 tw:py-2.5"
+            >
+              {@render draw(card.elements[id], id)}
+            </div>{/each}
         </section>{/snippet}
     </CardBox>
   {:else if element.type === "Section"}<section class="tw:space-y-2">
@@ -153,15 +172,22 @@
       {element.props.content}
     </p>
   {:else if element.type === "Fields"}<dl
-      class="tw:m-0 tw:grid tw:grid-cols-1 tw:gap-3 tw:sm:grid-cols-2"
+      class={[
+        "tw:m-0 tw:grid tw:grid-cols-1 tw:gap-x-6 tw:gap-y-3",
+        element.children.length > 1 && "tw:sm:grid-cols-2",
+      ]}
     >
       {#each element.children as id}{@render draw(card.elements[id])}{/each}
     </dl>
-  {:else if element.type === "Field"}<div class="tw:min-w-0">
-      <dt class="tw:whitespace-pre-wrap tw:text-xs tw:text-muted-foreground">
+  {:else if element.type === "Field"}<div
+      class="tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5"
+    >
+      <dt
+        class="tw:whitespace-pre-wrap tw:text-xs tw:leading-4 tw:font-medium tw:text-muted-foreground"
+      >
         {element.props.label}
       </dt>
-      <dd class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:font-medium">
+      <dd class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:leading-5">
         {element.props.value}
         {#if element.props.delta}<Badge
             variant={fieldDeltaTone(element.props.delta, element.props.good)}
@@ -224,26 +250,22 @@
           />{/if}{element.props.label}</span
       >{/if}
   {:else if element.type === "LinkButton"}{#if element.props.url.startsWith("#")}<Button
-        class={element.props.style === "primary"
-          ? "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left"
-          : "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"}
+        class="tw:h-8 tw:gap-1.5 tw:whitespace-nowrap"
         size="sm"
-        variant={element.props.style === "primary" ? "default" : "link"}
+        variant={element.props.style === "primary" ? "default" : "outline"}
         onclick={(event) => navigate(element.props.url, event)}
-        >{element.props.label}<Icon icon={ArrowRight} size={16} /></Button
+        >{element.props.label}<Icon icon={ArrowRight} size={14} /></Button
       >{:else}<a
         href={element.props.url}
         target="_blank"
         rel="noopener noreferrer"
         class={cn(
           buttonVariants({
-            variant: element.props.style === "primary" ? "default" : "link",
+            variant: element.props.style === "primary" ? "default" : "outline",
             size: "sm",
           }),
-          "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
-          element.props.style !== "primary" &&
-            "tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current",
-        )}>{element.props.label}<Icon icon={LinkExternal01} size={16} /></a
+          "tw:h-8 tw:gap-1.5 tw:whitespace-nowrap tw:no-underline",
+        )}>{element.props.label}<Icon icon={LinkExternal01} size={14} /></a
       >{/if}
   {/if}
 {/snippet}
