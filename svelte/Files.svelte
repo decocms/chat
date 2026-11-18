@@ -81,25 +81,37 @@
     action={room.files?.length ? uploadSmall : undefined}
   />
   {#if room.files?.length}
+    <!-- Kinds as small pills (the one you're on filled), then folders as compact chips, then a dense grid of
+         tiles where the file comes first: a big preview, its name and one line of who/when; pin on hover. -->
     {#if view.counts.all > 1}<div
-        class="tw:flex tw:flex-wrap tw:gap-1"
+        class="tw:-mx-3 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-3 tw:[scrollbar-width:none]"
         aria-label={vb.t("Arquivos")}
       >
         {#each fileKinds.filter(([kind]) => view.counts[kind]) as [kind, label]}
-          <Button
-            variant={view.kind === kind ? "secondary" : "ghost"}
-            size="sm"
+          <button
+            type="button"
             data-fkind={kind}
             aria-pressed={view.kind === kind}
+            class={[
+              "tw:inline-flex tw:h-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:border tw:px-3 tw:font-sans tw:text-xs tw:font-medium tw:transition-colors tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+              view.kind === kind
+                ? "tw:border-foreground tw:bg-foreground tw:text-background"
+                : "tw:border-border tw:bg-background tw:text-foreground tw:hover:bg-accent",
+            ]}
             onclick={() => select(kind, view.dir)}
-            >{vb.t(label)} <small>{view.counts[kind]}</small></Button
+            >{vb.t(label)}<span
+              class={view.kind === kind
+                ? "tw:opacity-70"
+                : "tw:text-muted-foreground"}>{view.counts[kind]}</span
+            ></button
           >
         {/each}
       </div>{/if}
-    {#if view.dir}<div class="tw:flex tw:items-center tw:gap-2">
+    {#if view.dir}<div class="tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
         <Button
           variant="ghost"
           size="sm"
+          class="tw:-ml-2"
           onclick={() =>
             select(
               view.kind,
@@ -108,72 +120,104 @@
                 : "",
               true,
             )}>← {vb.t("voltar")}</Button
-        ><Icon icon={Folder} size={16} /><b>{view.dir}/</b>
+        ><Icon
+          icon={Folder}
+          size={16}
+          class="tw:shrink-0 tw:text-muted-foreground"
+        /><b class="tw:truncate tw:font-medium">{view.dir}/</b>
       </div>{/if}
-    <div class="tw:grid tw:grid-cols-2 tw:gap-3 tw:sm:grid-cols-3">
-      {#each view.folders as [name, count]}<Button
-          data-fdir={view.prefix + name}
-          variant="outline"
-          class="tw:h-auto tw:min-w-0 tw:flex-col tw:items-start tw:justify-start tw:gap-2 tw:whitespace-normal tw:rounded-lg tw:p-3 tw:text-left"
-          onclick={() => select(view.kind, view.prefix + name, true)}
-          ><Icon icon={Folder} size={16} class="tw:size-8" /><b
-            class="tw:break-all">{name}/</b
-          ><small class="tw:text-muted-foreground"
-            >{count === 1
-              ? vb.t("1 arquivo")
-              : vb.t("{n} arquivos", { n: count })}</small
-          ></Button
-        >{/each}
-      {#each view.list as file (file.id)}
-        {@const pinned =
-          room.pins?.some(
-            (pin) => pin.kind === "file" && pin.ref === file.id,
-          ) ?? false}
-        <article
-          data-file-id={file.id}
-          class="tw:min-w-0 tw:rounded-lg tw:border tw:border-border tw:bg-card tw:p-3"
-        >
-          <Button
-            variant="ghost"
-            class="tw:h-auto tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:gap-2 tw:whitespace-normal tw:p-0 tw:text-left"
-            title={file.name}
-            onclick={(event) => {
-              if (mounted && event.currentTarget.isConnected)
-                session.open(file, onopenfile);
-            }}
+    {#if view.folders.length}<div class="tw:flex tw:flex-wrap tw:gap-1.5">
+        {#each view.folders as [name, count]}<button
+            type="button"
+            data-fdir={view.prefix + name}
+            class="tw:inline-flex tw:h-9 tw:min-w-0 tw:max-w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-border tw:bg-background tw:px-3 tw:font-sans tw:text-[0.8125rem] tw:transition-colors tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+            onclick={() => select(view.kind, view.prefix + name, true)}
+            ><Icon
+              icon={Folder}
+              size={16}
+              class="tw:shrink-0 tw:text-muted-foreground"
+            /><span class="tw:truncate tw:font-medium">{name}</span><span
+              class="tw:shrink-0 tw:text-xs tw:text-muted-foreground"
+              title={count === 1
+                ? vb.t("1 arquivo")
+                : vb.t("{n} arquivos", { n: count })}>{count}</span
+            ></button
+          >{/each}
+      </div>{/if}
+    {#if view.list.length}<div
+        class="tw:grid tw:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] tw:gap-2"
+      >
+        {#each view.list as file (file.id)}
+          {@const pinned =
+            room.pins?.some(
+              (pin) => pin.kind === "file" && pin.ref === file.id,
+            ) ?? false}
+          {@const ext = (file.name.split(".").pop() ?? "").slice(0, 4)}
+          <article
+            data-file-id={file.id}
+            class="tw:group/file tw:relative tw:min-w-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-border tw:bg-card tw:transition-colors tw:hover:border-foreground/25"
           >
-            {#if file.type.startsWith("image/")}<img
-                class="tw:h-24 tw:w-full tw:rounded-md tw:object-contain"
-                src={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}`}
-                alt={file.name}
-                loading="lazy"
-              />{:else}<Icon icon={File02} size={16} class="tw:size-8" />{/if}
-            <b class="tw:break-all">{file.name.slice(view.prefix.length)}</b
-            ><small class="tw:text-muted-foreground"
-              >{vb.name(file.author)} · {vb.ago(file.ts)} · {(view.versions.get(
-                file.name,
-              ) ?? 0) > 1
-                ? vb.t("{n} versões", { n: view.versions.get(file.name)! })
-                : kb(file.size)}</small
+            <button
+              type="button"
+              class="tw:block tw:w-full tw:min-w-0 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:focus-visible:ring-inset"
+              title={file.name}
+              onclick={(event) => {
+                if (mounted && event.currentTarget.isConnected)
+                  session.open(file, onopenfile);
+              }}
             >
-          </Button>
-          <IconButton
-            label={vb.t(pinned ? "Desafixar" : "Fixar na lateral")}
-            aria-pressed={pinned}
-            disabled={!!$fileState.pending}
-            aria-busy={$fileState.pending?.id === file.id || undefined}
-            class="tw:aria-pressed:bg-accent tw:aria-pressed:text-foreground"
-            onclick={(event) => {
-              if (mounted && event.currentTarget.isConnected)
-                void session.toggle(file, request);
-            }}
-            >{#if $fileState.pending?.id === file.id}<Spinner
-                size="xs"
-              />{:else}<Icon icon={Pin02} size={16} />{/if}</IconButton
-          >
-        </article>
-      {/each}
-    </div>
+              <span
+                class="tw:flex tw:aspect-[4/3] tw:w-full tw:items-center tw:justify-center tw:overflow-hidden tw:border-b tw:border-border tw:bg-muted"
+                >{#if file.type.startsWith("image/")}<img
+                    class="tw:size-full tw:object-contain tw:p-2"
+                    src={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}`}
+                    alt={file.name}
+                    loading="lazy"
+                  />{:else}<span
+                    class="tw:flex tw:flex-col tw:items-center tw:gap-1.5 tw:text-muted-foreground"
+                    ><Icon icon={File02} size={24} />{#if ext}<span
+                        class="tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:uppercase"
+                        >{ext}</span
+                      >{/if}</span
+                  >{/if}</span
+              >
+              <span class="tw:flex tw:flex-col tw:gap-0.5 tw:px-2.5 tw:py-2"
+                ><span
+                  class="tw:truncate tw:text-[0.8125rem] tw:leading-5 tw:font-medium"
+                  >{file.name.slice(view.prefix.length)}</span
+                ><span
+                  class="tw:truncate tw:text-[0.6875rem] tw:leading-4 tw:text-muted-foreground"
+                  >{vb.name(file.author)} · {vb.ago(file.ts)} · {(view.versions.get(
+                    file.name,
+                  ) ?? 0) > 1
+                    ? vb.t("{n} versões", {
+                        n: view.versions.get(file.name)!,
+                      })
+                    : kb(file.size)}</span
+                ></span
+              >
+            </button>
+            <IconButton
+              label={vb.t(pinned ? "Desafixar" : "Fixar na lateral")}
+              aria-pressed={pinned}
+              size="icon-xs"
+              disabled={!!$fileState.pending}
+              aria-busy={$fileState.pending?.id === file.id || undefined}
+              class={[
+                "tw:absolute tw:top-1.5 tw:right-1.5 tw:bg-background/90 tw:shadow-sm tw:backdrop-blur-sm tw:transition-opacity tw:aria-pressed:text-foreground tw:focus-visible:opacity-100 tw:group-hover/file:opacity-100 tw:[@media(hover:none)]:opacity-100",
+                pinned ? "tw:opacity-100" : "tw:opacity-0",
+              ].join(" ")}
+              onclick={(event) => {
+                if (mounted && event.currentTarget.isConnected)
+                  void session.toggle(file, request);
+              }}
+              >{#if $fileState.pending?.id === file.id}<Spinner
+                  size="xs"
+                />{:else}<Icon icon={Pin02} size={14} />{/if}</IconButton
+            >
+          </article>
+        {/each}
+      </div>{/if}
     {#if !view.list.length && !view.folders.length}<p>
         {vb.t("Nada aqui.")}
       </p>{/if}
