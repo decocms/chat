@@ -32,6 +32,10 @@ export type PanelProps = {
   request: RequestRoomCommand;
   waits?: Wait[];
   onopen?: (epic: string) => void;
+  /** Put a prompt for your Claude in this thread's composer (an empty tab's "Ask your Claude"). */
+  ask?: (prompt: string) => void;
+  /** Add files to this thread's composer, as the clip does. */
+  attach?: (files: readonly File[]) => void;
 };
 export const escapeHtml = (text: string) =>
   String(text ?? "").replace(

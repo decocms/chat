@@ -8,9 +8,15 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import { X } from "../../lib/studio/icons";
   import Icon from "../../lib/studio/Icon.svelte";
-  import EmptyState from "../../lib/components/EmptyState.svelte";
-  let { room, vb, request }: Pick<PanelProps, "room" | "vb" | "request"> =
-    $props();
+  import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
+  import PaneHeader from "../../lib/components/PaneHeader.svelte";
+  import { paneIcons } from "../documents/paneIcons";
+  let {
+    room,
+    vb,
+    request,
+    ask,
+  }: Pick<PanelProps, "room" | "vb" | "request" | "ask"> = $props();
   const session = untrack(() => createDecisionsSession(room.id));
   const view = session.state;
   const list = $derived(room.decisions || []);
@@ -46,14 +52,7 @@
   data-decisions-panel
   class="tw:space-y-4 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
 >
-  <div class="tw:flex tw:items-center tw:gap-2">
-    <h2
-      class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal"
-    >
-      {vb.t("Decisões")}
-    </h2>
-    <Badge>{list.length}</Badge>
-  </div>
+  <PaneHeader title={vb.t("Decisões")} count={list.length} />
   {#each rows as decision (decision.id)}
     <article data-decision-id={decision.id}>
       <Card size="tile" class="tw:flex-row tw:items-start tw:gap-3">
@@ -102,12 +101,17 @@
       </Card>
     </article>
   {:else}
-    <EmptyState
-      icon="check"
-      title={vb.t("Decisões")}
+    <PaneEmpty
+      icon={paneIcons.decisions}
+      title={vb.t("Nenhuma decisão ainda")}
       description={vb.t(
-        "O que a sala decidir e cada aprovação aparecem aqui. Os agents registram conforme a conversa anda.",
+        "O que a sala decide e cada aprovação, com quem decidiu e quando, pra ninguém precisar caçar no chat.",
       )}
+      ask={vb.t(
+        "Lê a conversa desta sala e registra as decisões que a gente já tomou.",
+      )}
+      askLabel={vb.t("Peça pro seu Claude")}
+      onask={ask}
     />
   {/each}
 </section>
