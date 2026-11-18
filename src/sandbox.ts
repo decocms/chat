@@ -17,6 +17,7 @@ import { track as trackEvent } from "./track";
 // - Pause keeps memory and processes (freestyle bills only disk while paused); start resumes them.
 import type { Env } from "./index";
 import { bookStub, storeFile } from "./rooms";
+import { redactSecrets } from "./secrets";
 
 let API = "https://api.freestyle.sh"; // FREESTYLE_API overrides it in local dev (a mock)
 const enc = new TextEncoder();
@@ -378,8 +379,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
 
 // ---- for agents (MCP sandboxes / sandbox_exec in src/agent.ts): a person's Claude works on that person's own
 // sandboxes with the key that stays on the server. Output is redacted (tokens, keys) before it reaches the agent.
-export const redact = (s: string) =>
-  s.replace(/sk-ant-[A-Za-z0-9_.-]{10,}/g, "sk-ant-…[redacted]").replace(/"(access_token|refresh_token|code|verifier)"\s*:\s*"[^"]*"/g, '"$1":"[redacted]"').replace(/(CLAUDE_CODE_OAUTH_TOKEN|FREESTYLE_API_KEY|API_KEY|TOKEN|SECRET)=\S+/gi, "$1=[redacted]");
+export const redact = redactSecrets;
 export async function agentSandboxes(env: Env, email: string) {
   useEnv(env);
   const k = await loadKey(env, email).catch(() => null);
