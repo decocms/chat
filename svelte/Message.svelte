@@ -197,7 +197,7 @@
       type="button"
       data-native-quote={m.reply_to}
       title={vb.t("Ver a mensagem respondida")}
-      class="tw:group/quote tw:relative tw:mb-1 tw:flex tw:h-[22px] tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:pl-14 tw:text-left tw:font-sans tw:text-[0.8125rem] tw:leading-none tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+      class="tw:group/quote tw:relative tw:mb-1 tw:flex tw:h-[22px] tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:pl-14 tw:text-left tw:font-sans tw:text-[0.8125rem] tw:leading-[18px] tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
       onclick={() => {
         if (active) actions.navigate(m.reply_to!, quote?.thread);
       }}
@@ -262,7 +262,7 @@
     </div>
     <div data-message-body class="tw:min-w-0 tw:flex-1 tw:space-y-1">
       {#if !continuous}<div
-          class="tw:-mb-1 tw:flex tw:h-5 tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+          class="tw:-mb-0.5 tw:flex tw:h-5 tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
         >
           <span
             class={[
