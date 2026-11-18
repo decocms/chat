@@ -105,7 +105,7 @@
     "build:pwa": "bun scripts/build-service-worker.ts",
     "check:pwa": "node node_modules/@typescript/native/bin/tsc -p tsconfig.service-worker.json",
     "test:pwa": "bun test scripts/native-pwa.test.ts",
-    "test:auth": "bun test scripts/native-auth.test.ts scripts/session-boundary.test.ts scripts/github-identity.test.ts scripts/google-invite-auth.test.ts && bun test scripts/native-auth-post.test.ts && bun test --conditions=browser scripts/native-auth-dom.test.ts",
+    "test:auth": "bun test scripts/native-auth.test.ts scripts/session-boundary.test.ts scripts/github-identity.test.ts scripts/provider-avatar.test.ts scripts/google-invite-auth.test.ts && bun test scripts/native-auth-post.test.ts && bun test --conditions=browser scripts/native-auth-dom.test.ts",
     "test:home": "bun test scripts/native-home.test.ts scripts/native-onboarding.test.ts && bun test --conditions=browser scripts/native-home-dom.test.ts",
     "test:onboarding:browser": "bun scripts/native-onboarding-browser.ts",
     "format:onboarding:check": "prettier --check scripts/native-onboarding.test.ts scripts/native-onboarding-browser.ts svelte/features/onboarding",

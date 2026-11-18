@@ -1,4 +1,5 @@
-import { githubEmail, githubName, githubToken } from "./githubIdentity";
+import { githubAvatar, githubEmail, githubName, githubToken } from "./githubIdentity";
+import { syncProviderAvatar } from "./providerAvatar";
 import { Hono } from "hono";
 import * as z from "zod/mini";
 import { reqLang } from "./lang";
@@ -21,6 +22,7 @@ const GoogleIdentity = z.object({
   email_verified: z.literal(true),
   given_name: z.optional(z.nullable(z.string())),
   name: z.optional(z.nullable(z.string())),
+  picture: z.optional(z.nullable(z.string())),
 });
 const InvitePayload = z.object({
   e: z.string().check(z.regex(EMAIL_RE)),
@@ -251,6 +253,7 @@ auth.get("/google/callback", async (c) => {
       .bind(info.data.email.toLowerCase(), Date.now(), gname)
       .run()
       .catch(() => {});
+  if (info.data.picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, info.data.email, "google", info.data.picture).then(async (ok) => { if (ok) await (await import("./person")).poke(c.env, [info.data.email.toLowerCase()], { t: "me" }); }).catch(() => {}));
   return c.redirect(safeNext(next));
 });
 
@@ -331,12 +334,15 @@ auth.get("/github/callback", async (c) => {
   if (!email) return c.redirect(loginUrl(c, next, "?error=github"));
   await startSession(c, email);
   c.executionCtx.waitUntil(track(c.env, "login", { user: email.toLowerCase(), dims: { method: "github" } }));
-  const gname = await gh("/user").then(async (r) => r.ok ? githubName(await r.json()) : "").catch(() => "");
+  const profile: unknown = await gh("/user").then((r) => r.ok ? r.json() : null).catch(() => null);
+  const gname = githubName(profile);
   if (gname)
     await c.env.DB.prepare(`INSERT INTO users (email, created_at, name) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = COALESCE(users.name, excluded.name)`)
       .bind(email.toLowerCase(), Date.now(), gname)
       .run()
       .catch(() => {});
+  const picture = githubAvatar(profile);
+  if (picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, email, "github", picture).then(async (ok) => { if (ok) await (await import("./person")).poke(c.env, [email.toLowerCase()], { t: "me" }); }).catch(() => {}));
   return c.redirect(safeNext(next));
 });
 
