@@ -348,5 +348,24 @@
           a.delivery === false,
           true,
         )}{/each}
+      <!-- Cloud agents (freestyle sandboxes) stay one click away once you have agents (Gui #3173). -->
+      <button
+        type="button"
+        data-agent-cloud
+        class="tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:text-xs tw:text-muted-foreground tw:hover:bg-muted tw:hover:text-foreground"
+        onclick={() => {
+          if (!owner.current()) return;
+          onopen();
+          // Straight to the sandboxes (freestyle key, create, terminal), below the pane's other sections.
+          setTimeout(
+            () =>
+              document
+                .querySelector("[data-native-sandboxes]")
+                ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+            150,
+          );
+        }}
+        ><Icon icon={Cloud01} class="tw:size-4" />{text("footAddCloud")}</button
+      >
     </div>{/if}
 {/if}
