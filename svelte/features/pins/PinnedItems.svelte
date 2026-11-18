@@ -24,6 +24,7 @@
   } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
+  import LiveFrame from "./LiveFrame.svelte";
   import { readable, type Readable } from "svelte/store";
   import {
     pinAppInitials,
@@ -386,6 +387,13 @@
     event.preventDefault();
     if (interactive()) void submitPinDraft(session, room.id, request);
   }
+  /** The live pin open in the floating window (this tab only). */
+  let liveOpen = $state<string | null>(null);
+  const liveTarget = $derived.by(() => {
+    const pin = liveOpen ? room.pins?.find((pin) => pin.id === liveOpen) : null;
+    const target = pin ? resolvePin(pin, room) : null;
+    return target?.kind === "live" ? target : null;
+  });
   function activate(id: string) {
     if (!interactive()) return;
     // Resolve again at the action boundary; a removed pin/file is not kept alive by a stale row closure.
@@ -394,6 +402,7 @@
     const target = resolvePin(pin, room);
     if (target.kind === "file") onopenfile(target.file);
     if (target.kind === "app") onopenapp(target.app);
+    if (target.kind === "live") liveOpen = liveOpen === id ? null : id;
     if (target.kind === "file-unloaded") {
       requestedFrom = session;
       fileToOpen = id;
@@ -597,6 +606,33 @@
                       class={markerClass}
                     /><span class="tw:sr-only">{t("abre em nova aba")}</span>
                   </a>
+                {:else if target.kind === "live"}
+                  <Button
+                    {...trigger}
+                    variant="ghost"
+                    class={cn(
+                      rowClass,
+                      "tw:justify-start tw:font-normal tw:hover:bg-transparent",
+                    )}
+                    disabled={!live}
+                    aria-pressed={liveOpen === pin.id}
+                    onclick={(event) => {
+                      if (!event.defaultPrevented) activate(pin.id);
+                    }}
+                  >
+                    <span
+                      class={cn(kindClass, "tw:bg-warning/15")}
+                      data-pin-icon="live"
+                      ><Icon
+                        icon={Globe02}
+                        size={16}
+                        class="tw:text-warning"
+                      /></span
+                    >{@render text(
+                      target.label,
+                      t("Ao vivo · {host}", { host: target.host }),
+                    )}<Icon icon={ChevronRight} class={markerClass} />
+                  </Button>
                 {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
                   <Button
                     {...trigger}
@@ -721,3 +757,12 @@
     </button>
   {/if}
 </section>
+{#if liveTarget}<LiveFrame
+    href={liveTarget.href}
+    host={liveTarget.host}
+    by={room.names?.[liveTarget.author] ??
+      liveTarget.author.split("@")[0] ??
+      ""}
+    onclose={() => (liveOpen = null)}
+    {t}
+  />{/if}
