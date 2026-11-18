@@ -18,6 +18,7 @@ export const AgentDbRow = z.object({
   seen_at: num,
   listening_at: num,
   listen_room: str,
+  listen_title: z.optional(str),
   ctx_tokens: num,
   ctx_window: num,
   ctx_at: num,
