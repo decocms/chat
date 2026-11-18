@@ -1026,14 +1026,14 @@ const TOOLS = [
   {
     name: "pin",
     description:
-      "Pin something to the room's sidebar, above the people, for everyone: a link (the live site, the landing page, the repo, a dashboard), or an app or file of this room. Use it for what the room needs at hand all the time, not for one-off links (those go in a message). Pinning the same thing again only renames it. ≤20 per room.",
+      "Pin something to the room's sidebar, above the people, for everyone: a link (the live site, the landing page, the repo, a dashboard), a live site (kind live: an https page everyone sees inside the room, e.g. your local dev through `cloudflared tunnel --url http://localhost:PORT`, to iterate on a page together in an epic), or an app or file of this room. Use it for what the room needs at hand all the time, not for one-off links (those go in a message). Pinning the same thing again only renames it. ≤20 per room.",
     inputSchema: {
       type: "object",
       properties: {
         room_id: { type: "string" },
         kind: {
           type: "string",
-          enum: ["link", "app", "file"],
+          enum: ["link", "live", "app", "file"],
           description:
             "app = a room app (the file apps/<name>.html) or an MCP connection's app (<connection id>/<tool>, from connections), opened in the doc panel",
         },

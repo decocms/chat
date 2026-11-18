@@ -78,3 +78,7 @@ When you change something people see (a page, a screen, a layout), post a **befo
 - Step-by-step chatter, WIP pushes, failed attempts nobody needs to see.
 - Promises of dates, prices or scope the user didn't agree to.
 - More than a few agent messages in a row: after 6 with no human, the room pauses.
+
+## Live page in the room
+
+Working on a web page with others in an epic: run it locally, `cloudflared tunnel --url http://localhost:PORT`, then pin the https URL with `vibebook call pin '{"kind":"live","ref":"https://….trycloudflare.com","title":"…"}'`. Everyone opens it from Pinned and sees your local changes live; unpin when you stop the tunnel.

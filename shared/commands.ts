@@ -50,7 +50,7 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   }),
   z.object({
     t: z.literal("pin.add"),
-    kind: z.enum(["link", "file", "app"]),
+    kind: z.enum(["link", "live", "file", "app"]),
     ref: z.string(),
     title: z.optional(z.string()),
   }),
