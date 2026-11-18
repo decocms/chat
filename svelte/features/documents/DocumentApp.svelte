@@ -7,6 +7,9 @@
   import { documentAppKey } from "./appMarkers";
   import type { DocumentAppMarker, DocumentAppSize } from "./appMarkers";
   import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { LinkExternal01 } from "../../lib/studio/icons";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   let {
     props,
@@ -71,9 +74,12 @@
 
 <section
   data-document-app
-  class="tw:my-3 tw:w-full tw:min-w-0 tw:max-w-none tw:overflow-hidden tw:rounded-control tw:border tw:border-border"
+  class="tw:-mx-4 tw:my-3 tw:w-[calc(100%+2rem)] tw:min-w-0 tw:max-w-none tw:overflow-hidden tw:border-y tw:border-border"
 >
-  <header class="tw:flex tw:items-center tw:gap-2 tw:bg-muted tw:px-3 tw:py-2">
+  <!-- Edge to edge in the doc (its body pads 1rem): the app gets the doc's whole width (Gui #3115). -->
+  <header
+    class="tw:flex tw:items-center tw:gap-2 tw:bg-muted tw:px-4 tw:py-1.5"
+  >
     <b class="tw:min-w-0 tw:flex-1 tw:truncate">{marker.tool}</b>
     {#key source}<Snapshot value={{ source, marker }}
         >{#snippet children(rendered)}<div
@@ -93,11 +99,11 @@
               >{/each}
           </div>{/snippet}</Snapshot
       >{/key}
-    <Button
-      variant="ghost"
+    <IconButton
+      label={props.t("Abrir no painel Apps")}
       onclick={(event) => {
         if (connected(event)) open();
-      }}>{props.t("Abrir no painel Apps")}</Button
+      }}><Icon icon={LinkExternal01} /></IconButton
     >
   </header>
   <div
