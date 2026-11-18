@@ -100,8 +100,14 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
     loginProviders: { google: false, github: false },
     isEmail: (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
-    befriend: async () => {},
-    unfriend: async () => {},
+    connect: async (email) =>
+      email === "member@test.com"
+        ? { id: "dm00000000000000000001" }
+        : email === "limited@test.com"
+          ? { error: "rate" }
+          : {},
+    dismiss: async () => {},
+    answerInvite: async (room) => room === "aaaaaa",
     invite: async () => {},
     removeMember: async () => null,
     pokeAgents: () => {},
@@ -153,6 +159,8 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       dm: "dm000000000000000000aa",
       requests: [],
       sent: [],
+      invites: [],
+      people: [],
       avatar: null,
       books: [],
       friends: [],
@@ -794,6 +802,8 @@ test("personal query contracts leave rate limits and cached me payloads unchange
         dm: "dm000000000000000000aa",
         requests: [],
         sent: [],
+        invites: [],
+        people: [],
         books: [],
         friends: [],
         waits: [],
@@ -1837,4 +1847,34 @@ test("API-local metadata and database validators retain optional/null and uncoer
   expect(AgentDbRow.safeParse(incomplete).success).toBe(false);
   expect(AgentDbRow.shape.who).toBe(AgentDbRow.shape.repo);
   expect(AgentDbRow.shape.seen_at).toBe(AgentDbRow.shape.ctx_tokens);
+});
+
+test("writing to someone opens the DM, sends a request, or is rate-limited; invites take a yes", async () => {
+  const f = fixture();
+  const open = await f.json("/api/friends", {
+    email: "Member@test.com",
+    text: "oi",
+  });
+  expect(open.status).toBe(200);
+  expect(await open.json()).toEqual({ ok: true, id: "dm00000000000000000001" });
+  const request = await f.json("/api/friends", { email: "stranger@test.com" });
+  expect(request.status).toBe(200);
+  expect(await request.json()).toEqual({ ok: true });
+  expect(
+    (await f.json("/api/friends", { email: "limited@test.com" })).status,
+  ).toBe(429);
+  expect((await f.json("/api/friends", { email: "nope" })).status).toBe(400);
+  const gone = await f.app.request("/api/friends/x%40test.com", {
+    method: "DELETE",
+  });
+  expect(gone.status).toBe(200);
+  expect((await f.json("/api/books/aaaaaa/invite", { yes: true })).status).toBe(
+    200,
+  );
+  expect(
+    (await f.json("/api/books/bbbbbb/invite", { yes: false })).status,
+  ).toBe(404);
+  expect((await f.json("/api/books/aaaaaa/invite", { yes: "y" })).status).toBe(
+    400,
+  );
 });

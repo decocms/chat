@@ -64,60 +64,45 @@ const standIn = (id: string, members: string[]): RoomSummary => ({
   dm: 1,
 });
 /**
- * Your DMs (src/dm.ts): "Você" (your own), the friends you talked to (newest
- * first, plus DMs with people who are no longer friends: the talk is still
- * there) and the friends you haven't talked to yet, in the server's order. The
- * server lists a DM's room only once someone wrote in it; until then the entry
- * carries a stand-in with the same id, so opening it works the same.
+ * Your DMs (src/dm.ts): "Você" (your own) and every conversation you've had,
+ * newest first. A DM is listed by the server only once someone wrote in it;
+ * "Você" carries a stand-in with the same id until then, so opening it works
+ * the same. New conversations start from the "+" (people from your rooms).
  */
 export function dmEntries(me: MeResult | null) {
   if (!me) return null;
   const made = new Map(
     me.books.filter((room) => room.dm).map((room) => [room.id, room]),
   );
-  const entry = (email: string, name: string, id: string): DmEntry => ({
+  const entry = (email: string, id: string): DmEntry => ({
     email,
-    name,
+    name: personName(me, email),
     avatar: personAvatar(me, email),
     room: made.get(id) ?? standIn(id, [...new Set([me.email, email])]),
     self: email === me.email,
   });
-  const friends = me.friends
-    .filter((friend) => friend.email !== me.email)
-    .map((friend) =>
-      entry(friend.email, friend.name || friend.email, friend.dm),
-    );
-  const known = new Set([me.dm, ...me.friends.map((friend) => friend.dm)]);
-  const former = [...made.values()]
-    .filter((room) => !known.has(room.id))
-    .map((room) => {
-      const email =
-        roomMembers(room).find((value) => value !== me.email) ?? me.email;
-      return entry(email, email, room.id);
-    });
-  const talked = [...friends, ...former]
-    .filter((dm) => made.has(dm.room.id))
+  const talked = [...made.values()]
+    .filter((room) => room.id !== me.dm)
+    .map((room) =>
+      entry(
+        roomMembers(room).find((value) => value !== me.email) ?? me.email,
+        room.id,
+      ),
+    )
+    .filter((dm) => !dm.self)
     .sort((a, b) => (b.room.updated_at ?? 0) - (a.room.updated_at ?? 0));
-  return {
-    self: entry(me.email, me.email, me.dm),
-    talked,
-    untalked: friends.filter((dm) => !made.has(dm.room.id)),
-  };
+  return { self: entry(me.email, me.dm), talked };
 }
-/** The DMs a room switcher lists: "Você" and the ones you've talked in (every friend is on the home's list). */
+/** The DMs a room switcher lists: "Você" and the ones you've talked in. */
 export function switcherDms(me: MeResult | null) {
   const dms = dmEntries(me);
   return dms ? [dms.self, ...dms.talked] : [];
 }
-/** Every DM id you have (yours, each friend's, and DMs with former friends): the rail's home logo is current in any of them. */
+/** Every DM id you have (yours and each one you've talked in): the rail's home logo is current in any of them. */
 export const dmIds = (me: MeResult | null) =>
   new Set(
     me
-      ? [
-          me.dm,
-          ...me.friends.map((friend) => friend.dm),
-          ...me.books.filter((room) => room.dm).map((room) => room.id),
-        ]
+      ? [me.dm, ...me.books.filter((room) => room.dm).map((room) => room.id)]
       : [],
   );
 /** What waits on you, by room: one pass, then a lookup per row. */
@@ -169,14 +154,20 @@ export const unread = (room: RoomSummary, seen = 0) =>
 /** A person's picture URL at a version (undefined without one: initials are drawn instead). */
 export const avatarUrl = (email: string, version: number | null | undefined) =>
   version ? `/api/avatar/${encodeURIComponent(email)}?v=${version}` : undefined;
+/** What your home knows about someone: a person from your rooms, a connection, or who wrote to you. */
+const known = (me: MeResult | null, email: string) =>
+  me?.people?.find((person) => person.email === email) ??
+  me?.friends.find((friend) => friend.email === email) ??
+  me?.requests.find((request) => request.email === email);
 export function personAvatar(me: MeResult | null, email: string) {
   return avatarUrl(
     email,
-    me?.email === email
-      ? me.avatar
-      : me?.friends.find((friend) => friend.email === email)?.avatar,
+    me?.email === email ? me.avatar : known(me, email)?.avatar,
   );
 }
+/** Their name when your home knows it, else their email. */
+export const personName = (me: MeResult | null, email: string) =>
+  (me?.email === email ? me.name : known(me, email)?.name) || email;
 export const roomMembers = (room: RoomSummary) =>
   (room.members ?? "").split(",").filter(Boolean);
 export const roomIcon = (room: RoomSummary) =>

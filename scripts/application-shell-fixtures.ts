@@ -111,8 +111,9 @@ export function shellFixture(
         return { ok: true, name };
       },
       avatar: async () => ({ ok: true, avatar: 1 }),
-      addFriend: async () => ({ ok: true }),
-      removeFriend: async () => ({ ok: true }),
+      connect: async () => ({ ok: true as const }),
+      dismiss: async () => ({ ok: true as const }),
+      answerInvite: async () => ({ ok: true as const }),
     },
     runnerFetch: async () =>
       new Response("null", { headers: { "content-type": "application/json" } }),

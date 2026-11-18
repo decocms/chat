@@ -104,6 +104,7 @@ function api(overrides: Partial<AuthApi> = {}): AuthApi {
     verify: async () => ({ ok: true, next: "/app" }),
     access: async () => ({ state: "out", title: "<Room>", email: null }),
     ask: async () => ({ ok: true }),
+    answerInvite: async () => ({ ok: true }),
     consent: async () => consent,
     ...overrides,
   };

@@ -2,6 +2,7 @@
   import { onDestroy, tick, untrack, type Snippet } from "svelte";
   import {
     canRemove,
+    isInvited,
     inviteMessage,
     normalizeEmail,
     peopleModel,
@@ -195,7 +196,9 @@
     </p>{/if}
 {/snippet}
 {#snippet member(email: string)}
-  {@const pending = room.pending?.includes(email) ?? false}
+  {@const declined =
+    !room.pending?.includes(email) && !!room.declined?.includes(email)}
+  {@const pending = declined || (room.pending?.includes(email) ?? false)}
   {@const here = isOnline(email)}
   <div class={cn(row, !here && "tw:text-muted-foreground")} data-person={email}>
     {#if pending}<span class="tw:flex tw:shrink-0"
@@ -231,29 +234,34 @@
       >{label(email)}</span
     >
     {#if pending}
-      <Badge variant="muted" title={vb.t("Convidada(o), ainda não entrou")}
-        >{vb.t("pendente")}</Badge
+      <Badge
+        variant="muted"
+        data-invite-state={declined ? "declined" : "waiting"}
+        title={declined
+          ? vb.t("Recusou o convite")
+          : vb.t("Convidada(o), ainda não respondeu")}
+        >{declined ? vb.t("recusou") : vb.t("aguardando")}</Badge
       >
-      <Button
-        variant="ghost"
-        size="xs"
-        class={cn(quiet, "tw:px-1.5")}
-        data-copyinv={email}
-        title={vb.t(
-          "Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp",
-        )}
-        onclick={() => copy(email)}>{vb.t("copiar")}</Button
-      >
-      <Button
-        variant="ghost"
-        size="xs"
-        class={cn(quiet, "tw:px-1.5")}
-        data-resend={email}
-        disabled={!!$view.pending[email]}
-        onclick={() => {
-          void session.mutate("resend", email, request || http);
-        }}>{vb.t("reenviar")}</Button
-      >
+      {#if !declined}<Button
+          variant="ghost"
+          size="xs"
+          class={cn(quiet, "tw:px-1.5")}
+          data-copyinv={email}
+          title={vb.t(
+            "Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp",
+          )}
+          onclick={() => copy(email)}>{vb.t("copiar")}</Button
+        >
+        <Button
+          variant="ghost"
+          size="xs"
+          class={cn(quiet, "tw:px-1.5")}
+          data-resend={email}
+          disabled={!!$view.pending[email]}
+          onclick={() => {
+            void session.mutate("resend", email, request || http);
+          }}>{vb.t("reenviar")}</Button
+        >{/if}
     {/if}
     {#if canRemove(room, email)}<IconButton
         variant="ghost-destructive"
@@ -278,7 +286,7 @@
   class={cn(
     "tw:mt-auto tw:max-h-[32%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
     // In the sidebar it gives way to the epics, down to its title and ~3 rows.
-    everyone.length + (room.requests?.length ?? 0) > 1
+    everyone.length + model.invited.length + (room.requests?.length ?? 0) > 1
       ? "tw:min-h-32 tw:shrink"
       : "tw:shrink-0",
   )}
@@ -339,6 +347,11 @@
         >{/if}{/snippet}
   </SectionHeader>
   {#each everyone as email (email)}{@render member(email)}{/each}
+  {#if model.invited.length}<SectionHeader
+      title={vb.t("Convidados")}
+      level={4}
+    />
+    {#each model.invited as email (email)}{@render member(email)}{/each}{/if}
   <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
   {#if !everyone.length && !inviting}<button
       type="button"
@@ -388,7 +401,7 @@
   bind:open={dialogOpen}
   title={deletion?.action === "deny"
     ? vb.t("Recusar o pedido de {email}?", { email: deletion.email })
-    : room.pending?.includes(deletion?.email || "")
+    : isInvited(room, deletion?.email || "")
       ? vb.t("Cancelar o convite de {email}?", { email: deletion?.email || "" })
       : vb.t("Remover {email} deste vibebook?", {
           email: deletion?.email || "",

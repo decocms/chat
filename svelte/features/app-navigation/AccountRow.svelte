@@ -18,7 +18,6 @@
     name={me.name ?? ""}
     email={me.email}
     avatar={personAvatar(me, me.email)}
-    friends={me.friends.length}
     lang={menu.lang}
     theme={menu.theme()}
     onsettheme={menu.onsettheme}

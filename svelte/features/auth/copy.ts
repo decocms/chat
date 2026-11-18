@@ -30,6 +30,11 @@ const pt = {
   signed: "Você entrou como {email}. Quem está na sala vê seu pedido e libera.",
   ask: "Pedir acesso",
   asked: "Pedido enviado.",
+  invited:
+    "{who} te chamou pra esta sala. Você só entra se quiser: até lá, nada dela chega em você.",
+  join: "Entrar na sala",
+  declineInvite: "Recusar",
+  inviteDeclined: "Convite recusado.",
   askedBody:
     "Quando liberarem, você recebe um email com o link, e esta página abre a sala.",
   agent:
@@ -93,6 +98,11 @@ const en: Record<keyof typeof pt, string> = {
     "You're signed in as {email}. People in the room see your request and let you in.",
   ask: "Ask to join",
   asked: "Request sent.",
+  invited:
+    "{who} invited you to this room. You only join if you want to: until then, nothing from it reaches you.",
+  join: "Join the room",
+  declineInvite: "Decline",
+  inviteDeclined: "Invite declined.",
   askedBody:
     "When they let you in, you get an email with the link, and this page opens the room.",
   agent:

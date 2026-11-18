@@ -30,6 +30,8 @@ export const me = (extra: Partial<MeResult> = {}): MeResult => ({
   dm: "dm000000000000000000aa",
   requests: [],
   sent: [],
+  invites: [],
+  people: [],
   books: [room()],
   friends: [],
   waits: [],

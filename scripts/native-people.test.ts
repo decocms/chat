@@ -71,9 +71,19 @@ describe("native People", () => {
     );
     expect(peopleModel(r, [member, newcomer])).toEqual({
       online: [owner, member],
-      offline: [pending],
+      offline: [],
+      invited: [pending],
       friends: [newcomer],
     });
+    expect(
+      peopleModel({ ...r, pending: [], declined: [pending] }, []).invited,
+    ).toEqual([pending]);
+    expect(
+      canRemove(
+        { ...r, me: member, pending: [], declined: [pending] },
+        pending,
+      ),
+    ).toBe(false); // a declined invite stays during the hold: no ×
   });
   test("invites wait for HTTP success and canonical rows; duplicates guarded and edited draft preserved", async () => {
     const s = createPeopleSession("room"),

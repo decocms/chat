@@ -15,8 +15,14 @@ export type AppNavigationCallbacks = {
   archived: () => void;
   settings: (section: HomeSettings) => void;
   rename?: (id: string, title: string) => Promise<CommandOutcome>;
-  /** Answers a friend request: accept adds them back, decline removes the ask (rejects on failure). */
-  answerFriend?: (email: string, accept: boolean) => Promise<void>;
+  /** Answers a message request: accept opens the DM with their first message, decline closes it (rejects on failure). */
+  answerRequest?: (email: string, accept: boolean) => Promise<void>;
+  /** Answers a room invite: yes joins and opens the room. */
+  answerInvite?: (room: string, yes: boolean) => Promise<void>;
+  /** Writes to someone: resolves with the DM's id when it opened (and goes there), nothing when it went as a request. */
+  connect?: (email: string, text?: string) => Promise<string | undefined>;
+  /** Cancels your message request to someone. */
+  dismiss?: (email: string) => Promise<void>;
 };
 export function createAppNavigationSession(
   personal: PersonalSession,

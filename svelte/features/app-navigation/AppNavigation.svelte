@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { isDmId } from "../../../shared/dm";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
   import { studioType } from "../../lib/components/type";
@@ -134,7 +135,9 @@
     return result;
   });
   // A DM belongs to your home: there the home logo is the current one.
-  const atHome = $derived(!$nav.roomId || dmIds($personal.me).has($nav.roomId));
+  const atHome = $derived(
+    !$nav.roomId || dmIds($personal.me).has($nav.roomId) || isDmId($nav.roomId),
+  );
   const talkedDms = $derived(switcherDms($personal.me));
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);

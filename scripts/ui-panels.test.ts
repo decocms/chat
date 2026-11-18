@@ -857,7 +857,6 @@ describe("native Svelte room panels", () => {
           email: "gimenes@test",
           lang: "en",
           theme: "auto",
-          friends: 12,
           onsettheme() {},
           onlanguage() {},
           onaccount: (section: string, trigger?: HTMLElement) =>
@@ -900,14 +899,13 @@ describe("native Svelte room panels", () => {
         trigger.querySelector("[data-slot=avatar]")?.getAttribute("class"),
       ).toContain("tw:rounded-full");
       await openMenu();
-      expect(item("friends").textContent).toContain("12");
+      expect(item("friends")).toBeNull();
       expect(
         [...menu()!.querySelectorAll("[role^=menuitem]")].map((el) =>
           el.getAttribute("data-user-menu-item"),
         ),
       ).toEqual([
         "profile",
-        "friends",
         "agents",
         "notifications",
         "settings",
@@ -921,7 +919,6 @@ describe("native Svelte room panels", () => {
       ]);
       for (const [name, section] of [
         ["profile", "profile"],
-        ["friends", "friends"],
         ["agents", "agents"],
         ["settings", "all"],
       ] as const) {
@@ -933,7 +930,7 @@ describe("native Svelte room panels", () => {
         // Account settings hand focus back to the avatar when they close.
         expect(sections.at(-1)?.[1] === trigger).toBe(true);
       }
-      expect(sections).toHaveLength(4);
+      expect(sections).toHaveLength(3);
       // The switch shows this device's state and toggles through the service.
       await openMenu();
       expect(item("notifications").getAttribute("role")).toBe(
@@ -968,13 +965,13 @@ describe("native Svelte room panels", () => {
       item("logout").click();
       await settle();
       expect(logouts).toBe(1);
-      expect(sections).toHaveLength(4);
+      expect(sections).toHaveLength(3);
     } finally {
       await unmount(instance);
       target.remove();
     }
   }, 30_000);
-  test("account menu: arrow keys move, Esc returns focus to the avatar, no friend count at 0, push trouble opens help", async () => {
+  test("account menu: arrow keys move, Esc returns focus to the avatar, no friends row, push trouble opens help", async () => {
     const { default: UserMenu } =
       await import("../svelte/features/app-navigation/UserMenu.svelte");
     const bells: boolean[] = [];
@@ -1013,7 +1010,6 @@ describe("native Svelte room panels", () => {
           email: "gimenes@test",
           lang: "en",
           theme: "auto",
-          friends: 0,
           onsettheme() {},
           onlanguage() {},
           onaccount() {},
@@ -1053,8 +1049,8 @@ describe("native Svelte room panels", () => {
     };
     try {
       await openMenu();
-      // No friends: the row stays, its count does not.
-      expect(item("friends")!.textContent?.trim()).toBe("Friends");
+      // Friends left the menu (Nov 2026): people come from your rooms.
+      expect(item("friends")).toBeNull();
       // Arrow keys walk the items in order.
       const first = document.activeElement;
       await key("ArrowDown");
@@ -1065,7 +1061,7 @@ describe("native Svelte room panels", () => {
       ).toBe(
         (first as HTMLElement | null)?.getAttribute("data-user-menu-item") ===
           "profile"
-          ? "friends"
+          ? "agents"
           : "profile",
       );
       await key("ArrowUp");
@@ -5471,7 +5467,23 @@ describe("native People interactions", () => {
           null,
       ),
     ).toEqual(["online", "online", null]);
-    expect(rows[2]!.textContent).toContain("pendente");
+    expect(rows[2]!.textContent).toContain("aguardando");
+    expect(
+      rendered.target.querySelector("[data-people-panel]")?.textContent,
+    ).toContain("Convidados");
+  });
+  test("an invite turned down reads recusou, with no resend and no remove", () => {
+    const rendered = people({
+      ...personRoom(),
+      pending: [],
+      declined: ["pending@test.com"],
+    });
+    const row = rendered.target.querySelector<HTMLElement>(
+      '[data-person="pending@test.com"]',
+    )!;
+    expect(row.textContent).toContain("recusou");
+    expect(row.querySelector("[data-resend]")).toBeNull();
+    expect(row.querySelector("[data-remove]")).toBeNull();
   });
 });
 
@@ -6758,11 +6770,12 @@ describe("native account", () => {
           return pending.promise;
         },
         avatar: async () => ({ ok: true, avatar: 1 }),
-        addFriend: async () => ({ ok: true }),
-        removeFriend: async (email) => {
+        connect: async () => ({ ok: true as const }),
+        dismiss: async (email) => {
           removals.push(email);
-          return { ok: true };
+          return { ok: true as const };
         },
+        answerInvite: async () => ({ ok: true as const }),
       },
       time.clock,
     );
@@ -6921,50 +6934,6 @@ describe("native account", () => {
     expect(document.body.textContent).not.toContain("Private A draft");
   });
 
-  test("old remove confirmation cannot mutate the same friend in account B before DOM flush", async () => {
-    const h = await account(true);
-    const remove = [
-      ...document.querySelectorAll<HTMLButtonElement>(
-        "[data-native-account] button",
-      ),
-    ].find((button) => button.textContent?.trim() === "Remove");
-    expect(remove).toBeDefined();
-    remove?.click();
-    flushSync();
-    await tick();
-    const confirm = [
-      ...document.querySelectorAll<HTMLButtonElement>(
-        '[role="alertdialog"] button',
-      ),
-    ].find((button) => button.textContent?.trim() === "Remove");
-    expect(confirm).toBeDefined();
-    const next = h.me({
-      email: "b@test",
-      name: "B",
-      friends: [
-        {
-          email: "same@test",
-          name: "Same friend",
-          avatar: null,
-          joined: 1,
-          shared: 1,
-          dm: "dm00000000000000000000",
-        },
-      ],
-    });
-    h.personal.state.update((value) => ({
-      ...value,
-      me: next,
-      identityRevision: value.identityRevision + 1,
-    }));
-    h.owner.open();
-    expect(confirm?.isConnected).toBe(true);
-    confirm?.click();
-    expect(h.removals).toEqual([]);
-    flushSync();
-    await tick();
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
-  });
   test("connected old account form is inert after same-account close and reopen before DOM flush", async () => {
     const h = await account();
     const input = document.querySelector<HTMLInputElement>("#account-name")!;
@@ -7202,6 +7171,8 @@ test("denied native agent metadata can recover through explicit read-only retry"
                   dm: "dm000000000000000000aa",
                   requests: [],
                   sent: [],
+                  invites: [],
+                  people: [],
                   books: [],
                   friends: [],
                   waits: [],

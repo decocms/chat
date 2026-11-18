@@ -65,36 +65,27 @@
       $view.phase === "unconfirmed",
   );
   let name = $state(""),
-    email = $state(""),
     draftAccount = $state(""),
     lastName = $state(""),
     wasOpen = $state(false),
     photo: HTMLInputElement | undefined = $state(),
     nameInput: HTMLInputElement | null = $state(null),
-    friendInput: HTMLInputElement | null = $state(null),
     agentsBlock: HTMLDivElement | null = $state(null);
-  let remove = $state.raw<{
-      email: string;
-      name: string;
-      binding: AccountBinding;
-    } | null>(null),
-    logoutAll = $state.raw<{ account: string; binding: AccountBinding } | null>(
-      null,
-    );
+  let logoutAll = $state.raw<{
+    account: string;
+    binding: AccountBinding;
+  } | null>(null);
   $effect(() => {
     const me = $view.me;
     if (me?.email !== draftAccount) {
       draftAccount = me?.email ?? "";
       name = lastName = me?.name ?? "";
-      email = "";
-      remove = null;
       logoutAll = null;
     } else if (me && me.name !== lastName) {
       if (name === lastName) name = me.name ?? "";
       lastName = me.name ?? "";
     }
     if (!$view.open) {
-      remove = null;
       logoutAll = null;
       if (wasOpen) device.cancel();
     }
@@ -159,13 +150,11 @@
             preventOverflowTextSelection={false}
             onOpenAutoFocus={(event) => {
               const target =
-                $view.section === "friends"
-                  ? friendInput
-                  : $view.section === "profile"
-                    ? nameInput
-                    : $view.section === "agents"
-                      ? agentsBlock
-                      : null;
+                $view.section === "profile"
+                  ? nameInput
+                  : $view.section === "agents"
+                    ? agentsBlock
+                    : null;
               if (target) {
                 event.preventDefault();
                 target.focus();
@@ -417,86 +406,6 @@
                 >
                   {@render agentSettings()}
                 </div>
-                <section class="tw:space-y-3">
-                  <Heading level={2} class="tw:text-base"
-                    >{en ? "Friends" : "Amigos"}</Heading
-                  >
-                  <ul class="tw:space-y-2">
-                    {#each $view.me.friends as friend (friend.email)}<li
-                        class="tw:flex tw:items-center tw:gap-2"
-                      >
-                        <PersonAvatar
-                          size="sm"
-                          name={friend.name || friend.email}
-                          url={friend.avatar
-                            ? `/api/avatar/${encodeURIComponent(friend.email)}?v=${friend.avatar}`
-                            : undefined}
-                        />
-                        <div class="tw:min-w-0 tw:flex-1 tw:break-words">
-                          <p>{friend.name || friend.email}</p>
-                          <small class="tw:text-muted-foreground"
-                            >{friend.shared || ""}</small
-                          >
-                        </div>
-                        <Button
-                          variant="ghost"
-                          disabled={busy}
-                          onclick={(event) => {
-                            if (live(event, rendered))
-                              remove = {
-                                email: friend.email,
-                                name: friend.name || friend.email,
-                                binding: rendered,
-                              };
-                          }}>{en ? "Remove" : "Remover"}</Button
-                        >
-                      </li>{/each}
-                    <!-- Asked, not answered yet: a friendship opens a DM, so it needs both sides. -->
-                    {#each $view.me.sent as asked (asked)}<li
-                        data-friend-sent
-                        class="tw:flex tw:items-center tw:gap-2"
-                      >
-                        <PersonAvatar size="sm" name={asked} />
-                        <div class="tw:min-w-0 tw:flex-1 tw:break-words">
-                          <p>{asked}</p>
-                          <small class="tw:text-muted-foreground"
-                            >{en ? "Request sent" : "Pedido enviado"}</small
-                          >
-                        </div>
-                        <Button
-                          variant="ghost"
-                          disabled={busy}
-                          onclick={(event) => {
-                            if (live(event, rendered)) owner.remove(asked);
-                          }}>{en ? "Cancel" : "Cancelar"}</Button
-                        >
-                      </li>{/each}
-                  </ul>
-                  <form
-                    class="tw:space-y-2"
-                    onsubmit={(event) => {
-                      event.preventDefault();
-                      if (live(event, rendered) && !busy) owner.add(email);
-                    }}
-                  >
-                    <Label for="account-friend"
-                      >{en ? "Friend's email" : "Email do amigo"}</Label
-                    ><Input
-                      id="account-friend"
-                      bind:ref={friendInput}
-                      type="email"
-                      required
-                      value={email}
-                      oninput={(event) => {
-                        if (live(event, rendered))
-                          email = event.currentTarget.value;
-                      }}
-                      disabled={busy}
-                    /><Button type="submit" disabled={busy}
-                      >{en ? "Invite" : "Convidar"}</Button
-                    >
-                  </form>
-                </section>
                 <div class="tw:flex tw:flex-wrap tw:gap-2">
                   <Button
                     onclick={(event) => {
@@ -519,34 +428,6 @@
               </div>{/if}
           </SheetContent>
         </Sheet>
-        {#if remove && remove.binding === rendered}{#key remove}<Snapshot
-              value={remove}
-              >{#snippet children(intent)}
-                <ConfirmDialog
-                  open
-                  title={en ? "Remove friend?" : "Remover amigo?"}
-                  description={`${intent.name} · ${en ? "Shared vibebooks stay." : "Os vibebooks em comum continuam."}`}
-                  confirmLabel={en ? "Remove" : "Remover"}
-                  cancelLabel={en ? "Cancel" : "Cancelar"}
-                  onOpenChange={(open) => {
-                    if (!open && remove === intent) remove = null;
-                  }}
-                  onconfirm={() => {
-                    if (
-                      remove === intent &&
-                      owner.owns(intent.binding) &&
-                      !busy &&
-                      $view.me?.friends.some(
-                        (friend) => friend.email === intent.email,
-                      )
-                    ) {
-                      owner.remove(intent.email);
-                      remove = null;
-                    }
-                  }}
-                />
-              {/snippet}</Snapshot
-            >{/key}{/if}
         {#if logoutAll && logoutAll.binding === rendered}{#key logoutAll}<Snapshot
               value={logoutAll}
               >{#snippet children(intent)}
