@@ -20,6 +20,7 @@
   import { createDeferredModule } from "../deferred-view/module";
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
   import DeferredRouteStatus from "../deferred-view/DeferredRouteStatus.svelte";
+  import HomeSkeleton from "../home/HomeSkeleton.svelte";
   import type { HomeBridge } from "../home/types";
   import { personAvatar } from "../home/model";
   import {
@@ -261,6 +262,9 @@
     >
       {#if $application.route.kind === "home"}{#if Home}<Home
             {...home}
+          />{:else if $homeModuleView.phase !== "error"}<HomeSkeleton
+            page
+            label={services.language === "en" ? "Loading…" : "Carregando…"}
           />{:else}<DeferredRouteStatus
             phase={$homeModuleView.phase}
             lang={services.language}
