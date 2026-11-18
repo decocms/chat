@@ -1,14 +1,19 @@
-// Moving vibebook to another Cloudflare account: rooms (Book Durable Objects) and the OAuth KV.
-// Runbook: the doc of epic a256f2ae in the project room. D1 and R2 use Cloudflare's own tools.
+// Moving vibebook to another Cloudflare account, entirely through the Workers' /migrate/* (src/migrate.ts).
+// Runbook: the doc of epic a256f2ae in the project room.
 //
-//   MIGRATE_TOKEN=… bun scripts/migrate.ts export --from https://vibebook.dev --out migration-dump
-//   MIGRATE_TOKEN=… bun scripts/migrate.ts import --to https://chat.decocms.com --dir migration-dump
-//   MIGRATE_TOKEN=… bun scripts/migrate.ts verify --dir migration-dump --to https://chat.decocms.com
-//   CF_API_TOKEN=… bun scripts/migrate.ts kv-export --account <id> --namespace <id> --out migration-dump
-//   CF_API_TOKEN=… bun scripts/migrate.ts kv-import --account <id> --namespace <id> --dir migration-dump
+//   bun scripts/migrate.ts all     --from https://vibebook.dev --to https://<new worker> --out migration-dump
 //
-// MIGRATE_TOKEN is the Workers' secret of the same name (FROM_TOKEN / TO_TOKEN when the two differ).
-// export and import resume: a room already dumped / already imported is skipped (--again redoes it).
+// or one step at a time:
+//   bun scripts/migrate.ts export  --from <url> --out <dir>    D1 + rooms + KV to disk (the backup)
+//   bun scripts/migrate.ts import  --to <url> --dir <dir>      D1 first, then rooms, then KV
+//   bun scripts/migrate.ts files   --from <url> --to <url>     R2, streamed Worker to Worker
+//   bun scripts/migrate.ts verify  --dir <dir> --to <url> [--from <url>]
+//
+// MIGRATE_TOKEN is the secret of the same name on both Workers (FROM_TOKEN / TO_TOKEN when they differ).
+// Each run copies D1, the rooms and KV again from scratch (every table is emptied before its rows go in), so the
+// last run, right before the switch, carries everything written since a rehearsal. --resume continues a run that
+// stopped (skips rooms already dumped / imported in <dir>). Files always skip a key the target has with the same bytes (size + etag).
+// Flags: --page (rows per request, 200), --jobs (parallel rooms/files, 4).
 import { mkdir, readdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -16,168 +21,199 @@ import { join } from "node:path";
 type Row = Record<string, unknown>;
 type Info = { tables: { name: string; rows: number }[]; seq: Record<string, number> };
 type Dump = { id: string; info: Info; tables: Record<string, Row[]> };
+type KvEntry = { key: string; value: string; expiration: number | null; metadata: unknown };
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flags: Record<string, string> = {};
-for (let i = 0; i < rest.length; i++) if (rest[i].startsWith("--")) flags[rest[i].slice(2)] = rest[i + 1]?.startsWith("--") || rest[i + 1] === undefined ? "1" : rest[++i];
-const need = (k: string) => flags[k] ?? die(`missing --${k}`);
+for (let i = 0; i < rest.length; i++) if (rest[i].startsWith("--")) flags[rest[i].slice(2)] = rest[i + 1] === undefined || rest[i + 1].startsWith("--") ? "1" : rest[++i];
 function die(msg: string): never {
   console.error(msg);
   process.exit(1);
 }
+const need = (k: string) => flags[k] ?? die(`missing --${k}`);
 const PAGE = Number(flags.page ?? 200);
 const JOBS = Number(flags.jobs ?? 4);
+const fromToken = () => process.env.FROM_TOKEN ?? process.env.MIGRATE_TOKEN ?? die("set MIGRATE_TOKEN");
+const toToken = () => process.env.TO_TOKEN ?? process.env.MIGRATE_TOKEN ?? die("set MIGRATE_TOKEN");
 
-async function call<T>(base: string, token: string, path: string, body?: unknown): Promise<T> {
+/** One request to a Worker's /migrate/*, retried on 5xx and network errors. */
+async function raw(base: string, token: string, path: string, init: RequestInit = {}): Promise<Response> {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(base.replace(/\/$/, "") + path, {
-      method: body === undefined ? "GET" : "POST",
-      headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (res.ok) return (await res.json()) as T;
-    const text = await res.text();
-    if (res.status < 500 || attempt >= 4) die(`${path}: ${res.status} ${text.slice(0, 300)}`);
+    const res = await fetch(base.replace(/\/$/, "") + path, { ...init, headers: { authorization: `Bearer ${token}`, ...init.headers } }).catch((e) => e as Error);
+    if (res instanceof Response && res.ok) return res;
+    const why = res instanceof Response ? `${res.status} ${(await res.text()).slice(0, 300)}` : res.message;
+    if ((res instanceof Response && res.status < 500) || attempt >= 5) die(`${path}: ${why}`);
     await new Promise((r) => setTimeout(r, 1000 * attempt));
   }
 }
+const get = async <T>(base: string, token: string, path: string) => (await (await raw(base, token, path)).json()) as T;
+const post = async <T>(base: string, token: string, path: string, body: unknown) =>
+  (await (await raw(base, token, path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()) as T;
 
 /** Runs `fn` on each item, `JOBS` at a time. */
-async function each<T>(items: T[], fn: (item: T, i: number) => Promise<void>) {
+async function each<T>(items: T[], fn: (item: T) => Promise<void>) {
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(JOBS, items.length) }, async () => { while (next < items.length) { const i = next++; await fn(items[i], i); } }));
+  await Promise.all(Array.from({ length: Math.min(JOBS, items.length) }, async () => { while (next < items.length) await fn(items[next++]); }));
 }
 
-async function dumpRoom(base: string, token: string, id: string): Promise<Dump> {
-  const info = await call<Info>(base, token, `/migrate/room/${id}/info`);
+/** Every table of a SQLite (D1 at `/migrate/d1`, a room at `/migrate/room/<id>`), page by page. */
+async function dumpTables(base: string, token: string, prefix: string, label: string) {
+  const info = await get<Info>(base, token, `${prefix}/info`);
   const tables: Record<string, Row[]> = {};
   for (const t of info.tables) {
     tables[t.name] = [];
     for (let after = 0; ; ) {
-      const page = await call<{ rows: Row[]; next: number | null }>(base, token, `/migrate/room/${id}/rows?table=${encodeURIComponent(t.name)}&after=${after}&limit=${PAGE}`);
+      const page = await get<{ rows: Row[]; next: number | null }>(base, token, `${prefix}/rows?table=${encodeURIComponent(t.name)}&after=${after}&limit=${PAGE}`);
       tables[t.name].push(...page.rows);
       if (page.next === null) break;
       after = page.next;
     }
-    // A room keeps getting writes until the freeze; a count that moved means this dump isn't the final one.
-    if (tables[t.name].length !== t.rows) console.warn(`  ${id}.${t.name}: counted ${t.rows}, read ${tables[t.name].length} (room changed while exporting; export again after the freeze)`);
+    if (tables[t.name].length !== t.rows) console.warn(`  ${label}.${t.name}: counted ${t.rows}, read ${tables[t.name].length} (it changed while exporting)`);
   }
-  return { id, info, tables };
+  return { info, tables };
+}
+async function loadTables(base: string, token: string, prefix: string, tables: Record<string, Row[]>) {
+  for (const [table, rows] of Object.entries(tables))
+    // Even an empty table is sent once (reset), so importing again over a half-done copy comes out right.
+    for (let i = 0; i === 0 || i < rows.length; i += PAGE) await post(base, token, `${prefix}/rows`, { table, rows: rows.slice(i, i + PAGE), reset: i === 0 });
+}
+/** The tables whose counts differ between two snapshots (ignoring tables empty on both sides). */
+function diffCounts(a: Info, b: Info) {
+  const m = new Map(b.tables.map((t) => [t.name, t.rows]));
+  return a.tables.filter((t) => m.get(t.name) !== t.rows && (t.rows > 0 || m.has(t.name))).map((t) => `${t.name}: ${t.rows} → ${m.get(t.name) ?? "missing"}`);
 }
 
-const sameCounts = (a: Info, b: Info) => {
-  const m = new Map(b.tables.map((t) => [t.name, t.rows]));
-  return a.tables.filter((t) => t.rows > 0 || m.has(t.name)).filter((t) => m.get(t.name) !== t.rows).map((t) => `${t.name}: ${t.rows} → ${m.get(t.name) ?? "missing"}`);
-};
-
-async function exportRooms() {
-  const from = need("from");
-  const out = need("out");
-  const token = process.env.FROM_TOKEN ?? process.env.MIGRATE_TOKEN ?? die("set MIGRATE_TOKEN");
+// ---- export: D1, rooms, KV to disk ----
+async function exportAll(from = need("from"), out = need("out")) {
+  const token = fromToken();
   await mkdir(join(out, "rooms"), { recursive: true });
-  const { rooms } = await call<{ rooms: string[] }>(from, token, "/migrate/rooms");
-  console.log(`${rooms.length} rooms on ${from}`);
+
+  const d1 = await dumpTables(from, token, "/migrate/d1", "d1");
+  await writeFile(join(out, "d1.json"), JSON.stringify(d1));
+  console.log(`d1: ${d1.info.tables.length} tables, ${d1.info.tables.reduce((n, t) => n + t.rows, 0)} rows`);
+
+  const { rooms } = await get<{ rooms: string[] }>(from, token, "/migrate/rooms");
   let done = 0;
   await each(rooms, async (id) => {
     const file = join(out, "rooms", `${id}.json`);
-    if (existsSync(file) && !flags.again) return void done++;
-    const dump = await dumpRoom(from, token, id);
+    if (flags.resume && existsSync(file)) return void done++;
+    const dump: Dump = { id, ...(await dumpTables(from, token, `/migrate/room/${id}`, id)) };
     await writeFile(file, JSON.stringify(dump));
-    const msgs = dump.info.tables.find((t) => t.name === "messages")?.rows ?? 0;
-    console.log(`[${++done}/${rooms.length}] ${id}: ${msgs} messages`);
+    if (++done % 25 === 0 || done === rooms.length) console.log(`rooms: ${done}/${rooms.length}`);
   });
-  await writeFile(join(out, "rooms.json"), JSON.stringify({ from, at: new Date().toISOString(), rooms }));
+
+  const entries: KvEntry[] = [];
+  for (let cursor: string | null = ""; cursor !== null; ) {
+    const page: { keys: { name: string; expiration: number | null }[]; cursor: string | null } = await get(from, token, `/migrate/kv/list${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+    for (let i = 0; i < page.keys.length; i += 100) entries.push(...(await post<{ entries: KvEntry[] }>(from, token, "/migrate/kv/get", { keys: page.keys.slice(i, i + 100) })).entries);
+    cursor = page.cursor;
+  }
+  await writeFile(join(out, "kv.json"), JSON.stringify(entries));
+  console.log(`kv: ${entries.length} keys`);
+  await writeFile(join(out, "export.json"), JSON.stringify({ from, at: new Date().toISOString(), rooms: rooms.length }));
   console.log("export done");
 }
 
-async function importRooms() {
-  const to = need("to");
-  const dir = need("dir");
-  const token = process.env.TO_TOKEN ?? process.env.MIGRATE_TOKEN ?? die("set MIGRATE_TOKEN");
+// ---- import: D1, rooms, KV from disk ----
+async function importAll(to = need("to"), dir = need("dir")) {
+  const token = toToken();
   const log = join(dir, "imported.txt");
-  const already = new Set(existsSync(log) && !flags.again ? (await readFile(log, "utf8")).split("\n").filter(Boolean) : []);
+  const done = new Set(flags.resume && existsSync(log) ? (await readFile(log, "utf8")).split("\n").filter(Boolean) : []);
+  if (!flags.resume) await writeFile(log, "");
+
+  if (!done.has("d1")) {
+    const d1 = JSON.parse(await readFile(join(dir, "d1.json"), "utf8")) as { info: Info; tables: Record<string, Row[]> };
+    await loadTables(to, token, "/migrate/d1", d1.tables);
+    const diff = diffCounts(d1.info, await get<Info>(to, token, "/migrate/d1/info"));
+    if (diff.length) die(`d1 doesn't match: ${diff.join(", ")}`);
+    await appendFile(log, "d1\n");
+    console.log("d1 ok");
+  }
+
   const files = (await readdir(join(dir, "rooms"))).filter((f) => f.endsWith(".json"));
   const bad: string[] = [];
-  let done = 0;
+  let n = 0;
   await each(files, async (f) => {
     const dump = JSON.parse(await readFile(join(dir, "rooms", f), "utf8")) as Dump;
-    if (already.has(dump.id)) return void done++;
-    for (const [table, rows] of Object.entries(dump.tables)) {
-      // Even an empty table is sent once (reset), so importing again over a half-done room comes out right.
-      for (let i = 0; i === 0 || i < rows.length; i += PAGE)
-        await call(to, token, `/migrate/room/${dump.id}/rows`, { table, rows: rows.slice(i, i + PAGE), reset: i === 0 });
-    }
-    const after = await call<Info>(to, token, `/migrate/room/${dump.id}/finish`, { seq: dump.info.seq });
-    const diff = sameCounts(dump.info, after);
+    if (done.has(dump.id)) return void n++;
+    await loadTables(to, token, `/migrate/room/${dump.id}`, dump.tables);
+    const diff = diffCounts(dump.info, await post<Info>(to, token, `/migrate/room/${dump.id}/finish`, { seq: dump.info.seq }));
     if (diff.length) bad.push(`${dump.id}: ${diff.join(", ")}`);
     else await appendFile(log, dump.id + "\n");
-    console.log(`[${++done}/${files.length}] ${dump.id}${diff.length ? ` MISMATCH ${diff.join(", ")}` : " ok"}`);
+    if (++n % 25 === 0 || n === files.length) console.log(`rooms: ${n}/${files.length}`);
   });
-  if (bad.length) die(`\n${bad.length} rooms don't match:\n${bad.join("\n")}`);
-  console.log("import done, every room matches its dump");
+  if (bad.length) die(`${bad.length} rooms don't match their dump:\n${bad.join("\n")}`);
+
+  if (!done.has("kv")) {
+    const entries = JSON.parse(await readFile(join(dir, "kv.json"), "utf8")) as KvEntry[];
+    let put = 0, skipped = 0;
+    for (let i = 0; i < entries.length; i += 100) {
+      const r = await post<{ put: number; skipped: number }>(to, token, "/migrate/kv/put", { entries: entries.slice(i, i + 100) });
+      put += r.put;
+      skipped += r.skipped;
+    }
+    await appendFile(log, "kv\n");
+    console.log(`kv: ${put} keys (${skipped} expiring, skipped)`);
+  }
+  console.log("import done");
 }
 
-/** Compares every dumped room with the target, live (and with the source too when --from is given). */
-async function verify() {
-  const to = need("to");
-  const dir = need("dir");
-  const token = process.env.TO_TOKEN ?? process.env.MIGRATE_TOKEN ?? die("set MIGRATE_TOKEN");
-  const fromToken = process.env.FROM_TOKEN ?? process.env.MIGRATE_TOKEN!;
-  const files = (await readdir(join(dir, "rooms"))).filter((f) => f.endsWith(".json"));
+// ---- files: R2, Worker to Worker ----
+/** key → "size:etag". The etag is the MD5 of the bytes, so an avatar replaced with one of the same size still differs. */
+async function listR2(base: string, token: string) {
+  const all = new Map<string, string>();
+  for (let cursor: string | null = ""; cursor !== null; ) {
+    const page: { objects: { key: string; size: number; etag: string }[]; cursor: string | null } = await get(base, token, `/migrate/r2/list${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`);
+    for (const o of page.objects) all.set(o.key, `${o.size}:${o.etag}`);
+    cursor = page.cursor;
+  }
+  return all;
+}
+async function copyFiles(from = need("from"), to = need("to")) {
+  const [src, dst] = await Promise.all([listR2(from, fromToken()), listR2(to, toToken())]);
+  const todo = [...src].filter(([k, sig]) => dst.get(k) !== sig);
+  const bytes = todo.reduce((n, [, sig]) => n + Number(sig.split(":")[0]), 0);
+  console.log(`files: ${src.size} on the source, ${todo.length} to copy (${(bytes / 1e6).toFixed(1)} MB)`);
+  let n = 0;
+  await each(todo, async ([key]) => {
+    const q = `/migrate/r2/object?key=${encodeURIComponent(key)}`;
+    const res = await raw(from, fromToken(), q);
+    const body = await res.arrayBuffer();
+    await raw(to, toToken(), q, { method: "PUT", headers: { "x-migrate-meta": res.headers.get("x-migrate-meta") ?? "" }, body });
+    if (++n % 100 === 0 || n === todo.length) console.log(`files: ${n}/${todo.length}`);
+  });
+  console.log("files done");
+}
+
+// ---- verify ----
+async function verify(dir = need("dir"), to = need("to"), from = flags.from) {
+  const token = toToken();
   const bad: string[] = [];
+  const d1 = JSON.parse(await readFile(join(dir, "d1.json"), "utf8")) as { info: Info };
+  bad.push(...diffCounts(d1.info, await get<Info>(to, token, "/migrate/d1/info")).map((d) => `d1 ${d}`));
+  const files = (await readdir(join(dir, "rooms"))).filter((f) => f.endsWith(".json"));
   await each(files, async (f) => {
     const dump = JSON.parse(await readFile(join(dir, "rooms", f), "utf8")) as Dump;
-    const target = await call<Info>(to, token, `/migrate/room/${dump.id}/info`);
-    const diff = sameCounts(dump.info, target);
-    if (flags.from) diff.push(...sameCounts(await call<Info>(flags.from, fromToken, `/migrate/room/${dump.id}/info`), target).map((d) => `source ${d}`));
-    if (diff.length) bad.push(`${dump.id}: ${diff.join(", ")}`);
+    const diff = diffCounts(dump.info, await get<Info>(to, token, `/migrate/room/${dump.id}/info`));
+    if (diff.length) bad.push(`room ${dump.id}: ${diff.join(", ")}`);
   });
-  if (bad.length) die(`${bad.length} of ${files.length} rooms differ:\n${bad.join("\n")}`);
-  console.log(`${files.length} rooms match`);
-}
-
-// ---- KV (OAUTH_KV: the Claudes' OAuth grants and tokens), through Cloudflare's REST API ----
-type KvKey = { name: string; expiration?: number; metadata?: unknown };
-const kvBase = () => `https://api.cloudflare.com/client/v4/accounts/${need("account")}/storage/kv/namespaces/${need("namespace")}`;
-async function cf(path: string, init?: RequestInit) {
-  const token = process.env.CF_API_TOKEN ?? die("set CF_API_TOKEN (Workers KV Storage: Read on the source / Edit on the target)");
-  const res = await fetch(kvBase() + path, { ...init, headers: { authorization: `Bearer ${token}`, ...init?.headers } });
-  if (!res.ok) die(`${path}: ${res.status} ${(await res.text()).slice(0, 300)}`);
-  return res;
-}
-
-async function kvExport() {
-  const out = need("out");
-  await mkdir(out, { recursive: true });
-  const keys: KvKey[] = [];
-  for (let cursor = ""; ; ) {
-    const j = (await (await cf(`/keys?limit=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`)).json()) as { result: KvKey[]; result_info: { cursor?: string } };
-    keys.push(...j.result);
-    if (!j.result_info.cursor) break;
-    cursor = j.result_info.cursor;
+  if (from) {
+    const [src, dst] = await Promise.all([listR2(from, fromToken()), listR2(to, token)]);
+    const missing = [...src].filter(([k, s]) => dst.get(k) !== s).length;
+    if (missing) bad.push(`files: ${missing} of ${src.size} missing or different on the target`);
+    else console.log(`files: ${src.size} match`);
   }
-  console.log(`${keys.length} keys`);
-  const entries: { key: string; value: string; base64: true; expiration?: number; metadata?: unknown }[] = [];
-  await each(keys, async (k) => {
-    const buf = Buffer.from(await (await cf(`/values/${encodeURIComponent(k.name)}`)).arrayBuffer());
-    entries.push({ key: k.name, value: buf.toString("base64"), base64: true, ...(k.expiration ? { expiration: k.expiration } : {}), ...(k.metadata ? { metadata: k.metadata } : {}) });
-  });
-  await writeFile(join(out, "kv.json"), JSON.stringify(entries));
-  console.log(`kv export done: ${entries.length} keys`);
+  if (bad.length) die(`${bad.length} differences:\n${bad.join("\n")}`);
+  console.log(`verify ok: d1, ${files.length} rooms${from ? ", files" : ""}`);
 }
 
-async function kvImport() {
-  const dir = need("dir");
-  const now = Date.now() / 1000;
-  // KV refuses an expiration less than 60 s away; those tokens are about to die anyway.
-  const all = JSON.parse(await readFile(join(dir, "kv.json"), "utf8")) as { expiration?: number }[];
-  const entries = all.filter((e) => !e.expiration || e.expiration > now + 120);
-  for (let i = 0; i < entries.length; i += 5000) {
-    await cf(`/bulk`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(entries.slice(i, i + 5000)) });
-    console.log(`${Math.min(i + 5000, entries.length)}/${entries.length}`);
-  }
-  console.log(`kv import done (${all.length - entries.length} expired keys skipped)`);
+async function all() {
+  const from = need("from"), to = need("to"), out = need("out");
+  await exportAll(from, out);
+  await importAll(to, out);
+  await copyFiles(from, to);
+  await verify(out, to, from);
 }
 
-const commands: Record<string, () => Promise<void>> = { export: exportRooms, import: importRooms, verify, "kv-export": kvExport, "kv-import": kvImport };
-await (commands[cmd] ?? (() => die(`usage: bun scripts/migrate.ts ${Object.keys(commands).join(" | ")} [flags] (see the top of this file)`)))();
+const commands: Record<string, () => Promise<void>> = { all, export: () => exportAll(), import: () => importAll(), files: () => copyFiles(), verify: () => verify() };
+await (commands[cmd] ?? (() => die(`usage: bun scripts/migrate.ts ${Object.keys(commands).join(" | ")} (see the top of this file)`)))();
