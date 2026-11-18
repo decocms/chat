@@ -51,8 +51,12 @@
       ]
     },
     "fixes": {
-      "pt": [],
-      "en": []
+      "pt": [
+        "A lateral de uma sala voltou a listar só os seus Claudes desta sala, não todos os que estão ouvindo nas outras."
+      ],
+      "en": [
+        "A room's sidebar lists only your Claudes for that room again, not every one listening in your other rooms."
+      ]
     }
   },
   {

@@ -589,15 +589,16 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
   const me0 = c.get("email");
   const [rows, machines, mine, sbx] = await Promise.all([
     // The sessions connected to this room: listening to it (or to all their rooms), or that read/posted here in the
-    // last hour. Yours also when they were here in the last 14 days or listen elsewhere right now: a Claude of yours
-    // that stopped (or listens in another room) shows as "seen …", not as "no agent here yet" with the setup.
+    // last hour. Yours also when they were here in the last 14 days: a Claude of yours that stopped (or now listens in
+    // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
+    // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
        ${deliveryJoins("?1")}
        WHERE substr(ag.id, 1, 2) != 'n_' AND (((ag.listen_room = ?1 OR ag.listen_room IS NULL) AND ag.listening_at > ?2) OR r.seen_at > ?3
-         OR (ag.email = ?4 AND (r.seen_at > ?5 OR ag.listening_at > ?2)))
+         OR (ag.email = ?4 AND r.seen_at > ?5))
        ORDER BY ag.seen_at DESC LIMIT 40`,
       id,
       now - svc.listenFresh,
@@ -629,8 +630,9 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     sandboxes: sbx.flatMap((row) => { try { return [roomSandbox(row)]; } catch { console.error("room sandbox has invalid identity"); return []; } }),
     agents: rows.filter((row, i) => {
       // Of your agents that are only here for "seen …" (not listening, not in the last hour), the newest one is enough.
-      const a = row as { email: string; listening_at: number | null; listen_room: string | null; seen_at: number | null };
-      const live = (x: typeof a) => (!!x.listening_at && now - x.listening_at < svc.listenFresh && (x.listen_room === id || !x.listen_room)) || (x.seen_at ?? 0) > now - 3600_000;
+      // "Here" is this room's read cursor (here_at), not seen_at: that one is any room, so every Claude with a listener was live.
+      const a = row as { email: string; listening_at: number | null; listen_room: string | null; here_at: number | null };
+      const live = (x: typeof a) => (!!x.listening_at && now - x.listening_at < svc.listenFresh && (x.listen_room === id || !x.listen_room)) || (x.here_at ?? 0) > now - 3600_000;
       if (a.email !== me0 || live(a)) return true;
       return !rows.slice(0, i).some((b) => (b as typeof a).email === me0 && !live(b as typeof a));
     }).map((row) => {
