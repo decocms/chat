@@ -22,4 +22,16 @@ export const AgentDbRow = z.object({
   ctx_window: num,
   ctx_at: num,
   ctx_limits: str,
+  id: z.string(),
+  client: str,
+  machine_id: str,
+  delivers: num,
+});
+/** One of your machines as D1 returns it. */
+export const MachineDbRow = z.object({
+  id: z.string(),
+  name: str,
+  kind: str,
+  seen_at: num,
+  on_: num,
 });

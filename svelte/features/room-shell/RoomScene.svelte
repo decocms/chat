@@ -21,6 +21,7 @@
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
+  import AgentFoot from "../agents/AgentFoot.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -371,14 +372,24 @@
       >
         {#snippet footer(
           collapsed,
-        )}{#if $view?.trigger}<!-- Your Claude, at the foot of the sidebar: opens the Agents pane. -->
+          rows,
+        )}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
               data-native-agent-footer
-              class="tw:flex tw:justify-center"
+              class={collapsed ? "tw:flex tw:justify-center" : ""}
             >
-              <AgentTrigger {...$view.trigger} row={!collapsed} />
-            </div>{/if}{#if $personal.me && !collapsed}<AccountRow
+              {#if collapsed}<AgentTrigger
+                  {...$view.trigger}
+                />{:else}<AgentFoot
+                  owner={$view.trigger.owner}
+                  onopen={$view.trigger.onopen}
+                  origin={$view.trigger.origin ?? ""}
+                  lang={$view.trigger.lang}
+                  queue={$view.trigger.queue}
+                  ago={$view.sidebar.vb.ago}
+                />{/if}
+            </div>{:else}{@render rows?.()}{/if}{#if $personal.me && !collapsed}<AccountRow
               me={$personal.me}
             />{/if}{/snippet}
       </Sidebar>{/if}{/snippet}

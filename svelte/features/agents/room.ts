@@ -453,6 +453,52 @@ export function createRoomAgentSession(
         if (!definite && attached) await refresh(true);
       }
     },
+    /**
+     * A delivery switch (src/delivery.ts): a machine, a one-off agent, or everything of yours here. Shown at once,
+     * then the room's agents are read again (an error reads them again too, which puts the switch back).
+     */
+    async delivery(
+      target: { machine: string } | { agent: string } | { all: true },
+      on: boolean,
+    ) {
+      const before = get(state);
+      if (!mutable() || !before.data) return;
+      const hit = (id: string | undefined, key: "machine" | "agent") =>
+        "all" in target ||
+        (key in target && (target as Record<string, string>)[key] === id);
+      state.update((value) =>
+        value.data
+          ? {
+              ...value,
+              data: {
+                ...value.data,
+                ...("all" in target ? { claude_on: on } : {}),
+                machines: value.data.machines?.map((m) =>
+                  hit(m.id, "machine") ? { ...m, on } : m,
+                ),
+                agents: value.data.agents.map((a) =>
+                  a.id &&
+                  (hit(a.id, "agent") ||
+                    (a.machine && hit(a.machine, "machine")))
+                    ? { ...a, delivery: on }
+                    : a,
+                ),
+              },
+            }
+          : value,
+      );
+      try {
+        await api.delivery(roomId, { on, ...target });
+        options.onChanged?.();
+      } catch (error) {
+        if (agentsUnauthenticated(error)) {
+          deny(true);
+          options.onUnauthorized?.();
+          return;
+        }
+      }
+      if (attached && current()) await refresh(true);
+    },
     reviewToggle() {
       if (!active || get(state).togglePhase !== "unconfirmed") return;
       toggleTicket++;

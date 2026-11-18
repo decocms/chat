@@ -7,6 +7,7 @@ import {
   AgentsResult,
   ClaudeToggleResult,
   ConnectedResult,
+  DeliveryResult,
   CreateSandboxResult,
   ErrorBody,
   OkResult,
@@ -91,6 +92,17 @@ export function createAgentsApi(fetcher?: FetchLike) {
           { init: { signal, cache: "no-store" } },
         )
         .then((response) => read(response, ClaudeToggleResult)),
+    delivery: (
+      id: string,
+      json: { on: boolean; machine?: string; agent?: string; all?: boolean },
+      signal?: AbortSignal,
+    ) =>
+      room.delivery
+        .$post(
+          { param: roomParam(id), json },
+          { init: { signal, cache: "no-store" } },
+        )
+        .then((response) => read(response, DeliveryResult)),
     sandboxes: (id: string, signal?: AbortSignal) =>
       room.sandboxes
         .$get({ param: roomParam(id) }, { init: { signal, cache: "no-store" } })

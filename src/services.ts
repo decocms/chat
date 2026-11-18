@@ -163,6 +163,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return null;
     },
     pokeAgents: (roomId) => ctx.waitUntil(poke(env, [email], { t: "agents", book: roomId })),
+    pokeListeners: (roomId) => ctx.waitUntil(poke(env, [email], { t: "me", book: roomId })),
     pokeFocus: (roomId) => ctx.waitUntil(poke(env, [email], { t: "focus", book: roomId })),
     requestAccess: async (roomId) => {
       // A DM can't be asked into (src/dm.ts): to anyone outside it, it doesn't exist.

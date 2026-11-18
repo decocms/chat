@@ -99,6 +99,7 @@ function apiFixture() {
     room: async () => ({ claude_on: false, agents: [], sandboxes: [] }),
     focus: async () => ({ ok: true }),
     toggle: async (_id, on) => ({ ok: true, claude_on: on }),
+    delivery: async () => ({ ok: true }),
     sandboxes: async () => ({
       connected: true,
       claude: true,

@@ -14,7 +14,8 @@ import { agentMessageFromWire } from "./bookMessages";
 import { signedInTo } from "./mcpauth";
 import { ASK_OPENER } from "./book";
 import { cardOf } from "./card";
-import { LISTEN_FRESH, markListening } from "./person";
+import { LISTEN_FRESH, markListening, poke } from "./person";
+import { DELIVERS, deliveryJoins, MACHINE_FRESH, MACHINE_ID, sandboxMachine } from "./delivery";
 import type { AgentProps } from "./connect";
 import type { Env } from "./index";
 import { checkEmbed, EMBED_MAX, withBridge } from "./embed";
@@ -166,13 +167,26 @@ const TOOLS = [
   {
     name: "claude_rooms",
     description:
-      'The rooms where your human switched "Meu Claude" on or off in the vibebook app, for a local runner (vibebook herdr) that keeps one Claude Code per room open, in the order your human gave their rooms. on: true = they want a Claude in that room now.',
-    inputSchema: { type: "object", properties: {} },
+      'The rooms where your human switched "Meu Claude" on or off in the vibebook app, for a local runner (vibebook herdr) that keeps one Claude Code per room open, in the order your human gave their rooms. on: true = they want a Claude in that room now. The runner passes its machine ({id, name, kind}) and the agent ids of the Claudes it runs: on is then that machine\'s switch.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        machine: {
+          type: "object",
+          description: "the runner's machine: id (m_ + 32 hex), name, kind herdr | herdr-app",
+        },
+        agents: {
+          type: "array",
+          items: { type: "string" },
+          description: "agent ids (s_…) of the Claudes this runner opened",
+        },
+      },
+    },
   },
   {
     name: "switch_claude",
     description:
-      'Switch "Meu Claude" on or off in a room for your human (same as the toggle in the app\'s room header): on opens a Claude Code for that room on their machine through vibebook herdr, off closes it. Only when your human asked for it.',
+      'Switch "Meu Claude" on or off in a room for your human (same as the toggle in the app\'s room header): on opens a Claude Code for that room on their machine through vibebook herdr and delivers the room messages to the Claudes on their machines; off stops delivering (the Claude stays open with its context). Only when your human asked for it.',
     inputSchema: {
       type: "object",
       properties: { room_id: { type: "string" }, on: { type: "boolean" } },
@@ -1081,20 +1095,27 @@ export async function openMade(
   if (app) await stub.agentOpenApp(bookId, email, `room/${app}`, true);
   else await stub.agentOpenFile(bookId, email, f.id);
 }
-/** Rooms with messages this agent hasn't read (agent_reads vs books.last_msg_id); `since` = only rooms active after it (ms). */
+/**
+ * Rooms with messages this agent hasn't read (agent_reads vs books.last_msg_id); `since` = only rooms active after it
+ * (ms). Only rooms delivered to this agent (src/delivery.ts); `muted` = the unread rooms whose delivery is off instead.
+ */
 export const unreadRooms = (
   db: D1Database,
   email: string,
   agent: string,
   only = "",
   since = 0,
+  muted = false,
 ) =>
   db
     .prepare(
       `SELECT b.id, b.title, coalesce(b.last_msg_id, 0) - coalesce(c.last_id, 0) AS n
        FROM members m JOIN books b ON b.id = m.book_id
-       LEFT JOIN agent_reads c ON c.agent = ? AND c.book_id = b.id
-       WHERE m.email = ? AND m.archived_at IS NULL AND coalesce(b.last_msg_id, 0) > coalesce(c.last_id, 0) AND b.updated_at > ? ${only ? "AND b.id = ?" : ""} LIMIT 20`,
+       LEFT JOIN agents ag ON ag.id = ?1
+       LEFT JOIN agent_reads c ON c.agent = ?1 AND c.book_id = b.id
+       ${deliveryJoins("b.id")}
+       WHERE m.email = ?2 AND m.archived_at IS NULL AND coalesce(b.last_msg_id, 0) > coalesce(c.last_id, 0) AND b.updated_at > ?3 ${only ? "AND b.id = ?4" : ""}
+         AND ${DELIVERS} = ${muted ? 0 : 1} LIMIT 20`,
     )
     .bind(...(only ? [agent, email, since, only] : [agent, email, since]))
     .all<{ id: string; title: string; n: number }>();
@@ -1243,6 +1264,12 @@ async function call(
       ctx.waitUntil(markListening(env, me.agent, me.email, only));
       const deadline = Date.now() + timeout * 1000;
       const routed = await routerOn(db, me.email);
+      // Rooms whose delivery is off for this agent: the router still sorts their new messages with its fixed rules (no
+      // model), so turning delivery back on only asks the model about what the rules left open (gate, src/router.ts).
+      if (routed)
+        for (const b of (await unreadRooms(db, me.email, me.agent, only, 0, true)).results)
+          if (due(`rules:${me.agent}:${b.id}:${b.n}`, 600_000))
+            await gate(env, me, b.id, true).catch((e) => console.error("router rules", String(e)));
       for (;;) {
         const r = await unread(only);
         // The router (src/router.ts): rooms whose new messages it handled (ignored/answered) don't wake this Claude;
@@ -1468,14 +1495,52 @@ async function call(
       return { ok: r.meta.changes > 0 };
     }
     case "claude_rooms": {
+      // A runner that sends its machine checks in (machines.seen_at) and gets that machine's switch per room
+      // (machine_rooms, else members.claude_on); the Claudes it runs (agent ids) become that machine's agents.
+      const mc = recordValue(a.machine) ? a.machine : null;
+      const mid = mc && typeof mc.id === "string" && MACHINE_ID.test(mc.id) ? mc.id : "";
+      let machine = "";
+      if (mid) {
+        const name = (typeof mc!.name === "string" ? mc!.name : "").replace(/[\p{Cc}]/gu, "").trim().slice(0, 40) || "computer";
+        const kind = mc!.kind === "herdr-app" ? "herdr-app" : "herdr";
+        const before = await db
+          .prepare(`SELECT email, seen_at FROM machines WHERE id = ?`)
+          .bind(mid)
+          .first<{ email: string; seen_at: number | null }>();
+        if (!before || before.email === me.email) {
+          machine = mid;
+          await db
+            .prepare(
+              `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+               ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, seen_at = excluded.seen_at WHERE machines.email = excluded.email`,
+            )
+            .bind(mid, me.email, name, kind, Date.now())
+            .run();
+          const ids = (Array.isArray(a.agents) ? a.agents : [])
+            .filter((x): x is string => typeof x === "string" && /^s_[a-f0-9]{32}$/.test(x))
+            .slice(0, 50);
+          if (ids.length)
+            await db
+              .prepare(
+                `UPDATE agents SET machine_id = ? WHERE email = ? AND id IN (${ids.map(() => "?").join(",")})`,
+              )
+              .bind(mid, me.email, ...ids)
+              .run();
+          // Back online (or new): the person's open Agents views refetch.
+          if (!before || !before.seen_at || Date.now() - before.seen_at > MACHINE_FRESH)
+            ctx.waitUntil(poke(env, [me.email], { t: "me" }));
+        }
+      }
       const r = await db
         .prepare(
           // listening = one of this person's agents waited on this room (or on all rooms) lately (LISTEN_FRESH), so the
           // runner can tell a Claude whose listener died from one that's fine.
-          `SELECT b.id, b.title, m.claude_on, EXISTS (SELECT 1 FROM agents a WHERE a.email = m.email AND a.listening_at > ? AND (a.listen_room = b.id OR a.listen_room IS NULL)) AS listening
-           FROM members m JOIN books b ON b.id = m.book_id WHERE m.email = ? AND m.claude_on IS NOT NULL AND m.archived_at IS NULL ORDER BY m.position IS NULL, m.position, b.created_at`,
+          `SELECT b.id, b.title, coalesce(mr.on_, m.claude_on) AS claude_on, EXISTS (SELECT 1 FROM agents a WHERE a.email = m.email AND a.listening_at > ?1 AND (a.listen_room = b.id OR a.listen_room IS NULL)) AS listening
+           FROM members m JOIN books b ON b.id = m.book_id
+           LEFT JOIN machine_rooms mr ON mr.machine_id = ?3 AND mr.book_id = b.id
+           WHERE m.email = ?2 AND (m.claude_on IS NOT NULL OR mr.on_ IS NOT NULL) AND m.archived_at IS NULL ORDER BY m.position IS NULL, m.position, b.created_at`,
         )
-        .bind(Date.now() - LISTEN_FRESH, me.email)
+        .bind(Date.now() - LISTEN_FRESH, me.email, machine)
         .all<{
           id: string;
           title: string;
@@ -2579,6 +2644,11 @@ export async function handleAgentMcp(
     : `c_${props.email}|${props.client}`;
   if (agentOwner.get(agentId) !== props.email) {
     await ensureAgent(env.DB, agentId, props.email, props.client);
+    // A sandbox's Claude is that sandbox's agent: its switch in the room covers it (src/delivery.ts).
+    if (props.sandbox)
+      await env.DB.prepare(`UPDATE agents SET machine_id = ? WHERE id = ? AND machine_id IS NULL`)
+        .bind(sandboxMachine(props.sandbox), agentId)
+        .run();
     if (agentOwner.size > 20_000) agentOwner.clear();
     agentOwner.set(agentId, props.email);
   }
