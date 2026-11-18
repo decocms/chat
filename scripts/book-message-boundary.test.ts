@@ -239,6 +239,7 @@ test("actual Book messages/older use validated rows and raw pagination count rem
     sendTo,
     get: () => "abcdef",
     files: () => [file],
+    acksList: () => [],
     sql: { exec: () => ({ toArray: () => raw }) },
     messageRows: (rows: readonly unknown[]) =>
       storedMessageRows(rows, "abcdef", (id) =>
