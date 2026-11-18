@@ -4,10 +4,10 @@
   import type { ChatActions, ChatBridge } from "../../chatTypes";
   import type { Choices } from "./model";
   import { answerOf, canAnswer } from "./model";
-  import Checkbox from "../../lib/studio/Checkbox.svelte";
-  import Label from "../../lib/studio/Label.svelte";
-  import RadioGroup from "../../lib/studio/RadioGroup.svelte";
-  import RadioGroupItem from "../../lib/studio/RadioGroupItem.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Check } from "../../lib/studio/icons";
+  import { buttonVariants } from "../../lib/studio/button";
+  import { cn } from "../../lib/studio/utils";
   let {
     choices,
     message,
@@ -22,8 +22,7 @@
     vb: ChatBridge;
   } = $props();
   let active = true,
-    selected = $state<number[]>([]),
-    radio = $state("");
+    selected = $state<number[]>([]);
   let previous = untrack(() => message.choices);
   $effect(() => {
     const source = message.choices;
@@ -31,7 +30,6 @@
       untrack(() => {
         previous = source;
         selected = [];
-        radio = "";
       });
   });
   onDestroy(() => {
@@ -68,52 +66,60 @@
   }
 </script>
 
+<!-- The options are real buttons in every state: yours to pick (they fill the reply box), the one picked (filled,
+     ✓), or someone else's question (disabled, with whose it is under them). -->
+{#snippet option(label: string, on: boolean, disabled: boolean)}<span
+    class={cn(
+      buttonVariants({ variant: on ? "default" : "outline", size: "sm" }),
+      "tw:pointer-events-none tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
+      disabled && !on && "tw:text-muted-foreground",
+    )}
+    >{#if on}<Icon icon={Check} size={14} />{/if}{label}</span
+  >{/snippet}
 <div
   data-native-choices
   data-vb-native
   class="tw:space-y-2 tw:font-sans tw:text-sm tw:text-foreground"
 >
   {#if answer}<div class="tw:flex tw:flex-wrap tw:gap-2">
-      {#each choices.options as option}<span
-          class={picked.has(option)
-            ? "tw:rounded-control tw:border tw:border-primary tw:bg-primary/10 tw:px-3 tw:py-2"
-            : "tw:rounded-control tw:border tw:border-border tw:px-3 tw:py-2"}
-          >{picked.has(option) ? "✓ " : ""}{option}</span
-        >{/each}{#if !choices.options.some((option) => picked.has(option))}<span
-          class="tw:rounded-control tw:border tw:border-primary tw:bg-primary/10 tw:px-3 tw:py-2"
-          >✓ {vb.t("Outro")}</span
-        >{/if}
+      {#each choices.options as label}{@render option(
+          label,
+          picked.has(label),
+          true,
+        )}{/each}{#if !choices.options.some( (label) => picked.has(label) )}{@render option(
+          vb.t("Outro"),
+          true,
+          true,
+        )}{/if}
     </div>
-  {:else if actionable}{#if choices.multi}<div
-        role="group"
-        aria-label={vb.t("Escolha uma opção")}
-        class="tw:grid tw:gap-2"
-      >
-        {#each [...choices.options, vb.t("Outro") + "…"] as option, index}{@const value =
-            index === choices.options.length ? -1 : index}<label
-            class="tw:flex tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-2"
-            ><Checkbox
-              checked={selected.includes(value)}
-              onCheckedChange={(checked) => choose(value, checked)}
-            /><span>{option}</span></label
-          >{/each}
-      </div>{:else}<RadioGroup
-        aria-label={vb.t("Escolha uma opção")}
-        bind:value={radio}
-        onValueChange={(value) => choose(Number(value))}
-      >
-        {#each [...choices.options.map( (label, index) => ({ label, value: String(index) }) ), { label: vb.t("Outro") + "…", value: "-1" }] as item (item.value)}<Label
-            class="tw:flex tw:items-center tw:gap-2 tw:font-normal"
-            ><RadioGroupItem value={item.value} />{item.label}</Label
-          >{/each}
-      </RadioGroup>{/if}<small class="tw:block tw:text-muted-foreground"
+  {:else if actionable}<div
+      role={choices.multi ? "group" : "radiogroup"}
+      aria-label={vb.t("Escolha uma opção")}
+      class="tw:flex tw:flex-wrap tw:gap-2"
+    >
+      {#each [...choices.options, vb.t("Outro") + "…"] as label, index}{@const value =
+          index === choices.options.length ? -1 : index}{@const on =
+          selected.includes(value)}<button
+          type="button"
+          role={choices.multi ? "checkbox" : "radio"}
+          aria-checked={on}
+          class={cn(
+            buttonVariants({ variant: on ? "default" : "outline", size: "sm" }),
+            "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
+          )}
+          onclick={() => choose(value, choices.multi ? !on : true)}
+          >{#if on}<Icon icon={Check} size={14} />{/if}{label}</button
+        >{/each}
+    </div>
+    <small class="tw:block tw:text-muted-foreground"
       >{vb.t("escolha e envie pela caixa de mensagem")}</small
     >
-  {:else}<div class="tw:flex tw:flex-wrap tw:gap-2">
-      {#each choices.options as option}<span
-          class="tw:rounded-control tw:border tw:border-border tw:px-3 tw:py-2 tw:text-muted-foreground"
-          >{option}</span
-        >{/each}
+  {:else}<div class="tw:flex tw:flex-wrap tw:gap-2" aria-disabled="true">
+      {#each choices.options as label}{@render option(
+          label,
+          false,
+          true,
+        )}{/each}
     </div>
     <small class="tw:block tw:text-muted-foreground"
       >{choices.closed
