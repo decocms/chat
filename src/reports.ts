@@ -150,7 +150,7 @@ async function unblockLine(env: Env, start: number, end: number) {
 async function wsStateLine(env: Env, start: number, end: number) {
   const r = await env.DB.prepare(`SELECT count(*) AS n, avg(json_extract(dims, '$.bytes')) AS avg, max(json_extract(dims, '$.bytes')) AS mx FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ?`).bind(start, end).first<{ n: number; avg: number; mx: number }>();
   if (!r?.n) return "";
-  const big = await env.DB.prepare(`SELECT json_extract(dims, '$.book') AS book, json_extract(dims, '$.top') AS top FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ? ORDER BY json_extract(dims, '$.bytes') DESC LIMIT 1`).bind(start, end).first<{ book: string; top: string }>();
+  const big = await env.DB.prepare(`SELECT json_extract(dims, '$.book') AS book, json_extract(dims, '$.top') AS top, json_extract(dims, '$.msgs') AS msgs FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ? ORDER BY json_extract(dims, '$.bytes') DESC LIMIT 1`).bind(start, end).first<{ book: string; top: string; msgs: string | null }>();
   const push = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, count(*) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_push' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 4`).bind(start, end).all<{ t: string; n: number; b: number }>();
   const pushes = push.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×)`).join(" · ");
   // Who opens rooms that often (a phone reconnecting on every wake, a tab left open across deploys…): name only.
@@ -162,7 +162,7 @@ async function wsStateLine(env: Env, start: number, end: number) {
   // Everything the rooms sent over their sockets, by event kind and app (Book.sendTo → ws_bytes, flushed hourly).
   const wire = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, json_extract(dims, '$.c') AS c, sum(json_extract(dims, '$.n')) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_bytes' AND ts >= ? AND ts < ? GROUP BY t, c ORDER BY b DESC LIMIT 6`).bind(start, end).all<{ t: string; c: string; n: number; b: number }>();
   const wireLine = wire.results.map((x) => `${x.t}${x.c === "s" ? " (svelte)" : ""} ${bytes(x.b)} (${x.n}×, ${bytes(x.b / Math.max(1, x.n))} cada)`).join(" · ");
-  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top})${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
+  return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
 }
 
 /** The Claudes' tool calls (agent_call) by tool and client: what the /mcp requests are. */

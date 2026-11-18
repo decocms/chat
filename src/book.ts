@@ -158,7 +158,8 @@ export class Book extends DurableObject<Env> {
    * tasks) went out on each task move, ~64 KB per open tab in the product room: the biggest share of /ws bandwidth.
    * What the sockets last got is a hash per epic in meta `epics_sent` (the DO hibernates between pushes; the sockets
    * don't). No record yet = the whole list. */
-  pushEpics(epics: ReturnType<Book["epics"]>, roomTasks: ReturnType<Book["roomTasks"]>) {
+  pushEpics(all: ReturnType<Book["epics"]>, roomTasks: ReturnType<Book["roomTasks"]>) {
+    const epics = this.wireEpics(all);
     const h = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
     const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, h(JSON.stringify(e))]));
     const raw = this.get("epics_sent");
@@ -166,6 +167,12 @@ export class Book extends DurableObject<Env> {
     if (!raw) return this.broadcast({ t: "epics", epics, roomTasks });
     const prev = storedHashes(raw, (kind) => console.warn("book stored projection", kind));
     this.broadcast({ t: "epicsPatch", changed: epics.filter((e) => prev[e.id] !== now[e.id]), order: epics.map((e) => e.id), roomTasks });
+  }
+  /** What the sockets get: an archived epic carries only its open tasks (18/11: 207 of 231 epics in the product room
+   *  were archived and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
+   *  open, doc.get after). */
+  wireEpics(epics: ReturnType<Book["epics"]>, full = "") {
+    return epics.map((e) => (e.archived && e.id !== full ? { ...e, tasks: e.tasks.filter((t) => t.status !== "done") } : e));
   }
   epics() {
     // @vibe's grading (grade()): per epic, id → short notes on the epic itself and its tasks.
@@ -1473,9 +1480,12 @@ export class Book extends DurableObject<Env> {
   }
 
   // "X está fazendo isso": an agent took a message as work (MCP ack); its next done post marks it done.
-  acksList() {
-    // Enough for every request of the last two weeks: the app's "Fila do seu Claude" counts on seeing each one's ack.
-    return this.sql.exec<{msg_id:number;agent:string;email:string;who:string;status:string;ts:number;note:string|null}>(`SELECT msg_id, agent, email, who, status, note, ts FROM acks WHERE ts > ? ORDER BY ts DESC LIMIT 500`, Date.now() - 14 * 864e5).toArray();
+  /** The acks of these messages (what the socket has loaded: the window, origins, an older page). Every ack of two
+   *  weeks went out on each room open, 500 rows / ~80 KB in the product room (18/11), most of them on messages the
+   *  tab never loads; a page fetched later brings its own (older / fillOf). */
+  acksList(ids: number[]) {
+    if (!ids.length) return [];
+    return this.sql.exec<{msg_id:number;agent:string;email:string;who:string;status:string;ts:number;note:string|null}>(`SELECT msg_id, agent, email, who, status, note, ts FROM acks WHERE msg_id IN (SELECT value FROM json_each(?)) ORDER BY ts DESC`, JSON.stringify(ids)).toArray();
   }
   /** Only the ack rows that changed (the app merges them by message + agent), not the whole list on every post. */
   pushAcks(where: string, ...args: unknown[]) {
@@ -1996,6 +2006,7 @@ export class Book extends DurableObject<Env> {
       this.people(), this.requests(), this.names(), this.avatars(),
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
+    const win = this.roomWindow(url.searchParams.get("t") || "main", email);
     const state: Extract<RoomEvent, {t:"state"}> = {
         t: "state",
         me: email,
@@ -2005,10 +2016,10 @@ export class Book extends DurableObject<Env> {
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
         docs: this.epicDocs(url.searchParams.get("t") || ""),
-        epics: this.epics(),
+        epics: this.wireEpics(this.epics(), url.searchParams.get("t") || ""),
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
-        ...this.roomWindow(url.searchParams.get("t") || "main", email),
+        ...win,
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
         files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE id IN (SELECT id FROM files ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file') ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
@@ -2027,13 +2038,16 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         receipts: this.receiptsList(),
-        acks: this.acksList(),
+        acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
     const body = this.sendTo([server], state);
     // What opening a room costs on the wire (the biggest share of the zone's bandwidth in Nov 2026): total + the 3
     // fattest fields, read by the product report.
     const top = Object.entries(state).map(([k, v]) => [k, JSON.stringify(v)?.length ?? 0] as const).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), rc: url.searchParams.get("rc") ?? undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
+    const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
+    const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
+    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined } })); // rc: close code of the socket this one replaces (a reconnect)
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -2091,7 +2105,10 @@ export class Book extends DurableObject<Env> {
         return this.sendTo([ws], { t: "files", files: this.files() });
       case "doc.get": {
         const epic = String(m.epic ?? "");
-        if (epic && !this.epics().some((item) => item.id === epic)) return new Refused("unknown epic");
+        const all = this.epics(), e = epic ? all.find((item) => item.id === epic) : undefined;
+        if (epic && !e) return new Refused("unknown epic");
+        // An archived epic went out with its open tasks only (wireEpics): opening it brings the rest.
+        if (e?.archived) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
         return this.sendTo([ws], { t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true });
       }
       case "needs.summary": {
@@ -2145,7 +2162,11 @@ export class Book extends DurableObject<Env> {
         const rows = this.sql
           .exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 101`, String(m.thread ?? "main"), before)
           .toArray();
-        return this.sendTo([ws], { t: "older", thread: String(m.thread ?? "main"), messages: this.messageRows(rows.slice(0, 100)).reverse(), more: rows.length > 100 });
+        const page = this.messageRows(rows.slice(0, 100)).reverse();
+        // The page's acks (the room's state carries only the loaded messages' ones).
+        const acks = this.acksList(page.map((r) => r.id));
+        if (acks.length) this.sendTo([ws], { t: "ackRows", acks });
+        return this.sendTo([ws], { t: "older", thread: String(m.thread ?? "main"), messages: page, more: rows.length > 100 });
       }
       case "pin.add": {
         const r = await this.pinAdd(email, String(m.kind ?? ""), String(m.ref ?? ""), String(m.title ?? ""));
