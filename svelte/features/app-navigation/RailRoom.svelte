@@ -52,6 +52,16 @@
     ondrop?: (event: DragEvent) => void;
   } = $props();
   const news = $derived(unread(room, seen));
+  // About how many are new (message ids are per room): the red badge's number, like an unread DM's.
+  const fresh = $derived(
+    news === "human"
+      ? Math.max(
+          1,
+          Math.max(room.last_human_id, room.last_agent_id) -
+            Math.max(room.read_id, seen),
+        )
+      : 0,
+  );
   const title = $derived(room.title ?? "vibebook");
   const busy = $derived((room.busy_until ?? 0) > now);
   const details = $derived(roomStatus(room, seen, waits, now, lang));
@@ -120,6 +130,7 @@
             {icon}
             {lang}
             unread={selected ? null : news}
+            count={fresh}
             {busy}
             cloud={!!room.sandboxes_running}
             {waits}
