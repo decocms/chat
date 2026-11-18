@@ -2,7 +2,7 @@ import { get, writable } from "svelte/store";
 import type { SearchResult } from "../../../shared/schemas";
 import type { PersonalSession } from "../home/personal";
 import {
-  roomMatches,
+  searchRooms,
   messageTarget,
   epicTarget,
   targetHref,
@@ -49,7 +49,7 @@ export function createSearchSession(
     const s = get(state),
       me = get(personal.state).me;
     return [
-      ...roomMatches(me?.books ?? [], s.query).map((room) => ({
+      ...searchRooms(me?.books ?? [], s.query).map((room) => ({
         roomId: room.id,
       })),
       ...(s.result?.epics ?? []).map(epicTarget),
