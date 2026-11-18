@@ -204,7 +204,6 @@
           ><Skeleton class="tw:size-4 tw:rounded-full" /></span
         >
       {/each}
-      <span class="tw:mx-1.5 tw:h-5 tw:w-px tw:shrink-0 tw:bg-border"></span>
       <Skeleton class="tw:h-7 tw:w-16 tw:shrink-0 tw:rounded-full" />
       {#each [0, 1, 2, 3, 4, 5] as slot (slot)}
         <span class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
