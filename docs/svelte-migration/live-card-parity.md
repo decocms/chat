@@ -1,9 +1,0 @@
-# Current-main native card presentation
-
-This source slice preserves the normalized `shared/card` contract introduced by original prerequisite commits 90592e3 and 130525b. Native charts now render up to four series, Studio-token legend swatches, a real min/mid/max line axis and native SVG per-label/per-series hover titles. Legacy data charts still render. Finite normalization precedes subtraction so opposing finite extremes cannot emit Infinity/NaN geometry. Native SVG attributes provide geometry; no new stylesheet, inline style or palette is introduced. The existing total inline rendering budget includes all series and still defers dense charts to the controlled dialog.
-
-Fields preserve delta direction, lower-is-good reversal, flat markers and trend text as escaped native nodes. LinkButton primary style uses the existing atomic button recipe for both internal controls and external links, retaining the original validated URL/action boundary and external rel protections.
-
-Canonical Fire transcript pieces remain in Room data for agents, but are excluded before chat projection and receipt placement. They do not create visible rows/day separators or take the latest visible receipt target. Fire session, voice gestures and beside-chat file integration are a separate pending slice; this checkpoint does not claim those flows are complete.
-
-Author validation: Node Prettier passed 11 owned source/test/config paths. The focused native-live-cards and native-chat suites passed 10 tests / 57 assertions in 2.37s. A meaningful actual Card DOM source case is authored for four-series legend/axis/tooltip geometry, escaped text and primary links but is UNRUN. Strict Svelte/tooling, actual DOM, axe/theme/browser, Fire model/provider and live-update integration remain parent-owned gates. No generated assets or active fonts changed.

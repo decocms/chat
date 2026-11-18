@@ -2,7 +2,7 @@ import { join, resolve } from "node:path";
 
 /** Explicit snapshots are separate from the frozen migration records. */
 export function inventoryOutput(args: readonly string[], root: string) {
-  const directory = resolve(root, "docs/svelte-migration");
+  const directory = resolve(root, "scripts/data");
   const [flag, file, ...extra] = args;
   if (flag === undefined)
     return { file: join(directory, "inventory.json"), explicit: false };

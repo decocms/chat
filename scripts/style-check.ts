@@ -165,10 +165,7 @@ else {
   });
 }
 const manifest: unknown = JSON.parse(
-  await readFile(
-    join(projectRoot, "docs/svelte-migration/font-assets.json"),
-    "utf8",
-  ),
+  await readFile(join(projectRoot, "scripts/data/font-assets.json"), "utf8"),
 );
 const generator: unknown = JSON.parse(
   await readFile(join(projectRoot, "components.json"), "utf8"),

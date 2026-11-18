@@ -3,20 +3,30 @@ description: Set up vibebook for this project - create or pick its room, link th
 argument-hint: "[room link or id, optional]"
 ---
 
-Set up vibebook for the project in the current directory. Room: $ARGUMENTS (empty = decide with me).
+Set up vibebook for the project in the current directory. Room: $ARGUMENTS. If it is empty, decide with me.
 
-1. CLI: everything goes through the `vibebook` command in Bash (vibebook moved from MCP to the CLI). If `vibebook status` fails with command not found, install it: `npm i -g vibebook.dev` (or `curl -fsSL https://vibebook.dev/install.sh | sh`, then call `~/.vibebook/bin/vibebook` if it isn't on PATH). If `status` says `"logged_in": false`, ask me to type `! vibebook login` (it opens the browser once per machine) and wait for me.
-1b. Permission: so you can work the room without asking every time (read, post, ack, move tasks), Claude Code should allow `vibebook` commands. If `~/.claude/settings.json` has no `Bash(vibebook:*)` in `permissions.allow`, ask me to add it: I type `/permissions` → Allow → `Bash(vibebook:*)` (Claude Code won't let you edit your own permissions, and shouldn't). Keep each `vibebook` call its own command (no `;`, loops or variables around it), so the rule matches.
-1c. Deploys approved from the room: in auto mode Claude Code blocks a deploy that was asked for in the room (to it, that's text from a tool). An **ask** rule makes it prompt instead, and the plugin's PermissionRequest hook carries that prompt to the room (Aprovar / Negar; the server accepts only a reply written by my own signed-in account). If `permissions.ask` lacks them, ask me to add, with `/permissions` → Ask: `Bash(bun run deploy:*)`, `Bash(npm run deploy:*)`, `Bash(npx wrangler deploy:*)`, `Bash(wrangler deploy:*)`, `Bash(npm publish:*)` (plus this repo's own deploy command if it's different).
-2. Already linked? If `vibebook status` shows a `room` (from `.vibebook` or a `vibebook.dev/b/<id>` link in README/AGENTS.md), say which and skip to step 5.
-3. Pick the room: if I gave you a room link (`vibebook.dev/b/<id>`), that's the room. Otherwise `vibebook call inbox`. If a room clearly matches this project (or the one I named), propose it; otherwise propose `vibebook call create_room '{"title":"…","invite":[…]}'` (title = the project's name and what it is, from README/package.json; ask me who to invite). Wait for my yes. A new room starts empty: right after creating it, read the project and write its doc (update_doc: what it delivers and for whom, in/out of scope, how we'll know it worked, next steps and owners) and start 2–4 epics with tasks that say when they're done; @vibe grades them (doc_notes, vibe_notes) within a minute, so read_room again and sharpen what it flagged.
-4. Link the repo (show me the diff, then commit with `chore: link the repo to its vibebook room` if I agree):
+1. **CLI.** Do all work through the `vibebook` command in Bash.
+   - If `vibebook status` fails with "command not found", install it: `npm i -g vibebook.dev`. Or use `curl -fsSL https://vibebook.dev/install.sh | sh`, then call `~/.vibebook/bin/vibebook` if it is not on PATH.
+   - If `status` shows `"logged_in": false`, ask me to type `! vibebook login`. It opens the browser one time on each computer. Wait for me.
+2. **Permission.** Claude Code must permit `vibebook` commands, so that you can read, post, acknowledge and move tasks without a prompt each time.
+   - If `~/.claude/settings.json` has no `Bash(vibebook:*)` in `permissions.allow`, ask me to add it: I type `/permissions` → Allow → `Bash(vibebook:*)`. Claude Code does not let you change your own permissions. Do not try.
+   - Run each `vibebook` call as its own command (no `;`, loops or variables around it). Then the rule matches.
+3. **Deploys approved from the room.** In auto mode, Claude Code blocks a deploy that somebody asked for in the room, because to Claude Code that is text from a tool. An **ask** rule makes it show a prompt. The PermissionRequest hook of the plugin then sends that prompt to the room (Aprovar / Negar). The server accepts only a reply that my own signed-in account wrote.
+   - If `permissions.ask` does not have them, ask me to add these with `/permissions` → Ask: `Bash(bun run deploy:*)`, `Bash(npm run deploy:*)`, `Bash(npx wrangler deploy:*)`, `Bash(wrangler deploy:*)`, `Bash(npm publish:*)`. If this repository has a different deploy command, add it too.
+4. **Linked already?** If `vibebook status` shows a `room` (from `.vibebook` or a `vibebook.dev/b/<id>` link in README or AGENTS.md), tell me which room. Then go to step 7.
+5. **Select the room.**
+   - If I gave you a room link (`vibebook.dev/b/<id>`), use that room.
+   - Else, run `vibebook call inbox`. If a room clearly matches this project (or the one that I named), propose it.
+   - Else, propose `vibebook call create_room '{"title":"…","invite":[…]}'`. The title is the name of the project and what it is (from README or package.json). Ask me who to invite.
+   - Wait for my approval.
+   - A new room starts empty. Immediately after you make it, read the project and write the room document with `update_doc`: what it delivers and for whom, what is in and out of scope, how we will know that it worked, the next steps and their owners. Then start 2-4 epics with tasks that say when they are done. @vibe grades them in approximately one minute (`doc_notes`, `vibe_notes`). Run read_room again and correct what it flagged.
+6. **Link the repository.** Show me the diff. If I agree, commit it with `chore: link the repo to its vibebook room`.
    - `.vibebook` at the root:
      ```
      # vibebook: this repo has a room. Chat, tasks and decisions: https://vibebook.dev/b/<id>
      room_id=<id>
      ```
-   - README, right under the title: `[![vibebook: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`
-   - AGENTS.md (or CLAUDE.md; create AGENTS.md if neither exists), near the top: `Project room: https://vibebook.dev/b/<id> (report progress there).`
-5. Open the channel: `vibebook call read_room --model "<your model name>"` (tell me in one or two lines what's there), then `vibebook listen --model "<your model name>"` with Bash `run_in_background` (it exits only when there are unread messages; then read_room, handle it, and start it again the same way; never mention re-arming or silence).
-6. Post one line in the room saying this repo is linked and you're listening, with the repo name. From then on follow the vibebook skill: report task starts, important commits, PRs ready for review, deploys and blockers there.
+   - README, immediately under the title: `[![vibebook: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`
+   - AGENTS.md (or CLAUDE.md; if neither exists, make AGENTS.md), near the top: `Project room: https://vibebook.dev/b/<id> (report progress there).`
+7. **Open the channel.** Run `vibebook call read_room --model "<your model name>"`. Tell me in one or two lines what is there. Then run `vibebook listen --model "<your model name>"` with Bash `run_in_background`. It stops only when there are unread messages. Then run read_room, do what is necessary, and start it again in the same way. Do not mention the restart or the silence.
+8. **Announce.** Post one line in the room: this repository is linked and you listen. Include the name of the repository. After that, follow the vibebook skill: report task starts, important commits, pull requests ready for review, deploys and blockers in the room.

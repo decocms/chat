@@ -63,11 +63,11 @@ try {
     protectedAssets: before,
   };
   if (process.argv.includes("--record")) {
-    await mkdir(resolve(projectRoot, "docs/svelte-migration"), {
+    await mkdir(resolve(projectRoot, "scripts/data"), {
       recursive: true,
     });
     await writeFile(
-      resolve(projectRoot, "docs/svelte-migration/vanilla-build.json"),
+      resolve(projectRoot, "scripts/data/vanilla-build.json"),
       JSON.stringify(evidence, null, 2) + "\n",
     );
   }

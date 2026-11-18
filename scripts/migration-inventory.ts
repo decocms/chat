@@ -9,7 +9,7 @@ import { inventoryOutput } from "./inventory-output";
 import { createInventoryCallClassifier } from "./inventory-calls";
 import { inventorySections } from "./inventory-sections";
 
-const destination = join(projectRoot, "docs/svelte-migration");
+const destination = join(projectRoot, "scripts/data");
 const output = inventoryOutput(process.argv.slice(2), projectRoot);
 const publishedBaseline = "d3e1473";
 const sources = [

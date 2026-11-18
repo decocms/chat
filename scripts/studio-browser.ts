@@ -20,7 +20,7 @@ const reference = z
   .parse(
     JSON.parse(
       await readFile(
-        new URL("../docs/svelte-migration/studio-tokens.json", import.meta.url),
+        new URL("./data/studio-tokens.json", import.meta.url),
         "utf8",
       ),
     ),
