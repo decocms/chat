@@ -282,7 +282,7 @@
         ></span>{/if}
       <div
         class={cn(
-          "tw:flex tw:shrink-0 tw:max-[900px]:order-first",
+          "tw:flex tw:shrink-0", // phones: after search and +, at the right
           accountInSidebar && "tw:min-[901px]:hidden",
         )}
       >

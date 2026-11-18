@@ -159,29 +159,23 @@ export function createPwaService() {
       refresh();
       const value = get(state),
         epoch = accountRevision;
-      if (
-        value.iosWeb ||
-        value.permission === "denied" ||
-        value.permission === "unsupported"
-      )
-        return false;
-      if (value.permission === "default") {
+      // One switch for sound and notifications (vb.mute). Turning it on asks the browser once; sound comes on
+      // whatever it answers. Returns whether browser notifications work too (the settings bell explains when not).
+      if (value.permission === "default" && !value.iosWeb) {
+        let permission: NotificationPermission = "default";
         try {
-          const permission = await Notification.requestPermission();
-          if (!active || leaving || epoch !== accountRevision) return false;
-          refresh();
-          if (permission === "granted") {
-            this.mute(false);
-            return true;
-          }
+          permission = await Notification.requestPermission();
         } catch {
           if (active && !leaving && epoch === accountRevision)
             state.update((current) => ({ ...current, error: "permission" }));
         }
-        return false;
+        if (!active || leaving || epoch !== accountRevision) return false;
+        refresh();
+        this.mute(false);
+        return permission === "granted";
       }
       this.mute(!value.muted);
-      return true;
+      return value.permission === "granted";
     },
     dismissInstall() {
       if (!active || leaving) return;

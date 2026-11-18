@@ -40,10 +40,16 @@ export const vanillaAppNavigationDriver: AppNavigationUIDriver = {
   frameSelector: "#appsPane iframe.connFrame",
   containerSelector: "#appsPane",
   async openRoom(page, base, roomId) {
-    await page.goto(`${base}/b/${roomId}`);
-    assert(
-      !new URL(page.url()).searchParams.has("ui"),
-      "Vanilla probe must use the default plain room URL",
+    // A vanilla user since Svelte became the default: this device chose vanilla (the switch's cookie), so plain
+    // room URLs, reloads and full-page navigations stay vanilla.
+    await page
+      .context()
+      .addCookies([{ name: "vb_ui", value: "vanilla", url: base }]);
+    const response = await page.goto(`${base}/b/${roomId}`);
+    assert.equal(
+      response?.headers()["x-vibebook-ui"],
+      "vanilla",
+      "Vanilla probe must get the vanilla app from the device's choice",
     );
     await expect(page.locator(".book .chat")).toBeVisible();
   },

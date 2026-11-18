@@ -1,6 +1,46 @@
 [
   {
     "date": "2026-11-18",
+    "slug": "2026-11-18-default",
+    "title": {
+      "pt": "O app novo agora é o padrão",
+      "en": "The new app is now the default"
+    },
+    "intro": {
+      "pt": "Quem abre o vibebook agora cai no app novo, no computador e no celular. O app antigo continua lá: desligue \"Nova UI\" no menu da sua conta para voltar a ele neste aparelho.",
+      "en": "Opening vibebook now lands in the new app, on computers and phones. The old app is still there: turn off \"New UI\" in your account menu to go back to it on this device."
+    },
+    "features": [
+      {
+        "title": {
+          "pt": "Voltar pro app antigo, por aparelho",
+          "en": "Back to the old app, per device"
+        },
+        "text": {
+          "pt": "O interruptor \"Nova UI\" guarda a escolha neste aparelho (inclusive no app instalado no celular): desligado, toda página abre no app antigo até você ligar de novo, pelo menu da conta no computador ou pelo ☰ no celular.",
+          "en": "The \"New UI\" switch remembers your choice on this device (including the app installed on your phone): off, every page opens in the old app until you turn it back on, from the account menu on computers or the ☰ on phones."
+        }
+      }
+    ],
+    "improvements": {
+      "pt": [
+        "Quem já usava o vibebook vê, uma vez por aparelho, um aviso do app novo com o caminho pra voltar à versão anterior.",
+        "No menu da sua conta, Notificações é um interruptor só: liga e desliga o som e os avisos do navegador juntos, sem janela de ajuda. Nova UI fica logo abaixo.",
+        "No celular, sua foto na tela inicial foi para a direita da barra de cima, depois da busca e do +."
+      ],
+      "en": [
+        "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
+        "In your account menu, Notifications is a single switch: it turns sound and browser notifications on and off together, with no help dialog. New UI sits right below it.",
+        "On phones, your picture on the home screen moved to the right of the top bar, after search and +."
+      ]
+    },
+    "fixes": {
+      "pt": [],
+      "en": []
+    }
+  },
+  {
+    "date": "2026-11-18",
     "slug": "2026-11-18-pedidos",
     "title": {
       "pt": "Ninguém entra numa sala nem te escreve sem o seu sim",
@@ -32,8 +72,8 @@
           "en": "Message anyone"
         },
         "text": {
-          "pt": "No app novo (?ui=svelte), o + em \"Mensagens diretas\" abre \"Nova mensagem\": quem está numa sala com você abre a conversa na hora. Pra qualquer outro email, você escreve a primeira mensagem e ela chega como um pedido; a conversa só abre quando a pessoa aceitar. Recusado, não dá pra mandar de novo, e a resposta nunca diz se o email tem conta. A lista de conversas mostra só com quem você já falou, e Amigos saiu da conta e do menu.",
-          "en": "In the new app (?ui=svelte), the + on \"Direct messages\" opens \"New message\": anyone who shares a room with you opens the conversation right away. For any other email, you write the first message and it arrives as a request; the conversation opens only once they accept. Once declined it can't be sent again, and the answer never says whether the email has an account. The conversation list shows only people you've talked to, and Friends left the account panel and the menu."
+          "pt": "No app novo, o + em \"Mensagens diretas\" abre \"Nova mensagem\": quem está numa sala com você abre a conversa na hora. Pra qualquer outro email, você escreve a primeira mensagem e ela chega como um pedido; a conversa só abre quando a pessoa aceitar. Recusado, não dá pra mandar de novo, e a resposta nunca diz se o email tem conta. A lista de conversas mostra só com quem você já falou, e Amigos saiu da conta e do menu.",
+          "en": "In the new app, the + on \"Direct messages\" opens \"New message\": anyone who shares a room with you opens the conversation right away. For any other email, you write the first message and it arrives as a request; the conversation opens only once they accept. Once declined it can't be sent again, and the answer never says whether the email has an account. The conversation list shows only people you've talked to, and Friends left the account panel and the menu."
         },
         "image": "changelog/2026-11-18-pedidos.webp",
         "alt": {
@@ -69,8 +109,8 @@
           "en": "Direct messages"
         },
         "text": {
-          "pt": "No app novo (?ui=svelte), o logo da barra de salas abre suas mensagens diretas: uma conversa privada com cada amigo e \"Você\", só você e seu Claude. Quem você já conversou vem primeiro; os outros amigos ficam embaixo, esperando a primeira mensagem. Cada conversa tem seus próprios épicos, que se abrem embaixo dela. Amizade agora precisa dos dois lados: adicionar alguém manda um pedido, que aparece em cima da lista para a pessoa aceitar ou recusar.",
-          "en": "In the new app (?ui=svelte), the logo on the room bar opens your direct messages: a private conversation with each friend, plus \"You\", just you and your Claude. People you've talked to come first; your other friends wait below for a first message. Each conversation has its own epics, which open under it. Friendship now needs both sides: adding someone sends a request, which shows at the top of their list to accept or decline."
+          "pt": "No app novo, o logo da barra de salas abre suas mensagens diretas: uma conversa privada com cada amigo e \"Você\", só você e seu Claude. Quem você já conversou vem primeiro; os outros amigos ficam embaixo, esperando a primeira mensagem. Cada conversa tem seus próprios épicos, que se abrem embaixo dela. Amizade agora precisa dos dois lados: adicionar alguém manda um pedido, que aparece em cima da lista para a pessoa aceitar ou recusar.",
+          "en": "In the new app, the logo on the room bar opens your direct messages: a private conversation with each friend, plus \"You\", just you and your Claude. People you've talked to come first; your other friends wait below for a first message. Each conversation has its own epics, which open under it. Friendship now needs both sides: adding someone sends a request, which shows at the top of their list to accept or decline."
         },
         "image": "changelog/2026-11-17-dms.webp"
       },
@@ -90,8 +130,8 @@
           "en": "Your machines and agents, with delivery per room"
         },
         "text": {
-          "pt": "No app novo (?ui=svelte), o pé da barra lateral mostra seus computadores (cada um rodando o vibebook herdr) e suas sandboxes, com os agents de cada um embaixo, e os agents que você abriu à mão em \"Outros agents\". Cada computador tem um interruptor por sala: ligado entrega as mensagens da sala pros agents dele (e abre um se não houver), desligado para de entregar sem fechar a aba, que fica com o contexto. Agents abertos à mão têm o próprio interruptor, e o de cima liga ou desliga tudo. Um computador que parou de responder aparece como Offline, com \"copiar correção\". Sem nada conectado, três jeitos de começar: este computador, uma sandbox na nuvem ou só desta vez.",
-          "en": "In the new app (?ui=svelte), the foot of the sidebar shows your computers (each running vibebook herdr) and your sandboxes, with each one's agents under it, and the agents you started by hand under \"Other agents\". Each computer has one switch per room: on delivers the room's messages to its agents (and opens one if there's none), off stops delivering without closing the tab, which keeps its context. Agents started by hand have their own switch, and the one on top turns everything on or off. A computer that stopped answering shows as Offline, with \"copy fix\". With nothing connected, three ways to start: this computer, a cloud sandbox, or just this once."
+          "pt": "No app novo, o pé da barra lateral mostra seus computadores (cada um rodando o vibebook herdr) e suas sandboxes, com os agents de cada um embaixo, e os agents que você abriu à mão em \"Outros agents\". Cada computador tem um interruptor por sala: ligado entrega as mensagens da sala pros agents dele (e abre um se não houver), desligado para de entregar sem fechar a aba, que fica com o contexto. Agents abertos à mão têm o próprio interruptor, e o de cima liga ou desliga tudo. Um computador que parou de responder aparece como Offline, com \"copiar correção\". Sem nada conectado, três jeitos de começar: este computador, uma sandbox na nuvem ou só desta vez.",
+          "en": "In the new app, the foot of the sidebar shows your computers (each running vibebook herdr) and your sandboxes, with each one's agents under it, and the agents you started by hand under \"Other agents\". Each computer has one switch per room: on delivers the room's messages to its agents (and opens one if there's none), off stops delivering without closing the tab, which keeps its context. Agents started by hand have their own switch, and the one on top turns everything on or off. A computer that stopped answering shows as Offline, with \"copy fix\". With nothing connected, three ways to start: this computer, a cloud sandbox, or just this once."
         }
       }
     ],

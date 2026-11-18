@@ -306,7 +306,7 @@ export async function auditDesignSystemInbox(
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/b/${first.id}` &&
-        url.searchParams.get("ui") === "svelte" &&
+        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
         url.hash === `#m${mention.id}`,
     );
     await expect(roomInbox).toHaveCount(0);
@@ -320,7 +320,7 @@ export async function auditDesignSystemInbox(
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/b/${first.id}` &&
-        url.searchParams.get("ui") === "svelte" &&
+        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
         !url.hash &&
         !url.searchParams.has("t"),
     );
@@ -343,7 +343,7 @@ export async function auditDesignSystemInbox(
     await expect(page).toHaveURL(
       (url) =>
         url.pathname === `/b/${second.id}` &&
-        url.searchParams.get("ui") === "svelte" &&
+        url.searchParams.get("ui") !== "vanilla" && // Svelte is the default: no marker
         url.hash === `#m${other.id}`,
     );
     const crossRoomMessage = page.locator(`[data-room-chat] #m${other.id}`);

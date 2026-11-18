@@ -159,6 +159,11 @@ export async function auditDocumentAnswers(
           width: 1440,
         });
         context = profile.context;
+        // A vanilla user since Svelte became the default: this device chose vanilla.
+        if (variant === "vanilla")
+          await context.addCookies([
+            { name: "vb_ui", value: "vanilla", url: fixture.base },
+          ]);
         const page = profile.page;
         const watchErrors = (owned: Page) =>
           owned.on("pageerror", (error) =>
@@ -240,7 +245,7 @@ export async function auditDocumentAnswers(
         const second = await context.newPage();
         watchErrors(second);
         watchWire(second);
-        const roomUrl = `${fixture.base}/b/${roomId}${variant === "svelte" ? "?ui=svelte" : ""}`;
+        const roomUrl = `${fixture.base}/b/${roomId}${variant === "svelte" ? "?ui=svelte" : "?ui=vanilla"}`;
         for (const tab of [page, second]) {
           await tab.goto(roomUrl);
           await expect(header(tab, variant)).toBeVisible();

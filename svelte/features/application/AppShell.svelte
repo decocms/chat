@@ -15,6 +15,7 @@
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
+  import NewUiWelcome from "../onboarding/NewUiWelcome.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
   import DialogContent from "../../lib/studio/DialogContent.svelte";
@@ -463,5 +464,9 @@
           {/snippet}
         </Snapshot>{/key}{/if}
   {/if}
+  {#if $personal.me}<NewUiWelcome
+      returning={!!$personal.me.name}
+      lang={services.language}
+    />{/if}
   <DeviceLockScreen owner={services.device} lang={services.language} />
 </div>

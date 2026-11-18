@@ -24,15 +24,15 @@ const go = async (path: string, init?: RequestInit) => {
 const next = (p: string) => encodeURIComponent(p);
 
 test("provider start without a client id returns to the login in the same UI", async () => {
-  expect(await go(`/google/start?next=${next("/b/abc?ui=svelte")}`)).toBe(
-    "/login?ui=svelte",
+  expect(await go(`/google/start?next=${next("/b/abc?ui=vanilla")}`)).toBe(
+    "/login?ui=vanilla",
   );
-  expect(await go(`/github/start?next=${next("/archived?ui=svelte")}`)).toBe(
-    "/login?ui=svelte",
+  expect(await go(`/github/start?next=${next("/archived?ui=vanilla")}`)).toBe(
+    "/login?ui=vanilla",
   );
   expect(await go(`/google/start?next=${next("/b/abc")}`)).toBe("/login");
   expect(
-    await go(`/google/start?next=${next("https://evil.example/?ui=svelte")}`),
+    await go(`/google/start?next=${next("https://evil.example/?ui=vanilla")}`),
   ).toBe("/login");
 });
 
@@ -41,11 +41,11 @@ test("a failed provider callback keeps the UI carried by its next", async () => 
     headers: { cookie: `vb_oauth=${encodeURIComponent(`s|${n}`)}` },
   });
   expect(
-    await go("/google/callback?state=x&code=y", cookie("/app?ui=svelte")),
-  ).toBe("/login?error=google&ui=svelte");
+    await go("/google/callback?state=x&code=y", cookie("/app?ui=vanilla")),
+  ).toBe("/login?error=google&ui=vanilla");
   expect(
-    await go("/github/callback?state=x&code=y", cookie("/app?ui=svelte")),
-  ).toBe("/login?error=github&ui=svelte");
+    await go("/github/callback?state=x&code=y", cookie("/app?ui=vanilla")),
+  ).toBe("/login?error=github&ui=vanilla");
   expect(await go("/google/callback?state=x&code=y", cookie("/app"))).toBe(
     "/login?error=google",
   );
@@ -77,8 +77,8 @@ test("the consent page's sign-out form returns to the login in the same UI", asy
         env,
       )
     ).headers.get("location");
-  expect(await out("/b/abc?ui=svelte")).toBe(
-    `/login?next=${next("/b/abc?ui=svelte")}&ui=svelte`,
+  expect(await out("/b/abc?ui=vanilla")).toBe(
+    `/login?next=${next("/b/abc?ui=vanilla")}&ui=vanilla`,
   );
   expect(await out("/b/abc")).toBe(`/login?next=${next("/b/abc")}`);
 });
@@ -211,13 +211,13 @@ test("logout answers JSON to the app; logout-all reports a signed-out caller", a
   expect(await all.json()).toEqual({ error: "unauthenticated" });
 });
 
-test("an MCP sign-in started from the Svelte preview comes back to the same app, on the connection", async () => {
+test("an MCP sign-in started from the vanilla app comes back to the same app, on the connection", async () => {
   const { uiNavigationUrl, uiVariant } = await import("../shared/uiVariant");
   const back = (signin: string) =>
     uiNavigationUrl("/b/abc#app:c1", signin, uiVariant(signin));
   expect(
-    back("https://vibebook.dev/api/books/abc/connections/c1/signin?ui=svelte"),
-  ).toBe("/b/abc?ui=svelte#app:c1");
+    back("https://vibebook.dev/api/books/abc/connections/c1/signin?ui=vanilla"),
+  ).toBe("/b/abc?ui=vanilla#app:c1");
   expect(back("https://vibebook.dev/api/books/abc/connections/c1/signin")).toBe(
     "/b/abc#app:c1",
   );

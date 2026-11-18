@@ -556,7 +556,7 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
     consentLoginUrl("https://vibebook.test/authorize?ui=svelte&client_id=x"),
     "https://vibebook.test",
   );
-  expect(login.searchParams.get("ui")).toBe("svelte");
+  expect(login.searchParams.get("ui")).toBeNull(); // Svelte is the default: no marker
   expect(login.searchParams.get("next")).toBe(
     "/authorize?ui=svelte&client_id=x",
   );

@@ -76,9 +76,7 @@ test("GitHub callback refuses malformed identity and preserves safe native conti
     emails = [{ email: { value: "bad" }, primary: true, verified: true }];
     const before = writes.length;
     response = await request();
-    expect(response.headers.get("location")).toBe(
-      "/login?error=github&ui=svelte",
-    );
+    expect(response.headers.get("location")).toBe("/login?error=github");
     expect(response.headers.get("set-cookie")).not.toContain("vb_session=");
     expect(writes).toHaveLength(before);
     tokenStatus = 401;
