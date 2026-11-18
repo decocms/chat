@@ -711,8 +711,8 @@
 @custom-variant data-active (&:where([data-state="active"], [data-active]:not([data-active="false"])));
 @custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
 @custom-variant data-vertical (&:where([data-orientation="vertical"]));
-/* While a DM switch runs (browser.viewTransition sets data-vt on the root). */
-@custom-variant vt-dm (:root[data-vt="dm"] &);
+/* While a room switch runs (browser.viewTransition sets data-vt on the root). */
+@custom-variant vt-room (:root[data-vt="room"] &);
 
 @keyframes pulse-brightness {
   0%,
