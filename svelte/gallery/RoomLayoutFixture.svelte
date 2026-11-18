@@ -171,8 +171,8 @@
             class={[
               "tw:min-h-0 tw:overflow-auto tw:bg-card tw:p-4",
               $view.sidebarCollapsed
-                ? "tw:min-[901px]:animate-room-document-width-rail"
-                : "tw:min-[901px]:animate-room-document-width",
+                ? "tw:md:animate-room-document-width-rail"
+                : "tw:md:animate-room-document-width",
             ]}
           >
             Inbox document

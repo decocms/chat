@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import { MediaQuery } from "svelte/reactivity";
   import type { Presence } from "./model";
   import {
@@ -50,7 +51,7 @@
   const meter = (percent: number) => METERS[contextTone(percent)];
   const model = (who: string) => prettyModel(who) || "Agent";
   /** Beside the row on a wide sidebar; above it in the phone sheet, where there is no room to the right. */
-  const narrow = new MediaQuery("(max-width: 900px)");
+  const narrow = new MediaQuery(MOBILE_QUERY);
 </script>
 
 {#if listeners > 1}<p

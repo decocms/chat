@@ -1,11 +1,11 @@
 /** Lifecycle-owned touch gestures. Finite Tailwind steps replace host-authored inline transforms. */
 import { fromRoomEdge } from "../room-shell/edgeBack";
+import { MOBILE_QUERY } from "../../lib/breakpoints";
 export function swipeMessage(
   node: HTMLElement,
   callbacks: { reply: () => void; copy: () => void; enabled?: boolean },
 ) {
-  const phone =
-    node.ownerDocument.defaultView?.matchMedia("(max-width: 900px)");
+  const phone = node.ownerDocument.defaultView?.matchMedia(MOBILE_QUERY);
   let active = true,
     start: { x: number; y: number; dx: number; locked: boolean } | null = null;
   const classes = [

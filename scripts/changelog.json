@@ -56,7 +56,8 @@
         "A tela de entrar ganhou o logo do vibebook e os ícones do Google e do GitHub nos botões.",
         "Doc, Arquivos, Apps, Decisões e Lembretes vazios agora dizem a mesma coisa do mesmo jeito: o que vai aparecer ali, um botão para fazer você mesmo e um pedido pronto para o seu Claude, que vai para a caixa de mensagem com um clique.",
         "Arquivos, Apps, Decisões e Lembretes mostram um spinner no meio do painel enquanto carregam, em vez de \"Carregando…\" escrito.",
-        "A busca (⌘K) agora fica no topo da lateral de cada sala também, como já ficava nas conversas."
+        "A busca (⌘K) agora fica no topo da lateral de cada sala também, como já ficava nas conversas.",
+        "Telas de 641 a 900 px de largura (tablets, janela estreita) agora usam o layout de celular em todo o app, igual à sala. Antes a página inicial e alguns diálogos usavam o de computador."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -81,20 +82,19 @@
         "The sign-in screen now has the vibebook logo and the Google and GitHub icons on their buttons.",
         "Empty Doc, Files, Apps, Decisions and Reminders tabs now look and read the same: what will show up there, a button to do it yourself, and a ready prompt for your Claude that lands in the message box in one click.",
         "Files, Apps, Decisions and Reminders show a spinner in the middle of the panel while they load, instead of a written \"Loading…\".",
-        "Search (⌘K) now sits at the top of every room's sidebar too, as it already did in conversations."
+        "Search (⌘K) now sits at the top of every room's sidebar too, as it already did in conversations.",
+        "Screens 641 to 900 px wide (tablets, a narrow window) now get the phone layout across the whole app, like the room already did. Before, the home page and some dialogs used the desktop one."
       ]
     },
     "fixes": {
       "pt": [
-        "No celular, tocar na caixa de mensagem (e em qualquer campo de texto) não dá mais zoom na tela."
-      ],
-      "en": [
-        "On phones, tapping the message box (or any text field) no longer zooms the screen in.",
+        "No celular, tocar na caixa de mensagem (e em qualquer campo de texto) não dá mais zoom na tela.",
         "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup.",
         "Seu Claude não aparece mais duas vezes na lateral: os avisos de permissão e de pergunta do plugin agora falam como o mesmo Claude da conversa.",
         "No app novo, os agents na nuvem (sandbox do freestyle) voltaram a ter entrada fixa: \"Agent na nuvem\" no rodapé de agents da lateral abre a chave do freestyle, criar sandbox e terminal."
       ],
       "en": [
+        "On phones, tapping the message box (or any text field) no longer zooms the screen in.",
         "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",
         "A room's sidebar lists only your Claudes for that room again, not every one listening in your other rooms.",
         "The room's top bar lost the stray divider before the panel's tabs (Doc, Files…).",

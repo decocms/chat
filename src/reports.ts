@@ -198,7 +198,7 @@ export async function productReport(env: Env, now = Date.now()) {
       const tot = (k: "requests" | "bytes" | "cachedBytes" | "threats") => wk.reduce((t, d) => t + d.sum[k], 0);
       if (yd) zone = [
         "",
-        "**Zona vibebook.dev** (tudo que passa pela CF)",
+        `**Zona ${env.CF_ZONE || "vibebook.dev"}** (tudo que passa pela CF)`,
         `- Requests: ${vs(yd.sum.requests, tot("requests"))} · visitantes únicos ${yd.uniq.uniques}`,
         `- Banda: **${bytes(yd.sum.bytes)}** (média ${bytes(tot("bytes") / 7)}) · do cache ${yd.sum.bytes ? Math.round((yd.sum.cachedBytes / yd.sum.bytes) * 100) : 0}%`,
         yd.sum.threats ? `- Ameaças bloqueadas: ${yd.sum.threats}` : "",
@@ -269,7 +269,7 @@ async function bytesLines(env: Env, zone: string, from: number, to: number) {
 const ms = (us?: number | null) => (us == null ? "?" : us >= 1e6 ? `${(us / 1e6).toFixed(1)}s` : `${Math.round(us / 1000)}ms`);
 
 async function zoneId(env: Env) {
-  const r = await fetch("https://api.cloudflare.com/client/v4/zones?name=vibebook.dev", { headers: { authorization: `Bearer ${env.CF_ANALYTICS_TOKEN}` } });
+  const r = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${encodeURIComponent(env.CF_ZONE || "vibebook.dev")}`, { headers: { authorization: `Bearer ${env.CF_ANALYTICS_TOKEN}` } });
   return readZoneResponse(r);
 }
 

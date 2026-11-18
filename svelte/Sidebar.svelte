@@ -227,9 +227,7 @@
         /></span
       >{/each}
     <MutationStatus {owner} t={vb.t} />
-    {#if footer}<div
-        class="tw:mt-auto tw:shrink-0 tw:pt-2 tw:max-[900px]:hidden"
-      >
+    {#if footer}<div class="tw:mt-auto tw:shrink-0 tw:pt-2 tw:max-md:hidden">
         {@render footer(true)}
       </div>{/if}
   {:else}
@@ -237,7 +235,7 @@
         type="button"
         use:sheetHandle
         aria-label={vb.t("Fechar")}
-        class="tw:mx-auto tw:h-5 tw:w-12 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border-0 tw:bg-muted tw:min-[901px]:hidden"
+        class="tw:mx-auto tw:h-5 tw:w-12 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border-0 tw:bg-muted tw:md:hidden"
         onclick={onopenside}
       ></button>{/if}
     {#if appNavigation}<RoomStrip
@@ -260,7 +258,7 @@
       <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
       <div
         data-room-sidebar-header
-        class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
+        class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:md:flex"
       >
         <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
         <button
@@ -302,7 +300,7 @@
               : undefined}
             class={navRow({
               class:
-                "tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
+                "tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:md:group-hover/room:pr-2 tw:md:group-focus-within/room:pr-2 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
             })}
             onclick={(event) => {
               if (!event.currentTarget.isConnected) return;
@@ -321,16 +319,15 @@
               >{:else}<RoomMark
                 title={room.book.title}
                 src={roomIcon}
-                class="tw:min-[901px]:hidden"
+                class="tw:md:hidden"
               /><Icon
                 icon={MessageCircle01}
                 size={16}
-                class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
+                class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:md:block"
               />
               <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                ><span class="tw:min-[901px]:hidden">{room.book.title}</span
-                ><span class="tw:hidden tw:min-[901px]:inline"
-                  >{vb.t("Sala principal")}</span
+                ><span class="tw:md:hidden">{room.book.title}</span><span
+                  class="tw:hidden tw:md:inline">{vb.t("Sala principal")}</span
                 ></span
               >{/if}
             <WaitBadge
@@ -347,7 +344,7 @@
             label={vb.t("Renomear")}
             size="icon-xs"
             tooltipSide="bottom"
-            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:min-[901px]:hidden tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
+            class="tw:absolute tw:top-1.5 tw:right-1.5 tw:md:hidden tw:translate-x-1 tw:scale-90 tw:text-muted-foreground tw:opacity-0 tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-out tw:hover:bg-background/60 tw:hover:text-sidebar-foreground tw:focus-visible:translate-x-0 tw:focus-visible:scale-100 tw:focus-visible:opacity-100 tw:group-hover/room:translate-x-0 tw:group-hover/room:scale-100 tw:group-hover/room:opacity-100 tw:motion-reduce:transition-none tw:[@media(hover:none)]:translate-x-0 tw:[@media(hover:none)]:scale-100 tw:[@media(hover:none)]:opacity-100"
             onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
           >
         </div>
@@ -396,7 +393,7 @@
             >
           </div>{/if}
         {#if thread !== "main" && !thread.startsWith("pre:")}<div
-            class="tw:shrink-0 tw:min-[901px]:hidden"
+            class="tw:shrink-0 tw:md:hidden"
           >
             <ThreadHeader
               {room}
@@ -427,7 +424,7 @@
         />
       </div>{/snippet}
     <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. A DM has neither. -->
-    {#if !dm}<div class="tw:contents tw:max-[900px]:hidden">
+    {#if !dm}<div class="tw:contents tw:max-md:hidden">
         <PinnedItems
           {room}
           session={pins}

@@ -201,13 +201,13 @@
   data-native-app-navigation
   class={cn(
     studioType,
-    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:min-[901px]:flex tw:min-[901px]:h-dvh tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:pt-2 tw:min-[901px]:pb-3",
+    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:md:flex tw:md:h-dvh tw:md:flex-col tw:md:px-2 tw:md:pt-2 tw:md:pb-3",
     inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
   )}
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
   <span
-    class="tw:max-[900px]:hidden tw:min-[901px]:flex tw:min-[901px]:h-[51px] tw:min-[901px]:shrink-0 tw:min-[901px]:items-center"
+    class="tw:max-md:hidden tw:md:flex tw:md:h-[51px] tw:md:shrink-0 tw:md:items-center"
     ><RailButton
       bind:ref={homeButton}
       label={text("home")}
@@ -227,12 +227,12 @@
   >
   <span
     aria-hidden="true"
-    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:-mt-2 tw:min-[901px]:h-px tw:min-[901px]:w-6"
+    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-md:hidden tw:md:-mt-2 tw:md:h-px tw:md:w-6"
   ></span>
   <!-- Desktop: DMs with something new, right under Home (like Discord); the room tiles follow. -->
   {#if freshDms.length}<div
       data-rail-dms
-      class="tw:flex tw:shrink-0 tw:flex-col tw:items-center tw:gap-2.5 tw:py-1.5 tw:max-[900px]:hidden"
+      class="tw:flex tw:shrink-0 tw:flex-col tw:items-center tw:gap-2.5 tw:py-1.5 tw:max-md:hidden"
     >
       <div
         role="list"
@@ -254,7 +254,7 @@
     data-native-room-switcher
     aria-haspopup="dialog"
     aria-expanded={switcher}
-    class="tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-1 tw:px-2 tw:text-base tw:font-semibold tw:min-[901px]:hidden"
+    class="tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-1 tw:px-2 tw:text-base tw:font-semibold tw:md:hidden"
     onclick={() => (switcher = true)}
     ><span class="tw:truncate">{text("startTitle")}</span><Icon
       icon={ChevronDown}
@@ -262,7 +262,7 @@
     /></Button
   >
   <div
-    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:items-center tw:gap-2.5 tw:self-stretch tw:overflow-x-auto tw:max-[900px]:hidden tw:px-1 tw:py-1.5 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:min-[901px]:-mx-2 tw:min-[901px]:flex-col tw:min-[901px]:overflow-x-hidden tw:min-[901px]:overflow-y-auto tw:min-[901px]:px-2"
+    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:items-center tw:gap-2.5 tw:self-stretch tw:overflow-x-auto tw:max-md:hidden tw:px-1 tw:py-1.5 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:md:-mx-2 tw:md:flex-col tw:md:overflow-x-hidden tw:md:overflow-y-auto tw:md:px-2"
     role="list"
     aria-label={text("home")}
   >
@@ -270,7 +270,7 @@
           role="listitem"
           data-tint-group
           class={cn(
-            "tw:flex tw:flex-row tw:gap-2.5 tw:rounded-2xl tw:p-1.5 tw:min-[901px]:flex-col",
+            "tw:flex tw:flex-row tw:gap-2.5 tw:rounded-2xl tw:p-1.5 tw:md:flex-col",
             group.tint,
           )}
         >
@@ -282,7 +282,7 @@
           )}{/each}{/if}{/each}
   </div>
   <div
-    class="tw:flex tw:shrink-0 tw:flex-row tw:items-center tw:gap-1 tw:min-[901px]:flex-col"
+    class="tw:flex tw:shrink-0 tw:flex-row tw:items-center tw:gap-1 tw:md:flex-col"
   >
     <RailButton
       icon={SearchMd}
@@ -304,12 +304,12 @@
   </div>
   {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
           aria-hidden="true"
-          class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
+          class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-md:hidden tw:md:h-px tw:md:w-6"
         ></span>{/if}
       <div
         class={cn(
           "tw:flex tw:shrink-0", // phones: after search and +, at the right
-          accountInSidebar && "tw:min-[901px]:hidden",
+          accountInSidebar && "tw:md:hidden",
         )}
       >
         <AccountRow me={$personal.me} row={false} />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import { onMount, onDestroy, untrack } from "svelte";
   import { get } from "svelte/store";
   import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps/app-bridge";
@@ -97,7 +98,7 @@
       },
       locale: props.lang === "en" ? "en-US" : "pt-BR",
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      platform: matchMedia("(max-width: 900px)").matches ? "mobile" : "web",
+      platform: matchMedia(MOBILE_QUERY).matches ? "mobile" : "web",
       user: { email: props.room.me, name: props.name(props.room.me) },
       room: { id: props.room.id, title: props.room.book.title },
     };

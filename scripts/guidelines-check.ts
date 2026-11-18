@@ -45,7 +45,7 @@ const MARKDOWN_ALLOWED = [
   /^\.github\/pull_request_template\.md$/,
 ];
 
-/** Splits `max-[900px]:hover:tw-x` at the colons outside brackets. */
+/** Splits `max-md:hover:tw-x` at the colons outside brackets. */
 function segments(token: string): string[] {
   const parts: string[] = [];
   let depth = 0,
@@ -65,13 +65,10 @@ function segments(token: string): string[] {
 
 function badBreakpoint(variant: string): boolean {
   if (variant.startsWith("@")) return false; // container query, not the screen
-  if (/^(?:max-|min-)?(?:sm|md|lg|xl|[2-7]xl)$/.test(variant)) return true;
-  const arbitrary = /^(max|min)-\[(.+)\]$/.exec(variant);
-  if (!arbitrary) return false;
-  return !(
-    (arbitrary[1] === "max" && arbitrary[2] === "900px") ||
-    (arbitrary[1] === "min" && arbitrary[2] === "901px")
-  );
+  // The theme has one breakpoint token, md (svelte/styles/tailwind.css): md = desktop, max-md = mobile.
+  if (variant === "md" || variant === "max-md") return false;
+  if (/^(?:max-|min-)?(?:sm|lg|xl|[2-7]xl)$/.test(variant)) return true;
+  return /^(max|min)-\[.+\]$/.test(variant); // pixel values: use md / max-md
 }
 
 function badColor(utility: string): boolean {
@@ -80,16 +77,11 @@ function badColor(utility: string): boolean {
   return PALETTE_CLASS.test(bare.replace(/\/[^/]+$/, ""));
 }
 
+/** A width media query written as a literal: use MOBILE_QUERY from svelte/lib/breakpoints.ts. */
 function badMedia(line: string): boolean {
-  for (const m of line.matchAll(
-    /matchMedia\([^)]*?\(\s*(max|min)-width\s*:\s*([^)\s]+)\s*\)/g,
-  ))
-    if (
-      !(m[1] === "max" && m[2] === "900px") &&
-      !(m[1] === "min" && m[2] === "901px")
-    )
-      return true;
-  return false;
+  return /(?:matchMedia|MediaQuery)\([^)]*?\(\s*(?:max|min)-width\s*:/.test(
+    line,
+  );
 }
 
 const isSvelteSource = (path: string) =>

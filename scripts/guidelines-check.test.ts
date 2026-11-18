@@ -40,27 +40,28 @@ test("colors: only theme tokens", () => {
   ).toEqual([]);
 });
 
-test("breakpoints: only max-[900px] and min-[901px]", () => {
+test("breakpoints: only the md token (md = desktop, max-md = mobile)", () => {
   expect(
-    svelte('<div class="tw:max-[900px]:hidden tw:min-[901px]:flex"></div>'),
+    svelte('<div class="tw:max-md:hidden tw:md:flex tw:md:hover:flex"></div>'),
   ).toEqual([]);
   expect(svelte('<div class="tw:sm:flex"></div>')).toEqual(["breakpoint"]);
-  expect(svelte('<div class="tw:md:hover:flex"></div>')).toEqual([
-    "breakpoint",
-  ]);
+  expect(svelte('<div class="tw:lg:flex"></div>')).toEqual(["breakpoint"]);
   expect(svelte('<div class="tw:max-sm:flex"></div>')).toEqual(["breakpoint"]);
   expect(svelte('<div class="tw:max-[720px]:p-2"></div>')).toEqual([
     "breakpoint",
   ]);
+  expect(svelte('<div class="tw:min-[901px]:p-2"></div>')).toEqual([
+    "breakpoint",
+  ]);
   expect(svelte('<div class="tw:@min-3xl:grid"></div>')).toEqual([]);
+  expect(svelte("const m = matchMedia(MOBILE_QUERY);", "svelte/a.ts")).toEqual(
+    [],
+  );
   expect(
     svelte('const m = matchMedia("(max-width: 900px)");', "svelte/a.ts"),
-  ).toEqual([]);
+  ).toEqual(["breakpoint"]);
   expect(
-    svelte('const m = matchMedia("(min-width: 901px)");', "svelte/a.ts"),
-  ).toEqual([]);
-  expect(
-    svelte('const m = matchMedia("(max-width: 720px)");', "svelte/a.ts"),
+    svelte('const m = new MediaQuery("(min-width: 720px)");', "svelte/a.ts"),
   ).toEqual(["breakpoint"]);
   expect(svelte('matchMedia("(pointer: coarse)")', "svelte/a.ts")).toEqual([]);
 });

@@ -101,7 +101,7 @@
           target.focus();
         }
       }}
-      class="tw:inset-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:gap-4 tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:sm:max-w-none"
+      class="tw:inset-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:gap-4 tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-none"
     >
       <DialogHeader class="tw:pr-8">
         <DialogTitle class="tw:font-sans"

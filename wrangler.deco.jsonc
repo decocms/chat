@@ -41,7 +41,12 @@
     "METRICS_ROOMS": "c635b3ffbf93,f94aedb83899",
     "ISSUES_ROOM": "f94aedb83899",
     "AGENT_STREAK_OFF": "8517909cec03",
-    "CF_ACCOUNT_ID": "c95fc4cec7fc52453228d9db170c372c"
+    "CF_ACCOUNT_ID": "c95fc4cec7fc52453228d9db170c372c",
+    // src/host.ts: links, logo and push subject; emails come from login@/mention@/convite@ this domain once
+    // Cloudflare Email Sending is set up for it.
+    "PUBLIC_ORIGIN": "https://chat.decocms.com",
+    "MAIL_DOMAIN": "chat.decocms.com",
+    "CF_ZONE": "decocms.com"
   },
   // Off until the switch: the 8h/18h digest would mail real people from the rehearsal copy.
   "triggers": { "crons": [] },

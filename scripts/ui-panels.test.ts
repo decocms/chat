@@ -987,9 +987,7 @@ describe("native Svelte room panels", () => {
         const pill = target.querySelector("[data-rail-pill]");
         if (selected) {
           expect(pill?.getAttribute("data-rail-pill"), label).toBe("selected");
-          expect(pill?.getAttribute("class"), label).toContain(
-            "tw:min-[901px]:w-[3px]",
-          );
+          expect(pill?.getAttribute("class"), label).toContain("tw:md:w-[3px]");
         } else expect(pill, label).toBeNull();
         const link = target.querySelector("a")!;
         // A styled tooltip (bits trigger), not the slow native title.

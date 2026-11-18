@@ -334,7 +334,7 @@
   {hidden}
   class={hidden
     ? "tw:hidden"
-    : "tw:relative tw:shrink-0 tw:space-y-2 tw:bg-background tw:px-3 tw:pt-1 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground tw:sm:px-4 tw:sm:pb-4"}
+    : "tw:relative tw:shrink-0 tw:space-y-2 tw:bg-background tw:px-3 tw:pt-1 tw:pb-3 tw:font-sans tw:text-sm tw:text-foreground tw:md:px-4 tw:md:pb-4"}
 >
   {#if dragging}<div
       role="status"

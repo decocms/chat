@@ -41,7 +41,7 @@
   value={scope}
   onValueChange={(value) => (scope = value === "all" ? "all" : "room")}
   data-vb-native="room-strip"
-  class="tw:shrink-0 tw:gap-0 tw:font-sans tw:min-[901px]:hidden"
+  class="tw:shrink-0 tw:gap-0 tw:font-sans tw:md:hidden"
 >
   <TabsList
     variant="underline"
@@ -62,7 +62,7 @@
 </Tabs>
 {#if scope === "all" && $personal.me}<div
     data-room-scope-panel="all"
-    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:min-[901px]:hidden"
+    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:md:hidden"
   >
     <RoomList
       rooms={roomsOnly($personal.me.books)}
@@ -78,7 +78,7 @@
   </div>{/if}
 <div
   data-room-scope-panel="room"
-  class={cn("tw:contents", scope === "all" && "tw:max-[900px]:hidden")}
+  class={cn("tw:contents", scope === "all" && "tw:max-md:hidden")}
 >
   {@render children()}
 </div>

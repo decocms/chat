@@ -49,7 +49,7 @@
       "tw:bg-background tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:fixed tw:z-50 tw:flex tw:flex-col tw:gap-4 tw:shadow-lg tw:transition tw:ease-in-out tw:data-[state=closed]:duration-200 tw:data-[state=open]:duration-200",
       SIDES[side],
       (side === "left" || side === "right") &&
-        (size === "lg" ? "tw:w-full tw:sm:max-w-xl" : "tw:sm:max-w-sm"),
+        (size === "lg" ? "tw:w-full tw:md:max-w-xl" : "tw:md:max-w-sm"),
       className,
     )}
     {...rest}

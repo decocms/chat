@@ -242,7 +242,7 @@
 </script>
 
 {#snippet grids(months: Month<DateValue>[], weekdays: string[])}
-  <div class="tw:flex tw:flex-col tw:gap-2 tw:sm:flex-row">
+  <div class="tw:flex tw:flex-col tw:gap-2 tw:md:flex-row">
     {#each months as shown, index (shown.value.toString())}
       <div class="tw:flex tw:flex-col tw:gap-4">
         <div

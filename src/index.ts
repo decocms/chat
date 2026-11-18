@@ -61,6 +61,10 @@ export type Env = {
   OPENROUTER_API_KEY: string;
   SESSION_SECRET: string;
   PUBLIC_ORIGIN?: string;
+  /** Domain the emails come from (login@, mention@, convite@); default: PUBLIC_ORIGIN's host (src/host.ts). */
+  MAIL_DOMAIN?: string;
+  /** Cloudflare zone of the product report's traffic numbers (src/reports.ts); default vibebook.dev. */
+  CF_ZONE?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
