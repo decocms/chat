@@ -166,3 +166,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. No check in `bun run check` or `ci.yml` used the deleted files.
 - Undo: `git revert` the commit of this branch.
 - Status: open
+
+### 2026-11-18 · ci/main-red-skip-superseded · Ignore a cancelled CI run when main has a newer commit
+- Agent: claude-opus-5-5
+- Context: The human asked to open an issue when CI on `main` is cancelled. CI uses a concurrency group, so a newer push cancels a queued run. The first run of `main-red.yml` opened issue #167 for that reason only.
+- Decision: If the run is cancelled and `main` has a newer commit, the workflow does nothing. A failed run always opens the issue.
+- Other options: Remove `cancelled` from the conditions. Then a cancelled run on the newest commit is not visible.
+- Risk: low. The run of the newer commit reports its own result.
+- Undo: Remove the `cancelled` block in `.github/workflows/main-red.yml`.
+- Status: open
