@@ -62,6 +62,13 @@ export async function nativeBrowserFixtures(
   ];
 }
 
+/** On desktop, the Agents pane opens only from an agent's row: false when the room has no agent yet. */
+export async function desktopAgentsPane(page: Page) {
+  return !(await page
+    .locator('[data-native-agent-footer] [data-native-agent-foot="setup"]')
+    .isVisible());
+}
+
 /** Actual native document controls. Never click an already-selected phone tab: that closes its history-owned sheet. */
 export async function openNativeRoomPane(
   page: Page,
@@ -129,14 +136,14 @@ export async function openNativeRoomPane(
     if ((await full.getAttribute("aria-pressed")) === "true")
       await full.click();
     // The tabs live in the room's top bar and open the pane when it's closed;
-    // your Claude (the Agents pane) sits at the foot of the sidebar.
-    // With no agent yet the foot offers three ways to get one (#106); the
-    // cloud sandbox is the one that opens the Agents pane.
+    // your Claude (the Agents pane) opens from its row at the foot of the
+    // sidebar. With no agent the foot has only setup options (the cloud one
+    // links to /settings), so callers skip the pane: see desktopAgentsPane.
     const button =
       pane === "agents"
         ? page
             .locator(
-              '[data-native-agent-footer] [data-agent-setup="sandbox"], [data-native-agent-footer] [data-agent-row] button, [data-native-agent-footer] > button',
+              "[data-native-agent-footer] [data-agent-row] button, [data-native-agent-footer] > button",
             )
             .first()
         : page.locator(
