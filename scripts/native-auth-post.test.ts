@@ -134,13 +134,13 @@ test("signed-out native POST preserves only the local authorize query for login,
     "http://127.0.0.1:8797",
   );
   expect(location.pathname).toBe("/login");
-  expect(location.searchParams.get("ui")).toBe("svelte");
+  expect(location.searchParams.get("ui")).toBeNull(); // Svelte is the default: no marker
   expect(location.searchParams.get("next")).toBe(
     "/authorize?ui=svelte&client_id=client&state=original",
   );
   expect(location.href).not.toContain("OLD-HANDLE");
   const vanilla = await connect.request(
-    "http://127.0.0.1:8797/authorize?client_id=client",
+    "http://127.0.0.1:8797/authorize?ui=vanilla&client_id=client",
     post("approve"),
     { ASSETS: assets },
   );

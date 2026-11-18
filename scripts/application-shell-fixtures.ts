@@ -47,6 +47,7 @@ export function shellFixture(
     room: async () => ({ claude_on: false, agents: [], sandboxes: [] }),
     focus: async () => ({ ok: true }),
     toggle: async (_id, on) => ({ ok: true, claude_on: on }),
+    delivery: async () => ({ ok: true }),
     sandboxes: async () => ({ connected: true, claude: true, sandboxes: [] }),
     create: async () => ({
       ok: true,
@@ -110,8 +111,9 @@ export function shellFixture(
         return { ok: true, name };
       },
       avatar: async () => ({ ok: true, avatar: 1 }),
-      addFriend: async () => ({ ok: true }),
-      removeFriend: async () => ({ ok: true }),
+      connect: async () => ({ ok: true as const }),
+      dismiss: async () => ({ ok: true as const }),
+      answerInvite: async () => ({ ok: true as const }),
     },
     runnerFetch: async () =>
       new Response("null", { headers: { "content-type": "application/json" } }),

@@ -16,7 +16,7 @@ const MAX_ROOMS = 40;
 export async function routeMessage(env: Env, email: string, text: string) {
   const rows = await env.DB.prepare(
     `SELECT b.id, b.title, b.folder, b.summary, b.epics FROM books b JOIN members m ON m.book_id = b.id
-     WHERE m.email = ? AND m.archived_at IS NULL ORDER BY b.updated_at DESC LIMIT ?`,
+     WHERE m.email = ? AND m.archived_at IS NULL AND b.dm IS NULL ORDER BY b.updated_at DESC LIMIT ?`,
   )
     .bind(email, MAX_ROOMS)
     .all<{ id: string; title: string; folder: string | null; summary: string | null; epics: string | null }>();

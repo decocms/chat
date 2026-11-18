@@ -28,8 +28,9 @@ function api(overrides: Partial<AccountApi> = {}): AccountApi {
     }),
     name: async (name) => ({ ok: true, name }),
     avatar: async () => ({ ok: true, avatar: 2 }),
-    addFriend: async () => ({ ok: true }),
-    removeFriend: async () => ({ ok: true }),
+    connect: async () => ({ ok: true as const }),
+    dismiss: async () => ({ ok: true as const }),
+    answerInvite: async () => ({ ok: true as const }),
     ...overrides,
   };
 }
@@ -167,11 +168,11 @@ test("ignored-abort conversion deadline fences upload and requires explicit reco
 });
 test("known server refusal retains account and permits explicit correction without uncertainty", async () => {
   const h = await fixture({
-    addFriend: async () => {
-      throw new AccountFailure("invalid email", 400);
+    name: async () => {
+      throw new AccountFailure("invalid name", 400);
     },
   });
-  h.owner.add("bad");
+  h.owner.rename("bad");
   await settle();
   expect(get(h.owner.state).phase).toBe("error");
   expect(get(h.owner.state).me?.email).toBe("me@test.com");

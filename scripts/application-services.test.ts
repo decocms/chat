@@ -88,6 +88,7 @@ function fixture(
     room: async () => ({ claude_on: false, agents: [], sandboxes: [] }),
     focus: async () => ({ ok: true }),
     toggle: async (_id, on) => ({ ok: true, claude_on: on }),
+    delivery: async () => ({ ok: true }),
     sandboxes: async () => ({ connected: true, claude: true, sandboxes: [] }),
     create: async () => ({ ok: true, id: "new", vm_id: "vm", name: "new" }),
     power: async () => ({ ok: true }),
@@ -175,8 +176,9 @@ function fixture(
       }),
       name: async (name) => ({ ok: true, name }),
       avatar: async () => ({ ok: true, avatar: 1 }),
-      addFriend: async () => ({ ok: true }),
-      removeFriend: async () => ({ ok: true }),
+      connect: async () => ({ ok: true as const }),
+      dismiss: async () => ({ ok: true as const }),
+      answerInvite: async () => ({ ok: true as const }),
     },
     onIdentityReset: () => {
       identityResets++;
@@ -599,7 +601,7 @@ test("known Personal global 401 revokes private scope and caches before login re
   await settle();
   expect(h.documentNavigations).toHaveLength(1);
   expect(h.documentNavigations[0]).toContain("/login?");
-  expect(h.documentNavigations[0]).toContain("ui=svelte");
+  expect(h.documentNavigations[0]).not.toContain("&ui="); // Svelte is the default: the login needs no marker
   h.connections[0]!.callbacks.onEvent(event(canonical()));
   h.channels[0]!.options.onAccount();
   h.flushQueued();

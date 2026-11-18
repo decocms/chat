@@ -1697,7 +1697,20 @@ const EN = {
   "convidado": "invited",
   "Remover {email} dos amigos": "Remove {email} from friends",
   "Remover dos amigos": "Remove from friends",
-  "Quem você convida para um vibebook vira amigo aqui.": "People you invite to a vibebook show up here as friends.",
+  "Quem você convida para um vibebook recebe um pedido de amizade.": "People you invite to a vibebook get a friend request.",
+  "Pedidos": "Requests",
+  "{who} te chamou · {people}": "{who} invited you · {people}",
+  "Recusar convite para {room}": "Decline the invite to {room}",
+  "quer conversar": "wants to talk",
+  "aguardando": "waiting",
+  "recusou": "declined",
+  "Convidada(o), ainda não respondeu": "Invited, hasn't answered yet",
+  "Recusou o convite": "Declined the invite",
+  "Convidados": "Invited",
+  "Aceitar {email}": "Accept {email}",
+  "Recusar {email}": "Decline {email}",
+  "Pedido enviado": "Request sent",
+  "Cancelar pedido para {email}": "Cancel the request to {email}",
   "email do amigo": "friend's email",
   "Email do amigo": "Friend's email",
   "Convidar": "Invite",
@@ -1940,7 +1953,7 @@ const EN = {
   "Na sala: {who}": "In the room: {who}",
   "Só você aqui: convide em Pessoas": "Only you here: invite people in People",
   "O agent escreve o doc e cria os épicos": "Agent writes the doc and creates the epics",
-  "Não achei {who} nos seus amigos: convide pelo email em Pessoas.": "Couldn't find {who} among your friends: invite them by email in People.",
+  "Não achei {who} nas suas salas: convide pelo email em Pessoas.": "Couldn't find {who} in your rooms: invite them by email in People.",
   "O que é e com quem?": "What is it, and with whom?",
   "Ex.: viagem de avião pra SP com os dogs, eu e a Alexia": "E.g.: flying to São Paulo with the dogs, me and Alexia",
   "Vira o título da sala e a primeira mensagem. Quem você citar é convidado, e seu agent já liga na sala.": "It becomes the room's title and first message. Whoever you mention is invited, and your agent turns on in the room.",
@@ -2262,13 +2275,14 @@ const t = (pt, vars) => {
   return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
 };
 const langSwitch = () => `<span class="langSw" role="group" aria-label="Idioma / Language">${["pt", "en"].map((l) => `<button type="button" class="${LANG === l ? "sel" : ""}" data-lang="${l}" aria-pressed="${LANG === l}">${l.toUpperCase()}</button>`).join("<i>·</i>")}</span>`;
-// The opt-in Svelte app (?ui=svelte). `cls` lets the phone drawer give it a full row of its own.
-const uiSwitch = (cls = "langSw") => `<label class="${cls}"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}" ${new URL(location.href).searchParams.get("ui") === "svelte" ? "checked" : ""}> <span>${t("Nova UI")}</span></label>`;
+// Svelte is the default app since Nov 2026; this one is the fallback. The switch goes back to it for this device
+// (/ui/svelte clears the vb_ui cookie, src/ui-select.ts). `cls` lets the phone drawer give it a full row of its own.
+const uiSwitch = (cls = "langSw") => `<label class="${cls}"><input type="checkbox" role="switch" data-ui-switch aria-label="${t("Nova UI")}"> <span>${t("Nova UI")}</span></label>`;
 document.addEventListener("change", (event) => {
   if (!(event.target instanceof HTMLInputElement) || !event.target.matches("[data-ui-switch]") || !event.target.isConnected) return;
   const next = new URL(location.href);
-  if (event.target.checked) next.searchParams.set("ui", "svelte"); else next.searchParams.delete("ui");
-  location.href = next.pathname + next.search + next.hash;
+  next.searchParams.delete("ui");
+  location.href = `/ui/${event.target.checked ? "svelte" : "vanilla"}?next=${encodeURIComponent(next.pathname + next.search + next.hash)}`;
 });
 
 document.addEventListener("click", (e) => {
@@ -2750,8 +2764,9 @@ async function home() {
 }
 function homeWith(me) {
   myBooks = me.books; myWaits = me.waits || []; renderSwitcher();
-  knownNames = Object.fromEntries(me.friends.filter((f) => f.name).map((f) => [f.email, f.name]));
-  avatarV = Object.fromEntries([...me.friends.filter((f) => f.avatar).map((f) => [f.email, f.avatar]), ...(me.avatar ? [[me.email, me.avatar]] : [])]);
+  const known = [...(me.people || []), ...me.friends, ...(me.requests || [])];
+  knownNames = Object.fromEntries(known.filter((f) => f.name).map((f) => [f.email, f.name]));
+  avatarV = Object.fromEntries([...known.filter((f) => f.avatar).map((f) => [f.email, f.avatar]), ...(me.avatar ? [[me.email, me.avatar]] : [])]);
   const first = (me.name || "").split(" ")[0];
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   if (!me.books.length && !obOff()) return onboarding(me);
@@ -2785,7 +2800,7 @@ function homeWith(me) {
     <input type="file" id="picFile" accept="image/png,image/jpeg,image/webp" hidden />
     <div class="hello">
       <div class="helloText"><h1>${first ? t("Oi, {name}", { name: esc(first) }) : t("Seus vibebooks")}</h1>
-        <p>${plural(me.books.length, "vibebook", "vibebooks")} · ${plural(me.friends.length, t("amigo"), t("amigos"))} · <a class="archLink" data-nav href="/archived">${t("Arquivo")}</a><span id="waitN"></span></p></div>
+        <p>${plural(me.books.length, "vibebook", "vibebooks")} · <a class="archLink" data-nav href="/archived">${t("Arquivo")}</a><span id="waitN"></span></p></div>
       <button class="primary" id="new">${icon("plus")} ${t("Novo vibebook")}</button>
     </div>
     <div class="grid">
@@ -2805,13 +2820,7 @@ function homeWith(me) {
       </main>
       <aside class="friends">
         <section class="agentBox" id="agentBox" aria-live="polite"></section>
-        <h2>${t("Amigos")} <small>${me.friends.length || ""}</small></h2>
-        ${me.friends.length ? me.friends.map((f) => `
-          <div class="friend">${avatar(f.email)}<div class="fn" title="${esc(f.email)}">${esc(f.name || name(f.email))}
-            <small>${f.shared ? `${plural(f.shared, t("vibebook junto"), t("vibebooks juntos"))}` : f.joined ? t("na plataforma") : t("convidado")}</small></div>
-            <button class="ghost x" data-unfriend="${esc(f.email)}" aria-label="${t("Remover {email} dos amigos", { email: esc(f.email) })}" title="${t("Remover dos amigos")}">${icon("x")}</button></div>`).join("")
-          : `<p class="muted" style="font-size:14px">${t("Quem você convida para um vibebook vira amigo aqui.")}</p>`}
-        <form class="invite" id="addFriend"><input type="email" required placeholder="${t("email do amigo")}" aria-label="${t("Email do amigo")}" /><button>${t("Convidar")}</button></form>
+        ${friendAsks(me)}
       </aside>
     </div>
   </div>`;
@@ -2884,6 +2893,21 @@ function onboarding(me) {
 const PHONE = matchMedia("(max-width: 720px)");
 PHONE.addEventListener("change", () => { if (location.pathname === "/app") home(); });
 const MENU_ICON = icon("menu", 22);
+/** "Pedidos": room invites (Entrar / ×) and messages from people outside your rooms (✓ opens the DM / ×), plus the
+ *  requests you sent that wait (× cancels): /api/me `invites`, `requests`, `sent`. */
+function friendAsks(me) {
+  const invites = me.invites || [], asks = me.requests || [], sent = (me.sent || []).filter((s) => !s.declined);
+  if (!invites.length && !asks.length && !sent.length) return "";
+  return `${invites.length || asks.length ? `<h2>${t("Pedidos")}</h2>` : ""}
+    ${invites.map((i) => `<div class="friend">${avatar(i.inviter)}<div class="fn" title="${esc(i.title)}">${esc(i.title)}<small>${t("{who} te chamou · {people}", { who: esc(i.inviter_name || name(i.inviter)), people: i.people === 1 ? t("1 pessoa") : t("{n} pessoas", { n: i.people }) })}</small></div>
+      <button class="ghost" data-join="${esc(i.book_id)}">${t("Entrar na sala")}</button>
+      <button class="ghost x" data-nojoin="${esc(i.book_id)}" aria-label="${t("Recusar convite para {room}", { room: esc(i.title) })}" title="${t("Recusar convite para {room}", { room: esc(i.title) })}">${icon("x")}</button></div>`).join("")}
+    ${asks.map((r) => `<div class="friend">${avatar(r.email)}<div class="fn" title="${esc(r.email)}">${esc(r.name || name(r.email))}<small>${r.msg ? `“${esc(r.msg.slice(0, 140))}”` : t("quer conversar")}</small></div>
+      <button class="ghost x" data-accept="${esc(r.email)}" aria-label="${t("Aceitar {email}", { email: esc(r.email) })}" title="${t("Aceitar {email}", { email: esc(r.email) })}">${icon("check")}</button>
+      <button class="ghost x" data-unask="${esc(r.email)}" aria-label="${t("Recusar {email}", { email: esc(r.email) })}" title="${t("Recusar {email}", { email: esc(r.email) })}">${icon("x")}</button></div>`).join("")}
+    ${sent.map(({ email: e }) => `<div class="friend">${avatar(e)}<div class="fn" title="${esc(e)}">${esc(name(e))}<small>${t("Pedido enviado")}</small></div>
+      <button class="ghost x" data-unask="${esc(e)}" aria-label="${t("Cancelar pedido para {email}", { email: esc(e) })}" title="${t("Cancelar pedido para {email}", { email: esc(e) })}">${icon("x")}</button></div>`).join("")}`;
+}
 function phoneHome(me) {
   const rooms = [...me.books].sort((a, b) => (b.opened_at ?? 0) - (a.opened_at ?? 0) || b.updated_at - a.updated_at);
   const dot = (b) => (b.last_human_id > b.read_id ? `<b class="dot h"></b>` : b.last_agent_id > b.read_id ? `<b class="dot a"></b>` : "");
@@ -2924,10 +2948,7 @@ function phoneHome(me) {
       ${window.PublicKeyCredential ? `<label class="pdLock"><input type="checkbox" id="lockToggle" ${lockId() ? "checked" : ""} /> <span>${t("Exigir Face ID ao abrir")}</span></label>` : ""}
     </nav>
     <section class="agentBox" id="agentBox" aria-live="polite"></section>
-    <h2>${t("Amigos")} <small>${me.friends.length || ""}</small></h2>
-    ${me.friends.map((f) => `<div class="friend">${avatar(f.email)}<div class="fn">${esc(f.name || name(f.email))}<small>${f.shared ? plural(f.shared, t("vibebook junto"), t("vibebooks juntos")) : f.joined ? t("na plataforma") : t("convidado")}</small></div>
-      <button class="ghost x" data-unfriend="${esc(f.email)}" aria-label="${t("Remover {email} dos amigos", { email: esc(f.email) })}">${icon("x")}</button></div>`).join("")}
-    <form class="invite" id="addFriend"><input type="email" required placeholder="${t("email do amigo")}" aria-label="${t("Email do amigo")}" /><button>${t("Convidar")}</button></form>
+    ${friendAsks(me)}
     <button class="ghost pdOut" id="logout">${t("Sair")}</button>
     <button class="ghost pdOut pdOutAll" id="logoutAll">${t("Sair de todos os aparelhos")}</button>
   </dialog>
@@ -2984,16 +3005,24 @@ function wireHome(me) {
     await fetch("/auth/logout-all", { method: "POST" }); location.href = "/login";
   };
   document.getElementById("new").onclick = () => newRoom();
-  document.querySelectorAll("[data-unfriend]").forEach((b) => b.onclick = async () => {
-    if (!confirm(t("Remover {email} dos seus amigos? Os vibebooks em comum continuam.", { email: b.dataset.unfriend }))) return;
-    await fetch(`/api/friends/${encodeURIComponent(b.dataset.unfriend)}`, { method: "DELETE" });
+  // Someone outside your rooms wrote to you: accepting opens the DM with their first message; declining closes it.
+  const open = (id) => { history.pushState(null, "", `/b/${id}`); route(); };
+  document.querySelectorAll("[data-accept]").forEach((b) => b.onclick = async () => {
+    const r = await api("/api/friends", { email: b.dataset.accept }).catch((err) => (alert(err.message), null));
+    if (r?.id) return open(r.id);
     home();
   });
-  document.getElementById("addFriend").onsubmit = async (e) => {
-    e.preventDefault();
-    await api("/api/friends", { email: e.target[0].value }).catch((err) => alert(err.message));
+  // A room invite waits for your yes: Entrar joins and opens it.
+  document.querySelectorAll("[data-join], [data-nojoin]").forEach((b) => b.onclick = async () => {
+    const id = b.dataset.join || b.dataset.nojoin, yes = !!b.dataset.join;
+    const ok = await api(`/api/books/${id}/invite`, { yes }).then(() => true, (err) => (alert(err.message), false));
+    if (ok && yes) return open(id);
     home();
-  };
+  });
+  document.querySelectorAll("[data-unask]").forEach((b) => b.onclick = async () => {
+    await fetch(`/api/friends/${encodeURIComponent(b.dataset.unask)}`, { method: "DELETE" });
+    home();
+  });
   renderAgents();
   renderWaits();
   renderBells();
@@ -3071,7 +3100,7 @@ function wireAsk() {
 async function startRoom(text) {
   const r = await api("/api/books/start", { text });
   history.pushState(null, "", `/b/${r.id}`); route();
-  if (r.unknown?.length) setTimeout(() => toast(t("Não achei {who} nos seus amigos: convide pelo email em Pessoas.", { who: esc(r.unknown.join(", ")) })), 1500);
+  if (r.unknown?.length) setTimeout(() => toast(t("Não achei {who} nas suas salas: convide pelo email em Pessoas.", { who: esc(r.unknown.join(", ")) })), 1500);
 }
 function newRoom() {
   const d = document.createElement("dialog");
@@ -3424,7 +3453,7 @@ function openBook(id) {
   S = null;
   liveState = false;
   attached = [];
-  api("/api/me").then((me) => { keepMe(me); friends = me.friends.map((f) => f.email); myBooks = me.books; myWaits = me.waits || []; renderSwitcher(); renderSide(); if (S) setFavicon(bookTitle()); }).catch(() => {});
+  api("/api/me").then((me) => { keepMe(me); friends = [...new Set([...(me.people || []), ...me.friends].map((f) => f.email))]; myBooks = me.books; myWaits = me.waits || []; renderSwitcher(); renderSide(); if (S) setFavicon(bookTitle()); }).catch(() => {});
   // Placeholder in the room's own layout, shown only if the socket takes more than 200ms.
   const cached = roomCache.get(id);
   if (cached) { S = cached; if (!cached.epics.some((e) => e.id === thread) && !thread.startsWith("pre:")) thread = "main"; renderBook(); }
@@ -3509,7 +3538,7 @@ function onEvent(ev, id) {
       renderSide(); return;
     }
     case "requests": S.requests = ev.requests; renderSide(); return;
-    case "members": S.members = ev.members; S.pending = ev.pending; S.requests = ev.requests || S.requests; S.names = ev.names || S.names; S.avatars = ev.avatars || S.avatars; renderSide(); return;
+    case "members": S.members = ev.members; S.pending = ev.pending; S.declined = ev.declined; S.invited = ev.invited; S.requests = ev.requests || S.requests; S.names = ev.names || S.names; S.avatars = ev.avatars || S.avatars; renderSide(); return;
     case "files": S.files = ev.files; S.filesAll = true; S.filesN = ev.files.length; renderFiles(); connsFilesChanged(); refreshVersions(); if (docAppsWait) { docAppsWait = false; renderDoc(true); } if (S.chipMiss) { S.chipMiss = false; renderChat(true); } return;
     case "fileAdd": if (!(S.files || []).some((f) => f.id === ev.file.id)) S.filesN = (S.filesN ?? S.files?.length ?? 0) + 1; S.files = [ev.file, ...(S.files || []).filter((f) => f.id !== ev.file.id)]; renderFiles(); connsFilesChanged(); refreshVersions(); renderThreadFiles(); return;
     case "reminders": S.reminders = ev.reminders; renderReminders(); return;
@@ -4843,15 +4872,18 @@ function renderSide() {
       ${(S.requests || []).length ? `<div class="asks"><h4>${t("Pedindo pra entrar")}</h4>${S.requests.map((r) => `<div class="member reqRow">${avatar(r.email)} <div class="fnCol"><span class="fn" title="${esc(r.email)} · ${t("pediu {ago}", { ago: ago(r.ts) })}">${esc(r.name || r.email.split("@")[0])}</span><small class="memActs">${t("pediu {ago}", { ago: ago(r.ts) })} · <button class="ghost resend okAsk" data-ask="${esc(r.email)}" data-ok="1" title="${t("Liberar: entra na sala e recebe o link por email")}">${t("liberar")}</button></small></div><button class="ghost x" data-ask="${esc(r.email)}" data-ok="" aria-label="${t("Recusar {email}", { email: esc(r.email) })}" title="${t("Recusar")}">${icon("x")}</button></div>`).join("")}</div>` : ""}
       <h4>${t("Pessoas e agents")}</h4>
       ${sbxRows()}
-      ${(() => { const row = (m) => `<div class="member">${avatar(m, S.online.includes(m))} ${(S.pending || []).includes(m)
-        ? `<div class="fnCol"><span class="fnRow"><span class="fn" title="${esc(m)}">${esc(S.names?.[m] || m.split("@")[0])}</span><span class="pendTag" title="${t("Convidada(o), ainda não entrou")}">${t("pendente")}</span></span><small class="memActs"><button class="ghost resend" data-copyinv="${esc(m)}" title="${t("Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp")}">${t("copiar")}</button> · <button class="ghost resend" data-resend="${esc(m)}" title="${t("Convidada(o), ainda não entrou")}">${t("reenviar")}</button></small></div>`
+      ${(() => { const no = (m) => !(S.pending || []).includes(m) && (S.declined || []).includes(m), inv = (m) => (S.pending || []).includes(m) || no(m);
+      const row = (m) => `<div class="member">${avatar(m, S.online.includes(m))} ${inv(m)
+        ? `<div class="fnCol"><span class="fnRow"><span class="fn" title="${esc(m)}">${esc(S.names?.[m] || m.split("@")[0])}</span><span class="pendTag" title="${no(m) ? t("Recusou o convite") : t("Convidada(o), ainda não respondeu")}">${no(m) ? t("recusou") : t("aguardando")}</span></span>${no(m) ? "" : `<small class="memActs"><button class="ghost resend" data-copyinv="${esc(m)}" title="${t("Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp")}">${t("copiar")}</button> · <button class="ghost resend" data-resend="${esc(m)}" title="${t("Convidada(o), ainda não entrou")}">${t("reenviar")}</button></small>`}</div>`
         : S.names?.[m] ? `<span class="fn" title="${esc(m)}">${esc(S.names[m])}</span>`
         : `<div class="fnCol"><span class="fn" title="${esc(m)}">${esc(m.split("@")[0])}</span><small class="memActs">@${esc(m.split("@")[1] ?? "")}</small></div>`}${
-        m !== S.book?.owner && ((S.pending || []).includes(m) || S.me === S.book?.owner)
-        ? `<button class="ghost x" data-remove="${esc(m)}" aria-label="${t("Remover {email}", { email: esc(m) })}" title="${(S.pending || []).includes(m) ? t("Cancelar convite") : t("Remover do vibebook")}">${icon("x")}</button>` : ""}</div>${agentRows(m)}`;
+        m !== S.book?.owner && !no(m) && (inv(m) || S.me === S.book?.owner)
+        ? `<button class="ghost x" data-remove="${esc(m)}" aria-label="${t("Remover {email}", { email: esc(m) })}" title="${inv(m) ? t("Cancelar convite") : t("Remover do vibebook")}">${icon("x")}</button>` : ""}</div>${agentRows(m)}`;
         // Online people (and you) stay in view; everyone else folds into "N offline", closed by default.
-        const on = S.members.filter((m) => m === S.me || S.online.includes(m)), off = S.members.filter((m) => !on.includes(m));
-        return on.map(row).join("") + (off.length ? `<details class="memMore" data-fold="off"${foldOpen.off ? " open" : ""}><summary>${t("{n} offline", { n: off.length })}</summary>${off.map(row).join("")}</details>` : ""); })()}
+        const joined = S.members.filter((m) => !inv(m)), invited = [...S.members.filter(inv), ...(S.invited || []).filter((m) => !S.members.includes(m))].sort((a, b) => no(a) - no(b));
+        const on = joined.filter((m) => m === S.me || S.online.includes(m)), off = joined.filter((m) => !on.includes(m));
+        return on.map(row).join("") + (off.length ? `<details class="memMore" data-fold="off"${foldOpen.off ? " open" : ""}><summary>${t("{n} offline", { n: off.length })}</summary>${off.map(row).join("")}</details>` : "")
+          + (invited.length ? `<h4>${t("Convidados")}</h4>${invited.map(row).join("")}` : ""); })()}
       ${(() => { const add = friends.filter((f) => !S.members.includes(f)); const open = foldOpen.friends ?? S.members.length <= 1; return add.length ? `
         <details class="memMore" data-fold="friends"${open ? " open" : ""}><summary>${t("Seus amigos")} · ${add.length}</summary>
         ${add.map((f) => `<button class="friendAdd" data-add="${esc(f)}" title="${t("Adicionar {email}", { email: esc(f) })}">${avatar(f)}<span class="fn">${esc(name(f))}</span><b>${icon("plus")}</b></button>`).join("")}</details>` : ""; })()}
@@ -4917,7 +4949,7 @@ function renderSide() {
   if (ne) ne.onsubmit = (e) => { e.preventDefault(); const v = e.target[0].value.trim(); if (!v) return e.target[0].focus(); send({ t: "epic", title: v }); e.target.reset(); };
   el.querySelectorAll("[data-remove]").forEach((b) => b.onclick = async () => {
     const who = b.dataset.remove;
-    if (!confirm((S.pending || []).includes(who) ? t("Cancelar o convite de {email}?", { email: who }) : t("Remover {email} deste vibebook?", { email: who }))) return;
+    if (!confirm([...(S.pending || []), ...(S.declined || [])].includes(who) ? t("Cancelar o convite de {email}?", { email: who }) : t("Remover {email} deste vibebook?", { email: who }))) return;
     const r = await fetch(`/api/books/${S.id}/members/${encodeURIComponent(who)}`, { method: "DELETE" });
     if (!r.ok) alert((await r.json().catch(() => ({}))).error || t("Não deu para remover."));
   });

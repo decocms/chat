@@ -1,5 +1,18 @@
 # Svelte rollout and migration plan
 
+## Default switch (Nov 2026)
+
+Svelte is now the default app; vanilla is the frozen fallback (kept working, no new features). The sections below describe the earlier preview and are kept as history.
+
+| What | How |
+| --- | --- |
+| Default | A page URL without `ui` gets Svelte (`src/ui-select.ts` writes the resolved `ui` into page requests before the routes). |
+| One page | `?ui=vanilla` or `?ui=svelte` in the URL, for that page only. |
+| One device (desktop, phone, installed PWA) | The "Nova UI" switch: off goes through `/ui/vanilla` (cookie `vb_ui=vanilla`, one year), on through `/ui/svelte` (clears it). In Svelte it sits in the account menu; in vanilla in the home header and the phone's ☰ drawer. |
+| Everyone (rollback) | Set the Worker var `UI_DEFAULT` to `vanilla` (dashboard or `wrangler.jsonc`). Devices that chose vanilla stay there; `?ui=svelte` still opens Svelte per page. |
+
+Removing vanilla is a separate decision.
+
 The [full migration acceptance plan](svelte-full-migration-plan.md) defines completion of the entire Svelte/TypeScript/RPC migration, the Tailwind-only atomic design system and the Studio-matched theme. This earlier document covers the initial preview rollout.
 
 The immediate deliverable is an online Svelte preview that can be opened beside the current vanilla application against the same room. Vanilla remains the default until Gimenes and Gui accept the Svelte version. New vanilla fixes must continue to reach the preview where relevant; the vanilla app remains maintained throughout the experiment.

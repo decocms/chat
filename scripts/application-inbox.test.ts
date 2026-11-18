@@ -258,7 +258,7 @@ test("closed and replaced Inbox openings never accept late rows or stale row nav
   h.inbox.openMention(binding, { ...current });
   expect(h.href()).toBe(before);
   h.inbox.openMention(binding, current);
-  expect(h.href()).toContain("/b/aaaaaa?ui=svelte#m7");
+  expect(h.href()).toContain("/b/aaaaaa#m7");
   expect(get(h.inbox.state).binding).toBeNull();
   h.dispose();
 });

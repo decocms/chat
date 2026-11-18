@@ -45,6 +45,7 @@
   const ask = $derived(pendingAsk($view.waits, owner.roomId, $view.thread));
   const start = $derived(
     $view.room?.book.owner === owner.account &&
+      !$view.room.book.dm &&
       !$view.room.epics.length &&
       $view.thread === "main" &&
       !$view.startDismissed,
@@ -60,17 +61,16 @@
   const status = $derived(
     agentStatus(presence, $view.hasAgent, $view.askedAt, $view.now),
   );
-  /** One quiet line, only while the agent can't work here: never connected, off in this room, or on but not listening. */
+  /** One quiet line, only while the agent can't work here: never connected, or on but not listening. Off in this
+   * room has no line: the sidebar foot's delivery switch already shows it. */
   const line = $derived(
     agentsOpen
       ? null
       : nudge
         ? ({ kind: "setup", lead: "lineNone", help: "absentHelp" } as const)
-        : offer && !start && status === "off"
-          ? ({ kind: "offer", lead: "agentOff", help: null } as const)
-          : offer && !start && status === "late"
-            ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
-            : null,
+        : offer && !start && status === "late"
+          ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
+          : null,
   );
   $effect(() => {
     void status;

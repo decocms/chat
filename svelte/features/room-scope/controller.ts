@@ -1018,7 +1018,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             pins,
             send,
             request,
-            friends: me()?.friends.map((friend) => friend.email),
+            friends: (me()?.people ?? []).map((person) => person.email),
             appNavigation: { controller: services.navigation, lang },
             ontogglerail: () => {
               if (current()) layout.toggleSidebar();
@@ -1206,7 +1206,13 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               }
             : null,
           trigger: agent
-            ? { owner: agent, onopen: openAgents, lang, queue }
+            ? {
+                owner: agent,
+                onopen: openAgents,
+                lang,
+                queue,
+                origin: browser.origin,
+              }
             : null,
           threadFiles: {
             room: value,

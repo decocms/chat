@@ -9,7 +9,6 @@
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import {
-    AlertTriangle,
     Bell01,
     BellOff01,
     ChevronRight,
@@ -18,18 +17,16 @@
     Pencil01,
     Settings01,
     Stars01,
-    Users01,
   } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
-  import { uiNavigationUrl } from "../../../shared/uiVariant";
+  import { uiSwitchUrl } from "../../../shared/uiVariant";
   import { homeText, type HomeLanguage } from "../home/copy";
-  import NotificationHelpDialog from "../notifications/NotificationHelpDialog.svelte";
   import type { AccountSection } from "../account/session";
   import ThemeIcon from "./ThemeIcon.svelte";
   import type { UserMenuActions, UserMenuTheme } from "./menuBridge";
   /**
    * The person's avatar at the end of the rail. It opens the account menu:
-   * who is signed in (edit profile), friends, agents, this device's
+   * who is signed in (edit profile), agents, this device's
    * notifications, settings, theme, language and sign out. A real menu: arrow
    * keys move, Esc closes and focus returns to the avatar.
    */
@@ -39,7 +36,6 @@
     avatar,
     lang,
     theme,
-    friends = 0,
     onsettheme,
     onlanguage,
     onaccount,
@@ -54,8 +50,6 @@
     avatar?: string;
     lang: HomeLanguage;
     theme: UserMenuTheme;
-    /** How many friends the person has (the row hides its count at 0). */
-    friends?: number;
     onsettheme: (theme: UserMenuTheme) => void;
     onlanguage: (lang: HomeLanguage) => void;
   } = $props();
@@ -76,7 +70,6 @@
   // Same breakpoint as the rail: a column at 901px+, a top row below it.
   const wide = new MediaQuery("min-width: 901px");
   let open = $state(false),
-    help = $state(false),
     active = true;
   let trigger = $state<HTMLButtonElement | null>(null);
   onDestroy(() => {
@@ -85,24 +78,10 @@
   const label = $derived(name || email);
   const view = $derived(pwa?.state ?? readable(null)),
     push = $derived(pwa?.push ?? readable(null));
-  // The device-wide switch: on when the browser allows it and vb.mute is off.
+  // One switch for this device's sound and notifications (vb.mute). Off until the browser was asked once, so the
+  // first tap asks; a browser that refused (or can't) still gets the sound.
   const notificationsOn = $derived(
-    $view?.permission === "granted" && !$view.muted,
-  );
-  // A server without a push key is only found out after turning the switch
-  // on; read once per opening so the focused row never vanishes mid-menu.
-  let pushUnavailable = $state(false);
-  // Hidden where push cannot work at all; iPhone/iPad Safari keeps the row so
-  // its tap can explain that the app must be installed first.
-  const notificationsShown = $derived(
-    !!$view &&
-      ($view.iosWeb || $view.permission !== "unsupported") &&
-      !pushUnavailable,
-  );
-  // Setup failed or is unconfirmed: the row says so and opens the help
-  // dialog (retry, test, mute) instead of toggling.
-  const notificationsProblem = $derived(
-    $push?.status === "failed" || $push?.status === "unconfirmed",
+    !!$view && !$view.muted && ($view.permission !== "default" || $view.iosWeb),
   );
   // What a chosen item opens (a dialog) waits for the menu to close: run on
   // close, it keeps the menu from handing focus back to the avatar after the
@@ -119,21 +98,7 @@
     });
   }
   function toggleNotifications() {
-    const owner = pwa;
-    if (!active || !owner) return;
-    if (notificationsProblem) {
-      void owner.refresh();
-      return whenClosed(() => {
-        if (active) help = true;
-      });
-    }
-    void owner.bell().then((success) => {
-      // Denied, unsupported or iPhone Safari: explain instead of toggling.
-      if (active && !success)
-        whenClosed(() => {
-          if (active) help = true;
-        });
-    });
+    if (active) void pwa?.bell();
   }
   const itemClass =
     "tw:flex tw:min-h-9 tw:cursor-pointer tw:select-none tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:py-1.5 tw:text-sm tw:outline-none tw:data-highlighted:bg-accent tw:data-highlighted:text-accent-foreground tw:data-disabled:pointer-events-none tw:data-disabled:opacity-50";
@@ -155,12 +120,7 @@
 <div
   class={row ? "tw:relative tw:w-full tw:min-w-0" : "tw:relative tw:shrink-0"}
 >
-  <DropdownMenu.Root
-    bind:open
-    onOpenChange={(next) => {
-      if (next) pushUnavailable = $push?.status === "unavailable";
-    }}
-  >
+  <DropdownMenu.Root bind:open onOpenChange={(next) => {}}>
     <Tooltip>
       <TooltipTrigger>
         {#snippet child({ props: tip })}
@@ -239,23 +199,10 @@
           >
             {@render who()}
           </div>{/if}
-        {#if onaccount || notificationsShown}<DropdownMenu.Separator
+        {#if onaccount || pwa}<DropdownMenu.Separator
             class={separatorClass}
           />{/if}
         {#if onaccount}<DropdownMenu.Item
-            data-user-menu-item="friends"
-            class={itemClass}
-            onSelect={() => account("friends")}
-            ><Icon icon={Users01} class="tw:size-4" /><span class="tw:flex-1"
-              >{text("friends")}</span
-            >{#if friends > 0}<span
-                class="tw:text-xs tw:tabular-nums tw:text-muted-foreground"
-                >{friends}</span
-              >{/if}<Icon
-              icon={ChevronRight}
-              class="tw:size-4 tw:text-muted-foreground"
-            /></DropdownMenu.Item
-          ><DropdownMenu.Item
             data-user-menu-item="agents"
             class={itemClass}
             onSelect={() => account("agents")}
@@ -266,7 +213,7 @@
               class="tw:size-4 tw:text-muted-foreground"
             /></DropdownMenu.Item
           >{/if}
-        {#if pwa && notificationsShown}<DropdownMenu.CheckboxItem
+        {#if pwa}<DropdownMenu.CheckboxItem
             data-user-menu-item="notifications"
             class={itemClass}
             closeOnSelect={false}
@@ -275,17 +222,8 @@
             ><Icon
               icon={notificationsOn ? Bell01 : BellOff01}
               class="tw:size-4"
-            /><span class="tw:grid tw:min-w-0 tw:flex-1"
-              ><span>{text("notifications")}</span
-              >{#if notificationsProblem}<span
-                  data-user-menu-notifications-problem
-                  class="tw:text-xs tw:text-destructive"
-                  >{text("notificationsProblem")}</span
-                >{/if}</span
-            >{#if notificationsProblem}<Icon
-                icon={AlertTriangle}
-                class="tw:size-4 tw:text-destructive"
-              />{/if}<span
+            /><span class="tw:min-w-0 tw:flex-1">{text("notifications")}</span
+            ><span
               aria-hidden="true"
               class={cn(
                 "tw:relative tw:inline-flex tw:h-5 tw:w-9 tw:shrink-0 tw:rounded-full tw:transition-colors tw:motion-reduce:transition-none",
@@ -300,6 +238,27 @@
               ></span></span
             ></DropdownMenu.CheckboxItem
           >{/if}
+        <DropdownMenu.CheckboxItem
+          data-user-menu-item="new-ui"
+          class={itemClass}
+          bind:checked={() => true, () => {}}
+          onSelect={() => {
+            // Off = the classic app on this device (/ui/vanilla), at the same address.
+            if (!active) return;
+            window.location.assign(
+              uiSwitchUrl("vanilla", window.location.href),
+            );
+          }}
+          ><Icon icon={LayoutAlt01} class="tw:size-4" /><span class="tw:flex-1"
+            >{text("newUi")}</span
+          ><span
+            aria-hidden="true"
+            class="tw:relative tw:inline-flex tw:h-5 tw:w-9 tw:shrink-0 tw:rounded-full tw:bg-primary"
+            ><span
+              class="tw:absolute tw:top-0.5 tw:left-0.5 tw:size-4 tw:translate-x-4 tw:rounded-full tw:bg-card tw:shadow-xs"
+            ></span></span
+          ></DropdownMenu.CheckboxItem
+        >
         {#if onaccount}<DropdownMenu.Item
             data-user-menu-item="settings"
             class={itemClass}
@@ -359,31 +318,6 @@
               >{/each}
           </DropdownMenu.RadioGroup>
         </div>
-        <DropdownMenu.CheckboxItem
-          data-user-menu-item="new-ui"
-          class={itemClass}
-          bind:checked={() => true, () => {}}
-          onSelect={() => {
-            // Off = back to the classic app at the same address.
-            if (!active) return;
-            window.location.assign(
-              uiNavigationUrl(
-                window.location.href,
-                window.location.href,
-                "vanilla",
-              ),
-            );
-          }}
-          ><Icon icon={LayoutAlt01} class="tw:size-4" /><span class="tw:flex-1"
-            >{text("newUi")}</span
-          ><span
-            aria-hidden="true"
-            class="tw:relative tw:inline-flex tw:h-5 tw:w-9 tw:shrink-0 tw:rounded-full tw:bg-primary"
-            ><span
-              class="tw:absolute tw:top-0.5 tw:left-0.5 tw:size-4 tw:translate-x-4 tw:rounded-full tw:bg-card tw:shadow-xs"
-            ></span></span
-          ></DropdownMenu.CheckboxItem
-        >
         {#if onlogout}<DropdownMenu.Separator
             class={separatorClass}
           /><DropdownMenu.Item
@@ -400,9 +334,3 @@
     </DropdownMenu.Portal>
   </DropdownMenu.Root>
 </div>
-{#if pwa}<NotificationHelpDialog
-    bind:open={help}
-    owner={pwa}
-    {lang}
-    returnFocus={() => trigger}
-  />{/if}

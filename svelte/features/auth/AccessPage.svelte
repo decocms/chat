@@ -90,6 +90,26 @@
       onclick={() => session.ask()}
       >{#if $view.busy}<Spinner size="xs" />{/if}{text("ask")}</Button
     >
+  {:else if $view.context?.state === "invited"}{#if $view.declined}<p
+        role="status"
+        class="tw:m-0 tw:text-muted-foreground"
+      >
+        {text("inviteDeclined")}
+      </p>{:else}<p class="tw:m-0 tw:break-words tw:text-muted-foreground">
+        {text("invited", { who: $view.context.inviter ?? "" })}
+      </p>
+      <div class="tw:flex tw:flex-wrap tw:gap-2" data-invite-answer>
+        <Button
+          disabled={$view.busy}
+          aria-busy={$view.busy || undefined}
+          onclick={() => session.answer(true)}
+          >{#if $view.busy}<Spinner size="xs" />{/if}{text("join")}</Button
+        ><Button
+          variant="outline"
+          disabled={$view.busy}
+          onclick={() => session.answer(false)}>{text("declineInvite")}</Button
+        >
+      </div>{/if}
   {:else if $view.context?.state === "asked"}<p
       role="status"
       class="tw:m-0 tw:text-foreground"
@@ -103,7 +123,7 @@
     >
       {authIssue(lang, $view.error)}
     </p>
-    {#if $view.context?.state !== "ask"}<Button
+    {#if $view.context?.state !== "ask" && $view.context?.state !== "invited"}<Button
         variant="outline"
         onclick={() => session.load()}>{text("retry")}</Button
       >{/if}{/if}

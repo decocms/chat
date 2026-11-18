@@ -5,9 +5,9 @@ import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { homedir, tmpdir } from "node:os";
+import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.18";
+var VERSION = "1.6.19";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -592,35 +592,50 @@ function herdrServer(appMode = false) {
   }).on("error", (e) => process.stderr.write(`vibebook herdr: botão "ir pro Claude" desligado (${e.message})
 `)).listen(port, "127.0.0.1");
 }
+var MACHINE = join(HOME, "machine.json");
+function machineId() {
+  const m = readJson(MACHINE, {});
+  if (m.id && /^m_[a-f0-9]{32}$/.test(m.id))
+    return m.id;
+  const id = `m_${randomBytes(16).toString("hex")}`;
+  writePrivate(MACHINE, { id });
+  return id;
+}
+var sessionAgent = (session) => `s_${createHash("sha256").update(`claude-code:${session}`).digest("hex").slice(0, 32)}`;
 var roomsCache = null;
-async function claudeRooms(agent, tools) {
+async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   const port = await ensureHub().catch(() => null);
   let gen = -1;
   if (port)
     try {
       gen = (await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=-1`)).json()).agents ?? -1;
     } catch {}
-  if (roomsCache && gen >= 0 && roomsCache.gen === gen && Date.now() - roomsCache.at < 5 * 60000)
+  const key = [...managed].sort().join(",");
+  if (roomsCache && gen >= 0 && roomsCache.gen === gen && roomsCache.key === key && Date.now() - roomsCache.at < 5 * 60000)
     return roomsCache.res;
-  const res = await callTool("claude_rooms", {}, agent, tools);
-  roomsCache = { gen, at: Date.now(), res };
+  const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
+  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind }, agents: managed.slice(0, 50) } : {};
+  const res = await callTool("claude_rooms", args, agent, tools);
+  roomsCache = { gen, at: Date.now(), key, res };
   return res;
 }
 async function herdrSync(agent, tools) {
-  const res = await claudeRooms(agent, tools);
-  const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
-  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson(HERDR, {});
   const wsList = herdr("workspace", "list").workspaces;
   const live = new Set(wsList.map((w) => w.workspace_id));
   const panes = herdr("pane", "list").panes;
+  const mapped = new Set(Object.values(map).map((e) => e.workspace).filter(Boolean));
+  const managed = panes.filter((p) => p.agent === "claude" && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session.value));
+  const res = await claudeRooms(agent, tools, "herdr", managed);
+  const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
+  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
   const log = (m) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}
 `);
   for (const [room, title] of on) {
     const e = map[room] ??= {};
     if (e.workspace && live.has(e.workspace)) {
-      const label = wsList.find((w2) => w2.workspace_id === e.workspace)?.label;
+      const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
       if (label !== undefined && label !== title.slice(0, 40))
         try {
           herdr("workspace", "rename", e.workspace, title.slice(0, 40));
@@ -736,15 +751,18 @@ async function herdrSync(agent, tools) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String(err.stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
     }
   }
+  const listed = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace)
       continue;
+    const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
+    if (p?.agent_session?.value)
+      e.session = p.agent_session.value;
+    if (listed.has(room) && live.has(e.workspace))
+      continue;
     if (live.has(e.workspace)) {
-      const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
-      if (p?.agent_session?.value)
-        e.session = p.agent_session.value;
       herdr("workspace", "close", e.workspace);
-      log(`${rooms.find((r) => r.room_id === room)?.title ?? room}: Claude desligado, fechei a aba (a conversa fica pra retomar)`);
+      log(`${room}: a sala saiu da sua lista, fechei a aba (a conversa fica pra retomar)`);
     }
     delete e.workspace;
   }
@@ -760,7 +778,7 @@ var happ = (...args) => {
 };
 var appClaude = (sp) => sp.tabs.flatMap((t) => t.terminals).find((t) => /claude/i.test(t.app ?? ""));
 async function herdrAppSync(agent, tools) {
-  const res = await claudeRooms(agent, tools);
+  const res = await claudeRooms(agent, tools, "herdr-app");
   const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson(HERDR_APP, {});
@@ -813,12 +831,15 @@ async function herdrAppSync(agent, tools) {
     e.prompted_at = Date.now();
     log(`${title}: abri um Claude em ${e.folder}`);
   }
+  const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space)
       continue;
+    if (listedApp.has(room) && live.has(e.space))
+      continue;
     if (live.has(e.space)) {
       happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-      log(`${rooms.find((r) => r.room_id === room)?.title ?? room}: Claude desligado, fechei o space`);
+      log(`${room}: a sala saiu da sua lista, fechei o space`);
     }
     delete e.space;
   }
@@ -1181,7 +1202,7 @@ async function main() {
                 if (await check(0))
                   return;
               } catch {
-                await new Promise((r2) => setTimeout(r2, 15000));
+                await new Promise((r) => setTimeout(r, 15000));
               }
               last = Date.now();
             }

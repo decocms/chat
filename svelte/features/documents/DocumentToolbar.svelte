@@ -147,7 +147,11 @@
     role={compact ? "toolbar" : "tablist"}
     aria-label={en ? "Room panels" : "Painéis da sala"}
     onkeydown={key}
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-0.5 tw:overflow-x-auto tw:[scrollbar-width:none]"
+    class={cn(
+      "tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-0.5 tw:overflow-x-auto tw:[scrollbar-width:none]",
+      // overflow-x clips vertically too: room for the corner badges (-top-1, -right-1).
+      bare && "tw:-my-1.5 tw:py-1.5 tw:pr-1.5",
+    )}
   >
     {#each items as item (item.id)}
       {@const selected = pane === item.id}

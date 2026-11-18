@@ -1,8 +1,10 @@
-import { AgentDbRow, UploadHeaders } from "./apiServerSchemas";
+import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
+import { DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
 import { requestBytes, RequestBytesError } from "./requestBytes";
 import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
+import { isDmId } from "../shared/dm";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
 // The vanilla app calls the same paths with the same payloads. Routes move here slice by slice
@@ -54,12 +56,17 @@ import {
   type AccessRequestResult,
   type AccessResult,
   ClaudeToggleBody,
+  DeliveryBody,
+  type DeliveryResult,
   ClaudeToggleResult,
   DecideRequestBody,
   ArchiveBody,
   ArchivedRoom,
   type ArchivedResult,
   EmailBody,
+  ConnectBody,
+  ConnectResult,
+  InviteAnswerBody,
   LoginsResult,
   type SearchResult,
   SearchQuery,
@@ -123,12 +130,20 @@ export interface ApiServices {
   inbox(): Promise<InboxResult>;
   loginProviders: { google: boolean; github: boolean };
   isEmail(s: string): boolean;
-  befriend(email: string): Promise<void>;
+  /** Write to someone: `id` = the DM is open (a room in common, a connection, or their request accepted); `{}` = it
+   *  went as a message request. Never says whether the email has an account. */
+  connect(email: string, text?: string): Promise<{ id?: string; error?: string }>;
+  /** Decline their message request, or cancel yours. */
+  dismiss(email: string): Promise<void>;
+  /** Your answer to a room invite; false = no invite waiting. */
+  answerInvite(roomId: string, yes: boolean): Promise<boolean>;
   invite(roomId: string, email: string): Promise<void>;
   /** Remove someone from a room: the owner can't be removed; only the owner removes someone who already joined. */
   removeMember(roomId: string, email: string): Promise<{ error: string; status: 400 | 403 } | null>;
   /** Tell the person's tabs to refetch this room's agents (after the response). */
   pokeAgents(roomId: string): void;
+  /** Wake the person's listeners for this room (their CLI hub waits on {t:"me", book}). */
+  pokeListeners(roomId: string): void;
   /** The room's ↗: ask this person's CLI hub (any machine) to focus the room's Claude in herdr. */
   pokeFocus(roomId: string): void;
   /** Ask to join a room: unknown room, already a member, over the rate limit, or asked (the owner is told once). */
@@ -358,20 +373,28 @@ export const accountApi = api
     const rows = await svc.sqlAll(`SELECT COALESCE(json_extract(dims, '$.method'), 'email') AS method, MAX(ts) AS last, COUNT(*) AS n FROM events WHERE user = ? AND name = 'login' GROUP BY 1`, c.get("email"));
     return c.json(LoginsResult.parse({ logins: rows, providers: svc.loginProviders }) satisfies LoginsResult, 200);
   })
-  .post("/api/friends", body(EmailBody, "invalid email"), async (c) => {
-    const svc = c.get("svc"), who = c.req.valid("json").email.trim().toLowerCase();
-    if (!svc.isEmail(who) || who === c.get("email")) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
-    await svc.befriend(who);
-    return c.json(ok, 200);
+  .post("/api/friends", body(ConnectBody, "invalid email"), async (c) => {
+    const svc = c.get("svc"), { email, text } = c.req.valid("json"), who = email.trim().toLowerCase();
+    if (!svc.isEmail(who)) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
+    const r = await svc.connect(who, text);
+    if (r.error === "rate") return c.json({ error: "rate limited" } satisfies ErrorBody, 429);
+    if (r.error) return c.json({ error: r.error } satisfies ErrorBody, 400);
+    return c.json((r.id ? { ok: true as const, id: r.id } : { ok: true as const }) satisfies ConnectResult, 200);
   })
   .delete("/api/friends/:email", async (c) => {
     const me = c.get("email"), who = decodeURIComponent(c.req.param("email")).toLowerCase();
-    await c.get("svc").sql(`DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)`, me, who, who, me);
+    if (who !== me) await c.get("svc").dismiss(who);
+    return c.json(ok, 200);
+  })
+  .post("/api/books/:id/invite", body(InviteAnswerBody), async (c) => {
+    if (!(await c.get("svc").answerInvite(c.req.param("id"), c.req.valid("json").yes))) return c.json({ error: "no invite" } satisfies ErrorBody, 404);
     return c.json(ok, 200);
   })
   .post("/api/books/:id/members", body(EmailBody, "invalid email"), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    // A DM is for its two people (src/dm.ts): start a room to bring a third.
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
     const who = c.req.valid("json").email.trim().toLowerCase();
     if (!svc.isEmail(who)) return c.json({ error: "invalid email" } satisfies ErrorBody, 400);
     await svc.invite(id, who);
@@ -380,6 +403,7 @@ export const accountApi = api
   .delete("/api/books/:id/members/:email", async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (isDmId(id)) return c.json({ error: "a DM is only for its two people" } satisfies ErrorBody, 400);
     const no = await svc.removeMember(id, decodeURIComponent(c.req.param("email")).toLowerCase());
     if (no?.status === 400) return c.json({ error: no.error } satisfies ErrorBody, 400);
     if (no) return c.json({ error: no.error } satisfies ErrorBody, 403);
@@ -396,6 +420,41 @@ export const roomApi = accountApi
     svc.pokeAgents(id);
     svc.track(on ? "claude_on" : "claude_off", { book: id });
     return c.json({ ok: true as const, claude_on: on } satisfies ClaudeToggleResult, 200);
+  })
+  // Delivery switches (src/delivery.ts), your own only: a machine (a computer running herdr, or a sandbox of yours in
+  // this room), a one-off agent, or everything of yours here. Turning on wakes your listeners for the room.
+  .post("/api/books/:id/delivery", body(DeliveryBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id"), email = c.get("email");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    const { on, machine, agent, all } = c.req.valid("json");
+    const v = on ? 1 : 0;
+    const sandboxes = await svc.sqlAll(`SELECT id FROM sandboxes WHERE book_id = ? AND email = ?`, id, email);
+    const sbIds = sandboxes.map((r) => sandboxMachine(String((r as { id: string }).id)));
+    if (all) {
+      // Every switch at once: the default for your computers (members.claude_on, which also opens or keeps their
+      // Claude), your sandboxes here, and every one-off agent of yours that has been in this room.
+      await svc.sql(`UPDATE members SET claude_on = ? WHERE book_id = ? AND email = ?`, v, id, email);
+      await svc.sql(`DELETE FROM machine_rooms WHERE book_id = ? AND machine_id IN (SELECT id FROM machines WHERE email = ?)`, id, email);
+      for (const m of sbIds) await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, m, id, v);
+      await svc.sql(
+        `INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery)
+         SELECT a.id, ?1, ?3 FROM agents a JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1 WHERE a.email = ?2 AND a.machine_id IS NULL`,
+        id, email, v,
+      );
+    } else if (machine) {
+      const owned = sbIds.includes(machine) || (await svc.sqlAll(`SELECT 1 FROM machines WHERE id = ? AND email = ?`, machine, email)).length > 0;
+      if (!owned) return c.json({ error: "not your machine" } satisfies ErrorBody, 404);
+      await svc.sql(`INSERT OR REPLACE INTO machine_rooms (machine_id, book_id, on_) VALUES (?, ?, ?)`, machine, id, v);
+    } else if (agent) {
+      const mine = await svc.sqlAll(`SELECT machine_id FROM agents WHERE id = ? AND email = ?`, agent, email);
+      if (!mine.length) return c.json({ error: "not your agent" } satisfies ErrorBody, 404);
+      if ((mine[0] as { machine_id: string | null }).machine_id) return c.json({ error: "this agent follows its machine's switch" } satisfies ErrorBody, 400);
+      await svc.sql(`INSERT OR REPLACE INTO agent_rooms (agent, book_id, delivery) VALUES (?, ?, ?)`, agent, id, v);
+    } else return c.json({ error: "say which: machine, agent or all" } satisfies ErrorBody, 400);
+    svc.pokeAgents(id);
+    if (on) svc.pokeListeners(id);
+    svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : machine ? "machine" : "agent" });
+    return c.json({ ok: true as const } satisfies DeliveryResult, 200);
   })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{
     const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});
@@ -527,21 +586,33 @@ const limitsOf = (s: string | null) => {
 export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
   const svc = c.get("svc"), id = c.req.param("id"), now = Date.now();
   // In parallel; your own members row is also the membership check.
-  const [rows, mine, sbx] = await Promise.all([
+  const me0 = c.get("email");
+  const [rows, machines, mine, sbx] = await Promise.all([
     // Only the sessions connected to this room: listening to it (or to all their rooms), or that read/posted here in the last hour.
     svc.sqlAll(
-      `SELECT a.email, coalesce(a.model, a.client) AS who, a.repo, a.seen_at, a.listening_at, a.listen_room, a.ctx_tokens, a.ctx_window, a.ctx_at, a.ctx_limits
-       FROM agents a JOIN members m ON m.email = a.email AND m.book_id = ?1
-       LEFT JOIN agent_reads r ON r.agent = a.id AND r.book_id = ?1
-       WHERE substr(a.id, 1, 2) != 'n_' AND (((a.listen_room = ?1 OR a.listen_room IS NULL) AND a.listening_at > ?2) OR r.seen_at > ?3)
-       ORDER BY a.seen_at DESC LIMIT 40`,
+      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, ${DELIVERS} AS delivers
+       FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
+       LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
+       ${deliveryJoins("?1")}
+       WHERE substr(ag.id, 1, 2) != 'n_' AND (((ag.listen_room = ?1 OR ag.listen_room IS NULL) AND ag.listening_at > ?2) OR r.seen_at > ?3)
+       ORDER BY ag.seen_at DESC LIMIT 40`,
       id,
       now - svc.listenFresh,
       now - 3600_000,
     ),
+    // Your computers that ran `vibebook herdr` in the last 14 days, with their switch here.
+    svc.sqlAll(
+      `SELECT x.id, x.name, x.kind, x.seen_at, coalesce(mr.on_, m.claude_on, 0) AS on_
+       FROM machines x JOIN members m ON m.email = x.email AND m.book_id = ?1
+       LEFT JOIN machine_rooms mr ON mr.machine_id = x.id AND mr.book_id = ?1
+       WHERE x.email = ?2 AND x.seen_at > ?3 ORDER BY x.created_at`,
+      id,
+      me0,
+      now - 14 * 86400_000,
+    ),
     svc.sqlAll(`SELECT claude_on FROM members WHERE book_id = ? AND email = ?`, id, c.get("email")),
     // Everyone's cloud sandboxes in this room, as last seen by their owner's list (src/sandbox.ts): they cost money.
-    svc.sqlAll(`SELECT id, email, name, state, run_s, rate, disk_rate, checked_at, created_at FROM sandboxes WHERE book_id = ? ORDER BY created_at`, id),
+    svc.sqlAll(`SELECT s.id, s.email, s.name, s.state, s.run_s, s.rate, s.disk_rate, s.checked_at, s.created_at, coalesce(mr.on_, 1) AS on_ FROM sandboxes s LEFT JOIN machine_rooms mr ON mr.machine_id = 'sb_' || s.id AND mr.book_id = s.book_id WHERE s.book_id = ? ORDER BY s.created_at`, id),
   ]);
   const me=zm.object({claude_on:zm.optional(zm.unknown())}).safeParse(mine[0]);
   if(!me.success)return c.json(forbidden,403);
@@ -562,8 +633,19 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         all_rooms: !a.listen_room,
         // How full its context was at its last call (only from the CLI inside Claude Code); older than 1h = unknown.
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
+        ...(a.email === me0 ? { id: a.id, client: a.client, machine: a.machine_id, delivery: a.delivers !== 0 } : {}),
       };
     }),
+    machines: [
+      ...machines.map((row) => {
+        const x = MachineDbRow.parse(row);
+        return { id: x.id, name: x.name || "computer", kind: x.kind === "herdr-app" ? ("herdr-app" as const) : ("herdr" as const), online: !!x.seen_at && now - x.seen_at < MACHINE_FRESH, seen_at: x.seen_at, on: x.on_ === 1 };
+      }),
+      ...sbx.flatMap((row) => {
+        const s = row as { id: string; email: string; name: string | null; state: string | null; checked_at: number | null; on_: number };
+        return s.email === me0 ? [{ id: sandboxMachine(s.id), name: s.name || "sandbox", kind: "sandbox" as const, online: s.state === "running", seen_at: s.checked_at, on: s.on_ !== 0 }] : [];
+      }),
+    ],
   };
   return c.json(out, 200);
 });

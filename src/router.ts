@@ -85,7 +85,7 @@ async function route(env: Env, name: string, memory: string, m: Msg, email: stri
  * posted, every routed message acked under it by the router (so the room shows what happened and nothing is left
  * "unacked"). true = wake the Claude (it reads everything new as before); false = the cursor moves past them.
  */
-export async function gate(env: Env, me: { email: string; agent: string }, bookId: string): Promise<boolean> {
+export async function gate(env: Env, me: { email: string; agent: string }, bookId: string, rulesOnly = false): Promise<boolean> {
   const db = env.DB;
   const since = (await db.prepare(`SELECT last_id FROM agent_reads WHERE agent = ? AND book_id = ?`).bind(me.agent, bookId).first<{ last_id: number }>())?.last_id ?? 0;
   if (!since) return true; // a new agent reads the room first
@@ -101,6 +101,8 @@ export async function gate(env: Env, me: { email: string; agent: string }, bookI
       wake ||= known.decision === "wake";
       continue;
     }
+    // Delivery off (src/delivery.ts): only the fixed rules decide now; the model sees the rest once it's back on.
+    if (!fixed && rulesOnly) continue;
     if (!fixed && ++routed > MAX_ROUTED) return true;
     const out: Out = fixed ? { ...fixed, ms: 0, cost: 0 } : await route(env, input.name, input.memory, m, me.email);
     // One decision per message and person, even with two listeners deciding at once: only the row's writer acts on it.

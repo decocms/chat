@@ -130,11 +130,18 @@ export async function openNativeRoomPane(
       await full.click();
     // The tabs live in the room's top bar and open the pane when it's closed;
     // your Claude (the Agents pane) sits at the foot of the sidebar.
-    const button = page.locator(
+    // With no agent yet the foot offers three ways to get one (#106); the
+    // cloud sandbox is the one that opens the Agents pane.
+    const button =
       pane === "agents"
-        ? "[data-native-agent-footer] button"
-        : `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
-    );
+        ? page
+            .locator(
+              '[data-native-agent-footer] [data-agent-setup="sandbox"], [data-native-agent-footer] [data-agent-row] button, [data-native-agent-footer] > button',
+            )
+            .first()
+        : page.locator(
+            `[data-room-document-toolbar] [data-document-pane="${pane}"]`,
+          );
     if (
       (await layout.getAttribute("data-pane")) !== pane ||
       !(await page.locator(content[pane]).isVisible())

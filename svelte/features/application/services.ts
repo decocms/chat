@@ -115,11 +115,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     onIdentityChange: resetIdentity,
   });
   const rooms = createRoomsSession(personal, browser.clock);
-  const account = createAccountSession(
-    personal,
-    options.accountApi ?? createAccountApi(),
-    browser.clock,
-  );
+  const accountApi = options.accountApi ?? createAccountApi();
+  const account = createAccountSession(personal, accountApi, browser.clock);
   const agents = createAgentsService({
     origin: browser.origin,
     api: options.agentsApi,
@@ -197,6 +194,34 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
           : Promise.resolve({ ok: false, error: "offline" }),
+      answerRequest: async (email, accept) => {
+        const signal = AbortSignal.timeout(15_000);
+        if (!accept) await accountApi.dismiss(email, signal);
+        else {
+          const { id } = await accountApi.connect(email, undefined, signal);
+          if (id) navigate(`/b/${id}`);
+        }
+        personal.invalidate();
+      },
+      answerInvite: async (room, yes) => {
+        await accountApi.answerInvite(room, yes, AbortSignal.timeout(15_000));
+        personal.invalidate();
+        if (yes) navigate(`/b/${room}`);
+      },
+      connect: async (email, text) => {
+        const { id } = await accountApi.connect(
+          email,
+          text,
+          AbortSignal.timeout(15_000),
+        );
+        personal.invalidate();
+        if (id) navigate(`/b/${id}`);
+        return id;
+      },
+      dismiss: async (email) => {
+        await accountApi.dismiss(email, AbortSignal.timeout(15_000));
+        personal.invalidate();
+      },
     },
     browser.clock,
   );

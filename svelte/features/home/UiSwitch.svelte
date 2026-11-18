@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import Switch from "../../lib/studio/Switch.svelte";
-  import { uiNavigationUrl } from "../../../shared/uiVariant";
+  import { uiSwitchUrl } from "../../../shared/uiVariant";
   let { lang }: { lang: "pt" | "en" } = $props();
   let active = true;
   let control = $state<HTMLButtonElement | null>(null);
@@ -18,13 +18,7 @@
       () => true,
       () => {
         if (!active || !control?.isConnected) return;
-        window.location.assign(
-          uiNavigationUrl(
-            window.location.href,
-            window.location.href,
-            "vanilla",
-          ),
-        );
+        window.location.assign(uiSwitchUrl("vanilla", window.location.href));
       }
     }
     aria-label={lang === "en" ? "New UI" : "Nova UI"}

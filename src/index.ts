@@ -4,12 +4,14 @@ import { authApi, uploadsApi, type ApiServices, type AuthServices } from "./api"
 import { CROSS_SITE, UNAUTHENTICATED } from "../shared/schemas";
 import { services } from "./services";
 import { uiNavigationUrl, uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
+import { selectUi, uiSwitch } from "./ui-select";
 import "server-only";
 import { type Context, Hono } from "hono";
 import { cookieLang, reqLang } from "./lang";
 import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { accessPage, filePage, roomAccess, roomMeta } from "./access";
+import { openDm } from "./dm";
 import { nativeAuthPage, nativeConnectionSignedOut } from "./native-page";
 import { auth, authServices, EMAIL_RE, identify } from "./auth";
 import type { Book } from "./book";
@@ -23,7 +25,7 @@ import { validUnsub } from "./mentionmail";
 import { sendDigests } from "./digest";
 
 import { jwks } from "./mcpauth";
-import { befriend, bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
+import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
 import { pushTo } from "./webpush";
 export { Book } from "./book";
@@ -33,6 +35,8 @@ export { DocRoom } from "./docroom";
 
 export type Env = {
   DB: D1Database;
+  /** "vanilla" sends every page to the vanilla app (rollback without a code deploy); anything else = Svelte. */
+  UI_DEFAULT?: string;
   /** Web Push (VAPID, base64url): public = 65-byte P-256 point, private = 32-byte scalar. Missing: no native notifications. */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
@@ -112,6 +116,9 @@ const SCHEMA = [
   // What each person has seen in each room in the app (the switcher's unread dots).
   // One-time upload links for agents: the file goes from disk (curl) to R2 without passing through the model.
   `CREATE TABLE IF NOT EXISTS invite_used (sig TEXT PRIMARY KEY, ts INTEGER)`,
+  // A room invite waits for a yes (src/rooms.ts inviteMember/answerInvite): members are only people who joined.
+  `CREATE TABLE IF NOT EXISTS invites (book_id TEXT, email TEXT, inviter TEXT, created_at INTEGER, declined_at INTEGER, PRIMARY KEY (book_id, email))`,
+  `CREATE INDEX IF NOT EXISTS invites_email ON invites (email)`,
   `CREATE TABLE IF NOT EXISTS upload_links (token TEXT PRIMARY KEY, email TEXT, agent TEXT, book_id TEXT, filename TEXT, type TEXT, message TEXT, thread TEXT, model TEXT, expires_at INTEGER, used INTEGER DEFAULT 0)`,
   // "Esperando você": what someone is waiting on a person for. ref = m<message id> (Jev read the message as an ask
   // to them; deleted when Jev reads their later post in that thread as the answer, or they tick it) or t<task id>
@@ -146,11 +153,19 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS sandboxes (id TEXT PRIMARY KEY, email TEXT, book_id TEXT, name TEXT, vm_id TEXT, identity_id TEXT, ready INTEGER DEFAULT 0, created_at INTEGER)`,
   `CREATE INDEX IF NOT EXISTS sandboxes_book ON sandboxes (book_id)`,
   `CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, email TEXT, p256dh TEXT, auth TEXT, ua TEXT, created_at INTEGER)`,
+  // Machines (Nov 2026): a computer running `vibebook herdr` checks in through claude_rooms (id from ~/.vibebook/machine.json,
+  // its name, herdr | herdr-app). A sandbox is a machine too, id `sb_<sandbox id>`, known from `sandboxes` (no row here).
+  `CREATE TABLE IF NOT EXISTS machines (id TEXT PRIMARY KEY, email TEXT, name TEXT, kind TEXT, seen_at INTEGER, created_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS machines_email ON machines (email)`,
+  // Delivery per room: a machine's switch (covers every agent it runs there; none = members.claude_on, a sandbox = on)
+  // and a one-off agent's own (agent_rooms; none = on). Off = listening skips that room for those agents.
+  `CREATE TABLE IF NOT EXISTS machine_rooms (machine_id TEXT, book_id TEXT, on_ INTEGER, PRIMARY KEY (machine_id, book_id))`,
+  `CREATE TABLE IF NOT EXISTS agent_rooms (agent TEXT, book_id TEXT, delivery INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS push_subs_email ON push_subs (email)`,
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
-const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`];
+const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`];
 // Only when the schema text changed since the last run (a cold isolate used to send ~60 DDL writes to the primary).
 const schemaKey = (alters: string[]) => { let h = 0; for (const ch of [...SCHEMA, ...alters].join(";")) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return String(h); };
 export const ensureSchema = (db: D1Database) =>
@@ -223,6 +238,7 @@ const shell = async (c: { env: Env; req: { url: string; raw: Request } }) => {
   const asset = await c.env.ASSETS.fetch(new Request(new URL(uiShellPath(c.req.url), c.req.url), c.req.raw));
   const res = new Response(asset.body, asset);
   res.headers.set("x-vibebook-ui", uiVariant(c.req.url));
+  res.headers.append("vary", "Cookie"); // which shell depends on the vb_ui cookie (src/ui-select.ts)
   const v = res.headers.get("etag");
   return res.status === 200 && v ? new HTMLRewriter().on("head", { element: (el) => { el.append(`<meta name="vb-v" content="${v.replace(/[^\w-]/g, "")}" />`, { html: true }); } }).transform(res) : res;
 };
@@ -283,7 +299,9 @@ app.get("/b/*", async (c) => {
   const email = await identify(c);
   const url = new URL(c.req.url);
   const id = url.pathname.match(/^\/b\/([a-z0-9]{6,40})/)?.[1] ?? "";
-  const { state, title } = await roomAccess(c.env.DB, id, email ?? null);
+  // Your DM with a friend (or your own) is made the first time either of you opens it (src/dm.ts).
+  if (email) await openDm(c.env, id, email);
+  const { state, title, inviter } = await roomAccess(c.env.DB, id, email ?? null);
   if (state === "member")
     return pageview(c, new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, title ?? ""), { html: true }); } }).transform(await shell(c)), email ?? undefined);
   if (uiVariant(url) === "svelte") {
@@ -292,7 +310,7 @@ app.get("/b/*", async (c) => {
     const res = native.status === 503 ? native : new HTMLRewriter().on("title", {element: (el) => {el.replace(roomMeta(url.origin,id,state === "missing" ? null : title),{html:true});}}).transform(native);
     return pageview(c,res,email ?? undefined);
   }
-  const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
+  const res = c.html(accessPage({ origin: url.origin, id, title, state, email: email ?? undefined, inviter, auto: url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`) /* only when our own login sent them here: a bare link must not ask (and tell the room who clicked) by itself */, lang: reqLang(c.req.raw), ui: uiVariant(url) }), state === "missing" ? 404 : 200);
   res.headers.set("x-frame-options", "DENY");
   res.headers.set("content-security-policy", "frame-ancestors 'none'");
   return pageview(c, res, email ?? undefined);
@@ -553,7 +571,8 @@ app.get("/ws-me", async (c) => {
 app.get("/ws/:id", async (c) => {
   const id = c.req.param("id");
   if (c.req.header("upgrade") !== "websocket") return c.text("expected websocket", 426);
-  if (!(await isMember(c.env.DB, id, c.get("email")))) return c.json({ error: "forbidden" }, 403);
+  // Not a member: maybe your DM, opened for the first time (src/dm.ts).
+  if (!(await isMember(c.env.DB, id, c.get("email"))) && !(await openDm(c.env, id, c.get("email")))) return c.json({ error: "forbidden" }, 403);
   // When you last opened the room: the phone home lists rooms by it.
   // When you last opened the room (the phone home's order) and what you've read: your cached /api/me is stale now.
   c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
@@ -584,7 +603,8 @@ export default {
     }
     if (url.pathname.startsWith("//")) return new Response("not found", { status: 404 });
     if (url.pathname === "/mcp" && isAdminMcp(request, env)) return handleMcp(request, env);
-    return providerFor(url.origin, appHandler).fetch(request, env, ctx);
+    if (url.pathname.startsWith("/ui/")) return uiSwitch(request);
+    return providerFor(url.origin, appHandler).fetch(selectUi(request, env), env, ctx);
   },
   // 11:00 and 21:00 UTC = 8h and 18h in São Paulo: the catch-up e-mail.
   scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {

@@ -404,7 +404,7 @@ async function expectThread(page: Page, roomId: string, thread = "main") {
         thread: url.searchParams.get("t") ?? "main",
       };
     })
-    .toEqual({ path: "/b/" + roomId, ui: "svelte", thread });
+    .toEqual({ path: "/b/" + roomId, ui: null, thread }); // Svelte is the default: no marker
 }
 async function nativeEdit(page: Page) {
   await openIntegratedPane(page, "doc");
@@ -491,6 +491,12 @@ try {
       );
       assert(invite.ok());
       OkResult.parse(await invite.json());
+      // Invites wait for a yes: the peer joins.
+      const joined = await peer.context.request.post(
+        `${base}/api/books/${roomA}/invite`,
+        { headers: { origin: base }, data: { yes: true } },
+      );
+      assert(joined.ok(), `Join status ${joined.status()}`);
       epic = z.object({ epic_id: z.string() }).parse(
         await agent("start_epic", {
           room_id: roomA,
@@ -541,12 +547,33 @@ try {
         ),
         html = await selected.text();
       assert.equal(selected.headers()["x-vibebook-ui"], "svelte");
+      // Svelte is the default; vanilla is the fallback, by URL or by this device's choice.
       const unselected = await owner.context.request.get(`${base}/b/${roomA}`);
-      assert.equal(unselected.headers()["x-vibebook-ui"], "vanilla");
-      assert(
-        !(await unselected.text()).includes("/svelte-preview/app.js"),
-        "Unselected vanilla default must remain",
-      );
+      assert.equal(unselected.headers()["x-vibebook-ui"], "svelte");
+      // An explicit Cookie header replaces the context's cookies: keep the session in it.
+      const session = (await owner.context.cookies(base))
+        .map((cookie) => `${cookie.name}=${cookie.value}`)
+        .join("; ");
+      for (const [how, fallback] of [
+        ["url", owner.context.request.get(`${base}/b/${roomA}?ui=vanilla`)],
+        [
+          "device",
+          owner.context.request.get(`${base}/b/${roomA}`, {
+            headers: { cookie: `${session}; vb_ui=vanilla` },
+          }),
+        ],
+      ] as const) {
+        const response = await fallback;
+        assert.equal(
+          response.headers()["x-vibebook-ui"],
+          "vanilla",
+          `vanilla fallback by ${how}`,
+        );
+        assert(
+          !(await response.text()).includes("/svelte-preview/app.js"),
+          "The vanilla fallback must not load the Svelte app",
+        );
+      }
       const entry = html.match(
           /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
         )?.[1],
@@ -565,7 +592,7 @@ try {
         epic,
         fileId,
         codeMessageId,
-        vanillaDefault: true,
+        svelteDefault: true,
         entrySha256: createHash("sha256")
           .update(await entryResponse.body())
           .digest("hex"),
@@ -619,7 +646,9 @@ try {
       );
       await expect(a.locator('[data-vb-native="update"]')).toHaveCount(0);
       await a
-        .locator(`[data-vb-native="home"] [data-room-id="${roomA}"] a`)
+        .locator(
+          `[data-vb-native="room-navigation"] [data-room-id="${roomA}"] a`,
+        )
         .click();
       await expect(
         a.locator("[data-native-app-shell] [data-native-room-layout]"),
@@ -641,7 +670,9 @@ try {
         .click();
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       await a
-        .locator(`[data-vb-native="home"] [data-room-id="${roomB}"] a`)
+        .locator(
+          `[data-vb-native="room-navigation"] [data-room-id="${roomB}"] a`,
+        )
         .click();
       await expect(composer).toBeVisible();
       await expect(composer).toHaveValue("");
@@ -993,7 +1024,7 @@ try {
       vanilla.on("pageerror", (error) =>
         errors.push(localBrowserError(error, base)),
       );
-      await vanilla.goto(`${base}/b/${roomA}`);
+      await vanilla.goto(`${base}/b/${roomA}?ui=vanilla`);
       documentCheckpoint("vanilla-real-room-ready");
       await expect(vanilla.locator(".book:not(.skel)")).toBeAttached();
       const welcome = vanilla.locator("dialog.welcome[open]");

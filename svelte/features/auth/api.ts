@@ -100,6 +100,16 @@ export function createAuthApi(fetcher?: FetchLike) {
         ),
       );
     },
+    async answerInvite(id: string, yes: boolean, signal?: AbortSignal) {
+      return OkResult.parse(
+        await json(
+          await api.books[":id"].invite.$post(
+            { param: { id: encodeURIComponent(id) }, json: { yes } },
+            { init: { signal } },
+          ),
+        ),
+      );
+    },
     async ask(id: string, signal?: AbortSignal) {
       return AccessRequestResult.parse(
         await json(

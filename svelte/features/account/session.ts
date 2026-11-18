@@ -3,7 +3,7 @@ import type { MeResult, LoginsResult } from "../../../shared/schemas";
 import type { PersonalSession } from "../home/personal";
 import { createAuthOwner, authClock, type AuthClock } from "../auth/owner";
 import { AccountFailure, type AccountApi } from "./api";
-export type AccountSection = "all" | "friends" | "profile" | "agents";
+export type AccountSection = "all" | "profile" | "agents";
 export type AccountBinding = {
   account: string;
   revision: number;
@@ -22,9 +22,7 @@ export type AccountState = {
   loginsError: string;
 };
 type Change =
-  | { kind: "name"; name: string }
-  | { kind: "avatar"; avatar: number }
-  | { kind: "add" | "remove"; email: string };
+  { kind: "name"; name: string } | { kind: "avatar"; avatar: number };
 export function createAccountSession(
   personal: PersonalSession,
   api: AccountApi,
@@ -68,9 +66,7 @@ export function createAccountSession(
     personal.peek()?.email === account;
   function matches(change: Change, me: MeResult) {
     if (change.kind === "name") return me.name === change.name;
-    if (change.kind === "avatar") return me.avatar === change.avatar;
-    const exists = me.friends.some((friend) => friend.email === change.email);
-    return change.kind === "add" ? exists : !exists;
+    return me.avatar === change.avatar;
   }
   function settle() {
     const current = operation,
@@ -278,16 +274,6 @@ export function createAccountSession(
           return api.avatar(blob, signal);
         },
         (value) => ({ kind: "avatar", avatar: value.avatar }),
-      ),
-    add: (email: string) =>
-      change(
-        (signal) => api.addFriend(email, signal),
-        () => ({ kind: "add", email: email.trim().toLowerCase() }),
-      ),
-    remove: (email: string) =>
-      change(
-        (signal) => api.removeFriend(email, signal),
-        () => ({ kind: "remove", email }),
       ),
     refresh() {
       if (!active || !get(state).binding) return;

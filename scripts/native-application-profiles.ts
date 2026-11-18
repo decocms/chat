@@ -365,31 +365,6 @@ async function focusWithin(page: Page, dialog: Locator) {
       .toBe(true);
   }
 }
-async function keyboardHomeInbox(
-  page: Page,
-  profile: NativeApplicationProfile,
-  evidence: NativeApplicationProfileEvidence,
-) {
-  const inbox = page.locator("[data-native-inbox-toggle]");
-  await inbox.focus();
-  await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", {
-    name: createApplicationCopy(profile.lang)("Caixa de entrada"),
-    exact: true,
-  });
-  await expect(dialog).toBeVisible();
-  // The Inbox loads lazily: a placeholder dialog shows first, then the real
-  // one mounts and fades in. Audit the real one.
-  await expect(page.locator("[data-native-inbox]")).toBeVisible();
-  await focusWithin(page, dialog);
-  await axe(page, "Home Inbox dialog open", evidence);
-  await page.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
-  await expect(inbox).toBeFocused();
-  evidence.keyboard.push(
-    "Home Inbox retains modal focus containment, Escape dismissal and exact opening-trigger restoration",
-  );
-}
 async function keyboardOverlays(
   fixture: NativeApplicationAuditFixture,
   profile: NativeApplicationProfile,
@@ -639,7 +614,6 @@ export async function auditNativeApplicationProfiles(
               ),
             });
             await axe(page, "Home", evidence);
-            await keyboardHomeInbox(page, profile, evidence);
             await page.screenshot({
               path: `${fixture.output}/${key}-home.png`,
             });

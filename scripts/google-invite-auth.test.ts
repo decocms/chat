@@ -104,7 +104,7 @@ test("Google start/state binds and consumes the callback cookie before any provi
       const response = await f.request(path, cookie);
       expect(response.status).toBe(302);
       expect(response.headers.get("location")).toBe(
-        cookie ? "/login?error=google&ui=svelte" : "/login?error=google",
+        cookie ? "/login?error=google" : "/login?error=google",
       );
       expect(response.headers.get("set-cookie")).toContain("vb_oauth=;");
       expect(response.headers.get("set-cookie")).not.toContain("vb_session=");
@@ -152,9 +152,7 @@ test("Google token and userinfo HTTP/JSON boundaries reject malformed identity b
   const rejected = async () => {
     const response = await f.request(callback, oauthCookie());
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "/login?error=google&ui=svelte",
-    );
+    expect(response.headers.get("location")).toBe("/login?error=google");
     expect(response.headers.get("set-cookie")).not.toContain("vb_session=");
     expect(f.reads).toHaveLength(0);
     expect(f.writes).toHaveLength(0);

@@ -232,6 +232,7 @@ const EN: Readonly<Record<string, string>> = {
   "{n} coisas esperando você": "{n} things waiting on you",
   "Voltar pra sala principal": "Back to the main thread",
   "Sala principal": "Main thread",
+  Conversa: "Conversation",
   "Seus vibebooks": "Your vibebooks",
   "{theme} (clique pra trocar)": "{theme} (click to change)",
   "Tema: {theme}": "Theme: {theme}",
@@ -595,8 +596,8 @@ const EN: Readonly<Record<string, string>> = {
   "Só você aqui: convide em Pessoas": "Only you here: invite people in People",
   "O agent escreve o doc e cria os épicos":
     "Agent writes the doc and creates the epics",
-  "Não achei {who} nos seus amigos: convide pelo email em Pessoas.":
-    "Couldn't find {who} among your friends: invite them by email in People.",
+  "Não achei {who} nas suas salas: convide pelo email em Pessoas.":
+    "Couldn't find {who} in your rooms: invite them by email in People.",
   "O que é e com quem?": "What is it, and with whom?",
   "Ex.: viagem de avião pra SP com os dogs, eu e a Alexia":
     "E.g.: flying to São Paulo with the dogs, me and Alexia",
@@ -626,6 +627,11 @@ const EN: Readonly<Record<string, string>> = {
     "Copy the invite message (room link + agent setup) to send on WhatsApp",
   copiar: "copy",
   "Convidada(o), ainda não entrou": "Invited, hasn't joined yet",
+  "Convidada(o), ainda não respondeu": "Invited, hasn't answered yet",
+  "Recusou o convite": "Declined the invite",
+  aguardando: "waiting",
+  recusou: "declined",
+  Convidados: "Invited",
   reenviar: "resend",
   "Remover {email}": "Remove {email}",
   "Cancelar convite": "Cancel invite",

@@ -20,9 +20,8 @@
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
-  import UserMenu from "../app-navigation/UserMenu.svelte";
-  import { userMenuBridge } from "../app-navigation/menuBridge";
-  import { personAvatar } from "../home/model";
+  import AccountRow from "../app-navigation/AccountRow.svelte";
+  import AgentFoot from "../agents/AgentFoot.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -55,9 +54,7 @@
   } = $props();
   const services = untrack(() => presentation.services),
     captured = untrack(() => scope);
-  // The account menu sits at the sidebar's foot in a room (desktop), under your Claude.
-  const menu = userMenuBridge(),
-    personal = untrack(() => services.personal.state);
+  const personal = untrack(() => services.personal.state);
   let active = true,
     scoped: RoomScope | undefined;
   const current = () => active && services.ownsRoom(captured);
@@ -159,6 +156,22 @@
     if (!current()) return;
     if (inboxOpen) leaveInbox();
     if (layout.read().boardFull) layout.toggleBoard();
+  }
+  // Desktop, the sidebar's views (chat, inbox, board): each takes the middle.
+  function toggleBoard() {
+    if (!current()) return;
+    if (inboxOpen) {
+      leaveInbox();
+      if (!layout.read().boardFull) layout.toggleBoard();
+      return;
+    }
+    layout.toggleBoard();
+  }
+  function toggleInbox(trigger?: HTMLElement) {
+    if (!current()) return;
+    if (inboxOpen) return toChat();
+    if (!layout.read().mobile && layout.read().boardFull) layout.toggleBoard();
+    presentation.openInbox(trigger);
   }
   // Desktop has no board pane any more (the board is always full width): a
   // remembered "board" pane falls back to the doc.
@@ -350,33 +363,34 @@
         {inboxOpen}
         onthreadintent={leaveInbox}
         onroomhome={toChat}
-        oninbox={(trigger) => {
-          if (current()) presentation.openInbox(trigger);
-        }}
+        oninbox={toggleInbox}
+        onboard={$geometry.mobile ? undefined : toggleBoard}
+        boardOpen={!$geometry.mobile && $geometry.boardFull && !inboxOpen}
+        boardCount={$view.toolbar.counts?.board}
+        inboxCount={$personal.me?.waits?.length ?? 0}
         hideSheetHandle
       >
         {#snippet footer(
           collapsed,
-        )}{#if $view?.trigger}<!-- Your Claude, at the foot of the sidebar: opens the Agents pane. -->
+          rows,
+        )}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
               data-native-agent-footer
-              class="tw:flex tw:justify-center"
+              class={collapsed ? "tw:flex tw:justify-center" : ""}
             >
-              <AgentTrigger {...$view.trigger} row={!collapsed} />
-            </div>{/if}{#if menu && $personal.me && !collapsed}<UserMenu
-              row
-              name={$personal.me.name ?? ""}
-              email={$personal.me.email}
-              avatar={personAvatar($personal.me, $personal.me.email)}
-              friends={$personal.me.friends.length}
-              lang={menu.lang}
-              theme={menu.theme()}
-              onsettheme={menu.onsettheme}
-              onlanguage={menu.onlanguage}
-              onaccount={menu.onaccount}
-              pwa={menu.pwa}
-              onlogout={menu.onlogout}
+              {#if collapsed}<AgentTrigger
+                  {...$view.trigger}
+                />{:else}<AgentFoot
+                  owner={$view.trigger.owner}
+                  onopen={$view.trigger.onopen}
+                  origin={$view.trigger.origin ?? ""}
+                  lang={$view.trigger.lang}
+                  queue={$view.trigger.queue}
+                  ago={$view.sidebar.vb.ago}
+                />{/if}
+            </div>{:else}{@render rows?.()}{/if}{#if $personal.me && !collapsed}<AccountRow
+              me={$personal.me}
             />{/if}{/snippet}
       </Sidebar>{/if}{/snippet}
   {#snippet header()}{#if $view}<RoomHeader

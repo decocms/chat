@@ -94,6 +94,8 @@ export const RoomEventSchemas = {
   members: event("members", {
     members: strings,
     pending: z.optional(strings),
+    invited: z.optional(strings),
+    declined: z.optional(strings),
     requests: z.optional(z.array(AccessRequestSchema)),
     names: z.optional(z.record(str, str)),
     avatars: z.optional(z.record(str, num)),

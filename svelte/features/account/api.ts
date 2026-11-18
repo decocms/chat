@@ -1,6 +1,7 @@
 import { client } from "../../lib/client/api";
 import {
   AvatarResult,
+  ConnectResult,
   ErrorBody,
   LoginsResult,
   OkResult,
@@ -51,14 +52,24 @@ export function createAccountApi(fetcher?: FetchLike) {
           { init: { body, signal } },
         )
         .then((response) => read(response, AvatarResult)),
-    addFriend: (email: string, signal: AbortSignal) =>
+    /** Write to someone: `id` = the DM is open now; none = it went as a message request (src/services.ts connect). */
+    connect: (email: string, text: string | undefined, signal: AbortSignal) =>
       api.friends
-        .$post({ json: { email } }, { init: { signal } })
-        .then((response) => read(response, OkResult)),
-    removeFriend: (email: string, signal: AbortSignal) =>
+        .$post({ json: { email, text } }, { init: { signal } })
+        .then((response) => read(response, ConnectResult)),
+    /** Decline their message request, or cancel yours. */
+    dismiss: (email: string, signal: AbortSignal) =>
       api.friends[":email"]
         .$delete(
           { param: { email: encodeURIComponent(email) } },
+          { init: { signal } },
+        )
+        .then((response) => read(response, OkResult)),
+    /** Your answer to a room invite. */
+    answerInvite: (room: string, yes: boolean, signal: AbortSignal) =>
+      api.books[":id"].invite
+        .$post(
+          { param: { id: encodeURIComponent(room) }, json: { yes } },
           { init: { signal } },
         )
         .then((response) => read(response, OkResult)),

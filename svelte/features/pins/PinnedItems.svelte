@@ -411,8 +411,12 @@
     ></span
   >{/snippet}
 
+<!-- In the sidebar it gives way to the epics, down to its title and ~3 rows (one row or none: its own height). -->
 <section
-  class="tw:max-h-[20%] tw:shrink-0 tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none"
+  class={cn(
+    "tw:max-h-[20%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:bg-sidebar tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
+    rows.length > 1 ? "tw:min-h-32 tw:shrink" : "tw:shrink-0",
+  )}
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"

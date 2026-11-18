@@ -100,10 +100,18 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
     loginProviders: { google: false, github: false },
     isEmail: (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
-    befriend: async () => {},
+    connect: async (email) =>
+      email === "member@test.com"
+        ? { id: "dm00000000000000000001" }
+        : email === "limited@test.com"
+          ? { error: "rate" }
+          : {},
+    dismiss: async () => {},
+    answerInvite: async (room) => room === "aaaaaa",
     invite: async () => {},
     removeMember: async () => null,
     pokeAgents: () => {},
+    pokeListeners: () => {},
     requestAccess: async () => "asked",
     decideRequest: async () => true,
     createRoom: async () => "room",
@@ -148,6 +156,11 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     me: async () => ({
       email: "test@example.com",
       name: null,
+      dm: "dm000000000000000000aa",
+      requests: [],
+      sent: [],
+      invites: [],
+      people: [],
       avatar: null,
       books: [],
       friends: [],
@@ -486,46 +499,56 @@ test("room agents: members only, listening and context derived from the rows, ba
       ? claude
         ? [{ claude_on: 1 }]
         : []
-      : query.includes("FROM sandboxes")
-        ? [
-            {
-              id: "s1",
-              email: "a@x.co",
-              name: "box",
-              state: "running",
-              run_s: 60,
-              rate: 0.1,
-              disk_rate: 0.01,
-              checked_at: now,
-              created_at: now,
-            },
-          ]
-        : [
-            {
-              email: "a@x.co",
-              who: "claude-opus-5-5",
-              repo: "vb",
-              seen_at: now,
-              listening_at: now - 1000,
-              listen_room: "room",
-              ctx_tokens: 500,
-              ctx_window: 1000,
-              ctx_at: now,
-              ctx_limits: '{"five_hour":{"p":40,"r":1}}',
-            },
-            {
-              email: "b@x.co",
-              who: null,
-              repo: null,
-              seen_at: now,
-              listening_at: now - 3_600_000,
-              listen_room: null,
-              ctx_tokens: 1,
-              ctx_window: 2,
-              ctx_at: now,
-              ctx_limits: "{bad",
-            },
-          ];
+      : query.includes("FROM machines")
+        ? []
+        : query.includes("FROM sandboxes")
+          ? [
+              {
+                id: "s1",
+                email: "a@x.co",
+                name: "box",
+                state: "running",
+                run_s: 60,
+                rate: 0.1,
+                disk_rate: 0.01,
+                checked_at: now,
+                created_at: now,
+              },
+            ]
+          : [
+              {
+                email: "a@x.co",
+                who: "claude-opus-5-5",
+                repo: "vb",
+                seen_at: now,
+                listening_at: now - 1000,
+                listen_room: "room",
+                ctx_tokens: 500,
+                ctx_window: 1000,
+                ctx_at: now,
+                ctx_limits: '{"five_hour":{"p":40,"r":1}}',
+                id: "s_a",
+                client: "vibebook CLI",
+                machine_id: null,
+                delivers: 1,
+              },
+              {
+                email: "b@x.co",
+                who: null,
+                repo: null,
+                seen_at: now,
+                listening_at: now - 3_600_000,
+                listen_room: null,
+                ctx_tokens: 1,
+                ctx_window: 2,
+                ctx_at: now,
+                ctx_limits: "{bad",
+                id: "s_b",
+                client: null,
+                machine_id: null,
+                delivers: 1,
+              },
+            ];
   const outsider = fixture({ sqlAll: rows(false) });
   expect((await outsider.app.request("/api/books/room/agents")).status).toBe(
     403,
@@ -749,9 +772,7 @@ test("personal query contracts preserve first duplicates, search normalization a
   ]) {
     const url = `http://localhost/api/me?${query}`;
     expect((await f.app.request(url)).status).toBe(200);
-    expect(uiVariant(url)).toBe(
-      query.startsWith("ui=svelte&") ? "svelte" : "vanilla",
-    );
+    expect(uiVariant(url)).toBe("svelte"); // first value wins; unknown = the default (Svelte)
   }
   if (false) {
     // @ts-expect-error inferred ui accepts a string, not an untyped numeric value.
@@ -776,6 +797,11 @@ test("personal query contracts leave rate limits and cached me payloads unchange
         email: "test@example.com",
         name: null,
         avatar: null,
+        dm: "dm000000000000000000aa",
+        requests: [],
+        sent: [],
+        invites: [],
+        people: [],
         books: [],
         friends: [],
         waits: [],
@@ -1806,6 +1832,10 @@ test("API-local metadata and database validators retain optional/null and uncoer
     ctx_window: null,
     ctx_at: null,
     ctx_limits: null,
+    id: "s_x",
+    client: null,
+    machine_id: null,
+    delivers: null,
   };
   expect(AgentDbRow.parse({ ...row, ignored: true })).toEqual(row);
   expect(AgentDbRow.safeParse({ ...row, seen_at: "1" }).success).toBe(false);
@@ -1815,4 +1845,34 @@ test("API-local metadata and database validators retain optional/null and uncoer
   expect(AgentDbRow.safeParse(incomplete).success).toBe(false);
   expect(AgentDbRow.shape.who).toBe(AgentDbRow.shape.repo);
   expect(AgentDbRow.shape.seen_at).toBe(AgentDbRow.shape.ctx_tokens);
+});
+
+test("writing to someone opens the DM, sends a request, or is rate-limited; invites take a yes", async () => {
+  const f = fixture();
+  const open = await f.json("/api/friends", {
+    email: "Member@test.com",
+    text: "oi",
+  });
+  expect(open.status).toBe(200);
+  expect(await open.json()).toEqual({ ok: true, id: "dm00000000000000000001" });
+  const request = await f.json("/api/friends", { email: "stranger@test.com" });
+  expect(request.status).toBe(200);
+  expect(await request.json()).toEqual({ ok: true });
+  expect(
+    (await f.json("/api/friends", { email: "limited@test.com" })).status,
+  ).toBe(429);
+  expect((await f.json("/api/friends", { email: "nope" })).status).toBe(400);
+  const gone = await f.app.request("/api/friends/x%40test.com", {
+    method: "DELETE",
+  });
+  expect(gone.status).toBe(200);
+  expect((await f.json("/api/books/aaaaaa/invite", { yes: true })).status).toBe(
+    200,
+  );
+  expect(
+    (await f.json("/api/books/bbbbbb/invite", { yes: false })).status,
+  ).toBe(404);
+  expect((await f.json("/api/books/aaaaaa/invite", { yes: "y" })).status).toBe(
+    400,
+  );
 });

@@ -35,6 +35,12 @@ export type SidebarProps = {
   onopenside?: () => void;
   oninbox?: (trigger?: HTMLElement) => void;
   inboxOpen?: boolean;
+  /** Desktop: the room's views under the main thread (chat, inbox, board); toggles the full board. */
+  onboard?: () => void;
+  boardOpen?: boolean;
+  /** Your open tasks here (the board row's count) and what waits on you (the inbox row's). */
+  boardCount?: number | string;
+  inboxCount?: number;
   onthreadintent?: () => boolean;
   /** Desktop: the room's name or icon at the top brings the chat back. */
   onroomhome?: () => void;
@@ -43,7 +49,10 @@ export type SidebarProps = {
   /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */
   hideSheetHandle?: boolean;
   /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
-  footer?: import("svelte").Snippet<[collapsed: boolean]>;
+  /** The foot: your agent, then (desktop) `rows` = your agents' rows, then you. */
+  footer?: import("svelte").Snippet<
+    [collapsed: boolean, rows?: import("svelte").Snippet]
+  >;
   friends?: string[];
   vb: SidebarBridge;
   send: SendRoomCommand;

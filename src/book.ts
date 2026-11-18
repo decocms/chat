@@ -19,6 +19,7 @@ class Refused {
 }
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
+import { dmTitle, isDmId } from "./dm";
 import { dropBlock, parseBlock, reconcile, renderBlock } from "./taskblock";
 import { asLang, type Lang } from "./lang";
 import { DurableObject } from "cloudflare:workers";
@@ -27,7 +28,7 @@ import { generateText, type LanguageModel, Output } from "ai";
 import { z } from "zod";
 import type { Env } from "./index";
 import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, ROOM_TAGS, tagsOf, unsubscribeUrl } from "./mentionmail";
-import { docRoomStub } from "./rooms";
+import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
@@ -54,6 +55,7 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Novo vibebook";
+
 const CLASSIFY_DELAY_MS = 30_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
@@ -498,7 +500,22 @@ export class Book extends DurableObject<Env> {
     this.ctx.waitUntil(track(this.env, "suggest_check", { dims: { book: this.get("book_id") ?? undefined, n: list.length, model: this.env.MODEL_JUDGE, cost: +r.cost.toFixed(6) } }));
     return list.filter((_, i) => (r.answers[`s${i}`]?.noul ?? 0) < 0.5);
   }
-  // Invited but never signed in.
+  /** Room invites waiting for a yes, and the ones turned down (D1 invites, src/rooms.ts). Not members: People shows
+   *  them, nothing else in the room reaches them. */
+  async invited(): Promise<{ waiting: string[]; declined: string[] }> {
+    const id = this.get("book_id");
+    if (!id) return { waiting: [], declined: [] };
+    const r = (await this.env.DB.prepare(`SELECT email, declined_at FROM invites WHERE book_id = ? AND (declined_at IS NULL OR declined_at > ?) ORDER BY created_at`).bind(id, Date.now() - DECLINE_HOLD_MS).all<{ email: string; declined_at: number | null }>()).results;
+    return { waiting: r.filter((x) => !x.declined_at).map((x) => x.email), declined: r.filter((x) => x.declined_at).map((x) => x.email) };
+  }
+  /** What People lists: the members, and apart from them the invitees (`invited`: waiting, then declined); `pending`
+   *  marks who hasn't come in yet (old never-signed-in members and waiting invitees), `declined` who said no. */
+  async people() {
+    const [members, old, inv] = await Promise.all([this.members(), this.pending(), this.invited()]);
+    const invited = [...inv.waiting, ...inv.declined].filter((e) => !members.includes(e));
+    return { members, invited, pending: [...new Set([...old, ...inv.waiting])], declined: inv.declined };
+  }
+  // Members who were added before invites waited for a yes (Nov 2026) and never signed in.
   async pending(): Promise<string[]> {
     const id = this.get("book_id");
     if (!id) return [];
@@ -641,6 +658,10 @@ export class Book extends DurableObject<Env> {
     const r = await this.env.DB.prepare(`SELECT email FROM members WHERE book_id = ?`).bind(id).all();
     return r.results.map((m) => m.email as string);
   }
+  /** A direct-message room (src/dm.ts): its id says so, no D1 read. */
+  get isDm() {
+    return isDmId(this.get("book_id") ?? "");
+  }
   online() {
     return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))];
   }
@@ -654,8 +675,9 @@ export class Book extends DurableObject<Env> {
     const to = [...new Set(emails)].filter((e) => !here.has(e) && now - (this.pushedAt.get(e) ?? 0) > 20_000);
     if (!to.length) return;
     to.forEach((e) => this.pushedAt.set(e, now));
-    const room = (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "vibebook";
-    const sent = await pushTo(this.env, to, { title: `${title} · ${room}`, body, url: `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`, tag: `vb-${bookId}` });
+    // A DM's push is titled by who wrote (its stored "A · B" title says nothing more).
+    const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "vibebook");
+    const sent = await pushTo(this.env, to, { title: room ? `${title} · ${room}` : title, body, url: `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`, tag: `vb-${bookId}` });
     if (sent) await track(this.env, "push_sent", { dims: { book: bookId, n: sent } });
   }
   sockets(except?: WebSocket) {
@@ -732,7 +754,8 @@ export class Book extends DurableObject<Env> {
       if (q && q.author === author && ASK_OPENER.test(q.text)) { this.ctx.waitUntil(this.askWait(author, replyTo, "", null)); this.unblock(author); }
     }
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
-    if (text.includes("@") && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
+    // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
+    if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     if (extra.tag === "done" && extra.kind === "agent" && thread !== "main") this.ctx.waitUntil(this.wakeAt(ts + (this.env.DEV_EMAIL ? 4_000 : NUDGE_AFTER_DELIVERY_MS)));
     return m;
   }
@@ -748,7 +771,8 @@ export class Book extends DurableObject<Env> {
   // ---- mention emails (src/mentionmail.ts) ----
   /** Someone was @mentioned: email them in MAIL_DELAY_MS unless they read it first. */
   async queueMentions(m: Msg) {
-    const who = mentioned(m.text, await this.members(), await this.names(), m.author, !m.kind && m.author !== "ai");
+    const members = await this.members(), human = !m.kind && m.author !== "ai";
+    const who = human && this.isDm ? members.filter((e) => e !== m.author) : mentioned(m.text, members, await this.names(), m.author, human);
     if (!who.length) return;
     const nm = (await this.names())[m.author] || m.author.split("@")[0];
     this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? `agent de ${nm}` : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
@@ -1130,6 +1154,8 @@ export class Book extends DurableObject<Env> {
   async answerIntent(msgId: number, email: string, text: string) {
     const bookId = this.get("book_id");
     if (!bookId || text.length < 12 || this.env.MODEL_JUDGE === "off") return;
+    // A question to a friend in your DM is for them, not an answer epic; your own DM ("Você") works like a room.
+    if (this.isDm && (await this.members()).length > 1) return;
     const listening = await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first();
     if (!listening) return;
     const r = await decide(this.env, { message: text.slice(0, 1500) }, {
@@ -1867,6 +1893,7 @@ export class Book extends DurableObject<Env> {
   /** Rename the room (a person in the app, or an agent's rename_room). Locks the title against classify. */
   async renameRoom(bookId: string, raw: string) {
     this.bind(bookId);
+    if (this.isDm) return { ok: false, error: "a DM is named after the people in it; it can't be renamed" };
     const title = raw.trim().slice(0, 120);
     if (!title) return { ok: false, error: "title is required" };
     this.set("title_locked", "1");
@@ -1957,7 +1984,8 @@ export class Book extends DurableObject<Env> {
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
-      this.broadcast({ t: "members", members, pending: await this.pending(), requests: await this.requests(), names: await this.names(), avatars: await this.avatars() });
+      const people = await this.people();
+      this.broadcast({ t: "members", members: people.members, invited: people.invited, pending: people.pending, declined: people.declined, requests: await this.requests(), names: await this.names(), avatars: await this.avatars() });
       this.broadcast({ t: "online", online: this.online() });
       return new Response("ok");
     }
@@ -1979,14 +2007,16 @@ export class Book extends DurableObject<Env> {
     if (this.autoArchive()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
-    const [book, members, pending, requests, names, avatars] = await Promise.all([
-      this.env.DB.prepare(`SELECT title, folder, summary, owner FROM books WHERE id = ?`).bind(bookId).first<BookMeta>(),
-      this.members(), this.pending(), this.requests(), this.names(), this.avatars(),
+    const [book, people, requests, names, avatars] = await Promise.all([
+      this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
+      this.people(), this.requests(), this.names(), this.avatars(),
     ]);
+    const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const state: Extract<RoomEvent, {t:"state"}> = {
         t: "state",
         me: email,
-        book: book ?? {title: DEFAULT_TITLE, owner: email},
+        // A DM is named for each side: the other person, or "You" in your own.
+        book: dm ? { ...meta, title: await dmTitle(this.env, dm, email, this.en), dm: true } : meta,
         doc: this.get("doc") ?? "",
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
@@ -2005,8 +2035,10 @@ export class Book extends DurableObject<Env> {
         pins: this.pins(),
         suggestions: this.suggestions(),
         briefs: this.briefsFor(email),
-        members,
-        pending,
+        members: people.members,
+        invited: people.invited,
+        pending: people.pending,
+        declined: people.declined,
         requests,
         names,
         avatars,
@@ -2107,6 +2139,7 @@ export class Book extends DurableObject<Env> {
         return this.setDoc(String(m.text ?? ""), email, ws, epic);
       }
       case "title":
+        if (this.isDm) return new Refused("a DM keeps its name");
         await this.renameRoom(this.get("book_id") ?? "", String(m.title ?? ""));
         return;
       case "epic":
@@ -2303,7 +2336,8 @@ export class Book extends DurableObject<Env> {
     // The room's doc is the scope everyone (and every Claude) works from: is it sharp? One call per change.
     const room = (this.get("doc") ?? "").trim();
     const docSig = hash(room.slice(0, 4000));
-    if (seen.get(DOC_GRADE) !== docSig) {
+    // A DM's doc is notes between two people, not a project's scope: no grade.
+    if (!this.isDm && seen.get(DOC_GRADE) !== docSig) {
       let notes: string[] | null = null;
       if (room.length < 120) notes = [this.en ? "doc almost empty: say what the project delivers, what's left out and how you'll know it worked" : "doc quase vazio: diga o que o projeto entrega, o que fica de fora e como saber que deu certo"];
       else {
@@ -2435,7 +2469,8 @@ export class Book extends DurableObject<Env> {
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
     const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;
-    if (fresh < (since ? CLASSIFY_MIN_NEW_MSGS : CLASSIFY_FIRST_MSGS)) return;
+    // A DM has no title, folder or epic ideas to guess: it's named after the people in it.
+    if (this.isDm || fresh < (since ? CLASSIFY_MIN_NEW_MSGS : CLASSIFY_FIRST_MSGS)) return;
     const bookId = this.get("book_id");
     if (!bookId) return;
     const folders = await this.env.DB.prepare(
@@ -2445,10 +2480,8 @@ export class Book extends DurableObject<Env> {
       .bind(bookId)
       .all();
     const lastId = (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0;
-    // Requests an agent already took (ack) or that already became an epic are not for @vibe to suggest again.
-    const handled = new Set([...this.sql.exec<{ id: number }>(`SELECT msg_id AS id FROM acks UNION SELECT from_msg AS id FROM epics WHERE from_msg IS NOT NULL`).toArray().map((r) => r.id)]);
     const transcript = this.messages(undefined, 80)
-      .map((m) => `[${m.thread === "main" ? "principal" : m.thread}]${handled.has(m.id) ? " [já em andamento]" : ""} ${m.author}: ${m.text}`)
+      .map((m) => `[${m.thread === "main" ? "principal" : m.thread}] ${m.author}: ${m.text}`)
       .join("\n");
     try {
       const { output, usage } = await generateText({
@@ -2458,16 +2491,11 @@ export class Book extends DurableObject<Env> {
             title: z.string().describe("título curto e específico do vibebook, máx 6 palavras"),
             folder: z.string().describe("pasta para organizar; reutilize uma pasta existente se fizer sentido"),
             summary: z.string().describe("uma frase curta (máx 20 palavras) dizendo do que se trata e em que pé está; sem emails, sem 'o usuário'"),
-            suggested_epics: z
-              .array(z.object({ title: z.string(), why: z.string().describe("uma frase: por que vale um épico, a partir do que a conversa disse; sem emails"), tasks: z.array(z.string()).max(8) }))
-              .max(3)
-              .describe("épicos que ainda NÃO existem e valeria criar; nunca para pedidos marcados [já em andamento] nem para o que um épico existente já cobre, mesmo com outro nome; vazio se nada novo"),
           }),
         }),
         prompt: `Classifique este vibebook (documento compartilhado com chat e épicos).
-Escreva título, resumo e épicos sugeridos (título, por quê, tarefas) no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
+Escreva título e resumo no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
 Pastas que essas pessoas já usam: ${folders.results.map((f) => f.folder).join(", ") || "(nenhuma)"}
-Épicos existentes: ${this.epics().map((e) => e.title).join(", ") || "(nenhum)"}
 Documento:
 ${(this.get("doc") ?? "").slice(0, 4000)}
 
@@ -2481,11 +2509,8 @@ ${transcript}`,
       const title = this.get("title_locked") || (current && current.title !== "Novo vibebook") ? undefined : output.title;
       const summary = output.summary.replace(/\s+/g, " ").trim().slice(0, 180);
       await this.touch({ title, folder: output.folder, summary });
-      const existing = new Set([...this.epics().map((e) => epicKey(e.title)), ...this.suggestions().map((s) => epicKey(s.title))]);
-      const suggestions = await this.keepNewSuggestions([...this.suggestions(), ...output.suggested_epics.filter((s) => !existing.has(epicKey(s.title)))].slice(-5));
-      this.set("suggestions", JSON.stringify(suggestions));
+      // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_epic stays theirs.
       this.broadcast({ t: "meta", title, folder: output.folder, summary });
-      this.broadcast({ t: "suggestions", suggestions: this.suggestions() });
     } catch (e) {
       // Negative cache: mark as classified anyway so a failing provider isn't retried every alarm.
       console.error("classify failed", String(e));

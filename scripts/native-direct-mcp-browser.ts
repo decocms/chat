@@ -79,6 +79,11 @@ export async function auditDirectMcp(
           width: 1440,
         });
         context = profile.context;
+        // A vanilla user since Svelte became the default: this device chose vanilla.
+        if (variant === "vanilla")
+          await context.addCookies([
+            { name: "vb_ui", value: "vanilla", url: fixture.base },
+          ]);
         const page = profile.page;
         page.on("pageerror", (error) =>
           result.pageErrors.push(localBrowserError(error, fixture.base)),
@@ -155,7 +160,7 @@ export async function auditDirectMcp(
         result.phase = "real-room-ready";
         await page.goto(
           fixture.base +
-            `/b/${room}${variant === "svelte" ? "?ui=svelte" : ""}`,
+            `/b/${room}${variant === "svelte" ? "?ui=svelte" : "?ui=vanilla"}`,
         );
         await expect(
           page.locator(variant === "svelte" ? "[data-room-chat]" : "#msgs"),

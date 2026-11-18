@@ -1,5 +1,5 @@
 // Component-level Happy DOM fixtures only. No Worker, real browser, auth or room is represented.
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { plugin } from "bun";
 import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
@@ -126,6 +126,8 @@ afterEach(() => {
   document.body.replaceChildren();
   localStorage.clear();
 });
+// The one-off "new vibebook" welcome (NewUiWelcome) has its own test below; the app fixtures here have seen it.
+beforeEach(() => localStorage.setItem("vb.newUiWelcomed", "1"));
 const flush = async () => {
   await settle();
   flushSync();
@@ -294,7 +296,6 @@ test("the rail's account menu opens account sections, drives the device notifica
   };
   for (const [name, section] of [
     ["profile", "profile"],
-    ["friends", "friends"],
     ["agents", "agents"],
     ["settings", "all"],
   ] as const) {
@@ -396,9 +397,9 @@ test("the phone thread sheet's tabs: This room shows the sidebar, All rooms list
   expect(all.textContent).toContain("All rooms");
   all.click();
   await flush();
-  // All rooms: Home + every room, and the room's own content steps aside.
+  // All rooms: Home + every room + "Você" (your own DM), and the room's own content steps aside.
   const list = target.querySelector('[data-room-scope-panel="all"]')!;
-  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(4);
+  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(5);
   expect(
     target
       .querySelector('[data-room-scope-panel="room"]')!
@@ -959,8 +960,9 @@ const profileApi: AccountApi = {
   }),
   name: async (name) => ({ ok: true, name }),
   avatar: async () => ({ ok: true, avatar: 1 }),
-  addFriend: async () => ({ ok: true }),
-  removeFriend: async () => ({ ok: true }),
+  connect: async () => ({ ok: true as const }),
+  dismiss: async () => ({ ok: true as const }),
+  answerInvite: async () => ({ ok: true as const }),
 };
 test("native Home renders untrusted room metadata as text and passes exact room identity", async () => {
   const { personal, rooms, pwa, profile, creator } = await setup({
@@ -1370,8 +1372,6 @@ async function pendingNavigation(
       props: {
         controller: h.services.navigation,
         lang: "en",
-        ontheme() {},
-        onlanguage() {},
         loadDialogs: () => code.promise,
       },
     }),
@@ -1746,4 +1746,89 @@ test("real RoomShell rejects connected card-A intent after same-ID canonical msg
   if (!sent || sent.t !== "msg") throw Error("Expected current card reply");
   expect(sent.reply_to).toBe(1);
   expect(sent.text).toBe("approve");
+});
+test("Pedidos: an invite's Entrar joins, a message request shows its first message and × declines", async () => {
+  const { default: Requests } =
+    await import("../svelte/features/app-navigation/Requests.svelte");
+  const joins: [string, boolean][] = [],
+    answers: [string, boolean][] = [];
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Requests, {
+      target,
+      props: {
+        lang: "en",
+        invites: [
+          {
+            book_id: "aaaaaa",
+            title: "Trip",
+            icon: null,
+            inviter: "ana@test.com",
+            inviter_name: "Ana",
+            inviter_avatar: null,
+            people: 3,
+            created_at: 1,
+          },
+        ],
+        requests: [
+          { email: "bia@test.com", name: "Bia", avatar: null, msg: "hi there" },
+        ],
+        onjoin: async (room: string, yes: boolean) => {
+          joins.push([room, yes]);
+        },
+        onanswer: async (email: string, yes: boolean) => {
+          answers.push([email, yes]);
+        },
+      },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    target.remove();
+  });
+  await flush();
+  const invite = target.querySelector<HTMLElement>(
+    '[data-request="room:aaaaaa"]',
+  )!;
+  expect(invite.textContent).toContain("Ana invited you · 3 people");
+  [...invite.querySelectorAll("button")]
+    .find((button) => button.textContent?.trim() === "Join")!
+    .click();
+  await flush();
+  expect(joins).toEqual([["aaaaaa", true]]);
+  const request = target.querySelector<HTMLElement>(
+    '[data-request="dm:bia@test.com"]',
+  )!;
+  expect(request.textContent).toContain("hi there");
+  request.querySelector<HTMLButtonElement>('[aria-label="Decline"]')!.click();
+  await flush();
+  expect(answers).toEqual([["bia@test.com", false]]);
+});
+
+test("the new-vibebook welcome shows once to a returning person, never to a new account", async () => {
+  const { mount, unmount, flushSync } = await import("svelte");
+  const { default: NewUiWelcome } =
+    await import("../svelte/features/onboarding/NewUiWelcome.svelte");
+  const open = async (returning: boolean) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(NewUiWelcome, { target, props: { returning, lang: "en" } }),
+    );
+    await flush();
+    const shown =
+      document.querySelector("[data-new-ui-welcome]")?.textContent ?? "";
+    await unmount(instance);
+    target.remove();
+    return shown;
+  };
+  localStorage.clear();
+  expect(await open(false)).toBe("");
+  expect(await open(true)).toBe(""); // the new account's first visit already counted
+  localStorage.clear();
+  expect(await open(true)).toContain("Welcome to the new vibebook");
+  expect(await open(true)).toBe("");
 });

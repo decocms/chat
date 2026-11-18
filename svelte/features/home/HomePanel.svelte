@@ -24,7 +24,7 @@
   } from "./model";
   import Icon from "../../lib/studio/Icon.svelte";
   import { Check, Inbox01 } from "../../lib/studio/icons";
-  import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { mountCube } from "./cube";
@@ -439,12 +439,7 @@
             >{#if $account.loading}<Spinner size="xs" />{/if}{text(
               "retry",
             )}</Button
-          >{:else}<div role="status" aria-label={text("loading")}>
-            <Skeleton class="tw:mt-3 tw:h-9 tw:w-80 tw:max-w-[70vw]" />
-            <Skeleton
-              class="tw:mx-auto tw:mt-7 tw:h-12 tw:w-[576px] tw:max-w-[85vw] tw:rounded-full"
-            />
-          </div>{/if}
+          >{:else}<HomeSkeleton label={text("loading")} />{/if}
       </section>
       {#if $account.me}{@const me = $account.me}
         <div
