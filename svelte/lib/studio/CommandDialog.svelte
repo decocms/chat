@@ -32,19 +32,19 @@
 </script>
 
 <Dialog bind:open {...rest}>
-  <DialogHeader class="tw:sr-only">
+  <DialogHeader class="sr-only">
     <DialogTitle>{title}</DialogTitle>
     <DialogDescription>{description}</DialogDescription>
   </DialogHeader>
   <DialogContent
-    class={cn("tw:overflow-hidden tw:p-0", className)}
-    closeButtonClassName="tw:hidden"
+    class={cn("overflow-hidden p-0", className)}
+    closeButtonClassName="hidden"
     onCloseAutoFocus={(event) => event.preventDefault()}
   >
     <Command
       {filter}
       {shouldFilter}
-      class="tw:[&_[data-command-group-heading]]:text-muted-foreground tw:**:data-[slot=command-input-wrapper]:h-12 tw:[&_[data-command-group-heading]]:px-2 tw:[&_[data-command-group-heading]]:font-medium tw:[&_[data-command-group]]:px-2 tw:[&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 tw:[&_[data-command-input]]:h-12 tw:[&_[data-command-item]]:px-2 tw:[&_[data-command-item]]:py-3 tw:[&_[data-command-item]_svg:not([class*='size-'])]:h-5 tw:[&_[data-command-item]_svg:not([class*='size-'])]:w-5"
+      class="[&_[data-command-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[data-command-group-heading]]:px-2 [&_[data-command-group-heading]]:font-medium [&_[data-command-group]]:px-2 [&_[data-command-group]:not([hidden])_~[data-command-group]]:pt-0 [&_[data-command-input]]:h-12 [&_[data-command-item]]:px-2 [&_[data-command-item]]:py-3 [&_[data-command-item]_svg:not([class*='size-'])]:h-5 [&_[data-command-item]_svg:not([class*='size-'])]:w-5"
     >
       {@render children?.()}
     </Command>

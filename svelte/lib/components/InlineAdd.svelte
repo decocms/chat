@@ -25,10 +25,10 @@
 
 <div
   data-inline-add
-  class="tw:flex tw:h-9 tw:items-center tw:gap-2 tw:rounded-lg tw:bg-sidebar-accent tw:pr-1 tw:pl-2"
+  class="flex h-9 items-center gap-2 rounded-lg bg-sidebar-accent pr-1 pl-2"
 >
   <span
-    class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:bg-muted tw:text-muted-foreground"
+    class="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
     ><Icon icon={User01} size={12} /></span
   >
   <input
@@ -41,7 +41,7 @@
       event.stopPropagation();
       oncancel();
     }}
-    class="tw:m-0 tw:h-9 tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:font-sans tw:text-sm tw:pointer-coarse:text-[16px] tw:leading-5 tw:text-sidebar-foreground tw:shadow-none tw:outline-none tw:placeholder:text-muted-foreground"
+    class="m-0 h-9 min-w-0 flex-1 border-0 bg-transparent p-0 font-sans text-sm pointer-coarse:text-[16px] leading-5 text-sidebar-foreground shadow-none outline-none placeholder:text-muted-foreground"
   />
   <IconButton
     type="submit"

@@ -82,16 +82,16 @@
 <section
   data-native-poll={poll.id}
   data-vb-native
-  class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-4 tw:font-sans tw:text-sm tw:text-card-foreground"
+  class="space-y-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground"
 >
   <h4
-    class="tw:m-0 tw:flex tw:items-start tw:gap-2 tw:font-sans tw:text-sm tw:font-semibold tw:tracking-normal tw:[font-variation-settings:normal]"
+    class="m-0 flex items-start gap-2 font-sans text-sm font-semibold tracking-normal [font-variation-settings:normal]"
   >
     <Icon icon={BarChartSquare02} size={16} />{poll.question}
   </h4>
-  {#each view.rows as row}<div class="tw:space-y-1">
+  {#each view.rows as row}<div class="space-y-1">
       <Button
-        class="tw:h-auto tw:w-full tw:justify-start tw:whitespace-normal tw:text-left"
+        class="h-auto w-full justify-start whitespace-normal text-left"
         data-native-vote={row.index}
         variant={row.mine ? "secondary" : "outline"}
         disabled={!canVote ||
@@ -103,18 +103,18 @@
             icon={Trophy01}
             size={16}
           />{:else if row.mine}<Icon icon={Check} size={16} />{/if}<span
-          class="tw:min-w-0 tw:flex-1 tw:break-words">{row.label}</span
-        ><span class="tw:flex tw:-space-x-2"
+          class="min-w-0 flex-1 break-words">{row.label}</span
+        ><span class="flex -space-x-2"
           >{#each row.voters as email}<span title={vb.name(email)}
               ><PersonAvatar
                 data-avatar="person"
                 size="xs"
                 {email}
                 version={vb.avatarVersion(email)}
-                class="tw:ring-2 tw:ring-card"
+                class="ring-2 ring-card"
               /></span
             >{/each}</span
-        ><span class="tw:shrink-0 tw:text-xs"
+        ><span class="shrink-0 text-xs"
           >{row.count ? `${row.percent}%` : ""}</span
         ></Button
       ><Progress
@@ -123,7 +123,7 @@
       />
     </div>{/each}
   <p
-    class="tw:m-0 tw:flex tw:flex-wrap tw:items-center tw:gap-1 tw:text-xs tw:text-muted-foreground"
+    class="m-0 flex flex-wrap items-center gap-1 text-xs text-muted-foreground"
   >
     {view.voters === 1
       ? vb.t("1 pessoa votou")
@@ -134,7 +134,7 @@
       · <Button
         size="sm"
         variant="link"
-        class="tw:h-auto tw:px-0 tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+        class="h-auto px-0 text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
         data-native-poll-close
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
         onclick={(event) => {
@@ -148,7 +148,7 @@
   </p>
   {#if status.phase !== "idle"}<p
       role={status.phase === "error" ? "alert" : "status"}
-      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+      class="m-0 text-xs text-muted-foreground"
     >
       {status.phase === "pending"
         ? vb.t("Enviando…")

@@ -1,21 +1,20 @@
 <script lang="ts" module>
   const LIST = {
-    pill: "tw:bg-muted tw:text-muted-foreground tw:inline-flex tw:h-9 tw:w-fit tw:items-center tw:justify-center tw:gap-1 tw:rounded-full tw:p-1",
-    underline:
-      "tw:flex tw:h-[52px] tw:items-center tw:border-b tw:border-border",
-    canvas: "tw:flex tw:h-10 tw:items-center tw:bg-background",
+    pill: "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center gap-1 rounded-full p-1",
+    underline: "flex h-[52px] items-center border-b border-border",
+    canvas: "flex h-10 items-center bg-background",
   } as const;
   const TRACK = {
-    pill: "tw:top-1 tw:bottom-1",
-    underline: "tw:bottom-[-1px] tw:h-0.5",
+    pill: "top-1 bottom-1",
+    underline: "bottom-[-1px] h-0.5",
   } as const;
   const THUMB = {
-    pill: "tw:bg-background tw:shadow-[0_1px_2px_0_#0000000d] tw:dark:bg-input/30",
-    underline: "tw:bg-primary",
+    pill: "bg-background shadow-[0_1px_2px_0_#0000000d] dark:bg-input/30",
+    underline: "bg-primary",
   } as const;
   const ACTIVE = ':scope > [data-slot="tabs-trigger"][data-state="active"]';
   const SLIDE =
-    "tw:transition-[width] tw:duration-200 tw:ease-[cubic-bezier(0.23,1,0.32,1)] tw:motion-reduce:transition-none";
+    "transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none";
 </script>
 
 <script lang="ts">
@@ -76,7 +75,7 @@
   data-has-active={hasActive ? "" : undefined}
   data-ready={ready ? "" : undefined}
   {...rest}
-  class={cn("tw:relative", LIST[parentVariant], className)}
+  class={cn("relative", LIST[parentVariant], className)}
 >
   {#if parentVariant !== "canvas"}
     <!-- Inline styles are not allowed here, so the measured offset and width travel as SVG width attributes: a spacer, then the thumb. -->
@@ -84,15 +83,15 @@
       aria-hidden="true"
       data-slot="tabs-indicator"
       class={cn(
-        "tw:pointer-events-none tw:absolute tw:left-0 tw:flex",
+        "pointer-events-none absolute left-0 flex",
         TRACK[parentVariant],
       )}
     >
-      <svg width={x} class={cn("tw:h-0 tw:shrink-0", ready && SLIDE)}></svg>
+      <svg width={x} class={cn("h-0 shrink-0", ready && SLIDE)}></svg>
       <svg
         {width}
         class={cn(
-          "tw:h-full tw:shrink-0 tw:rounded-full",
+          "h-full shrink-0 rounded-full",
           THUMB[parentVariant],
           ready && SLIDE,
         )}

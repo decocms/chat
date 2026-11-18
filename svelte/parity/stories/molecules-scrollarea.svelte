@@ -30,27 +30,23 @@
 </script>
 
 {#if story === "default"}
-  <ScrollArea class="tw:h-64 tw:w-80 tw:rounded-md tw:border tw:border-border">
-    <div class="tw:p-4">
-      <h4 class="tw:mb-4 tw:text-sm tw:font-medium tw:text-balance">
-        Recent activity
-      </h4>
+  <ScrollArea class="h-64 w-80 rounded-md border border-border">
+    <div class="p-4">
+      <h4 class="mb-4 text-sm font-medium text-balance">Recent activity</h4>
       {#each events as event (event)}
         <div>
-          <div class="tw:py-2 tw:text-sm">{event}</div>
+          <div class="py-2 text-sm">{event}</div>
           <Separator />
         </div>
       {/each}
     </div>
   </ScrollArea>
 {:else if story === "horizontal"}
-  <ScrollArea
-    class="tw:w-80 tw:rounded-md tw:border tw:border-border tw:whitespace-nowrap"
-  >
-    <div class="tw:flex tw:gap-4 tw:p-4">
+  <ScrollArea class="w-80 rounded-md border border-border whitespace-nowrap">
+    <div class="flex gap-4 p-4">
       {#each projects as project (project)}
         <div
-          class="tw:flex tw:h-24 tw:w-40 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-muted tw:text-sm tw:text-muted-foreground"
+          class="flex h-24 w-40 shrink-0 items-center justify-center rounded-md bg-muted text-sm text-muted-foreground"
         >
           {project}
         </div>
@@ -59,13 +55,10 @@
     <ScrollBar orientation="horizontal" />
   </ScrollArea>
 {:else if story === "hidden-scrollbar"}
-  <ScrollArea
-    hideScrollbar
-    class="tw:h-48 tw:w-80 tw:rounded-md tw:border tw:border-border"
-  >
-    <div class="tw:space-y-2 tw:p-4 tw:text-sm">
+  <ScrollArea hideScrollbar class="h-48 w-80 rounded-md border border-border">
+    <div class="space-y-2 p-4 text-sm">
       {#each events as event (event)}
-        <p class="tw:text-pretty">{event}</p>
+        <p class="text-pretty">{event}</p>
       {/each}
     </div>
   </ScrollArea>

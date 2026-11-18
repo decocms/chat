@@ -53,17 +53,17 @@
 
   /** Inset, because panel headers clip an outset ring and it would overlap the other half. */
   const INSET_FOCUS_RING =
-    "tw:focus-visible:not-forced-colors:outline-none tw:focus-visible:forced-colors:outline-2 tw:focus-visible:forced-colors:outline-offset-0 tw:focus-visible:ring-0 tw:focus-visible:border-border tw:focus-visible:inset-ring-2 tw:focus-visible:inset-ring-ring/50";
+    "focus-visible:not-forced-colors:outline-none focus-visible:forced-colors:outline-2 focus-visible:forced-colors:outline-offset-0 focus-visible:ring-0 focus-visible:border-border focus-visible:inset-ring-2 focus-visible:inset-ring-ring/50";
 
   const hasMenu = $derived((items?.length ?? 0) > 0);
   // The `ring` token contrasts with the page, so a filled button rings in its own text colour instead.
   const focusRing = $derived(
     cn(
       INSET_FOCUS_RING,
-      variant === "default" && "tw:focus-visible:inset-ring-current",
+      variant === "default" && "focus-visible:inset-ring-current",
       // Studio's `shadow-edge` is a plain box-shadow that the ring replaces; here it is a Tailwind shadow that would sit beside it.
       (variant === "outline" || variant === "agent") &&
-        "tw:focus-visible:shadow-none",
+        "focus-visible:shadow-none",
     ),
   );
 </script>
@@ -78,7 +78,7 @@
     onclick={loading ? undefined : onclick}
     class={cn(
       focusRing,
-      hasMenu && "tw:rounded-r-none tw:border-r tw:border-current/20",
+      hasMenu && "rounded-r-none border-r border-current/20",
     )}
   >
     {#if loading}<Spinner size="xs" />{:else}{@render icon?.()}{/if}
@@ -100,7 +100,7 @@
 <ButtonGroup
   class={cn(
     pulse &&
-      "tw:animate-pulse-brightness tw:motion-reduce:animate-none tw:motion-reduce:opacity-80",
+      "animate-pulse-brightness motion-reduce:animate-none motion-reduce:opacity-80",
     className,
   )}
 >
@@ -113,9 +113,9 @@
           <span
             {...props}
             class={cn(
-              "tw:inline-flex tw:rounded-lg tw:outline-none",
+              "inline-flex rounded-lg outline-none",
               focusRing,
-              disabled && "tw:cursor-not-allowed",
+              disabled && "cursor-not-allowed",
             )}
             tabindex={disabled ? 0 : undefined}
             role={disabled ? "button" : undefined}
@@ -141,14 +141,14 @@
             {variant}
             {size}
             aria-label={menuAriaLabel}
-            class={cn("tw:has-[>svg]:px-2", focusRing)}
+            class={cn("has-[>svg]:px-2", focusRing)}
           >
-            <Icon icon={ChevronDown} class="tw:size-3.5" />
+            <Icon icon={ChevronDown} class="size-3.5" />
           </Button>
         {/snippet}
       </DropdownMenuTrigger>
       <!-- Radix removes the focused panel's outline itself. -->
-      <DropdownMenuContent align="end" class="tw:outline-none">
+      <DropdownMenuContent align="end" class="outline-none">
         {#each items ?? [] as item (item.key)}
           {#if item.tooltip}
             <Tooltip>

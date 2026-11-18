@@ -57,9 +57,7 @@
      once there's a reaction; before that, the quick ones live in the message's floating toolbar. -->
 <div
   data-message-reactions
-  class="tw:flex tw:flex-wrap tw:items-center tw:gap-1 {all.length || open
-    ? ''
-    : 'tw:hidden'}"
+  class="flex flex-wrap items-center gap-1 {all.length || open ? '' : 'hidden'}"
 >
   {#each all as [emoji, list] (emoji)}<Tooltip>
       <TooltipTrigger>
@@ -68,14 +66,14 @@
             type="button"
             aria-label={`${emoji} ${who(list)}`}
             aria-pressed={list.includes(me)}
-            class="tw:inline-flex tw:h-8 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:border tw:px-2.5 tw:text-lg tw:leading-none {list.includes(
+            class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-lg leading-none {list.includes(
               me,
             )
-              ? 'tw:border-primary tw:bg-accent'
-              : 'tw:border-border tw:bg-background'}"
+              ? 'border-primary bg-accent'
+              : 'border-border bg-background'}"
             onclick={() => react(emoji)}
             >{emoji}
-            <b class="tw:text-sm tw:font-semibold tw:text-muted-foreground"
+            <b class="text-sm font-semibold text-muted-foreground"
               >{list.length}</b
             ></button
           >{/snippet}
@@ -85,11 +83,9 @@
         side="top"
         sideOffset={6}
         data-reaction-who={emoji}
-        class="tw:flex tw:max-w-64 tw:items-center tw:gap-2.5 tw:py-2 tw:text-left"
-        ><span aria-hidden="true" class="tw:text-2xl tw:leading-none"
-          >{emoji}</span
-        ><span class="tw:min-w-0 tw:font-normal tw:leading-4"
-          >{reacted(list)}</span
+        class="flex max-w-64 items-center gap-2.5 py-2 text-left"
+        ><span aria-hidden="true" class="text-2xl leading-none">{emoji}</span
+        ><span class="min-w-0 font-normal leading-4">{reacted(list)}</span
         ></TooltipContent
       >
     </Tooltip>{/each}
@@ -99,7 +95,7 @@
     aria-label={vb.t("Reagir a esta mensagem")}
     title={vb.t("Reagir a esta mensagem")}
     data-native-add-reaction
-    class="tw:inline-flex tw:h-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-transparent tw:bg-muted tw:px-2.5 tw:text-muted-foreground tw:transition-colors tw:hover:border-border tw:hover:text-foreground"
+    class="inline-flex h-8 cursor-pointer items-center justify-center rounded-full border border-transparent bg-muted px-2.5 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
     onclick={() => (open = true)}><Icon icon={FaceSmile} size={18} /></button
   >
 </div>

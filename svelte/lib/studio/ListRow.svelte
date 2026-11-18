@@ -61,21 +61,17 @@
   {#if lead}
     <span class={listRowLeadVariants({ variant })}>{@render lead()}</span>
   {/if}
-  <div class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5">
-    <span
-      class={cn(
-        "tw:truncate tw:text-sm",
-        variant === "divided" && "tw:font-medium",
-      )}
+  <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+    <span class={cn("truncate text-sm", variant === "divided" && "font-medium")}
       >{#if typeof title === "string"}{title}{:else}{@render title()}{/if}</span
     >
     {#if meta}
       <span
         class={cn(
-          "tw:truncate tw:text-xs",
+          "truncate text-xs",
           variant === "divided"
-            ? "tw:text-muted-foreground"
-            : "tw:text-subtle-foreground",
+            ? "text-muted-foreground"
+            : "text-subtle-foreground",
         )}
         >{#if typeof meta === "string"}{meta}{:else}{@render meta()}{/if}</span
       >

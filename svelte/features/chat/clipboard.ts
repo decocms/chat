@@ -3,7 +3,7 @@ export async function copyChatText(text: string): Promise<void> {
   const textarea = document.createElement("textarea");
   textarea.value = text;
   textarea.readOnly = true;
-  textarea.className = "tw:fixed tw:left-0 tw:top-0 tw:opacity-0 tw:text-base";
+  textarea.className = "fixed left-0 top-0 opacity-0 text-base";
   const focused = document.activeElement;
   document.body.append(textarea);
   textarea.focus({ preventScroll: true });

@@ -40,7 +40,7 @@
         <Button {...props} variant="outline">Account</Button>
       {/snippet}
     </DropdownMenuTrigger>
-    <DropdownMenuContent class="tw:w-56">
+    <DropdownMenuContent class="w-56">
       <DropdownMenuLabel>My account</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
@@ -60,7 +60,7 @@
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            <Icon icon={UserPlus01} class="tw:mr-2 tw:size-4" /> Invite members
+            <Icon icon={UserPlus01} class="mr-2 size-4" /> Invite members
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem>
@@ -86,7 +86,7 @@
         <Button {...props} variant="outline">Connection actions</Button>
       {/snippet}
     </DropdownMenuTrigger>
-    <DropdownMenuContent class="tw:w-52">
+    <DropdownMenuContent class="w-52">
       <DropdownMenuItem>
         <Icon icon={Copy01} /> Duplicate connection
       </DropdownMenuItem>
@@ -106,7 +106,7 @@
         <Button {...props} variant="outline">View options</Button>
       {/snippet}
     </DropdownMenuTrigger>
-    <DropdownMenuContent class="tw:w-52">
+    <DropdownMenuContent class="w-52">
       <DropdownMenuLabel>Show columns</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuCheckboxItem bind:checked={showTools}>
@@ -127,7 +127,7 @@
         <Button {...props} variant="outline">Sort by</Button>
       {/snippet}
     </DropdownMenuTrigger>
-    <DropdownMenuContent class="tw:w-48">
+    <DropdownMenuContent class="w-48">
       <DropdownMenuLabel>Sort connections</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuRadioGroup bind:value={sortBy}>

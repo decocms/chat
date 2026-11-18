@@ -91,7 +91,7 @@
     page(event);
   }}
   class={cn(
-    "tw:relative tw:flex tw:w-full tw:touch-none tw:items-center tw:py-2 tw:select-none tw:data-[disabled]:opacity-50 tw:data-[orientation=vertical]:px-2 tw:data-[orientation=vertical]:py-0 tw:data-[orientation=vertical]:h-full tw:data-[orientation=vertical]:min-h-44 tw:data-[orientation=vertical]:w-auto tw:data-[orientation=vertical]:flex-col",
+    "relative flex w-full touch-none items-center py-2 select-none data-[disabled]:opacity-50 data-[orientation=vertical]:px-2 data-[orientation=vertical]:py-0 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col",
     className,
   )}
 >
@@ -99,11 +99,11 @@
     <span
       data-slot="slider-track"
       data-orientation={rest.orientation ?? "horizontal"}
-      class="tw:bg-muted tw:relative tw:grow tw:overflow-hidden tw:rounded-full tw:data-[orientation=horizontal]:h-1 tw:data-[orientation=horizontal]:w-full tw:data-[orientation=vertical]:h-full tw:data-[orientation=vertical]:w-1"
+      class="bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1"
     >
       <SliderPrimitive.Range
         data-slot="slider-range"
-        class="tw:bg-primary tw:absolute tw:data-[orientation=horizontal]:h-full tw:data-[orientation=vertical]:w-full"
+        class="bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full"
       />
     </span>
     <!-- The ::after pad grows the grab target to 40px without changing the knob. -->
@@ -113,7 +113,7 @@
         data-slot="slider-thumb"
         aria-label={label(thumb.index, thumbItems.length)}
         aria-valuetext={thumbValueText}
-        class="tw:relative tw:block tw:size-4 tw:shrink-0 tw:cursor-grab tw:rounded-full tw:bg-[#fff] tw:shadow-edge tw:transition-transform tw:duration-150 tw:after:absolute tw:after:-inset-3 tw:after:rounded-full tw:after:content-[''] tw:hover:scale-110 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:in-data-pointer:outline-none! tw:active:scale-110 tw:active:cursor-grabbing tw:disabled:pointer-events-none tw:motion-reduce:transition-none"
+        class="relative block size-4 shrink-0 cursor-grab rounded-full bg-[#fff] shadow-edge transition-transform duration-150 after:absolute after:-inset-3 after:rounded-full after:content-[''] hover:scale-110 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 in-data-pointer:outline-none! active:scale-110 active:cursor-grabbing disabled:pointer-events-none motion-reduce:transition-none"
       />
     {/each}
   {/snippet}

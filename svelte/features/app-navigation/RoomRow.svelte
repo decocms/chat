@@ -54,11 +54,11 @@
     event.preventDefault();
     onopen();
   }}
-  >{@render leading()}<span class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col"
-    ><span class="tw:truncate">{label}</span>{#if meta}<span
+  >{@render leading()}<span class="flex min-w-0 flex-1 flex-col"
+    ><span class="truncate">{label}</span>{#if meta}<span
         class={[
-          "tw:truncate tw:text-xs tw:leading-4 tw:font-normal",
-          urgent ? "tw:text-warning" : "tw:text-muted-foreground",
+          "truncate text-xs leading-4 font-normal",
+          urgent ? "text-warning" : "text-muted-foreground",
         ]}>{meta}</span
       >{/if}</span
   >{@render trailing?.()}</a

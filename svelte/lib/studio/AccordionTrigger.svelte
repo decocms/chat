@@ -20,13 +20,13 @@
 
 <AccordionPrimitive.Header level={3}>
   {#snippet child({ props })}
-    <h3 {...props} class="tw:flex">
+    <h3 {...props} class="flex">
       <AccordionPrimitive.Trigger
         bind:ref
         data-slot="accordion-trigger"
         {...rest}
         class={cn(
-          "tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:flex tw:flex-1 tw:items-center tw:justify-between tw:gap-4 tw:rounded-[0.625rem] tw:px-3 tw:py-2.5 tw:text-left tw:text-sm tw:font-medium tw:transition-colors tw:hover:bg-accent tw:cursor-pointer tw:disabled:cursor-not-allowed tw:disabled:pointer-events-none tw:disabled:opacity-50 tw:[&[data-state=open]>svg]:rotate-90",
+          "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 flex flex-1 items-center justify-between gap-4 rounded-[0.625rem] px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-accent cursor-pointer disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-90",
           className,
         )}
       >
@@ -43,7 +43,7 @@
             {@render children?.()}
             <Icon
               icon={ChevronRight}
-              class="tw:text-muted-foreground tw:pointer-events-none tw:size-4 tw:shrink-0 tw:transition-transform tw:duration-200"
+              class="text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200"
             />
           </button>
         {/snippet}

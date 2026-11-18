@@ -21,15 +21,12 @@
   data-slot="sparkline"
   aria-hidden="true"
   {...rest}
-  class={cn(
-    "tw:inline-flex tw:h-5 tw:shrink-0 tw:items-end tw:gap-0.5",
-    className,
-  )}
+  class={cn("inline-flex h-5 shrink-0 items-end gap-0.5", className)}
 >
   {#each values as value, index (index)}
     <!-- An svg box takes its height from an attribute, where a span would need an inline style. -->
     <svg
-      class="tw:w-0.5 tw:rounded-[1px] tw:bg-brand-purple"
+      class="w-0.5 rounded-[1px] bg-brand-purple"
       height={`${max > 0 ? Math.max(8, (value / max) * 100) : 8}%`}
     ></svg>
   {/each}

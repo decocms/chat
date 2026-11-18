@@ -21,9 +21,8 @@
 <div
   data-slot="table-container"
   class={cn(
-    "tw:w-full tw:min-w-0",
-    variant === "card" &&
-      "tw:bg-card tw:rounded-xl tw:shadow-edge tw:overflow-hidden",
+    "w-full min-w-0",
+    variant === "card" && "bg-card rounded-xl shadow-edge overflow-hidden",
   )}
 >
   <table
@@ -31,9 +30,9 @@
     data-slot="table"
     {...rest}
     class={cn(
-      "tw:w-full tw:caption-bottom tw:text-sm tw:min-w-0",
+      "w-full caption-bottom text-sm min-w-0",
       variant === "flush" &&
-        "tw:[&_th]:text-muted-foreground tw:[&_th]:font-normal tw:[&_tr]:border-border/50",
+        "[&_th]:text-muted-foreground [&_th]:font-normal [&_tr]:border-border/50",
       className,
     )}
   >

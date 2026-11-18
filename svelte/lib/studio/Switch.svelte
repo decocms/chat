@@ -20,12 +20,12 @@
   data-slot="switch"
   {...rest}
   class={cn(
-    "tw:peer tw:data-[state=checked]:bg-primary tw:data-[state=unchecked]:bg-foreground/15 tw:inline-flex tw:h-[1.125rem] tw:w-8 tw:shrink-0 tw:cursor-pointer tw:items-center tw:rounded-full tw:border-2 tw:border-transparent tw:transition-colors tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:disabled:cursor-not-allowed tw:disabled:opacity-50",
+    "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-foreground/15 inline-flex h-[1.125rem] w-8 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
     className,
   )}
 >
   <SwitchPrimitive.Thumb
     data-slot="switch-thumb"
-    class="tw:bg-background tw:dark:data-[state=unchecked]:bg-foreground tw:dark:data-[state=checked]:bg-primary-foreground tw:pointer-events-none tw:block tw:size-3.5 tw:rounded-full tw:shadow-[0_0_0_1px_#0000000f] tw:ring-0 tw:transition-transform tw:data-[state=checked]:translate-x-3.5 tw:data-[state=unchecked]:translate-x-0"
+    class="bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-3.5 rounded-full shadow-[0_0_0_1px_#0000000f] ring-0 transition-transform data-[state=checked]:translate-x-3.5 data-[state=unchecked]:translate-x-0"
   />
 </SwitchPrimitive.Root>

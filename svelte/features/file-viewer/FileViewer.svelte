@@ -92,16 +92,15 @@
     <div
       data-file-viewer
       data-file-id={$view.target.id}
-      class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-4"
+      class="flex min-h-0 flex-1 flex-col gap-4"
     >
-      <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         {#if $view.versions.length > 1}
           {@const versions = $view.versions.map((file, index) => ({
             value: file.id,
             label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
           }))}
-          <label
-            class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:text-sm"
+          <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"
             >{text("version")}
             <Select
               items={versions}
@@ -121,11 +120,11 @@
                 bind:ref={versionTrigger}
                 aria-label={text("version")}
                 data-file-version-target={$view.target.id}
-                class="tw:min-w-0 tw:flex-1"
+                class="min-w-0 flex-1"
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent data-vb-native class="tw:font-sans">
+              <SelectContent data-vb-native class="font-sans">
                 {#each versions as version (version.value)}<SelectItem
                     value={version.value}
                     label={version.label}>{version.label}</SelectItem
@@ -150,14 +149,12 @@
       </div>
       {#if $view.indexPending}<p
           role="status"
-          class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          class="m-0 text-sm text-muted-foreground"
         >
           {text("history")}
         </p>{/if}
-      {#if $view.indexError}<div
-          class="tw:flex tw:flex-wrap tw:items-center tw:gap-2"
-        >
-          <p role="alert" class="tw:m-0 tw:text-sm tw:text-destructive">
+      {#if $view.indexError}<div class="flex flex-wrap items-center gap-2">
+          <p role="alert" class="m-0 text-sm text-destructive">
             {text("historyError")}
           </p>
           <Button
@@ -167,20 +164,17 @@
             }}>{text("retryHistory")}</Button
           >
         </div>{/if}
-      {#if $view.pinError}<p
-          role="alert"
-          class="tw:m-0 tw:text-sm tw:text-destructive"
-        >
+      {#if $view.pinError}<p role="alert" class="m-0 text-sm text-destructive">
           {text("pinError")}
         </p>{/if}
       {#if $view.phase === "loading"}<p
           role="status"
-          class="tw:m-0 tw:text-muted-foreground"
+          class="m-0 text-muted-foreground"
         >
           {text("loading")}
         </p>{/if}
       {#if $view.phase === "error"}
-        <p role="alert" class="tw:m-0 tw:text-destructive">
+        <p role="alert" class="m-0 text-destructive">
           {text(
             $view.error === "missing"
               ? "missing"
@@ -225,11 +219,9 @@
               pageUrl={location.href}
             />
           {:else if $view.content.kind === "csv" && $view.phase === "ready"}<div
-              class="tw:max-w-full tw:overflow-auto"
+              class="max-w-full overflow-auto"
             >
-              <table
-                class="tw:w-full tw:border-collapse tw:text-left tw:text-sm"
-              >
+              <table class="w-full border-collapse text-left text-sm">
                 <thead
                   ><tr
                     >{#each headers as cell, index}<th
@@ -237,7 +229,7 @@
                         aria-label={cell.trim()
                           ? undefined
                           : `${text("column")} ${index + 1}`}
-                        class="tw:whitespace-pre-wrap tw:border tw:border-border tw:p-2 tw:font-semibold"
+                        class="whitespace-pre-wrap border border-border p-2 font-semibold"
                         >{cell}</th
                       >{/each}</tr
                   ></thead
@@ -245,7 +237,7 @@
                 <tbody
                   >{#each rows as row}<tr
                       >{#each row as cell}<td
-                          class="tw:whitespace-pre-wrap tw:border tw:border-border tw:p-2"
+                          class="whitespace-pre-wrap border border-border p-2"
                           >{cell}</td
                         >{/each}</tr
                     >{/each}</tbody
@@ -253,7 +245,7 @@
               </table>
             </div>
           {:else if $view.content.kind === "text" && $view.phase === "ready"}<pre
-              class="tw:m-0 tw:max-w-full tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:font-mono tw:text-sm">{$view
+              class="m-0 max-w-full overflow-auto whitespace-pre-wrap break-words font-mono text-sm">{$view
                 .content.text}</pre>
           {:else if $view.content.kind === "download"}<a
               href={fileURL($view.target)}
@@ -264,7 +256,7 @@
         {/key}
         {#if $view.content.kind === "csv" && csv.rows.length > 20}<nav
             aria-label={text("rows")}
-            class="tw:flex tw:flex-wrap tw:items-center tw:gap-2"
+            class="flex flex-wrap items-center gap-2"
           >
             <Button
               variant="outline"
@@ -290,7 +282,7 @@
           </nav>{/if}
         {#if $view.content.truncated || ($view.content.kind === "csv" && csv.truncated)}<p
             role="status"
-            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+            class="m-0 text-sm text-muted-foreground"
           >
             {text("truncated")}
           </p>{/if}
@@ -307,7 +299,7 @@
   >
     <DialogContent
       data-vb-native
-      class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:md:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
+      class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
       closeLabel={text("close")}
       preventScroll={false}
       preventBodyPointerEvents={false}
@@ -321,9 +313,7 @@
       }}
     >
       <DialogHeader>
-        <DialogTitle class="tw:pr-8 tw:font-sans"
-          >{$view.name || "File"}</DialogTitle
-        >
+        <DialogTitle class="pr-8 font-sans">{$view.name || "File"}</DialogTitle>
       </DialogHeader>
       {@render preview()}
     </DialogContent>
@@ -332,9 +322,9 @@
 {#if $view.closingUnconfirmed}<div
     data-vb-native
     role="alert"
-    class="tw:fixed tw:inset-x-4 tw:top-4 tw:z-50 tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-4 tw:font-sans tw:text-sm tw:text-card-foreground tw:shadow-lg"
+    class="fixed inset-x-4 top-4 z-50 flex flex-wrap items-center gap-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground shadow-lg"
   >
-    <p class="tw:m-0 tw:flex-1">{text("closing")}</p>
+    <p class="m-0 flex-1">{text("closing")}</p>
     <Button
       onclick={(event) => {
         if (event.currentTarget.isConnected) location.reload();

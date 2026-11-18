@@ -17,7 +17,7 @@
 <div
   class={cn(
     avatarVariants({ shape, size }),
-    "tw:bg-muted tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1]",
+    "bg-muted animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1]",
     className,
   )}
 ></div>

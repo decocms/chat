@@ -15,5 +15,5 @@
   bind:ref
   data-slot="avatar-image"
   {...rest}
-  class={cn("tw:aspect-square tw:size-full", className)}
+  class={cn("aspect-square size-full", className)}
 />

@@ -6,7 +6,7 @@
 {#if provider === "google"}<svg
     viewBox="0 0 48 48"
     aria-hidden="true"
-    class="tw:size-4"
+    class="size-4"
     data-provider-icon="google"
     ><path
       fill="#FFC107"
@@ -24,7 +24,7 @@
   >{:else}<svg
     viewBox="0 0 24 24"
     aria-hidden="true"
-    class="tw:size-4"
+    class="size-4"
     fill="currentColor"
     data-provider-icon="github"
     ><path

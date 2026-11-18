@@ -18,5 +18,5 @@
   data-slot="badge-dot"
   aria-hidden="true"
   {...rest}
-  class={cn("tw:size-1.5 tw:shrink-0 tw:rounded-full tw:bg-current", className)}
+  class={cn("size-1.5 shrink-0 rounded-full bg-current", className)}
 ></span>

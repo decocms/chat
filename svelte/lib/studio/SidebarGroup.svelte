@@ -22,7 +22,7 @@
   data-sidebar="group"
   {...rest}
   class={cn(
-    "tw:relative tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:px-2 tw:py-2 tw:md:py-0",
+    "relative flex w-full min-w-0 flex-col px-2 py-2 md:py-0",
     className,
   )}
 >

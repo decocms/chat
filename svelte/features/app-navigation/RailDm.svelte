@@ -25,7 +25,7 @@
   );
 </script>
 
-<div role="listitem" data-rail-dm={entry.room.id} class="tw:relative">
+<div role="listitem" data-rail-dm={entry.room.id} class="relative">
   <Tooltip>
     <TooltipTrigger>
       {#snippet child({ props })}
@@ -33,7 +33,7 @@
           {...props}
           href={targetHref({ roomId: entry.room.id })}
           aria-label={label}
-          class="tw:relative tw:flex tw:size-9 tw:shrink-0 tw:rounded-full tw:outline-offset-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+          class="relative flex size-9 shrink-0 rounded-full outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
           onclick={(event) => {
             if (
               !event.currentTarget.isConnected ||
@@ -52,7 +52,7 @@
           <span
             aria-hidden="true"
             data-rail-dm-count
-            class="tw:absolute tw:-right-1 tw:-bottom-1 tw:flex tw:h-[18px] tw:min-w-[18px] tw:items-center tw:justify-center tw:rounded-full tw:bg-destructive tw:px-1 tw:text-[11px] tw:leading-none tw:font-semibold tw:tabular-nums tw:text-destructive-foreground tw:ring-[3px] tw:ring-sidebar"
+            class="absolute -right-1 -bottom-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-semibold tabular-nums text-destructive-foreground ring-[3px] ring-sidebar"
             >{count > 99 ? "99+" : count}</span
           >
         </a>

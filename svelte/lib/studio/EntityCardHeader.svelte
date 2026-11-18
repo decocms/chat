@@ -22,7 +22,7 @@
   bind:this={ref}
   data-slot="entity-card-header"
   {...rest}
-  class={cn("tw:flex tw:items-start tw:justify-between tw:gap-3", className)}
+  class={cn("flex items-start justify-between gap-3", className)}
 >
   {@render icon()}
   {@render trailing?.()}

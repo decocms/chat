@@ -14,11 +14,8 @@
 <SelectPrimitive.ScrollUpButton
   bind:ref
   data-slot="select-scroll-up-button"
-  class={cn(
-    "tw:flex tw:cursor-default tw:items-center tw:justify-center tw:py-1",
-    className,
-  )}
+  class={cn("flex cursor-default items-center justify-center py-1", className)}
   {...rest}
 >
-  <Icon icon={ChevronUp} class="tw:size-4" />
+  <Icon icon={ChevronUp} class="size-4" />
 </SelectPrimitive.ScrollUpButton>

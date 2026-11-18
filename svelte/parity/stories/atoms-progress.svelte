@@ -9,19 +9,19 @@
 </script>
 
 {#if story === "default"}
-  <Progress value={40} class="tw:w-80" />
+  <Progress value={40} class="w-80" />
 {:else if story === "values"}
-  <div class="tw:flex tw:w-80 tw:flex-col tw:gap-4">
+  <div class="flex w-80 flex-col gap-4">
     <Progress value={0} />
     <Progress value={25} />
     <Progress value={60} />
     <Progress value={100} />
   </div>
 {:else if story === "with-label"}
-  <div class="tw:flex tw:w-80 tw:flex-col tw:gap-2">
-    <div class="tw:flex tw:justify-between tw:text-sm">
-      <span class="tw:text-foreground tw:font-medium">Monthly tool calls</span>
-      <span class="tw:text-muted-foreground">
+  <div class="flex w-80 flex-col gap-2">
+    <div class="flex justify-between text-sm">
+      <span class="text-foreground font-medium">Monthly tool calls</span>
+      <span class="text-muted-foreground">
         {used.toFixed(1)}k / {LIMIT}k
       </span>
     </div>
@@ -29,14 +29,14 @@
     <Button
       variant="outline"
       size="sm"
-      class="tw:w-fit"
+      class="w-fit"
       onclick={() => (used = Math.min(used + 0.5, LIMIT))}
     >
       Simulate usage
     </Button>
   </div>
 {:else if story === "tones"}
-  <div class="tw:flex tw:w-60 tw:flex-col tw:gap-4">
+  <div class="flex w-60 flex-col gap-4">
     <Progress value={60} />
     <Progress value={60} tone="warning" />
     <Progress value={60} tone="dark" />

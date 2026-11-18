@@ -53,16 +53,14 @@
   ) => homeText(lang, key, vars);
   // Static class names, so Tailwind sees every one.
   const ring = $derived(
-    surface === "sidebar" ? "tw:ring-sidebar" : "tw:ring-background",
+    surface === "sidebar" ? "ring-sidebar" : "ring-background",
   );
-  const fill = $derived(
-    surface === "sidebar" ? "tw:bg-sidebar" : "tw:bg-background",
-  );
+  const fill = $derived(surface === "sidebar" ? "bg-sidebar" : "bg-background");
 </script>
 
 <span
   data-room-avatar={size}
-  class={cn("tw:relative tw:inline-flex tw:shrink-0", className)}
+  class={cn("relative inline-flex shrink-0", className)}
 >
   {#if person}<PersonAvatar
       email={person.email}
@@ -76,7 +74,7 @@
       fallback={title}
       aria-hidden="true"
       data-room-cover="icon"
-    />{:else}<span data-room-cover="marble" class="tw:contents"
+    />{:else}<span data-room-cover="marble" class="contents"
       ><OrgAvatar name={title} {size} /></span
     >{/if}
   <!-- Something new: red, like an unread DM in the rail. People wrote: the count (when known). Only agents wrote: a
@@ -86,8 +84,8 @@
       aria-label={text("newHuman")}
       data-room-badge="unread-human"
       class={cn(
-        "tw:absolute tw:-top-1.5 tw:-right-1.5 tw:flex tw:items-center tw:justify-center tw:rounded-full tw:bg-destructive tw:font-semibold tw:leading-none tw:tabular-nums tw:text-destructive-foreground tw:ring-2",
-        count > 0 ? "tw:h-4 tw:min-w-4 tw:px-1 tw:text-[10px]" : "tw:size-2.5",
+        "absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full bg-destructive font-semibold leading-none tabular-nums text-destructive-foreground ring-2",
+        count > 0 ? "h-4 min-w-4 px-1 text-[10px]" : "size-2.5",
         ring,
       )}
       >{#if count > 0}{count > 99 ? "99+" : count}{/if}</span
@@ -96,7 +94,7 @@
       aria-label={text("newAgent")}
       data-room-badge="unread-agent"
       class={cn(
-        "tw:absolute tw:-top-1 tw:-right-1 tw:size-2.5 tw:rounded-full tw:bg-destructive tw:ring-2",
+        "absolute -top-1 -right-1 size-2.5 rounded-full bg-destructive ring-2",
         ring,
       )}
     ></span>{/if}
@@ -105,7 +103,7 @@
       aria-label={text("busy")}
       data-room-badge="busy"
       class={cn(
-        "tw:absolute tw:-bottom-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:text-xs tw:leading-none tw:text-agent-claude tw:motion-safe:animate-spin",
+        "absolute -bottom-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full text-xs leading-none text-agent-claude motion-safe:animate-spin",
         fill,
       )}>✻</span
     >{/if}
@@ -114,7 +112,7 @@
       aria-label={text("cloud")}
       data-room-badge="cloud"
       class={cn(
-        "tw:absolute tw:-top-1.5 tw:-left-1.5 tw:flex tw:size-4 tw:items-center tw:justify-center tw:rounded-full tw:text-warning",
+        "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full text-warning",
         fill,
       )}><Icon icon={Cloud01} size={10} /></span
     >{/if}
@@ -124,6 +122,6 @@
     {waits}
     label={(n) => text("waiting", { n })}
     taskLabel={text("taskPending")}
-    class="tw:absolute tw:-right-1.5 tw:-bottom-1.5"
+    class="absolute -right-1.5 -bottom-1.5"
   />
 </span>

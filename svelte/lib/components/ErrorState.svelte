@@ -18,18 +18,18 @@
 <div
   role="alert"
   class={cn(
-    "tw:flex tw:items-start tw:gap-3 tw:rounded-control tw:border tw:border-destructive/20 tw:bg-destructive/10 tw:font-sans tw:text-sm tw:text-foreground",
-    compact ? "tw:p-3" : "tw:p-5",
+    "flex items-start gap-3 rounded-control border border-destructive/20 bg-destructive/10 font-sans text-sm text-foreground",
+    compact ? "p-3" : "p-5",
   )}
 >
   <Icon
     icon={AlertTriangle}
     size={16}
-    class="tw:mt-0.5 tw:shrink-0 tw:text-destructive"
+    class="mt-0.5 shrink-0 text-destructive"
   />
-  <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
-    <p class="tw:m-0 tw:font-medium">{title}</p>
-    {#if description}<p class="tw:m-0 tw:leading-5 tw:text-foreground">
+  <div class="min-w-0 flex-1 space-y-1">
+    <p class="m-0 font-medium">{title}</p>
+    {#if description}<p class="m-0 leading-5 text-foreground">
         {description}
       </p>{/if}{#if onretry && retryLabel}<Button
         variant="outline"

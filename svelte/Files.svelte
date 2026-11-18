@@ -51,7 +51,7 @@
 
 <section
   data-vb-native="files"
-  class="tw:flex tw:flex-col tw:gap-3 tw:p-3 tw:font-sans tw:text-sm tw:text-foreground"
+  class="flex flex-col gap-3 p-3 font-sans text-sm text-foreground"
   aria-label={vb.t("Arquivos")}
 >
   {#if attach}<input
@@ -84,7 +84,7 @@
     <!-- Kinds as small pills (the one you're on filled), then folders as compact chips, then a dense grid of
          tiles where the file comes first: a big preview, its name and one line of who/when; pin on hover. -->
     {#if view.counts.all > 1}<div
-        class="tw:-mx-3 tw:flex tw:gap-1.5 tw:overflow-x-auto tw:px-3 tw:[scrollbar-width:none]"
+        class="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]"
         aria-label={vb.t("Arquivos")}
       >
         {#each fileKinds.filter(([kind]) => view.counts[kind]) as [kind, label]}
@@ -93,25 +93,25 @@
             data-fkind={kind}
             aria-pressed={view.kind === kind}
             class={[
-              "tw:inline-flex tw:h-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:border tw:px-3 tw:font-sans tw:text-xs tw:font-medium tw:transition-colors tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
+              "inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 font-sans text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
               view.kind === kind
-                ? "tw:border-foreground tw:bg-foreground tw:text-background"
-                : "tw:border-border tw:bg-background tw:text-foreground tw:hover:bg-accent",
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-background text-foreground hover:bg-accent",
             ]}
             onclick={() => select(kind, view.dir)}
             >{vb.t(label)}<span
               class={view.kind === kind
-                ? "tw:opacity-70"
-                : "tw:text-muted-foreground"}>{view.counts[kind]}</span
+                ? "opacity-70"
+                : "text-muted-foreground"}>{view.counts[kind]}</span
             ></button
           >
         {/each}
       </div>{/if}
-    {#if view.dir}<div class="tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
+    {#if view.dir}<div class="flex min-w-0 items-center gap-1.5">
         <Button
           variant="ghost"
           size="sm"
-          class="tw:-ml-2"
+          class="-ml-2"
           onclick={() =>
             select(
               view.kind,
@@ -123,21 +123,21 @@
         ><Icon
           icon={Folder}
           size={16}
-          class="tw:shrink-0 tw:text-muted-foreground"
-        /><b class="tw:truncate tw:font-medium">{view.dir}/</b>
+          class="shrink-0 text-muted-foreground"
+        /><b class="truncate font-medium">{view.dir}/</b>
       </div>{/if}
-    {#if view.folders.length}<div class="tw:flex tw:flex-wrap tw:gap-1.5">
+    {#if view.folders.length}<div class="flex flex-wrap gap-1.5">
         {#each view.folders as [name, count]}<button
             type="button"
             data-fdir={view.prefix + name}
-            class="tw:inline-flex tw:h-9 tw:min-w-0 tw:max-w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-border tw:bg-background tw:px-3 tw:font-sans tw:text-[0.8125rem] tw:transition-colors tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+            class="inline-flex h-9 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 font-sans text-[0.8125rem] transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
             onclick={() => select(view.kind, view.prefix + name, true)}
             ><Icon
               icon={Folder}
               size={16}
-              class="tw:shrink-0 tw:text-muted-foreground"
-            /><span class="tw:truncate tw:font-medium">{name}</span><span
-              class="tw:shrink-0 tw:text-xs tw:text-muted-foreground"
+              class="shrink-0 text-muted-foreground"
+            /><span class="truncate font-medium">{name}</span><span
+              class="shrink-0 text-xs text-muted-foreground"
               title={count === 1
                 ? vb.t("1 arquivo")
                 : vb.t("{n} arquivos", { n: count })}>{count}</span
@@ -145,7 +145,7 @@
           >{/each}
       </div>{/if}
     {#if view.list.length}<div
-        class="tw:grid tw:grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] tw:gap-2"
+        class="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2"
       >
         {#each view.list as file (file.id)}
           {@const pinned =
@@ -155,11 +155,11 @@
           {@const ext = (file.name.split(".").pop() ?? "").slice(0, 4)}
           <article
             data-file-id={file.id}
-            class="tw:group/file tw:relative tw:min-w-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-border tw:bg-card tw:transition-colors tw:hover:border-foreground/25"
+            class="group/file relative min-w-0 overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-foreground/25"
           >
             <button
               type="button"
-              class="tw:block tw:w-full tw:min-w-0 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:focus-visible:ring-inset"
+              class="block w-full min-w-0 cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               title={file.name}
               onclick={(event) => {
                 if (mounted && event.currentTarget.isConnected)
@@ -167,26 +167,25 @@
               }}
             >
               <span
-                class="tw:flex tw:aspect-[4/3] tw:w-full tw:items-center tw:justify-center tw:overflow-hidden tw:border-b tw:border-border tw:bg-muted"
+                class="flex aspect-[4/3] w-full items-center justify-center overflow-hidden border-b border-border bg-muted"
                 >{#if file.type.startsWith("image/")}<img
-                    class="tw:size-full tw:object-contain tw:p-2"
+                    class="size-full object-contain p-2"
                     src={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}`}
                     alt={file.name}
                     loading="lazy"
                   />{:else}<span
-                    class="tw:flex tw:flex-col tw:items-center tw:gap-1.5 tw:text-muted-foreground"
+                    class="flex flex-col items-center gap-1.5 text-muted-foreground"
                     ><Icon icon={File02} size={24} />{#if ext}<span
-                        class="tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:uppercase"
+                        class="text-[0.6875rem] font-semibold tracking-wide uppercase"
                         >{ext}</span
                       >{/if}</span
                   >{/if}</span
               >
-              <span class="tw:flex tw:flex-col tw:gap-0.5 tw:px-2.5 tw:py-2"
-                ><span
-                  class="tw:truncate tw:text-[0.8125rem] tw:leading-5 tw:font-medium"
+              <span class="flex flex-col gap-0.5 px-2.5 py-2"
+                ><span class="truncate text-[0.8125rem] leading-5 font-medium"
                   >{file.name.slice(view.prefix.length)}</span
                 ><span
-                  class="tw:truncate tw:text-[0.6875rem] tw:leading-4 tw:text-muted-foreground"
+                  class="truncate text-[0.6875rem] leading-4 text-muted-foreground"
                   >{vb.name(file.author)} · {vb.ago(file.ts)} · {(view.versions.get(
                     file.name,
                   ) ?? 0) > 1
@@ -204,8 +203,8 @@
               disabled={!!$fileState.pending}
               aria-busy={$fileState.pending?.id === file.id || undefined}
               class={[
-                "tw:absolute tw:top-1.5 tw:right-1.5 tw:bg-background/90 tw:shadow-sm tw:backdrop-blur-sm tw:transition-opacity tw:aria-pressed:text-foreground tw:focus-visible:opacity-100 tw:group-hover/file:opacity-100 tw:[@media(hover:none)]:opacity-100",
-                pinned ? "tw:opacity-100" : "tw:opacity-0",
+                "absolute top-1.5 right-1.5 bg-background/90 shadow-sm backdrop-blur-sm transition-opacity aria-pressed:text-foreground focus-visible:opacity-100 group-hover/file:opacity-100 [@media(hover:none)]:opacity-100",
+                pinned ? "opacity-100" : "opacity-0",
               ].join(" ")}
               onclick={(event) => {
                 if (mounted && event.currentTarget.isConnected)
@@ -235,7 +234,7 @@
   {#if $fileState.loading}{#if room.files?.length}<LoadingState
         label={vb.t("Carregando…")}
       />{:else}<PaneLoading label={vb.t("Carregando…")} />{/if}{/if}
-  {#if $fileState.loadError}<p role="alert" class="tw:text-destructive">
+  {#if $fileState.loadError}<p role="alert" class="text-destructive">
       {issueText($fileState.loadError)}
     </p>
     <Button
@@ -244,7 +243,7 @@
         if (mounted) void session.load(request);
       }}>{vb.t("Tentar novamente")}</Button
     >{/if}
-  {#if $fileState.error}<p role="alert" class="tw:text-destructive">
+  {#if $fileState.error}<p role="alert" class="text-destructive">
       {issueText($fileState.error)}
     </p>{/if}
 </section>

@@ -22,7 +22,7 @@
   <StageTracker stages={STAGES} current={1} />
 {:else if story === "states"}
   <!-- The line height is the one Studio pages inherit; a lone pill in a table cell sits on that line. -->
-  <div class="tw:flex tw:flex-col tw:gap-8 tw:leading-[1.5]">
+  <div class="flex flex-col gap-8 leading-[1.5]">
     <Matrix columns={["Done", "Current", "Upcoming"]} rows={["Stage"]}>
       {#snippet cell(_row, index)}
         <Stage state={STAGE_STATES[index] ?? "upcoming"}>Plan</Stage>

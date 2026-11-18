@@ -20,7 +20,7 @@
   bind:this={ref}
   data-sidebar="separator"
   {...rest}
-  class={cn("tw:h-4 tw:m-0! tw:w-full", className)}
+  class={cn("h-4 m-0! w-full", className)}
 >
   {@render children?.()}
 </div>

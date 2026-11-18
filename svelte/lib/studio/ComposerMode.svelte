@@ -35,9 +35,9 @@
   {...rest}
   class={cn(composerModeVariants({ tone }), className)}
 >
-  <span class="tw:group-hover/mode:hidden tw:[&_svg]:text-current!"
+  <span class="group-hover/mode:hidden [&_svg]:text-current!"
     >{@render icon()}</span
   >
-  <Icon icon={X} class="tw:hidden tw:text-current! tw:group-hover/mode:block" />
+  <Icon icon={X} class="hidden text-current! group-hover/mode:block" />
   {@render children?.()}
 </button>

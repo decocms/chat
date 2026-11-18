@@ -20,6 +20,6 @@
   bind:this={ref}
   data-slot="chip-meta"
   {...rest}
-  class={cn("tw:text-subtle-foreground tw:text-xs tw:font-normal", className)}
+  class={cn("text-subtle-foreground text-xs font-normal", className)}
   >{@render children?.()}</span
 >

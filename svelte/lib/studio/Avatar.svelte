@@ -59,7 +59,7 @@
         ),
   );
   const tile = $derived(
-    cn("tw:flex tw:size-full tw:items-center tw:justify-center", color),
+    cn("flex size-full items-center justify-center", color),
   );
 
   // The fallback waits a beat for each image (a cached one lands without a flash of initials). The wait starts over
@@ -83,8 +83,8 @@
   class={cn(
     avatarVariants({ shape, size }),
     // A hairline keeps a white logo from dissolving into the page.
-    url && "tw:outline-1 tw:-outline-offset-1 tw:outline-hairline",
-    selected && "tw:outline-2 tw:outline-offset-0 tw:outline-foreground",
+    url && "outline-1 -outline-offset-1 outline-hairline",
+    selected && "outline-2 outline-offset-0 outline-foreground",
     className,
   )}
 >
@@ -102,7 +102,7 @@
       />
     {/if}
     {#if !url || waited}
-      <AvatarFallback class={cn(tile, "tw:rounded-none")}>
+      <AvatarFallback class={cn(tile, "rounded-none")}>
         {#if typeof fallback === "string"}{getInitials(
             fallback,
           )}{:else}{@render fallback()}{/if}

@@ -70,7 +70,7 @@
 
 <article
   data-room-id={room.id}
-  class="tw:relative tw:flex tw:items-center tw:justify-center"
+  class="relative flex items-center justify-center"
   draggable={!!ondragstart}
   ondragstart={(event) => {
     if (event.currentTarget.isConnected) ondragstart?.(event);
@@ -106,9 +106,9 @@
           aria-current={selected ? "page" : undefined}
           data-room-tint={room.tint ?? undefined}
           class={cn(
-            "tw:relative tw:flex tw:size-9 tw:shrink-0 tw:rounded-xl tw:outline-offset-2 tw:transition-opacity tw:duration-150 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:motion-reduce:transition-none",
-            dropping && "tw:outline-2 tw:outline-dashed tw:outline-ring",
-            dragging && "tw:opacity-50",
+            "relative flex size-9 shrink-0 rounded-xl outline-offset-2 transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring motion-reduce:transition-none",
+            dropping && "outline-2 outline-dashed outline-ring",
+            dragging && "opacity-50",
           )}
           onclick={(event) => {
             if (
@@ -141,13 +141,13 @@
     <TooltipContent
       side="right"
       sideOffset={8}
-      class="tw:flex tw:max-w-64 tw:flex-col tw:gap-0.5 tw:py-1.5 tw:text-left"
+      class="flex max-w-64 flex-col gap-0.5 py-1.5 text-left"
     >
       <span>{title}</span>
-      {#if room.summary}<span class="tw:font-normal tw:opacity-80"
+      {#if room.summary}<span class="font-normal opacity-80"
           >{room.summary}</span
         >{/if}
-      {#if details.length}<span class="tw:font-normal tw:opacity-60"
+      {#if details.length}<span class="font-normal opacity-60"
           >{details.join(" · ")}</span
         >{/if}
     </TooltipContent>

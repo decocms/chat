@@ -63,11 +63,11 @@
     }}
     class={cn(
       studioType,
-      "tw:flex tw:max-h-[90dvh] tw:flex-col tw:overflow-auto tw:text-sm tw:text-foreground",
+      "flex max-h-[90dvh] flex-col overflow-auto text-sm text-foreground",
       className,
     )}
   >
-    <DialogHeader class="tw:pr-8">
+    <DialogHeader class="pr-8">
       <DialogTitle>{title}</DialogTitle>
       {#if description}<DialogDescription>{description}</DialogDescription>{/if}
     </DialogHeader>

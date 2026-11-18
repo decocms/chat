@@ -19,8 +19,8 @@
   aria-hidden="true"
   data-slot="pagination-ellipsis"
   {...rest}
-  class={cn("tw:flex tw:size-10 tw:items-center tw:justify-center", className)}
+  class={cn("flex size-10 items-center justify-center", className)}
 >
-  <Icon icon={DotsHorizontal} class="tw:size-4" />
-  <span class="tw:sr-only">More pages</span>
+  <Icon icon={DotsHorizontal} class="size-4" />
+  <span class="sr-only">More pages</span>
 </span>

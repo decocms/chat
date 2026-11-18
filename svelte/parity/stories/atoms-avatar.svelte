@@ -15,16 +15,16 @@
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default"}
     <Avatar fallback="Ana Souza" shape="square" size="base" muted={false} />
   {:else if story === "shapes"}
-    <div class="tw:flex tw:items-center tw:gap-4">
+    <div class="flex items-center gap-4">
       <Avatar shape="circle" fallback="Ana Souza" />
       <Avatar shape="square" fallback="Acme Inc" />
     </div>
   {:else if story === "sizes"}
-    <div class="tw:flex tw:items-end tw:gap-3">
+    <div class="flex items-end gap-3">
       <Avatar size="3xs" fallback="Ana Souza" />
       <Avatar size="2xs" fallback="Ana Souza" />
       <Avatar size="xs" fallback="Ana Souza" />
@@ -37,7 +37,7 @@
       <Avatar size="2xl" fallback="Ana Souza" />
     </div>
   {:else if story === "fallback-colors"}
-    <div class="tw:flex tw:items-center tw:gap-3">
+    <div class="flex items-center gap-3">
       <Avatar shape="circle" fallback="Ana Souza" />
       <Avatar shape="circle" fallback="Carla Mendes" />
       <Avatar shape="circle" fallback="Joana Pires" />
@@ -46,13 +46,13 @@
   {:else if story === "muted"}
     <Avatar fallback="Deleted user" shape="square" size="base" muted />
   {:else if story === "skeleton"}
-    <div class="tw:flex tw:items-center tw:gap-3">
+    <div class="flex items-center gap-3">
       <AvatarSkeleton shape="circle" size="base" />
       <AvatarSkeleton shape="square" size="base" />
       <AvatarSkeleton shape="square" size="lg" />
     </div>
   {:else if story === "with-image"}
-    <div class="tw:flex tw:items-center tw:gap-3">
+    <div class="flex items-center gap-3">
       <Avatar url={LOGO} fallback="Acme" />
       <Avatar url="icon://user" fallback="Guest" shape="circle" />
     </div>

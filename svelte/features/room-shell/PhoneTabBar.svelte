@@ -90,7 +90,7 @@
   data-vb-native
   data-native-phone-tabs
   aria-label={en ? "Room" : "Sala"}
-  class="tw:grid tw:grid-cols-5 tw:border-t tw:border-border tw:bg-background tw:px-1 tw:pt-1 tw:pb-[max(0.375rem,env(safe-area-inset-bottom))] tw:font-sans"
+  class="grid grid-cols-5 border-t border-border bg-background px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] font-sans"
 >
   {#each tabs as tab (tab.id)}
     {@const on = selected === tab.id}
@@ -100,14 +100,14 @@
       title={tab.id === "claude" ? agentTitle : undefined}
       aria-current={on ? "page" : undefined}
       class={cn(
-        "tw:relative tw:flex tw:min-w-0 tw:cursor-pointer tw:flex-col tw:items-center tw:gap-0.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:py-1 tw:text-[0.6875rem] tw:leading-4 tw:text-muted-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring",
-        on && "tw:font-semibold tw:text-foreground",
+        "relative flex min-w-0 cursor-pointer flex-col items-center gap-0.5 rounded-lg border-0 bg-transparent py-1 text-[0.6875rem] leading-4 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        on && "font-semibold text-foreground",
       )}
       onclick={(event) => choose(event, tab.id)}
       ><span
         class={cn(
-          "tw:flex tw:h-7 tw:w-12 tw:items-center tw:justify-center tw:rounded-full tw:transition-colors tw:duration-150 tw:motion-reduce:transition-none",
-          on && "tw:bg-accent",
+          "flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-150 motion-reduce:transition-none",
+          on && "bg-accent",
         )}
         >{#if tab.id === "claude"}<AgentMark
             state={agent.state}
@@ -115,13 +115,13 @@
             on={agent.on}
             size={18}
           />{:else}<Icon icon={tab.icon} size={18} />{/if}</span
-      ><span class="tw:max-w-full tw:truncate">{tab.label}</span
+      ><span class="max-w-full truncate">{tab.label}</span
       >{#if tab.id === "board" && typeof boardCount === "number" && boardCount}<Count
           value={boardCount}
           label={en
             ? `Waiting on you: ${boardCount}`
             : `Esperando você: ${boardCount}`}
-          class="tw:absolute tw:top-0 tw:left-[calc(50%+0.375rem)] tw:shadow-[0_0_0_2px_var(--vb-background)]"
+          class="absolute top-0 left-[calc(50%+0.375rem)] shadow-[0_0_0_2px_var(--vb-background)]"
         />{/if}</button
     >
   {/each}

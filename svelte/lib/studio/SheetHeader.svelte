@@ -19,7 +19,7 @@
   bind:this={ref}
   data-slot="sheet-header"
   {...rest}
-  class={cn("tw:flex tw:flex-col tw:gap-1.5 tw:p-4", className)}
+  class={cn("flex flex-col gap-1.5 p-4", className)}
 >
   {@render children?.()}
 </div>

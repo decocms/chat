@@ -36,7 +36,7 @@
 {#snippet prep()}<Button size="sm" variant="ghost">Prep</Button>{/snippet}
 
 {#if story === "playground"}
-  <div class="tw:w-[25rem]">
+  <div class="w-[25rem]">
     <ListRow
       lead={stars}
       title="Black Friday creative review"
@@ -50,7 +50,7 @@
     rows={["Row"]}
   >
     {#snippet cell(_row, index)}
-      <div class="tw:w-[25rem]">
+      <div class="w-[25rem]">
         <ListRow
           lead={stars}
           title="Black Friday creative review"
@@ -69,11 +69,11 @@
     {/snippet}
   </Matrix>
 {:else if story === "list"}
-  <Card class="tw:w-[26rem]">
+  <Card class="w-[26rem]">
     <CardHeader>
       <CardTitle>Top connections</CardTitle>
     </CardHeader>
-    <div class="tw:-mx-2">
+    <div class="-mx-2">
       {#each CONNECTIONS as row (row.name)}
         <ListRow
           variant="divided"
@@ -82,9 +82,9 @@
           title={row.name}
         >
           {#snippet trailing()}
-            <span class="tw:tabular-nums tw:flex tw:gap-3 tw:text-sm">
+            <span class="tabular-nums flex gap-3 text-sm">
               <span>{row.calls}</span>
-              <span class="tw:text-muted-foreground tw:w-12 tw:text-right">
+              <span class="text-muted-foreground w-12 text-right">
                 {row.share}
               </span>
             </span>
@@ -94,7 +94,7 @@
     </div>
   </Card>
 {:else if story === "selectable"}
-  <div class="tw:flex tw:w-72 tw:flex-col tw:gap-0.5">
+  <div class="flex w-72 flex-col gap-0.5">
     {#each SECTIONS as name, index (name)}
       <ListRow selected={index === 1} lead={layout} title={name}>
         {#snippet child({ props, content })}
@@ -106,7 +106,7 @@
 {:else if story === "states"}
   <Matrix columns={["Default", "Hover", "Focus", "Selected"]} rows={VARIANTS}>
     {#snippet cell(variant, index)}
-      <div class="tw:w-56">
+      <div class="w-56">
         <ListRow
           {variant}
           selected={index === 3}

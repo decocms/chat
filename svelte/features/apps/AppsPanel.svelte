@@ -83,17 +83,17 @@
   <section
     data-native-apps
     data-vb-native
-    class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:gap-3 tw:p-3 tw:font-sans tw:text-foreground"
+    class="flex min-h-0 flex-1 flex-col gap-3 p-3 font-sans text-foreground"
   >
     {#if $pinView.phase === "pending" || $pinView.phase === "waiting"}<p
         role="status"
-        class="tw:text-sm tw:text-muted-foreground"
+        class="text-sm text-muted-foreground"
       >
         {props.t("Esperando confirmação…")}
       </p>{/if}
     {#if $pinView.phase === "unconfirmed"}<div
         role="alert"
-        class="tw:space-y-2 tw:text-sm"
+        class="space-y-2 text-sm"
       >
         <p>
           {props.t(
@@ -112,7 +112,7 @@
           value={{ target, revision: $view.frameRevision }}
         >
           {#snippet children(rendered)}
-            <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <Button
                 variant="ghost"
                 onclick={(event) => {
@@ -124,12 +124,11 @@
                 }}>← Apps</Button
               >
               <h2
-                class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:min-w-0 tw:flex-1 tw:break-words tw:text-base"
+                class="m-0 font-sans font-semibold tracking-normal min-w-0 flex-1 break-words text-base"
               >
                 {app?.title || target.tool}
               </h2>
-              <span
-                class="tw:rounded-control tw:bg-muted tw:px-2 tw:py-1 tw:text-xs"
+              <span class="rounded-control bg-muted px-2 py-1 text-xs"
                 >{connection?.scope === "me"
                   ? props.t("minha")
                   : props.t("da sala")}</span
@@ -172,7 +171,7 @@
         >{/key}
       {#if $view.error}<p
           role="alert"
-          class="tw:break-words tw:text-sm tw:text-destructive"
+          class="break-words text-sm text-destructive"
         >
           {$view.error}
         </p>
@@ -192,7 +191,7 @@
       {:else if $view.loading || (!$view.error && ($view.connections === null || !props.room.filesAll))}<PaneLoading
           label={props.t("Carregando…")}
         />
-      {:else}<div class="tw:space-y-2">
+      {:else}<div class="space-y-2">
           <p role="alert">
             {props.t(
               "Esse app não está nas conexões que você pode usar nesta sala.",
@@ -231,7 +230,7 @@
           onask={props.ask}
         />{/if}
       {#if $view.form}<form
-          class="tw:space-y-3 tw:rounded-control tw:border tw:border-border tw:p-3"
+          class="space-y-3 rounded-control border border-border p-3"
           onsubmit={(event) => {
             event.preventDefault();
             if (live(event) && !busy) owner.connect();
@@ -251,7 +250,7 @@
                 owner.draft(event.currentTarget.value, $view.scope);
             }}
           />
-          <p class="tw:text-xs tw:text-muted-foreground">
+          <p class="text-xs text-muted-foreground">
             {props.t(
               "Sem token aqui: se o servidor pedir login, cada pessoa entra com a própria conta dela, e o vibebook só diz quem é e de qual sala.",
             )}
@@ -266,11 +265,11 @@
             }}
           >
             {#each [{ value: "me", label: props.t("Só minha: só eu e meus agents") }, { value: "room", label: props.t("Da sala: todo mundo vê; cada um entra com a própria conta") }] as item (item.value)}<Label
-                class="tw:flex tw:items-center tw:gap-2 tw:font-normal"
+                class="flex items-center gap-2 font-normal"
                 ><RadioGroupItem value={item.value} />{item.label}</Label
               >{/each}
           </RadioGroup>
-          <div class="tw:flex tw:gap-2">
+          <div class="flex gap-2">
             <Button
               variant="outline"
               disabled={$view.pending}
@@ -287,7 +286,7 @@
       {#if $view.loading}<LoadingState label={props.t("Carregando…")} />{/if}
       {#if $view.error}<p
           role="alert"
-          class="tw:break-words tw:text-sm tw:text-destructive"
+          class="break-words text-sm text-destructive"
         >
           {$view.error}
         </p>
@@ -300,7 +299,7 @@
             }
           }}>{props.t("Atualizar")}</Button
         >{/if}
-      {#if $view.unconfirmed}<p role="alert" class="tw:text-sm">
+      {#if $view.unconfirmed}<p role="alert" class="text-sm">
           {props.t(
             "Mudança não confirmada. Ela pode ter sido salva. Confira antes de tentar de novo.",
           )}
@@ -312,27 +311,23 @@
           }}>{props.t("Revisar e tentar de novo")}</Button
         >{/if}
       {#if apps.length}
-        <section
-          class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
-        >
-          <div class="tw:flex tw:items-center tw:gap-2">
-            <h3
-              class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
-            >
+        <section class="space-y-2 rounded-control border border-border p-3">
+          <div class="flex items-center gap-2">
+            <h3 class="m-0 font-sans font-semibold tracking-normal text-base">
               {props.t("Esta sala")}
             </h3>
           </div>
-          <div class="tw:grid tw:gap-2">
+          <div class="grid gap-2">
             {#each apps as app (app.file.id)}<Button
                 variant="outline"
-                class="tw:h-auto tw:justify-start tw:whitespace-normal tw:text-left"
+                class="h-auto justify-start whitespace-normal text-left"
                 onclick={(event) => {
                   if (live(event))
                     owner.open({ connection: "room", tool: app.tool });
                 }}
                 ><span
-                  ><strong class="tw:block">{app.title}</strong><small
-                    class="tw:block tw:text-muted-foreground"
+                  ><strong class="block">{app.title}</strong><small
+                    class="block text-muted-foreground"
                     >{props.name(app.file.author)} · {props.ago(
                       app.file.ts,
                     )}</small
@@ -346,20 +341,16 @@
           (app) => app.screen,
         )}{@const visible =
           screens.length && !$view.more.has(item.id) ? screens : all}
-        <section
-          class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
-        >
-          <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-            <h3
-              class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
-            >
+        <section class="space-y-2 rounded-control border border-border p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <h3 class="m-0 font-sans font-semibold tracking-normal text-base">
               {item.title}
             </h3>
-            <span class="tw:rounded-control tw:bg-muted tw:px-2 tw:text-xs"
+            <span class="rounded-control bg-muted px-2 text-xs"
               >{item.scope === "me"
                 ? props.t("minha")
                 : props.t("da sala")}</span
-            ><small class="tw:break-words tw:text-muted-foreground"
+            ><small class="break-words text-muted-foreground"
               >{item.host} · {props.name(item.owner)}</small
             >{#if $modes.get(item.id)}{@const mode = $modes.get(item.id)}<Badge
                 variant="neutral"
@@ -384,19 +375,19 @@
                 }}>{props.t("Remover conexão")}</Button
               >{/if}
           </div>
-          {#if item.signed_in}<p class="tw:text-sm">
+          {#if item.signed_in}<p class="text-sm">
               {props.t("Você entrou em {host} com a sua conta.", {
                 host: item.host,
               })}
               <Button
                 variant="link"
-                class="tw:h-auto tw:px-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+                class="h-auto px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
                 disabled={busy}
                 onclick={(event) => {
                   if (live(event)) owner.signout(item.id);
                 }}>{props.t("Sair")}</Button
               >
-            </p>{:else}<p class="tw:text-sm">
+            </p>{:else}<p class="text-sm">
               {props.t(
                 "Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.",
                 { host: item.host },
@@ -409,27 +400,27 @@
                 if (!live(event)) event.preventDefault();
               }}>{props.t("Entrar em {host}", { host: item.host })}</a
             >{/if}
-          {#if visible.length}<div class="tw:grid tw:gap-2">
+          {#if visible.length}<div class="grid gap-2">
               {#each visible as app (app.tool)}<Button
                   variant="outline"
-                  class="tw:h-auto tw:justify-start tw:whitespace-normal tw:text-left"
+                  class="h-auto justify-start whitespace-normal text-left"
                   onclick={(event) => {
                     if (live(event))
                       owner.open({ connection: item.id, tool: app.tool });
                   }}
                   ><span
-                    ><strong class="tw:block">{app.title}</strong><small
-                      class="tw:block tw:text-muted-foreground"
+                    ><strong class="block">{app.title}</strong><small
+                      class="block text-muted-foreground"
                       >{app.description}</small
                     ></span
                   ></Button
                 >{/each}
-            </div>{:else}<p class="tw:text-xs tw:text-muted-foreground">
+            </div>{:else}<p class="text-xs text-muted-foreground">
               {props.t("{n} tools, nenhum app", { n: item.tools.length })}
             </p>{/if}
           {#if screens.length && screens.length < all.length}<Button
               variant="link"
-              class="tw:h-auto tw:px-0 tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+              class="h-auto px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
               onclick={(event) => {
                 if (live(event)) owner.more(item.id);
               }}
@@ -465,7 +456,7 @@
 {:else if $view.denied}<section
     data-native-apps-denied
     data-vb-native
-    class="tw:space-y-2 tw:p-3 tw:font-sans tw:text-foreground"
+    class="space-y-2 p-3 font-sans text-foreground"
   >
     <p role="alert">{props.t("Você não tem acesso a esta sala.")}</p>
     <Button

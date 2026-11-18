@@ -14,14 +14,14 @@
 {#snippet text(content: string)}{content}{/snippet}
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "default" || story === "custom-quick-ranges"}
-    <div class="tw:space-y-2">
+    <div class="space-y-2">
       <TimeRangePicker
         bind:value={range}
         quickRanges={story === "default" ? undefined : DAYS}
       />
-      <p class="tw:text-muted-foreground tw:text-xs tw:text-pretty">
+      <p class="text-muted-foreground text-xs text-pretty">
         From {@render text(range.from)}{@render text(" to ")}{@render text(
           range.to,
         )}

@@ -20,7 +20,7 @@
   data-slot="card-action"
   {...rest}
   class={cn(
-    "tw:col-start-2 tw:row-span-2 tw:row-start-1 tw:self-start tw:justify-self-end",
+    "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
     className,
   )}
 >

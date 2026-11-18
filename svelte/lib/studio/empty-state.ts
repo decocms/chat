@@ -2,13 +2,13 @@ import { tv, type VariantProps } from "tailwind-variants";
 
 export const emptyStateVariants = tv(
   {
-    base: "tw:flex tw:flex-col tw:items-center tw:justify-center tw:gap-4 tw:text-center",
+    base: "flex flex-col items-center justify-center gap-4 text-center",
     variants: {
       size: {
         /** The whole view is empty. */
-        page: "tw:py-16",
+        page: "py-16",
         /** A list or chart inside a card or panel. */
-        inline: "tw:py-8",
+        inline: "py-8",
       },
     },
     defaultVariants: { size: "page" },
@@ -18,11 +18,11 @@ export const emptyStateVariants = tv(
 
 export const emptyStateIconVariants = tv(
   {
-    base: "tw:flex tw:size-10 tw:items-center tw:justify-center tw:rounded-xl tw:[&_svg]:size-5 tw:[&_svg]:stroke-[1.33]",
+    base: "flex size-10 items-center justify-center rounded-xl [&_svg]:size-5 [&_svg]:stroke-[1.33]",
     variants: {
       tone: {
-        default: "tw:bg-muted tw:text-muted-foreground",
-        error: "tw:bg-destructive/10 tw:text-destructive",
+        default: "bg-muted text-muted-foreground",
+        error: "bg-destructive/10 text-destructive",
       },
     },
     defaultVariants: { tone: "default" },

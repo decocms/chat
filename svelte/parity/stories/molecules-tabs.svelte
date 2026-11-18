@@ -17,69 +17,63 @@
 </script>
 
 {#if story === "default"}
-  <Tabs value="general" class="tw:w-96">
-    <TabsList class="tw:w-full">
+  <Tabs value="general" class="w-96">
+    <TabsList class="w-full">
       <TabsTrigger value="general">General</TabsTrigger>
       <TabsTrigger value="members">Members</TabsTrigger>
       <TabsTrigger value="billing">Billing</TabsTrigger>
     </TabsList>
-    <TabsContent value="general" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="general" class="text-sm text-muted-foreground">
       Update your organization name, logo, and default preferences.
     </TabsContent>
-    <TabsContent value="members" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="members" class="text-sm text-muted-foreground">
       Invite teammates and manage their roles.
     </TabsContent>
-    <TabsContent value="billing" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="billing" class="text-sm text-muted-foreground">
       View invoices and change your plan.
     </TabsContent>
   </Tabs>
 {:else if story === "underline"}
-  <Tabs value="overview" variant="underline" class="tw:w-96">
+  <Tabs value="overview" variant="underline" class="w-96">
     <TabsList variant="underline">
       <TabsTrigger variant="underline" value="overview">Overview</TabsTrigger>
       <TabsTrigger variant="underline" value="activity">Activity</TabsTrigger>
       <TabsTrigger variant="underline" value="settings">Settings</TabsTrigger>
     </TabsList>
-    <TabsContent value="overview" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="overview" class="text-sm text-muted-foreground">
       Recent activity and usage for this connection.
     </TabsContent>
-    <TabsContent value="activity" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="activity" class="text-sm text-muted-foreground">
       Tool calls made through this connection in the last 30 days.
     </TabsContent>
-    <TabsContent value="settings" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="settings" class="text-sm text-muted-foreground">
       Configure authentication and access policies.
     </TabsContent>
   </Tabs>
 {:else if story === "canvas"}
-  <Tabs value="readme" variant="canvas" class="tw:w-96">
-    <TabsList variant="canvas" class="tw:w-full">
+  <Tabs value="readme" variant="canvas" class="w-96">
+    <TabsList variant="canvas" class="w-full">
       <TabsTrigger variant="canvas" value="readme">
-        <Icon icon={File02} class="tw:size-4" /> README.md
+        <Icon icon={File02} class="size-4" /> README.md
       </TabsTrigger>
       <TabsTrigger variant="canvas" value="config">
-        <Icon icon={Settings01} class="tw:size-4" /> config.json
+        <Icon icon={Settings01} class="size-4" /> config.json
       </TabsTrigger>
     </TabsList>
-    <TabsContent
-      value="readme"
-      class="tw:p-4 tw:text-sm tw:text-muted-foreground"
-    >
+    <TabsContent value="readme" class="p-4 text-sm text-muted-foreground">
       Getting started guide for the project.
     </TabsContent>
-    <TabsContent
-      value="config"
-      class="tw:p-4 tw:text-sm tw:text-muted-foreground"
-    >
+    <TabsContent value="config" class="p-4 text-sm text-muted-foreground">
       Runtime configuration for the MCP server.
     </TabsContent>
   </Tabs>
 {:else if story === "disabled"}
-  <Tabs value="general" class="tw:w-96">
-    <TabsList class="tw:w-full">
+  <Tabs value="general" class="w-96">
+    <TabsList class="w-full">
       <TabsTrigger value="general">General</TabsTrigger>
       <TabsTrigger value="advanced" disabled>Advanced</TabsTrigger>
     </TabsList>
-    <TabsContent value="general" class="tw:text-sm tw:text-muted-foreground">
+    <TabsContent value="general" class="text-sm text-muted-foreground">
       Advanced settings require an admin role.
     </TabsContent>
   </Tabs>

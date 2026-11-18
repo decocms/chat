@@ -71,17 +71,17 @@
 {#snippet option(label: string, on: boolean, disabled: boolean)}<span
     class={cn(
       buttonVariants({ variant: on ? "default" : "outline", size: "sm" }),
-      "tw:pointer-events-none tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
-      disabled && !on && "tw:text-muted-foreground",
+      "pointer-events-none h-auto min-h-8 whitespace-pre-wrap text-left",
+      disabled && !on && "text-muted-foreground",
     )}
     >{#if on}<Icon icon={Check} size={14} />{/if}{label}</span
   >{/snippet}
 <div
   data-native-choices
   data-vb-native
-  class="tw:space-y-2 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-2 font-sans text-sm text-foreground"
 >
-  {#if answer}<div class="tw:flex tw:flex-wrap tw:gap-2">
+  {#if answer}<div class="flex flex-wrap gap-2">
       {#each choices.options as label}{@render option(
           label,
           picked.has(label),
@@ -95,7 +95,7 @@
   {:else if actionable}<div
       role={choices.multi ? "group" : "radiogroup"}
       aria-label={vb.t("Escolha uma opção")}
-      class="tw:flex tw:flex-wrap tw:gap-2"
+      class="flex flex-wrap gap-2"
     >
       {#each [...choices.options, vb.t("Outro") + "…"] as label, index}{@const value =
           index === choices.options.length ? -1 : index}{@const on =
@@ -105,23 +105,23 @@
           aria-checked={on}
           class={cn(
             buttonVariants({ variant: on ? "default" : "outline", size: "sm" }),
-            "tw:h-auto tw:min-h-8 tw:whitespace-pre-wrap tw:text-left",
+            "h-auto min-h-8 whitespace-pre-wrap text-left",
           )}
           onclick={() => choose(value, choices.multi ? !on : true)}
           >{#if on}<Icon icon={Check} size={14} />{/if}{label}</button
         >{/each}
     </div>
-    <small class="tw:block tw:text-muted-foreground"
+    <small class="block text-muted-foreground"
       >{vb.t("escolha e envie pela caixa de mensagem")}</small
     >
-  {:else}<div class="tw:flex tw:flex-wrap tw:gap-2" aria-disabled="true">
+  {:else}<div class="flex flex-wrap gap-2" aria-disabled="true">
       {#each choices.options as label}{@render option(
           label,
           false,
           true,
         )}{/each}
     </div>
-    <small class="tw:block tw:text-muted-foreground"
+    <small class="block text-muted-foreground"
       >{choices.closed
         ? vb.t("foi pro terminal")
         : vb.t("esperando {who}", { who: vb.name(message.author) })}</small

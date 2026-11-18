@@ -21,7 +21,7 @@
   data-slot="entity-card-footer"
   {...rest}
   class={cn(
-    "tw:border-border tw:text-[0.75rem] tw:leading-4 tw:tabular-nums tw:text-muted-foreground tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:pt-3",
+    "border-border text-[0.75rem] leading-4 tabular-nums text-muted-foreground flex items-center justify-between gap-2 border-t pt-3",
     className,
   )}
 >

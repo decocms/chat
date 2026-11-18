@@ -51,7 +51,7 @@
 <AlertDialog bind:open {onOpenChange}>
   <AlertDialogContent
     data-vb-native
-    class={cn(studioType, "tw:text-sm tw:text-foreground")}
+    class={cn(studioType, "text-sm text-foreground")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
@@ -73,11 +73,11 @@
     <AlertDialogHeader>
       <AlertDialogTitle>{title}</AlertDialogTitle>
       {#if description}<AlertDialogDescription
-          class="tw:whitespace-pre-wrap tw:break-words"
+          class="whitespace-pre-wrap break-words"
           >{description}</AlertDialogDescription
         >{/if}
     </AlertDialogHeader>
-    {#if error}<p role="alert" class="tw:m-0 tw:text-sm tw:text-destructive">
+    {#if error}<p role="alert" class="m-0 text-sm text-destructive">
         {error}
       </p>{/if}
     <AlertDialogFooter>

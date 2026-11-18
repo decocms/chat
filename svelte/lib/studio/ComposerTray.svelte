@@ -21,7 +21,7 @@
   data-slot="composer-tray"
   {...rest}
   class={cn(
-    "tw:bg-muted tw:-mb-4 tw:flex tw:flex-col tw:gap-1 tw:rounded-t-2xl tw:px-2 tw:pt-2 tw:pb-6",
+    "bg-muted -mb-4 flex flex-col gap-1 rounded-t-2xl px-2 pt-2 pb-6",
     className,
   )}
 >

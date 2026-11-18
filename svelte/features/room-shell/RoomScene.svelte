@@ -347,7 +347,7 @@
                 {services}
                 documentWidth={layout.bindDocumentWidth}
                 sidebarCollapsed={$geometry.sidebarCollapsed}
-              />{:else}<div data-native-room-inbox-loading class="tw:p-6">
+              />{:else}<div data-native-room-inbox-loading class="p-6">
                 <DeferredViewStatus
                   phase={$roomInboxView.phase}
                   lang={services.language}
@@ -379,7 +379,7 @@
             <div
               data-document-pane="agents"
               data-native-agent-footer
-              class={collapsed ? "tw:flex tw:justify-center" : ""}
+              class={collapsed ? "flex justify-center" : ""}
             >
               {#if collapsed}<AgentTrigger
                   {...$view.trigger}
@@ -431,7 +431,7 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
-        <div class={$geometry.boardFull ? "tw:hidden" : ""}>
+        <div class={$geometry.boardFull ? "hidden" : ""}>
           {#if $view.banners}<AgentBanners
               {...$view.banners}
               agentsOpen={$geometry.pane === "agents" &&
@@ -440,7 +440,7 @@
                   : $geometry.documentVisible && !$geometry.boardFull)}
             />{/if}
         </div>
-        <div class="tw:px-4"><ThreadFiles {...$view.threadFiles} /></div>
+        <div class="px-4"><ThreadFiles {...$view.threadFiles} /></div>
       </div>
     {/if}{/snippet}
   {#snippet chat()}{#if $view}
@@ -458,16 +458,16 @@
       <div
         use:taskSurface
         class={$geometry.pane === "doc"
-          ? "tw:flex tw:h-full tw:min-h-0 tw:flex-col"
-          : "tw:hidden"}
+          ? "flex h-full min-h-0 flex-col"
+          : "hidden"}
         hidden={$geometry.pane !== "doc"}
       >
         <DocumentPanel {...$view.document} />
       </div>
       <div
         class={$geometry.pane === "view"
-          ? "tw:flex tw:h-full tw:min-h-0 tw:flex-col"
-          : "tw:hidden"}
+          ? "flex h-full min-h-0 flex-col"
+          : "hidden"}
         hidden={$geometry.pane !== "view"}
       >
         {#if SideFilePanel}<SideFilePanel
@@ -485,8 +485,8 @@
       <div
         use:filesSurface
         class={$geometry.pane === "files"
-          ? "tw:h-full tw:min-h-0 tw:overflow-auto"
-          : "tw:hidden"}
+          ? "h-full min-h-0 overflow-auto"
+          : "hidden"}
         hidden={$geometry.pane !== "files"}
       >
         {#if $geometry.mobile}<PhoneRoomSection
@@ -505,8 +505,8 @@
       </div>
       <div
         class={$geometry.pane === "apps"
-          ? "tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-auto"
-          : "tw:hidden"}
+          ? "flex h-full min-h-0 flex-col overflow-auto"
+          : "hidden"}
         hidden={$geometry.pane !== "apps"}
       >
         {#if AppsPanel}<AppsPanel
@@ -522,7 +522,7 @@
           />{/if}
       </div>
       <div
-        class={$geometry.pane === "decisions" ? "tw:min-h-0" : "tw:hidden"}
+        class={$geometry.pane === "decisions" ? "min-h-0" : "hidden"}
         hidden={$geometry.pane !== "decisions"}
       >
         {#if Decisions}<Decisions
@@ -538,7 +538,7 @@
           />{/if}
       </div>
       <div
-        class={$geometry.pane === "reminders" ? "tw:min-h-0" : "tw:hidden"}
+        class={$geometry.pane === "reminders" ? "min-h-0" : "hidden"}
         hidden={$geometry.pane !== "reminders"}
       >
         {#if Reminders}<Reminders
@@ -599,7 +599,7 @@
           >
             <DialogContent
               data-vb-native
-              class="tw:inset-2 tw:top-2 tw:left-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:overflow-auto tw:md:max-w-none tw:font-sans tw:text-sm tw:text-foreground"
+              class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
               closeLabel={services.language === "en"
                 ? "Close file"
                 : "Fechar arquivo"}
@@ -615,7 +615,7 @@
               }}
             >
               <DialogHeader>
-                <DialogTitle class="tw:pr-8 tw:font-sans"
+                <DialogTitle class="pr-8 font-sans"
                   >{$viewerState.name ||
                     (services.language === "en"
                       ? "File"
@@ -635,7 +635,7 @@
       >{/key}{/if}
   {#if !FileViewer && $viewerState.closingUnconfirmed}<aside
       role="alert"
-      class="tw:fixed tw:inset-x-4 tw:top-4 tw:z-50 tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-4 tw:font-sans tw:text-sm tw:text-card-foreground tw:shadow-lg"
+      class="fixed inset-x-4 top-4 z-50 flex flex-wrap items-center gap-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground shadow-lg"
     >
       <p>{viewerText(services.language, "closing")}</p>
       <Button
@@ -648,7 +648,7 @@
   {#if $view.notice}<aside
       data-vb-native
       role="status"
-      class="tw:fixed tw:bottom-4 tw:left-1/2 tw:z-30 tw:max-w-[calc(100vw-2rem)] tw:-translate-x-1/2 tw:rounded-control tw:border tw:border-border tw:bg-popover tw:p-3 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-md"
+      class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-control border border-border bg-popover p-3 font-sans text-sm text-popover-foreground shadow-md"
     >
       {$view.notice}
     </aside>{/if}

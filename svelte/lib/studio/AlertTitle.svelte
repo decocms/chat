@@ -19,10 +19,7 @@
   bind:this={ref}
   data-slot="alert-title"
   {...rest}
-  class={cn(
-    "tw:line-clamp-1 tw:min-h-4 tw:font-medium tw:tracking-tight",
-    className,
-  )}
+  class={cn("line-clamp-1 min-h-4 font-medium tracking-tight", className)}
 >
   {@render children?.()}
 </div>

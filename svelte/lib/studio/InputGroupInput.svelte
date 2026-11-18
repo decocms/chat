@@ -20,7 +20,7 @@
   data-slot="input-group-input"
   {...rest}
   class={cn(
-    "tw:text-foreground tw:placeholder:text-subtle-foreground tw:disabled:cursor-not-allowed tw:disabled:text-subtle-foreground tw:h-full tw:min-w-0 tw:flex-1 tw:bg-transparent tw:px-2 tw:text-sm tw:pointer-coarse:text-[16px] tw:outline-none",
+    "text-foreground placeholder:text-subtle-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground h-full min-w-0 flex-1 bg-transparent px-2 text-sm pointer-coarse:text-[16px] outline-none",
     className,
   )}
 />

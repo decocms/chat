@@ -35,17 +35,15 @@
 <svelte:head><title>{text("archive")} · vibebook</title></svelte:head>
 <main
   data-vb-native="archived"
-  class="tw:min-h-dvh tw:md:min-h-full tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground tw:md:p-8"
+  class="min-h-dvh md:min-h-full bg-background p-4 font-sans text-sm leading-6 text-foreground md:p-8"
 >
-  <div class="tw:mx-auto tw:max-w-5xl tw:space-y-6">
-    <header
-      class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3"
-    >
+  <div class="mx-auto max-w-5xl space-y-6">
+    <header class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <Heading level={1} class="tw:m-0 tw:text-2xl tw:font-semibold"
+        <Heading level={1} class="m-0 text-2xl font-semibold"
           >{text("archive")}</Heading
         >
-        <p class="tw:m-0 tw:text-muted-foreground">{text("archived")}</p>
+        <p class="m-0 text-muted-foreground">{text("archived")}</p>
       </div>
       <a
         href="/app?ui=svelte"
@@ -67,25 +65,21 @@
     {#if $view.loading}<p role="status">
         {text($view.loaded ? "refreshing" : "loading")}
       </p>{/if}
-    <div class="tw:grid tw:gap-4 tw:md:grid-cols-2">
-      {#each $view.books as room (room.id)}<Card class="tw:block tw:space-y-3"
+    <div class="grid gap-4 md:grid-cols-2">
+      {#each $view.books as room (room.id)}<Card class="block space-y-3"
           ><OrgAvatar
             name={room.title ?? "vibebook"}
-            class="tw:h-24 tw:w-full tw:rounded-control tw:grayscale-60"
+            class="h-24 w-full rounded-control grayscale-60"
           />
-          <Heading
-            level={2}
-            class="tw:m-0 tw:break-words tw:text-lg tw:font-semibold"
+          <Heading level={2} class="m-0 break-words text-lg font-semibold"
             >{room.title}</Heading
-          >{#if room.summary}<p
-              class="tw:m-0 tw:break-words tw:text-muted-foreground"
-            >
+          >{#if room.summary}<p class="m-0 break-words text-muted-foreground">
               {room.summary}
             </p>{/if}
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          <p class="m-0 text-xs text-muted-foreground">
             {text("archivedAgo", { ago: ago(room.archived_at) })}
           </p>
-          <div class="tw:flex tw:flex-wrap tw:gap-2">
+          <div class="flex flex-wrap gap-2">
             <a
               href={targetHref({ roomId: room.id })}
               class={buttonVariants({ variant: "ghost" })}
@@ -117,7 +111,7 @@
         >{/each}
     </div>
     {#if $view.loaded && !$view.books.length}<p>{text("noArchived")}</p>{/if}
-    {#if $view.error}<p role="alert" class="tw:break-words tw:text-destructive">
+    {#if $view.error}<p role="alert" class="break-words text-destructive">
         {homeIssue(lang, $view.error)}
       </p>
       <Button

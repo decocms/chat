@@ -30,18 +30,15 @@
   class={cn(stageVariants({ state }), className)}
 >
   {#if state === "done"}
-    <Icon icon={CheckCircle} class="tw:size-3.5 tw:stroke-[1.5]" />
+    <Icon icon={CheckCircle} class="size-3.5 stroke-[1.5]" />
   {:else if state === "current"}
-    <span
-      aria-hidden="true"
-      class="tw:flex tw:size-3.5 tw:items-center tw:justify-center"
-    >
-      <span class="tw:size-2 tw:rounded-full tw:bg-current"></span>
+    <span aria-hidden="true" class="flex size-3.5 items-center justify-center">
+      <span class="size-2 rounded-full bg-current"></span>
     </span>
   {:else}
     <span
       aria-hidden="true"
-      class="tw:size-3.5 tw:rounded-full tw:border-[1.5px] tw:border-current"
+      class="size-3.5 rounded-full border-[1.5px] border-current"
     ></span>
   {/if}
   {@render children?.()}

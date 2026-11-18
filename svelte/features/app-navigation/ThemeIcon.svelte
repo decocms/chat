@@ -7,5 +7,5 @@
 
 <Icon
   icon={theme === "light" ? Sun : theme === "dark" ? Moon01 : Contrast01}
-  class="tw:size-4 tw:shrink-0"
+  class="size-4 shrink-0"
 />

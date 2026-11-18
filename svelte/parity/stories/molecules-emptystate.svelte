@@ -48,7 +48,7 @@
     buttonProps={{ children: tryAgain }}
   />
 {:else if story === "inline"}
-  <Card class="tw:w-96">
+  <Card class="w-96">
     <CardHeader>
       <CardTitle>Recent runs</CardTitle>
     </CardHeader>

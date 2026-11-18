@@ -7,23 +7,23 @@
 <svelte:head><title>{title} · vibebook</title></svelte:head>
 <main
   data-vb-native="auth"
-  class="tw:flex tw:min-h-dvh tw:items-center tw:justify-center tw:bg-background tw:p-4 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+  class="flex min-h-dvh items-center justify-center bg-background p-4 font-sans text-sm leading-6 text-foreground"
 >
-  <div class="tw:w-full tw:max-w-md">
-    <Card class="tw:block tw:space-y-5 tw:p-6 tw:md:p-8">
+  <div class="w-full max-w-md">
+    <Card class="block space-y-5 p-6 md:p-8">
       <a
         href="/"
-        class="tw:inline-flex tw:items-center tw:gap-2 tw:rounded-control tw:text-lg tw:font-semibold tw:text-foreground tw:no-underline tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+        class="inline-flex items-center gap-2 rounded-control text-lg font-semibold text-foreground no-underline focus-visible:outline-2 focus-visible:outline-ring"
         ><img
           src="/favicon.svg"
           alt=""
           width="32"
           height="32"
-          class="tw:size-8 tw:rounded-lg"
+          class="size-8 rounded-lg"
         />vibebook</a
       >
       <h1
-        class="tw:m-0 tw:break-words tw:text-2xl tw:font-semibold tw:leading-8 tw:tracking-tight"
+        class="m-0 break-words text-2xl font-semibold leading-8 tracking-tight"
       >
         {title}
       </h1>

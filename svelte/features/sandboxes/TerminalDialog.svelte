@@ -101,15 +101,15 @@
           target.focus();
         }
       }}
-      class="tw:inset-2 tw:flex tw:w-auto tw:max-w-none tw:translate-x-0 tw:translate-y-0 tw:flex-col tw:gap-4 tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground tw:md:max-w-none"
+      class="inset-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col gap-4 overflow-auto font-sans text-sm text-foreground md:max-w-none"
     >
-      <DialogHeader class="tw:pr-8">
-        <DialogTitle class="tw:font-sans"
+      <DialogHeader class="pr-8">
+        <DialogTitle class="font-sans"
           >{`${text("terminal")} · ${$view.name ?? text("unnamed")}`}</DialogTitle
         >
         <DialogDescription>{text("terminalHelp")}</DialogDescription>
       </DialogHeader>
-      <p role="status" class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+      <p role="status" class="m-0 text-sm text-muted-foreground">
         {text(phase)}
       </p>
       <div
@@ -122,9 +122,9 @@
         data-terminal-foreground={$view.semantic?.theme.foreground}
         data-terminal-selection={$view.semantic?.theme.selectionBackground}
         use:mount={ticket}
-        class="tw:min-h-64 tw:flex-1 tw:overflow-hidden tw:bg-background tw:font-mono tw:text-sm tw:text-foreground tw:selection:bg-primary/30"
+        class="min-h-64 flex-1 overflow-hidden bg-background font-mono text-sm text-foreground selection:bg-primary/30"
       ></div>
-      <div class="tw:flex tw:flex-wrap tw:gap-2">
+      <div class="flex flex-wrap gap-2">
         {#each keys as key}<Button
             variant="outline"
             size="sm"

@@ -24,7 +24,7 @@
   data-inset={inset}
   {...rest}
   class={cn(
-    "tw:text-foreground tw:px-2 tw:py-1.5 tw:text-sm tw:font-medium tw:data-[inset]:pl-8",
+    "text-foreground px-2 py-1.5 text-sm font-medium data-[inset]:pl-8",
     className,
   )}
 >

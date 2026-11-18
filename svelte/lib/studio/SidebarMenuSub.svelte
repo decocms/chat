@@ -21,7 +21,7 @@
   data-slot="sidebar-menu-sub"
   data-sidebar="menu-sub"
   {...rest}
-  class={cn("tw:hidden", className)}
+  class={cn("hidden", className)}
 >
   {@render children?.()}
 </ul>

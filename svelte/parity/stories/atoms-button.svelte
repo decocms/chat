@@ -32,7 +32,7 @@
 {:else if story === "disabled"}
   <Button disabled>Button</Button>
 {:else if story === "variants"}
-  <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <Button>Default</Button>
     <Button variant="secondary">Secondary</Button>
     <Button variant="outline">Outline</Button>
@@ -45,7 +45,7 @@
     <Button variant="link">Link</Button>
   </div>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <Button size="xs">Extra small</Button>
     <Button size="sm">Small</Button>
     <Button size="default">Default</Button>
@@ -53,13 +53,13 @@
     <Button size="icon" aria-label="Add"><Icon icon={Plus} /></Button>
   </div>
 {:else if story === "with-icon"}
-  <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <Button><Icon icon={Plus} /> New item</Button>
     <Button variant="outline">Continue <Icon icon={ArrowRight} /></Button>
     <Button variant="destructive"><Icon icon={Trash01} /> Delete</Button>
   </div>
 {:else if story === "agent"}
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     <Button variant="agent" size="sm"
       ><AgentAvatar src={AGENT_FACE} size={20} /> Ask</Button
     >

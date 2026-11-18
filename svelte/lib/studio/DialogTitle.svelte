@@ -16,7 +16,7 @@
     <h2
       {...props}
       class={cn(
-        "tw:text-[1.375rem] tw:leading-tight tw:font-medium tw:tracking-[-0.02em] tw:text-balance",
+        "text-[1.375rem] leading-tight font-medium tracking-[-0.02em] text-balance",
         className,
       )}
     >

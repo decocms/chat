@@ -50,7 +50,7 @@
 <Dialog bind:open>
   <DialogContent
     data-vb-native
-    class="tw:max-h-[90dvh] tw:overflow-auto tw:font-sans tw:text-sm tw:text-foreground"
+    class="max-h-[90dvh] overflow-auto font-sans text-sm text-foreground"
     closeLabel={text("close")}
     preventScroll={false}
     preventBodyPointerEvents={false}
@@ -63,26 +63,24 @@
       }
     }}
   >
-    <DialogHeader class="tw:pr-8">
-      <DialogTitle class="tw:font-sans">{text("settings")}</DialogTitle>
+    <DialogHeader class="pr-8">
+      <DialogTitle class="font-sans">{text("settings")}</DialogTitle>
     </DialogHeader>
-    <p class="tw:m-0">
+    <p class="m-0">
       {text("permission")}: {pwaPermission(lang, $view.permission)}
     </p>
-    {#if $view.iosWeb}<p class="tw:m-0 tw:leading-6">
+    {#if $view.iosWeb}<p class="m-0 leading-6">
         {text("ios")}
-      </p>{:else if $view.permission === "denied"}<p
-        class="tw:m-0 tw:leading-6"
-      >
+      </p>{:else if $view.permission === "denied"}<p class="m-0 leading-6">
         {text("denied")}
-      </p>{:else if $view.permission === "unsupported"}<p class="tw:m-0">
+      </p>{:else if $view.permission === "unsupported"}<p class="m-0">
         {text("unsupported")}
       </p>{:else if $view.permission === "default"}<Button
         onclick={(event) => {
           if (active && event.currentTarget.isConnected) void owner.bell();
         }}>{text("enable")}</Button
       >{/if}
-    <label class="tw:flex tw:items-center tw:gap-2"
+    <label class="flex items-center gap-2"
       ><Checkbox
         bind:checked={
           () => $view.muted,
@@ -92,27 +90,27 @@
         }
       />{text("mute")}</label
     >
-    {#if $push.status === "working"}<p role="status" class="tw:m-0">
+    {#if $push.status === "working"}<p role="status" class="m-0">
         {text("working")}
       </p>{/if}
-    {#if $push.status === "unavailable"}<p role="status" class="tw:m-0">
+    {#if $push.status === "unavailable"}<p role="status" class="m-0">
         {text("unavailable")}
       </p>{/if}
     {#if $push.status === "unconfirmed"}<p
         role="alert"
-        class="tw:m-0 tw:text-destructive"
+        class="m-0 text-destructive"
       >
         {text("waiting")}
       </p>{:else if $push.error || ($view.error && $view.error !== "storage")}<p
         role="alert"
-        class="tw:m-0 tw:text-destructive"
+        class="m-0 text-destructive"
       >
         {text("failed")}
       </p>{/if}
-    {#if $view.error === "storage"}<p role="alert" class="tw:m-0">
+    {#if $view.error === "storage"}<p role="alert" class="m-0">
         {text("storage")}
       </p>{/if}
-    <div class="tw:flex tw:flex-wrap tw:gap-2">
+    <div class="flex flex-wrap gap-2">
       <Button
         variant="outline"
         onclick={(event) => {
@@ -131,18 +129,15 @@
         >{#if $view.testing}<Spinner size="xs" />{/if}{text("test")}</Button
       >
     </div>
-    {#if $view.sent !== null}<p
-        role="status"
-        class="tw:m-0 tw:text-muted-foreground"
-      >
+    {#if $view.sent !== null}<p role="status" class="m-0 text-muted-foreground">
         {text("sent", $view.sent)}
       </p>{/if}
-    <details class="tw:space-y-2">
+    <details class="space-y-2">
       <summary
-        class="tw:cursor-pointer tw:rounded-control tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+        class="cursor-pointer rounded-control focus-visible:outline-2 focus-visible:outline-ring"
         >{text("steps")}</summary
       >
-      <p class="tw:m-0 tw:leading-6">
+      <p class="m-0 leading-6">
         {$view.ios ? text("ios") : text("android")}
       </p>
     </details>

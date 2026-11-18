@@ -7,15 +7,15 @@
 {#if story === "default"}
   <Spinner size="default" />
 {:else if story === "colors"}
-  <div class="tw:flex tw:items-center tw:gap-4">
+  <div class="flex items-center gap-4">
     <Spinner />
-    <Spinner class="tw:text-secondary" />
-    <Spinner class="tw:text-destructive" />
-    <Spinner class="tw:text-success" />
-    <Spinner class="tw:text-special" />
+    <Spinner class="text-secondary" />
+    <Spinner class="text-destructive" />
+    <Spinner class="text-success" />
+    <Spinner class="text-special" />
   </div>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:items-center tw:gap-4">
+  <div class="flex items-center gap-4">
     <Spinner size="2xs" />
     <Spinner size="xs" />
     <Spinner size="sm" />
@@ -25,15 +25,13 @@
 {:else if story === "on-filled-button"}
   <button
     type="button"
-    class="tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:bg-primary tw:px-3 tw:py-2 tw:text-sm tw:text-primary-foreground tw:disabled:cursor-not-allowed"
+    class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed"
   >
     <Spinner size="xs" />
     Saving
   </button>
 {:else if story === "loading-state"}
-  <div
-    class="tw:flex tw:items-center tw:gap-3 tw:text-sm tw:text-muted-foreground"
-  >
+  <div class="flex items-center gap-3 text-sm text-muted-foreground">
     <Spinner size="xs" />
     Syncing connections...
   </div>

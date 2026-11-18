@@ -22,7 +22,7 @@
   this={tag}
   {...rest}
   class={cn(
-    "tw:m-0 tw:font-sans tw:text-base tw:font-semibold tw:leading-6 tw:tracking-normal tw:[font-variation-settings:normal]",
+    "m-0 font-sans text-base font-semibold leading-6 tracking-normal [font-variation-settings:normal]",
     className,
   )}>{@render children()}</svelte:element
 >

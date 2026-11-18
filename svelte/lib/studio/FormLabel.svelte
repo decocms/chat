@@ -18,10 +18,7 @@
   bind:ref
   data-slot="form-label"
   data-error={field.invalid ? "true" : "false"}
-  class={cn(
-    "tw:text-foreground tw:data-[error=true]:text-destructive",
-    className,
-  )}
+  class={cn("text-foreground data-[error=true]:text-destructive", className)}
   for={field.formItemId}
   {...rest}
 />

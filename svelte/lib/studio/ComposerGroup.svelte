@@ -20,7 +20,7 @@
   bind:this={ref}
   data-slot="composer-group"
   {...rest}
-  class={cn("tw:flex tw:min-w-0 tw:items-center tw:gap-1", className)}
+  class={cn("flex min-w-0 items-center gap-1", className)}
 >
   {@render children?.()}
 </div>

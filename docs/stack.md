@@ -37,24 +37,24 @@
 - The browser app is Svelte 5 with shadcn-svelte components (`components.json`). The design system is a port of deco Studio (`@decocms/ui`) into `svelte/lib/studio/`.
 - Before you make a component, look in `svelte/lib/studio/`, `svelte/lib/components/` and the feature folder. Use an existing component if possible.
 - Arrange components by atomic design: atoms, then molecules, then organisms. An atom does not import a molecule. A molecule does not import an organism. The stories in `svelte/parity/stories/` use the same levels (`atoms-*`, `molecules-*`, `organisms-*`).
-- Style components only with Tailwind CSS v4 utility classes. The classes have the `tw:` prefix. Use `tailwind-variants` (`tv`) for variants.
+- Style components only with Tailwind CSS v4 utility classes. The classes have no prefix (`bg-card`, `md:flex`). Use `tailwind-variants` (`tv`) for variants.
 - The only authored stylesheet is `svelte/styles/tailwind.css`. Put design tokens and `@font-face` rules there.
 - Do not write other CSS: no `<style>` blocks, no CSS files, no inline `style` for design.
 - Do not load external CSS. The only exception is CSS that a dependency ships (for example `@xterm/xterm/css/xterm.css`). Import it in `tailwind.css`.
-- Use theme tokens for colors (`tw:bg-background`, `tw:text-muted-foreground`, `tw:border-border`, …). Do not use hard-coded colors (`#hex`, `tw:bg-[#…]`, palette colors such as `tw:bg-red-500`). If no token has the correct meaning, add a token to `tailwind.css`, for light and dark.
-- Use the built-in tokens of the theme before hard-coded values: breakpoints (`md`), spacing (`tw:p-4`, `tw:gap-2`), sizes (`tw:size-8`), radius (`tw:rounded-lg`), font sizes (`tw:text-sm`) and shadows. Use an arbitrary value (`tw:p-[13px]`, `tw:text-[28px]`) only if no token can do it. If you need the same arbitrary value in two places, add a token to `tailwind.css`.
-- Give each clickable element `tw:cursor-pointer`. Give it `tw:cursor-not-allowed` when it is disabled.
+- Use theme tokens for colors (`bg-background`, `text-muted-foreground`, `border-border`, …). Do not use hard-coded colors (`#hex`, `bg-[#…]`, palette colors such as `bg-red-500`). If no token has the correct meaning, add a token to `tailwind.css`, for light and dark.
+- Use the built-in tokens of the theme before hard-coded values: breakpoints (`md`), spacing (`p-4`, `gap-2`), sizes (`size-8`), radius (`rounded-lg`), font sizes (`text-sm`) and shadows. Use an arbitrary value (`p-[13px]`, `text-[28px]`) only if no token can do it. If you need the same arbitrary value in two places, add a token to `tailwind.css`.
+- Give each clickable element `cursor-pointer`. Give it `cursor-not-allowed` when it is disabled.
 
 ## Screen sizes
 
 - The app has two layouts: mobile and desktop. The theme has one breakpoint token, `md` (`--breakpoint-md: 901px` in `svelte/styles/tailwind.css`). The theme removes all other breakpoint tokens.
-  - Mobile: width 900px or less. Use `tw:max-md:`.
-  - Desktop: width 901px or more. Use `tw:md:`.
-- Do not write a pixel breakpoint (`tw:max-[900px]:`, `tw:min-[901px]:`, other `max-[…]`/`min-[…]`). Do not use `sm:`, `lg:` or `xl:`.
+  - Mobile: width 900px or less. Use `max-md:`.
+  - Desktop: width 901px or more. Use `md:`.
+- Do not write a pixel breakpoint (`max-[900px]:`, `min-[901px]:`, other `max-[…]`/`min-[…]`). Do not use `sm:`, `lg:` or `xl:`.
 - In TypeScript, use `MOBILE_QUERY` from `svelte/lib/breakpoints.ts` for `matchMedia` and `MediaQuery`. Do not write a width media query as a literal.
 - To move the breakpoint, change `--breakpoint-md` and `MOBILE_QUERY` together.
 - `bun run check:guidelines` fails on each of these violations.
-- If a layout must change inside the desktop width, use a container query (`tw:@container`) or an automatic grid (`tw:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`). Do not add a breakpoint.
+- If a layout must change inside the desktop width, use a container query (`@container`) or an automatic grid (`grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`). Do not add a breakpoint.
 - When you design a new UI, design the mobile layout and the desktop layout together. Show both in the plan, and test both (390px and 1440px wide).
 
 ## Tools

@@ -88,99 +88,94 @@
       src={icon}
       class={[size, square].join(" ")}
     />{:else}<Skeleton
-      class={["tw:shrink-0 tw:rounded-md", size, square].join(" ")}
+      class={["shrink-0 rounded-md", size, square].join(" ")}
     />{/if}
 {/snippet}
 
-{#snippet line(width: string, height = "tw:h-3")}
-  <Skeleton class={[height, width, "tw:rounded-full"].join(" ")} />
+{#snippet line(width: string, height = "h-3")}
+  <Skeleton class={[height, width, "rounded-full"].join(" ")} />
 {/snippet}
 
 <div
   data-vb-native
   data-room-skeleton
-  class="tw:grid tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:overflow-hidden tw:bg-background tw:font-sans tw:text-sm tw:text-foreground tw:[container-type:inline-size] tw:md:bg-sidebar tw:md:py-2 tw:md:pr-2 tw:md:pl-px"
+  class="grid h-full min-h-0 w-full min-w-0 grid-cols-[minmax(0,1fr)] overflow-hidden bg-background font-sans text-sm text-foreground [container-type:inline-size] md:bg-sidebar md:py-2 md:pr-2 md:pl-px"
 >
   <!-- Desktop: the room's one frame (RoomLayoutFrame): sidebar, one top bar over
        chat and doc, hairlines between. Phones: just the chat column below. -->
   <div
-    class="tw:contents tw:md:grid tw:md:min-h-0 tw:md:grid-cols-[auto_minmax(0,1fr)_auto] tw:md:grid-rows-[52px_minmax(0,1fr)] tw:md:overflow-hidden tw:md:rounded-surface tw:md:bg-background tw:md:shadow-edge"
+    class="contents md:grid md:min-h-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:grid-rows-[52px_minmax(0,1fr)] md:overflow-hidden md:rounded-surface md:bg-background md:shadow-edge"
   >
     <!-- Sidebar: the room's name, the main thread, epics, Pinned, People, then
        your Claude and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
-      class="tw:hidden tw:w-room-sidebar tw:min-h-0 tw:flex-col tw:gap-6 tw:border-r tw:border-border tw:bg-sidebar tw:px-2 tw:pb-2 tw:text-sidebar-foreground tw:md:row-span-2 tw:md:flex"
+      class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-2 text-sidebar-foreground md:row-span-2 md:flex"
     >
-      {#if dm}<div class="tw:flex tw:min-h-0 tw:flex-col tw:pt-2">
+      {#if dm}<div class="flex min-h-0 flex-col pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
-        </div>{:else}<div class="tw:flex tw:flex-col tw:gap-3">
+        </div>{:else}<div class="flex flex-col gap-3">
           <div
-            class="tw:-mx-2 tw:flex tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:font-semibold"
+            class="-mx-2 flex h-[52px] shrink-0 items-center gap-2 border-b border-border pr-2 pl-4 font-semibold"
           >
-            {@render mark("tw:size-6")}
-            {#if title}<span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                >{title}</span
-              >{:else}{@render line("tw:w-32")}{/if}
+            {@render mark("size-6")}
+            {#if title}<span class="min-w-0 flex-1 truncate">{title}</span
+              >{:else}{@render line("w-32")}{/if}
           </div>
           <div
             class={[
-              "tw:flex tw:h-9 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:font-medium",
-              thread === "main" && "tw:bg-sidebar-accent",
+              "flex h-9 min-w-0 items-center gap-2 rounded-lg px-2 font-medium",
+              thread === "main" && "bg-sidebar-accent",
             ]}
           >
             <Icon
               icon={MessageCircle01}
               size={16}
-              class="tw:shrink-0 tw:text-muted-foreground"
+              class="shrink-0 text-muted-foreground"
             />
-            <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-              >{t("Sala principal")}</span
-            >
+            <span class="min-w-0 flex-1 truncate">{t("Sala principal")}</span>
           </div>
-          <Skeleton class="tw:h-9 tw:w-full tw:rounded-lg tw:opacity-60" />
-          {#each ["tw:w-3/5", "tw:w-2/5", "tw:w-1/2"] as width (width)}
-            <div class="tw:flex tw:h-9 tw:items-center tw:gap-2 tw:px-2">
-              <Skeleton class="tw:size-5 tw:shrink-0 tw:rounded-full" />
-              {@render line(width, "tw:h-2.5")}
+          <Skeleton class="h-9 w-full rounded-lg opacity-60" />
+          {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
+            <div class="flex h-9 items-center gap-2 px-2">
+              <Skeleton class="size-5 shrink-0 rounded-full" />
+              {@render line(width, "h-2.5")}
             </div>
           {/each}
         </div>
-        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
-          {@render line("tw:w-14", "tw:h-2.5")}
-          <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
+        <div class="flex flex-col gap-3 px-2">
+          {@render line("w-14", "h-2.5")}
+          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
         </div>
-        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
-          {@render line("tw:w-24", "tw:h-2.5")}
-          <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
+        <div class="flex flex-col gap-3 px-2">
+          {@render line("w-24", "h-2.5")}
+          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
         </div>{/if}
       <div
-        class="tw:mt-auto tw:flex tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1"
+        class="mt-auto flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
       >
-        <div class="tw:flex tw:h-11 tw:items-center tw:gap-2.5 tw:px-2.5">
-          <Skeleton class="tw:size-7 tw:shrink-0 tw:rounded-full" />
-          {@render line("tw:w-28", "tw:h-2.5")}
+        <div class="flex h-11 items-center gap-2.5 px-2.5">
+          <Skeleton class="size-7 shrink-0 rounded-full" />
+          {@render line("w-28", "h-2.5")}
         </div>
-        <div class="tw:flex tw:h-11 tw:items-center tw:gap-2.5 tw:px-2.5">
+        <div class="flex h-11 items-center gap-2.5 px-2.5">
           <!-- You are online while the room loads: AccountRow as it will land. -->
-          {#if me}<span class="tw:relative tw:flex tw:shrink-0"
+          {#if me}<span class="relative flex shrink-0"
               ><PersonAvatar
                 email={me.email}
                 version={me.avatar}
-                class="tw:size-7"
+                class="size-7"
               /><span
                 data-status-dot="online"
-                class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-brand tw:ring-2 tw:ring-sidebar"
+                class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full bg-brand ring-2 ring-sidebar"
               ></span></span
-            ><span class="tw:flex tw:min-w-0 tw:flex-col"
-              ><span class="tw:truncate tw:font-medium"
-                >{me.name || me.email}</span
-              ><span class="tw:truncate tw:text-xs tw:text-muted-foreground"
-                >Online</span
+            ><span class="flex min-w-0 flex-col"
+              ><span class="truncate font-medium">{me.name || me.email}</span
+              ><span class="truncate text-xs text-muted-foreground">Online</span
               ></span
             >{:else}<Skeleton
-              class="tw:size-7 tw:shrink-0 tw:rounded-full"
-            />{@render line("tw:w-20", "tw:h-2.5")}{/if}
+              class="size-7 shrink-0 rounded-full"
+            />{@render line("w-20", "h-2.5")}{/if}
         </div>
       </div>
     </aside>
@@ -188,44 +183,41 @@
     <!-- Desktop: one top bar over chat and doc: the room, its actions, then the doc's tabs at the end. -->
     <header
       aria-hidden="true"
-      class="tw:hidden tw:min-w-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:pr-3 tw:pl-5 tw:md:col-span-2 tw:md:flex"
+      class="hidden min-w-0 items-center gap-1 border-b border-border pr-3 pl-5 md:col-span-2 md:flex"
     >
-      {@render mark("tw:size-6")}
-      {#if title}<span
-          class="tw:min-w-0 tw:flex-1 tw:truncate tw:px-2 tw:text-sm tw:font-medium"
+      {@render mark("size-6")}
+      {#if title}<span class="min-w-0 flex-1 truncate px-2 text-sm font-medium"
           >{title}</span
-        >{:else}<div
-          class="tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:px-2"
-        >
-          {@render line("tw:w-40")}
+        >{:else}<div class="flex min-w-0 flex-1 items-center px-2">
+          {@render line("w-40")}
         </div>{/if}
       {#each [0, 1] as slot (slot)}
-        <span class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
-          ><Skeleton class="tw:size-4 tw:rounded-full" /></span
+        <span class="grid size-8 shrink-0 place-items-center"
+          ><Skeleton class="size-4 rounded-full" /></span
         >
       {/each}
-      <Skeleton class="tw:h-7 tw:w-16 tw:shrink-0 tw:rounded-full" />
+      <Skeleton class="h-7 w-16 shrink-0 rounded-full" />
       {#each [0, 1, 2, 3, 4, 5] as slot (slot)}
-        <span class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
-          ><Skeleton class="tw:size-4 tw:rounded-full" /></span
+        <span class="grid size-8 shrink-0 place-items-center"
+          ><Skeleton class="size-4 rounded-full" /></span
         >
       {/each}
     </header>
 
     <!-- Chat: header with the room's icon and name, the messages, the composer. -->
-    <main class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:bg-background">
+    <main class="flex min-h-0 min-w-0 flex-col bg-background">
       <!-- Phones: RoomHeader's row, in RoomLayoutFrame's header cell. -->
       <header
-        class="tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-1 tw:border-b tw:border-border tw:bg-background tw:px-4 tw:pt-[max(0.75rem,env(safe-area-inset-top))] tw:pb-3 tw:md:hidden"
+        class="flex min-w-0 shrink-0 items-center gap-1 border-b border-border bg-background px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:hidden"
       >
         <IconButton
           label={t("Seus vibebooks")}
           size="icon"
-          class="tw:rounded-full"
+          class="rounded-full"
           onclick={onhome}><Icon icon={ArrowLeft} size={16} /></IconButton
         >
         <div
-          class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:items-center tw:gap-2.5 tw:px-1.5 tw:py-1"
+          class="flex min-w-0 flex-1 basis-0 items-center gap-2.5 px-1.5 py-1"
         >
           {#if title}<RoomAvatar
               {title}
@@ -233,82 +225,72 @@
               person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
-            />{:else}<Skeleton
-              class="tw:size-8 tw:shrink-0 tw:rounded-lg"
-            />{/if}
-          <span class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col">
+            />{:else}<Skeleton class="size-8 shrink-0 rounded-lg" />{/if}
+          <span class="flex min-w-0 flex-1 flex-col">
             {#if title}<span
-                class="tw:truncate tw:text-xs tw:leading-4 tw:text-muted-foreground"
+                class="truncate text-xs leading-4 text-muted-foreground"
                 >{title}</span
-              >{:else}<span class="tw:flex tw:h-4 tw:items-center"
-                >{@render line("tw:w-20", "tw:h-2.5")}</span
+              >{:else}<span class="flex h-4 items-center"
+                >{@render line("w-20", "h-2.5")}</span
               >{/if}
             <span
-              class="tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-base tw:leading-5 tw:font-semibold"
-              >{#if thread === "main"}<span class="tw:truncate"
+              class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
+              >{#if thread === "main"}<span class="truncate"
                   >{t(dm ? "Conversa" : "Sala principal")}</span
-                >{:else}<span class="tw:flex tw:h-5 tw:items-center"
-                  >{@render line("tw:w-32")}</span
+                >{:else}<span class="flex h-5 items-center"
+                  >{@render line("w-32")}</span
                 >{/if}<Icon
                 icon={ChevronDown}
                 size={16}
-                class="tw:shrink-0"
+                class="shrink-0"
               /></span
             >
           </span>
         </div>
         <span
           aria-hidden="true"
-          class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:text-muted-foreground"
+          class="grid size-8 shrink-0 place-items-center text-muted-foreground"
           ><Icon icon={SearchMd} size={16} /></span
         >
         <span
           aria-hidden="true"
-          class="tw:relative tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:text-muted-foreground"
+          class="relative grid size-8 shrink-0 place-items-center text-muted-foreground"
           ><Icon icon={Inbox01} size={16} />{#if waits}<Count
               value={waits}
               label={t("Esperando você: {n}", { n: waits })}
-              class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+              class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
             />{/if}</span
         >
-        <span
-          aria-hidden="true"
-          class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center"
+        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center"
           >{#if me}<PersonAvatar
               email={me.email}
               version={me.avatar}
               size="2xs"
-            />{:else}<Skeleton class="tw:size-4 tw:rounded-full" />{/if}</span
+            />{:else}<Skeleton class="size-4 rounded-full" />{/if}</span
         >
       </header>
 
-      <div
-        class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden tw:px-4 tw:md:px-6"
-      >
+      <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-4 md:px-6">
         <div
-          class="tw:flex tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:py-8 tw:text-center"
+          class="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center"
         >
-          {@render mark("tw:size-12", "tw:rounded-xl")}
-          {#if title}<p
-              class="tw:m-0 tw:max-w-full tw:truncate tw:text-base tw:font-semibold"
-            >
+          {@render mark("size-12", "rounded-xl")}
+          {#if title}<p class="m-0 max-w-full truncate text-base font-semibold">
               {title}
             </p>{/if}
           <p
             role="status"
-            class="tw:m-0 tw:text-muted-foreground tw:motion-safe:animate-pulse"
+            class="m-0 text-muted-foreground motion-safe:animate-pulse"
           >
             {t("Carregando…")}
           </p>
         </div>
-        <div aria-hidden="true" class="tw:flex tw:flex-col tw:gap-5 tw:pb-4">
-          {#each [["tw:w-24", "tw:w-3/5"], ["tw:w-32", "tw:w-2/5"], ["tw:w-20", "tw:w-1/2"]] as [name, body] (name)}
-            <div class="tw:flex tw:items-start tw:gap-3">
-              <Skeleton class="tw:size-8 tw:shrink-0 tw:rounded-full" />
-              <div
-                class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-2 tw:pt-1"
-              >
-                {@render line(name, "tw:h-2.5")}
+        <div aria-hidden="true" class="flex flex-col gap-5 pb-4">
+          {#each [["w-24", "w-3/5"], ["w-32", "w-2/5"], ["w-20", "w-1/2"]] as [name, body] (name)}
+            <div class="flex items-start gap-3">
+              <Skeleton class="size-8 shrink-0 rounded-full" />
+              <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+                {@render line(name, "h-2.5")}
                 {@render line(body)}
               </div>
             </div>
@@ -317,15 +299,13 @@
       </div>
 
       <!-- The composer; on phones the tab bar under it carries the home-bar inset. -->
-      <div aria-hidden="true" class="tw:shrink-0">
-        <div class="tw:px-3 tw:pt-1 tw:pb-3 tw:md:pb-4 tw:md:px-6">
+      <div aria-hidden="true" class="shrink-0">
+        <div class="px-3 pt-1 pb-3 md:pb-4 md:px-6">
           <div
-            class="tw:mb-2 tw:flex tw:h-14 tw:items-center tw:gap-2 tw:rounded-[22px] tw:bg-[var(--vb-studio-input-background)] tw:pr-3 tw:pl-4 tw:text-muted-foreground tw:shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
+            class="mb-2 flex h-14 items-center gap-2 rounded-[22px] bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
           >
-            <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-              >{t("Mensagem…")}</span
-            >
-            <Skeleton class="tw:h-8 tw:w-16 tw:rounded-full" />
+            <span class="min-w-0 flex-1 truncate">{t("Mensagem…")}</span>
+            <Skeleton class="h-8 w-16 rounded-full" />
           </div>
         </div>
       </div>
@@ -333,21 +313,21 @@
       <!-- Phones: PhoneTabBar, Chat selected. -->
       <nav
         aria-hidden="true"
-        class="tw:grid tw:shrink-0 tw:grid-cols-5 tw:border-t tw:border-border tw:bg-background tw:px-1 tw:pt-1 tw:pb-[max(0.375rem,env(safe-area-inset-bottom))] tw:md:hidden"
+        class="grid shrink-0 grid-cols-5 border-t border-border bg-background px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] md:hidden"
       >
         {#each tabs as tab (tab.id)}
           {@const on = tab.id === "chat"}
           <span
             class={[
-              "tw:flex tw:min-w-0 tw:flex-col tw:items-center tw:gap-0.5 tw:py-1 tw:text-[0.6875rem] tw:leading-4 tw:text-muted-foreground",
-              on && "tw:font-semibold tw:text-foreground",
+              "flex min-w-0 flex-col items-center gap-0.5 py-1 text-[0.6875rem] leading-4 text-muted-foreground",
+              on && "font-semibold text-foreground",
             ]}
             ><span
               class={[
-                "tw:flex tw:h-7 tw:w-12 tw:items-center tw:justify-center tw:rounded-full",
-                on && "tw:bg-accent",
+                "flex h-7 w-12 items-center justify-center rounded-full",
+                on && "bg-accent",
               ]}><Icon icon={tab.icon} size={18} /></span
-            ><span class="tw:max-w-full tw:truncate">{tab.label}</span></span
+            ><span class="max-w-full truncate">{tab.label}</span></span
           >
         {/each}
       </nav>
@@ -358,13 +338,13 @@
     {#if !dm}<section
         aria-hidden="true"
         use:roomDocumentWidth
-        class="tw:hidden tw:min-h-0 tw:animate-room-document-width tw:flex-col tw:border-l tw:border-border tw:md:flex"
+        class="hidden min-h-0 animate-room-document-width flex-col border-l border-border md:flex"
       >
-        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-4 tw:pt-4">
-          {@render line("tw:w-2/5", "tw:h-4")}
-          {@render line("tw:w-full")}
-          {@render line("tw:w-5/6")}
-          {@render line("tw:w-3/5")}
+        <div class="flex flex-col gap-3 px-4 pt-4">
+          {@render line("w-2/5", "h-4")}
+          {@render line("w-full")}
+          {@render line("w-5/6")}
+          {@render line("w-3/5")}
         </div>
       </section>{/if}
   </div>

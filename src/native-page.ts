@@ -58,7 +58,7 @@ export function nativeAuthHtml(
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="robots" content="noindex" /><meta name="vb-ui" content="svelte" /><meta name="vb-page" content="${data.page}" /><meta name="vb-auto-access" content="${data.autoAccess ? "1" : "0"}" /><meta name="vb-consent-failure" content="${data.page === "consent" && data.consentFailure ? "1" : "0"}" />${data.page === "connection-error" ? `<meta name="vb-connection-failure" content="${data.connectionFailure ?? "failed"}" />` : ""}<meta name="vb-v" content="${version}" />
 <title>vibebook</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="${css}" /></head>
-<body class="tw:m-0 tw:min-h-dvh tw:bg-background tw:font-sans tw:text-foreground"><div id="app"></div><noscript><main><p>${data.lang === "en" ? "This preview requires JavaScript." : "Esta versão requer JavaScript."}</p><a href="${fallback}">${data.lang === "en" ? "Open the standard page" : "Abrir a página padrão"}</a></main></noscript><script type="module" src="${app}"></script></body></html>`;
+<body class="m-0 min-h-dvh bg-background font-sans text-foreground"><div id="app"></div><noscript><main><p>${data.lang === "en" ? "This preview requires JavaScript." : "Esta versão requer JavaScript."}</p><a href="${fallback}">${data.lang === "en" ? "Open the standard page" : "Abrir a página padrão"}</a></main></noscript><script type="module" src="${app}"></script></body></html>`;
 }
 /** An expired sign-in never replays the POST body/old handle after authentication. */
 export function consentLoginUrl(request: string | URL) {

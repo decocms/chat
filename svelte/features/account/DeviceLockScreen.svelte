@@ -20,19 +20,19 @@
         event.preventDefault();
         button?.focus();
       }}
-      class="tw:fixed tw:inset-0 tw:z-[9999] tw:m-0 tw:grid tw:place-content-center tw:justify-items-center tw:gap-4 tw:bg-background tw:p-6 tw:font-sans tw:text-foreground tw:outline-none"
+      class="fixed inset-0 z-[9999] m-0 grid place-content-center justify-items-center gap-4 bg-background p-6 font-sans text-foreground outline-none"
     >
       <img
         src="/favicon.svg"
         width="64"
         height="64"
         alt=""
-        class="tw:rounded-control"
+        class="rounded-control"
       />
-      <Dialog.Title class="tw:m-0 tw:font-sans tw:text-2xl tw:font-semibold"
+      <Dialog.Title class="m-0 font-sans text-2xl font-semibold"
         >vibebook</Dialog.Title
       >
-      <Dialog.Description class="tw:text-sm tw:text-muted-foreground"
+      <Dialog.Description class="text-sm text-muted-foreground"
         >{en
           ? "Unlock this device to continue."
           : "Desbloqueie este aparelho para continuar."}</Dialog.Description
@@ -44,15 +44,12 @@
           if (event.currentTarget.isConnected) void owner.unlock();
         }}>{en ? "Unlock with Face ID" : "Desbloquear com Face ID"}</Button
       >
-      {#if !$view.supported}<p
-          role="alert"
-          class="tw:text-sm tw:text-destructive"
-        >
+      {#if !$view.supported}<p role="alert" class="text-sm text-destructive">
           {en
             ? "Device authentication is unavailable in this browser."
             : "A autenticação do aparelho não está disponível neste navegador."}
         </p>{/if}
-      {#if $view.error}<p role="alert" class="tw:text-sm tw:text-destructive">
+      {#if $view.error}<p role="alert" class="text-sm text-destructive">
           {en
             ? "Could not unlock. Tap to try again."
             : "Não deu para desbloquear. Toque para tentar de novo."}

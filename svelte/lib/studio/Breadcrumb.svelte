@@ -20,7 +20,7 @@
   aria-label="breadcrumb"
   data-slot="breadcrumb"
   {...rest}
-  class={cn("tw:min-w-0 tw:overflow-hidden", className)}
+  class={cn("min-w-0 overflow-hidden", className)}
 >
   {@render children?.()}
 </nav>

@@ -36,9 +36,9 @@
   const classes = $derived(
     cn(
       toggleVariants({ variant: itemVariant, size: itemSize }),
-      "tw:relative tw:z-10 tw:min-w-0 tw:flex-1 tw:shrink-0 tw:rounded-none tw:first:rounded-l-full tw:last:rounded-r-full tw:focus:z-10 tw:focus-visible:z-10 tw:data-[icon-only]:aspect-square tw:data-[icon-only]:px-0",
-      "tw:data-[state=on]:[anchor-name:--studio-toggle-active] tw:data-[variant=segmented]:flex-none tw:data-[variant=segmented]:rounded-full tw:supports-[anchor-scope:--a]:in-data-sliding:data-[state=on]:bg-transparent tw:supports-[anchor-scope:--a]:in-data-sliding:data-[state=on]:shadow-none",
-      "tw:data-[variant=outline]:border-hairline tw:data-[variant=outline]:shadow-none tw:data-[variant=outline]:not-first:border-l",
+      "relative z-10 min-w-0 flex-1 shrink-0 rounded-none first:rounded-l-full last:rounded-r-full focus:z-10 focus-visible:z-10 data-[icon-only]:aspect-square data-[icon-only]:px-0",
+      "data-[state=on]:[anchor-name:--studio-toggle-active] data-[variant=segmented]:flex-none data-[variant=segmented]:rounded-full supports-[anchor-scope:--a]:in-data-sliding:data-[state=on]:bg-transparent supports-[anchor-scope:--a]:in-data-sliding:data-[state=on]:shadow-none",
+      "data-[variant=outline]:border-hairline data-[variant=outline]:shadow-none data-[variant=outline]:not-first:border-l",
       className,
     ),
   );

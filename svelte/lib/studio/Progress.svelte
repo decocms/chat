@@ -29,7 +29,7 @@
   data-slot="progress"
   {...rest}
   class={cn(
-    "tw:bg-muted tw:relative tw:h-1 tw:w-full tw:overflow-hidden tw:rounded-full",
+    "bg-muted relative h-1 w-full overflow-hidden rounded-full",
     className,
   )}
 >

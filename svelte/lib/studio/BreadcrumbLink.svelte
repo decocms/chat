@@ -17,7 +17,7 @@
     children?: Snippet;
   } = $props();
   const classes = $derived(
-    cn("tw:hover:text-foreground tw:transition-colors tw:truncate", className),
+    cn("hover:text-foreground transition-colors truncate", className),
   );
 </script>
 

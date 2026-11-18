@@ -95,7 +95,7 @@
   tabindex="-1"
   data-vb-native
   data-reminders-panel
-  class="tw:space-y-4 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-4 p-4 font-sans text-sm text-foreground"
 >
   {#snippet newButton()}<Button
       id="remNew"
@@ -117,13 +117,13 @@
     <Card>
       <form
         id="remForm"
-        class="tw:space-y-4"
+        class="space-y-4"
         onsubmit={(event) => {
           event.preventDefault();
           void session.save(createRoomApi(room.id).uploadFile);
         }}
       >
-        <div class="tw:space-y-2">
+        <div class="space-y-2">
           <Label for={`${ids}-name`}>{vb.t("Nome")}</Label><Input
             id={`${ids}-name`}
             name="name"
@@ -136,7 +136,7 @@
             placeholder={vb.t("nome, ex.: relatorio-diario")}
           />
         </div>
-        <div class="tw:space-y-2">
+        <div class="space-y-2">
           <Label for={`${ids}-text`}>{vb.t("Texto do lembrete")}</Label
           ><Textarea
             id={`${ids}-text`}
@@ -154,11 +154,11 @@
         {#if $view.issue}<p
             id="remErr"
             role="alert"
-            class="tw:m-0 tw:whitespace-pre-wrap tw:text-sm tw:text-destructive"
+            class="m-0 whitespace-pre-wrap text-sm text-destructive"
           >
             {issueText($view.issue)}
           </p>{/if}
-        <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
           <Button id="remCancel" variant="outline" onclick={cancel}
             >{vb.t("Cancelar")}</Button
           ><Button
@@ -174,30 +174,29 @@
       </form>
     </Card>
   {/if}
-  <div class="tw:space-y-3">
+  <div class="space-y-3">
     {#each list as reminder (reminder.id)}
       {@const pending = $view.pending[reminder.id]}
       {@const issue = $view.rowIssues[reminder.id]}
-      <Card class="tw:space-y-3 tw:p-4">
-        <div class="tw:flex tw:items-start tw:gap-2">
+      <Card class="space-y-3 p-4">
+        <div class="flex items-start gap-2">
           <button
             type="button"
             data-rem-open={reminder.id}
             aria-expanded={opened.includes(reminder.id)}
             aria-controls={`${ids}-content-${reminder.id}`}
             onclick={() => disclose(reminder.id)}
-            class="tw:flex tw:min-w-0 tw:flex-1 tw:items-start tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:p-1 tw:text-left tw:font-sans tw:text-sm tw:text-foreground tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+            class="flex min-w-0 flex-1 items-start gap-2 rounded-control border-0 bg-transparent p-1 text-left font-sans text-sm text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Icon
               icon={opened.includes(reminder.id) ? ChevronDown : ChevronRight}
               size={16}
-              class="tw:mt-0.5 tw:shrink-0 tw:text-muted-foreground"
+              class="mt-0.5 shrink-0 text-muted-foreground"
             />
-            <span class="tw:min-w-0 tw:space-y-1"
-              ><span class="tw:block tw:break-words tw:font-medium"
+            <span class="min-w-0 space-y-1"
+              ><span class="block break-words font-medium"
                 >{reminder.name ? `${reminder.name}.md` : reminder.text}</span
-              ><span
-                class="tw:block tw:text-xs tw:leading-5 tw:text-muted-foreground"
+              ><span class="block text-xs leading-5 text-muted-foreground"
                 >{#if !reminder.error}{reminder.every ||
                     reminder.cron ||
                     ""}{reminder.enabled && reminder.next_at
@@ -210,18 +209,16 @@
         </div>
         {#if reminder.error}<p
             role="status"
-            class="tw:m-0 tw:flex tw:items-start tw:gap-2 tw:whitespace-pre-wrap tw:text-sm tw:text-destructive"
+            class="m-0 flex items-start gap-2 whitespace-pre-wrap text-sm text-destructive"
           >
             <Icon icon={AlertTriangle} size={16} />{reminder.error}
           </p>{/if}
         <pre
           hidden={!opened.includes(reminder.id)}
           id={`${ids}-content-${reminder.id}`}
-          class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:rounded-control tw:bg-muted tw:p-3 tw:font-mono tw:text-xs tw:leading-5">{reminder.text}</pre>
-        <div
-          class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2"
-        >
-          <Label class="tw:flex tw:items-center tw:gap-2">
+          class="m-0 whitespace-pre-wrap break-words rounded-control bg-muted p-3 font-mono text-xs leading-5">{reminder.text}</pre>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <Label class="flex items-center gap-2">
             <Switch
               data-rem-on={reminder.id}
               bind:checked={
@@ -233,7 +230,7 @@
               disabled={!!reminder.error || !!pending}
             />{vb.t("Ligado")}
           </Label>
-          <div class="tw:flex tw:flex-wrap tw:gap-2">
+          <div class="flex flex-wrap gap-2">
             {#if reminder.name}<Button
                 variant="ghost"
                 size="sm"
@@ -257,15 +254,12 @@
             >
           </div>
         </div>
-        {#if pending}<p
-            role="status"
-            class="tw:m-0 tw:text-xs tw:text-muted-foreground"
-          >
+        {#if pending}<p role="status" class="m-0 text-xs text-muted-foreground">
             {vb.t("Aguardando confirmação…")}
           </p>{/if}
         {#if issue}<p
             role="alert"
-            class="tw:m-0 tw:whitespace-pre-wrap tw:text-sm tw:text-destructive"
+            class="m-0 whitespace-pre-wrap text-sm text-destructive"
           >
             {issueText(issue)}
           </p>{/if}

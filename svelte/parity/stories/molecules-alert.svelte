@@ -14,7 +14,7 @@
 </script>
 
 {#if story === "default"}
-  <Alert variant="default" class="tw:w-96">
+  <Alert variant="default" class="w-96">
     <Icon icon={InfoCircle} />
     <div>
       <AlertTitle>Connection created</AlertTitle>
@@ -25,7 +25,7 @@
     </div>
   </Alert>
 {:else if story === "variants"}
-  <div class="tw:flex tw:w-96 tw:flex-col tw:gap-3">
+  <div class="flex w-96 flex-col gap-3">
     <Alert>
       <Icon icon={InfoCircle} />
       <div>
@@ -75,7 +75,7 @@
     </Alert>
   </div>
 {:else if story === "title-only"}
-  <Alert variant="success" class="tw:w-96">
+  <Alert variant="success" class="w-96">
     <Icon icon={CheckCircle} />
     <AlertTitle>Settings saved</AlertTitle>
   </Alert>

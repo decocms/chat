@@ -16,7 +16,7 @@
 <DialogPrimitive.Close
   bind:ref
   data-slot="dialog-close"
-  class={cn("tw:cursor-pointer tw:disabled:cursor-not-allowed", className)}
+  class={cn("cursor-pointer disabled:cursor-not-allowed", className)}
   {...rest}
 >
   {#snippet child({ props })}

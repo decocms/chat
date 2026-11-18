@@ -21,7 +21,7 @@
   data-slot="sidebar-menu-item"
   data-sidebar="menu-item"
   {...rest}
-  class={cn("tw:group/menu-item tw:relative tw:w-full tw:list-none", className)}
+  class={cn("group/menu-item relative w-full list-none", className)}
 >
   {@render children?.()}
 </li>

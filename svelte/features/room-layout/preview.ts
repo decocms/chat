@@ -7,7 +7,7 @@ import { MOBILE_QUERY } from "../../lib/breakpoints";
  * stored preference (vb.docW), clamp and CSS width animation as the real
  * layout's document cell (sidebar expanded, as a room always opens), so the
  * panels don't jump when the state lands. The node carries
- * `tw:animate-room-document-width` and sits right in its inline-size container. */
+ * `animate-room-document-width` and sits right in its inline-size container. */
 export function roomDocumentWidth(node: HTMLElement) {
   const win = node.ownerDocument.defaultView,
     root = node.parentElement;

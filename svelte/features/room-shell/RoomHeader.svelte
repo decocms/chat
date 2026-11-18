@@ -149,7 +149,7 @@
   data-vb-native
   data-native-room-header
   data-room-document-toolbar
-  class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-wrap tw:items-center tw:gap-1 tw:font-sans tw:text-sm tw:text-foreground tw:md:flex-nowrap"
+  class="flex min-w-0 flex-1 flex-wrap items-center gap-1 font-sans text-sm text-foreground md:flex-nowrap"
 >
   {#key header.thread}<Snapshot value={header.thread}
       >{#snippet children(expectedThread)}<IconButton
@@ -160,7 +160,7 @@
           )}
           tooltipSide="bottom"
           size="icon"
-          class="tw:rounded-full tw:md:hidden"
+          class="rounded-full md:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
           }}><Icon icon={ArrowLeft} size={16} /></IconButton
@@ -170,7 +170,7 @@
     type="button"
     data-native-phone-title
     aria-label={t("Trocar de conversa")}
-    class="tw:flex tw:min-w-0 tw:flex-1 tw:basis-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-1.5 tw:py-1 tw:text-left tw:font-sans tw:text-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring tw:md:hidden"
+    class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
     onclick={(event) => {
       if (live(event)) header.onopenside();
     }}
@@ -185,28 +185,25 @@
         : null}
       lang={en ? "en" : "pt"}
       surface="background"
-    /><span class="tw:flex tw:min-w-0 tw:flex-col"
-      ><span
-        class="tw:truncate tw:text-xs tw:leading-4 tw:text-muted-foreground"
+    /><span class="flex min-w-0 flex-col"
+      ><span class="truncate text-xs leading-4 text-muted-foreground"
         >{header.room.book.title}</span
       ><span
-        class="tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-base tw:leading-5 tw:font-semibold"
-        ><span class="tw:truncate">{threadTitle}</span><Icon
+        class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
+        ><span class="truncate">{threadTitle}</span><Icon
           icon={ChevronDown}
           size={16}
-          class="tw:shrink-0"
+          class="shrink-0"
         /></span
       ></span
     ></button
   >
   <!-- Desktop, one bar over chat and pane: the thread, the room's actions, then the pane's tabs at the end. -->
-  <div
-    class="tw:contents tw:md:flex tw:md:min-w-0 tw:md:flex-1 tw:md:items-center tw:md:gap-1"
-  >
+  <div class="contents md:flex md:min-w-0 md:flex-1 md:items-center md:gap-1">
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div
       data-native-header-title
-      class="tw:hidden tw:min-w-0 tw:flex-1 tw:basis-0 tw:md:flex tw:md:min-w-24 tw:[&_h2]:cursor-pointer"
+      class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24 [&_h2]:cursor-pointer"
       onclick={titleClick}
     >
       <ThreadHeader {...header} compact onhome={tochat} />
@@ -215,7 +212,7 @@
         data-native-phone-search
         label={t("Buscar")}
         size="icon"
-        class="tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:md:hidden"
+        class="rounded-full text-muted-foreground hover:text-foreground md:hidden"
         onclick={(event) => {
           if (live(event))
             appNavigation.controller.openSearch(event.currentTarget);
@@ -228,24 +225,19 @@
         tooltipSide="bottom"
         size="icon"
         aria-pressed={inboxOpen}
-        class="tw:relative tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground tw:md:aria-pressed:bg-accent tw:md:aria-pressed:text-foreground"
+        class="relative rounded-full text-muted-foreground hover:text-foreground md:aria-pressed:bg-accent md:aria-pressed:text-foreground"
         onclick={(event) => {
           if (live(event)) toggleInbox(event.currentTarget);
         }}
         ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
             value={waits.length}
             label={t("Esperando você: {n}", { n: waits.length })}
-            class="tw:absolute tw:-top-1 tw:-right-1 tw:shadow-[0_0_0_2px_var(--vb-background)]"
+            class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
           />{/if}</IconButton
       >{/if}
   </div>
-  <div
-    class="tw:contents tw:md:flex tw:md:min-w-0 tw:md:shrink tw:md:items-center tw:md:gap-1"
-  >
-    {#if tabs}<div
-        data-native-header-tabs
-        class="tw:hidden tw:min-w-0 tw:md:block"
-      >
+  <div class="contents md:flex md:min-w-0 md:shrink md:items-center md:gap-1">
+    {#if tabs}<div data-native-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
           {...tabs}
           bare
@@ -256,9 +248,7 @@
           onPane={pickPane}
         />
       </div>{/if}
-    {#if $personal.me}<span
-        data-native-phone-account
-        class="tw:contents tw:md:hidden"
+    {#if $personal.me}<span data-native-phone-account class="contents md:hidden"
         ><AccountRow me={$personal.me} row={false} /></span
       >{/if}
   </div>

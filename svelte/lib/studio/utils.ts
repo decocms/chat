@@ -3,7 +3,6 @@ import { extendTailwindMerge } from "tailwind-merge";
 
 /** The scales the Studio theme adds to Tailwind's own, so conflicting classes still resolve to the last one. */
 const twMerge = extendTailwindMerge({
-  prefix: "tw",
   extend: {
     theme: {
       text: ["2xs"],

@@ -135,80 +135,79 @@
     clearTimeout(timer);
   });
   const opt =
-    "tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:rounded-lg tw:border tw:border-solid tw:border-border tw:bg-background tw:px-2 tw:py-1.5";
+    "flex min-w-0 items-center justify-between gap-2 rounded-lg border border-solid border-border bg-background px-2 py-1.5";
   const btn =
-    "tw:inline-flex tw:h-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:whitespace-nowrap tw:rounded-full tw:border tw:border-solid tw:border-border tw:bg-background tw:px-2 tw:font-sans tw:text-xs tw:font-medium tw:text-foreground tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring";
+    "inline-flex h-6 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-full border border-solid border-border bg-background px-2 font-sans text-xs font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring";
   const lnk =
-    "tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-sans tw:text-xs tw:text-foreground tw:underline tw:underline-offset-2";
+    "cursor-pointer border-0 bg-transparent p-0 font-sans text-xs text-foreground underline underline-offset-2";
 </script>
 
 {#snippet agentRow(a: Agent, muted: boolean, own: boolean)}
   <div
     data-agent-row={a.id}
     class={cn(
-      "tw:flex tw:min-h-8 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-lg tw:py-1 tw:pr-1.5",
-      own ? "tw:pl-2.5" : "tw:pl-12",
+      "flex min-h-8 min-w-0 items-center gap-2 rounded-lg py-1 pr-1.5",
+      own ? "pl-2.5" : "pl-12",
     )}
   >
     {#if own}<span
         aria-hidden="true"
-        class="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:text-lg tw:text-agent-claude"
+        class="flex size-7 shrink-0 items-center justify-center text-lg text-agent-claude"
         >✻</span
       >{/if}
-    <span class={cn("tw:grid tw:min-w-0 tw:flex-1", muted && "tw:opacity-50")}>
+    <span class={cn("grid min-w-0 flex-1", muted && "opacity-50")}>
       <span
-        class="tw:truncate tw:text-[0.8125rem]"
+        class="truncate text-[0.8125rem]"
         title={a.room && a.repo ? a.repo : undefined}
         >{#if a.listening && mark.state === "busy" && !muted}<span
-            class="tw:inline-block tw:animate-[spin_3s_linear_infinite] tw:text-agent-claude tw:motion-reduce:animate-none"
+            class="inline-block animate-[spin_3s_linear_infinite] text-agent-claude motion-reduce:animate-none"
             >✻</span
           >
         {/if}{who(a)}</span
       >
-      <span class="tw:truncate tw:text-[0.6875rem] tw:text-muted-foreground"
+      <span class="truncate text-[0.6875rem] text-muted-foreground"
         >{line(a, muted)}</span
       >
       {#if percent(a) !== null && !muted}<Progress
           aria-hidden="true"
           value={percent(a) ?? 0}
-          class="tw:mt-0.5 tw:h-0.5"
+          class="mt-0.5 h-0.5"
         />{/if}
     </span>
     {#if own && a.id && a.delivery !== undefined && !a.machine}<Switch
         checked={a.delivery}
         onCheckedChange={(on) => deliver({ agent: a.id! }, on)}
         aria-label={text("footAgentSwitch")}
-        class="tw:scale-90"
+        class="scale-90"
       />{/if}
   </div>
 {/snippet}
 
 {#if $view.data}
-  {#if empty}<div data-native-agent-foot="setup" class="tw:grid tw:gap-0.5">
-      <div class="tw:flex tw:min-h-11 tw:items-center tw:gap-2.5 tw:px-2.5">
+  {#if empty}<div data-native-agent-foot="setup" class="grid gap-0.5">
+      <div class="flex min-h-11 items-center gap-2.5 px-2.5">
         <span
           aria-hidden="true"
-          class="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:border-[1.5px] tw:border-dashed tw:border-muted-foreground tw:text-[0.9375rem] tw:text-muted-foreground"
+          class="flex size-7 shrink-0 items-center justify-center rounded-lg border-[1.5px] border-dashed border-muted-foreground text-[0.9375rem] text-muted-foreground"
           >✻</span
-        ><span class="tw:grid tw:min-w-0 tw:flex-1"
-          ><span class="tw:truncate tw:text-sm tw:font-medium"
-            >{text("footNone")}</span
-          ><span class="tw:truncate tw:text-xs tw:text-muted-foreground"
+        ><span class="grid min-w-0 flex-1"
+          ><span class="truncate text-sm font-medium">{text("footNone")}</span
+          ><span class="truncate text-xs text-muted-foreground"
             >{text("footPick")}</span
           ></span
         >
       </div>
-      <div class="tw:grid tw:gap-1 tw:px-2.5 tw:pb-2 tw:text-xs">
+      <div class="grid gap-1 px-2.5 pb-2 text-xs">
         <div class={opt}>
-          <span class="tw:grid tw:min-w-0"
-            ><span class="tw:text-[0.8125rem] tw:font-medium"
+          <span class="grid min-w-0"
+            ><span class="text-[0.8125rem] font-medium"
               >{text("footThisComputer")}</span
-            ><span class="tw:text-muted-foreground"
+            ><span class="text-muted-foreground"
               >{text("footThisComputerSub")}</span
             ></span
           >{#if $view.data.claude_on && $runner.where}<span
               data-agent-setup="opening"
-              class="tw:text-xs tw:text-agent-claude-text tw:animate-pulse tw:motion-reduce:animate-none"
+              class="text-xs text-agent-claude-text animate-pulse motion-reduce:animate-none"
               >{text("footOpening")}</span
             >{:else if $view.data.claude_on}<button
               type="button"
@@ -221,7 +220,7 @@
               data-agent-setup="turn-on"
               class={cn(
                 btn,
-                "tw:border-primary tw:bg-primary tw:text-primary-foreground tw:hover:bg-primary/90",
+                "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
               )}
               onclick={() => {
                 // The old ✻ Ligar Claude (Gui #3106): every vibebook herdr, old or new, opens a Claude for a room that's
@@ -231,24 +230,22 @@
             >{/if}
         </div>
         <div class={opt}>
-          <span class="tw:grid tw:min-w-0"
-            ><span class="tw:text-[0.8125rem] tw:font-medium"
+          <span class="grid min-w-0"
+            ><span class="text-[0.8125rem] font-medium"
               >{text("footSandbox")}</span
-            ><span class="tw:text-muted-foreground"
-              >{text("footSandboxSub")}</span
+            ><span class="text-muted-foreground">{text("footSandboxSub")}</span
             ></span
           ><a
             href={cloud}
             data-nav
             data-agent-setup="sandbox"
-            class={cn(btn, "tw:no-underline")}>{text("footSetUp")}</a
+            class={cn(btn, "no-underline")}>{text("footSetUp")}</a
           >
         </div>
         <div class={opt}>
-          <span class="tw:grid tw:min-w-0"
-            ><span class="tw:text-[0.8125rem] tw:font-medium"
-              >{text("footOnce")}</span
-            ><span class="tw:text-muted-foreground">{text("footOnceSub")}</span
+          <span class="grid min-w-0"
+            ><span class="text-[0.8125rem] font-medium">{text("footOnce")}</span
+            ><span class="text-muted-foreground">{text("footOnceSub")}</span
             ></span
           ><button
             type="button"
@@ -263,30 +260,28 @@
     </div>{:else}<div
       data-native-agent-foot="here"
       data-agent-status={mark.state}
-      class="tw:grid tw:gap-0.5"
+      class="grid gap-0.5"
     >
       <!-- The group's title and "deliver to all" only when there is more than one thing to switch: one agent has its own. -->
       {#if machines.length + others.length > 1}<div
-          class="tw:flex tw:items-center tw:gap-1.5 tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
+          class="flex items-center gap-1.5 px-2.5 pt-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase"
         >
-          <span class="tw:flex-1"
+          <span class="flex-1"
             >{text(machines.length ? "footAgents" : "footOthers")}</span
           >
-          <span class="tw:font-normal tw:normal-case"
-            >{text("footDeliver")}</span
-          >
+          <span class="font-normal normal-case">{text("footDeliver")}</span>
           <Switch
             checked={anyOn}
             onCheckedChange={(on) => deliver({ all: true }, on)}
             aria-label={text("footAllSwitch")}
-            class="tw:scale-90"
+            class="scale-90"
           />
         </div>{/if}
       {#each machines as m (m.id)}
         {@const kids = agentsOf(m)}
         <div
           data-agent-machine={m.id}
-          class="tw:flex tw:min-h-11 tw:min-w-0 tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5"
+          class="flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5"
         >
           <!-- A sandbox opens Settings › Cloud agents (its terminal is there); a computer focuses its terminal. -->
           <svelte:element
@@ -295,20 +290,20 @@
               ? { href: cloud, "data-nav": "" }
               : { type: "button", onclick: () => goTo(m) }}
             title={text("footGoTerminal", { name: m.name })}
-            class="tw:relative tw:flex tw:size-7 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-lg tw:border-0 tw:p-0 tw:bg-muted tw:text-foreground tw:hover:opacity-80"
+            class="relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 p-0 bg-muted text-foreground hover:opacity-80"
             ><Icon
               icon={m.kind === "sandbox" ? Cloud01 : LAPTOP}
-              class="tw:size-4"
+              class="size-4"
             /><span
-              class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar {m.online
-                ? 'tw:bg-brand'
-                : 'tw:bg-warning'}"
+              class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-sidebar {m.online
+                ? 'bg-brand'
+                : 'bg-warning'}"
             ></span></svelte:element
-          ><span class="tw:grid tw:min-w-0 tw:flex-1"
-            ><span class="tw:truncate tw:text-sm tw:font-medium">{m.name}</span
+          ><span class="grid min-w-0 flex-1"
+            ><span class="truncate text-sm font-medium">{m.name}</span
             >{#if !m.online && m.kind !== "sandbox"}<span
                 data-agent-cli-down
-                class="tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-x-1 tw:text-xs tw:text-warning"
+                class="flex min-w-0 flex-wrap items-center gap-x-1 text-xs text-warning"
                 ><span
                   >{text("footOffline")}{m.seen_at
                     ? ` · ${ago(m.seen_at)}`
@@ -321,17 +316,16 @@
                   >{label(`fix:${m.id}`, text("footCopyFix"))}</button
                 ></span
               >{:else if !m.online}<span
-                class="tw:truncate tw:text-xs tw:text-muted-foreground"
+                class="truncate text-xs text-muted-foreground"
                 >{text("footPaused")}</span
               >{:else if m.on && m.kind !== "sandbox" && !kids.length}<span
-                class="tw:truncate tw:text-xs tw:text-agent-claude-text tw:animate-pulse tw:motion-reduce:animate-none"
+                class="truncate text-xs text-agent-claude-text animate-pulse motion-reduce:animate-none"
                 >{text("footOpening")}</span
               >{:else if m.kind !== "sandbox" && $runner.available && path}<span
                 data-agent-folder
-                class="tw:truncate tw:font-mono tw:text-[0.6875rem] tw:text-muted-foreground"
+                class="truncate font-mono text-[0.6875rem] text-muted-foreground"
                 >{path}</span
-              >{:else}<span
-                class="tw:truncate tw:text-xs tw:text-muted-foreground"
+              >{:else}<span class="truncate text-xs text-muted-foreground"
                 >{text("footOnline")}</span
               >{/if}</span
           ><Switch
@@ -343,7 +337,7 @@
         {#each kids as a (a.id)}{@render agentRow(a, !m.on, false)}{/each}
       {/each}
       {#if others.length && machines.length}<div
-          class="tw:px-2.5 tw:pt-1.5 tw:text-[0.6875rem] tw:font-semibold tw:tracking-wide tw:text-muted-foreground tw:uppercase"
+          class="px-2.5 pt-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase"
         >
           {text("footOthers")}
         </div>{/if}
@@ -357,11 +351,11 @@
         href={cloud}
         data-nav
         data-agent-cloud
-        class="tw:flex tw:min-h-8 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:px-2.5 tw:text-left tw:text-xs tw:text-muted-foreground tw:no-underline tw:hover:bg-muted tw:hover:text-foreground"
+        class="flex min-h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-xs text-muted-foreground no-underline hover:bg-muted hover:text-foreground"
         ><span
           aria-hidden="true"
-          class="tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center"
-          ><Icon icon={Cloud01} class="tw:size-4" /></span
+          class="flex size-7 shrink-0 items-center justify-center"
+          ><Icon icon={Cloud01} class="size-4" /></span
         >{text("footAddCloud")}</a
       >
     </div>{/if}

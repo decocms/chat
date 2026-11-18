@@ -21,7 +21,7 @@
   data-slot="sidebar-group-content"
   data-sidebar="group-content"
   {...rest}
-  class={cn("tw:w-full tw:text-sm tw:overflow-visible", className)}
+  class={cn("w-full text-sm overflow-visible", className)}
 >
   {@render children?.()}
 </div>

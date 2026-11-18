@@ -2,17 +2,17 @@ import { tv, type VariantProps } from "tailwind-variants";
 
 export const alertVariants = tv(
   {
-    base: "tw:relative tw:w-full tw:rounded-lg tw:border tw:border-border tw:px-4 tw:py-3 tw:text-sm tw:flex tw:items-start tw:gap-3 tw:[&>svg]:size-4 tw:[&>svg]:flex-shrink-0 tw:[&>svg]:mt-0.5 tw:[&>svg]:text-current",
+    base: "relative w-full rounded-lg border border-border px-4 py-3 text-sm flex items-start gap-3 [&>svg]:size-4 [&>svg]:flex-shrink-0 [&>svg]:mt-0.5 [&>svg]:text-current",
     variants: {
       variant: {
-        default: "tw:bg-card tw:text-card-foreground",
+        default: "bg-card text-card-foreground",
         destructive:
-          "tw:bg-destructive/5 tw:text-destructive tw:border-destructive/25 tw:[&>svg]:text-current tw:*:data-[slot=alert-description]:text-destructive/90",
+          "bg-destructive/5 text-destructive border-destructive/25 [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
         warning:
-          "tw:bg-warning/5 tw:text-warning tw:border-warning/25 tw:[&>svg]:text-current tw:*:data-[slot=alert-description]:text-warning/90",
+          "bg-warning/5 text-warning border-warning/25 [&>svg]:text-current *:data-[slot=alert-description]:text-warning/90",
         success:
-          "tw:bg-success/5 tw:text-success tw:border-success/25 tw:[&>svg]:text-current tw:*:data-[slot=alert-description]:text-success/90",
-        info: "tw:bg-card tw:text-card-foreground tw:border-border tw:[&>svg]:text-current tw:*:data-[slot=alert-description]:text-muted-foreground/90",
+          "bg-success/5 text-success border-success/25 [&>svg]:text-current *:data-[slot=alert-description]:text-success/90",
+        info: "bg-card text-card-foreground border-border [&>svg]:text-current *:data-[slot=alert-description]:text-muted-foreground/90",
       },
     },
     defaultVariants: { variant: "default" },

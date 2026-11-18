@@ -21,15 +21,15 @@
     size?: number;
   } = $props();
   const tone: Record<AgentMarkState, string> = {
-    blocked: "tw:bg-destructive",
-    busy: "tw:bg-warning",
-    queued: "tw:bg-warning",
-    working: "tw:bg-brand",
-    listening: "tw:bg-brand",
-    opening: "tw:bg-warning",
-    late: "tw:border-2 tw:border-warning tw:bg-background",
+    blocked: "bg-destructive",
+    busy: "bg-warning",
+    queued: "bg-warning",
+    working: "bg-brand",
+    listening: "bg-brand",
+    opening: "bg-warning",
+    late: "border-2 border-warning bg-background",
     off: "",
-    none: "tw:border-2 tw:border-muted-foreground tw:bg-background",
+    none: "border-2 border-muted-foreground bg-background",
   };
   const counted = $derived(
     count > 0 &&
@@ -40,33 +40,33 @@
 
 <span
   data-agent-mark={state}
-  class="tw:relative tw:inline-grid tw:place-items-center tw:leading-none"
+  class="relative inline-grid place-items-center leading-none"
   ><Icon
     icon={paneIcons.agents}
     {size}
     stroke-width="2.6"
     class={cn(
-      on ? "tw:text-agent-claude-text" : "tw:text-muted-foreground",
+      on ? "text-agent-claude-text" : "text-muted-foreground",
       (state === "working" || state === "busy") &&
-        "tw:animate-[spin_3s_linear_infinite] tw:motion-reduce:animate-none",
+        "animate-[spin_3s_linear_infinite] motion-reduce:animate-none",
     )}
   />{#if counted}<span
       aria-hidden="true"
       class={cn(
-        "tw:absolute tw:-right-2 tw:-bottom-1.5 tw:h-4 tw:min-w-4 tw:rounded-full tw:px-1 tw:text-center tw:font-sans tw:text-[0.625rem] tw:leading-4 tw:font-bold tw:tabular-nums tw:shadow-[0_0_0_2px_var(--vb-background)]",
+        "absolute -right-2 -bottom-1.5 h-4 min-w-4 rounded-full px-1 text-center font-sans text-[0.625rem] leading-4 font-bold tabular-nums shadow-[0_0_0_2px_var(--vb-background)]",
         // A count is text: white on the warning orange is under 4.5:1, so work
         // waiting uses the app's one count style (lime, as Count); blocked stays red.
         state === "blocked"
-          ? "tw:bg-destructive tw:text-destructive-foreground"
-          : "tw:bg-brand tw:text-brand-foreground",
-        pulse && "tw:animate-pulse tw:motion-reduce:animate-none",
+          ? "bg-destructive text-destructive-foreground"
+          : "bg-brand text-brand-foreground",
+        pulse && "animate-pulse motion-reduce:animate-none",
       )}>{count > 99 ? "99+" : count}</span
     >{:else if tone[state]}<span
       aria-hidden="true"
       class={cn(
-        "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:shadow-[0_0_0_2px_var(--vb-background)]",
+        "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full shadow-[0_0_0_2px_var(--vb-background)]",
         tone[state],
-        pulse && "tw:animate-pulse tw:motion-reduce:animate-none",
+        pulse && "animate-pulse motion-reduce:animate-none",
       )}
     ></span>{/if}</span
 >

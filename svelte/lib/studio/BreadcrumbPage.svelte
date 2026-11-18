@@ -22,6 +22,6 @@
   aria-disabled="true"
   aria-current="page"
   {...rest}
-  class={cn("tw:text-foreground tw:font-medium tw:truncate", className)}
+  class={cn("text-foreground font-medium truncate", className)}
   >{@render children?.()}</span
 >

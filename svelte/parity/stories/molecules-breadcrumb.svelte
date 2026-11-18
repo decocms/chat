@@ -47,7 +47,7 @@
     </BreadcrumbList>
   </Breadcrumb>
 {:else if story === "truncated"}
-  <div class="tw:w-64">
+  <div class="w-64">
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>

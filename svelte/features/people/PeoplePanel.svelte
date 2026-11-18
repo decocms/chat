@@ -149,34 +149,34 @@
       dialogOpen = false;
   }
   const row =
-    "tw:group/member tw:flex tw:h-9 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-lg tw:pr-1 tw:pl-2 tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:focus-within:bg-sidebar-accent";
+    "group/member flex h-9 min-w-0 items-center gap-2 rounded-lg pr-1 pl-2 transition-colors duration-150 hover:bg-sidebar-accent focus-within:bg-sidebar-accent";
   // Actions on a person's row wait behind hover (always shown on touch screens).
   const quiet =
-    "tw:hidden tw:group-hover/member:inline-flex tw:group-focus-within/member:inline-flex tw:[@media(hover:none)]:inline-flex";
+    "hidden group-hover/member:inline-flex group-focus-within/member:inline-flex [@media(hover:none)]:inline-flex";
 </script>
 
 {#snippet outcomes()}
   {#each Object.entries($view.pending) as [email]}{#if $view.issues[email] !== "unconfirmed"}<p
         role="status"
-        class="tw:m-0 tw:px-2 tw:break-words tw:text-xs tw:text-muted-foreground"
+        class="m-0 px-2 break-words text-xs text-muted-foreground"
       >
         {email} · {vb.t("Aguardando confirmação…")}
       </p>{/if}{/each}
   {#each Object.entries($view.issues) as [email, issue]}<p
       role="alert"
-      class="tw:m-0 tw:px-2 tw:whitespace-pre-wrap tw:break-words tw:text-xs tw:text-destructive"
+      class="m-0 px-2 whitespace-pre-wrap break-words text-xs text-destructive"
     >
       {email} · {issueText(issue)}
     </p>{/each}
   {#each Object.entries($view.notices) as [email, action]}{#if action === "invite" || action === "resend"}<p
         role="status"
-        class="tw:m-0 tw:px-2 tw:break-words tw:text-xs tw:text-muted-foreground"
+        class="m-0 px-2 break-words text-xs text-muted-foreground"
       >
         {email} · {vb.t("enviado")} ✓
       </p>{/if}{/each}
   {#if $view.clipboard}<p
       role={$view.clipboard.status === "failed" ? "alert" : "status"}
-      class="tw:m-0 tw:px-2 tw:break-words tw:text-xs tw:text-muted-foreground"
+      class="m-0 px-2 break-words text-xs text-muted-foreground"
       data-invite-clipboard={$view.clipboard.status}
     >
       {$view.clipboard.status === "failed"
@@ -195,12 +195,12 @@
     !room.pending?.includes(email) && !!room.declined?.includes(email)}
   {@const pending = declined || (room.pending?.includes(email) ?? false)}
   {@const here = isOnline(email)}
-  <div class={cn(row, !here && "tw:text-muted-foreground")} data-person={email}>
-    {#if pending}<span class="tw:flex tw:shrink-0"
+  <div class={cn(row, !here && "text-muted-foreground")} data-person={email}>
+    {#if pending}<span class="flex shrink-0"
         ><PersonAvatar
           {email}
           version={vb.avatarVersion(email)}
-          class="tw:size-5"
+          class="size-5"
         /></span
       >{:else}
       {#snippet face(props: Record<string, unknown>)}<button
@@ -208,16 +208,16 @@
           type="button"
           aria-label={`${label(email)} · ${here ? vb.t("Online") : vb.t("Offline")}`}
           data-presence={here ? "online" : "offline"}
-          class="tw:relative tw:flex tw:shrink-0 tw:cursor-default tw:rounded-full tw:border-0 tw:bg-transparent tw:p-0 tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring"
+          class="relative flex shrink-0 cursor-default rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           ><PersonAvatar
             {email}
             version={vb.avatarVersion(email)}
-            class="tw:size-5"
+            class="size-5"
           /><span
             data-status-dot={here ? "online" : "offline"}
             class={cn(
-              "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2 tw:rounded-full tw:ring-2 tw:ring-sidebar tw:group-hover/member:ring-sidebar-accent",
-              here ? "tw:bg-brand" : "tw:bg-subtle-foreground",
+              "absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2 ring-sidebar group-hover/member:ring-sidebar-accent",
+              here ? "bg-brand" : "bg-subtle-foreground",
             )}
           ></span></button
         >{/snippet}
@@ -225,9 +225,7 @@
         label={here ? vb.t("Online") : vb.t("Offline")}
         trigger={face}
       />{/if}
-    <span class="tw:min-w-0 tw:flex-1 tw:truncate" title={email}
-      >{label(email)}</span
-    >
+    <span class="min-w-0 flex-1 truncate" title={email}>{label(email)}</span>
     {#if pending}
       <Badge
         variant="muted"
@@ -240,7 +238,7 @@
       {#if !declined}<Button
           variant="ghost"
           size="xs"
-          class={cn(quiet, "tw:px-1.5")}
+          class={cn(quiet, "px-1.5")}
           data-copyinv={email}
           title={vb.t(
             "Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp",
@@ -250,7 +248,7 @@
         <Button
           variant="ghost"
           size="xs"
-          class={cn(quiet, "tw:px-1.5")}
+          class={cn(quiet, "px-1.5")}
           data-resend={email}
           disabled={!!$view.pending[email]}
           onclick={() => {
@@ -279,31 +277,28 @@
   data-vb-native
   data-people-panel
   class={cn(
-    "tw:mt-auto tw:max-h-[32%] tw:space-y-0.5 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:font-sans tw:text-sm tw:leading-5 tw:text-sidebar-foreground tw:outline-none",
+    "mt-auto max-h-[32%] space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain font-sans text-sm leading-5 text-sidebar-foreground outline-none",
     // In the sidebar it gives way to the epics, down to its title and ~3 rows.
     everyone.length + model.invited.length + (room.requests?.length ?? 0) > 1
-      ? "tw:min-h-32 tw:shrink"
-      : "tw:shrink-0",
+      ? "min-h-32 shrink"
+      : "shrink-0",
   )}
 >
-  {#if room.requests?.length}<div class="tw:mb-6 tw:space-y-0.5">
+  {#if room.requests?.length}<div class="mb-6 space-y-0.5">
       <SectionHeader title={vb.t("Pedindo pra entrar")} level={4} />
       {#each room.requests as access (access.email)}<div
-          class={cn(row, "tw:h-auto tw:min-h-9 tw:py-1")}
+          class={cn(row, "h-auto min-h-9 py-1")}
           data-access-request={access.email}
           title={`${access.email} · ${vb.t("pediu {ago}", { ago: vb.ago(access.ts) })}`}
         >
           <PersonAvatar
             email={access.email}
             version={vb.avatarVersion(access.email)}
-            class="tw:size-5"
+            class="size-5"
           />
-          <span class="tw:min-w-0 tw:flex-1">
-            <span class="tw:block tw:truncate"
-              >{access.name || access.email}</span
-            >
-            <span
-              class="tw:block tw:truncate tw:text-xs tw:text-muted-foreground"
+          <span class="min-w-0 flex-1">
+            <span class="block truncate">{access.name || access.email}</span>
+            <span class="block truncate text-xs text-muted-foreground"
               >{access.email} · {vb.t("pediu {ago}", {
                 ago: vb.ago(access.ts),
               })}</span
@@ -351,21 +346,18 @@
   {#if !everyone.length && !inviting}<button
       type="button"
       data-people-empty
-      class="tw:flex tw:h-9 tw:w-full tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-border tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:leading-5 tw:text-muted-foreground tw:transition-colors tw:duration-150 tw:hover:bg-sidebar-accent tw:hover:text-sidebar-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-ring tw:focus-visible:outline-solid"
+      class="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
       onclick={openInvite}
     >
-      <span
-        class="tw:flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center"
+      <span class="flex size-5 shrink-0 items-center justify-center"
         ><Icon icon={UserPlus01} size={16} /></span
       >
-      <span class="tw:min-w-0 tw:truncate"
-        >{vb.t("Convidar alguém pra sala")}</span
-      >
+      <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
     </button>{/if}
   <form
     id="invite"
     data-invite-form
-    class={inviting ? "" : "tw:hidden"}
+    class={inviting ? "" : "hidden"}
     onsubmit={submitInvite}
   >
     <InlineAdd

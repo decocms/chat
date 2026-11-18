@@ -29,26 +29,24 @@ export const fanSlot = (i: number) =>
 
 // Desktop fan, by slot: 46px apart, 16px lower and 3.5° more turned per step, slightly smaller.
 const FAN: Record<number, string> = {
-  0: "tw:z-20",
-  1: "tw:z-[19] tw:translate-x-[46px] tw:translate-y-[16px] tw:rotate-[3.5deg] tw:scale-[0.955]",
-  [-1]: "tw:z-[19] tw:translate-x-[-46px] tw:translate-y-[16px] tw:rotate-[-3.5deg] tw:scale-[0.955]",
-  2: "tw:z-[18] tw:translate-x-[92px] tw:translate-y-[32px] tw:rotate-[7deg] tw:scale-[0.91]",
-  [-2]: "tw:z-[18] tw:translate-x-[-92px] tw:translate-y-[32px] tw:rotate-[-7deg] tw:scale-[0.91]",
-  3: "tw:z-[17] tw:translate-x-[138px] tw:translate-y-[48px] tw:rotate-[10.5deg] tw:scale-[0.865]",
-  [-3]: "tw:z-[17] tw:translate-x-[-138px] tw:translate-y-[48px] tw:rotate-[-10.5deg] tw:scale-[0.865]",
+  0: "z-20",
+  1: "z-[19] translate-x-[46px] translate-y-[16px] rotate-[3.5deg] scale-[0.955]",
+  [-1]: "z-[19] translate-x-[-46px] translate-y-[16px] rotate-[-3.5deg] scale-[0.955]",
+  2: "z-[18] translate-x-[92px] translate-y-[32px] rotate-[7deg] scale-[0.91]",
+  [-2]: "z-[18] translate-x-[-92px] translate-y-[32px] rotate-[-7deg] scale-[0.91]",
+  3: "z-[17] translate-x-[138px] translate-y-[48px] rotate-[10.5deg] scale-[0.865]",
+  [-3]: "z-[17] translate-x-[-138px] translate-y-[48px] rotate-[-10.5deg] scale-[0.865]",
 };
 // Phone pile, by depth: each card behind peeks 13px over the one in front, a little smaller and fainter.
 const PILE = [
-  "tw:max-md:z-20 tw:max-md:translate-x-0 tw:max-md:translate-y-[52px] tw:max-md:rotate-0 tw:max-md:scale-100 tw:max-md:opacity-100 tw:max-md:pointer-events-auto",
-  "tw:max-md:z-[19] tw:max-md:translate-x-0 tw:max-md:translate-y-[39px] tw:max-md:rotate-[-2.5deg] tw:max-md:scale-[0.95] tw:max-md:opacity-[0.88] tw:max-md:pointer-events-auto",
-  "tw:max-md:z-[18] tw:max-md:translate-x-0 tw:max-md:translate-y-[26px] tw:max-md:rotate-[2deg] tw:max-md:scale-[0.9] tw:max-md:opacity-[0.76] tw:max-md:pointer-events-auto",
-  "tw:max-md:z-[17] tw:max-md:translate-x-0 tw:max-md:translate-y-[13px] tw:max-md:rotate-[-2.5deg] tw:max-md:scale-[0.85] tw:max-md:opacity-[0.64] tw:max-md:pointer-events-auto",
-  "tw:max-md:z-[16] tw:max-md:translate-x-0 tw:max-md:translate-y-0 tw:max-md:rotate-[2deg] tw:max-md:scale-[0.8] tw:max-md:opacity-[0.52] tw:max-md:pointer-events-auto",
+  "max-md:z-20 max-md:translate-x-0 max-md:translate-y-[52px] max-md:rotate-0 max-md:scale-100 max-md:opacity-100 max-md:pointer-events-auto",
+  "max-md:z-[19] max-md:translate-x-0 max-md:translate-y-[39px] max-md:rotate-[-2.5deg] max-md:scale-[0.95] max-md:opacity-[0.88] max-md:pointer-events-auto",
+  "max-md:z-[18] max-md:translate-x-0 max-md:translate-y-[26px] max-md:rotate-[2deg] max-md:scale-[0.9] max-md:opacity-[0.76] max-md:pointer-events-auto",
+  "max-md:z-[17] max-md:translate-x-0 max-md:translate-y-[13px] max-md:rotate-[-2.5deg] max-md:scale-[0.85] max-md:opacity-[0.64] max-md:pointer-events-auto",
+  "max-md:z-[16] max-md:translate-x-0 max-md:translate-y-0 max-md:rotate-[2deg] max-md:scale-[0.8] max-md:opacity-[0.52] max-md:pointer-events-auto",
 ];
-const HIDDEN =
-  "tw:z-0 tw:translate-y-[80px] tw:opacity-0 tw:pointer-events-none";
-const PILE_HIDDEN =
-  "tw:max-md:z-0 tw:max-md:opacity-0 tw:max-md:pointer-events-none";
+const HIDDEN = "z-0 translate-y-[80px] opacity-0 pointer-events-none";
+const PILE_HIDDEN = "max-md:z-0 max-md:opacity-0 max-md:pointer-events-none";
 
 /** The classes that place card i of n in the fan (desktop) and the pile (phone). */
 export function fanClasses(i: number, n: number) {

@@ -146,9 +146,9 @@
     { value: "light", label: "themeLight" },
     { value: "dark", label: "themeDark" },
   ] as const;
-  const section = "tw:flex tw:scroll-mt-6 tw:flex-col tw:gap-4";
+  const section = "flex scroll-mt-6 flex-col gap-4";
   const rowClass =
-    "tw:flex tw:min-h-11 tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-4 tw:gap-y-2";
+    "flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2";
 </script>
 
 {#if $view.binding && $view.open}{#key $view.binding}<Snapshot
@@ -157,26 +157,26 @@
         {#if $view.me}<div
             data-vb-native
             data-native-account
-            class="tw:mx-auto tw:w-full tw:max-w-2xl tw:flex tw:flex-col tw:gap-12 tw:px-4 tw:py-8 tw:font-sans tw:text-sm tw:text-foreground tw:md:px-8 tw:md:py-10"
+            class="mx-auto w-full max-w-2xl flex flex-col gap-12 px-4 py-8 font-sans text-sm text-foreground md:px-8 md:py-10"
           >
-            <Heading level={1} class="tw:m-0 tw:font-sans tw:text-2xl"
+            <Heading level={1} class="m-0 font-sans text-2xl"
               >{text("title")}</Heading
             >
             <section id="profile" class={section}>
-              <Heading level={2} class="tw:m-0 tw:text-base"
+              <Heading level={2} class="m-0 text-base"
                 >{text("profile")}</Heading
               >
-              <div class="tw:flex tw:items-center tw:gap-3">
+              <div class="flex items-center gap-3">
                 <PersonAvatar
                   size="lg"
                   email={$view.me.email}
                   version={$view.me.avatar}
                 />
-                <div class="tw:min-w-0 tw:flex-1 tw:break-words">
-                  <p class="tw:m-0 tw:font-medium">
+                <div class="min-w-0 flex-1 break-words">
+                  <p class="m-0 font-medium">
                     {$view.me.name || $view.me.email}
                   </p>
-                  <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+                  <p class="m-0 text-sm text-muted-foreground">
                     {$view.me.email}
                   </p>
                 </div>
@@ -191,7 +191,7 @@
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   aria-label={en ? "Profile photo" : "Foto do perfil"}
-                  class="tw:sr-only"
+                  class="sr-only"
                   onchange={(event) => {
                     const file = event.currentTarget.files?.[0];
                     if (live(event, rendered) && file && !busy)
@@ -201,7 +201,7 @@
                 />
               </div>
               <form
-                class="tw:flex tw:flex-col tw:gap-2"
+                class="flex flex-col gap-2"
                 onsubmit={(event) => {
                   event.preventDefault();
                   if (live(event, rendered) && !busy) owner.rename(name);
@@ -209,7 +209,7 @@
               >
                 <Label for="account-name">{en ? "Your name" : "Seu nome"}</Label
                 >
-                <div class="tw:flex tw:gap-2">
+                <div class="flex gap-2">
                   <Input
                     id="account-name"
                     value={name}
@@ -228,13 +228,13 @@
               </form>
               {#if $view.phase === "pending" || $view.phase === "confirming"}<p
                   role="status"
-                  class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+                  class="m-0 text-sm text-muted-foreground"
                 >
                   {en ? "Waiting for confirmation…" : "Esperando confirmação…"}
                 </p>{/if}
               {#if $view.phase === "error"}<p
                   role="alert"
-                  class="tw:m-0 tw:text-sm tw:text-destructive"
+                  class="m-0 text-sm text-destructive"
                 >
                   {en
                     ? "Could not save this change. Check the details and try again."
@@ -242,9 +242,9 @@
                 </p>{/if}
               {#if $view.phase === "unconfirmed"}<div
                   role="alert"
-                  class="tw:space-y-2 tw:text-sm"
+                  class="space-y-2 text-sm"
                 >
-                  <p class="tw:m-0">
+                  <p class="m-0">
                     {en
                       ? "This change is unconfirmed. It may have been saved. Refresh before trying again."
                       : "Esta mudança não foi confirmada. Ela pode ter sido salva. Atualize antes de tentar de novo."}
@@ -264,16 +264,13 @@
                       : "Revisar e tentar de novo"}</Button
                   >
                 </div>{/if}
-              <div class="tw:flex tw:flex-col tw:gap-2">
-                <Heading level={3} class="tw:m-0 tw:text-sm"
+              <div class="flex flex-col gap-2">
+                <Heading level={3} class="m-0 text-sm"
                   >{en ? "How you sign in" : "Como você entra"}</Heading
                 >
-                {#if $view.loginsLoading}<p role="status" class="tw:m-0">
+                {#if $view.loginsLoading}<p role="status" class="m-0">
                     {en ? "Loading…" : "Carregando…"}
-                  </p>{:else if $view.loginsError}<p
-                    role="alert"
-                    class="tw:m-0"
-                  >
+                  </p>{:else if $view.loginsError}<p role="alert" class="m-0">
                     {en
                       ? "Could not load sign-in history."
                       : "Não deu para carregar o histórico de entrada."}
@@ -284,15 +281,15 @@
                       if (live(event, rendered)) owner.logins();
                     }}>{en ? "Retry" : "Tentar de novo"}</Button
                   >{:else if $view.logins}<ul
-                    class="tw:m-0 tw:list-none tw:space-y-2 tw:p-0"
+                    class="m-0 list-none space-y-2 p-0"
                   >
                     {#each loginRows as row}{@const used =
                         $view.logins.logins.find(
                           (item) => item.method === row.method,
                         )}
-                      <li class="tw:flex tw:justify-between tw:gap-2">
+                      <li class="flex justify-between gap-2">
                         <span>{row.label}</span><span
-                          class="tw:text-xs tw:text-muted-foreground"
+                          class="text-xs text-muted-foreground"
                           >{used
                             ? `${new Date(used.last).toLocaleDateString(lang)} · ${used.n}×`
                             : row.method === "email"
@@ -305,7 +302,7 @@
                         >
                       </li>{/each}
                   </ul>{/if}
-                <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                <p class="m-0 text-xs text-muted-foreground">
                   {en
                     ? "Google and GitHub use their email's account. A different email means a different account."
                     : "Google e GitHub entram na conta do email deles: se for outro email, vira outra conta."}
@@ -313,22 +310,18 @@
               </div>
             </section>
             <section id="agents" data-native-account-agents class={section}>
-              <Heading level={2} class="tw:m-0 tw:text-base"
-                >{text("agents")}</Heading
+              <Heading level={2} class="m-0 text-base">{text("agents")}</Heading
               >
               {@render agentSettings()}
             </section>
             <section id="cloud" class={section}>
-              <Heading level={2} class="tw:m-0 tw:text-base"
-                >{text("cloud")}</Heading
-              >
+              <Heading level={2} class="m-0 text-base">{text("cloud")}</Heading>
               {@render cloud()}
             </section>
             <section id="device" class={section}>
-              <Heading level={2} class="tw:m-0 tw:text-base"
-                >{text("device")}</Heading
+              <Heading level={2} class="m-0 text-base">{text("device")}</Heading
               >
-              <div class="tw:divide-y tw:divide-border">
+              <div class="divide-y divide-border">
                 <div class={rowClass}>
                   <span>{home("notifications")}</span>{@render notifications()}
                 </div>
@@ -375,8 +368,8 @@
                 </div>
                 <!-- Off = the classic app on this device. -->
                 <div class={rowClass}><UiSwitch lang={en ? "en" : "pt"} /></div>
-                <div class="tw:flex tw:flex-col tw:gap-1 tw:py-3">
-                  <label class="tw:flex tw:items-center tw:gap-2"
+                <div class="flex flex-col gap-1 py-3">
+                  <label class="flex items-center gap-2"
                     ><Checkbox
                       bind:checked={
                         () => $lock.enabled,
@@ -400,20 +393,20 @@
                         : "Exigir Face ID ao abrir"}</span
                     ></label
                   >
-                  <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  <p class="m-0 text-xs text-muted-foreground">
                     {en
                       ? "A local lock on this device; your login session stays the same."
                       : "Uma trava local neste aparelho; sua sessão continua a mesma."}
                   </p>
                   {#if !$lock.supported}<p
-                      class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                      class="m-0 text-xs text-muted-foreground"
                     >
                       {en
                         ? "Unavailable in this browser."
                         : "Não disponível neste navegador."}
                     </p>{/if}{#if $lock.error}<p
                       role="alert"
-                      class="tw:m-0 tw:text-sm tw:text-destructive"
+                      class="m-0 text-sm text-destructive"
                     >
                       {en
                         ? "Device authentication was cancelled or failed. Try again."
@@ -423,7 +416,7 @@
               </div>
             </section>
             <section
-              class="tw:flex tw:flex-wrap tw:gap-2 tw:border-t tw:border-border tw:pt-6"
+              class="flex flex-wrap gap-2 border-t border-border pt-6"
               aria-label={en ? "Account" : "Conta"}
             >
               <Button
@@ -431,7 +424,7 @@
                 onclick={(event) => {
                   if (live(event, rendered)) onArchive();
                 }}>{en ? "Archived rooms" : "Salas arquivadas"}</Button
-              ><span class="tw:flex-1"></span><Button
+              ><span class="flex-1"></span><Button
                 onclick={(event) => {
                   if (live(event, rendered)) onLogout(false);
                 }}>{en ? "Sign out" : "Sair"}</Button

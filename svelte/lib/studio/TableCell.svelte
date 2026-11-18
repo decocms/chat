@@ -20,7 +20,7 @@
   data-slot="table-cell"
   {...rest}
   class={cn(
-    "tw:p-2 tw:align-middle tw:whitespace-nowrap tw:text-sm tw:tabular-nums tw:[&:has([role=checkbox])]:pr-0 tw:[&>[role=checkbox]]:translate-y-[2px]",
+    "p-2 align-middle whitespace-nowrap text-sm tabular-nums [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
     className,
   )}>{@render children?.()}</td
 >

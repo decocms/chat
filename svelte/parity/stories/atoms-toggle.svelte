@@ -17,7 +17,7 @@
 {#if story === "default"}
   <Toggle variant="default" size="default">Bold</Toggle>
 {:else if story === "variants"}
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     <Toggle aria-label="Toggle bold">
       <Icon icon={Bold01} /> Bold
     </Toggle>
@@ -26,7 +26,7 @@
     </Toggle>
   </div>
 {:else if story === "sizes"}
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     <Toggle size="sm" variant="outline">Small</Toggle>
     <Toggle size="default" variant="outline">Default</Toggle>
     <Toggle size="lg" variant="outline">Large</Toggle>

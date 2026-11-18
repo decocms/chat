@@ -35,14 +35,14 @@
       data-sidebar="sidebar"
       data-slot="sidebar"
       data-mobile="true"
-      class="tw:bg-sidebar tw:text-sidebar-foreground tw:w-(--sidebar-width) tw:p-0 tw:[--sidebar-width:18rem] tw:[&>button]:hidden"
+      class="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [--sidebar-width:18rem] [&>button]:hidden"
       {side}
     >
-      <SheetHeader class="tw:sr-only">
+      <SheetHeader class="sr-only">
         <SheetTitle>Sidebar</SheetTitle>
         <SheetDescription>Displays the mobile sidebar.</SheetDescription>
       </SheetHeader>
-      <div class="tw:flex tw:h-full tw:w-full tw:flex-col">
+      <div class="flex h-full w-full flex-col">
         {@render children?.()}
       </div>
     </SheetContent>
@@ -50,9 +50,9 @@
 {:else}
   <div
     class={cn(
-      "tw:group/sidebar tw:peer tw:text-sidebar-foreground tw:hidden tw:md:flex tw:flex-col tw:shrink-0 tw:overflow-hidden",
-      "tw:transition-[width] tw:duration-150 tw:ease-out tw:motion-reduce:transition-none",
-      isExpanded ? "tw:w-(--sidebar-width)" : "tw:w-(--sidebar-width-icon)",
+      "group/sidebar peer text-sidebar-foreground hidden md:flex flex-col shrink-0 overflow-hidden",
+      "transition-[width] duration-150 ease-out motion-reduce:transition-none",
+      isExpanded ? "w-(--sidebar-width)" : "w-(--sidebar-width-icon)",
     )}
     data-state={sidebar.state}
     data-collapsible={isExpanded ? undefined : "icon"}
@@ -65,15 +65,15 @@
       data-slot="sidebar-container"
       {...rest}
       class={cn(
-        "tw:flex tw:flex-col tw:h-full tw:transition-[width] tw:duration-150 tw:ease-out tw:motion-reduce:transition-none",
-        isExpanded ? "tw:w-(--sidebar-width)" : "tw:w-(--sidebar-width-icon)",
+        "flex flex-col h-full transition-[width] duration-150 ease-out motion-reduce:transition-none",
+        isExpanded ? "w-(--sidebar-width)" : "w-(--sidebar-width-icon)",
         className,
       )}
     >
       <div
         data-sidebar="sidebar"
         data-slot="sidebar-inner"
-        class="tw:bg-sidebar tw:flex tw:h-full tw:w-full tw:flex-col"
+        class="bg-sidebar flex h-full w-full flex-col"
       >
         {@render children?.()}
       </div>

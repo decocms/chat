@@ -21,7 +21,7 @@
   data-slot="sidebar-menu-badge"
   data-sidebar="menu-badge"
   {...rest}
-  class={cn("tw:hidden", className)}
+  class={cn("hidden", className)}
 >
   {@render children?.()}
 </div>

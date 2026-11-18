@@ -80,16 +80,14 @@
 
 <div
   data-message-actions
-  class={floating
-    ? "tw:contents"
-    : "tw:flex tw:flex-wrap tw:items-center tw:gap-1"}
+  class={floating ? "contents" : "flex flex-wrap items-center gap-1"}
 >
   <div
     data-message-toolbar
     class={cn(
-      "tw:flex tw:items-center tw:gap-0.5",
+      "flex items-center gap-0.5",
       floating &&
-        "tw:pointer-events-none tw:absolute tw:-top-3.5 tw:right-3 tw:z-10 tw:origin-top-right tw:translate-y-0.5 tw:scale-[.98] tw:rounded-full tw:bg-card tw:p-0.5 tw:opacity-0 tw:shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] tw:transition-[opacity,translate,scale] tw:duration-150 tw:ease-[cubic-bezier(0.23,1,0.32,1)] tw:group-hover:pointer-events-auto tw:group-hover:translate-y-0 tw:group-hover:scale-100 tw:group-hover:opacity-100 tw:group-has-focus-visible:pointer-events-auto tw:group-has-focus-visible:translate-y-0 tw:group-has-focus-visible:scale-100 tw:group-has-focus-visible:opacity-100 tw:motion-reduce:transition-none tw:pointer-coarse:hidden",
+        "pointer-events-none absolute -top-3.5 right-3 z-10 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
     )}
   >
     <TooltipProvider>
@@ -98,21 +96,21 @@
             data-native-quick-react={emoji}
             aria-pressed={mine(emoji)}
             class={cn(
-              "tw:text-base tw:leading-none",
-              floating && "tw:rounded-full",
-              mine(emoji) && "tw:bg-accent",
+              "text-base leading-none",
+              floating && "rounded-full",
+              mine(emoji) && "bg-accent",
             )}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
         <div
           aria-hidden="true"
-          class="tw:mx-0.5 tw:h-4 tw:w-px tw:shrink-0 tw:bg-border"
+          class="mx-0.5 h-4 w-px shrink-0 bg-border"
         ></div>{/if}
       <IconButton
         label={vb.t("Responder a esta mensagem")}
         data-native-reply={message.id}
         class={floating
-          ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+          ? "rounded-full text-muted-foreground hover:text-foreground"
           : ""}
         onclick={() => {
           if (active) actions.reply(message.id);
@@ -124,7 +122,7 @@
           : vb.t("Copiar o texto desta mensagem")}
         data-native-copy={message.id}
         class={floating
-          ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+          ? "rounded-full text-muted-foreground hover:text-foreground"
           : ""}
         onclick={() => {
           void copy();
@@ -140,7 +138,7 @@
             : vb.t("Copiar o link desta mensagem")}
           data-native-copylink={message.id}
           class={floating
-            ? "tw:rounded-full tw:text-muted-foreground tw:hover:text-foreground"
+            ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}
           onclick={() => {
             void copy(true);
@@ -155,15 +153,15 @@
   <!-- Floating toolbar: the button shows it (✓ + tooltip), this is for screen readers. Inline (phones): a word. -->
   {#if copied}<span
       role="status"
-      class={floating ? "tw:sr-only" : "tw:text-xs tw:text-muted-foreground"}
+      class={floating ? "sr-only" : "text-xs text-muted-foreground"}
       >{vb.t("Copiado")}</span
     >{/if}
   {#if issue}<div
       class={floating
-        ? "tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1"
-        : "tw:contents"}
+        ? "mt-1 flex flex-wrap items-center justify-end gap-1"
+        : "contents"}
     >
-      {#if issue}<span role="alert" class="tw:text-xs tw:text-destructive"
+      {#if issue}<span role="alert" class="text-xs text-destructive"
           >{vb.t(
             issue === "empty"
               ? "Essa mensagem não tem texto pra copiar."

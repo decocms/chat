@@ -867,7 +867,7 @@ describe("native Svelte room panels", () => {
         { email: "ana@test.com", size: "2xs", "data-avatar": "person" },
       ],
       [AgentMark, { mark: "✻" }],
-      [AgentMark, { via: "codex", size: "2xs", class: "tw:text-success" }],
+      [AgentMark, { via: "codex", size: "2xs", class: "text-success" }],
       [AgentMark, { via: "gemini-3-pro", size: "xs", tint: true }],
       [
         RoomTile,
@@ -908,7 +908,7 @@ describe("native Svelte room panels", () => {
     expect(seen.person).toHaveLength(2);
     expect(seen.agent).toHaveLength(3);
     for (const person of seen.person) {
-      expect(classes(person)).toContain("tw:rounded-full");
+      expect(classes(person)).toContain("rounded-full");
       expect(person.getAttribute("aria-hidden")).toBe("true");
       // No picture: the face the email draws (whatever label is beside it), never initials.
       expect(person.querySelector("svg > rect")?.getAttribute("fill")).toBe(
@@ -917,33 +917,33 @@ describe("native Svelte room panels", () => {
       expect(person.textContent?.trim()).toBe("");
     }
     expect(
-      seen.person.map((el) => classes(el).filter((c) => /^tw:size-/.test(c))),
-    ).toEqual([["tw:size-6"], ["tw:size-4"]]);
+      seen.person.map((el) => classes(el).filter((c) => /^size-/.test(c))),
+    ).toEqual([["size-6"], ["size-4"]]);
     for (const agent of seen.agent) {
-      expect(classes(agent)).not.toContain("tw:rounded-full");
+      expect(classes(agent)).not.toContain("rounded-full");
       expect(agent.getAttribute("aria-hidden")).toBe("true");
     }
     // The radius follows the box, so a 16px mark never gets the 32px radius.
     expect(
       seen.agent.map((agent) =>
-        classes(agent).filter((c) => /^tw:(size|rounded)-/.test(c)),
+        classes(agent).filter((c) => /^(size|rounded)-/.test(c)),
       ),
     ).toEqual([
-      ["tw:size-8", "tw:rounded-[0.625rem]"],
-      ["tw:size-4", "tw:rounded-sm"],
-      ["tw:size-6", "tw:rounded-lg"],
+      ["size-8", "rounded-[0.625rem]"],
+      ["size-4", "rounded-sm"],
+      ["size-6", "rounded-lg"],
     ]);
     expect(seen.agent.map((agent) => agent.textContent?.trim())).toEqual([
       "✻",
       "◎",
       "✦",
     ]);
-    expect(classes(seen.agent[1])).toContain("tw:text-success");
+    expect(classes(seen.agent[1])).toContain("text-success");
     // A tinted mark paints the provider's tile; an untinted one stays muted.
     expect(seen.agent[0]!.querySelector("[data-agent-tile]")).toBeNull();
     expect(
       classes(seen.agent[2]!.querySelector('[data-agent-tile="gemini"]')),
-    ).toContain("tw:bg-agent-gemini");
+    ).toContain("bg-agent-gemini");
     // A room without an icon is the marble its title draws.
     expect(cover?.getAttribute("data-room-cover")).toBe("marble");
     expect(cover?.querySelector("svg > rect")?.getAttribute("fill")).toBe(
@@ -987,13 +987,15 @@ describe("native Svelte room panels", () => {
         const pill = target.querySelector("[data-rail-pill]");
         if (selected) {
           expect(pill?.getAttribute("data-rail-pill"), label).toBe("selected");
-          expect(pill?.getAttribute("class"), label).toContain("tw:md:w-[3px]");
+          expect(pill?.getAttribute("class")?.split(/\s+/), label).toContain(
+            "md:w-[3px]",
+          );
         } else expect(pill, label).toBeNull();
         const link = target.querySelector("a")!;
         // A styled tooltip (bits trigger), not the slow native title.
         expect(link.hasAttribute("title"), label).toBe(false);
         expect(link.getAttribute("data-state"), label).toBe("closed");
-        expect(link.className, label).not.toMatch(/(^| )tw:ring/);
+        expect(link.className, label).not.toMatch(/(^| )ring/);
         // The unread dot stays off the current room.
         expect(
           target.querySelector('[data-room-badge="unread-human"]') !== null,
@@ -1053,7 +1055,7 @@ describe("native Svelte room panels", () => {
         // The tint is the rail group's backdrop, never the tile.
         const link = target.querySelector<HTMLElement>("a")!;
         expect(link.getAttribute("data-room-tint"), label).toBe(tint ?? null);
-        expect(link.className, label).not.toContain("room-tint");
+        expect(link.className.split(/\s+/), label).not.toContain("room-tint");
       } finally {
         await unmount(instance);
         target.remove();
@@ -1093,7 +1095,7 @@ describe("native Svelte room panels", () => {
         marble("Design System").background,
       );
       // The tint colors only a room with an icon, never the marble.
-      expect(mark.className).not.toContain("tw:bg-secondary");
+      expect(mark.className.split(/\s+/)).not.toContain("bg-secondary");
       expect(target.querySelector("a")!.hasAttribute("data-room-tint")).toBe(
         false,
       );
@@ -1106,7 +1108,7 @@ describe("native Svelte room panels", () => {
       // On the page, the shared RoomAvatar rings its badges in the page colour, never the rail's.
       for (const badge of badges) {
         expect(badge.className, badge.textContent ?? "").toMatch(
-          /tw:(bg|ring)-background/,
+          /(bg|ring)-background/,
         );
         expect(badge.className, badge.textContent ?? "").not.toContain(
           "sidebar",
@@ -1800,7 +1802,7 @@ describe("native Svelte chat", () => {
     expect(pre!.textContent?.trim()).toBe(code);
     pre!.focus();
     expect(document.activeElement).toBe(pre);
-    expect(pre!.classList.contains("tw:focus-visible:outline-ring")).toBe(true);
+    expect(pre!.classList.contains("focus-visible:outline-ring")).toBe(true);
   });
   test("native rich content preserves safe semantics and exact direct actions without HTML hooks", () => {
     const file = {
@@ -1934,7 +1936,7 @@ describe("native Svelte chat", () => {
       'a[href="https://example.test/"]',
     )!;
     expect(!!link).toBe(true);
-    expect(link.classList.contains("tw:bg-primary")).toBe(true);
+    expect(link.classList.contains("bg-primary")).toBe(true);
     expect(link.rel).toBe("noopener noreferrer");
   });
   test("native card catalog keeps plain text, table expansion, owner-only replies and canonical answer state", async () => {
@@ -3522,8 +3524,8 @@ describe("stable native sidebar integration", () => {
     expect(headers[0].className).toBe(headers[1].className);
     const headings = headers.map((header) => header.querySelector("h3")!);
     expect(headings[0].className).toBe(headings[1].className);
-    expect(headings[0].className).toContain("tw:text-xs");
-    expect(headings[0].className).not.toContain("tw:uppercase");
+    expect(headings[0].className.split(/\s+/)).toContain("text-xs");
+    expect(headings[0].className.split(/\s+/)).not.toContain("uppercase");
     expect(headings[0].textContent).toBe("Fixados");
     expect(headings[1].textContent).toBe("Pessoas e agents");
     const label = document.getElementById(
@@ -3541,11 +3543,11 @@ describe("stable native sidebar integration", () => {
     expect(add.hasAttribute("title")).toBe(false);
     expect(invite.hasAttribute("title")).toBe(false);
     const form = people.querySelector<HTMLFormElement>("[data-invite-form]")!;
-    expect(form.classList.contains("tw:hidden")).toBe(true);
+    expect(form.classList.contains("hidden")).toBe(true);
     invite.click();
     await tick();
     flushSync();
-    expect(form.classList.contains("tw:hidden")).toBe(false);
+    expect(form.classList.contains("hidden")).toBe(false);
     expect(document.activeElement).toBe(form.querySelector("input"));
     expect(headers[1].querySelector("button[data-invite-toggle]")).toBe(null);
     add.click();
@@ -3610,11 +3612,13 @@ describe("stable native sidebar integration", () => {
     expect(row !== null).toBe(true);
     expect(row!.textContent).toContain("Arquivado");
     // Selection is only a background change: no accent bar on the left.
-    expect(row!.parentElement!.classList.contains("tw:bg-sidebar-accent")).toBe(
+    expect(row!.parentElement!.classList.contains("bg-sidebar-accent")).toBe(
       true,
     );
-    expect(row!.parentElement!.className).not.toContain("border-l");
-    expect(row!.parentElement!.classList.contains("tw:opacity-50")).toBe(false);
+    expect(row!.parentElement!.className.split(/\s+/)).not.toContain(
+      "border-l",
+    );
+    expect(row!.parentElement!.classList.contains("opacity-50")).toBe(false);
     h.view.update({ ...h.props, thread: "main" });
     await tick();
     flushSync();
@@ -3671,7 +3675,9 @@ describe("stable native sidebar integration", () => {
       'button[aria-label="Renomear"]',
     );
     expect(rename).not.toBeNull();
-    expect(rename!.className).toContain("tw:group-hover/room:opacity-100");
+    expect(rename!.className.split(/\s+/)).toContain(
+      "group-hover/room:opacity-100",
+    );
   });
   test("the room row shows no count when nothing waits in its main thread", () => {
     const room = fixture();
@@ -4448,21 +4454,21 @@ describe("stable native sidebar integration", () => {
     ).toBeNull();
     for (const id of ["site", "repo", "app", "doc"]) {
       const label = row(id).querySelector<HTMLElement>("[data-pin-text]")!;
-      expect(label.className).not.toContain("pr-7");
+      expect(label.className.split(/\s+/)).not.toContain("pr-7");
       expect(row(id).querySelectorAll("button, a")).toHaveLength(1);
     }
 
     open.set({ connection: "123456abcdef", tool: "router" });
     flushSync();
     expect(app.dataset.selected).toBe("true");
-    expect(app.className).toContain("tw:bg-sidebar-accent");
+    expect(app.className.split(/\s+/)).toContain("bg-sidebar-accent");
     expect(appButton.getAttribute("aria-current")).toBe("true");
     open.set({ connection: "room", tool: "router" });
     flushSync();
     expect(app.dataset.selected).toBeUndefined();
     open.set(null);
     flushSync();
-    expect(app.className).not.toContain("tw:bg-sidebar-accent");
+    expect(app.className.split(/\s+/)).not.toContain("bg-sidebar-accent");
   }, 30_000);
 
   test("pin rows open a context menu per kind; Desafixar unpins, Copiar link copies, keyboard opens it", async () => {
@@ -4509,7 +4515,9 @@ describe("stable native sidebar integration", () => {
         "---",
         "Desafixar",
       ]);
-      expect(menu.item("Desafixar").className).toContain("tw:text-destructive");
+      expect(menu.item("Desafixar").className.split(/\s+/)).toContain(
+        "text-destructive",
+      );
       menu.item("Copiar link").click();
       await settleMenu();
       expect(copied).toEqual(["https://vibebook.dev/docs"]);
@@ -4539,7 +4547,7 @@ describe("stable native sidebar integration", () => {
       }
       // Every row points at its menu shortcut; the broken row is a menu button.
       const hint = rendered.target.querySelector<HTMLElement>(
-        "[data-native-pins] .tw\\:sr-only[id]",
+        "[data-native-pins] .sr-only[id]",
       )!;
       expect(hint.textContent).toBe("Shift+F10 abre mais ações");
       for (const id of ["site", "app", "doc", "gone"])
@@ -5055,10 +5063,10 @@ describe("native People interactions", () => {
     expect(rendered.target.textContent).toContain(
       "new@test.com · Aguardando confirmação…",
     );
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(false);
+    expect(inviteForm().classList.contains("hidden")).toBe(false);
     reply.resolve();
     await settle();
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
+    expect(inviteForm().classList.contains("hidden")).toBe(true);
     expect(inviteSearch().value).toBe("");
     expect(rendered.target.textContent).toContain("new@test.com · enviado ✓");
     rendered.update({
@@ -5087,7 +5095,7 @@ describe("native People interactions", () => {
     submitPeopleInvite(rendered.target, "new@test.com");
     await settle();
     expect(calls).toEqual(["invite:new@test.com"]);
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(false);
+    expect(inviteForm().classList.contains("hidden")).toBe(false);
     expect(inviteSearch().value).toBe("new@test.com");
     expect(rendered.target.textContent).toContain(
       "new@test.com · invitation rejected",
@@ -5096,7 +5104,7 @@ describe("native People interactions", () => {
     submitInvite();
     await settle();
     expect(calls).toEqual(["invite:new@test.com", "invite:new@test.com"]);
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
+    expect(inviteForm().classList.contains("hidden")).toBe(true);
   });
   test("Escape or ✕ closes the invite row, clears it and gives focus back to +", async () => {
     const rendered = people(personRoom());
@@ -5112,7 +5120,7 @@ describe("native People interactions", () => {
       }),
     );
     await settle();
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
+    expect(inviteForm().classList.contains("hidden")).toBe(true);
     expect(inviteSearch().value).toBe("");
     expect(document.activeElement).toBe(
       rendered.target.querySelector("[data-invite-toggle]"),
@@ -5123,7 +5131,7 @@ describe("native People interactions", () => {
       .querySelector<HTMLButtonElement>('button[aria-label="Cancelar"]')!
       .click();
     await settle();
-    expect(inviteForm().classList.contains("tw:hidden")).toBe(true);
+    expect(inviteForm().classList.contains("hidden")).toBe(true);
   });
   test("the invite row suggests friends who are not in the room yet", () => {
     const room = personRoom();
@@ -7715,12 +7723,12 @@ describe("People & agents presence", () => {
         row.querySelector("[data-status-dot]")?.getAttribute("data-status-dot"),
       ),
     ).toEqual(["listening", "idle"]);
-    expect(list[0]!.querySelector("[data-status-dot]")!.className).toContain(
-      "tw:bg-brand",
-    );
-    expect(list[1]!.querySelector("[data-status-dot]")!.className).toContain(
-      "tw:bg-muted-foreground",
-    );
+    expect(
+      list[0]!.querySelector("[data-status-dot]")!.className.split(/\s+/),
+    ).toContain("bg-brand");
+    expect(
+      list[1]!.querySelector("[data-status-dot]")!.className.split(/\s+/),
+    ).toContain("bg-muted-foreground");
     expect(target.querySelector("[title]") === null).toBe(true);
     expect(target.querySelector("details") === null).toBe(true);
     expect(list[1]!.textContent).toContain("5 min");
@@ -7762,7 +7770,7 @@ describe("People & agents presence", () => {
         String(percent),
       );
       expect(bar.querySelector("progress")?.getAttribute("max")).toBe("100");
-      expect(bar.className).toContain(`tw:[&_progress]:${color}`);
+      expect(bar.className.split(/\s+/)).toContain(`[&_progress]:${color}`);
       expect(
         target.querySelector("[data-agent-presence]")?.textContent,
       ).toContain(`${percent}%`);
@@ -7806,9 +7814,9 @@ describe("People & agents presence", () => {
     expect(context.textContent).toContain("Contexto");
     expect(context.textContent).toContain("90% · 180k/200k");
     expect(context.querySelector("progress")?.getAttribute("value")).toBe("90");
-    expect(context.querySelector("[data-slot=progress]")?.className).toContain(
-      "tw:[&_progress]:text-destructive",
-    );
+    expect(
+      context.querySelector("[data-slot=progress]")?.className.split(/\s+/),
+    ).toContain("[&_progress]:text-destructive");
     const session = card!.querySelector('[data-hover-section="five_hour"]')!;
     expect(session.textContent).toContain("Sessão de 5h");
     expect(session.textContent).toMatch(/42% · reseta \d{2}:\d{2}/);
@@ -7842,18 +7850,18 @@ describe("People & agents presence", () => {
     const sidebar = (await rows([agent()])).querySelector(
       "[data-agent-presence]",
     )!;
-    expect(sidebar.className).toContain("tw:hover:bg-sidebar-accent");
-    expect(sidebar.querySelector("[data-status-dot]")!.className).toContain(
-      "tw:ring-sidebar",
-    );
+    expect(sidebar.className.split(/\s+/)).toContain("hover:bg-sidebar-accent");
+    expect(
+      sidebar.querySelector("[data-status-dot]")!.className.split(/\s+/),
+    ).toContain("ring-sidebar");
     const pane = (
       await rows([agent()], { surface: "background" })
     ).querySelector("[data-agent-presence]")!;
-    expect(pane.className).toContain("tw:hover:bg-accent");
-    expect(pane.className).not.toContain("bg-sidebar-accent");
-    expect(pane.querySelector("[data-status-dot]")!.className).toContain(
-      "tw:ring-background",
-    );
+    expect(pane.className.split(/\s+/)).toContain("hover:bg-accent");
+    expect(pane.className.split(/\s+/)).not.toContain("bg-sidebar-accent");
+    expect(
+      pane.querySelector("[data-status-dot]")!.className.split(/\s+/),
+    ).toContain("ring-background");
   });
 
   test("hover card without context shows only who, repo and state", async () => {
@@ -7928,7 +7936,7 @@ describe("People & agents presence", () => {
     expect(
       target.querySelector('[data-person="on@test"] [data-status-dot]')!
         .className,
-    ).toContain("tw:ring-sidebar");
+    ).toContain("ring-sidebar");
     // No online/offline text pill any more.
     expect(
       [...target.querySelectorAll("[data-person]")].some((row) =>

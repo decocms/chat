@@ -303,23 +303,23 @@ export function destinations(result: RouteResult): Destination[] {
   ];
 }
 export const tintClasses = {
-  blue: "tw:bg-primary/15 tw:text-primary",
-  green: "tw:bg-success/15 tw:text-foreground",
-  yellow: "tw:bg-warning/15 tw:text-foreground",
-  orange: "tw:bg-warning/25 tw:text-foreground",
-  pink: "tw:bg-destructive/15 tw:text-foreground",
-  purple: "tw:bg-secondary tw:text-secondary-foreground",
-  none: "tw:bg-muted tw:text-foreground",
+  blue: "bg-primary/15 text-primary",
+  green: "bg-success/15 text-foreground",
+  yellow: "bg-warning/15 text-foreground",
+  orange: "bg-warning/25 text-foreground",
+  pink: "bg-destructive/15 text-foreground",
+  purple: "bg-secondary text-secondary-foreground",
+  none: "bg-muted text-foreground",
 } as const;
 // Vanilla shows a room's tint as a tinted backdrop around its rail tile
 // (.sw-group[data-tint], 22% of the tint), not on the tile itself.
 const roomRailTintClasses = {
-  blue: "tw:bg-room-tint-blue/22",
-  green: "tw:bg-room-tint-green/22",
-  yellow: "tw:bg-room-tint-yellow/22",
-  orange: "tw:bg-room-tint-orange/22",
-  pink: "tw:bg-room-tint-pink/22",
-  purple: "tw:bg-room-tint-purple/22",
+  blue: "bg-room-tint-blue/22",
+  green: "bg-room-tint-green/22",
+  yellow: "bg-room-tint-yellow/22",
+  orange: "bg-room-tint-orange/22",
+  pink: "bg-room-tint-pink/22",
+  purple: "bg-room-tint-purple/22",
 } as const;
 export const roomRailTint = (room: RoomSummary) =>
   room.tint && Object.hasOwn(roomRailTintClasses, room.tint)

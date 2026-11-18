@@ -15,10 +15,7 @@
   {#snippet child({ props })}
     <p
       {...props}
-      class={cn(
-        "tw:text-muted-foreground tw:text-sm tw:text-pretty",
-        className,
-      )}
+      class={cn("text-muted-foreground text-sm text-pretty", className)}
     >
       {@render children?.()}
     </p>

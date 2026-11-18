@@ -84,13 +84,11 @@
 
 <section
   data-document-app
-  class="tw:-mx-4 tw:my-3 tw:w-[calc(100%+2rem)] tw:min-w-0 tw:max-w-none tw:overflow-hidden tw:border-y tw:border-border"
+  class="-mx-4 my-3 w-[calc(100%+2rem)] min-w-0 max-w-none overflow-hidden border-y border-border"
 >
   <!-- Edge to edge in the doc (its body pads 1rem): the app gets the doc's whole width (Gui #3115). -->
-  <header
-    class="tw:flex tw:items-center tw:gap-2 tw:bg-muted tw:px-4 tw:py-1.5"
-  >
-    <b class="tw:min-w-0 tw:flex-1 tw:truncate">{marker.tool}</b>
+  <header class="flex items-center gap-2 bg-muted px-4 py-1.5">
+    <b class="min-w-0 flex-1 truncate">{marker.tool}</b>
     {#key source}<Snapshot value={{ source, marker }}
         >{#snippet children(
           rendered,
@@ -110,8 +108,8 @@
             ><SelectTrigger
               size="xs"
               aria-label={props.t("Tamanho")}
-              class="tw:w-auto"><SelectValue /></SelectTrigger
-            ><SelectContent data-vb-native class="tw:font-sans"
+              class="w-auto"><SelectValue /></SelectTrigger
+            ><SelectContent data-vb-native class="font-sans"
               >{#each sizes as item (item.value)}<SelectItem
                   value={item.value}
                   label={item.label}>{item.label}</SelectItem
@@ -128,10 +126,10 @@
   </header>
   <div
     class={marker.size === "p"
-      ? "tw:flex tw:h-60 tw:flex-col"
+      ? "flex h-60 flex-col"
       : marker.size === "g"
-        ? "tw:flex tw:h-[680px] tw:flex-col"
-        : "tw:flex tw:h-[420px] tw:flex-col"}
+        ? "flex h-[680px] flex-col"
+        : "flex h-[420px] flex-col"}
   >
     {#if identity}{#key identity + ":" + $view.frameRevision}<AppFrame
           props={frameProps}
@@ -139,11 +137,11 @@
         />{/key}
     {:else if $view.loading || $view.connections === null}<p
         role="status"
-        class="tw:p-3"
+        class="p-3"
       >
         {props.t("Carregando…")}
       </p>
-    {:else}<div class="tw:p-3">
+    {:else}<div class="p-3">
         <p role="alert">
           {$view.error ||
             props.t(

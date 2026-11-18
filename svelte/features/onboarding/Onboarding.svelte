@@ -76,18 +76,16 @@
   data-native-onboarding
   data-onboarding-step={$view.step}
   data-onboarding-scope={actionScope}
-  class="tw:flex tw:min-h-dvh tw:flex-col tw:items-center tw:bg-background tw:px-4 tw:py-6 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+  class="flex min-h-dvh flex-col items-center bg-background px-4 py-6 font-sans text-sm leading-6 text-foreground"
 >
-  <header
-    class="tw:mb-16 tw:flex tw:w-full tw:max-w-xl tw:flex-wrap tw:items-center tw:gap-3"
-  >
+  <header class="mb-16 flex w-full max-w-xl flex-wrap items-center gap-3">
     <a
       href="/"
-      class="tw:flex-1 tw:font-sans tw:text-2xl tw:font-semibold tw:tracking-normal tw:text-primary tw:no-underline"
+      class="flex-1 font-sans text-2xl font-semibold tracking-normal text-primary no-underline"
       >vibebook</a
     >
     <UiSwitch {lang} />
-    <div aria-label={text("language")} class="tw:flex tw:gap-1">
+    <div aria-label={text("language")} class="flex gap-1">
       <Button
         variant="ghost"
         size="sm"
@@ -105,27 +103,27 @@
       >
     </div>
   </header>
-  <section class="tw:grid tw:w-full tw:max-w-xl tw:gap-4">
+  <section class="grid w-full max-w-xl gap-4">
     <div
       aria-label={text("step", $view.step)}
-      class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+      class="flex items-center gap-2 text-xs text-muted-foreground"
     >
       {#each [1, 2, 3] as step}<span
           aria-hidden="true"
           class={step <= $view.step
-            ? "tw:h-1 tw:w-6 tw:rounded-full tw:bg-primary"
-            : "tw:h-1 tw:w-6 tw:rounded-full tw:bg-border"}
+            ? "h-1 w-6 rounded-full bg-primary"
+            : "h-1 w-6 rounded-full bg-border"}
         ></span>{/each}<span>{text("step", $view.step)}</span>
     </div>
     {#if $view.step === 1}
-      <Heading level={1} class="tw:text-3xl tw:leading-tight"
+      <Heading level={1} class="text-3xl leading-tight"
         >{text("nameTitle")}</Heading
       >
-      <p class="tw:m-0 tw:text-base tw:text-muted-foreground">
+      <p class="m-0 text-base text-muted-foreground">
         {text("nameHelp")}
       </p>
       <form
-        class="tw:flex tw:gap-2"
+        class="flex gap-2"
         onsubmit={(event) => {
           event.preventDefault();
           if (live(event)) owner.continueName();
@@ -164,7 +162,7 @@
           type="file"
           accept="image/png,image/jpeg,image/webp"
           aria-label={text("photoLabel")}
-          class="tw:sr-only"
+          class="sr-only"
           onchange={(event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
@@ -175,17 +173,17 @@
       </div>
       {#if $profile.phase === "pending" || $profile.phase === "confirming"}<p
           role="status"
-          class="tw:m-0 tw:text-muted-foreground"
+          class="m-0 text-muted-foreground"
         >
           {text("pending")}
         </p>{:else if $profile.phase === "error"}<p
           role="alert"
-          class="tw:m-0 tw:text-destructive"
+          class="m-0 text-destructive"
         >
           {text("failed")}
         </p>{:else if $profile.phase === "unconfirmed"}<p
           role="status"
-          class="tw:m-0 tw:text-muted-foreground"
+          class="m-0 text-muted-foreground"
         >
           {text("unconfirmed")}
         </p>
@@ -196,15 +194,15 @@
           }}>{text("reviewed")}</Button
         >{/if}
     {:else if $view.step === 2}
-      <Heading level={1} class="tw:text-3xl tw:leading-tight"
+      <Heading level={1} class="text-3xl leading-tight"
         >{text("claudeTitle")}</Heading
       >
-      <p class="tw:m-0 tw:text-base tw:text-muted-foreground">
+      <p class="m-0 text-base text-muted-foreground">
         {text("claudeHelp")}
       </p>
       {#if $view.connectedNotice}<p
           role="status"
-          class="tw:m-0 tw:rounded-surface tw:border tw:border-border tw:p-4 tw:font-semibold tw:text-success"
+          class="m-0 rounded-surface border border-border p-4 font-semibold text-success"
         >
           ✓ {text("connected")}
         </p>{:else}<SetupInstructions
@@ -213,7 +211,7 @@
           intro={false}
           current={owner.current}
         />{/if}
-      <div class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+      <div class="flex flex-wrap justify-end gap-2">
         <Button
           variant="ghost"
           onclick={(event) => {
@@ -227,10 +225,10 @@
         >
       </div>
     {:else}
-      <Heading level={1} class="tw:text-3xl tw:leading-tight"
+      <Heading level={1} class="text-3xl leading-tight"
         >{text("roomTitle")}</Heading
       >
-      <p class="tw:m-0 tw:text-base tw:text-muted-foreground">
+      <p class="m-0 text-base text-muted-foreground">
         {text("roomHelp")}
       </p>
       <form
@@ -261,13 +259,10 @@
               void owner.createRoom();
             }
           }}
-        />{#if $creator.error}<p
-            role="alert"
-            class="tw:text-sm tw:text-destructive"
-          >
+        />{#if $creator.error}<p role="alert" class="text-sm text-destructive">
             {homeIssue(lang, $creator.error)}
           </p>{/if}
-        <div class="tw:mt-4 tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
           <Button
             variant="ghost"
             onclick={(event) => {
@@ -282,11 +277,11 @@
       </form>
     {/if}
   </section>
-  <div class="tw:mt-auto tw:pt-8">
+  <div class="mt-auto pt-8">
     <Button
       variant="ghost"
       size="sm"
-      class="tw:text-muted-foreground"
+      class="text-muted-foreground"
       onclick={(event) => {
         if (live(event)) owner.skipHome();
       }}>{text("skipHome")}</Button

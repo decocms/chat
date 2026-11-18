@@ -12,6 +12,6 @@
 <DropdownMenuPrimitive.Separator
   bind:ref
   data-slot="dropdown-menu-separator"
-  class={cn("tw:bg-border tw:-mx-1 tw:my-1 tw:h-px", className)}
+  class={cn("bg-border -mx-1 my-1 h-px", className)}
   {...rest}
 />

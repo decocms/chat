@@ -24,8 +24,8 @@
   data-size={size}
   {...rest}
   class={cn(
-    "tw:flex tw:h-[var(--vb-studio-control-height,2.25rem)] tw:data-[size=sm]:h-8 tw:w-full tw:min-w-0 tw:items-center tw:gap-0.5 tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:px-1 tw:text-sm tw:shadow-edge tw:transition-[background-color,box-shadow] tw:hover:bg-sidebar tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-ring tw:has-[:focus-visible]:outline-offset-2 tw:has-[[aria-invalid=true]]:bg-destructive/10 tw:has-[[aria-invalid=true]]:shadow-[inset_0_0_0_1px_var(--vb-destructive)] tw:has-[input:disabled]:pointer-events-none",
-    "tw:[&_svg:not([class*='size-'])]:size-4 tw:[&_svg]:shrink-0 tw:[&_svg]:stroke-[1.33] tw:[&_svg:not([class*='text-'])]:text-muted-foreground",
+    "flex h-[var(--vb-studio-control-height,2.25rem)] data-[size=sm]:h-8 w-full min-w-0 items-center gap-0.5 rounded-[var(--vb-studio-control-radius,0.625rem)] bg-[var(--vb-studio-input-background)] px-1 text-sm shadow-edge transition-[background-color,box-shadow] hover:bg-sidebar has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-offset-2 has-[[aria-invalid=true]]:bg-destructive/10 has-[[aria-invalid=true]]:shadow-[inset_0_0_0_1px_var(--vb-destructive)] has-[input:disabled]:pointer-events-none",
+    "[&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.33] [&_svg:not([class*='text-'])]:text-muted-foreground",
     className,
   )}
 >

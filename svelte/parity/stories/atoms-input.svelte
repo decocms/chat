@@ -21,41 +21,41 @@
 {#if story === "default"}
   <Input placeholder="Search connections..." />
 {:else if story === "with-label"}
-  <div class="tw:grid tw:w-80 tw:gap-2">
+  <div class="grid w-80 gap-2">
     <Label for="project-name">Project name</Label>
     <Input id="project-name" placeholder="my-storefront" />
   </div>
 {:else if story === "types"}
-  <div class="tw:grid tw:w-80 tw:gap-4">
-    <div class="tw:grid tw:gap-2">
+  <div class="grid w-80 gap-4">
+    <div class="grid gap-2">
       <Label for="email">Email</Label>
       <Input id="email" type="email" placeholder="ana@example.com" />
     </div>
-    <div class="tw:grid tw:gap-2">
+    <div class="grid gap-2">
       <Label for="url">Webhook URL</Label>
       <Input id="url" type="url" placeholder="https://example.com/hooks" />
     </div>
-    <div class="tw:grid tw:gap-2">
+    <div class="grid gap-2">
       <Label for="seats">Seats</Label>
       <Input id="seats" type="number" value={5} min={1} />
     </div>
-    <div class="tw:grid tw:gap-2">
+    <div class="grid gap-2">
       <Label for="avatar">Avatar</Label>
       <Input id="avatar" type="file" />
     </div>
   </div>
 {:else if story === "invalid"}
-  <div class="tw:grid tw:w-80 tw:gap-2">
+  <div class="grid w-80 gap-2">
     <Label for="slug">Organization slug</Label>
     <Input id="slug" value="Acme Inc!" aria-invalid />
-    <p class="tw:text-sm tw:text-pretty tw:text-destructive">
+    <p class="text-sm text-pretty text-destructive">
       Slugs can only contain lowercase letters, numbers, and dashes.
     </p>
   </div>
 {:else if story === "disabled"}
   <Input placeholder="Search connections..." disabled value="conn_9f2e1c" />
 {:else if story === "variants"}
-  <div class="tw:grid tw:w-80 tw:gap-3">
+  <div class="grid w-80 gap-3">
     <Input placeholder="Project name" />
     <Input size="sm" placeholder="Project name" />
     <Input value="casa-aurora" data-valid />
@@ -79,31 +79,31 @@
   >
     {#snippet cell(size, index)}
       {#if index === 0}
-        <Input {size} placeholder="Project name" class="tw:w-44" />
+        <Input {size} placeholder="Project name" class="w-44" />
       {:else if index === 1}
-        <Input {size} value="Casa Aurora" class="tw:w-44" />
+        <Input {size} value="Casa Aurora" class="w-44" />
       {:else if index === 2}
-        <Input {size} value="Casa Aurora" data-pseudo="hover" class="tw:w-44" />
+        <Input {size} value="Casa Aurora" data-pseudo="hover" class="w-44" />
       {:else if index === 3}
         <Input
           {size}
           value="Casa Aurora"
           data-pseudo="focus-visible"
-          class="tw:w-44"
+          class="w-44"
         />
       {:else if index === 4}
-        <Input {size} value="Casa Aurora!" aria-invalid class="tw:w-44" />
+        <Input {size} value="Casa Aurora!" aria-invalid class="w-44" />
       {:else if index === 5}
-        <Input {size} value="casa-aurora" data-valid class="tw:w-44" />
+        <Input {size} value="casa-aurora" data-valid class="w-44" />
       {:else if index === 6}
-        <Input {size} value="casa-aurora" readonly class="tw:w-44" />
+        <Input {size} value="casa-aurora" readonly class="w-44" />
       {:else}
-        <Input {size} value="Casa Aurora" disabled class="tw:w-44" />
+        <Input {size} value="Casa Aurora" disabled class="w-44" />
       {/if}
     {/snippet}
   </Matrix>
 {:else if story === "group"}
-  <div class="tw:grid tw:w-80 tw:gap-4">
+  <div class="grid w-80 gap-4">
     <InputGroup>
       <InputGroupAddon>
         <Icon icon={SearchMd} />
@@ -112,7 +112,7 @@
     </InputGroup>
     <InputGroup>
       <InputGroupAddon>https://</InputGroupAddon>
-      <InputGroupInput class="tw:pl-0" value="storefront.com" />
+      <InputGroupInput class="pl-0" value="storefront.com" />
     </InputGroup>
     <InputGroup>
       <InputGroupInput readonly value="sk_live_51Hx…9f2c" />

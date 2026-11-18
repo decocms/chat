@@ -153,14 +153,14 @@
   <DialogContent
     data-vb-native
     data-native-inbox
-    class="tw:font-sans tw:text-sm tw:text-foreground"
+    class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
   >
     <DialogHeader>
-      <DialogTitle class="tw:font-sans">{vb.t("Caixa de entrada")}</DialogTitle>
+      <DialogTitle class="font-sans">{vb.t("Caixa de entrada")}</DialogTitle>
     </DialogHeader>
     {#if error}<ErrorState title={error} compact />{/if}
     {#if loading}<p role="status">{vb.t("Carregando…")}</p>{/if}
@@ -193,18 +193,18 @@
 {#snippet content()}
   {#if anything}
     <div
-      class="tw:flex tw:max-h-[62dvh] tw:min-h-0 tw:flex-col tw:gap-4 tw:overflow-auto tw:overscroll-contain"
+      class="flex max-h-[62dvh] min-h-0 flex-col gap-4 overflow-auto overscroll-contain"
     >
       {#if waitList.length}
         <section>
           <h3
-            class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            class="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {vb.t("Esperando você")} ({waitList.length})
           </h3>
-          <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
+          <ul class="m-0 list-none divide-y divide-border p-0">
             {#each waitList as wait (key(wait))}
-              <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
+              <li class="flex items-start gap-2 py-1">
                 <a
                   href={waitHref(wait)}
                   onclick={(event) => {
@@ -214,18 +214,16 @@
                     }
                     onopen(wait, event);
                   }}
-                  class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-3 tw:rounded-control tw:p-2 tw:text-foreground tw:no-underline tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+                  class="flex min-w-0 flex-1 gap-3 rounded-control p-2 text-foreground no-underline outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {#if kind(wait) === "task"}<span
-                      class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:rounded-full tw:border tw:border-border tw:bg-muted"
+                      class="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-muted"
                       ><Icon icon={Check} size={16} /></span
                     >
-                  {:else if kind(wait) === "agent"}<AgentMark
-                      class="tw:text-sm"
-                    />
+                  {:else if kind(wait) === "agent"}<AgentMark class="text-sm" />
                   {:else if wait.author === "ai"}<AgentMark
                       mark="✦"
-                      class="tw:text-sm tw:text-foreground"
+                      class="text-sm text-foreground"
                     />
                   {:else}<PersonAvatar
                       data-avatar="person"
@@ -234,10 +232,10 @@
                       version={avatarVersion?.(wait.author)}
                     />{/if}
                   <span
-                    class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
+                    class="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-5 [overflow-wrap:anywhere]"
                   >
-                    <span class="tw:line-clamp-3">
-                      <strong class="tw:font-semibold"
+                    <span class="line-clamp-3">
+                      <strong class="font-semibold"
                         >{kind(wait) === "task"
                           ? vb.t("Tarefa sua esperando OK:")
                           : kind(wait) === "agent"
@@ -246,8 +244,7 @@
                       >
                       {wait.text}
                     </span>
-                    <span
-                      class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
+                    <span class="text-xs leading-4 text-muted-foreground"
                       >{showAll
                         ? `${roomLabel(wait.book_id, wait.room)} › `
                         : ""}{wait.topic || vb.t("sala principal")} · {vb.ago(
@@ -261,7 +258,7 @@
                     label={vb.t(
                       "Já resolvi (respondi em outro lugar, ou não é comigo)",
                     )}
-                    class="tw:mt-1"
+                    class="mt-1"
                     aria-busy={pending === key(wait) || undefined}
                     disabled={pending !== null}
                     onclick={() => resolve(wait)}
@@ -279,13 +276,13 @@
       {#if mentionList.length}
         <section>
           <h3
-            class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            class="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {vb.t("Te mencionaram")} ({mentionList.length})
           </h3>
-          <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
+          <ul class="m-0 list-none divide-y divide-border p-0">
             {#each mentionList as m (`${m.book_id}:${m.msg_id}`)}
-              <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
+              <li class="flex items-start gap-2 py-1">
                 <a
                   href={navHref(m.book_id, m.thread, m.msg_id)}
                   onclick={(event) => {
@@ -306,11 +303,11 @@
                       onmention(m);
                     } else clickNav(event, m.book_id, m.thread, m.msg_id);
                   }}
-                  class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-3 tw:rounded-control tw:p-2 tw:text-foreground tw:no-underline tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+                  class="flex min-w-0 flex-1 gap-3 rounded-control p-2 text-foreground no-underline outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {#if m.author === "ai"}<AgentMark
                       mark="✦"
-                      class="tw:text-sm tw:text-foreground"
+                      class="text-sm text-foreground"
                     />{:else}<PersonAvatar
                       data-avatar="person"
                       size="sm"
@@ -318,18 +315,17 @@
                       version={avatarVersion?.(m.author)}
                     />{/if}
                   <span
-                    class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
+                    class="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-5 [overflow-wrap:anywhere]"
                   >
-                    <span class="tw:line-clamp-3">
-                      <strong class="tw:font-semibold"
+                    <span class="line-clamp-3">
+                      <strong class="font-semibold"
                         >{author(m.author, m.author_name).split(
                           " ",
                         )[0]}:</strong
                       >
                       {m.text}
                     </span>
-                    <span
-                      class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
+                    <span class="text-xs leading-4 text-muted-foreground"
                       >{showAll
                         ? `${roomLabel(m.book_id, m.room)} › `
                         : ""}{vb.ago(m.ts)}</span
@@ -345,13 +341,13 @@
       {#if taskList.length}
         <section>
           <h3
-            class="tw:m-0 tw:mb-1 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            class="m-0 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {vb.t("Suas tarefas")} ({taskList.length})
           </h3>
-          <ul class="tw:m-0 tw:list-none tw:divide-y tw:divide-border tw:p-0">
+          <ul class="m-0 list-none divide-y divide-border p-0">
             {#each taskList as task (`${task.book_id}:${task.task_id}`)}
-              <li class="tw:flex tw:items-start tw:gap-2 tw:py-1">
+              <li class="flex items-start gap-2 py-1">
                 <a
                   href={navHref(task.book_id, task.epic_id, 0)}
                   onclick={(event) => {
@@ -372,18 +368,17 @@
                       ontask(task);
                     } else clickNav(event, task.book_id, task.epic_id, 0);
                   }}
-                  class="tw:flex tw:min-w-0 tw:flex-1 tw:gap-3 tw:rounded-control tw:p-2 tw:text-foreground tw:no-underline tw:outline-none tw:hover:bg-accent tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+                  class="flex min-w-0 flex-1 gap-3 rounded-control p-2 text-foreground no-underline outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span
-                    class="tw:grid tw:size-8 tw:shrink-0 tw:place-items-center tw:rounded-full tw:border tw:border-border tw:bg-muted"
+                    class="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-muted"
                     ><Icon icon={Calendar} size={16} /></span
                   >
                   <span
-                    class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
+                    class="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-5 [overflow-wrap:anywhere]"
                   >
-                    <span class="tw:line-clamp-3">{task.title}</span>
-                    <span
-                      class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
+                    <span class="line-clamp-3">{task.title}</span>
+                    <span class="text-xs leading-4 text-muted-foreground"
                       >{showAll
                         ? `${roomLabel(task.book_id, task.room)} › `
                         : ""}{task.epic || vb.t("sala principal")} · {statusLabel(

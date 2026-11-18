@@ -17,8 +17,8 @@
   aria-label="Go to previous page"
   size="default"
   {...rest}
-  class={cn("tw:gap-1 tw:px-2.5 tw:md:pl-2.5", className)}
+  class={cn("gap-1 px-2.5 md:pl-2.5", className)}
 >
   <Icon icon={ChevronLeft} />
-  <span class="tw:hidden tw:md:block">Previous</span>
+  <span class="hidden md:block">Previous</span>
 </PaginationLink>

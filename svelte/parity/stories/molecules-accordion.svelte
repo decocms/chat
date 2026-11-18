@@ -8,7 +8,7 @@
 </script>
 
 {#if story === "default"}
-  <Accordion type="single" collapsible class="tw:w-96">
+  <Accordion type="single" collapsible class="w-96">
     <AccordionItem value="connections">
       <AccordionTrigger>What is a connection?</AccordionTrigger>
       <AccordionContent>
@@ -32,11 +32,7 @@
     </AccordionItem>
   </Accordion>
 {:else if story === "multiple"}
-  <Accordion
-    type="multiple"
-    value={["general", "notifications"]}
-    class="tw:w-96"
-  >
+  <Accordion type="multiple" value={["general", "notifications"]} class="w-96">
     <AccordionItem value="general">
       <AccordionTrigger>General</AccordionTrigger>
       <AccordionContent>

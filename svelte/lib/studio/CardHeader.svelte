@@ -20,7 +20,7 @@
   data-slot="card-header"
   {...rest}
   class={cn(
-    "tw:grid tw:auto-rows-min tw:items-start tw:gap-1 tw:has-data-[slot=card-action]:grid-cols-[1fr_auto]",
+    "grid auto-rows-min items-start gap-1 has-data-[slot=card-action]:grid-cols-[1fr_auto]",
     className,
   )}
 >

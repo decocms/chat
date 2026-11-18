@@ -39,58 +39,57 @@
   };
   // One word every 60ms; a delay is a class, so each step is spelled out.
   const STREAM_DELAYS = [
-    "tw:[animation-delay:0ms]",
-    "tw:[animation-delay:60ms]",
-    "tw:[animation-delay:120ms]",
-    "tw:[animation-delay:180ms]",
-    "tw:[animation-delay:240ms]",
-    "tw:[animation-delay:300ms]",
-    "tw:[animation-delay:360ms]",
-    "tw:[animation-delay:420ms]",
-    "tw:[animation-delay:480ms]",
-    "tw:[animation-delay:540ms]",
-    "tw:[animation-delay:600ms]",
-    "tw:[animation-delay:660ms]",
-    "tw:[animation-delay:720ms]",
-    "tw:[animation-delay:780ms]",
-    "tw:[animation-delay:840ms]",
-    "tw:[animation-delay:900ms]",
-    "tw:[animation-delay:960ms]",
-    "tw:[animation-delay:1020ms]",
-    "tw:[animation-delay:1080ms]",
-    "tw:[animation-delay:1140ms]",
-    "tw:[animation-delay:1200ms]",
-    "tw:[animation-delay:1260ms]",
-    "tw:[animation-delay:1320ms]",
-    "tw:[animation-delay:1380ms]",
-    "tw:[animation-delay:1440ms]",
-    "tw:[animation-delay:1500ms]",
+    "[animation-delay:0ms]",
+    "[animation-delay:60ms]",
+    "[animation-delay:120ms]",
+    "[animation-delay:180ms]",
+    "[animation-delay:240ms]",
+    "[animation-delay:300ms]",
+    "[animation-delay:360ms]",
+    "[animation-delay:420ms]",
+    "[animation-delay:480ms]",
+    "[animation-delay:540ms]",
+    "[animation-delay:600ms]",
+    "[animation-delay:660ms]",
+    "[animation-delay:720ms]",
+    "[animation-delay:780ms]",
+    "[animation-delay:840ms]",
+    "[animation-delay:900ms]",
+    "[animation-delay:960ms]",
+    "[animation-delay:1020ms]",
+    "[animation-delay:1080ms]",
+    "[animation-delay:1140ms]",
+    "[animation-delay:1200ms]",
+    "[animation-delay:1260ms]",
+    "[animation-delay:1320ms]",
+    "[animation-delay:1380ms]",
+    "[animation-delay:1440ms]",
+    "[animation-delay:1500ms]",
   ];
   // Storybook also loads a shimmer plugin under the same class name; its no-repeat, right-to-left reversal and reduced-motion reset survive the merge.
   const SHIMMER =
-    "tw:bg-[linear-gradient(90deg,color-mix(in_oklab,currentColor_40%,transparent)_38%,currentColor_50%,color-mix(in_oklab,currentColor_40%,transparent)_62%)] tw:bg-[length:250%_100%] tw:bg-clip-text tw:bg-no-repeat tw:[-webkit-text-fill-color:transparent] tw:animate-shimmer tw:rtl:[animation-direction:reverse] tw:motion-reduce:animate-none tw:motion-reduce:bg-none tw:motion-reduce:[-webkit-text-fill-color:currentColor]";
-  const STREAM_WORD = "tw:animate-stream-word tw:motion-reduce:animate-none";
-  const META =
-    "tw:text-[0.75rem] tw:leading-4 tw:tabular-nums tw:text-muted-foreground";
+    "bg-[linear-gradient(90deg,color-mix(in_oklab,currentColor_40%,transparent)_38%,currentColor_50%,color-mix(in_oklab,currentColor_40%,transparent)_62%)] bg-[length:250%_100%] bg-clip-text bg-no-repeat [-webkit-text-fill-color:transparent] animate-shimmer rtl:[animation-direction:reverse] motion-reduce:animate-none motion-reduce:bg-none motion-reduce:[-webkit-text-fill-color:currentColor]";
+  const STREAM_WORD = "animate-stream-word motion-reduce:animate-none";
+  const META = "text-[0.75rem] leading-4 tabular-nums text-muted-foreground";
 
   let run = $state(0);
 </script>
 
 <!-- Studio's root line height, which the parity page does not inherit. -->
-<div class="tw:leading-[1.5]">
+<div class="leading-[1.5]">
   {#if story === "overview"}
     <Matrix columns={["Cue", "When"]} rows={CUES}>
       {#snippet cell(cue, index)}
         {#if index === 1}
           <span class={META}>{WHEN[cue]}</span>
         {:else if cue === "shimmer"}
-          <span class={["tw:text-muted-foreground", SHIMMER, "tw:text-sm"]}>
+          <span class={["text-muted-foreground", SHIMMER, "text-sm"]}>
             Working out how to respond
           </span>
         {:else if cue === "GridLoader"}
           <GridLoader />
         {:else if cue === "stream-word"}
-          <span class="tw:text-sm">
+          <span class="text-sm">
             {#each "Each word fades in".split(" ") as word, wordIndex (wordIndex)}
               <span class={[STREAM_WORD, STREAM_DELAYS[wordIndex * 2]]}
                 >{word}{#if word}{" "}{/if}</span
@@ -98,12 +97,12 @@
             {/each}
           </span>
         {:else if cue === "Spinner"}
-          <Spinner class="tw:size-4" />
+          <Spinner class="size-4" />
         {:else if cue === "Skeleton"}
-          <Skeleton class="tw:h-4 tw:w-40" />
+          <Skeleton class="h-4 w-40" />
         {:else}
           <div
-            class="tw:animate-revalidating-ring tw:rounded-xl tw:border tw:border-border tw:px-3 tw:py-2 tw:text-sm tw:motion-reduce:animate-none tw:motion-reduce:border-ring"
+            class="animate-revalidating-ring rounded-xl border border-border px-3 py-2 text-sm motion-reduce:animate-none motion-reduce:border-ring"
           >
             Cached card
           </div>
@@ -111,22 +110,20 @@
       {/snippet}
     </Matrix>
   {:else if story === "thinking"}
-    <div class="tw:flex tw:w-[30rem] tw:items-center tw:gap-2 tw:py-2.5">
+    <div class="flex w-[30rem] items-center gap-2 py-2.5">
       <Icon
         icon={Stars01}
-        class="tw:size-4 tw:shrink-0 tw:animate-pulse tw:text-muted-foreground tw:motion-reduce:animate-none"
+        class="size-4 shrink-0 animate-pulse text-muted-foreground motion-reduce:animate-none"
       />
-      <span class={[SHIMMER, "tw:shrink-0 tw:text-sm"]}>Analyzing...</span>
-      <span class="tw:min-w-0 tw:flex-1 tw:truncate">
+      <span class={[SHIMMER, "shrink-0 text-sm"]}>Analyzing...</span>
+      <span class="min-w-0 flex-1 truncate">
         <span
-          class="tw:rounded-[3px] tw:bg-muted/50 tw:px-1 tw:py-px tw:text-xs tw:leading-none tw:text-muted-foreground/60"
+          class="rounded-[3px] bg-muted/50 px-1 py-px text-xs leading-none text-muted-foreground/60"
         >
           <span class={SHIMMER}>Working out how to respond</span>
         </span>
       </span>
-      <span class="tw:text-xs tw:text-muted-foreground/50 tw:tabular-nums"
-        >0:04</span
-      >
+      <span class="text-xs text-muted-foreground/50 tabular-nums">0:04</span>
     </div>
   {:else if story === "shimmer-placement"}
     <Matrix
@@ -135,21 +132,19 @@
     >
       {#snippet cell(_row, index)}
         {#if index === 0}
-          <span class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
+          <span class="flex items-center gap-2 text-sm">
             <span class={SHIMMER}>Searching</span>
             <span
-              class="tw:rounded-[3px] tw:bg-muted/50 tw:px-1 tw:text-xs tw:text-muted-foreground"
+              class="rounded-[3px] bg-muted/50 px-1 text-xs text-muted-foreground"
             >
               <span class={SHIMMER}>product pages</span>
             </span>
           </span>
         {:else}
-          <span
-            class={[SHIMMER, "tw:flex tw:items-center tw:gap-2 tw:text-sm"]}
-          >
+          <span class={[SHIMMER, "flex items-center gap-2 text-sm"]}>
             <span>Searching</span>
             <span
-              class="tw:rounded-[3px] tw:bg-muted/50 tw:px-1 tw:text-xs tw:text-muted-foreground"
+              class="rounded-[3px] bg-muted/50 px-1 text-xs text-muted-foreground"
             >
               product pages
             </span>
@@ -159,15 +154,15 @@
     </Matrix>
   {:else if story === "generating"}
     <div
-      class="tw:flex tw:items-center tw:gap-2.5 tw:text-xs tw:text-muted-foreground/40 tw:select-none"
+      class="flex items-center gap-2.5 text-xs text-muted-foreground/40 select-none"
     >
       <GridLoader />
-      <span class="tw:tabular-nums">0:12</span>
+      <span class="tabular-nums">0:12</span>
     </div>
   {:else if story === "streaming"}
-    <div class="tw:flex tw:w-[30rem] tw:flex-col tw:items-start tw:gap-3">
+    <div class="flex w-[30rem] flex-col items-start gap-3">
       {#key run}
-        <p class="tw:text-sm tw:leading-relaxed tw:text-pretty">
+        <p class="text-sm leading-relaxed text-pretty">
           <!-- The space sits in its own block so it is a second text node, as in React; Chrome measures one merged node a hair narrower. -->
           {#each REPLY.split(" ") as word, index (index)}
             <span class={[STREAM_WORD, STREAM_DELAYS[index]]}

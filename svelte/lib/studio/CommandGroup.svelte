@@ -30,7 +30,7 @@
           ? heading.trim()
           : headingRef?.textContent?.trim())}
       class={cn(
-        "tw:text-foreground tw:[&_[data-command-group-heading]]:text-muted-foreground tw:overflow-hidden tw:p-1 tw:[&_[data-command-group-heading]]:px-2 tw:[&_[data-command-group-heading]]:py-1.5 tw:[&_[data-command-group-heading]]:text-xs tw:[&_[data-command-group-heading]]:font-medium",
+        "text-foreground [&_[data-command-group-heading]]:text-muted-foreground overflow-hidden p-1 [&_[data-command-group-heading]]:px-2 [&_[data-command-group-heading]]:py-1.5 [&_[data-command-group-heading]]:text-xs [&_[data-command-group-heading]]:font-medium",
         className,
       )}
     >

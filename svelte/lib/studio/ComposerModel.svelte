@@ -27,11 +27,11 @@
   data-slot="composer-model"
   {...rest}
   class={cn(
-    "tw:text-muted-foreground tw:hover:bg-accent tw:hover:text-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:data-[state=open]:bg-accent tw:inline-flex tw:h-7 tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:px-2.5 tw:text-xs tw:font-medium tw:transition-colors tw:disabled:cursor-not-allowed tw:[&_svg]:size-3.5",
+    "text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 data-[state=open]:bg-accent inline-flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed [&_svg]:size-3.5",
     className,
   )}
 >
   {@render icon?.()}
-  <span class="tw:truncate">{@render children?.()}</span>
-  <Icon icon={ChevronDown} class="tw:opacity-60" />
+  <span class="truncate">{@render children?.()}</span>
+  <Icon icon={ChevronDown} class="opacity-60" />
 </button>

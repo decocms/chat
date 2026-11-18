@@ -31,7 +31,7 @@
       if (!event.defaultPrevented) selectTextOnAutoFocus(ref);
     }}
     class={cn(
-      "tw:bg-glass tw:backdrop-blur-[32px] tw:shadow-glass-panel tw:data-[state=open]:animate-in tw:data-[state=closed]:animate-out tw:data-[state=closed]:[--tw-exit-opacity:0] tw:data-[state=open]:[--tw-enter-opacity:0] tw:data-[state=closed]:[--tw-exit-scale:0.96] tw:data-[state=open]:[--tw-enter-scale:0.96] tw:fixed tw:top-[50%] tw:left-[50%] tw:z-50 tw:grid tw:w-full tw:max-w-[calc(100%-2rem)] tw:translate-x-[-50%] tw:translate-y-[-50%] tw:gap-5 tw:rounded-2xl tw:p-6 tw:duration-300 tw:ease-[cubic-bezier(0.22,1,0.36,1)] tw:md:max-w-lg",
+      "bg-glass backdrop-blur-[32px] shadow-glass-panel data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-exit-opacity:0] data-[state=open]:[--tw-enter-opacity:0] data-[state=closed]:[--tw-exit-scale:0.96] data-[state=open]:[--tw-enter-scale:0.96] fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-2xl p-6 duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] md:max-w-lg",
       className,
     )}
     {...rest}
@@ -39,14 +39,14 @@
     {@render children?.()}
     <DialogPrimitive.Close
       class={cn(
-        "tw:cursor-pointer tw:text-muted-foreground tw:hover:text-foreground tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2",
-        "tw:absolute tw:top-5 tw:right-5 tw:flex tw:size-7 tw:items-center tw:justify-center tw:rounded-full tw:transition-colors",
-        "tw:disabled:pointer-events-none tw:disabled:cursor-not-allowed tw:[&_svg]:pointer-events-none tw:[&_svg]:shrink-0 tw:[&_svg:not([class*='size-'])]:size-4",
+        "cursor-pointer text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2",
+        "absolute top-5 right-5 flex size-7 items-center justify-center rounded-full transition-colors",
+        "disabled:pointer-events-none disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         closeButtonClassName,
       )}
     >
       <Icon icon={X} />
-      <span class="tw:sr-only">{closeLabel}</span>
+      <span class="sr-only">{closeLabel}</span>
     </DialogPrimitive.Close>
   </DialogPrimitive.Content>
 </DialogPrimitive.Portal>

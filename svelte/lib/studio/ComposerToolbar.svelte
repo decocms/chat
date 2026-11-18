@@ -21,7 +21,7 @@
   data-slot="composer-toolbar"
   {...rest}
   class={cn(
-    "tw:flex tw:items-center tw:justify-between tw:gap-2 tw:p-2 tw:group-data-[size=compact]/composer:p-0 tw:[&_svg]:stroke-[1.33] tw:[&_svg:not([class*='size-'])]:size-4 tw:[&_svg:not([class*='text-'])]:text-muted-foreground",
+    "flex items-center justify-between gap-2 p-2 group-data-[size=compact]/composer:p-0 [&_svg]:stroke-[1.33] [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
     className,
   )}
 >

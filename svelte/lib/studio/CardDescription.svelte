@@ -20,7 +20,7 @@
   data-slot="card-description"
   {...rest}
   class={cn(
-    "tw:text-[0.75rem] tw:leading-4 tw:tabular-nums tw:text-muted-foreground",
+    "text-[0.75rem] leading-4 tabular-nums text-muted-foreground",
     className,
   )}
 >

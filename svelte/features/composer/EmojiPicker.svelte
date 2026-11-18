@@ -37,7 +37,7 @@
 <Dialog bind:open>
   <DialogContent
     data-vb-native
-    class="tw:font-sans tw:text-sm tw:text-foreground"
+    class="font-sans text-sm text-foreground"
     closeLabel={t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
@@ -53,7 +53,7 @@
     }}
   >
     <DialogHeader>
-      <DialogTitle class="tw:pr-8 tw:font-sans">{t("Emoji")}</DialogTitle>
+      <DialogTitle class="pr-8 font-sans">{t("Emoji")}</DialogTitle>
     </DialogHeader>
     <Input
       type="search"
@@ -71,11 +71,11 @@
     />
     <div
       bind:this={grid}
-      class="tw:grid tw:max-h-60 tw:grid-cols-[repeat(auto-fill,minmax(38px,1fr))] tw:gap-1 tw:overflow-y-auto"
+      class="grid max-h-60 grid-cols-[repeat(auto-fill,minmax(38px,1fr))] gap-1 overflow-y-auto"
     >
       {#each picks as pick (pick.emoji)}<Button
           variant="ghost"
-          class="tw:text-xl"
+          class="text-xl"
           title={`:${pick.name}:`}
           aria-label={`:${pick.name}:`}
           onclick={() => choose(pick.emoji)}>{pick.emoji}</Button

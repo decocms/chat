@@ -44,21 +44,20 @@
     data-native-agent-trigger
     data-agent-status={mark.state}
     title={label}
-    class="tw:flex tw:h-11 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2.5 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-colors tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring"
+    class="flex h-11 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2.5 text-left font-sans text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
     onclick={() => {
       if (owner.current()) onopen();
     }}
-    ><span
-      class="tw:relative tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center"
+    ><span class="relative flex size-7 shrink-0 items-center justify-center"
       ><AgentMark state={mark.state} count={mark.count} on={mark.on} /></span
-    ><span class="tw:min-w-0 tw:flex-1 tw:truncate">{label}</span></button
+    ><span class="min-w-0 flex-1 truncate">{label}</span></button
   >{:else if $view.data}<IconButton
     data-native-agent-trigger
     data-agent-status={mark.state}
     {label}
     tooltipSide="bottom"
     size="icon"
-    class="tw:relative tw:rounded-full"
+    class="relative rounded-full"
     onclick={() => {
       if (owner.current()) onopen();
     }}

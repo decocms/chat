@@ -85,59 +85,48 @@
         {...props}
         type="button"
         class={cn(
-          "tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:aria-invalid:bg-destructive/10 tw:aria-invalid:shadow-[inset_0_0_0_1px_var(--vb-destructive)] tw:flex tw:h-[var(--vb-studio-control-height,2.25rem)] tw:w-full tw:max-w-xs tw:cursor-pointer tw:items-center tw:justify-between tw:gap-2 tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:pr-3 tw:pl-1.5 tw:text-sm tw:shadow-edge tw:transition-[background-color,box-shadow] tw:hover:bg-sidebar tw:disabled:pointer-events-none tw:disabled:cursor-not-allowed tw:disabled:text-subtle-foreground",
+          "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 aria-invalid:bg-destructive/10 aria-invalid:shadow-[inset_0_0_0_1px_var(--vb-destructive)] flex h-[var(--vb-studio-control-height,2.25rem)] w-full max-w-xs cursor-pointer items-center justify-between gap-2 rounded-[var(--vb-studio-control-radius,0.625rem)] bg-[var(--vb-studio-input-background)] pr-3 pl-1.5 text-sm shadow-edge transition-[background-color,box-shadow] hover:bg-sidebar disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-subtle-foreground",
           className,
         )}
         {disabled}
       >
         {#if selectedValues.length > 0}
-          <div
-            class="tw:flex tw:items-center tw:justify-between tw:w-full tw:min-w-0"
-          >
-            <div class="tw:flex tw:items-center tw:gap-1 tw:min-w-0 tw:flex-1">
+          <div class="flex items-center justify-between w-full min-w-0">
+            <div class="flex items-center gap-1 min-w-0 flex-1">
               {#each selectedValues.slice(0, maxCount) as value (value)}
                 {@const option = options.find((o) => o.value === value)}
-                <Badge
-                  variant="outline"
-                  size="lg"
-                  class="tw:bg-card tw:max-w-28"
-                >
+                <Badge variant="outline" size="lg" class="bg-card max-w-28">
                   {#if option?.icon}
-                    <Icon
-                      icon={option.icon}
-                      class="tw:h-3 tw:w-3 tw:shrink-0"
-                    />
+                    <Icon icon={option.icon} class="h-3 w-3 shrink-0" />
                   {/if}
-                  <span class="tw:truncate">{option?.label}</span>
+                  <span class="truncate">{option?.label}</span>
                 </Badge>
               {/each}
               {#if selectedValues.length > maxCount}
                 <Badge
                   variant="outline"
                   size="lg"
-                  class="tw:bg-card tw:flex-shrink-0"
+                  class="bg-card flex-shrink-0"
                 >
                   +{selectedValues.length - maxCount}
                 </Badge>
               {/if}
             </div>
-            <div class="tw:flex tw:items-center tw:shrink-0 tw:ml-2">
+            <div class="flex items-center shrink-0 ml-2">
               <Icon
                 icon={ChevronDown}
-                class="tw:text-muted-foreground tw:size-3.5 tw:shrink-0"
+                class="text-muted-foreground size-3.5 shrink-0"
               />
             </div>
           </div>
         {:else}
-          <div
-            class="tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2"
-          >
-            <span class="tw:text-subtle-foreground tw:pl-1.5 tw:text-sm">
+          <div class="flex w-full items-center justify-between gap-2">
+            <span class="text-subtle-foreground pl-1.5 text-sm">
               {placeholder}
             </span>
             <Icon
               icon={ChevronDown}
-              class="tw:text-muted-foreground tw:size-3.5 tw:shrink-0"
+              class="text-muted-foreground size-3.5 shrink-0"
             />
           </div>
         {/if}
@@ -145,24 +134,24 @@
     {/snippet}
   </PopoverTrigger>
   <PopoverContent
-    class="tw:w-auto tw:p-0 tw:max-w-xs tw:rounded-xl"
+    class="w-auto p-0 max-w-xs rounded-xl"
     align="start"
     preventScroll={modalPopover}
   >
-    <Command shouldFilter={!onSearchChange} class="tw:rounded-xl">
+    <Command shouldFilter={!onSearchChange} class="rounded-xl">
       <CommandInput
         placeholder="Search..."
         onkeydown={handleInputKeyDown}
         onValueChange={onSearchChange}
-        class="tw:rounded-t-xl"
+        class="rounded-t-xl"
       />
-      <CommandList class="tw:rounded-b-xl">
+      <CommandList class="rounded-b-xl">
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup>
-          <CommandItem onSelect={toggleAll} class="tw:cursor-pointer">
+          <CommandItem onSelect={toggleAll} class="cursor-pointer">
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div
-              class="tw:flex tw:items-center tw:w-full"
+              class="flex items-center w-full"
               onclick={(event) => {
                 event.stopPropagation();
                 toggleAll();
@@ -171,7 +160,7 @@
               <Checkbox
                 bind:checked={() => allSelected, () => {}}
                 onCheckedChange={toggleAll}
-                class="tw:mr-2 tw:[&_svg]:!text-primary-foreground"
+                class="mr-2 [&_svg]:!text-primary-foreground"
                 onclick={stop}
               />
               <span>(Select All)</span>
@@ -181,11 +170,11 @@
             {@const isSelected = selectedValues.includes(option.value)}
             <CommandItem
               onSelect={() => toggleOption(option)}
-              class="tw:cursor-pointer"
+              class="cursor-pointer"
             >
               <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
               <div
-                class="tw:flex tw:items-center tw:w-full"
+                class="flex items-center w-full"
                 onclick={(event) => {
                   event.stopPropagation();
                   toggleOption(option);
@@ -194,13 +183,13 @@
                 <Checkbox
                   bind:checked={() => isSelected, () => {}}
                   onCheckedChange={() => toggleOption(option)}
-                  class="tw:mr-2 tw:[&_svg]:!text-primary-foreground"
+                  class="mr-2 [&_svg]:!text-primary-foreground"
                   onclick={stop}
                 />
                 {#if option.icon}
                   <Icon
                     icon={option.icon}
-                    class="tw:mr-2 tw:h-4 tw:w-4 tw:text-muted-foreground"
+                    class="mr-2 h-4 w-4 text-muted-foreground"
                   />
                 {/if}
                 <span>{option.label}</span>

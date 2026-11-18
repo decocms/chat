@@ -21,22 +21,22 @@
 <EntityGrid {columns} {gap} class={className}>
   {#each { length: count }, index (index)}
     <div
-      class="tw:bg-card tw:hover:bg-accent tw:transition-colors tw:flex tw:flex-col tw:rounded-lg tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1]"
+      class="bg-card hover:bg-accent transition-colors flex flex-col rounded-lg animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1]"
     >
-      <div class="tw:p-4 tw:flex tw:flex-col tw:gap-4">
-        <div class="tw:h-12 tw:w-12 tw:bg-muted tw:rounded-lg"></div>
-        <div class="tw:h-4 tw:w-32 tw:bg-muted tw:rounded-lg"></div>
-        <div class="tw:h-4 tw:w-32 tw:bg-muted tw:rounded-lg"></div>
+      <div class="p-4 flex flex-col gap-4">
+        <div class="h-12 w-12 bg-muted rounded-lg"></div>
+        <div class="h-4 w-32 bg-muted rounded-lg"></div>
+        <div class="h-4 w-32 bg-muted rounded-lg"></div>
       </div>
-      <div class="tw:p-4 tw:border-border tw:border-t tw:flex tw:items-center">
+      <div class="p-4 border-border border-t flex items-center">
         <div
-          class="tw:h-6 tw:w-6 tw:bg-muted tw:rounded-full tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1]"
+          class="h-6 w-6 bg-muted rounded-full animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1]"
         ></div>
         <div
-          class="tw:h-6 tw:w-6 tw:bg-muted tw:rounded-full tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:-ml-2"
+          class="h-6 w-6 bg-muted rounded-full animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] -ml-2"
         ></div>
         <div
-          class="tw:h-6 tw:w-6 tw:bg-muted tw:rounded-full tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:-ml-2"
+          class="h-6 w-6 bg-muted rounded-full animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] -ml-2"
         ></div>
       </div>
     </div>

@@ -35,7 +35,7 @@
   data-sliding={sliding || undefined}
   {...passthrough}
   class={cn(
-    "tw:group/toggle-group tw:relative tw:flex tw:w-fit tw:items-center tw:rounded-full tw:[anchor-scope:--studio-toggle-active] tw:data-[variant=outline]:bg-card tw:data-[variant=outline]:after:pointer-events-none tw:data-[variant=outline]:after:absolute tw:data-[variant=outline]:after:inset-0 tw:data-[variant=outline]:after:rounded-full tw:data-[variant=outline]:after:shadow-edge tw:data-[variant=outline]:after:content-[''] tw:data-[variant=segmented]:gap-0.5 tw:data-[variant=segmented]:bg-muted tw:data-[variant=segmented]:p-0.5",
+    "group/toggle-group relative flex w-fit items-center rounded-full [anchor-scope:--studio-toggle-active] data-[variant=outline]:bg-card data-[variant=outline]:after:pointer-events-none data-[variant=outline]:after:absolute data-[variant=outline]:after:inset-0 data-[variant=outline]:after:rounded-full data-[variant=outline]:after:shadow-edge data-[variant=outline]:after:content-[''] data-[variant=segmented]:gap-0.5 data-[variant=segmented]:bg-muted data-[variant=segmented]:p-0.5",
     className,
   )}
 >
@@ -44,7 +44,7 @@
     <span
       aria-hidden="true"
       data-slot="toggle-group-indicator"
-      class="tw:pointer-events-none tw:absolute tw:top-0.5 tw:bottom-0.5 tw:left-[anchor(left)] tw:hidden tw:w-[anchor-size(width)] tw:rounded-full tw:bg-background tw:opacity-0 tw:shadow-[0_1px_2px_0_#0000000d] tw:transition-[left,width] tw:duration-200 tw:ease-[cubic-bezier(0.23,1,0.32,1)] tw:[position-anchor:--studio-toggle-active] tw:group-has-[>[data-slot=toggle-group-item][data-state=on]]/toggle-group:opacity-100 tw:motion-reduce:transition-none tw:supports-[anchor-scope:--a]:block tw:dark:bg-accent"
+      class="pointer-events-none absolute top-0.5 bottom-0.5 left-[anchor(left)] hidden w-[anchor-size(width)] rounded-full bg-background opacity-0 shadow-[0_1px_2px_0_#0000000d] transition-[left,width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] [position-anchor:--studio-toggle-active] group-has-[>[data-slot=toggle-group-item][data-state=on]]/toggle-group:opacity-100 motion-reduce:transition-none supports-[anchor-scope:--a]:block dark:bg-accent"
     ></span>
   {/if}
   {@render children?.()}

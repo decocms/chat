@@ -21,7 +21,7 @@
   data-slot="entity-card-description"
   {...rest}
   class={cn(
-    "tw:text-[0.75rem] tw:leading-4 tw:tabular-nums tw:text-muted-foreground tw:-mt-2 tw:line-clamp-2",
+    "text-[0.75rem] leading-4 tabular-nums text-muted-foreground -mt-2 line-clamp-2",
     className,
   )}
 >

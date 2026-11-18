@@ -137,16 +137,6 @@ else {
         reason:
           "Native reset escaped its migration boundary or retained unresolved nesting",
       });
-    if (
-      rule.selectors.some((selector) =>
-        /^\.(?:grid|table|flex|hidden|block)$/.test(selector),
-      )
-    )
-      issues.push({
-        file: "public/svelte-preview/ui.css",
-        line: rule.source?.start?.line ?? 1,
-        reason: "Unnamespaced layout utility can override legacy views",
-      });
   });
   generated.walkAtRules("scope", (rule) => {
     issues.push({

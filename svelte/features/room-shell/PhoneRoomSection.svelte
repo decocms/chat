@@ -12,7 +12,7 @@
     $props();
 </script>
 
-<div data-phone-room-section={part} class="tw:p-2">
+<div data-phone-room-section={part} class="p-2">
   {#if part === "pins"}<PinnedItems
       room={sidebar.room}
       session={sidebar.pins}

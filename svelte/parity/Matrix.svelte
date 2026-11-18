@@ -17,17 +17,17 @@
   } = $props();
 </script>
 
-<div class="tw:overflow-x-auto tw:font-sans">
-  <table class="tw:border-separate tw:border-spacing-x-6 tw:border-spacing-y-4">
+<div class="overflow-x-auto font-sans">
+  <table class="border-separate border-spacing-x-6 border-spacing-y-4">
     <thead>
       <tr>
         <th></th>
         {#each columns as column (column)}
           <th
-            class="tw:text-left tw:text-xs tw:font-medium tw:whitespace-nowrap tw:text-subtle-foreground tw:tabular-nums"
+            class="text-left text-xs font-medium whitespace-nowrap text-subtle-foreground tabular-nums"
           >
             {column}{#if proposed.includes(column)}<span
-                class="tw:ml-1.5 tw:rounded-full tw:bg-brand-purple-tint tw:px-1.5 tw:py-px tw:text-[0.625rem] tw:text-brand-purple-dark"
+                class="ml-1.5 rounded-full bg-brand-purple-tint px-1.5 py-px text-[0.625rem] text-brand-purple-dark"
                 >proposed</span
               >{/if}
           </th>
@@ -38,12 +38,11 @@
       {#each rows as row (row)}
         <tr>
           <th
-            class="tw:pr-2 tw:text-left tw:text-xs tw:font-medium tw:whitespace-nowrap tw:text-muted-foreground tw:tabular-nums"
+            class="pr-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground tabular-nums"
             >{labels[row] ?? row}</th
           >
           {#each columns as column, index (column)}
-            <td class="tw:align-middle tw:tabular-nums"
-              >{@render cell(row, index)}</td
+            <td class="align-middle tabular-nums">{@render cell(row, index)}</td
             >
           {/each}
         </tr>

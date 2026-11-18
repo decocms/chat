@@ -56,11 +56,8 @@
     />
   </li>{/snippet}
 
-<nav
-  aria-label={homeText(lang, "switchRoom")}
-  class="tw:min-h-0 tw:overflow-y-auto"
->
-  <ul class="tw:m-0 tw:list-none tw:space-y-0.5 tw:p-0">
+<nav aria-label={homeText(lang, "switchRoom")} class="min-h-0 overflow-y-auto">
+  <ul class="m-0 list-none space-y-0.5 p-0">
     <li>
       <HomeRow
         variant="list"
@@ -71,7 +68,7 @@
       />
     </li>
     {#each orderedRooms(rooms) as room (room.id)}{@render link(room)}{/each}
-    {#if dms.length}<li class="tw:mt-3">
+    {#if dms.length}<li class="mt-3">
         <SectionHeader level={4} title={homeText(lang, "dms")} />
       </li>
       {#each dms as dm (dm.room.id)}{@render link(dm.room, dm)}{/each}{/if}

@@ -76,19 +76,16 @@
 <section
   data-vb-native
   data-native-agent-settings
-  class="tw:space-y-4 tw:font-sans tw:text-sm tw:tracking-normal tw:[font-variation-settings:normal] tw:text-foreground"
+  class="space-y-4 font-sans text-sm tracking-normal [font-variation-settings:normal] text-foreground"
 >
   {#if !$view.grants && $view.loading}<p
       role="status"
-      class="tw:m-0 tw:text-muted-foreground"
+      class="m-0 text-muted-foreground"
     >
       {text("loading")}
     </p>{/if}
-  {#if $view.readError}<div
-      role="alert"
-      class="tw:space-y-2 tw:text-destructive"
-    >
-      <p class="tw:m-0">{text("readFailed")}</p>
+  {#if $view.readError}<div role="alert" class="space-y-2 text-destructive">
+      <p class="m-0">{text("readFailed")}</p>
       <Button
         variant="outline"
         onclick={() => {
@@ -99,11 +96,11 @@
   {#if $view.grants?.agents.length}
     <Heading level={2}>{text("connectedTitle")}</Heading>
     {#each groups as group (group.client)}<section
-        class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
+        class="space-y-2 rounded-control border border-border p-3"
       >
         <Heading level={3}>{group.client} · {group.rows.length}</Heading
         >{#each group.rows as { grant } (grant.id)}<label
-            class="tw:flex tw:items-start tw:gap-2 tw:rounded-control tw:p-2"
+            class="flex items-start gap-2 rounded-control p-2"
             ><Checkbox
               bind:checked={
                 () => selected.has(grant.id),
@@ -114,7 +111,7 @@
             /><span
               >{text("connectedAt")}
               {vb.ago(grant.connected_at)}<small
-                class="tw:block tw:text-xs tw:text-muted-foreground"
+                class="block text-xs text-muted-foreground"
                 >{grant.used_at
                   ? `${text("used")} ${vb.ago(grant.used_at)}`
                   : text(
@@ -124,7 +121,7 @@
             ></label
           >{/each}
       </section>{/each}
-    <div class="tw:flex tw:flex-wrap tw:gap-2">
+    <div class="flex flex-wrap gap-2">
       <Button
         variant="outline"
         disabled={busy}
@@ -149,23 +146,20 @@
         }}>{text("refresh")}</Button
       >
     </div>
-    <p class="tw:m-0 tw:text-muted-foreground">{text("connectedHelp")}</p>
+    <p class="m-0 text-muted-foreground">{text("connectedHelp")}</p>
   {:else if $view.grants}<SetupInstructions
       {origin}
       {lang}
       current={owner.current}
     />{/if}
-  {#if $view.phase === "error"}<p
-      role="alert"
-      class="tw:m-0 tw:text-destructive"
-    >
+  {#if $view.phase === "error"}<p role="alert" class="m-0 text-destructive">
       {text("revokeFailed")}
     </p>{/if}
   {#if $view.phase === "unconfirmed"}<div
       role="status"
-      class="tw:space-y-2 tw:text-muted-foreground"
+      class="space-y-2 text-muted-foreground"
     >
-      <p class="tw:m-0">{text("unconfirmed")}</p>
+      <p class="m-0">{text("unconfirmed")}</p>
       <Button
         variant="outline"
         onclick={() => {

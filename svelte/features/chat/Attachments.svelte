@@ -51,17 +51,15 @@
 
 {#if files.length}<div
     data-message-attachments
-    class="tw:mt-2 tw:flex tw:flex-wrap tw:gap-2"
+    class="mt-2 flex flex-wrap gap-2"
   >
     {#each files as file (file.id)}
       {#if !file.embed && file.type === "text/html" && /^apps\/[\w.-]+\.html$/.test(file.name)}<div
           data-room-app-row
-          class="tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-2"
+          class="flex w-full items-center gap-2 rounded-control border border-border p-2"
         >
-          <b class="tw:min-w-0 tw:flex-1 tw:truncate"
-            >{file.name.slice(5, -5)}</b
-          >
-          <span class="tw:text-xs tw:text-muted-foreground"
+          <b class="min-w-0 flex-1 truncate">{file.name.slice(5, -5)}</b>
+          <span class="text-xs text-muted-foreground"
             >{vb.t("app da sala")}</span
           >
           <Button
@@ -85,11 +83,11 @@
         />
       {:else if file.type === "text/html" && actions.openSideFile}<div
           data-html-file-card
-          class="tw:flex tw:w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:p-3"
+          class="flex w-full items-center gap-2 rounded-control border border-border p-3"
         >
-          <b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
+          <b class="min-w-0 flex-1 truncate">{file.name}</b>
           {#if actions.sideFileName === file.name}<span
-              class="tw:text-xs tw:text-primary">{vb.t("aberto ao lado")}</span
+              class="text-xs text-primary">{vb.t("aberto ao lado")}</span
             >{:else}<Button
               variant="ghost"
               onclick={(event) => {
@@ -100,24 +98,20 @@
           <a
             href={url(file)}
             onclick={(event) => open(event, file)}
-            class="tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+            class="text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
             >{vb.t("Abrir em tela cheia")}</a
           >
         </div>
       {:else if file.type.startsWith("audio/")}<div
-          class="tw:max-w-full tw:space-y-1"
+          class="max-w-full space-y-1"
         >
-          <audio
-            controls
-            preload="metadata"
-            src={url(file)}
-            class="tw:max-w-full"
+          <audio controls preload="metadata" src={url(file)} class="max-w-full"
           ></audio><a
             href={url(file)}
             target="_blank"
             rel="noopener"
             download={file.name}
-            class="tw:block tw:break-words tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current"
+            class="block break-words text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
             >{file.name} · {kb(file.size)}</a
           >
         </div>
@@ -127,12 +121,12 @@
           target="_blank"
           rel="noopener"
           onclick={(event) => open(event, file)}
-          class="tw:block tw:min-w-[min(220px,100%)] tw:max-w-[min(320px,100%)] tw:rounded-control tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+          class="block min-w-[min(220px,100%)] max-w-[min(320px,100%)] rounded-control focus-visible:outline-2 focus-visible:outline-ring"
           ><img
             src={url(file)}
             alt={file.name}
             loading="lazy"
-            class="tw:box-border tw:block tw:max-h-[260px] tw:min-w-full tw:max-w-full tw:rounded-control tw:border tw:border-border tw:object-cover tw:object-top"
+            class="box-border block max-h-[260px] min-w-full max-w-full rounded-control border border-border object-cover object-top"
           /></a
         >
       {:else}<a
@@ -140,11 +134,10 @@
           target="_blank"
           rel="noopener"
           onclick={(event) => open(event, file)}
-          class="tw:inline-flex tw:max-w-full tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-border tw:bg-muted tw:px-3 tw:py-2 tw:text-sm tw:text-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
-          ><Icon icon={File02} size={16} /><span
-            class="tw:min-w-0 tw:break-words">{file.name}</span
-          ><small class="tw:shrink-0 tw:text-muted-foreground"
-            >{kb(file.size)}</small
+          class="inline-flex max-w-full items-center gap-2 rounded-control border border-border bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          ><Icon icon={File02} size={16} /><span class="min-w-0 break-words"
+            >{file.name}</span
+          ><small class="shrink-0 text-muted-foreground">{kb(file.size)}</small
           ></a
         >{/if}
     {/each}

@@ -15,5 +15,5 @@
   bind:ref
   data-slot="tabs-content"
   {...rest}
-  class={cn("tw:flex-1 tw:outline-none tw:h-full", className)}
+  class={cn("flex-1 outline-none h-full", className)}
 />

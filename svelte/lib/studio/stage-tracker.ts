@@ -4,12 +4,12 @@ export type StageState = "done" | "current" | "upcoming";
 
 export const stageVariants = tv(
   {
-    base: "tw:inline-flex tw:h-[1.625rem] tw:shrink-0 tw:items-center tw:gap-1.5 tw:rounded-full tw:px-2 tw:text-xs tw:font-medium tw:whitespace-nowrap",
+    base: "inline-flex h-[1.625rem] shrink-0 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap",
     variants: {
       state: {
-        done: "tw:bg-card tw:shadow-edge tw:text-muted-foreground",
-        current: "tw:bg-brand-lime-tint tw:text-brand-green-dark",
-        upcoming: "tw:bg-card tw:shadow-edge tw:text-subtle-foreground",
+        done: "bg-card shadow-edge text-muted-foreground",
+        current: "bg-brand-lime-tint text-brand-green-dark",
+        upcoming: "bg-card shadow-edge text-subtle-foreground",
       },
     },
   },
@@ -18,12 +18,12 @@ export const stageVariants = tv(
 
 export const stageNumberVariants = tv(
   {
-    base: "tw:tabular-nums tw:flex tw:size-6 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:text-xs tw:font-medium tw:transition-colors",
+    base: "tabular-nums flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors",
     variants: {
       state: {
-        done: "tw:bg-primary tw:text-primary-foreground",
-        current: "tw:bg-brand-lime-tint tw:text-brand-green-dark",
-        upcoming: "tw:bg-muted tw:text-muted-foreground",
+        done: "bg-primary text-primary-foreground",
+        current: "bg-brand-lime-tint text-brand-green-dark",
+        upcoming: "bg-muted text-muted-foreground",
       },
     },
   },

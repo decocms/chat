@@ -23,7 +23,7 @@
     placeholder = "Select...",
     triggerClassName,
     contentClassName,
-    width = "tw:w-[200px]",
+    width = "w-[200px]",
     renderTrigger,
     renderItem,
     emptyMessage = "No results found.",
@@ -78,7 +78,7 @@
   <PopoverTrigger>
     {#snippet child({ props })}
       {#if renderTrigger}
-        <div {...props} class={cn("tw:cursor-pointer", triggerClassName)}>
+        <div {...props} class={cn("cursor-pointer", triggerClassName)}>
           {@render renderTrigger(selectedOption)}
         </div>
       {:else}
@@ -88,25 +88,25 @@
           role="combobox"
           aria-label={ariaLabel}
           class={cn(
-            "tw:justify-between tw:rounded-[var(--vb-studio-control-radius,0.625rem)]",
+            "justify-between rounded-[var(--vb-studio-control-radius,0.625rem)]",
             width,
             triggerClassName,
           )}
         >
           {selectedOption ? selectedOption.label : placeholder}
-          <Icon icon={ChevronSelectorVertical} class="tw:opacity-50" />
+          <Icon icon={ChevronSelectorVertical} class="opacity-50" />
         </Button>
       {/if}
     {/snippet}
   </PopoverTrigger>
   <!-- The width comes last because React set it inline, above any class. -->
   <PopoverContent
-    class={cn("tw:p-0", contentClassName, "tw:w-(--bits-popover-anchor-width)")}
+    class={cn("p-0", contentClassName, "w-(--bits-popover-anchor-width)")}
   >
     <Command {filter}>
       <CommandInput
         placeholder={searchPlaceholder}
-        class="tw:h-9"
+        class="h-9"
         onValueChange={onSearchChange}
         action={renderSearchAction ? searchAction : undefined}
       />
@@ -129,8 +129,8 @@
                 <Icon
                   icon={Check}
                   class={cn(
-                    "tw:ml-auto",
-                    isSelected ? "tw:opacity-100" : "tw:opacity-0",
+                    "ml-auto",
+                    isSelected ? "opacity-100" : "opacity-0",
                   )}
                 />
               {/if}

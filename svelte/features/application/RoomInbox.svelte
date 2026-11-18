@@ -121,15 +121,13 @@
 <section
   data-native-room-inbox
   aria-label={t("Caixa de entrada")}
-  class="tw:grid tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-cols-1 tw:overflow-auto tw:bg-background tw:font-sans tw:text-foreground tw:md:grid-cols-[minmax(0,1fr)_auto] tw:md:overflow-hidden"
+  class="grid h-full min-h-0 min-w-0 grid-cols-1 overflow-auto bg-background font-sans text-foreground md:grid-cols-[minmax(0,1fr)_auto] md:overflow-hidden"
 >
-  <div data-room-inbox-chat class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col">
+  <div data-room-inbox-chat class="flex min-h-0 min-w-0 flex-col">
     <header
-      class="tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:border-b tw:border-border tw:p-4"
+      class="flex flex-wrap items-center gap-3 border-b border-border p-4"
     >
-      <h2
-        class="tw:font-sans tw:tracking-normal tw:m-0 tw:flex-1 tw:text-lg tw:font-semibold"
-      >
+      <h2 class="font-sans tracking-normal m-0 flex-1 text-lg font-semibold">
         {t("Caixa de entrada")}
       </h2>
       <Button
@@ -158,7 +156,7 @@
         }}><Icon icon={X} size={16} /></IconButton
       >
     </header>
-    <div class="tw:min-h-0 tw:flex-1 tw:space-y-2 tw:overflow-auto tw:p-4">
+    <div class="min-h-0 flex-1 space-y-2 overflow-auto p-4">
       {#if $inbox.phase === "loading"}<p role="status">
           {t("Carregando…")}
         </p>{/if}
@@ -173,7 +171,7 @@
       {#if error}<ErrorState title={error} compact />{/if}
       {#each model.messages as message, index (message.wait ?? message.mention ?? message)}
         {#if newDay(index)}<p
-            class="tw:my-3 tw:text-center tw:text-xs tw:text-muted-foreground"
+            class="my-3 text-center text-xs text-muted-foreground"
           >
             {day(message.ts)}
           </p>{/if}
@@ -181,51 +179,50 @@
           >{#snippet children(row)}
             <article
               data-room-inbox-message
-              class="tw:rounded-surface tw:bg-card tw:p-1 tw:shadow-edge"
+              class="rounded-surface bg-card p-1 shadow-edge"
             >
               <Button
                 variant="ghost"
-                class="tw:h-auto tw:w-full tw:items-start tw:justify-start tw:gap-3 tw:rounded-lg tw:p-2 tw:text-left tw:font-normal tw:leading-5 tw:whitespace-normal"
+                class="h-auto w-full items-start justify-start gap-3 rounded-lg p-2 text-left font-normal leading-5 whitespace-normal"
                 onclick={(event) => {
                   if (event.currentTarget.isConnected) go(row);
                 }}
               >
                 {#if row.kind === "claude"}<AgentMark
-                    class="tw:text-sm"
+                    class="text-sm"
                   />{:else if row.author === "ai"}<AgentMark
                     mark="✦"
-                    class="tw:text-sm tw:text-foreground"
+                    class="text-sm text-foreground"
                   />{:else}<PersonAvatar
                     data-avatar="person"
                     size="sm"
                     email={row.author}
                     version={avatar(row.author)}
                   />{/if}
-                <span class="tw:grid tw:min-w-0 tw:flex-1 tw:gap-1">
+                <span class="grid min-w-0 flex-1 gap-1">
                   <span
-                    ><strong class="tw:font-medium">{name(row)}</strong>
-                    <span class="tw:text-xs tw:text-muted-foreground"
+                    ><strong class="font-medium">{name(row)}</strong>
+                    <span class="text-xs text-muted-foreground"
                       >{when(row.ts)}</span
                     ></span
                   >
                   {#if row.kind !== "mention"}<span
-                      class="tw:inline-flex tw:items-center tw:gap-1.5 tw:text-xs tw:font-medium tw:text-foreground"
+                      class="inline-flex items-center gap-1.5 text-xs font-medium text-foreground"
                       ><span
                         aria-hidden="true"
-                        class="tw:size-1.5 tw:rounded-full tw:bg-brand"
+                        class="size-1.5 rounded-full bg-brand"
                       ></span>{t(
                         row.kind === "ask"
                           ? "esperando você"
                           : "seu Claude espera você",
                       )}</span
                     >{/if}
-                  <span class="tw:text-xs tw:text-muted-foreground"
+                  <span class="text-xs text-muted-foreground"
                     >{$inbox.all
                       ? `${roomLabel($personal.me, row.book, row.room, services.language)} › `
                       : ""}{topic(row) || t("épico")}</span
                   >
-                  <span
-                    class="tw:line-clamp-6 tw:break-words tw:whitespace-pre-wrap"
+                  <span class="line-clamp-6 break-words whitespace-pre-wrap"
                     >{row.text}</span
                   >
                 </span>
@@ -233,7 +230,7 @@
               {#if row.wait?.ref.startsWith("m")}<Button
                   size="sm"
                   variant="outline"
-                  class="tw:mb-1 tw:ml-[52px]"
+                  class="mb-1 ml-[52px]"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && row.wait)
                       void resolve(row.wait);
@@ -242,7 +239,7 @@
             </article>
           {/snippet}</Snapshot
         >
-      {:else}<p class="tw:p-4 tw:text-center tw:text-muted-foreground">
+      {:else}<p class="p-4 text-center text-muted-foreground">
           {t(
             $inbox.all
               ? "Nada esperando você. ✓"
@@ -255,35 +252,31 @@
     use:width
     data-room-inbox-doc
     class={[
-      "tw:min-h-0 tw:w-full tw:min-w-0 tw:space-y-4 tw:overflow-auto tw:border-t tw:border-border tw:bg-card tw:p-5 tw:md:border-t-0 tw:md:border-l",
+      "min-h-0 w-full min-w-0 space-y-4 overflow-auto border-t border-border bg-card p-5 md:border-t-0 md:border-l",
       sidebarCollapsed
-        ? "tw:md:animate-room-document-width-rail"
-        : "tw:md:animate-room-document-width",
+        ? "md:animate-room-document-width-rail"
+        : "md:animate-room-document-width",
     ]}
   >
-    <h1
-      class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-2xl tw:font-semibold"
-    >
+    <h1 class="font-sans tracking-normal m-0 text-2xl font-semibold">
       {t("O que é seu")}
     </h1>
-    <p class="tw:text-muted-foreground">
+    <p class="text-muted-foreground">
       {t("Tarefas suas e o que espera seu OK. Clique pra abrir.")}
     </p>
     {#if model.oks.length}<h3
-        class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
+        class="font-sans tracking-normal m-0 text-sm font-semibold"
       >
         {t("Esperando seu OK")}
       </h3>
-      <ul class="tw:m-0 tw:list-none tw:space-y-2 tw:p-0">
+      <ul class="m-0 list-none space-y-2 p-0">
         {#each model.oks as wait (wait)}<Snapshot value={wait}
-            >{#snippet children(row)}<li
-                class="tw:flex tw:items-center tw:gap-2"
-              >
-                <Badge class="tw:text-foreground" variant="warning"
+            >{#snippet children(row)}<li class="flex items-center gap-2">
+                <Badge class="text-foreground" variant="warning"
                   >{t("revisar")}</Badge
                 ><Button
                   variant="ghost"
-                  class="tw:h-auto tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left tw:rounded-lg tw:font-normal"
+                  class="h-auto flex-1 justify-start whitespace-normal text-left rounded-lg font-normal"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && current())
                       owner.openWait(opening, row);
@@ -292,20 +285,16 @@
               </li>{/snippet}</Snapshot
           >{/each}
       </ul>{/if}
-    <h3
-      class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
-    >
+    <h3 class="font-sans tracking-normal m-0 text-sm font-semibold">
       {t("Suas tarefas")}
     </h3>
     {#each model.groups as group (`${group.bookId}/${group.epicId}`)}
-      <h4
-        class="tw:font-sans tw:tracking-normal tw:m-0 tw:text-sm tw:font-semibold"
-      >
+      <h4 class="font-sans tracking-normal m-0 text-sm font-semibold">
         {#key group.first}<Snapshot value={group.first}
             >{#snippet children(row)}<Button
                 variant="ghost"
                 size="sm"
-                class="tw:h-auto tw:p-0 tw:text-left tw:rounded-lg tw:font-normal"
+                class="h-auto p-0 text-left rounded-lg font-normal"
                 onclick={(event) => {
                   if (event.currentTarget.isConnected && current())
                     owner.openTask(opening, row);
@@ -321,27 +310,27 @@
               >{/snippet}</Snapshot
           >{/key}
       </h4>
-      <ul class="tw:m-0 tw:list-none tw:space-y-2 tw:p-0">
+      <ul class="m-0 list-none space-y-2 p-0">
         {#each group.tasks as task (task)}<Snapshot value={task}
             >{#snippet children(row)}<li
-                class="tw:flex tw:flex-wrap tw:items-center tw:gap-2"
+                class="flex flex-wrap items-center gap-2"
               >
                 <Badge
-                  class="tw:text-foreground"
+                  class="text-foreground"
                   variant={row.status === "review" ? "warning" : "neutral"}
                   >{status(row.status)}</Badge
                 ><Button
                   variant="ghost"
-                  class="tw:h-auto tw:min-w-0 tw:flex-1 tw:justify-start tw:whitespace-normal tw:text-left tw:rounded-lg tw:font-normal"
+                  class="h-auto min-w-0 flex-1 justify-start whitespace-normal text-left rounded-lg font-normal"
                   onclick={(event) => {
                     if (event.currentTarget.isConnected && current())
                       owner.openTask(opening, row);
                   }}>{row.title}</Button
-                >{#if row.due}<span class="tw:text-xs">{row.due}</span>{/if}
+                >{#if row.due}<span class="text-xs">{row.due}</span>{/if}
               </li>{/snippet}</Snapshot
           >{/each}
       </ul>
-    {:else}<p class="tw:text-muted-foreground">
+    {:else}<p class="text-muted-foreground">
         {t("Nenhuma tarefa aberta sua.")}
       </p>{/each}
   </aside>

@@ -67,7 +67,7 @@
 {/snippet}
 
 {#if story === "default"}
-  <div class="tw:@container tw:w-full">
+  <div class="@container w-full">
     <EntityGrid>
       {#each connections as connection (connection.name)}
         {@render connectionCard(connection)}
@@ -75,7 +75,7 @@
     </EntityGrid>
   </div>
 {:else if story === "two-columns"}
-  <div class="tw:@container tw:w-full tw:max-w-2xl">
+  <div class="@container w-full max-w-2xl">
     <EntityGrid columns={{ sm: 1, md: 2 }} gap={6}>
       {#each connections.slice(0, 4) as connection (connection.name)}
         {@render connectionCard(connection)}
@@ -83,7 +83,7 @@
     </EntityGrid>
   </div>
 {:else if story === "loading"}
-  <div class="tw:@container tw:w-full">
+  <div class="@container w-full">
     <EntityGridSkeleton count={8} />
   </div>
 {/if}

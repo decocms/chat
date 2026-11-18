@@ -23,7 +23,7 @@
   data-slot="table-header"
   {...rest}
   class={cn(
-    "tw:[:where(&_tr)]:border-border tw:[&_tr]:border-b tw:sticky tw:top-0 tw:z-10 tw:bg-card",
+    "[:where(&_tr)]:border-border [&_tr]:border-b sticky top-0 z-10 bg-card",
     className,
   )}>{@render children?.()}</thead
 >

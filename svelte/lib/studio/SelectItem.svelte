@@ -24,27 +24,24 @@
   bind:ref
   data-slot="select-item"
   class={cn(
-    "tw:data-[highlighted]:bg-accent tw:data-[highlighted]:text-accent-foreground tw:[&_svg:not([class*='text-'])]:text-muted-foreground tw:relative tw:flex tw:w-full tw:cursor-default tw:items-center tw:gap-2 tw:rounded-lg tw:py-1.5 tw:pr-8 tw:pl-2 tw:text-sm tw:outline-hidden tw:select-none tw:data-[disabled]:pointer-events-none tw:data-[disabled]:opacity-50 tw:[&_svg]:pointer-events-none tw:[&_svg]:shrink-0 tw:[&_svg:not([class*='size-'])]:size-4 tw:*:[span]:last:flex tw:*:[span]:last:items-center tw:*:[span]:last:gap-2",
-    description && "tw:items-start tw:py-2",
+    "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-lg py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+    description && "items-start py-2",
     className,
   )}
   {...rest}
 >
   {#snippet children({ selected })}
     {#if !hideCheck}
-      <span
-        class="tw:absolute tw:right-2 tw:flex tw:size-3.5 tw:items-center tw:justify-center"
-      >
+      <span class="absolute right-2 flex size-3.5 items-center justify-center">
         {#if selected}
-          <span aria-hidden="true"><Icon icon={Check} class="tw:size-4" /></span
-          >
+          <span aria-hidden="true"><Icon icon={Check} class="size-4" /></span>
         {/if}
       </span>
     {/if}
     {#if description}
-      <div class="tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5">
+      <div class="flex min-w-0 flex-col gap-0.5">
         <span>{@render content?.()}</span>
-        <span class="tw:text-xs tw:whitespace-normal tw:text-muted-foreground">
+        <span class="text-xs whitespace-normal text-muted-foreground">
           {#if typeof description === "string"}{description}{:else}{@render description()}{/if}
         </span>
       </div>

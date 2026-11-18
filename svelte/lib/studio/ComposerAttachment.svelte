@@ -32,28 +32,27 @@
   bind:this={ref}
   data-slot="composer-attachment"
   {...rest}
-  class={cn("tw:group/attachment tw:relative", className)}
+  class={cn("group/attachment relative", className)}
 >
   {#if src}
     <img
       {src}
       alt={name}
-      class="tw:size-11 tw:rounded-[0.625rem] tw:object-cover tw:outline-1 tw:-outline-offset-1 tw:outline-hairline"
+      class="size-11 rounded-[0.625rem] object-cover outline-1 -outline-offset-1 outline-hairline"
     />
   {:else}
     <div
-      class="tw:bg-muted tw:flex tw:h-11 tw:max-w-56 tw:items-center tw:gap-2 tw:rounded-[0.625rem] tw:py-1.5 tw:pr-3 tw:pl-1.5"
+      class="bg-muted flex h-11 max-w-56 items-center gap-2 rounded-[0.625rem] py-1.5 pr-3 pl-1.5"
     >
       <span
-        class="tw:bg-card tw:text-muted-foreground tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-lg tw:shadow-edge"
+        class="bg-card text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-edge"
       >
-        <Icon icon={File02} class="tw:size-4 tw:stroke-[1.33]" />
+        <Icon icon={File02} class="size-4 stroke-[1.33]" />
       </span>
-      <span class="tw:flex tw:min-w-0 tw:flex-col">
-        <span class="tw:truncate tw:text-xs tw:font-medium">{name}</span>
+      <span class="flex min-w-0 flex-col">
+        <span class="truncate text-xs font-medium">{name}</span>
         {#if meta}
-          <span
-            class="tw:text-subtle-foreground tw:truncate tw:text-[0.6875rem]"
+          <span class="text-subtle-foreground truncate text-[0.6875rem]"
             >{meta}</span
           >
         {/if}
@@ -65,9 +64,9 @@
       type="button"
       onclick={onRemove}
       aria-label={removeLabel}
-      class="tw:bg-foreground tw:text-background tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:absolute tw:-top-1.5 tw:-right-1.5 tw:flex tw:size-[1.125rem] tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:opacity-0 tw:transition-opacity tw:group-hover/attachment:opacity-100 tw:focus-visible:opacity-100 tw:disabled:cursor-not-allowed"
+      class="bg-foreground text-background focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 absolute -top-1.5 -right-1.5 flex size-[1.125rem] cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity group-hover/attachment:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed"
     >
-      <Icon icon={X} class="tw:size-3" />
+      <Icon icon={X} class="size-3" />
     </button>
   {/if}
 </div>

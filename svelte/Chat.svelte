@@ -51,16 +51,16 @@
   <section
     data-chat-timeline
     data-vb-native
-    class="tw:space-y-1 tw:pb-4 tw:font-sans tw:text-sm tw:text-foreground"
+    class="space-y-1 pb-4 font-sans text-sm text-foreground"
   >
-    {#if more}<div class="tw:flex tw:justify-center tw:p-3">
+    {#if more}<div class="flex justify-center p-3">
         <Button variant="outline" size="sm" id="olderBtn" onclick={onloadolder}
           >{vb.t("Carregar mensagens anteriores")}</Button
         >
       </div>{/if}
     {#if origin}<div
         data-chat-origin
-        class="tw:mx-3 tw:mb-4 tw:rounded-surface tw:border tw:border-border tw:bg-muted/30"
+        class="mx-3 mb-4 rounded-surface border border-border bg-muted/30"
       >
         <Message
           message={origin}
@@ -71,7 +71,7 @@
           {actions}
         />
         <div
-          class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-border tw:px-3 tw:py-2 tw:text-xs tw:text-muted-foreground"
+          class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"
         >
           <span
             >{replyCount === 1
@@ -97,7 +97,7 @@
         />{/each}
     {:else if !workers.length}<p
         data-chat-empty
-        class="tw:m-0 tw:p-6 tw:text-center tw:leading-6 tw:text-muted-foreground"
+        class="m-0 p-6 text-center leading-6 text-muted-foreground"
       >
         {thread === "main"
           ? vb
@@ -115,33 +115,33 @@
         data-chat-working
         data-agent-tile={agentProvider(workers[0].who)}
         class={[
-          "tw:mx-3 tw:mt-4 tw:flex tw:items-center tw:gap-3 tw:rounded-surface tw:px-4 tw:py-3",
+          "mx-3 mt-4 flex items-center gap-3 rounded-surface px-4 py-3",
           AGENT_TILES[agentProvider(workers[0].who)],
         ]}
       >
         <!-- One squircle per kind of agent (two Claudes are still one ✻), with the people they work for stacked on its corner. -->
-        <div class="tw:flex tw:shrink-0 tw:items-end">
-          <span class="tw:flex tw:-space-x-1.5">
+        <div class="flex shrink-0 items-end">
+          <span class="flex -space-x-1.5">
             {#each [...new Set(workers.map( (w) => agentProvider(w.who) ))].slice(0, 3) as provider (provider)}<span
                 aria-hidden="true"
                 data-avatar="agent"
-                class="tw:grid tw:size-8 tw:place-items-center tw:rounded-[0.625rem] tw:bg-current/15 tw:text-base tw:leading-none"
+                class="grid size-8 place-items-center rounded-[0.625rem] bg-current/15 text-base leading-none"
                 >{agentMark(
                   workers.find((w) => agentProvider(w.who) === provider)?.who,
                 )}</span
               >{/each}
           </span>
-          <span class="tw:-mb-1 tw:-ml-2.5 tw:flex tw:-space-x-1.5"
+          <span class="-mb-1 -ml-2.5 flex -space-x-1.5"
             >{#each [...new Set(workers.map((w) => w.email))].slice(0, 4) as email (email)}<PersonAvatar
                 data-avatar="person"
                 size="2xs"
                 {email}
                 version={vb.avatarVersion(email)}
-                class="tw:shadow-[0_0_0_2px_currentColor]"
+                class="shadow-[0_0_0_2px_currentColor]"
               />{/each}</span
           >
         </div>
-        <p class="tw:m-0 tw:min-w-0 tw:flex-1 tw:break-words tw:font-medium">
+        <p class="m-0 min-w-0 flex-1 break-words font-medium">
           {workers
             .map((w) =>
               vb.t("{via} de {who}", {
@@ -156,25 +156,24 @@
               : "estão trabalhando nisso",
           )}
         </p>
-        <span
-          aria-hidden="true"
-          class="tw:animate-spin tw:motion-reduce:animate-none">✻</span
+        <span aria-hidden="true" class="animate-spin motion-reduce:animate-none"
+          >✻</span
         >
       </div>{/if}
     {#if epic?.archived}<div
         data-chat-end
-        class="tw:mx-3 tw:mt-4 tw:space-y-1 tw:rounded-surface tw:border tw:border-border tw:p-4"
+        class="mx-3 mt-4 space-y-1 rounded-surface border border-border p-4"
       >
-        <p class="tw:m-0 tw:font-medium">✓ {vb.t("Agent fez")}</p>
-        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+        <p class="m-0 font-medium">✓ {vb.t("Agent fez")}</p>
+        <p class="m-0 text-xs text-muted-foreground">
           {vb.t("Escreva aqui pra continuar: ele reabre.")}
         </p>
       </div>{/if}
     {#if epic?.prod}<div
         data-chat-production
-        class="tw:mx-3 tw:mt-3 tw:space-y-1 tw:rounded-surface tw:border tw:border-border tw:p-4"
+        class="mx-3 mt-3 space-y-1 rounded-surface border border-border p-4"
       >
-        <p class="tw:m-0 tw:font-medium">
+        <p class="m-0 font-medium">
           {production === "changes"
             ? `🚀↻ ${vb.t("Uma versão está no ar · correções em andamento")}`
             : epic.prod.stage === "verified"
@@ -182,17 +181,17 @@
               : `🚀 ${vb.t("No ar")}`}
         </p>
         {#if production === "changes"}<p
-            class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+            class="m-0 text-xs text-muted-foreground"
           >
             {vb.t(
               "Você pediu mudanças depois desse deploy; a próxima versão ainda não subiu.",
             )}
           </p>{:else if epic.prod.stage === "verified" && epic.prod.note}<p
-            class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-xs tw:text-muted-foreground"
+            class="m-0 whitespace-pre-wrap break-words text-xs text-muted-foreground"
           >
             {epic.prod.note}
           </p>{:else if epic.prod.stage !== "verified"}<p
-            class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+            class="m-0 text-xs text-muted-foreground"
           >
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
@@ -200,15 +199,15 @@
     {#if brief}<section
         data-native-brief
         aria-label={vb.t("O que precisa de mim aqui?")}
-        class="tw:mx-3 tw:mt-4 tw:space-y-1.5 tw:rounded-surface tw:border tw:border-dashed tw:border-border tw:bg-muted/40 tw:p-3"
+        class="mx-3 mt-4 space-y-1.5 rounded-surface border border-dashed border-border bg-muted/40 p-3"
       >
-        <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
           <AgentMark size="2xs" />
-          <b class="tw:font-semibold">{vb.t("O que precisa de mim aqui?")}</b>
-          <span class="tw:rounded-full tw:bg-muted tw:px-2 tw:py-0.5"
+          <b class="font-semibold">{vb.t("O que precisa de mim aqui?")}</b>
+          <span class="rounded-full bg-muted px-2 py-0.5"
             >{vb.t("só você vê")}</span
           >
-          <span class="tw:flex-1"></span><Button
+          <span class="flex-1"></span><Button
             size="sm"
             variant="ghost"
             onclick={(event) => {
@@ -219,11 +218,11 @@
         </div>
         {#if brief.text}<p
             data-brief-text
-            class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-sm tw:leading-6"
+            class="m-0 whitespace-pre-wrap break-words text-sm leading-6"
           >
             {brief.text}
           </p>
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          <p class="m-0 text-xs text-muted-foreground">
             {brief.answered_at
               ? [
                   brief.model ? prettyModel(brief.model) : "",
@@ -235,10 +234,7 @@
                   .filter(Boolean)
                   .join(" · ")
               : ""}
-          </p>{:else}<p
-            role="status"
-            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-          >
+          </p>{:else}<p role="status" class="m-0 text-sm text-muted-foreground">
             {vb.t("Pedi pro seu Claude… ele responde quando estiver ouvindo.")}
           </p>{/if}
       </section>{/if}

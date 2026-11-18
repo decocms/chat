@@ -31,29 +31,29 @@
         <article
           data-vb-native
           data-native-suggestion
-          class="tw:mx-auto tw:w-full tw:max-w-2xl tw:space-y-4 tw:p-6 tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground"
+          class="mx-auto w-full max-w-2xl space-y-4 p-6 font-sans text-sm leading-6 text-foreground"
         >
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          <p class="m-0 text-xs text-muted-foreground">
             ✦ {vb.t("O @vibe sugere um épico")}
           </p>
-          <h3 class="tw:m-0 tw:text-base tw:leading-6 tw:font-semibold">
+          <h3 class="m-0 text-base leading-6 font-semibold">
             {suggestion.title}
           </h3>
-          <p class="tw:m-0">
+          <p class="m-0">
             {suggestion.why ||
               vb.t(
                 "Ele viu isso na conversa e acha que vale virar um épico, com as tarefas abaixo.",
               )}
           </p>
           {#if suggestion.tasks.length}<h4
-              class="tw:m-0 tw:text-sm tw:leading-5 tw:font-semibold"
+              class="m-0 text-sm leading-5 font-semibold"
             >
               {vb.t("Tarefas propostas")}
             </h4>
-            <ul class="tw:m-0 tw:list-disc tw:space-y-1 tw:pl-5">
+            <ul class="m-0 list-disc space-y-1 pl-5">
               {#each suggestion.tasks as task}<li>{task}</li>{/each}
             </ul>{/if}
-          <div class="tw:flex tw:flex-wrap tw:gap-2">
+          <div class="flex flex-wrap gap-2">
             <Button
               disabled={busy}
               onclick={(event) => {
@@ -67,7 +67,7 @@
               }}>{vb.t("Descartar")}</Button
             >
           </div>
-          <p class="tw:m-0 tw:text-muted-foreground">
+          <p class="m-0 text-muted-foreground">
             {vb.t(
               "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria o épico.",
             )}

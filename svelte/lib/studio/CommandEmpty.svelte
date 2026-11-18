@@ -17,6 +17,6 @@
   bind:ref
   data-slot="command-empty"
   forceMount={forceMount || command?.count === 0}
-  class="tw:text-muted-foreground tw:px-4 tw:py-4 tw:text-center tw:text-sm"
+  class="text-muted-foreground px-4 py-4 text-center text-sm"
   {...rest}
 />

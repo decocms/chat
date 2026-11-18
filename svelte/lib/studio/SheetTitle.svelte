@@ -16,7 +16,7 @@
     <h2
       {...props}
       class={cn(
-        "tw:text-foreground tw:leading-[1.5] tw:font-semibold tw:text-balance",
+        "text-foreground leading-[1.5] font-semibold text-balance",
         className,
       )}
     >

@@ -33,17 +33,17 @@
   tabindex={-1}
   {...rest}
   class={cn(
-    "tw:flex tw:cursor-pointer tw:items-center tw:gap-2.5 tw:rounded-[0.625rem] tw:px-2 tw:py-1.5 tw:text-sm tw:aria-selected:bg-accent tw:[&_svg]:size-4 tw:[&_svg]:shrink-0 tw:[&_svg]:stroke-[1.33] tw:[&_svg:not([class*='text-'])]:text-muted-foreground",
+    "flex cursor-pointer items-center gap-2.5 rounded-[0.625rem] px-2 py-1.5 text-sm aria-selected:bg-accent [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.33] [&_svg:not([class*='text-'])]:text-muted-foreground",
     className,
   )}
 >
   {@render icon?.()}
-  <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+  <span class="min-w-0 flex-1 truncate"
     >{#if typeof title === "string"}{title}{:else}{@render title()}{/if}</span
   >
   {#if meta}
     <span
-      class="tw:text-[0.75rem] tw:leading-4 tw:tabular-nums tw:text-muted-foreground tw:shrink-0"
+      class="text-[0.75rem] leading-4 tabular-nums text-muted-foreground shrink-0"
       >{#if typeof meta === "string"}{meta}{:else}{@render meta()}{/if}</span
     >
   {/if}

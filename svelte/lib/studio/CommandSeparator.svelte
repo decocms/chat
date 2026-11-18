@@ -17,6 +17,6 @@
   bind:ref
   data-slot="command-separator"
   forceMount={alwaysRender}
-  class={cn("tw:bg-border tw:-mx-1 tw:h-px", className)}
+  class={cn("bg-border -mx-1 h-px", className)}
   {...rest}
 />

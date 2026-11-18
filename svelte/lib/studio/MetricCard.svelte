@@ -2,9 +2,9 @@
   export type MetricStatus = "success" | "warning" | "error";
 
   const STATUS_TEXT: Record<MetricStatus, string> = {
-    success: "tw:text-success",
-    warning: "tw:text-warning",
-    error: "tw:text-destructive",
+    success: "text-success",
+    warning: "text-warning",
+    error: "text-destructive",
   };
 </script>
 
@@ -49,23 +49,21 @@
 <Card
   bind:ref
   data-slot="metric-card"
-  class={cn("tw:@container/metric tw:gap-6", className)}
+  class={cn("@container/metric gap-6", className)}
   {...rest}
 >
-  <div class="tw:flex tw:flex-col tw:gap-2">
+  <div class="flex flex-col gap-2">
     <div
-      class="tw:text-muted-foreground tw:flex tw:min-h-7 tw:items-center tw:gap-2 tw:text-sm tw:[&_svg]:size-4 tw:[&_svg]:shrink-0 tw:[&_svg]:stroke-[1.33]"
+      class="text-muted-foreground flex min-h-7 items-center gap-2 text-sm [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.33]"
     >
       {@render icon?.()}
-      <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-        >{@render content(label)}</span
-      >
+      <span class="min-w-0 flex-1 truncate">{@render content(label)}</span>
       {@render action?.()}
     </div>
     {#if value !== undefined}
-      <div class="tw:flex tw:items-end tw:gap-3">
+      <div class="flex items-end gap-3">
         <span
-          class="tw:font-medium tw:tracking-[-0.02em] tw:text-balance tw:tabular-nums tw:min-w-0 tw:flex-1 tw:truncate tw:text-[2rem] tw:leading-[1.15]"
+          class="font-medium tracking-[-0.02em] text-balance tabular-nums min-w-0 flex-1 truncate text-[2rem] leading-[1.15]"
           >{@render content(value)}</span
         >
         {@render trend?.()}
@@ -74,8 +72,8 @@
     {#if caption}
       <p
         class={cn(
-          "tw:text-xs tw:text-pretty",
-          status ? STATUS_TEXT[status] : "tw:text-muted-foreground",
+          "text-xs text-pretty",
+          status ? STATUS_TEXT[status] : "text-muted-foreground",
         )}
       >
         {@render content(caption)}

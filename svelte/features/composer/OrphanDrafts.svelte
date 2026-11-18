@@ -94,7 +94,7 @@
 {#if orphans.length}
   <aside
     data-composer-orphans
-    class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:border-t tw:border-border tw:p-2 tw:text-sm tw:text-muted-foreground"
+    class="flex flex-wrap items-center gap-2 border-t border-border p-2 text-sm text-muted-foreground"
   >
     <span>{vb.t("Rascunhos de conversas removidas")}: {orphans.length}</span>
     {#each orphans as item (item.scope.thread)}
@@ -114,14 +114,14 @@
 <Dialog bind:open>
   <DialogContent
     data-vb-native
-    class="tw:font-sans tw:text-sm tw:text-foreground"
+    class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
   >
     <DialogHeader>
-      <DialogTitle class="tw:pr-8 tw:font-sans"
+      <DialogTitle class="pr-8 font-sans"
         >{vb.t("Revisar rascunho")}</DialogTitle
       >
       <DialogDescription
@@ -136,13 +136,10 @@
       aria-label={vb.t("Rascunho original")}
       rows={8}
     />
-    {#if notice}<p
-        role="status"
-        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-      >
+    {#if notice}<p role="status" class="m-0 text-sm text-muted-foreground">
         {notice}
       </p>{/if}
-    <div class="tw:flex tw:justify-end tw:gap-2">
+    <div class="flex justify-end gap-2">
       <Button variant="outline" disabled={!current} onclick={copy}
         >{vb.t("Copiar")}</Button
       >

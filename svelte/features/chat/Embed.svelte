@@ -133,12 +133,10 @@
   }
 </script>
 
-<div data-chat-embed class="tw:w-full tw:space-y-2">
-  {#if actions.openSideFile}<header
-      class="tw:flex tw:items-center tw:gap-2 tw:text-sm"
-    >
-      <b class="tw:min-w-0 tw:flex-1 tw:truncate">{file.name}</b>
-      {#if compact}<span class="tw:text-xs tw:text-primary"
+<div data-chat-embed class="w-full space-y-2">
+  {#if actions.openSideFile}<header class="flex items-center gap-2 text-sm">
+      <b class="min-w-0 flex-1 truncate">{file.name}</b>
+      {#if compact}<span class="text-xs text-primary"
           >{vb.t("aberto ao lado")}</span
         >{:else}<Button
           variant="ghost"
@@ -148,7 +146,7 @@
           }}>{vb.t("Abrir")}</Button
         >{/if}
     </header>{/if}
-  <div hidden={compact} class={compact ? "tw:hidden" : "tw:space-y-2"}>
+  <div hidden={compact} class={compact ? "hidden" : "space-y-2"}>
     {#if !bridgeDenied}{#key frameGeneration}<iframe
           name={frameName}
           use:attachFrame
@@ -158,17 +156,14 @@
           aria-busy={!bridgeReady}
           title={file.name}
           {height}
-          class="tw:w-full tw:rounded-control tw:border tw:border-border"
+          class="w-full rounded-control border border-border"
         ></iframe>{/key}{:else}<p
         role="alert"
-        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+        class="m-0 text-sm text-muted-foreground"
       >
         {vb.t("Você não tem acesso a esta sala.")}
       </p>{/if}
-    {#if bridgeFailed}<p
-        role="alert"
-        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-      >
+    {#if bridgeFailed}<p role="alert" class="m-0 text-sm text-muted-foreground">
         {bridgeRevoked
           ? vb.locale?.startsWith("en")
             ? "This app document closed. Reopen the app to continue."
@@ -191,30 +186,29 @@
   <a
     href={url}
     onclick={open}
-    class="tw:inline-flex tw:items-center tw:gap-1 tw:rounded-control tw:text-xs tw:text-foreground tw:underline tw:decoration-current/35 tw:underline-offset-4 tw:hover:decoration-current tw:focus-visible:outline-2 tw:focus-visible:outline-ring"
+    class="inline-flex items-center gap-1 rounded-control text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current focus-visible:outline-2 focus-visible:outline-ring"
     >{vb.t("Abrir em tela cheia")} ↗</a
   >
-  {#if clipped}<p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+  {#if clipped}<p class="m-0 text-xs text-muted-foreground">
       {file.name}
     </p>{/if}
-  <div hidden={compact} class={compact ? "tw:hidden" : undefined}>
+  <div hidden={compact} class={compact ? "hidden" : undefined}>
     {#if $question}{#key $question}<Snapshot value={$question}>
           {#snippet children(intent)}
             <div
               role="group"
               aria-label={vb.t("Confirmar")}
-              class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:bg-card tw:p-3"
+              class="space-y-3 rounded-surface border border-border bg-card p-3"
             >
-              <p class="tw:m-0">
+              <p class="m-0">
                 {vb.t("Este app quer {what}, como você:", {
                   what: intent.what,
                 })}
               </p>
-              <q
-                class="tw:block tw:break-words tw:text-xs tw:text-muted-foreground"
+              <q class="block break-words text-xs text-muted-foreground"
                 >{intent.detail}</q
               >
-              <div class="tw:flex tw:flex-wrap tw:gap-2">
+              <div class="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   onclick={(event) => {

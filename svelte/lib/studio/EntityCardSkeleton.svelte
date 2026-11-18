@@ -5,19 +5,19 @@
 <!-- Ported from @decocms/ui `EntityCard.Skeleton`. -->
 <Card size="tile" aria-hidden="true">
   <div
-    class="tw:bg-muted tw:size-8 tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:rounded-lg"
+    class="bg-muted size-8 animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] rounded-lg"
   ></div>
-  <div class="tw:flex tw:flex-col tw:gap-1.5">
+  <div class="flex flex-col gap-1.5">
     <div
-      class="tw:bg-muted tw:h-4 tw:w-32 tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:rounded-full"
+      class="bg-muted h-4 w-32 animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] rounded-full"
     ></div>
     <div
-      class="tw:bg-muted tw:h-3 tw:w-44 tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:rounded-full"
+      class="bg-muted h-3 w-44 animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] rounded-full"
     ></div>
   </div>
-  <div class="tw:border-border tw:flex tw:justify-between tw:border-t tw:pt-3">
+  <div class="border-border flex justify-between border-t pt-3">
     <div
-      class="tw:bg-muted tw:h-3 tw:w-16 tw:animate-pulse tw:motion-reduce:[animation-duration:0.01ms] tw:motion-reduce:[animation-iteration-count:1] tw:rounded-full"
+      class="bg-muted h-3 w-16 animate-pulse motion-reduce:[animation-duration:0.01ms] motion-reduce:[animation-iteration-count:1] rounded-full"
     ></div>
   </div>
 </Card>

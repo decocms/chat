@@ -201,13 +201,12 @@
   data-native-app-navigation
   class={cn(
     studioType,
-    "tw:col-start-1 tw:row-start-1 tw:min-h-0 tw:min-w-0 tw:w-full tw:items-center tw:gap-2 tw:bg-sidebar tw:px-3 tw:py-2 tw:text-sm tw:text-sidebar-foreground tw:sticky tw:top-0 tw:z-40 tw:md:flex tw:md:h-dvh tw:md:flex-col tw:md:px-2 tw:md:pt-2 tw:md:pb-3",
-    inRoom ? "tw:hidden" : "tw:flex tw:flex-row",
+    "col-start-1 row-start-1 min-h-0 min-w-0 w-full items-center gap-2 bg-sidebar px-3 py-2 text-sm text-sidebar-foreground sticky top-0 z-40 md:flex md:h-dvh md:flex-col md:px-2 md:pt-2 md:pb-3",
+    inRoom ? "hidden" : "flex flex-row",
   )}
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
-  <span
-    class="tw:max-md:hidden tw:md:flex tw:md:h-[51px] tw:md:shrink-0 tw:md:items-center"
+  <span class="max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
     ><RailButton
       bind:ref={homeButton}
       label={text("home")}
@@ -221,23 +220,23 @@
         height="36"
         alt=""
         draggable="false"
-        class="tw:size-9 tw:rounded-xl"
+        class="size-9 rounded-xl"
       /></RailButton
     ></span
   >
   <span
     aria-hidden="true"
-    class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-md:hidden tw:md:-mt-2 tw:md:h-px tw:md:w-6"
+    class="h-6 w-px shrink-0 bg-sidebar-border max-md:hidden md:-mt-2 md:h-px md:w-6"
   ></span>
   <!-- Desktop: DMs with something new, right under Home (like Discord); the room tiles follow. -->
   {#if freshDms.length}<div
       data-rail-dms
-      class="tw:flex tw:shrink-0 tw:flex-col tw:items-center tw:gap-2.5 tw:py-1.5 tw:max-md:hidden"
+      class="flex shrink-0 flex-col items-center gap-2.5 py-1.5 max-md:hidden"
     >
       <div
         role="list"
         aria-label={text("dms")}
-        class="tw:flex tw:flex-col tw:items-center tw:gap-2.5"
+        class="flex flex-col items-center gap-2.5"
       >
         {#each freshDms as entry (entry.room.id)}<RailDm
             {entry}
@@ -246,23 +245,22 @@
             onnavigate={controller.callbacks.navigate}
           />{/each}
       </div>
-      <span aria-hidden="true" class="tw:h-px tw:w-6 tw:bg-sidebar-border"
-      ></span>
+      <span aria-hidden="true" class="h-px w-6 bg-sidebar-border"></span>
     </div>{/if}
   <Button
     variant="ghost"
     data-native-room-switcher
     aria-haspopup="dialog"
     aria-expanded={switcher}
-    class="tw:min-w-0 tw:flex-1 tw:justify-start tw:gap-1 tw:px-2 tw:text-base tw:font-semibold tw:md:hidden"
+    class="min-w-0 flex-1 justify-start gap-1 px-2 text-base font-semibold md:hidden"
     onclick={() => (switcher = true)}
-    ><span class="tw:truncate">{text("startTitle")}</span><Icon
+    ><span class="truncate">{text("startTitle")}</span><Icon
       icon={ChevronDown}
-      class="tw:shrink-0 tw:text-muted-foreground"
+      class="shrink-0 text-muted-foreground"
     /></Button
   >
   <div
-    class="tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-row tw:items-center tw:gap-2.5 tw:self-stretch tw:overflow-x-auto tw:max-md:hidden tw:px-1 tw:py-1.5 tw:[scrollbar-width:none] tw:[&::-webkit-scrollbar]:hidden tw:md:-mx-2 tw:md:flex-col tw:md:overflow-x-hidden tw:md:overflow-y-auto tw:md:px-2"
+    class="flex min-h-0 min-w-0 flex-1 flex-row items-center gap-2.5 self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
     role="list"
     aria-label={text("home")}
   >
@@ -270,20 +268,18 @@
           role="listitem"
           data-tint-group
           class={cn(
-            "tw:flex tw:flex-row tw:gap-2.5 tw:rounded-2xl tw:p-1.5 tw:md:flex-col",
+            "flex flex-row gap-2.5 rounded-2xl p-1.5 md:flex-col",
             group.tint,
           )}
         >
-          <div role="list" class="tw:contents">
+          <div role="list" class="contents">
             {#each group.rooms as room (room.id)}{@render roomTile(room)}{/each}
           </div>
         </div>{:else}{#each group.rooms as room (room.id)}{@render roomTile(
             room,
           )}{/each}{/if}{/each}
   </div>
-  <div
-    class="tw:flex tw:shrink-0 tw:flex-row tw:items-center tw:gap-1 tw:md:flex-col"
-  >
+  <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
     <RailButton
       icon={SearchMd}
       label={text("search")}
@@ -304,12 +300,12 @@
   </div>
   {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
           aria-hidden="true"
-          class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-md:hidden tw:md:h-px tw:md:w-6"
+          class="h-6 w-px shrink-0 bg-sidebar-border max-md:hidden md:h-px md:w-6"
         ></span>{/if}
       <div
         class={cn(
-          "tw:flex tw:shrink-0", // phones: after search and +, at the right
-          accountInSidebar && "tw:md:hidden",
+          "flex shrink-0", // phones: after search and +, at the right
+          accountInSidebar && "md:hidden",
         )}
       >
         <AccountRow me={$personal.me} row={false} />
@@ -382,9 +378,9 @@
 {#if $draft.unknown && $draft.unknown.roomId === $nav.roomId}<aside
     data-vb-native="home-notice"
     role="status"
-    class="tw:fixed tw:bottom-4 tw:right-4 tw:z-30 tw:flex tw:max-w-[calc(100vw-2rem)] tw:items-start tw:gap-2 tw:rounded-2xl tw:bg-popover tw:p-4 tw:font-sans tw:text-sm tw:text-popover-foreground tw:shadow-lg tw:outline-1 tw:outline-hairline"
+    class="fixed bottom-4 right-4 z-30 flex max-w-[calc(100vw-2rem)] items-start gap-2 rounded-2xl bg-popover p-4 font-sans text-sm text-popover-foreground shadow-lg outline-1 outline-hairline"
   >
-    <p class="tw:m-0 tw:break-words">
+    <p class="m-0 break-words">
       {text("unknown", { who: $draft.unknown.names.join(", ") })}
     </p>
     <IconButton
@@ -397,7 +393,7 @@
 
 {#if $personal.updateAvailable}<Button
     data-vb-native="update"
-    class="tw:fixed tw:bottom-4 tw:left-1/2 tw:z-30 tw:max-w-[calc(100vw-2rem)] tw:-translate-x-1/2 tw:whitespace-normal tw:shadow-lg"
+    class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 whitespace-normal shadow-lg"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onreload();
     }}>{text("update")}</Button

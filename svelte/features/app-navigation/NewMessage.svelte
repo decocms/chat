@@ -93,23 +93,23 @@
     sideOffset={6}
     data-vb-native
     data-new-message-panel
-    class="tw:flex tw:w-80 tw:max-w-[calc(100vw-16px)] tw:flex-col tw:gap-2 tw:p-2 tw:font-sans"
+    class="flex w-80 max-w-[calc(100vw-16px)] flex-col gap-2 p-2 font-sans"
   >
-    <p class="tw:m-0 tw:px-1 tw:text-sm tw:font-medium">
+    <p class="m-0 px-1 text-sm font-medium">
       {text("newMessage")}
     </p>
     {#if target}
       <form
-        class="tw:flex tw:flex-col tw:gap-2"
+        class="flex flex-col gap-2"
         onsubmit={(event) => {
           event.preventDefault();
           if (target && draft.trim()) void go(target, draft.trim());
         }}
       >
-        <p class="tw:m-0 tw:px-1 tw:text-sm tw:break-words">
+        <p class="m-0 px-1 text-sm break-words">
           {text("writeTo", { email: target })}
         </p>
-        <p class="tw:m-0 tw:px-1 tw:text-xs tw:text-muted-foreground">
+        <p class="m-0 px-1 text-xs text-muted-foreground">
           {text("requestNote")}
         </p>
         <Textarea
@@ -120,7 +120,7 @@
           placeholder={text("firstMessage")}
           disabled={busy}
         />
-        <div class="tw:flex tw:justify-end tw:gap-1">
+        <div class="flex justify-end gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -149,31 +149,27 @@
           else if (stranger) target = typed;
         }}
       />
-      {#if sent}<p
-          role="status"
-          class="tw:m-0 tw:px-1 tw:text-xs tw:text-muted-foreground"
-        >
+      {#if sent}<p role="status" class="m-0 px-1 text-xs text-muted-foreground">
           ✓ {text("requestSent")}
         </p>{/if}
       <ul
-        class="tw:m-0 tw:flex tw:max-h-72 tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-y-auto tw:p-0"
+        class="m-0 flex max-h-72 list-none flex-col gap-0.5 overflow-y-auto p-0"
       >
         {#each found as person (person.email)}<li>
             <button
               type="button"
               data-contact={person.email}
-              class={navRow({ class: "tw:w-full tw:text-left" })}
+              class={navRow({ class: "w-full text-left" })}
               disabled={busy}
               onclick={() => go(person.email)}
               ><PersonAvatar
                 size="sm"
                 email={person.email}
                 version={person.avatar}
-              /><span class="tw:min-w-0 tw:flex-1">
-                <span class="tw:block tw:truncate"
-                  >{person.name || person.email}</span
+              /><span class="min-w-0 flex-1">
+                <span class="block truncate">{person.name || person.email}</span
                 >{#if person.rooms.length}<span
-                    class="tw:block tw:truncate tw:text-xs tw:text-muted-foreground"
+                    class="block truncate text-xs text-muted-foreground"
                     >{text("inRooms", {
                       rooms: person.rooms.join(", "),
                     })}</span
@@ -185,37 +181,33 @@
             <button
               type="button"
               data-contact-stranger
-              class={navRow({ class: "tw:w-full tw:text-left" })}
+              class={navRow({ class: "w-full text-left" })}
               disabled={busy}
               onclick={() => (target = typed)}
               ><PersonAvatar size="sm" email={typed} /><span
-                class="tw:min-w-0 tw:flex-1 tw:truncate"
+                class="min-w-0 flex-1 truncate"
                 >{text("writeTo", { email: typed })}</span
               ></button
             >
           </li>{:else if typed && !found.length}<li
-            class="tw:px-2 tw:py-1 tw:text-xs tw:text-muted-foreground"
+            class="px-2 py-1 text-xs text-muted-foreground"
           >
             {text("noPeople")}
           </li>{/if}
       </ul>
-      {#if waiting.length}<div class="tw:border-t tw:border-border tw:pt-2">
-          <p
-            class="tw:m-0 tw:px-1 tw:pb-1 tw:text-xs tw:font-medium tw:text-muted-foreground"
-          >
+      {#if waiting.length}<div class="border-t border-border pt-2">
+          <p class="m-0 px-1 pb-1 text-xs font-medium text-muted-foreground">
             {text("sentList")}
           </p>
-          <ul class="tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
+          <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
             {#each waiting as request (request.email)}<li
                 data-sent-request={request.email}
-                class="tw:flex tw:items-center tw:gap-2 tw:px-2 tw:py-1"
+                class="flex items-center gap-2 px-2 py-1"
               >
                 <PersonAvatar size="sm" email={request.email} /><span
-                  class="tw:min-w-0 tw:flex-1"
-                  ><span class="tw:block tw:truncate tw:text-sm"
-                    >{request.email}</span
-                  ><span
-                    class="tw:block tw:truncate tw:text-xs tw:text-muted-foreground"
+                  class="min-w-0 flex-1"
+                  ><span class="block truncate text-sm">{request.email}</span
+                  ><span class="block truncate text-xs text-muted-foreground"
                     >{text("waitingAnswer")}</span
                   ></span
                 ><Button
@@ -229,10 +221,7 @@
           </ul>
         </div>{/if}
     {/if}
-    {#if failed}<p
-        role="alert"
-        class="tw:m-0 tw:px-1 tw:text-xs tw:text-destructive"
-      >
+    {#if failed}<p role="alert" class="m-0 px-1 text-xs text-destructive">
         {text("requestFailed")}
       </p>{/if}
   </PopoverContent>

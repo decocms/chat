@@ -56,31 +56,31 @@
     ? text("missing")
     : ($view.context?.title ?? text("access"))}
 >
-  {#if fileId}<p class="tw:m-0 tw:text-muted-foreground">
+  {#if fileId}<p class="m-0 text-muted-foreground">
       {lang === "en"
         ? "Only room members can open this file. Sign in or ask for room access."
         : "Só quem está na sala abre este arquivo. Entre ou peça acesso à sala."}
     </p>{/if}
   {#if $view.loading && !$view.context}<p
       role="status"
-      class="tw:m-0 tw:text-muted-foreground"
+      class="m-0 text-muted-foreground"
     >
       {text("loading")}
     </p>
   {:else if $view.context?.state === "missing"}<p
-      class="tw:m-0 tw:text-muted-foreground"
+      class="m-0 text-muted-foreground"
     >
       {text("missingBody")}
     </p>
     <a class={buttonVariants()} href="/app?ui=svelte">{text("open")}</a>
   {:else if $view.context?.state === "out" || $view.signedOut}<p
-      class="tw:m-0 tw:text-muted-foreground"
+      class="m-0 text-muted-foreground"
     >
       {text("closed")}
     </p>
     <a class={buttonVariants()} href={loginURL}>{text("signinAsk")}</a>
   {:else if $view.context?.state === "ask"}<p
-      class="tw:m-0 tw:break-words tw:text-muted-foreground"
+      class="m-0 break-words text-muted-foreground"
     >
       {text("signed", { email: $view.context.email ?? "" })}
     </p>
@@ -92,13 +92,13 @@
     >
   {:else if $view.context?.state === "invited"}{#if $view.declined}<p
         role="status"
-        class="tw:m-0 tw:text-muted-foreground"
+        class="m-0 text-muted-foreground"
       >
         {text("inviteDeclined")}
-      </p>{:else}<p class="tw:m-0 tw:break-words tw:text-muted-foreground">
+      </p>{:else}<p class="m-0 break-words text-muted-foreground">
         {text("invited", { who: $view.context.inviter ?? "" })}
       </p>
-      <div class="tw:flex tw:flex-wrap tw:gap-2" data-invite-answer>
+      <div class="flex flex-wrap gap-2" data-invite-answer>
         <Button
           disabled={$view.busy}
           aria-busy={$view.busy || undefined}
@@ -112,15 +112,12 @@
       </div>{/if}
   {:else if $view.context?.state === "asked"}<p
       role="status"
-      class="tw:m-0 tw:text-foreground"
+      class="m-0 text-foreground"
     >
       ✓ {text("asked")}
     </p>
-    <p class="tw:m-0 tw:text-muted-foreground">{text("askedBody")}</p>{/if}
-  {#if $view.error}<p
-      role="alert"
-      class="tw:m-0 tw:break-words tw:text-destructive"
-    >
+    <p class="m-0 text-muted-foreground">{text("askedBody")}</p>{/if}
+  {#if $view.error}<p role="alert" class="m-0 break-words text-destructive">
       {authIssue(lang, $view.error)}
     </p>
     {#if $view.context?.state !== "ask" && $view.context?.state !== "invited"}<Button
@@ -128,7 +125,7 @@
         onclick={() => session.load()}>{text("retry")}</Button
       >{/if}{/if}
   {#if $view.context && $view.context.state !== "missing"}<p
-      class="tw:m-0 tw:break-words tw:text-xs tw:text-muted-foreground"
+      class="m-0 break-words text-xs text-muted-foreground"
     >
       {text("agent", { origin, url: origin + roomURL })}
     </p>{/if}

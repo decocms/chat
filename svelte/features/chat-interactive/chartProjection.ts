@@ -1,9 +1,9 @@
 /** Presentation math only; wire validation/limits remain in shared/card. */
 export const chartColors = [
-  "tw:text-chart-1",
-  "tw:text-chart-2",
-  "tw:text-chart-3",
-  "tw:text-chart-4",
+  "text-chart-1",
+  "text-chart-2",
+  "text-chart-3",
+  "text-chart-4",
 ] as const;
 export const chartNumber = (value: number) =>
   Math.abs(value) >= 1e6

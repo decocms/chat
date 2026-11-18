@@ -4,20 +4,19 @@ import { tv, type VariantProps } from "tailwind-variants";
 export const inputVariants = tv(
   {
     base: [
-      "tw:text-foreground tw:placeholder:text-subtle-foreground tw:selection:bg-primary tw:selection:text-primary-foreground tw:flex tw:w-full tw:min-w-0 tw:text-sm tw:pointer-coarse:text-[16px] tw:transition-[color,background-color,box-shadow] tw:outline-none",
-      "tw:file:text-foreground tw:file:inline-flex tw:file:h-7 tw:file:border-border tw:file:border-0 tw:file:bg-transparent tw:file:text-sm tw:file:font-medium",
-      "tw:disabled:pointer-events-none tw:disabled:cursor-not-allowed tw:disabled:text-subtle-foreground tw:disabled:placeholder:text-subtle-foreground",
-      "tw:read-only:text-muted-foreground",
-      "tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2",
-      "tw:aria-invalid:bg-destructive/10 tw:aria-invalid:shadow-[inset_0_0_0_1px_var(--vb-destructive)]",
-      "tw:data-valid:bg-success/10 tw:data-valid:shadow-[inset_0_0_0_1px_var(--vb-success)]",
-      "tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:shadow-edge tw:hover:bg-sidebar tw:read-only:bg-sidebar",
+      "text-foreground placeholder:text-subtle-foreground selection:bg-primary selection:text-primary-foreground flex w-full min-w-0 text-sm pointer-coarse:text-[16px] transition-[color,background-color,box-shadow] outline-none",
+      "file:text-foreground file:inline-flex file:h-7 file:border-border file:border-0 file:bg-transparent file:text-sm file:font-medium",
+      "disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:placeholder:text-subtle-foreground",
+      "read-only:text-muted-foreground",
+      "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2",
+      "aria-invalid:bg-destructive/10 aria-invalid:shadow-[inset_0_0_0_1px_var(--vb-destructive)]",
+      "data-valid:bg-success/10 data-valid:shadow-[inset_0_0_0_1px_var(--vb-success)]",
+      "rounded-[var(--vb-studio-control-radius,0.625rem)] bg-[var(--vb-studio-input-background)] shadow-edge hover:bg-sidebar read-only:bg-sidebar",
     ],
     variants: {
       size: {
-        default:
-          "tw:h-[var(--vb-studio-control-height,2.25rem)] tw:px-3 tw:py-1",
-        sm: "tw:h-8 tw:px-3 tw:py-1",
+        default: "h-[var(--vb-studio-control-height,2.25rem)] px-3 py-1",
+        sm: "h-8 px-3 py-1",
       },
     },
     defaultVariants: { size: "default" },

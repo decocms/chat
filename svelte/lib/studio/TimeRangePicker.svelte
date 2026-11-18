@@ -102,34 +102,34 @@
       <Button
         {...props}
         variant="outline"
-        class={cn("tw:min-w-[160px] tw:justify-between tw:gap-1.5", className)}
+        class={cn("min-w-[160px] justify-between gap-1.5", className)}
         {disabled}
       >
-        <div class="tw:flex tw:items-center tw:gap-1.5">
-          <Icon icon={Clock} class="tw:text-muted-foreground tw:size-4" />
-          <span class="tw:text-sm">{displayText}</span>
+        <div class="flex items-center gap-1.5">
+          <Icon icon={Clock} class="text-muted-foreground size-4" />
+          <span class="text-sm">{displayText}</span>
         </div>
-        <Icon icon={ChevronDown} class="tw:text-muted-foreground tw:size-4" />
+        <Icon icon={ChevronDown} class="text-muted-foreground size-4" />
       </Button>
     {/snippet}
   </PopoverTrigger>
   <!-- An instant exit keeps the popover from blinking when a re-render restarts its exit animation. -->
   <PopoverContent
-    class="tw:w-[540px] tw:p-0 tw:data-[state=closed]:[animation-duration:0s]"
+    class="w-[540px] p-0 data-[state=closed]:[animation-duration:0s]"
     align="end"
     sideOffset={4}
     onCloseAutoFocus={(event) => event.preventDefault()}
   >
-    <div class="tw:flex">
-      <div class="tw:border-border tw:flex-1 tw:border-r tw:p-4">
-        <h4 class="tw:mb-4 tw:text-sm tw:font-medium tw:text-balance">
+    <div class="flex">
+      <div class="border-border flex-1 border-r p-4">
+        <h4 class="mb-4 text-sm font-medium text-balance">
           {labels?.absoluteTimeRange ?? "Absolute time range"}
         </h4>
-        <div class="tw:space-y-4">
+        <div class="space-y-4">
           <div>
             <label
               for={fromId}
-              class="tw:text-muted-foreground tw:mb-1.5 tw:block tw:text-xs"
+              class="text-muted-foreground mb-1.5 block text-xs"
               >{labels?.from ?? "From"}</label
             >
             <DateTimeInput
@@ -139,36 +139,34 @@
             />
           </div>
           <div>
-            <label
-              for={toId}
-              class="tw:text-muted-foreground tw:mb-1.5 tw:block tw:text-xs"
+            <label for={toId} class="text-muted-foreground mb-1.5 block text-xs"
               >{labels?.to ?? "To"}</label
             >
             <DateTimeInput id={toId} bind:value={localTo} placeholder="now" />
           </div>
           {#if validationError}
-            <p class="tw:text-destructive tw:text-xs tw:text-pretty">
+            <p class="text-destructive text-xs text-pretty">
               {validationError}
             </p>
           {/if}
-          <Button onclick={handleApply} class="tw:w-full" size="sm">
+          <Button onclick={handleApply} class="w-full" size="sm">
             {labels?.applyTimeRange ?? "Apply time range"}
           </Button>
         </div>
       </div>
-      <div class="tw:w-[200px]">
-        <ScrollArea class="tw:h-[280px]">
-          <div class="tw:p-2">
+      <div class="w-[200px]">
+        <ScrollArea class="h-[280px]">
+          <div class="p-2">
             {#each quickRanges as range (range.value)}
               <button
                 type="button"
                 onclick={() => handleQuickRangeSelect(range)}
                 class={cn(
-                  "tw:w-full tw:cursor-pointer tw:rounded-lg tw:px-3 tw:py-2 tw:text-left tw:text-sm tw:transition-colors tw:disabled:cursor-not-allowed",
-                  "tw:hover:bg-accent tw:hover:text-accent-foreground",
+                  "w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed",
+                  "hover:bg-accent hover:text-accent-foreground",
                   value.from === range.from &&
                     value.to === range.to &&
-                    "tw:bg-accent tw:text-accent-foreground tw:font-medium",
+                    "bg-accent text-accent-foreground font-medium",
                 )}
               >
                 {range.label}

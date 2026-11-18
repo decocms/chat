@@ -31,13 +31,11 @@
   <section
     data-side-file
     data-file-id={$view.id}
-    class="tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:gap-3 tw:p-3"
+    class="flex h-full min-h-0 flex-col gap-3 p-3"
   >
     {#key $view}<Snapshot value={$view}
-        >{#snippet children(target)}<header
-            class="tw:flex tw:items-center tw:gap-2"
-          >
-            <b class="tw:min-w-0 tw:flex-1 tw:truncate">{target.name}</b>
+        >{#snippet children(target)}<header class="flex items-center gap-2">
+            <b class="min-w-0 flex-1 truncate">{target.name}</b>
             <Button
               variant="ghost"
               onclick={(event) => {
@@ -56,7 +54,7 @@
             >
           </header>{/snippet}</Snapshot
       >{/key}
-    <div class="tw:min-h-0 tw:flex-1 tw:overflow-auto">
+    <div class="min-h-0 flex-1 overflow-auto">
       <FileViewer
         controller={owner.viewer}
         {lang}

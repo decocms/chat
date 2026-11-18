@@ -1,10 +1,10 @@
 <script lang="ts" module>
   const TRIGGER = {
-    pill: "tw:relative tw:z-10 tw:data-[state=active]:text-foreground tw:hover:text-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:text-muted-foreground tw:inline-flex tw:h-7 tw:flex-1 tw:items-center tw:justify-center tw:gap-1.5 tw:rounded-full tw:px-3 tw:text-sm tw:font-medium tw:whitespace-nowrap tw:transition-colors tw:disabled:pointer-events-none tw:disabled:opacity-50 tw:[&_svg]:pointer-events-none tw:[&_svg]:shrink-0 tw:[&_svg:not([class*='size-'])]:size-4",
+    pill: "relative z-10 data-[state=active]:text-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 text-muted-foreground inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     underline:
-      "tw:relative tw:z-10 tw:flex tw:items-center tw:h-full tw:px-3 tw:text-sm tw:whitespace-nowrap tw:transition-colors tw:text-muted-foreground tw:hover:text-foreground tw:data-[state=active]:text-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:focus-visible:outline-offset-2 tw:disabled:pointer-events-none tw:disabled:opacity-50",
+      "relative z-10 flex items-center h-full px-3 text-sm whitespace-nowrap transition-colors text-muted-foreground hover:text-foreground data-[state=active]:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50",
     canvas:
-      "tw:flex tw:items-center tw:h-full tw:px-3 tw:gap-2.5 tw:text-sm tw:whitespace-nowrap tw:transition-all tw:border-r tw:border-b tw:border-border tw:[&>*]:opacity-50 tw:data-[state=active]:[&>*]:opacity-100 tw:data-[state=active]:border-b-0 tw:last:border-r-0 tw:disabled:pointer-events-none tw:max-w-2xs",
+      "flex items-center h-full px-3 gap-2.5 text-sm whitespace-nowrap transition-all border-r border-b border-border [&>*]:opacity-50 data-[state=active]:[&>*]:opacity-100 data-[state=active]:border-b-0 last:border-r-0 disabled:pointer-events-none max-w-2xs",
   } as const;
 </script>
 
@@ -33,7 +33,7 @@
   {...rest}
   class={cn(
     TRIGGER[parentVariant],
-    "tw:cursor-pointer tw:disabled:cursor-not-allowed",
+    "cursor-pointer disabled:cursor-not-allowed",
     className,
   )}
 />

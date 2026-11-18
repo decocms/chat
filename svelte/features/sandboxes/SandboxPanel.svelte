@@ -117,12 +117,12 @@
 <section
   data-vb-native
   data-native-sandboxes
-  class="tw:space-y-4 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-4 font-sans text-sm text-foreground"
 >
-  <div class="tw:flex tw:items-center tw:gap-2">
+  <div class="flex items-center gap-2">
     <Heading
       level={3}
-      class="tw:m-0 tw:flex-1 tw:font-sans tw:text-base tw:font-semibold tw:tracking-normal"
+      class="m-0 flex-1 font-sans text-base font-semibold tracking-normal"
       >{text("title")}</Heading
     ><Button
       variant="ghost"
@@ -131,22 +131,20 @@
       onclick={() => void owner.refresh(true)}>{text("refresh")}</Button
     >
   </div>
-  <p class="tw:m-0 tw:text-muted-foreground">{text("description")}</p>
+  <p class="m-0 text-muted-foreground">{text("description")}</p>
   {#if $view.loading && !$view.data}<p role="status">{text("loading")}</p>{/if}
-  {#if $view.readError}<p role="alert" class="tw:text-destructive">
+  {#if $view.readError}<p role="alert" class="text-destructive">
       {text("readFailed")}
     </p>{/if}
   {#if $view.data}
     {#each ["key", "token"] as kind}
       {@const configured =
         kind === "key" ? $credentialView.connected : $credentialView.claude}
-      <div
-        class="tw:space-y-2 tw:rounded-surface tw:border tw:border-border tw:p-3"
-      >
-        <div class="tw:flex tw:items-center tw:gap-2">
-          <strong class="tw:flex-1"
+      <div class="space-y-2 rounded-surface border border-border p-3">
+        <div class="flex items-center gap-2">
+          <strong class="flex-1"
             >{text(kind === "key" ? "key" : "token")}</strong
-          ><span class="tw:text-muted-foreground"
+          ><span class="text-muted-foreground"
             >{text(configured ? "connected" : "missing")}</span
           >{#if configured}<Button
               variant="ghost"
@@ -160,16 +158,15 @@
             >{/if}
         </div>
         {#if !configured}
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          <p class="m-0 text-xs text-muted-foreground">
             {text(kind === "key" ? "keyHelp" : "tokenHelp")}
           </p>
           {@const command =
             kind === "key"
               ? "npx freestyle@latest tokens create vibebook"
               : "claude setup-token"}
-          <div class="tw:flex tw:items-center tw:gap-2">
-            <code
-              class="tw:min-w-0 tw:flex-1 tw:overflow-auto tw:font-mono tw:text-xs"
+          <div class="flex items-center gap-2">
+            <code class="min-w-0 flex-1 overflow-auto font-mono text-xs"
               >{command}</code
             ><Button
               variant="outline"
@@ -178,7 +175,7 @@
             >
           </div>
           <form
-            class="tw:flex tw:gap-2"
+            class="flex gap-2"
             onsubmit={(event) => {
               event.preventDefault();
               void save(kind === "key" ? "key" : "token");
@@ -201,7 +198,7 @@
               />{/if}
             <Button type="submit" disabled={busy}>{text("save")}</Button>
           </form>
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          <p class="m-0 text-xs text-muted-foreground">
             {text("secretHelp")}
           </p>
         {/if}
@@ -213,7 +210,7 @@
       </p>{/if}
     {#if $credentialView.phase === "error"}<p
         role="alert"
-        class="tw:text-destructive"
+        class="text-destructive"
       >
         {text("failed")}
       </p>{/if}
@@ -230,26 +227,24 @@
     {#each $view.data.sandboxes as card (card.id)}
       <article
         data-sandbox-id={card.id}
-        class="tw:space-y-3 tw:rounded-surface tw:border tw:border-border tw:p-3"
+        class="space-y-3 rounded-surface border border-border p-3"
       >
-        <div class="tw:flex tw:items-start tw:gap-3">
-          <div class="tw:min-w-0 tw:flex-1">
-            <strong class="tw:block tw:break-words"
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <strong class="block break-words"
               >☁ {card.name ?? text("unnamed")}</strong
             >
-            <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+            <p class="m-0 text-xs text-muted-foreground">
               {sandboxStateText(card.state, lang)} · {new Intl.NumberFormat(
                 lang,
                 { style: "currency", currency: "USD" },
               ).format(card.rate)}/h
             </p>
-            {#if card.error}<p
-                class="tw:m-0 tw:break-words tw:text-xs tw:text-destructive"
-              >
+            {#if card.error}<p class="m-0 break-words text-xs text-destructive">
                 {sandboxLog(card.error)}
               </p>{/if}
           </div>
-          <span class="tw:text-xs"
+          <span class="text-xs"
             >{card.cost_unknown
               ? text("costUnknown")
               : new Intl.NumberFormat(lang, {
@@ -259,13 +254,13 @@
           >
         </div>
         {#if $view.logs[card.id] || (!card.ready && card.log)}<details>
-            <summary class="tw:cursor-pointer">{text("log")}</summary>
+            <summary class="cursor-pointer">{text("log")}</summary>
             <pre
-              class="tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:font-mono tw:text-xs">{sandboxLog(
+              class="max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{sandboxLog(
                 $view.logs[card.id] || card.log,
               )}</pre>
           </details>{/if}
-        <div class="tw:flex tw:flex-wrap tw:gap-2">
+        <div class="flex flex-wrap gap-2">
           {#if card.state !== "deleted"}<Button
               size="sm"
               disabled={busy || !$credentialView.connected}
@@ -310,19 +305,19 @@
           >
         </div>
       </article>
-    {:else}<p class="tw:text-muted-foreground">{text("empty")}</p>{/each}
+    {:else}<p class="text-muted-foreground">{text("empty")}</p>{/each}
     {#if $view.phase === "pending" || $credentialView.phase === "pending"}<p
         role="status"
       >
         {text($view.operation === "setup" ? "setupPending" : "pending")}
       </p>{/if}
-    {#if $view.phase === "error"}<p role="alert" class="tw:text-destructive">
+    {#if $view.phase === "error"}<p role="alert" class="text-destructive">
         {text("failed")}
       </p>{/if}
     {#if $view.phase === "unconfirmed"}<p role="status">
         {text("unconfirmed")}
       </p>
-      {#if $view.candidates.length}<p class="tw:text-muted-foreground">
+      {#if $view.candidates.length}<p class="text-muted-foreground">
           {text("uncertainCreate")}
         </p>{/if}<Button
         variant="outline"
@@ -339,8 +334,8 @@
         if (!busy) void owner.create();
       }}>{text("create")}</Button
     >
-    <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">{text("costHelp")}</p>
-    <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+    <p class="m-0 text-xs text-muted-foreground">{text("costHelp")}</p>
+    <p class="m-0 text-xs text-muted-foreground">
       {text($credentialView.connected ? "createLimit" : "keyRequired")}
     </p>
   {/if}

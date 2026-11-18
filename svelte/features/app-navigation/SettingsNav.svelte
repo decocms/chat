@@ -38,12 +38,10 @@
 <nav
   data-native-settings-nav
   aria-label={settingsText(lang, "title")}
-  class="tw:flex tw:flex-col tw:gap-0.5"
+  class="flex flex-col gap-0.5"
 >
   <HomeRow selected={false} waits={0} {lang} {onhome} />
-  <p
-    class="tw:m-0 tw:px-2 tw:pt-4 tw:pb-1 tw:text-xs tw:font-medium tw:text-muted-foreground"
-  >
+  <p class="m-0 px-2 pt-4 pb-1 text-xs font-medium text-muted-foreground">
     {settingsText(lang, "title")}
   </p>
   {#each SETTINGS_SECTIONS as id (id)}<RoomRow
@@ -53,7 +51,7 @@
       onopen={() => go(id)}
     >
       {#snippet leading()}<span
-          class="tw:grid tw:size-9 tw:shrink-0 tw:place-items-center tw:rounded-[0.6875rem] tw:bg-muted"
+          class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
           ><Icon icon={icons[id]} /></span
         >{/snippet}
     </RoomRow>{/each}

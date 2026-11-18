@@ -17,8 +17,8 @@
   aria-label="Go to next page"
   size="default"
   {...rest}
-  class={cn("tw:gap-1 tw:px-2.5 tw:md:pr-2.5", className)}
+  class={cn("gap-1 px-2.5 md:pr-2.5", className)}
 >
-  <span class="tw:hidden tw:md:block">Next</span>
+  <span class="hidden md:block">Next</span>
   <Icon icon={ChevronRight} />
 </PaginationLink>

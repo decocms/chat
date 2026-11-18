@@ -17,7 +17,7 @@
   {orientation}
   {...rest}
   class={cn(
-    "tw:bg-input tw:relative tw:!m-0 tw:self-stretch tw:data-[orientation=vertical]:h-auto",
+    "bg-input relative !m-0 self-stretch data-[orientation=vertical]:h-auto",
     className,
   )}
 />

@@ -16,11 +16,11 @@
     fallback={title}
     aria-hidden="true"
     data-room-mark="icon"
-    class={cn("tw:shrink-0", className)}
-  />{:else}<span data-room-mark="marble" class="tw:contents"
+    class={cn("shrink-0", className)}
+  />{:else}<span data-room-mark="marble" class="contents"
     ><OrgAvatar
       name={title}
       size="xs"
-      class={cn("tw:shrink-0", className)}
+      class={cn("shrink-0", className)}
     /></span
   >{/if}

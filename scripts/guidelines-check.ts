@@ -33,7 +33,7 @@ const PALETTE_CLASS = new RegExp(
   `^-?(?:${COLOR_UTILITY})-(?:(?:${PALETTE})-\\d{2,3}|black|white)$`,
 );
 const HEX = /#[0-9a-fA-F]{3,8}\b/;
-const TOKEN = /tw:[^\s"'`{}<>]+/g;
+const TOKEN = /[^\s"'`{}<>]+/g;
 const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|<!--)/;
 const MARKDOWN_ALLOWED = [
   /^README\.md$/,
@@ -45,7 +45,7 @@ const MARKDOWN_ALLOWED = [
   /^\.github\/pull_request_template\.md$/,
 ];
 
-/** Splits `max-md:hover:tw-x` at the colons outside brackets. */
+/** Splits `max-md:hover:flex` at the colons outside brackets. */
 function segments(token: string): string[] {
   const parts: string[] = [];
   let depth = 0,
@@ -112,8 +112,9 @@ export function auditSvelte(path: string, text: string): Violation[] {
   lines.forEach((line, i) => {
     if (COMMENT_LINE.test(line)) return;
     for (const [token] of line.matchAll(TOKEN)) {
-      const parts = segments(token.slice(3));
+      const parts = segments(token);
       const utility = parts.pop() ?? "";
+      if (!utility) continue; // an object key (`md: 1`), not a class
       if (badColor(utility)) add("color", i, token);
       for (const variant of parts)
         if (badBreakpoint(variant)) add("breakpoint", i, token);

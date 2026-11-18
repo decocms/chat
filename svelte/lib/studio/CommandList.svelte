@@ -18,7 +18,7 @@
   tabindex={-1}
   aria-label={ariaLabel}
   class={cn(
-    "tw:max-h-[300px] tw:scroll-py-1 tw:overflow-x-hidden tw:overflow-y-auto tw:[scrollbar-width:thin] tw:[scrollbar-color:transparent_transparent] tw:hover:[scrollbar-color:var(--vb-border)_transparent]",
+    "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto [scrollbar-width:thin] [scrollbar-color:transparent_transparent] hover:[scrollbar-color:var(--vb-border)_transparent]",
     className,
   )}
   {...rest}

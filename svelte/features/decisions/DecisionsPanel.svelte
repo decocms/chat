@@ -50,40 +50,40 @@
   tabindex="-1"
   data-vb-native
   data-decisions-panel
-  class="tw:space-y-4 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
+  class="space-y-4 p-4 font-sans text-sm text-foreground"
 >
   <PaneHeader title={vb.t("Decisões")} count={list.length} />
   {#each rows as decision (decision.id)}
     <article data-decision-id={decision.id}>
-      <Card size="tile" class="tw:flex-row tw:items-start tw:gap-3">
-        <div class="tw:min-w-0 tw:flex-1 tw:space-y-2">
-          <p class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:leading-6">
+      <Card size="tile" class="flex-row items-start gap-3">
+        <div class="min-w-0 flex-1 space-y-2">
+          <p class="m-0 whitespace-pre-wrap break-words leading-6">
             {decision.text}
           </p>
           <div
-            class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+            class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
           >
             <Badge
-              class="tw:text-foreground"
+              class="text-foreground"
               variant={decision.kind === "approval" ? "success" : "neutral"}
               >{decision.kind === "approval"
                 ? `✓ ${vb.t("aprovado")}`
                 : vb.t("decidido")}</Badge
             >
-            <span class="tw:break-words">{decision.who}</span><time
+            <span class="break-words">{decision.who}</span><time
               datetime={new Date(decision.ts).toISOString()}
               >{vb.ago(decision.ts)}</time
             >
           </div>
           {#if $view.pending[decision.id]}<p
               role="status"
-              class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+              class="m-0 text-xs text-muted-foreground"
             >
               {vb.t("Aguardando confirmação…")}
             </p>{/if}
           {#if $view.issues[decision.id]}<p
               role="alert"
-              class="tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:text-sm tw:text-destructive"
+              class="m-0 whitespace-pre-wrap break-words text-sm text-destructive"
             >
               {issueText($view.issues[decision.id])}
             </p>{/if}

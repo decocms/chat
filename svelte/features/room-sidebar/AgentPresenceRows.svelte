@@ -39,13 +39,13 @@
   const rows = $derived(agentRows(presence, email));
   // The Studio bar paints its current color: green, yellow from 60%, red from 80%.
   const METERS = {
-    hot: "tw:[&_progress]:text-destructive",
-    mid: "tw:[&_progress]:text-warning",
-    ok: "tw:[&_progress]:text-brand",
+    hot: "[&_progress]:text-destructive",
+    mid: "[&_progress]:text-warning",
+    ok: "[&_progress]:text-brand",
   } as const;
   const SURFACES = {
-    sidebar: { ring: "tw:ring-sidebar", hover: "tw:hover:bg-sidebar-accent" },
-    background: { ring: "tw:ring-background", hover: "tw:hover:bg-accent" },
+    sidebar: { ring: "ring-sidebar", hover: "hover:bg-sidebar-accent" },
+    background: { ring: "ring-background", hover: "hover:bg-accent" },
   } as const;
   const tone = $derived(SURFACES[surface]);
   const meter = (percent: number) => METERS[contextTone(percent)];
@@ -57,7 +57,7 @@
 {#if listeners > 1}<p
     data-duplicate-listeners
     role="status"
-    class="tw:m-0 tw:ml-7 tw:px-2 tw:text-xs tw:text-warning"
+    class="m-0 ml-7 px-2 text-xs text-warning"
   >
     {t(
       "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
@@ -77,30 +77,30 @@
       data-agent-provider={agentProvider(agent.who)}
       data-agent-listening={agent.listening}
       class={cn(
-        "tw:ml-7 tw:box-border tw:flex tw:w-[calc(100%-1.75rem)] tw:cursor-default tw:flex-col tw:gap-1 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:font-sans tw:text-xs tw:text-muted-foreground tw:focus-visible:outline-2 tw:focus-visible:outline-ring",
+        "ml-7 box-border flex w-[calc(100%-1.75rem)] cursor-default flex-col gap-1 rounded-lg border-0 bg-transparent px-2 py-1 text-left font-sans text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring",
         tone.hover,
       )}
     >
-      <span class="tw:flex tw:w-full tw:items-center tw:gap-2">
-        <span class="tw:relative tw:inline-flex tw:shrink-0">
+      <span class="flex w-full items-center gap-2">
+        <span class="relative inline-flex shrink-0">
           <AgentMark
             size="2xs"
             tint
             via={agent.who}
-            class="tw:text-[0.625rem]"
+            class="text-[0.625rem]"
           /><span
             data-status-dot={agent.listening ? "listening" : "idle"}
             class={cn(
-              "tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2 tw:rounded-full tw:ring-2",
+              "absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2",
               tone.ring,
-              agent.listening ? "tw:bg-brand" : "tw:bg-muted-foreground",
+              agent.listening ? "bg-brand" : "bg-muted-foreground",
             )}
           ></span>
-        </span><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+        </span><span class="min-w-0 flex-1 truncate"
           >{model(agent.who).replace(/^Claude\s+/i, "")}{agent.repo
             ? ` · ${agent.repo}`
             : ""}</span
-        ><span class="tw:shrink-0"
+        ><span class="shrink-0"
           >{agent.listening
             ? t("ouvindo")
             : agent.seen_at === null
@@ -114,19 +114,16 @@
           data-context-bar
           aria-hidden="true"
           value={percent}
-          class={cn(
-            "tw:ml-6 tw:h-[3px] tw:w-[calc(100%-1.5rem)]",
-            meter(percent),
-          )}
+          class={cn("ml-6 h-[3px] w-[calc(100%-1.5rem)]", meter(percent))}
         />{/if}
     </button>
   {/snippet}
   <HoverCard side={narrow.current ? "top" : "right"} trigger={row}>
-    <div class="tw:space-y-0.5">
-      <p data-hover-title class="tw:m-0 tw:font-medium">
+    <div class="space-y-0.5">
+      <p data-hover-title class="m-0 font-medium">
         {model(agent.who)} · {name(email)}
       </p>
-      <p class="tw:m-0 tw:text-muted-foreground">
+      <p class="m-0 text-muted-foreground">
         {agent.repo ? `${agent.repo} · ` : ""}{agent.listening
           ? t(
               agent.all_rooms
@@ -140,11 +137,11 @@
     </div>
     {#each sections as section (section.key)}<div
         data-hover-section={section.key}
-        class="tw:space-y-1"
+        class="space-y-1"
       >
-        <p class="tw:m-0 tw:flex tw:justify-between tw:gap-2">
-          <span class="tw:font-medium">{section.label}</span><span
-            class="tw:whitespace-nowrap tw:text-muted-foreground"
+        <p class="m-0 flex justify-between gap-2">
+          <span class="font-medium">{section.label}</span><span
+            class="whitespace-nowrap text-muted-foreground"
             >{section.detail}</span
           >
         </p>
