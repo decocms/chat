@@ -58,7 +58,7 @@ export type InlineAppOpenEvidence = {
     /** Failure only: what each inline App card showed (tool, state text, button labels). */
     failureCards?: { tool: string; text: string; buttons: string[] }[];
     retainedFramesAfterProse?: boolean;
-    documentWidth?: { available: number; card: number };
+    documentWidth?: { available: number; expected: number; card: number };
     agentOpenRequiresReader?: boolean;
     failure?: { name: string; phase: string; sourceLocations?: string[] };
   }[];
@@ -428,11 +428,17 @@ export async function auditInlineAppOpen(
                   if (!(preview instanceof HTMLElement))
                     throw Error("Document preview missing");
                   const style = getComputedStyle(preview);
+                  const available =
+                    preview.clientWidth -
+                    parseFloat(style.paddingLeft) -
+                    parseFloat(style.paddingRight);
                   return {
-                    available:
-                      preview.clientWidth -
-                      parseFloat(style.paddingLeft) -
-                      parseFloat(style.paddingRight),
+                    available,
+                    // Svelte runs a doc app edge to edge through the preview's padding (#141); vanilla keeps it inside.
+                    expected:
+                      selector === "[data-document-preview]"
+                        ? preview.clientWidth
+                        : available,
                     card: node.getBoundingClientRect().width,
                   };
                 },
@@ -444,7 +450,7 @@ export async function auditInlineAppOpen(
             await expect
               .poll(async () => {
                 const width = await measureWidth();
-                return Math.abs(width.card - width.available);
+                return Math.abs(width.card - width.expected);
               })
               .toBeLessThanOrEqual(2);
             result.documentWidth = await measureWidth();
