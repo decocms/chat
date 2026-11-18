@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onDestroy, untrack, tick } from "svelte";
   import RoomStrip from "./features/app-navigation/RoomStrip.svelte";
+  import DmNav from "./features/app-navigation/DmNav.svelte";
+  import SidebarFoot from "./features/app-navigation/SidebarFoot.svelte";
+  import { navRow } from "./lib/components/navRow";
   import People from "./People.svelte";
   import EpicTree from "./features/navigation/EpicTree.svelte";
   import PinnedItems from "./features/pins/PinnedItems.svelte";
@@ -68,6 +71,8 @@
     footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
+  // A DM (src/dm.ts): its sidebar is your DM list, with this conversation's threads under its row.
+  const dm = $derived(!!room.book.dm);
   const owner = untrack(
     () => mutations ?? createRoomMutations(room.me, room.id),
   );
@@ -234,39 +239,52 @@
         controller={appNavigation.controller}
         lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
       >{:else}{@render thisRoom()}{/if}
-    {#snippet thisRoom()}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
-      thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
-      <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">
-        <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
-        <div
-          data-room-sidebar-header
-          class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
+    {#snippet thisRoom()}{#if dm && appNavigation}<DmNav
+          controller={appNavigation.controller}
+          lang={appNavigation.lang}
+          threads={roomThreads}
+        />{:else}<!-- Takes what Pinned and People leave, and never less than its own rows (header, main
+          thread, inbox, board) plus a few epics: Pinned and People shrink and scroll first, so nothing paints over them. -->
+        <div class="tw:flex tw:flex-auto tw:flex-col tw:gap-3">
+          {@render roomHeader()}{@render roomThreads()}
+        </div>{/if}{/snippet}
+    {#snippet roomHeader()}
+      <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
+      <div
+        data-room-sidebar-header
+        class="tw:group/name tw:relative tw:-mx-2 tw:-mt-2 tw:hidden tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:min-[901px]:flex"
+      >
+        <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
+        <button
+          type="button"
+          data-room-home
+          class="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sidebar-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
+          title={room.book.summary
+            ? `${room.book.title}\n${room.book.summary}`
+            : room.book.title}
+          onclick={() => onroomhome?.()}
         >
-          <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
-          <button
-            type="button"
-            data-room-home
-            class="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:font-sans tw:text-sidebar-foreground tw:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-ring"
-            title={room.book.summary
-              ? `${room.book.title}\n${room.book.summary}`
-              : room.book.title}
-            onclick={() => onroomhome?.()}
+          <RoomMark title={room.book.title} src={roomIcon} />
+          <h2
+            class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
           >
-            <RoomMark title={room.book.title} src={roomIcon} />
-            <h2
-              class="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-sm tw:font-semibold"
-            >
-              {room.book.title}
-            </h2>
-          </button>
-          <IconButton
-            label={vb.t("Renomear")}
-            size="icon-xs"
-            tooltipSide="bottom"
-            class="tw:shrink-0 tw:text-muted-foreground tw:opacity-0 tw:transition-opacity tw:duration-150 tw:hover:text-sidebar-foreground tw:focus-visible:opacity-100 tw:group-hover/name:opacity-100 tw:motion-reduce:transition-none"
-            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
-          >
-        </div>
+            {room.book.title}
+          </h2>
+        </button>
+        <IconButton
+          label={vb.t("Renomear")}
+          size="icon-xs"
+          tooltipSide="bottom"
+          class="tw:shrink-0 tw:text-muted-foreground tw:opacity-0 tw:transition-opacity tw:duration-150 tw:hover:text-sidebar-foreground tw:focus-visible:opacity-100 tw:group-hover/name:opacity-100 tw:motion-reduce:transition-none"
+          onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+        >
+      </div>{/snippet}
+    <!-- The room's threads: the main one, the views, the epics. A DM nests them under its row in the DM list. -->
+    {#snippet roomThreads()}<div
+        class={dm
+          ? "tw:mt-1 tw:ml-4 tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:border-l tw:border-sidebar-border tw:pl-2"
+          : "tw:contents"}
+      >
         <div class="tw:group/room tw:relative tw:shrink-0">
           <Tooltip>
             <TooltipTrigger>
@@ -278,7 +296,10 @@
                   aria-current={!inboxOpen && !boardOpen && thread === "main"
                     ? "page"
                     : undefined}
-                  class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:hover:bg-sidebar-accent tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-[current=page]:bg-sidebar-accent tw:aria-[current=page]:font-medium tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9"
+                  class={navRow({
+                    class:
+                      "tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
+                  })}
                   onclick={(event) => {
                     if (!event.currentTarget.isConnected) return;
                     // Desktop: the main thread is also the chat view (leaves the full board).
@@ -287,21 +308,28 @@
                   }}
                 >
                   <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
-                  <RoomMark
-                    title={room.book.title}
-                    src={roomIcon}
-                    class="tw:min-[901px]:hidden"
-                  /><Icon
-                    icon={MessageCircle01}
-                    size={16}
-                    class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
-                  />
-                  <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                    ><span class="tw:min-[901px]:hidden">{room.book.title}</span
-                    ><span class="tw:hidden tw:min-[901px]:inline"
-                      >{vb.t("Sala principal")}</span
-                    ></span
-                  >
+                  {#if dm}<Icon
+                      icon={MessageCircle01}
+                      size={16}
+                      class="tw:shrink-0 tw:text-muted-foreground"
+                    /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                      >{vb.t("Conversa")}</span
+                    >{:else}<RoomMark
+                      title={room.book.title}
+                      src={roomIcon}
+                      class="tw:min-[901px]:hidden"
+                    /><Icon
+                      icon={MessageCircle01}
+                      size={16}
+                      class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
+                    />
+                    <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                      ><span class="tw:min-[901px]:hidden"
+                        >{room.book.title}</span
+                      ><span class="tw:hidden tw:min-[901px]:inline"
+                        >{vb.t("Sala principal")}</span
+                      ></span
+                    >{/if}
                   <WaitBadge
                     waits={vb.waitsIn("main")}
                     label={(n) => vb.t("{n} coisas esperando você", { n })}
@@ -336,7 +364,7 @@
                 type="button"
                 data-native-inbox-toggle
                 aria-pressed={inboxOpen}
-                class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+                class={navRow()}
                 onclick={(event) => {
                   if (event.currentTarget.isConnected)
                     oninbox?.(event.currentTarget);
@@ -355,7 +383,7 @@
               type="button"
               data-native-board-toggle
               aria-pressed={boardOpen}
-              class="tw:flex tw:h-9 tw:w-full tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:font-sans tw:text-sm tw:text-sidebar-foreground tw:hover:bg-sidebar-accent tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-ring tw:aria-pressed:bg-sidebar-accent tw:aria-pressed:font-medium"
+              class={navRow()}
               onclick={(event) => {
                 if (event.currentTarget.isConnected) onboard?.();
               }}
@@ -401,59 +429,51 @@
           }}
         />
       </div>{/snippet}
-    <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. -->
-    <div class="tw:contents tw:max-[900px]:hidden">
-      <PinnedItems
-        {room}
-        session={pins}
-        {send}
-        {request}
-        onopenfile={onopenpinfile}
-        onopenapp={onopenpinapp}
-        activeApp={activePinApp}
-        t={vb.t}
-      />
-      {#snippet agents(email: string)}<AgentPresenceRows
-          {presence}
-          self={email === room.me}
-          {email}
+    <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. A DM has neither. -->
+    {#if !dm}<div class="tw:contents tw:max-[900px]:hidden">
+        <PinnedItems
+          {room}
+          session={pins}
+          {send}
+          {request}
+          onopenfile={onopenpinfile}
+          onopenapp={onopenpinapp}
+          activeApp={activePinApp}
           t={vb.t}
-          name={vb.name}
-          ago={vb.ago}
-          {locale}
-        />{/snippet}
-      <People
-        {room}
-        {friends}
-        vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
-        {agents}
-        hideSelf
-      />
-    </div>
-    <MutationStatus {owner} t={vb.t} />
-    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People.
-      Sticky: when the sidebar is too short and scrolls whole, you stay in view (the sections scroll behind). -->
-    <div
-      class="tw:sticky tw:bottom-0 tw:z-10 tw:mt-auto tw:-mb-2 tw:shrink-0 tw:bg-sidebar tw:pb-2 tw:max-[900px]:hidden"
-    >
-      <div
-        data-sidebar-self
-        class="tw:flex tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1"
-      >
-        {@render footer?.(false)}
-        <!-- Your own Claudes (context, ✻), as they were under you in People. -->
-        <div class="tw:px-1.5 tw:empty:hidden">
-          <AgentPresenceRows
+        />
+        {#snippet agents(email: string)}<AgentPresenceRows
             {presence}
-            self
-            email={room.me}
+            self={email === room.me}
+            {email}
             t={vb.t}
             name={vb.name}
             ago={vb.ago}
             {locale}
-          />
-        </div>
+          />{/snippet}
+        <People
+          {room}
+          {friends}
+          vb={{ t: vb.t, name: vb.name, ago: vb.ago, avatarUrl: vb.avatarUrl }}
+          {agents}
+          hideSelf
+        />
+      </div>{/if}
+    <MutationStatus {owner} t={vb.t} />
+    <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People. -->
+    <SidebarFoot>
+      {@render footer?.(false)}
+      <!-- Your own Claudes (context, ✻), as they were under you in People. -->
+      <div class="tw:px-1.5 tw:empty:hidden">
+        <AgentPresenceRows
+          {presence}
+          self
+          email={room.me}
+          t={vb.t}
+          name={vb.name}
+          ago={vb.ago}
+          {locale}
+        />
       </div>
-    </div>
+    </SidebarFoot>
   {/if}
 </section>

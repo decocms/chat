@@ -45,6 +45,7 @@
   const ask = $derived(pendingAsk($view.waits, owner.roomId, $view.thread));
   const start = $derived(
     $view.room?.book.owner === owner.account &&
+      !$view.room.book.dm &&
       !$view.room.epics.length &&
       $view.thread === "main" &&
       !$view.startDismissed,

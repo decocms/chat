@@ -67,7 +67,9 @@
   const threadTitle = $derived(
     suggestionAt(header.room, header.thread)?.title ??
       header.room.epics.find((epic) => epic.id === header.thread)?.title ??
-      presentation.services.t("Sala principal"),
+      presentation.services.t(
+        header.room.book.dm ? "Conversa" : "Sala principal",
+      ),
   );
   const t = (text: string, vars?: Record<string, string | number>) =>
     presentation.services.t(text, vars);

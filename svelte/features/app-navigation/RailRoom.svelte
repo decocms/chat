@@ -3,10 +3,11 @@
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
-  import { waitIndicator, type WaitReference } from "../waits/model";
-  import { homeText, type HomeLanguage } from "../home/copy";
+  import type { WaitReference } from "../waits/model";
+  import type { HomeLanguage } from "../home/copy";
   import {
     roomIcon,
+    roomStatus,
     targetHref,
     unread,
     type RoomSummary,
@@ -51,25 +52,9 @@
     ondrop?: (event: DragEvent) => void;
   } = $props();
   const news = $derived(unread(room, seen));
-  const waiting = $derived(waitIndicator(waits));
   const title = $derived(room.title ?? "vibebook");
   const busy = $derived((room.busy_until ?? 0) > now);
-  const text = (
-    key: Parameters<typeof homeText>[1],
-    vars?: Record<string, string | number>,
-  ) => homeText(lang, key, vars);
-  const details = $derived(
-    [
-      news ? text(news === "human" ? "newHuman" : "newAgent") : "",
-      busy ? text("busy") : "",
-      room.sandboxes_running ? text("cloud") : "",
-      waiting.asks
-        ? text("waiting", { n: waiting.asks })
-        : waiting.tasks
-          ? text("taskPending")
-          : "",
-    ].filter(Boolean),
-  );
+  const details = $derived(roomStatus(room, seen, waits, now, lang));
   const icon = $derived(roomIcon(room));
 </script>
 

@@ -15,6 +15,8 @@ export type AppNavigationCallbacks = {
   archived: () => void;
   settings: (section: HomeSettings) => void;
   rename?: (id: string, title: string) => Promise<CommandOutcome>;
+  /** Answers a friend request: accept adds them back, decline removes the ask (rejects on failure). */
+  answerFriend?: (email: string, accept: boolean) => Promise<void>;
 };
 export function createAppNavigationSession(
   personal: PersonalSession,

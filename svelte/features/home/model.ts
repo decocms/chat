@@ -5,6 +5,8 @@ import type {
   SearchResult,
 } from "../../../shared/schemas";
 import { appRouteHash, type AppRouteTarget } from "../apps/model";
+import { waitIndicator, type WaitReference } from "../waits/model";
+import { homeText, type HomeLanguage } from "./copy";
 export type RoomSummary = MeResult["books"][number];
 export type Wait = MeResult["waits"][number];
 export type ArchivedRoom = ArchivedResult["books"][number];
@@ -29,6 +31,129 @@ export const orderedRooms = (books: readonly RoomSummary[]) =>
       (a.position ?? 1e9) - (b.position ?? 1e9) ||
       (a.created_at ?? 0) - (b.created_at ?? 0),
   );
+/** Your rooms without the DMs (those are listed with your DMs, `dmEntries`). */
+export const roomsOnly = (books: readonly RoomSummary[]) =>
+  books.filter((room) => !room.dm);
+/** One DM in your list: whom it's with, and its room (a stand-in with the same id until someone writes). */
+export type DmEntry = {
+  /** The other person's email; yours for "Você". */
+  email: string;
+  /** Their name (or email); for "Você" the view writes its own label. */
+  name: string;
+  avatar?: string;
+  room: RoomSummary;
+  self: boolean;
+};
+const standIn = (id: string, members: string[]): RoomSummary => ({
+  id,
+  title: null,
+  folder: null,
+  summary: null,
+  updated_at: null,
+  created_at: null,
+  icon: null,
+  busy_until: null,
+  position: null,
+  tint: null,
+  opened_at: null,
+  last_human_id: 0,
+  last_agent_id: 0,
+  read_id: 0,
+  sandboxes_running: 0,
+  members: members.join(","),
+  dm: 1,
+});
+/**
+ * Your DMs (src/dm.ts): "Você" (your own), the friends you talked to (newest
+ * first, plus DMs with people who are no longer friends: the talk is still
+ * there) and the friends you haven't talked to yet, in the server's order. The
+ * server lists a DM's room only once someone wrote in it; until then the entry
+ * carries a stand-in with the same id, so opening it works the same.
+ */
+export function dmEntries(me: MeResult | null) {
+  if (!me) return null;
+  const made = new Map(
+    me.books.filter((room) => room.dm).map((room) => [room.id, room]),
+  );
+  const entry = (email: string, name: string, id: string): DmEntry => ({
+    email,
+    name,
+    avatar: personAvatar(me, email),
+    room: made.get(id) ?? standIn(id, [...new Set([me.email, email])]),
+    self: email === me.email,
+  });
+  const friends = me.friends
+    .filter((friend) => friend.email !== me.email)
+    .map((friend) =>
+      entry(friend.email, friend.name || friend.email, friend.dm),
+    );
+  const known = new Set([me.dm, ...me.friends.map((friend) => friend.dm)]);
+  const former = [...made.values()]
+    .filter((room) => !known.has(room.id))
+    .map((room) => {
+      const email =
+        roomMembers(room).find((value) => value !== me.email) ?? me.email;
+      return entry(email, email, room.id);
+    });
+  const talked = [...friends, ...former]
+    .filter((dm) => made.has(dm.room.id))
+    .sort((a, b) => (b.room.updated_at ?? 0) - (a.room.updated_at ?? 0));
+  return {
+    self: entry(me.email, me.email, me.dm),
+    talked,
+    untalked: friends.filter((dm) => !made.has(dm.room.id)),
+  };
+}
+/** The DMs a room switcher lists: "Você" and the ones you've talked in (every friend is on the home's list). */
+export function switcherDms(me: MeResult | null) {
+  const dms = dmEntries(me);
+  return dms ? [dms.self, ...dms.talked] : [];
+}
+/** Every DM id you have (yours, each friend's, and DMs with former friends): the rail's home logo is current in any of them. */
+export const dmIds = (me: MeResult | null) =>
+  new Set(
+    me
+      ? [
+          me.dm,
+          ...me.friends.map((friend) => friend.dm),
+          ...me.books.filter((room) => room.dm).map((room) => room.id),
+        ]
+      : [],
+  );
+/** What waits on you, by room: one pass, then a lookup per row. */
+export function waitsByRoom<W extends { book_id: string }>(
+  waits: readonly W[],
+) {
+  const map = new Map<string, W[]>();
+  for (const wait of waits)
+    map.set(wait.book_id, [...(map.get(wait.book_id) ?? []), wait]);
+  return map;
+}
+/**
+ * A room's state in words, most pressing first: what waits on you, who wrote
+ * since you looked, a Claude working, a cloud sandbox running. The rail's
+ * tooltip lists them all; a DM row shows the first.
+ */
+export function roomStatus(
+  room: RoomSummary,
+  seen: number,
+  waits: readonly WaitReference[],
+  now: number,
+  lang: HomeLanguage,
+) {
+  const news = unread(room, seen),
+    waiting = waitIndicator(waits);
+  return [
+    waiting.asks
+      ? homeText(lang, "waiting", { n: waiting.asks })
+      : waiting.tasks
+        ? homeText(lang, "taskPending")
+        : "",
+    news ? homeText(lang, news === "human" ? "newHuman" : "newAgent") : "",
+    (room.busy_until ?? 0) > now ? homeText(lang, "busy") : "",
+    room.sandboxes_running ? homeText(lang, "cloud") : "",
+  ].filter(Boolean);
+}
 export const recentRooms = (books: readonly RoomSummary[]) =>
   [...books].sort(
     (a, b) =>
@@ -41,14 +166,16 @@ export const unread = (room: RoomSummary, seen = 0) =>
     : room.last_agent_id > Math.max(room.read_id, seen)
       ? "agent"
       : null;
+/** A person's picture URL at a version (undefined without one: initials are drawn instead). */
+export const avatarUrl = (email: string, version: number | null | undefined) =>
+  version ? `/api/avatar/${encodeURIComponent(email)}?v=${version}` : undefined;
 export function personAvatar(me: MeResult | null, email: string) {
-  const version =
+  return avatarUrl(
+    email,
     me?.email === email
       ? me.avatar
-      : me?.friends.find((friend) => friend.email === email)?.avatar;
-  return version
-    ? `/api/avatar/${encodeURIComponent(email)}?v=${version}`
-    : undefined;
+      : me?.friends.find((friend) => friend.email === email)?.avatar,
+  );
 }
 export const roomMembers = (room: RoomSummary) =>
   (room.members ?? "").split(",").filter(Boolean);

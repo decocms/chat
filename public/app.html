@@ -1707,7 +1707,12 @@ const EN = {
   "convidado": "invited",
   "Remover {email} dos amigos": "Remove {email} from friends",
   "Remover dos amigos": "Remove from friends",
-  "Quem você convida para um vibebook vira amigo aqui.": "People you invite to a vibebook show up here as friends.",
+  "Quem você convida para um vibebook recebe um pedido de amizade.": "People you invite to a vibebook get a friend request.",
+  "Pedidos de amizade": "Friend requests",
+  "Aceitar {email}": "Accept {email}",
+  "Recusar {email}": "Decline {email}",
+  "Pedido enviado": "Request sent",
+  "Cancelar pedido para {email}": "Cancel the request to {email}",
   "email do amigo": "friend's email",
   "Email do amigo": "Friend's email",
   "Convidar": "Invite",
@@ -2820,7 +2825,8 @@ function homeWith(me) {
           <div class="friend">${avatar(f.email)}<div class="fn" title="${esc(f.email)}">${esc(f.name || name(f.email))}
             <small>${f.shared ? `${plural(f.shared, t("vibebook junto"), t("vibebooks juntos"))}` : f.joined ? t("na plataforma") : t("convidado")}</small></div>
             <button class="ghost x" data-unfriend="${esc(f.email)}" aria-label="${t("Remover {email} dos amigos", { email: esc(f.email) })}" title="${t("Remover dos amigos")}">${icon("x")}</button></div>`).join("")
-          : `<p class="muted" style="font-size:14px">${t("Quem você convida para um vibebook vira amigo aqui.")}</p>`}
+          : `<p class="muted" style="font-size:14px">${t("Quem você convida para um vibebook recebe um pedido de amizade.")}</p>`}
+        ${friendAsks(me)}
         <form class="invite" id="addFriend"><input type="email" required placeholder="${t("email do amigo")}" aria-label="${t("Email do amigo")}" /><button>${t("Convidar")}</button></form>
       </aside>
     </div>
@@ -2894,6 +2900,17 @@ function onboarding(me) {
 const PHONE = matchMedia("(max-width: 720px)");
 PHONE.addEventListener("change", () => { if (location.pathname === "/app") home(); });
 const MENU_ICON = icon("menu", 22);
+/** Friend requests to answer (✓ / ×) and the ones you sent that wait (× cancels): /api/me `requests`, `sent`. */
+function friendAsks(me) {
+  const asks = me.requests || [], sent = me.sent || [];
+  if (!asks.length && !sent.length) return "";
+  return `${asks.length ? `<h3 class="muted" style="font-size:12px;margin:12px 0 4px">${t("Pedidos de amizade")}</h3>` : ""}
+    ${asks.map((r) => `<div class="friend">${avatar(r.email)}<div class="fn" title="${esc(r.email)}">${esc(r.name || name(r.email))}</div>
+      <button class="ghost x" data-accept="${esc(r.email)}" aria-label="${t("Aceitar {email}", { email: esc(r.email) })}" title="${t("Aceitar {email}", { email: esc(r.email) })}">${icon("check")}</button>
+      <button class="ghost x" data-unask="${esc(r.email)}" aria-label="${t("Recusar {email}", { email: esc(r.email) })}" title="${t("Recusar {email}", { email: esc(r.email) })}">${icon("x")}</button></div>`).join("")}
+    ${sent.map((e) => `<div class="friend">${avatar(e)}<div class="fn" title="${esc(e)}">${esc(name(e))}<small>${t("Pedido enviado")}</small></div>
+      <button class="ghost x" data-unask="${esc(e)}" aria-label="${t("Cancelar pedido para {email}", { email: esc(e) })}" title="${t("Cancelar pedido para {email}", { email: esc(e) })}">${icon("x")}</button></div>`).join("")}`;
+}
 function phoneHome(me) {
   const rooms = [...me.books].sort((a, b) => (b.opened_at ?? 0) - (a.opened_at ?? 0) || b.updated_at - a.updated_at);
   const dot = (b) => (b.last_human_id > b.read_id ? `<b class="dot h"></b>` : b.last_agent_id > b.read_id ? `<b class="dot a"></b>` : "");
@@ -2937,6 +2954,7 @@ function phoneHome(me) {
     <h2>${t("Amigos")} <small>${me.friends.length || ""}</small></h2>
     ${me.friends.map((f) => `<div class="friend">${avatar(f.email)}<div class="fn">${esc(f.name || name(f.email))}<small>${f.shared ? plural(f.shared, t("vibebook junto"), t("vibebooks juntos")) : f.joined ? t("na plataforma") : t("convidado")}</small></div>
       <button class="ghost x" data-unfriend="${esc(f.email)}" aria-label="${t("Remover {email} dos amigos", { email: esc(f.email) })}">${icon("x")}</button></div>`).join("")}
+    ${friendAsks(me)}
     <form class="invite" id="addFriend"><input type="email" required placeholder="${t("email do amigo")}" aria-label="${t("Email do amigo")}" /><button>${t("Convidar")}</button></form>
     <button class="ghost pdOut" id="logout">${t("Sair")}</button>
     <button class="ghost pdOut pdOutAll" id="logoutAll">${t("Sair de todos os aparelhos")}</button>
@@ -2994,6 +3012,15 @@ function wireHome(me) {
     await fetch("/auth/logout-all", { method: "POST" }); location.href = "/login";
   };
   document.getElementById("new").onclick = () => newRoom();
+  // A friendship opens a DM, so it takes both sides: accepting adds them back, declining or cancelling removes the ask.
+  document.querySelectorAll("[data-accept]").forEach((b) => b.onclick = async () => {
+    await api("/api/friends", { email: b.dataset.accept }).catch((err) => alert(err.message));
+    home();
+  });
+  document.querySelectorAll("[data-unask]").forEach((b) => b.onclick = async () => {
+    await fetch(`/api/friends/${encodeURIComponent(b.dataset.unask)}`, { method: "DELETE" });
+    home();
+  });
   document.querySelectorAll("[data-unfriend]").forEach((b) => b.onclick = async () => {
     if (!confirm(t("Remover {email} dos seus amigos? Os vibebooks em comum continuam.", { email: b.dataset.unfriend }))) return;
     await fetch(`/api/friends/${encodeURIComponent(b.dataset.unfriend)}`, { method: "DELETE" });

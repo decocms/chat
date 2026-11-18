@@ -8,9 +8,11 @@ import { LISTEN_FRESH, poke } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
 import { uiShellPath, uiVariant, type UiVariant } from "../shared/uiVariant";
-import { MeBook, MeData, MeFriend, MeResult, MeWait } from "../shared/schemas";
+import { MeBook, MeData, MeFriend, MeFriendRequest, MeResult, MeWait } from "../shared/schemas";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
+import { dmIds } from "./dm";
+import { isDmId, MUTUAL, pairKey } from "../shared/dm";
 import { befriend, bookStub, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, TYPES_ERROR, waitsFor } from "./rooms";
 import { track } from "./track";
 import { pushTo } from "./webpush";
@@ -45,27 +47,35 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     if (hit.success) return { ...hit.data, v: await currentVersion(env, req.url), cached: true };
   }
   // One round trip's worth: the four reads run together.
-  const [books, friends, me, waits] = await Promise.all([
+  const [books, friends, requests, sent, me, waits] = await Promise.all([
     db.prepare(
-      `SELECT b.id, b.title, b.folder, b.summary, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
+      `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id,
          (SELECT count(*) FROM sandboxes s WHERE s.book_id = b.id AND s.state = 'running') AS sandboxes_running,
          (SELECT group_concat(email) FROM members m2 WHERE m2.book_id = b.id) AS members
        FROM books b JOIN members m ON m.book_id = b.id
        LEFT JOIN human_reads r ON r.email = m.email AND r.book_id = b.id
-       WHERE m.email = ? AND m.archived_at IS NULL ORDER BY b.updated_at DESC`,
+       WHERE m.email = ? AND m.archived_at IS NULL AND (b.dm IS NULL OR b.last_msg_id IS NOT NULL) ORDER BY b.updated_at DESC`,
     ).bind(email).all(),
     db.prepare(
       `SELECT f.b AS email, u.name, u.avatar, u.email IS NOT NULL AS joined,
          (SELECT count(*) FROM members x JOIN members y ON x.book_id = y.book_id
            WHERE x.email = f.a AND y.email = f.b) AS shared
        FROM friends f LEFT JOIN users u ON u.email = f.b
-       WHERE f.a = ? ORDER BY shared DESC, f.b`,
+       WHERE f.a = ? AND ${MUTUAL} ORDER BY shared DESC, f.b`,
     ).bind(email).all(),
+    // Who asked to be your friend and you haven't answered (adding them back accepts, removing declines).
+    db.prepare(
+      `SELECT f.a AS email, u.name, u.avatar FROM friends f LEFT JOIN users u ON u.email = f.a
+       WHERE f.b = ? AND NOT EXISTS (SELECT 1 FROM friends r WHERE r.a = f.b AND r.b = f.a) ORDER BY f.created_at DESC LIMIT 20`,
+    ).bind(email).all(),
+    db.prepare(`SELECT f.b AS email FROM friends f WHERE f.a = ? AND NOT ${MUTUAL} ORDER BY f.created_at DESC`).bind(email).all<{ email: string }>(),
     db.prepare(`SELECT name, avatar, lang FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
     waitsFor(db, email),
   ]);
   // Remember the language for emails sent later (mentions, invites): an explicit choice wins, else the browser's, once.
+  // Your DM with each friend and your own ("Você"): src/dm.ts. An empty DM is left out of `books` above.
+  const dms = await dmIds(env, email, friends.results.map((f) => String(f.email)));
   const lang = cookieLang(req) ?? (me?.lang ? null : reqLang(req));
   if (me && lang && lang !== me.lang) ctx.waitUntil(db.prepare(`UPDATE users SET lang = ? WHERE email = ?`).bind(lang, email).run());
   // Every D1 column is nullable: the columns a legacy row may leave empty get their neutral value, then each row is
@@ -90,7 +100,10 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     name: name.success ? name.data.name : null,
     avatar: avatar.success ? avatar.data.avatar : null,
     books: keep("books", MeBook, books.results),
-    friends: keep("friends", MeFriend, friends.results.map((f) => ({ ...f, joined: Number(f.joined ?? 0), shared: Number(f.shared ?? 0) }))),
+    dm: dms.get(email.toLowerCase())!,
+    friends: keep("friends", MeFriend, friends.results.map((f) => ({ ...f, joined: Number(f.joined ?? 0), shared: Number(f.shared ?? 0), dm: dms.get(String(f.email).toLowerCase()) }))),
+    requests: keep("requests", MeFriendRequest, requests.results),
+    sent: keep("sent", z.string(), sent.results.map((r) => r.email)),
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -126,7 +139,19 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     inbox: () => inbox(env, email),
     loginProviders: { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), github: !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) },
     isEmail: (s) => EMAIL_RE.test(s),
-    befriend: async (who) => { await befriend(env.DB, email, who); },
+    // A request (or, if they asked you, the yes): they see it at once, not when their cached /api/me next expires.
+    befriend: async (who) => { await befriend(env.DB, email, who); ctx.waitUntil(poke(env, [who], { t: "me" })); },
+    // Declines a request, cancels yours or ends the friendship; a friendship's DM is emptied for both, so either side can leave it.
+    unfriend: async (who) => {
+      await env.DB.batch([
+        env.DB.prepare(`DELETE FROM friends WHERE (a = ? AND b = ?) OR (a = ? AND b = ?)`).bind(email, who, who, email),
+        env.DB.prepare(`DELETE FROM members WHERE book_id IN (SELECT id FROM books WHERE dm = ?)`).bind(pairKey(email, who)),
+      ]);
+      ctx.waitUntil(poke(env, [email, who], { t: "me" }));
+      // Open tabs of that DM lose their socket and live doc now, like a removed member's.
+      const dm = await env.DB.prepare(`SELECT id FROM books WHERE dm = ?`).bind(pairKey(email, who)).first<{ id: string }>();
+      if (dm) ctx.waitUntil(bookStub(env, dm.id).fetch("https://book/members-changed", { method: "POST" }));
+    },
     invite: (roomId, who) => inviteMember(env, ctx, new URL(req0.url).origin, email, roomId, who, reqLang(req0)),
     removeMember: async (roomId, who) => {
       const book = await env.DB.prepare(`SELECT owner FROM books WHERE id = ?`).bind(roomId).first<{ owner: string }>();
@@ -140,7 +165,8 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     pokeAgents: (roomId) => ctx.waitUntil(poke(env, [email], { t: "agents", book: roomId })),
     pokeFocus: (roomId) => ctx.waitUntil(poke(env, [email], { t: "focus", book: roomId })),
     requestAccess: async (roomId) => {
-      if (!(await env.DB.prepare(`SELECT 1 FROM books WHERE id = ?`).bind(roomId).first())) return "not_found";
+      // A DM can't be asked into (src/dm.ts): to anyone outside it, it doesn't exist.
+      if (isDmId(roomId) || !(await env.DB.prepare(`SELECT 1 FROM books WHERE id = ?`).bind(roomId).first())) return "not_found";
       if (await isMember(env.DB, roomId, email)) return "member";
       if (!(await env.LOGIN_LIMIT.limit({ key: `ask:${email}` })).success) return "limited";
       const r = await env.DB.prepare(`INSERT OR IGNORE INTO access_requests (book_id, email, ts) VALUES (?, ?, ?)`).bind(roomId, email, Date.now()).run();
@@ -152,6 +178,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return "asked";
     },
     decideRequest: async (roomId, who, approve) => {
+      if (isDmId(roomId)) return false;
       const req = await env.DB.prepare(`SELECT email FROM access_requests WHERE book_id = ? AND email = ? AND denied = 0`).bind(roomId, who).first<{ email: string }>();
       if (!req) return false;
       if (approve) {

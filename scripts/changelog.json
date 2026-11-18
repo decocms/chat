@@ -13,6 +13,17 @@
     "features": [
       {
         "title": {
+          "pt": "Mensagens diretas",
+          "en": "Direct messages"
+        },
+        "text": {
+          "pt": "No app novo (?ui=svelte), o logo da barra de salas abre suas mensagens diretas: uma conversa privada com cada amigo e \"Você\", só você e seu Claude. Quem você já conversou vem primeiro; os outros amigos ficam embaixo, esperando a primeira mensagem. Cada conversa tem seus próprios épicos, que se abrem embaixo dela. Amizade agora precisa dos dois lados: adicionar alguém manda um pedido, que aparece em cima da lista para a pessoa aceitar ou recusar.",
+          "en": "In the new app (?ui=svelte), the logo on the room bar opens your direct messages: a private conversation with each friend, plus \"You\", just you and your Claude. People you've talked to come first; your other friends wait below for a first message. Each conversation has its own epics, which open under it. Friendship now needs both sides: adding someone sends a request, which shows at the top of their list to accept or decline."
+        },
+        "image": "changelog/2026-11-17-dms.webp"
+      },
+      {
+        "title": {
           "pt": "Início pelo que espera você",
           "en": "Home by what waits on you"
         },

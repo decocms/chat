@@ -6733,6 +6733,7 @@ describe("native account", () => {
                 avatar: null,
                 joined: 1,
                 shared: 1,
+                dm: "dm00000000000000000000",
               },
             ],
           }
@@ -6947,6 +6948,7 @@ describe("native account", () => {
           avatar: null,
           joined: 1,
           shared: 1,
+          dm: "dm00000000000000000000",
         },
       ],
     });
@@ -7197,6 +7199,9 @@ test("denied native agent metadata can recover through explicit read-only retry"
                   email: "me@test",
                   name: null,
                   avatar: null,
+                  dm: "dm000000000000000000aa",
+                  requests: [],
+                  sent: [],
                   books: [],
                   friends: [],
                   waits: [],

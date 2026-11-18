@@ -11,6 +11,9 @@
   import { createApplicationShellEffects } from "./shellBrowser";
   import { createApplicationInbox } from "./inbox";
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
+  import DmNav from "../app-navigation/DmNav.svelte";
+  import AccountRow from "../app-navigation/AccountRow.svelte";
+  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -22,7 +25,7 @@
   import DeferredRouteStatus from "../deferred-view/DeferredRouteStatus.svelte";
   import HomeSkeleton from "../home/HomeSkeleton.svelte";
   import type { HomeBridge } from "../home/types";
-  import { personAvatar } from "../home/model";
+  import { avatarUrl, personAvatar } from "../home/model";
   import {
     provideUserMenu,
     type UserMenuActions,
@@ -150,7 +153,7 @@
   const avatar = (email: string) => {
     const version = $room.room?.avatars?.[email];
     return version
-      ? `/api/avatar/${encodeURIComponent(email)}?v=${version}`
+      ? avatarUrl(email, version)
       : personAvatar($personal.me, email);
   };
   const home = $derived<HomeBridge>({
@@ -232,8 +235,13 @@
   class={[
     $application.route.kind === "room"
       ? "tw:grid tw:h-dvh tw:min-h-0 tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[minmax(0,1fr)] tw:overflow-hidden tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:bg-sidebar"
-      : // Desktop: the same frame as a room, the rail outside it and the page scrolling inside.
-        "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr] tw:min-[901px]:h-dvh tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)] tw:min-[901px]:grid-rows-[minmax(0,1fr)] tw:min-[901px]:overflow-hidden tw:min-[901px]:bg-sidebar",
+      : // Desktop: the same frame as a room, the rail outside it and the page scrolling inside; the home has your DM list beside it.
+        [
+          "tw:grid tw:min-h-dvh tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_1fr_auto] tw:min-[901px]:h-dvh tw:min-[901px]:grid-rows-[minmax(0,1fr)] tw:min-[901px]:overflow-hidden tw:min-[901px]:bg-sidebar",
+          $application.route.kind === "home"
+            ? "tw:min-[901px]:grid-cols-[68px_272px_minmax(0,1fr)]"
+            : "tw:min-[901px]:grid-cols-[68px_minmax(0,1fr)]",
+        ],
     "tw:bg-background tw:font-sans tw:text-sm tw:leading-6 tw:text-foreground",
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
@@ -244,21 +252,30 @@
     {#if $personal.me}<AppNavigation
         controller={services.navigation}
         inRoom={$application.route.kind === "room"}
+        accountInSidebar={$application.route.kind === "home"}
         lang={services.language}
-        {theme}
-        ontheme={nextTheme}
-        onsettheme={chooseTheme}
-        onlanguage={language}
-        {...menuActions}
         onreload={() => {
           if (current()) services.actions.reload();
         }}
       />{/if}
+    {#if $personal.me && $application.route.kind === "home"}<!-- Your DMs: beside the home on desktop, under it on a phone. -->
+      <aside
+        data-native-home-dms
+        class="tw:col-start-1 tw:row-start-3 tw:min-w-0 tw:px-4 tw:pt-2 tw:pb-8 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1 tw:min-[901px]:flex tw:min-[901px]:min-h-0 tw:min-[901px]:flex-col tw:min-[901px]:px-2 tw:min-[901px]:py-2"
+      >
+        <DmNav controller={services.navigation} lang={services.language} />
+        <SidebarFoot><AccountRow me={$personal.me} /></SidebarFoot>
+      </aside>{/if}
     <div
       data-native-application-route
       class={$application.route.kind === "room"
         ? "tw:col-start-1 tw:row-start-1 tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:min-[901px]:col-start-2"
-        : "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:min-[901px]:col-start-2 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:mr-2 tw:min-[901px]:ml-px tw:min-[901px]:min-h-0 tw:min-[901px]:overflow-y-auto tw:min-[901px]:overscroll-contain tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge"}
+        : [
+            "tw:col-start-1 tw:row-start-2 tw:min-w-0 tw:min-[901px]:row-start-1 tw:min-[901px]:my-2 tw:min-[901px]:mr-2 tw:min-[901px]:ml-px tw:min-[901px]:min-h-0 tw:min-[901px]:overflow-y-auto tw:min-[901px]:overscroll-contain tw:min-[901px]:rounded-surface tw:min-[901px]:bg-background tw:min-[901px]:shadow-edge",
+            $application.route.kind === "home"
+              ? "tw:min-[901px]:col-start-3"
+              : "tw:min-[901px]:col-start-2",
+          ]}
     >
       {#if $application.route.kind === "home"}{#if Home}<Home
             {...home}

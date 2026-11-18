@@ -11,10 +11,13 @@
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
   import RoomSwitcher from "./RoomSwitcher.svelte";
-  import UserMenu from "./UserMenu.svelte";
+  import AccountRow from "./AccountRow.svelte";
   import {
+    switcherDms,
+    dmIds,
     orderedRooms,
-    personAvatar,
+    roomsOnly,
+    waitsByRoom,
     roomRailTint,
     type RoomSummary,
   } from "../home/model";
@@ -24,31 +27,21 @@
   import { get } from "svelte/store";
   import { untrack } from "svelte";
   import type { AppNavigationSession } from "./controller";
-  import type { UserMenuActions } from "./menuBridge";
   let {
     controller,
     lang,
-    theme = "auto",
-    ontheme,
-    onsettheme,
-    onlanguage,
     onreload = () => location.reload(),
     inRoom = false,
-    onaccount,
-    pwa,
-    onlogout,
+    accountInSidebar = false,
     loadDialogs = () =>
       import("./AppNavigationDialogs.svelte").then((module) => module.default),
-  }: UserMenuActions & {
+  }: {
     controller: AppNavigationSession;
     lang: HomeLanguage;
-    theme?: "auto" | "light" | "dark";
-    ontheme: () => void;
-    /** Sets a specific theme; without it the menu falls back to cycling with `ontheme`. */
-    onsettheme?: (theme: "auto" | "light" | "dark") => void;
-    onlanguage: (lang: HomeLanguage) => void;
     onreload?: () => void;
     inRoom?: boolean;
+    /** Desktop: you sit at the foot of the page's own sidebar (the home's DM list), so the rail leaves you out. */
+    accountInSidebar?: boolean;
     /** Public-code transport seam; owners and canonical records are never supplied by the loader. */
     loadDialogs?: () => Promise<
       typeof import("./AppNavigationDialogs.svelte").default
@@ -129,9 +122,10 @@
   });
   const focusBack = () => controller.returnFocus(homeButton);
   // Neighbours of one colour stand as a group on a tinted backdrop; everything else stands alone.
+  const waitsIn = $derived(waitsByRoom($personal.me?.waits ?? []));
   const groups = $derived.by(() => {
     const result: { tint: string | undefined; rooms: RoomSummary[] }[] = [];
-    for (const room of orderedRooms($personal.me?.books ?? [])) {
+    for (const room of orderedRooms(roomsOnly($personal.me?.books ?? []))) {
       const tint = roomRailTint(room),
         last = result.at(-1);
       if (last && tint && last.tint === tint) last.rooms.push(room);
@@ -139,6 +133,9 @@
     }
     return result;
   });
+  // A DM belongs to your home: there the home logo is the current one.
+  const atHome = $derived(!$nav.roomId || dmIds($personal.me).has($nav.roomId));
+  const talkedDms = $derived(switcherDms($personal.me));
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
   let dragging = $state<string | null>(null),
@@ -152,8 +149,7 @@
       now={$personal.now}
       selected={$nav.roomId === room.id}
       seen={$personal.seen[room.id] ?? 0}
-      waits={$personal.me?.waits.filter((wait) => wait.book_id === room.id) ??
-        []}
+      waits={waitsIn.get(room.id) ?? []}
       dropping={dropTo === room.id}
       dragging={dragging === room.id}
       onnavigate={controller.callbacks.navigate}
@@ -206,7 +202,7 @@
     ><RailButton
       bind:ref={homeButton}
       label={text("home")}
-      current={!$nav.roomId}
+      current={atHome}
       onclick={(event) => {
         if (event.currentTarget.isConnected) controller.callbacks.home();
       }}
@@ -277,31 +273,22 @@
       }}
     />
   </div>
-  {#if $personal.me}<!-- In a room the account menu moves to the sidebar's foot. -->{#if !inRoom}<span
-        aria-hidden="true"
-        class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
-      ></span>
-      <div class="tw:flex tw:shrink-0 tw:max-[900px]:order-first">
-        <UserMenu
-          name={$personal.me.name ?? ""}
-          email={$personal.me.email}
-          avatar={personAvatar($personal.me, $personal.me.email)}
-          friends={$personal.me.friends.length}
-          {lang}
-          {theme}
-          {onaccount}
-          {pwa}
-          {onlogout}
-          onsettheme={(next) => {
-            if (onsettheme) onsettheme(next);
-            else if (next !== theme) ontheme();
-          }}
-          {onlanguage}
-        />
+  {#if $personal.me}<!-- In a room, and on the home's desktop, the account menu sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
+          aria-hidden="true"
+          class="tw:h-6 tw:w-px tw:shrink-0 tw:bg-sidebar-border tw:max-[900px]:hidden tw:min-[901px]:h-px tw:min-[901px]:w-6"
+        ></span>{/if}
+      <div
+        class={cn(
+          "tw:flex tw:shrink-0 tw:max-[900px]:order-first",
+          accountInSidebar && "tw:min-[901px]:hidden",
+        )}
+      >
+        <AccountRow me={$personal.me} row={false} />
       </div>{/if}
     <RoomSwitcher
       bind:open={switcher}
-      rooms={$personal.me.books}
+      rooms={roomsOnly($personal.me.books)}
+      dms={talkedDms}
       waits={$personal.me.waits}
       seen={$personal.seen}
       now={$personal.now}

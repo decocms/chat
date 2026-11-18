@@ -389,6 +389,8 @@ export const MeBook = z.object({
   sandboxes_running: z.number(),
   /** The room's members' emails, comma-separated (D1 group_concat). */
   members: str,
+  /** 1 = a direct-message room (src/dm.ts): listed with your DMs, not with the rooms. */
+  dm: z.optional(num),
 });
 export const MeFriend = z.object({
   email: z.string(),
@@ -397,7 +399,16 @@ export const MeFriend = z.object({
   /** 1 = has an account, 0 = invited only (D1 boolean). */
   joined: z.number(),
   shared: z.number(),
+  /** The id of your DM room with them (src/dm.ts); the room exists once one of you writes. */
+  dm: z.string(),
 });
+/** Someone who asked to be your friend (POST /api/friends with their email accepts, DELETE declines). */
+export const MeFriendRequest = z.object({
+  email: z.string(),
+  name: str,
+  avatar: num,
+});
+export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
@@ -414,8 +425,14 @@ export const MeData = z.object({
   email: z.string(),
   name: str,
   avatar: num,
+  /** Your own DM ("Você", src/dm.ts): the room you have with yourself and your Claude. */
+  dm: z.string(),
   books: z.array(MeBook),
   friends: z.array(MeFriend),
+  /** Friend requests waiting on you (a friendship opens a DM, so it needs both sides). */
+  requests: z.array(MeFriendRequest),
+  /** Emails you asked to be friends with that haven't answered yet. */
+  sent: z.array(z.string()),
   waits: z.array(MeWait),
 });
 export type MeData = z.infer<typeof MeData>;

@@ -69,7 +69,10 @@ export function createAccountSession(
   function matches(change: Change, me: MeResult) {
     if (change.kind === "name") return me.name === change.name;
     if (change.kind === "avatar") return me.avatar === change.avatar;
-    const exists = me.friends.some((friend) => friend.email === change.email);
+    // Adding asks (or accepts their ask): it's settled once they're a friend or your request shows as sent.
+    const exists =
+      me.friends.some((friend) => friend.email === change.email) ||
+      me.sent.includes(change.email);
     return change.kind === "add" ? exists : !exists;
   }
   function settle() {

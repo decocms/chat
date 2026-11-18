@@ -5,7 +5,7 @@
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
   import { homeText, type HomeLanguage } from "../home/copy";
-  import { unread } from "../home/model";
+  import { roomsOnly, switcherDms, unread } from "../home/model";
   import type { AppNavigationSession } from "./controller";
   import RoomList from "./RoomList.svelte";
   /**
@@ -32,6 +32,7 @@
         room.id !== $nav.roomId && unread(room, $personal.seen[room.id] ?? 0),
     ).length,
   );
+  const talkedDms = $derived(switcherDms($personal.me));
   const thisRoom = $derived(homeText(lang, "thisRoom")),
     allRooms = $derived(homeText(lang, "allRooms"));
 </script>
@@ -64,7 +65,8 @@
     class="tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:min-[901px]:hidden"
   >
     <RoomList
-      rooms={$personal.me.books}
+      rooms={roomsOnly($personal.me.books)}
+      dms={talkedDms}
       waits={$personal.me.waits}
       seen={$personal.seen}
       now={$personal.now}

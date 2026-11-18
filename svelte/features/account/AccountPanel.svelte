@@ -451,6 +451,26 @@
                           }}>{en ? "Remove" : "Remover"}</Button
                         >
                       </li>{/each}
+                    <!-- Asked, not answered yet: a friendship opens a DM, so it needs both sides. -->
+                    {#each $view.me.sent as asked (asked)}<li
+                        data-friend-sent
+                        class="tw:flex tw:items-center tw:gap-2"
+                      >
+                        <PersonAvatar size="sm" name={asked} />
+                        <div class="tw:min-w-0 tw:flex-1 tw:break-words">
+                          <p>{asked}</p>
+                          <small class="tw:text-muted-foreground"
+                            >{en ? "Request sent" : "Pedido enviado"}</small
+                          >
+                        </div>
+                        <Button
+                          variant="ghost"
+                          disabled={busy}
+                          onclick={(event) => {
+                            if (live(event, rendered)) owner.remove(asked);
+                          }}>{en ? "Cancel" : "Cancelar"}</Button
+                        >
+                      </li>{/each}
                   </ul>
                   <form
                     class="tw:space-y-2"
