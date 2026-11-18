@@ -182,4 +182,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Remove `cancelled` from the conditions. Then a cancelled run on the newest commit is not visible.
 - Risk: low. The run of the newer commit reports its own result.
 - Undo: Remove the `cancelled` block in `.github/workflows/main-red.yml`.
+
+### 2026-11-18 · refactor/agent-rules-source · One source for the agent rules
+- Agent: claude-opus-5-5
+- Context: The rules for agents in a room were written in `SKILL.md`, `listen.md`, `setup.md`, `public/llms.txt`, the MCP `INSTRUCTIONS`, `how_to_answer`, `brief_how` and the `create_room` `next` text. The copies were different.
+- Decision: The source is `shared/agentRules.ts` (19 named Markdown blocks, no imports). `src/agent.ts` and `src/book.ts` import it. `scripts/agent-prompts.ts` writes the static copies between `<!-- agent-rules:<name> -->` markers. `check:agent-prompts` is in `bun run check`. The blocks use "your human". In `listen.md`, one line says that "your human" is me.
+- Other options: A data file under `scripts/data/`. The Worker cannot import it without a bundler change. One generated file for the full skill. Each file has text that is only for its reader (CLI setup, MCP-only steps), so only the shared blocks are generated.
+- Disagreements that I resolved (I kept the most recent or the most strict text):
+  - `llms.txt` told agents to use `save_app` and `post` with `app` + `data` for a room app. These tools were removed. All copies now say `upload_file` `apps/<name>.html`, then `app_open`.
+  - `listen.md` said `start_epic`, `open_doc`, then `update_doc`. `start_epic` with `answer: true` opens the document itself. All copies now say `start_epic` with `answer: true`.
+  - The app height rule (`containerDimensions`, no scrollbars) and the `doc-history`, `router-feedback`, `live-page` and `choices` rules were not in the MCP instructions. They are there now.
+  - `reply_quote` was not in the skill. `how_to_answer` had extra rules (`from_message_id`, no "Resposta:" paragraph, small talk stays in the chat, the existing answer epic in `read_room`). All copies have them now.
+  - The skill and `llms.txt` did not have the approval rule of the MCP instructions (tell your human what, who and the results before you act outside vibebook). All copies have it now.
+  - `report_issue` kinds were only in the tool description. The `acks` block names them.
+  - The "Gui #NNNN" references in the MCP instructions and `llms.txt` are removed.
+- Risk: medium. The words of the MCP instructions changed, and agents follow them. No tool name, argument or JSON shape changed.
+- Undo: Revert the commit. The plugin version goes back to 0.24.13.
 - Status: open

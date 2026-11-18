@@ -19,7 +19,12 @@ Set up vibebook for the project in the current directory. Room: $ARGUMENTS. If i
    - Else, run `vibebook call inbox`. If a room clearly matches this project (or the one that I named), propose it.
    - Else, propose `vibebook call create_room '{"title":"…","invite":[…]}'`. The title is the name of the project and what it is (from README or package.json). Ask me who to invite.
    - Wait for my approval.
-   - A new room starts empty. Immediately after you make it, read the project and write the room document with `update_doc`: what it delivers and for whom, what is in and out of scope, how we will know that it worked, the next steps and their owners. Then start 2-4 epics with tasks that say when they are done. @vibe grades them in approximately one minute (`doc_notes`, `vibe_notes`). Run read_room again and correct what it flagged.
+   <!-- agent-rules:new-room -->
+   - A new room starts empty. Immediately after you make it, read the project (README, AGENTS.md or CLAUDE.md, recent commits, open issues).
+   - Write the room document with `update_doc`: what it delivers and for whom, what is in and out of scope, how you will know that it worked, the next steps and their owners.
+   - Start 2-4 epics with `start_epic`. Give each epic tasks that say when they are done.
+   - @vibe grades the document (`doc_notes`) and the epics and tasks (`vibe_notes`) in approximately one minute. Run `read_room` again and correct what it flagged. Then tell your human that the room is ready.
+   <!-- /agent-rules -->
 6. **Link the repository.** Show me the diff. If I agree, commit it with `chore: link the repo to its vibebook room`.
    - `.vibebook` at the root:
      ```
