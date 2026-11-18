@@ -131,7 +131,7 @@
       "tw:relative tw:grid tw:w-full tw:min-w-0 tw:animate-room-viewport tw:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] tw:overflow-hidden tw:[container-type:size]",
       tabs && "tw:grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto]!",
       $view.mobile
-        ? "tw:grid-cols-[0_minmax(0,1fr)_0] tw:[&_input]:text-base tw:[&_textarea]:text-base tw:[&_select]:text-base"
+        ? "tw:grid-cols-[0_minmax(0,1fr)_0] tw:[&_input]:text-[16px] tw:[&_textarea]:text-[16px] tw:[&_select]:text-[16px]"
         : "tw:grid-cols-[auto_minmax(0,1fr)_auto]",
       $view.resizing && "tw:cursor-col-resize tw:select-none",
     ]}

@@ -72,7 +72,7 @@
 <div
   data-slot="tags-input"
   class={cn(
-    "tw:flex tw:min-h-[var(--vb-studio-control-height,2.25rem)] tw:w-full tw:flex-wrap tw:items-center tw:gap-1 tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:px-1.5 tw:py-1.5 tw:text-sm tw:shadow-edge tw:transition-[background-color,box-shadow] tw:hover:bg-sidebar tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-2 tw:has-[:focus-visible]:outline-ring tw:has-[:focus-visible]:outline-solid tw:has-[input:disabled]:pointer-events-none tw:has-[input:disabled]:text-subtle-foreground",
+    "tw:flex tw:min-h-[var(--vb-studio-control-height,2.25rem)] tw:w-full tw:flex-wrap tw:items-center tw:gap-1 tw:rounded-[var(--vb-studio-control-radius,0.625rem)] tw:bg-[var(--vb-studio-input-background)] tw:px-1.5 tw:py-1.5 tw:text-sm tw:pointer-coarse:text-[16px] tw:shadow-edge tw:transition-[background-color,box-shadow] tw:hover:bg-sidebar tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-2 tw:has-[:focus-visible]:outline-ring tw:has-[:focus-visible]:outline-solid tw:has-[input:disabled]:pointer-events-none tw:has-[input:disabled]:text-subtle-foreground",
     className,
   )}
 >

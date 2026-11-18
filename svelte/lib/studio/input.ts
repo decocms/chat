@@ -4,7 +4,7 @@ import { tv, type VariantProps } from "tailwind-variants";
 export const inputVariants = tv(
   {
     base: [
-      "tw:text-foreground tw:placeholder:text-subtle-foreground tw:selection:bg-primary tw:selection:text-primary-foreground tw:flex tw:w-full tw:min-w-0 tw:text-sm tw:transition-[color,background-color,box-shadow] tw:outline-none",
+      "tw:text-foreground tw:placeholder:text-subtle-foreground tw:selection:bg-primary tw:selection:text-primary-foreground tw:flex tw:w-full tw:min-w-0 tw:text-sm tw:pointer-coarse:text-[16px] tw:transition-[color,background-color,box-shadow] tw:outline-none",
       "tw:file:text-foreground tw:file:inline-flex tw:file:h-7 tw:file:border-border tw:file:border-0 tw:file:bg-transparent tw:file:text-sm tw:file:font-medium",
       "tw:disabled:pointer-events-none tw:disabled:cursor-not-allowed tw:disabled:text-subtle-foreground tw:disabled:placeholder:text-subtle-foreground",
       "tw:read-only:text-muted-foreground",
