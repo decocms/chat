@@ -22,7 +22,6 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | `svelte/build/` | Vite plugins: client boundary, UI version, development proxy. |
 | `svelte/styles/` | `tailwind.css`, the only authored stylesheet of the Svelte app. |
 | `svelte/gallery/`, `svelte/parity/` | Component gallery and parity stories for development. |
-| `vanilla/inbox/` | Source of the Inbox of the vanilla app. Frozen. |
 | `collab/` | The document editor (CodeMirror and Yjs). Builds to `public/collab.js`. |
 | `browser/app-document/` | The host for app documents. |
 | `service-worker/` | Web push code. Builds to `public/sw.js`. |
@@ -33,10 +32,8 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | Folder | Contents |
 |---|---|
 | `public/` | Static files that the Worker serves. |
-| `public/app.html` | The vanilla app. Frozen. |
-| `public/app-svelte.html`, `public/svelte-preview/` | The built Svelte app. Generated. |
+| `public/app.html`, `public/svelte-preview/` | The built Svelte app. Generated. |
 | `public/pt/`, `public/en/` | Public pages in each language. Some are generated (see [workflow.md](workflow.md)). |
-| `public/changelog/` | Changelog screenshots. |
 | `public/fonts/`, `public/vendor/`, `public/licenses/` | Third-party files and their licenses. |
 | `public/llms.txt` | Setup instructions for any agent. Keep it the same as the tools and the plugin. |
 
@@ -48,7 +45,6 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | `claude-plugin/` | The Claude Code plugin: hooks, the `vibebook` skill, the `/vibebook:setup` and `/vibebook:listen` commands. |
 | `herdr-plugin/` | The herdr plugin. It opens one Claude Code for each room. |
 | `.claude-plugin/` | The plugin marketplace file. |
-| `site/` | The landing site Worker (TanStack Start and deco blocks). It has its own `package.json`. |
 | `og/` | HTML that makes `public/og.png` and the icons. |
 
 ## Documents
@@ -62,7 +58,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | Folder | Contents |
 |---|---|
 | `scripts/` | Checks, tests, benchmarks and generators. `*.test.ts` = `bun test`. `*-check.ts` = a check against local development. `*-browser.ts` = a Playwright test. |
-| `scripts/data/` | Data files that checks and browser tests read: font digests (`font-assets.json`), Studio design tokens and reference (`studio-*.json`), the vanilla build list (`vanilla-build.json`). |
+| `scripts/data/` | Data files that checks and browser tests read: font digests (`font-assets.json`), Studio design tokens and reference (`studio-*.json`)). |
 | `scripts/fixtures/` | Test data. |
 | `.github/` | CI workflows and the shared setup action. |
 

@@ -22,7 +22,7 @@
 </script>
 
 <RoomRow
-  href="/app?ui=svelte"
+  href="/"
   label={homeText(lang, "startTitle")}
   {selected}
   {variant}

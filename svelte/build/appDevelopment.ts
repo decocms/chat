@@ -13,7 +13,7 @@ import {
 } from "./developmentRequests.ts";
 
 export const workerRoutes =
-  "^/(?:api(?:/|$)|ws(?:/|-)|yjs/|auth(?:/|$)|oauth/|authorize(?:[/?]|$)|token(?:[/?]|$)|register(?:[/?]|$)|logout(?:[/?]|$)|login(?:[/?]|$)|app(?:[/?]|$)|archived(?:[/?]|$)|b/|mail/|\\.well-known/)";
+  "^/(?:$|\\?|api(?:/|$)|ws(?:/|-)|yjs/|auth(?:/|$)|oauth/|authorize(?:[/?]|$)|token(?:[/?]|$)|register(?:[/?]|$)|logout(?:[/?]|$)|login(?:[/?]|$)|archived(?:[/?]|$)|b/|mail/|\\.well-known/)";
 
 export function isSourceApp(url: string): boolean {
   let parsed: URL;
@@ -23,9 +23,8 @@ export function isSourceApp(url: string): boolean {
     return false;
   }
   return (
-    parsed.searchParams.get("ui") === "svelte" &&
-    (/^\/(?:app|archived|login|authorize)$/.test(parsed.pathname) ||
-      /^\/b\/[^/]+$/.test(parsed.pathname))
+    /^\/(?:archived|login|authorize)?$/.test(parsed.pathname) ||
+    /^\/b\/[^/]+$/.test(parsed.pathname)
   );
 }
 
@@ -261,12 +260,9 @@ export function appDevelopment(
           if (!new RegExp(workerRoutes).test(pathname))
             policy.assertRequest(req.url);
           const consentPost =
-            req.method === "POST" &&
-            parsed.pathname === "/authorize" &&
-            parsed.searchParams.get("ui") === "svelte";
+            req.method === "POST" && parsed.pathname === "/authorize";
           const fileShell =
             req.method === "GET" &&
-            parsed.searchParams.get("ui") === "svelte" &&
             /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(
               parsed.pathname,
             ) &&

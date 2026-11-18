@@ -35,7 +35,6 @@ import type {
   ApplicationRoomAdapter,
   ApplicationRoomIntent,
 } from "./types";
-import { uiNavigationUrl } from "../../../shared/uiVariant";
 import type { FetchLike } from "../../transport";
 
 export type ApplicationPwa = Pick<
@@ -130,7 +129,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   const root = createRootRoomSession({
     url: (id, thread, code) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}&ui=svelte${code ? `&rc=${encodeURIComponent(code)}` : ""}`, // ui: the Book counts bytes per app
+        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
       ),
     connection: options.roomConnection,
     present: (room) => titleOwnDm(room, browser.language ?? "pt"),
@@ -190,7 +189,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     rooms,
     {
       navigate: (value) => navigate(value),
-      home: () => navigate("/app"),
+      home: () => navigate("/"),
       archived: () => navigate("/archived"),
       rename: (id, title) =>
         root.read().room?.id === id && currentRoomId() === id
@@ -327,10 +326,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     post: browser.logoutPost,
     failure: browser.logoutFailure,
     reload: browser.reload,
-    success: (all) =>
-      browser.navigateDocument(
-        all ? uiNavigationUrl("/login", browser.href(), "svelte") : "/",
-      ),
+    success: (all) => browser.navigateDocument(all ? "/login" : "/"),
   });
   const stopPersonal = personal.state.subscribe((value) => {
     if (!active) return;
@@ -599,11 +595,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     state.update((value) => ({ ...value, sessionDenied: true }));
     if (active)
       browser.navigateDocument(
-        uiNavigationUrl(
-          `/login?next=${encodeURIComponent(new URL(browser.href()).pathname + new URL(browser.href()).search + new URL(browser.href()).hash)}`,
-          browser.href(),
-          "svelte",
-        ),
+        `/login?next=${encodeURIComponent(new URL(browser.href()).pathname + new URL(browser.href()).search + new URL(browser.href()).hash)}`,
       );
   }
   return {
@@ -661,7 +653,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     },
     actions: {
       navigate,
-      home: () => navigate("/app"),
+      home: () => navigate("/"),
       archived: () => navigate("/archived"),
       openAccount,
       logout,

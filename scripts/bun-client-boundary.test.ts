@@ -3,7 +3,6 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildBrowser } from "./browser-build";
-import { buildCollab } from "./build-collab";
 import { buildMcp } from "./build-mcp";
 
 let root: string;
@@ -177,14 +176,6 @@ test("Bun permits a browser-safe CSS font without private markers", async () => 
   expect(output).not.toContain("SYNTHETIC_PRIVATE_CONFIGURATION");
 });
 
-test("production editor build configuration enforces the boundary", async () => {
-  await writeFile(entrypoint, 'export { value } from "../src/private";');
-  await expect(
-    buildCollab({ root, entrypoint, outfile: join(root, "collab.js") }),
-  ).rejects.toThrow("[client-boundary]");
-  expect(await Bun.file(join(root, "collab.js")).exists()).toBe(false);
-});
-
 test("production MCP build configuration enforces the boundary", async () => {
   await writeFile(entrypoint, 'export { value } from "../shared/transitive";');
   await expect(
@@ -211,11 +202,4 @@ test("production MCP build keeps its self-contained HTML output", async () => {
   expect(html).not.toContain("<!-- APP -->");
   expect(html).toContain("<\\/script>");
   expect(await Bun.file(outfile).text()).toBe(html);
-});
-
-test("production editor build writes the standalone browser bundle", async () => {
-  await writeFile(entrypoint, 'export const value = "browser-safe";');
-  const outfile = join(root, "collab.js");
-  await buildCollab({ root, entrypoint, outfile });
-  expect(await Bun.file(outfile).text()).toContain("browser-safe");
 });

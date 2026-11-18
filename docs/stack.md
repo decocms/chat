@@ -19,7 +19,6 @@
 | Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants |
 | Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`collab/`) |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
-| Landing site | TanStack Start and deco blocks (`site/`) |
 
 ## Type safety and RPC
 
@@ -30,7 +29,6 @@
   - Document text: the Yjs protocol on `/yjs/:name`. This is the only channel that is not RPC.
 - Do not call `fetch` directly from the Svelte app.
 - Do not use `any`, and do not use a type cast to hide a type error.
-- Exception: the frozen vanilla app uses plain `fetch`. Do not copy that code.
 
 ## Frontend
 
@@ -79,4 +77,3 @@
 | `public/fonts/studio/CommitMono-*.woff2` | Commit Mono, SIL Open Font License 1.1. Keep `CommitMono-LICENSE.txt`. |
 | `scripts/data/font-assets.json` | Source URL, size and SHA-256 of each font. The file names contain a digest prefix. Do not change a font without a new name. |
 | `scripts/fixtures/entities/whatwg-entities.json` | WHATWG HTML named character references, from https://html.spec.whatwg.org/entities.json (2026-11-14, 145897 bytes, SHA-256 `d741d877…62e6`). Test data only. Do not reformat it. A test checks its digest. |
-| `public/vendor/` | marked 12.0.2 and DOMPurify 3.1.6 for the vanilla app. Do not change them. |

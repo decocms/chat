@@ -2,7 +2,6 @@
   import PersonAvatar from "./lib/components/PersonAvatar.svelte";
   import { untrack } from "svelte";
   import type { Wait, InboxMention, InboxTask, Bridge } from "./types";
-  import { uiNavigationUrl } from "../shared/uiVariant";
   import Dialog from "./lib/studio/Dialog.svelte";
   import DialogContent from "./lib/studio/DialogContent.svelte";
   import DialogHeader from "./lib/studio/DialogHeader.svelte";
@@ -102,11 +101,11 @@
         : vb.t("a fazer");
   function waitHref(wait: Wait) {
     const path = `/b/${encodeURIComponent(wait.book_id)}${wait.thread === "main" ? "" : `?t=${encodeURIComponent(wait.thread)}`}${/^[mab]/.test(wait.ref) ? `#m${wait.ref.slice(1)}` : ""}`;
-    return uiNavigationUrl(path, window.location.href, "svelte");
+    return path;
   }
   function navHref(bookId: string, thread: string, msgId: number) {
     const path = `/b/${encodeURIComponent(bookId)}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}${msgId ? `#m${msgId}` : ""}`;
-    return uiNavigationUrl(path, window.location.href, "svelte");
+    return path;
   }
   function clickNav(
     event: MouseEvent,

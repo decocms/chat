@@ -14,7 +14,6 @@ import { toolList, cachedTools, type Tool } from "./mcpTools";
 import type { Context, Hono } from "hono";
 import { ConnectionContext } from "../shared/schemas";
 import { record } from "../shared/validation";
-import { uiNavigationUrl, uiVariant } from "../shared/uiVariant";
 import type { Ctx, Env } from "./index";
 import { nativeAuthPage } from "./native-page";
 import { checkUrl } from "./reader";
@@ -250,30 +249,23 @@ export async function appHtml(env: Env, c: Conn, tool: string, who: Who) {
 // ---- Routes ----
 type ConnectionRouteContext = Context<Ctx, "/api/books/:id/connections/:cid/signin">;
 export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Database, id: string, email: string) => Promise<boolean>; track: (env: Env, name: string, o: object) => Promise<unknown> }) {
-  const guard = async (c: ConnectionRouteContext) => (await deps.isMember(c.env.DB, c.req.param("id"), c.get("email")) ? null : uiVariant(c.req.url) === "svelte" ? nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 403, connectionFailure: "forbidden" }) : c.json({ error: "forbidden" }, 403));
+  const guard = async (c: ConnectionRouteContext) => (await deps.isMember(c.env.DB, c.req.param("id"), c.get("email")) ? null : nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 403, connectionFailure: "forbidden" }));
   const conn = async (c: ConnectionRouteContext) => getConn(c.env, c.req.param("id"), c.req.param("cid"), c.get("email"));
   const who = (c: ConnectionRouteContext): Who => ({ email: c.get("email"), room: c.req.param("id"), origin: new URL(c.req.url).origin });
 
   // Sign in on a connection's server (OAuth per person): the browser goes to its consent page and comes back here.
   app.get("/api/books/:id/connections/:cid/signin", async (c) => {
     const no = await guard(c); if (no) return no;
-    const x = await conn(c); if (!x) return uiVariant(c.req.url) === "svelte" ? nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 404, connectionFailure: "missing" }) : c.json({ error: "conexão não encontrada" }, 404);
-    if (!(await c.env.LOGIN_LIMIT.limit({ key: `mcpauth:${c.get("email")}` })).success) return uiVariant(c.req.url) === "svelte" ? nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 429, connectionFailure: "rate" }) : c.json({ error: "Muitas tentativas. Espera um minuto." }, 429);
+    const x = await conn(c); if (!x) return nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 404, connectionFailure: "missing" });
+    if (!(await c.env.LOGIN_LIMIT.limit({ key: `mcpauth:${c.get("email")}` })).success) return nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 429, connectionFailure: "rate" });
     try {
       const w = who(c);
-      return c.redirect(await startAuth(c.env, w.origin, { email: w.email, book: x.book_id, cid: x.id, resource: x.url, back: uiNavigationUrl(`/b/${x.book_id}#app:${x.id}`, c.req.url, uiVariant(c.req.url)) }));
-    } catch (e) { return uiVariant(c.req.url) === "svelte" ? nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }) : c.html(`<p style="font:16px system-ui;padding:24px">Não deu pra entrar: ${String(e instanceof Error ? e.message : undefined).replace(/</g, "&lt;")}. <a href="/b/${x.book_id}">Voltar</a></p>`, 400); }
+      return c.redirect(await startAuth(c.env, w.origin, { email: w.email, book: x.book_id, cid: x.id, resource: x.url, back: `/b/${x.book_id}#app:${x.id}` }));
+    } catch { return nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }); }
   });
   app.get("/api/mcp-oauth/callback", async (c) => {
     const q = c.req.query();
-    // Presentation only: the opaque prefix survives expired/consumed state.
-    // Authentication still requires finishAuth's exact stored state + identity.
-    let native = uiVariant(c.req.url) === "svelte" || q.state?.startsWith("svelte.") === true;
     try {
-      if (!native && q.state) {
-        const stored = await c.env.DB.prepare(`SELECT back FROM mcp_oauth_states WHERE state = ? AND email = ?`).bind(q.state, c.get("email")).first<{ back: string }>();
-        native = !!stored && uiVariant(new URL(stored.back, c.req.url)) === "svelte";
-      }
       if (q.error) throw new Error(String(q.error_description || q.error).slice(0, 200));
       const w = { email: c.get("email"), origin: new URL(c.req.url).origin };
       const s = await finishAuth(c.env, w.origin, w.email, String(q.state ?? ""), String(q.code ?? ""));
@@ -285,7 +277,7 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
       }
       c.executionCtx.waitUntil(deps.track(c.env, "mcp_signed_in", { user: w.email, dims: { book: s.book_id, host: new URL(s.resource).host } }));
       return c.redirect(s.back);
-    } catch (e) { return native ? nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }) : c.html(`<p style="font:16px system-ui;padding:24px">Não deu pra entrar: ${String(e instanceof Error ? e.message : undefined).replace(/</g, "&lt;")}. <a href="/app">Voltar</a></p>`, 400); }
+    } catch { return nativeAuthPage(c.env, c.req.raw, "connection-error", { status: 400, connectionFailure: "failed" }); }
   });
 }
 

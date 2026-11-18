@@ -143,8 +143,8 @@ export function createAccessSession(
   };
   const target =
     continuation && /^#f[0-9a-f]{1,64}$/.test(continuation)
-      ? `/b/${encodeURIComponent(id)}?ui=svelte${continuation}`
-      : `/b/${encodeURIComponent(id)}?ui=svelte`;
+      ? `/b/${encodeURIComponent(id)}${continuation}`
+      : `/b/${encodeURIComponent(id)}`;
   const fail = (error: unknown) => {
     const signedOut = error instanceof AuthFailure && error.status === 401;
     state.update((s) => ({

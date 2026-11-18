@@ -706,15 +706,15 @@ export class Book extends DurableObject<Env> {
   sockets(except?: WebSocket) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
   }
-  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind and app (v = vanilla,
-   *  s = ?ui=svelte) per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
+  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind (app "s", the only one
+   *  since the vanilla app left in Nov 2026) per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
     const s = JSON.stringify(data);
     const by: Record<string, number> = {};
     for (const ws of to) {
       try { ws.send(s); } catch { continue; } // socket already gone
-      const c = this.ctx.getTags(ws)[1] === "svelte" ? "s" : "v";
+      const c = "s";
       by[c] = (by[c] ?? 0) + 1;
     }
     const h = Math.floor(Date.now() / 3_600_000);
@@ -2045,7 +2045,7 @@ export class Book extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + 5_000);
 
     const { 0: client, 1: server } = new WebSocketPair();
-    this.ctx.acceptWebSocket(server, url.searchParams.get("ui") === "svelte" ? [email, "svelte"] : [email]);
+    this.ctx.acceptWebSocket(server, [email]);
     if (this.autoArchive()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.

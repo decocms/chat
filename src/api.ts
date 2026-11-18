@@ -308,7 +308,7 @@ export const api = roomPosts
   })
   .post("/api/push/test", async (c) => {
     const svc = c.get("svc");
-    const sent = await svc.pushToMe({ title: "vibebook", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/app", tag: "test" });
+    const sent = await svc.pushToMe({ title: "vibebook", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/", tag: "test" });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
   // ✓ on a wait: "I answered elsewhere / not for me" (asks only).

@@ -13,16 +13,19 @@ import {
 } from "../svelte/build/appDevelopment";
 import { projectRoot } from "../svelte/build/clientBoundary";
 
-test("only explicit Svelte app pages select source HTML", () => {
-  for (const path of ["/app", "/login", "/authorize", "/archived", "/b/abc"])
-    expect(isSourceApp(`${path}?ui=svelte`)).toBe(true);
+test("only app pages select source HTML", () => {
+  for (const path of [
+    "/",
+    "/login",
+    "/authorize?client_id=example",
+    "/archived",
+    "/b/abc",
+  ])
+    expect(isSourceApp(path)).toBe(true);
   for (const path of [
     "/app",
-    "/app?ui=vanilla",
-    "/authorize?client_id=example",
-    "/b/abc",
-    "/api/me?ui=svelte",
-    "/app-svelte.html?ui=svelte",
+    "/api/me",
+    "/app.html?ui=svelte",
     "/b/a/files?ui=svelte",
   ])
     expect(isSourceApp(path)).toBe(false);
@@ -32,19 +35,18 @@ test("only explicit Svelte app pages select source HTML", () => {
     "/ws/abc",
     "/auth/dev",
     "/login",
-    "/app",
+    "/",
+    "/?x=1",
     "/b/abc",
     "/oauth/code",
   ])
     expect(new RegExp(workerRoutes).test(path)).toBe(true);
   expect(new RegExp(workerRoutes).test("/bootstrap.ts")).toBe(false);
+  expect(new RegExp(workerRoutes).test("/app")).toBe(false);
 });
 
 test("source HTML removes production version and compiled entry without changing production shell", async () => {
-  const shell = await readFile(
-    resolve(projectRoot, "public/app-svelte.html"),
-    "utf8",
-  );
+  const shell = await readFile(resolve(projectRoot, "public/app.html"), "utf8");
   const dev = sourceShell(
     shell.replace("<head>", '<head><meta name="vb-v" content="production" />'),
   );
@@ -352,7 +354,7 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
     globalThis.fetch = previousFetch;
   }
 });
-test("unselected vanilla consent and other POST routes remain with the ordinary proxy unread", async () => {
+test("other POST routes remain with the ordinary proxy unread", async () => {
   const middleware = consentMiddleware(),
     previousFetch = globalThis.fetch;
   let fetches = 0;
@@ -365,13 +367,9 @@ test("unselected vanilla consent and other POST routes remain with the ordinary 
   );
   try {
     for (const [url, method] of [
-      ["/authorize", "POST"],
-      ["/authorize?ui=vanilla", "POST"],
-      ["/authorize?ui=unknown", "POST"],
-      ["/auth/logout?ui=svelte", "POST"],
-      ["/app?ui=svelte", "POST"],
-      ["/authorize/extra?ui=svelte", "POST"],
-      ["/authorize?ui=svelte", "PUT"],
+      ["/auth/logout", "POST"],
+      ["/authorize/extra", "POST"],
+      ["/authorize", "PUT"],
     ]) {
       const req = consentRequest("handle=unread", url);
       req.method = method;

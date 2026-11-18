@@ -12,8 +12,7 @@ const { AuthorizationError } =
 const shell =
   '<link href="/svelte-preview/ui.css?v=0123456789abcdef0123"><script src="/svelte-preview/app.js?v=0123456789abcdef0123"></script>';
 const assets = { fetch: async () => new Response(shell) };
-const here =
-  "http://127.0.0.1:8797/authorize?ui=svelte&client_id=client&state=original";
+const here = "http://127.0.0.1:8797/authorize?client_id=client&state=original";
 const post = (decision?: string) => ({
   method: "POST",
   headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -134,15 +133,9 @@ test("signed-out native POST preserves only the local authorize query for login,
     "http://127.0.0.1:8797",
   );
   expect(location.pathname).toBe("/login");
-  expect(location.searchParams.get("ui")).toBeNull(); // Svelte is the default: no marker
+  expect(location.searchParams.get("ui")).toBeNull();
   expect(location.searchParams.get("next")).toBe(
-    "/authorize?ui=svelte&client_id=client&state=original",
+    "/authorize?client_id=client&state=original",
   );
   expect(location.href).not.toContain("OLD-HANDLE");
-  const vanilla = await connect.request(
-    "http://127.0.0.1:8797/authorize?ui=vanilla&client_id=client",
-    post("approve"),
-    { ASSETS: assets },
-  );
-  expect(vanilla.headers.get("location")).toBe("/login");
 });

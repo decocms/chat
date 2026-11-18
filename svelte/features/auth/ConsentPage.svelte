@@ -108,7 +108,7 @@
     </p>
     {#if $view.signedOut}<a
         class={buttonVariants()}
-        href={`/login?ui=svelte&next=${encodeURIComponent("/authorize" + search)}`}
+        href={`/login?next=${encodeURIComponent("/authorize" + search)}`}
         >{text("login")}</a
       >{:else}<Button variant="outline" onclick={() => session.load()}
         >{text("retry")}</Button

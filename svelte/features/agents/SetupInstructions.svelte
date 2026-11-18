@@ -100,7 +100,7 @@
         >
       </p>
       <a
-        href="/connect"
+        href="/llms.txt"
         target="_blank"
         rel="noopener noreferrer"
         class="text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"

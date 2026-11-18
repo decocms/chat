@@ -46,7 +46,7 @@
         <p class="m-0 text-muted-foreground">{text("archived")}</p>
       </div>
       <a
-        href="/app?ui=svelte"
+        href="/"
         class={buttonVariants({ variant: "outline" })}
         onclick={(event) => {
           if (

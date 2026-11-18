@@ -7,7 +7,6 @@ import * as z from "zod/mini";
 import { LISTEN_FRESH, poke, pokeRoommates } from "./person";
 import { EMAIL_RE } from "./auth";
 import { cookieLang, reqLang } from "./lang";
-import type { UiVariant } from "../shared/uiVariant";
 import { MeBook, MeData, MeFriend, MeFriendRequest, MeInvite, MePerson, MeResult, MeSentRequest, MeWait } from "../shared/schemas";
 import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
@@ -24,18 +23,12 @@ import { routerStats } from "./router";
 import { aiSpend } from "./reports";
 
 // The app shell's version per UI variant, per isolate (a deploy is a new isolate): open tabs compare it to reload.
-const appVersions = new Map<UiVariant, string>();
+let appVersion: string | undefined;
 const ProfileName = z.pick(MeData, { name: true });
 const ProfileAvatar = z.pick(MeData, { avatar: true });
 async function currentVersion(env: Env, url: string) {
-  // An API call says its app (the Svelte app sends ui=svelte); none = the vanilla app, which never sent one.
-  const variant: UiVariant = new URL(url).searchParams.get("ui") === "svelte" ? "svelte" : "vanilla";
-  let version = appVersions.get(variant);
-  if (version === undefined) {
-    version = ((await env.ASSETS.fetch(new Request(new URL(variant === "svelte" ? "/app-svelte" : "/app", url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
-    appVersions.set(variant, version);
-  }
-  return version;
+  appVersion ??= ((await env.ASSETS.fetch(new Request(new URL("/app", url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
+  return appVersion;
 }
 
 /** GET /api/me: served from your Person DO while nothing changed (rooms, waits and your own writes poke it stale). */

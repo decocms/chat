@@ -319,4 +319,30 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the code until a final copy at the switch.
 - Risk: medium
 - Undo: Revert this commit.
+
+### 2026-11-18 · feat/single-worker · Links to the removed public pages go to llms.txt
+- Agent: claude-opus-5-5
+- Context: The human removed all public pages except `llms.txt`. The invite email, the setup card and the README linked to `/connect`, `/docs`, `/how-it-works`, `/herdr` and `/mcp-identity`.
+- Decision: The setup links go to `/llms.txt`. The links about herdr and MCP identity go to the GitHub repository (`herdr-plugin/` and the Security model in `README.md`). The old page paths are not kept: the app moves to a new domain, so no link points to them (the human decided this).
+- Other options: Redirect each old path to `/` or `/llms.txt`. Keep a short `/connect` page.
+- Risk: low
+- Undo: Revert the link changes in `src/rooms.ts`, `svelte/features/agents/SetupInstructions.svelte`, `README.md` and `public/llms.txt`.
+- Status: open
+
+### 2026-11-18 · feat/single-worker · The Svelte shell file is app.html
+- Agent: claude-opus-5-5
+- Context: The app moved from `/app` to `/`. With vanilla gone, the Svelte shell is the only shell. The human said that no link points to the old paths, because the domain changes too.
+- Decision: `public/app-svelte.html` is now `public/app.html`. `/app` has no route. The PWA `id` and `start_url` are `/`.
+- Other options: Keep the file name `app-svelte.html`. Redirect `/app` to `/`.
+- Risk: low
+- Undo: Rename the file back and revert `public/manifest.webmanifest`.
+- Status: open
+
+### 2026-11-18 · feat/single-worker · The vanilla-only HTML fallbacks are removed
+- Agent: claude-opus-5-5
+- Context: The human removed the vanilla app. Some routes had a vanilla answer: the access page, the file page, the consent page and the JSON or HTML errors of MCP sign-in.
+- Decision: Each route now gives only the Svelte page. A file link with a bad id gets the JSON error. The vendor scripts of vanilla (marked, DOMPurify) and `public/_headers` are removed. The Book still writes the `ws_bytes` app column as `s`.
+- Other options: Keep the server HTML pages as a fallback when the Svelte assets are missing (now a 503 text).
+- Risk: medium
+- Undo: Revert the commit.
 - Status: open

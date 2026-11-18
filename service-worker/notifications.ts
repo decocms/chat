@@ -42,11 +42,7 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       })) {
         if (new URL(client.url).origin !== self.location.origin) continue;
-        const url = notificationTarget(
-          target,
-          self.location.origin,
-          client.url,
-        );
+        const url = notificationTarget(target, self.location.origin);
         try {
           await client.focus();
           await client.navigate(url);

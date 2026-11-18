@@ -12,23 +12,18 @@ import {
 } from "./build/appDevelopment.ts";
 import { uiVersion } from "./build/uiVersion.ts";
 import { clientBoundary, projectRoot } from "./build/clientBoundary.ts";
-import { uiVariantBoundary } from "./build/uiVariantBoundary.ts";
 
-// Preview assets cannot replace the vanilla app's on-demand Inbox bundle.
 export default defineConfig(({ mode, command }) => ({
   root: import.meta.dirname,
   publicDir: join(projectRoot, "public"),
   resolve: { alias: { $lib: join(projectRoot, "svelte/lib") } },
   // Library mode preserves this dependency expression unless explicitly replaced.
   // Never ship a Node `process` global or a browser process polyfill.
-  define:
-    mode === "vanilla"
-      ? {}
-      : {
-          "process.env.NODE_ENV": JSON.stringify(
-            command === "serve" ? "development" : "production",
-          ),
-        },
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(
+      command === "serve" ? "development" : "production",
+    ),
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,
@@ -84,41 +79,30 @@ export default defineConfig(({ mode, command }) => ({
         ]
       : []),
     clientBoundary({ projectRoot }),
-    uiVariantBoundary(projectRoot, mode === "vanilla" ? "vanilla" : "svelte"),
-    ...(mode === "vanilla" ? [] : [tailwindcss()]),
-    svelte({
-      compilerOptions: { css: mode === "vanilla" ? "injected" : "external" },
-    }),
-    ...(mode === "vanilla" ? [] : [uiVersion(join(projectRoot, "public"))]),
+    tailwindcss(),
+    svelte({ compilerOptions: { css: "external" } }),
+    uiVersion(join(projectRoot, "public")),
     chunkDiagnostics({
       root: projectRoot,
-      variant: mode === "vanilla" ? "vanilla" : "svelte",
+      variant: "svelte",
       enabled: process.env.VIBEBOOK_CHUNK_DIAGNOSTICS === "1",
       revision: process.env.TEST_APP_REVISION,
     }),
   ],
   build: {
-    outDir:
-      mode === "vanilla" ? "../public/svelte" : "../public/svelte-preview",
+    outDir: "../public/svelte-preview",
     emptyOutDir: true,
     minify: true,
     // These native ES files are served as an app. Vite's library default
     // preserves whitespace for downstream bundlers; compact this final output.
-    rolldownOptions:
-      mode === "vanilla"
-        ? undefined
-        : { output: { minify: { codegen: true } } },
+    rolldownOptions: { output: { minify: { codegen: true } } },
     cssCodeSplit: false,
     copyPublicDir: false,
     lib: {
-      entry:
-        mode === "vanilla"
-          ? "../vanilla/inbox/main.ts"
-          : { app: "bootstrap.ts" },
+      entry: { app: "bootstrap.ts" },
       formats: ["es"],
       cssFileName: "ui",
-      fileName: (_format, name) =>
-        mode === "vanilla" ? "ui.js" : `${name}.js`,
+      fileName: (_format, name) => `${name}.js`,
     },
   },
 }));

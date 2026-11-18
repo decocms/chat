@@ -35,7 +35,7 @@ jobs:
         run: bun scripts/check-ci.ts
       - name: Checked-in preview matches the build
         if: ${{ always() && steps.preview.outcome == 'success' }}
-        run: git diff --exit-code -- public/app-svelte.html public/svelte-preview/ public/sw.js
+        run: git diff --exit-code -- public/app.html public/svelte-preview/ public/sw.js
 
   # The real Worker, Book, D1, R2 and NativeApplication cohort (the long one).
   browser-app:

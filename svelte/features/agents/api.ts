@@ -57,10 +57,7 @@ export function createAgentsApi(fetcher?: FetchLike) {
   return {
     identity: (signal?: AbortSignal) =>
       api.me
-        .$get(
-          { query: { ui: "svelte" } },
-          { init: { signal, cache: "no-store" } },
-        )
+        .$get({ query: {} }, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, MeResult))
         .then((me) => me.email),
     grants: (signal?: AbortSignal) =>

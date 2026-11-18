@@ -5,27 +5,18 @@ export const PushPayload = z.object({
   tag: z.optional(z.string()),
   url: z.optional(z.string()),
 });
-export function notificationTarget(
-  value: unknown,
-  origin: string,
-  client?: string,
-) {
+export function notificationTarget(value: unknown, origin: string) {
   let target: URL;
   try {
-    target = new URL(typeof value === "string" ? value : "/app", origin);
+    target = new URL(typeof value === "string" ? value : "/", origin);
   } catch {
-    target = new URL("/app", origin);
+    target = new URL("/", origin);
   }
   if (
     target.origin !== origin ||
-    !/^\/(?:app|archived|b\/[a-z0-9]+)\/?$/.test(target.pathname)
+    !/^\/(?:(?:archived|b\/[a-z0-9]+)\/?)?$/.test(target.pathname)
   )
-    target = new URL("/app", origin);
-  // A chosen existing tab keeps its own opt-in. A new window is always default.
-  const selected = client
-    ? new URL(client).searchParams.get("ui") === "svelte"
-    : false;
+    target = new URL("/", origin);
   target.searchParams.delete("ui");
-  if (selected) target.searchParams.set("ui", "svelte");
   return target.href;
 }

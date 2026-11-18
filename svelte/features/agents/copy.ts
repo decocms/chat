@@ -11,7 +11,7 @@ const pt = {
   connector:
     "Configurações → Conectores → Adicionar conector personalizado, e cole",
   codeConnector: "Claude Code só com o conector:",
-  fullGuide: "Passo a passo completo →",
+  fullGuide: "Guia completo (llms.txt) →",
   loading: "carregando…",
   retry: "Tentar novamente",
   readFailed: "Não deu para carregar seus agents. Tente de novo.",
@@ -47,7 +47,7 @@ const en: Record<Key, string> = {
   alternatives: "Claude.ai or another client",
   connector: "Settings → Connectors → Add custom connector, then paste",
   codeConnector: "Claude Code with only the connector:",
-  fullGuide: "Complete walkthrough →",
+  fullGuide: "Full guide (llms.txt) →",
   loading: "loading…",
   retry: "Retry",
   readFailed: "Could not load your agents. Try again.",

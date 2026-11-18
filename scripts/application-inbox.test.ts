@@ -31,7 +31,7 @@ async function fixture(
 ) {
   const timer = manualClock(),
     documents: string[] = [];
-  let href = "https://vb.test/app?ui=svelte",
+  let href = "https://vb.test/",
     canonical = me({ waits: [wait] }),
     reads = 0;
   const services = createApplicationServices({

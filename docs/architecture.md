@@ -20,7 +20,6 @@ A room has these parts:
 | `Book` Durable Object | `src/book.ts` | One for each room. Keeps the room data in SQLite. Sends real-time events. Runs the room alarm. |
 | `DocRoom` Durable Object | `src/docroom.ts` | One for each document. Keeps the live Yjs text for co-editing. Copies the text back to the `Book`. |
 | `Person` Durable Object | `src/person.ts` | One for each person. Holds the app WebSocket of that person. Tells open tabs to fetch again. |
-| Site Worker | `site/` | The public landing pages (deco blocks). The main Worker forwards `/pt`, `/en`, `/_site`, `/deco` and `/_serverFn` to it. |
 
 ## Storage
 
@@ -58,9 +57,8 @@ Rules:
 
 ## Browser apps
 
-- Svelte 5 is the default app (`svelte/`). The vanilla app (`public/app.html`) is the frozen fallback.
-- `src/ui-select.ts` selects the app for each page. Order: the URL `?ui=`, then the cookie `vb_ui`, then the Worker variable `UI_DEFAULT`.
-- To send all people back to vanilla, set `UI_DEFAULT=vanilla`. No deploy of code is necessary.
+- Svelte 5 is the only app (`svelte/`). Its shell is `public/app.html`. The app is at `/`.
+- A person who is not signed in gets `/login`. There is no landing page.
 - The browser and the server communicate only through typed RPC. The rules are in [stack.md](stack.md).
 - Wire contracts are in `shared/` (zod schemas). The API routes in `src/api.ts` use these schemas. The browser gets only the types (`hc<AppType>`).
 - The browser build must not import backend code. `svelte/build/clientBoundary.ts` stops the build if it does.
@@ -80,7 +78,7 @@ Rules:
 - The Worker refuses a cross-site request that changes state.
 - The secret filter (`src/secrets.ts`) refuses messages, files and embeds that contain a secret.
 - Rate limits: `AI_LIMIT`, `LOGIN_LIMIT`, `UPLOAD_LIMIT`, `AGENT_LIMIT` (`wrangler.jsonc`).
-- If you change auth, tools or storage, make `README.md` (Security model) and `/how-it-works` agree with the change.
+- If you change auth, tools or storage, make `README.md` (Security model) and `public/llms.txt` agree with the change.
 
 ## AI models
 

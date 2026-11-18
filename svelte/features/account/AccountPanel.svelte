@@ -8,7 +8,6 @@
   import Label from "../../lib/studio/Label.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
-  import UiSwitch from "../home/UiSwitch.svelte";
   import ThemeIcon from "../app-navigation/ThemeIcon.svelte";
   import ToggleGroup from "../../lib/studio/ToggleGroup.svelte";
   import ToggleGroupItem from "../../lib/studio/ToggleGroupItem.svelte";
@@ -398,10 +397,6 @@
                         >{language.toUpperCase()}</ToggleGroupItem
                       >{/each}</ToggleGroup
                   >
-                </div>
-                <!-- Off = the classic app on this device. -->
-                <div class={rowClass}>
-                  <UiSwitch lang={en ? "en" : "pt"} row />
                 </div>
                 <label class="{rowClass} cursor-pointer">
                   <div class="flex min-w-0 flex-col gap-0.5">

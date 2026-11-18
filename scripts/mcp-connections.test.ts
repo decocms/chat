@@ -149,7 +149,7 @@ function routes(
     insertedStates,
   };
 }
-test("native signin preserves membership/missing/rate HTTP failures using typed styled pages; vanilla remains JSON", async () => {
+test("signin preserves membership/missing/rate HTTP failures using typed styled pages", async () => {
   for (const [options, status, failure] of [
     [{ member: false }, 403, "forbidden"],
     [{ found: false }, 404, "missing"],
@@ -157,7 +157,7 @@ test("native signin preserves membership/missing/rate HTTP failures using typed 
   ] as const) {
     const fixture = routes(options),
       path = "/api/books/abcdef/connections/abc123/signin";
-    const response = await fixture.request(`${path}?ui=svelte`),
+    const response = await fixture.request(path),
       html = await response.text();
     expect(response.status).toBe(status);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -165,15 +165,12 @@ test("native signin preserves membership/missing/rate HTTP failures using typed 
     expect(html).toContain('name="vb-page" content="connection-error"');
     expect(html).toContain(`name="vb-connection-failure" content="${failure}"`);
     expect(html).not.toContain("style=");
-    const vanilla = await fixture.request(`${path}?ui=vanilla`);
-    expect(vanilla.status).toBe(status);
-    expect(vanilla.headers.get("content-type")).toContain("application/json");
   }
 });
 test("native callback provider refusal/replayed state never echoes provider secrets or OAuth arguments", async () => {
   const fixture = routes();
   const response = await fixture.request(
-    "/api/mcp-oauth/callback?state=svelte.PRIVATE_STATE&code=PRIVATE_CODE&error=access_denied&error_description=PRIVATE_PROVIDER_MESSAGE",
+    "/api/mcp-oauth/callback?state=PRIVATE_STATE&code=PRIVATE_CODE&error=access_denied&error_description=PRIVATE_PROVIDER_MESSAGE",
   );
   const html = await response.text();
   expect(response.status).toBe(400);
@@ -185,24 +182,19 @@ test("native callback provider refusal/replayed state never echoes provider secr
     "style=",
   ])
     expect(html).not.toContain(value);
-  expect(html).toContain('href="/app?ui=vanilla"'); // the noscript fallback: the vanilla app
+  expect(html).not.toContain("<a href"); // the noscript text has no link to follow
   expect(fixture.consumes()).toBe(0);
   const replay = await fixture.request(
-    "/api/mcp-oauth/callback?state=svelte.CONSUMED_STATE&code=SECRET",
+    "/api/mcp-oauth/callback?state=CONSUMED_STATE&code=SECRET",
   );
   expect(replay.status).toBe(400);
   expect(await replay.text()).toContain(
     'name="vb-page" content="connection-error"',
   );
   expect(fixture.consumes()).toBe(1);
-  const vanilla = await fixture.request(
-    "/api/mcp-oauth/callback?ui=vanilla&error=access_denied&error_description=Old+provider+message",
-  );
-  expect(vanilla.status).toBe(400);
-  expect(await vanilla.text()).toContain("Old provider message");
 });
-test("previous unprefixed native state retains native error presentation through its owned stored return URL", async () => {
-  const fixture = routes({ storedBack: "/b/abcdef?ui=svelte#app:abc123" });
+test("a failed callback with a stored return URL shows the error page without echoing its state", async () => {
+  const fixture = routes({ storedBack: "/b/abcdef#app:abc123" });
   const response = await fixture.request(
     "/api/mcp-oauth/callback?state=OLD_STATE&code=OLD_CODE",
   );
@@ -213,7 +205,7 @@ test("previous unprefixed native state retains native error presentation through
   expect(html).not.toContain("OLD_CODE");
   expect(fixture.consumes()).toBe(1);
 });
-test("native and vanilla authorization preserve the fixed provider callback and exact stored random state", async () => {
+test("authorization preserves the fixed provider callback and exact stored random state", async () => {
   const fetching = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
       async (input: Parameters<typeof fetch>[0]) => {
@@ -231,10 +223,10 @@ test("native and vanilla authorization preserve the fixed provider callback and 
     ),
   );
   try {
-    for (const native of [true, false]) {
+    {
       const fixture = routes();
       const response = await fixture.request(
-        `/api/books/abcdef/connections/abc123/signin${native ? "?ui=svelte" : "?ui=vanilla"}`,
+        "/api/books/abcdef/connections/abc123/signin",
       );
       expect(response.status).toBe(302);
       const location = response.headers.get("location");
@@ -247,11 +239,8 @@ test("native and vanilla authorization preserve the fixed provider callback and 
       if (typeof storedState !== "string")
         throw Error("Missing canonical OAuth state");
       expect(target.searchParams.get("state")).toBe(storedState);
-      expect(target.searchParams.get("state")?.startsWith("svelte.")).toBe(
-        native,
-      );
-      expect(String(fixture.insertedStates[0]?.[7])).toContain(
-        native ? "/b/abcdef#app:abc123" : "ui=vanilla",
+      expect(String(fixture.insertedStates[0]?.[7])).toBe(
+        "/b/abcdef#app:abc123",
       );
     }
   } finally {
@@ -287,11 +276,11 @@ test("signed-out native HTML connection navigation keeps401 before any OAuth han
     return c.text("must not reach provider handler");
   });
   const callback =
-    "/api/mcp-oauth/callback?state=svelte.PRIVATE_STATE&code=PRIVATE_CODE&error_description=PRIVATE_PROVIDER";
+    "/api/mcp-oauth/callback?state=PRIVATE_STATE&code=PRIVATE_CODE&error_description=PRIVATE_PROVIDER";
   for (const path of [
     callback,
-    "/api/mcp-oauth/callback?ui=svelte&state=OLD_STATE&code=PRIVATE_CODE",
-    "/api/books/abcdef/connections/abc123/signin?ui=svelte",
+    "/api/mcp-oauth/callback?state=OLD_STATE&code=PRIVATE_CODE",
+    "/api/books/abcdef/connections/abc123/signin",
   ]) {
     const response = await app.request(
       `https://vibebook.test${path}`,
@@ -313,13 +302,7 @@ test("signed-out native HTML connection navigation keeps401 before any OAuth han
   for (const [path, method, accept] of [
     [callback, "GET", "application/json"],
     [callback, "POST", "text/html"],
-    ["/api/mcp-oauth/callback?state=VANILLA&ui=vanilla", "GET", "text/html"],
-    [
-      "/api/books/abcdef/connections/abc123/signin?ui=vanilla",
-      "GET",
-      "text/html",
-    ],
-    ["/api/me?ui=svelte", "GET", "text/html"],
+    ["/api/me", "GET", "text/html"],
   ]) {
     const response = await app.request(
       `https://vibebook.test${path}`,

@@ -21,7 +21,7 @@ export function shellFixture(
   options: { pwa?: () => PwaService } = {},
 ) {
   const timer = manualClock();
-  let href = "https://vibebook.test/app?ui=svelte",
+  let href = "https://vibebook.test/",
     canonical = me(),
     theme: ApplicationTheme = "auto";
   let themeListener = () => {},

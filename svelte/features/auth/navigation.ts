@@ -1,6 +1,6 @@
 /** Defense in depth for server-provided continuations; auth never navigates to an incoming authority. */
 export function authContinuation(value: string, origin: string): string {
-  const fallback = "/app?ui=svelte";
+  const fallback = "/";
   if (
     !value.startsWith("/") ||
     value.startsWith("//") ||
@@ -16,11 +16,9 @@ export function authContinuation(value: string, origin: string): string {
     return fallback;
   if (/^\/api\/books\/[a-z0-9]+\/files\/[a-z0-9]+$/.test(target.pathname))
     return target.pathname + target.search + target.hash;
-  if (
-    !/^\/(?:app|archived|login|b\/[a-z0-9]+|authorize)$/.test(target.pathname)
-  )
+  if (!/^\/(?:archived|login|b\/[a-z0-9]+|authorize)?$/.test(target.pathname))
     return fallback;
-  target.searchParams.set("ui", "svelte");
+  target.searchParams.delete("ui");
   return target.pathname + target.search + target.hash;
 }
 /** Error redirects are offered explicitly, never followed automatically or interpreted as script URLs. */

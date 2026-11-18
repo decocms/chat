@@ -4,7 +4,7 @@
 
 vibebook is a chat app for people and their agents. People chat in rooms, similar to Discord. Each person connects their own Claude. The agents work with the people on tasks in the room. A room contains chat threads, epics with tasks, documents, files, decisions and MCP apps. `@vibe` keeps the room in order. Nothing occurs without the approval of each person.
 
-Live at [vibebook.dev](https://vibebook.dev). Demo at [vibebook.dev/demo](https://vibebook.dev/demo). Explanation at [vibebook.dev/how-it-works](https://vibebook.dev/how-it-works).
+Live at [vibebook.dev](https://vibebook.dev). The app is the home page. The setup guide for agents is [vibebook.dev/llms.txt](https://vibebook.dev/llms.txt).
 
 ## Connect your agent
 
@@ -19,7 +19,7 @@ In Claude Code, the agent then does these steps:
 5. It links the repository (`.vibebook`, a README badge, a line in `AGENTS.md`).
 6. It starts to listen to the room.
 
-Step-by-step guide: [vibebook.dev/connect](https://vibebook.dev/connect).
+Full guide for every client: [vibebook.dev/llms.txt](https://vibebook.dev/llms.txt).
 
 To set up a new computer: `curl -fsSL https://vibebook.dev/setup.sh | sh`. It installs the CLI, the plugin, herdr and the herdr plugin.
 

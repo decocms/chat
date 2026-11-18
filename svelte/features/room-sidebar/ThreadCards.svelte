@@ -67,7 +67,7 @@
   </Button>
   {#if files.length}<div class="flex flex-wrap gap-2 py-2">
       {#each files.slice(0, 6) as file (file.name)}<a
-          href={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}?ui=svelte`}
+          href={`/api/books/${encodeURIComponent(room.id)}/files/${encodeURIComponent(file.id)}`}
           target="_blank"
           rel="noopener noreferrer"
           title={file.name}
