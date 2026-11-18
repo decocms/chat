@@ -3,6 +3,7 @@ import { createRoomLayoutBrowser } from "./browser";
 import { createRoomSheetHistory } from "./history";
 import { createRoomGeometry, type RoomGeometry } from "./geometry";
 import type {
+  RoomLayoutBrowser,
   RoomLayoutController,
   RoomLayoutOptions,
   RoomLayoutState,
@@ -67,6 +68,23 @@ export function createRoomLayoutIntents(options: {
   };
 }
 
+/** Whether you closed the side pane last time (per browser): opening a room keeps it closed until you open it. */
+const DOCUMENT_CLOSED_KEY = "vb.docClosed";
+function documentClosedBefore(browser: RoomLayoutBrowser) {
+  try {
+    return browser.storage?.getItem(DOCUMENT_CLOSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function rememberDocument(browser: RoomLayoutBrowser, visible: boolean) {
+  try {
+    browser.storage?.setItem(DOCUMENT_CLOSED_KEY, visible ? "0" : "1");
+  } catch {
+    /* Private window or blocked storage: the pane just opens as before. */
+  }
+}
+
 export function createRoomLayout(
   options: RoomLayoutOptions,
 ): RoomLayoutController {
@@ -79,7 +97,8 @@ export function createRoomLayout(
     pane: "doc",
     sheet: null,
     boardFull: false,
-    documentVisible: !options.documentHidden,
+    // Desktop: the pane opens as you last left it (closed stays closed when you come back). A DM starts closed.
+    documentVisible: !options.documentHidden && !documentClosedBefore(browser),
     sidebarCollapsed: options.sidebarCollapsed ?? false,
     mobile: false,
     closingUnconfirmed: false,
@@ -125,6 +144,8 @@ export function createRoomLayout(
   const intent = intents.run;
   const pane = (next: RoomLayoutState["pane"]) => {
     const changed = value.pane !== next;
+    if (!value.documentVisible && !value.mobile)
+      rememberDocument(browser, true);
     publish({ pane: next, documentVisible: true });
     geometry?.sync(value);
     if (changed && current()) options.onPane?.(next);
@@ -188,6 +209,7 @@ export function createRoomLayout(
             history.open("doc");
           }
         } else {
+          rememberDocument(browser, !value.documentVisible);
           publish({ documentVisible: !value.documentVisible });
           geometry?.sync(value);
         }
