@@ -39,7 +39,8 @@
         "Apps embutidos no doc ocupam a largura toda do doc e \"Abrir no painel Apps\" virou só o ícone ↗.",
         "Na lateral, cada Claude seu aparece com o nome da sala que ele ouve (o mesmo da aba do herdr), e a pasta fica no hover.",
         "Uma conversa direta abre só com a conversa: o painel do lado começa fechado e a barra de cima não tem mais o botão Doc (Arquivos, Apps, Decisões e Lembretes continuam lá).",
-        "A tela de entrar ganhou o logo do vibebook e os ícones do Google e do GitHub nos botões."
+        "A tela de entrar ganhou o logo do vibebook e os ícones do Google e do GitHub nos botões.",
+        "Doc, Arquivos, Apps, Decisões e Lembretes vazios agora dizem a mesma coisa do mesmo jeito: o que vai aparecer ali, um botão para fazer você mesmo e um pedido pronto para o seu Claude, que vai para a caixa de mensagem com um clique."
       ],
       "en": [
         "People who already used vibebook see, once per device, a note about the new app with the way back to the previous version.",
@@ -57,19 +58,22 @@
         "Apps embedded in a doc take the doc's whole width and \"Open in the Apps panel\" is now just the ↗ icon.",
         "In the sidebar, each of your Claudes shows the name of the room it listens to (the same as its herdr tab), with the folder on hover.",
         "A direct conversation opens on just the conversation: the side panel starts closed and the top bar no longer has the Doc button (Files, Apps, Decisions and Reminders are still there).",
-        "The sign-in screen now has the vibebook logo and the Google and GitHub icons on their buttons."
+        "The sign-in screen now has the vibebook logo and the Google and GitHub icons on their buttons.",
+        "Empty Doc, Files, Apps, Decisions and Reminders tabs now look and read the same: what will show up there, a button to do it yourself, and a ready prompt for your Claude that lands in the message box in one click."
       ]
     },
     "fixes": {
       "pt": [
         "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup.",
-        "Seu Claude não aparece mais duas vezes na lateral: os avisos de permissão e de pergunta do plugin agora falam como o mesmo Claude da conversa."
+        "Seu Claude não aparece mais duas vezes na lateral: os avisos de permissão e de pergunta do plugin agora falam como o mesmo Claude da conversa.",
+        "No app novo, os agents na nuvem (sandbox do freestyle) voltaram a ter entrada fixa: \"Agent na nuvem\" no rodapé de agents da lateral abre a chave do freestyle, criar sandbox e terminal."
       ],
       "en": [
         "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",
         "A room's sidebar lists only your Claudes for that room again, not every one listening in your other rooms.",
         "The room's top bar lost the stray divider before the panel's tabs (Doc, Files…).",
-        "Your Claude no longer shows twice in the sidebar: the plugin's permission and question prompts now speak as the same Claude as the conversation."
+        "Your Claude no longer shows twice in the sidebar: the plugin's permission and question prompts now speak as the same Claude as the conversation.",
+        "In the new app, cloud agents (freestyle sandboxes) have a fixed entry again: \"Cloud agent\" at the foot of the sidebar's agents opens the freestyle key, create sandbox and terminal."
       ]
     }
   },

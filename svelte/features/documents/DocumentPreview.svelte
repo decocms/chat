@@ -25,6 +25,11 @@
   } from "./appMarkers";
   import DeferredDocumentApp from "./DeferredDocumentApp.svelte";
   import { threadWorkers } from "../chat/model";
+  import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
+  import Button from "../../lib/studio/Button.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { Pencil01 } from "../../lib/studio/icons";
+  import { paneIcons } from "./paneIcons";
   let {
     text,
     epic,
@@ -211,7 +216,7 @@
   data-vb-native
   class="tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-auto tw:p-4 tw:font-sans tw:text-foreground tw:break-words"
 >
-  {#if !epic && props.room.docNotes?.length}<aside
+  {#if !epic && text.trim() && props.room.docNotes?.length}<aside
       aria-label={props.lang === "en"
         ? "Document review"
         : "Revisão do documento"}
@@ -222,11 +227,40 @@
   {#if aside}<div class="tw:float-right tw:mb-1 tw:ml-3 tw:mt-1">
       {@render aside()}
     </div>{/if}
-  {#if !text.trim()}<p class="tw:m-0 tw:text-muted-foreground">
-      {props.lang === "en"
-        ? "This document is empty. Choose Edit or ask your agent to summarize the decisions here."
-        : "Documento vazio. Clique em Editar ou peça pro seu agent resumir as decisões aqui."}
-    </p>{/if}
+  {#if !text.trim()}{@const en =
+      props.lang ===
+      "en"}{#snippet write()}{#if props.room.members.includes(props.room.me)}<Button
+          onclick={() => owner.mode("edit")}
+          ><Icon icon={Pencil01} size={16} />{en
+            ? "Start writing"
+            : "Começar a escrever"}</Button
+        >{/if}{/snippet}<PaneEmpty
+      icon={paneIcons.doc}
+      title={epic
+        ? en
+          ? "This epic has no doc yet"
+          : "Este épico ainda não tem doc"
+        : en
+          ? "Write what this room is for"
+          : "Escreva pra que serve esta sala"}
+      description={epic
+        ? en
+          ? "The plan, the decisions and what was delivered in this epic."
+          : "O plano, as decisões e o que foi entregue neste épico."
+        : en
+          ? "The goal, what's in and what's out, and how you'll know it worked. Every Claude in the room reads this first."
+          : "O objetivo, o que entra e o que fica de fora, e como saber que deu certo. Todo Claude da sala lê isto primeiro."}
+      action={write}
+      ask={epic
+        ? en
+          ? "Write this epic's doc: the plan, what's decided and what's left."
+          : "Escreve o doc deste épico: o plano, o que já foi decidido e o que falta."
+        : en
+          ? "Read the project and write the room doc: goal, scope, success criterion and next steps."
+          : "Lê o projeto e escreve o doc da sala: objetivo, escopo, critério de sucesso e próximos passos."}
+      askLabel={en ? "Ask your Claude" : "Peça pro seu Claude"}
+      onask={props.taskProps.ask}
+    />{/if}
   {#if literal && text.trim()}<p
       role="status"
       class="tw:my-2 tw:text-xs tw:text-muted-foreground"

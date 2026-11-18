@@ -18,8 +18,15 @@
   import Label from "../../lib/studio/Label.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
-  let { room, vb, request }: Pick<PanelProps, "room" | "vb" | "request"> =
-    $props();
+  import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
+  import PaneHeader from "../../lib/components/PaneHeader.svelte";
+  import { paneIcons } from "../documents/paneIcons";
+  let {
+    room,
+    vb,
+    request,
+    ask,
+  }: Pick<PanelProps, "room" | "vb" | "request" | "ask"> = $props();
   const session = untrack(() => createRemindersSession(room.id));
   const view = session.state;
   let opened = $state<string[]>([]),
@@ -90,28 +97,22 @@
   data-reminders-panel
   class="tw:space-y-4 tw:p-4 tw:font-sans tw:text-sm tw:text-foreground"
 >
-  <div class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3">
-    <div class="tw:min-w-0 tw:flex-1 tw:space-y-1">
-      <h2
-        class="tw:m-0 tw:font-sans tw:text-base tw:leading-6 tw:font-semibold tw:tracking-normal"
-      >
-        {vb.t("Lembretes")}
-      </h2>
-      <p
-        class="tw:m-0 tw:max-w-prose tw:text-sm tw:leading-5 tw:text-muted-foreground"
-      >
-        {vb.t(
+  {#snippet newButton()}<Button
+      id="remNew"
+      bind:ref={newTrigger}
+      onclick={() => open({ name: "", text: "" })}
+      ><Icon icon={Plus} size={16} />{vb.t("Novo lembrete")}</Button
+    >{/snippet}
+  <PaneHeader
+    title={vb.t("Lembretes")}
+    count={list.length}
+    description={list.length
+      ? vb.t(
           "Quando o lembrete roda, o @vibe publica o texto aqui para seu agent.",
-        )}
-      </p>
-    </div>
-    {#if !$view.draft}<Button
-        id="remNew"
-        bind:ref={newTrigger}
-        onclick={() => open({ name: "", text: "" })}
-        ><Icon icon={Plus} size={16} />{vb.t("Novo lembrete")}</Button
-      >{/if}
-  </div>
+        )
+      : undefined}
+    action={list.length && !$view.draft ? newButton : undefined}
+  />
   {#if $view.draft}
     <Card>
       <form
@@ -269,13 +270,19 @@
             {issueText(issue)}
           </p>{/if}
       </Card>
-    {:else}{#if !$view.draft}<p
-          class="tw:m-0 tw:rounded-surface tw:border tw:border-dashed tw:border-border tw:p-6 tw:text-sm tw:leading-6 tw:text-muted-foreground"
-        >
-          {vb.t(
-            "Nenhum lembrete ainda. Clique em Novo lembrete, ou peça pro seu agent: “todo dia às 8h, me manda o resumo do que mudou”.",
+    {:else}{#if !$view.draft}<PaneEmpty
+          icon={paneIcons.reminders}
+          title={vb.t("Nenhum lembrete ainda")}
+          description={vb.t(
+            "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu Claude faz.",
           )}
-        </p>{/if}{/each}
+          action={newButton}
+          ask={vb.t(
+            "Todo dia útil às 8h, posta um resumo do que mudou nesta sala.",
+          )}
+          askLabel={vb.t("Peça pro seu Claude")}
+          onask={ask}
+        />{/if}{/each}
   </div>
 </section>
 <ConfirmDialog

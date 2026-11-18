@@ -1384,7 +1384,7 @@ describe("native Svelte room panels", () => {
     expect(target.textContent).toContain("decidido");
     update({ ...room, decisions: [] });
     expect(target.querySelector("[data-ddel]")).toBeNull();
-    expect(target.textContent).toContain("O que a sala decidir");
+    expect(target.textContent).toContain("Nenhuma decisão ainda");
   });
   test("decision deletion requires confirmation, restores cancellation focus and waits for canonical removal", async () => {
     const room = fixture();
