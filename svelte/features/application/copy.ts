@@ -37,6 +37,9 @@ const EN: Readonly<Record<string, string>> = {
   "Pôr no doc": "Put in doc",
   Tamanho: "Size",
   "Abrir no painel Apps": "Open in the Apps panel",
+  Pequeno: "Small",
+  Médio: "Medium",
+  Grande: "Large",
   "O que é seu": "What’s yours",
   "Seu Claude": "Your Claude",
   "Tarefas suas e o que espera seu OK. Clique pra abrir.":

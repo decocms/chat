@@ -7444,6 +7444,23 @@ describe("native Apps catalog", () => {
 });
 
 // Controlled bridge dependency only: real iframe/MessagePort privacy is covered by the browser suite.
+/** A doc app's height select (Gui #3153): open it from the keyboard and pick the option with that label. */
+async function pickSize(root: Element, label: string) {
+  const trigger = root.querySelector<HTMLElement>("[data-select-trigger]")!;
+  trigger.focus();
+  trigger.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+  );
+  await new Promise((done) => setTimeout(done, 50));
+  const item = [
+    ...document.querySelectorAll<HTMLElement>("[data-select-item]"),
+  ].find((option) => option.textContent?.trim() === label)!;
+  item.dispatchEvent(
+    new PointerEvent("pointerup", { bubbles: true, pointerType: "mouse" }),
+  );
+  item.click();
+  await new Promise((done) => setTimeout(done, 0));
+}
 test("document inline Apps keep independent consent and stable frames, and revoke removed-marker callbacks before flush", async () => {
   const { createAppsSession } = await import("../svelte/features/apps/session");
   const protocol = await import("../svelte/features/apps/bridge");
@@ -7671,8 +7688,8 @@ test("document inline Apps keep independent consent and stable frames, and revok
   await settled();
   expect([...target.querySelectorAll("iframe")]).toEqual(frames);
   expect(calls).toHaveLength(2);
-  button(target.querySelector("[data-document-app]")!, "G").click();
-  await settled();
+  // The height is one select (Gui #3153): open it, pick one.
+  await pickSize(target.querySelector("[data-document-app]")!, "Grande");
   expect(get(owner.state).text).toContain("screen|g");
   expect([...target.querySelectorAll("iframe")]).toEqual(frames);
   expect(calls).toHaveLength(2);
@@ -7729,7 +7746,10 @@ test("document inline Apps keep independent consent and stable frames, and revok
   await settled();
   expect([...target.querySelectorAll("iframe")]).toEqual(nestedFrames);
   expect(calls).toHaveLength(nestedCalls);
-  button(target.querySelector("blockquote [data-document-app]")!, "P").click();
+  await pickSize(
+    target.querySelector("blockquote [data-document-app]")!,
+    "Pequeno",
+  );
   await settled();
   expect(get(owner.state).text).toContain("> [[app:abcdef123456/screen|p]]");
   expect([...target.querySelectorAll("iframe")]).toEqual(nestedFrames);
