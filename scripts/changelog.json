@@ -58,6 +58,10 @@
     },
     "fixes": {
       "pt": [
+        "Numa sala sem Claude, \"Este computador\" voltou a ter o botão \"Ligar aqui\" (o antigo Ligar Claude): seu vibebook herdr abre o Claude da sala; sem ele rodando, o app oferece o setup."
+      ],
+      "en": [
+        "In a room with no Claude, \"This computer\" has a \"Turn on here\" button again (the old Turn on Claude): your vibebook herdr opens the room's Claude; with none running, the app offers the setup.",
         "A lateral de uma sala voltou a listar só os seus Claudes desta sala, não todos os que estão ouvindo nas outras.",
         "A barra de cima da sala perdeu o divisor solto antes das abas do painel (Doc, Arquivos…)."
       ],
