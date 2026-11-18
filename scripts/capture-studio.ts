@@ -111,7 +111,7 @@ const result = {
   },
 };
 await writeFile(
-  new URL("../docs/svelte-migration/studio-tokens.json", import.meta.url),
+  new URL("./data/studio-tokens.json", import.meta.url),
   JSON.stringify(result, null, 2) + "\n",
 );
 console.log(

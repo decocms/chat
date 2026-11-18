@@ -38,7 +38,7 @@ const fontManifest = z
   .parse(
     JSON.parse(
       await readFile(
-        new URL("../docs/svelte-migration/font-assets.json", import.meta.url),
+        new URL("./data/font-assets.json", import.meta.url),
         "utf8",
       ),
     ),
@@ -48,7 +48,7 @@ const tokenManifest = z
   .parse(
     JSON.parse(
       await readFile(
-        new URL("../docs/svelte-migration/studio-tokens.json", import.meta.url),
+        new URL("./data/studio-tokens.json", import.meta.url),
         "utf8",
       ),
     ),
@@ -58,10 +58,7 @@ const workspaceManifest = z
   .parse(
     JSON.parse(
       await readFile(
-        new URL(
-          "../docs/svelte-migration/studio-authenticated/reference-comparison.json",
-          import.meta.url,
-        ),
+        new URL("./data/studio-reference-comparison.json", import.meta.url),
         "utf8",
       ),
     ),

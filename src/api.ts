@@ -8,7 +8,7 @@ import { isDmId } from "../shared/dm";
 // Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
 // The vanilla app calls the same paths with the same payloads. Routes move here slice by slice
-// (docs/svelte-migration/api-coverage.md); index.ts mounts this app after its auth middleware.
+// (each JSON route the app calls); index.ts mounts this app after its auth middleware.
 //
 // Handlers never touch c.env: they get ApiServices (src/services.ts, built per request by index.ts for the signed-in
 // person), whose types are plain wire types. So AppType's declaration (.api-types, `bun run build:api-types`) stays free
