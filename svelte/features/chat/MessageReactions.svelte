@@ -2,13 +2,12 @@
   // Emoji reactions (Gui #2724): chips under the message (yours highlighted, who reacted in a hover card), a click toggles yours;
   // 🙂+ opens the quick ones in a bar floating above it. The Book keeps them (messages.reactions) and pushes a "reactions" event.
   import type { ChatActions, ChatBridge, ChatMessage } from "../../chatTypes";
-  import Popover from "../../lib/studio/Popover.svelte";
-  import PopoverContent from "../../lib/studio/PopoverContent.svelte";
-  import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import { FaceSmile } from "../../lib/studio/icons";
+  import EmojiPicker from "../composer/EmojiPicker.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
-  import { QUICK_REACTIONS as QUICK } from "./reactions";
   let {
     message,
     me,
@@ -54,12 +53,11 @@
   }
 </script>
 
-<!-- With a mouse, adding a reaction lives in the message's floating toolbar;
-     this row shows the chips, plus 🙂+ next to them on touch screens. -->
+<!-- The chips (yours highlighted, who reacted on hover), then a button that opens the emoji picker. The row shows
+     once there's a reaction; before that, the quick ones live in the message's floating toolbar. -->
 <div
   data-message-reactions
-  class="tw:mt-1 tw:flex tw:flex-wrap tw:items-center tw:gap-1 {all.length ||
-  open
+  class="tw:flex tw:flex-wrap tw:items-center tw:gap-1 {all.length || open
     ? ''
     : 'tw:hidden'}"
 >
@@ -70,14 +68,14 @@
             type="button"
             aria-label={`${emoji} ${who(list)}`}
             aria-pressed={list.includes(me)}
-            class="tw:inline-flex tw:min-h-7 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:px-2 tw:text-sm {list.includes(
+            class="tw:inline-flex tw:h-8 tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-full tw:border tw:px-2.5 tw:text-lg tw:leading-none {list.includes(
               me,
             )
               ? 'tw:border-primary tw:bg-accent'
               : 'tw:border-border tw:bg-background'}"
             onclick={() => react(emoji)}
             >{emoji}
-            <b class="tw:text-xs tw:font-semibold tw:text-muted-foreground"
+            <b class="tw:text-sm tw:font-semibold tw:text-muted-foreground"
               >{list.length}</b
             ></button
           >{/snippet}
@@ -95,25 +93,14 @@
         ></TooltipContent
       >
     </Tooltip>{/each}
-  <Popover bind:open>
-    <PopoverTrigger
-      aria-label={vb.t("Reagir a esta mensagem")}
-      class="tw:inline-flex tw:min-h-7 tw:items-center tw:rounded-full tw:border tw:border-border tw:bg-background tw:px-2 tw:text-sm tw:text-muted-foreground tw:pointer-fine:hidden"
-      >🙂+</PopoverTrigger
-    >
-    <PopoverContent
-      side="top"
-      align="start"
-      sideOffset={6}
-      data-vb-native
-      class="tw:flex tw:w-auto tw:gap-0.5 tw:rounded-full tw:p-1 tw:font-sans"
-    >
-      {#each QUICK as emoji}<button
-          type="button"
-          aria-label={emoji}
-          class="tw:flex tw:size-9 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:text-xl tw:leading-none tw:transition-transform tw:duration-150 tw:ease-out tw:hover:scale-110 tw:hover:bg-accent tw:focus-visible:outline-2 tw:focus-visible:outline-ring tw:motion-reduce:transition-none"
-          onclick={() => react(emoji)}>{emoji}</button
-        >{/each}
-    </PopoverContent>
-  </Popover>
+  <!-- Add another reaction, right next to the ones there (like Discord): the full emoji picker. -->
+  <button
+    type="button"
+    aria-label={vb.t("Reagir a esta mensagem")}
+    title={vb.t("Reagir a esta mensagem")}
+    data-native-add-reaction
+    class="tw:inline-flex tw:h-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-transparent tw:bg-muted tw:px-2.5 tw:text-muted-foreground tw:transition-colors tw:hover:border-border tw:hover:text-foreground"
+    onclick={() => (open = true)}><Icon icon={FaceSmile} size={18} /></button
+  >
 </div>
+<EmojiPicker t={vb.t} bind:open onpick={react} />
