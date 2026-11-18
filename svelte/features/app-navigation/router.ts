@@ -1,4 +1,5 @@
 import { uiNavigationUrl } from "../../../shared/uiVariant";
+import { isDmId } from "../../../shared/dm";
 import {
   targetHref,
   messageIdentity,
@@ -13,6 +14,15 @@ export type ApplicationRoute =
   | { kind: "document"; url: string };
 export const roomIdFromPath = (pathname: string) =>
   pathname.match(/^\/b\/([a-z0-9]{6,40})\/?$/)?.[1] ?? null;
+/** A move between your DMs, or between the home and a DM: the DM column stays
+ * put, so the app animates it (a view transition, browser.viewTransition). */
+export function dmTransition(from: ApplicationRoute, to: ApplicationRoute) {
+  const dm = (route: ApplicationRoute) =>
+    route.kind === "room" && isDmId(route.target.roomId);
+  if (from.kind === "room" && to.kind === "room")
+    return from.target.roomId !== to.target.roomId && dm(from) && dm(to);
+  return (from.kind === "home" && dm(to)) || (dm(from) && to.kind === "home");
+}
 /** Local presentation only; reloading the serialized URL returns to main. */
 export type PresentationThread = `pre:${number}`;
 export function applicationRoute(href: string): ApplicationRoute {

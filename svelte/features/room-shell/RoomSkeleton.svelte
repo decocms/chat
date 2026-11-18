@@ -11,6 +11,8 @@
     SearchMd,
   } from "../../lib/studio/icons";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
+  import DmNav from "../app-navigation/DmNav.svelte";
+  import { isDmId } from "../../../shared/dm";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Count from "../../lib/components/Count.svelte";
@@ -37,6 +39,8 @@
     onhome(event: MouseEvent): void;
   } = $props();
   const personal = untrack(() => services.personal.state);
+  // A DM's sidebar is your DM list, already known: draw it for real, so it stays put.
+  const dm = $derived(!!roomId && isDmId(roomId));
   const room = $derived(
     roomId ? $personal.me?.books.find((book) => book.id === roomId) : undefined,
   );
@@ -80,49 +84,51 @@
     <!-- Sidebar: the room's name, the main thread, epics, Pinned, People, then
        your Claude and you at its foot. -->
     <aside
-      aria-hidden="true"
+      aria-hidden={dm ? undefined : "true"}
       class="tw:hidden tw:w-room-sidebar tw:min-h-0 tw:flex-col tw:gap-6 tw:border-r tw:border-border tw:bg-sidebar tw:px-2 tw:pb-2 tw:text-sidebar-foreground tw:min-[901px]:row-span-2 tw:min-[901px]:flex"
     >
-      <div class="tw:flex tw:flex-col tw:gap-3">
-        <div
-          class="tw:-mx-2 tw:flex tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:font-semibold"
-        >
-          {@render mark("tw:size-6")}
-          {#if title}<span class="tw:min-w-0 tw:flex-1 tw:truncate"
-              >{title}</span
-            >{:else}{@render line("tw:w-32")}{/if}
-        </div>
-        <div
-          class={[
-            "tw:flex tw:h-9 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:font-medium",
-            thread === "main" && "tw:bg-sidebar-accent",
-          ]}
-        >
-          <Icon
-            icon={MessageCircle01}
-            size={16}
-            class="tw:shrink-0 tw:text-muted-foreground"
-          />
-          <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-            >{t("Sala principal")}</span
+      {#if dm}<div class="tw:flex tw:min-h-0 tw:flex-col tw:pt-2">
+          <DmNav controller={services.navigation} lang={services.language} />
+        </div>{:else}<div class="tw:flex tw:flex-col tw:gap-3">
+          <div
+            class="tw:-mx-2 tw:flex tw:h-[52px] tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-border tw:pr-2 tw:pl-4 tw:font-semibold"
           >
-        </div>
-        <Skeleton class="tw:h-9 tw:w-full tw:rounded-lg tw:opacity-60" />
-        {#each ["tw:w-3/5", "tw:w-2/5", "tw:w-1/2"] as width (width)}
-          <div class="tw:flex tw:h-9 tw:items-center tw:gap-2 tw:px-2">
-            <Skeleton class="tw:size-5 tw:shrink-0 tw:rounded-full" />
-            {@render line(width, "tw:h-2.5")}
+            {@render mark("tw:size-6")}
+            {#if title}<span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                >{title}</span
+              >{:else}{@render line("tw:w-32")}{/if}
           </div>
-        {/each}
-      </div>
-      <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
-        {@render line("tw:w-14", "tw:h-2.5")}
-        <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
-      </div>
-      <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
-        {@render line("tw:w-24", "tw:h-2.5")}
-        <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
-      </div>
+          <div
+            class={[
+              "tw:flex tw:h-9 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-lg tw:px-2 tw:font-medium",
+              thread === "main" && "tw:bg-sidebar-accent",
+            ]}
+          >
+            <Icon
+              icon={MessageCircle01}
+              size={16}
+              class="tw:shrink-0 tw:text-muted-foreground"
+            />
+            <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+              >{t("Sala principal")}</span
+            >
+          </div>
+          <Skeleton class="tw:h-9 tw:w-full tw:rounded-lg tw:opacity-60" />
+          {#each ["tw:w-3/5", "tw:w-2/5", "tw:w-1/2"] as width (width)}
+            <div class="tw:flex tw:h-9 tw:items-center tw:gap-2 tw:px-2">
+              <Skeleton class="tw:size-5 tw:shrink-0 tw:rounded-full" />
+              {@render line(width, "tw:h-2.5")}
+            </div>
+          {/each}
+        </div>
+        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
+          {@render line("tw:w-14", "tw:h-2.5")}
+          <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
+        </div>
+        <div class="tw:flex tw:flex-col tw:gap-3 tw:px-2">
+          {@render line("tw:w-24", "tw:h-2.5")}
+          <Skeleton class="tw:h-8 tw:w-full tw:rounded-lg tw:opacity-60" />
+        </div>{/if}
       <div
         class="tw:mt-auto tw:flex tw:flex-col tw:gap-0.5 tw:rounded-xl tw:bg-sidebar-accent/50 tw:p-1"
       >

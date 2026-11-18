@@ -1832,3 +1832,35 @@ test("the new-vibebook welcome shows once to a returning person, never to a new 
   expect(await open(true)).toContain("Welcome to the new vibebook");
   expect(await open(true)).toBe("");
 });
+
+test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {
+  const { default: RoomSkeleton } =
+    await import("../svelte/features/room-shell/RoomSkeleton.svelte");
+  const h = shellFixture();
+  h.services.start();
+  await h.services.personal.refresh();
+  cleanups.push(() => h.services.dispose());
+  const draw = async (roomId: string) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(RoomSkeleton, {
+        target,
+        props: { roomId, services: h.services, onhome: () => {} },
+      }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    await flush();
+    return target;
+  };
+  const dm = await draw(`dm${"a".repeat(20)}`);
+  expect(dm.querySelector("[data-room-skeleton] [data-dm-nav]")).not.toBe(null);
+  const room = await draw("aaaaaa");
+  expect(room.querySelector("[data-room-skeleton]")).not.toBe(null);
+  expect(room.querySelector("[data-dm-nav]")).toBe(null);
+});

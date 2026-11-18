@@ -52,6 +52,10 @@ export type ApplicationBrowser = {
   listenVisibility(callback: () => void): () => void;
   listenPop(callback: () => void): () => void;
   enqueue(callback: () => void): void;
+  /** Runs `update` inside a view transition when the browser has them (and
+   * motion is allowed), holding the old screen until it settles (≤300 ms);
+   * otherwise runs it at once. */
+  viewTransition?(update: () => Promise<void> | void): void;
   navigateDocument(href: string): void;
   reload(): void;
   logoutPost(all: boolean): Promise<{ ok: boolean }>;

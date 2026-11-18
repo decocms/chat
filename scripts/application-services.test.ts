@@ -10,6 +10,7 @@ import { HomeFailure } from "../svelte/features/home/api";
 import {
   applicationRoute,
   createApplicationRouter,
+  dmTransition,
 } from "../svelte/features/app-navigation/router";
 import { createDocumentDrafts } from "../svelte/features/documents/session";
 import { targetHref } from "../svelte/features/home/model";
@@ -45,6 +46,8 @@ function event(room: Room): RoomEvent {
 function fixture(
   initial = "http://vb.test/app",
   shellVersion: string | null = "development",
+  /** When given, the browser has view transitions: their updates land here. */
+  transitions?: (() => Promise<void> | void)[],
 ) {
   const timer = manualClock();
   let href = initial,
@@ -132,6 +135,9 @@ function fixture(
         };
       },
       enqueue: (callback) => queued.push(callback),
+      ...(transitions
+        ? { viewTransition: (update) => void transitions.push(update) }
+        : {}),
       navigateDocument: (url) => {
         documentNavigations.push(url);
         onDocumentNavigation();
@@ -801,5 +807,61 @@ test("reentrant navigation during canonical legacy URL publication cancels the o
   expect(shell.targets).toHaveLength(0);
   expect(get(h.services.state).route.kind).toBe("home");
   stop();
+  h.services.dispose();
+});
+
+test("only moves between DMs, or between the home and a DM, animate", () => {
+  const dmA = `dm${"a".repeat(20)}`,
+    dmB = `dm${"b".repeat(20)}`,
+    at = (path: string) => applicationRoute(`http://vb.test${path}`);
+  expect(dmTransition(at(`/b/${dmA}`), at(`/b/${dmB}`))).toBe(true);
+  expect(dmTransition(at("/app"), at(`/b/${dmA}`))).toBe(true);
+  expect(dmTransition(at(`/b/${dmA}`), at("/app"))).toBe(true);
+  expect(dmTransition(at(`/b/${dmA}`), at(`/b/${dmA}?t=e1`))).toBe(false);
+  expect(dmTransition(at(`/b/${dmA}`), at("/b/cccccc"))).toBe(false);
+  expect(dmTransition(at("/app"), at("/b/cccccc"))).toBe(false);
+  expect(dmTransition(at(`/b/${dmA}`), at("/archived"))).toBe(false);
+});
+
+test("a DM switch starts its view transition before anything changes, holds it for the room's state, and only the latest runs", async () => {
+  const updates: (() => Promise<void> | void)[] = [];
+  const dmA = `dm${"a".repeat(20)}`,
+    dmB = `dm${"b".repeat(20)}`;
+  const h = fixture(`http://vb.test/b/${dmA}`, "development", updates);
+  h.services.start();
+  await settle();
+  h.connections[0]!.callbacks.onEvent(event(canonical(dmA)));
+  h.services.actions.navigate({ roomId: dmB });
+  // The browser captures the old screen first: no URL or room change yet.
+  expect(updates).toHaveLength(1);
+  expect(h.history).toHaveLength(0);
+  expect(h.services.rootRoom.read().roomId).toBe(dmA);
+  let settled = false;
+  const held = Promise.resolve(updates[0]!()).then(() => (settled = true));
+  expect(h.history.at(-1)).toContain(`/b/${dmB}`);
+  expect(h.services.rootRoom.read().roomId).toBe(dmB);
+  await settle();
+  expect(settled).toBe(false);
+  h.connections[1]!.callbacks.onEvent(event(canonical(dmB)));
+  await held;
+  expect(settled).toBe(true);
+  // Two quick switches: the first one's update finds a newer one and does nothing.
+  h.services.actions.navigate({ roomId: dmA });
+  h.services.actions.home();
+  expect(updates).toHaveLength(3);
+  await updates[1]!();
+  expect(h.services.rootRoom.read().roomId).toBe(dmB);
+  await updates[2]!();
+  expect(get(h.services.state).route.kind).toBe("home");
+  // Back to the DM through the browser's history animates too.
+  h.pop(`http://vb.test/b/${dmB}`);
+  expect(updates).toHaveLength(4);
+  expect(get(h.services.state).route.kind).toBe("home");
+  void updates[3]!();
+  expect(h.services.rootRoom.read().roomId).toBe(dmB);
+  // A room that isn't a DM opens at once.
+  h.services.actions.navigate({ roomId: "cccccc" });
+  expect(updates).toHaveLength(4);
+  expect(h.services.rootRoom.read().roomId).toBe("cccccc");
   h.services.dispose();
 });
