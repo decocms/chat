@@ -725,11 +725,11 @@
     {/if}
   {/snippet}
   <Tabs value={mode} onValueChange={switchMode} class="gap-2">
-    <TabsList aria-label={vb.t("Épicos")} class="w-full shrink-0">
+    <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
           disabled={view.disabled}
-          class="flex-1">{view.label}</TabsTrigger
+          class="h-6 flex-1 text-xs">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
     {#each views as view (view.value)}<TabsContent
