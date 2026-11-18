@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { SearchMd } from "../../lib/studio/icons";
@@ -14,19 +13,16 @@
   /**
    * Your home's own sidebar, like a room's: Home, "Você" (you and your
    * Claude), "Pedidos" (invites and message requests waiting for your yes),
-   * then the conversations you've had (src/dm.ts), with a `+` to start one. The open DM expands
-   * in place into its threads (`threads`, the room sidebar's own). Search
+   * then the conversations you've had (src/dm.ts), with a `+` to start one. A DM is only a
+   * conversation: its row opens it, with nothing nested under it. Search
    * finds a person or a conversation (⌘K).
    */
   let {
     controller,
     lang,
-    threads,
   }: {
     controller: AppNavigationSession;
     lang: HomeLanguage;
-    /** Under the open DM: its conversation, views and epics. */
-    threads?: Snippet;
   } = $props();
   const personal = $derived(controller.personal.state),
     nav = $derived(controller.state);
@@ -47,7 +43,6 @@
       status
       note={entry.self ? homeText(lang, "youMeta") : undefined}
       selected={current === entry.room.id}
-      children={current === entry.room.id ? threads : undefined}
       onnavigate={controller.callbacks.navigate}
     />
   </li>{/snippet}

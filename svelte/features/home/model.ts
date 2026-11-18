@@ -98,6 +98,31 @@ export function switcherDms(me: MeResult | null) {
   const dms = dmEntries(me);
   return dms ? [dms.self, ...dms.talked] : [];
 }
+/** The DMs someone wrote in that you haven't read (not "Você", not the open one), newest first, each with about how
+ *  many messages are new (message ids are per room, so the gap counts them): the rail shows them under Home. */
+export function unreadDms(
+  me: MeResult | null,
+  seen: Readonly<Record<string, number>>,
+  current: string | null,
+) {
+  const dms = dmEntries(me);
+  if (!dms) return [];
+  return dms.talked
+    .filter(
+      (entry) =>
+        entry.room.id !== current &&
+        unread(entry.room, seen[entry.room.id] ?? 0),
+    )
+    .map((entry) => ({
+      ...entry,
+      count: Math.max(
+        1,
+        Math.max(entry.room.last_human_id, entry.room.last_agent_id) -
+          Math.max(entry.room.read_id, seen[entry.room.id] ?? 0),
+      ),
+    }))
+    .sort((a, b) => (b.room.updated_at ?? 0) - (a.room.updated_at ?? 0));
+}
 /** Every DM id you have (yours and each one you've talked in): the rail's home logo is current in any of them. */
 export const dmIds = (me: MeResult | null) =>
   new Set(
