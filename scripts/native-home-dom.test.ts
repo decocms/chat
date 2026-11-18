@@ -1864,3 +1864,71 @@ test("a DM still loading draws your real DM list beside the placeholder chat; a 
   expect(room.querySelector("[data-room-skeleton]")).not.toBe(null);
   expect(room.querySelector("[data-dm-nav]")).toBe(null);
 });
+
+test("a DM still loading is named after the other person and its main thread reads Conversation", async () => {
+  const { default: RoomSkeleton } =
+    await import("../svelte/features/room-shell/RoomSkeleton.svelte");
+  const pair = `dm${"b".repeat(20)}`;
+  const h = shellFixture({
+    me: async () =>
+      me({
+        books: [
+          room(pair, {
+            title: "Me · Ana",
+            members: "me@test.com,ana@test.com",
+            dm: 1,
+            peer_name: "Ana Lima",
+            peer_avatar: 7,
+          }),
+        ],
+      }),
+  });
+  h.services.start();
+  await h.services.personal.refresh();
+  cleanups.push(() => h.services.dispose());
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(RoomSkeleton, {
+      target,
+      props: { roomId: pair, services: h.services, onhome: () => {} },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    target.remove();
+  });
+  await flush();
+  const text = target.textContent ?? "";
+  expect(text).toContain("Ana Lima");
+  expect(text).not.toContain("Me · Ana");
+  expect(text).toContain(h.services.t("Conversa"));
+  expect(text).not.toContain(h.services.t("Sala principal"));
+  // The peer's picture, from the DM row itself (no shared room, no connection).
+  expect(target.innerHTML).toContain("/api/avatar/ana%40test.com?v=7");
+});
+
+test("the same person draws the same face whatever case their email is written in", async () => {
+  const { default: PersonAvatar } =
+    await import("../svelte/lib/components/PersonAvatar.svelte");
+  const draw = async (email: string) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(PersonAvatar, { target, props: { email } }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    await flush();
+    return target.querySelector("svg")?.outerHTML;
+  };
+  const face = await draw("ana@test.com");
+  expect(face).toBeTruthy();
+  expect(await draw(" Ana@Test.COM ")).toBe(face);
+});

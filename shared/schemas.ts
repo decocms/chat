@@ -417,6 +417,9 @@ export const MeBook = z.object({
   members: str,
   /** 1 = a direct-message room (src/dm.ts): listed with your DMs, not with the rooms. */
   dm: z.optional(num),
+  /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */
+  peer_name: z.optional(str),
+  peer_avatar: z.optional(num),
 });
 export const MeFriend = z.object({
   email: z.string(),

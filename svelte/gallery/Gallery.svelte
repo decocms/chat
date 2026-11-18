@@ -342,15 +342,12 @@
       <Card>
         <CardHeader><CardTitle>Identity and feedback</CardTitle></CardHeader>
         <div class="tw:flex tw:items-center tw:gap-3">
-          <PersonAvatar size="sm" name="Ana Souza" /><PersonAvatar
+          <PersonAvatar size="sm" email="ana@example.com" /><PersonAvatar
             size="sm"
-            name="Bruno Lima"
-          /><PersonAvatar
-            size="sm"
-            name="Sample user"
-            url="/favicon.svg"
-          /><AgentMark via="claude-opus-5-5" /><AgentMark via="codex" /><span
-            class="tw:text-muted-foreground"
+            email="bruno@example.com"
+          /><PersonAvatar size="sm" email="sample@example.com" /><AgentMark
+            via="claude-opus-5-5"
+          /><AgentMark via="codex" /><span class="tw:text-muted-foreground"
             >People are round faces; agents are square marks.</span
           >
         </div>

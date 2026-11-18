@@ -29,6 +29,8 @@ export function createRootRoomSession(options: {
   thread?: () => string;
   acceptIdentity(account: string): boolean;
   cacheAllowed?: (room: Room) => boolean;
+  /** Presentation fixes applied to every reduced room (your own DM's title in the app's language). */
+  present?: (room: Room) => Room;
   onOpen(snapshot: RootRoomSnapshot): void;
   onTransition(transition: RootRoomTransition): void;
   onTerminal(snapshot: RootRoomSnapshot): void;
@@ -101,7 +103,9 @@ export function createRootRoomSession(options: {
       }
       account = event.me;
     }
-    const room = reduceRoom(previous, event, roomId);
+    const reduced = reduceRoom(previous, event, roomId);
+    const room =
+      reduced && options.present ? options.present(reduced) : reduced;
     if (!room) {
       if (event.t === "error")
         options.onTransition({ event, previous, snapshot: before });

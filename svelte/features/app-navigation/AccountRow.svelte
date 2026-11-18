@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { MeResult } from "../../../shared/schemas";
-  import { personAvatar } from "../home/model";
   import { userMenuBridge } from "./menuBridge";
   import UserMenu from "./UserMenu.svelte";
   /**
@@ -17,7 +16,7 @@
     {row}
     name={me.name ?? ""}
     email={me.email}
-    avatar={personAvatar(me, me.email)}
+    version={me.avatar}
     lang={menu.lang}
     theme={menu.theme()}
     onsettheme={menu.onsettheme}

@@ -114,8 +114,8 @@
               ><PersonAvatar
                 data-avatar="person"
                 size="sm"
-                name={vb.name(worker.email)}
-                url={vb.avatarUrl?.(worker.email)}
+                email={worker.email}
+                version={vb.avatarVersion(worker.email)}
               /><AgentMark
                 size="2xs"
                 via={worker.who}

@@ -76,7 +76,12 @@ import type { RichActions, RichNavigation } from "../rich-text/types";
 import type { ComposerUpload } from "../composer/types";
 import type { DocumentPane } from "../documents/types";
 import { createRoomApi } from "../../transport";
-import { roomMessages, roomName, roomAvatar, roomMention } from "./model";
+import {
+  roomMessages,
+  roomName,
+  roomAvatarVersion,
+  roomMention,
+} from "./model";
 import type {
   RoomScopeOptions,
   RoomScopePresentation,
@@ -833,7 +838,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             ),
             ...(me()?.name ? { [value.me]: me()!.name! } : {}),
           },
-          avatarUrl: (email) => roomAvatar(value, me(), email),
+          avatarVersion: (email) => roomAvatarVersion(value, me(), email),
           hhmm: (ts) => chatTime(locale, ts),
           dateTime: (ts) => chatDateTime(locale, ts),
           waiting: (id) =>
@@ -856,7 +861,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         const panel = {
           room: value,
           thread,
-          vb: { t, ago, name, locale },
+          vb: { t, ago, name, locale, avatarVersion: bridge.avatarVersion },
           send: threadSend,
           request: threadRequest,
           waits,
@@ -956,7 +961,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           t,
           ago,
           name,
-          avatarUrl: bridge.avatarUrl,
+          avatarVersion: bridge.avatarVersion,
           epicBusy: (epic: Room["epics"][number]) => {
             const worker = threadWorkers(value, epic.id, Date.now())[0];
             return worker

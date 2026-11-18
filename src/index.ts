@@ -380,11 +380,13 @@ const safeTitle = (t: string) => (t ?? "").replace(/[\p{Cc}"`]/gu, " ").replace(
 // Mention emails: the signed link in the footer turns them off (or back on) without signing in.
 app.get("/mail/:onoff{off|on}", async (c) => {
   const email = (c.req.query("e") ?? "").toLowerCase(), on = c.req.param("onoff") === "on";
-  if (!email || !(await validUnsub(c.env.SESSION_SECRET, email, c.req.query("s") ?? ""))) return c.text("Link inválido.", 400);
-  await c.env.DB.prepare(`UPDATE users SET mention_mail = ? WHERE email = ?`).bind(on ? 1 : 0, email).run();
+  if (!email || !(await validUnsub(c.env.SESSION_SECRET, email, c.req.query("s") ?? ""))) return c.text(reqLang(c.req.raw) === "en" ? "Invalid link." : "Link inválido.", 400);
+  const row = await c.env.DB.prepare(`UPDATE users SET mention_mail = ? WHERE email = ? RETURNING lang`).bind(on ? 1 : 0, email).first<{ lang: string | null }>();
+  // The language the e-mail was written in (users.lang), else the browser's.
+  const en = (row?.lang ?? reqLang(c.req.raw)) === "en";
   c.executionCtx.waitUntil(track(c.env, on ? "mention_mail_on" : "mention_mail_off", { user: email }));
   const back = `/mail/${on ? "off" : "on"}?e=${encodeURIComponent(email)}&s=${encodeURIComponent(c.req.query("s") ?? "")}`;
-  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>vibebook</title><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:460px;margin:60px auto;padding:0 20px;color:#1a2130"><h1 style="font-size:22px">${on ? "Emails de menção ligados." : "Pronto, sem emails de menção."}</h1><p>${on ? "Quando alguém te mencionar e você não vir em 5 minutos, chega um email." : "Você continua vendo as menções no vibebook."}</p><p><a href="${back}">${on ? "Desligar de novo" : "Mudei de ideia, quero os emails"}</a> · <a href="/app">Abrir o vibebook</a></p></body>`);
+  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>vibebook</title><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:460px;margin:60px auto;padding:0 20px;color:#1a2130"><h1 style="font-size:22px">${en ? (on ? "Mention emails on." : "Done, no more mention emails.") : on ? "Emails de menção ligados." : "Pronto, sem emails de menção."}</h1><p>${en ? (on ? "When someone mentions you and you don't see it within 5 minutes, you get an email." : "You still see your mentions on vibebook.") : on ? "Quando alguém te mencionar e você não vir em 5 minutos, chega um email." : "Você continua vendo as menções no vibebook."}</p><p><a href="${back}">${en ? (on ? "Turn them off again" : "I changed my mind, I want the emails") : on ? "Desligar de novo" : "Mudei de ideia, quero os emails"}</a> · <a href="/app">${en ? "Open vibebook" : "Abrir o vibebook"}</a></p></body>`);
 });
 
 // `vibebook login --paste` (a cloud sandbox, an SSH box): the consent page lands here and shows the code to paste
@@ -392,10 +394,11 @@ app.get("/mail/:onoff{off|on}", async (c) => {
 app.get("/oauth/code", (c) => {
   const code = (c.req.query("code") ?? "").slice(0, 500);
   const esc = (x: string) => x.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-  return c.html(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>vibebook · código</title>
+  const en = reqLang(c.req.raw) === "en";
+  return c.html(`<!doctype html><html lang="${en ? "en" : "pt-BR"}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>vibebook · ${en ? "code" : "código"}</title>
 <body style="font:16px system-ui;padding:32px;max-width:560px;margin:auto;color-scheme:light dark">${code
-    ? `<h2>Cole este código no terminal</h2><pre id="c" style="white-space:pre-wrap;word-break:break-all;padding:14px;border:1px solid #8884;border-radius:10px;font-size:15px">${esc(code)}</pre><button onclick="navigator.clipboard.writeText(document.getElementById('c').textContent).then(()=>this.textContent='Copiado ✓')" style="font:inherit;padding:10px 16px;border-radius:10px">Copiar</button>`
-    : `<h2>Sem código</h2><p>${esc(c.req.query("error_description") ?? c.req.query("error") ?? "Volte ao terminal e rode vibebook login --paste de novo.")}</p>`}</body>`);
+    ? `<h2>${en ? "Paste this code in the terminal" : "Cole este código no terminal"}</h2><pre id="c" style="white-space:pre-wrap;word-break:break-all;padding:14px;border:1px solid #8884;border-radius:10px;font-size:15px">${esc(code)}</pre><button onclick="navigator.clipboard.writeText(document.getElementById('c').textContent).then(()=>this.textContent='${en ? "Copied" : "Copiado"} ✓')" style="font:inherit;padding:10px 16px;border-radius:10px">${en ? "Copy" : "Copiar"}</button>`
+    : `<h2>${en ? "No code" : "Sem código"}</h2><p>${esc(c.req.query("error_description") ?? c.req.query("error") ?? (en ? "Go back to the terminal and run vibebook login --paste again." : "Volte ao terminal e rode vibebook login --paste de novo."))}</p>`}</body>`);
 });
 
 // A file link opened in a browser tab (not fetched by the app): the room id, so it gets a page instead of JSON.

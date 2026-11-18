@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Avatar from "../../lib/studio/Avatar.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -48,12 +48,7 @@
             onnavigate({ roomId: entry.room.id });
           }}
         >
-          <Avatar
-            shape="circle"
-            size="md"
-            url={entry.avatar}
-            fallback={entry.name}
-          />
+          <PersonAvatar size="md" email={entry.email} version={entry.version} />
           <span
             aria-hidden="true"
             data-rail-dm-count

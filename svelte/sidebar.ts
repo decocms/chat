@@ -12,7 +12,7 @@ export type SidebarBridge = {
   t: (text: string, vars?: Record<string, string | number>) => string;
   ago: (ts: number) => string;
   name: (email: string) => string;
-  avatarUrl?: (email: string) => string | undefined;
+  avatarVersion: (email: string) => number | null | undefined;
   epicBusy: (epic: Epic) => string | null;
   waitsIn: (
     thread: string,

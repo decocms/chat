@@ -121,6 +121,7 @@ const vb: PanelBridge = {
     s.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? "")),
   ago: () => "agora",
   name: (email) => email,
+  avatarVersion: () => undefined,
   locale: "en-US",
 };
 const fixture = (): Room => ({
@@ -1100,10 +1101,10 @@ describe("native Svelte room panels", () => {
     const classes = (el: Element | null | undefined) =>
       (el?.getAttribute("class") ?? "").split(/\s+/);
     const cases: [Component<any>, Record<string, unknown>][] = [
-      [PersonAvatar, { name: "Ana Souza", "data-avatar": "person" }],
+      [PersonAvatar, { email: "ana@test.com", "data-avatar": "person" }],
       [
         PersonAvatar,
-        { name: "Ana Souza", size: "2xs", "data-avatar": "person" },
+        { email: "ana@test.com", size: "2xs", "data-avatar": "person" },
       ],
       [AgentMark, { mark: "✻" }],
       [AgentMark, { via: "codex", size: "2xs", class: "tw:text-success" }],
@@ -1149,9 +1150,9 @@ describe("native Svelte room panels", () => {
     for (const person of seen.person) {
       expect(classes(person)).toContain("tw:rounded-full");
       expect(person.getAttribute("aria-hidden")).toBe("true");
-      // No picture: the face the name draws, never initials.
+      // No picture: the face the email draws (whatever label is beside it), never initials.
       expect(person.querySelector("svg > rect")?.getAttribute("fill")).toBe(
-        beam("Ana Souza").background,
+        beam("ana@test.com").background,
       );
       expect(person.textContent?.trim()).toBe("");
     }
@@ -1876,6 +1877,7 @@ describe("native Svelte chat", () => {
   ): import("../svelte/chatTypes").ChatBridge => ({
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     hhmm: () => "09:00",
     waiting: () => false,
@@ -5478,6 +5480,7 @@ describe("native composer ownership and interactions", () => {
   const chatBridge: import("../svelte/chatTypes").ChatBridge = {
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     hhmm: () => "09:00",
     waiting: () => false,
@@ -6362,6 +6365,7 @@ describe("native room sidebar header and suggestion ownership", () => {
   const bridge: SidebarProps["vb"] = {
     t: vb.t,
     name: vb.name,
+    avatarVersion: vb.avatarVersion,
     ago: vb.ago,
     epicBusy: () => null,
     waitsIn: () => [],
@@ -6527,6 +6531,7 @@ describe("native room sidebar header and suggestion ownership", () => {
         vb: {
           t: vb.t,
           name: vb.name,
+          avatarVersion: vb.avatarVersion,
           ago: vb.ago,
           hhmm: () => "09:00",
           waiting: () => false,
@@ -6579,6 +6584,7 @@ describe("native room sidebar header and suggestion ownership", () => {
       vb: {
         t: vb.t,
         name: vb.name,
+        avatarVersion: vb.avatarVersion,
         ago: vb.ago,
         hhmm: () => "09:00",
         waiting: () => false,
@@ -6644,6 +6650,7 @@ describe("native collapsed sidebar and typed presence", () => {
       vb: {
         t: vb.t,
         name: vb.name,
+        avatarVersion: vb.avatarVersion,
         ago: vb.ago,
         epicBusy: () => null,
         waitsIn: () => [],

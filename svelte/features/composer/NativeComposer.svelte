@@ -446,8 +446,8 @@
               />{:else if item.email}<PersonAvatar
                 data-avatar="person"
                 size="xs"
-                name={vb.name(item.email)}
-                url={vb.avatarUrl?.(item.email)}
+                email={item.email}
+                version={vb.avatarVersion(item.email)}
               />{:else}<Avatar
                 shape="circle"
                 size="xs"

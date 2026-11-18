@@ -26,8 +26,9 @@
     roomId,
     all: startAll = false,
     vb,
-    avatarUrl,
+    avatarVersion,
     displayName,
+    roomLabel = (_roomId: string, title: string) => title,
     ontab,
     onopen,
     onnav,
@@ -46,8 +47,10 @@
     roomId: string | null;
     all?: boolean;
     vb: Pick<Bridge, "t" | "ago">;
-    avatarUrl?: (email: string) => string | undefined;
+    avatarVersion?: (email: string) => number | null | undefined;
     displayName?: (email: string) => string;
+    /** A room's name in the All tab (a DM reads as the other person: home/model `roomLabel`). */
+    roomLabel?: (roomId: string, title: string) => string;
     ontab?: (all: boolean) => void;
     onopen: (wait: Wait, event: MouseEvent) => void;
     onnav?: (bookId: string, thread: string, msgId: number) => void;
@@ -227,8 +230,8 @@
                   {:else}<PersonAvatar
                       data-avatar="person"
                       size="sm"
-                      name={author(wait.author, wait.author_name)}
-                      url={avatarUrl?.(wait.author)}
+                      email={wait.author}
+                      version={avatarVersion?.(wait.author)}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
@@ -245,8 +248,11 @@
                     </span>
                     <span
                       class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
-                      >{showAll ? `${wait.room} › ` : ""}{wait.topic ||
-                        vb.t("sala principal")} · {vb.ago(wait.ts)}</span
+                      >{showAll
+                        ? `${roomLabel(wait.book_id, wait.room)} › `
+                        : ""}{wait.topic || vb.t("sala principal")} · {vb.ago(
+                        wait.ts,
+                      )}</span
                     >
                   </span>
                 </a>
@@ -308,8 +314,8 @@
                     />{:else}<PersonAvatar
                       data-avatar="person"
                       size="sm"
-                      name={author(m.author, m.author_name)}
-                      url={avatarUrl?.(m.author)}
+                      email={m.author}
+                      version={avatarVersion?.(m.author)}
                     />{/if}
                   <span
                     class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-1 tw:text-sm tw:leading-5 tw:[overflow-wrap:anywhere]"
@@ -324,7 +330,9 @@
                     </span>
                     <span
                       class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
-                      >{showAll ? `${m.room} › ` : ""}{vb.ago(m.ts)}</span
+                      >{showAll
+                        ? `${roomLabel(m.book_id, m.room)} › `
+                        : ""}{vb.ago(m.ts)}</span
                     >
                   </span>
                 </a>
@@ -376,8 +384,9 @@
                     <span class="tw:line-clamp-3">{task.title}</span>
                     <span
                       class="tw:text-xs tw:leading-4 tw:text-muted-foreground"
-                      >{showAll ? `${task.room} › ` : ""}{task.epic ||
-                        vb.t("sala principal")} · {statusLabel(
+                      >{showAll
+                        ? `${roomLabel(task.book_id, task.room)} › `
+                        : ""}{task.epic || vb.t("sala principal")} · {statusLabel(
                         task.status,
                       )}{task.due ? ` · ${task.due}` : ""}</span
                     >

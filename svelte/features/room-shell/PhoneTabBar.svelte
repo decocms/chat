@@ -4,7 +4,7 @@
   import Count from "../../lib/components/Count.svelte";
   import { cn } from "../../lib/studio/utils";
   import { MessageCircle01 } from "../../lib/studio/icons";
-  import { paneIcons } from "../documents/paneIcons";
+  import { paneIcons, paneLabel } from "../documents/paneIcons";
   import AgentMark from "../agents/AgentMark.svelte";
   import type { AgentMarkView } from "../agents/model";
   import type { DocumentPane } from "../documents/types";
@@ -55,7 +55,11 @@
     { id: "doc", label: "Doc", icon: paneIcons.doc },
     { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
     { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },
-    { id: "claude", label: "Claude", icon: paneIcons.agents },
+    {
+      id: "claude",
+      label: paneLabel("agents", en),
+      icon: paneIcons.agents,
+    },
   ]);
   function choose(event: MouseEvent, tab: PhoneTab) {
     if (
