@@ -1,4 +1,10 @@
 import { expect, test } from "bun:test";
+import {
+  encodeCall,
+  encodeError,
+  encodeResult,
+  RpcErrorCode,
+} from "../shared/jsonRpc";
 import { createRoomConnection } from "../svelte/roomConnection";
 import type { RoomEvent } from "../shared/room";
 
@@ -32,10 +38,14 @@ class Socket {
     this.readyState = 1;
     this.onopen?.call(this as unknown as WebSocket, {} as Event);
   }
+  /** The server pushes events as JSON-RPC notifications. */
   message(event: RoomEvent) {
+    this.frame(encodeCall(event));
+  }
+  frame(data: string) {
     this.onmessage?.call(
       this as unknown as WebSocket,
-      { data: JSON.stringify(event) } as MessageEvent,
+      { data } as MessageEvent,
     );
   }
   end(code: number) {
@@ -94,7 +104,9 @@ test("navigation cancels a disconnected room's retry and cannot send into that r
   expect(a.connection.send({ t: "older", thread: "main" })).toBe(false);
   expect(b.connection.send({ t: "older", thread: "main" })).toBe(true);
   expect(old.sent).toHaveLength(0);
-  expect(b.sockets[0]!.sent).toEqual(['{"t":"older","thread":"main"}']);
+  expect(b.sockets[0]!.sent).toEqual([
+    encodeCall({ t: "older", thread: "main" }),
+  ]);
 });
 
 test("old socket callbacks cannot mutate a replacement or a disposed connection", () => {
@@ -112,7 +124,7 @@ test("old socket callbacks cannot mutate a replacement or a disposed connection"
   staleMessage.call(
     old as unknown as WebSocket,
     {
-      data: JSON.stringify({ t: "delta", id: 1, text: "stale" }),
+      data: encodeCall({ t: "delta", id: 1, text: "stale" }),
     } as MessageEvent,
   );
   staleClose.call(old as unknown as WebSocket, { code: 4003 } as CloseEvent);
@@ -188,7 +200,7 @@ test("repeated disconnects cap retry delay at thirty seconds", () => {
   expect(h.timers.size).toBe(0);
 });
 
-test("request: correlated answers resolve by cid, are not forwarded as events, and never hang", async () => {
+test("request: JSON-RPC responses resolve by id, are not forwarded as events, and never hang", async () => {
   const h = harness("a"),
     s = h.sockets[0]!;
   expect(await h.connection.request({ t: "older", thread: "main" })).toEqual({
@@ -207,24 +219,40 @@ test("request: correlated answers resolve by cid, are not forwarded as events, a
     kind: "link",
     ref: "javascript:x",
   });
-  const sent = s.sent.map((x) => JSON.parse(x) as { cid: string; t: string });
-  expect(sent.map((x) => x.t)).toEqual(["task.status", "pin.add"]);
-  expect(sent[0]!.cid).not.toBe(sent[1]!.cid);
-  // Answers can come back in any order; unknown cids are ignored.
-  s.message({ t: "result", cid: "nobody", ok: true });
-  s.message({
-    t: "result",
-    cid: sent[1]!.cid,
-    ok: false,
-    error: "só links http(s)",
+  const sent = s.sent.map(
+    (x) =>
+      JSON.parse(x) as {
+        jsonrpc: string;
+        id: string;
+        method: string;
+        params: unknown;
+      },
+  );
+  expect(sent.map((x) => x.method)).toEqual(["task.status", "pin.add"]);
+  expect(sent[0]).toEqual({
+    jsonrpc: "2.0",
+    id: sent[0]!.id,
+    method: "task.status",
+    params: { id: "t1", status: "done" },
   });
-  s.message({ t: "result", cid: sent[0]!.cid, ok: true });
+  expect(sent[0]!.id).not.toBe(sent[1]!.id);
+  // Responses can come back in any order; unknown ids are ignored.
+  s.frame(encodeResult("nobody"));
+  s.frame(
+    encodeError(sent[1]!.id, {
+      code: RpcErrorCode.REFUSED,
+      message: "só links http(s)",
+    }),
+  );
+  s.frame(encodeResult(sent[0]!.id));
   expect(await one).toEqual({ ok: true });
   expect(await two).toEqual({ ok: false, error: "só links http(s)" });
-  expect(h.events.filter((e) => e.t === "result")).toHaveLength(0);
-  // The Boolean bridge is unchanged: no cid on the wire.
+  expect(h.events).toEqual([snapshot]);
+  // `send` is a notification: no id, so no response.
   expect(h.connection.send({ t: "files.get" })).toBe(true);
-  expect(s.sent.at(-1)).toBe('{"t":"files.get"}');
+  expect(s.sent.at(-1)).toBe(
+    '{"jsonrpc":"2.0","method":"files.get","params":{}}',
+  );
   // Timeout, then a dropped socket: both settle.
   const slow = h.connection.request({ t: "files.get" }, 5000);
   h.run(5000);

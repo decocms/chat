@@ -1,3 +1,4 @@
+import { encodeCall } from "../shared/jsonRpc";
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./index";
 import type { PersonEvent } from "../shared/person";
@@ -15,7 +16,7 @@ export class Person extends DurableObject<Env> {
   async fetch(req: Request) {
     if (req.headers.get("upgrade") === "websocket") {
       const [client, server] = Object.values(new WebSocketPair());
-      this.ctx.acceptWebSocket(server);
+      this.ctx.acceptWebSocket(server, [socketWire(new URL(req.url))]);
       return new Response(null, { status: 101, webSocket: client });
     }
     const path = new URL(req.url).pathname;
@@ -38,11 +39,19 @@ export class Person extends DurableObject<Env> {
       await this.ctx.storage.delete("me");
       await this.ctx.storage.put("gen", ((await this.ctx.storage.get<number>("gen")) ?? 0) + 1);
     }
-    for (const ws of this.ctx.getWebSockets()) try { ws.send(msg); } catch {}
+    let rpc: string | undefined;
+    for (const ws of this.ctx.getWebSockets())
+      try { ws.send(this.ctx.getTags(ws)[0] === "jsonrpc" ? (rpc ??= encodeCall(JSON.parse(msg) as PersonEvent)) : msg); } catch {}
     return new Response(null, { status: 204 });
   }
   webSocketMessage() {} // the app only listens
   webSocketClose(ws: WebSocket) { try { ws.close(); } catch {} }
+}
+
+/** The format a socket gets. The app (/ws-me) and a CLI hub from 1.6.21 (/mcp?wire=jsonrpc) get JSON-RPC
+ * notifications. An older CLI hub (/mcp) gets the tagged JSON that it reads. */
+export function socketWire(url: URL): "jsonrpc" | "tagged" {
+  return url.pathname === "/ws-me" || url.searchParams.get("wire") === "jsonrpc" ? "jsonrpc" : "tagged";
 }
 
 /** Tell these people's open apps that something changed. Fire and forget, ≤50 people per call. */

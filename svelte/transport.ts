@@ -9,7 +9,9 @@ import {
   PostMessageResult,
   UploadFileResult,
 } from "../shared/schemas";
-import { isRoomCommand, parseRoomEvent } from "../shared/validation";
+import type { CommandOutcome } from "../shared/commands";
+import { decodeServerMessage, encodeCall } from "../shared/jsonRpc";
+import { isRoomCommand, toRoomEvent } from "../shared/validation";
 import { client } from "./lib/client/api";
 
 /** The socket surface needed by the UI, allowing deterministic transport tests without a server. */
@@ -17,21 +19,36 @@ export interface RoomSocket {
   readonly readyState: number;
   send(data: string): void;
 }
-/** Queue a command on an open socket; `cid` asks the server for a correlated `result` (see shared/commands.ts). */
+/** Queue a command on an open socket as a JSON-RPC call: a request when `id` is set (the server answers it once),
+ *  else a notification (shared/jsonRpc.ts). */
 export function sendRoomCommand(
   socket: RoomSocket | null | undefined,
   command: RoomCommand,
-  cid?: string,
+  id?: string,
 ): boolean {
   if (!isRoomCommand(command)) throw new TypeError("Invalid room command");
   if (!socket || socket.readyState !== 1) return false;
-  socket.send(JSON.stringify(cid ? { ...command, cid } : command));
+  socket.send(encodeCall(command, id));
   return true;
 }
-export function receiveRoomEvent(raw: unknown): RoomEvent {
+/** One message from the room's socket: the response to one of our requests, or an event (a notification). */
+export type RoomMessage =
+  | { kind: "response"; id: string; outcome: CommandOutcome }
+  | { kind: "event"; event: RoomEvent };
+export function receiveRoomMessage(raw: unknown): RoomMessage {
   if (typeof raw !== "string")
-    throw new TypeError("Room events must be JSON text");
-  return parseRoomEvent(raw);
+    throw new TypeError("Room messages must be JSON text");
+  const message = decodeServerMessage(raw);
+  if (!message) throw new TypeError("Invalid room message");
+  if (message.kind === "response")
+    return {
+      kind: "response",
+      id: String(message.id),
+      outcome: message.outcome.ok
+        ? { ok: true }
+        : { ok: false, error: message.outcome.error.message },
+    };
+  return { kind: "event", event: toRoomEvent(message.message) };
 }
 
 /** HTTP calls through the inferred Hono client (svelte/lib/client/api.ts): request shapes come from the Worker's

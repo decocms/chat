@@ -1,6 +1,6 @@
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import type { RoomEvent } from "../shared/room";
-import { receiveRoomEvent, sendRoomCommand } from "./transport";
+import { receiveRoomMessage, sendRoomCommand } from "./transport";
 
 /** How long `request` waits for the server's answer before it gives up (the command may still have run). */
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -33,7 +33,7 @@ export function createRoomConnection(options: RoomConnectionOptions) {
   let hasSnapshot = false;
   let tries = 0;
   let lastCode = "";
-  // Correlated commands waiting for their `result` (one per cid). A dropped socket answers them all: the server may
+  // JSON-RPC requests waiting for their response (one per id). A dropped socket answers them all: the server may
   // or may not have run them, and the caller decides (the snapshot after reconnect shows what happened).
   const pending = new Map<
     string,
@@ -41,15 +41,15 @@ export function createRoomConnection(options: RoomConnectionOptions) {
   >();
   const prefix = Math.random().toString(36).slice(2, 8);
   let nextId = 0;
-  const settle = (cid: string, r: CommandOutcome) => {
-    const p = pending.get(cid);
+  const settle = (id: string, r: CommandOutcome) => {
+    const p = pending.get(id);
     if (!p) return;
-    pending.delete(cid);
+    pending.delete(id);
     cancel(p.timer);
     p.done(r);
   };
   const settleAll = (error: string) => {
-    for (const cid of [...pending.keys()]) settle(cid, { ok: false, error });
+    for (const id of [...pending.keys()]) settle(id, { ok: false, error });
   };
   const clearTimers = () => {
     if (retry !== undefined) cancel(retry);
@@ -83,16 +83,13 @@ export function createRoomConnection(options: RoomConnectionOptions) {
     };
     current.onmessage = (message) => {
       if (!owns()) return;
-      const event = receiveRoomEvent(message.data);
-      if (event.t === "result") {
-        settle(
-          event.cid,
-          event.ok ? { ok: true } : { ok: false, error: event.error },
-        );
+      const received = receiveRoomMessage(message.data);
+      if (received.kind === "response") {
+        settle(received.id, received.outcome);
         return;
       }
-      if (event.t === "state") hasSnapshot = true;
-      options.onEvent(event);
+      if (received.event.t === "state") hasSnapshot = true;
+      options.onEvent(received.event);
     };
     current.onclose = (event) => {
       if (!owns()) return;
@@ -130,14 +127,14 @@ export function createRoomConnection(options: RoomConnectionOptions) {
       command: RoomCommand,
       timeoutMs = REQUEST_TIMEOUT_MS,
     ): Promise<CommandOutcome> {
-      const cid = `${prefix}-${++nextId}`;
+      const id = `${prefix}-${++nextId}`;
       return new Promise<CommandOutcome>((resolve) => {
-        if (!sendRoomCommand(socket, command, cid))
+        if (!sendRoomCommand(socket, command, id))
           return resolve({ ok: false, error: "offline" });
-        pending.set(cid, {
+        pending.set(id, {
           done: resolve,
           timer: schedule(
-            () => settle(cid, { ok: false, error: "timeout" }),
+            () => settle(id, { ok: false, error: "timeout" }),
             timeoutMs,
           ),
         });

@@ -1,6 +1,7 @@
 // Incremental native Decisions, People and Reminders failure acceptance.
 // Start a loopback Worker with DEV_EMAIL and no model credentials, then run this
 // script. No database seeding, fabricated room frames or mocked API responses.
+import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -163,15 +164,12 @@ try {
   page.on("websocket", (socket) => {
     if (new URL(socket.url()).pathname !== `/ws/${room}`) return;
     socket.on("framesent", ({ payload }) => {
-      try {
-        const value = JSON.parse(payload.toString());
-        if (typeof value.t === "string")
-          commands[value.t] = (commands[value.t] ?? 0) + 1;
-      } catch {
-        /* Not room JSON. */
-      }
+      const value = sentFrame(payload.toString());
+      if (value) commands[value.t] = (commands[value.t] ?? 0) + 1;
     });
     socket.on("framereceived", ({ payload }) => {
+      // Responses to the app's requests are not events.
+      if (receivedFrame(payload.toString())?.kind === "response") return;
       try {
         const event = parseRoomEvent(payload.toString());
         events[event.t] = (events[event.t] ?? 0) + 1;

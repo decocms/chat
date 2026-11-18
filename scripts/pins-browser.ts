@@ -1,3 +1,4 @@
+import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import {
@@ -54,16 +55,6 @@ const pinsResponse = z.object({
     }),
   ),
 });
-function wireObject(raw: string | Buffer): Record<string, unknown> | null {
-  try {
-    const parsed = z
-      .record(z.string(), z.unknown())
-      .safeParse(JSON.parse(raw.toString()));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
 
 try {
   // An actual loopback MCP app fixture, reached by the Worker's supported connection API.
@@ -230,17 +221,20 @@ try {
       }
       const server = socket.connectToServer();
       socket.onMessage((raw) => {
-        const command = wireObject(raw);
+        const command = sentFrame(raw.toString());
         if (command) sent.push(command);
         if (
           (command?.t === "pin.add" || command?.t === "pin.del") &&
-          typeof command.cid === "string"
+          command.id !== undefined
         )
-          pinRequests.add(command.cid);
+          pinRequests.add(String(command.id));
         server.send(raw);
       });
       server.onMessage((raw) => {
-        const frame = wireObject(raw);
+        const received = receivedFrame(raw.toString());
+        const frame = received?.kind === "event" ? received.event : null;
+        const answered =
+          received?.kind === "response" ? String(received.id) : undefined;
         if (frame?.t === "state") {
           snapshots++;
           initialFiles = z
@@ -252,16 +246,10 @@ try {
           heldPins.push(() => socket.send(raw));
           return;
         }
-        if (
-          frame?.t === "result" &&
-          typeof frame.cid === "string" &&
-          pinRequests.has(frame.cid) &&
-          holdPins
-        ) {
-          const cid = frame.cid;
+        if (answered !== undefined && pinRequests.has(answered) && holdPins) {
           heldPins.push(() => {
             socket.send(raw);
-            pinRequests.delete(cid);
+            pinRequests.delete(answered);
           });
           return;
         }
@@ -270,8 +258,7 @@ try {
           return;
         }
         socket.send(raw);
-        if (frame?.t === "result" && typeof frame.cid === "string")
-          pinRequests.delete(frame.cid);
+        if (answered !== undefined) pinRequests.delete(answered);
       });
       sockets.push(socket);
     },

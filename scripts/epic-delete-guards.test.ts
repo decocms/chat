@@ -1,7 +1,7 @@
 // Actual Book methods/dispatcher with binding doubles; not a real DO/SQLite integration.
 import { expect, mock, test } from "bun:test";
 import type { RoomCommand } from "../shared/commands";
-import { CommandResultSchema } from "../shared/commands";
+import { encodeCall, RpcErrorCode } from "../shared/jsonRpc";
 import { sendTo } from "./book-test-wire";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {},
@@ -83,12 +83,14 @@ test("actual correlated epic.del returns Refused for root and missing IDs instea
     const h = fixture();
     await Reflect.apply(Book.prototype.webSocketMessage, h.receiver, [
       h.socket,
-      JSON.stringify({ t: "epic.del", id, cid: "delete-guard" }),
+      encodeCall({ t: "epic.del", id }, "delete-guard"),
     ]);
-    expect(
-      h.frames.map((frame) => CommandResultSchema.parse(JSON.parse(frame))),
-    ).toEqual([
-      { t: "result", cid: "delete-guard", ok: false, error: "unknown epic" },
+    expect(h.frames.map((frame) => JSON.parse(frame))).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: "delete-guard",
+        error: { code: RpcErrorCode.REFUSED, message: "unknown epic" },
+      },
     ]);
     expect(h.queries).toEqual([]);
     expect(h.notifications()).toBe(0);
@@ -99,11 +101,13 @@ test("actual existing-ID epic deletion retains exact SQL scope, canonical notifi
     const h = fixture();
     await Reflect.apply(Book.prototype.webSocketMessage, h.receiver, [
       h.socket,
-      JSON.stringify({
-        t: "epic.del",
-        id: "known",
-        ...(correlated ? { cid: "delete-known" } : {}),
-      }),
+      encodeCall(
+        {
+          t: "epic.del",
+          id: "known",
+        },
+        correlated ? "delete-known" : undefined,
+      ),
     ]);
     await Promise.all(h.jobs);
     expect(h.queries).toEqual([
@@ -114,10 +118,8 @@ test("actual existing-ID epic deletion retains exact SQL scope, canonical notifi
     ]);
     expect(h.ids.has("known")).toBe(false);
     expect(h.notifications()).toBe(1);
-    expect(
-      h.frames.map((frame) => CommandResultSchema.parse(JSON.parse(frame))),
-    ).toEqual(
-      correlated ? [{ t: "result", cid: "delete-known", ok: true }] : [],
+    expect(h.frames.map((frame) => JSON.parse(frame))).toEqual(
+      correlated ? [{ jsonrpc: "2.0", id: "delete-known", result: null }] : [],
     );
   }
 });

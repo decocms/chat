@@ -364,3 +364,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-18 · feat/ws-json-rpc · JSON-RPC on the room and person sockets
+- Agent: claude-opus-5-5
+- Context: The human asked for typed WebSocket messages in the JSON-RPC protocol, with no RPC library, for the Svelte app only.
+- Decision: Only the wire edges changed (`shared/jsonRpc.ts`, `parseRoomCall`, `parseRoomEvent`, `Book.sendTo`, `Book.webSocketMessage`, `svelte/transport.ts`). The code keeps the typed tagged messages. A successful response has `result: null`. The data still comes in the events, as before. A refused command is error code -32000 with the reason. I removed the shim that accepted decision ids as strings from old tabs.
+- Other options: Results that carry the data (for example `doc.get` returns the text). That is a larger change to each feature. It can come later, one method at a time.
+- Risk: medium. A tab that still runs the old app cannot read the room socket until it reloads.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-18 · feat/ws-json-rpc · The CLI hub moves to JSON-RPC, old CLIs keep tagged JSON
+- Agent: claude-opus-5-5
+- Context: The `vibebook listen` hub of the installed CLI holds a socket to the `Person` object (through `/mcp`) and reads `m.t`. The human said to move the CLI to the new format and keep the legacy one.
+- Decision: CLI 1.6.21 connects to `/mcp?wire=jsonrpc`. It reads JSON-RPC notifications, and also the tagged JSON of an older server. The `Person` object tags each socket when it accepts it (`socketWire`): `/ws-me` and `?wire=jsonrpc` get JSON-RPC, plain `/mcp` gets the tagged JSON. I selected a query parameter, not a new path or a WebSocket subprotocol: the OAuth provider already routes `/mcp`, and a subprotocol needs the server to echo it.
+- Other options: A new path such as `/mcp/ws`. The `Sec-WebSocket-Protocol` header.
+- Risk: low
+- Undo: Revert the CLI change and `socketWire`.
+- Status: open

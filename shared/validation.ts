@@ -26,7 +26,8 @@ import {
   type Task,
 } from "./room";
 import { isRoomEventValue } from "./events";
-import { CommandId, RoomCommandSchema, type RoomCommand } from "./commands";
+import { RoomCommandSchema, type RoomCommand } from "./commands";
+import { decodeCall, RpcErrorCode, type RpcError, type RpcId } from "./jsonRpc";
 
 // JSON guards built on the shared schemas: no Worker or UI dependency, and no unchecked JSON.parse casts at transport
 // boundaries.
@@ -92,50 +93,43 @@ function normalizeLegacyFlags(value: unknown): unknown {
     return { ...value, reminders: reminders(value.reminders) };
   return value;
 }
-export function parseRoomEvent(raw: string): RoomEvent {
-  const value: unknown = normalizeLegacyFlags(JSON.parse(raw));
+/** A decoded notification as a room event (throws when it is not one). */
+export function toRoomEvent(message: unknown): RoomEvent {
+  const value: unknown = normalizeLegacyFlags(message);
   if (!isRoomEvent(value)) throw new TypeError("Invalid room event");
   return value;
+}
+/** One room event off the wire: a JSON-RPC notification whose method is the event's `t`. */
+export function parseRoomEvent(raw: string): RoomEvent {
+  const call = decodeCall(raw);
+  if (!call.ok || call.id !== undefined)
+    throw new TypeError("Invalid room event");
+  return toRoomEvent(call.message);
 }
 
 // The command schemas live in commands.ts; a valid command is passed on as sent (extra keys are ignored, as before).
 export function isRoomCommand(value: unknown): value is RoomCommand {
   return RoomCommandSchema.safeParse(value).success;
 }
-/** A command off the wire plus its correlation id, if it carried a valid one. `cid` is read even when the command is
- *  invalid, so the sender still gets its answer; a malformed `cid` counts as none. */
-export function parseCommandEnvelope(raw: string): {
-  cid?: string;
-  command: RoomCommand | null;
-} {
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return { command: null };
-  }
-  const cid =
-    record(value) && CommandId.safeParse(value.cid).success
-      ? (value.cid as string)
-      : undefined;
-  // Already-open pre-migration browser tabs sent decision IDs from dataset
-  // as strings. Preserve that wire format while exposing a numeric command.
-  if (
-    record(value) &&
-    value.t === "decision.del" &&
-    typeof value.id === "string" &&
-    /^\d+$/.test(value.id)
-  ) {
-    const id = Number(value.id);
-    if (Number.isSafeInteger(id)) value = { ...value, id };
-  }
-  return {
-    ...(cid ? { cid } : {}),
-    command: isRoomCommand(value) ? value : null,
-  };
+/** A room command off the wire (a JSON-RPC request or notification, method = the command's `t`). `id` is set for a
+ *  request, also when the command is invalid, so the sender still gets its error back. */
+export function parseRoomCall(
+  raw: string,
+):
+  | { id?: RpcId; command: RoomCommand }
+  | { id?: RpcId; command: null; error: RpcError } {
+  const call = decodeCall(raw);
+  if (!call.ok) return { id: call.id, command: null, error: call.error };
+  if (!isRoomCommand(call.message))
+    return {
+      id: call.id,
+      command: null,
+      error: { code: RpcErrorCode.INVALID_PARAMS, message: "invalid command" },
+    };
+  return { id: call.id, command: call.message };
 }
 export function parseRoomCommand(raw: string): RoomCommand {
-  const { command } = parseCommandEnvelope(raw);
+  const { command } = parseRoomCall(raw);
   if (!command) throw new TypeError("Invalid room command");
   return command;
 }

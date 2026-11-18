@@ -10,8 +10,9 @@ import { TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion } from "../shared/room";
 import { RoomEventSchemas } from "../shared/events";
-import { parseCommandEnvelope } from "../shared/validation";
-import type { CommandOutcome, CommandResult, RoomCommand } from "../shared/commands";
+import { parseRoomCall } from "../shared/validation";
+import { encodeCall, encodeError, encodeResult, RpcErrorCode, type RpcId } from "../shared/jsonRpc";
+import type { RoomCommand } from "../shared/commands";
 
 /** A room command the server turned down: its reason goes back to a correlated sender (see webSocketMessage). */
 class Refused {
@@ -710,7 +711,7 @@ export class Book extends DurableObject<Env> {
    *  since the vanilla app left in Nov 2026) per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
-    const s = JSON.stringify(data);
+    const s = encodeCall(data); // a JSON-RPC notification, method = t
     const by: Record<string, number> = {};
     for (const ws of to) {
       try { ws.send(s); } catch { continue; } // socket already gone
@@ -2103,21 +2104,21 @@ export class Book extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     const email = this.ctx.getTags(ws)[0];
-    const { cid, command } = parseCommandEnvelope(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
-    // Correlated commands (shared/commands.ts): only a command that carried a cid gets its one `result` back.
-    const answer = (r: CommandOutcome) => {
-      if (!cid) return;
-      this.sendTo([ws], { t: "result", cid, ...r } satisfies CommandResult);
+    // JSON-RPC (shared/jsonRpc.ts): a request (with an id) gets exactly one response; a notification gets none.
+    const call = parseRoomCall(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
+    const reply = (frame: (id: RpcId) => string) => {
+      if (call.id === undefined) return;
+      try { ws.send(frame(call.id)); } catch {} // socket already gone
     };
-    if (!command) return answer({ ok: false, error: "invalid command" });
+    if (!call.command) return reply((id) => encodeError(id, call.error));
     let out: unknown;
     try {
-      out = await this.runCommand(ws, email, command);
+      out = await this.runCommand(ws, email, call.command);
     } catch (e) {
-      answer({ ok: false, error: "server error" });
+      reply((id) => encodeError(id, { code: RpcErrorCode.INTERNAL, message: "server error" }));
       throw e;
     }
-    answer(out instanceof Refused ? { ok: false, error: out.error } : { ok: true });
+    reply((id) => (out instanceof Refused ? encodeError(id, { code: RpcErrorCode.REFUSED, message: out.error }) : encodeResult(id)));
   }
 
   /** One room command from a person's socket. Returns a Refused when the command was turned down (the old events,

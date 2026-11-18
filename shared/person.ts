@@ -1,6 +1,7 @@
-// The Person DO's /ws-me notices. Browser-safe; the literal msg:1 is a flag,
+// The Person DO's /ws-me notices, sent as JSON-RPC notifications. Browser-safe; the literal msg:1 is a flag,
 // not a message ID. Keep this independent of room/Worker implementations.
 import * as z from "zod/mini";
+import { decodeCall } from "./jsonRpc";
 export const PersonEventSchemas = {
   me: z.object({
     t: z.literal("me"),
@@ -16,14 +17,12 @@ export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.focus,
 ]);
 export type PersonEvent = z.infer<typeof PersonEventSchema>;
-/** Accept raw WebSocket event.data only. Binary/non-JSON/unknown notices are ignored. */
+/** Accept raw WebSocket event.data only: a JSON-RPC notification, method = t (shared/jsonRpc.ts). Binary, non-JSON
+ *  and unknown notices are ignored. */
 export function parsePersonEvent(data: unknown): PersonEvent | null {
   if (typeof data !== "string") return null;
-  try {
-    const value: unknown = JSON.parse(data);
-    const parsed = PersonEventSchema.safeParse(value);
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  const call = decodeCall(data);
+  if (!call.ok || call.id !== undefined) return null;
+  const parsed = PersonEventSchema.safeParse(call.message);
+  return parsed.success ? parsed.data : null;
 }
