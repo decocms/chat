@@ -12,6 +12,7 @@
     lang = "pt",
     queue = [],
     row = false,
+    origin: _origin = "",
   }: {
     owner: RoomAgentSession;
     onopen(): void;
@@ -20,6 +21,8 @@
     queue?: readonly { phase: string | null }[];
     /** The sidebar footer (desktop): a full-width row with the state written out. */
     row?: boolean;
+    /** Used by the expanded foot (AgentFoot), which shares these props. */
+    origin?: string;
   } = $props();
   const view = untrack(() => owner.state),
     runner = untrack(() => owner.runner.state);

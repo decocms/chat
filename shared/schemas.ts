@@ -212,7 +212,32 @@ export const RoomAgent = z.object({
   listening: z.boolean(),
   all_rooms: z.boolean(),
   context: z.nullable(AgentContext),
+  /** Only on your own agents: its id, its client, the machine that runs it (null = one-off) and its delivery here. */
+  id: z.optional(z.string()),
+  client: z.optional(str),
+  machine: z.optional(str),
+  delivery: z.optional(z.boolean()),
 });
+/** Your machines (src/delivery.ts): computers running `vibebook herdr` and your sandboxes in this room. */
+export const RoomMachine = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(["herdr", "herdr-app", "sandbox"]),
+  online: z.boolean(),
+  seen_at: num,
+  /** Its switch in this room: deliver to its agents (a computer also opens one when none is open). */
+  on: z.boolean(),
+});
+export type RoomMachine = z.infer<typeof RoomMachine>;
+/** Delivery switches: one machine, one one-off agent, or everything of yours in the room. */
+export const DeliveryBody = z.object({
+  on: z.boolean(),
+  machine: z.optional(z.string()),
+  agent: z.optional(z.string()),
+  all: z.optional(z.boolean()),
+});
+export const DeliveryResult = z.object({ ok: z.literal(true) });
+export type DeliveryResult = z.infer<typeof DeliveryResult>;
 export const RoomSandbox = z.object({
   id: z.string(),
   email: z.string(),
@@ -229,6 +254,7 @@ export const AgentsResult = z.object({
   claude_on: z.boolean(),
   sandboxes: z.array(RoomSandbox),
   agents: z.array(RoomAgent),
+  machines: z.optional(z.array(RoomMachine)),
 });
 export type AgentsResult = z.infer<typeof AgentsResult>;
 // Slice 8: the person's own cloud sandboxes in a room (freestyle.sh VMs; the key never leaves the server).

@@ -31,6 +31,16 @@
           "pt": "O que espera você vem primeiro, agrupado por sala: onde seu Claude está parado esperando você aparece no topo, e cada pedido abre a mensagem ou se resolve com ✓. Suas salas ficam ao lado (embaixo, no celular), a caixa \"O que você quer resolver?\" fica embaixo como o campo de mensagem da sala, e busca, + e o menu da conta ficam na barra de salas, que no celular agora fica presa ao rolar. Os avisos de instalar o app e de pôr sua foto viraram uma linha fina.",
           "en": "What waits on you comes first, grouped by room: rooms where your Claude is stuck waiting on you are on top, and each ask opens the message or resolves with ✓. Your rooms sit beside it (below, on phones), the \"What do you want to work on?\" box sits at the bottom like a room's message field, and search, + and the account menu live in the rooms bar, which on phones now stays put while you scroll. The install-the-app and add-your-photo prompts are now one slim row each."
         }
+      },
+      {
+        "title": {
+          "pt": "Seus computadores e agents, com entrega por sala",
+          "en": "Your machines and agents, with delivery per room"
+        },
+        "text": {
+          "pt": "No app novo (?ui=svelte), o pé da barra lateral mostra seus computadores (cada um rodando o vibebook herdr) e suas sandboxes, com os agents de cada um embaixo, e os agents que você abriu à mão em \"Outros agents\". Cada computador tem um interruptor por sala: ligado entrega as mensagens da sala pros agents dele (e abre um se não houver), desligado para de entregar sem fechar a aba, que fica com o contexto. Agents abertos à mão têm o próprio interruptor, e o de cima liga ou desliga tudo. Um computador que parou de responder aparece como Offline, com \"copiar correção\". Sem nada conectado, três jeitos de começar: este computador, uma sandbox na nuvem ou só desta vez.",
+          "en": "In the new app (?ui=svelte), the foot of the sidebar shows your computers (each running vibebook herdr) and your sandboxes, with each one's agents under it, and the agents you started by hand under \"Other agents\". Each computer has one switch per room: on delivers the room's messages to its agents (and opens one if there's none), off stops delivering without closing the tab, which keeps its context. Agents started by hand have their own switch, and the one on top turns everything on or off. A computer that stopped answering shows as Offline, with \"copy fix\". With nothing connected, three ways to start: this computer, a cloud sandbox, or just this once."
+        }
       }
     ],
     "improvements": {

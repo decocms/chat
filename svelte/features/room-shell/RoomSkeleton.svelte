@@ -131,12 +131,22 @@
           {@render line("tw:w-28", "tw:h-2.5")}
         </div>
         <div class="tw:flex tw:h-11 tw:items-center tw:gap-2.5 tw:px-2.5">
-          {#if me}<PersonAvatar
-              name={me.name || me.email}
-              url={personAvatar(me, me.email)}
-              class="tw:size-7"
-            /><span class="tw:min-w-0 tw:truncate tw:font-medium"
-              >{me.name || me.email}</span
+          <!-- You are online while the room loads: UserMenu's row as it will land. -->
+          {#if me}<span class="tw:relative tw:flex tw:shrink-0"
+              ><PersonAvatar
+                name={me.name || me.email}
+                url={personAvatar(me, me.email)}
+                class="tw:size-7"
+              /><span
+                data-status-dot="online"
+                class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:bg-brand tw:ring-2 tw:ring-sidebar"
+              ></span></span
+            ><span class="tw:flex tw:min-w-0 tw:flex-col"
+              ><span class="tw:truncate tw:font-medium"
+                >{me.name || me.email}</span
+              ><span class="tw:truncate tw:text-xs tw:text-muted-foreground"
+                >Online</span
+              ></span
             >{:else}<Skeleton
               class="tw:size-7 tw:shrink-0 tw:rounded-full"
             />{@render line("tw:w-20", "tw:h-2.5")}{/if}

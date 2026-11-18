@@ -6,7 +6,7 @@ import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { homedir, tmpdir } from "node:os";
+import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
 const VERSION = "1.6.18";
@@ -547,24 +547,44 @@ function herdrServer(appMode = false) {
 // claude_rooms for the runner, which loops every 15s for local work (herdr panes, idle Claudes, compaction): asked again
 // only when the hub says a ✻ toggle or a listener changed ({t:"agents"} poke), or 5 min passed. Asking every 15s was
 // 5.5k requests a day per machine, a quarter of all of vibebook's (Nov 2026). No hub: every 15s, as before.
-let roomsCache: { gen: number; at: number; res: Awaited<ReturnType<typeof callTool>> } | null = null;
-async function claudeRooms(agent: string, tools: Tool[]) {
+// This computer, as vibebook knows it (Nov 2026): a stable id in ~/.vibebook/machine.json and its name. The runner sends
+// it with claude_rooms (the check-in that shows the machine online in the app) together with the agent ids of the
+// Claudes it runs, so the room's switch for this machine covers them. Old servers don't take it: only sent when the
+// tool declares it.
+const MACHINE = join(HOME, "machine.json");
+function machineId() {
+  const m = readJson<{ id?: string }>(MACHINE, {});
+  if (m.id && /^m_[a-f0-9]{32}$/.test(m.id)) return m.id;
+  const id = `m_${randomBytes(16).toString("hex")}`;
+  writePrivate(MACHINE, { id });
+  return id;
+}
+/** The agent id the CLI uses inside a Claude Code session (agentId), from that session's id. */
+const sessionAgent = (session: string) => `s_${createHash("sha256").update(`claude-code:${session}`).digest("hex").slice(0, 32)}`;
+let roomsCache: { gen: number; at: number; key: string; res: Awaited<ReturnType<typeof callTool>> } | null = null;
+async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-app" = "herdr", managed: string[] = []) {
   const port = await ensureHub().catch(() => null);
   let gen = -1;
   if (port) try { gen = ((await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=-1`)).json()) as { agents?: number }).agents ?? -1; } catch {}
-  if (roomsCache && gen >= 0 && roomsCache.gen === gen && Date.now() - roomsCache.at < 5 * 60_000) return roomsCache.res;
-  const res = await callTool("claude_rooms", {}, agent, tools);
-  roomsCache = { gen, at: Date.now(), res };
+  // A new Claude of ours (a new session id) is reported right away; otherwise the cache rules as before.
+  const key = [...managed].sort().join(",");
+  if (roomsCache && gen >= 0 && roomsCache.gen === gen && roomsCache.key === key && Date.now() - roomsCache.at < 5 * 60_000) return roomsCache.res;
+  const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
+  const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind }, agents: managed.slice(0, 50) } : {};
+  const res = await callTool("claude_rooms", args, agent, tools);
+  roomsCache = { gen, at: Date.now(), key, res };
   return res;
 }
 async function herdrSync(agent: string, tools: Tool[]) {
-  const res = await claudeRooms(agent, tools);
-  const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
-  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson<Record<string, HerdrRoom>>(HERDR, {});
   const wsList = herdr("workspace", "list").workspaces as { workspace_id: string; label?: string }[];
   const live = new Set(wsList.map((w) => w.workspace_id));
   const panes = herdr("pane", "list").panes as Pane[];
+  const mapped = new Set(Object.values(map).map((e) => e.workspace).filter(Boolean));
+  const managed = panes.filter((p) => p.agent === "claude" && mapped.has(p.workspace_id) && p.agent_session?.value).map((p) => sessionAgent(p.agent_session!.value!));
+  const res = await claudeRooms(agent, tools, "herdr", managed);
+  const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
+  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
   const log = (m: string) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}\n`);
   for (const [room, title] of on) {
@@ -697,13 +717,17 @@ async function herdrSync(agent: string, tools: Tool[]) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String((err as { stderr?: Buffer }).stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
     }
   }
+  // Off is delivery off (Nov 2026): the tab stays open with its context and the room just stops waking it. Only a room
+  // that left the list (archived, or you left it) closes its tab.
+  const listed = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace) continue;
+    const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
+    if (p?.agent_session?.value) e.session = p.agent_session.value;
+    if (listed.has(room) && live.has(e.workspace)) continue;
     if (live.has(e.workspace)) {
-      const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
-      if (p?.agent_session?.value) e.session = p.agent_session.value;
       herdr("workspace", "close", e.workspace);
-      log(`${rooms.find((r) => r.room_id === room)?.title ?? room}: Claude desligado, fechei a aba (a conversa fica pra retomar)`);
+      log(`${room}: a sala saiu da sua lista, fechei a aba (a conversa fica pra retomar)`);
     }
     delete e.workspace;
   }
@@ -723,7 +747,7 @@ const happ = (...args: string[]) => {
 };
 const appClaude = (sp: AppSpace) => sp.tabs.flatMap((t) => t.terminals).find((t) => /claude/i.test(t.app ?? ""));
 async function herdrAppSync(agent: string, tools: Tool[]) {
-  const res = await claudeRooms(agent, tools);
+  const res = await claudeRooms(agent, tools, "herdr-app");
   const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson<Record<string, HerdrRoom & { space?: string }>>(HERDR_APP, {});
@@ -774,11 +798,14 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
     e.prompted_at = Date.now();
     log(`${title}: abri um Claude em ${e.folder}`);
   }
+  // Off keeps the space (delivery off); only a room that left the list closes it.
+  const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space) continue;
+    if (listedApp.has(room) && live.has(e.space)) continue;
     if (live.has(e.space)) {
       happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-      log(`${rooms.find((r) => r.room_id === room)?.title ?? room}: Claude desligado, fechei o space`);
+      log(`${room}: a sala saiu da sua lista, fechei o space`);
     }
     delete e.space;
   }

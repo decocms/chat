@@ -460,9 +460,7 @@
       </div>{/if}
     <MutationStatus {owner} t={vb.t} />
     <!-- Desktop: your Claude, then you (the account menu), at the foot of the sidebar; you're not in People. -->
-    <SidebarFoot>
-      {@render footer?.(false)}
-      <!-- Your own Claudes (context, ✻), as they were under you in People. -->
+    {#snippet selfRows()}<!-- Your own agents (context, ✻), right under your agent. -->
       <div class="tw:px-1.5 tw:empty:hidden">
         <AgentPresenceRows
           {presence}
@@ -473,7 +471,12 @@
           ago={vb.ago}
           {locale}
         />
-      </div>
+      </div>{/snippet}
+    <SidebarFoot>
+      {#if footer}{@render footer(
+          false,
+          selfRows,
+        )}{:else}{@render selfRows()}{/if}
     </SidebarFoot>
   {/if}
 </section>

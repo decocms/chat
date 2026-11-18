@@ -105,6 +105,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     invite: async () => {},
     removeMember: async () => null,
     pokeAgents: () => {},
+    pokeListeners: () => {},
     requestAccess: async () => "asked",
     decideRequest: async () => true,
     createRoom: async () => "room",
@@ -490,46 +491,56 @@ test("room agents: members only, listening and context derived from the rows, ba
       ? claude
         ? [{ claude_on: 1 }]
         : []
-      : query.includes("FROM sandboxes")
-        ? [
-            {
-              id: "s1",
-              email: "a@x.co",
-              name: "box",
-              state: "running",
-              run_s: 60,
-              rate: 0.1,
-              disk_rate: 0.01,
-              checked_at: now,
-              created_at: now,
-            },
-          ]
-        : [
-            {
-              email: "a@x.co",
-              who: "claude-opus-5-5",
-              repo: "vb",
-              seen_at: now,
-              listening_at: now - 1000,
-              listen_room: "room",
-              ctx_tokens: 500,
-              ctx_window: 1000,
-              ctx_at: now,
-              ctx_limits: '{"five_hour":{"p":40,"r":1}}',
-            },
-            {
-              email: "b@x.co",
-              who: null,
-              repo: null,
-              seen_at: now,
-              listening_at: now - 3_600_000,
-              listen_room: null,
-              ctx_tokens: 1,
-              ctx_window: 2,
-              ctx_at: now,
-              ctx_limits: "{bad",
-            },
-          ];
+      : query.includes("FROM machines")
+        ? []
+        : query.includes("FROM sandboxes")
+          ? [
+              {
+                id: "s1",
+                email: "a@x.co",
+                name: "box",
+                state: "running",
+                run_s: 60,
+                rate: 0.1,
+                disk_rate: 0.01,
+                checked_at: now,
+                created_at: now,
+              },
+            ]
+          : [
+              {
+                email: "a@x.co",
+                who: "claude-opus-5-5",
+                repo: "vb",
+                seen_at: now,
+                listening_at: now - 1000,
+                listen_room: "room",
+                ctx_tokens: 500,
+                ctx_window: 1000,
+                ctx_at: now,
+                ctx_limits: '{"five_hour":{"p":40,"r":1}}',
+                id: "s_a",
+                client: "vibebook CLI",
+                machine_id: null,
+                delivers: 1,
+              },
+              {
+                email: "b@x.co",
+                who: null,
+                repo: null,
+                seen_at: now,
+                listening_at: now - 3_600_000,
+                listen_room: null,
+                ctx_tokens: 1,
+                ctx_window: 2,
+                ctx_at: now,
+                ctx_limits: "{bad",
+                id: "s_b",
+                client: null,
+                machine_id: null,
+                delivers: 1,
+              },
+            ];
   const outsider = fixture({ sqlAll: rows(false) });
   expect((await outsider.app.request("/api/books/room/agents")).status).toBe(
     403,
@@ -1813,6 +1824,10 @@ test("API-local metadata and database validators retain optional/null and uncoer
     ctx_window: null,
     ctx_at: null,
     ctx_limits: null,
+    id: "s_x",
+    client: null,
+    machine_id: null,
+    delivers: null,
   };
   expect(AgentDbRow.parse({ ...row, ignored: true })).toEqual(row);
   expect(AgentDbRow.safeParse({ ...row, seen_at: "1" }).success).toBe(false);

@@ -1237,7 +1237,13 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               }
             : null,
           trigger: agent
-            ? { owner: agent, onopen: openAgents, lang, queue }
+            ? {
+                owner: agent,
+                onopen: openAgents,
+                lang,
+                queue,
+                origin: browser.origin,
+              }
             : null,
           threadFiles: {
             room: value,
