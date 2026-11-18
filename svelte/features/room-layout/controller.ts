@@ -172,6 +172,15 @@ export function createRoomLayout(
     state,
     read: () => value,
     setPane(next, flags = {}) {
+      if (flags.quiet) {
+        // Switch which pane it is, leaving it open or closed as you left it.
+        if (value.pane !== next) {
+          publish({ pane: next });
+          geometry?.sync(value);
+          if (current()) options.onPane?.(next);
+        }
+        return;
+      }
       intent(() => {
         const toggle =
           flags.toggle &&
@@ -213,6 +222,18 @@ export function createRoomLayout(
           publish({ documentVisible: !value.documentVisible });
           geometry?.sync(value);
         }
+      });
+    },
+    revealDocument() {
+      intent(() => {
+        if (
+          value.mobile ||
+          value.documentVisible ||
+          documentClosedBefore(browser)
+        )
+          return;
+        publish({ documentVisible: true });
+        geometry?.sync(value);
       });
     },
     toggleSidebar() {

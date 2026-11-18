@@ -39,10 +39,13 @@ export type RoomLayoutController = {
   read(): RoomLayoutState;
   setPane(
     pane: DocumentPane,
-    options?: { open?: boolean; toggle?: boolean },
+    /** quiet: switch the pane without opening it (a fallback, not you). */
+    options?: { open?: boolean; toggle?: boolean; quiet?: boolean },
   ): void;
   toggleBoard(): void;
   toggleDocument(): void;
+  /** The app opening the pane on its own (an epic with your tasks): not when you closed it, and not remembered. */
+  revealDocument(): void;
   toggleSidebar(): void;
   openSheet(which: RoomSheet): void;
   closeSheet(pick?: boolean): void;

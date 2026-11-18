@@ -184,7 +184,7 @@
       $geometry.pane === "board" &&
       current()
     )
-      untrack(() => owner.actions.setPane("doc"));
+      untrack(() => owner.actions.setPane("doc", { quiet: true }));
   });
   const boardModule = untrack(() =>
       createDeferredModule(

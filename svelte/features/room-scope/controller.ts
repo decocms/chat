@@ -582,7 +582,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   }
   function setPane(
     pane: DocumentPane,
-    value?: { open?: boolean; toggle?: boolean },
+    value?: { open?: boolean; toggle?: boolean; quiet?: boolean },
   ) {
     if (!current() || defer(() => setPane(pane, value))) return;
     layout.setPane(pane, value);
@@ -726,7 +726,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           tasks.some((task) => !task.done && task.owner === value.me) ||
           !value.messages.some((message) => message.thread === snapshot.thread)
         )
-          layout.toggleDocument();
+          layout.revealDocument();
       }
       if (
         changed &&
