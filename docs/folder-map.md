@@ -62,7 +62,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | Folder | Contents |
 |---|---|
 | `scripts/` | Checks, tests, benchmarks and generators. `*.test.ts` = `bun test`. `*-check.ts` = a check against local development. `*-browser.ts` = a Playwright test. |
-| `scripts/data/` | Data files that scripts read: design tokens, font digests, migration inventory. |
+| `scripts/data/` | Data files that checks and browser tests read: font digests (`font-assets.json`), Studio design tokens and reference (`studio-*.json`), the vanilla build list (`vanilla-build.json`). |
 | `scripts/fixtures/` | Test data. |
 | `.github/` | CI workflows and the shared setup action. |
 
