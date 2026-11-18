@@ -2,14 +2,26 @@
   import { onMount } from "svelte";
   import Button from "./lib/studio/Button.svelte";
   import Icon from "./lib/studio/Icon.svelte";
-  import { File02, Folder, Pin02 } from "./lib/studio/icons";
+  import { File02, Folder, Pin02, Upload01 } from "./lib/studio/icons";
   import IconButton from "./lib/studio/IconButton.svelte";
   import Spinner from "./lib/studio/Spinner.svelte";
   import { filesModel, fileKinds } from "./features/files/model";
   import type { FilesProps } from "./features/files/types";
   import { kb } from "./panels";
-  let { room, vb, session, request, onopenfile, onfolderchange }: FilesProps =
-    $props();
+  import PaneEmpty from "./lib/components/PaneEmpty.svelte";
+  import PaneHeader from "./lib/components/PaneHeader.svelte";
+  import { paneIcons } from "./features/documents/paneIcons";
+  let {
+    room,
+    vb,
+    session,
+    request,
+    onopenfile,
+    onfolderchange,
+    ask,
+    attach,
+  }: FilesProps = $props();
+  let picker = $state<HTMLInputElement | null>(null);
   let mounted = false;
   onMount(() => {
     mounted = true;
@@ -40,6 +52,32 @@
   class="tw:flex tw:flex-col tw:gap-3 tw:p-3 tw:font-sans tw:text-sm tw:text-foreground"
   aria-label={vb.t("Arquivos")}
 >
+  {#if attach}<input
+      bind:this={picker}
+      type="file"
+      multiple
+      hidden
+      onchange={(event) => {
+        const files = [...(event.currentTarget.files ?? [])];
+        event.currentTarget.value = "";
+        if (mounted && files.length) attach(files);
+      }}
+    />{/if}
+  {#snippet upload(small: boolean)}{#if attach}<Button
+        variant={small ? "outline" : "default"}
+        size={small ? "sm" : "default"}
+        onclick={() => picker?.click()}
+        ><Icon icon={Upload01} size={16} />{small
+          ? vb.t("Enviar")
+          : vb.t("Enviar arquivo")}</Button
+      >{/if}{/snippet}
+  {#snippet uploadSmall()}{@render upload(true)}{/snippet}
+  {#snippet uploadLarge()}{@render upload(false)}{/snippet}
+  <PaneHeader
+    title={vb.t("Arquivos")}
+    count={room.filesN ?? room.files?.length ?? 0}
+    action={room.files?.length ? uploadSmall : undefined}
+  />
   {#if room.files?.length}
     {#if view.counts.all > 1}<div
         class="tw:flex tw:flex-wrap tw:gap-1"
@@ -137,11 +175,17 @@
     {#if !view.list.length && !view.folders.length}<p>
         {vb.t("Nada aqui.")}
       </p>{/if}
-  {:else if !$fileState.loading && !$fileState.loadError}<p>
-      {vb.t(
-        "Cole uma imagem no chat (Cmd+V), arraste um arquivo ou use o clipe. Tudo que for enviado neste vibebook fica aqui.",
+  {:else if !$fileState.loading && !$fileState.loadError}<PaneEmpty
+      icon={paneIcons.files}
+      title={vb.t("Nenhum arquivo ainda")}
+      description={vb.t(
+        "Tudo que for compartilhado nesta sala fica aqui: imagens, PDFs, áudios, HTML. Você também pode colar ou arrastar no chat.",
       )}
-    </p>{/if}
+      action={attach ? uploadLarge : undefined}
+      ask={vb.t("Sobe nesta sala capturas de tela do que você já fez.")}
+      askLabel={vb.t("Peça pro seu Claude")}
+      onask={ask}
+    />{/if}
   {#if $fileState.loading}<p role="status">{vb.t("Carregando…")}</p>{/if}
   {#if $fileState.loadError}<p role="alert" class="tw:text-destructive">
       {issueText($fileState.loadError)}
