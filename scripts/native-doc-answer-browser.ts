@@ -138,7 +138,9 @@ export async function auditDocumentAnswers(
   };
   await mkdir(fixture.output, { recursive: true });
   try {
-    for (const variant of ["svelte", "vanilla"] as const) {
+    const variants: Variant[] = ["svelte"];
+    // The Svelte app is the only app since #181; the vanilla branches below are dead until they are removed.
+    for (const variant of variants) {
       const result: Evidence["variants"][number] = {
         variant,
         status: "running",
