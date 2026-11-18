@@ -14,9 +14,6 @@
   import Icon from "./lib/studio/Icon.svelte";
   import IconButton from "./lib/studio/IconButton.svelte";
   import Progress from "./lib/studio/Progress.svelte";
-  import Tooltip from "./lib/studio/Tooltip.svelte";
-  import TooltipContent from "./lib/studio/TooltipContent.svelte";
-  import TooltipTrigger from "./lib/studio/TooltipTrigger.svelte";
   import {
     ArrowLeft,
     Inbox01,
@@ -292,70 +289,55 @@
           : "tw:contents"}
       >
         <div class="tw:group/room tw:relative tw:shrink-0">
-          <Tooltip>
-            <TooltipTrigger>
-              {#snippet child({ props })}
-                <button
-                  {...props}
-                  type="button"
-                  data-room-title
-                  aria-current={!inboxOpen && !boardOpen && thread === "main"
-                    ? "page"
-                    : undefined}
-                  class={navRow({
-                    class:
-                      "tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
-                  })}
-                  onclick={(event) => {
-                    if (!event.currentTarget.isConnected) return;
-                    // Desktop: the main thread is also the chat view (leaves the full board).
-                    if (boardOpen) onroomhome?.();
-                    open("main");
-                  }}
-                >
-                  <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
-                  {#if dm}<Icon
-                      icon={MessageCircle01}
-                      size={16}
-                      class="tw:shrink-0 tw:text-muted-foreground"
-                    /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                      >{vb.t("Conversa")}</span
-                    >{:else}<RoomMark
-                      title={room.book.title}
-                      src={roomIcon}
-                      class="tw:min-[901px]:hidden"
-                    /><Icon
-                      icon={MessageCircle01}
-                      size={16}
-                      class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
-                    />
-                    <span class="tw:min-w-0 tw:flex-1 tw:truncate"
-                      ><span class="tw:min-[901px]:hidden"
-                        >{room.book.title}</span
-                      ><span class="tw:hidden tw:min-[901px]:inline"
-                        >{vb.t("Sala principal")}</span
-                      ></span
-                    >{/if}
-                  <WaitBadge
-                    waits={vb.waitsIn("main")}
-                    label={(n) => vb.t("{n} coisas esperando você", { n })}
-                    taskLabel={vb.t("Tarefa sua pendente")}
-                  />
-                  <span
-                    class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
-                    >{messageCount(room, "main")}</span
-                  >
-                </button>
-              {/snippet}
-            </TooltipTrigger>
-            <TooltipContent
-              side="bottom"
-              class="tw:max-w-64 tw:whitespace-pre-line tw:text-left"
-              >{room.book.summary
-                ? `${room.book.title}\n${room.book.summary}`
-                : room.book.title}</TooltipContent
+          <button
+            type="button"
+            data-room-title
+            aria-current={!inboxOpen && !boardOpen && thread === "main"
+              ? "page"
+              : undefined}
+            class={navRow({
+              class:
+                "tw:transition-[background-color,padding] tw:duration-150 tw:ease-out tw:group-hover/room:pr-9 tw:group-focus-within/room:pr-9 tw:min-[901px]:group-hover/room:pr-2 tw:min-[901px]:group-focus-within/room:pr-2 tw:motion-reduce:transition-none tw:[@media(hover:none)]:pr-9",
+            })}
+            onclick={(event) => {
+              if (!event.currentTarget.isConnected) return;
+              // Desktop: the main thread is also the chat view (leaves the full board).
+              if (boardOpen) onroomhome?.();
+              open("main");
+            }}
+          >
+            <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
+            {#if dm}<Icon
+                icon={MessageCircle01}
+                size={16}
+                class="tw:shrink-0 tw:text-muted-foreground"
+              /><span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                >{vb.t("Conversa")}</span
+              >{:else}<RoomMark
+                title={room.book.title}
+                src={roomIcon}
+                class="tw:min-[901px]:hidden"
+              /><Icon
+                icon={MessageCircle01}
+                size={16}
+                class="tw:hidden tw:shrink-0 tw:text-muted-foreground tw:min-[901px]:block"
+              />
+              <span class="tw:min-w-0 tw:flex-1 tw:truncate"
+                ><span class="tw:min-[901px]:hidden">{room.book.title}</span
+                ><span class="tw:hidden tw:min-[901px]:inline"
+                  >{vb.t("Sala principal")}</span
+                ></span
+              >{/if}
+            <WaitBadge
+              waits={vb.waitsIn("main")}
+              label={(n) => vb.t("{n} coisas esperando você", { n })}
+              taskLabel={vb.t("Tarefa sua pendente")}
+            />
+            <span
+              class="tw:shrink-0 tw:text-xs tw:font-normal tw:tabular-nums tw:text-muted-foreground"
+              >{messageCount(room, "main")}</span
             >
-          </Tooltip>
+          </button>
           <IconButton
             label={vb.t("Renomear")}
             size="icon-xs"
@@ -365,7 +347,10 @@
           >
         </div>
         {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
-          <div data-room-views class="tw:-mt-3 tw:flex tw:shrink-0 tw:flex-col">
+          <div
+            data-room-views
+            class="tw:-mt-2.5 tw:flex tw:shrink-0 tw:flex-col tw:gap-0.5"
+          >
             {#if oninbox}<button
                 type="button"
                 data-native-inbox-toggle
