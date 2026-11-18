@@ -21,6 +21,9 @@
   import RadioGroupItem from "../../lib/studio/RadioGroupItem.svelte";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
+  import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
+  import PaneHeader from "../../lib/components/PaneHeader.svelte";
+  import { paneIcons } from "../documents/paneIcons";
   let { props }: { props: AppsProps } = $props();
   const owner = untrack(() => props.owner),
     view = untrack(() => owner.state),
@@ -39,6 +42,8 @@
     event.currentTarget.isConnected;
   const busy = $derived($view.pending || $view.unconfirmed),
     apps = $derived(roomApps(props.room)),
+    total = $derived(apps.length + ($view.connections?.length ?? 0)),
+    empty = $derived(!total && !$view.loading && !$view.error),
     target = $derived($view.target),
     identity = $derived(
       target ? appIdentity(props.room, $view.connections || [], target) : null,
@@ -200,19 +205,31 @@
           >
         </div>{/if}
     {:else}
-      <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
-        <h2
-          class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-lg"
-        >
-          Apps
-        </h2>
-        {#if !$view.form}<Button
-            variant="outline"
-            onclick={(event) => {
-              if (live(event)) owner.form(true);
-            }}>{props.t("Conectar MCP")}</Button
-          >{/if}
-      </div>
+      {#snippet connect(small: boolean)}<Button
+          variant={small ? "outline" : "default"}
+          size={small ? "sm" : "default"}
+          onclick={(event) => {
+            if (live(event)) owner.form(true);
+          }}>{props.t("Conectar app")}</Button
+        >{/snippet}
+      {#snippet connectSmall()}{@render connect(true)}{/snippet}
+      {#snippet connectLarge()}{@render connect(false)}{/snippet}
+      <PaneHeader
+        title="Apps"
+        count={total}
+        action={!empty && !$view.form ? connectSmall : undefined}
+      />
+      {#if empty && !$view.form}<PaneEmpty
+          icon={paneIcons.apps}
+          title={props.t("Nenhum app ainda")}
+          description={props.t(
+            "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu Claude pode fazer uma, ou você conecta um app que já usa.",
+          )}
+          action={connectLarge}
+          ask={props.t("Faz um app de enquete pra esta sala, pra gente votar.")}
+          askLabel={props.t("Peça pro seu Claude")}
+          onask={props.ask}
+        />{/if}
       {#if $view.form}<form
           class="tw:space-y-3 tw:rounded-control tw:border tw:border-border tw:p-3"
           onsubmit={(event) => {
@@ -299,18 +316,18 @@
             if (live(event)) owner.review();
           }}>{props.t("Revisar e tentar de novo")}</Button
         >{/if}
-      <section
-        class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
-      >
-        <div class="tw:flex tw:items-center tw:gap-2">
-          <h3
-            class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
-          >
-            {props.t("Esta sala")}
-          </h3>
-          <span class="tw:text-xs tw:text-muted-foreground">apps/*.html</span>
-        </div>
-        {#if apps.length}<div class="tw:grid tw:gap-2">
+      {#if apps.length}
+        <section
+          class="tw:space-y-2 tw:rounded-control tw:border tw:border-border tw:p-3"
+        >
+          <div class="tw:flex tw:items-center tw:gap-2">
+            <h3
+              class="tw:m-0 tw:font-sans tw:font-semibold tw:tracking-normal tw:text-base"
+            >
+              {props.t("Esta sala")}
+            </h3>
+          </div>
+          <div class="tw:grid tw:gap-2">
             {#each apps as app (app.file.id)}<Button
                 variant="outline"
                 class="tw:h-auto tw:justify-start tw:whitespace-normal tw:text-left"
@@ -327,12 +344,8 @@
                   ></span
                 ></Button
               >{/each}
-          </div>{:else}<p class="tw:text-xs tw:text-muted-foreground">
-            {props.t(
-              "Um app da sala é um arquivo HTML em apps/ que usa a sala pelo iframe: lê o doc, as tarefas e as mensagens, posta e mexe nas tarefas (com o seu OK). Peça pro seu agent: “faz um app apps/enquete.html pra esta sala”.",
-            )}
-          </p>{/if}
-      </section>
+          </div>
+        </section>{/if}
       {#each $view.connections || [] as item (item.id)}{@const all =
           connectionApps(item)}{@const screens = all.filter(
           (app) => app.screen,
