@@ -125,6 +125,39 @@
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
+  /** How many epics fit before the sidebar's foot with "Ver mais", "Novo épico" and the next section's title still
+   *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
+  let fit = $state(EPIC_PAGE);
+  let list = $state<HTMLElement | null>(null);
+  function measure() {
+    const side = list?.closest("[data-native-room-sidebar]");
+    const foot = side?.querySelector("[data-sidebar-self]");
+    if (!list || !side || !foot?.getClientRects().length) {
+      fit = EPIC_PAGE;
+      return;
+    }
+    const box = side.getBoundingClientRect();
+    const top = list.getBoundingClientRect().top - box.top + side.scrollTop;
+    const bottom = foot.getBoundingClientRect().top - box.top;
+    const pitch =
+      (list.firstElementChild?.getBoundingClientRect().height || 36) + 2;
+    fit = Math.min(
+      EPIC_PAGE,
+      Math.max(3, Math.floor((bottom - top - 132) / pitch)),
+    );
+  }
+  $effect(() => {
+    const side = list?.closest("[data-native-room-sidebar]");
+    if (!side) return;
+    // After layout, and whenever the sidebar or its foot change size (window, a section growing above).
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(side);
+    for (const node of side.querySelectorAll(
+      "[data-sidebar-self], [data-room-views]",
+    ))
+      observer.observe(node);
+    return () => observer.disconnect();
+  });
   const archived = $derived(archivedEpics(orderedEpics, room.messages));
   const production = $derived(productionStatuses(room));
   const mode = $derived(
@@ -145,8 +178,11 @@
   const allRows = $derived(
     visibleEpics(forest, $navigation.closed, workingEpics, true),
   );
+  const page = $derived(
+    Math.max(3, fit - allRows.filter((row) => row.epic.pinned).length),
+  );
   const hiddenCount = $derived(
-    Math.max(0, allRows.filter((row) => !row.epic.pinned).length - EPIC_PAGE),
+    Math.max(0, allRows.filter((row) => !row.epic.pinned).length - page),
   );
   const rows = $derived.by(() => {
     if (showAll || !hiddenCount) return allRows;
@@ -154,7 +190,7 @@
     return allRows.filter(
       (row) =>
         row.epic.pinned ||
-        shown++ < EPIC_PAGE ||
+        shown++ < page ||
         (!selectionDisabled && row.epic.id === thread),
     );
   });
@@ -359,6 +395,7 @@
   {#snippet panel(value: string)}
     {#if value === mode}
       <ul
+        bind:this={list}
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
         class="m-0 flex list-none flex-col gap-0.5 p-0"
       >
