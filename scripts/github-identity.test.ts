@@ -5,6 +5,7 @@ import { auth } from "../src/auth";
 test("GitHub callback refuses malformed identity and preserves safe native continuation", async () => {
   const calls: string[] = [],
     writes: unknown[][] = [],
+    stored: string[] = [],
     pending: Promise<unknown>[] = [];
   const env = {
     SESSION_SECRET: "controlled-github-session",
@@ -13,11 +14,17 @@ test("GitHub callback refuses malformed identity and preserves safe native conti
     DB: {
       prepare: () => ({
         bind: (...values: unknown[]) => ({
+          first: async () => null,
           run: async () => {
             writes.push(values);
           },
         }),
       }),
+    },
+    FILES: {
+      put: async (key: string) => {
+        stored.push(key);
+      },
     },
   };
   let emails: unknown = [
@@ -33,6 +40,13 @@ test("GitHub callback refuses malformed identity and preserves safe native conti
       ) => {
         const url = String(input);
         calls.push(url);
+        if (url.startsWith("https://avatars.githubusercontent.com/")) {
+          // A public picture: the provider token never goes along.
+          expect(new Headers(init?.headers).get("authorization")).toBeNull();
+          return new Response(new Uint8Array([137, 80, 78, 71]), {
+            headers: { "content-type": "image/png" },
+          });
+        }
         if (url === "https://github.com/login/oauth/access_token")
           return Response.json(
             { access_token: "synthetic-token" },
@@ -43,7 +57,11 @@ test("GitHub callback refuses malformed identity and preserves safe native conti
         );
         if (url.endsWith("/user/emails")) return Response.json(emails);
         if (url.endsWith("/user"))
-          return Response.json({ name: null, login: "fixture-login" });
+          return Response.json({
+            name: null,
+            login: "fixture-login",
+            avatar_url: "https://avatars.githubusercontent.com/u/1?v=4",
+          });
         throw Error("Unexpected provider URL");
       },
       { preconnect: originalFetch.preconnect },
@@ -73,6 +91,12 @@ test("GitHub callback refuses malformed identity and preserves safe native conti
     expect(writes.some((values) => values.includes("fixture-login"))).toBe(
       true,
     );
+    // The GitHub picture becomes the avatar (no picture of their own yet).
+    expect(calls).toContain(
+      "https://avatars.githubusercontent.com/u/1?v=4&s=256",
+    );
+    expect(stored).toEqual(["avatars/fixture@example.test"]);
+    expect(writes.some((values) => values.includes("github"))).toBe(true);
     emails = [{ email: { value: "bad" }, primary: true, verified: true }];
     const before = writes.length;
     response = await request();

@@ -11,6 +11,7 @@ const Emails = z.array(
 const Profile = z.object({
   name: z.optional(z.nullable(z.string())),
   login: z.optional(z.string()),
+  avatar_url: z.optional(z.nullable(z.string())),
 });
 
 /** Provider JSON stays unknown until validated. Identity comes only from the
@@ -25,6 +26,11 @@ export function githubEmail(value: unknown): string | null {
     ? (result.data.find((email) => email.primary && email.verified)?.email ??
         null)
     : null;
+}
+/** The profile picture URL, unchecked: `providerAvatarUrl` decides whether it's one of GitHub's picture hosts. */
+export function githubAvatar(value: unknown): string | null {
+  const result = Profile.safeParse(value);
+  return result.success ? (result.data.avatar_url ?? null) : null;
 }
 export function githubName(value: unknown): string {
   const result = Profile.safeParse(value);
