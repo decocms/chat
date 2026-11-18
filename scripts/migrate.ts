@@ -68,15 +68,19 @@ async function dumpTables(base: string, token: string, prefix: string, label: st
       if (page.next === null) break;
       after = page.next;
     }
-    if (tables[t.name].length !== t.rows) console.warn(`  ${label}.${t.name}: counted ${t.rows}, read ${tables[t.name].length} (it changed while exporting)`);
+    // The source stays live, so a table can grow between the count and the read. The dump keeps what it read:
+    // that is what the import must match.
+    if (tables[t.name].length !== t.rows) console.log(`  ${label}.${t.name}: counted ${t.rows}, read ${tables[t.name].length} (it changed while exporting)`);
   }
-  return { info, tables };
+  return { info: { ...info, tables: info.tables.map((t) => ({ ...t, rows: tables[t.name].length })) }, tables };
 }
 async function loadTables(base: string, token: string, prefix: string, tables: Record<string, Row[]>) {
   for (const [table, rows] of Object.entries(tables))
     // Even an empty table is sent once (reset), so importing again over a half-done copy comes out right.
     for (let i = 0; i === 0 || i < rows.length; i += PAGE) await post(base, token, `${prefix}/rows`, { table, rows: rows.slice(i, i + PAGE), reset: i === 0 });
 }
+/** The counts of what a dump holds (a dump from before this fix kept the counts from before the read). */
+const heldCounts = (d: { info: Info; tables: Record<string, Row[]> }): Info => ({ ...d.info, tables: d.info.tables.map((t) => ({ ...t, rows: d.tables[t.name]?.length ?? 0 })) });
 /** The tables whose counts differ between two snapshots (ignoring tables empty on both sides). */
 function diffCounts(a: Info, b: Info) {
   const m = new Map(b.tables.map((t) => [t.name, t.rows]));
@@ -124,7 +128,7 @@ async function importAll(to = need("to"), dir = need("dir")) {
   if (!done.has("d1")) {
     const d1 = JSON.parse(await readFile(join(dir, "d1.json"), "utf8")) as { info: Info; tables: Record<string, Row[]> };
     await loadTables(to, token, "/migrate/d1", d1.tables);
-    const diff = diffCounts(d1.info, await get<Info>(to, token, "/migrate/d1/info"));
+    const diff = diffCounts(heldCounts(d1), await get<Info>(to, token, "/migrate/d1/info"));
     if (diff.length) die(`d1 doesn't match: ${diff.join(", ")}`);
     await appendFile(log, "d1\n");
     console.log("d1 ok");
@@ -137,7 +141,7 @@ async function importAll(to = need("to"), dir = need("dir")) {
     const dump = JSON.parse(await readFile(join(dir, "rooms", f), "utf8")) as Dump;
     if (done.has(dump.id)) return void n++;
     await loadTables(to, token, `/migrate/room/${dump.id}`, dump.tables);
-    const diff = diffCounts(dump.info, await post<Info>(to, token, `/migrate/room/${dump.id}/finish`, { seq: dump.info.seq }));
+    const diff = diffCounts(heldCounts(dump), await post<Info>(to, token, `/migrate/room/${dump.id}/finish`, { seq: dump.info.seq }));
     if (diff.length) bad.push(`${dump.id}: ${diff.join(", ")}`);
     else await appendFile(log, dump.id + "\n");
     if (++n % 25 === 0 || n === files.length) console.log(`rooms: ${n}/${files.length}`);
