@@ -355,3 +355,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium
 - Undo: Remove the `previews` block, turn off preview builds and delete the three `chat-preview*` resources.
 - Status: open
+
+### 2026-11-18 · feat/deco-brand-icon · The PNG app icons are full-bleed
+- Agent: claude-opus-5-5
+- Context: The human asked for the deco favicon and brand icon from `~/code/studio`. The deco `favicon.svg` has rounded corners. iOS and Android put their own mask on an app icon.
+- Decision: `public/favicon.svg` is the deco favicon, unchanged. `apple-touch-icon.png`, `icon-192.png` and `icon-512.png` have no rounded corners: `og/icon.html` fills the corners with the deco lime (`#d0ec1a`). The in-app brand icon stays `/favicon.svg`.
+- Other options: Keep the rounded corners in the PNGs (the system shows white corners). Add a separate `deco-mark.svg` without the background for the app.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open
