@@ -282,7 +282,7 @@
               class="tw:size-4"
             /><span
               class="tw:absolute tw:-right-0.5 tw:-bottom-0.5 tw:size-2.5 tw:rounded-full tw:ring-2 tw:ring-sidebar {m.online
-                ? 'tw:bg-success'
+                ? 'tw:bg-brand'
                 : 'tw:bg-warning'}"
             ></span></button
           ><span class="tw:grid tw:min-w-0 tw:flex-1"
