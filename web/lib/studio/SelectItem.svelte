@@ -2,7 +2,6 @@
   import { Select as SelectPrimitive } from "bits-ui";
   import type { Snippet } from "svelte";
   import Icon from "./Icon.svelte";
-  import { Check } from "./icons";
   import { cn } from "./utils";
 
   /** `description` is a secondary line under the option; it stays out of the trigger, which shows `label` (or the item's text). */
@@ -34,7 +33,7 @@
     {#if !hideCheck}
       <span class="absolute right-2 flex size-3.5 items-center justify-center">
         {#if selected}
-          <span aria-hidden="true"><Icon icon={Check} class="size-4" /></span>
+          <span aria-hidden="true"><Icon icon="check" class="size-4" /></span>
         {/if}
       </span>
     {/if}

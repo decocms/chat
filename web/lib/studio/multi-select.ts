@@ -1,8 +1,8 @@
-import type { IconNode } from "./icons";
+import type { IconName } from "./icons";
 
 /** `icon` is an icon from `./icons`, where React took a component. */
 export interface Option {
   label: string;
   value: string;
-  icon?: IconNode;
+  icon?: IconName;
 }

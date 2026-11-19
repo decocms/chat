@@ -24,21 +24,6 @@
   import Icon from "../../../lib/studio/Icon.svelte";
   import IconButton from "../../../lib/studio/IconButton.svelte";
   import TooltipProvider from "../../../lib/studio/TooltipProvider.svelte";
-  import {
-    BookOpen01,
-    CheckCircle,
-    CornerDownRight,
-    File02,
-    Globe02,
-    Image01,
-    Microphone01,
-    Plus,
-    Stars01,
-    Target04,
-    Telescope,
-    Trash01,
-    Zap,
-  } from "../../../lib/studio/icons";
   import Matrix from "../Matrix.svelte";
 
   let { story }: { story: string } = $props();
@@ -58,17 +43,17 @@
   <ComposerToolbar>
     <ComposerGroup>
       <IconButton label="Add files, tools and modes" variant="ghost">
-        <Icon icon={Plus} />
+        <Icon icon="plus" />
       </IconButton>
       {@render start?.()}
     </ComposerGroup>
     <ComposerGroup>
       <ComposerModel>
-        {#snippet icon()}<Icon icon={Zap} />{/snippet}
+        {#snippet icon()}<Icon icon="zap" />{/snippet}
         Smart
       </ComposerModel>
       <IconButton label="Voice input">
-        <Icon icon={Microphone01} />
+        <Icon icon="microphone-01" />
       </IconButton>
       {#if send}{@render send()}{:else}<ComposerSend label="Send" />{/if}
     </ComposerGroup>
@@ -76,10 +61,10 @@
 {/snippet}
 
 {#snippet sendIdle()}<ComposerSend label="Send" state="idle" />{/snippet}
-{#snippet planIcon()}<Icon icon={BookOpen01} />{/snippet}
-{#snippet researchIcon()}<Icon icon={Telescope} />{/snippet}
-{#snippet webIcon()}<Icon icon={Globe02} />{/snippet}
-{#snippet imageIcon()}<Icon icon={Image01} />{/snippet}
+{#snippet planIcon()}<Icon icon="book-open-01" />{/snippet}
+{#snippet researchIcon()}<Icon icon="telescope" />{/snippet}
+{#snippet webIcon()}<Icon icon="globe-02" />{/snippet}
+{#snippet imageIcon()}<Icon icon="image-01" />{/snippet}
 
 {#snippet modes()}
   <ComposerMode tone="agent" icon={planIcon} dismissLabel="Turn off plan mode"
@@ -146,14 +131,14 @@
           <div
             class="text-muted-foreground flex items-center gap-2 px-2 py-1 text-xs"
           >
-            <Icon icon={CheckCircle} class="text-success size-3.5" />
+            <Icon icon="check-circle" class="text-success size-3.5" />
             <span class="flex-1">Building the banner · 3 of 5</span>
           </div>
           <div
             class="flex items-center gap-2 rounded-[0.625rem] px-2 py-1 text-xs"
           >
             <Icon
-              icon={CornerDownRight}
+              icon="corner-down-right"
               class="text-muted-foreground size-3.5"
             />
             <span class="flex-1 truncate"
@@ -161,7 +146,7 @@
             >
             <Button size="xs" variant="ghost">Send now</Button>
             <IconButton label="Remove from queue">
-              <Icon icon={Trash01} />
+              <Icon icon="trash-01" />
             </IconButton>
           </div>
         </ComposerTray>
@@ -189,13 +174,13 @@
       <div class="flex flex-col gap-2">
         <ComposerSuggestions class="mx-3">
           <ComposerSuggestion active title="Mobile conversion" meta="Goal">
-            {#snippet icon()}<Icon icon={Target04} />{/snippet}
+            {#snippet icon()}<Icon icon="target-04" />{/snippet}
           </ComposerSuggestion>
           <ComposerSuggestion title="Q3 campaign brief.pdf" meta="File">
-            {#snippet icon()}<Icon icon={File02} />{/snippet}
+            {#snippet icon()}<Icon icon="file-02" />{/snippet}
           </ComposerSuggestion>
           <ComposerSuggestion title="Storefront" meta="Project">
-            {#snippet icon()}<Icon icon={Globe02} />{/snippet}
+            {#snippet icon()}<Icon icon="globe-02" />{/snippet}
           </ComposerSuggestion>
         </ComposerSuggestions>
         <Composer>
@@ -215,7 +200,7 @@
           {@render toolbar(undefined, sendIdle)}
         </Composer>
         <ComposerFooter>
-          <Icon icon={Stars01} />
+          <Icon icon="stars-01" />
           <span class="flex-1"
             >Connect your tools so the agent can act on them</span
           >
@@ -225,13 +210,13 @@
     {:else if story === "compact"}
       <Composer size="compact">
         <IconButton label="Add files">
-          <Icon icon={Plus} />
+          <Icon icon="plus" />
         </IconButton>
         <ComposerInput placeholder="Ask about this file" />
         <ComposerToolbar>
           <ComposerGroup>
             <IconButton label="Voice input">
-              <Icon icon={Microphone01} />
+              <Icon icon="microphone-01" />
             </IconButton>
             <ComposerSend label="Send" />
           </ComposerGroup>

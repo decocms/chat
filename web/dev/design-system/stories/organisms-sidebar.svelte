@@ -11,23 +11,7 @@
   import Avatar from "../../../lib/studio/Avatar.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
   import IconButton from "../../../lib/studio/IconButton.svelte";
-  import {
-    BarChartSquare02,
-    BookOpen01,
-    ChevronDown,
-    ChevronSelectorVertical,
-    Columns03,
-    Folder,
-    Globe02,
-    Home02,
-    Inbox01,
-    MessageCircle01,
-    Plus,
-    Rocket01,
-    Settings02,
-    Zap,
-    type IconNode,
-  } from "../../../lib/studio/icons";
+  import type { IconName } from "../../../lib/studio/icons";
   import ProjectIcon from "../../../lib/studio/ProjectIcon.svelte";
   import Sidebar from "../../../lib/studio/Sidebar.svelte";
   import SidebarContent from "../../../lib/studio/SidebarContent.svelte";
@@ -48,32 +32,32 @@
   let { story }: { story: string } = $props();
 
   type Color = "blue" | "purple" | "green" | "red";
-  type NavItem = { label: string; icon: IconNode; active?: boolean };
+  type NavItem = { label: string; icon: IconName; active?: boolean };
   type Project = {
     name: string;
     color: Color;
-    icon: IconNode;
+    icon: IconName;
     tasks?: string[];
     waiting?: boolean;
   };
 
   const navItems: NavItem[] = [
-    { label: "Home", icon: Home02, active: true },
-    { label: "Deco Score", icon: BarChartSquare02 },
-    { label: "Board", icon: Columns03 },
-    { label: "Library", icon: Folder },
-    { label: "Settings", icon: Settings02 },
+    { label: "Home", icon: "home-02", active: true },
+    { label: "Deco Score", icon: "bar-chart-square-02" },
+    { label: "Board", icon: "columns-03" },
+    { label: "Library", icon: "folder" },
+    { label: "Settings", icon: "settings-02" },
   ];
 
   const projects: Project[] = [
     {
       name: "Storefront",
       color: "blue",
-      icon: Globe02,
+      icon: "globe-02",
       tasks: ["Fix the checkout banner", "Alt text on product pages"],
     },
-    { name: "Blog", color: "purple", icon: BookOpen01, tasks: [] },
-    { name: "Sales app", color: "green", icon: Zap, tasks: [] },
+    { name: "Blog", color: "purple", icon: "book-open-01", tasks: [] },
+    { name: "Sales app", color: "green", icon: "zap", tasks: [] },
   ];
 
   const orgs = [
@@ -83,24 +67,24 @@
   ];
 
   const destinations: NavItem[] = [
-    { label: "Today", icon: Home02, active: true },
-    { label: "Tasks", icon: Columns03 },
-    { label: "Agents", icon: Zap },
-    { label: "Library", icon: Folder },
+    { label: "Today", icon: "home-02", active: true },
+    { label: "Tasks", icon: "columns-03" },
+    { label: "Agents", icon: "zap" },
+    { label: "Library", icon: "folder" },
   ];
 
   const folders: { name: string; projects: Project[] }[] = [
     {
       name: "Pinned",
       projects: [
-        { name: "Storefront", color: "blue", icon: Globe02, waiting: true },
+        { name: "Storefront", color: "blue", icon: "globe-02", waiting: true },
       ],
     },
     {
       name: "Marketing",
       projects: [
-        { name: "Blog", color: "purple", icon: BookOpen01 },
-        { name: "Landing pages", color: "red", icon: Rocket01 },
+        { name: "Blog", color: "purple", icon: "book-open-01" },
+        { name: "Landing pages", color: "red", icon: "rocket-01" },
       ],
     },
   ];
@@ -127,7 +111,7 @@
         label="New chat"
         class="group-data-[state=collapsed]/sidebar:hidden"
       >
-        <Icon icon={MessageCircle01} />
+        <Icon icon="message-circle-01" />
       </IconButton>
     </SidebarHeader>
     <SidebarContent class="gap-6 px-2 pt-3 pb-2">
@@ -185,7 +169,7 @@
           {/each}
           <SidebarMenuItem>
             <SidebarMenuButton class="text-muted-foreground">
-              <Icon icon={Plus} />
+              <Icon icon="plus" />
               <span>Add project</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -207,7 +191,7 @@
             Maya Chen
           </span>
         </button>
-        <IconButton label="Inbox"><Icon icon={Inbox01} /></IconButton>
+        <IconButton label="Inbox"><Icon icon="inbox-01" /></IconButton>
       </div>
     </SidebarFooter>
   </Sidebar>
@@ -259,7 +243,7 @@
       </div>
     {/each}
     <IconButton label="New organization" size="icon" class="size-9">
-      <Icon icon={Plus} />
+      <Icon icon="plus" />
     </IconButton>
   </nav>
 {/snippet}
@@ -273,12 +257,13 @@
       >
         <span class="truncate">Acme</span>
         <Icon
-          icon={ChevronSelectorVertical}
+          icon="chevron-selector-vertical"
           class="text-muted-foreground size-3.5"
         />
       </button>
       <SidebarTrigger />
-      <IconButton label="New chat"><Icon icon={MessageCircle01} /></IconButton>
+      <IconButton label="New chat"><Icon icon="message-circle-01" /></IconButton
+      >
     </SidebarHeader>
     <SidebarContent class="gap-6 px-2 pt-3 pb-2">
       <SidebarMenu class="gap-1">
@@ -297,7 +282,7 @@
             <span class="text-muted-foreground text-xs font-medium">
               {folder.name}
             </span>
-            <Icon icon={ChevronDown} class="text-muted-foreground size-3" />
+            <Icon icon="chevron-down" class="text-muted-foreground size-3" />
           </div>
           <SidebarMenu class="gap-1">
             {#each folder.projects as project (project.name)}
@@ -331,8 +316,8 @@
             Maya Chen
           </span>
         </button>
-        <IconButton label="Settings"><Icon icon={Settings02} /></IconButton>
-        <IconButton label="Inbox"><Icon icon={Inbox01} /></IconButton>
+        <IconButton label="Settings"><Icon icon="settings-02" /></IconButton>
+        <IconButton label="Inbox"><Icon icon="inbox-01" /></IconButton>
       </div>
     </SidebarFooter>
   </Sidebar>

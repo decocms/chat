@@ -3,7 +3,6 @@
   import Button from "./Button.svelte";
   import { composerLevelHeight } from "./composer";
   import Icon from "./Icon.svelte";
-  import { Check, X } from "./icons";
   import { cn } from "./utils";
 
   /** Replaces the toolbar while recording: the live levels, cancel and confirm. */
@@ -53,9 +52,9 @@
     aria-label={cancelLabel}
     onclick={onCancel}
   >
-    <Icon icon={X} />
+    <Icon icon="x" />
   </Button>
   <Button size="icon" aria-label={confirmLabel} onclick={onConfirm}>
-    <Icon icon={Check} />
+    <Icon icon="check" />
   </Button>
 </div>

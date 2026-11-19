@@ -29,7 +29,6 @@
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Check, DotsGrid, Inbox01 } from "../../lib/studio/icons";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
@@ -287,7 +286,7 @@
       >
       <b class="min-w-0 flex-1 truncate font-medium">{text("setup")}</b>
       <Button size="sm" class="shrink-0" onclick={copy}
-        >{#if copyStatus === "copied"}<Icon icon={Check} size={14} />{/if}<span
+        >{#if copyStatus === "copied"}<Icon icon="check" size={14} />{/if}<span
           class="max-md:hidden"
           >{text(copyStatus === "copied" ? "copied" : "deskCopyAgent")}</span
         ><span class="md:hidden"
@@ -542,7 +541,7 @@
                 onclick={() => onsearch()}
                 ><span
                   class="flex size-16 items-center justify-center rounded-[1.125rem] bg-muted text-muted-foreground"
-                  ><Icon icon={DotsGrid} size={24} /></span
+                  ><Icon icon="dots-grid" size={24} /></span
                 ><span class="w-full truncate text-center text-xs leading-4"
                   >{text("allRooms")}</span
                 ></button
@@ -644,7 +643,7 @@
                     ></span
                   ><span
                     class="flex min-w-0 items-center gap-2 text-xs leading-5 text-muted-foreground"
-                    >{#if task}<Icon icon={Check} size={14} /><span
+                    >{#if task}<Icon icon="check" size={14} /><span
                         class="min-w-0 flex-1 truncate">{text("deskTask")}</span
                       >{:else if claudeWait(wait)}<AgentMark
                         size="2xs"

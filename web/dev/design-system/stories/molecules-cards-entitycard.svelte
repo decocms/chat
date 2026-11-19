@@ -14,7 +14,6 @@
   import EntityCardTitle from "../../../lib/studio/EntityCardTitle.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
   import IconButton from "../../../lib/studio/IconButton.svelte";
-  import { DotsHorizontal, Globe02 } from "../../../lib/studio/icons";
   import ProjectIcon from "../../../lib/studio/ProjectIcon.svelte";
   import TooltipProvider from "../../../lib/studio/TooltipProvider.svelte";
   import Matrix from "../Matrix.svelte";
@@ -25,7 +24,7 @@
 </script>
 
 {#snippet projectIcon()}
-  <ProjectIcon color="blue"><Icon icon={Globe02} /></ProjectIcon>
+  <ProjectIcon color="blue"><Icon icon="globe-02" /></ProjectIcon>
 {/snippet}
 
 {#if story === "project"}
@@ -46,7 +45,8 @@
           <Avatar fallback="Slack" size="sm" />
         {/snippet}
         {#snippet trailing()}
-          <IconButton label="Options"><Icon icon={DotsHorizontal} /></IconButton
+          <IconButton label="Options"
+            ><Icon icon="dots-horizontal" /></IconButton
           >
         {/snippet}
       </EntityCardHeader>

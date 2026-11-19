@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ComponentProps } from "svelte";
   import Icon from "./Icon.svelte";
-  import { ChevronLeft } from "./icons";
   import PaginationLink from "./PaginationLink.svelte";
   import { cn } from "./utils";
 
@@ -19,6 +18,6 @@
   {...rest}
   class={cn("gap-1 px-2.5 md:pl-2.5", className)}
 >
-  <Icon icon={ChevronLeft} />
+  <Icon icon="chevron-left" />
   <span class="hidden md:block">Previous</span>
 </PaginationLink>

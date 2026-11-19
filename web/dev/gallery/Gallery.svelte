@@ -45,7 +45,6 @@
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
-  import { Moon01, Plus, SearchMd, Sun } from "../../lib/studio/icons";
   import Field from "../../lib/components/Field.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -115,7 +114,7 @@
           label={theme === "light" ? "Use dark theme" : "Use light theme"}
           variant="outline"
           onclick={() => (theme = theme === "light" ? "dark" : "light")}
-          ><Icon icon={theme === "light" ? Moon01 : Sun} /></IconButton
+          ><Icon icon={theme === "light" ? "moon-01" : "sun"} /></IconButton
         ><Badge>{theme}</Badge>
       </div>
     </header>
@@ -141,14 +140,14 @@
             ><Spinner size="xs" />Saving</Button
           ><Button size="sm" variant="outline">Small</Button><IconButton
             label="Add item"
-            onclick={() => (count += 1)}><Icon icon={Plus} /></IconButton
+            onclick={() => (count += 1)}><Icon icon="plus" /></IconButton
           ><Tooltip>
             <TooltipTrigger>
               {#snippet child({ props })}<Button
                   {...props}
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Search rooms"><Icon icon={SearchMd} /></Button
+                  aria-label="Search rooms"><Icon icon="search-md" /></Button
                 >{/snippet}
             </TooltipTrigger>
             <TooltipContent>Search rooms</TooltipContent>

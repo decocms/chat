@@ -18,7 +18,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Plus, UserPlus01, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
@@ -266,7 +265,7 @@
           : vb.t("Remover {email}", { email })}
         disabled={!!$view.pending[email]}
         onclick={(event) => confirm(email, "remove", event.currentTarget)}
-        ><Icon icon={X} /></IconButton
+        ><Icon icon="x" /></IconButton
       >{/if}
   </div>
   {@render agents?.(email)}
@@ -315,7 +314,7 @@
             disabled={!!$view.pending[access.email]}
             onclick={(event) =>
               confirm(access.email, "deny", event.currentTarget)}
-            ><Icon icon={X} /></IconButton
+            ><Icon icon="x" /></IconButton
           >
         </div>{/each}
     </div>{/if}
@@ -326,7 +325,7 @@
           label={vb.t("Convidar")}
           data-invite-toggle
           bind:ref={toggle}
-          onclick={openInvite}><Icon icon={Plus} /></IconButton
+          onclick={openInvite}><Icon icon="plus" /></IconButton
         >{/if}{/snippet}
   </SectionHeader>
   {#each everyone as email (email)}{@render member(email)}{/each}
@@ -343,7 +342,7 @@
       onclick={openInvite}
     >
       <span class="flex size-5 shrink-0 items-center justify-center"
-        ><Icon icon={UserPlus01} size={16} /></span
+        ><Icon icon="user-plus-01" size={16} /></span
       >
       <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
     </button>{/if}

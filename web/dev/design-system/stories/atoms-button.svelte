@@ -6,7 +6,6 @@
   import AgentAvatar from "../../../lib/studio/AgentAvatar.svelte";
   import Button from "../../../lib/studio/Button.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { ArrowRight, Plus, Trash01 } from "../../../lib/studio/icons";
   import Matrix from "../Matrix.svelte";
 
   let { story }: { story: string } = $props();
@@ -50,13 +49,13 @@
     <Button size="sm">Small</Button>
     <Button size="default">Default</Button>
     <Button size="lg">Large</Button>
-    <Button size="icon" aria-label="Add"><Icon icon={Plus} /></Button>
+    <Button size="icon" aria-label="Add"><Icon icon="plus" /></Button>
   </div>
 {:else if story === "with-icon"}
   <div class="flex flex-wrap items-center gap-2">
-    <Button><Icon icon={Plus} /> New item</Button>
-    <Button variant="outline">Continue <Icon icon={ArrowRight} /></Button>
-    <Button variant="destructive"><Icon icon={Trash01} /> Delete</Button>
+    <Button><Icon icon="plus" /> New item</Button>
+    <Button variant="outline">Continue <Icon icon="arrow-right" /></Button>
+    <Button variant="destructive"><Icon icon="trash-01" /> Delete</Button>
   </div>
 {:else if story === "agent"}
   <div class="flex items-center gap-2">
@@ -95,7 +94,7 @@
   >
     {#snippet cell(variant, index)}
       <Button {variant} size={SIZES[index]}
-        ><Icon icon={Plus} /> New task</Button
+        ><Icon icon="plus" /> New task</Button
       >
     {/snippet}
   </Matrix>

@@ -12,7 +12,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Pencil01 } from "../../lib/studio/icons";
   let { owner, props }: { owner: DocumentSession; props: DocumentProps } =
     $props();
   const view = untrack(() => owner.state);
@@ -336,7 +335,7 @@
               owner.mode($view.mode === "edit" ? "preview" : "edit");
           }}
           >{#if $view.mode !== "edit"}<Icon
-              icon={Pencil01}
+              icon="pencil-01"
               size={16}
             />{/if}{$view.mode === "edit"
             ? en

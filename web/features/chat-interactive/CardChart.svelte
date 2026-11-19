@@ -9,7 +9,6 @@
   import DialogTrigger from "../../lib/studio/DialogTrigger.svelte";
   import { buttonVariants } from "../../lib/studio/button";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { BarChartSquare02 } from "../../lib/studio/icons";
   let {
     chart,
     vb,
@@ -145,7 +144,7 @@
 <div data-card-chart class="space-y-2">
   {#if inline}{@render figure()}{:else}<Dialog {open} {onOpenChange}>
       <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
-        ><Icon icon={BarChartSquare02} size={16} />{chart.title ||
+        ><Icon icon="bar-chart-square-02" size={16} />{chart.title ||
           vb.t("Gráfico")} ·
         {vb.t("Abrir em tela cheia")}</DialogTrigger
       >

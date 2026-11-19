@@ -15,15 +15,6 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
-  import {
-    ArrowLeft,
-    Inbox01,
-    LayoutAlt01,
-    LayoutLeft,
-    MessageCircle01,
-    Pencil01,
-    Plus,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import Count from "../../lib/components/Count.svelte";
@@ -139,14 +130,14 @@
       tooltipSide="right"
       size="icon"
       aria-expanded="false"
-      onclick={ontogglerail}><Icon icon={LayoutLeft} /></IconButton
+      onclick={ontogglerail}><Icon icon="layout-left" /></IconButton
     >
     <IconButton
       href="/"
       data-nav
       label={vb.t("Suas salas")}
       tooltipSide="right"
-      size="icon"><Icon icon={ArrowLeft} /></IconButton
+      size="icon"><Icon icon="arrow-left" /></IconButton
     >
     {#if oninbox}<IconButton
         data-inbox-toggle={onboard ? "" : undefined}
@@ -158,7 +149,7 @@
         size="icon"
         onclick={(event) => {
           if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-        }}><Icon icon={Inbox01} /></IconButton
+        }}><Icon icon="inbox-01" /></IconButton
       >{/if}{#if onboard}<IconButton
         data-board-toggle
         variant={boardOpen ? "secondary" : "ghost"}
@@ -168,7 +159,7 @@
         size="icon"
         onclick={(event) => {
           if (event.currentTarget.isConnected) onboard?.();
-        }}><Icon icon={LayoutAlt01} /></IconButton
+        }}><Icon icon="layout-alt-01" /></IconButton
       >{/if}
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
@@ -210,7 +201,7 @@
       tooltipSide="right"
       size="icon"
       onclick={(event) => expandForCreate(event.currentTarget)}
-      ><Icon icon={Plus} /></IconButton
+      ><Icon icon="plus" /></IconButton
     >
     {#if room.requests?.length}<Button
         variant="outline"
@@ -275,7 +266,7 @@
               size="icon-xs"
               tooltipSide="bottom"
               class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
-              onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+              onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
             ></SidebarHeader
           >{@render roomThreads()}
         </div>{/if}{/snippet}
@@ -302,7 +293,7 @@
           >
             <!-- Phones: the room's own row. Desktop: the main thread, under the room's name. -->
             {#if dm}<Icon
-                icon={MessageCircle01}
+                icon="message-circle-01"
                 size={16}
                 class="shrink-0 text-muted-foreground"
               /><span class="min-w-0 flex-1 truncate">{vb.t("Conversa")}</span
@@ -311,7 +302,7 @@
                 src={roomIcon}
                 class="md:hidden"
               /><Icon
-                icon={MessageCircle01}
+                icon="message-circle-01"
                 size={16}
                 class="hidden shrink-0 text-muted-foreground md:block"
               />
@@ -335,7 +326,7 @@
             size="icon-xs"
             tooltipSide="bottom"
             class="absolute top-1.5 right-1.5 md:hidden translate-x-1 scale-90 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 group-hover/room:translate-x-0 group-hover/room:scale-100 group-hover/room:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
-            onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+            onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
           >
         </div>
         {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
@@ -350,7 +341,7 @@
                     oninbox?.(event.currentTarget);
                 }}
                 ><Icon
-                  icon={Inbox01}
+                  icon="inbox-01"
                   size={16}
                   class="shrink-0 text-muted-foreground"
                 /><span class="min-w-0 flex-1 truncate"
@@ -368,7 +359,7 @@
                 if (event.currentTarget.isConnected) onboard?.();
               }}
               ><Icon
-                icon={LayoutAlt01}
+                icon="layout-alt-01"
                 size={16}
                 class="shrink-0 text-muted-foreground"
               /><span class="min-w-0 flex-1 truncate"

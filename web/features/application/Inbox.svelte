@@ -13,7 +13,6 @@
   import TabsContent from "../../lib/studio/TabsContent.svelte";
   import TabsList from "../../lib/studio/TabsList.svelte";
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
-  import { Calendar, Check } from "../../lib/studio/icons";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -216,7 +215,7 @@
                 >
                   {#if kind(wait) === "task"}<span
                       class="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-muted"
-                      ><Icon icon={Check} size={16} /></span
+                      ><Icon icon="check" size={16} /></span
                     >
                   {:else if kind(wait) === "agent"}<AgentMark class="text-sm" />
                   {:else if wait.author === "ai"}<AgentMark
@@ -262,7 +261,7 @@
                     onclick={() => resolve(wait)}
                     >{#if pending === key(wait)}<Spinner
                         size="xs"
-                      />{:else}<Icon icon={Check} />{/if}</IconButton
+                      />{:else}<Icon icon="check" />{/if}</IconButton
                   >
                 {/if}
               </li>
@@ -370,7 +369,7 @@
                 >
                   <span
                     class="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-muted"
-                    ><Icon icon={Calendar} size={16} /></span
+                    ><Icon icon="calendar" size={16} /></span
                   >
                   <span
                     class="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-5 [overflow-wrap:anywhere]"

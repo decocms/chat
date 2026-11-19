@@ -1,12 +1,6 @@
 <script lang="ts">
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import {
-    Globe02,
-    LinkExternal01,
-    RefreshCw01,
-    X,
-  } from "../../lib/studio/icons";
   /**
    * A live pin (kind "live", Gui #3121): an https site shown inside the room, e.g. someone's local dev through a
    * cloudflared tunnel, so the people and Claudes in an epic iterate on one page together. A floating window over
@@ -38,14 +32,14 @@
   <div
     class="flex min-w-0 items-center gap-2 border-b border-warning/30 bg-warning/15 py-1 pr-1 pl-3 text-xs"
   >
-    <Icon icon={Globe02} size={14} class="shrink-0 text-warning" />
+    <Icon icon="globe-02" size={14} class="shrink-0 text-warning" />
     <span class="min-w-0 flex-1 truncate"
       ><b class="font-semibold">{t("Site externo")}</b> · {host}{by
         ? ` · ${t("fixado por {name}", { name: by })}`
         : ""}</span
     >
     <IconButton label={t("Recarregar")} onclick={() => reload++}
-      ><Icon icon={RefreshCw01} /></IconButton
+      ><Icon icon="refresh-cw-01" /></IconButton
     >
     <a
       {href}
@@ -54,10 +48,10 @@
       aria-label={t("Abrir em nova aba")}
       title={t("Abrir em nova aba")}
       class="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-muted"
-      ><Icon icon={LinkExternal01} size={16} /></a
+      ><Icon icon="link-external-01" size={16} /></a
     >
     <IconButton label={t("Fechar")} onclick={onclose}
-      ><Icon icon={X} /></IconButton
+      ><Icon icon="x" /></IconButton
     >
   </div>
   {#key reload}<iframe

@@ -5,7 +5,6 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { ArrowRight, File02 } from "../../lib/studio/icons";
   let {
     room,
     messageId,
@@ -63,7 +62,7 @@
           ? ` · ${vb.ago(last.ts) === vb.t("agora") ? vb.t("agora") : vb.t("última há {ago}", { ago: vb.ago(last.ts) })}`
           : ""}</small
       ></span
-    ><Icon icon={ArrowRight} class="text-muted-foreground" />
+    ><Icon icon="arrow-right" class="text-muted-foreground" />
   </Button>
   {#if files.length}<div class="flex flex-wrap gap-2 py-2">
       {#each files.slice(0, 6) as file (file.name)}<a
@@ -90,7 +89,7 @@
               name: file.name,
             });
           }}
-          ><Icon icon={File02} size={14} /><span class="truncate"
+          ><Icon icon="file-02" size={14} /><span class="truncate"
             >{file.name}</span
           >{#if file.n > 1}<small>v{file.n}</small>{/if}</a
         >{/each}{#if files.length > 6}<small

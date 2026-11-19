@@ -7,7 +7,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { ChevronDown, Plus, SearchMd, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import RailButton from "./RailButton.svelte";
   import RailRoom from "./RailRoom.svelte";
@@ -251,7 +250,7 @@
     class="min-w-0 flex-1 justify-start gap-1 px-2 text-base font-semibold md:hidden"
     onclick={() => (switcher = true)}
     ><span class="truncate">{text("startTitle")}</span><Icon
-      icon={ChevronDown}
+      icon="chevron-down"
       class="shrink-0 text-muted-foreground"
     /></Button
   >
@@ -277,7 +276,7 @@
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
     <RailButton
-      icon={SearchMd}
+      icon="search-md"
       label={text("search")}
       hint={searchShortcut}
       onclick={(event) => {
@@ -286,7 +285,7 @@
       }}
     />
     <RailButton
-      icon={Plus}
+      icon="plus"
       label={text("new")}
       onclick={(event) => {
         if (event.currentTarget.isConnected)
@@ -383,7 +382,7 @@
       label={text("dismiss")}
       onclick={(event) => {
         if (event.currentTarget.isConnected) controller.personal.clearNotice();
-      }}><Icon icon={X} /></IconButton
+      }}><Icon icon="x" /></IconButton
     >
   </aside>{/if}
 

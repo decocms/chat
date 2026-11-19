@@ -8,7 +8,6 @@
   import DropdownMenuItem from "./DropdownMenuItem.svelte";
   import DropdownMenuTrigger from "./DropdownMenuTrigger.svelte";
   import Icon from "./Icon.svelte";
-  import { ChevronDown } from "./icons";
   import Spinner from "./Spinner.svelte";
   import type { SplitButtonMenuItem } from "./split-button";
   import Tooltip from "./Tooltip.svelte";
@@ -143,7 +142,7 @@
             aria-label={menuAriaLabel}
             class={cn("has-[>svg]:px-2", focusRing)}
           >
-            <Icon icon={ChevronDown} class="size-3.5" />
+            <Icon icon="chevron-down" class="size-3.5" />
           </Button>
         {/snippet}
       </DropdownMenuTrigger>

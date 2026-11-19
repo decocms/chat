@@ -2,7 +2,6 @@
   import type { Snippet } from "svelte";
   import type { HTMLAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { Upload01 } from "./icons";
   import { cn } from "./utils";
 
   /** Shown over the composer while files are dragged onto it. */
@@ -27,6 +26,6 @@
     className,
   )}
 >
-  <Icon icon={Upload01} class="size-5 stroke-[1.33]" />
+  <Icon icon="upload-01" class="size-5 stroke-[1.33]" />
   {@render children?.()}
 </div>

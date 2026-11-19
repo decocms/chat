@@ -1,7 +1,6 @@
 <script lang="ts">
   import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { Check } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -30,7 +29,7 @@
       class="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center"
     >
       {#if state.checked}
-        <span data-state="checked"><Icon icon={Check} class="size-4" /></span>
+        <span data-state="checked"><Icon icon="check" class="size-4" /></span>
       {/if}
     </span>
     {@render content?.(state)}

@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ButtonVariants } from "../../../lib/studio/button";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { GitBranch01 } from "../../../lib/studio/icons";
   import type { SplitButtonMenuItem } from "../../../lib/studio/split-button";
   import SplitButton from "../../../lib/studio/SplitButton.svelte";
 
@@ -60,7 +59,7 @@
   <SplitButton {...args} pulse variant="brand" />
 {:else if story === "with-icon"}
   <SplitButton {...args}>
-    {#snippet icon()}<Icon icon={GitBranch01} />{/snippet}
+    {#snippet icon()}<Icon icon="git-branch-01" />{/snippet}
   </SplitButton>
 {:else if story === "variants"}
   <div class="flex flex-wrap items-center gap-2">

@@ -6,12 +6,6 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    ArrowUp,
-    FaceSmile,
-    Microphone01,
-    Plus,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import {
     browserSpeech,
@@ -399,7 +393,7 @@
       speech.cancel();
       readCaret();
       emoji = true;
-    }}><Icon icon={FaceSmile} size={16} /></IconButton
+    }}><Icon icon="face-smile" size={16} /></IconButton
   >
   <div class="relative">
     <IconButton
@@ -424,7 +418,7 @@
         if (!ok()) return;
         if (menuOpen) menuOpen = false;
         else void openMenu(event.detail === 0);
-      }}><Icon icon={Plus} size={16} /></IconButton
+      }}><Icon icon="plus" size={16} /></IconButton
     >
     {#if menuOpen && menu}<div
         bind:this={menuNode}
@@ -520,7 +514,7 @@
         else void speech.start();
       }}
       >{#if refining}<Spinner size="xs" />{:else}<Icon
-          icon={Microphone01}
+          icon="microphone-01"
           size={16}
         />{/if}</IconButton
     >{/if}
@@ -541,7 +535,7 @@
       }
     }}
     >{#if pending}<Spinner size="xs" />{:else}<Icon
-        icon={ArrowUp}
+        icon="arrow-up"
         size={16}
       />{/if}</IconButton
   >

@@ -8,7 +8,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { Check, Copy01, Link01, ReverseLeft } from "../../lib/studio/icons";
   import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import { cn } from "../../lib/studio/utils";
   import { copyChatText } from "./clipboard";
@@ -119,7 +118,7 @@
           : ""}
         onclick={() => {
           if (active) actions.reply(message.id);
-        }}><Icon icon={ReverseLeft} size={16} /></IconButton
+        }}><Icon icon="reverse-left" size={16} /></IconButton
       >
       <IconButton
         label={copied === "text"
@@ -133,7 +132,7 @@
           void copy();
         }}
         ><Icon
-          icon={copied === "text" ? Check : Copy01}
+          icon={copied === "text" ? "check" : "copy-01"}
           size={16}
         /></IconButton
       >
@@ -149,7 +148,7 @@
             void copy(true);
           }}
           ><Icon
-            icon={copied === "link" ? Check : Link01}
+            icon={copied === "link" ? "check" : "link-01"}
             size={16}
           /></IconButton
         >{/if}

@@ -9,12 +9,6 @@
   import type { RoomLayoutController } from "../room-layout/types";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    ArrowLeft,
-    ChevronDown,
-    Inbox01,
-    SearchMd,
-  } from "../../lib/studio/icons";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { threadTitle } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -153,7 +147,7 @@
           class="rounded-full md:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
-          }}><Icon icon={ArrowLeft} size={16} /></IconButton
+          }}><Icon icon="arrow-left" size={16} /></IconButton
         >{/snippet}</Snapshot
     >{/key}
   <button
@@ -181,7 +175,7 @@
       ><span
         class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
         ><span class="truncate">{phoneTitle}</span><Icon
-          icon={ChevronDown}
+          icon="chevron-down"
           size={16}
           class="shrink-0"
         /></span
@@ -210,7 +204,7 @@
         onclick={(event) => {
           if (live(event))
             appNavigation.controller.openSearch(event.currentTarget);
-        }}><Icon icon={SearchMd} size={16} /></IconButton
+        }}><Icon icon="search-md" size={16} /></IconButton
       >{/if}
     <!-- Phones: the inbox in the bar. Desktop: it and the board are views in the sidebar, under the main thread. -->
     {#if $geometry.mobile}<IconButton
@@ -223,7 +217,7 @@
         onclick={(event) => {
           if (live(event)) toggleInbox(event.currentTarget);
         }}
-        ><Icon icon={Inbox01} size={16} />{#if waits.length}<Count
+        ><Icon icon="inbox-01" size={16} />{#if waits.length}<Count
             value={waits.length}
             label={t("Esperando você: {n}", { n: waits.length })}
             class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"

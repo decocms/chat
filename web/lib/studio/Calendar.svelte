@@ -93,7 +93,6 @@
     isDateMatched,
   } from "./calendar";
   import Icon from "./Icon.svelte";
-  import { ChevronLeft, ChevronRight } from "./icons";
   import { cn } from "./utils";
 
   /** Ported from @decocms/ui `Calendar` (react-day-picker) onto Bits UI: `mode` picks one day, several, or a range. */
@@ -266,7 +265,7 @@
                       "left-1",
                     )}
                   >
-                    <Icon icon={ChevronLeft} class="size-4" />
+                    <Icon icon="chevron-left" class="size-4" />
                   </button>
                 {/snippet}
               </CalendarPrimitive.PrevButton>
@@ -284,7 +283,7 @@
                       "right-1",
                     )}
                   >
-                    <Icon icon={ChevronRight} class="size-4" />
+                    <Icon icon="chevron-right" class="size-4" />
                   </button>
                 {/snippet}
               </CalendarPrimitive.NextButton>

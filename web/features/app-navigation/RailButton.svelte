@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import type { HTMLButtonAttributes } from "svelte/elements";
   import Icon from "../../lib/studio/Icon.svelte";
-  import type { IconNode } from "../../lib/studio/icons";
+  import type { IconName } from "../../lib/studio/icons";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -23,7 +23,7 @@
     ...rest
   }: Omit<HTMLButtonAttributes, "style" | "class" | "children"> & {
     label: string;
-    icon?: IconNode;
+    icon?: IconName;
     /** Shown after the label in the tooltip, e.g. a keyboard shortcut. */
     hint?: string;
     current?: boolean;

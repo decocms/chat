@@ -8,12 +8,6 @@
   import CardHeader from "../../../lib/studio/CardHeader.svelte";
   import CardTitle from "../../../lib/studio/CardTitle.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import {
-    File02,
-    Globe02,
-    LayoutAlt01,
-    Stars01,
-  } from "../../../lib/studio/icons";
   import ListRow from "../../../lib/studio/ListRow.svelte";
   import Matrix from "../Matrix.svelte";
 
@@ -29,10 +23,10 @@
   const STATES = [undefined, "hover", "focus-visible", undefined];
 </script>
 
-{#snippet stars()}<Icon icon={Stars01} />{/snippet}
-{#snippet globe()}<Icon icon={Globe02} />{/snippet}
-{#snippet layout()}<Icon icon={LayoutAlt01} />{/snippet}
-{#snippet file()}<Icon icon={File02} />{/snippet}
+{#snippet stars()}<Icon icon="stars-01" />{/snippet}
+{#snippet globe()}<Icon icon="globe-02" />{/snippet}
+{#snippet layout()}<Icon icon="layout-alt-01" />{/snippet}
+{#snippet file()}<Icon icon="file-02" />{/snippet}
 {#snippet prep()}<Button size="sm" variant="ghost">Prep</Button>{/snippet}
 
 {#if story === "playground"}

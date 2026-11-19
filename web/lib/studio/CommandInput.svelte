@@ -2,7 +2,6 @@
   import { Command as CommandPrimitive } from "bits-ui";
   import type { Snippet } from "svelte";
   import Icon from "./Icon.svelte";
-  import { SearchMd } from "./icons";
   import { cn } from "./utils";
 
   /** `sm` is the input of a Command used as a MENU rather than a palette. `underline` is the palette's search row; `boxed` a standalone field above a separate list. */
@@ -42,7 +41,7 @@
 >
   <!-- The boxed field carries its own frame, so the magnifier would be a second thing saying "type here". -->
   {#if !boxed}
-    <Icon icon={SearchMd} class="size-4 shrink-0 text-muted-foreground" />
+    <Icon icon="search-md" class="size-4 shrink-0 text-muted-foreground" />
   {/if}
   <CommandPrimitive.Input
     bind:value

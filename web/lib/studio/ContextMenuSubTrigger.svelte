@@ -1,7 +1,6 @@
 <script lang="ts">
   import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { ChevronRight } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -26,5 +25,5 @@
   {...rest}
 >
   {@render children?.()}
-  <Icon icon={ChevronRight} class="ml-auto" />
+  <Icon icon="chevron-right" class="ml-auto" />
 </ContextMenuPrimitive.SubTrigger>

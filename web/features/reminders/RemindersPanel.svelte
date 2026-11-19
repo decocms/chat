@@ -8,12 +8,6 @@
   import Card from "../../lib/studio/Card.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    AlertTriangle,
-    ChevronDown,
-    ChevronRight,
-    Plus,
-  } from "../../lib/studio/icons";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
@@ -100,7 +94,7 @@
       id="remNew"
       bind:ref={newTrigger}
       onclick={() => open({ name: "", text: "" })}
-      ><Icon icon={Plus} size={16} />{vb.t("Novo lembrete")}</Button
+      ><Icon icon="plus" size={16} />{vb.t("Novo lembrete")}</Button
     >{/snippet}
   <PaneHeader
     title={vb.t("Lembretes")}
@@ -188,7 +182,9 @@
             class="flex min-w-0 flex-1 items-start gap-2 rounded-control border-0 bg-transparent p-1 text-left font-sans text-sm text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Icon
-              icon={opened.includes(reminder.id) ? ChevronDown : ChevronRight}
+              icon={opened.includes(reminder.id)
+                ? "chevron-down"
+                : "chevron-right"}
               size={16}
               class="mt-0.5 shrink-0 text-muted-foreground"
             />
@@ -210,7 +206,7 @@
             role="status"
             class="m-0 flex items-start gap-2 whitespace-pre-wrap text-sm text-destructive"
           >
-            <Icon icon={AlertTriangle} size={16} />{reminder.error}
+            <Icon icon="alert-triangle" size={16} />{reminder.error}
           </p>{/if}
         <pre
           hidden={!opened.includes(reminder.id)}

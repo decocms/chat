@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Select as SelectPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { ChevronDown } from "./icons";
   import { cn } from "./utils";
 
   /** `outline` is a form field, cornered like an input; `filled` a grey pill for toolbars and filters; `pill` a picker beside outline buttons. */
@@ -35,5 +34,5 @@
   {...rest}
 >
   {@render children?.()}
-  <Icon icon={ChevronDown} class="size-3.5 stroke-[1.5]" />
+  <Icon icon="chevron-down" class="size-3.5 stroke-[1.5]" />
 </SelectPrimitive.Trigger>

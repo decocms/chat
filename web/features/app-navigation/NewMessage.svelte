@@ -7,7 +7,6 @@
   import Popover from "../../lib/studio/Popover.svelte";
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
-  import { Plus } from "../../lib/studio/icons";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { navRow } from "../../lib/components/navRow";
   import { homeText, type HomeLanguage } from "../home/copy";
@@ -84,7 +83,7 @@
         size="icon-xs"
         tooltipSide="bottom"
         label={text("newMessage")}
-        data-new-message><Icon icon={Plus} /></IconButton
+        data-new-message><Icon icon="plus" /></IconButton
       >{/snippet}
   </PopoverTrigger>
   <PopoverContent

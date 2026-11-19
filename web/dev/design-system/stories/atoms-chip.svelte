@@ -6,7 +6,6 @@
   import Chip from "../../../lib/studio/Chip.svelte";
   import ChipMeta from "../../../lib/studio/ChipMeta.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Globe02, Target04 } from "../../../lib/studio/icons";
   import ProjectIcon from "../../../lib/studio/ProjectIcon.svelte";
   import Matrix from "../Matrix.svelte";
 
@@ -36,10 +35,10 @@
           {#snippet child({ props })}
             <button type="button" data-pseudo={STATES[index]} {...props}>
               {#if size === "sm"}
-                <Icon icon={Target04} /> Mobile conversion
+                <Icon icon="target-04" /> Mobile conversion
               {:else}
                 <ProjectIcon color="blue" class="size-[1.625rem] rounded-full">
-                  <Icon icon={Globe02} class="size-3.5" />
+                  <Icon icon="globe-02" class="size-3.5" />
                 </ProjectIcon>
                 Site Editor <ChipMeta>Site</ChipMeta>
               {/if}

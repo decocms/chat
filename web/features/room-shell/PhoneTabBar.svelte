@@ -3,7 +3,6 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import Count from "../../lib/components/Count.svelte";
   import { cn } from "../../lib/studio/utils";
-  import { MessageCircle01 } from "../../lib/studio/icons";
   import { paneIcons, paneLabel } from "../documents/paneIcons";
   import AgentMark from "../agents/AgentMark.svelte";
   import type { AgentMarkView } from "../agents/model";
@@ -51,7 +50,7 @@
   const tabs = $derived<
     { id: PhoneTab; label: string; icon: (typeof paneIcons)[DocumentPane] }[]
   >([
-    { id: "chat", label: "Chat", icon: MessageCircle01 },
+    { id: "chat", label: "Chat", icon: "message-circle-01" },
     { id: "doc", label: "Doc", icon: paneIcons.doc },
     { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
     { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },

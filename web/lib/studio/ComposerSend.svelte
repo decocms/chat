@@ -2,7 +2,6 @@
   import type { ComponentProps } from "svelte";
   import Button from "./Button.svelte";
   import Icon from "./Icon.svelte";
-  import { ArrowUp, StopSquare } from "./icons";
   import { cn } from "./utils";
 
   /** Sends the message, or stops the agent while it streams. With children it is a labelled button. */
@@ -39,8 +38,8 @@
 >
   {@render children?.()}
   {#if state === "streaming"}
-    <Icon icon={StopSquare} class="fill-current" />
+    <Icon icon="stop-square" class="fill-current" />
   {:else}
-    <Icon icon={ArrowUp} />
+    <Icon icon="arrow-up" />
   {/if}
 </Button>

@@ -4,7 +4,6 @@
   import ButtonGroupSeparator from "../../../lib/studio/ButtonGroupSeparator.svelte";
   import ButtonGroupText from "../../../lib/studio/ButtonGroupText.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { ChevronDown, Copy01, SearchMd } from "../../../lib/studio/icons";
   import Input from "../../../lib/studio/Input.svelte";
 
   let { story }: { story: string } = $props();
@@ -27,7 +26,7 @@
     <Button variant="outline">Save changes</Button>
     <ButtonGroupSeparator />
     <Button variant="outline" size="icon" aria-label="More save options">
-      <Icon icon={ChevronDown} />
+      <Icon icon="chevron-down" />
     </Button>
   </ButtonGroup>
 {:else if story === "with-text"}
@@ -35,14 +34,14 @@
     <ButtonGroupText>https://</ButtonGroupText>
     <Input placeholder="acme.deco.page" class="w-56" />
     <Button variant="outline" aria-label="Copy URL">
-      <Icon icon={Copy01} /> Copy
+      <Icon icon="copy-01" /> Copy
     </Button>
   </ButtonGroup>
 {:else if story === "with-input"}
   <ButtonGroup>
     <Input placeholder="Search members..." class="w-64" />
     <Button variant="outline" aria-label="Search">
-      <Icon icon={SearchMd} />
+      <Icon icon="search-md" />
     </Button>
   </ButtonGroup>
 {/if}

@@ -7,7 +7,6 @@
   import type { HTMLInputAttributes } from "svelte/elements";
   import Badge from "./Badge.svelte";
   import Icon from "./Icon.svelte";
-  import { X } from "./icons";
   import { cn } from "./utils";
 
   /** Free text that turns into tags: emails, keywords, labels. `bind:value` replaces React's `defaultValue`/`value` pair. */
@@ -91,7 +90,7 @@
         {disabled}
         class="flex size-4 cursor-pointer items-center justify-center rounded-full hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid disabled:cursor-not-allowed"
       >
-        <Icon icon={X} class="size-3" />
+        <Icon icon="x" class="size-3" />
       </button>
     </Badge>
   {/each}

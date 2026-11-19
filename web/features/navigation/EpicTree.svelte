@@ -21,18 +21,6 @@
   import TabsContent from "../../lib/studio/TabsContent.svelte";
   import TabsList from "../../lib/studio/TabsList.svelte";
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
-  import {
-    ArrowDown,
-    ArrowUp,
-    CheckCircle,
-    ChevronDown,
-    DotsHorizontal,
-    Pin02,
-    Plus,
-    RefreshCw01,
-    Rocket01,
-    Stars01,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import type { WaitReference } from "../waits/model";
@@ -472,7 +460,7 @@
                     data-epic-pinned
                     aria-label={vb.t("Fixado")}
                     class="flex shrink-0 text-muted-foreground"
-                    ><Icon icon={Pin02} class="size-3.5" /></span
+                    ><Icon icon="pin-02" class="size-3.5" /></span
                   >{/if}
                 {#if working}<span
                     role="img"
@@ -507,10 +495,10 @@
                     class="flex shrink-0 text-muted-foreground"
                     ><Icon
                       icon={changes
-                        ? RefreshCw01
+                        ? "refresh-cw-01"
                         : epic.prod.stage === "verified"
-                          ? CheckCircle
-                          : Rocket01}
+                          ? "check-circle"
+                          : "rocket-01"}
                       class="size-3.5"
                     /></span
                   >{/if}
@@ -527,7 +515,7 @@
                 aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
                 class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
                 ><Icon
-                  icon={DotsHorizontal}
+                  icon="dots-horizontal"
                   class="size-4"
                 /></DropdownMenuTrigger
               >
@@ -542,7 +530,7 @@
                         id: epic.id,
                         pinned: !epic.pinned,
                       })}
-                    ><Icon icon={Pin02} />{vb.t(
+                    ><Icon icon="pin-02" />{vb.t(
                       epic.pinned ? "Desafixar" : "Fixar no topo",
                     )}</DropdownMenuItem
                   >
@@ -551,14 +539,14 @@
                   <DropdownMenuItem
                     disabled={mutationBusy || !adjacent(epic.id, -1)}
                     onSelect={() => move(epic.id, -1)}
-                    ><Icon icon={ArrowUp} />{vb.t(
+                    ><Icon icon="arrow-up" />{vb.t(
                       "Mover para cima",
                     )}</DropdownMenuItem
                   >
                   <DropdownMenuItem
                     disabled={mutationBusy || !adjacent(epic.id, 1)}
                     onSelect={() => move(epic.id, 1)}
-                    ><Icon icon={ArrowDown} />{vb.t(
+                    ><Icon icon="arrow-down" />{vb.t(
                       "Mover para baixo",
                     )}</DropdownMenuItem
                   >
@@ -597,7 +585,7 @@
         >
           <span class="flex size-5 shrink-0 items-center justify-center"
             ><Icon
-              icon={ChevronDown}
+              icon="chevron-down"
               size={16}
               class={cn(
                 "transition-transform duration-150 motion-reduce:transition-none",
@@ -653,7 +641,7 @@
             class={dashedRow}
           >
             <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon={Plus} size={16} /></span
+              ><Icon icon="plus" size={16} /></span
             >
             <span class="min-w-0 truncate">{vb.t("Novo épico")}</span>
           </button>
@@ -668,7 +656,7 @@
             class={cn(dashedRow, suggestionsOpen && "text-sidebar-foreground")}
           >
             <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon={Stars01} size={16} /></span
+              ><Icon icon="stars-01" size={16} /></span
             >
             <span class="min-w-0 flex-1 truncate"
               >{vb.t("{n} sugestões do @vibe", {
@@ -676,7 +664,7 @@
               })}</span
             >
             <Icon
-              icon={ChevronDown}
+              icon="chevron-down"
               size={16}
               class={cn(
                 "shrink-0 transition-transform duration-150 motion-reduce:transition-none",

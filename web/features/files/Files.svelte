@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { File02, Folder, Pin02, Upload01 } from "../../lib/studio/icons";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import LoadingState from "../../lib/components/LoadingState.svelte";
@@ -69,7 +68,7 @@
         variant={small ? "outline" : "default"}
         size={small ? "sm" : "default"}
         onclick={() => picker?.click()}
-        ><Icon icon={Upload01} size={16} />{small
+        ><Icon icon="upload-01" size={16} />{small
           ? vb.t("Enviar")
           : vb.t("Enviar arquivo")}</Button
       >{/if}{/snippet}
@@ -121,7 +120,7 @@
               true,
             )}>← {vb.t("voltar")}</Button
         ><Icon
-          icon={Folder}
+          icon="folder"
           size={16}
           class="shrink-0 text-muted-foreground"
         /><b class="truncate font-medium">{view.dir}/</b>
@@ -133,7 +132,7 @@
             class="inline-flex h-9 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 font-sans text-sm transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
             onclick={() => select(view.kind, view.prefix + name, true)}
             ><Icon
-              icon={Folder}
+              icon="folder"
               size={16}
               class="shrink-0 text-muted-foreground"
             /><span class="truncate font-medium">{name}</span><span
@@ -175,7 +174,7 @@
                     loading="lazy"
                   />{:else}<span
                     class="flex flex-col items-center gap-1.5 text-muted-foreground"
-                    ><Icon icon={File02} size={24} />{#if ext}<span
+                    ><Icon icon="file-02" size={24} />{#if ext}<span
                         class="text-[0.6875rem] font-semibold tracking-wide uppercase"
                         >{ext}</span
                       >{/if}</span
@@ -212,7 +211,7 @@
               }}
               >{#if $fileState.pending?.id === file.id}<Spinner
                   size="xs"
-                />{:else}<Icon icon={Pin02} size={14} />{/if}</IconButton
+                />{:else}<Icon icon="pin-02" size={14} />{/if}</IconButton
             >
           </article>
         {/each}

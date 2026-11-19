@@ -8,7 +8,6 @@
   import CommandItem from "./CommandItem.svelte";
   import CommandList from "./CommandList.svelte";
   import Icon from "./Icon.svelte";
-  import { ChevronDown } from "./icons";
   import type { Option } from "./multi-select";
   import Popover from "./Popover.svelte";
   import PopoverContent from "./PopoverContent.svelte";
@@ -114,7 +113,7 @@
             </div>
             <div class="flex items-center shrink-0 ml-2">
               <Icon
-                icon={ChevronDown}
+                icon="chevron-down"
                 class="text-muted-foreground size-3.5 shrink-0"
               />
             </div>
@@ -125,7 +124,7 @@
               {placeholder}
             </span>
             <Icon
-              icon={ChevronDown}
+              icon="chevron-down"
               class="text-muted-foreground size-3.5 shrink-0"
             />
           </div>

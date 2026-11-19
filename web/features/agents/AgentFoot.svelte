@@ -3,7 +3,6 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
-  import { Cloud01, type IconNode } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import { settingsHref } from "../account/settings";
   import { prettyModel } from "../chat/model";
@@ -39,14 +38,6 @@
     ago?: (ts: number) => string;
   } = $props();
   type Agent = AgentsResult["agents"][number];
-  const LAPTOP: IconNode = [
-    [
-      "path",
-      {
-        d: "M20 16V7.2c0-1.12 0-1.68-.218-2.108a2 2 0 0 0-.874-.874C18.48 4 17.92 4 16.8 4H7.2c-1.12 0-1.68 0-2.108.218a2 2 0 0 0-.874.874C4 5.52 4 6.08 4 7.2V16m-1 0h18v1.333c0 .62 0 .93-.068 1.185a2 2 0 0 1-1.414 1.414C19.263 20 18.953 20 18.333 20H5.667c-.62 0-.93 0-1.185-.068a2 2 0 0 1-1.414-1.414C3 18.263 3 17.953 3 17.333V16Z",
-      },
-    ],
-  ];
   const view = untrack(() => owner.state),
     runner = untrack(() => owner.runner.state);
   const text = (
@@ -286,7 +277,7 @@
             title={text("footGoTerminal", { name: m.name })}
             class="relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 p-0 bg-muted text-foreground hover:opacity-80"
             ><Icon
-              icon={m.kind === "sandbox" ? Cloud01 : LAPTOP}
+              icon={m.kind === "sandbox" ? "cloud-01" : "app-laptop"}
               class="size-4"
             /><span
               class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-sidebar {m.online
@@ -339,7 +330,7 @@
         ><span
           aria-hidden="true"
           class="flex size-7 shrink-0 items-center justify-center"
-          ><Icon icon={Cloud01} class="size-4" /></span
+          ><Icon icon="cloud-01" class="size-4" /></span
         >{text("footAddCloud")}</a
       >
     </div>{/if}

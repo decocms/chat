@@ -26,7 +26,6 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { File02, ReverseLeft, X } from "../../lib/studio/icons";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
   import PollCreateDialog from "./PollCreateDialog.svelte";
@@ -385,7 +384,7 @@
               src={image}
               alt={item.name}
               class="h-20 w-full rounded-sm object-cover"
-            />{:else}<Icon icon={File02} size={16} />{/if}<span
+            />{:else}<Icon icon="file-02" size={16} />{/if}<span
             class="break-words text-xs">{item.name}</span
           ><span role="status" class="text-xs text-muted-foreground"
             >{item.phase === "queued" || item.phase === "uploading"
@@ -405,7 +404,7 @@
             class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
             onclick={(event) => {
               if (canInteract(event)) entry.removeFile(item.id);
-            }}><Icon icon={X} size={14} /></IconButton
+            }}><Icon icon="x" size={14} /></IconButton
           >
         </div>{/each}
     </div>{/if}
@@ -413,7 +412,7 @@
       data-composer-reply
       class="flex items-center gap-2 rounded-control border-l-2 border-foreground bg-muted p-2"
     >
-      <Icon icon={ReverseLeft} size={16} />
+      <Icon icon="reverse-left" size={16} />
       <div class="min-w-0 flex-1 text-xs">
         {#if reply}<b
             >{reply.author === "ai"
@@ -434,7 +433,7 @@
         label={vb.t("Cancelar resposta")}
         onclick={(event) => {
           if (canInteract(event)) entry.clearReply();
-        }}><Icon icon={X} size={16} /></IconButton
+        }}><Icon icon="x" size={16} /></IconButton
       >
     </div>{/if}
   {#if items.length}<div

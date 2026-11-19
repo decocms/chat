@@ -12,16 +12,6 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
-  import {
-    AlertTriangle,
-    ChevronRight,
-    File02,
-    GitBranch01,
-    Globe02,
-    LinkExternal01,
-    Pin02,
-    Plus,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import LiveFrame from "./LiveFrame.svelte";
@@ -435,7 +425,7 @@
           tooltipSide="bottom"
           bind:ref={addButton}
           disabled={!live}
-          onclick={open}><Icon icon={Plus} /></IconButton
+          onclick={open}><Icon icon="plus" /></IconButton
         >{/if}{/snippet}
   </SectionHeader>
 
@@ -593,12 +583,12 @@
                       class={kindClass}
                       data-pin-icon={target.github ? "github" : "globe"}
                       ><Icon
-                        icon={target.github ? GitBranch01 : Globe02}
+                        icon={target.github ? "git-branch-01" : "globe-02"}
                         size={16}
                         class="text-muted-foreground"
                       /></span
                     >{@render text(target.label, target.detail)}<Icon
-                      icon={LinkExternal01}
+                      icon="link-external-01"
                       class={markerClass}
                     /><span class="sr-only">{t("abre em nova aba")}</span>
                   </a>
@@ -620,14 +610,14 @@
                       class={cn(kindClass, "bg-warning/15")}
                       data-pin-icon="live"
                       ><Icon
-                        icon={Globe02}
+                        icon="globe-02"
                         size={16}
                         class="text-warning"
                       /></span
                     >{@render text(
                       target.label,
                       t("Ao vivo · {host}", { host: target.host }),
-                    )}<Icon icon={ChevronRight} class={markerClass} />
+                    )}<Icon icon="chevron-right" class={markerClass} />
                   </Button>
                 {:else if target.kind === "file" || target.kind === "app" || target.kind === "file-unloaded"}
                   <Button
@@ -653,7 +643,7 @@
                         aria-hidden="true">{pinAppInitials(target.label)}</span
                       >{:else}<span class={kindClass} data-pin-icon="file"
                         ><Icon
-                          icon={File02}
+                          icon="file-02"
                           size={16}
                           class="text-muted-foreground"
                         /></span
@@ -668,7 +658,7 @@
                         : target.kind === "app"
                           ? t("App")
                           : target.detail,
-                    )}<Icon icon={ChevronRight} class={markerClass} />
+                    )}<Icon icon="chevron-right" class={markerClass} />
                   </Button>
                 {:else}
                   <!-- Focusable so the keyboard can reach its menu (the only way to unpin it). -->
@@ -677,7 +667,7 @@
                     class={cn(rowClass, "text-muted-foreground")}
                   >
                     <span class={kindClass}
-                      ><Icon icon={AlertTriangle} size={16} /></span
+                      ><Icon icon="alert-triangle" size={16} /></span
                     >{@render text(target.label, t(target.reason))}
                   </div>
                 {/if}
@@ -743,7 +733,7 @@
       onclick={open}
     >
       <span class="flex size-5 shrink-0 items-center justify-center"
-        ><Icon icon={Pin02} size={16} /></span
+        ><Icon icon="pin-02" size={16} /></span
       >
       <span class="min-w-0 truncate">{t("Fixar site, repo ou app")}</span>
     </button>

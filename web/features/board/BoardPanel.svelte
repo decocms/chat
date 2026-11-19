@@ -29,12 +29,6 @@
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
-  import {
-    AlertTriangle,
-    Calendar,
-    DotsGrid,
-    Plus,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
 
   let {
@@ -427,7 +421,7 @@
         </Select>
       </div>{/if}
     <Button type="submit" disabled={!title.trim() || !targetValid}
-      ><Icon icon={Plus} />{vb.t("Nova tarefa")}</Button
+      ><Icon icon="plus" />{vb.t("Nova tarefa")}</Button
     >
   </form>
 </section>
@@ -486,7 +480,7 @@
           variant="warning"
           title={`@vibe: ${task.flags.join(" · ")}`}
           class="text-foreground max-w-full"
-          ><Icon icon={AlertTriangle} /><span class="truncate"
+          ><Icon icon="alert-triangle" /><span class="truncate"
             >{task.flags.join(" · ")}</span
           ></Badge
         >{/if}
@@ -505,7 +499,7 @@
             >{task.owner === room.me ? vb.t("você") : vb.name(task.owner)}</span
           >{/if}
         {#if task.due}<span class="inline-flex items-center gap-1"
-            ><Icon icon={Calendar} size={12} />{task.due}</span
+            ><Icon icon="calendar" size={12} />{task.due}</span
           >{/if}
       </span>
     </button>
@@ -515,7 +509,7 @@
         aria-hidden="true"
         title={vb.t("Arraste, ou use ← →. Clique pra abrir o épico.")}
         class="absolute right-2 top-2 grid size-7 cursor-grab place-items-center rounded-md text-muted-foreground active:cursor-grabbing"
-        ><Icon icon={DotsGrid} size={16} /></span
+        ><Icon icon="dots-grid" size={16} /></span
       >{/if}
     <div class={cn("min-w-32 space-y-1 p-3", !row && "border-t border-border")}>
       <Label for={`${uid}-${key}`}>{vb.t("Status")}</Label>

@@ -1,7 +1,6 @@
 <script lang="ts">
   import Count from "../../lib/components/Count.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Home02 } from "../../lib/studio/icons";
   import type { NavRowVariant } from "../../lib/components/navRow";
   import { homeText, type HomeLanguage } from "../home/copy";
   import RoomRow from "./RoomRow.svelte";
@@ -30,12 +29,12 @@
 >
   <!-- The sidebar: a small icon, like a room's Main thread row. The phone's room list: the tile, as tall as a room's avatar. -->
   {#snippet leading()}{#if variant === "sidebar"}<Icon
-        icon={Home02}
+        icon="home-02"
         size={16}
         class="shrink-0 text-muted-foreground"
       />{:else}<span
         class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
-        ><Icon icon={Home02} /></span
+        ><Icon icon="home-02" /></span
       >{/if}{/snippet}
   {#snippet trailing()}{#if waits}<Count
         value={waits}

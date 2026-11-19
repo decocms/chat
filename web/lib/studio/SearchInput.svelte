@@ -1,6 +1,5 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { SearchMd } from "./icons";
   import InputGroup from "./InputGroup.svelte";
   import InputGroupAddon from "./InputGroupAddon.svelte";
   import InputGroupInput from "./InputGroupInput.svelte";
@@ -33,7 +32,7 @@
     {#if isSearching}
       <Spinner class="size-4" />
     {:else}
-      <Icon icon={SearchMd} />
+      <Icon icon="search-md" />
     {/if}
   </InputGroupAddon>
   <InputGroupInput

@@ -2,12 +2,11 @@
   import type { Snippet } from "svelte";
   import Icon from "../studio/Icon.svelte";
   import Spinner from "../studio/Spinner.svelte";
-  import { Pencil01, Upload01 } from "../studio/icons";
   import { cn } from "../studio/utils";
 
   /**
    * A picture you change: a person's photo or a room's icon. The picture is a
-   * button with a pencil badge on its corner (the same on desktop and phones).
+   * button with a camera badge on its corner (the same on desktop and phones).
    * A click opens the file picker; an image dropped on the picture is taken
    * too. The caller draws the picture (`children`), converts the file and
    * saves it (`onfile`), and says when it is `busy`.
@@ -101,14 +100,14 @@
           : "bg-foreground/50 text-background",
       )}
       >{#if busy}<Spinner size="sm" />{:else}<Icon
-          icon={Upload01}
+          icon="upload-01"
           size={16}
         />{/if}</span
     >{/if}
   <span
     aria-hidden="true"
     class="pointer-events-none absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-xs transition-transform duration-150 group-hover/picker:scale-110 group-disabled/picker:opacity-60 motion-reduce:transition-none"
-    ><Icon icon={Pencil01} size={11} /></span
+    ><Icon icon="camera-01" size={11} /></span
   >
   {#if over}<span class="sr-only" role="status">{dropLabel}</span>{/if}
   <input

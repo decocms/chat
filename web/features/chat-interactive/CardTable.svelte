@@ -6,7 +6,6 @@
   import DialogTrigger from "../../lib/studio/DialogTrigger.svelte";
   import { buttonVariants } from "../../lib/studio/button";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Expand01 } from "../../lib/studio/icons";
   import type { ChatBridge } from "../../app/chatTypes";
   let {
     headers,
@@ -52,7 +51,7 @@
 <div data-card-table class="space-y-2">
   <Dialog {open} {onOpenChange}>
     <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
-      ><Icon icon={Expand01} size={16} />{vb.t(
+      ><Icon icon="expand-01" size={16} />{vb.t(
         "Abrir em tela cheia",
       )}</DialogTrigger
     >

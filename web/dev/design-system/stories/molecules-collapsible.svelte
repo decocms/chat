@@ -4,7 +4,6 @@
   import CollapsibleContent from "../../../lib/studio/CollapsibleContent.svelte";
   import CollapsibleTrigger from "../../../lib/studio/CollapsibleTrigger.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { ChevronDown } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 </script>
@@ -21,7 +20,7 @@
             size="icon"
             aria-label="Toggle projects"
           >
-            <Icon icon={ChevronDown} />
+            <Icon icon="chevron-down" />
           </Button>
         {/snippet}
       </CollapsibleTrigger>
@@ -43,7 +42,7 @@
     <CollapsibleTrigger>
       {#snippet child({ props })}
         <Button {...props} variant="outline" class="w-full justify-between">
-          Advanced options <Icon icon={ChevronDown} />
+          Advanced options <Icon icon="chevron-down" />
         </Button>
       {/snippet}
     </CollapsibleTrigger>

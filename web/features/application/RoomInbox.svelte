@@ -4,7 +4,6 @@
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { X } from "../../lib/studio/icons";
   import Icon from "../../lib/studio/Icon.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
@@ -153,7 +152,7 @@
         label={t("Fechar")}
         onclick={(event) => {
           void close(event);
-        }}><Icon icon={X} size={16} /></IconButton
+        }}><Icon icon="x" size={16} /></IconButton
       >
     </header>
     <div class="min-h-0 flex-1 space-y-2 overflow-auto p-4">

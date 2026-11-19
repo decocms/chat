@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Select as SelectPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { ChevronDown } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -20,5 +19,5 @@
   class={cn("flex cursor-default items-center justify-center py-1", className)}
   {...rest}
 >
-  <Icon icon={ChevronDown} class="size-4" />
+  <Icon icon="chevron-down" class="size-4" />
 </SelectPrimitive.ScrollDownButton>

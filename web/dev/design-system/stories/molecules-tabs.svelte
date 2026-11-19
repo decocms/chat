@@ -4,7 +4,6 @@
 
 <script lang="ts">
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { File02, Settings01 } from "../../../lib/studio/icons";
   import Tabs from "../../../lib/studio/Tabs.svelte";
   import TabsContent from "../../../lib/studio/TabsContent.svelte";
   import TabsList from "../../../lib/studio/TabsList.svelte";
@@ -54,10 +53,10 @@
   <Tabs value="readme" variant="canvas" class="w-96">
     <TabsList variant="canvas" class="w-full">
       <TabsTrigger variant="canvas" value="readme">
-        <Icon icon={File02} class="size-4" /> README.md
+        <Icon icon="file-02" class="size-4" /> README.md
       </TabsTrigger>
       <TabsTrigger variant="canvas" value="config">
-        <Icon icon={Settings01} class="size-4" /> config.json
+        <Icon icon="settings-01" class="size-4" /> config.json
       </TabsTrigger>
     </TabsList>
     <TabsContent value="readme" class="p-4 text-sm text-muted-foreground">

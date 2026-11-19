@@ -641,8 +641,35 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 ### 2026-11-19 · image-picker · One picker for a person's photo and a room's icon
 - Agent: claude-opus-5-5
 - Context: The human chose direction B of the picker brainstorm: a badge on the picture that is always visible, a click opens the file picker, and an image dropped on the picture is taken. The human asked for one component for the photo and the room icon.
-- Decision: New molecule `web/lib/components/ImagePicker.svelte`. No existing component wraps a picture as a button with drop. The caller draws the picture, converts the file (`avatarImage` or `roomIconPng`) and saves it. It replaces the "Change photo" button in Account, the photo button in onboarding, and the icon button in Edit room and room settings. The badge uses the `Pencil01` icon: the repo has no camera icon yet. A file over the picture shows a dashed outline and an upload icon. Busy shows a spinner. Account passes only `disabled`, because its profile phase is the same for a name change and a photo change.
-- Other options: A hover overlay (direction A). A dropzone row (direction C). A camera icon added by hand.
+- Decision: New molecule `web/lib/components/ImagePicker.svelte`. No existing component wraps a picture as a button with drop. The caller draws the picture, converts the file (`avatarImage` or `roomIconPng`) and saves it. It replaces the "Change photo" button in Account, the photo button in onboarding, and the icon button in Edit room and room settings. The badge uses the `camera-01` icon (added by the icon sprite change). A file over the picture shows a dashed outline and an upload icon. Busy shows a spinner. Account passes only `disabled`, because its profile phase is the same for a name change and a photo change.
+- Other options: A hover overlay (direction A). A dropzone row (direction C). A pencil badge.
 - Risk: low. The upload calls and the image conversion are the same. Remove icon stays a separate text button.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/icon-sprite · The icon sprite is a Vite asset
+- Agent: claude-opus-5-5
+- Context: The human asked for one static, cacheable SVG sprite for all icons. The human did not say where it lives or how the Worker serves it.
+- Decision: The sprite is `web/lib/studio/icons.svg`. `Icon.svelte` imports it with `?no-inline`, so Vite writes `dist/assets/icons-<hash>.svg`. `public/_headers` already gives `/assets/*` one year `immutable`. A new icon makes a new hash. The service worker has no cache, so the sprite has the same offline behavior as the app shell.
+- Other options: Put the sprite in `public/`. It then has no hash and no long cache. Inline the sprite into `index.html`. Each page load then sends all icons again.
+- Risk: low. A `<use>` to a file works only on the origin of the app. No iframe and no email uses `Icon.svelte` now.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/icon-sprite · icons.ts is the source, the sprite is committed
+- Agent: claude-opus-5-5
+- Context: The human asked that the sprite and the `IconName` union come from one place.
+- Decision: `web/lib/studio/icons.ts` has the `d` of each path, by name. `IconName` is `keyof typeof icons`. `bun scripts/icon-sprite.ts` writes `icons.svg`, and I commit it. `bun run check:icons` fails if the sprite is different, or if a file in `web/` imports a value from `icons.ts`.
+- Other options: A Vite plugin that makes the sprite at build time. The Bun DOM tests and `svelte-check` then need the plugin too. Make the SVG the source and generate the TypeScript union. The type then comes from a generated file.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/icon-sprite · Two icons that are not Untitled UI
+- Agent: claude-opus-5-5
+- Context: `AgentFoot.svelte` drew a laptop and `paneIcons.ts` drew the ✻ of the agents with their own SVG data. Neither is in `@untitledui/icons`.
+- Decision: Both are in the sprite as `app-laptop` and `app-agents`, in a separate `appIcons` group. The ✻ was three `<line>` elements with `rotate`. It is now one path with the same end points, rounded to 0.001.
+- Other options: Use `laptop-02` from Untitled UI. That changes how the agent foot looks. Keep a second inline-SVG code path in `Icon.svelte`. That keeps the old way.
+- Risk: low
 - Undo: Revert this commit.
 - Status: open

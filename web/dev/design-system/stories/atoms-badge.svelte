@@ -6,7 +6,6 @@
   import Badge from "../../../lib/studio/Badge.svelte";
   import BadgeDot from "../../../lib/studio/BadgeDot.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { CheckCircle, Plus } from "../../../lib/studio/icons";
   import Matrix from "../Matrix.svelte";
 
   let { story }: { story: string } = $props();
@@ -52,8 +51,8 @@
     </div>
   {:else if story === "with-icon"}
     <div class="flex flex-wrap items-center gap-2">
-      <Badge variant="success"><Icon icon={CheckCircle} /> Verified</Badge>
-      <Badge size="icon" aria-label="Add tag"><Icon icon={Plus} /></Badge>
+      <Badge variant="success"><Icon icon="check-circle" /> Verified</Badge>
+      <Badge size="icon" aria-label="Add tag"><Icon icon="plus" /></Badge>
     </div>
   {:else if story === "status-row"}
     <div class="flex items-center gap-3 text-sm">

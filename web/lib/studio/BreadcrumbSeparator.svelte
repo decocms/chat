@@ -2,7 +2,6 @@
   import type { Snippet } from "svelte";
   import type { HTMLLiAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { ChevronRight } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -28,5 +27,5 @@
     className,
   )}
 >
-  {#if children}{@render children()}{:else}<Icon icon={ChevronRight} />{/if}
+  {#if children}{@render children()}{:else}<Icon icon="chevron-right" />{/if}
 </li>

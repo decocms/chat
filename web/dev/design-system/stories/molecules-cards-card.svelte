@@ -15,7 +15,6 @@
   import CardInset from "../../../lib/studio/CardInset.svelte";
   import CardTitle from "../../../lib/studio/CardTitle.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Globe02, Key01 } from "../../../lib/studio/icons";
   import ListRow from "../../../lib/studio/ListRow.svelte";
   import ProjectIcon from "../../../lib/studio/ProjectIcon.svelte";
   import Matrix from "../Matrix.svelte";
@@ -50,14 +49,14 @@
       </CardHeader>
       <div>
         <ListRow variant="divided" title="CI deploys" meta="Used 2 days ago">
-          {#snippet lead()}<Icon icon={Key01} />{/snippet}
+          {#snippet lead()}<Icon icon="key-01" />{/snippet}
         </ListRow>
         <ListRow
           variant="divided"
           title="Analytics export"
           meta="Used 5 days ago"
         >
-          {#snippet lead()}<Icon icon={Key01} />{/snippet}
+          {#snippet lead()}<Icon icon="key-01" />{/snippet}
         </ListRow>
       </div>
     </Card>
@@ -66,7 +65,7 @@
       {#snippet child({ props })}
         <button type="button" {...props}>
           <div class="flex items-center gap-2.5">
-            <ProjectIcon color="blue"><Icon icon={Globe02} /></ProjectIcon>
+            <ProjectIcon color="blue"><Icon icon="globe-02" /></ProjectIcon>
             <span class="min-w-0 flex-1 truncate text-sm font-medium">
               Storefront
             </span>

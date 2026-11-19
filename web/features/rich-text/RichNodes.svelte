@@ -3,7 +3,6 @@
   import type { RichActions, RichNode, SafeAttributes } from "./types";
   import { HTML_NS } from "./allowlist";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { File02 } from "../../lib/studio/icons";
   import { hasMissingFileReference } from "./fileIndex";
   let {
     nodes,
@@ -199,7 +198,7 @@
                 node.children,
               )}{/if}
           {:else if node.target.kind === "file"}<Icon
-              icon={File02}
+              icon="file-02"
               size={16}
             /><span class="min-w-0 break-words">{node.target.file.name}</span
             >{#if node.target.version}<small class="text-muted-foreground"

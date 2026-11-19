@@ -9,7 +9,6 @@
   import CommandItem from "./CommandItem.svelte";
   import CommandList from "./CommandList.svelte";
   import Icon from "./Icon.svelte";
-  import { Check, ChevronSelectorVertical } from "./icons";
   import Popover from "./Popover.svelte";
   import PopoverContent from "./PopoverContent.svelte";
   import PopoverTrigger from "./PopoverTrigger.svelte";
@@ -94,7 +93,7 @@
           )}
         >
           {selectedOption ? selectedOption.label : placeholder}
-          <Icon icon={ChevronSelectorVertical} class="opacity-50" />
+          <Icon icon="chevron-selector-vertical" class="opacity-50" />
         </Button>
       {/if}
     {/snippet}
@@ -127,7 +126,7 @@
               {:else}
                 {option.label}
                 <Icon
-                  icon={Check}
+                  icon="check"
                   class={cn(
                     "ml-auto",
                     isSelected ? "opacity-100" : "opacity-0",

@@ -4,7 +4,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { ChevronDown } from "../../lib/studio/icons";
   import MutationStatus from "./MutationStatus.svelte";
   /**
    * The open epic's title in the phone's thread sheet, with its actions
@@ -45,7 +44,7 @@
       label={vb.t("Trocar de conversa")}
       onclick={(event) => {
         if (event.currentTarget.isConnected) onopenside();
-      }}><Icon icon={ChevronDown} /></IconButton
+      }}><Icon icon="chevron-down" /></IconButton
     >
     <EpicActions {epic} {room} {owner} t={vb.t} variant="menu" />
     <MutationStatus {owner} t={vb.t} />

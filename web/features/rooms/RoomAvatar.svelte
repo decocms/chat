@@ -4,7 +4,6 @@
   import Avatar from "../../lib/studio/Avatar.svelte";
   import type { AvatarSize } from "../../lib/studio/avatar";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Cloud01 } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import type { WaitReference } from "../waits/model";
@@ -115,7 +114,7 @@
       class={cn(
         "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full text-warning",
         fill,
-      )}><Icon icon={Cloud01} size={10} /></span
+      )}><Icon icon="cloud-01" size={10} /></span
     >{/if}
   <WaitBadge
     solid

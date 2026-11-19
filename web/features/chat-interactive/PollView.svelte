@@ -8,7 +8,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { BarChartSquare02, Check, Trophy01 } from "../../lib/studio/icons";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   let {
     poll,
@@ -86,7 +85,7 @@
   <h4
     class="m-0 flex items-start gap-2 font-sans text-sm font-semibold tracking-normal [font-variation-settings:normal]"
   >
-    <Icon icon={BarChartSquare02} size={16} />{poll.question}
+    <Icon icon="bar-chart-square-02" size={16} />{poll.question}
   </h4>
   {#each view.rows as row}<div class="space-y-1">
       <Button
@@ -99,9 +98,9 @@
         aria-pressed={row.mine}
         onclick={(event) => vote(row.index, event)}
         >{#if row.winner}<Icon
-            icon={Trophy01}
+            icon="trophy-01"
             size={16}
-          />{:else if row.mine}<Icon icon={Check} size={16} />{/if}<span
+          />{:else if row.mine}<Icon icon="check" size={16} />{/if}<span
           class="min-w-0 flex-1 break-words">{row.label}</span
         ><span class="flex -space-x-2"
           >{#each row.voters as email}<span title={vb.name(email)}

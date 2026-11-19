@@ -5,7 +5,6 @@
   import type { ChatActions, ChatBridge } from "../../app/chatTypes";
   import { kb } from "../../app/panels";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { File02 } from "../../lib/studio/icons";
   import Button from "../../lib/studio/Button.svelte";
   let {
     roomId,
@@ -135,7 +134,7 @@
           rel="noopener"
           onclick={(event) => open(event, file)}
           class="inline-flex max-w-full items-center gap-2 rounded-control border border-border bg-muted px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-          ><Icon icon={File02} size={16} /><span class="min-w-0 break-words"
+          ><Icon icon="file-02" size={16} /><span class="min-w-0 break-words"
             >{file.name}</span
           ><small class="shrink-0 text-muted-foreground">{kb(file.size)}</small
           ></a
