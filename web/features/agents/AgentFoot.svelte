@@ -3,6 +3,8 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
+  import HoverCard from "../../lib/components/HoverCard.svelte";
+  import { contextSections, contextTone } from "../room-sidebar/model";
   import { cn } from "../../lib/studio/utils";
   import { settingsHref } from "../account/settings";
   import { prettyModel } from "../chat/model";
@@ -119,6 +121,22 @@
         ]
           .filter(Boolean)
           .join(" · ");
+  // The hover card on a Claude (Gui #3647): context, then the plan's 5-hour and weekly limits with their reset.
+  const CTX_KEYS: Record<string, RoomAgentCopyKey> = {
+    Contexto: "ctxContext",
+    "Sessão de 5h": "ctxFiveHour",
+    Semana: "ctxWeek",
+    "{p}% · reseta {at}": "ctxReset",
+  };
+  const ctxText = (s: string, vars?: Record<string, string | number>) =>
+    CTX_KEYS[s] ? text(CTX_KEYS[s], vars) : s;
+  const METERS = {
+    hot: "[&_progress]:text-destructive",
+    mid: "[&_progress]:text-warning",
+    ok: "[&_progress]:text-brand",
+  } as const;
+  const sectionsOf = (a: Agent) =>
+    contextSections(a.context, ctxText, lang === "en" ? "en-US" : "pt-BR");
   onDestroy(() => {
     active = false;
     clearTimeout(timer);
@@ -132,6 +150,32 @@
 </script>
 
 {#snippet agentRow(a: Agent, muted: boolean, own: boolean)}
+  {@const sections = sectionsOf(a)}
+  {#if sections.length}<HoverCard side="right">
+      {#snippet trigger(props)}<div {...props} tabindex="0">
+          {@render agentLine(a, muted, own)}
+        </div>{/snippet}
+      <p class="m-0 font-medium">{who(a)}</p>
+      {#each sections as section (section.key)}<div
+          data-hover-section={section.key}
+          class="space-y-1"
+        >
+          <p class="m-0 flex justify-between gap-2">
+            <span class="font-medium">{section.label}</span><span
+              class="whitespace-nowrap text-muted-foreground"
+              >{section.detail}</span
+            >
+          </p>
+          <Progress
+            value={section.percent}
+            aria-label={section.label}
+            class={METERS[contextTone(section.percent)]}
+          />
+        </div>{/each}
+    </HoverCard>{:else}{@render agentLine(a, muted, own)}{/if}
+{/snippet}
+
+{#snippet agentLine(a: Agent, muted: boolean, own: boolean)}
   <div
     data-agent-row={a.id}
     class={cn(
