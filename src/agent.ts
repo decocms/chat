@@ -3,6 +3,7 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
 // whose props carry the person's email. Every room call re-checks membership in D1.
 import { gate, routerOn, routerStats } from "./router";
+import { ownSession } from "./ownSession";
 import {
   createConn,
   deleteConn,
@@ -2718,7 +2719,11 @@ export async function handleAgentMcp(
           .bind(sid)
           .first<{ email: string }>()
       )?.email;
-    if (owner && owner !== props.email) sid = "";
+    // A session id another person owns (accounts moved from vibebook.dev kept their old agents, so the same
+    // Claude Code session now signs in as another email): its own id for this person, derived from that session,
+    // not the person-wide fallback that every Claude of theirs would share (one listener at a time, wrong room
+    // labels, Gui #3332).
+    if (owner && owner !== props.email) sid = await ownSession(sid, props.email);
   }
   const agentId = /^s_[a-f0-9]{32}$/.test(sid)
     ? sid
