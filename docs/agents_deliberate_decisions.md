@@ -496,3 +496,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · chore/pencil-and-home · The DM sidebar is built like a room's
+- Agent: claude-opus-5-5
+- Context: The human picked option A in the DM sidebar mockup: "Mensagens diretas" names the sidebar, Home and "Você" sit where a room has its Main thread and Inbox. The mockup's two other questions (row size, requests) had no answer.
+- Decision: The header is `SidebarHeader` with "Mensagens diretas" and the `+` (new message) at its end. Home and DM rows in the sidebar variant are small, like a room's rows: a 16px icon for Home, an `xs` avatar for a DM, and no status line. The phone's room list (`list` variant) keeps the big rows. "Pedidos" stays a section with its buttons. A "Conversas" section title shows only when there is a conversation.
+- Other options: Keep the big 36px rows with the last message under the name. Make "Pedidos" one row with a count that opens its own view.
+- Risk: low
+- Undo: Revert this commit.

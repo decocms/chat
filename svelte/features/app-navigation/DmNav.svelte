@@ -45,12 +45,13 @@
   import RoomLink from "./RoomLink.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   /**
-   * Your home's own sidebar, like a room's: Home in the header row (where a
-   * room has its name), "Você" (you and your Claude), "Pedidos" (invites and
-   * message requests waiting for your yes), then the conversations you've had
-   * (src/dm.ts), with a `+` to start one. A DM is only a conversation: its
-   * row opens it, with nothing nested under it. The rail's search (⌘K) finds
-   * a person or a conversation.
+   * Your home's own sidebar, built like a room's: "Mensagens diretas" names
+   * it in the header row, with a `+` to start a conversation. Then small rows
+   * where a room has its Main thread and Inbox: Home and "Você" (you and your
+   * Claude). Then "Pedidos" (invites and message requests waiting for your
+   * yes) and the conversations you've had (src/dm.ts). A DM is only a
+   * conversation: its row opens it, with nothing nested under it. The rail's
+   * search (⌘K) finds a person or a conversation.
    */
   let {
     controller,
@@ -75,7 +76,6 @@
       waits={waits.get(entry.room.id) ?? []}
       now={$personal.now}
       {lang}
-      status
       selected={current === entry.room.id}
       onnavigate={controller.callbacks.navigate}
     />
@@ -87,20 +87,29 @@
   use:keepRow
   class="flex min-h-0 flex-col gap-3 font-sans"
 >
-  <SidebarHeader
-    ><div class="min-w-0 flex-1">
+  <!-- The sidebar's name, like a room's, with a new message (+) at its end. -->
+  <SidebarHeader class="md:pr-2 md:pl-4"
+    ><h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+      {homeText(lang, "dms")}
+    </h2>
+    {#if $personal.me}<NewMessage
+        me={$personal.me}
+        {lang}
+        onconnect={controller.callbacks.connect}
+        ondismiss={controller.callbacks.dismiss}
+      />{/if}</SidebarHeader
+  >
+  <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
+    <!-- Home and You: where a room has its Main thread and Inbox. -->
+    <li>
       <HomeRow
         selected={!current}
         waits={$personal.me?.waits.length ?? 0}
         {lang}
         onhome={controller.callbacks.home}
       />
-    </div></SidebarHeader
-  >
-  {#if dms}<ul
-      class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0"
-    >
-      {@render dm(dms.self)}
+    </li>
+    {#if dms}{@render dm(dms.self)}
       {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
           class="mt-3"
         >
@@ -112,16 +121,9 @@
             onanswer={controller.callbacks.answerRequest}
           />
         </li>{/if}
-      <li class="mt-3">
-        <SectionHeader title={homeText(lang, "dms")}
-          >{#snippet action()}{#if $personal.me}<NewMessage
-                me={$personal.me}
-                {lang}
-                onconnect={controller.callbacks.connect}
-                ondismiss={controller.callbacks.dismiss}
-              />{/if}{/snippet}</SectionHeader
-        >
-      </li>
-      {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}
-    </ul>{/if}
+      {#if dms.talked.length}<li class="mt-3">
+          <SectionHeader title={homeText(lang, "dmConversations")} />
+        </li>{/if}
+      {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}{/if}
+  </ul>
 </nav>
