@@ -161,9 +161,9 @@ async function wsStateLine(env: Env, start: number, end: number) {
   // Reconnects by the close code of the socket they replace (rc): 1006 = dropped without a close (network/sleep), 1001 = going away (deploy/tab), none = a fresh open.
   const rcs = await env.DB.prepare(`SELECT coalesce(json_extract(dims, '$.rc'), '-') AS rc, count(*) AS n FROM events WHERE name = 'ws_state' AND ts >= ? AND ts < ? GROUP BY rc ORDER BY n DESC LIMIT 6`).bind(start, end).all<{ rc: string; n: number }>();
   const rcLine = rcs.results.map((x) => `${x.rc === "-" ? "abertura" : `rc ${x.rc}`} ${x.n}×`).join(" · ");
-  // Everything the rooms sent over their sockets, by event kind and app (Book.sendTo → ws_bytes, flushed hourly).
-  const wire = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, json_extract(dims, '$.c') AS c, sum(json_extract(dims, '$.n')) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_bytes' AND ts >= ? AND ts < ? GROUP BY t, c ORDER BY b DESC LIMIT 6`).bind(start, end).all<{ t: string; c: string; n: number; b: number }>();
-  const wireLine = wire.results.map((x) => `${x.t}${x.c === "s" ? " (svelte)" : ""} ${bytes(x.b)} (${x.n}×, ${bytes(x.b / Math.max(1, x.n))} cada)`).join(" · ");
+  // Everything the rooms sent over their sockets, by event kind (Book.sendTo → ws_bytes, flushed hourly).
+  const wire = await env.DB.prepare(`SELECT json_extract(dims, '$.t') AS t, sum(json_extract(dims, '$.n')) AS n, sum(json_extract(dims, '$.bytes')) AS b FROM events WHERE name = 'ws_bytes' AND ts >= ? AND ts < ? GROUP BY t ORDER BY b DESC LIMIT 6`).bind(start, end).all<{ t: string; n: number; b: number }>();
+  const wireLine = wire.results.map((x) => `${x.t} ${bytes(x.b)} (${x.n}×, ${bytes(x.b / Math.max(1, x.n))} cada)`).join(" · ");
   return `\n- Abrir sala (estado do WS, últimas 24h): **${r.n}×**, média ${bytes(r.avg)}, maior ${bytes(r.mx)} (sala ${big?.book}: ${big?.top}${big?.msgs ? `; messages: ${big.msgs}` : ""})${people ? `\n  - Quem mais abriu: ${people}` : ""}${rcLine ? `\n  - Reconexões pelo código do socket anterior: ${rcLine}` : ""}${pushes ? `\n- Empurrões grandes pelo WS (≥20 KB): ${pushes}` : ""}${wireLine ? `\n- Tudo que saiu pelos sockets das salas, por tipo: ${wireLine}` : ""}`;
 }
 

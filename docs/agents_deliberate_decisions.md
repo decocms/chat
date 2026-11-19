@@ -565,3 +565,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. If Workers Builds does not run `build.command`, the deploy fails (the running version stays).
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · chore/final-vanilla-sweep · One socket byte count per event kind
+- Agent: claude-opus-5-5
+- Context: `Book.sendTo` counted socket bytes per UI (`c`). Only one UI is left, so `c` was always "s", and the product report printed "(svelte)" on each line.
+- Decision: Count sends per event kind only. New `ws_bytes` events have no `c` dimension, and the report groups by kind. The Durable Object table keeps its `c` column (existing rooms have it), always "". No data is deleted.
+- Other options: Keep `c` as "s". Drop the column with a migration in each room.
+- Risk: low. For the hours around the deploy, old events with `c` and new ones without it sum into the same line.
+- Undo: Revert this commit.
+- Status: open

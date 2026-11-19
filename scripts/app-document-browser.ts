@@ -12,7 +12,7 @@ const output = resolve(
 );
 await mkdir(output, { recursive: true });
 await buildAppDocument();
-// The host is bundled into the Svelte app; this page loads it on its own.
+// The host is bundled into the app; this page loads it on its own.
 const hostBuild = await buildBrowser(
   { entrypoints: [resolve(projectRoot, "web/app-document/host.ts")] },
   projectRoot,

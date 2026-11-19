@@ -32,7 +32,7 @@
     - Each side validates the other side's messages.
     - The CLI hub (`vibebook listen`) connects to `/mcp?wire=jsonrpc` and gets JSON-RPC too. A CLI before 1.6.21 connects to `/mcp` and gets the old tagged JSON (`{ t, ... }`). Keep that legacy path until old CLIs are gone.
   - Document text: the Yjs protocol on `/yjs/:name`. This is the only channel that is not RPC.
-- Do not call `fetch` directly from the Svelte app.
+- Do not call `fetch` directly from the browser app.
 - Do not use `any`, and do not use a type cast to hide a type error.
 
 ## Frontend
