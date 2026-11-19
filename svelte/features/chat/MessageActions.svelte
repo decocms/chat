@@ -80,6 +80,7 @@
 
 <div
   data-message-actions
+  data-chat-hover-only={floating ? "" : undefined}
   class={floating ? "contents" : "flex flex-wrap items-center gap-1"}
 >
   <div

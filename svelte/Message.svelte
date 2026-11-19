@@ -436,6 +436,7 @@
     />{:else}<button
       type="button"
       data-message-toolbar-entry
+      data-chat-hover-only
       class="sr-only pointer-coarse:hidden"
       aria-label={vb.t("Ações desta mensagem")}
       onfocus={enterToolbar}
