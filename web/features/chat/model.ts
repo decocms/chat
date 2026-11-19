@@ -168,7 +168,74 @@ export function messageFooters(
     footer.readers.sort((a, b) => Number(b.read) - Number(a.read));
   return footers;
 }
-export type Worker = { who: string; email: string };
+export type Worker = {
+  who: string;
+  email: string;
+  /** The epic this work happens in, when the agent took a message of another thread (the main thread) to it. */
+  epic?: { id: string; title: string };
+};
+/** The epic an agent took a message to: the first open epic (not the message's own thread) the same person's agent
+ * posted in after acknowledging it. Acks don't carry a thread, so this is read from the room. */
+function ackEpic(
+  room: Room,
+  ack: { msg_id: number; email: string; ts: number },
+): { id: string; title: string } | undefined {
+  const own = room.messages.find((m) => m.id === ack.msg_id)?.thread;
+  for (const m of room.messages) {
+    if (
+      m.kind !== "agent" ||
+      m.author !== ack.email ||
+      m.ts < ack.ts ||
+      m.thread === own ||
+      m.thread === "main"
+    )
+      continue;
+    const epic = room.epics.find((e) => e.id === m.thread && !e.archived);
+    if (epic) return { id: epic.id, title: epic.title };
+  }
+  return undefined;
+}
+/** Fresh "doing" acks (the latest per message and agent, under 20 minutes) on messages of other threads whose work
+ * moved to this epic: the epic shows who works in it even when they took the message from the main thread. */
+function latestAcks(room: Room) {
+  const latest = new Map<string, NonNullable<Room["acks"]>[number]>();
+  for (const ack of room.acks || []) {
+    const key = `${ack.msg_id}|${ack.who}|${ack.email}`;
+    const prior = latest.get(key);
+    if (!prior || ack.ts > prior.ts) latest.set(key, ack);
+  }
+  return [...latest.values()];
+}
+/** Whether a message taken to this epic was marked done (or dismissed): its agent's recent posts stop reading as work. */
+function movedFinished(room: Room, epic: string) {
+  return latestAcks(room).some((ack) => {
+    if (ack.status !== "done" && ack.status !== "dismissed") return false;
+    // Where the work went is read from when it started: the first ack of this agent on this message.
+    const started = Math.min(
+      ...(room.acks || [])
+        .filter(
+          (a) =>
+            a.msg_id === ack.msg_id &&
+            a.who === ack.who &&
+            a.email === ack.email,
+        )
+        .map((a) => a.ts),
+    );
+    return ackEpic(room, { ...ack, ts: started })?.id === epic;
+  });
+}
+function movedWorkers(room: Room, epic: string, now: number): Worker[] {
+  const out: Worker[] = [];
+  for (const ack of latestAcks(room))
+    if (
+      ack.status === "doing" &&
+      now - ack.ts < 20 * 60_000 &&
+      ackEpic(room, ack)?.id === epic &&
+      !out.some((w) => w.who === ack.who && w.email === ack.email)
+    )
+      out.push({ who: ack.who, email: ack.email });
+  return out;
+}
 export function threadWorkers(
   room: Room,
   thread: string,
@@ -217,15 +284,30 @@ export function threadWorkers(
       ) === ack
     ) {
       seen.add(key);
-      workers.push({ who: ack.who, email: ack.email });
+      const moved = epic ? undefined : ackEpic(room, ack);
+      workers.push({
+        who: ack.who,
+        email: ack.email,
+        ...(moved ? { epic: moved } : {}),
+      });
     }
   }
+  if (epic)
+    for (const worker of movedWorkers(room, epic.id, now))
+      if (!seen.has(`${worker.who}|${worker.email}`)) {
+        seen.add(`${worker.who}|${worker.email}`);
+        workers.push(worker);
+      }
   if (workers.length || !epic) return workers;
   const doing = acks.find(
     (a) => a.status === "doing" && now - a.ts < 20 * 60_000,
   );
   if (doing) return [{ who: doing.who, email: doing.email }];
-  if (latest[0]?.status === "done" || latest[0]?.status === "dismissed")
+  if (
+    latest[0]?.status === "done" ||
+    latest[0]?.status === "dismissed" ||
+    movedFinished(room, epic.id)
+  )
     return [];
   const last = lastWhere(
     room.messages,
