@@ -6,7 +6,8 @@ import {
 } from "../home/model";
 import { appRouteTarget } from "../apps/model";
 export type ApplicationRoute =
-  | { kind: "home" }
+  /** `/?inbox`: your Inbox for all rooms, as the home's page (HomeInbox). */
+  | { kind: "home"; inbox?: true }
   | { kind: "archived" }
   /** Your account, agents, cloud agents and this device; `#profile`, `#cloud`… scroll to a section. */
   | { kind: "settings" }
@@ -30,7 +31,10 @@ export type PresentationThread = `pre:${number}`;
 export function applicationRoute(href: string): ApplicationRoute {
   const url = new URL(href),
     roomId = roomIdFromPath(url.pathname);
-  if (url.pathname === "/") return { kind: "home" };
+  if (url.pathname === "/")
+    return url.searchParams.has("inbox")
+      ? { kind: "home", inbox: true }
+      : { kind: "home" };
   if (url.pathname === "/archived") return { kind: "archived" };
   if (url.pathname === "/settings") return { kind: "settings" };
   if (roomId) {

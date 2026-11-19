@@ -26,7 +26,7 @@ export function roomInboxModel(
   all: boolean,
 ) {
   const mine = <T extends { book_id: string }>(rows: readonly T[]) =>
-    rows.filter((row) => all || row.book_id === roomId);
+    rows.filter((row) => all || !roomId || row.book_id === roomId);
   const waits = mine(data.waits),
     asks = waits.filter((wait) => !wait.ref.startsWith("t")),
     oks = waits.filter((wait) => wait.ref.startsWith("t"));

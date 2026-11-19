@@ -12,6 +12,8 @@ export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
   home: () => void;
   archived: () => void;
+  /** Opens your Inbox for all rooms: the home's page at `/?inbox`. */
+  inbox?: () => void;
   rename?: (id: string, title: string) => Promise<CommandOutcome>;
   /** Answers a message request: accept opens the DM with their first message, decline closes it (rejects on failure). */
   answerRequest?: (email: string, accept: boolean) => Promise<void>;
@@ -30,6 +32,8 @@ export function createAppNavigationSession(
 ) {
   const state = writable({
     roomId: null as string | null,
+    /** The home shows your Inbox (`/?inbox`). */
+    inbox: false,
     settingsId: null as string | null,
     archiveId: null as string | null,
     renameId: null as string | null,
@@ -82,6 +86,7 @@ export function createAppNavigationSession(
       state.update((s) => ({
         ...s,
         roomId: roomIdFromPath(url.pathname),
+        inbox: url.pathname === "/" && url.searchParams.has("inbox"),
       }));
     },
     openSearch(element?: HTMLElement) {

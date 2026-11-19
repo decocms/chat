@@ -191,6 +191,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       navigate: (value) => navigate(value),
       home: () => navigate("/"),
       archived: () => navigate("/archived"),
+      inbox: () => navigate("/?inbox"),
       rename: (id, title) =>
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
