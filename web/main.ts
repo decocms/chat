@@ -5,11 +5,6 @@ if (document.querySelector('meta[name="vb-page"]')) {
   if (!target) throw new Error("Missing page root");
   const { mountAuthPage } = await import("./features/auth/mount");
   mountAuthPage(target, document);
-} else if (new URLSearchParams(location.search).get("gallery") === "1") {
-  const target = document.getElementById("app");
-  if (!target) throw new Error("Missing gallery root");
-  const { mountGallery } = await import("./dev/gallery/main");
-  mountGallery(target);
 } else {
   const target = document.getElementById("app");
   if (!target) throw new Error("Missing application root");

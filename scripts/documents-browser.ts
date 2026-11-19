@@ -570,7 +570,7 @@ try {
       );
       const staleEditor = await documentEditor(a).elementHandle();
       assert(staleEditor);
-      await a.goto(`${app}/app`, { waitUntil: "domcontentloaded" });
+      await a.goto(`${app}/`, { waitUntil: "domcontentloaded" });
       await expect(a.locator('[data-view="home"]')).toBeVisible();
       await expect(a.locator(".book")).toHaveCount(0);
       assert(

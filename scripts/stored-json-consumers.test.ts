@@ -32,7 +32,7 @@ function fixture(
   const events = dims.map((value, index) => ({
     day: "2026-11-14",
     name: names[index] ?? "pageview",
-    path: "/app",
+    path: "/",
     country: "BR",
     visitor: `synthetic-${index}`,
     user: "",

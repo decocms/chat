@@ -6,6 +6,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { verifyStudioPalette } from "./studio-browser";
 import { browserFixtures } from "./browser-fixtures";
 import { auditDesignSystemInbox } from "./design-system-inbox-browser";
+import { galleryPath, serveBuiltGallery } from "./browser-static-gallery";
+import { resolve } from "node:path";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -31,6 +33,8 @@ results.scope = onlyInbox
 results.sourceRevision = process.env.TEST_APP_REVISION ?? null;
 const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-design-system";
 let ownedBrowser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+// The gallery is not in the Worker's bundle: it is the page that `bun run build:gallery` writes (dist-gallery/).
+let gallery: Awaited<ReturnType<typeof serveBuiltGallery>> | null = null;
 const errors: string[] = [];
 const expectedNetworkFailures: string[] = [];
 const requestFailures: { url: string; error: string | undefined }[] = [];
@@ -77,7 +81,15 @@ try {
     }),
   );
   if (!onlyInbox) {
-    await page.goto(`${base}/app?gallery=1`, {
+    gallery = await serveBuiltGallery(
+      process.env.TEST_GALLERY_ROOT ??
+        resolve(import.meta.dirname, "../dist-gallery"),
+    );
+    results.galleryAssets = gallery.proof;
+    await context.addCookies([
+      { name: "vb_lang", value: "en", url: gallery.base },
+    ]);
+    await page.goto(`${gallery.base}${galleryPath}`, {
       waitUntil: "domcontentloaded",
     });
     await expect(
@@ -282,6 +294,7 @@ try {
   throw error;
 } finally {
   try {
+    await gallery?.server.stop(true);
     await ownedBrowser?.close();
   } catch (error) {
     results.status = "failed";

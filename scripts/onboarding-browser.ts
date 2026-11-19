@@ -49,7 +49,7 @@ try {
     data: { name: "" },
   });
   assert(reset.ok());
-  await page.goto(`${base}/app`, {
+  await page.goto(`${base}/`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });

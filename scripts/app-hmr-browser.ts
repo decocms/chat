@@ -437,7 +437,7 @@ try {
   result.room = room;
 
   step("Check source shells and Worker access denial");
-  for (const path of ["/app", `/b/${room}`]) {
+  for (const path of ["/", `/b/${room}`]) {
     const response = await context.request.get(base + path);
     const html = await response.text();
     assert(response.ok());
@@ -592,7 +592,7 @@ try {
       `http://127.0.0.1:${trap.port}`,
       `//127.0.0.1:${trap.port}`,
     ]) {
-      const status = await rawRequest(`${prefix}/app`, { cookie });
+      const status = await rawRequest(`${prefix}/`, { cookie });
       assert([400, 403].includes(status), `Hostile authority status ${status}`);
     }
     assert.equal(

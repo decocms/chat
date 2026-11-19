@@ -76,10 +76,12 @@ jobs:
           browser: "true"
       - run: bun run build:ui
       - run: bun run build:mcp
+      # The component gallery is not in dist/. The room layout and gallery checks open this build.
+      - run: bun run build:gallery
       - name: Room layout
         run: bun run test:room-layout:browser
         env:
-          TEST_PUBLIC_ROOT: ${{ github.workspace }}/dist
+          TEST_GALLERY_ROOT: ${{ github.workspace }}/dist-gallery
           TEST_APP_REVISION: ${{ github.sha }}
           TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/room-layout-browser
       - name: App document transport

@@ -22,7 +22,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | `web/lib/client/` | The typed API client (`hc<AppType>`). |
 | `web/build/` | Vite plugins: client boundary, chunk diagnostics, development proxy. |
 | `web/styles/` | `tailwind.css`, the only authored stylesheet of the app. |
-| `web/dev/` | Development pages: the component gallery (`gallery.html`) and the design-system stories (`design-system.html`). |
+| `web/dev/` | Development pages: the component gallery (`gallery.html`, not in `dist/`; `bun run build:gallery` builds it into `dist-gallery/` for the browser tests) and the design-system stories (`design-system.html`). |
 | `web/app-document/` | The host for app documents. |
 | `web/service-worker/` | Web push code. Builds to `dist/sw.js`. |
 | `mcp-app/` | The admin MCP app UI. Builds to `dist-mcp/`. |

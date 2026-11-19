@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
 const environment = new Window({
-  url: "https://vibebook.test/app?gallery=1&probe=room-layout",
+  url: "https://vibebook.test/dev/gallery.html?probe=room-layout",
 });
 for (const name of [
   "window",

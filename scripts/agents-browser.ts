@@ -247,7 +247,7 @@ try {
   await pane.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(terminal).toHaveAttribute("data-terminal-phase", "connected");
   assert.equal(connections, 2);
-  await page.goto(`${base}/app`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
   await expect(page.locator(".xterm")).toHaveCount(0);
   assert.deepEqual(errors, []);
   report.status = "passed";

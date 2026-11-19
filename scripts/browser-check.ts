@@ -246,12 +246,18 @@ try {
   );
   console.log("PASS two live Yjs document editors");
   // Exercise real SPA navigation while an editor owns a live provider.
-  await a.locator('a[data-nav][href="/app"]:visible').first().click();
-  await expect.poll(() => new URL(a.url()).pathname).toBe("/app");
+  await a
+    .locator('[data-room-sidebar-panel] a[href="/"]:visible')
+    .first()
+    .click();
+  await expect.poll(() => new URL(a.url()).pathname).toBe("/");
   await expect(a.locator("[data-document-editor] .cm-content")).toHaveCount(0);
   await a.goBack();
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
-  await a.locator('a[data-nav][href="/app"]:visible').first().click();
+  await a
+    .locator('[data-room-sidebar-panel] a[href="/"]:visible')
+    .first()
+    .click();
   await expect(
     a.locator(`[data-room-id="${id}"] a[href="/b/${id}"]:visible`).first(),
   ).toBeVisible({ timeout: 90_000 });
