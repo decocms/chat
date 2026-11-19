@@ -90,6 +90,10 @@ async function post(url: string, token: string | null, body: unknown, session?: 
 }
 export async function readMcpAnswer(r: Response, id: number): Promise<unknown> {
   const text = (await r.text()).slice(0, 4_000_000);
+  // A server that checks X-Vibebook-Identity and refuses it (it still trusts vibebook.dev, or this person isn't on its
+  // list) answers 403: say what to fix instead of a raw status (Gui #3577).
+  if (r.status === 403 && /vibebook identity/i.test(text)) throw new Error(`${new URL(r.url || "http://servidor").host || "o servidor"} não aceitou a identidade do deco.chat. Quem cuida dele: veja /mcp-identity.txt (o issuer agora é este endereço, não vibebook.dev)`);
+  if (r.status === 403) throw new Error(`o servidor recusou o acesso: ${text.slice(0, 160)}`);
   if (!r.ok) throw new Error(`servidor MCP respondeu ${r.status}${r.status === 401 ? " (token errado ou faltando)" : ""}: ${text.slice(0, 160)}`);
   const msgs = (r.headers.get("content-type") || "").includes("text/event-stream")
     ? text.split(/\r?\n\r?\n/).map((ev) => ev.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("")).filter(Boolean)
