@@ -64,7 +64,7 @@ export async function vibebookEmail(req: Request, aud: string): Promise<string |
 ## Prompt for the Claude of your MCP server
 
 ```
-This MCP server is called from deco.chat rooms. Read https://chat.decocms.com/mcp-identity.md and make every
+This MCP server is called from deco.chat rooms. Read https://chat.decocms.com/mcp-identity.txt and make every
 request require a valid X-Vibebook-Identity: Ed25519 JWT, keys from https://chat.decocms.com/.well-known/jwks.json
 (cached 1h, refetch on unknown kid), iss exactly https://chat.decocms.com, aud exactly this endpoint's URL
 (origin + path), exp in the future, sub in an allowlist I keep in config (emails or @domain). Answer 403 (not 401)
