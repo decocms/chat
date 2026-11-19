@@ -195,7 +195,6 @@
   data-fire-hot={fireHot}
   data-waiting={waiting}
   use:highlight
-  data-vb-native
   use:swipeMessage={{
     enabled: !origin,
     reply: () => {

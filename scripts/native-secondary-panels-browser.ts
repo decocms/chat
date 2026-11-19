@@ -427,7 +427,6 @@ try {
       const native = await target.evaluate(async (element) => {
         await document.fonts.ready;
         return {
-          boundary: element.hasAttribute("data-vb-native"),
           width: element.getBoundingClientRect().width,
           viewport: innerWidth,
           family: getComputedStyle(element).fontFamily,
@@ -446,7 +445,6 @@ try {
           lang: document.documentElement.lang,
         };
       });
-      assert(native.boundary);
       assert(native.width <= native.viewport);
       assert(
         native.family.includes("Inter"),

@@ -213,7 +213,6 @@
     </div>{/if}{/snippet}
 <div
   data-document-preview
-  data-vb-native
   class="min-h-0 min-w-0 flex-1 overflow-auto p-4 font-sans text-foreground break-words"
 >
   {#if !epic && text.trim() && props.room.docNotes?.length}<aside

@@ -277,7 +277,7 @@ try {
     assert(theme.family.includes("Inter var"));
     assert(theme.pageWidth <= theme.viewport);
     const accessibility = await new AxeBuilder({ page: current })
-      .include("section[data-vb-native]")
+      .include('section[data-view="epics"]')
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
     assert.deepEqual(accessibility.violations, []);

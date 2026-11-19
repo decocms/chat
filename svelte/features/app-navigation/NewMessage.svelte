@@ -91,7 +91,6 @@
     side="bottom"
     align="end"
     sideOffset={6}
-    data-vb-native
     data-new-message-panel
     class="flex w-80 max-w-[calc(100vw-16px)] flex-col gap-2 p-2 font-sans"
   >

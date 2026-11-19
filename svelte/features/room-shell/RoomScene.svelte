@@ -598,7 +598,6 @@
             }}
           >
             <DialogContent
-              data-vb-native
               class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
               closeLabel={services.language === "en"
                 ? "Close file"
@@ -646,7 +645,6 @@
       >
     </aside>{/if}
   {#if $view.notice}<aside
-      data-vb-native
       role="status"
       class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-control border border-border bg-popover p-3 font-sans text-sm text-popover-foreground shadow-md"
     >

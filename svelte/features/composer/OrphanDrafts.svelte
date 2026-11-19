@@ -113,7 +113,6 @@
 {/if}
 <Dialog bind:open>
   <DialogContent
-    data-vb-native
     class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}
     preventScroll={false}

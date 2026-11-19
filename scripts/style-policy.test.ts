@@ -101,15 +101,14 @@ test("stylesheet policy distinguishes tokens from custom selector and import esc
     '@plugin "unlisted-theme-package";',
     '@config "../hidden-theme.js";',
     '@import "legacy.css";',
-    ":where([data-vb-native]) { color:red; }",
-    ':where([data-vb-native]) { @import "legacy.css"; }',
+    ":where(main) { color:red; }",
     ".button{@apply bg-card}",
   ])
     expect(auditTailwind("tailwind.css", source).length).toBeGreaterThan(0);
   expect(
     auditTailwind(
       "tailwind.css",
-      ':where([data-vb-native]) { @import "tailwindcss/preflight.css" layer(base); }',
+      '@import "tailwindcss/preflight.css" layer(base);',
     ),
   ).toEqual([]);
   expect(
@@ -127,7 +126,7 @@ test("approved terminal CSS enters only the sole top-level Tailwind entry and na
     '@import "@xterm/xterm/css/xterm.css";',
     '@import "@xterm/xterm/css/theme.css" layer(components);',
     '@import "@xterm/xterm@6/css/xterm.css" layer(components);',
-    ':where([data-vb-native]) { @import "@xterm/xterm/css/xterm.css" layer(components); }',
+    ':where(main) { @import "@xterm/xterm/css/xterm.css" layer(components); }',
   ])
     expect(
       auditTailwind("svelte/styles/tailwind.css", source).length,

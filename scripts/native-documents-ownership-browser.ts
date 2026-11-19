@@ -196,7 +196,7 @@ try {
     await current.goto(`${base}/app`, {
       waitUntil: "domcontentloaded",
     });
-    await expect(current.locator('[data-vb-native="home"]')).toBeVisible();
+    await expect(current.locator('[data-view="home"]')).toBeVisible();
     await expect(current.locator(".book")).toHaveCount(0);
     assert.equal(
       await stale.evaluate((node) => node.isConnected).catch(() => false),
@@ -212,7 +212,7 @@ try {
         waitUntil: "domcontentloaded",
       });
       assert(response?.ok());
-      await expect(current.locator('[data-vb-native="auth"]')).toBeVisible();
+      await expect(current.locator('[data-view="auth"]')).toBeVisible();
       await expect(
         current.getByRole("button", { name: "Ask to join", exact: true }),
       ).toBeVisible();

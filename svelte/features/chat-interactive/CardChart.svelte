@@ -150,7 +150,6 @@
         {vb.t("Abrir em tela cheia")}</DialogTrigger
       >
       <DialogContent
-        data-vb-native
         class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto font-sans text-sm text-foreground md:max-w-none"
         closeLabel={vb.t("Fechar")}
         preventScroll={false}

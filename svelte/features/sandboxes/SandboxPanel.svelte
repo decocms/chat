@@ -115,7 +115,6 @@
 </script>
 
 <section
-  data-vb-native
   data-native-sandboxes
   class="space-y-4 font-sans text-sm text-foreground"
 >

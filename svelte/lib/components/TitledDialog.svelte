@@ -43,7 +43,6 @@
 
 <Dialog bind:open {onOpenChange}>
   <DialogContent
-    data-vb-native
     {closeLabel}
     preventScroll={false}
     preventOverflowTextSelection={false}

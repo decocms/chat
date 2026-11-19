@@ -50,7 +50,7 @@
 </script>
 
 <section
-  data-vb-native="files"
+  data-view="files"
   class="flex flex-col gap-3 p-3 font-sans text-sm text-foreground"
   aria-label={vb.t("Arquivos")}
 >

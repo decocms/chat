@@ -274,7 +274,6 @@
 <section
   bind:this={root}
   tabindex="-1"
-  data-vb-native
   data-people-panel
   class="mt-auto shrink-0 space-y-0.5 font-sans text-sm leading-5 text-sidebar-foreground outline-none"
 >

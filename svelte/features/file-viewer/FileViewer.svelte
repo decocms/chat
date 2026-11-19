@@ -124,7 +124,7 @@
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent data-vb-native class="font-sans">
+              <SelectContent class="font-sans">
                 {#each versions as version (version.value)}<SelectItem
                     value={version.value}
                     label={version.label}>{version.label}</SelectItem
@@ -298,7 +298,6 @@
     }}
   >
     <DialogContent
-      data-vb-native
       class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
       closeLabel={text("close")}
       preventScroll={false}
@@ -320,7 +319,6 @@
   </Dialog>{/if}
 
 {#if $view.closingUnconfirmed}<div
-    data-vb-native
     role="alert"
     class="fixed inset-x-4 top-4 z-50 flex flex-wrap items-center gap-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground shadow-lg"
   >

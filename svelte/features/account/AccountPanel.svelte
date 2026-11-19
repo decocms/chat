@@ -153,7 +153,6 @@
       value={$view.binding}
       >{#snippet children(rendered: AccountBinding)}
         {#if $view.me}<div
-            data-vb-native
             data-native-account
             class="mx-auto w-full max-w-2xl flex flex-col gap-10 px-4 py-8 font-sans text-sm text-foreground md:px-8 md:py-12"
           >

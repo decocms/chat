@@ -84,7 +84,6 @@
 </script>
 
 <div
-  data-vb-native
   data-native-agent-banners
   class="space-y-3 font-sans text-sm text-foreground"
 >
@@ -176,7 +175,6 @@
   }}
 >
   <DialogContent
-    data-vb-native
     class="max-h-[90dvh] overflow-auto font-sans text-sm text-foreground"
     closeLabel={text("close")}
     preventScroll={false}

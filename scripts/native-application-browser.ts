@@ -599,7 +599,7 @@ try {
     "Native Home → room/thread/Back with app-owned room and thread drafts",
     async () => {
       await a.goto(`${base}/`);
-      await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
+      await expect(a.locator('[data-view="home"]')).toBeVisible();
       const freshVersion = MeResult.parse(
         await (await owner.context.request.get(`${base}/api/me`)).json(),
       ).v;
@@ -608,11 +608,9 @@ try {
         freshVersion,
         "Worker shell metadata must use the Me version domain",
       );
-      await expect(a.locator('[data-vb-native="update"]')).toHaveCount(0);
+      await expect(a.locator('[data-view="update"]')).toHaveCount(0);
       await a
-        .locator(
-          `[data-vb-native="room-navigation"] [data-room-id="${roomA}"] a`,
-        )
+        .locator(`[data-view="room-navigation"] [data-room-id="${roomA}"] a`)
         .click();
       await expect(
         a.locator("[data-native-app-shell] [data-native-room-layout]"),
@@ -629,20 +627,18 @@ try {
       await expectThread(a, roomA);
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
-        .locator('[data-vb-native="room-navigation"]')
+        .locator('[data-view="room-navigation"]')
         .getByRole("button", { name: "Your rooms", exact: true })
         .click();
-      await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
+      await expect(a.locator('[data-view="home"]')).toBeVisible();
       await a
-        .locator(
-          `[data-vb-native="room-navigation"] [data-room-id="${roomB}"] a`,
-        )
+        .locator(`[data-view="room-navigation"] [data-room-id="${roomB}"] a`)
         .click();
       await expect(composer).toBeVisible();
       await expect(composer).toHaveValue("");
       await composer.fill(`Second room draft ${token}`);
       await a.goBack();
-      await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
+      await expect(a.locator('[data-view="home"]')).toBeVisible();
       await a.goBack();
       await expect(a.locator("[data-native-room-layout]")).toBeVisible();
       await expect(composer).toHaveValue(`Root draft ${token}`);
@@ -953,9 +949,7 @@ try {
     "real R2 native Viewer and actual browser Back/Forward",
     async () => {
       await openIntegratedPane(a, "files");
-      const file = a.locator(
-        `[data-vb-native="files"] [data-file-id="${fileId}"]`,
-      );
+      const file = a.locator(`[data-view="files"] [data-file-id="${fileId}"]`);
       await expect(file).toBeVisible();
       await file.getByRole("button").first().click();
       await expect(
@@ -1041,7 +1035,7 @@ try {
       await expectThread(a, roomA);
       await openIntegratedPane(a, "files");
       await a
-        .locator(`[data-vb-native="files"] [data-file-id="${fileId}"]`)
+        .locator(`[data-view="files"] [data-file-id="${fileId}"]`)
         .getByRole("button")
         .first()
         .click();
@@ -1124,7 +1118,7 @@ try {
         // Preserve this document and application heap across real router cycles.
         await a
           .locator(
-            '[data-vb-native="room-navigation"] [data-room-id="' + id + '"] a',
+            '[data-view="room-navigation"] [data-room-id="' + id + '"] a',
           )
           .click();
         await expectThread(a, id);

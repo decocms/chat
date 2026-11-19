@@ -40,7 +40,7 @@
 <Tabs
   value={scope}
   onValueChange={(value) => (scope = value === "all" ? "all" : "room")}
-  data-vb-native="room-strip"
+  data-view="room-strip"
   class="shrink-0 gap-0 font-sans md:hidden"
 >
   <TabsList

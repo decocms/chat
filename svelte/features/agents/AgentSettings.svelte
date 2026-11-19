@@ -74,7 +74,6 @@
 </script>
 
 <section
-  data-vb-native
   data-native-agent-settings
   class="space-y-3 font-sans text-sm tracking-normal [font-variation-settings:normal] text-foreground"
 >

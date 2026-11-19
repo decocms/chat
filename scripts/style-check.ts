@@ -126,15 +126,11 @@ else {
         baseReset = true;
       parent = parent.parent;
     }
-    if (
-      baseReset &&
-      rule.selectors.some((selector) => !selector.includes("[data-vb-native]"))
-    )
+    if (baseReset && rule.selectors.some((selector) => selector.includes("&")))
       issues.push({
         file: "public/svelte-preview/ui.css",
         line: rule.source?.start?.line ?? 1,
-        reason:
-          "Native reset escaped its migration boundary or retained unresolved nesting",
+        reason: "The base reset retained unresolved nesting",
       });
   });
   generated.walkAtRules("scope", (rule) => {

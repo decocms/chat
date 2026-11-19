@@ -4876,11 +4876,7 @@ describe("stable native sidebar integration", () => {
     expect(
       rendered.target.querySelector("[data-pin-id=p]")?.textContent,
     ).not.toContain("Arquivo indisponível");
-    expect(
-      rendered.target
-        .querySelector("[data-native-pins]")
-        ?.hasAttribute("data-vb-native"),
-    ).toBe(true);
+    expect(rendered.target.querySelector("[data-native-pins]")).not.toBeNull();
     requestPinnedFiles(rendered.props.pins, room, rendered.props.send);
     flushSync();
     rendered.target

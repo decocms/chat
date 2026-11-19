@@ -32,7 +32,6 @@
 
 {#if !$view.standalone && !$view.dismissed && $view.coarse && compact}
   <section
-    data-vb-native
     data-native-install
     data-compact
     class="space-y-2 rounded-surface border border-border bg-card py-2 pr-2 pl-3 font-sans text-sm text-foreground"
@@ -69,7 +68,6 @@
       </p>{/if}
   </section>{:else if !$view.standalone && !$view.dismissed && $view.coarse}
   <section
-    data-vb-native
     data-native-install
     class="mb-4 space-y-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-foreground"
   >

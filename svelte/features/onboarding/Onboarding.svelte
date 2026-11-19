@@ -71,7 +71,6 @@
 </script>
 
 <main
-  data-vb-native
   data-native-onboarding
   data-onboarding-step={$view.step}
   data-onboarding-scope={actionScope}

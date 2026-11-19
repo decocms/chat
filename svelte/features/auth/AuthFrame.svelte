@@ -6,7 +6,7 @@
 
 <svelte:head><title>{title} · deco.chat</title></svelte:head>
 <main
-  data-vb-native="auth"
+  data-view="auth"
   class="flex min-h-dvh items-center justify-center bg-background p-4 font-sans text-sm leading-6 text-foreground"
 >
   <div class="w-full max-w-md">

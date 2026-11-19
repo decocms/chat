@@ -178,7 +178,7 @@ try {
   );
   const count = (type: string) =>
     sent.filter((command) => command.t === type).length;
-  const panel = page.locator('[data-vb-native="files"]');
+  const panel = page.locator('[data-view="files"]');
   const tile = (fileID: string) => panel.locator(`[data-file-id="${fileID}"]`);
   const pin = (fileID: string) => tile(fileID).locator("button[aria-pressed]");
   const openTile = (fileID: string) => tile(fileID).locator("button").first();
@@ -407,7 +407,6 @@ try {
     const metrics = await panel.evaluate(async (element) => {
       await document.fonts.ready;
       return {
-        native: element.hasAttribute("data-vb-native"),
         overflow: document.documentElement.scrollWidth > innerWidth,
         font: getComputedStyle(element).fontFamily,
         loadedFont: [...document.fonts].some(
@@ -417,7 +416,6 @@ try {
         ),
       };
     });
-    assert(metrics.native);
     assert(
       metrics.font.includes("Inter var"),
       "Files must use the loaded Studio UI font",
@@ -425,7 +423,7 @@ try {
     assert(metrics.loadedFont, "Studio UI font must be loaded, not a fallback");
     assert(!metrics.overflow, "Files must not overflow the viewport");
     const axe = await new AxeBuilder({ page })
-      .include('[data-vb-native="files"]')
+      .include('[data-view="files"]')
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
     assert.deepEqual(axe.violations, []);

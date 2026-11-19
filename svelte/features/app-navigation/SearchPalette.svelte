@@ -160,7 +160,6 @@
   }}
 >
   <DialogContent
-    data-vb-native
     data-native-search
     closeLabel={text("close")}
     closeButtonClassName="hidden"

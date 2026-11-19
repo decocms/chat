@@ -134,7 +134,6 @@
 </script>
 
 <div
-  data-vb-native
   class={cn(
     "flex min-w-0 items-center gap-2 font-sans text-foreground",
     bare

@@ -385,7 +385,7 @@
 </script>
 
 <section
-  data-vb-native
+  data-view="epics"
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
@@ -531,11 +531,7 @@
                   class="size-4"
                 /></DropdownMenuTrigger
               >
-              <DropdownMenuContent
-                data-vb-native
-                align="end"
-                class={cn(studioType, "w-56")}
-              >
+              <DropdownMenuContent align="end" class={cn(studioType, "w-56")}>
                 {#if value === "active"}
                   <DropdownMenuItem
                     data-epic-pin={epic.id}

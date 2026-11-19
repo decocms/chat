@@ -34,7 +34,7 @@
 
 <svelte:head><title>{text("archive")} · deco.chat</title></svelte:head>
 <main
-  data-vb-native="archived"
+  data-view="archived"
   class="min-h-dvh md:min-h-full bg-background p-4 font-sans text-sm leading-6 text-foreground md:p-8"
 >
   <div class="mx-auto max-w-5xl space-y-6">

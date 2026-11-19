@@ -137,7 +137,6 @@
 >
 
 <header
-  data-vb-native
   data-native-room-header
   data-room-document-toolbar
   class="flex min-w-0 flex-1 flex-wrap items-center gap-1 font-sans text-sm text-foreground md:flex-nowrap"

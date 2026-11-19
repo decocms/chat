@@ -580,13 +580,11 @@ try {
       language === "en" ? "Keyboard draft" : "Rascunho do teclado",
     );
     const native = await pins.evaluate((element) => ({
-      boundary: element.hasAttribute("data-vb-native"),
       family: getComputedStyle(element.querySelector("h3") ?? element)
         .fontFamily,
       pageWidth: document.documentElement.scrollWidth,
       viewport: innerWidth,
     }));
-    assert(native.boundary);
     assert(native.family.includes("Inter var"));
     assert(
       native.pageWidth <= native.viewport,

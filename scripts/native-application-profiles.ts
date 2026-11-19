@@ -573,7 +573,7 @@ export async function auditNativeApplicationProfiles(
               waitUntil: "domcontentloaded",
               timeout: 120_000,
             });
-            await expect(page.locator('[data-vb-native="home"]')).toBeVisible();
+            await expect(page.locator('[data-view="home"]')).toBeVisible();
             await expect(
               page.locator("[data-native-app-navigation]"),
             ).toBeVisible();
@@ -597,11 +597,7 @@ export async function auditNativeApplicationProfiles(
               );
             evidence.paneFonts.push({
               surface: "Home",
-              evidence: await typography(
-                page,
-                '[data-vb-native="home"]',
-                false,
-              ),
+              evidence: await typography(page, '[data-view="home"]', false),
             });
             evidence.palettes.push({
               surface: "Home",

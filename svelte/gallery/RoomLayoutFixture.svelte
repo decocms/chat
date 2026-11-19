@@ -83,7 +83,6 @@
 </script>
 
 <main
-  data-vb-native
   data-room-layout-fixture
   class="fixed inset-0 grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-background font-sans text-sm text-foreground"
 >

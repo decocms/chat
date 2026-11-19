@@ -252,7 +252,6 @@
 </script>
 
 <section
-  data-vb-native
   data-board-scope={model.scope ?? "all"}
   aria-label={vb.t("Quadro de tarefas")}
   class="m-0 box-border flex min-h-0 min-w-0 flex-1 flex-col gap-3 rounded-surface bg-background p-3 font-sans text-sm text-foreground"
@@ -418,7 +417,7 @@
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent data-vb-native class="font-sans">
+          <SelectContent class="font-sans">
             {#each targetItems as target (target.value)}<SelectItem
                 value={target.value}
                 label={target.label}
@@ -536,7 +535,7 @@
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent data-vb-native class="font-sans">
+        <SelectContent class="font-sans">
           {#each options as option (option.value)}<SelectItem
               value={option.value}
               label={option.label}>{option.label}</SelectItem
