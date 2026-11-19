@@ -271,7 +271,7 @@
               </h2>
             </button>
             <IconButton
-              label={vb.t("Renomear")}
+              label={vb.t("Editar sala")}
               size="icon-xs"
               tooltipSide="bottom"
               class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
@@ -331,7 +331,7 @@
             >
           </button>
           <IconButton
-            label={vb.t("Renomear")}
+            label={vb.t("Editar sala")}
             size="icon-xs"
             tooltipSide="bottom"
             class="absolute top-1.5 right-1.5 md:hidden translate-x-1 scale-90 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 group-hover/room:translate-x-0 group-hover/room:scale-100 group-hover/room:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"

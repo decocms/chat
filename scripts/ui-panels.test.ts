@@ -3737,7 +3737,7 @@ describe("stable sidebar integration", () => {
     // The Inbox lives in the chat header; the sidebar has no second entry to it.
     expect(h.target.querySelector("[data-room-inbox-button]")).toBeNull();
     const rename = title.parentElement!.querySelector(
-      'button[aria-label="Renomear"]',
+      'button[aria-label="Editar sala"]',
     );
     expect(rename).not.toBeNull();
     expect(rename!.className.split(/\s+/)).toContain(

@@ -9,7 +9,9 @@
   import Textarea from "../../lib/studio/Textarea.svelte";
   import { TINTS } from "../../../shared/schemas";
   import { homeText, homeIssue, type HomeLanguage } from "../home/copy";
+  import { roomIcon, type RoomSummary } from "../home/model";
   import { roomIconPng } from "../rooms/images";
+  import RoomMark from "../room-sidebar/RoomMark.svelte";
   import SearchPalette from "./SearchPalette.svelte";
   import type {
     NavigationDialogOwners,
@@ -45,7 +47,8 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
-  const settingsIdentity = $derived($bindings.settings);
+  const settingsIdentity = $derived($bindings.settings),
+    renameIdentity = $derived($bindings.rename);
   const selectedRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.settingsId),
   );
@@ -64,6 +67,7 @@
     imageError = $state("");
   $effect(() => {
     void settingsIdentity;
+    void renameIdentity;
     imageSequence++;
     imageBusy = false;
     imageError = "";
@@ -75,13 +79,17 @@
     mounted = false;
     imageSequence++;
   });
+  /** The room the settings or the rename dialog edits. */
+  const dialogRoom = (intent: NavigationDialogIntent) =>
+    intent.kind === "rename" ? $nav.renameId : $nav.settingsId;
   async function upload(
     event: Event & { currentTarget: EventTarget & HTMLInputElement },
     intent: NavigationDialogIntent,
   ) {
     const input = event.currentTarget,
       file = input.files?.[0],
-      id = $nav.settingsId;
+      id = dialogRoom(intent);
+    input.value = "";
     if (!current(intent) || !mounted || !input.isConnected || !file || !id)
       return;
     const ticket = ++imageSequence,
@@ -96,7 +104,7 @@
         ticket === imageSequence &&
         identity === $personal.identityRevision &&
         input.isConnected &&
-        $nav.settingsId === id
+        dialogRoom(intent) === id
       )
         await controller.rooms.icon(id, image);
     } catch (error) {
@@ -118,6 +126,58 @@
     }
   }
 </script>
+
+<!-- The room's icon: a preview, change and remove. The settings and the rename dialogs share it. -->
+{#snippet iconField(room: RoomSummary, intent: NavigationDialogIntent)}
+  {@const pending = !!$mutations.pending[`icon:${room.id}`]}
+  {@const inputId =
+    intent.kind === "settings" ? "room-icon" : `room-icon-${intent.kind}`}
+  <div class="space-y-2">
+    <div class="flex flex-wrap items-center gap-3">
+      <RoomMark title={room.title ?? ""} src={roomIcon(room)} size="lg" />
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={imageBusy || pending}
+        aria-busy={imageBusy || pending || undefined}
+        onclick={(event) => {
+          if (current(intent) && event.currentTarget.isConnected)
+            document.getElementById(inputId)?.click();
+        }}
+        >{#if imageBusy || pending}<Spinner size="xs" />{/if}{text(
+          "icon",
+        )}</Button
+      >{#if room.icon}<Button
+          variant="ghost"
+          size="sm"
+          disabled={imageBusy || pending}
+          onclick={(event) => {
+            if (current(intent) && event.currentTarget.isConnected)
+              controller.rooms.icon(room.id, null);
+          }}>{text("removeIcon")}</Button
+        >{/if}<input
+        id={inputId}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
+        aria-label={text("icon")}
+        class="sr-only"
+        disabled={imageBusy || pending}
+        onchange={(event) => upload(event, intent)}
+      />
+    </div>
+    {#if $mutations.issues[`icon:${room.id}`]}<p
+        role="alert"
+        class="break-words text-destructive"
+      >
+        {homeIssue(lang, $mutations.issues[`icon:${room.id}`]!)}
+      </p>{/if}{#if imageError}<p
+        role="alert"
+        class="break-words text-destructive"
+      >
+        {homeIssue(lang, imageError)}
+      </p>{/if}
+  </div>
+{/snippet}
 
 {#each openings as opening (opening.revision)}<Snapshot value={opening}
     >{#snippet children(intent)}
@@ -256,23 +316,7 @@
                   >{/each}
               </div>
             </fieldset>
-            <div class="space-y-2">
-              <Label for="room-icon">{text("icon")}</Label><input
-                id="room-icon"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
-                disabled={imageBusy || !!$mutations.pending[`icon:${room.id}`]}
-                onchange={(event) => upload(event, intent)}
-                class="block w-full rounded-lg border border-input p-2 text-sm"
-              />{#if room.icon}<Button
-                  variant="outline"
-                  disabled={!!$mutations.pending[`icon:${room.id}`]}
-                  onclick={(event) => {
-                    if (current(intent) && event.currentTarget.isConnected)
-                      controller.rooms.icon(room.id, null);
-                  }}>{text("removeIcon")}</Button
-                >{/if}
-            </div>
+            {@render iconField(room, intent)}
             <div class="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -302,17 +346,12 @@
                 }}>{text("archiveAction")}</Button
               >
             </div>
-            {#each [`tint:${room.id}`, `icon:${room.id}`, "order"] as key}{#if $mutations.issues[key]}<p
+            {#each [`tint:${room.id}`, "order"] as key}{#if $mutations.issues[key]}<p
                   role="alert"
                   class="break-words text-destructive"
                 >
                   {homeIssue(lang, $mutations.issues[key]!)}
-                </p>{/if}{/each}{#if imageError}<p
-                role="alert"
-                class="break-words text-destructive"
-              >
-                {homeIssue(lang, imageError)}
-              </p>{/if}
+                </p>{/if}{/each}
           {/if}
         </TitledDialog>
       {:else if intent.kind === "archive"}
@@ -362,7 +401,7 @@
       {:else if intent.kind === "rename"}
         <TitledDialog
           open={!!renameRoom}
-          title={text("rename")}
+          title={text("editRoom")}
           closeLabel={text("close")}
           onOpenChange={(open) => {
             if (!open && current(intent)) controller.closeSettings();
@@ -379,6 +418,7 @@
                 void controller.rename();
               }}
             >
+              {@render iconField(renameRoom, intent)}
               <Label for="room-name">{text("name")}</Label><Input
                 bind:ref={renameInput}
                 id="room-name"
