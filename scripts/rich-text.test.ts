@@ -499,3 +499,16 @@ test("component cache reuses unchanged syntax/projection across receipt snapshot
     { kind: "text", text: "literal" },
   ]);
 });
+test("a Markdown table keeps one row per line (tr is an allowed tag)", () => {
+  const nodes = walk(
+    richText(
+      "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |",
+      "markdown",
+      context,
+    ),
+  );
+  const tags = (tag: string) =>
+    nodes.filter((node) => node.kind === "element" && node.tag === tag).length;
+  expect(tags("tr")).toBe(4);
+  expect(tags("td")).toBe(6);
+});
