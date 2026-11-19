@@ -388,7 +388,8 @@
       {:else if kind === "reminder"}<details class="space-y-2">
           <summary
             class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
-            >⏰ {#if reminder.name}<b>{reminder.name}</b>
+            ><span aria-hidden="true" class="select-none">⏰</span>
+            {#if reminder.name}<b>{reminder.name}</b>
             {/if}{reminder.head} · {reminder.runs.length > 1
               ? `${vb.t("rodou {n}×", { n: reminder.runs.length })} · `
               : ""}<time title={timestamp}>{day(m.ts)}</time></summary
@@ -403,7 +404,8 @@
       {:else if kind === "issue"}<details class="space-y-3">
           <summary
             class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
-            >⚠ <b
+            ><span aria-hidden="true" class="select-none">⚠</span>
+            <b
               >{group.length > 1
                 ? vb.t("{n} issues dos agents", { n: group.length })
                 : vb.t("Issue de um agent")}</b
@@ -430,7 +432,8 @@
       {:else}<details class="space-y-2">
           <summary
             class="cursor-pointer rounded-control leading-6 focus-visible:outline-2 focus-visible:outline-ring"
-            >✦ {@render rich(
+            ><span aria-hidden="true" class="select-none">✦</span>
+            {@render rich(
               m.text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim(),
               "inline",
             )} · <time title={timestamp}>{day(m.ts)}</time></summary
