@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.4";
+const VERSION = "1.7.5";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -59,6 +59,34 @@ for (let i = 0; i < argv.length; i++) {
   else pos.push(a);
 }
 const flag = (k: string) => (typeof flags[k] === "string" ? (flags[k] as string) : undefined);
+
+// ---- logs of the long-running commands (herdr): one plain line per event, in English, no TUI ----
+// `HH:MM:SS  level  topic    message    key=value …`. debug lines only with --verbose; --json prints NDJSON instead.
+// Color only on a terminal without NO_COLOR. The same line many times in a row prints once, then "repeated ×N".
+// Never message text: only rooms, ids and what the CLI did.
+type Level = "debug" | "info" | "warn" | "error";
+const LEVEL_COLOR: Record<Level, number> = { debug: 2, info: 32, warn: 33, error: 31 };
+const paint = (code: number, s: string) => (process.stdout.isTTY && !process.env.NO_COLOR && !flags.json ? `\x1b[${code}m${s}\x1b[0m` : s);
+let lastLog = { key: "", repeats: 0 };
+function flushRepeats() {
+  if (lastLog.repeats) process.stdout.write(`${paint(2, `${new Date().toTimeString().slice(0, 8)}  ${"".padEnd(5)}  ${"".padEnd(7)}  … repeated ×${lastLog.repeats}`)}\n`);
+  lastLog.repeats = 0;
+}
+function log(level: Level, topic: string, msg: string, kv: Record<string, string | number | boolean | undefined> = {}) {
+  if (level === "debug" && !flags.verbose) return;
+  const pairs = Object.entries(kv).filter(([, v]) => v !== undefined && v !== "");
+  if (flags.json) return void process.stdout.write(`${JSON.stringify({ at: new Date().toISOString(), level, topic, msg, ...Object.fromEntries(pairs) })}\n`);
+  const key = `${level}|${topic}|${msg}`;
+  if (key === lastLog.key) return void lastLog.repeats++;
+  flushRepeats();
+  lastLog = { key, repeats: 0 };
+  const kvs = pairs.map(([k, v]) => `${k}=${v}`).join(" ");
+  const head = `${paint(2, new Date().toTimeString().slice(0, 8))}  ${paint(LEVEL_COLOR[level], level.padEnd(5))}  ${topic.padEnd(7)}  `;
+  process.stdout.write(`${head}${kvs ? `${msg.padEnd(52)}  ${paint(2, kvs)}` : msg}\n`);
+}
+/** A folder as you'd type it: ~ for the home folder. */
+const tilde = (f?: string) => (f && f.startsWith(homedir()) ? `~${f.slice(homedir().length)}` : f);
+const short = (id?: string, n = 8) => (id && id.length > n + 2 ? `${id.slice(0, n)}…` : id);
 
 // ---- where we are: the repo root, its room (.vibebook or a chat.decocms.com/b/<id> or old vibebook.dev/b/<id> link), the agent id for it ----
 function repoRoot() {
@@ -539,9 +567,11 @@ function herdrServer(appMode = false) {
     const ws = target(u.searchParams.get("room") ?? "");
     if (!ws) return send(404, { error: "Nenhum Claude aberto pra essa sala no herdr." });
     try {
+      const room = u.searchParams.get("room") ?? "";
       if (appMode) {
         happ("do", "space.select", "--id", ws);
         execFileSync("open", ["-a", "Herdr"]);
+        log("info", "focus", `${roomName(room)}: brought its Claude to the front (↗ in the app)`, { room, space: ws });
         return send(200, { ok: true });
       }
       herdr("workspace", "focus", ws);
@@ -554,12 +584,15 @@ function herdrServer(appMode = false) {
       if (pane?.tab_id) herdr("tab", "focus", pane.tab_id);
       const app = terminalApp();
       if (app) execFileSync("open", ["-a", app]);
+      log("info", "focus", `${roomName(room)}: brought its Claude to the front (↗ in the app)`, { room, workspace: ws, terminal: app });
       send(200, { ok: true });
     } catch (e) {
+      log("warn", "focus", `could not focus the Claude: ${String((e as Error).message ?? e).slice(0, 120)}`);
       send(500, { error: String((e as Error).message ?? e) });
     }
   })
-    .on("error", (e) => process.stderr.write(`vibebook herdr: botão "ir pro Claude" desligado (${(e as Error).message})\n`))
+    .on("error", (e) => log("warn", "focus", `the app's ↗ button is off: ${(e as Error).message}`, { port }))
+    .on("listening", () => log("debug", "focus", "local endpoint for the app's ↗ button is up", { addr: `127.0.0.1:${port}` }))
     .listen(port, "127.0.0.1");
 }
 // claude_rooms for the runner, which loops every 15s for local work (herdr panes, idle Claudes, compaction): asked again
@@ -586,13 +619,39 @@ async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-
   if (port) try { gen = ((await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=-1`)).json()) as { agents?: number }).agents ?? -1; } catch {}
   // A new Claude of ours (a new session id) is reported right away; otherwise the cache rules as before.
   const key = [...managed].sort().join(",");
-  if (roomsCache && gen >= 0 && roomsCache.gen === gen && roomsCache.key === key && Date.now() - roomsCache.at < 5 * 60_000) return roomsCache.res;
+  if (roomsCache && gen >= 0 && roomsCache.gen === gen && roomsCache.key === key && Date.now() - roomsCache.at < 5 * 60_000) {
+    log("debug", "rooms", "room list from cache (no switch changed)", { gen, age: `${Math.round((Date.now() - roomsCache.at) / 1000)}s` });
+    return roomsCache.res;
+  }
   const takes = !!tools.find((t) => t.name === "claude_rooms")?.inputSchema.properties?.machine;
   const args = takes ? { machine: { id: machineId(), name: hostname().replace(/\.local$/, ""), kind }, agents: managed.slice(0, 50) } : {};
+  const why = !port ? "no hub" : !roomsCache ? "first pass" : roomsCache.gen !== gen ? "a switch or listener changed" : roomsCache.key !== key ? "its Claudes changed" : "5 min passed";
   const res = await callTool("claude_rooms", args, agent, tools);
   roomsCache = { gen, at: Date.now(), key, res };
+  let rooms: { room_id: string; title: string; on: boolean; listening?: boolean }[] = [];
+  try {
+    rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: typeof rooms }).rooms ?? [];
+  } catch {}
+  for (const r of rooms) roomTitles.set(r.room_id, r.title);
+  log("debug", "rooms", `asked the server for the room list (${why})`, { gen });
+  const on = rooms.filter((r) => r.on);
+  const summary = `${on.length} room(s) on, ${rooms.length - on.length} off · ${managed.length} Claude(s) run by this runner`;
+  if (summary !== roomsSummary) {
+    roomsSummary = summary;
+    log("info", "rooms", summary, { on: on.map((r) => r.title.slice(0, 20)).join(", ") || undefined });
+  }
+  const deaf = on.filter((r) => r.listening === false).map((r) => r.title.slice(0, 20)).join(", ");
+  if (deaf !== roomsDeaf) {
+    roomsDeaf = deaf;
+    if (deaf) log("info", "rooms", "rooms on where no Claude listens right now", { rooms: deaf });
+  }
   return res;
 }
+/** Room titles from the last room list, so a log line says the room's name and not its id. */
+const roomTitles = new Map<string, string>();
+const roomName = (id: string) => roomTitles.get(id) ?? id;
+let roomsSummary = "";
+let roomsDeaf = "";
 /** The runner's pause between passes: up to `ms`, but it ends as soon as the hub hears {t:"agents"} (a ✻ switch or a
  *  delivery switch in the app), so a switch opens or closes the room's Claude in about a second, not up to 15 s. */
 async function napOrPoke(ms: number) {
@@ -607,6 +666,37 @@ async function napOrPoke(ms: number) {
   const left = ms - (Date.now() - t0);
   if (left > 0) await new Promise((r) => setTimeout(r, left));
 }
+/** --verbose: print what this machine's hub hears (GET /events on the hub, a long-poll on loopback). Only reads: the
+ *  hub delivers to the listeners as before. A hub from before 1.7.5 has no /events: nothing to show until it's replaced. */
+async function tailHub() {
+  let since = -1;
+  let first = true;
+  const nap = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  for (;;) {
+    const port = hubPort();
+    if (!port) { await nap(5000); continue; }
+    try {
+      const r = (await (await fetch(`http://127.0.0.1:${port}/events?since=${since}`, { signal: AbortSignal.timeout(60_000) })).json()) as { seq?: number; events?: { seq: number; at: number; kind: string; book?: string; ms?: number; v?: string; pid?: number }[] };
+      if (!Array.isArray(r.events)) { await nap(30_000); continue; }
+      for (const e of r.events) {
+        if (first) continue; // on attach: only what happens from now on (the startup lines say where the hub stands)
+        const room = e.book ? roomName(e.book) : undefined;
+        if (e.kind === "start") log("info", "hub", `hub ${e.v} started`, { pid: e.pid, port });
+        else if (e.kind === "open") log("info", "hub", "connected to vibebook (one socket for this machine)");
+        else if (e.kind === "retry") log("warn", "hub", `disconnected, reconnecting in ${Math.round((e.ms ?? 0) / 1000)}s`);
+        else if (e.kind === "me") log("info", "hub", room ? `${room}: new activity, its listeners here check the server` : "your rooms changed", { room: e.book });
+        else if (e.kind === "agents") log("debug", "hub", "a switch or a listener changed, checking rooms");
+        else if (e.kind === "focus") log("debug", "hub", `${room}: ↗ pressed in the app`, { room: e.book });
+      }
+      first = false;
+      since = r.seq ?? since;
+    } catch {
+      await nap(5000);
+    }
+  }
+}
+/** The person this machine is logged in as: the access token is `<email>:<grant>:<secret>`. Read locally, no request. */
+const loggedInAs = (s: Session | null) => s?.access_token.split(":")[0].match(/^[^@\s]+@[^@\s]+$/)?.[0];
 async function herdrSync(agent: string, tools: Tool[]) {
   const map = readJson<Record<string, HerdrRoom>>(HERDR, {});
   const wsList = herdr("workspace", "list").workspaces as { workspace_id: string; label?: string }[];
@@ -618,7 +708,6 @@ async function herdrSync(agent: string, tools: Tool[]) {
   const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
-  const log = (m: string) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}\n`);
   for (const [room, title] of on) {
     const e = (map[room] ??= {});
     if (e.workspace && live.has(e.workspace)) {
@@ -627,7 +716,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
       if (label !== undefined && label !== title.slice(0, 40))
         try {
           herdr("workspace", "rename", e.workspace, title.slice(0, 40));
-          log(`${label} → ${title}: renomeei a aba`);
+          log("info", "herdr", `${title}: renamed the workspace (was "${label}")`, { room });
         } catch {}
       // Its listener died (the session expired, the loop crashed…): the server sees nobody listening. Once it's free,
       // ask again, at most every 5 minutes (a Claude that just started listening takes a moment to show up).
@@ -647,13 +736,14 @@ async function herdrSync(agent: string, tools: Tool[]) {
         delete e.deaf_since;
         delete e.restarting_at;
         writePrivate(HERDR, map);
-        if (updating) log(`${title}: reabrindo o Claude com o plugin ${e.plugin_v} (mesma conversa)`);
+        if (updating) log("info", "plugin", `${title}: reopening its Claude on plugin ${e.plugin_v} (same conversation)`, { room });
         try {
           herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...(e.session ? ["--resume", e.session] : []), `/vibebook:listen ${room}`);
-          log(`${title}: o Claude tinha fechado, abri outro em ${e.folder ?? "sua pasta"}`);
+          log("info", "claude", `${title}: its Claude had exited, started a new one`, { room, folder: tilde(e.folder), resume: short(e.session) });
         } catch (err) {
           const m = (err as Error).message;
-          log(/timed out waiting for agent startup/.test(m) ? `${title}: o Claude tinha fechado, abrindo outro (demorou pra subir)` : `${title}: o Claude tinha fechado e não consegui abrir outro (${m.slice(0, 120)})`);
+          if (/timed out waiting for agent startup/.test(m)) log("warn", "claude", `${title}: its Claude had exited, the new one is slow to start`, { room });
+          else log("error", "claude", `${title}: its Claude had exited and a new one did not start: ${m.slice(0, 120)}`, { room });
         }
         continue;
       }
@@ -673,7 +763,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         // /exit didn't take (it asked something, or got busy): leave this one on the old plugin rather than loop.
         delete e.restarting_at;
         e.plugin_v = pv;
-        log(`${title}: não consegui reabrir o Claude pra atualizar o plugin; fica pra quando ele reabrir`);
+        log("warn", "plugin", `${title}: could not restart its Claude on the new plugin; it updates when it reopens`, { room });
       }
       if (pv && live0 && e.plugin_v !== pv && !e.restarting_at && (live0.agent_status === "idle" || live0.agent_status === "done") && live0.agent_session?.value) {
         e.session = live0.agent_session.value;
@@ -682,7 +772,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         writePrivate(HERDR, map);
         try {
           herdr("agent", "prompt", live0.pane_id, "/exit");
-          log(`${title}: plugin do vibebook atualizado (${e.plugin_v ?? "?"} → ${pv}); fechei o Claude livre pra reabrir com a mesma conversa`);
+          log("info", "plugin", `${title}: plugin ${e.plugin_v ?? "?"} → ${pv}, closed the idle Claude to reopen it (same conversation)`, { room, session: short(e.session) });
         } catch {}
         continue;
       }
@@ -696,7 +786,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         try {
           herdr("agent", "prompt", cp.pane_id, "/compact");
           e.compacted_at = Date.now();
-          log(`${title}: contexto em ${Math.round((cx.tokens / cx.window) * 100)}%, mandei /compact`);
+          log("info", "claude", `${title}: context at ${Math.round((cx.tokens / cx.window) * 100)}%, sent /compact`, { room, tokens: cx.tokens, window: cx.window });
         } catch {}
         continue;
       }
@@ -709,7 +799,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
             e.listening = true;
             e.prompted_at = Date.now();
             delete e.deaf_since;
-            log(`${title}: o Claude ficou livre, pedi pra ele ouvir a sala`);
+            log("info", "claude", `${title}: its Claude is idle, asked it to listen to the room`, { room });
           } catch {}
       }
       continue;
@@ -724,7 +814,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
       try {
         herdr("workspace", "rename", there.workspace_id, title.slice(0, 40)); // the tab says which room it is
       } catch {}
-      log(`${title}: adotei o Claude que já estava em ${e.folder}`);
+      log("info", "claude", `${title}: adopted the Claude already open in its folder`, { room, folder: tilde(e.folder) });
       if (there.agent_status === "idle" || there.agent_status === "done")
         try {
           herdr("agent", "prompt", there.pane_id, LISTEN_PROMPT);
@@ -743,10 +833,10 @@ async function herdrSync(agent: string, tools: Tool[]) {
     writePrivate(HERDR, map); // the workspace exists now: never open a second one if the start below fails
     try {
       herdr(...args, `/vibebook:listen ${room}`); // the room id: never "which room?" when its room has no news
-      log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
+      log("info", "claude", `${title}: opened a Claude${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder) });
     } catch (err) {
       // Usually Claude Code's "trust this folder?" for a new folder: that answer is the person's, in herdr.
-      log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String((err as { stderr?: Buffer }).stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
+      log("warn", "claude", `${title}: Claude opened, waiting for you to confirm in herdr (${String((err as { stderr?: Buffer }).stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "not ready"})`, { room, folder: tilde(e.folder) });
     }
   }
   // Off only mutes (Nov 2026): the server stops delivering the room to this machine's Claudes and nothing here stops
@@ -805,7 +895,6 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
   const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
   const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
-  const log = (m: string) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}\n`);
   for (const [room, title] of on) {
     const e = (map[room] ??= {});
     if (e.space && live.has(e.space)) {
@@ -813,7 +902,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
       if (name !== undefined && name !== title.slice(0, 40))
         try {
           happ("do", "space.rename", "--id", e.space, "--name", title.slice(0, 40));
-          log(`${name} → ${title}: renomeei o space`);
+          log("info", "herdr", `${title}: renamed the space (was "${name}")`, { room });
         } catch {}
       // Same as the terminal mode: nobody listening for 3 minutes and its Claude is free: ask it again (≤ every 5 min).
       if (!deaf.has(room)) delete e.deaf_since;
@@ -823,7 +912,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
         try {
           execFileSync("hc", ["send", c.terminal, LISTEN_PROMPT], { stdio: "ignore" });
           e.prompted_at = Date.now();
-          log(`${title}: ninguém ouvindo, pedi pro Claude ouvir a sala de novo`);
+          log("info", "claude", `${title}: nobody listening for 3 min, asked its Claude to listen again`, { room });
         } catch {}
       continue;
     }
@@ -841,14 +930,14 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
           execFileSync("hc", ["send", c.terminal, LISTEN_PROMPT], { stdio: "ignore" });
           e.prompted_at = Date.now();
         } catch {}
-      log(`${title}: adotei o Claude que já estava em ${e.folder}`);
+      log("info", "claude", `${title}: adopted the Claude already open in its folder`, { room, folder: tilde(e.folder), space: there.id });
       continue;
     }
     // Back on after an off: the same conversation (--resume), so closing it lost nothing.
     const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...(e.session ? ["--resume", e.session] : [])]), "--task", `/vibebook:listen ${room}`);
     e.space = r.space as string;
     e.prompted_at = Date.now();
-    log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
+    log("info", "claude", `${title}: opened a Claude${e.session ? " (resumed its conversation)" : ""}`, { room, folder: tilde(e.folder), space: e.space });
   }
   // Off only mutes, as in the terminal mode: nothing here stops a process. A room that left the list is only forgotten.
   const listedApp = new Set(rooms.map((r) => r.room_id));
@@ -863,6 +952,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
   want.forEach((id, i) => {
     if (spaces[i]?.id === id) return;
     happ("do", "space.move", "--id", id, "--index", String(i + 1));
+    log("debug", "herdr", `moved a space to position ${i + 1} (your vibebook room order)`, { space: id });
     spaces = happ("ls").spaces as AppSpace[];
   });
 }
@@ -910,7 +1000,7 @@ function herdrOrder(order: string[], map: Record<string, HerdrRoom>) {
     try {
       herdr("workspace", "focus", back);
     } catch {}
-  process.stdout.write(`${new Date().toLocaleTimeString()} reordenei ${desired.length - i} workspace(s): salas na ordem do vibebook, depois o resto\n`);
+  log("info", "herdr", `reordered ${desired.length - i} workspace(s): rooms in your vibebook order, then the rest`);
 }
 
 const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you and your Claude).
@@ -930,6 +1020,8 @@ const HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for yo
   vibebook herdr [--once]        keep one Claude Code per room in herdr: opens it when you switch
                                  "Meu Claude" on in the app, closes it when you switch it off
   vibebook herdr --app           the same in the Herdr desktop app: one space per room (not with the terminal one)
+                                 --verbose also logs each pass, the room-list cache and what the hub hears
+                                 (activity per room, reconnects); --json prints the log lines as NDJSON
   vibebook statusline [command]  as Claude Code's statusLine: keeps the session's context window and plan
                                  limits for the room, then runs your own statusline command (if any) with the same input
   vibebook update                install the latest version
@@ -992,9 +1084,31 @@ async function hub() {
     if (book) books.set(book, gen); else allGen = gen;
     for (const w of [...waiters]) if (w.book !== "agents" && (!book || w.book === "*" || w.book === book)) { waiters.delete(w); w.done(); }
   };
+  // What the hub heard and did, for `vibebook herdr --verbose` (GET /events?since=<seq>, long-poll ≤50s): only kinds,
+  // room ids and times, never message text. Memory only, the last 100.
+  type HubEvent = { seq: number; at: number; kind: string; book?: string; ms?: number; v?: string; pid?: number };
+  let evSeq = 0;
+  const events: HubEvent[] = [];
+  const evWaiters = new Set<() => void>();
+  const note = (e: Omit<HubEvent, "seq" | "at">) => {
+    events.push({ seq: ++evSeq, at: Date.now(), ...e });
+    if (events.length > 100) events.shift();
+    for (const w of [...evWaiters]) { evWaiters.delete(w); w(); }
+  };
   const server = createServer((req, res) => {
     lastUse = Date.now();
     const u = new URL(req.url ?? "/", "http://hub");
+    if (u.pathname === "/events") {
+      const asked = Number(u.searchParams.get("since") ?? -1);
+      const after = asked > evSeq ? -1 : asked; // a seq this hub never had: the caller knew an older hub, send it all
+      const send = () => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ seq: evSeq, events: events.filter((e) => e.seq > after) })); };
+      if (evSeq > after) return send();
+      const done = () => { clearTimeout(t); send(); };
+      const t = setTimeout(() => { evWaiters.delete(done); send(); }, 50_000);
+      evWaiters.add(done);
+      req.on("close", () => { if (evWaiters.delete(done)) clearTimeout(t); });
+      return;
+    }
     const book = u.searchParams.get("book") || "*", since = Number(u.searchParams.get("since") ?? -1);
     const answer = (timeout = false) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ gen, agents: agentsGen, timeout })); };
     if (seen(book) > since) return answer();
@@ -1005,6 +1119,7 @@ async function hub() {
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   writePrivate(HUB, { pid: process.pid, port: (server.address() as { port: number }).port, v: VERSION });
+  note({ kind: "start", v: VERSION, pid: process.pid });
   const quit = () => { try { if (readJson<{ pid: number } | null>(HUB, null)?.pid === process.pid) unlinkSync(HUB); } catch {} process.exit(0); };
   process.on("SIGTERM", quit).on("SIGINT", quit);
   // Nobody listening for 15 min: go away (the next listener starts a fresh one).
@@ -1012,7 +1127,7 @@ async function hub() {
   let sock: WebSocket | null = null, ping: ReturnType<typeof setInterval> | undefined;
   // Reconnect forever, with backoff. Before, a failed connect (session refresh while asleep or offline) stopped the
   // retries for good: the hub stayed up for days with no socket, so no listener or runner heard any event (Nov 2026).
-  const retry = () => { clearInterval(ping); setTimeout(() => connect().catch(retry), backoff); backoff = Math.min(backoff * 2, 60_000); };
+  const retry = () => { clearInterval(ping); note({ kind: "retry", ms: backoff }); setTimeout(() => connect().catch(retry), backoff); backoff = Math.min(backoff * 2, 60_000); };
   const connect = async () => {
     const s = await session();
     const ws = new (WebSocket as any)(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } }) as WebSocket;
@@ -1021,7 +1136,7 @@ async function hub() {
     const again = () => { if (closed) return; closed = true; try { ws.close(); } catch {} retry(); };
     // A socket that never opens, or goes silent (the server answers each "ping" with "pong" without waking): drop it.
     setTimeout(() => { if (!closed && ws.readyState !== 1) again(); }, 30_000);
-    ws.onopen = () => { backoff = 1000; heard = Date.now(); bump(); bumpAgents(); clearInterval(ping); ping = setInterval(() => { if (Date.now() - heard > 120_000) return again(); try { ws.send("ping"); } catch {} }, 45_000); }; // (re)connected: everyone checks once
+    ws.onopen = () => { note({ kind: "open" }); backoff = 1000; heard = Date.now(); bump(); bumpAgents(); clearInterval(ping); ping = setInterval(() => { if (Date.now() - heard > 120_000) return again(); try { ws.send("ping"); } catch {} }, 45_000); }; // (re)connected: everyone checks once
     ws.onmessage = (e) => {
       heard = Date.now();
       try {
@@ -1029,6 +1144,7 @@ async function hub() {
         if (!m) return;
         if (m.t === "me" && typeof m.book === "string" && m.book) bump(m.book);
         if (m.t === "agents") bumpAgents();
+        if (m.t === "me" || m.t === "agents" || m.t === "focus") note({ kind: m.t, book: typeof m.book === "string" && m.book ? m.book : undefined });
         // The room's ↗ (POST /api/books/:id/focus): hand it to this machine's herdr runner. A machine without the room
         // answers 404 and nothing happens.
         if (m.t === "focus" && typeof m.book === "string") {
@@ -1185,7 +1301,19 @@ async function main() {
       const release = () => { try { if (Number(readFileSync(lock, "utf8")) === process.pid) unlinkSync(lock); } catch {} };
       process.on("exit", release);
       for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(sig, () => process.exit(0));
+      process.on("exit", flushRepeats);
+      const s = readJson<Session | null>(SESSION, null);
+      log("info", "start", `vibebook herdr ${VERSION}, ${appMode ? "Herdr app" : "herdr terminal"} mode${flags.once ? ", one pass" : ""}`, { pid: process.pid, verbose: !!flags.verbose || undefined });
+      log("info", "start", `logged in as ${loggedInAs(s) ?? "?"}`, { origin: s?.origin.replace(/^https?:\/\//, "") });
+      log("info", "start", `machine ${hostname().replace(/\.local$/, "")}`, { id: short(machineId(), 10), node: process.versions.node });
+      log("info", "start", pluginVersion() ? `vibebook plugin ${pluginVersion()}` : "vibebook plugin is not installed in Claude Code");
       const tools = await listTools(agent);
+      log("debug", "start", `${tools.length} room tools`, { claude_rooms: !!tools.find((t) => t.name === "claude_rooms") });
+      const port = await ensureHub().catch(() => null);
+      const h = readJson<{ pid?: number; v?: string } | null>(HUB, null);
+      if (port) log("info", "hub", `hub ${h?.v ?? "?"} running`, { pid: h?.pid, port });
+      else log("warn", "hub", "no hub (Node without WebSocket, or VIBEBOOK_NO_HUB): asking the server for the room list every 15s");
+      if (flags.verbose && !flags.once) void tailHub();
       if (!flags.once) herdrServer(appMode);
       let pluginAt = 0;
       for (;;) {
@@ -1197,13 +1325,18 @@ async function main() {
             const before = pluginVersion();
             execFileSync("claude", ["plugin", "marketplace", "update", "vibebook"], { stdio: "ignore", timeout: 120_000 });
             execFileSync("claude", ["plugin", "update", "vibebook@vibebook"], { stdio: "ignore", timeout: 120_000 });
-            if (pluginVersion() !== before) process.stdout.write(`${new Date().toLocaleTimeString()} plugin do vibebook ${before || "?"} → ${pluginVersion()}\n`);
-          } catch {} // no claude CLI, offline: next hour
+            if (pluginVersion() !== before) log("info", "plugin", `vibebook plugin updated ${before || "?"} → ${pluginVersion()}`);
+            else log("debug", "plugin", "vibebook plugin is up to date", { version: before || undefined });
+          } catch (e) {
+            log("debug", "plugin", `plugin update check failed, next try in 1 h: ${String((e as Error).message ?? e).split("\n")[0].slice(0, 100)}`);
+          } // no claude CLI, offline: next hour
         }
+        const t0 = Date.now();
         try {
           await (appMode ? herdrAppSync : herdrSync)(agent, tools);
+          log("debug", "herdr", "pass done", { ms: Date.now() - t0 });
         } catch (e) {
-          process.stderr.write(`vibebook herdr: ${String((e as Error)?.message ?? e)}\n`);
+          log("error", "herdr", `pass failed: ${String((e as Error)?.message ?? e).split("\n")[0].slice(0, 200)}`, { ms: Date.now() - t0 });
         }
         if (flags.once) return;
         await napOrPoke(15_000);

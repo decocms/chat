@@ -751,3 +751,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. It depends on the sizes in Chromium. On a screen with density 2 (xhdpi), the splash shows the lime icon. If Chromium changes the sizes, the launcher can show the transparent mark.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/cli-herdr-logs · The hub shows what it hears at a new loopback route
+- Agent: claude-opus-5-5
+- Context: The human asked that `vibebook herdr --verbose` show room activity and the room name, with no change on the server and no change in behavior. The hub hears the room events, but the runner is a different process.
+- Decision: The hub keeps its last 100 events in memory (kind, room ID, time; no message text) and serves them at `GET /events?since=<seq>`, a long-poll on its loopback port. Only `herdr --verbose` reads it. The runner gets the user email from the access token (`<email>:<grant>:<secret>`), with no request. The human chose English-only log lines for the runner. This is an exception to rule 6, because the logs are operator output and not app text.
+- Other options: The runner also opens its own socket. That is a second connection for each machine. Write the hub events to a log file. Then that file needs rotation.
+- Risk: low. The route answers without CORS headers, as `/wait` does. Thus a web page cannot read it.
+- Undo: Revert this commit.
+- Status: open
