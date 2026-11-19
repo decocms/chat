@@ -22,6 +22,7 @@ export function createPersonalConnection(options: {
   onAgents: (book: string) => void;
   onVisible: () => void;
   onConnected?: () => void;
+  onDisconnected?: () => void;
   currentRoom: () => string | null;
   visible: () => boolean;
   listenVisibility: (callback: () => void) => () => void;
@@ -78,6 +79,7 @@ export function createPersonalConnection(options: {
       socket = null;
       clear(stable);
       stable = null;
+      options.onDisconnected?.();
       if (options.visible()) {
         clear(retry);
         retry = clock.schedule(

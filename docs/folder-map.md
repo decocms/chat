@@ -51,7 +51,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 
 | Folder | Contents |
 |---|---|
-| `docs/` | Architecture, stack, workflow, writing rules, this map, and `agents_deliberate_decisions.md` (the log of agent decisions for human review). |
+| `docs/` | Architecture, stack, workflow, writing rules, this map, `agents_deliberate_decisions.md` (the log of agent decisions for human review), and `machine-hub.md` (a proposal for machines and the hub). |
 
 ## Scripts and tests
 

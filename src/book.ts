@@ -133,6 +133,10 @@ export class Book extends DurableObject<Env> {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
     }
+    // A room copied from another account keeps its reminders but not its alarm (alarms don't travel with the data):
+    // the growth room's 8h report never fired on 19 Nov 2026. Whenever the room wakes, put the alarm back.
+    const due = this.sql.exec<{ t: number | null }>(`SELECT min(next_at) AS t FROM reminders WHERE coalesce(enabled, 1) = 1`).one().t;
+    if (due) void ctx.blockConcurrencyWhile(() => this.wakeAt(due));
   }
 
   // ---- storage helpers ----

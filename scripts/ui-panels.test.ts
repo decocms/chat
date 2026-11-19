@@ -336,6 +336,13 @@ function newEpicInput(target: ParentNode) {
   return target.querySelector<HTMLInputElement>("#newEpic input")!;
 }
 
+/** The chat's hover toolbar mounts on the first pointer in a message (svelte/Message.svelte). */
+function hoverMessages(target: HTMLElement) {
+  for (const row of target.querySelectorAll("[data-chat-message]"))
+    row.dispatchEvent(new PointerEvent("pointerenter"));
+  flushSync();
+}
+
 describe("native Svelte room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();
@@ -2362,7 +2369,7 @@ describe("native Svelte chat", () => {
     expect(current.getAttribute("aria-pressed")).toBe("true");
     expect(sent).toHaveLength(1);
   }, 30_000);
-  test("streaming typing notes and repeated text updates retain native message anchors", () => {
+  test("streaming typing notes and repeated text updates retain native message anchors", async () => {
     let room: Room = {
       ...fixture(),
       messages: [message(1, "")],
@@ -2390,6 +2397,64 @@ describe("native Svelte chat", () => {
     }
     update({ ...room, messages: [...room.messages, message(2, "next reply")] });
     expect(target.querySelectorAll("[data-chat-message]")).toHaveLength(2);
+    // The hover toolbar mounts on the first pointer or focus in a message.
+    expect(target.querySelectorAll("[data-native-reply]")).toHaveLength(0);
+    expect(
+      target.querySelectorAll("[data-message-toolbar-entry]"),
+    ).toHaveLength(2);
+    // Keyboard: the one tab stop opens the toolbar and moves focus to its first button.
+    target
+      .querySelector<HTMLButtonElement>("#m2 [data-message-toolbar-entry]")!
+      .focus();
+    await tick();
+    flushSync();
+    await tick();
+    expect(
+      document.activeElement?.closest("#m2 [data-message-toolbar]"),
+    ).not.toBeNull();
+    expect(target.querySelector("#m2 [data-message-toolbar-entry]")).toBeNull();
+    // Shift+Tab from after the message lands on the toolbar's last button.
+    const lastOfM2 = [
+      ...target.querySelectorAll<HTMLElement>(
+        "#m2 [data-message-toolbar] button",
+      ),
+    ].at(-1)!;
+    const view = target.ownerDocument.defaultView as unknown as {
+      FocusEvent: typeof FocusEvent;
+    };
+    target
+      .querySelector<HTMLButtonElement>("#m1 [data-message-toolbar-entry]")!
+      .dispatchEvent(new view.FocusEvent("focus", { relatedTarget: lastOfM2 }));
+    await tick();
+    flushSync();
+    await tick();
+    const m1Buttons = [
+      ...target.querySelectorAll<HTMLElement>(
+        "#m1 [data-message-toolbar] button",
+      ),
+    ];
+    expect(m1Buttons.length).toBeGreaterThan(1);
+    expect(document.activeElement).toBe(m1Buttons.at(-1)!);
+    update({
+      ...room,
+      messages: [
+        ...room.messages,
+        message(2, "next reply"),
+        message(3, "third"),
+      ],
+    });
+    flushSync();
+    // A screen reader's browse mode clicks without focus.
+    target
+      .querySelector<HTMLButtonElement>("#m3 [data-message-toolbar-entry]")!
+      .click();
+    await tick();
+    flushSync();
+    await tick();
+    expect(
+      document.activeElement?.closest("#m3 [data-message-toolbar]"),
+    ).not.toBeNull();
+    hoverMessages(target);
     expect(target.querySelectorAll('[data-native-reply="1"]')).toHaveLength(1);
   }, 30_000);
   test("empty failed initial history mounts the real older control and clicks explicit retry", async () => {
@@ -2459,6 +2524,7 @@ describe("native Svelte chat", () => {
     ).toBe("7");
     // @vibe's routine notices are hidden (Gui #3317).
     expect(target.querySelector("#m9")).toBeNull();
+    hoverMessages(target);
     expect(
       target.querySelector('#m8 [data-native-copylink="8"]'),
     ).not.toBeNull();
@@ -2598,6 +2664,7 @@ describe("native Svelte chat", () => {
         },
       },
     });
+    hoverMessages(target);
     target.querySelector<HTMLButtonElement>("#m8 [data-native-reply]")!.click();
     target.querySelector<HTMLButtonElement>("#m8 [data-native-quote]")!.click();
     target.querySelector<HTMLButtonElement>("[data-native-origin]")!.click();
@@ -2834,6 +2901,7 @@ describe("native Svelte chat", () => {
         openFile: () => {},
       },
     });
+    hoverMessages(target);
     const staleReply = target.querySelector<HTMLButtonElement>(
       "[data-native-reply]",
     )!;
@@ -5443,7 +5511,8 @@ describe("native composer ownership and interactions", () => {
     const items = target.querySelectorAll<HTMLButtonElement>(
       '[role="menu"] button',
     );
-    expect(items.length).toBe(3);
+    // Attach, mention, poll, and (on phones) "O que precisa de mim aqui?".
+    expect(items.length).toBe(4);
     expect(document.activeElement === items[0]).toBe(true);
     items[0].dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -6276,6 +6345,135 @@ describe("native room sidebar header and suggestion ownership", () => {
       id: "e",
       archived: true,
     });
+  }, 30_000);
+  type BarTitleProps = import("svelte").ComponentProps<
+    typeof import("../svelte/features/room-shell/RoomBarTitle.svelte").default
+  >;
+  function barTitle(
+    room: Room,
+    extra: Partial<BarTitleProps> = {},
+    request: (command: RoomCommand) => Promise<CommandOutcome> = async () => ({
+      ok: true,
+    }),
+  ) {
+    const owner = createRoomMutations(room.me, room.id);
+    peopleCleanups.push(() => owner.dispose());
+    owner.sync(room, request);
+    const target = document.createElement("div");
+    document.body.append(target);
+    const props: BarTitleProps = {
+      room,
+      thread: "main",
+      owner,
+      vb: bridge,
+      ...extra,
+    };
+    const view = mountView("roomBarTitle", target, props);
+    active.push(view);
+    return { target, view, props, owner };
+  }
+  test("desktop bar title names the view, never the room again; a DM names the person; only an epic has actions", () => {
+    const room = fixture();
+    for (const [r, extra, title, actions] of [
+      [room, {}, "Sala principal", false],
+      [room, { thread: "e" }, "Epic", true],
+      [room, { thread: "e", view: "board" }, "Quadro de tarefas", false],
+      [room, { thread: "main", view: "inbox" }, "Caixa de entrada", false],
+      [room, { thread: "gone" }, "Sala principal", false],
+      [
+        { ...room, book: { ...room.book, dm: true } },
+        {},
+        room.book.title,
+        false,
+      ],
+    ] as const) {
+      const { target } = barTitle(r, extra);
+      expect(
+        target.querySelector("[data-thread-title]")?.textContent?.trim(),
+      ).toBe(title);
+      expect(!!target.querySelector("[data-epic-bar-actions]")).toBe(actions);
+    }
+    // In an epic: ✎, Archive and 🗑 together, then the line before the pane's tabs.
+    const { target } = barTitle(room, { thread: "e" });
+    expect(
+      [...target.querySelector("[data-epic-bar-actions]")!.children].map(
+        (node) =>
+          node.hasAttribute("data-epic-rename")
+            ? "rename"
+            : node.hasAttribute("data-epic-archive")
+              ? "archive"
+              : node.hasAttribute("data-epic-delete")
+                ? "delete"
+                : node.getAttribute("data-orientation"),
+      ),
+    ).toEqual(["rename", "archive", "delete", "vertical"]);
+  });
+  test("desktop epic bar: archive toggles with its label, delete confirmation cancels on canonical replacement and detached buttons cannot write", async () => {
+    const room = fixture(),
+      commands: RoomCommand[] = [],
+      request = async (command: RoomCommand): Promise<CommandOutcome> => {
+        commands.push(command);
+        return { ok: true };
+      };
+    const { target, view, props, owner } = barTitle(
+      room,
+      { thread: "e" },
+      request,
+    );
+    // The phone's ⋯ menu is not in the bar.
+    expect(target.querySelector("[data-thread-actions]")).toBeNull();
+    const archive = target.querySelector<HTMLElement>("[data-epic-archive]")!;
+    expect(archive.textContent?.trim()).toBe("Arquivar");
+    archive.click();
+    await tick();
+    expect(commands.at(-1)).toEqual({
+      t: "epic.archive",
+      id: "e",
+      archived: true,
+    });
+    const archived: Room = {
+      ...room,
+      epics: room.epics.map((epic) => ({ ...epic, archived: true })),
+    };
+    owner.sync(archived, request);
+    view.update({ ...props, room: archived });
+    expect(
+      target.querySelector("[data-epic-archive]")?.textContent?.trim(),
+    ).toBe("Desarquivar");
+    commands.length = 0;
+    // The archive settled: the bar's buttons are enabled again.
+    await tick();
+    flushSync();
+    expect(
+      target.querySelector<HTMLButtonElement>("[data-epic-delete]")!.disabled,
+    ).toBe(false);
+    target.querySelector<HTMLElement>("[data-epic-delete]")!.click();
+    flushSync();
+    await tick();
+    const dialog = document.querySelector('[role="alertdialog"]')!,
+      confirm = [...dialog.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Apagar",
+      )!;
+    const replacement: Room = {
+      ...archived,
+      epics: archived.epics.map((epic) => ({
+        ...epic,
+        title: "Replaced canonical target",
+      })),
+    };
+    owner.sync(replacement, request);
+    view.update({ ...props, room: replacement });
+    await closed("alertdialog");
+    confirm.click();
+    await tick();
+    expect(commands).toHaveLength(0);
+    const stale = target.querySelector<HTMLElement>("[data-epic-delete]")!;
+    active.splice(active.indexOf(view), 1);
+    view.destroy();
+    stale.click();
+    await tick();
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(commands).toHaveLength(0);
   }, 30_000);
   test("suggestion accept sends displayed snapshot only, handles server refusal and stale room controls", async () => {
     const room: Room = {

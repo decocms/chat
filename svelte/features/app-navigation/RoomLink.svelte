@@ -71,7 +71,9 @@
   {children}
   onopen={() => onnavigate({ roomId: room.id })}
 >
+  <!-- The sidebar's rows are small (like a room's epics); the phone's list keeps the big avatar. -->
   {#snippet leading()}<RoomAvatar
+      size={variant === "sidebar" ? "xs" : "md"}
       {title}
       icon={roomIcon(room)}
       person={dm}

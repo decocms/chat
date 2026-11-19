@@ -36,6 +36,7 @@ function harness() {
   let unlistened = 0;
   const calls: string[] = [];
   let duringRefresh = () => {};
+  let pushed = false;
   type ConnectionOptions = Parameters<typeof createPersonalConnection>[0];
   const connections: {
     options: ConnectionOptions;
@@ -60,6 +61,9 @@ function harness() {
       refreshAgents: async () => {
         calls.push("grants");
         return true;
+      },
+      setPushed: (value) => {
+        pushed = value;
       },
     },
     agents: {
@@ -112,6 +116,7 @@ function harness() {
       duringRefresh = callback;
     },
     unlistened: () => unlistened,
+    pushed: () => pushed,
     fire(id: number) {
       jobs.get(id)?.callback();
     },
@@ -130,6 +135,26 @@ test("one document channel starts once; successful connection and visibility kee
   h.connections[0]!.options.onVisible();
   expect(h.calls).toEqual(["invalidate", "me", "grants", "room"]);
   h.owner.dispose();
+});
+
+test("the session hears pushes only while the person socket is open", () => {
+  const h = harness();
+  h.owner.start();
+  expect(h.pushed()).toBe(false);
+  h.connections[0]!.options.onConnected?.();
+  expect(h.pushed()).toBe(true);
+  h.connections[0]!.options.onDisconnected?.();
+  expect(h.pushed()).toBe(false);
+  h.connections[0]!.options.onConnected?.();
+  h.identity({ account: "b@test", revision: 1 });
+  expect(h.pushed()).toBe(false);
+  // A late callback of the replaced socket does not mark the new account as pushed.
+  h.connections[0]!.options.onConnected?.();
+  expect(h.pushed()).toBe(false);
+  h.connections[1]!.options.onConnected?.();
+  expect(h.pushed()).toBe(true);
+  h.owner.dispose();
+  expect(h.pushed()).toBe(false);
 });
 
 test("agent notices keep account observation and debounce only matching live rooms at 600ms", () => {

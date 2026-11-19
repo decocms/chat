@@ -32,7 +32,7 @@
     /** The room's icon URL, if it has one. */
     icon?: string | null;
     lang: HomeLanguage;
-    size?: "md" | "base";
+    size?: "xs" | "md" | "base";
     surface?: "sidebar" | "background";
     /** Who wrote since you last looked: a person or only agents. */
     unread?: "human" | "agent" | null;

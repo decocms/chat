@@ -69,14 +69,11 @@
     ($view.data?.agents ?? []).filter((a) => a.email === owner.account),
   );
   const agentsOf = (m: RoomMachine) => mine.filter((a) => a.machine === m.id);
-  const others = $derived(
-    mine.filter((a) => !a.machine || !machines.some((m) => m.id === a.machine)),
-  );
-  /** Anything that can take a switch: the group reads on while any of them delivers. */
-  const anyOn = $derived(
-    machines.some((m) => m.on) || others.some((a) => a.delivery !== false),
-  );
-  const empty = $derived(!machines.length && !mine.length);
+  // Every agent belongs to a machine (a computer with the CLI, or a cloud sandbox): there is no "other agents"
+  // group. An agent without a machine (an MCP client without the CLI) is not listed (docs/machine-hub.md).
+  /** The group reads on while any machine delivers. */
+  const anyOn = $derived(machines.some((m) => m.on));
+  const empty = $derived(!machines.length);
   const install = $derived(`curl -fsSL ${origin}/setup.sh | sh`);
   let copied = $state(""),
     timer: ReturnType<typeof setTimeout> | undefined,
@@ -115,21 +112,22 @@
     `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
   const percent = (a: Agent) =>
     a.context ? Math.round((a.context.tokens / a.context.window) * 100) : null;
+  // Not listening = not connected: only when it was last seen, no delivery state or context.
   const line = (a: Agent, muted: boolean) =>
-    [
-      muted
-        ? text("footMuted")
-        : a.listening
-          ? text("footListening")
-          : a.seen_at
-            ? text("footSeen", { ago: ago(a.seen_at) })
+    !a.listening
+      ? a.seen_at
+        ? text("footSeen", { ago: ago(a.seen_at) })
+        : ""
+      : [
+          muted ? text("footMuted") : text("footListening"),
+          // Its client only when it says something (a connector by name); "started by hand" was noise.
+          !a.machine && a.client && !/vibebook CLI/i.test(a.client)
+            ? a.client
             : "",
-      // Its client only when it says something (a connector by name); "started by hand" was noise.
-      !a.machine && a.client && !/vibebook CLI/i.test(a.client) ? a.client : "",
-      percent(a) === null ? "" : `${percent(a)}%`,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+          percent(a) === null ? "" : `${percent(a)}%`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
   onDestroy(() => {
     active = false;
     clearTimeout(timer);
@@ -168,13 +166,13 @@
       <span class="truncate text-[0.6875rem] text-muted-foreground"
         >{line(a, muted)}</span
       >
-      {#if percent(a) !== null && !muted}<Progress
+      {#if a.listening && percent(a) !== null && !muted}<Progress
           aria-hidden="true"
           value={percent(a) ?? 0}
           class="mt-0.5 h-0.5"
         />{/if}
     </span>
-    {#if own && a.id && a.delivery !== undefined && !a.machine}<Switch
+    {#if own && a.listening && a.id && a.delivery !== undefined && !a.machine}<Switch
         checked={a.delivery}
         onCheckedChange={(on) => deliver({ agent: a.id! }, on)}
         aria-label={text("footAgentSwitch")}
@@ -262,13 +260,11 @@
       data-agent-status={mark.state}
       class="grid gap-0.5"
     >
-      <!-- The group's title and "deliver to all" only when there is more than one thing to switch: one agent has its own. -->
-      {#if machines.length + others.length > 1}<div
+      <!-- The group's title and "deliver to all" only when there is more than one machine. -->
+      {#if machines.length > 1}<div
           class="flex items-center gap-1.5 px-2.5 pt-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase"
         >
-          <span class="flex-1"
-            >{text(machines.length ? "footAgents" : "footOthers")}</span
-          >
+          <span class="flex-1">{text("footAgents")}</span>
           <span class="font-normal normal-case">{text("footDeliver")}</span>
           <Switch
             checked={anyOn}
@@ -336,16 +332,6 @@
         </div>
         {#each kids as a (a.id)}{@render agentRow(a, !m.on, false)}{/each}
       {/each}
-      {#if others.length && machines.length}<div
-          class="px-2.5 pt-1.5 text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase"
-        >
-          {text("footOthers")}
-        </div>{/if}
-      {#each others as a (a.id ?? a.who)}{@render agentRow(
-          a,
-          a.delivery === false,
-          true,
-        )}{/each}
       <!-- Cloud agents (freestyle sandboxes) stay one click away once you have agents (Gui #3173). -->
       <a
         href={cloud}

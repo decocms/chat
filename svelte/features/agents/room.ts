@@ -30,7 +30,6 @@ export type RoomAgentState = {
   askedAt: number;
   now: number;
   hasAgent: boolean | null;
-  setupDismissed: boolean;
   offerDismissed: boolean;
   startDismissed: boolean;
   welcome: boolean;
@@ -99,7 +98,6 @@ export function createRoomAgentSession(
     askedAt: 0,
     now: clock.now(),
     hasAgent: null,
-    setupDismissed: stored("vb.setupOff", "1"),
     offerDismissed: stored("vb.claudeBar.off", "off"),
     startDismissed: stored(`vb.start.${roomId}`, "off"),
     welcome: false,
@@ -544,26 +542,17 @@ export function createRoomAgentSession(
     setRequest(send: RequestRoomCommand) {
       if (active) request = send;
     },
-    dismissBanner(kind: "setup" | "offer" | "start") {
+    dismissBanner(kind: "offer" | "start") {
       if (!current()) return;
-      const key =
-        kind === "setup"
-          ? "vb.setupOff"
-          : kind === "offer"
-            ? "vb.claudeBar.off"
-            : `vb.start.${roomId}`;
+      const key = kind === "offer" ? "vb.claudeBar.off" : `vb.start.${roomId}`;
       try {
-        options.storage?.setItem(key, kind === "setup" ? "1" : "off");
+        options.storage?.setItem(key, "off");
       } catch {
         /* In-memory dismissal remains available. */
       }
       state.update((value) => ({
         ...value,
-        [kind === "setup"
-          ? "setupDismissed"
-          : kind === "offer"
-            ? "offerDismissed"
-            : "startDismissed"]: true,
+        [kind === "offer" ? "offerDismissed" : "startDismissed"]: true,
       }));
     },
     closeWelcome() {

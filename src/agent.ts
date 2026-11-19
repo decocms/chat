@@ -2633,6 +2633,8 @@ function choicesOf(a: Args) {
 // Per-isolate memory, so a listener's call every ≤50s doesn't pay D1 round trips for what can't have changed:
 // an agent id's owner never changes; seen_at/model/repo/room-seen writes at most once a minute each.
 const agentOwner = new Map<string, string>();
+/** agent|machine → when this isolate last recorded that agent's machine (x-vibebook-machine). */
+const machineSeen = new Map<string, number>();
 const lastWrite = new Map<string, number>();
 const POLL_TOOLS = new Set(["wait_for_messages", "claude_rooms"]);
 const due = (key: string, ms = 60_000) => {
@@ -2737,6 +2739,32 @@ export async function handleAgentMcp(
         .run();
     if (agentOwner.size > 20_000) agentOwner.clear();
     agentOwner.set(agentId, props.email);
+  }
+  // Every agent belongs to a machine (docs/machine-hub.md): the CLI sends its computer's id (x-vibebook-machine, from
+  // ~/.vibebook/machine.json) and name. The machine is registered for this person and stays online while its agents
+  // call (at most every 2 min per agent and isolate), and the agent follows that machine's switch. A machine id that
+  // belongs to someone else is ignored. A sandbox keeps its own machine.
+  const mid = request.headers.get("x-vibebook-machine") ?? "";
+  const mKey = `${agentId}|${mid}`;
+  if (!props.sandbox && MACHINE_ID.test(mid) && Date.now() - (machineSeen.get(mKey) ?? 0) > 120_000) {
+    if (machineSeen.size > 20_000) machineSeen.clear();
+    machineSeen.set(mKey, Date.now());
+    const name =
+      (request.headers.get("x-vibebook-machine-name") ?? "").replace(/[\p{Cc}]/gu, "").trim().slice(0, 40) || "computer";
+    const now = Date.now();
+    ctx.waitUntil(
+      env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, 'herdr', ?4, ?4)
+           ON CONFLICT(id) DO UPDATE SET seen_at = excluded.seen_at WHERE machines.email = excluded.email`,
+        ).bind(mid, props.email, name, now),
+        env.DB.prepare(
+          `UPDATE agents SET machine_id = ?1 WHERE id = ?2 AND email = ?3 AND (machine_id IS NULL OR machine_id != ?1)
+             AND (machine_id IS NULL OR machine_id NOT LIKE 'sb!_%' ESCAPE '!')
+             AND EXISTS (SELECT 1 FROM machines WHERE id = ?1 AND email = ?3)`,
+        ).bind(mid, agentId, props.email),
+      ]).catch(() => {}),
+    );
   }
   // This grant was used now (written at most every 5 min per grant): the app lists connections with their last use.
   // Grants older than the gid have none, so they're keyed by the grant id inside the token (`user:grant:secret`).

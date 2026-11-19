@@ -460,3 +460,71 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Work in progress stops. The conversation is kept.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/composer-focus-on-enter · The composer takes the focus when you enter a room or a DM
+- Agent: claude-opus-5-5
+- Context: The human asked that the composer have the focus when a person enters a room or a DM.
+- Decision: The composer focuses its field when you enter a room, a DM or a thread (not when it mounts again in the same thread, for example after the Inbox closes: then the focus goes back to the Inbox button). It does not focus on a touch screen (`pointer: coarse`) or in the phone layout (`MOBILE_QUERY`), because the keyboard then covers the messages and the phone layout hides its tab bar while the composer has the focus. It does not take the focus from another field or from an open dialog.
+- Other options: Focus on touch screens too. Focus only on a room change, not on a thread change.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/room-topbar-breadcrumb · Two new components for the top bar
+- Agent: claude-opus-5-5
+- Context: The human selected a breadcrumb in the desktop top bar (room › epic, board or inbox), the search at the top of the sidebar, and the epic actions as buttons in the bar (no "⋯"). `ThreadHeader` was the title of both the desktop bar and the phone sheet, so one component had two layouts.
+- Decision: `RoomBreadcrumb` (room-shell) is the desktop bar. It uses the studio `Breadcrumb` atoms. The room crumb opens the main thread (`toMain` in `RoomScene`), also from the board, the inbox or a thread that is gone. `EpicActions` (room-sidebar) holds rename, archive, delete and their dialogs once, as a `menu` (phone sheet, in `ThreadHeader`) or as a `bar` (desktop: ✎, a labelled Archive that folds to its icon when the breadcrumb, a container, is narrower than `@xl`, and 🗑). `SearchField` is the 52px header row of each sidebar: room, DM and home, with the `⌘K`/`Ctrl+K` hint (`searchShortcut`, shared with the search dialog). There is no `track()` in the Svelte app yet, so these controls send no event.
+- Other options: Keep the bar in `ThreadHeader` with more flags (one component with two layouts and more branches). Copy the action logic into the bar (two copies of the dialog safety checks).
+- Risk: low
+- Undo: Revert this commit.
+- Status: partly replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2). `EpicActions` stays.
+
+### 2026-11-19 · feat/room-topbar-breadcrumb · Rename the room from the top bar
+- Agent: claude-opus-5-5
+- Context: The sidebar header had the room name and its ✎. The human asked to remove that header, so on desktop the ✎ needed a new place.
+- Decision: On the main thread, a ✎ follows the room crumb in the top bar. A DM has no ✎. The phone keeps the ✎ on the room's row in the sheet.
+- Other options: Rename from a click on the crumb (a click on a crumb usually navigates). Rename only from the room settings.
+- Risk: low
+- Undo: Revert this commit.
+- Status: replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2)
+
+### 2026-11-19 · feat/room-topbar-take2 · The sidebar names the room, the bar names the view
+- Agent: claude-opus-5-5
+- Context: After #216 the human asked for the opposite: no search box in the sidebars, the room's name back at the top of the room sidebar, Home at the top of the DM and home sidebar, and the epic's buttons grouped before the pane tabs with a vertical line. The human accepted the recommended answers in the take 2 mockup.
+- Decision: `SidebarHeader` (lib/components) is the 52px top row of each sidebar: the room's name (a click opens the main thread, ✎ on hover) or Home. Search stays on the rail and ⌘K. `RoomBarTitle` replaces `RoomBreadcrumb`: the bar names only the view ("Sala principal" in grey, the epic, the suggestion, "Quadro de tarefas", "Caixa de entrada"; a DM: the person), so the room's name is not shown twice. `EpicActions` `bar` puts ✎, Archive and 🗑 together, then a vertical `Separator`, before the tabs.
+- Other options: Keep room › epic in the bar (the name shows twice). Show the room's name in the bar on the main thread (the repeat that #m3351 asked to remove). Icon-only Archive.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · chore/pencil-and-home · The DM sidebar is built like a room's
+- Agent: claude-opus-5-5
+- Context: The human picked option A in the DM sidebar mockup: "Mensagens diretas" names the sidebar, Home and "Você" sit where a room has its Main thread and Inbox. The mockup's two other questions (row size, requests) had no answer.
+- Decision: The header is `SidebarHeader` with "Mensagens diretas" and the `+` (new message) at its end. Home and DM rows in the sidebar variant are small, like a room's rows: a 16px icon for Home, an `xs` avatar for a DM, and no status line. The phone's room list (`list` variant) keeps the big rows. "Pedidos" stays a section with its buttons. A "Conversas" section title shows only when there is a conversation.
+- Other options: Keep the big 36px rows with the last message under the name. Make "Pedidos" one row with a count that opens its own view.
+- Risk: low
+- Undo: Revert this commit.
+
+### 2026-11-19 · feat/sidebar-section-scroll · Each sidebar section scrolls its own list
+- Agent: claude-opus-5-5
+- Context: The human asked that the sidebar stop scrolling whole, and that Epics, Pinned and People & agents each scroll inside. They accepted the recommended answers in the mockup: short lists keep their height and the long ones share the rest; the phone keeps one scroll; the DM sidebar does the same.
+- Decision: `lib/components/sidebarSection.ts` holds two class lists, `sidebarSection` and `sectionScroll`, used by EpicTree, PinnedItems, PeoplePanel and DmNav. Desktop only: each section is `flex-1` with `max-h-max`, so it never grows past its content and the free height goes in equal parts to the long ones. The floor is a title and one row (`min-h-16`; Epics `min-h-20` for its tabs). On desktop the room's wrapper is `contents`, so the name and the Main thread / Inbox / Board rows stay put and are not part of the shared height. The DM sidebar keeps Home, You and the requests still; the conversations scroll.
+- Other options: Shrink each section by its length (a long list lost almost all of its height). Fixed thirds. A JavaScript layout.
+- Risk: low
+- Undo: Revert this commit.
+### 2026-11-19 · perf/immutable-chunks · Browser chunks are cached for one year
+- Agent: claude-opus-5-5
+- Context: The human asked to make navigation faster. Production served each `/svelte-preview/*` file with `max-age=0, must-revalidate`, so each page load sent about 80 revalidation requests (304).
+- Decision: `public/_headers` gives `/svelte-preview/*` `Cache-Control: public, max-age=31536000, immutable`. Each file there has a content hash in its name, or (`app.js`, `ui.css`) a `?v=` content hash in each reference. `app.html` keeps revalidation, so a deploy still reaches people.
+- Other options: Cache the chunks in the service worker (it has no fetch handler on purpose). Rename `app.js` and `ui.css` with a hash.
+- Risk: low. A request for `app.js` without `?v=` stays cached; no code makes one.
+- Undo: Delete `public/_headers`.
+
+### 2026-11-19 · perf/lazy-message-toolbar · The message hover toolbar mounts on demand
+- Agent: claude-opus-5-5
+- Context: The human asked to make navigation faster. A profile showed that the hover toolbar of each message (8 quick reactions, reply, copy, link, each with a tooltip) was about 200 of the 300 ms to show a room with 60 messages.
+- Decision: `svelte/Message.svelte` mounts `MessageActions` (floating) on the first `pointerenter` or `focusin` in the message. Until then, one visually hidden button ("Ações desta mensagem" / "Actions for this message") keeps the toolbar in the tab order. When it gets focus or a click (a screen reader in browse mode), the toolbar mounts and focus moves to its first button, or to its last button after Shift+Tab. The button is hidden on coarse pointers, like the toolbar. A swipe copy calls the mounted toolbar at once, inside the gesture (iOS allows the clipboard only there).
+- Other options: Remove the tooltips from the toolbar buttons. Virtualize the message list. Keep one shared toolbar for the whole list.
+- Risk: low. A screen reader user hears one "Actions for this message" button per message instead of the toolbar buttons until they activate it.
+- Undo: Revert this commit.
+- Status: open
