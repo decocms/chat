@@ -1,0 +1,73 @@
+# Verify X-Vibebook-Identity (MCP servers that deco.chat calls)
+
+deco.chat sends no tokens to MCP servers. Every call to a connected server carries a header that says who calls:
+
+```
+X-Vibebook-Identity: <JWT>
+```
+
+- A 5-minute EdDSA (Ed25519) JWT.
+- Claims: `iss` = the deco.chat origin (`https://chat.decocms.com`), `sub` and `email` = the person's verified email, `room` = the room id, `aud` = the exact URL of your MCP endpoint (origin + path, no query), `iat`, `exp`, `jti`.
+- Public keys: `<iss>/.well-known/jwks.json` (`kty: OKP`, `crv: Ed25519`, a `kid` per key). Cache them for an hour; refetch when a token names a `kid` you don't have.
+
+Your server must check, in this order:
+
+1. The signature, with the key whose `kid` is in the JWT header, from the JWKS of the issuer you trust. Never take the JWKS URL from the token.
+2. `iss` is exactly the deco.chat origin you trust (an allowlist, e.g. `["https://chat.decocms.com"]`).
+3. `aud` is exactly your endpoint's URL, so a seal made for another server can't be replayed on yours.
+4. `exp` is in the future.
+5. `sub` is someone you allow (emails or `@domain`), then act as that person.
+
+On failure answer **403**, not 401: a 401 makes deco.chat look for an OAuth login.
+
+> The origin changed in Nov 2026 from `https://vibebook.dev` to `https://chat.decocms.com`. A server that still pins `vibebook.dev` answers 403 "invalid vibebook identity". Trust the new origin (keys at `https://chat.decocms.com/.well-known/jwks.json`).
+
+## Code (Cloudflare Workers, Node 20+, Bun, Deno: Web Crypto only)
+
+```ts
+const ISSUERS = ["https://chat.decocms.com"];
+const b64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+const keys = new Map<string, { at: number; keys: JsonWebKey[] }>();
+
+async function jwks(iss: string, kid: string) {
+  const hit = keys.get(iss);
+  if (hit && Date.now() - hit.at < 3600_000 && hit.keys.some((k: any) => k.kid === kid)) return hit.keys;
+  if (hit && Date.now() - hit.at < 60_000) return hit.keys; // unknown kid: refetch at most once a minute
+  const r = await fetch(`${iss}/.well-known/jwks.json`, { signal: AbortSignal.timeout(5000) });
+  const got = r.ok ? ((await r.json()) as { keys: JsonWebKey[] }).keys : hit?.keys ?? [];
+  keys.set(iss, { at: Date.now(), keys: got });
+  return got;
+}
+
+/** The caller's email, or null. `aud` = your MCP endpoint, e.g. "https://example.com/mcp". */
+export async function vibebookEmail(req: Request, aud: string): Promise<string | null> {
+  const jwt = req.headers.get("x-vibebook-identity");
+  const [h, p, s] = jwt?.split(".") ?? [];
+  if (!h || !p || !s) return null;
+  try {
+    const head = JSON.parse(new TextDecoder().decode(b64u(h)));
+    const c = JSON.parse(new TextDecoder().decode(b64u(p)));
+    if (head.alg !== "EdDSA" || !ISSUERS.includes(c.iss) || c.aud !== aud || !(c.exp > Date.now() / 1000)) return null;
+    const jwk = (await jwks(c.iss, head.kid)).find((k: any) => k.kid === head.kid);
+    if (!jwk) return null;
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "Ed25519" }, false, ["verify"]);
+    const ok = await crypto.subtle.verify({ name: "Ed25519" }, key, b64u(s), new TextEncoder().encode(`${h}.${p}`));
+    return ok && typeof c.sub === "string" ? c.sub : null;
+  } catch {
+    return null;
+  }
+}
+// In the handler: const email = await vibebookEmail(req, url.origin + url.pathname);
+// if (!email || !allowed(email)) return new Response("invalid vibebook identity", { status: 403 });
+```
+
+## Prompt for the Claude of your MCP server
+
+```
+This MCP server is called from deco.chat rooms. Read https://chat.decocms.com/mcp-identity.md and make every
+request require a valid X-Vibebook-Identity: Ed25519 JWT, keys from https://chat.decocms.com/.well-known/jwks.json
+(cached 1h, refetch on unknown kid), iss exactly https://chat.decocms.com, aud exactly this endpoint's URL
+(origin + path), exp in the future, sub in an allowlist I keep in config (emails or @domain). Answer 403 (not 401)
+when it fails. If the code pins https://vibebook.dev, replace it with https://chat.decocms.com. Add a test that a
+seal for another aud, an expired one and one signed by another key are refused.
+```
