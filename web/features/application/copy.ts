@@ -430,6 +430,7 @@ const EN: Readonly<Record<string, string>> = {
   "O deco.chat funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:":
     "deco.chat works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   Copiar: "Copy",
+  "Mais reações": "More reactions",
   Link: "Link",
   "esperando seu agent conectar…": "waiting for your agent to connect…",
   "Claude.ai ou outro cliente": "Claude.ai or another client",
