@@ -727,7 +727,6 @@ const EN: Readonly<Record<string, string>> = {
   "Recusar o pedido de {email}?": "Decline {email}'s request?",
   "{email} entrou na sala e recebeu o link por email.":
     "{email} joined the room and got the link by email.",
-  enviado: "sent",
   "Não deu para salvar a foto.": "Couldn't save the photo.",
   "Não deu para ler essa imagem.": "Couldn't read that image.",
   'Te convidei pra sala "{title}" no deco.chat: {url}':
