@@ -2432,7 +2432,7 @@ describe("native Svelte chat", () => {
       owner.dispose();
     }
   }, 30_000);
-  test("quotes, native actions, origin and quiet notices survive chat refresh", () => {
+  test("quotes, native actions and origin survive chat refresh; @vibe notices are hidden", () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
     const notice = {
@@ -2457,9 +2457,8 @@ describe("native Svelte chat", () => {
         .querySelector("#m8 [data-native-quote]")
         ?.getAttribute("data-native-quote"),
     ).toBe("7");
-    expect(
-      target.querySelector("#m9 details > [data-rich-content]")?.textContent,
-    ).toBe("Archived safely");
+    // @vibe's routine notices are hidden (Gui #3317).
+    expect(target.querySelector("#m9")).toBeNull();
     expect(
       target.querySelector('#m8 [data-native-copylink="8"]'),
     ).not.toBeNull();
@@ -2473,7 +2472,7 @@ describe("native Svelte chat", () => {
       "Updated response",
     );
     expect(target.querySelectorAll("[data-chat-origin]")).toHaveLength(1);
-    expect(target.querySelectorAll("#m9")).toHaveLength(1);
+    expect(target.querySelectorAll("#m9")).toHaveLength(0);
   }, 30_000);
   test("special reminder origins omit self-linking cards without removing native DOM", () => {
     const origin = { ...message(7, "Reminder origin"), tag: "reminder" };
