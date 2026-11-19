@@ -1,3 +1,4 @@
+import { restingPane } from "../room-layout/restingPane";
 import { get, readonly, writable } from "svelte/store";
 import { createHomeApi, type HomeApi } from "../home/api";
 import { createPersonalSession } from "../home/personal";
@@ -61,7 +62,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     route: applicationRoute(browser.href()),
     href: browser.href(),
     navigationGeneration: 0,
-    pane: "doc",
+    // The pane you left open (Doc or People & agents), remembered per browser.
+    pane: restingPane(browser.storage),
     availableVersion: null,
     sessionDenied: false,
     lifecycle: "idle",
@@ -191,6 +193,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       navigate: (value) => navigate(value),
       home: () => navigate("/"),
       archived: () => navigate("/archived"),
+      inbox: () => navigate("/?inbox"),
       rename: (id, title) =>
         root.read().room?.id === id && currentRoomId() === id
           ? root.request({ t: "title", title })
@@ -480,7 +483,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     if (!active || epoch !== intent) return;
     root.leave();
     if (!active || epoch !== intent) return;
-    state.update((value) => ({ ...value, pane: "doc" }));
+    state.update((value) => ({ ...value, pane: restingPane(browser.storage) }));
     publishRoute();
     if (!active || epoch !== intent) return;
     if (route.kind === "document") {

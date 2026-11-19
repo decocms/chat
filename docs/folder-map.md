@@ -44,7 +44,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | `claude-plugin/` | The Claude Code plugin: hooks, the `vibebook` skill, the `/vibebook:setup` and `/vibebook:listen` commands. |
 | `herdr-plugin/` | The herdr plugin. It opens one Claude Code for each room. |
 | `.claude-plugin/` | The plugin marketplace file. |
-| `og/` | HTML that makes `public/og.png`, the icons and `public/email-logo.png`. |
+| `og/` | HTML that makes `public/og.png`, the icons (`icon.html` with the lime square, `icon-splash.html` without it, for the Android splash) and `public/email-logo.png`. |
 
 ## Documents
 

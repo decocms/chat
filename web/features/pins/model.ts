@@ -1,6 +1,5 @@
 import type { Attachment, Pin, Room } from "../../../shared/room";
 import { kb } from "../../app/panels";
-import { tintClasses } from "../home/model";
 
 export type PinAppTarget = { connectionId: string; tool: string };
 export type PinTarget =
@@ -163,30 +162,4 @@ export function samePinApp(
   return (
     !!open && open.connection === pin.connectionId && open.tool === pin.tool
   );
-}
-
-const tints = (["blue", "green", "yellow", "pink", "purple"] as const).map(
-  (tint) => tintClasses[tint],
-);
-/** A stable tint per app, so a pinned app reads as a tile like the rail's room tiles. */
-export function pinAppTint(app: PinAppTarget) {
-  let hash = 0;
-  for (const char of `${app.connectionId}/${app.tool}`)
-    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return tints[hash % tints.length];
-}
-
-/** One or two initials from the app's label ("Roteador A/B" -> "RA", "chart" -> "C"). */
-export function pinAppInitials(label: string) {
-  const words = label
-    .replace(/[-_.]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter((word) => /[\p{L}\p{N}]/u.test(word));
-  return (
-    words
-      .slice(0, 2)
-      .map((word) => Array.from(word.replace(/^[^\p{L}\p{N}]+/u, ""))[0] ?? "")
-      .join("") || "A"
-  ).toLocaleUpperCase();
 }

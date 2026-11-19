@@ -9,7 +9,7 @@ export type NavigationState = {
   archived: boolean;
   /** The new-epic field under the Épicos header is open. */
   creating: boolean;
-  /** @vibe's suggestions are unfolded under the Épicos header. */
+  /** The Plan tab (@vibe's suggestions) is the one open. */
   suggestions: boolean;
 };
 export type NavigationSession = {

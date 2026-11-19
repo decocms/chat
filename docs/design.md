@@ -23,7 +23,10 @@ The top bar has one row on desktop. Its parts are in this order:
 1. The name of the view (`RoomBarTitle`): "Sala principal", the epic's title, "Caixa de entrada", "Quadro de tarefas".
 2. The controls of the view.
 3. A vertical `Separator`.
-4. The pane tabs (`DocumentToolbar`): Doc, files, apps, board.
+4. The room's search field ("Buscar nesta sala"). Typing opens the Search pane beside the chat with the matches. Not in a DM.
+5. The pane tabs (`DocumentToolbar`): Doc, files, apps, decisions, reminders, People & agents. They are 32px buttons in the top bar (`size="icon"`, Doc `size="default"`).
+
+People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Closing the Doc opens People & agents; closing People & agents closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
 The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the controls open parts of the room.
 
@@ -52,6 +55,7 @@ The top bar on phones has no space for the controls of a view. That is why the v
 |---|---|---|
 | Epic thread | ✎ Rename, Archive, 🗑 Delete | `EpicActions` (`bar`), in `RoomBarTitle` |
 | Inbox | "Esta sala" / "Todas as salas", "Resolver todos os pedidos (n)" | `InboxControls`, in the `viewControls` slot |
+| Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
 | Main thread, task board | None | |
 
 ### What does not go in the top bar

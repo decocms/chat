@@ -171,6 +171,8 @@
   --vb-brand-purple-light: #a595ff;
   --vb-brand-purple-dark: #151042;
   --vb-brand-purple-tint: #efecff;
+  /* Purple as text (a count on your own reaction): darker on light, the brand purple on dark. */
+  --vb-brand-purple-text: #6a58d6;
   --vb-brand-yellow-light: #ffc116;
   --vb-brand-yellow-dark: #392b02;
   --vb-brand-yellow-tint: #fff4d1;
@@ -289,6 +291,7 @@
   --vb-scrim: #0006;
   --vb-agent-claude: #e07f55;
   --vb-agent-claude-text: #e07f55;
+  --vb-brand-purple-text: #a595ff;
   --vb-agent-gemini-text: #7c9ef5;
   --vb-agent-copilot-text: #a283e6;
   --vb-agent-codex: #ececec;
@@ -363,6 +366,7 @@
     --vb-scrim: #0006;
     --vb-agent-claude: #e07f55;
     --vb-agent-claude-text: #e07f55;
+    --vb-brand-purple-text: #a595ff;
     --vb-agent-gemini-text: #7c9ef5;
     --vb-agent-copilot-text: #a283e6;
     --vb-agent-codex: #ececec;
@@ -512,6 +516,7 @@
   --color-brand-purple-light: var(--vb-brand-purple-light);
   --color-brand-purple-dark: var(--vb-brand-purple-dark);
   --color-brand-purple-tint: var(--vb-brand-purple-tint);
+  --color-brand-purple-text: var(--vb-brand-purple-text);
   --color-brand-yellow-light: var(--vb-brand-yellow-light);
   --color-brand-yellow-dark: var(--vb-brand-yellow-dark);
   --color-brand-yellow-tint: var(--vb-brand-yellow-tint);

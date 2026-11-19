@@ -61,6 +61,11 @@ test("breakpoints: only the md token (md = desktop, max-md = mobile)", () => {
   expect(svelte('matchMedia("(pointer: coarse)")', "web/a.ts")).toEqual([]);
 });
 
+test("no browser-drawn icons: a search field is a text field with our x", () => {
+  expect(svelte('<input type="search" />')).toEqual(["native-icon"]);
+  expect(svelte('<input type="text" />')).toEqual([]);
+});
+
 test("no style blocks, CSS imports or direct fetch", () => {
   expect(svelte("<style>\n.a { color: red }\n</style>")).toEqual([
     "style-block",

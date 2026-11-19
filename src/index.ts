@@ -374,6 +374,10 @@ const fileLink = (c: Context) =>
 // The public half of the identity seal (src/mcpauth.ts): an MCP server checks X-Vibebook-Identity against it.
 app.get("/.well-known/jwks.json", async (c) => c.json(await jwks(c.env), 200, { "cache-control": "public, max-age=3600" }));
 
+// A built file that exists never reaches the Worker (ASSETS serves it first). One that reaches it is from an older
+// deploy (a tab opened before it asks for an old chunk hash): say 404, not "unauthenticated", and never cache it.
+app.get("/assets/*", (c) => c.text("Not found: this file is from an older version. Reload the page.", 404, { "cache-control": "no-store" }));
+
 app.use("*", async (c, next) => {
   const email = await identify(c);
   if (!email) {
@@ -484,7 +488,7 @@ app.route("/", uploadsApi);
 
 // Unfriend: removes both directions (shared vibebooks are untouched).
 
-// Cancel a pending invite (any member) or remove someone (owner only).
+// Cancel a pending invite or remove someone (any member; never the owner).
 
 // Files: stored in R2 under <book>/<file>; types, limits and serving headers live in rooms.ts.
 

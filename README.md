@@ -55,6 +55,8 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Room links.** A person with the link can see the title of the room. They cannot see more. They can ask for access, and a member approves or refuses.
 
+**Room members.** Each member can invite people and remove a member. Nobody can remove the person who made the room.
+
 **What other people in a room cannot do:**
 
 - Make your agent act. Only the messages that you write are instructions to your agent (`from_your_human`). The server sets the author. The server instructions and each `read_room` response mark all other content as data.
@@ -74,6 +76,8 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 - *Prompt injection.* Text in a room goes into the context of your agent when it reads the room. Do not approve commands automatically in a session that reads rooms. Join rooms only with people that you trust.
 - *The operator has your data.* Cloudflare keeps messages, documents and tasks (Durable Objects, D1, R2). They are not end-to-end encrypted. The code is MIT, so you can run your own server.
+
+**MCP servers that deco.chat calls.** deco.chat sends them no token. Each call carries `X-Vibebook-Identity`, a 5-minute Ed25519 JWT signed by the deco.chat origin (`iss`, keys at `<iss>/.well-known/jwks.json`) for that server's URL (`aud`), with the caller's email (`sub`). The server checks it and decides. How to verify it, with code and a prompt for its Claude: [`public/mcp-identity.txt`](public/mcp-identity.txt) (served at https://chat.decocms.com/mcp-identity.txt).
 
 Send security reports to gui@deco.cx.
 

@@ -28,6 +28,8 @@
     agents,
     request,
     hideSelf = false,
+    onopen,
+    members = false,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -41,6 +43,11 @@
     request?: PeopleRequest;
     /** Desktop sidebar: you sit at its foot, not in the list. */
     hideSelf?: boolean;
+    /** Opens your DM with this person (the app's `connect`): their name is a link to it. */
+    onopen?: (email: string) => Promise<unknown>;
+    /** The pane beside the chat, like Discord's member list: Online / Offline / Invited with counts, bigger
+     * faces, offline people dimmed. */
+    members?: boolean;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
@@ -51,6 +58,19 @@
     deletion = $state<{ email: string; action: "remove" | "deny" } | null>(
       null,
     );
+  /** The person whose DM is opening: one at a time, so a double click opens it once. */
+  let opening = $state<string | null>(null);
+  async function open(email: string) {
+    if (!onopen || opening) return;
+    opening = email;
+    try {
+      await onopen(email);
+    } catch {
+      // The DM didn't open: the row stays, and a new click tries again.
+    } finally {
+      opening = null;
+    }
+  }
   let trigger = $state<HTMLElement | null>(null),
     root = $state<HTMLElement | null>(null);
   /** The invite row: the `+` in the header turns into a row you type an email into (friends are suggested). */
@@ -155,6 +175,36 @@
     "hidden group-hover/member:inline-flex group-focus-within/member:inline-flex [@media(hover:none)]:inline-flex";
 </script>
 
+{#snippet inviteForm()}
+  <form
+    id="invite"
+    data-invite-form
+    class={inviting ? (members ? "mb-4" : "") : "hidden"}
+    onsubmit={submitInvite}
+  >
+    <InlineAdd
+      type="email"
+      bind:ref={input}
+      bind:value={() => $view.draft, (value) => session.edit(value)}
+      placeholder={vb.t("convidar por email")}
+      aria-label={vb.t("convidar por email")}
+      list={`${ids}-friends`}
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck={false}
+      enterkeyhint="send"
+      confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
+      confirmLabel={vb.t("convidar por email")}
+      cancelLabel={vb.t("Cancelar")}
+      oncancel={closeInvite}
+    />
+    <datalist id={`${ids}-friends`}
+      >{#each model.friends as email (email)}<option value={email}
+          >{label(email)}</option
+        >{/each}</datalist
+    >
+  </form>
+{/snippet}
 {#snippet outcomes()}
   {#each Object.entries($view.pending) as [email]}{#if $view.issues[email] !== "unconfirmed"}<p
         role="status"
@@ -168,12 +218,7 @@
     >
       {email} · {issueText(issue)}
     </p>{/each}
-  {#each Object.entries($view.notices) as [email, action]}{#if action === "invite" || action === "resend"}<p
-        role="status"
-        class="m-0 px-2 break-words text-xs text-muted-foreground"
-      >
-        {email} · {vb.t("enviado")} ✓
-      </p>{/if}{/each}
+  <!-- A sent invite needs no line of its own: the person shows up in Invited, "waiting". -->
   {#if $view.clipboard}<p
       role={$view.clipboard.status === "failed" ? "alert" : "status"}
       class="m-0 px-2 break-words text-xs text-muted-foreground"
@@ -195,12 +240,20 @@
     !room.pending?.includes(email) && !!room.declined?.includes(email)}
   {@const pending = declined || (room.pending?.includes(email) ?? false)}
   {@const here = isOnline(email)}
-  <div class={cn(row, !here && "text-muted-foreground")} data-person={email}>
+  <div
+    class={cn(
+      row,
+      members && "h-11 gap-3",
+      !here &&
+        (members ? "opacity-50 hover:opacity-100" : "text-muted-foreground"),
+    )}
+    data-person={email}
+  >
     {#if pending}<span class="flex shrink-0"
         ><PersonAvatar
           {email}
           version={vb.avatarVersion(email)}
-          class="size-5"
+          class={members ? "size-8" : "size-5"}
         /></span
       >{:else}
       {#snippet face(props: Record<string, unknown>)}<button
@@ -212,17 +265,35 @@
           ><PersonAvatar
             {email}
             version={vb.avatarVersion(email)}
-            class="size-5"
+            class={members ? "size-8" : "size-5"}
           /><PresenceDot
             online={here}
-            class="ring-sidebar group-hover/member:ring-sidebar-accent"
+            class={members
+              ? "size-2.5 ring-background group-hover/member:ring-accent"
+              : "ring-sidebar group-hover/member:ring-sidebar-accent"}
           /></button
         >{/snippet}
       <TapTooltip
         label={here ? vb.t("Online") : vb.t("Offline")}
         trigger={face}
       />{/if}
-    <span class="min-w-0 flex-1 truncate" title={email}>{label(email)}</span>
+    {#if onopen && !pending}<button
+        type="button"
+        data-open-dm={email}
+        title={email}
+        aria-label={vb.t("Abrir conversa com {name}", { name: label(email) })}
+        aria-busy={opening === email}
+        class={cn(
+          "min-w-0 flex-1 cursor-pointer truncate rounded-sm border-0 bg-transparent p-0 text-left font-sans text-sm leading-5 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          members && "text-[0.9375rem]",
+        )}
+        onclick={() => {
+          void open(email);
+        }}>{label(email)}</button
+      >{:else}<span
+        class={cn("min-w-0 flex-1 truncate", members && "text-[0.9375rem]")}
+        title={email}>{label(email)}</span
+      >{/if}
     {#if pending}
       <Badge
         variant="muted"
@@ -316,22 +387,56 @@
           >
         </div>{/each}
     </div>{/if}
-  <SectionHeader title={vb.t("Pessoas e agents")}>
-    {#snippet action()}{#if !inviting}<IconButton
-          size="icon-xs"
-          tooltipSide="bottom"
-          label={vb.t("Convidar")}
-          data-invite-toggle
-          bind:ref={toggle}
-          onclick={openInvite}><Icon icon="plus" /></IconButton
-        >{/if}{/snippet}
-  </SectionHeader>
-  {#each everyone as email (email)}{@render member(email)}{/each}
-  {#if model.invited.length}<SectionHeader
-      title={vb.t("Convidados")}
-      level={4}
-    />
-    {#each model.invited as email (email)}{@render member(email)}{/each}{/if}
+  {#if members}{#if !inviting}<Button
+        variant="outline"
+        size="sm"
+        class="mb-4 w-full"
+        data-invite-toggle
+        bind:ref={toggle}
+        onclick={openInvite}
+        ><Icon icon="user-plus-01" size={16} />{vb.t(
+          "Convidar pessoas",
+        )}</Button
+      >{/if}{@render inviteForm()}{:else}
+    <SectionHeader title={vb.t("Pessoas e agents")}>
+      {#snippet action()}{#if !inviting}<IconButton
+            size="icon-xs"
+            tooltipSide="bottom"
+            label={vb.t("Convidar")}
+            data-invite-toggle
+            bind:ref={toggle}
+            onclick={openInvite}><Icon icon="plus" /></IconButton
+          >{/if}{/snippet}
+    </SectionHeader>
+  {/if}
+  {#if members}{@const groups = [
+      {
+        key: "online",
+        title: vb.t("Online"),
+        list: model.online.filter((e) => !hideSelf || e !== room.me),
+      },
+      {
+        key: "offline",
+        title: vb.t("Offline"),
+        list: model.offline.filter((e) => !hideSelf || e !== room.me),
+      },
+      { key: "invited", title: vb.t("Convidados"), list: model.invited },
+    ].filter((group) => group.list.length)}
+    {#each groups as group (group.key)}<h4
+        data-member-group={group.key}
+        class="m-0 px-2 pt-4 pb-1 text-xs font-semibold text-muted-foreground first-of-type:pt-1"
+      >
+        {group.title} — {group.list.length}
+      </h4>
+      {#each group.list as email (email)}{@render member(email)}{/each}{/each}
+  {:else}
+    {#each everyone as email (email)}{@render member(email)}{/each}
+    {#if model.invited.length}<SectionHeader
+        title={vb.t("Convidados")}
+        level={4}
+      />
+      {#each model.invited as email (email)}{@render member(email)}{/each}{/if}
+  {/if}
   <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
   {#if !everyone.length && !inviting}<button
       type="button"
@@ -344,34 +449,7 @@
       >
       <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
     </button>{/if}
-  <form
-    id="invite"
-    data-invite-form
-    class={inviting ? "" : "hidden"}
-    onsubmit={submitInvite}
-  >
-    <InlineAdd
-      type="email"
-      bind:ref={input}
-      bind:value={() => $view.draft, (value) => session.edit(value)}
-      placeholder={vb.t("convidar por email")}
-      aria-label={vb.t("convidar por email")}
-      list={`${ids}-friends`}
-      autocomplete="off"
-      autocapitalize="none"
-      spellcheck={false}
-      enterkeyhint="send"
-      confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
-      confirmLabel={vb.t("convidar por email")}
-      cancelLabel={vb.t("Cancelar")}
-      oncancel={closeInvite}
-    />
-    <datalist id={`${ids}-friends`}
-      >{#each model.friends as email (email)}<option value={email}
-          >{label(email)}</option
-        >{/each}</datalist
-    >
-  </form>
+  {#if !members}{@render inviteForm()}{/if}
   {@render outcomes()}
 </section>
 <ConfirmDialog

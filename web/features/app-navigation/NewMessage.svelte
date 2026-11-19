@@ -136,7 +136,8 @@
     {:else}
       <Input
         bind:value={query}
-        type="search"
+        type="text"
+        inputmode="search"
         autocomplete="off"
         aria-label={text("newMessageHint")}
         placeholder={text("newMessageHint")}

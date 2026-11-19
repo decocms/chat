@@ -137,6 +137,43 @@ test("worker state excludes branched origins, respects latest completion and fal
   expect(agentMark("Antigravity")).toBe("✦");
   expect(agentMark("claude-opus-5-5")).toBe("✻");
 });
+test("an agent that takes a main-thread message to an epic shows working in that epic, and main names it", () => {
+  const r = room([
+    message(1, "faz isso"),
+    { ...message(2, "plano", "e"), kind: "agent", author: "a", ts: 10500 },
+  ]);
+  r.epics = [{ id: "e", title: "Aviso no épico", tasks: [] }];
+  r.acks = [
+    { msg_id: 1, email: "a", who: "Claude", status: "doing", ts: 10000 },
+  ];
+  // Main still shows who works, now with the epic it went to.
+  expect(threadWorkers(r, "main", 12000)).toEqual([
+    { who: "Claude", email: "a", epic: { id: "e", title: "Aviso no épico" } },
+  ]);
+  // The epic shows the worker too.
+  expect(threadWorkers(r, "e", 12000)).toEqual([{ who: "Claude", email: "a" }]);
+  // A post before the ack is not where the work went.
+  r.messages[1] = { ...r.messages[1], ts: 9000 };
+  expect(threadWorkers(r, "main", 12000)).toEqual([
+    { who: "Claude", email: "a" },
+  ]);
+  // (Its own recent post still shows there, as before; not as the ack's worker.)
+  expect(threadWorkers(r, "e", 12000)).not.toContainEqual({
+    who: "Claude",
+    email: "a",
+  });
+  // A finished ack stops both.
+  r.messages[1] = { ...r.messages[1], ts: 10500 };
+  r.acks.push({
+    msg_id: 1,
+    email: "a",
+    who: "Claude",
+    status: "done",
+    ts: 11000,
+  });
+  expect(threadWorkers(r, "main", 12000)).toEqual([]);
+  expect(threadWorkers(r, "e", 12000)).toEqual([]);
+});
 test("latest done or dismissed ack never revives an older doing session in footer or epic worker fallback", () => {
   const r = room([message(1)]);
   r.epics = [{ id: "e", title: "Epic", from_msg: 1, tasks: [] }];

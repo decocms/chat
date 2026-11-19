@@ -42,13 +42,14 @@
   import NewMessage from "./NewMessage.svelte";
   import Requests from "./Requests.svelte";
   import HomeRow from "./HomeRow.svelte";
+  import InboxRow from "./InboxRow.svelte";
   import RoomLink from "./RoomLink.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   /**
    * Your home's own sidebar, built like a room's: "Mensagens diretas" names
    * it in the header row, with a `+` to start a conversation. Then small rows
-   * where a room has its Main thread and Inbox: Home and "Você" (you and your
-   * Claude). Then "Pedidos" (invites and message requests waiting for your
+   * where a room has its Main thread and Inbox: Home, your Inbox (all rooms,
+   * at `/?inbox`) and "Você" (you and your Claude). Then "Pedidos" (invites and message requests waiting for your
    * yes) and the conversations you've had (src/dm.ts). A DM is only a
    * conversation: its row opens it, with nothing nested under it. The rail's
    * search (⌘K) finds a person or a conversation.
@@ -104,15 +105,26 @@
       />{/if}</SidebarHeader
   >
   <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
-    <!-- Home and You: where a room has its Main thread and Inbox. -->
+    <!-- Home, Inbox and You: where a room has its Main thread and Inbox. -->
     <li>
+      <!-- With an Inbox row under it, the count is on the Inbox (like a room's), not on Home. -->
       <HomeRow
-        selected={!current}
-        waits={$personal.me?.waits.length ?? 0}
+        selected={!current && !$nav.inbox}
+        waits={controller.callbacks.inbox
+          ? 0
+          : ($personal.me?.waits.length ?? 0)}
         {lang}
         onhome={controller.callbacks.home}
       />
     </li>
+    {#if controller.callbacks.inbox}<li data-home-inbox-row>
+        <InboxRow
+          selected={!current && $nav.inbox}
+          waits={$personal.me?.waits.length ?? 0}
+          {lang}
+          oninbox={controller.callbacks.inbox}
+        />
+      </li>{/if}
     {#if dms}{@render dm(dms.self)}
       {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
           class="mt-3"

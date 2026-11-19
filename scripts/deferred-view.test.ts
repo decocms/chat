@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import { createDeferredModule } from "../web/features/deferred-view/module";
+import {
+  isStaleChunk,
+  reloadForNewBuild,
+} from "../web/features/deferred-view/staleBuild";
 import type { AuthClock } from "../web/features/auth/owner";
 const flush = async () => {
   await Promise.resolve();
@@ -161,4 +165,69 @@ test("reentrant disposal on loading publication cannot allocate a late timer or 
   expect(calls).toBe(0);
   expect(clock.timers.size).toBe(0);
   stop();
+});
+test("a chunk of an older deploy reloads the page once instead of showing a retry that cannot work", async () => {
+  const clock = clockFixture();
+  let reloads = 0;
+  const module = createDeferredModule(
+    async () => {
+      throw TypeError(
+        "Failed to fetch dynamically imported module: https://chat.decocms.com/assets/AccountSettings-old.js",
+      );
+    },
+    {
+      current: () => true,
+      clock: clock.clock,
+      onStale: () => {
+        reloads++;
+        return true;
+      },
+    },
+  );
+  await module.ensure();
+  expect(reloads).toBe(1);
+  expect(get(module.state).phase).toBe("loading");
+  module.dispose();
+});
+test("a stale chunk shows the error when the page already reloaded for it", async () => {
+  const clock = clockFixture();
+  const module = createDeferredModule(
+    async () => {
+      throw TypeError("Importing a module script failed.");
+    },
+    { current: () => true, clock: clock.clock, onStale: () => false },
+  );
+  await module.ensure();
+  expect(get(module.state).phase).toBe("error");
+  module.dispose();
+});
+test("reloadForNewBuild reloads once a minute at most, and never without storage", () => {
+  const store = new Map<string, string>();
+  let reloads = 0;
+  const win = {
+    sessionStorage: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+    },
+    location: { reload: () => void reloads++ },
+  };
+  expect(reloadForNewBuild(win, 1_000_000)).toBe(true);
+  expect(reloadForNewBuild(win, 1_030_000)).toBe(false);
+  expect(reloadForNewBuild(win, 1_061_000)).toBe(true);
+  expect(reloads).toBe(2);
+  const blocked = {
+    sessionStorage: {
+      getItem: (): string | null => {
+        throw Error("blocked");
+      },
+      setItem: () => {},
+    },
+    location: { reload: () => void reloads++ },
+  };
+  expect(reloadForNewBuild(blocked, 2_000_000)).toBe(false);
+  expect(reloads).toBe(2);
+  expect(isStaleChunk(Error("network"))).toBe(false);
+  expect(
+    isStaleChunk(TypeError("error loading dynamically imported module")),
+  ).toBe(true);
 });

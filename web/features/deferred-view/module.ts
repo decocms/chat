@@ -1,5 +1,6 @@
 import { get, writable } from "svelte/store";
 import { clientClock, type ClientClock } from "../../lib/client/clock";
+import { isStaleChunk, reloadForNewBuild } from "./staleBuild";
 
 export type DeferredModuleState<T> =
   | { phase: "idle" | "loading" | "error"; component: null }
@@ -14,8 +15,11 @@ export function createDeferredModule<T>(
     current(): boolean;
     clock?: ClientClock;
     timeoutMs?: number;
+    /** A chunk of an older deploy did not load: true when it reloads the page. */
+    onStale?: () => boolean;
   },
 ) {
+  const onStale = options.onStale ?? (() => reloadForNewBuild());
   const state = writable<DeferredModuleState<T>>({
     phase: "idle",
     component: null,
@@ -60,11 +64,14 @@ export function createDeferredModule<T>(
         pending = null;
         if (current()) state.set({ phase: "ready", component });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!owns()) return;
         clear();
         pending = null;
-        if (current()) state.set({ phase: "error", component: null });
+        if (!current()) return;
+        // A chunk from an older deploy: a retry asks for the same missing file, so reload once (staleBuild).
+        if (isStaleChunk(error) && onStale()) return;
+        state.set({ phase: "error", component: null });
       });
     return pending;
   }

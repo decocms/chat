@@ -477,7 +477,8 @@ async function keyboardOverlays(
     page.locator("[data-inbox-controls]:visible").first(),
   ).toBeVisible();
   await axe(page, "in-place room Inbox open", evidence);
-  await roomInbox.locator("[data-room-inbox-close]").focus();
+  // Phones: the bar hides while the Inbox is open, so its ✕ closes it. Desktop: the sidebar's Inbox button.
+  await (phone ? roomInbox.locator("[data-room-inbox-close]") : inbox).focus();
   await page.keyboard.press("Enter");
   await expect(roomInbox).toHaveCount(0);
   await expect(composer).toBeVisible();

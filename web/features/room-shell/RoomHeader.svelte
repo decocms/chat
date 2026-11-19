@@ -18,6 +18,7 @@
   import type { SidebarProps } from "../../app/sidebar";
   import { dmPeer, roomAvatarVersion } from "../room-scope/model";
   import { isPanelToggleKey } from "./panelViews";
+  import { roomSearchQuery } from "../chat/roomSearch";
   let {
     presentation,
     header,
@@ -84,15 +85,31 @@
   );
   // A tab brings the chat back, then opens that pane, or closes it when it's
   // the one already open (this replaced the pane toggle button).
+  /** Closing the doc falls back to People & agents (a DM has no People): only then does the pane close. */
+  function closePane() {
+    if (layout.read().pane === "doc" && !header.room.book.dm)
+      onPane?.("people");
+    else layout.toggleDocument();
+  }
   function pickPane(pane: DocumentPane) {
     if (!current()) return;
     if (split && layout.read().pane === pane) {
-      layout.toggleDocument();
+      closePane();
       return;
     }
     tochat?.();
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
+  }
+  // The room's search (like Discord's): typing opens the Search pane beside the chat, which lists the matches.
+  function searchRoom(value: string) {
+    if (!current()) return;
+    roomSearchQuery.set(value);
+    if (value.trim() && !(split && layout.read().pane === "search")) {
+      tochat?.();
+      if (!layout.read().documentVisible) layout.toggleDocument();
+      onPane?.("search");
+    }
   }
   function toggleInbox(trigger: HTMLElement) {
     if (inboxOpen) tochat?.();
@@ -121,7 +138,8 @@
     }
     if (!isPanelToggleKey(event, mac)) return;
     event.preventDefault();
-    layout.toggleDocument();
+    if (split) closePane();
+    else layout.toggleDocument();
   }
 </script>
 
@@ -239,13 +257,40 @@
             class="mx-1.5 h-5 data-[orientation=vertical]:h-5"
           />{/if}
       </div>{/if}
+    {#if !header.room.book.dm}<label
+        data-room-search-field
+        class="mr-1 hidden h-8 w-44 shrink-0 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-muted-foreground transition-[width] duration-150 focus-within:w-60 focus-within:text-foreground md:flex"
+        ><Icon icon="search-md" size={14} /><input
+          type="text"
+          inputmode="search"
+          value={$roomSearchQuery}
+          placeholder={t("Buscar nesta sala")}
+          aria-label={t("Buscar nesta sala")}
+          class="h-full min-w-0 flex-1 border-0 bg-transparent font-sans text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          oninput={(event) => searchRoom(event.currentTarget.value)}
+          onkeydown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              searchRoom("");
+              event.currentTarget.blur();
+            }
+          }}
+        />{#if $roomSearchQuery}<IconButton
+            label={t("Limpar busca")}
+            tooltipSide="bottom"
+            size="icon-xs"
+            class="-mr-1.5 text-muted-foreground hover:text-foreground"
+            onclick={() => searchRoom("")}
+            ><Icon icon="x" size={14} /></IconButton
+          >{/if}</label
+      >{/if}
     {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
           {...tabs}
           bare
           exclude={header.room.book.dm
-            ? ["agents", "board", "doc"]
-            : ["agents", "board"]}
+            ? ["agents", "board", "doc", "people", "search"]
+            : ["agents", "board", "search"]}
           pane={split ? tabs.pane : ("" as DocumentPane)}
           onPane={pickPane}
         />

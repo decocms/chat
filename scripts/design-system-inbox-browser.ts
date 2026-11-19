@@ -254,6 +254,7 @@ export async function auditDesignSystemInbox(
       path: `${output}/room-inbox-390.png`,
       fullPage: true,
     });
+    // Phones (this audit is at 390 px): the bar hides while the Inbox is open, so its ✕ closes it.
     const close = roomInbox.locator("[data-room-inbox-close]");
     await close.focus();
     await page.keyboard.press("Enter");

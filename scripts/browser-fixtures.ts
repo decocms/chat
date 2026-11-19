@@ -77,6 +77,8 @@ export async function openRoomPane(
     agents: "[data-agents]",
     decisions: "[data-decisions-panel]",
     reminders: "[data-reminders-panel]",
+    people: "[data-pane-people]",
+    search: "[data-room-search]",
   };
   await expect(layout).toBeVisible();
   const full = page.locator("[data-board-toggle]");

@@ -3582,44 +3582,27 @@ describe("stable sidebar integration", () => {
     ];
     const rendered = sidebar(room);
     const pins = rendered.target.querySelector("[data-pins]")!;
-    const people = rendered.target.querySelector("[data-people-panel]")!;
-    const headers = [pins, people].map((section) =>
-      section.querySelector<HTMLElement>("[data-section-header]")!,
-    );
-    expect(headers[0].className).toBe(headers[1].className);
-    const headings = headers.map((header) => header.querySelector("h3")!);
-    expect(headings[0].className).toBe(headings[1].className);
-    expect(headings[0].className.split(/\s+/)).toContain("text-xs");
-    expect(headings[0].className.split(/\s+/)).not.toContain("uppercase");
-    expect(headings[0].textContent).toBe("Fixados");
-    expect(headings[1].textContent).toBe("Pessoas e agents");
+    // People & agents moved to the pane beside the chat (like Discord's member list).
+    expect(rendered.target.querySelector("[data-people-panel]")).toBe(null);
+    const header = pins.querySelector<HTMLElement>("[data-section-header]")!;
+    const heading = header.querySelector("h3")!;
+    expect(heading.className.split(/\s+/)).toContain("text-xs");
+    expect(heading.className.split(/\s+/)).not.toContain("uppercase");
+    expect(heading.textContent).toBe("Fixados");
     const label = document.getElementById(
       pins.getAttribute("aria-labelledby")!,
     );
-    expect(headings[0].contains(label)).toBe(true);
+    expect(heading.contains(label)).toBe(true);
     expect(label?.textContent).toBe("Fixados");
-    const add = headers[0].querySelector<HTMLButtonElement>(
+    const add = header.querySelector<HTMLButtonElement>(
       'button[aria-label="Fixar um link"]',
     )!;
-    const invite = headers[1].querySelector<HTMLButtonElement>(
-      "button[data-invite-toggle]",
-    )!;
-    expect(add.className).toBe(invite.className);
     expect(add.hasAttribute("title")).toBe(false);
-    expect(invite.hasAttribute("title")).toBe(false);
-    const form = people.querySelector<HTMLFormElement>("[data-invite-form]")!;
-    expect(form.classList.contains("hidden")).toBe(true);
-    invite.click();
-    await tick();
-    flushSync();
-    expect(form.classList.contains("hidden")).toBe(false);
-    expect(document.activeElement).toBe(form.querySelector("input"));
-    expect(headers[1].querySelector("button[data-invite-toggle]")).toBe(null);
     add.click();
     await tick();
     flushSync();
     expect(pins.querySelector("form input[name=url]")).not.toBeNull();
-    expect(headers[0].querySelector('button[aria-label="Fixar um link"]')).toBe(
+    expect(header.querySelector('button[aria-label="Fixar um link"]')).toBe(
       null,
     );
     rendered.destroy();
@@ -4046,10 +4029,7 @@ describe("stable sidebar integration", () => {
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
     const create = newEpicInput(target);
-    openInvite(target);
-    const invite = document.querySelector<HTMLInputElement>("#invite input")!;
     create.value = "Draft epic title";
-    invite.value = "invitee@test";
     for (let i = 0; i < 6; i++) {
       room = {
         ...room,
@@ -4069,7 +4049,6 @@ describe("stable sidebar integration", () => {
       expect(target.querySelector("[data-epic-thread=e]")).toBe(row);
       expect(target.querySelector("#newEpic input")).toBe(create);
       expect(create.value).toBe("Draft epic title");
-      expect(invite.value).toBe("invitee@test");
     }
     expect(
       target.querySelector("[data-epic-thread=e] [data-epic-title]")
@@ -4497,7 +4476,11 @@ describe("stable sidebar integration", () => {
     expect(app.dataset.pinKind).toBe("app");
     expect(app.dataset.pinOpens).toBe("inline");
     expect(app.querySelector("a")).toBeNull();
-    expect(app.querySelector("[data-pin-icon=tile]")?.textContent).toBe("RA");
+    // The app's tile is the marble its name draws, like a room's: no initials.
+    expect(app.querySelector("[data-pin-icon=tile] svg")).not.toBeNull();
+    expect(app.querySelector("[data-pin-icon=tile]")?.textContent?.trim()).toBe(
+      "",
+    );
     const appButton = app.querySelector<HTMLButtonElement>("button")!;
     expect(appButton.textContent).toContain("Roteador A/B");
     expect(appButton.textContent).toContain("App");
@@ -4994,6 +4977,26 @@ describe("People interactions", () => {
     submitInvite();
     return input;
   }
+  test("a joined person's name opens your DM with them; an invite waiting has no link", async () => {
+    const opened: string[] = [];
+    const rendered = people(personRoom(), {
+      onopen: async (email: string) => {
+        opened.push(email);
+        return "dm";
+      },
+    });
+    const link = rendered.target.querySelector<HTMLButtonElement>(
+      '[data-open-dm="member@test.com"]',
+    );
+    expect(link).not.toBeNull();
+    expect(
+      rendered.target.querySelector('[data-open-dm="pending@test.com"]'),
+    ).toBeNull();
+    link!.click();
+    link!.click(); // a double click opens it once
+    await Promise.resolve();
+    expect(opened).toEqual(["member@test.com"]);
+  });
   test("owner and member see the authorized removal controls and plain-text access requests", () => {
     const room = personRoom();
     const rendered = people(room);
@@ -5130,7 +5133,8 @@ describe("People interactions", () => {
     await settle();
     expect(inviteForm().classList.contains("hidden")).toBe(true);
     expect(inviteSearch().value).toBe("");
-    expect(rendered.target.textContent).toContain("new@test.com · enviado ✓");
+    // No "sent" line: the invited person's row is the confirmation.
+    expect(rendered.target.textContent).not.toContain("enviado");
     rendered.update({
       ...room,
       members: [...room.members, "new@test.com"],
