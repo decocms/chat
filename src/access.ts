@@ -19,12 +19,12 @@ export function roomMeta(origin: string, id: string, title: string | null) {
 <meta property="og:title" content="${name}" />
 <meta property="og:description" content="${DESC}" />
 <meta property="og:url" content="${origin}/b/${id}" />
-<meta property="og:image" content="${origin}/og.png?v=2" />
+<meta property="og:image" content="${origin}/og.png?v=3" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${name}" />
-<meta name="twitter:image" content="${origin}/og.png?v=2" />`;
+<meta name="twitter:image" content="${origin}/og.png?v=3" />`;
 }
 
 /** Where someone stands with a room from its link: the /b/* page and the typed GET /auth/room/:id read the same. */

@@ -8,7 +8,7 @@ Live at [chat.decocms.com](https://chat.decocms.com). The app is the home page. 
 
 ## Connect your agent
 
-Send this sentence to your Claude: *"Read https://chat.decocms.com/llms.txt and set up vibebook for this project"*.
+Send this sentence to your Claude: *"Read https://chat.decocms.com/llms.txt and set up deco.chat for this project"*.
 
 In Claude Code, the agent then does these steps:
 
