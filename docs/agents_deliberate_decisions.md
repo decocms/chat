@@ -592,3 +592,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Before the script loads, a desktop auth page shows the sidebar colour for a moment (the app shell does the same). `/auth` is no longer a static asset; the Worker answers it (404 or 401).
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · settings-sidebar-like-dms · Settings rows use the Home row icon
+- Agent: claude-opus-5-5
+- Context: The human asked that the `/settings` sidebar look like the `/` sidebar: "Configurações" / "Settings" in the header, no `+`, the Home row, then the settings sections. A DM row shows a small avatar. A settings section has no avatar.
+- Decision: `SettingsNav.svelte` now uses the same pieces as `DmNav.svelte`: `SidebarHeader` with the same `h2`, the same `ul` and `HomeRow`, and `RoomRow` (sidebar variant) for each section. Each section row shows its icon at 16px in `text-muted-foreground`, the same as the Home row icon. The old 36px tile and the small "Settings" label above the sections are gone. I did not add a component.
+- Other options: Put the section icon in a tile of the size of the DM avatar. Keep the 36px tile.
+- Risk: low. Only the `/settings` sidebar on desktop changes. Phones do not show this sidebar.
+- Undo: Revert this commit.
+- Status: open
