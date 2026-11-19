@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.1";
+const VERSION = "1.7.2";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -739,23 +739,15 @@ async function herdrSync(agent: string, tools: Tool[]) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String((err as { stderr?: Buffer }).stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
     }
   }
-  // Off closes the tab at once (its session is kept for --resume when it's back on), and so does a room that left the
-  // list (archived, or you left it). Before, off kept the tab with a Claude that still listened (Nov 2026).
+  // Off only mutes (Nov 2026): the server stops delivering the room to this machine's Claudes and nothing here stops
+  // a process. The tab stays mapped, so on again uses it. A room that left the list (archived, or you left it) is only
+  // forgotten: its tab stays open, yours to close.
+  const listed = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace) continue;
     const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
     if (p?.agent_session?.value) e.session = p.agent_session.value;
-    // A workspace with other panes too (yours): end only the room's Claude (/exit), keep the workspace and forget it.
-    try {
-      if (p && panes.filter((x) => x.workspace_id === e.workspace).length > 1) {
-        herdr("agent", "prompt", p.pane_id, "/exit");
-        log(`${room}: Claude desligado na sala, encerrei o Claude dela (a aba fica com seus outros painéis)`);
-      } else if (live.has(e.workspace)) {
-        herdr("workspace", "close", e.workspace);
-        log(`${room}: Claude desligado na sala, fechei a aba (a conversa fica pra retomar)`);
-      }
-    } catch {}
-    delete e.workspace;
+    if (!listed.has(room) || !live.has(e.workspace)) delete e.workspace;
   }
   writePrivate(HERDR, map);
   herdrOrder([...on.keys()], map);
@@ -763,7 +755,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
 // ---- herdr app (desktop) mode: `vibebook herdr --app` ----
 // Same rooms, as spaces in the Herdr window (herdr-app + herdr-core): one space per room whose Claude is on, in the
 // room's folder, started with `claude "/vibebook:listen"`; a space already open in that folder with a Claude in it is
-// adopted. Off closes only the spaces it maps. Spaces follow the rail's order. ~/.vibebook/herdr-app.json maps them.
+// adopted. Off only mutes: no space closes. Spaces follow the rail's order. ~/.vibebook/herdr-app.json maps them.
 const HERDR_APP = join(HOME, "herdr-app.json");
 type AppSpace = { id: string; name: string; folder: string; tabs: { terminals: { terminal: string; app: string | null; status: string | null }[] }[] };
 const happ = (...args: string[]) => {
@@ -848,23 +840,11 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
     e.prompted_at = Date.now();
     log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
   }
-  // Off closes the space at once (its session is kept in the map for --resume), and so does a room that left the list.
-  // Before, off kept the space with a Claude that still listened (Nov 2026): the person wants off to stop it.
-  // A space with other terminals too (yours): end only the room's Claude, keep the space and forget it.
+  // Off only mutes, as in the terminal mode: nothing here stops a process. A room that left the list is only forgotten.
+  const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space) continue;
-    const sp = spaces.find((x) => x.id === e.space);
-    const c = sp && appClaude(sp);
-    try {
-      if (sp && c && sp.tabs.flatMap((t) => t.terminals).length > 1) {
-        execFileSync("hc", ["kill", c.terminal], { stdio: "ignore" });
-        log(`${room}: Claude desligado na sala, encerrei o Claude dela (o space fica com seus outros terminais)`);
-      } else if (sp) {
-        happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-        log(`${room}: Claude desligado na sala, fechei o space (a conversa fica pra retomar)`);
-      }
-    } catch {}
-    delete e.space;
+    if (!listedApp.has(room) || !live.has(e.space)) delete e.space;
   }
   writePrivate(HERDR_APP, map);
   // The rooms' spaces first, in the rail's order (space.move keeps everything running).

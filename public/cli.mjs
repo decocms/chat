@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.7.1";
+var VERSION = "1.7.2";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -770,22 +770,15 @@ async function herdrSync(agent, tools) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String(err.stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
     }
   }
+  const listed = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace)
       continue;
     const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
     if (p?.agent_session?.value)
       e.session = p.agent_session.value;
-    try {
-      if (p && panes.filter((x) => x.workspace_id === e.workspace).length > 1) {
-        herdr("agent", "prompt", p.pane_id, "/exit");
-        log(`${room}: Claude desligado na sala, encerrei o Claude dela (a aba fica com seus outros painéis)`);
-      } else if (live.has(e.workspace)) {
-        herdr("workspace", "close", e.workspace);
-        log(`${room}: Claude desligado na sala, fechei a aba (a conversa fica pra retomar)`);
-      }
-    } catch {}
-    delete e.workspace;
+    if (!listed.has(room) || !live.has(e.workspace))
+      delete e.workspace;
   }
   writePrivate(HERDR, map);
   herdrOrder([...on.keys()], map);
@@ -873,21 +866,12 @@ async function herdrAppSync(agent, tools) {
     e.prompted_at = Date.now();
     log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
   }
+  const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space)
       continue;
-    const sp = spaces.find((x) => x.id === e.space);
-    const c = sp && appClaude(sp);
-    try {
-      if (sp && c && sp.tabs.flatMap((t) => t.terminals).length > 1) {
-        execFileSync("hc", ["kill", c.terminal], { stdio: "ignore" });
-        log(`${room}: Claude desligado na sala, encerrei o Claude dela (o space fica com seus outros terminais)`);
-      } else if (sp) {
-        happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-        log(`${room}: Claude desligado na sala, fechei o space (a conversa fica pra retomar)`);
-      }
-    } catch {}
-    delete e.space;
+    if (!listedApp.has(room) || !live.has(e.space))
+      delete e.space;
   }
   writePrivate(HERDR_APP, map);
   spaces = happ("ls").spaces;
