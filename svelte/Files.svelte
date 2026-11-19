@@ -130,7 +130,7 @@
         {#each view.folders as [name, count]}<button
             type="button"
             data-fdir={view.prefix + name}
-            class="inline-flex h-9 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 font-sans text-[0.8125rem] transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+            class="inline-flex h-9 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 font-sans text-sm transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
             onclick={() => select(view.kind, view.prefix + name, true)}
             ><Icon
               icon={Folder}
@@ -182,7 +182,7 @@
                   >{/if}</span
               >
               <span class="flex flex-col gap-0.5 px-2.5 py-2"
-                ><span class="truncate text-[0.8125rem] leading-5 font-medium"
+                ><span class="truncate text-sm leading-5 font-medium"
                   >{file.name.slice(view.prefix.length)}</span
                 ><span
                   class="truncate text-[0.6875rem] leading-4 text-muted-foreground"

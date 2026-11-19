@@ -33,7 +33,7 @@
   {#if ask && onask}<button
       type="button"
       data-pane-ask
-      class="flex max-w-xs cursor-pointer items-start gap-2 rounded-xl border-0 bg-agent-claude/10 px-3 py-2 text-left font-sans text-[0.8125rem] leading-snug text-foreground transition-colors hover:bg-agent-claude/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      class="flex max-w-xs cursor-pointer items-start gap-2 rounded-xl border-0 bg-agent-claude/10 px-3 py-2 text-left font-sans text-sm leading-snug text-foreground transition-colors hover:bg-agent-claude/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       onclick={() => onask(ask)}
       ><span aria-hidden="true" class="font-semibold text-agent-claude-text"
         >✻</span
