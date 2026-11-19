@@ -1,5 +1,5 @@
 // A room link opened by someone without access (/b/<id>): the room's name for link previews (WhatsApp, Slack,
-// iMessage read og:*); the Svelte access page asks to join. The title is readable by anyone holding the link, on purpose.
+// iMessage read og:*); the access page asks to join. The title is readable by anyone holding the link, on purpose.
 import { escapeHtml } from "./auth";
 import { isMember } from "./rooms";
 import type { AccessContext } from "../shared/schemas";

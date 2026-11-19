@@ -5,7 +5,7 @@ import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/sc
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
-// Typed application routes: validated Hono handlers chained into one app whose type (AppType) the Svelte client
+// Typed application routes: validated Hono handlers chained into one app whose type (AppType) the browser client
 // consumes through hc<AppType> (web/lib/client/api.ts, import type only: no backend code reaches the browser).
 // index.ts mounts this app after its auth middleware.
 //

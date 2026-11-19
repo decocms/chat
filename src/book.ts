@@ -709,28 +709,26 @@ export class Book extends DurableObject<Env> {
   sockets(except?: WebSocket) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
   }
-  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind (app "s") per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
+  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
     const s = encodeCall(data); // a JSON-RPC notification, method = t
-    const by: Record<string, number> = {};
+    let n = 0;
     for (const ws of to) {
-      try { ws.send(s); } catch { continue; } // socket already gone
-      const c = "s";
-      by[c] = (by[c] ?? 0) + 1;
+      try { ws.send(s); n++; } catch { continue; } // socket already gone
     }
     const h = Math.floor(Date.now() / 3_600_000);
-    for (const [c, n] of Object.entries(by))
-      this.sql.exec(`INSERT INTO ws_bytes (h, t, c, n, b) VALUES (?, ?, ?, ?, ?) ON CONFLICT(h, t, c) DO UPDATE SET n = n + excluded.n, b = b + excluded.b`, h, data.t, c, n, n * s.length);
+    // `c` is an unused key column that existing rooms' tables still have: always "".
+    if (n) this.sql.exec(`INSERT INTO ws_bytes (h, t, c, n, b) VALUES (?, ?, '', ?, ?) ON CONFLICT(h, t, c) DO UPDATE SET n = n + excluded.n, b = b + excluded.b`, h, data.t, n, n * s.length);
     return s;
   }
-  /** Finished hours of ws_bytes → D1 (one event per kind and app), then dropped. */
+  /** Finished hours of ws_bytes → D1 (one event per kind and hour), then dropped. */
   async flushWire() {
     const h = Math.floor(Date.now() / 3_600_000);
-    const rows = this.sql.exec<{ h: number; t: string; c: string; n: number; b: number }>(`SELECT h, t, c, n, b FROM ws_bytes WHERE h < ?`, h).toArray();
+    const rows = this.sql.exec<{ h: number; t: string; n: number; b: number }>(`SELECT h, t, sum(n) AS n, sum(b) AS b FROM ws_bytes WHERE h < ? GROUP BY h, t`, h).toArray();
     if (!rows.length) return;
     const book = this.get("book_id") ?? "";
-    await Promise.all(rows.map((r) => track(this.env, "ws_bytes", { dims: { book, t: r.t, c: r.c, n: r.n, bytes: r.b, h: r.h } })));
+    await Promise.all(rows.map((r) => track(this.env, "ws_bytes", { dims: { book, t: r.t, n: r.n, bytes: r.b, h: r.h } })));
     this.sql.exec(`DELETE FROM ws_bytes WHERE h < ?`, h);
   }
   broadcast(data: RoomEvent, except?: WebSocket) {
