@@ -48,6 +48,7 @@ const foldKey = (m?: ChatMessage) =>
 export function foldMessages(list: readonly ChatMessage[]) {
   const out: ChatMessage[] = [];
   for (const m of list) {
+    if (isNotice(m)) continue; // @vibe's routine lines are gone (Gui #3317); old ones stay in the DB, hidden here
     const key = foldKey(m),
       previous = out.at(-1);
     if (key && previous && foldKey(previous) === key)

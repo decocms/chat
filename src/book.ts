@@ -62,9 +62,6 @@ const DEFAULT_TITLE = "Nova sala";
 const CLASSIFY_DELAY_MS = 30_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
-// @vibe the housekeeper (no model call): a delivery with tasks still open, or a task in doing/review with no news.
-const NUDGE_AFTER_DELIVERY_MS = 30 * 60_000;
-const NUDGE_STALE_MS = 24 * 3600_000;
 const CLASSIFY_MIN_NEW_MSGS = 3; // after the first classification
 const CLASSIFY_FIRST_MSGS = 1; // a new room gets its title/summary after its first message
 
@@ -87,7 +84,6 @@ const REMINDER_MIN_GAP_MS = 30 * 60_000; // each fire wakes a Claude: no more th
 export const STATUSES = TASK_STATUSES;
 type Status = (typeof STATUSES)[number];
 const STATUS_LABEL: Record<Status, string> = { todo: "a fazer", doing: "fazendo", review: "esperando OK", done: "feito" };
-const STATUS_LABEL_EN: Record<Status, string> = { todo: "to do", doing: "doing", review: "waiting for OK", done: "done" };
 
 const rid = () => crypto.randomUUID().slice(0, 8);
 // read_room cuts long docs; the mark says so, and update_doc refuses a text that still carries it (Nov 2026: an agent
@@ -218,7 +214,7 @@ export class Book extends DurableObject<Env> {
   // stays open and housekeep asks for it. Epics only people worked in close on their ticks alone.
   unproven(id: string) {
     // A reopened epic needs proof of the new round: only what came after @vibe's last archive note counts.
-    const since = this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ? AND author = 'ai' AND tag = 'done'`, id).one().id ?? 0;
+    const since = Number(this.get(`arch:${id}`) ?? 0) || (this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ? AND author = 'ai' AND tag = 'done'`, id).one().id ?? 0);
     const has = (where: string) => this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND id > ? AND ${where} LIMIT 1`, id, since).toArray().length > 0;
     const agentEver = this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND kind = 'agent' LIMIT 1`, id).toArray().length > 0;
     return agentEver && !has(`kind = 'agent' AND tag = 'done'`);
@@ -250,10 +246,8 @@ export class Book extends DurableObject<Env> {
     const closed: number[] = [];
     for (const e of done) {
       this.sql.exec(`UPDATE epics SET archived = 1 WHERE id = ?`, e.id);
-      const n = e.tasks.length;
-      this.addMessage(e.id, "ai", this.en
-        ? `✓ ${n === 1 ? "The task" : `All ${n} tasks`} of **${e.title}** ${n === 1 ? "is" : "are"} done, so I archived the epic. It stays under Archived, with its doc and conversation; ↩ reopens it.`
-        : `✓ ${n === 1 ? "A tarefa" : `Todas as ${n} tarefas`} de **${e.title}** ${n === 1 ? "está feita" : "estão feitas"}, então arquivei o épico. Ele fica em Arquivados, com o doc e a conversa; ↩ reabre.`, { tag: "done", quiet: true });
+      // No @vibe line any more (Gui #3317); the last message id marks where a reopened round starts (unproven).
+      this.set(`arch:${e.id}`, String(this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ?`, e.id).one().id ?? 0));
       // The request it came from: "fazendo isso" turns into "fez isso".
       const from = this.sql.exec(`SELECT from_msg FROM epics WHERE id = ?`, e.id).toArray()[0]?.from_msg;
       if (from && this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE msg_id = ? AND status = 'doing'`, Date.now(), from).rowsWritten) closed.push(from as number);
@@ -783,7 +777,6 @@ export class Book extends DurableObject<Env> {
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
-    if (extra.tag === "done" && extra.kind === "agent" && thread !== "main") this.ctx.waitUntil(this.wakeAt(ts + (this.env.DEV_EMAIL ? 4_000 : NUDGE_AFTER_DELIVERY_MS)));
     return m;
   }
 
@@ -992,12 +985,6 @@ export class Book extends DurableObject<Env> {
     if (!(STATUSES as readonly string[]).includes(status)) return { ok: false, error: `status must be one of ${STATUSES.join(", ")}` };
     if (!this.sql.exec(`SELECT 1 FROM tasks WHERE id = ?`, id).toArray().length) return { ok: false, error: "task not found" };
     this.sql.exec(`UPDATE tasks SET status = ?, done = ? WHERE id = ?`, status, status === "done" ? 1 : 0, id);
-    if (status === "doing" || status === "review") {
-      // The housekeeper counts "no news" from this move, not from the thread's last message.
-      const epic = this.sql.exec(`SELECT epic_id FROM tasks WHERE id = ?`, id).one().epic_id as string;
-      this.set(`stale:${epic}`, String(Date.now()));
-      this.ctx.waitUntil(this.wakeAt(Date.now() + (this.env.DEV_EMAIL ? 8_000 : NUDGE_STALE_MS)));
-    }
     this.epicsChanged();
     return { ok: true };
   }
@@ -1072,7 +1059,6 @@ export class Book extends DurableObject<Env> {
   // new round closes itself too.
   reopenIfArchived(thread: string) {
     if (thread === "main" || !this.sql.exec(`UPDATE epics SET archived = -1 WHERE id = ? AND archived = 1`, thread).rowsWritten) return;
-    this.addMessage(thread, "ai", this.en ? "↩ I reopened this epic to continue. When the new tasks are done, it archives itself again." : "↩ Reabri este épico pra continuar. Quando as tarefas novas estiverem feitas, ele se arquiva de novo.", { tag: "notice", quiet: true });
     this.epicsChanged();
   }
   rearm(epicId: string) {
@@ -2329,59 +2315,6 @@ export class Book extends DurableObject<Env> {
   }
 
   // Debounced background pass with the cheap model: title, folder, summary, epic suggestions.
-  /** @vibe as housekeeper, deterministic and free: in an open epic, (1) an agent delivered (done card) 30+ min ago but
-   * tasks are still open: ask whoever delivered to close them; (2) tasks in doing/review with no message in the thread
-   * for 24h: ask their owners if it's still going. Each nudge @mentions (so it also emails) and fires once per
-   * delivery / once per 24h per epic. Schedules its own next check. */
-  async housekeep(now = Date.now()) {
-    const dev = !!this.env.DEV_EMAIL; // local dev: see it in seconds
-    const AFTER = dev ? 4_000 : NUDGE_AFTER_DELIVERY_MS;
-    const STALE = dev ? 8_000 : NUDGE_STALE_MS;
-    const names = await this.names();
-    const at = (e: string) => `@${(names[e] ?? e.split("@")[0]).split(/\s+/)[0]}`;
-    let next = Infinity;
-    for (const e of this.epics()) {
-      if (e.archived) continue;
-      const open = e.tasks.filter((t) => t.status !== "done");
-      const last = this.sql.exec<{ ts: number }>(`SELECT max(ts) AS ts FROM messages WHERE thread = ?`, e.id).one().ts ?? 0;
-      // Every task done but no proof yet (autoArchive): once per epic, ask the Claude's human for the delivery.
-      if (!open.length) {
-        if (!e.tasks.length || !this.unproven(e.id) || this.get(`proof:${e.id}`) || now - last > 14 * 864e5) continue;
-        if (now - last < AFTER) { next = Math.min(next, last + AFTER); continue; }
-        this.set(`proof:${e.id}`, String(now));
-        const who = this.sql.exec<{ author: string }>(`SELECT author FROM messages WHERE thread = ? AND kind = 'agent' ORDER BY id DESC LIMIT 1`, e.id).one().author;
-        this.addMessage(e.id, "ai", this.en
-          ? `${at(who)}, every task here is done, but the epic closes only with proof: a delivery (done) saying what was tested, with a screenshot when there's something to see. Post it and I'll archive it.`
-          : `${at(who)}, as tarefas daqui estão feitas, mas o épico só fecha com prova: uma entrega (done) dizendo o que foi testado, com print quando tem algo pra ver. Posta que eu arquivo.`, { tag: "notice", quiet: true });
-        continue;
-      }
-      const del = this.sql.exec<{ id: number; author: string; ts: number }>(`SELECT id, author, ts FROM messages WHERE thread = ? AND tag = 'done' AND kind = 'agent' ORDER BY id DESC LIMIT 1`, e.id).toArray()[0];
-      if (now - last > 14 * 864e5) continue; // a dead epic isn't nagged back to life
-      if (del && now - del.ts < 2 * 864e5 && Number(this.get(`nudged:${e.id}`) ?? 0) < del.id) {
-        if (now - del.ts >= AFTER) {
-          this.set(`nudged:${e.id}`, String(del.id));
-          const list = open.map((t) => t.title).slice(0, 5).join("; ");
-          this.addMessage(e.id, "ai", this.en
-            ? `${at(del.author)}, there was a delivery here, but ${open.length === 1 ? "a task is still open" : `${open.length} tasks are still open`}: ${list}. If it's finished, mark it done (or tell me "all done"); if something's missing, say what.`
-            : `${at(del.author)}, teve entrega aqui, mas ${open.length === 1 ? "segue aberta" : `seguem abertas ${open.length} tarefas`}: ${list}. Se já terminou, marca feito (ou me diz "tudo feito"); se falta algo, diz o quê.`, { tag: "notice", quiet: true });
-          continue;
-        }
-        next = Math.min(next, del.ts + AFTER);
-      }
-      const stuck = open.filter((t) => (t.status === "doing" || t.status === "review") && t.owner);
-      if (!stuck.length) continue;
-      const due = Math.max(last, Number(this.get(`stale:${e.id}`) ?? 0)) + STALE;
-      if (now < due) { next = Math.min(next, due); continue; }
-      this.set(`stale:${e.id}`, String(now));
-      const owners = [...new Set(stuck.map((t) => t.owner!))];
-      const items = stuck.map((t) => `${t.title} (${(this.en ? STATUS_LABEL_EN : STATUS_LABEL)[t.status]})`).slice(0, 5).join("; ");
-      this.addMessage(e.id, "ai", this.en
-        ? `${owners.map(at).join(" ")}, nothing new here for over a day: ${items}. Still going? If it's finished, mark it done; if it's stuck, say what's missing.`
-        : `${owners.map(at).join(" ")}, sem novidade aqui há mais de um dia: ${items}. Segue? Se terminou, marca feito; se travou, diz o que falta.`, { tag: "notice", quiet: true });
-      next = Math.min(next, now + STALE);
-    }
-    if (next < Infinity) await this.wakeAt(next);
-  }
   /** @vibe grades the board with Jev, one call per epic that changed since it last looked (≤3 per pass): do the
    * tasks, together, deliver the epic's goal? does each task say how to check it's done? is it one thing? The notes
    * land on the tasks/epic (app chips, read_room `vibe_notes`), so whoever picks a task up, person or Claude, sees
@@ -2533,7 +2466,6 @@ export class Book extends DurableObject<Env> {
     // Waits first: a mention e-mail goes out at once only for an ask Jev marked as a wait (sendDueMail).
     await this.findWaits().catch((e) => console.error("waits", String(e)));
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
-    await this.housekeep().catch((e) => console.error("housekeep", String(e)));
     await this.grade().catch((e) => console.error("grade", String(e)));
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
