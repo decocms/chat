@@ -88,7 +88,7 @@
       >
         <span
           class="flex min-w-0 items-center gap-1.5 text-xs leading-5 text-muted-foreground"
-          ><b class="truncate text-[13px] font-semibold text-foreground"
+          ><b class="truncate text-sm font-semibold text-foreground"
             >{who(wait)}</b
           >{#if urgent}<Badge variant="destructive" size="sm"
               >{text("needsYou")}</Badge

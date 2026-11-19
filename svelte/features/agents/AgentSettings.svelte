@@ -105,7 +105,7 @@
         >
           <Heading
             level={3}
-            class="m-0 flex items-center justify-between bg-muted/40 px-4 py-2.5 font-sans text-[0.8125rem] font-semibold"
+            class="m-0 flex items-center justify-between bg-muted/40 px-4 py-2.5 font-sans text-sm font-semibold"
             >{group.client}<span
               class="text-xs font-normal text-muted-foreground"
               >{group.rows.length}</span

@@ -591,8 +591,8 @@
   --text-2xs--letter-spacing: 0.01em;
   --text-xs--line-height: 1rem;
   --text-xs--letter-spacing: -0.005em;
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: var(--vb-studio-text-sm-line-height, 1.125rem);
+  --text-sm: 0.875rem;
+  --text-sm--line-height: var(--vb-studio-text-sm-line-height, 1.25rem);
   --text-sm--letter-spacing: -0.005em;
   --text-base: 0.9375rem;
   --text-base--line-height: 1.4375rem;

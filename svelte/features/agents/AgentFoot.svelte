@@ -155,7 +155,7 @@
       >{/if}
     <span class={cn("grid min-w-0 flex-1", muted && "opacity-50")}>
       <span
-        class="truncate text-[0.8125rem]"
+        class="truncate text-sm"
         title={a.room && a.repo ? a.repo : undefined}
         >{#if a.listening && mark.state === "busy" && !muted}<span
             class="inline-block animate-[spin_3s_linear_infinite] text-agent-claude motion-reduce:animate-none"
@@ -198,8 +198,7 @@
       <div class="grid gap-1 px-2.5 pb-2 text-xs">
         <div class={opt}>
           <span class="grid min-w-0"
-            ><span class="text-[0.8125rem] font-medium"
-              >{text("footThisComputer")}</span
+            ><span class="text-sm font-medium">{text("footThisComputer")}</span
             ><span class="text-muted-foreground"
               >{text("footThisComputerSub")}</span
             ></span
@@ -229,9 +228,8 @@
         </div>
         <div class={opt}>
           <span class="grid min-w-0"
-            ><span class="text-[0.8125rem] font-medium"
-              >{text("footSandbox")}</span
-            ><span class="text-muted-foreground">{text("footSandboxSub")}</span
+            ><span class="text-sm font-medium">{text("footSandbox")}</span><span
+              class="text-muted-foreground">{text("footSandboxSub")}</span
             ></span
           ><a
             href={cloud}
@@ -242,8 +240,8 @@
         </div>
         <div class={opt}>
           <span class="grid min-w-0"
-            ><span class="text-[0.8125rem] font-medium">{text("footOnce")}</span
-            ><span class="text-muted-foreground">{text("footOnceSub")}</span
+            ><span class="text-sm font-medium">{text("footOnce")}</span><span
+              class="text-muted-foreground">{text("footOnceSub")}</span
             ></span
           ><button
             type="button"
