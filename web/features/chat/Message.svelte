@@ -196,6 +196,7 @@
   id={origin ? undefined : `m${m.id}`}
   data-chat-message={m.id}
   data-message-kind={kind}
+  data-continuous={continuous || undefined}
   data-fire-hot={fireHot}
   data-waiting={waiting}
   use:highlight

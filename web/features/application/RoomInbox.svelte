@@ -343,17 +343,6 @@
       selected[row.key] = !selected[row.key];
     }
   }
-  async function close(event: MouseEvent) {
-    if (!live(event)) return;
-    const oldFocus = document.activeElement;
-    owner.close(opening);
-    await tick();
-    if (
-      document.activeElement === document.body ||
-      document.activeElement === oldFocus
-    )
-      owner.restoreFocus(opening);
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -394,13 +383,6 @@
               ></Button
             >{/if}{/each}
       </div>
-      <IconButton
-        data-room-inbox-close
-        label={t("Fechar")}
-        onclick={(event) => {
-          void close(event);
-        }}><Icon icon="x" size={16} /></IconButton
-      >
     </header>
     {#if picked.length}<div
         data-inbox-selection

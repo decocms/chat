@@ -69,15 +69,17 @@
             type="button"
             aria-label={`${emoji} ${who(list)}`}
             aria-pressed={list.includes(me)}
-            class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-lg leading-none {list.includes(
+            class="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full border border-solid px-2 text-base leading-none transition-colors {list.includes(
               me,
             )
-              ? 'border-primary bg-accent'
-              : 'border-border bg-background'}"
+              ? 'border-brand-purple/60 bg-brand-purple/15 hover:bg-brand-purple/25'
+              : 'border-transparent bg-muted hover:border-border'}"
             onclick={() => react(emoji)}
             >{emoji}
-            <b class="text-sm font-semibold text-muted-foreground"
-              >{list.length}</b
+            <b
+              class="text-xs tabular-nums {list.includes(me)
+                ? 'font-semibold text-brand-purple-text'
+                : 'font-medium text-muted-foreground'}">{list.length}</b
             ></button
           >{/snippet}
       </TooltipTrigger>
@@ -98,8 +100,8 @@
     aria-label={vb.t("Reagir a esta mensagem")}
     title={vb.t("Reagir a esta mensagem")}
     data-add-reaction
-    class="inline-flex h-8 cursor-pointer items-center justify-center rounded-full border border-transparent bg-muted px-2.5 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-    onclick={() => (open = true)}><Icon icon="face-smile" size={18} /></button
+    class="inline-flex h-7 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+    onclick={() => (open = true)}><Icon icon="face-smile" size={16} /></button
   >
 </div>
 <EmojiPicker t={vb.t} bind:open onpick={react} />

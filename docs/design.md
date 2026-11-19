@@ -52,6 +52,7 @@ The top bar on phones has no space for the controls of a view. That is why the v
 |---|---|---|
 | Epic thread | ✎ Rename, Archive, 🗑 Delete | `EpicActions` (`bar`), in `RoomBarTitle` |
 | Inbox | "Esta sala" / "Todas as salas", "Resolver todos os pedidos (n)" | `InboxControls`, in the `viewControls` slot |
+| Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
 | Main thread, task board | None | |
 
 ### What does not go in the top bar

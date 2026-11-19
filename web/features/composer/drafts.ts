@@ -74,6 +74,14 @@ const defaultClock: ComposerClock = {
 export const COMPOSER_CONFIRMATION_TIMEOUT = 10_000;
 export const MAX_COMPOSER_DRAFTS = 64;
 // These msg Refused paths all precede addMessage; other errors may follow a durable write.
+/** The draft still holds what was sent (the same text, reply and files), even if its revision moved. */
+const sameDraft = (s: ComposerState, sent: MessageSnapshot) =>
+  s.text.trim() === sent.text &&
+  s.replyId === sent.replyId &&
+  s.attachments
+    .flatMap((item) => (item.meta ? [item.meta.id] : []))
+    .sort()
+    .join(",") === sent.fileIds.slice().sort().join(",");
 export const definiteMessageFailure = (error: string) =>
   error === "offline" ||
   error === "invalid command" ||
@@ -243,7 +251,7 @@ export function createComposerDrafts(clock = defaultClock) {
       cancel(op);
       operation = undefined;
       state.update((s) =>
-        s.revision === op.snapshot.revision
+        s.revision === op.snapshot.revision || sameDraft(s, op.snapshot)
           ? {
               ...s,
               text: "",
@@ -347,6 +355,9 @@ export function createComposerDrafts(clock = defaultClock) {
       },
       edit(text: string) {
         if (!storageAvailable || !alive || !active) return;
+        // A phone keyboard can fire an input event with the same text after Enter (autocorrect commits the last
+        // word). That is not an edit: a new revision here kept the sent text in the box, and people sent it again.
+        if (get(state).text === text) return;
         state.update((s) => ({
           ...s,
           text,

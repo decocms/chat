@@ -708,3 +708,46 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/people-remove-and-dm · The name opens the DM, not the row
+- Agent: claude-opus-5-5
+- Context: The human selected "any member removes any member, except the owner", and asked that a click on a person in "Pessoas e agents" opens the DM with that person.
+- Decision: Only the name is a button that opens the DM (the app's `connect`). The avatar keeps its online tooltip, and the ✕, "copiar" and "reenviar" stay as they are. A pending invite has no link. A member cannot remove himself or herself with the ✕ (there is no "leave the room" in this list).
+- Other options: Make all of the row a link. Let a member remove himself or herself.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · fix/pwa-splash-mark · The PWA splash shows the deco mark without the lime square
+- Agent: claude-opus-5-5
+- Context: The human said that the splash screen of the installed app shows a lime square with the `d`, and asked for only the `d` there. The human wants to keep the lime square on the app icon.
+- Decision: Android makes the splash from the manifest icons with `purpose: "any"`, and the launcher icon from the `maskable` icons. The `any` icons are now `icon-mark-192.png` and `icon-mark-512.png` (transparent, made from `og/icon-mark.html`). The `maskable` icons are the lime `icon-192.png` and `icon-512.png`. iOS uses `apple-touch-icon.png` (lime), unchanged. The install card and notifications use `icon-192.png`, unchanged.
+- Other options: Keep one lime `any` icon at 192 px for the desktop install icon (the desktop icon then mixes two images at different sizes).
+- Risk: low. A desktop install (Chrome on Windows or macOS) can show the mark without the lime square.
+- Undo: Revert this commit.
+### 2026-11-19 · fix/composer-keeps-sent-text · Compare the sent text, do not lock the field
+- Agent: claude-opus-5-5
+- Context: A phone keyboard can send an input event with the same text after Enter. The composer counted it as an edit, kept the sent text in the box, and people sent the message again (two copies in a DM).
+- Decision: An input event with the same text is not an edit. When the message arrives, the box clears if it holds the same text, reply and files as the message that was sent.
+- Other options: Lock the text field while the message is sent. That stops fast typing of the next message, which the composer supports now.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-19 · feat/inbox-triage · The home's Inbox is a page at /?inbox
+- Agent: claude-opus-5-5
+- Context: The human asked for an Inbox row under Home in the direct messages sidebar, always for all rooms. The room Inbox close button (X) is gone too, so the sidebar Inbox button closes a room's Inbox.
+- Decision: The Inbox row (`InboxRow`) opens `/?inbox`. That is the home route with `inbox: true`. On that route, `HomeInbox` shows the same triage list as a room (`RoomInbox`), with a bar that holds "Resolve all". An Inbox without a room shows all rooms (`roomInboxModel`), and `InboxControls` hides "Esta sala / Todas as salas". The waiting count moves from the Home row to the Inbox row, like a room shows it on its Inbox and not on its Main thread. Two new components: `InboxRow`, because `HomeRow` is Home's row on the phone room list too, and `HomeInbox`, because `RoomInbox` has no top bar of its own.
+- Other options: A `/inbox` path, but it needs a change to `run_worker_first` in `wrangler.jsonc`, and a human must approve deploy configuration. The old Inbox dialog (`Inbox.svelte`), but it is not the triage list. Keep the count on Home too.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · fix/pwa-splash-android · Android gets its own manifest, sized so that only the splash takes the transparent mark
+- Agent: claude-opus-5-5
+- Context: The entry "The PWA splash shows the deco mark without the lime square" is wrong. Chrome on Android makes the splash from a `maskable` icon first (`ShortcutInfo::UpdateBestSplashIcon`), not from an `any` icon. That change only made the desktop icon the bare mark. The human wants the lime icon on desktop and on the phone, and the transparent mark only on the splash.
+- Decision: `public/manifest.webmanifest` has the original lime icons again (desktop, iOS). On Android, a script in `web/index.html` changes the manifest link to `public/manifest-android.webmanifest`. Its `maskable` icons are a lime `icon-maskable-332.png` and a transparent `icon-splash-512.png` (made from `og/icon-splash.html`, the mark in the safe zone). Chrome takes the smallest icon that is not smaller than the ideal size: 83dp for the launcher and 128dp for the splash. For a screen density from 2.625 to 4, the launcher (218 to 332 px) takes the lime 332 px icon and the splash (336 to 512 px) takes the transparent 512 px icon. Desktop Chrome on macOS takes the largest `maskable` icon, so the desktop manifest must not have the transparent icon.
+- Other options: Serve the manifest from the Worker by user agent (changes `run_worker_first` in `wrangler.jsonc`). Accept the lime square on the splash.
+- Risk: medium. It depends on the sizes in Chromium. On a screen with density 2 (xhdpi), the splash shows the lime icon. If Chromium changes the sizes, the launcher can show the transparent mark.
+- Undo: Revert this commit.
+- Status: open

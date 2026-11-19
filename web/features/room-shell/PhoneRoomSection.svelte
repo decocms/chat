@@ -42,5 +42,6 @@
         avatarVersion: sidebar.vb.avatarVersion,
       }}
       {agents}
+      onopen={sidebar.appNavigation?.controller.callbacks.connect}
     />{/if}
 </div>

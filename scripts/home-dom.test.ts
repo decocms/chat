@@ -1470,13 +1470,13 @@ test("room Inbox is nonmodal and retains existing Composer, document and Board n
   await flush();
   h.inbox.open();
   await flush();
-  await waitForView(h.target, "[data-room-inbox-close]");
+  await waitForView(h.target, "[data-room-inbox]");
   expect(document.querySelector('[role="dialog"]') === null).toBe(true);
   expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
   expect(h.target.querySelector("[data-document]") === documentNode).toBe(true);
   expect(h.target.querySelector("[data-composer]") === composer).toBe(true);
   expect(composer?.closest("[inert]") !== null).toBe(true);
-  h.target.querySelector<HTMLButtonElement>("[data-room-inbox-close]")!.click();
+  h.inbox.close();
   await flush();
   expect(h.target.querySelector("[data-room-inbox]") === null).toBe(true);
   expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);

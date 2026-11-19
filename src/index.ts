@@ -468,7 +468,7 @@ app.route("/", uploadsApi);
 
 // Unfriend: removes both directions (shared vibebooks are untouched).
 
-// Cancel a pending invite (any member) or remove someone (owner only).
+// Cancel a pending invite or remove someone (any member; never the owner).
 
 // Files: stored in R2 under <book>/<file>; types, limits and serving headers live in rooms.ts.
 
