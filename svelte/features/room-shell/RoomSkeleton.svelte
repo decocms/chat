@@ -115,11 +115,13 @@
       {#if dm}<div class="flex min-h-0 flex-col pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
         </div>{:else}<div class="flex flex-col gap-3">
-          <!-- SearchField's row as it will land (this aside is aria-hidden, so no live button here). -->
+          <!-- The room's name row (SidebarHeader) as it will land. -->
           <div
-            class="-mx-2 flex h-[52px] shrink-0 items-center border-b border-border px-2"
+            class="-mx-2 flex h-[52px] shrink-0 items-center gap-2 border-b border-border pr-2 pl-4 font-semibold"
           >
-            <Skeleton class="h-9 w-full rounded-lg opacity-60" />
+            {@render mark("size-6")}
+            {#if title}<span class="min-w-0 flex-1 truncate">{title}</span
+              >{:else}{@render line("w-32")}{/if}
           </div>
           <div
             class={[

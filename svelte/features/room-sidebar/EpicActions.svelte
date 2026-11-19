@@ -17,6 +17,7 @@
   import { buttonVariants } from "../../lib/studio/button";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
+  import Separator from "../../lib/studio/Separator.svelte";
   import {
     Check,
     DotsHorizontal,
@@ -27,8 +28,9 @@
   import { cn } from "../../lib/studio/utils";
   /**
    * An epic's rename, archive and delete, with their dialogs. `menu`: behind
-   * a "⋯" (the phone's thread sheet). `bar`: buttons in the desktop top bar,
-   * ✎ beside the title and Archive, 🗑 pushed to the end of the row.
+   * a "⋯" (the phone's thread sheet). `bar`: ✎, Archive and 🗑 together at
+   * the end of the desktop top bar's title, then a vertical line before the
+   * pane's tabs.
    */
   let {
     epic,
@@ -113,17 +115,20 @@
   });
 </script>
 
-{#if variant === "bar"}<IconButton
-    data-epic-rename={epic.id}
-    label={t("Renomear")}
-    tooltipSide="bottom"
-    size="icon-sm"
-    disabled={busy}
-    class="shrink-0 text-muted-foreground hover:text-foreground"
-    onclick={() => begin("rename")}><Icon icon={Pencil01} /></IconButton
+{#if variant === "bar"}<span
+    data-epic-bar-actions
+    class="ml-auto flex shrink-0 items-center gap-1"
   >
-  <span class="ml-auto flex shrink-0 items-center gap-1">
-    <!-- A short bar (a narrow window, the right pane open): the label folds into the icon. The breadcrumb is the @container. -->
+    <IconButton
+      data-epic-rename={epic.id}
+      label={t("Renomear")}
+      tooltipSide="bottom"
+      size="icon-sm"
+      disabled={busy}
+      class="text-muted-foreground hover:text-foreground"
+      onclick={() => begin("rename")}><Icon icon={Pencil01} /></IconButton
+    >
+    <!-- A short bar (a narrow window, the right pane open): the label folds into the icon. The bar's title is the @container. -->
     <Button
       data-epic-archive={epic.id}
       variant="outline"
@@ -144,6 +149,11 @@
       class="text-muted-foreground hover:text-destructive"
       onclick={() => begin("delete")}><Icon icon={Trash01} /></IconButton
     >
+    <!-- The epic's own buttons end here; the pane's tabs (Doc, Files…) follow. -->
+    <Separator
+      orientation="vertical"
+      class="ml-1 data-[orientation=vertical]:h-5"
+    />
   </span>{:else}<DropdownMenu>
     <DropdownMenuTrigger
       data-thread-actions={epic.id}

@@ -3,8 +3,7 @@
   import RoomStrip from "./features/app-navigation/RoomStrip.svelte";
   import DmNav from "./features/app-navigation/DmNav.svelte";
   import SidebarFoot from "./features/app-navigation/SidebarFoot.svelte";
-  import SearchField from "./features/app-navigation/SearchField.svelte";
-  import { homeText } from "./features/home/copy";
+  import SidebarHeader from "./lib/components/SidebarHeader.svelte";
   import { navRow } from "./lib/components/navRow";
   import People from "./People.svelte";
   import EpicTree from "./features/navigation/EpicTree.svelte";
@@ -109,6 +108,13 @@
   });
   function open(id: string) {
     if (active && (onthreadintent?.() ?? true)) onopen(id);
+  }
+  // The room's name and the main thread's row: the main thread is also the
+  // chat view, so it leaves the full board (and the inbox, in open()).
+  function openMain() {
+    if (!active) return;
+    if (boardOpen) onroomhome?.();
+    open("main");
   }
   function sheetHandle(node: HTMLElement) {
     return { destroy: mountSheetHandle?.(node) };
@@ -246,12 +252,33 @@
           controller={appNavigation.controller}
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
-        <!-- The search on top (the room's name is in the top bar's breadcrumb, not here too). -->
         <div class="flex shrink-0 flex-col gap-3">
-          {#if appNavigation}<SearchField
-              controller={appNavigation.controller}
-              label={homeText(appNavigation.lang, "search")}
-            />{/if}{@render roomThreads()}
+          <!-- Desktop: the room's name on top (phones have it on the main thread's row); ✎ on hover. -->
+          <SidebarHeader class="group/name max-md:hidden md:pl-4"
+            ><button
+              type="button"
+              data-room-home
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent p-0 text-left font-sans text-sidebar-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              title={room.book.summary
+                ? `${room.book.title}\n${room.book.summary}`
+                : room.book.title}
+              onclick={(event) => {
+                if (event.currentTarget.isConnected) openMain();
+              }}
+            >
+              <RoomMark title={room.book.title} src={roomIcon} />
+              <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+                {room.book.title}
+              </h2>
+            </button>
+            <IconButton
+              label={vb.t("Renomear")}
+              size="icon-xs"
+              tooltipSide="bottom"
+              class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
+              onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
+            ></SidebarHeader
+          >{@render roomThreads()}
         </div>{/if}{/snippet}
     <!-- The room's threads: the main one, the views, the epics. A DM nests them under its row in the DM list. -->
     {#snippet roomThreads()}<div
@@ -271,13 +298,10 @@
                 "transition-[background-color,padding] duration-150 ease-out group-hover/room:pr-9 group-focus-within/room:pr-9 md:group-hover/room:pr-2 md:group-focus-within/room:pr-2 motion-reduce:transition-none [@media(hover:none)]:pr-9",
             })}
             onclick={(event) => {
-              if (!event.currentTarget.isConnected) return;
-              // Desktop: the main thread is also the chat view (leaves the full board).
-              if (boardOpen) onroomhome?.();
-              open("main");
+              if (event.currentTarget.isConnected) openMain();
             }}
           >
-            <!-- Phones: the room's own row. Desktop: the main thread, under the search. -->
+            <!-- Phones: the room's own row. Desktop: the main thread, under the room's name. -->
             {#if dm}<Icon
                 icon={MessageCircle01}
                 size={16}

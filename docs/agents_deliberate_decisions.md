@@ -477,13 +477,22 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the bar in `ThreadHeader` with more flags (one component with two layouts and more branches). Copy the action logic into the bar (two copies of the dialog safety checks).
 - Risk: low
 - Undo: Revert this commit.
-- Status: open
+- Status: partly replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2). `EpicActions` stays.
 
 ### 2026-11-19 · feat/room-topbar-breadcrumb · Rename the room from the top bar
 - Agent: claude-opus-5-5
 - Context: The sidebar header had the room name and its ✎. The human asked to remove that header, so on desktop the ✎ needed a new place.
 - Decision: On the main thread, a ✎ follows the room crumb in the top bar. A DM has no ✎. The phone keeps the ✎ on the room's row in the sheet.
 - Other options: Rename from a click on the crumb (a click on a crumb usually navigates). Rename only from the room settings.
+- Risk: low
+- Undo: Revert this commit.
+- Status: replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2)
+
+### 2026-11-19 · feat/room-topbar-take2 · The sidebar names the room, the bar names the view
+- Agent: claude-opus-5-5
+- Context: After #216 the human asked for the opposite: no search box in the sidebars, the room's name back at the top of the room sidebar, Home at the top of the DM and home sidebar, and the epic's buttons grouped before the pane tabs with a vertical line. The human accepted the recommended answers in the take 2 mockup.
+- Decision: `SidebarHeader` (lib/components) is the 52px top row of each sidebar: the room's name (a click opens the main thread, ✎ on hover) or Home. Search stays on the rail and ⌘K. `RoomBarTitle` replaces `RoomBreadcrumb`: the bar names only the view ("Sala principal" in grey, the epic, the suggestion, "Quadro de tarefas", "Caixa de entrada"; a DM: the person), so the room's name is not shown twice. `EpicActions` `bar` puts ✎, Archive and 🗑 together, then a vertical `Separator`, before the tabs.
+- Other options: Keep room › epic in the bar (the name shows twice). Show the room's name in the bar on the main thread (the repeat that #m3351 asked to remove). Icon-only Archive.
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
