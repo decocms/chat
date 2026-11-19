@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { ComponentProps } from "svelte";
-  import ThreadHeader from "../room-sidebar/ThreadHeader.svelte";
+  import RoomBreadcrumb from "./RoomBreadcrumb.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
@@ -16,7 +16,7 @@
     SearchMd,
   } from "../../lib/studio/icons";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
-  import { suggestionAt } from "../room-sidebar/model";
+  import { threadTitle } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
@@ -35,6 +35,7 @@
     onPane,
     inboxOpen = false,
     tochat,
+    tomain,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
@@ -51,6 +52,8 @@
     inboxOpen?: boolean;
     /** Back to the chat: closes the inbox and the full board. */
     tochat?(): void;
+    /** Back to the main thread's chat (the room crumb). */
+    tomain?(): void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
@@ -63,9 +66,8 @@
   const peer = $derived(dmPeer(header.room));
   const en = $derived(presentation.services.language === "en");
   // Phone title: the room small on top, the open thread under it.
-  const threadTitle = $derived(
-    suggestionAt(header.room, header.thread)?.title ??
-      header.room.epics.find((epic) => epic.id === header.thread)?.title ??
+  const phoneTitle = $derived(
+    threadTitle(header.room, header.thread) ??
       presentation.services.t(
         header.room.book.dm ? "Conversa" : "Sala principal",
       ),
@@ -125,14 +127,6 @@
     event.preventDefault();
     layout.toggleDocument();
   }
-  // The room's name or icon in the bar brings the chat back (not its buttons);
-  // in the chat already, nothing changes.
-  function titleClick(event: MouseEvent) {
-    if (!current() || !(event.target instanceof Element)) return;
-    if (event.target.closest("button, a, input, [role=menu], [role=menuitem]"))
-      return;
-    tochat?.();
-  }
 </script>
 
 <svelte:window onkeydown={onwindowkeydown} />
@@ -190,7 +184,7 @@
         >{header.room.book.title}</span
       ><span
         class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-        ><span class="truncate">{threadTitle}</span><Icon
+        ><span class="truncate">{phoneTitle}</span><Icon
           icon={ChevronDown}
           size={16}
           class="shrink-0"
@@ -198,15 +192,24 @@
       ></span
     ></button
   >
-  <!-- Desktop, one bar over chat and pane: the thread, the room's actions, then the pane's tabs at the end. -->
+  <!-- Desktop, one bar over chat and pane: the breadcrumb (with the epic's actions), then the pane's tabs at the end. -->
   <div class="contents md:flex md:min-w-0 md:flex-1 md:items-center md:gap-1">
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
     <div
       data-native-header-title
-      class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24 [&_h2]:cursor-pointer"
-      onclick={titleClick}
+      class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24"
     >
-      <ThreadHeader {...header} compact onhome={tochat} />
+      <RoomBreadcrumb
+        room={header.room}
+        thread={header.thread}
+        owner={header.owner}
+        vb={header.vb}
+        roomIcon={header.roomIcon}
+        onrenameroom={header.onrenameroom}
+        view={inboxOpen ? "inbox" : $geometry.boardFull ? "board" : null}
+        onroom={() => {
+          if (current()) tomain?.();
+        }}
+      />
     </div>
     {#if appNavigation}<IconButton
         data-native-phone-search

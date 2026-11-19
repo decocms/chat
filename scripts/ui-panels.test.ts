@@ -6277,6 +6277,130 @@ describe("native room sidebar header and suggestion ownership", () => {
       archived: true,
     });
   }, 30_000);
+  type BreadcrumbProps = import("svelte").ComponentProps<
+    typeof import("../svelte/features/room-shell/RoomBreadcrumb.svelte").default
+  >;
+  function breadcrumb(
+    room: Room,
+    extra: Partial<BreadcrumbProps> = {},
+    request: (command: RoomCommand) => Promise<CommandOutcome> = async () => ({
+      ok: true,
+    }),
+  ) {
+    const owner = createRoomMutations(room.me, room.id),
+      calls: string[] = [];
+    peopleCleanups.push(() => owner.dispose());
+    owner.sync(room, request);
+    const target = document.createElement("div");
+    document.body.append(target);
+    const props: BreadcrumbProps = {
+      room,
+      thread: "main",
+      owner,
+      vb: bridge,
+      onrenameroom: () => calls.push("rename"),
+      onroom: () => calls.push("room"),
+      ...extra,
+    };
+    const view = mountView("roomBreadcrumb", target, props);
+    active.push(view);
+    return { target, view, props, owner, calls };
+  }
+  test("desktop breadcrumb: the room alone with ✎ on main, a link back from an epic, a view or a gone thread; a DM has no ✎", () => {
+    const room = fixture();
+    let { target, calls } = breadcrumb(room);
+    expect(target.querySelector("button[data-room-crumb]")).toBeNull();
+    expect(target.querySelector("[data-thread-crumb]")).toBeNull();
+    target.querySelector<HTMLElement>("[data-room-rename]")!.click();
+    expect(calls).toEqual(["rename"]);
+    for (const [extra, leaf, actions] of [
+      [{ thread: "e" }, "Epic", true],
+      [{ thread: "e", view: "board" }, "Quadro de tarefas", false],
+      [{ thread: "main", view: "inbox" }, "Caixa de entrada", false],
+      [{ thread: "gone" }, "Conversa", false],
+    ] as const) {
+      ({ target, calls } = breadcrumb(room, extra));
+      expect(
+        target.querySelector("[data-thread-crumb]")?.textContent?.trim(),
+      ).toBe(leaf);
+      expect(target.querySelector("[data-room-rename]")).toBeNull();
+      expect(!!target.querySelector("[data-epic-archive]")).toBe(actions);
+      target.querySelector<HTMLElement>("button[data-room-crumb]")!.click();
+      expect(calls).toEqual(["room"]);
+    }
+    ({ target } = breadcrumb({ ...room, book: { ...room.book, dm: true } }));
+    expect(target.querySelector("[data-room-rename]")).toBeNull();
+    expect(target.querySelector("[data-room-crumb]")?.textContent).toContain(
+      room.book.title,
+    );
+  });
+  test("desktop epic bar: archive toggles with its label, delete confirmation cancels on canonical replacement and detached buttons cannot write", async () => {
+    const room = fixture(),
+      commands: RoomCommand[] = [],
+      request = async (command: RoomCommand): Promise<CommandOutcome> => {
+        commands.push(command);
+        return { ok: true };
+      };
+    const { target, view, props, owner } = breadcrumb(
+      room,
+      { thread: "e" },
+      request,
+    );
+    // The phone's ⋯ menu is not in the bar.
+    expect(target.querySelector("[data-thread-actions]")).toBeNull();
+    const archive = target.querySelector<HTMLElement>("[data-epic-archive]")!;
+    expect(archive.textContent?.trim()).toBe("Arquivar");
+    archive.click();
+    await tick();
+    expect(commands.at(-1)).toEqual({
+      t: "epic.archive",
+      id: "e",
+      archived: true,
+    });
+    const archived: Room = {
+      ...room,
+      epics: room.epics.map((epic) => ({ ...epic, archived: true })),
+    };
+    owner.sync(archived, request);
+    view.update({ ...props, room: archived });
+    expect(
+      target.querySelector("[data-epic-archive]")?.textContent?.trim(),
+    ).toBe("Desarquivar");
+    commands.length = 0;
+    // The archive settled: the bar's buttons are enabled again.
+    await tick();
+    flushSync();
+    expect(
+      target.querySelector<HTMLButtonElement>("[data-epic-delete]")!.disabled,
+    ).toBe(false);
+    target.querySelector<HTMLElement>("[data-epic-delete]")!.click();
+    flushSync();
+    await tick();
+    const dialog = document.querySelector('[role="alertdialog"]')!,
+      confirm = [...dialog.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Apagar",
+      )!;
+    const replacement: Room = {
+      ...archived,
+      epics: archived.epics.map((epic) => ({
+        ...epic,
+        title: "Replaced canonical target",
+      })),
+    };
+    owner.sync(replacement, request);
+    view.update({ ...props, room: replacement });
+    await closed("alertdialog");
+    confirm.click();
+    await tick();
+    expect(commands).toHaveLength(0);
+    const stale = target.querySelector<HTMLElement>("[data-epic-delete]")!;
+    active.splice(active.indexOf(view), 1);
+    view.destroy();
+    stale.click();
+    await tick();
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(commands).toHaveLength(0);
+  }, 30_000);
   test("suggestion accept sends displayed snapshot only, handles server refusal and stale room controls", async () => {
     const room: Room = {
         ...fixture(),
