@@ -4,6 +4,7 @@
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import type { AvatarSize } from "../../lib/studio/avatar";
   import {
     roomIcon,
     targetHref,
@@ -19,6 +20,7 @@
     now,
     seen = 0,
     waits = [],
+    size = "md",
     onnavigate,
     onsettings,
   }: {
@@ -27,6 +29,7 @@
     now: number;
     seen?: number;
     waits?: readonly WaitReference[];
+    size?: AvatarSize;
     onnavigate: (target: RoomTarget) => void;
     onsettings?: (id: string, trigger: HTMLElement) => void;
   } = $props();
@@ -91,13 +94,13 @@
             {title}
             icon={roomIcon(room)}
             {lang}
+            {size}
             surface="background"
             unread={news}
             {busy}
             cloud={!!room.sandboxes_running}
             {waits}
-          /><span
-            class="line-clamp-2 w-full break-words text-center text-xs leading-4"
+          /><span class="w-full truncate text-center text-xs leading-4"
             >{title}</span
           ></a
         >{/snippet}</TooltipTrigger

@@ -23,10 +23,13 @@
     dmEntry,
     roomLabel,
     waitKind,
+    orderedRooms,
+    roomsOnly,
     type WaitKind,
   } from "./model";
+  import RoomTile from "./RoomTile.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Check, Inbox01 } from "../../lib/studio/icons";
+  import { Check, DotsGrid, Inbox01 } from "../../lib/studio/icons";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
@@ -124,6 +127,14 @@
       box.scrollTo({ top: Math.max(box.scrollTop + offset, 8), behavior });
     else scrollTo({ top: Math.max(scrollY + offset, 8), behavior });
   }
+  // On a phone, your rooms as a home screen of icons under the ask box: one tap
+  // to any of them, in the rail's order so they stay where your thumb expects.
+  // Two rows at most; past that the last icon opens search, which lists all.
+  const GRID = 8;
+  const gridRooms = $derived(orderedRooms(roomsOnly($account.me?.books ?? [])));
+  const gridShown = $derived(
+    gridRooms.length > GRID ? gridRooms.slice(0, GRID - 1) : gridRooms,
+  );
   const headline = $derived(
     waits.length === 0
       ? text("deskNone")
@@ -509,6 +520,34 @@
               >
             </p>{/if}
         </div>
+        {#if gridRooms.length}<nav
+            aria-label={text("allRooms")}
+            data-home-rooms
+            class="mt-6 grid w-full max-w-[400px] grid-cols-4 gap-x-2 gap-y-4 md:hidden"
+          >
+            {#each gridShown as room (room.id)}<RoomTile
+                {room}
+                {lang}
+                size="xl"
+                now={$account.now}
+                seen={$account.seen[room.id] ?? 0}
+                waits={me.waits.filter((wait) => wait.book_id === room.id)}
+                {onnavigate}
+                onsettings={onroomsettings}
+              />{/each}
+            {#if gridRooms.length > GRID}<button
+                type="button"
+                data-home-rooms-more
+                class="flex min-w-0 cursor-pointer flex-col items-center gap-1.5 rounded-control border-0 bg-transparent p-1 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onclick={() => onsearch()}
+                ><span
+                  class="flex size-16 items-center justify-center rounded-[1.125rem] bg-muted text-muted-foreground"
+                  ><Icon icon={DotsGrid} size={24} /></span
+                ><span class="w-full truncate text-center text-xs leading-4"
+                  >{text("allRooms")}</span
+                ></button
+              >{/if}
+          </nav>{/if}
         <!-- At the foot of the first screen: the fan peeks above the fold. -->
         <div class="min-h-6 flex-1 max-md:max-h-16" aria-hidden="true"></div>
         {#if waits.length > 1 && filters.length > 1}<div
