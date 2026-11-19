@@ -32,7 +32,11 @@
     ><Count
       value={indicator.asks}
       label={label(indicator.asks)}
-      class={solid ? ring : ""}
+      class={cn(
+        solid && ring,
+        // Your Claude stopped and waits on you (⏸/❓): red, not the lime of people's asks (Gui #3349).
+        indicator.claude && "bg-destructive text-destructive-foreground",
+      )}
     /></span
   >{:else if indicator.tasks}<span
     data-wait-kind="tasks"
