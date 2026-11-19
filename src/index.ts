@@ -214,12 +214,12 @@ const pageview = async (c: Context<Ctx>, res: Response, user?: string | null) =>
   return res;
 };
 
-// App shell: /login is public; /app and /b/* bounce to /login without a session.
+// App shell (dist/index.html): /login and /app are public; / and /b/* bounce to /login without a session.
 // Passes the browser's If-None-Match along, so the app shell can come back as a 304.
 // The page carries its own version (the asset's etag) in <meta name="vb-v">, and /api/me says the current one: the
 // app shows "Nova versão" when they differ (an installed PWA keeps an old page around for days).
 const shell = async (c: { env: Env; req: { url: string; raw: Request } }) => {
-  const asset = await c.env.ASSETS.fetch(new Request(new URL("/app", c.req.url), c.req.raw));
+  const asset = await c.env.ASSETS.fetch(new Request(new URL("/", c.req.url), c.req.raw));
   const res = new Response(asset.body, asset);
   const v = res.headers.get("etag");
   return res.status === 200 && v ? new HTMLRewriter().on("head", { element: (el) => { el.append(`<meta name="vb-v" content="${v.replace(/[^\w-]/g, "")}" />`, { html: true }); } }).transform(res) : res;
@@ -239,6 +239,8 @@ app.get("/", async (c) => {
   const email = await identify(c);
   return email ? pageview(c, await shell(c), email) : c.redirect("/login");
 });
+// The bare shell, signed in or not: the app links here, and the browser tests open the gallery here (?gallery=1).
+app.get("/app", (c) => shell(c));
 app.get("/archived", async (c) => {
   const email = await identify(c);
   return email ? pageview(c, await shell(c), email) : c.redirect(`/login?next=${encodeURIComponent("/archived")}`);

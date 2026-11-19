@@ -442,9 +442,7 @@ try {
     const html = await response.text();
     assert(response.ok());
     assert(html.includes('src="/main.ts"') && html.includes("/@vite/client"));
-    assert(
-      !html.includes('name="vb-v"') && !html.includes("/svelte-preview/app.js"),
-    );
+    assert(!html.includes('name="vb-v"') && !html.includes('src="/assets/'));
   }
   const missingRoom = `hmrmustnotexist${token}`;
   const denied = await context.request.get(`${base}/b/${missingRoom}`);

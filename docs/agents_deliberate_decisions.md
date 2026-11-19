@@ -556,3 +556,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Open branches that use the old names need a rebase.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · chore/vite-app-build · Wrangler builds the app; the shells are web/index.html and web/auth.html
+- Agent: claude-opus-5-5
+- Context: The human asked to stop committing the built app and to let Workers Builds build it, with the assets in `assets.directory`.
+- Decision: Vite builds `web/index.html` and `web/auth.html` into `dist/` with hashed file names; `wrangler.jsonc` serves `dist/` and runs `bun run build:ui` in `build.command`, so `wrangler deploy` in Workers Builds builds first and the dashboard settings stay as they are. The auth pages have their own shell, and `src/auth-page.ts` adds the page metadata with HTMLRewriter (no more regex parsing of the app shell). `/app` is now a Worker route that serves the bare shell, as the static `app.html` did. `uiVersion.ts` and `check:bundle`'s drift check are gone; `check:bundle` now only builds. `public/cli.mjs` stays committed (it is the published CLI, not the app).
+- Other options: Change the Workers Builds build command in the dashboard. Keep one shell and rewrite it for the auth pages. Remove `/app` and change the tests and links.
+- Risk: medium. If Workers Builds does not run `build.command`, the deploy fails (the running version stays).
+- Undo: Revert this commit.
+- Status: open

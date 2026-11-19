@@ -536,16 +536,14 @@ try {
         }),
       );
       fileId = file.id;
-      // The Svelte app is the only app (#181): a plain room URL serves it.
+      // A plain room URL serves the built app.
       const selected = await owner.context.request.get(`${base}/b/${roomA}`),
         html = await selected.text();
       assert(selected.ok(), `Room page status ${selected.status()}`);
       const entry = html.match(
-          /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
+          /<script\b[^>]*\bsrc=["'](\/assets\/main-[^"']+\.js)["']/,
         )?.[1],
-        css = html.match(
-          /href=["']([^"']*\/svelte-preview\/ui\.css[^"']*)["']/,
-        )?.[1];
+        css = html.match(/\bhref=["'](\/assets\/[^"']+\.css)["']/)?.[1];
       assert(entry && css);
       const entryResponse = await owner.context.request.get(
           new URL(entry, base).href,

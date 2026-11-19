@@ -9,14 +9,10 @@ test("HTML parsing catches embedded styles and stylesheet links, including templ
     '<link rel="alternate stylesheet" href="/legacy.css" title="legacy">',
     '<template><p style="color:red"></p></template>',
     '<script>element.style.color="red";</script>',
+    '<link rel="stylesheet" href="/assets/style.css">',
   ])
     expect(auditHTML("app.html", source).length).toBeGreaterThan(0);
-  expect(
-    auditHTML(
-      "app.html",
-      '<link rel="stylesheet" href="/svelte-preview/ui.css?v=abc"><div class="bg-card"></div>',
-    ),
-  ).toEqual([]);
+  expect(auditHTML("app.html", '<div class="bg-card"></div>')).toEqual([]);
 });
 
 test("component audit rejects style blocks, directives, markup and CSSOM bypasses", () => {

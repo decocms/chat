@@ -4,8 +4,15 @@ import { resolve, sep } from "node:path";
 /** Public built-gallery fixture only. It is not a Worker/auth/application shell. */
 export async function serveBuiltGallery(directory: string) {
   const root = await realpath(directory),
-    entry = await readFile(resolve(root, "svelte-preview/app.js")),
-    css = await readFile(resolve(root, "svelte-preview/ui.css"));
+    shell = await readFile(resolve(root, "index.html"), "utf8"),
+    entryPath = shell.match(
+      /<script\b[^>]*\bsrc=["']\/(assets\/main-[^"']+\.js)["']/,
+    )?.[1],
+    cssPath = shell.match(/\bhref=["']\/(assets\/[^"']+\.css)["']/)?.[1];
+  if (!entryPath || !cssPath)
+    throw new Error(`${directory}/index.html is not a built app shell`);
+  const entry = await readFile(resolve(root, entryPath)),
+    css = await readFile(resolve(root, cssPath));
   const sha = (value: Uint8Array) =>
       createHash("sha256").update(value).digest("hex"),
     version = createHash("sha256").update(entry).update(css).digest("hex");
@@ -16,7 +23,10 @@ export async function serveBuiltGallery(directory: string) {
       const url = new URL(request.url);
       if (url.pathname === "/app")
         return new Response(
-          `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="vb-v" content="${version}"><link rel="stylesheet" href="/svelte-preview/ui.css"></head><body><div id="app"></div><script type="module" src="/svelte-preview/app.js"></script></body></html>`,
+          shell.replace(
+            "<head>",
+            `<head><meta name="vb-v" content="${version}" />`,
+          ),
           {
             headers: {
               "content-type": "text/html",

@@ -10,14 +10,12 @@ import {
   workerProxy,
   workerRoutes,
 } from "./build/appDevelopment.ts";
-import { uiVersion } from "./build/uiVersion.ts";
 import { clientBoundary, projectRoot } from "./build/clientBoundary.ts";
 
 export default defineConfig(({ mode, command }) => ({
   root: import.meta.dirname,
   publicDir: join(projectRoot, "public"),
   resolve: { alias: { $lib: join(projectRoot, "web/lib") } },
-  // Library mode preserves this dependency expression unless explicitly replaced.
   // Never ship a Node `process` global or a browser process polyfill.
   define: {
     "process.env.NODE_ENV": JSON.stringify(
@@ -77,7 +75,6 @@ export default defineConfig(({ mode, command }) => ({
     clientBoundary({ projectRoot }),
     tailwindcss(),
     svelte({ compilerOptions: { css: "external" } }),
-    uiVersion(join(projectRoot, "public")),
     chunkDiagnostics({
       root: projectRoot,
       enabled: process.env.VIBEBOOK_CHUNK_DIAGNOSTICS === "1",
@@ -85,19 +82,16 @@ export default defineConfig(({ mode, command }) => ({
     }),
   ],
   build: {
-    outDir: "../public/svelte-preview",
+    // The Worker serves dist/ (wrangler.jsonc assets.directory); public/ is copied in.
+    outDir: join(projectRoot, "dist"),
     emptyOutDir: true,
     minify: true,
-    // These native ES files are served as an app. Vite's library default
-    // preserves whitespace for downstream bundlers; compact this final output.
-    rolldownOptions: { output: { minify: { codegen: true } } },
     cssCodeSplit: false,
-    copyPublicDir: false,
-    lib: {
-      entry: { app: "main.ts" },
-      formats: ["es"],
-      cssFileName: "ui",
-      fileName: (_format, name) => `${name}.js`,
+    rolldownOptions: {
+      input: {
+        index: join(import.meta.dirname, "index.html"),
+        auth: join(import.meta.dirname, "auth.html"),
+      },
     },
   },
 }));

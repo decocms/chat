@@ -43,7 +43,7 @@ function fixture(): ChunkDiagnostic {
   return {
     formatVersion: 1,
     revision,
-    assetPrefix: "/svelte-preview/",
+    assetPrefix: "/assets/",
     contributionSemantics: "renderedLength is not gzip bytes",
     assets: [
       asset(
@@ -168,9 +168,7 @@ test("revision, hash, missing output and ambiguous asset identity fail closed in
       samples: [
         {
           ...base.samples[0],
-          resources: [
-            { phase: "entry", assetKey: "/svelte-preview/unknown.js" },
-          ],
+          resources: [{ phase: "entry", assetKey: "/assets/unknown.js" }],
         },
       ],
     }),

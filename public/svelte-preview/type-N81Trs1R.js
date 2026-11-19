@@ -1,1 +1,0 @@
-var e=`font-sans antialiased [font-feature-settings:'cv01','cv02','cv03','cv04','cv08','cv10','ss08'] [font-optical-sizing:auto]`;export{e as t};

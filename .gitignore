@@ -10,3 +10,4 @@ cli/cli.mjs
 
 # Dumps from the Nov 2026 Cloudflare account move (production data and a token): never commit them
 migration-dump/
+dist

@@ -204,8 +204,8 @@ try {
     await expect(viewer).not.toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toBe("");
   };
-  const loadedApp = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === "/svelte-preview/app.js",
+  const loadedApp = page.waitForResponse((response) =>
+    /^\/assets\/main-[^/]+\.js$/.test(new URL(response.url()).pathname),
   );
   await page.goto(`${base}/b/${id}`);
   const appResponse = await loadedApp;
