@@ -4,7 +4,7 @@
   import PopoverContent from "../../lib/studio/PopoverContent.svelte";
   import PopoverTrigger from "../../lib/studio/PopoverTrigger.svelte";
   import { fetchProfile } from "./api";
-  import type { ProfileLang } from "./copy";
+  import { profileText, type ProfileLang } from "./copy";
   import ProfileCard from "./ProfileCard.svelte";
 
   /** Click a person's avatar to open their holographic card: title, badges and stats. Loads only when opened. */
@@ -21,6 +21,7 @@
     {#snippet child({ props })}<button
         {...props}
         type="button"
+        aria-label={profileText(lang, "open")}
         data-person-card-trigger
         class="inline-flex cursor-pointer rounded-full border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-ring"
         >{@render children()}</button

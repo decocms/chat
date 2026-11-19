@@ -350,7 +350,7 @@
             >{/if}<time title={timestamp}
             >{vb.hhmm(m.ts)}<span
               data-time-zone
-              class="ml-1 text-[0.625rem] text-muted-foreground/60 select-none"
+              class="ml-1 text-[0.625rem] text-muted-foreground select-none"
               >{chatZone(m.ts)}</span
             ></time
           >
