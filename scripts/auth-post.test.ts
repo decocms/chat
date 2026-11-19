@@ -9,8 +9,7 @@ mock.module("cloudflare:workers", () => ({
 const { connect } = await import("../src/connect");
 const { AuthorizationError } =
   await import("@cloudflare/workers-oauth-provider");
-const shell =
-  '<link href="/svelte-preview/ui.css?v=0123456789abcdef0123"><script src="/svelte-preview/app.js?v=0123456789abcdef0123"></script>';
+const shell = await Bun.file("web/auth.html").text();
 const assets = { fetch: async () => new Response(shell) };
 const here = "http://127.0.0.1:8797/authorize?client_id=client&state=original";
 const post = (decision?: string) => ({

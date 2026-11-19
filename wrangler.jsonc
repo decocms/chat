@@ -10,8 +10,11 @@
   // Run next to D1 (ENAM): every request does a few D1 round trips, each ~270ms from Brazil. Smart alone kept it in GIG.
   "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // wrangler dev and wrangler deploy (Workers Builds) build the browser app into dist/ first.
+  // dev rebuilds only when the shell changes: the dev app (bun run dev:app) serves web/ from source.
+  "build": { "command": "bun run build:ui", "watch_dir": "web/index.html" },
   "assets": {
-    "directory": "public",
+    "directory": "dist",
     "binding": "ASSETS",
     "run_worker_first": ["/", "/archived", "/settings", "/login", "/b/*", "/mcp", "/authorize", "/oauth/*", "/.well-known/*", "/api/*", "/ws/*", "/ws-me", "/auth/*"]
   },

@@ -11,7 +11,7 @@
 
 | Command | Result |
 |---|---|
-| `bun run dev` | Builds the browser files, then starts the Worker at http://127.0.0.1:8797. |
+| `bun run dev` | Starts the Worker at http://127.0.0.1:8797. Wrangler builds the browser app into `dist/` first. |
 | `bun run dev:app` | Starts the Worker (8787) and Vite (5173) with hot reload. Open http://127.0.0.1:5173/app. |
 | `bun run dev:components` | Starts Vite with hot reload. Open http://127.0.0.1:5173/dev/gallery.html (components) or `/dev/design-system.html?id=<story>` (design system). |
 
@@ -49,17 +49,18 @@ The rule: quick CI on pull requests, long CI on `main`.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
 - If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 
-## Generated files to commit
+## Build output
 
-Some build output is in git. If you change the source, build it and commit the output in the same commit.
+`bun run build:ui` builds the browser app (`web/index.html`, `web/auth.html` and the service worker) into `dist/`, together with a copy of `public/`. The Worker serves `dist/`. Wrangler runs this build before `wrangler dev` and `wrangler deploy` (`build` in `wrangler.jsonc`). Do not commit `dist/`.
+
+Some other build output is in git. If you change the source, build it and commit the output in the same commit.
 
 | Source | Command | Output to commit |
 |---|---|---|
-| `web/`, `shared/` | `bun run build:ui` | `public/app.html`, all of `public/svelte-preview/`, `public/sw.js` |
 | `cli/` | `bun run build:cli` | `public/cli.mjs`, `cli/cli.mjs` |
 | `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 
-Do not commit `dist-mcp/` or `.api-types/`. The build makes them.
+Do not commit `dist/`, `dist-mcp/` or `.api-types/`. The build makes them.
 
 ## Text and languages
 
@@ -72,7 +73,7 @@ If a person can see the change, say what changed in the release message in the p
 
 ## Release (deploy)
 
-Each merge into `main` is a release. Workers Builds deploys the `chat` Worker (build command `bun run build:mcp`, deploy command `npx wrangler deploy`).
+Each merge into `main` is a release. Workers Builds deploys the `chat` Worker (build command `bun run build:app-document && bun run build:mcp`, deploy command `npx wrangler deploy`, which builds `dist/` first).
 
 **Warning: Never leave `main` red. A red `main` is a failed check on the newest commit of `main`.**
 

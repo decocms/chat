@@ -27,7 +27,7 @@ let appVersion: string | undefined;
 const ProfileName = z.pick(MeData, { name: true });
 const ProfileAvatar = z.pick(MeData, { avatar: true });
 async function currentVersion(env: Env, url: string) {
-  appVersion ??= ((await env.ASSETS.fetch(new Request(new URL("/app", url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
+  appVersion ??= ((await env.ASSETS.fetch(new Request(new URL("/", url), { method: "HEAD" }))).headers.get("etag") ?? "").replace(/[^\w-]/g, "");
   return appVersion;
 }
 

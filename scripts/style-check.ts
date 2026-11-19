@@ -28,7 +28,6 @@ async function collect(path: string) {
   }
 }
 await collect("web");
-files.push("public/app.html");
 for (const file of files.sort()) {
   const source = await readFile(join(projectRoot, file), "utf8");
   if (file.endsWith(".d.ts")) continue;
@@ -38,18 +37,20 @@ for (const file of files.sort()) {
     else issues.push(...auditTailwind(file, source));
   } else issues.push(...auditPresentation(file, source));
 }
-const assets = (
-  await readdir(join(projectRoot, "public/svelte-preview"))
-).filter((name) => name.endsWith(".css"));
-if (assets.length !== 1 || assets[0] !== "ui.css")
+// The build (bun run build:ui) must run first: this audits the CSS that ships.
+const assets = (await readdir(join(projectRoot, "dist/assets"))).filter(
+  (name) => name.endsWith(".css"),
+);
+const css = `dist/assets/${assets[0]}`;
+if (assets.length !== 1)
   issues.push({
-    file: "public/svelte-preview",
+    file: "dist/assets",
     line: 1,
-    reason: "Expected one emitted application CSS asset: ui.css",
+    reason: "Expected one emitted application CSS asset",
   });
 else {
   const generated = postcss.parse(
-    await readFile(join(projectRoot, "public/svelte-preview/ui.css"), "utf8"),
+    await readFile(join(projectRoot, css), "utf8"),
   );
   generated.walkRules((rule) => {
     let parent: AnyNode | undefined = rule.parent;
@@ -65,14 +66,14 @@ else {
     }
     if (baseReset && rule.selectors.some((selector) => selector.includes("&")))
       issues.push({
-        file: "public/svelte-preview/ui.css",
+        file: css,
         line: rule.source?.start?.line ?? 1,
         reason: "The base reset retained unresolved nesting",
       });
   });
   generated.walkAtRules("scope", (rule) => {
     issues.push({
-      file: "public/svelte-preview/ui.css",
+      file: css,
       line: rule.source?.start?.line ?? 1,
       reason: "Unlowered @scope exceeds the supported browser baseline",
     });
@@ -80,7 +81,7 @@ else {
   generated.walkDecls((declaration) => {
     if (/url\(["']?data:(?:font|application\/font)/.test(declaration.value))
       issues.push({
-        file: "public/svelte-preview/ui.css",
+        file: css,
         line: declaration.source?.start?.line ?? 1,
         reason: "Font bytes inlined into application CSS",
       });

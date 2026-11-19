@@ -15,6 +15,6 @@ export async function buildServiceWorker(root = projectRoot) {
       result.logs,
       "Service worker browser build failed",
     );
-  await Bun.write(join(root, "public/sw.js"), result.outputs[0]!);
+  await Bun.write(join(root, "dist/sw.js"), result.outputs[0]!);
 }
 if (import.meta.main) await buildServiceWorker();

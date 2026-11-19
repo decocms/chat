@@ -39,7 +39,7 @@ test("shared browser policy refuses generated backend strings, tooling and symli
     ".api-types/src/api.d.ts",
     "scripts/build.ts",
     "cli/vibebook.ts",
-    "web/build/uiVersion.ts",
+    "web/build/appDevelopment.ts",
     "web/vite.config.ts",
     "web/tsconfig.json",
     "wrangler.qa.jsonc",

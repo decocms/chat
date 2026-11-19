@@ -133,11 +133,11 @@ try {
   const shellResponse = await owner.request.get(`${base}/b/${room}`);
   const shell = await shellResponse.text();
   const entry = shell.match(
-    /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
+    /<script\b[^>]*\bsrc=["'](\/assets\/main-[^"']+\.js)["']/,
   )?.[1];
   assert(
     entry,
-    "Run against the compiled full Svelte application, not a gallery or mocked page",
+    "Run against the built application, not a gallery or mocked page",
   );
   const asset = await owner.request.get(new URL(entry, base).href);
   assert(asset.ok());

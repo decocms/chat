@@ -28,20 +28,27 @@ export function isSourceApp(url: string): boolean {
   );
 }
 
+/** The built entry script of web/index.html or web/auth.html (Vite's hashed /assets/ file). */
+const builtEntry =
+  /<script\b[^>]*\bsrc=["']\/assets\/[^"']+\.js["'][^>]*><\/script>/gi;
+export const isBuiltShell = (html: string) => new RegExp(builtEntry).test(html);
+
 export function sourceShell(html: string): string {
-  if (!/src=["']\/svelte-preview\/app\.js(?:\?[^"']*)?["']/.test(html))
-    throw new Error("Worker did not return the Svelte application shell");
+  if (!isBuiltShell(html))
+    throw new Error("Worker did not return the application shell");
   return (
     html
       // Production API/socket versions must not offer updates for a source app.
       .replace(/<meta\b[^>]*name=["']vb-v["'][^>]*>/gi, "")
       .replace(
-        /<link\b[^>]*href=["']\/svelte-preview\/ui\.css(?:\?[^"']*)?["'][^>]*>/gi,
+        /<link\b[^>]*\brel=["'](?:stylesheet|modulepreload)["'][^>]*\bhref=["']\/assets\/[^"']+["'][^>]*>/gi,
         "",
       )
-      .replace(
-        /src=["']\/svelte-preview\/app\.js(?:\?[^"']*)?["']/g,
-        'src="/main.ts"',
+      // Vite can emit more than one entry script (a shared chunk); the source app has one.
+      .replace(builtEntry, (_tag, offset: number, all: string) =>
+        offset === all.search(builtEntry)
+          ? '<script type="module" src="/main.ts"></script>'
+          : "",
       )
   );
 }
@@ -368,7 +375,7 @@ export function appDevelopment(
               !/<meta\b(?=[^>]*\bname=["']vb-page["'])(?=[^>]*\bcontent=["']file-access["'])[^>]*>/i.test(
                 html,
               )) ||
-            !html.includes("/svelte-preview/app.js")
+            !isBuiltShell(html)
           ) {
             res.end(html);
             return;

@@ -7,11 +7,11 @@ function document(html: string) {
   page.head.innerHTML = html;
   return page;
 }
-test("production release identity comes from the Worker HTML ETag, not the module query", () => {
+test("production release identity comes from the Worker HTML ETag, not the module hash", () => {
   expect(
     applicationShellVersion(
       document(
-        '<meta name="vb-v" content="html-etag"><script type="module" src="/svelte-preview/app.js?v=module-hash"></script>',
+        '<meta name="vb-v" content="html-etag"><script type="module" src="/assets/main-module-hash.js"></script>',
       ),
     ),
   ).toBe("html-etag");
@@ -20,7 +20,7 @@ test("missing production ETag stays unknown instead of inventing a release ident
   expect(
     applicationShellVersion(
       document(
-        '<script type="module" src="/svelte-preview/app.js?v=module-hash"></script>',
+        '<script type="module" src="/assets/main-module-hash.js"></script>',
       ),
     ),
   ).toBeNull();

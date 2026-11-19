@@ -5,7 +5,6 @@
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @import "@xterm/xterm/css/xterm.css" layer(components);
 @source "../";
-@source "../../public/app.html";
 /* `:is`, not `:where`: a dark utility must outweigh a hover one, as it does in the Studio design system. */
 @custom-variant dark (&:is(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 

@@ -1,1 +1,0 @@
-var e=class extends Error{constructor(){super(`App is no longer active`)}};export{e as t};

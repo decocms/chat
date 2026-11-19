@@ -46,10 +46,10 @@ export function auditHTML(file: string, source: string): StyleViolation[] {
           .toLowerCase()
           .split(/\s+/)
           .includes("stylesheet") ||
-          attrs.get("as") === "style") &&
-        !/^\/svelte-preview\/ui\.css(?:\?[^#]*)?$/.test(attrs.get("href") ?? "")
+          attrs.get("as") === "style")
       )
-        add("HTML stylesheet outside emitted Tailwind entry");
+        // Vite adds the one emitted stylesheet at build time.
+        add("HTML stylesheet link (the build adds the app's CSS)");
       if (
         node.tagName === "script" &&
         !attrs.has("src") &&

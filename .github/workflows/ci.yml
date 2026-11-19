@@ -30,14 +30,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: Build the opt-in preview
-        id: preview
-        run: bun run build:ui
       - name: Every repository gate
         run: bun scripts/check-ci.ts
-      - name: Checked-in preview matches the build
-        if: ${{ always() && steps.preview.outcome == 'success' }}
-        run: git diff --exit-code -- public/app.html public/svelte-preview/ public/sw.js
 
   # The real Worker, Book, D1, R2 and Application cohort (the long one).
   browser-app:
@@ -85,7 +79,7 @@ jobs:
       - name: Room layout
         run: bun run test:room-layout:browser
         env:
-          TEST_PUBLIC_ROOT: ${{ github.workspace }}/public
+          TEST_PUBLIC_ROOT: ${{ github.workspace }}/dist
           TEST_APP_REVISION: ${{ github.sha }}
           TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/room-layout-browser
       - name: App document transport

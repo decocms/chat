@@ -77,8 +77,7 @@ test("CSP keeps valid provider resource/connection/frame/base domains and ignore
   expect(policy).not.toContain("bad.example.com");
 });
 
-const shell =
-  '<link href="/svelte-preview/ui.css?v=0123456789abcdef0123"><script src="/svelte-preview/app.js?v=0123456789abcdef0123"></script>';
+const shell = await Bun.file("web/auth.html").text();
 const connection: Conn = {
   id: "abc123",
   book_id: "abcdef",

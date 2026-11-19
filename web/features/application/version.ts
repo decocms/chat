@@ -8,9 +8,7 @@ export function applicationShellVersion(doc: {
   const metadata = doc.querySelector('meta[name="vb-v"]');
   if (metadata) return metadata.getAttribute("content") || null;
   // Vite's source HTML deliberately strips production version metadata.
-  return doc.querySelector(
-    'script[type="module"][src*="/svelte-preview/app.js"]',
-  )
+  return doc.querySelector('script[type="module"][src^="/assets/"]')
     ? null
     : "development";
 }

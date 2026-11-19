@@ -124,7 +124,7 @@ export function chunkDiagnostics(options: {
           options.revision && /^[a-f0-9]{40}$/.test(options.revision)
             ? options.revision
             : "unrecorded",
-        assetPrefix: "/svelte-preview/",
+        assetPrefix: "/assets/",
         contributionSemantics:
           "Vite8/Rolldown RenderedModule.renderedLength: rendered code contribution, NOT gzip/network byte allocation",
         assets: Object.values(bundle)

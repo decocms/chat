@@ -14,25 +14,24 @@ If you add, move or delete a top-level folder, update this file in the same comm
 
 | Folder | Contents |
 |---|---|
-| `web/` | The browser app. `main.ts` is its entry. |
+| `web/` | The browser app. `index.html` (the app) and `auth.html` (sign-in pages) load `main.ts`. |
 | `web/app/` | Code that all features use: the room store and connection, the transport, the panel and sidebar types. |
 | `web/features/` | One folder for each feature of the app (chat, documents, apps, agents, home, …). |
 | `web/lib/studio/` | Design-system components, ported from deco Studio. |
 | `web/lib/components/`, `web/lib/ui/` | Shared app components. |
 | `web/lib/client/` | The typed API client (`hc<AppType>`). |
-| `web/build/` | Vite plugins: client boundary, UI version, development proxy. |
+| `web/build/` | Vite plugins: client boundary, chunk diagnostics, development proxy. |
 | `web/styles/` | `tailwind.css`, the only authored stylesheet of the app. |
 | `web/dev/` | Development pages: the component gallery (`gallery.html`) and the design-system stories (`design-system.html`). |
 | `web/app-document/` | The host for app documents. |
-| `web/service-worker/` | Web push code. Builds to `public/sw.js`. |
+| `web/service-worker/` | Web push code. Builds to `dist/sw.js`. |
 | `mcp-app/` | The admin MCP app UI. Builds to `dist-mcp/`. |
 
 ## Public files
 
 | Folder | Contents |
 |---|---|
-| `public/` | Static files that the Worker serves. |
-| `public/app.html`, `public/svelte-preview/` | The built Svelte app. Generated. |
+| `public/` | Static files. The build copies them into `dist/`, which the Worker serves. |
 | `public/pt/`, `public/en/` | Public pages in each language. Some are generated (see [workflow.md](workflow.md)). |
 | `public/fonts/`, `public/vendor/`, `public/licenses/` | Third-party files and their licenses. |
 | `public/llms.txt` | Setup instructions for any agent. Keep it the same as the tools and the plugin. |

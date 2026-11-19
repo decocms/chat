@@ -561,7 +561,7 @@ try {
     authAssets(primary, start);
     await audit(primary, "EN desktop consent");
     const entry = primary.requests.find((url) =>
-      /\/(?:bootstrap\.ts|svelte-preview\/app\.js)(?:\?|$)/.test(url),
+      /\/(?:main\.ts|assets\/main-[^/?]+\.js)(?:\?|$)/.test(url),
     );
     assert(entry, "Entry request missing");
     const asset = await primary.context.request.get(entry, { timeout });

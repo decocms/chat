@@ -41,15 +41,20 @@ test("only app pages select source HTML", () => {
 });
 
 test("source HTML removes production version and compiled entry without changing production shell", async () => {
-  const shell = await readFile(resolve(projectRoot, "public/app.html"), "utf8");
+  // web/index.html as Vite builds it: hashed entry scripts, preloads and one stylesheet.
+  const shell = (
+    await readFile(resolve(projectRoot, "web/index.html"), "utf8")
+  ).replace(
+    '<script type="module" src="./main.ts"></script>',
+    '<script type="module" crossorigin src="/assets/preload-helper-a1.js"></script><script type="module" crossorigin src="/assets/main-b2.js"></script><link rel="modulepreload" crossorigin href="/assets/chunk-d4.js"><link rel="stylesheet" crossorigin href="/assets/style-c3.css">',
+  );
   const dev = sourceShell(
     shell.replace("<head>", '<head><meta name="vb-v" content="production" />'),
   );
-  expect(dev).toContain('src="/main.ts"');
+  expect(dev.match(/src="\/main\.ts"/g)).toHaveLength(1);
   expect(dev).not.toContain('name="vb-v"');
-  expect(dev).not.toContain("/svelte-preview/ui.css");
-  expect(dev).not.toContain("/svelte-preview/app.js");
-  expect(shell).toContain("/svelte-preview/app.js");
+  expect(dev).not.toContain("/assets/");
+  expect(shell).toContain("/assets/main-b2.js");
   expect(() => sourceShell("<html>login failure</html>")).toThrow("shell");
 });
 
@@ -117,7 +122,7 @@ test("auth error shells retain status and cookies while using source HMR", async
       { status: 400, page: "unknown", transform: false },
       { status: 500, page: "", transform: false },
     ]) {
-      const html = `<html><head><meta name="vb-page" content="${fixture.page}"><meta name="vb-v" content="production"><link rel="stylesheet" href="/svelte-preview/ui.css?v=abc"></head><body><script type="module" src="/svelte-preview/app.js?v=abc"></script></body></html>`;
+      const html = `<html><head><meta name="vb-page" content="${fixture.page}"><meta name="vb-v" content="production"><link rel="stylesheet" href="/assets/style-abc.css"></head><body><script type="module" src="/assets/main-abc.js"></script></body></html>`;
       globalThis.fetch = Object.assign(
         async () =>
           new Response(html, {
@@ -153,7 +158,7 @@ test("auth error shells retain status and cookies while using source HMR", async
         expect(body).toContain('src="/main.ts"');
         expect(body).toContain("<!-- HMR -->");
         expect(body).not.toContain('name="vb-v"');
-        expect(body).not.toContain("/svelte-preview/ui.css");
+        expect(body).not.toContain("/assets/style-abc.css");
       } else expect(body).toBe(html);
     }
   } finally {
@@ -256,7 +261,7 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
         undefined,
       ])
         for (const site of ["same-origin", "cross-site"]) {
-          const html = `<html><head><meta name="vb-page" content="${fixture.page}"><meta name="vb-v" content="prod"><link rel="stylesheet" href="/svelte-preview/ui.css?v=abc"></head><body><script type="module" src="/svelte-preview/app.js?v=abc"></script></body></html>`;
+          const html = `<html><head><meta name="vb-page" content="${fixture.page}"><meta name="vb-v" content="prod"><link rel="stylesheet" href="/assets/style-abc.css"></head><body><script type="module" src="/assets/main-abc.js"></script></body></html>`;
           let forwarded = false;
           globalThis.fetch = Object.assign(
             async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -985,7 +990,7 @@ test("only explicit denied file navigations transform; successful bytes and Rang
   try {
     for (const status of [401, 403]) {
       const html =
-        '<meta name="vb-page" content="file-access"><meta name="vb-v" content="prod"><script src="/svelte-preview/app.js?v=abc"></script>';
+        '<meta name="vb-page" content="file-access"><meta name="vb-v" content="prod"><script src="/assets/main-abc.js"></script>';
       globalThis.fetch = Object.assign(
         async () =>
           new Response(html, {

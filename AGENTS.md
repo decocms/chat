@@ -41,7 +41,7 @@ This file contains only the global rules. Read the specific document before you 
 3. Make a branch from `main`. Do not commit to `main` directly.
 4. Make the change. Keep it small.
 5. Run `bun run check`. If it fails, fix the cause. Do not skip a check.
-6. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)).
+6. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)). Do not commit `dist/`.
 7. If a person can see the change, tell the room in the release message.
 8. If you made a deliberate decision, add an entry to `docs/agents_deliberate_decisions.md`.
 9. If your change makes a document wrong, update that document in the same commit.

@@ -1,47 +1,58 @@
 import type { Env } from "./index";
 import { reqLang } from "./lang";
 import { AuthPageMetadata } from "../shared/authPage";
-import { UI_VERSION_HEX_LENGTH } from "../shared/uiVersion";
+const escape = (value: string) =>
+  value.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
-function oneAsset(
-  shell: string,
-  attribute: "src" | "href",
-  name: "app.js" | "ui.css",
-) {
-  const path = `/svelte-preview/${name}`;
-  const matches = [
-    ...shell.matchAll(
-      new RegExp(
-        `\\b${attribute}=["'](${path.replaceAll(".", "\\.")}[^"']*)["']`,
-        "g",
-      ),
-    ),
-  ];
-  if (matches.length !== 1)
-    throw new Error(`Auth page shell requires exactly one ${name} reference`);
-  const value = matches[0]![1]!;
-  if (
-    !new RegExp(
-      `^${path.replaceAll(".", "\\.")}\\?v=[a-f0-9]{${UI_VERSION_HEX_LENGTH}}$`,
-    ).test(value)
-  )
-    throw new Error(`Auth page shell requires a versioned ${name} reference`);
-  return value;
-}
-/** Reuse only the app shell's generated asset references, never its other markup. */
+/** The auth shell (web/auth.html) with this page's language and metadata. */
 export function authPageHtml(shell: string, metadata: AuthPageMetadata) {
-  const data = AuthPageMetadata.parse(metadata),
-    app = oneAsset(shell, "src", "app.js"),
-    css = oneAsset(shell, "href", "ui.css");
-  if (app.split("?v=")[1] !== css.split("?v=")[1])
-    throw new Error("Auth page shell assets have mismatched versions");
-  const version = app.split("?v=")[1]!;
-  return `<!doctype html><html lang="${data.lang === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="robots" content="noindex" /><meta name="vb-page" content="${data.page}" /><meta name="vb-auto-access" content="${data.autoAccess ? "1" : "0"}" /><meta name="vb-consent-failure" content="${data.page === "consent" && data.consentFailure ? "1" : "0"}" />${data.page === "connection-error" ? `<meta name="vb-connection-failure" content="${data.connectionFailure ?? "failed"}" />` : ""}<meta name="vb-v" content="${version}" />
-<title>deco.chat</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="${css}" /></head>
-<body class="m-0 min-h-dvh bg-background font-sans text-foreground"><div id="app"></div><noscript><main><p>${data.lang === "en" ? "deco.chat needs JavaScript." : "O deco.chat precisa de JavaScript."}</p></main></noscript><script type="module" src="${app}"></script></body></html>`;
+  const data = AuthPageMetadata.parse(metadata);
+  const meta = {
+    "vb-page": data.page,
+    "vb-auto-access": data.autoAccess ? "1" : "0",
+    "vb-consent-failure":
+      data.page === "consent" && data.consentFailure ? "1" : "0",
+    ...(data.page === "connection-error"
+      ? { "vb-connection-failure": data.connectionFailure ?? "failed" }
+      : {}),
+  };
+  return (
+    new HTMLRewriter()
+      .on("html", {
+        element: (el) => {
+          el.setAttribute("lang", data.lang === "en" ? "en" : "pt-BR");
+        },
+      })
+      .on("head", {
+        element: (el) => {
+          el.append(
+            Object.entries(meta)
+              .map(
+                ([name, content]) =>
+                  `<meta name="${name}" content="${escape(content)}" />`,
+              )
+              .join(""),
+            { html: true },
+          );
+        },
+      })
+      // The shell's <noscript> text is Portuguese.
+      .on("noscript", {
+        element: (el) => {
+          if (data.lang === "en")
+            el.setInnerContent(
+              "<main><p>deco.chat needs JavaScript.</p></main>",
+              {
+                html: true,
+              },
+            );
+        },
+      })
+      .transform(new Response(shell))
+      .text()
+  );
 }
+
 /** An expired sign-in never replays the POST body/old handle after authentication. */
 export function consentLoginUrl(request: string | URL) {
   const url = new URL(request);
@@ -66,10 +77,10 @@ export async function authPage(
   };
   try {
     const asset = await env.ASSETS.fetch(
-      new Request(new URL("/app", request.url)),
+      new Request(new URL("/auth", request.url)),
     );
     if (asset.status !== 200) throw new Error("Auth page shell missing");
-    const html = authPageHtml(await asset.text(), {
+    const html = await authPageHtml(await asset.text(), {
       page,
       lang: reqLang(request),
       autoAccess: !!options.autoAccess,

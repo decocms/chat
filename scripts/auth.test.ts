@@ -112,39 +112,29 @@ test("continuations stay on supported local routes", () => {
     "http://127.0.0.1:1234/?error=denied",
   );
 });
-test("shell allowlists only versioned emitted assets and public metadata", () => {
-  const version = "0123456789abcdef0123";
-  const shell = `<link href="https://fonts.googleapis.com/a"><link href="/app.css?v=${version}"><link rel="stylesheet" href="/svelte-preview/ui.css?v=${version}"><script src="/vendor/marked.js"></script><nav>stale</nav><script type="module" src="/svelte-preview/app.js?v=${version}"></script>`;
+const authShell = () => Bun.file("web/auth.html").text();
+test("the auth shell gets the page, the language and no private data", async () => {
+  const shell = await authShell();
   for (const page of ["login", "access", "consent", "file-access"] as const) {
-    const html = authPageHtml(shell, { page, lang: "en", autoAccess: false });
-    expect(html).toContain(`content="${page}"`);
-    expect(html).toContain(`name="vb-v" content="${version}"`);
-    expect(html).toContain(`/svelte-preview/app.js?v=${version}`);
-    expect(html).toContain(`/svelte-preview/ui.css?v=${version}`);
-    expect(html).not.toMatch(/stale|vendor|googleapis|app\.css|<style|<nav/);
+    const html = await authPageHtml(shell, {
+      page,
+      lang: "en",
+      autoAccess: false,
+    });
+    expect(html).toContain(`name="vb-page" content="${page}"`);
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain("deco.chat needs JavaScript.");
     expect(html).not.toContain("handle");
     expect(html).not.toContain("email");
   }
-  expect(() =>
-    authPageHtml(
-      shell + `<script src="/svelte-preview/app.js?v=${version}"></script>`,
-      { page: "login", lang: "pt", autoAccess: false },
-    ),
-  ).toThrow("exactly one");
-  expect(() =>
-    authPageHtml(shell.replace(/\?v=[a-f0-9]+/g, ""), {
-      page: "login",
-      lang: "pt",
-      autoAccess: false,
-    }),
-  ).toThrow("versioned");
-  expect(() =>
-    authPageHtml(shell.replace("/svelte-preview/ui.css", "/other.css"), {
-      page: "login",
-      lang: "pt",
-      autoAccess: false,
-    }),
-  ).toThrow("exactly one");
+  const pt = await authPageHtml(shell, {
+    page: "login",
+    lang: "pt",
+    autoAccess: true,
+  });
+  expect(pt).toContain('<html lang="pt-BR">');
+  expect(pt).toContain('name="vb-auto-access" content="1"');
+  expect(pt).toContain("O deco.chat precisa de JavaScript.");
   expect(
     AuthPageMetadata.safeParse({
       page: "unknown",
@@ -436,18 +426,8 @@ test("signed-out consent and access mutations expose recovery without navigating
   expect(get(consent.state)).toEqual(before);
   expect(time.jobs.size).toBe(0);
 });
-test("shell rejects mixed asset generations and its no-JS text has no link", () => {
-  const a = "a".repeat(20),
-    b = "b".repeat(20),
-    shell = `<link href="/svelte-preview/ui.css?v=${a}"><script src="/svelte-preview/app.js?v=${a}"></script>`;
-  expect(() =>
-    authPageHtml(shell.replace("ui.css?v=" + a, "ui.css?v=" + b), {
-      page: "consent",
-      lang: "en",
-      autoAccess: false,
-    }),
-  ).toThrow("mismatched");
-  const html = authPageHtml(shell, {
+test("the auth shell's no-JS text has no link", async () => {
+  const html = await authPageHtml(await authShell(), {
     page: "consent",
     lang: "en",
     autoAccess: false,
@@ -480,8 +460,7 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
   expect(calls).toBe(1);
   expect(get(session.state).context?.handle).toBe(consent.handle);
   session.dispose();
-  const version = "a".repeat(20),
-    shell = `<link href="/svelte-preview/ui.css?v=${version}"><script src="/svelte-preview/app.js?v=${version}"></script>`;
+  const shell = await authShell();
   const response = await authPage(
     { ASSETS: { fetch: async () => new Response(shell) } },
     new Request("https://vibebook.test/authorize?client_id=x"),
@@ -501,8 +480,7 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
 });
 
 test("file-access shell preserves denial status and no-store/frame boundary", async () => {
-  const version = "a".repeat(20),
-    shell = `<link href="/svelte-preview/ui.css?v=${version}"><script src="/svelte-preview/app.js?v=${version}"></script>`;
+  const shell = await authShell();
   for (const status of [401, 403] as const) {
     const response = await authPage(
       { ASSETS: { fetch: async () => new Response(shell) } },
