@@ -492,8 +492,9 @@
         onblurfield?.();
       }}
     />
+    <!-- Phones: the field is too narrow to share; the chip covered the whole box (Gui #3397). -->
     {#if inside && !value && !off}<div
-        class="absolute top-1/2 right-1 -translate-y-1/2"
+        class="absolute top-1/2 right-1 hidden -translate-y-1/2 md:block"
       >
         {@render inside()}
       </div>{/if}
