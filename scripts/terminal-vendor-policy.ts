@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 export const TERMINAL_VENDOR_FAMILY = "xterm terminal rendering internals";
-export const TERMINAL_VENDOR_SCOPE = "[data-native-terminal-renderer] .xterm";
+export const TERMINAL_VENDOR_SCOPE = "[data-terminal-renderer] .xterm";
 export const TERMINAL_RENDERER_SOURCE =
   "web/features/sandboxes/terminalRenderer.ts";
 export const TERMINAL_PACKAGES = [

@@ -12,7 +12,7 @@ import type { AgentsApi } from "../web/features/agents/api";
 import type { HomeApi } from "../web/features/home/api";
 import type { RoomConnectionOptions } from "../web/app/roomConnection";
 import type { RoomCommand } from "../shared/commands";
-import { homeApi, me, manualClock } from "./native-home-fixtures";
+import { homeApi, me, manualClock } from "./home-fixtures";
 export function shellFixture(
   overrides: Partial<HomeApi> = {},
   options: { pwa?: () => PwaService } = {},

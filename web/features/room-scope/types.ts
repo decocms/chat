@@ -28,7 +28,7 @@ import type AgentTrigger from "../agents/AgentTrigger.svelte";
 import type { FetchLike } from "../../app/transport";
 import type { RichFileReader } from "../rich-text/roomFiles";
 
-/** Component props refer to the actual native feature contract, never copied
+/** Component props refer to the actual feature contract, never copied
  * backend DTOs. Every room property aliases the RootRoomSession canonical frame. */
 export type RoomScopePresentation = {
   scope: ApplicationRoomScope;

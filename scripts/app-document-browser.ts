@@ -52,7 +52,7 @@ const errors: string[] = [];
 const evidence: Record<string, unknown> = {
   revision: process.env.TEST_REVISION ?? "unrecorded",
   scope:
-    "real Chromium opaque srcdoc and controlled file POST/native SDK/MessageEvent; no Worker membership/R2/provider proof",
+    "real Chromium opaque srcdoc and controlled file POST/app SDK/MessageEvent; no Worker membership/R2/provider proof",
   status: "running",
 };
 try {

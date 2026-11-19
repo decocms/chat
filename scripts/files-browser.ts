@@ -13,11 +13,8 @@ import {
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
 import { createRoomApi } from "../web/app/transport";
-import {
-  nativeBrowserFixtures,
-  openNativeRoomPane,
-} from "./native-browser-fixtures";
-import { nativeTestAgent } from "./native-test-mcp";
+import { browserFixtures, openRoomPane } from "./browser-fixtures";
+import { testAgent } from "./test-mcp";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -25,8 +22,7 @@ assert(
   /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),
   "Use a loopback Worker with DEV_EMAIL",
 );
-const output =
-  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-files-browser";
+const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-files-browser";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -35,7 +31,7 @@ const browser = await chromium.launch({
 const errors: string[] = [];
 const result: Record<string, unknown> = {
   scope:
-    "Incremental native Files panel against real local HTTP/R2/Book WebSockets. Native viewer is exercised for Markdown version selection; media/PDF/HTML and file-access acceptance are separate viewer gates.",
+    "Files panel against real local HTTP/R2/Book WebSockets. Viewer is exercised for Markdown version selection; media/PDF/HTML and file-access acceptance are separate viewer gates.",
   gaps: [
     "Uploads use the actual inferred Hono client and supported raw HTTP route, not drag/drop/paste UI.",
     "Folder/version verification uses the supported agents/ Markdown namespace. Arbitrary upload paths are flattened by storeFile; nested folder projection remains pure/DOM coverage.",
@@ -59,7 +55,7 @@ try {
   context.setDefaultNavigationTimeout(120_000);
   await context.addCookies([{ name: "vb_lang", value: "en", url: base }]);
   result.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     "Playwright transparently forwards actual client/server WebSocket payloads except deliberately delaying authentic pins frames; no payload rewriting, fabricated state, or claim of natural network ordering for that fault-injection step",
   ];
   const createRoom = async (title: string) => {
@@ -70,7 +66,7 @@ try {
     assert(response.ok(), `Create room ${response.status()}`);
     return z.object({ id: z.string() }).parse(await response.json()).id;
   };
-  const id = await createRoom("Native Files verification");
+  const id = await createRoom("Files verification");
   result.room = id;
   const page = await context.newPage();
   failedPage = page;
@@ -82,7 +78,7 @@ try {
     )
       errors.push(message.text());
   });
-  const agent = await nativeTestAgent(page, base);
+  const agent = await testAgent(page, base);
   // Reuse the application's typed upload API. The fetch adapter carries the real
   // browser-context session through Playwright; responses retain schema validation.
   const api = createRoomApi(id, async (input, init) => {
@@ -118,7 +114,7 @@ try {
   const newest = await upload(old.name, "Newest report body", old.type);
   const markdown = await upload(
     "agents/notes.md",
-    "# Native folder notes",
+    "# Folder notes",
     "text/markdown",
   );
   const rootOld = await upload("root-history.txt", "Root version one");
@@ -145,7 +141,7 @@ try {
       if (disconnected) {
         await socket.close({
           code: 1012,
-          reason: "native Files offline verification",
+          reason: "Files offline verification",
         });
         return;
       }
@@ -183,7 +179,7 @@ try {
   const pin = (fileID: string) => tile(fileID).locator("button[aria-pressed]");
   const openTile = (fileID: string) => tile(fileID).locator("button").first();
   const show = async () => {
-    await openNativeRoomPane(page, "files");
+    await openRoomPane(page, "files");
     await expect(panel).toBeVisible();
   };
   const canonicalPins = async () =>
@@ -250,7 +246,7 @@ try {
   await expect(tile(newest.id)).toBeVisible();
   await expect(tile(old.id)).toHaveCount(0);
   await expect(panel).toContainText(/2 (versions|versões)/);
-  step("Checking grouped versions and exact native viewer selection");
+  step("Checking grouped versions and exact viewer selection");
   await openTile(newest.id).click();
   await expect(viewer.locator("[data-file-id]")).toHaveAttribute(
     "data-file-id",
@@ -366,7 +362,7 @@ try {
     sockets
       .splice(0)
       .map((socket) =>
-        socket.close({ code: 1012, reason: "native Files verification" }),
+        socket.close({ code: 1012, reason: "Files verification" }),
       ),
   );
   const offlineAdds = count("pin.add");
@@ -390,7 +386,7 @@ try {
   assert((await canonicalPins()).some((p) => p.ref === latest.id));
 
   step(
-    "Checking desktop/mobile native markers, keyboard activation, overflow and scoped axe",
+    "Checking desktop/mobile markers, keyboard activation, overflow and scoped axe",
   );
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
@@ -433,7 +429,7 @@ try {
   step("Disposed old-room controls cannot open files in a new room");
   const disposed = await openTile(latest.id).elementHandle();
   assert(disposed);
-  const other = await createRoom("Native Files disposal verification");
+  const other = await createRoom("Files disposal verification");
   // Actual shell/Home links keep the document and old handle alive while the room mount disposes.
   await page.keyboard.press("Escape");
   await page.locator(".phHome").click();
@@ -462,7 +458,7 @@ try {
   };
   result.status = "pass";
   console.log(
-    "PASS native Files real HTTP history, full-index reconnect, exact viewer identity, pin ACK timeout/canonical retry, stale/disposed controls, offline recovery, desktop/mobile keyboard and scoped axe",
+    "PASS Files real HTTP history, full-index reconnect, exact viewer identity, pin ACK timeout/canonical retry, stale/disposed controls, offline recovery, desktop/mobile keyboard and scoped axe",
   );
 } catch (error) {
   result.status = "fail";

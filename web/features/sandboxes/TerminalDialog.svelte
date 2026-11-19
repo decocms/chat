@@ -113,7 +113,7 @@
       </p>
       <div
         tabindex="-1"
-        data-native-terminal-renderer
+        data-terminal-renderer
         data-terminal-phase={$view.phase}
         data-terminal-font={$view.semantic?.fontFamily}
         data-terminal-font-size={$view.semantic?.fontSize}

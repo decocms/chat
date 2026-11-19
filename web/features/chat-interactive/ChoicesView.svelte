@@ -76,7 +76,7 @@
     )}
     >{#if on}<Icon icon={Check} size={14} />{/if}{label}</span
   >{/snippet}
-<div data-native-choices class="space-y-2 font-sans text-sm text-foreground">
+<div data-choices class="space-y-2 font-sans text-sm text-foreground">
   {#if answer}<div class="flex flex-wrap gap-2">
       {#each choices.options as label}{@render option(
           label,

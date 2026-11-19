@@ -81,7 +81,7 @@ export function createDeferredModule<T>(
       generation++;
       clear();
       pending = null;
-      // A pending native import must not retain the departed room/account via
+      // A pending import must not retain the departed room/account via
       // the ownership predicate while its transport completes independently.
       current = () => false;
     },

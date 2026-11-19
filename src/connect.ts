@@ -2,7 +2,7 @@
 // /authorize signs the person in with the normal vibebook session and asks for consent; the grant's
 // props carry only their email. The app lists and revokes grants through /api/agents.
 import { reqLang } from "./lang";
-import { nativeAuthPage, consentLoginUrl } from "./native-page";
+import { authPage, consentLoginUrl } from "./auth-page";
 import {
   AuthorizationError,
   CimdFetchError,
@@ -81,13 +81,13 @@ connect.get("/authorize", async (c) => {
     const request = await oauth.parseAuthRequest(c.req.raw);
     // Validate the original request before serving the page. Its typed context GET creates the consent transaction.
     await oauth.describeConsent(request);
-    return nativeAuthPage(c.env, c.req.raw, "consent");
+    return authPage(c.env, c.req.raw, "consent");
   } catch (e) {
     if (
       (e instanceof AuthorizationError || e instanceof CimdFetchError) &&
       !(e instanceof AuthorizationError && e.redirectTo)
     )
-      return nativeAuthPage(c.env, c.req.raw, "consent", { status: 400 });
+      return authPage(c.env, c.req.raw, "consent", { status: 400 });
     return fail(c, e);
   }
 });
@@ -133,8 +133,8 @@ connect.post("/authorize", async (c) => {
         e instanceof AuthorizationError || e instanceof CimdFetchError;
       // Presentation only: the provider still owns all validation/consumption and success headers.
       // Keep unexpected failures visible in server logs without disclosing details in the browser.
-      if (!known) console.error("Native consent POST failed", e);
-      return nativeAuthPage(c.env, c.req.raw, "consent", {
+      if (!known) console.error("Consent POST failed", e);
+      return authPage(c.env, c.req.raw, "consent", {
         status: known ? 400 : 500,
         consentFailure: true,
       });
@@ -144,7 +144,7 @@ connect.post("/authorize", async (c) => {
 });
 
 // App side: which agents are connected, when each was last used, and revoke.
-/** The consent page's context for a native page (src/api.ts GET /api/authorize/context): the same parse, description and
+/** The consent page's context for the consent page (src/api.ts GET /api/authorize/context): the same parse, description and
  *  consent transaction as GET /authorize, on a request rebuilt at /authorize with the query unchanged (the library only
  *  accepts requests at its authorize endpoint). The transaction's binding cookie goes back with the answer; approving
  *  is still the form POST /authorize. A refused request answers its error, plus the client's error redirect when the

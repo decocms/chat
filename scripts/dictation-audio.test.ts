@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { createFireCaptureFactory } from "../web/features/composer/fireAudio";
 import { createDictationController } from "../web/features/composer/dictation";
-import { deferred, manualClock, settle } from "./native-home-fixtures";
+import { deferred, manualClock, settle } from "./home-fixtures";
 /** Native effects ports for the actual factory, not a mirrored capture owner. */
 function browserAudioFixture(
   options: {

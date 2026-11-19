@@ -18,13 +18,7 @@ import type {
   ApplicationRoomAdapter,
   ApplicationRoomIntent,
 } from "../web/features/application/types";
-import {
-  homeApi,
-  me,
-  manualClock,
-  settle,
-  deferred,
-} from "./native-home-fixtures";
+import { homeApi, me, manualClock, settle, deferred } from "./home-fixtures";
 
 function canonical(id = "aaaaaa", account = "me@test.com"): Room {
   return {

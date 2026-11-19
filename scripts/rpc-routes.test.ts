@@ -909,7 +909,7 @@ test("global middleware answers (401 signed out, 403 cross-site) are typed by gl
   expect(globalFailure({ status: 404 }, { error: "not found" })).toBeNull();
 });
 
-test("native raw-body adapters (icon, avatar) go through the typed routes and check the answers", async () => {
+test("raw-body adapters (icon, avatar) go through the typed routes and check the answers", async () => {
   const { createRoomApi, createAccountApi } =
     await import("../web/app/transport");
   const f = fixture();

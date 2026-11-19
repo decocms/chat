@@ -78,7 +78,7 @@
           ><Button
             variant="ghost"
             size="sm"
-            data-native-origin={origin.id}
+            data-origin-id={origin.id}
             onclick={() => actions.navigate(origin!.id, origin!.thread)}
             >{vb.t("ver na sala principal")} ↩</Button
           >
@@ -203,7 +203,7 @@
           </p>{/if}
       </div>{/if}
     {#if brief}<section
-        data-native-brief
+        data-brief
         aria-label={vb.t("O que precisa de mim aqui?")}
         class="mx-3 mt-4 space-y-1.5 rounded-surface border border-dashed border-border bg-muted/40 p-3"
       >

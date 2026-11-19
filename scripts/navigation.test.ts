@@ -35,7 +35,7 @@ const ids = (
   closed = new Set<string>(),
 ) => visibleEpics(forest, closed).map((row) => row.epic.id);
 
-describe("native epic navigation model", () => {
+describe("epic navigation model", () => {
   test("filtered or missing parents remain visible roots; siblings retain canonical order", () => {
     const forest = epicForest([
       epic("child", "parent"),

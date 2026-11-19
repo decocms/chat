@@ -12,7 +12,7 @@ mock.module("cloudflare:workers", () => ({
 const { readMcpAnswer, cspFor, mountConnections } =
   await import("../src/mcpconn");
 const { identify } = await import("../src/auth");
-const { nativeConnectionSignedOut } = await import("../src/native-page");
+const { connectionSignedOutPage } = await import("../src/auth-page");
 
 test("MCP JSON/batch and multiline SSE replies correlate exact ids and preserve arbitrary result values", async () => {
   const result = {
@@ -166,7 +166,7 @@ test("signin preserves membership/missing/rate HTTP failures using typed styled 
     expect(html).not.toContain("style=");
   }
 });
-test("native callback provider refusal/replayed state never echoes provider secrets or OAuth arguments", async () => {
+test("callback provider refusal/replayed state never echoes provider secrets or OAuth arguments", async () => {
   const fixture = routes();
   const response = await fixture.request(
     "/api/mcp-oauth/callback?state=PRIVATE_STATE&code=PRIVATE_CODE&error=access_denied&error_description=PRIVATE_PROVIDER_MESSAGE",
@@ -246,7 +246,7 @@ test("authorization preserves the fixed provider callback and exact stored rando
     fetching.mockRestore();
   }
 });
-test("signed-out native HTML connection navigation keeps401 before any OAuth handler or state access", async () => {
+test("signed-out HTML connection navigation keeps401 before any OAuth handler or state access", async () => {
   let reached = 0,
     database = 0;
   const env = {
@@ -265,7 +265,7 @@ test("signed-out native HTML connection navigation keeps401 before any OAuth han
   app.use("*", async (c, next) => {
     if (!(await identify(c)))
       return (
-        nativeConnectionSignedOut(c.env, c.req.raw) ??
+        connectionSignedOutPage(c.env, c.req.raw) ??
         c.json(UNAUTHENTICATED, 401)
       );
     await next();

@@ -23,7 +23,7 @@
     {...props}
     href={settingsHref()}
     data-nav
-    data-native-account-row
+    data-account-row
     aria-label={label}
     aria-current={current ? "page" : undefined}
     class={row

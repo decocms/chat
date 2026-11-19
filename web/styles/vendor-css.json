@@ -54,7 +54,7 @@
     },
     {
       "family": "xterm terminal rendering internals",
-      "scope": "[data-native-terminal-renderer] .xterm",
+      "scope": "[data-terminal-renderer] .xterm",
       "packages": [
         {
           "name": "@xterm/xterm",
@@ -91,7 +91,7 @@
         }
       ],
       "purpose": "Pinned dependency terminal input/IME, viewport, selection/accessibility, cell/cursor/scroll geometry and terminal-protocol rendering only; approved base semantic options resolve from Studio tokens.",
-      "verification": "Explicit maintainer approval 2026-11-13. Exact artifact digests are enforced; native terminal lifecycle, actual RGB/font/theme and PTY/browser gates remain required. Surrounding controls are atomic Tailwind."
+      "verification": "Explicit maintainer approval 2026-11-13. Exact artifact digests are enforced; terminal lifecycle, actual RGB/font/theme and PTY/browser gates remain required. Surrounding controls are atomic Tailwind."
     }
   ]
 }

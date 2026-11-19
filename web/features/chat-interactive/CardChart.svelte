@@ -142,7 +142,7 @@
     {/if}
   </figure>
 {/snippet}
-<div data-native-card-chart class="space-y-2">
+<div data-card-chart class="space-y-2">
   {#if inline}{@render figure()}{:else}<Dialog {open} {onOpenChange}>
       <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
         ><Icon icon={BarChartSquare02} size={16} />{chart.title ||

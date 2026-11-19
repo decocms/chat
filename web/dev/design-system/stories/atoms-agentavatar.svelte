@@ -8,7 +8,7 @@
   const SIZES = [16, 20, 24, 26, 32] as const;
 </script>
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "playground"}
     <AgentAvatar src={AGENT_FACE} size={26} alt="deco agent" />

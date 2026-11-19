@@ -123,7 +123,7 @@
 
 <section
   bind:this={root}
-  data-native-room-sidebar
+  data-room-sidebar-panel
   class={cn(
     studioType,
     "flex h-full min-h-[32rem] flex-col overflow-x-hidden bg-sidebar p-2 text-sm leading-5 text-sidebar-foreground",
@@ -149,7 +149,7 @@
       size="icon"><Icon icon={ArrowLeft} /></IconButton
     >
     {#if oninbox}<IconButton
-        data-native-inbox-toggle={onboard ? "" : undefined}
+        data-inbox-toggle={onboard ? "" : undefined}
         variant={inboxOpen ? "secondary" : "ghost"}
         aria-current={inboxOpen ? "page" : undefined}
         aria-pressed={onboard ? inboxOpen : undefined}
@@ -160,7 +160,7 @@
           if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
         }}><Icon icon={Inbox01} /></IconButton
       >{/if}{#if onboard}<IconButton
-        data-native-board-toggle
+        data-board-toggle
         variant={boardOpen ? "secondary" : "ghost"}
         aria-pressed={boardOpen}
         label={vb.t("Quadro de tarefas (kanban)")}
@@ -342,7 +342,7 @@
           <div data-room-views class="-mt-2.5 flex shrink-0 flex-col gap-0.5">
             {#if oninbox}<button
                 type="button"
-                data-native-inbox-toggle
+                data-inbox-toggle
                 aria-pressed={inboxOpen}
                 class={navRow()}
                 onclick={(event) => {
@@ -361,7 +361,7 @@
                   />{/if}</button
               >{/if}<button
               type="button"
-              data-native-board-toggle
+              data-board-toggle
               aria-pressed={boardOpen}
               class={navRow()}
               onclick={(event) => {

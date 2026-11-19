@@ -83,12 +83,9 @@
   }
 </script>
 
-<div
-  data-native-agent-banners
-  class="space-y-3 font-sans text-sm text-foreground"
->
+<div data-agent-banners class="space-y-3 font-sans text-sm text-foreground">
   {#if line}<div
-      data-native-agent-line
+      data-agent-line
       data-agent-status={status}
       role="status"
       class="flex items-center gap-2 border-b border-border bg-muted py-2.5 pr-2 pl-4 md:-mx-2"

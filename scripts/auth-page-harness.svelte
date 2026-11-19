@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Readable } from "svelte/store";
   import type { AuthApi } from "../web/features/auth/api";
-  import type { NativeAuthMetadata } from "../shared/nativeAuth";
+  import type { AuthPageMetadata } from "../shared/authPage";
   import AuthRoot from "../web/features/auth/AuthRoot.svelte";
   let {
     href,
@@ -10,7 +10,7 @@
     navigate,
   }: {
     href: Readable<string>;
-    page: NativeAuthMetadata["page"];
+    page: AuthPageMetadata["page"];
     api: AuthApi;
     navigate: (url: string) => void;
   } = $props();

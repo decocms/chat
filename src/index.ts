@@ -10,7 +10,7 @@ import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { roomAccess, roomMeta } from "./access";
 import { openDm } from "./dm";
-import { nativeAuthPage, nativeConnectionSignedOut } from "./native-page";
+import { authPage, connectionSignedOutPage } from "./auth-page";
 import { auth, authServices, EMAIL_RE, identify } from "./auth";
 import type { Book } from "./book";
 import { connect, providerFor } from "./connect";
@@ -232,7 +232,7 @@ app.get("/login", async (c) => {
   if ((await identify(c)) && !next) return c.redirect("/");
   if (c.req.query("error") === undefined && c.req.query("out") === undefined)
     return pageview(c, c.redirect(`/auth/studio/start${next ? `?next=${encodeURIComponent(next)}` : ""}`));
-  return pageview(c, await nativeAuthPage(c.env, c.req.raw, "login"));
+  return pageview(c, await authPage(c.env, c.req.raw, "login"));
 });
 // The app is the home page (Nov 2026: the landing left this repo). Signed out: the login.
 app.get("/", async (c) => {
@@ -260,8 +260,8 @@ app.get("/b/*", async (c) => {
   if (state === "member")
     return pageview(c, new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, title ?? ""), { html: true }); } }).transform(await shell(c)), email ?? undefined);
   const autoAccess = url.searchParams.has("pedir") && (c.req.header("referer") ?? "").startsWith(`${url.origin}/`);
-  const native = await nativeAuthPage(c.env, c.req.raw, "access", { autoAccess, status: state === "missing" ? 404 : 200 });
-  const res = native.status === 503 ? native : new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, state === "missing" ? null : title), { html: true }); } }).transform(native);
+  const page = await authPage(c.env, c.req.raw, "access", { autoAccess, status: state === "missing" ? 404 : 200 });
+  const res = page.status === 503 ? page : new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, state === "missing" ? null : title), { html: true }); } }).transform(page);
   return pageview(c, res, email ?? undefined);
 });
 
@@ -360,10 +360,10 @@ app.get("/.well-known/jwks.json", async (c) => c.json(await jwks(c.env), 200, { 
 app.use("*", async (c, next) => {
   const email = await identify(c);
   if (!email) {
-    const connection = nativeConnectionSignedOut(c.env, c.req.raw);
+    const connection = connectionSignedOutPage(c.env, c.req.raw);
     if (connection) return connection;
     const file = fileLink(c);
-    if (file && /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(new URL(c.req.url).pathname)) return nativeAuthPage(c.env, c.req.raw, "file-access", { status: 401 });
+    if (file && /^\/api\/books\/[a-z0-9]{6,40}\/files\/[0-9a-f]{1,64}$/.test(new URL(c.req.url).pathname)) return authPage(c.env, c.req.raw, "file-access", { status: 401 });
     return c.json(UNAUTHENTICATED, 401);
   }
   // The users row once per isolate, off the request path: a D1 write here cost every request a round trip.
@@ -476,7 +476,7 @@ mountAppDocumentFiles(app);
 app.get("/api/books/:id/files/:fid", async (c) => {
   const id = c.req.param("id");
   if (!(await isMember(c.env.DB, id, c.get("email")))) {
-    if (fileLink(c) && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param("fid"))) return nativeAuthPage(c.env, c.req.raw, "file-access", { status: 403 });
+    if (fileLink(c) && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param("fid"))) return authPage(c.env, c.req.raw, "file-access", { status: 403 });
     return c.json({ error: "forbidden" }, 403);
   }
   // Range: iOS Safari's <audio> plays only what answers 206 to a byte range (also lets any player seek).

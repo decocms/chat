@@ -80,7 +80,7 @@
   }
 </script>
 
-<div data-native-permission class="space-y-2 font-sans text-sm text-foreground">
+<div data-permission class="space-y-2 font-sans text-sm text-foreground">
   {#if answer}<p
       role="status"
       class="m-0 rounded-control border border-border bg-muted p-3"
@@ -96,11 +96,11 @@
     </p>
   {:else if actionable}<div class="flex flex-wrap gap-2">
       <Button
-        data-native-permission-value="Aprovar"
+        data-permission-value="Aprovar"
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
         onclick={(event) => select("Aprovar", event)}>{vb.t("Aprovar")}</Button
       ><Button
-        data-native-permission-value="Negar"
+        data-permission-value="Negar"
         variant="outline"
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
         onclick={(event) => select("Negar", event)}>{vb.t("Negar")}</Button

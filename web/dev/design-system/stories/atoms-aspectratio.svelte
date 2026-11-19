@@ -15,7 +15,7 @@
   </div>
 {/snippet}
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "default"}
     <div class="w-96">

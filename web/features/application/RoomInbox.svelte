@@ -119,7 +119,7 @@
 </script>
 
 <section
-  data-native-room-inbox
+  data-room-inbox
   aria-label={t("Caixa de entrada")}
   class="grid h-full min-h-0 min-w-0 grid-cols-1 overflow-auto bg-background font-sans text-foreground md:grid-cols-[minmax(0,1fr)_auto] md:overflow-hidden"
 >
@@ -149,7 +149,7 @@
         }}>{t("Todas")}</Button
       >
       <IconButton
-        data-native-room-inbox-close
+        data-room-inbox-close
         label={t("Fechar")}
         onclick={(event) => {
           void close(event);

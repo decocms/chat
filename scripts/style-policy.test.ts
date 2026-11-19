@@ -19,7 +19,7 @@ test("HTML parsing catches embedded styles and stylesheet links, including templ
   ).toEqual([]);
 });
 
-test("native component audit rejects style blocks, directives, markup and CSSOM bypasses", () => {
+test("component audit rejects style blocks, directives, markup and CSSOM bypasses", () => {
   for (const source of [
     '<div style="color:red"></div>',
     '<div style:color="red"></div>',

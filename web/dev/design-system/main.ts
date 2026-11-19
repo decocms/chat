@@ -11,8 +11,8 @@ type StoryModule = {
 const modules = import.meta.glob<StoryModule>("./stories/*.svelte");
 const parameters = new URLSearchParams(location.search);
 const [component = "", story = ""] = (parameters.get("id") ?? "").split("--");
-const root = document.getElementById("parity-root");
-if (!root) throw new Error("Missing parity root");
+const root = document.getElementById("story-root");
+if (!root) throw new Error("Missing story root");
 
 document.documentElement.classList.toggle(
   "dark",
@@ -39,5 +39,5 @@ if (!load) {
     document.body.classList.add("p-4");
   }
   mount(module.default, { target: root, props: { story } });
-  document.body.dataset.parityReady = "true";
+  document.body.dataset.storyReady = "true";
 }

@@ -41,7 +41,7 @@
 
 {#if $view.data && row}<button
     type="button"
-    data-native-agent-trigger
+    data-agent-trigger
     data-agent-status={mark.state}
     title={label}
     class="flex h-11 w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2.5 text-left font-sans text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
@@ -52,7 +52,7 @@
       ><AgentMark state={mark.state} count={mark.count} on={mark.on} /></span
     ><span class="min-w-0 flex-1 truncate">{label}</span></button
   >{:else if $view.data}<IconButton
-    data-native-agent-trigger
+    data-agent-trigger
     data-agent-status={mark.state}
     {label}
     tooltipSide="bottom"

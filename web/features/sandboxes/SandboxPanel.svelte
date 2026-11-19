@@ -114,10 +114,7 @@
   });
 </script>
 
-<section
-  data-native-sandboxes
-  class="space-y-4 font-sans text-sm text-foreground"
->
+<section data-sandboxes class="space-y-4 font-sans text-sm text-foreground">
   <div class="flex items-center gap-2">
     <Heading
       level={3}

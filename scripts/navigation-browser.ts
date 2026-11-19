@@ -8,11 +8,8 @@ import {
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
-import {
-  nativeBrowserFixtures,
-  openNativeSidebar,
-} from "./native-browser-fixtures";
-import { nativeTestAgent } from "./native-test-mcp";
+import { browserFixtures, openRoomSidebar } from "./browser-fixtures";
+import { testAgent } from "./test-mcp";
 import { AgentsResult, MeResult, PostMessageResult } from "../shared/schemas";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -22,15 +19,14 @@ assert(
   "Use a loopback test Worker",
 );
 const output =
-  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-navigation-browser";
+  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-navigation-browser";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox", "--disable-gpu"],
 });
 const result: Record<string, unknown> = {
-  scope:
-    "Incremental native epic navigation; not full native sidebar or production acceptance",
+  scope: "Epic navigation; not full sidebar or production acceptance",
 };
 const errors: string[] = [];
 let page: Page | undefined;
@@ -48,12 +44,12 @@ try {
   context.setDefaultNavigationTimeout(120_000);
   await context.addCookies([{ name: "vb_lang", value: "en", url: base }]);
   result.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     "real local OAuth/PKCE MCP agent creates nested epics through supported tools",
     "temporary browser-side WebSocket closure for rejected sends",
   ];
   const created = await context.request.post(`${base}/api/books`, {
-    data: { title: "Native epic navigation verification" },
+    data: { title: "Epic navigation verification" },
     headers: { origin: base },
   });
   assert(created.ok(), `Create room: ${created.status()}`);
@@ -70,7 +66,7 @@ try {
       errors.push(message.text());
   });
   step("Creating real nested epics through local OAuth and MCP");
-  const agent = await nativeTestAgent(page, base);
+  const agent = await testAgent(page, base);
   const newEpic = async (title: string, parent?: string) => {
     let message: number | undefined;
     if (parent) {
@@ -90,7 +86,7 @@ try {
       await agent("start_epic", {
         room_id: id,
         title,
-        why: "Verify the native hierarchy, navigation and persistence against real room state.",
+        why: "Verify the hierarchy, navigation and persistence against real room state.",
         tasks: [`Keep ${title} active`],
         ...(message ? { from_message_id: message } : { backlog: true }),
       }),
@@ -139,7 +135,7 @@ try {
   const row = (epic: string) => nav.locator(`li[data-epic="${epic}"]`);
   const title = (epic: string) => row(epic).locator("[data-epic-thread]");
   const show = async (region = nav) => {
-    await openNativeSidebar(current);
+    await openRoomSidebar(current);
     await expect(region).toBeAttached();
     await expect(region).toBeVisible();
   };
@@ -253,7 +249,7 @@ try {
       .locator("[data-epic-title]")
       .filter({ hasText: "Retained navigation draft" }),
   ).toBeVisible();
-  step("Checking responsive Studio tokens and native navigation accessibility");
+  step("Checking responsive Studio tokens and navigation accessibility");
   const audit = async (name: string, region = nav) => {
     await show(region);
     const theme = await region.evaluate((element) => {
@@ -356,7 +352,7 @@ try {
         {
           id: "readonly-presence-fixture",
           email: me.email,
-          name: "Native sandbox presence fixture",
+          name: "Sandbox presence fixture",
           state: "running",
           run_s: 0,
           rate: 0.13,
@@ -374,7 +370,7 @@ try {
   const sidebarHistoryLength = await page.evaluate(() => history.length);
   await page
     .locator("#side")
-    .getByRole("button", { name: /Native sandbox presence fixture/ })
+    .getByRole("button", { name: /Sandbox presence fixture/ })
     .click();
   await expect(page.locator(".book")).toHaveAttribute("data-sheet", "doc");
   await expect(page.locator("#agentsPane")).toBeVisible();
@@ -422,7 +418,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS native epic navigation: flat list, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
+    "PASS epic navigation: flat list, live draft state, archive, ordering/drag, persistence, disconnect/retry, responsive EN/PT axe",
   );
 } catch (error) {
   result.status = "fail";

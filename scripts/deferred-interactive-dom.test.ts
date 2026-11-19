@@ -149,7 +149,7 @@ test("late A import cannot mount A after a canonical message replacement, and lo
   await settle();
   expect(target.textContent).toContain("C");
   expect(
-    target.querySelector('[data-native-interactive-state="ready"]') !== null,
+    target.querySelector('[data-interactive-state="ready"]') !== null,
   ).toBe(true);
   expect(drafts).toHaveLength(0);
   expect(calls).toBe(2);
@@ -208,7 +208,7 @@ test("explicit import retry mounts current controls; account replacement suppres
   // the replacement canonical identity, never the original account's controls.
   expect(calls).toBe(3);
   expect(
-    target.querySelector('[data-native-interactive-state="ready"]') !== null,
+    target.querySelector('[data-interactive-state="ready"]') !== null,
   ).toBe(true);
   expect(target.textContent).not.toContain("offline");
 });

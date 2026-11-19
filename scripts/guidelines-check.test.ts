@@ -75,11 +75,11 @@ test("no style blocks, CSS imports or direct fetch", () => {
   expect(svelte("await window.fetch(url);", "web/a.ts")).toEqual(["fetch"]);
   expect(svelte("client.fetch(url); prefetch(x);", "web/a.ts")).toEqual([]);
   expect(svelte("// we never fetch( here", "web/a.ts")).toEqual([]);
-  // The gallery and parity pages are development tools, not the app.
+  // The gallery and design-system pages are development tools, not the app.
   expect(svelte("await fetch(url);", "web/dev/gallery/G.svelte")).toEqual([]);
 });
 
-test("atomic levels come from the parity stories", () => {
+test("atomic levels come from the design-system stories", () => {
   const files: Record<string, string> = {
     "web/dev/design-system/stories/atoms-button.svelte":
       'import Button from "../../../lib/studio/Button.svelte";',

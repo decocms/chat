@@ -166,10 +166,9 @@
                       void controller.creator.submit(binding);
                     }}
                   >
-                    <Label for="native-new-room">{text("createLabel")}</Label
-                    ><Textarea
+                    <Label for="new-room">{text("createLabel")}</Label><Textarea
                       bind:ref={createInput}
-                      id="native-new-room"
+                      id="new-room"
                       rows={4}
                       placeholder={text("createPlaceholder")}
                       value={$draft.create}
@@ -258,8 +257,8 @@
               </div>
             </fieldset>
             <div class="space-y-2">
-              <Label for="native-room-icon">{text("icon")}</Label><input
-                id="native-room-icon"
+              <Label for="room-icon">{text("icon")}</Label><input
+                id="room-icon"
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
                 disabled={imageBusy || !!$mutations.pending[`icon:${room.id}`]}
@@ -380,9 +379,9 @@
                 void controller.rename();
               }}
             >
-              <Label for="native-room-name">{text("name")}</Label><Input
+              <Label for="room-name">{text("name")}</Label><Input
                 bind:ref={renameInput}
-                id="native-room-name"
+                id="room-name"
                 required
                 maxlength={120}
                 value={$nav.renameDraft}

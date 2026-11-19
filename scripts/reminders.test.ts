@@ -52,7 +52,7 @@ function clock() {
   };
 }
 
-describe("native reminder session", () => {
+describe("reminder session", () => {
   test("enable waits for ACK and canonical state; rejected/offline requests remain unchanged", async () => {
     const s = createRemindersSession("room");
     s.sync([reminder]);

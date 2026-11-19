@@ -24,7 +24,7 @@
   const ROWS = ["Site", "Sales app", "Blog", "Landing pages"] as const;
 </script>
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "playground"}
     <ProjectIcon color="blue" size="default"

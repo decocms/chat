@@ -50,10 +50,7 @@
   }
 </script>
 
-<section
-  data-native-agents
-  class="space-y-5 p-4 font-sans text-sm text-foreground"
->
+<section data-agents class="space-y-5 p-4 font-sans text-sm text-foreground">
   <div class="flex items-center gap-2">
     <Heading
       level={2}
@@ -214,7 +211,7 @@
   <a
     href={settingsHref("cloud", owner.roomId)}
     data-nav
-    data-native-cloud-settings
+    data-cloud-settings
     class={buttonVariants({ variant: "outline", class: "no-underline" })}
     >☁ {settingsText(lang, "cloud")}</a
   >

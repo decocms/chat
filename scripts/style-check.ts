@@ -15,7 +15,6 @@ import {
   type StyleViolation,
 } from "./style-policy";
 
-const native = process.argv.includes("--native");
 const issues: StyleViolation[] = [];
 const files: string[] = [];
 async function collect(path: string) {
@@ -28,69 +27,8 @@ async function collect(path: string) {
       files.push(name);
   }
 }
-if (native) {
-  for (const directory of [
-    "web/app-document",
-    "web/lib/ui",
-    "web/lib/studio",
-    "web/dev/design-system",
-    "web/lib/components",
-    "web/dev/gallery",
-    "web/styles",
-    "web/features/board",
-    "web/features/navigation",
-    "web/features/pins",
-    "web/features/reminders",
-    "web/features/files",
-    "web/features/decisions",
-    "web/features/people",
-    "web/features/auth",
-    "web/features/pwa",
-    "web/features/notifications",
-    "web/features/chat",
-    "web/features/rich-text",
-    "web/features/chat-interactive",
-    "web/features/home",
-    "web/features/onboarding",
-    "web/features/app-navigation",
-    "web/features/rooms",
-    "web/features/documents",
-    "web/features/account",
-    "web/features/agents",
-    "web/features/sandboxes",
-    "web/features/file-viewer",
-    "web/features/composer",
-    "web/features/room-sidebar",
-    "web/features/waits",
-    "web/features/apps",
-    "web/features/room-layout",
-    "web/features/application",
-    "web/features/room-shell",
-  ])
-    await collect(directory);
-  files.push(
-    "web/features/application/Inbox.svelte",
-    "web/features/tasks/TaskList.svelte",
-    "web/features/tasks/Tasks.svelte",
-    "web/features/board/Board.svelte",
-    "web/features/files/Files.svelte",
-    "web/features/reminders/Reminders.svelte",
-    "web/features/decisions/Decisions.svelte",
-    "web/features/people/People.svelte",
-    "web/features/room-sidebar/Sidebar.svelte",
-    "web/app/sidebar.ts",
-    "web/features/chat/Chat.svelte",
-    "web/features/composer/Composer.svelte",
-    "web/features/chat/Message.svelte",
-    "web/app/chatTypes.ts",
-    "web/styles.ts",
-    "web/dev/gallery.html",
-    "web/dev/design-system.html",
-  );
-} else {
-  await collect("web");
-  files.push("public/app.html");
-}
+await collect("web");
+files.push("public/app.html");
 for (const file of files.sort()) {
   const source = await readFile(join(projectRoot, file), "utf8");
   if (file.endsWith(".d.ts")) continue;
@@ -287,11 +225,9 @@ for (const entry of vendor.entries) {
 if (issues.length) {
   for (const issue of issues)
     console.error(`${issue.file}:${issue.line}: ${issue.reason}`);
-  console.error(
-    `FAIL ${native ? "native increment" : "full application"} style policy: ${issues.length} violations`,
-  );
+  console.error(`FAIL style policy: ${issues.length} violations`);
   process.exitCode = 1;
 } else
   console.log(
-    `PASS ${native ? "native increment only (full M3 remains pending)" : "full application"} style policy: ${files.length} sources, one emitted CSS asset, font integrity verified`,
+    `PASS style policy: ${files.length} sources, one emitted CSS asset, font integrity verified`,
   );

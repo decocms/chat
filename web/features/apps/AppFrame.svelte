@@ -6,7 +6,7 @@
   import type { AppsProps, AppBridgeModule } from "./types";
   import { AppsFailure } from "./api";
   import { appIdentity, roomApps, signinUrl } from "./model";
-  import type { NativeAppBridge } from "./bridge";
+  import type { RoomAppBridge } from "./bridge";
   import { createAppConsent, type AppQuestion } from "./consent";
   import { createAppRequests } from "./requests";
   import { appDocumentAction } from "./documentAction";
@@ -33,7 +33,7 @@
   const view = untrack(() => props.owner.state),
     requests = createAppRequests();
   let frame: HTMLIFrameElement | undefined = $state(),
-    bridge: NativeAppBridge | null = null,
+    bridge: RoomAppBridge | null = null,
     protocol: AppBridgeModule | null = null,
     active = true,
     error = $state(""),
@@ -212,7 +212,7 @@
             (error) =>
               toolError(error instanceof Error ? error.message : "Tool failed"),
           );
-      bridge = protocol.createNativeAppBridge({
+      bridge = protocol.createRoomAppBridge({
         frame,
         current,
         revoked: () => {
@@ -299,7 +299,7 @@
   });
 </script>
 
-<div data-native-app-frame class="flex min-h-0 flex-1 flex-col gap-2">
+<div data-app-frame class="flex min-h-0 flex-1 flex-col gap-2">
   {#if loading}<p role="status" class="p-3 text-sm text-muted-foreground">
       {props.t("Carregando…")}
     </p>{/if}

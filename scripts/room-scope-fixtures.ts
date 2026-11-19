@@ -8,7 +8,7 @@ import type {
 } from "../web/features/room-layout/types";
 import type { HomeApi } from "../web/features/home/api";
 import { shellFixture } from "./application-shell-fixtures";
-import { settle } from "./native-home-fixtures";
+import { settle } from "./home-fixtures";
 import type { RoomTarget } from "../web/features/home/model";
 import type { PwaService } from "../web/features/pwa/service";
 import type { PushState } from "../web/features/notifications/reconcile";

@@ -6,7 +6,7 @@ import type { Readable } from "svelte/store";
 import type { ConnectionMode } from "./directTypes";
 export type AppBridgeModule = Pick<
   typeof import("./bridge"),
-  "createNativeAppBridge" | "appToolInfo" | "remoteToolResult"
+  "createRoomAppBridge" | "appToolInfo" | "remoteToolResult"
 >;
 export type AppsProps = {
   /** Put a prompt for your Claude in the composer (the empty tab's "Ask your Claude"). */

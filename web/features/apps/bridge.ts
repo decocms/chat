@@ -12,7 +12,7 @@ import {
 import { OpaqueAppTransport } from "./transport";
 import { safeOpenLink } from "./model";
 import { toolError, type AppAsk } from "./tools";
-export type NativeAppBridgeOptions = {
+export type RoomAppBridgeOptions = {
   frame: HTMLIFrameElement;
   current(): boolean;
   context(): McpUiHostContext;
@@ -29,7 +29,7 @@ export type NativeAppBridgeOptions = {
   revoked?(): void;
 };
 /** The installed SDK owns negotiation, request schemas and protocol lifecycle. Host policy owns capabilities and scope. */
-export function createNativeAppBridge(options: NativeAppBridgeOptions) {
+export function createRoomAppBridge(options: RoomAppBridgeOptions) {
   let active = true,
     initialized = false,
     inflight = 0,
@@ -176,7 +176,7 @@ export function createNativeAppBridge(options: NativeAppBridgeOptions) {
     },
   };
 }
-export type NativeAppBridge = ReturnType<typeof createNativeAppBridge>;
+export type RoomAppBridge = ReturnType<typeof createRoomAppBridge>;
 
 export const remoteToolResult = (value: unknown) =>
   CallToolResultSchema.parse(value);

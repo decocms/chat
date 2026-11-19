@@ -74,7 +74,7 @@
 </script>
 
 <section
-  data-native-agent-settings
+  data-agent-settings
   class="space-y-3 font-sans text-sm tracking-normal [font-variation-settings:normal] text-foreground"
 >
   {#if !$view.grants && $view.loading}<p

@@ -58,7 +58,7 @@ function fixture(): ChunkDiagnostic {
         false,
         ["Button.js"],
         ["editor.js"],
-        [module("project:web/NativeApplication.svelte", null, 100)],
+        [module("project:web/Application.svelte", null, 100)],
       ),
       asset(
         "Button.js",
@@ -86,10 +86,10 @@ function fixture(): ChunkDiagnostic {
         id: "project:web/main.ts",
         isEntry: true,
         staticImports: [],
-        dynamicImports: ["project:web/NativeApplication.svelte"],
+        dynamicImports: ["project:web/Application.svelte"],
       },
       {
-        id: "project:web/NativeApplication.svelte",
+        id: "project:web/Application.svelte",
         isEntry: false,
         staticImports: ["npm:@modelcontextprotocol/sdk@1.7.4/schema.js"],
         dynamicImports: ["npm:codemirror@1.7.4/editor.js"],
@@ -136,7 +136,7 @@ test("actual observed dynamic startup attributes modules/packages rather than mi
   expect(actual.loadedBeyondBootstrapStatic).toEqual(["mount.js", "Button.js"]);
   expect(actual.largestModules[0].sourceImportWitness).toEqual([
     { id: "project:web/main.ts", via: "entry" },
-    { id: "project:web/NativeApplication.svelte", via: "dynamic" },
+    { id: "project:web/Application.svelte", via: "dynamic" },
     { id: "npm:@modelcontextprotocol/sdk@1.7.4/schema.js", via: "static" },
   ]);
   expect(actual.selectedAssets.reduce((n, a) => n + a.gzipBytes, 0)).toBe(300);

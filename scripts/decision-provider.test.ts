@@ -12,11 +12,8 @@ import {
   reviewModelAnswer,
   startReviewModelFixture,
   REVIEW_FIXTURE_MODEL,
-} from "./native-review-model-fixture";
-import {
-  appProbeDocument,
-  REVIEW_DENY_DOCUMENT,
-} from "./native-app-probe-documents";
+} from "./review-model-fixture";
+import { appProbeDocument, REVIEW_DENY_DOCUMENT } from "./app-probe-documents";
 mock.module("cloudflare:workers", () => ({
   DurableObject: class {},
   WorkerEntrypoint: class {},

@@ -43,7 +43,7 @@ function clock() {
     },
   };
 }
-describe("native decisions", () => {
+describe("decisions", () => {
   test("presentation reverses server order without mutating canonical data", () => {
     const list = [decision, { ...decision, id: 8 }];
     expect(decisionRows(list).map((d) => d.id)).toEqual([8, 7]);

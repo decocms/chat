@@ -64,7 +64,7 @@ function draft(roomId = "room-a") {
   return { session, commands, outcomes, request, send };
 }
 
-describe("native pinned target resolution", () => {
+describe("pinned target resolution", () => {
   test("normalizes HTTP links and rejects executable or malformed links", () => {
     expect(normalizePinLink(" example.com/docs ")).toBe(
       "https://example.com/docs",
@@ -160,7 +160,7 @@ describe("native pinned target resolution", () => {
   });
 });
 
-describe("native pin correlated mutation session", () => {
+describe("pin correlated mutation session", () => {
   test("locks synchronously and requests exactly once, even before the first await", async () => {
     const { session, commands, outcomes, request } = draft();
     const attempt = submitPinDraft(session, "room-a", request);
@@ -416,7 +416,7 @@ describe("native pin correlated mutation session", () => {
   });
 });
 
-describe("native pinned-file Boolean metadata bridge", () => {
+describe("pinned-file Boolean metadata bridge", () => {
   test("partial metadata loads once, resolves canonically and supports explicit reconnect retry", () => {
     const { session, commands, send } = draft();
     const room = {

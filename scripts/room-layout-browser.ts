@@ -74,7 +74,7 @@ try {
       for (const record of records)
         if (
           record.target instanceof Element &&
-          record.target.closest("[data-native-room-layout]")
+          record.target.closest("[data-room-layout]")
         )
           changes.push(record.target.tagName);
     }).observe(document, {
@@ -91,11 +91,11 @@ try {
     waitUntil: "domcontentloaded",
     timeout: 90_000,
   });
-  await expect(page.locator("[data-native-room-layout]")).toBeVisible();
+  await expect(page.locator("[data-room-layout]")).toBeVisible();
   report.htmlVersionMarker = await page
     .locator('meta[name="vb-v"]')
     .getAttribute("content");
-  const root = page.locator("[data-native-room-layout]"),
+  const root = page.locator("[data-room-layout]"),
     slider = page.getByRole("slider", { name: "Document width" }),
     documentCell = page.locator("[data-room-document]"),
     board = page.locator("[data-layout-fixture-board]"),
@@ -277,7 +277,7 @@ try {
   await expect.poll(hasSheetEntry).toBe(false);
   checkpoint("mobile/full-board-to-desktop-pane");
   await page.getByRole("button", { name: "Full Board", exact: true }).click();
-  await expect(page.locator("[data-native-room-layout]")).toHaveAttribute(
+  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
     "data-board-full",
     "true",
   );
@@ -290,11 +290,11 @@ try {
     true,
   );
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(page.locator("[data-native-room-layout]")).toHaveAttribute(
+  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
     "data-board-full",
     "false",
   );
-  await expect(page.locator("[data-native-room-layout]")).toHaveAttribute(
+  await expect(page.locator("[data-room-layout]")).toHaveAttribute(
     "data-pane",
     "board",
   );
@@ -445,9 +445,9 @@ try {
   await page.goto(`${base}/app?gallery=1&probe=room-layout&capacity=1`, {
     waitUntil: "domcontentloaded",
   });
-  const capacityRoot = page.locator("[data-native-room-layout]");
+  const capacityRoot = page.locator("[data-room-layout]");
   await expect(capacityRoot).toBeVisible();
-  await expect(page.locator("[data-native-agent-setup]")).toBeVisible();
+  await expect(page.locator("[data-setup-instructions]")).toBeVisible();
   await expect(capacityRoot).not.toHaveAttribute("data-sheet", /.+/);
   await expect(capacityRoot).toHaveAttribute("data-board-full", "false");
   await expect
@@ -484,7 +484,7 @@ try {
         root: geometry(root),
         viewport: geometry(root.firstElementChild),
         attention: geometry(root.querySelector("[data-room-attention]")),
-        setup: geometry(root.querySelector("[data-native-agent-setup]")),
+        setup: geometry(root.querySelector("[data-setup-instructions]")),
         document: geometry(root.querySelector("[data-room-document]")),
         chat: geometry(root.querySelector("[data-room-chat]")),
         composer: geometry(root.querySelector("[data-room-composer]")),
@@ -499,10 +499,10 @@ try {
   report.mobileCapacity = capacityEvidence;
   // Real snippet dismissal isolates attention size without changing geometry or DOM styles.
   await page.getByRole("button", { name: "Setup notice", exact: true }).click();
-  await expect(page.locator("[data-native-agent-setup]")).toHaveCount(0);
+  await expect(page.locator("[data-setup-instructions]")).toHaveCount(0);
   capacityEvidence.withoutSetup = await capacity();
   await page.getByRole("button", { name: "Setup notice", exact: true }).click();
-  await expect(page.locator("[data-native-agent-setup]")).toBeVisible();
+  await expect(page.locator("[data-setup-instructions]")).toBeVisible();
   // Use the real desktop visibility action, then return to the identical phone viewport.
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(

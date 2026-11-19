@@ -12,7 +12,7 @@ import * as z from "zod/mini";
 import { InboxResult, MeResult, OkResult } from "../shared/schemas";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
-/** Controlled HTTP response fixtures exercise actual native owners and UI.
+/** Controlled HTTP response fixtures exercise actual owners and UI.
  * Rooms/messages/auth/storage are real Worker operations; Inbox projections and
  * held/error responses are explicitly controlled, not backend query acceptance. */
 export async function auditDesignSystemInbox(
@@ -192,9 +192,9 @@ export async function auditDesignSystemInbox(
     await page.route("**/api/inbox", inboxRoute);
     await page.route(meUrl, meRoute);
     await page.route("**/api/waits/resolve", resolveRoute);
-    const trigger = page.locator("[data-native-inbox-toggle]");
-    const roomInbox = page.locator("[data-native-room-inbox]");
-    const composer = page.locator("[data-native-composer] textarea");
+    const trigger = page.locator("[data-inbox-toggle]");
+    const roomInbox = page.locator("[data-room-inbox]");
+    const composer = page.locator("[data-composer] textarea");
     const roomUrl = `${base}/b/${first.id}`;
     async function enterRoom() {
       await page.goto(roomUrl);
@@ -265,7 +265,7 @@ export async function auditDesignSystemInbox(
       path: `${output}/room-inbox-390.png`,
       fullPage: true,
     });
-    const close = roomInbox.locator("[data-native-room-inbox-close]");
+    const close = roomInbox.locator("[data-room-inbox-close]");
     await close.focus();
     await page.keyboard.press("Enter");
     await expect(roomInbox).toHaveCount(0);
@@ -300,7 +300,7 @@ export async function auditDesignSystemInbox(
     await expect(
       roomInbox.getByRole("button", { name: "Resolved", exact: true }),
     ).toBeEnabled();
-    await roomInbox.locator("[data-native-room-inbox-close]").click();
+    await roomInbox.locator("[data-room-inbox-close]").click();
     await expect(trigger).toBeFocused();
     result.phases.push(result.phase);
 

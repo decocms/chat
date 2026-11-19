@@ -256,7 +256,7 @@
   function dismissedByRow(event: PointerEvent) {
     if (
       event.target instanceof Element &&
-      event.target.closest("[data-native-pins] [data-pin-id]")
+      event.target.closest("[data-pins] [data-pin-id]")
     )
       dismissedAt = performance.now();
   }
@@ -426,7 +426,7 @@
   aria-labelledby={`pins-title-${room.id}`}
   bind:this={sectionElement}
   tabindex="-1"
-  data-native-pins
+  data-pins
 >
   <SectionHeader id={`pins-title-${room.id}`} title={t("Fixados")}>
     {#snippet action()}{#if !$pinState.adding}<IconButton

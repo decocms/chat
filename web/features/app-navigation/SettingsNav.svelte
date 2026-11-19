@@ -36,7 +36,7 @@
 </script>
 
 <nav
-  data-native-settings-nav
+  data-settings-nav
   aria-label={settingsText(lang, "title")}
   class="flex flex-col gap-0.5"
 >

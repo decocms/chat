@@ -9,10 +9,10 @@ import {
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
 import {
-  nativeBrowserFixtures,
-  nativeTaskRegion,
-  showNativeTasks,
-} from "./native-browser-fixtures";
+  browserFixtures,
+  tasksRegion,
+  openTasksPanel,
+} from "./browser-fixtures";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -20,15 +20,14 @@ assert(
   /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),
   "Use a local test Worker",
 );
-const output =
-  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-tasks-browser";
+const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-tasks-browser";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox", "--disable-gpu"],
 });
 const result: Record<string, unknown> = {
-  scope: "Native task panel, not full feature parity/production acceptance",
+  scope: "Task panel; not production acceptance",
 };
 const errors: string[] = [];
 let failedPage: Page | undefined;
@@ -46,12 +45,12 @@ try {
   context.setDefaultTimeout(60_000);
   context.setDefaultNavigationTimeout(120_000);
   result.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     "temporary room WebSocket closure for failed-send checks",
     "unfinished control task keeps the epic active during completion toggles",
   ];
   const created = await context.request.post(`${base}/api/books`, {
-    data: { title: "Native task verification" },
+    data: { title: "Task verification" },
     headers: { origin: base },
   });
   assert(created.ok(), `Create test room: ${created.status()}`);
@@ -87,8 +86,8 @@ try {
     .filter({ hasText: "Task workflow" });
   await expect(epic).toBeVisible();
   await epic.click();
-  const taskRegion = nativeTaskRegion(page);
-  const showTasks = () => showNativeTasks(page);
+  const taskRegion = tasksRegion(page);
+  const showTasks = () => openTasksPanel(page);
   await showTasks();
   const draft = taskRegion.getByRole("textbox", {
     name: "new task",
@@ -104,26 +103,24 @@ try {
       exact: true,
     }),
   ).toBeVisible();
-  await draft.fill("Verified native task");
+  await draft.fill("Verified task");
   await taskRegion
     .getByRole("button", { name: "New task", exact: true })
     .click();
   const task = taskRegion
     .locator("[data-task]")
-    .filter({ hasText: "Verified native task" });
+    .filter({ hasText: "Verified task" });
   await expect(task).toBeVisible();
   const taskID = await task.getAttribute("data-task");
   assert(taskID && /^[a-z0-9]+$/.test(taskID), "Invalid fixture task id");
   const row = taskRegion.locator(`[data-task="${taskID}"]`);
-  step("Native tasks created through UI; checking edits");
-  await row
-    .getByRole("button", { name: "Verified native task", exact: true })
-    .click();
+  step("Tasks created through UI; checking edits");
+  await row.getByRole("button", { name: "Verified task", exact: true }).click();
   const edit = row.locator("[data-task-edit]");
-  await edit.fill("Renamed native task");
+  await edit.fill("Renamed task");
   await edit.press("Enter");
   await expect(
-    row.getByRole("button", { name: "Renamed native task", exact: true }),
+    row.getByRole("button", { name: "Renamed task", exact: true }),
   ).toBeVisible();
   const checkbox = row.getByRole("checkbox", { name: "Done", exact: true });
   await checkbox.click();
@@ -188,7 +185,7 @@ try {
     assert.equal(
       theme.actual,
       theme.expected,
-      "Native task surface leaked legacy background",
+      "Task surface leaked a background",
     );
     assert(theme.family.includes("Inter var"));
     result[`${name}Theme`] = theme;
@@ -252,9 +249,7 @@ try {
   await expect(draft).toHaveValue("Preserved disconnected draft");
   await owner.selectOption("");
   await expect(owner).toHaveValue(self);
-  await row
-    .getByRole("button", { name: "Renamed native task", exact: true })
-    .click();
+  await row.getByRole("button", { name: "Renamed task", exact: true }).click();
   await edit.fill("Preserved disconnected rename");
   await edit.press("Enter");
   await expect(edit).toHaveValue("Preserved disconnected rename");
@@ -299,7 +294,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS native tasks: create/rename/toggle/owner/due/delete, persistence, modal handoff, responsive axe, disconnect retention/retry",
+    "PASS tasks: create/rename/toggle/owner/due/delete, persistence, modal handoff, responsive axe, disconnect retention/retry",
   );
 } catch (error) {
   result.status = "fail";
