@@ -64,10 +64,11 @@ async function encrypt(payload: Bytes, sub: Sub): Promise<Bytes> {
 type Sub = { endpoint: string; p256dh: string; auth: string };
 export type Push = { title: string; body: string; url: string; tag: string };
 
-/** Send to every device these people subscribed. Dead endpoints (404/410) are dropped. No keys = no-op. */
-export async function pushTo(env: Env, emails: string[], p: Push) {
+/** Send to every device these people subscribed (with `endpoint`, to that one only). Dead endpoints (404/410) are dropped. No keys = no-op. */
+export async function pushTo(env: Env, emails: string[], p: Push, endpoint?: string) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !emails.length) return 0;
-  const subs = (await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM push_subs WHERE email IN (${emails.map(() => "?").join(",")})`).bind(...emails).all<Sub>()).results;
+  const only = endpoint ? ` AND endpoint = ?` : "";
+  const subs = (await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM push_subs WHERE email IN (${emails.map(() => "?").join(",")})${only}`).bind(...emails, ...(endpoint ? [endpoint] : [])).all<Sub>()).results;
   const body = enc(JSON.stringify({ ...p, title: p.title.slice(0, 120), body: p.body.slice(0, 240) }));
   let sent = 0;
   await Promise.all(subs.map(async (s) => {

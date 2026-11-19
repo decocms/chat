@@ -5,6 +5,16 @@ import { createPushReconciler } from "../notifications/reconcile";
 import { notificationPolicy } from "../notifications/policy";
 import { createChime } from "../notifications/audio";
 import {
+  NOTIFY_KEY,
+  SOUND_KEY,
+  deviceStorage,
+  enableDeviceNotifications,
+  readDeviceAlerts,
+  saveDeviceAlert,
+  type EnableOutcome,
+  type Permission,
+} from "../notifications/device";
+import {
   installEvent,
   installOutcome,
   platform,
@@ -17,21 +27,25 @@ import {
   pushRegistration,
   keyBytes,
 } from "./registration";
+const currentPermission = (): Permission =>
+  "Notification" in window ? Notification.permission : "unsupported";
+const pushSupported = () =>
+  "serviceWorker" in navigator && "PushManager" in window;
 export function createPwaService() {
+  const storage = deviceStorage();
   const state = writable({
     ...platform(),
-    permission:
-      "Notification" in window
-        ? Notification.permission
-        : ("unsupported" as NotificationPermission | "unsupported"),
-    muted: stored("vb.mute"),
+    pushSupported: pushSupported(),
+    permission: currentPermission(),
+    // This device's two switches (see notifications/device.ts).
+    ...readDeviceAlerts(storage, currentPermission()),
     dismissed: stored("vb.pwaOff"),
     canInstall: false,
     steps: false,
     installBusy: false,
     error: "",
-    sent: null as number | null,
-    testing: false,
+    /** The Notifications switch is turning on: permission, subscription, test. */
+    enabling: false,
   });
   const api = createPushApi();
   const endpointApi = withPushEndpointLock(api);
@@ -62,18 +76,15 @@ export function createPwaService() {
     installed = false,
     install: InstallEvent | null = null;
   const observed = new Set<string>();
-  const supported = () =>
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    !get(state).iosWeb;
+  const supported = () => pushSupported() && !get(state).iosWeb;
   const refresh = () => {
     if (active)
       state.update((value) => ({
         ...value,
         ...platform(),
         standalone: installed || platform().standalone,
-        permission:
-          "Notification" in window ? Notification.permission : "unsupported",
+        pushSupported: pushSupported(),
+        permission: currentPermission(),
       }));
   };
   const sync = () => {
@@ -81,13 +92,22 @@ export function createPwaService() {
     if (!active || !account || leaving || !supported())
       return Promise.resolve();
     const value = get(state);
-    return push.set(account, value.permission === "granted" && !value.muted);
+    // The push endpoint exists only while the Notifications switch is on.
+    return push.set(
+      account,
+      value.permission === "granted" && value.notifications,
+    );
   };
-  const storage = (event: StorageEvent) => {
-    if (event.key !== "vb.mute" && event.key !== "vb.pwaOff") return;
+  const storageChange = (event: StorageEvent) => {
+    if (
+      event.key !== NOTIFY_KEY &&
+      event.key !== SOUND_KEY &&
+      event.key !== "vb.pwaOff"
+    )
+      return;
     state.update((value) => ({
       ...value,
-      muted: stored("vb.mute"),
+      ...readDeviceAlerts(storage, value.permission),
       dismissed: stored("vb.pwaOff"),
     }));
     void sync();
@@ -111,7 +131,7 @@ export function createPwaService() {
     coarse = matchMedia("(pointer: coarse)");
   window.addEventListener("beforeinstallprompt", beforeInstall);
   window.addEventListener("appinstalled", appInstalled);
-  window.addEventListener("storage", storage);
+  window.addEventListener("storage", storageChange);
   document.addEventListener("visibilitychange", visible);
   display.addEventListener("change", refresh);
   coarse.addEventListener("change", refresh);
@@ -132,50 +152,87 @@ export function createPwaService() {
       account = email;
       accountRevision++;
       observed.clear();
-      state.update((value) => ({ ...value, sent: null, testing: false }));
+      state.update((value) => ({ ...value, enabling: false, error: "" }));
       void sync();
     },
     refresh: sync,
-    retry() {
-      void sync();
-    },
-    mute(muted: boolean) {
+    /** The Notifications switch. On: ask, subscribe, send a test. Off: remove this device's endpoint. */
+    async setNotifications(on: boolean) {
       if (!active || leaving) return;
-      const persisted = store("vb.mute", muted);
+      if (!on) {
+        const persisted = saveDeviceAlert(storage, NOTIFY_KEY, false);
+        state.update((value) => ({
+          ...value,
+          notifications: false,
+          enabling: false,
+          error: persisted ? "" : "storage",
+        }));
+        await sync();
+        return;
+      }
+      if (get(state).enabling) return;
+      const epoch = accountRevision;
+      const live = () => active && !leaving && epoch === accountRevision;
+      state.update((value) => ({ ...value, enabling: true, error: "" }));
+      let outcome: EnableOutcome;
+      try {
+        outcome = await enableDeviceNotifications({
+          permission: currentPermission,
+          request: () => Notification.requestPermission(),
+          save: () => {
+            const persisted = saveDeviceAlert(storage, NOTIFY_KEY, true);
+            state.update((value) => ({
+              ...value,
+              permission: currentPermission(),
+              notifications: true,
+              error: persisted ? "" : "storage",
+            }));
+          },
+          subscribe: async () => {
+            await sync();
+            return get(push.state).status;
+          },
+          wanted: () => live() && get(state).notifications,
+          endpoint: async () => {
+            const reg = await existingPushRegistration();
+            return (await reg?.pushManager.getSubscription())?.endpoint ?? null;
+          },
+          test: async (endpoint) => (await api.test(endpoint)).sent,
+        });
+      } catch {
+        outcome = "failed";
+      }
+      if (!active) return;
+      refresh();
       state.update((value) => ({
         ...value,
-        muted,
-        error: persisted ? "" : "storage",
+        enabling: false,
+        error:
+          live() && outcome === "failed" && value.notifications
+            ? "enable"
+            : value.error === "storage"
+              ? "storage"
+              : "",
       }));
-      if (!muted) {
+    },
+    /** "Try again" after a failed turn-on: the same path; the switch stays on. */
+    retry() {
+      if (get(state).notifications) void this.setNotifications(true);
+      else void sync();
+    },
+    /** The Sound switch (the in-app chime). Turning it on plays the chime once; that click unlocks audio. */
+    setSound(on: boolean) {
+      if (!active || leaving) return;
+      const persisted = saveDeviceAlert(storage, SOUND_KEY, on);
+      state.update((value) => ({
+        ...value,
+        sound: on,
+        error: persisted ? value.error : "storage",
+      }));
+      if (on) {
         sound.unlock();
         sound.play();
       }
-      void sync();
-    },
-    async bell() {
-      if (!active || leaving) return false;
-      sound.unlock();
-      refresh();
-      const value = get(state),
-        epoch = accountRevision;
-      // One switch for sound and notifications (vb.mute). Turning it on asks the browser once; sound comes on
-      // whatever it answers. Returns whether browser notifications work too (the settings bell explains when not).
-      if (value.permission === "default" && !value.iosWeb) {
-        let permission: NotificationPermission = "default";
-        try {
-          permission = await Notification.requestPermission();
-        } catch {
-          if (active && !leaving && epoch === accountRevision)
-            state.update((current) => ({ ...current, error: "permission" }));
-        }
-        if (!active || leaving || epoch !== accountRevision) return false;
-        refresh();
-        this.mute(false);
-        return permission === "granted";
-      }
-      this.mute(!value.muted);
-      return value.permission === "granted";
     },
     dismissInstall() {
       if (!active || leaving) return;
@@ -209,27 +266,6 @@ export function createPwaService() {
         if (active) state.update((value) => ({ ...value, installBusy: false }));
       }
     },
-    async test() {
-      if (!active || leaving || get(state).testing) return;
-      const epoch = accountRevision;
-      state.update((value) => ({
-        ...value,
-        testing: true,
-        error: "",
-        sent: null,
-      }));
-      try {
-        const result = await api.test();
-        if (active && epoch === accountRevision)
-          state.update((value) => ({ ...value, sent: result.sent }));
-      } catch {
-        if (active && epoch === accountRevision)
-          state.update((value) => ({ ...value, error: "test" }));
-      } finally {
-        if (active && epoch === accountRevision)
-          state.update((value) => ({ ...value, testing: false }));
-      }
-    },
     notify(
       message: Message,
       room: Room,
@@ -251,7 +287,7 @@ export function createPwaService() {
         room,
         thread,
         document.hidden,
-        get(state).muted,
+        get(state),
         target,
       );
       if (policy.chime) sound.play();
@@ -307,7 +343,7 @@ export function createPwaService() {
       sound.dispose();
       window.removeEventListener("beforeinstallprompt", beforeInstall);
       window.removeEventListener("appinstalled", appInstalled);
-      window.removeEventListener("storage", storage);
+      window.removeEventListener("storage", storageChange);
       document.removeEventListener("visibilitychange", visible);
       display.removeEventListener("change", refresh);
       coarse.removeEventListener("change", refresh);

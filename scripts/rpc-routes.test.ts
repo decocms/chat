@@ -1,7 +1,12 @@
 import { expect, test } from "bun:test";
 import { Hono } from "hono";
 import { hc, type InferRequestType } from "hono/client";
-import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
+import {
+  uploadsApi as api,
+  testPush,
+  type ApiCtx,
+  type ApiServices,
+} from "../src/api";
 import { AgentDbRow, UploadHeaders } from "../src/apiServerSchemas";
 import { encodeCall } from "../shared/jsonRpc";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
@@ -418,6 +423,39 @@ test("push settings expose the public key and validate subscription writes", asy
   const sent = await f.json("/api/push/test", {});
   expect(sent.status).toBe(200);
   expect(await sent.json()).toEqual({ ok: true, sent: 1 });
+});
+
+test("the welcome test push goes to this device only, with the first name in the person's language", async () => {
+  const pushes: { title: string; body: string; endpoint?: string }[] = [];
+  const pushToMe: ApiServices["pushToMe"] = async (p, endpoint) => {
+    pushes.push({ title: p.title, body: p.body, endpoint });
+    return 1;
+  };
+  const pt = fixture({
+    pushToMe,
+    sqlAll: async () => [{ name: "Ana Souza" }],
+  });
+  expect(
+    (await pt.json("/api/push/test", { endpoint: "https://push/device" }))
+      .status,
+  ).toBe(200);
+  const en = fixture({ en: true, pushToMe, sqlAll: async () => [] });
+  expect((await en.json("/api/push/test", {})).status).toBe(200);
+  expect(pushes).toEqual([
+    {
+      title: "Notificações do deco.chat ativadas 👋",
+      body: "Oi, Ana! A gente te avisa quando alguém falar com você.",
+      endpoint: "https://push/device",
+    },
+    {
+      title: "deco.chat notifications are on 👋",
+      body: "Hi! We'll let you know when someone talks to you.",
+      endpoint: undefined,
+    },
+  ]);
+  expect(testPush(true, "  Bia  Lima ").body).toBe(
+    "Hi Bia! We'll let you know when someone talks to you.",
+  );
 });
 
 test("room and wait mutations validate inputs and scope writes to the signed-in person", async () => {

@@ -610,3 +610,30 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The Settings dialog looks different. The upload and the API are the same.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/device-notification-switches · New DeviceAlerts component for two switches
+- Agent: claude-opus-5-5
+- Context: The human asked for two switch rows (Notifications, Sound) under "This device" on `/settings`, in place of the bell and the dialog. No existing component draws a settings row with a description and an inline error.
+- Decision: I added `web/features/notifications/DeviceAlerts.svelte`. It uses `Switch`, `Button` and `Spinner` from `web/lib/studio/`. `AccountPanel` gives it its row and hint classes through the `notifications` snippet. The enable steps and the migration are pure functions in `web/features/notifications/device.ts`, so tests can run them.
+- Other options: Write the rows directly in `AccountPanel.svelte`. That puts push logic into the account panel.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/device-notification-switches · The test push goes only to this device
+- Agent: claude-opus-5-5
+- Context: Turning Notifications on sends a test notification. `/api/push/test` sent it to every device of the person.
+- Decision: `/api/push/test` accepts an optional `endpoint`. The app sends the endpoint of this device, so other devices do not get the test. The server reads the first name from `users.name`. If there is no name, the text has no name. The server tracks `push_test`. The Sound switch is local only and sends no event.
+- Other options: Keep the push to all devices. Show a local notification from the service worker without a push. That does not test the push path.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/device-notification-switches · Notifications switch stays on after a failure
+- Agent: claude-opus-5-5
+- Context: The turn-on steps can fail after the permission: subscription, server or test push. The human asked for an inline error and "Try again".
+- Decision: After the browser grants the permission, the switch stays on. The row shows the error and "Try again", which runs the same steps again. If the person closes or blocks the prompt, the switch goes back to off. If the push service accepts 0 test notifications, it counts as a failure. On iPhone Safari without the app installed, the device section also shows `InstallCard`, and the row has the install steps.
+- Other options: Turn the switch off after each failure. Then "Try again" is the same as the switch.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

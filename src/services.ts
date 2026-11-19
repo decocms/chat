@@ -153,7 +153,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     track: (name, dims) => ctx.waitUntil(track(env, name, { user: email, ...(dims ? { dims } : {}) })),
     pokeMe: () => ctx.waitUntil(poke(env, [email], { t: "me" })),
     vapidKey: env.VAPID_PUBLIC_KEY ?? null,
-    pushToMe: (p) => pushTo(env, [email], p),
+    pushToMe: (p, endpoint) => pushTo(env, [email], p, endpoint),
     sqlAll: async (query, ...binds) => (await env.DB.prepare(query).bind(...binds).all()).results,
     search: async (q) => {
       if (!(await env.AGENT_LIMIT.limit({ key: `search:${email}` })).success) return false;

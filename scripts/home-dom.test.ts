@@ -250,6 +250,18 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
   for (const id of ["profile", "agents", "cloud", "device"])
     expect(document.getElementById(id) !== null).toBe(true);
   expect(document.querySelector("[data-notifications]") !== null).toBe(true);
+  // This device: no push here, so the Notifications switch is off and disabled; Sound is on and saves locally.
+  const notify = document.querySelector<HTMLButtonElement>(
+    "#settings-notifications",
+  )!;
+  expect(notify.getAttribute("aria-checked")).toBe("false");
+  expect(notify.disabled).toBe(true);
+  const sound = document.querySelector<HTMLButtonElement>("#settings-sound")!;
+  expect(sound.getAttribute("aria-checked")).toBe("true");
+  sound.click();
+  await flush();
+  expect(sound.getAttribute("aria-checked")).toBe("false");
+  expect(localStorage.getItem("vb.sound")).toBe("");
   expect(document.querySelector("[data-user-menu]")).toBeNull();
   // Going home leaves the page: the account session closes with it.
   h.services.actions.home();

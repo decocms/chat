@@ -57,6 +57,9 @@ export const PushSubscribeBody = z.object({
   p256dh: z.string().check(z.minLength(1)),
   auth: z.string().check(z.minLength(1)),
 });
+export const PushTestBody = z.object({
+  endpoint: z.optional(z.string().check(z.maxLength(1000))),
+});
 export const PushUnsubscribeBody = z.object({
   endpoint: z.optional(z.string()),
 });

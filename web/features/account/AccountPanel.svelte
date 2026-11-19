@@ -33,6 +33,7 @@
     onArchive,
     onLogout,
     notifications,
+    install,
     agentSettings,
     cloud,
   }: {
@@ -44,7 +45,10 @@
     onLanguage(lang: "pt" | "en"): void;
     onArchive(): void;
     onLogout(all: boolean): void;
-    notifications: Snippet;
+    /** The Notifications and Sound rows, drawn with this card's row and hint classes. */
+    notifications: Snippet<[{ row: string; hint: string }]>;
+    /** Shown above the device card (the install card, where installing is how to get notifications). */
+    install?: Snippet;
     agentSettings: Snippet;
     cloud: Snippet;
   } = $props();
@@ -347,10 +351,9 @@
             </section>
             <section id="device" class={section}>
               {@render head(text("device"))}
+              {@render install?.()}
               <div class={card}>
-                <div class={rowClass}>
-                  <span>{home("notifications")}</span>{@render notifications()}
-                </div>
+                {@render notifications({ row: rowClass, hint })}
                 <div class={rowClass}>
                   <span id="settings-theme">{home("theme")}</span>
                   <ToggleGroup

@@ -7,6 +7,14 @@ import {
 import type { PushApi } from "../web/features/notifications/api";
 import { createPushApi } from "../web/features/notifications/api";
 import { notificationPolicy } from "../web/features/notifications/policy";
+import {
+  LEGACY_MUTE_KEY,
+  NOTIFY_KEY,
+  SOUND_KEY,
+  enableDeviceNotifications,
+  notificationAvailability,
+  readDeviceAlerts,
+} from "../web/features/notifications/device";
 import { installOutcome } from "../web/features/pwa/platform";
 import { notificationTarget } from "../web/service-worker/payload";
 import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
@@ -298,7 +306,7 @@ test("only emitted stable worker assets are public; raw worker realm source and 
     await rm(root, { recursive: true, force: true });
   }
 });
-test("foreground policy keeps mute/self/quiet suppression and explicit agent relevance", () => {
+test("foreground policy keeps self/quiet suppression and explicit agent relevance; each switch gates its own output", () => {
   const room = {
     me: "me@example.test",
     messages: [{ id: 1, author: "me@example.test" }],
@@ -307,16 +315,26 @@ test("foreground policy keeps mute/self/quiet suppression and explicit agent rel
   const policy = (
     message: Parameters<typeof notificationPolicy>[0],
     hidden = true,
-    muted = false,
+    device = { notifications: true, sound: true },
   ) =>
-    notificationPolicy(message, room, "main", hidden, muted, (handle) =>
+    notificationPolicy(message, room, "main", hidden, device, (handle) =>
       handle === "me" ? room.me : null,
     );
   expect(policy(base)).toMatchObject({ chime: true, browser: true });
   expect(policy(base, false)).toMatchObject({ chime: false, browser: false });
   expect(policy({ ...base, author: room.me })).toMatchObject({ chime: false });
   expect(policy({ ...base, quiet: true })).toMatchObject({ chime: false });
-  expect(policy(base, true, true)).toMatchObject({ chime: false });
+  expect(
+    policy(base, true, { notifications: false, sound: false }),
+  ).toMatchObject({ chime: false, browser: false });
+  // Sound on, notifications off: the chime plays, no browser notification.
+  expect(
+    policy(base, true, { notifications: false, sound: true }),
+  ).toMatchObject({ chime: true, browser: false });
+  // Notifications on, sound off: a browser notification, no chime.
+  expect(
+    policy(base, true, { notifications: true, sound: false }),
+  ).toMatchObject({ chime: false, browser: true });
   expect(policy({ ...base, kind: "agent" })).toMatchObject({ chime: false });
   expect(policy({ ...base, kind: "agent", reply_to: 1 })).toMatchObject({
     chime: true,
@@ -339,4 +357,133 @@ test("install outcomes and typed push responses reject malformed data; sent zero
     Response.json({ error: "offline" }, { status: 503 }),
   );
   await expect(failed.key()).rejects.toThrow("offline");
+});
+
+function memoryStorage(values: Record<string, string> = {}) {
+  const data = new Map(Object.entries(values));
+  return {
+    data,
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => void data.set(key, value),
+    removeItem: (key: string) => void data.delete(key),
+  };
+}
+test("device alerts migrate once from the old mute value", () => {
+  const granted = memoryStorage();
+  expect(readDeviceAlerts(granted, "granted")).toEqual({
+    notifications: true,
+    sound: true,
+  });
+  const muted = memoryStorage({ [LEGACY_MUTE_KEY]: "1" });
+  expect(readDeviceAlerts(muted, "granted")).toEqual({
+    notifications: false,
+    sound: false,
+  });
+  expect(muted.data.has(LEGACY_MUTE_KEY)).toBe(false);
+  for (const permission of ["default", "denied", "unsupported"] as const)
+    expect(readDeviceAlerts(memoryStorage(), permission)).toEqual({
+      notifications: false,
+      sound: true,
+    });
+  // Read once: later the stored switches win over the permission.
+  expect(readDeviceAlerts(granted, "default")).toEqual({
+    notifications: true,
+    sound: true,
+  });
+  const chosen = memoryStorage({ [NOTIFY_KEY]: "", [SOUND_KEY]: "1" });
+  expect(readDeviceAlerts(chosen, "granted")).toEqual({
+    notifications: false,
+    sound: true,
+  });
+  expect(readDeviceAlerts(null, "granted")).toEqual({
+    notifications: false,
+    sound: true,
+  });
+});
+test("turning notifications off removes this device's push endpoint", async () => {
+  const f = fixture();
+  const service = createPushReconciler(f.api, f.port);
+  try {
+    await service.set("a@example.test", true);
+    expect(get(service.state).status).toBe("on");
+    await service.set("a@example.test", false);
+    expect(f.calls).toEqual([
+      "browser:subscribe",
+      "server:subscribe",
+      "server:unsubscribe",
+      "browser:unsubscribe",
+    ]);
+    expect(await f.port.get()).toBeNull();
+    expect(get(service.state).status).toBe("off");
+  } finally {
+    service.dispose();
+  }
+});
+test("turning notifications on asks, saves, subscribes, then sends one test to this device", async () => {
+  const f = fixture();
+  const service = createPushReconciler(f.api, f.port);
+  const steps: string[] = [];
+  let wanted = false;
+  const tested: string[] = [];
+  const port = (
+    permission: NotificationPermission,
+    answer: NotificationPermission = permission,
+  ) => ({
+    permission: () => permission,
+    request: async () => {
+      steps.push("request");
+      return answer;
+    },
+    save: () => {
+      steps.push("save");
+      wanted = true;
+    },
+    subscribe: async () => {
+      await service.set("a@example.test", wanted);
+      return get(service.state).status;
+    },
+    wanted: () => wanted,
+    endpoint: async () => (await f.port.get())?.endpoint ?? null,
+    test: async (endpoint: string) => {
+      tested.push(endpoint);
+      return 1;
+    },
+  });
+  try {
+    expect(await enableDeviceNotifications(port("default", "denied"))).toBe(
+      "denied",
+    );
+    expect(await enableDeviceNotifications(port("default"))).toBe("dismissed");
+    expect(steps).toEqual(["request", "request"]);
+    expect(tested).toEqual([]);
+    expect(await enableDeviceNotifications(port("default", "granted"))).toBe(
+      "on",
+    );
+    expect(steps).toEqual(["request", "request", "request", "save"]);
+    expect(f.calls).toEqual(["browser:subscribe", "server:subscribe"]);
+    expect(tested).toEqual(["https://push.example.test/device"]);
+    // The push service accepted nothing: the row shows the error and "Try again".
+    const none = { ...port("granted"), test: async () => 0 };
+    expect(await enableDeviceNotifications(none)).toBe("failed");
+  } finally {
+    service.dispose();
+  }
+});
+test("the notifications switch says why it cannot turn on", () => {
+  const view = {
+    permission: "default" as const,
+    iosWeb: false,
+    pushSupported: true,
+  };
+  expect(notificationAvailability(view)).toBe("ready");
+  expect(notificationAvailability({ ...view, permission: "denied" })).toBe(
+    "denied",
+  );
+  expect(notificationAvailability({ ...view, iosWeb: true })).toBe("ios");
+  expect(notificationAvailability({ ...view, pushSupported: false })).toBe(
+    "unsupported",
+  );
+  expect(notificationAvailability({ ...view, permission: "unsupported" })).toBe(
+    "unsupported",
+  );
 });
