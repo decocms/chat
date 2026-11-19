@@ -196,10 +196,27 @@
   --vb-holo-glow: rgb(180 140 255 / 0.6);
   --vb-holo-shadow: rgb(80 40 160 / 0.55);
   --vb-holo-glare: rgb(255 255 255 / 0.28);
-  --vb-holo-foil-1: rgb(255 0 153 / 0.35);
-  --vb-holo-foil-2: rgb(0 229 255 / 0.35);
-  --vb-holo-foil-3: rgb(196 255 0 / 0.3);
-  --vb-holo-foil-4: rgb(255 170 0 / 0.3);
+  /* Holocard's layers (~/Projects/holocard src/core/card.ts): the rainbow foil, the fine lines and the sparkles. The
+     card moves them with --mx/--my/--posx/--posy/--active (web/features/profile/holo.ts). */
+  --vb-holo-rainbow: repeating-linear-gradient(
+    125deg,
+    oklch(0.76 0.18 25 / 0.58) 0%,
+    oklch(0.88 0.15 88 / 0.58) 8%,
+    oklch(0.85 0.17 145 / 0.58) 16%,
+    oklch(0.85 0.13 195 / 0.58) 24%,
+    oklch(0.72 0.16 265 / 0.58) 32%,
+    oklch(0.76 0.2 320 / 0.58) 40%,
+    oklch(0.76 0.18 25 / 0.58) 48%
+  );
+  --vb-holo-lines: repeating-linear-gradient(
+    100deg,
+    transparent 0 3px,
+    white 3px 4px
+  );
+  --vb-holo-sparkle:
+    radial-gradient(circle at 20% 35%, white 0, transparent 1px),
+    radial-gradient(circle at 68% 12%, oklch(0.9 0.08 220) 0, transparent 1px),
+    radial-gradient(circle at 82% 74%, oklch(0.94 0.09 85) 0, transparent 1px);
   --vb-agent-claude: #d97757;
   --vb-agent-claude-foreground: #fff;
   --vb-agent-codex: #111;
@@ -537,10 +554,6 @@
   --color-holo-glow: var(--vb-holo-glow);
   --color-holo-shadow: var(--vb-holo-shadow);
   --color-holo-glare: var(--vb-holo-glare);
-  --color-holo-foil-1: var(--vb-holo-foil-1);
-  --color-holo-foil-2: var(--vb-holo-foil-2);
-  --color-holo-foil-3: var(--vb-holo-foil-3);
-  --color-holo-foil-4: var(--vb-holo-foil-4);
   --color-agent-claude: var(--vb-agent-claude);
   --color-agent-claude-foreground: var(--vb-agent-claude-foreground);
   --color-agent-codex: var(--vb-agent-codex);
