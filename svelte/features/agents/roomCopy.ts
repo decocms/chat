@@ -56,9 +56,11 @@ const pt = {
   docNext: "O agent escreve o doc e cria os épicos",
   ask: "Seu agent espera você",
   view: "Ver",
-  welcome: "Bem-vindo a",
+  welcome: "Bem-vindo ao deco.chat",
+  welcomeTo: "te chamou pra",
+  welcomeHere: "te chamou pra cá.",
   welcomeBody:
-    "te chamou pra cá. Cada conversa importante ganha uma sala no deco.chat: o chat, as tarefas e o doc do projeto ficam juntos.",
+    "Aqui o chat, as tarefas e o doc do projeto ficam juntos, e o agent de cada um trabalha com o mesmo contexto.",
   ownAgent: "Cada um traz o seu agent",
   ownAgentBody:
     "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza os épicos e conta o que entregou. Só o que você escreve é instrução pra ele: o resto ele lê como contexto.",
@@ -177,9 +179,11 @@ const en: Record<RoomAgentCopyKey, string> = {
   docNext: "The agent writes the document and creates epics",
   ask: "Your agent is waiting for you",
   view: "View",
-  welcome: "Welcome to",
+  welcome: "Welcome to deco.chat",
+  welcomeTo: "invited you to",
+  welcomeHere: "invited you here.",
   welcomeBody:
-    "invited you here. Each important conversation gets a room in deco.chat: the chat, tasks and project document stay together.",
+    "Here the chat, tasks and project doc stay in one place, and everyone's agent works from the same context.",
   ownAgent: "Everyone brings their own agent",
   ownAgentBody:
     "You connect your agent on your computer with your permissions. It reads the room, picks up tasks, updates epics and reports what it delivered. Only what you write is an instruction for it; everything else is context.",
