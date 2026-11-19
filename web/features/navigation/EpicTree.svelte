@@ -148,8 +148,13 @@
   });
   const archived = $derived(archivedEpics(orderedEpics, room.messages));
   const production = $derived(productionStatuses(room));
+  // Epics / Plan / Done: Plan is @vibe's proposals (open one to see it, start it to make it an epic), Done the archive.
   const mode = $derived(
-    $navigation.archived && archived.length > 0 ? "archived" : "active",
+    $navigation.archived && archived.length > 0
+      ? "archived"
+      : $navigation.suggestions && room.suggestions.length > 0
+        ? "plan"
+        : "active",
   );
   /** The list is flat: sub-epics are plain rows, with no branches to open. */
   const flat = (list: readonly Epic[]) =>
@@ -205,7 +210,11 @@
     requested = null;
     localOrder = null;
     const archived = value === "archived";
-    navigation.update((state) => ({ ...state, archived }));
+    navigation.update((state) => ({
+      ...state,
+      archived,
+      suggestions: value === "plan",
+    }));
     onarchchange(archived);
     error = "";
   }
@@ -234,13 +243,14 @@
   const creating = $derived(
     mode === "active" && ($navigation.creating || $navigation.draft !== ""),
   );
-  const suggestionsOpen = $derived(
-    mode === "active" && room.suggestions.length > 0 && $navigation.suggestions,
-  );
   $effect(() => {
-    // A suggestion opened from elsewhere (a link, Back) keeps its row in view.
+    // A suggestion opened from elsewhere (a link, Back) opens the Plan tab, with its row.
     if (thread.startsWith("pre:") && !untrack(() => $navigation.suggestions))
-      navigation.update((state) => ({ ...state, suggestions: true }));
+      navigation.update((state) => ({
+        ...state,
+        suggestions: true,
+        archived: false,
+      }));
   });
   function siblings(id: string) {
     const parent = forest.parents.get(id);
@@ -349,13 +359,6 @@
         if (!disposed) newButton?.focus();
       });
   }
-  function toggleSuggestions() {
-    if (disposed) return;
-    navigation.update((state) => ({
-      ...state,
-      suggestions: !suggestionsOpen,
-    }));
-  }
   const owners = $derived([
     { value: "", label: vb.t("Sem dono") },
     ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
@@ -365,8 +368,13 @@
   const views = $derived([
     { value: "active", label: vb.t("Épicos"), disabled: false },
     {
+      value: "plan",
+      label: vb.t("Plano"),
+      disabled: room.suggestions.length === 0,
+    },
+    {
       value: "archived",
-      label: vb.t("Arquivados"),
+      label: vb.t("Feitos"),
       disabled: archived.length === 0,
     },
   ]);
@@ -381,7 +389,37 @@
   )}
 >
   {#snippet panel(value: string)}
-    {#if value === mode}
+    {#if value === mode && value === "plan"}
+      <div
+        role="group"
+        aria-label={vb.t("Sugestões do @vibe")}
+        data-epic-plan
+        class="flex shrink-0 flex-col gap-0.5"
+      >
+        {#each room.suggestions as suggestion, index}
+          <Button
+            variant="ghost"
+            class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
+            aria-current={thread === `pre:${index}` ? "page" : undefined}
+            title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
+            data-suggestion={index}
+            onclick={() => {
+              if (onBeforeOpen && !onBeforeOpen()) return;
+              onopen(`pre:${index}`);
+            }}
+            ><span
+              aria-hidden="true"
+              class="w-5 shrink-0 text-center text-muted-foreground">✦</span
+            ><span class="min-w-0 flex-1 truncate">{suggestion.title}</span
+            >{#if suggestion.tasks.length}<span
+                class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                >0/{suggestion.tasks.length}</span
+              >{/if}<span class="sr-only">{vb.t("sugestão do @vibe")}</span
+            ></Button
+          >
+        {/each}
+      </div>
+    {:else if value === mode}
       <ul
         bind:this={list}
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
@@ -645,65 +683,6 @@
             >
             <span class="min-w-0 truncate">{vb.t("Novo épico")}</span>
           </button>
-        {/if}
-        {#if room.suggestions.length}
-          <button
-            type="button"
-            data-epic-suggestions
-            aria-expanded={suggestionsOpen}
-            aria-controls={suggestionsOpen ? `${uid}-suggestions` : undefined}
-            onclick={toggleSuggestions}
-            class={cn(dashedRow, suggestionsOpen && "text-sidebar-foreground")}
-          >
-            <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon="stars-01" size={16} /></span
-            >
-            <span class="min-w-0 flex-1 truncate"
-              >{vb.t("{n} sugestões do @vibe", {
-                n: room.suggestions.length,
-              })}</span
-            >
-            <Icon
-              icon="chevron-down"
-              size={16}
-              class={cn(
-                "shrink-0 transition-transform duration-150 motion-reduce:transition-none",
-                suggestionsOpen && "rotate-180",
-              )}
-            />
-          </button>
-          {#if suggestionsOpen}
-            <div
-              id={`${uid}-suggestions`}
-              role="group"
-              aria-label={vb.t("Sugestões do @vibe")}
-              class="mt-0.5 flex shrink-0 flex-col gap-0.5"
-            >
-              {#each room.suggestions as suggestion, index}
-                <Button
-                  variant="ghost"
-                  class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-muted-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-foreground"
-                  aria-current={thread === `pre:${index}` ? "page" : undefined}
-                  title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
-                  data-suggestion={index}
-                  onclick={() => {
-                    if (onBeforeOpen && !onBeforeOpen()) return;
-                    onopen(`pre:${index}`);
-                  }}
-                  ><span aria-hidden="true" class="w-5 shrink-0 text-center"
-                    >✦</span
-                  ><span class="min-w-0 flex-1 truncate"
-                    >{suggestion.title}</span
-                  >{#if suggestion.tasks.length}<span
-                      class="shrink-0 text-xs tabular-nums"
-                      >{suggestion.tasks.length}</span
-                    >{/if}<span class="sr-only"
-                    >{vb.t("sugestão do @vibe")}</span
-                  ></Button
-                >
-              {/each}
-            </div>
-          {/if}
         {/if}
       {/if}
     {/if}
