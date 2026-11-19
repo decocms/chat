@@ -2,7 +2,7 @@ id = "vibebook"
 name = "vibebook"
 version = "0.1.0"
 min_herdr_version = "0.9.0"
-description = "Your vibebook rooms as herdr workspaces: one Claude Code per room, in the room's folder, listening. Switch it on or off from the room's ✻ button on vibebook.dev."
+description = "Your vibebook rooms as herdr workspaces: one Claude Code per room, in the room's folder, listening. Switch it on or off from the room's ✻ button on chat.decocms.com."
 platforms = ["linux", "macos"]
 
 # Installs the vibebook CLI (~/.vibebook) when it's missing. Login stays yours: run `vibebook login` once.
@@ -32,7 +32,7 @@ title = "vibebook: open this room's Claude"
 contexts = ["workspace"]
 command = ["sh", "open-room.sh"]
 
-# Ctrl+click a room link (https://vibebook.dev/b/<id>) in any terminal: jump to that room's workspace.
+# Ctrl+click a room link (https://chat.decocms.com/b/<id>) in any terminal: jump to that room's workspace.
 [[link_handlers]]
 id = "room-link"
 title = "Open the room's Claude"

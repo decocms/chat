@@ -67,5 +67,5 @@ export function inviteMessage(
   t: (text: string, vars?: Record<string, string | number>) => string,
 ) {
   const url = `${origin}/b/${room.id}`;
-  return `${t('Te convidei pro vibebook "{title}": {url}', { title: room.book.title, url })}\n\n${t("1. Entra com {email} (o convite chegou nesse email).", { email })}\n${t("2. Manda isto pro seu Claude Code:")}\n\nRead ${origin}/llms.txt and set up vibebook for this project. Room: ${url}`;
+  return `${t('Te convidei pra sala "{title}" no deco.chat: {url}', { title: room.book.title, url })}\n\n${t("1. Entra com {email} (o convite chegou nesse email).", { email })}\n${t("2. Manda isto pro seu Claude Code:")}\n\nRead ${origin}/llms.txt and set up vibebook for this project. Room: ${url}`;
 }

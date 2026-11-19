@@ -1,5 +1,6 @@
 // Integrated NativeApplication/RoomScope against a real disposable loopback
 // Worker. Fixtures enter through public HTTP/MCP, never SQL or fabricated WS.
+import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -62,7 +63,6 @@ import {
   writeDictationTone,
 } from "./native-dictation-browser";
 import { auditNativeAppNavigation } from "./native-app-navigation-probe";
-import { vanillaAppNavigationDriver } from "./app-navigation-ui-driver";
 import {
   auditNativeApplicationLifecycle,
   type ApplicationSockets,
@@ -305,15 +305,12 @@ function observe(page: Page, roomId: string) {
     }
     if (path !== `/ws/${roomId}`) return;
     socket.on("framesent", ({ payload }) => {
-      try {
-        const value: unknown = JSON.parse(payload.toString());
-        if (record(value) && typeof value.t === "string")
-          sent[value.t] = (sent[value.t] ?? 0) + 1;
-      } catch {
-        /* Non-JSON data is not a Book command. */
-      }
+      const value = sentFrame(payload.toString());
+      if (value) sent[value.t] = (sent[value.t] ?? 0) + 1;
     });
     socket.on("framereceived", ({ payload }) => {
+      // Responses to the app's requests are not events.
+      if (receivedFrame(payload.toString())?.kind === "response") return;
       try {
         const event = parseRoomEvent(payload.toString());
         received[event.t] = (received[event.t] ?? 0) + 1;
@@ -542,38 +539,10 @@ try {
         }),
       );
       fileId = file.id;
-      const selected = await owner.context.request.get(
-          `${base}/b/${roomA}?ui=svelte`,
-        ),
+      // The Svelte app is the only app (#181): a plain room URL serves it.
+      const selected = await owner.context.request.get(`${base}/b/${roomA}`),
         html = await selected.text();
-      assert.equal(selected.headers()["x-vibebook-ui"], "svelte");
-      // Svelte is the default; vanilla is the fallback, by URL or by this device's choice.
-      const unselected = await owner.context.request.get(`${base}/b/${roomA}`);
-      assert.equal(unselected.headers()["x-vibebook-ui"], "svelte");
-      // An explicit Cookie header replaces the context's cookies: keep the session in it.
-      const session = (await owner.context.cookies(base))
-        .map((cookie) => `${cookie.name}=${cookie.value}`)
-        .join("; ");
-      for (const [how, fallback] of [
-        ["url", owner.context.request.get(`${base}/b/${roomA}?ui=vanilla`)],
-        [
-          "device",
-          owner.context.request.get(`${base}/b/${roomA}`, {
-            headers: { cookie: `${session}; vb_ui=vanilla` },
-          }),
-        ],
-      ] as const) {
-        const response = await fallback;
-        assert.equal(
-          response.headers()["x-vibebook-ui"],
-          "vanilla",
-          `vanilla fallback by ${how}`,
-        );
-        assert(
-          !(await response.text()).includes("/svelte-preview/app.js"),
-          "The vanilla fallback must not load the Svelte app",
-        );
-      }
+      assert(selected.ok(), `Room page status ${selected.status()}`);
       const entry = html.match(
           /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
         )?.[1],
@@ -632,7 +601,7 @@ try {
   await step(
     "Native Home → room/thread/Back with app-owned room and thread drafts",
     async () => {
-      await a.goto(`${base}/app?ui=svelte`);
+      await a.goto(`${base}/`);
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       const freshVersion = MeResult.parse(
         await (
@@ -666,7 +635,7 @@ try {
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
         .locator('[data-vb-native="room-navigation"]')
-        .getByRole("button", { name: "Your vibebooks", exact: true })
+        .getByRole("button", { name: "Your rooms", exact: true })
         .click();
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       await a
@@ -1008,10 +977,10 @@ try {
     },
   );
   await step(
-    "native live Document ↔ vanilla live Document through actual Yjs/DocRoom",
+    "two native live Documents through actual Yjs/DocRoom",
     async () => {
       const documentEvidence: { checkpoint: string; completed: string[] } = {
-        checkpoint: "create-vanilla-peer",
+        checkpoint: "create-native-peer",
         completed: [],
       };
       report.document = documentEvidence;
@@ -1020,37 +989,30 @@ try {
         documentEvidence.checkpoint = name;
         console.info("[native-application:document] " + name);
       };
-      const vanilla = await peer.context.newPage();
-      vanilla.on("pageerror", (error) =>
+      const other = await peer.context.newPage();
+      other.on("pageerror", (error) =>
         errors.push(localBrowserError(error, base)),
       );
-      await vanilla.goto(`${base}/b/${roomA}?ui=vanilla`);
-      documentCheckpoint("vanilla-real-room-ready");
-      await expect(vanilla.locator(".book:not(.skel)")).toBeAttached();
-      const welcome = vanilla.locator("dialog.welcome[open]");
-      if (await welcome.isVisible())
-        await welcome.getByRole("button", { name: /^(Skip|Pular)$/ }).click();
-      documentCheckpoint("vanilla-edit-mode");
-      if ((await vanilla.locator(".doc").getAttribute("data-view")) !== "edit")
-        await vanilla.locator("#docEditBar").click();
-      const oldEditor = vanilla.locator("#cm .cm-content");
-      await expect(oldEditor).toBeVisible();
+      await other.goto(`${base}/b/${roomA}`);
+      documentCheckpoint("peer-live-editor-synchronized");
+      const peerEditor = await nativeEdit(other);
       documentCheckpoint("native-live-editor-synchronized");
       const editor = await nativeEdit(a);
       documentCheckpoint("native-canonical-document-seed");
       await expect(editor).toContainText(docSeed.split("\n")[2]!);
+      await expect(peerEditor).toContainText(docSeed.split("\n")[2]!);
       documentCheckpoint("native-insert-unicode");
       await editor.click();
       await a.keyboard.press("ControlOrMeta+End");
       await a.keyboard.insertText(`\nNative integrated edit ${token}`);
-      documentCheckpoint("native-edit-arrives-at-vanilla");
-      await expect(oldEditor).toContainText(`Native integrated edit ${token}`);
-      documentCheckpoint("vanilla-insert-unicode");
-      await oldEditor.click();
-      await vanilla.keyboard.press("ControlOrMeta+End");
-      await vanilla.keyboard.insertText(`\nVanilla integrated edit ${token}`);
-      documentCheckpoint("vanilla-edit-arrives-at-native");
-      await expect(editor).toContainText(`Vanilla integrated edit ${token}`);
+      documentCheckpoint("native-edit-arrives-at-peer");
+      await expect(peerEditor).toContainText(`Native integrated edit ${token}`);
+      documentCheckpoint("peer-insert-unicode");
+      await peerEditor.click();
+      await other.keyboard.press("ControlOrMeta+End");
+      await other.keyboard.insertText(`\nPeer integrated edit ${token} café`);
+      documentCheckpoint("peer-edit-arrives-at-native");
+      await expect(editor).toContainText(`Peer integrated edit ${token} café`);
       documentCheckpoint("real-mcp-read-confirms-mirror");
       await expect
         .poll(
@@ -1063,9 +1025,9 @@ try {
               }),
             ).doc,
         )
-        .toContain(`Vanilla integrated edit ${token}`);
-      documentCheckpoint("close-vanilla-peer");
-      await vanilla.close();
+        .toContain(`Peer integrated edit ${token} café`);
+      documentCheckpoint("close-native-peer");
+      await other.close();
       documentCheckpoint("passed");
     },
   );
@@ -1223,27 +1185,22 @@ try {
   await independentAudit("profiles", async () => {
     report.profileAudit = await auditNativeApplicationProfiles(profileFixture);
   });
-  for (const variant of ["svelte", "vanilla"] as const)
-    await independentAudit(`app-navigation-authority-${variant}`, async () => {
-      const appNavigation = await auditNativeAppNavigation({
-        ...profileFixture,
-        ...(variant === "vanilla" ? { ui: vanillaAppNavigationDriver } : {}),
-      });
-      report[variant === "svelte" ? "appNavigation" : "vanillaAppNavigation"] =
-        appNavigation;
-      // A controlled replacement document inheriting the original App's room read
-      // capability is a security finding, not a passing functional receipt.
-      await step(
-        `${variant} replacement App authority requires an explicit refusal`,
-        async () => {
-          assert.equal(
-            appNavigation.verdict,
-            "explicit-denial",
-            "Replacement App read authority must be explicitly refused; inherited or inconclusive evidence cannot pass",
-          );
-        },
-      );
-    });
+  await independentAudit("app-navigation-authority", async () => {
+    const appNavigation = await auditNativeAppNavigation(profileFixture);
+    report.appNavigation = appNavigation;
+    // A controlled replacement document inheriting the original App's room read
+    // capability is a security finding, not a passing functional receipt.
+    await step(
+      "replacement App authority requires an explicit refusal",
+      async () => {
+        assert.equal(
+          appNavigation.verdict,
+          "explicit-denial",
+          "Replacement App read authority must be explicitly refused; inherited or inconclusive evidence cannot pass",
+        );
+      },
+    );
+  });
   await independentAudit("inline-app-reader-approval", async () => {
     const result = await auditInlineAppOpen(profileFixture);
     report.inlineAppOpen = result;

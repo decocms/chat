@@ -1,5 +1,3 @@
-import { githubAvatar, githubEmail, githubName, githubToken } from "./githubIdentity";
-import { syncProviderAvatar } from "./providerAvatar";
 import { Hono } from "hono";
 import * as z from "zod/mini";
 import { reqLang } from "./lang";
@@ -12,17 +10,20 @@ import type { AuthFail, AuthServices } from "./api";
 
 const COOKIE = "vb_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
-const CODE_TTL_MS = 10 * 60 * 1000;
-const MAX_CODE_ATTEMPTS = 5;
 const SessionPayload = z.object({ email: z.string(), iat: z.number() });
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const GoogleToken = z.object({ access_token: z.string().check(z.minLength(1)) });
-const GoogleIdentity = z.object({
+// deco Studio is the identity provider (OAuth 2.1 + PKCE, public client: no secret here).
+const StudioClient = z.object({ client_id: z.string().check(z.minLength(1)) });
+const StudioToken = z.object({ id_token: z.string().check(z.minLength(1)) });
+// The id_token claims. Studio (Better Auth mcp plugin) has no userinfo endpoint (it answers 404) and signs the
+// id_token with a throwaway key, so the signature can't be checked. It comes straight from Studio's token endpoint
+// over TLS for a PKCE-bound code, which OIDC Core 3.1.3.7 accepts in place of the signature. `aud` must be our client.
+const StudioIdentity = z.object({
+  aud: z.string(),
   email: z.string().check(z.regex(EMAIL_RE)),
+  // A Studio account with an unverified email must not become that email here.
   email_verified: z.literal(true),
-  given_name: z.optional(z.nullable(z.string())),
   name: z.optional(z.nullable(z.string())),
-  picture: z.optional(z.nullable(z.string())),
 });
 const InvitePayload = z.object({
   e: z.string().check(z.regex(EMAIL_RE)),
@@ -94,8 +95,6 @@ const safeNext = (next: string | undefined) => (next && /^\/($|\?|b\/[a-z0-9]+|a
 /** The login page for an error or a retry. */
 const loginUrl = (query: string) => `/login${query}`;
 
-const codeHash = (env: Env, email: string, code: string) => hmac(env.SESSION_SECRET, `code:${email}:${code}`);
-
 // Cheap filter in front of email sends; not a security boundary.
 const sameOrigin = (c: Context) => {
   const origin = c.req.header("origin");
@@ -119,79 +118,9 @@ export function authServices<E extends { Bindings: Env }>(c: Context<E>, deps: P
   const OK = { ok: true as const };
   return {
     ...deps,
-    providers: { google: !!(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET), github: !!(c.env.GITHUB_CLIENT_ID && c.env.GITHUB_CLIENT_SECRET), email: true },
     sameOrigin: sameOrigin(c),
     safeNext,
     loginUrl: (_next, query) => loginUrl(query),
-    async emailStart(raw) {
-      const ip = c.req.header("cf-connecting-ip") ?? "local";
-      const email = raw.trim().toLowerCase();
-      const en = reqLang(c.req.raw) === "en";
-      if (!EMAIL_RE.test(email)) return fail(en ? "Invalid email." : "Email inválido.", 400);
-      const [byIp, byEmail] = await Promise.all([
-        c.env.LOGIN_LIMIT.limit({ key: `ip:${ip}` }),
-        c.env.LOGIN_LIMIT.limit({ key: `email:${email}` }),
-      ]);
-      if (!byIp.success || !byEmail.success) return fail(en ? "Too many tries. Wait a minute." : "Muitas tentativas. Espera um minuto.", 429);
-
-      const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
-      await c.env.DB.prepare(
-        // Asking for a new code doesn't reset the wrong guesses while the last code is still valid: at most
-        // MAX_CODE_ATTEMPTS guesses per CODE_TTL per email, however many codes are requested.
-        `INSERT INTO login_codes (email, hash, expires_at, attempts) VALUES (?, ?, ?, 0)
-         ON CONFLICT(email) DO UPDATE SET hash = excluded.hash, expires_at = excluded.expires_at,
-           attempts = CASE WHEN login_codes.expires_at > ?4 THEN login_codes.attempts ELSE 0 END`,
-      )
-        .bind(email, await codeHash(c.env, email, code), Date.now() + CODE_TTL_MS, Date.now())
-        .run();
-
-      c.executionCtx.waitUntil(track(c.env, "login_code_sent", { user: email }));
-      if (c.env.DEV_EMAIL) {
-        console.log(`[dev] login code for ${email}: ${code}`);
-        return OK;
-      }
-      try {
-        await c.env.EMAIL.send({
-          to: email,
-          from: { email: mailFrom(c.env, "login"), name: "vibebook" },
-          subject: en ? `${code} is your vibebook code` : `${code} é seu código do vibebook`,
-          text: en ? `Your code to sign in to vibebook: ${code}\n\nIt works for 10 minutes. If this wasn't you, ignore this email.` : `Seu código para entrar no vibebook: ${code}\n\nVale por 10 minutos. Se não foi você, ignore este email.`,
-          html: emailHtml(
-            en ? "Your sign-in code" : "Seu código para entrar",
-            `<p style="font-size:40px;letter-spacing:8px;font-weight:700;margin:24px 0;color:#14305e">${code}</p><p>${en ? "It works for 10 minutes. If this wasn't you, ignore this email." : "Vale por 10 minutos. Se não foi você, ignore este email."}</p>`,
-            publicOrigin(c.env),
-          ),
-        });
-      } catch (e) {
-        console.error("login email failed", { email, error: String(e) });
-        return fail(en ? "We couldn't send the email right now. Try again in a moment." : "Não conseguimos enviar o email agora. Tenta de novo em instantes.", 502);
-      }
-      return OK;
-    },
-    async emailVerify(body) {
-      const email = (body.email ?? "").trim().toLowerCase();
-      const code = (body.code ?? "").replace(/\D/g, "");
-      const en = reqLang(c.req.raw) === "en";
-      const ip = c.req.header("cf-connecting-ip") ?? "local";
-      const lim = await Promise.all([c.env.LOGIN_LIMIT.limit({ key: `verify-ip:${ip}` }), c.env.LOGIN_LIMIT.limit({ key: `verify:${email}` })]);
-      if (lim.some((r) => !r.success)) return fail(en ? "Too many tries. Wait a minute." : "Muitas tentativas. Espera um minuto.", 429);
-      // Count the attempt before comparing, atomically: parallel guesses can't all read "attempts < 5".
-      const row = await c.env.DB.prepare(`UPDATE login_codes SET attempts = attempts + 1 WHERE email = ? RETURNING hash, expires_at, attempts - 1 AS attempts`).bind(email).first<{
-        hash: string;
-        expires_at: number;
-        attempts: number;
-      }>();
-      if (row && row.expires_at > Date.now() && row.attempts >= MAX_CODE_ATTEMPTS)
-        return fail(en ? "Too many wrong codes. Wait 10 minutes and ask for a new one." : "Muitas tentativas erradas. Espera 10 minutos e pede um código novo.", 429);
-      if (!row || row.expires_at < Date.now()) return fail(en ? "Code expired. Ask for a new one." : "Código expirado. Pede um novo.", 400);
-      if (!safeEqual(row.hash, await codeHash(c.env, email, code))) {
-        return fail(en ? "Wrong code." : "Código errado.", 400);
-      }
-      await c.env.DB.prepare(`DELETE FROM login_codes WHERE email = ?`).bind(email).run();
-      await startSession(c, email);
-      c.executionCtx.waitUntil(track(c.env, "login", { user: email, dims: { method: "email" } }));
-      return { ok: true, next: safeNext(body.next) };
-    },
     logout: () => deleteCookie(c, COOKIE, { path: "/" }),
     async logoutAll() {
       const email = await sessionEmail(c);
@@ -207,54 +136,98 @@ export function authServices<E extends { Bindings: Env }>(c: Context<E>, deps: P
 
 export const auth = new Hono<{ Bindings: Env }>();
 
+export const studioOrigin = (env: Pick<Env, "STUDIO_ORIGIN">) => (env.STUDIO_ORIGIN || "https://studio.decocms.com").replace(/\/+$/, "");
+const studioCallback = (origin: string) => `${origin}/auth/studio/callback`;
 
+/** This origin's client id at Studio. Each origin (production, a branch preview, local dev) registers itself once
+ *  (OAuth dynamic client registration, a public client: no secret) and keeps the id in KV. */
+export async function studioClient(env: Pick<Env, "OAUTH_KV" | "STUDIO_ORIGIN">, origin: string): Promise<string | null> {
+  const key = `studio-client:${origin}`;
+  const known = await env.OAUTH_KV.get(key);
+  if (known) return known;
+  const res = await fetch(`${studioOrigin(env)}/api/auth/mcp/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      client_name: "deco chat",
+      redirect_uris: [studioCallback(origin)],
+      token_endpoint_auth_method: "none",
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+      scope: "openid profile email",
+    }),
+  }).then(async (r) => (r.ok ? StudioClient.safeParse(await r.json()) : null)).catch(() => null);
+  if (!res?.success) return null;
+  await env.OAUTH_KV.put(key, res.data.client_id);
+  return res.data.client_id;
+}
 
+const sha256 = async (s: string) => b64url(await crypto.subtle.digest("SHA-256", enc.encode(s)));
+const random = () => b64url(crypto.getRandomValues(new Uint8Array(32)));
 
-auth.get("/google/start", async (c) => {
-  if (!c.env.GOOGLE_CLIENT_ID) return c.redirect(loginUrl(""));
-  const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
-  setCookie(c, "vb_oauth", `${state}|${safeNext(c.req.query("next"))}`, { httpOnly: true, secure: true, sameSite: "Lax", path: "/auth", maxAge: 600 });
-  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+auth.get("/studio/start", async (c) => {
+  const origin = new URL(c.req.url).origin;
+  const clientId = await studioClient(c.env, origin);
+  if (!clientId) return c.redirect(loginUrl("?error=studio"));
+  const state = random(), verifier = random();
+  setCookie(c, "vb_oauth", `${state}|${safeNext(c.req.query("next"))}|${verifier}`, { httpOnly: true, secure: true, sameSite: "Lax", path: "/auth", maxAge: 600 });
+  const url = new URL(`${studioOrigin(c.env)}/api/auth/mcp/authorize`);
   url.search = new URLSearchParams({
-    client_id: c.env.GOOGLE_CLIENT_ID,
-    redirect_uri: `${new URL(c.req.url).origin}/auth/google/callback`,
     response_type: "code",
-    scope: "openid email profile",
+    client_id: clientId,
+    redirect_uri: studioCallback(origin),
+    scope: "openid profile email",
     state,
-    prompt: "select_account",
+    code_challenge: await sha256(verifier),
+    code_challenge_method: "S256",
   }).toString();
   return c.redirect(url.toString());
 });
 
-auth.get("/google/callback", async (c) => {
-  const [state, next] = (getCookie(c, "vb_oauth") ?? "").split("|");
+auth.get("/studio/callback", async (c) => {
+  const [state, next, verifier] = (getCookie(c, "vb_oauth") ?? "").split("|");
   deleteCookie(c, "vb_oauth", { path: "/auth" });
-  if (!state || state !== c.req.query("state") || !c.req.query("code")) return c.redirect(loginUrl("?error=google"));
-  const tok = await fetch("https://oauth2.googleapis.com/token", {
+  // The step that failed goes to the Worker log; the person sees one message.
+  const fail = (step: string) => {
+    console.warn("studio login failed", { step });
+    return c.redirect(loginUrl("?error=studio"));
+  };
+  if (!state || !verifier || state !== c.req.query("state") || !c.req.query("code")) return fail("state");
+  const origin = new URL(c.req.url).origin, studio = studioOrigin(c.env);
+  const clientId = await c.env.OAUTH_KV.get(`studio-client:${origin}`);
+  if (!clientId) return fail("client");
+  const tok = await fetch(`${studio}/api/auth/mcp/token`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body: new URLSearchParams({
-      code: c.req.query("code")!,
-      client_id: c.env.GOOGLE_CLIENT_ID!,
-      client_secret: c.env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: `${new URL(c.req.url).origin}/auth/google/callback`,
       grant_type: "authorization_code",
+      code: c.req.query("code")!,
+      redirect_uri: studioCallback(origin),
+      client_id: clientId,
+      code_verifier: verifier,
     }),
-  }).then(async (r) => r.ok ? GoogleToken.safeParse(await r.json()) : null).catch(() => null);
-  if (!tok?.success) return c.redirect(loginUrl("?error=google"));
-  const info = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
-    headers: { authorization: `Bearer ${tok.data.access_token}` },
-  }).then(async (r) => r.ok ? GoogleIdentity.safeParse(await r.json()) : null).catch(() => null);
-  if (!info?.success) return c.redirect(loginUrl("?error=google"));
-  await startSession(c, info.data.email);
-  c.executionCtx.waitUntil(track(c.env, "login", { user: info.data.email.toLowerCase(), dims: { method: "google" } }));
-  const gname = (info.data.given_name || info.data.name || "").trim().slice(0, 60);
-  if (gname)
+  }).then(async (r) => (r.ok ? StudioToken.safeParse(await r.json()) : null)).catch(() => null);
+  if (!tok?.success) return fail("token");
+  const info = (() => {
+    try {
+      const part = tok.data.id_token.split(".")[1] ?? "";
+      const bytes = Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
+      return StudioIdentity.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
+    } catch {
+      return null;
+    }
+  })();
+  if (!info?.success) return fail(info?.error.issues.some((i) => i.path[0] === "email_verified") ? "unverified" : "id_token");
+  if (info.data.aud !== clientId) return fail("aud");
+  const email = info.data.email.toLowerCase();
+  await startSession(c, email);
+  c.executionCtx.waitUntil(track(c.env, "login", { user: email, dims: { method: "studio" } }));
+  const name = (info.data.name || "").trim().slice(0, 60);
+  if (name)
     await c.env.DB.prepare(`INSERT INTO users (email, created_at, name) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = COALESCE(users.name, excluded.name)`)
-      .bind(info.data.email.toLowerCase(), Date.now(), gname)
+      .bind(email, Date.now(), name)
       .run()
       .catch(() => {});
-  if (info.data.picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, info.data.email, "google", info.data.picture).then(async (ok) => { if (ok) await (await import("./person")).pokeRoommates(c.env, info.data.email, { t: "me" }); }).catch(() => {}));
   return c.redirect(safeNext(next));
 });
 
@@ -297,62 +270,14 @@ auth.get("/invite", async (c) => {
 
 export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
-// Every vibebook email: centered table layout (Gmail/Outlook ignore most CSS), the real logo as a PNG (no SVG in
+// Every deco.chat email: centered table layout (Gmail/Outlook ignore most CSS), the real logo as a PNG (no SVG in
 // mail clients), brand blue, Caprasimo-like title with safe fallbacks, white card on the app's background.
-// GitHub, same shape as Google: state in a cookie, code for a token, then only the account's primary verified email.
-auth.get("/github/start", async (c) => {
-  if (!c.env.GITHUB_CLIENT_ID) return c.redirect(loginUrl(""));
-  const state = b64url(crypto.getRandomValues(new Uint8Array(16)));
-  setCookie(c, "vb_oauth", `${state}|${safeNext(c.req.query("next"))}`, { httpOnly: true, secure: true, sameSite: "Lax", path: "/auth", maxAge: 600 });
-  const url = new URL("https://github.com/login/oauth/authorize");
-  url.search = new URLSearchParams({
-    client_id: c.env.GITHUB_CLIENT_ID,
-    redirect_uri: `${new URL(c.req.url).origin}/auth/github/callback`,
-    scope: "read:user user:email",
-    state,
-    allow_signup: "true",
-  }).toString();
-  return c.redirect(url.toString());
-});
-
-auth.get("/github/callback", async (c) => {
-  const [state, next] = (getCookie(c, "vb_oauth") ?? "").split("|");
-  deleteCookie(c, "vb_oauth", { path: "/auth" });
-  if (!state || state !== c.req.query("state") || !c.req.query("code")) return c.redirect(loginUrl("?error=github"));
-  const tok = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-    body: new URLSearchParams({
-      code: c.req.query("code")!,
-      client_id: c.env.GITHUB_CLIENT_ID!,
-      client_secret: c.env.GITHUB_CLIENT_SECRET!,
-      redirect_uri: `${new URL(c.req.url).origin}/auth/github/callback`,
-    }),
-  }).then(async (r) => r.ok ? githubToken(await r.json()) : null).catch(() => null);
-  if (!tok) return c.redirect(loginUrl("?error=github"));
-  const gh = (path: string) => fetch(`https://api.github.com${path}`, { headers: { authorization: `Bearer ${tok}`, accept: "application/vnd.github+json", "user-agent": "vibebook" } });
-  const email = await gh("/user/emails").then(async (r) => r.ok ? githubEmail(await r.json()) : null).catch(() => null);
-  if (!email) return c.redirect(loginUrl("?error=github"));
-  await startSession(c, email);
-  c.executionCtx.waitUntil(track(c.env, "login", { user: email.toLowerCase(), dims: { method: "github" } }));
-  const profile: unknown = await gh("/user").then((r) => r.ok ? r.json() : null).catch(() => null);
-  const gname = githubName(profile);
-  if (gname)
-    await c.env.DB.prepare(`INSERT INTO users (email, created_at, name) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = COALESCE(users.name, excluded.name)`)
-      .bind(email.toLowerCase(), Date.now(), gname)
-      .run()
-      .catch(() => {});
-  const picture = githubAvatar(profile);
-  if (picture) c.executionCtx.waitUntil(syncProviderAvatar(c.env, email, "github", picture).then(async (ok) => { if (ok) await (await import("./person")).pokeRoommates(c.env, email, { t: "me" }); }).catch(() => {}));
-  return c.redirect(safeNext(next));
-});
-
 /** `origin`: where the logo and the footer link point (publicOrigin of the Worker that sends it). */
 export const emailHtml = (title: string, body: string, origin = DEFAULT_ORIGIN) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light"><link href="https://fonts.googleapis.com/css2?family=Caprasimo&display=swap" rel="stylesheet"></head>
 <body style="margin:0;padding:0;background:#eef3fa">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef3fa"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a2130;font-size:15px;line-height:1.55">
-<tr><td style="padding:0 4px 20px"><a href="${origin}" style="text-decoration:none"><img src="${origin}/email-logo.png" width="128" height="26" alt="vibebook" style="display:block;border:0;width:128px;height:26px"></a></td></tr>
+<tr><td style="padding:0 4px 20px"><a href="${origin}" style="text-decoration:none"><img src="${origin}/email-logo.png" width="128" height="26" alt="deco.chat" style="display:block;border:0;width:128px;height:26px"></a></td></tr>
 <tr><td style="background:#ffffff;border-radius:18px;padding:32px 32px 28px;border:1px solid #dfe6f1">
 <h1 style="margin:0 0 10px;font-family:Caprasimo,Georgia,'Times New Roman',serif;font-weight:400;font-size:24px;line-height:1.25;color:#14203a">${title}</h1>${body}</td></tr>
 <tr><td style="padding:18px 4px 0;font-size:12px;color:#7a8496"><a href="${origin}" style="color:#1d5fc4;text-decoration:none;font-weight:600">${new URL(origin).host}</a> · pensa junto, a AI organiza</td></tr>

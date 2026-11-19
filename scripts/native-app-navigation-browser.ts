@@ -7,7 +7,6 @@ import {
   auditNativeAppNavigation,
   type NativeAppNavigationFixture,
 } from "./native-app-navigation-probe";
-import { vanillaAppNavigationDriver } from "./app-navigation-ui-driver";
 import { mkdir, writeFile } from "node:fs/promises";
 
 const expect = baseExpect.configure({ timeout: 30_000 });
@@ -81,12 +80,10 @@ try {
     status: string;
     verdict: string;
   }[] = [];
-  for (const variant of ["svelte", "vanilla"] as const) {
+  // The Svelte app is the only app since #181.
+  for (const variant of ["svelte"] as const) {
     try {
-      const evidence = await auditNativeAppNavigation({
-        ...fixture,
-        ...(variant === "vanilla" ? { ui: vanillaAppNavigationDriver } : {}),
-      });
+      const evidence = await auditNativeAppNavigation(fixture);
       results.push({
         variant,
         status: evidence.status,

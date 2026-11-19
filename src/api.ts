@@ -84,11 +84,8 @@ import {
   TINTS,
   TintBody,
   type UploadFileResult,
-  type AuthProviders,
   type LoginContext,
   LoginContextQuery,
-  EmailVerifyBody,
-  type EmailVerifyResult,
   type AccessContext,
   type AgentGrantsResult,
   RevokeAgentsBody,
@@ -130,7 +127,6 @@ export interface ApiServices {
   search(q: string): Promise<SearchResult | false>;
   /** The cross-room Inbox: waits, held-back mentions, and the person's open tasks. */
   inbox(): Promise<InboxResult>;
-  loginProviders: { google: boolean; github: boolean };
   isEmail(s: string): boolean;
   /** Write to someone: `id` = the DM is open (a room in common, a connection, or their request accepted); `{}` = it
    *  went as a message request. Never says whether the email has an account. */
@@ -217,16 +213,13 @@ export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 50
 export type ApiCtx = { Variables: { email: string; svc: ApiServices } };
 
 /** The public /auth routes' side (src/auth.ts authServices): no session needed, so it is its own app, mounted before
- *  the Worker's sign-in middleware. Same checks as before the move: origin, rate limits, code hash, attempts. */
+ *  the Worker's sign-in middleware. Sign-in itself is the redirect to deco Studio (src/auth.ts, /auth/studio/*). */
 export interface AuthServices {
-  providers: AuthProviders;
   sameOrigin: boolean;
   /** Where to go after login: a same-site app path, else /app. */
   safeNext(next: string | undefined): string;
   /** /login plus a query, in the UI (?ui=svelte) that `next` carries. */
   loginUrl(next: string | undefined, query: string): string;
-  emailStart(email: string): Promise<OkResult | AuthFail>;
-  emailVerify(body: EmailVerifyBody): Promise<EmailVerifyResult | AuthFail>;
   /** Drop this browser's session cookie. */
   logout(): void;
   /** Sign out every browser of the signed-in person. */
@@ -308,7 +301,7 @@ export const api = roomPosts
   })
   .post("/api/push/test", async (c) => {
     const svc = c.get("svc");
-    const sent = await svc.pushToMe({ title: "vibebook", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/", tag: "test" });
+    const sent = await svc.pushToMe({ title: "deco.chat", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/", tag: "test" });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
   // ✓ on a wait: "I answered elsewhere / not for me" (asks only).
@@ -374,7 +367,7 @@ export const accountApi = api
   .get("/api/me/logins", async (c) => {
     const svc = c.get("svc");
     const rows = await svc.sqlAll(`SELECT COALESCE(json_extract(dims, '$.method'), 'email') AS method, MAX(ts) AS last, COUNT(*) AS n FROM events WHERE user = ? AND name = 'login' GROUP BY 1`, c.get("email"));
-    return c.json(LoginsResult.parse({ logins: rows, providers: svc.loginProviders }) satisfies LoginsResult, 200);
+    return c.json(LoginsResult.parse({ logins: rows }) satisfies LoginsResult, 200);
   })
   .post("/api/friends", body(ConnectBody, "invalid email"), async (c) => {
     const svc = c.get("svc"), { email, text } = c.req.valid("json"), who = email.trim().toLowerCase();
@@ -875,7 +868,6 @@ const authFail = (f: AuthFail) => ({ error: f.error }) satisfies ErrorBody;
 const badOrigin = { error: "bad origin" } satisfies ErrorBody;
 /** Public auth routes (the login page, the consent page's sign-out). index.ts mounts them before its sign-in check. */
 export const authApi = new Hono<AuthCtx>()
-  .get("/auth/providers", (c) => c.json(c.get("auth").providers satisfies AuthProviders, 200))
   .get(
     "/auth/context",
     validator("query", (value, c) => {
@@ -884,23 +876,11 @@ export const authApi = new Hono<AuthCtx>()
     }),
     (c) => {
       const auth = c.get("auth"), q = c.req.valid("query");
-      const error = q.error === "google" || q.error === "github" ? q.error : null;
-      return c.json({ providers: auth.providers, next: auth.safeNext(q.next), error } satisfies LoginContext, 200);
+      const error = q.error === "studio" ? q.error : null;
+      return c.json({ next: auth.safeNext(q.next), error } satisfies LoginContext, 200);
     },
   )
   .get("/auth/room/:id", async (c) => c.json((await c.get("auth").roomAccess(c.req.param("id"))) satisfies AccessContext, 200))
-  .post("/auth/email/start", body(EmailBody, "invalid email"), async (c) => {
-    const auth = c.get("auth");
-    if (!auth.sameOrigin) return c.json(badOrigin, 403);
-    const r = await auth.emailStart(c.req.valid("json").email);
-    return "error" in r ? c.json(authFail(r), r.status) : c.json(r satisfies OkResult, 200);
-  })
-  .post("/auth/email/verify", body(EmailVerifyBody), async (c) => {
-    const auth = c.get("auth");
-    if (!auth.sameOrigin) return c.json(badOrigin, 403);
-    const r = await auth.emailVerify(c.req.valid("json"));
-    return "error" in r ? c.json(authFail(r), r.status) : c.json(r satisfies EmailVerifyResult, 200);
-  })
   .post("/auth/logout", async (c) => {
     const auth = c.get("auth");
     auth.logout();

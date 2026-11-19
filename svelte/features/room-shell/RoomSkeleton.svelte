@@ -211,7 +211,7 @@
         class="flex min-w-0 shrink-0 items-center gap-1 border-b border-border bg-background px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:hidden"
       >
         <IconButton
-          label={t("Seus vibebooks")}
+          label={t("Suas salas")}
           size="icon"
           class="rounded-full"
           onclick={onhome}><Icon icon={ArrowLeft} size={16} /></IconButton
@@ -300,9 +300,9 @@
 
       <!-- The composer; on phones the tab bar under it carries the home-bar inset. -->
       <div aria-hidden="true" class="shrink-0">
-        <div class="px-3 pt-1 pb-3 md:pb-4 md:px-6">
+        <div class="px-3 pt-1 pb-3 md:pb-2 md:px-4">
           <div
-            class="mb-2 flex h-14 items-center gap-2 rounded-[22px] bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_var(--vb-hairline),0_4px_16px_0_#0000000d]"
+            class="mb-2 flex h-14 items-center gap-2 rounded-2xl bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d]"
           >
             <span class="min-w-0 flex-1 truncate">{t("Mensagem…")}</span>
             <Skeleton class="h-8 w-16 rounded-full" />

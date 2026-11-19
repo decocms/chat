@@ -30,7 +30,7 @@
         class="rounded-control"
       />
       <Dialog.Title class="m-0 font-sans text-2xl font-semibold"
-        >vibebook</Dialog.Title
+        >deco.chat</Dialog.Title
       >
       <Dialog.Description class="text-sm text-muted-foreground"
         >{en

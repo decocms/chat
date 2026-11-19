@@ -1,5 +1,6 @@
 // Real browser + local Worker check. Start `bun run dev --var DEV_EMAIL:codex-test@example.test`
 // and run `bun scripts/browser-check.ts`. Test data is confined to a newly created local room.
+import { receivedEvent, sentFrame } from "./room-frames";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { parseRoomEvent } from "../shared/validation";
@@ -55,16 +56,17 @@ try {
     page.on("websocket", (socket) => {
       socket.on("framesent", (frame) => {
         try {
-          const m = JSON.parse(String(frame.payload));
-          if (m.t === "msg") console.log("WS sent", m.text);
+          const m = sentFrame(String(frame.payload));
+          if (m?.t === "msg") console.log("WS sent", m.text);
         } catch {}
       });
       socket.on("framereceived", (frame) => {
         try {
-          const m = JSON.parse(String(frame.payload));
-          if (socket.url().includes("/ws/"))
+          const m = receivedEvent(String(frame.payload));
+          if (m && socket.url().includes("/ws/"))
             capturedRoom.apply(parseRoomEvent(String(frame.payload)), id);
-          if (m.t === "msg") console.log("WS received", m.m.text);
+          if (m?.t === "msg")
+            console.log("WS received", (m.m as { text?: unknown }).text);
         } catch {}
       });
     });

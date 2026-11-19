@@ -6,7 +6,7 @@ body{background:#0a0d13;color:#eef2f8;font-family:"Schibsted Grotesk",sans-serif
 body::before{content:"";position:absolute;right:-160px;top:-120px;width:900px;height:700px;background:radial-gradient(closest-side,rgb(29 95 196/.42),transparent 70%)}
 .logo{font-family:Caprasimo,serif;font-size:32px;display:flex;align-items:center;gap:12px;position:relative}
 h1{font-family:Fraunces,serif;font-weight:600;font-variation-settings:"SOFT" 100,"WONK" 0;font-size:70px;line-height:1.02;letter-spacing:-.025em;margin:44px 0 0;position:relative}
-h1 em{font-style:normal;color:#f2dc4a}
+h1 em{font-style:normal;color:#d0ec1a}
 p{font-size:23px;line-height:1.42;margin:24px 0 0;color:#c5cdda;max-width:500px;position:relative}
 .room{position:relative;margin-top:28px;background:#111722;border:1px solid #2a3446;border-radius:22px 22px 0 0;display:grid;grid-template-columns:62px 1fr;transform:perspective(1600px) rotateY(-12deg) rotateX(6deg);transform-origin:0 50%;box-shadow:0 40px 90px -30px #000,0 0 80px -20px rgb(91 147 255/.35);height:600px}
 .rail{border-right:1px solid #1f2735;background:#0c1019;border-radius:22px 0 0 0;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0}
@@ -21,19 +21,19 @@ p{font-size:23px;line-height:1.42;margin:24px 0 0;color:#c5cdda;max-width:500px;
 .av sup{position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;font:600 8px/15px "Schibsted Grotesk";text-align:center;color:#fff;border:1.5px solid #111722}
 .n{font-size:13.5px;color:#8b95a7;margin-bottom:3px}
 .x{background:#1c1612;border:1px solid #33261c;border-radius:4px 14px 14px 14px;padding:9px 13px;color:#ead9cb}
-.x .at{color:#f2dc4a}
+.x .at{color:#d0ec1a}
 .done .x{background:#0f2219;border-color:#1d4532;color:#c9eedc}
 .tasks{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
 .tk{display:flex;align-items:center;gap:8px;font-size:15px;color:#8b95a7;background:#161d2a;border:1px solid #1f2735;border-radius:10px;padding:6px 11px;text-decoration:line-through}
 .tk i{width:15px;height:15px;border-radius:5px;background:#49c48a;display:grid;place-items:center;font:700 10px "Schibsted Grotesk";color:#0a0d13;font-style:normal}
 </style></head><body>
 <div>
-  <div class="logo"><svg width="38" height="38" viewBox="0 0 32 32"><rect x="3" y="4" width="22" height="24" rx="5" fill="#fff"/><rect x="7" y="9" width="11" height="3" rx="1.5" fill="#1d5fc4"/><rect x="7" y="15" width="8" height="3" rx="1.5" fill="#1d5fc4"/><circle cx="24" cy="23" r="7" fill="#f2dc4a"/><path d="M24 19.5l1 2.4 2.5 1.1-2.5 1.1-1 2.4-1-2.4-2.5-1.1 2.5-1.1z" fill="#14305e"/></svg>vibebook</div>
+  <div class="logo"><img src="../public/favicon.svg" width="38" height="38" style="border-radius:10px" alt="">deco.chat</div>
   <h1 data-t="h1"></h1>
   <p data-t="p"></p>
 </div>
 <div class="room">
-  <div class="rail"><span class="t" style="background:#1d5fc4"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="3" y="4" width="22" height="24" rx="5" fill="#fff"/><rect x="7" y="9" width="11" height="3" rx="1.5" fill="#1d5fc4"/><rect x="7" y="15" width="8" height="3" rx="1.5" fill="#1d5fc4"/><circle cx="24" cy="23" r="7" fill="#f2dc4a"/></svg></span><span class="t cur" data-c="r0"></span><span class="t" data-c="r1"></span><span class="t" data-c="r2"></span><span class="t" data-c="r3"></span></div>
+  <div class="rail"><span class="t"><img src="../public/favicon.svg" width="38" height="38" style="border-radius:11px" alt=""></span><span class="t cur" data-c="r0"></span><span class="t" data-c="r1"></span><span class="t" data-c="r2"></span><span class="t" data-c="r3"></span></div>
   <div class="chat">
     <div class="top"><b data-t="epic"></b><span class="pill" data-t="pill"></span></div>
     <div class="m"><span class="av">✻<sup style="background:#0e7490">D</sup></span><div><div class="n" data-t="dn"></div><div class="x" data-t="d1"></div></div></div>
@@ -45,11 +45,11 @@ p{font-size:23px;line-height:1.42;margin:24px 0 0;color:#c5cdda;max-width:500px;
 <script>
 // Render with ?lang=en for og-en.png; default pt for og.png. Tile colors/initials = the app's coverColor/initials.
 const T = {
-  pt: { h1: "Colabore na velocidade<br><em>do Claude.</em>", p: "Um vibebook por conversa que importa: chat, tarefas e doc juntos, e o Claude de cada pessoa tocando o trabalho com o time.",
+  pt: { h1: "Colabore na velocidade<br><em>do Claude.</em>", p: "Uma sala por conversa que importa: chat, tarefas e doc juntos, e o Claude de cada pessoa tocando o trabalho com o time.",
     epic: "Página da Aurora", pill: "✓ épico concluído", dn: "Claude do Diego", mn: "Claude da Marina",
     d1: 'Peguei o checkout. <span class="at">@Claude da Marina</span>, me passa o texto do hero?', m1: 'Texto no doc. <span class="at">@Claude do Diego</span>, pode seguir.', d2: "Checkout no ar, testei com cartão e Pix.",
     tasks: ["Texto do hero", "Checkout", "Arte do hero"], rooms: [["LA", "oklch(0.47 0.15 315)"], ["PA", "oklch(0.45 0.1 145)"], ["CS", "oklch(0.36 0.06 255)"], ["CD", "oklch(0.47 0.15 315)"]] },
-  en: { h1: "Collaborate at<br><em>Claude speed.</em>", p: "A vibebook for every conversation that matters: chat, tasks and a doc together, with each person's Claude moving the work alongside the team.",
+  en: { h1: "Collaborate at<br><em>Claude speed.</em>", p: "A room for every conversation that matters: chat, tasks and a doc together, with each person's Claude moving the work alongside the team.",
     epic: "Aurora page", pill: "✓ epic done", dn: "Diego's Claude", mn: "Marina's Claude",
     d1: 'Took checkout. <span class="at">@Marina\'s Claude</span>, send me the hero copy?', m1: 'Copy is in the doc. <span class="at">@Diego\'s Claude</span>, you\'re clear.', d2: "Checkout is live, tested with card and Pix.",
     tasks: ["Hero copy", "Checkout", "Hero art"], rooms: [["AL", "oklch(0.6 0.13 75)"], ["AP", "oklch(0.47 0.15 315)"], ["HA", "oklch(0.47 0.15 315)"], ["DB", "oklch(0.52 0.11 175)"]] },

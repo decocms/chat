@@ -10,7 +10,7 @@
   /**
    * A live pin (kind "live", Gui #3121): an https site shown inside the room, e.g. someone's local dev through a
    * cloudflared tunnel, so the people and Claudes in an epic iterate on one page together. A floating window over
-   * the room (full screen on phones). The page is another origin in a sandbox, so it never reaches vibebook's
+   * the room (full screen on phones). The page is another origin in a sandbox, so it never reaches deco.chat's
    * cookies or APIs; the strip on top says it is an outside site, whose, and who pinned it.
    */
   let {

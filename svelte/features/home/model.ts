@@ -262,6 +262,14 @@ export const roomMatches = (books: readonly RoomSummary[], query: string) =>
         fold(room.folder ?? "").includes(fold(query)),
     )
     .slice(0, 12);
+/** The rooms Search lists, in the order its rows (and the arrow keys) go: your rooms first, then your DMs. */
+export const searchRooms = (books: readonly RoomSummary[], query: string) => {
+  const found = roomMatches(books, query);
+  return [
+    ...found.filter((room) => !room.dm),
+    ...found.filter((room) => room.dm),
+  ];
+};
 export const messageIdentity = (value: string | number | undefined) => {
   if (value === undefined) return undefined;
   const id = Number(value);

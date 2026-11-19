@@ -1,5 +1,6 @@
 /** Real Chromium/Worker gesture and media lifecycle proof. Fake input is an
  * explicit continuous tone; no API, canonical state, STT or runner is mocked. */
+import { sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -218,16 +219,7 @@ export async function auditNativeDictation(
       if (new URL(socket.url()).pathname !== `/ws/${fixture.roomId}`) return;
       socket.on("framesent", (frame) => {
         if (typeof frame.payload !== "string") return;
-        try {
-          const raw: unknown = JSON.parse(frame.payload);
-          if (
-            typeof raw === "object" &&
-            raw !== null &&
-            "t" in raw &&
-            raw.t === "msg"
-          )
-            report.messageWrites++;
-        } catch {}
+        if (sentFrame(frame.payload)?.t === "msg") report.messageWrites++;
       });
     });
     page.on("pageerror", (error) => report.pageErrors.push(error.name));

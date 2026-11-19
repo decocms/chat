@@ -129,7 +129,6 @@ export const LoginsResult = z.object({
   logins: z.array(
     z.object({ method: z.string(), last: z.number(), n: z.number() }),
   ),
-  providers: z.object({ google: z.boolean(), github: z.boolean() }),
 });
 export type LoginsResult = z.infer<typeof LoginsResult>;
 
@@ -580,35 +579,16 @@ export type GlobalFailure = {
 };
 
 // Public auth routes (/auth/*, src/api.ts authApi): what the login page needs, before anyone is signed in.
-export const AuthProviders = z.object({
-  google: z.boolean(),
-  github: z.boolean(),
-  email: z.literal(true),
-});
-export type AuthProviders = z.infer<typeof AuthProviders>;
-/** The login page's context: which buttons to show, where to go after (already made safe), and why a provider failed. */
+/** The login page's context: where to go after (already made safe), and whether sign-in with deco Studio failed. */
 export const LoginContext = z.object({
-  providers: AuthProviders,
   next: z.string(),
-  error: z.nullable(z.enum(["google", "github"])),
+  error: z.nullable(z.literal("studio")),
 });
 export type LoginContext = z.infer<typeof LoginContext>;
 export const LoginContextQuery = z.object({
   next: z.optional(z.string()),
   error: z.optional(z.string()),
 });
-export const EmailVerifyBody = z.object({
-  email: z.string(),
-  code: z.string(),
-  next: z.optional(z.string()),
-});
-export type EmailVerifyBody = z.infer<typeof EmailVerifyBody>;
-export const EmailVerifyResult = z.object({
-  ok: z.literal(true),
-  next: z.string(),
-});
-export type EmailVerifyResult = z.infer<typeof EmailVerifyResult>;
-
 /** A room link's page for someone who may not be in it (the access page): the title is readable by whoever holds the
  *  link, on purpose (the shared card). state: missing room, signed out, can ask, already asked, or already a member. */
 export const AccessContext = z.object({

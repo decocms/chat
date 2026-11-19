@@ -7,11 +7,12 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.6.20";
+var VERSION = "1.7.0";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
-var DEFAULT_ORIGIN = "https://vibebook.dev";
+var DEFAULT_ORIGIN = "https://chat.decocms.com";
+var MOVED = { "https://vibebook.dev": DEFAULT_ORIGIN };
 var HERDR = join(HOME, "herdr.json");
 var jsonErrors = false;
 var die = (msg, code = 1) => {
@@ -72,7 +73,7 @@ function roomHere(root) {
   } catch {}
   for (const f of ["README.md", "AGENTS.md", "CLAUDE.md"]) {
     try {
-      const m = readFileSync(join(root, f), "utf8").match(/vibebook\.dev\/b\/([a-z0-9]{12})/);
+      const m = readFileSync(join(root, f), "utf8").match(/(?:chat\.decocms\.com|vibebook\.dev)\/b\/([a-z0-9]{12})/);
       if (m)
         return m[1];
     } catch {}
@@ -184,6 +185,10 @@ async function session() {
   let s = readJson(SESSION, null);
   if (!s)
     return die("Not logged in. Ask your human to run, in their own terminal: vibebook login");
+  const moved = MOVED[s.origin.replace(/\/$/, "")];
+  if (moved)
+    return die(`vibebook moved to ${moved}. Ask your human to run, in their own terminal: vibebook login
+` + `O vibebook mudou para ${moved}. Peça pro seu humano rodar, no terminal dele: vibebook login`);
   if (fresh(s))
     return s;
   const lock = `${SESSION}.lock`;
@@ -922,6 +927,24 @@ var HELP = `vibebook ${VERSION}: your vibebook rooms from the terminal (for you 
   vibebook update                install the latest version
 
 Options: --model "Claude Opus 5.5" (or VIBEBOOK_MODEL) names the agent in the room; --origin for a local server.`;
+function hubNotice(raw) {
+  let m;
+  try {
+    m = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!m || typeof m !== "object" || Array.isArray(m))
+    return null;
+  const o = m;
+  if (o.jsonrpc === "2.0") {
+    if (typeof o.method !== "string" || "id" in o)
+      return null;
+    const params = o.params && typeof o.params === "object" && !Array.isArray(o.params) ? o.params : {};
+    return { ...params, t: o.method };
+  }
+  return typeof o.t === "string" ? o : null;
+}
 var HUB = join(HOME, "hub.json");
 var hubPort = () => {
   const h = readJson(HUB, null);
@@ -1015,7 +1038,7 @@ async function hub() {
   let sock = null, ping;
   const connect = async () => {
     const s = await session();
-    const ws = new WebSocket(`${s.origin.replace(/^http/, "ws")}/mcp`, { headers: { authorization: `Bearer ${s.access_token}` } });
+    const ws = new WebSocket(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } });
     sock = ws;
     let closed = false;
     const again = () => {
@@ -1038,8 +1061,10 @@ async function hub() {
     };
     ws.onmessage = (e) => {
       try {
-        const m = JSON.parse(String(e.data));
-        if (m.t === "me" && m.book)
+        const m = hubNotice(String(e.data));
+        if (!m)
+          return;
+        if (m.t === "me" && typeof m.book === "string" && m.book)
           bump(m.book);
         if (m.t === "agents")
           bumpAgents();
@@ -1232,7 +1257,7 @@ async function main() {
         if (appMode)
           return die("Herdr (the desktop app) isn't open, or herdr-app isn't installed (https://herdr.dev)");
         return die(e.code === "ENOENT" ? `herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:
-  curl -fsSL https://vibebook.dev/setup.sh | sh` : 'herdr isn\'t open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its "vibebook" tab runs this for you.');
+  curl -fsSL https://chat.decocms.com/setup.sh | sh` : 'herdr isn\'t open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its "vibebook" tab runs this for you.');
       }
       const lock = join(HOME, "herdr.pid");
       const other = Number(existsSync(lock) ? readFileSync(lock, "utf8") : 0);
@@ -1345,7 +1370,8 @@ async function main() {
         return;
       }
       const s = readJson(SESSION, null);
-      const origin = (flag("origin") ?? s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+      const from = (flag("origin") ?? s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+      const origin = MOVED[from] ?? from;
       const r = await fetch(`${origin}/cli.mjs`);
       if (!r.ok)
         return die(`could not download: ${r.status}`);

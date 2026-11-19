@@ -355,3 +355,73 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium
 - Undo: Remove the `previews` block, turn off preview builds and delete the three `chat-preview*` resources.
 - Status: open
+
+### 2026-11-18 · feat/deco-brand-icon · The PNG app icons are full-bleed
+- Agent: claude-opus-5-5
+- Context: The human asked for the deco favicon and brand icon from `~/code/studio`. The deco `favicon.svg` has rounded corners. iOS and Android put their own mask on an app icon.
+- Decision: `public/favicon.svg` is the deco favicon, unchanged. `apple-touch-icon.png`, `icon-192.png` and `icon-512.png` have no rounded corners: `og/icon.html` fills the corners with the deco lime (`#d0ec1a`). The in-app brand icon stays `/favicon.svg`.
+- Other options: Keep the rounded corners in the PNGs (the system shows white corners). Add a separate `deco-mark.svg` without the background for the app.
+- Risk: low
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-18 · feat/ws-json-rpc · JSON-RPC on the room and person sockets
+- Agent: claude-opus-5-5
+- Context: The human asked for typed WebSocket messages in the JSON-RPC protocol, with no RPC library, for the Svelte app only.
+- Decision: Only the wire edges changed (`shared/jsonRpc.ts`, `parseRoomCall`, `parseRoomEvent`, `Book.sendTo`, `Book.webSocketMessage`, `svelte/transport.ts`). The code keeps the typed tagged messages. A successful response has `result: null`. The data still comes in the events, as before. A refused command is error code -32000 with the reason. I removed the shim that accepted decision ids as strings from old tabs.
+- Other options: Results that carry the data (for example `doc.get` returns the text). That is a larger change to each feature. It can come later, one method at a time.
+- Risk: medium. A tab that still runs the old app cannot read the room socket until it reloads.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-18 · feat/ws-json-rpc · The CLI hub moves to JSON-RPC, old CLIs keep tagged JSON
+- Agent: claude-opus-5-5
+- Context: The `vibebook listen` hub of the installed CLI holds a socket to the `Person` object (through `/mcp`) and reads `m.t`. The human said to move the CLI to the new format and keep the legacy one.
+- Decision: CLI 1.6.21 connects to `/mcp?wire=jsonrpc`. It reads JSON-RPC notifications, and also the tagged JSON of an older server. The `Person` object tags each socket when it accepts it (`socketWire`): `/ws-me` and `?wire=jsonrpc` get JSON-RPC, plain `/mcp` gets the tagged JSON. I selected a query parameter, not a new path or a WebSocket subprotocol: the OAuth provider already routes `/mcp`, and a subprotocol needs the server to echo it.
+- Other options: A new path such as `/mcp/ws`. The `Sec-WebSocket-Protocol` header.
+- Risk: low
+- Undo: Revert the CLI change and `socketWire`.
+
+### 2026-11-18 · feat/studio-login · Sign-in is with deco Studio only
+- Agent: claude-opus-5-5
+- Context: The humans (the CTO and the owner) decided that chat signs people in with their deco Studio account, and that Google, GitHub and the emailed code go away. Studio is an OAuth 2.1 server with dynamic client registration (`/api/auth/mcp/*`).
+- Decision: `/auth/studio/start` and `/auth/studio/callback` use OAuth 2.1 with PKCE as a public client, so chat keeps no client secret. Each origin registers itself at Studio the first time and keeps the client id in `OAUTH_KV`, so production, branch previews and local dev work with no configuration. The callback accepts only `email_verified: true`, because an unverified Studio email must not take an account here. The Studio picture is not copied: the old avatar code accepted only Google and GitHub hosts and is removed.
+- Other options: One client id in `wrangler.jsonc` (previews could not sign in). Read the Studio session cookie (it belongs to `studio.decocms.com` only). Keep the emailed code as a fallback.
+- Risk: medium
+- Undo: Revert this commit and set the Google and GitHub secrets again.
+- Status: open
+
+### 2026-11-18 · ci/cancel-superseded-main · A newer push to main cancels the running CI
+- Agent: claude-opus-5-5
+- Context: The human asked that a new commit on `main` cancels the other runs and that only the latest commit runs. Before, a newer push replaced only a queued run. A running run (browser jobs, about 15 minutes) always finished.
+- Decision: `cancel-in-progress: true` for every branch in `ci.yml`. `main-red.yml` already ignores a cancelled run when `main` moved on.
+- Other options: Cancel only queued runs (the old behavior).
+- Risk: low. When merges come faster than one CI run, no commit gets its browser jobs until the merges stop.
+- Undo: Set `cancel-in-progress` back to `${{ github.event_name == 'pull_request' }}`.
+- Status: open
+
+### 2026-11-18 · feat/rename-deco-chat · A room is a "sala" or "room", not a "deco.chat"
+- Agent: claude-opus-5-5
+- Context: The human asked to rename vibebook to deco.chat in the app. The UI used "vibebook" for the product and also as the noun for one room ("Seus vibebooks", "Novo vibebook").
+- Decision: The product name is "deco.chat". The noun for one room is "sala" (PT) or "room" (EN): "Suas salas", "Nova sala". The default room title is "Nova sala". A room titled "Novo vibebook" still gets an automatic title.
+- Other options: "Seus deco.chats". "Seus chats".
+- Risk: low
+- Undo: Revert the commit.
+
+### 2026-11-18 · fix/studio-verified · The Studio identity comes from the id_token
+- Agent: claude-opus-5-5
+- Context: Sign-in with deco failed for everyone. Studio (Better Auth `mcp()` plugin) lists `/api/auth/mcp/userinfo` in its metadata, but that path answers 404. Studio signs its `id_token` with a throwaway HS256 key, so no one can check the signature.
+- Decision: The callback reads `email`, `email_verified` and `name` from the `id_token` that the token endpoint returns. It checks that `aud` is our client id and that `email_verified` is true. It does not check the signature: the token comes directly from Studio's token endpoint over TLS for a PKCE-bound code (OIDC Core 3.1.3.7 permits this). The step that fails goes to the Worker log.
+- Other options: Add a userinfo endpoint or a real signing key to Studio first (a change in another repo). Call Studio's session API with the access token (it returns no email).
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-18 · feat/domain-chat · The CLI and the plugin talk to chat.decocms.com
+- Agent: claude-opus-5-5
+- Context: The app moved to chat.decocms.com. The CLI, the Claude plugin, the herdr plugin, the install scripts and the docs still used vibebook.dev. The human decided to keep the names (npm package `vibebook.dev`, command `vibebook`, plugin `vibebook`) and change only the domain.
+- Decision: Every URL that a client or a person follows is now https://chat.decocms.com. The npm package name stays `vibebook.dev` in install commands. A login that the CLI saved for vibebook.dev stops with a message in English and Portuguese that asks for `vibebook login`, because a login token works only on the host that made it. `vibebook update` downloads from the new host. The CLI and the plugin hooks find a room from a `chat.decocms.com/b/<id>` link and also from an old `vibebook.dev/b/<id>` link. CLI 1.7.0, plugin 0.25.0.
+- Other options: Let old logins continue on vibebook.dev until it is shut down (people would work on the old copy without notice). Rename the package and the plugin now.
+- Risk: medium. Each person must run `vibebook login` once.
+- Undo: Revert the commit and publish the previous CLI version.
+- Status: open

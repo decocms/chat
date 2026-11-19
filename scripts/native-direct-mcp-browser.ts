@@ -59,7 +59,9 @@ export async function auditDirectMcp(
     await mkdir(fixture.output, { recursive: true });
     server = await startDirectMcpFixture(fixture.base);
     evidence.sdk = server.sdk;
-    for (const variant of ["svelte", "vanilla"] as const) {
+    const variants: DirectVariant[] = ["svelte"];
+    // The Svelte app is the only app since #181; the vanilla branches below are dead until they are removed.
+    for (const variant of variants) {
       const result: (typeof evidence.variants)[number] = {
         variant,
         status: "running",

@@ -292,9 +292,7 @@
           />{:else}<DeferredRouteStatus
             phase={$homeModuleView.phase}
             lang={services.language}
-            label={services.language === "en"
-              ? "Your vibebooks"
-              : "Seus vibebooks"}
+            label={services.language === "en" ? "Your rooms" : "Suas salas"}
             retry={() => {
               void homeModule.retry();
             }}

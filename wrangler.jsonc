@@ -47,7 +47,9 @@
     // Cloudflare Email Sending is set up for it.
     "PUBLIC_ORIGIN": "https://chat.decocms.com",
     "MAIL_DOMAIN": "chat.decocms.com",
-    "CF_ZONE": "decocms.com"
+    "CF_ZONE": "decocms.com",
+    // Sign-in is with deco Studio (src/auth.ts): each origin registers itself there as a public OAuth client.
+    "STUDIO_ORIGIN": "https://studio.decocms.com"
   },
   // Off: the 8h/18h digest mails real people. Turn it on when Email Sending is set up.
   "triggers": { "crons": [] },
@@ -61,7 +63,7 @@
     "r2_buckets": [{ "binding": "FILES", "bucket_name": "chat-preview-files" }],
     "durable_objects": { "bindings": [{ "name": "BOOK", "class_name": "Book" }, { "name": "DOC_ROOMS", "class_name": "DocRoom" }, { "name": "PEOPLE", "class_name": "Person" }] },
     "ai": { "binding": "AI" },
-    // Sign-in is by emailed code, so a Preview needs EMAIL too. Its D1 holds only the people who use that Preview.
+    // Invites and mentions send email. A Preview's D1 holds only the people who use that Preview.
     "send_email": [{ "name": "EMAIL" }],
     "ratelimits": [
       { "name": "AI_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
@@ -80,7 +82,8 @@
       "CF_ACCOUNT_ID": "c95fc4cec7fc52453228d9db170c372c",
       "PUBLIC_ORIGIN": "https://chat.decocms.com",
       "MAIL_DOMAIN": "chat.decocms.com",
-      "CF_ZONE": "decocms.com"
+      "CF_ZONE": "decocms.com",
+      "STUDIO_ORIGIN": "https://studio.decocms.com"
     }
   },
   // Local dev serves as http://127.0.0.1:8797 (OAuth accepts http only on a loopback IP; :8787 is taken here).

@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { hc, type InferRequestType } from "hono/client";
 import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
 import { AgentDbRow, UploadHeaders } from "../src/apiServerSchemas";
+import { encodeCall } from "../shared/jsonRpc";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
 import type { MeQuery, SearchQuery } from "../shared/schemas";
 import {
@@ -98,7 +99,6 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     sqlAll: async () => [],
     search: async () => ({ rooms: 0, epics: [], messages: [] }),
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
-    loginProviders: { google: false, github: false },
     isEmail: (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
     connect: async (email) =>
       email === "member@test.com"
@@ -823,7 +823,7 @@ test("personal event contracts decode raw ws-me data and retain the literal new-
     { t: "me", book: "room", msg: 1 },
     { t: "agents", book: "*" },
   ] as const) {
-    expect(parsePersonEvent(JSON.stringify(notice))).toEqual(notice);
+    expect(parsePersonEvent(encodeCall(notice))).toEqual(notice);
     expect(PersonEventSchema.safeParse(notice).success).toBe(true);
   }
   for (const value of [
@@ -834,13 +834,17 @@ test("personal event contracts decode raw ws-me data and retain the literal new-
     "{",
     "[]",
     "null",
-    '{"t":"agents"}',
-    '{"t":"me","msg":2}',
-    '{"t":"me","book":3}',
-    '{"t":"unknown"}',
+    encodeCall({ t: "agents" }),
+    encodeCall({ t: "me", msg: 2 }),
+    encodeCall({ t: "me", book: 3 }),
+    encodeCall({ t: "unknown" }),
   ])
     expect(parsePersonEvent(value)).toBeNull();
-  expect(parsePersonEvent('{"t":"me","extra":"ignored"}')).toEqual({ t: "me" });
+  expect(parsePersonEvent(encodeCall({ t: "me", extra: "ignored" }))).toEqual({
+    t: "me",
+  });
+  // The old tagged frame is not a JSON-RPC notification.
+  expect(parsePersonEvent('{"t":"me"}')).toBeNull();
 });
 
 test("avatar and room icon: same origin, type, size and rate limits keep their old answers", async () => {
@@ -1111,13 +1115,13 @@ test("room sandbox presence normalizes nullable and malformed SQLite metadata wi
 });
 
 test("personal focus notices retain their validated room and reject malformed wire data", () => {
-  expect(parsePersonEvent('{"t":"focus","book":"room"}')).toEqual({
+  expect(parsePersonEvent(encodeCall({ t: "focus", book: "room" }))).toEqual({
     t: "focus",
     book: "room",
   });
   for (const value of [
-    '{"t":"focus","book":1}',
-    '{"t":"focus"}',
+    encodeCall({ t: "focus", book: 1 }),
+    encodeCall({ t: "focus" }),
     new Uint8Array([1]),
   ])
     expect(parsePersonEvent(value)).toBeNull();
@@ -1366,9 +1370,9 @@ test("personal channel ignores retired live Fire events and retains focus/agent 
       state,
     })),
   ])
-    expect(parsePersonEvent(JSON.stringify(value))).toBe(null);
+    expect(parsePersonEvent(encodeCall(value))).toBe(null);
   for (const t of ["focus", "agents"] as const)
-    expect(parsePersonEvent(JSON.stringify({ t, book: "room" }))).toEqual({
+    expect(parsePersonEvent(encodeCall({ t, book: "room" }))).toEqual({
       t,
       book: "room",
     });

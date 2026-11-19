@@ -15,23 +15,23 @@ type Wait = Awaited<ReturnType<typeof waitsFor>>[number];
 
 const T = {
   pt: {
-    subject: (n: number) => `vibebook: ${n} ${n === 1 ? "coisa" : "coisas"} pra você`,
+    subject: (n: number) => `deco.chat: ${n} ${n === 1 ? "coisa" : "coisas"} pra você`,
     title: (morning: boolean) => (morning ? "Seu resumo da manhã" : "Seu resumo do fim da tarde"),
     waits: "Esperando você",
     mentions: "Te mencionaram",
     open: "Abrir",
     why: "Você recebe isto de manhã e no fim da tarde, só quando tem novidade. Menções que pedem algo seu agora continuam chegando na hora.",
-    off: "Parar de receber e-mails do vibebook",
+    off: "Parar de receber e-mails do deco.chat",
     main: "sala principal",
   },
   en: {
-    subject: (n: number) => `vibebook: ${n} ${n === 1 ? "thing" : "things"} for you`,
+    subject: (n: number) => `deco.chat: ${n} ${n === 1 ? "thing" : "things"} for you`,
     title: (morning: boolean) => (morning ? "Your morning catch-up" : "Your evening catch-up"),
     waits: "Waiting on you",
     mentions: "You were mentioned",
     open: "Open",
     why: "You get this in the morning and late afternoon, only when there's something new. Mentions that need you now still arrive right away.",
-    off: "Stop vibebook e-mails",
+    off: "Stop deco.chat e-mails",
     main: "main thread",
   },
 };
@@ -94,5 +94,5 @@ ${il.length ? `<p style="margin:0 0 8px;font-weight:700">${t.mentions}</p><ul st
     items.length ? `\n${t.mentions}:\n${items.map((i) => `- ${i.room} · ${i.author}: ${i.text.slice(0, 240)}`).join("\n")}` : "",
     `\n${t.off}: ${unsub}`,
   ].join("\n");
-  return { to, from: { email: mailFrom(env, "mention"), name: "vibebook" }, subject: t.subject(waits.length + items.length), text, html };
+  return { to, from: { email: mailFrom(env, "mention"), name: "deco.chat" }, subject: t.subject(waits.length + items.length), text, html };
 }

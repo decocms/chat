@@ -282,7 +282,7 @@ export async function adminOverview(env: Pick<Env, "DB">, daysIn?: number) {
       { step: "Abriu o login", n: people((e) => e.name === "pageview" && e.path === "/login") },
       { step: "Pediu código", n: people((e) => e.name === "login_code_sent") },
       { step: "Entrou", n: people((e) => e.name === "login") },
-      { step: "Criou vibebook", n: people((e) => e.name === "book_created") },
+      { step: "Criou sala", n: people((e) => e.name === "book_created") },
       { step: "Convidou alguém", n: people((e) => e.name === "invite_sent") },
       { step: "Conectou agent", n: people((e) => e.name === "agent_connected") },
       { step: "Agent agiu na sala", n: people((e) => e.name === "agent_call" && e.dims.tool !== "inbox") },

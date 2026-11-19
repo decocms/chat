@@ -88,11 +88,11 @@ export function createDeviceLock(options: {
           publicKey: {
             ...{ hints: ["client-device"] },
             challenge: options.random(32),
-            rp: { name: "vibebook" },
+            rp: { name: "deco.chat" },
             user: {
               id: options.random(16),
               name: email,
-              displayName: "vibebook",
+              displayName: "deco.chat",
             },
             pubKeyCredParams: [
               { type: "public-key", alg: -7 },

@@ -4,7 +4,7 @@
   let { title, children }: { title: string; children: Snippet } = $props();
 </script>
 
-<svelte:head><title>{title} · vibebook</title></svelte:head>
+<svelte:head><title>{title} · deco.chat</title></svelte:head>
 <main
   data-vb-native="auth"
   class="flex min-h-dvh items-center justify-center bg-background p-4 font-sans text-sm leading-6 text-foreground"
@@ -20,7 +20,7 @@
           width="32"
           height="32"
           class="size-8 rounded-lg"
-        />vibebook</a
+        />deco.chat</a
       >
       <h1
         class="m-0 break-words text-2xl font-semibold leading-8 tracking-tight"

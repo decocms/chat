@@ -1132,7 +1132,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     const latest = room();
                     if (!latest) throw new VoiceFailure(0);
                     const prompt =
-                      `Conversa no vibebook (vibebook.dev), sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${latest.epics
+                      `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${latest.epics
                         .filter((epic) => !epic.archived)
                         .slice(0, 15)
                         .map((epic) => epic.title)

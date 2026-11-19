@@ -1,10 +1,10 @@
 #!/bin/sh
-# "This computer" in one line: curl -fsSL https://vibebook.dev/setup.sh | sh
+# "This computer" in one line: curl -fsSL https://chat.decocms.com/setup.sh | sh
 # Everything a computer needs so "✻ Ligar Claude" in a room opens a Claude Code here, each step skipped when it's done:
 # the vibebook CLI, the vibebook plugin in Claude Code, herdr (the terminal the Claudes open in, herdr.dev), the
 # vibebook plugin in herdr (its tab runs `vibebook herdr`), the login, and then herdr opens.
 set -e
-ORIGIN="${VIBEBOOK_ORIGIN:-https://vibebook.dev}"
+ORIGIN="${VIBEBOOK_ORIGIN:-https://chat.decocms.com}"
 LOCAL="$HOME/.local/bin"
 PATH_BEFORE="$PATH"
 export PATH="$HOME/.vibebook/bin:$LOCAL:$PATH"

@@ -1,5 +1,6 @@
 // Opt-in runtime acceptance. Owns real dev:app and temporarily edits isolated
 // checkout sources; never run beside another editor/server in this checkout.
+import { receivedEvent } from "./room-frames";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { createHash } from "node:crypto";
@@ -633,7 +634,7 @@ try {
     roomSockets++;
     socket.on("framereceived", ({ payload }) => {
       try {
-        const value: unknown = JSON.parse(payload.toString());
+        const value = receivedEvent(payload.toString());
         if (isRoomEvent(value) && value.t === "state") snapshots++;
       } catch {
         /* Vite/editor frames are not room JSON */

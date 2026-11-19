@@ -845,8 +845,8 @@ test("actual RoomStatus preserves removal/invitation guidance and safely returns
     expect(status?.textContent).toContain(
       h.services.t(
         terminal === "removed"
-          ? "Você foi removido deste vibebook."
-          : "Sem acesso a este vibebook. Peça para alguém de dentro te convidar.",
+          ? "Você foi removido desta sala."
+          : "Sem acesso a esta sala. Peça para alguém de dentro te convidar.",
       ),
     );
     expect(h.target.textContent).not.toContain("Canonical visible message");
@@ -854,7 +854,7 @@ test("actual RoomStatus preserves removal/invitation guidance and safely returns
     const home = [
       ...status!.querySelectorAll<HTMLButtonElement>("button"),
     ].find(
-      (button) => button.textContent?.trim() === h.services.t("seus vibebooks"),
+      (button) => button.textContent?.trim() === h.services.t("suas salas"),
     );
     expect(home !== undefined).toBe(true);
     expect(home?.disabled).toBe(false);
@@ -885,7 +885,6 @@ async function setup(overrides: Parameters<typeof homeApi>[0] = {}) {
 const profileApi: AccountApi = {
   logins: async () => ({
     logins: [],
-    providers: { google: false, github: false },
   }),
   name: async (name) => ({ ok: true, name }),
   avatar: async () => ({ ok: true, avatar: 1 }),

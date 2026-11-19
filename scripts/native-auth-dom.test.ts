@@ -84,8 +84,7 @@ const { default: AuthRoot } =
 const { readNativeAuthMetadata, restoreAuthTheme } =
   await import("../svelte/features/auth/mount");
 const login = {
-  providers: { email: true as const, google: true, github: true },
-  next: "/",
+  next: "/b/abcdef",
   error: null,
 };
 const consent = {
@@ -100,8 +99,6 @@ const consent = {
 function api(overrides: Partial<AuthApi> = {}): AuthApi {
   return {
     login: async () => login,
-    start: async () => ({ ok: true }),
-    verify: async () => ({ ok: true, next: "/" }),
     access: async () => ({ state: "out", title: "<Room>", email: null }),
     ask: async () => ({ ok: true }),
     answerInvite: async () => ({ ok: true }),
@@ -160,40 +157,20 @@ function input(selector: string, value: string) {
   flushSync();
   return element;
 }
-test("login renders native provider/email controls, keeps server errors and verifies six digits once", async () => {
-  let starts = 0,
-    verifications = 0;
+test("login renders one deco sign-in link with a safe next and keeps the server error", async () => {
   const { target, navigations } = await render(
     "login",
-    api({
-      start: async () => {
-        starts++;
-        return { ok: true };
-      },
-      verify: async () => {
-        verifications++;
-        throw Error("Wrong code.");
-      },
-    }),
+    api({ login: async () => ({ ...login, error: "studio" }) }),
   );
   expect(target.querySelector('[data-vb-native="auth"]')).not.toBeNull();
-  expect(target.querySelectorAll('a[href^="/auth/"]')).toHaveLength(2);
-  input("#auth-email", "me@test.com");
-  target
-    .querySelector<HTMLFormElement>("form")!
-    .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  await settle();
-  expect(starts).toBe(1);
-  expect(document.activeElement).toBe(target.querySelector("#auth-code"));
-  input("#auth-code", "123456");
-  await settle();
-  expect(verifications).toBe(1);
-  expect(target.querySelector('[role="alert"]')?.textContent).toContain(
-    "Wrong code.",
+  const links = target.querySelectorAll<HTMLAnchorElement>('a[href^="/auth/"]');
+  expect(links).toHaveLength(1);
+  expect(links[0]!.getAttribute("href")).toBe(
+    `/auth/studio/start?next=${encodeURIComponent("/b/abcdef")}`,
   );
-  expect(target.querySelector<HTMLInputElement>("#auth-code")!.value).toBe(
-    "123456",
-  );
+  expect(target.querySelector("form")).toBeNull();
+  expect(target.querySelector("input")).toBeNull();
+  expect(target.querySelector('[role="alert"]')?.textContent).toContain("deco");
   expect(navigations).toEqual([]);
 });
 test("access escapes room data and never requests membership from a bare link", async () => {

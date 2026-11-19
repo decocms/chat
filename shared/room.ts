@@ -79,6 +79,10 @@ export const EpicSchema = z.object({
   prod: maybe(z.object({ stage: str, note: opt(str), at: opt(num) })),
   // An epic that answers a question (start_epic answer: true or answerIntent, Gui #2767).
   answer: opt(bool),
+  /** When its thread last spoke (or it was made): the sidebar sorts by it. */
+  last: opt(num),
+  /** Pinned to the top of the sidebar (shared). */
+  pinned: opt(bool),
 });
 export type Epic = z.infer<typeof EpicSchema>;
 export const AttachmentSchema = z.object({

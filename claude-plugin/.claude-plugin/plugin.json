@@ -1,12 +1,12 @@
 {
   "name": "vibebook",
   "description": "vibebook for Claude Code, through the vibebook CLI (one login per machine): links a repo to its room (.vibebook), listens to it in the background and reports progress there (commits, PRs ready for review, deploys). Start with /vibebook:setup.",
-  "version": "0.24.14",
+  "version": "0.25.0",
   "author": {
     "name": "vibebook",
     "email": "gui@deco.cx"
   },
-  "homepage": "https://vibebook.dev",
+  "homepage": "https://chat.decocms.com",
   "repository": "https://github.com/decocms/chat",
   "license": "MIT"
 }

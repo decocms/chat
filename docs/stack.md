@@ -8,7 +8,7 @@
 | Durable Objects (SQLite) | `Book` (room), `DocRoom` (document), `Person` (person). |
 | D1, R2, KV | Shared index, files, OAuth. See [architecture.md](architecture.md). |
 | Workers AI | Speech-to-text (`@cf/openai/whisper-large-v3-turbo`). |
-| Email Sending | Sign-in codes, invites and mention emails. |
+| Email Sending | Invites and mention emails. |
 | OpenRouter | Text models and Jev (`MODEL_*` variables). |
 
 ## Languages and libraries
@@ -25,7 +25,12 @@
 - Write all code in TypeScript. The code is type-safe from end to end: server, wire and browser.
 - All communication between the browser and the server goes through typed RPC. Do not use other kinds of requests.
   - HTTP: Hono RPC. Add the route to `src/api.ts` with a zod schema from `shared/schemas.ts`. The browser calls it through `hc<AppType>` (`svelte/lib/client/api.ts`).
-  - Room WebSocket: the typed commands and events in `shared/commands.ts` and `shared/events.ts`. Each side validates the other side's messages.
+  - WebSockets (`/ws/:id`, `/ws-me`): JSON-RPC 2.0, with a small helper in `shared/jsonRpc.ts`. Do not add an RPC library.
+    - The code uses typed tagged messages (`{ t: "doc.get", epic }`). The schemas are in `shared/commands.ts`, `shared/events.ts` and `shared/person.ts`. On the wire, `method` is `t` and `params` is the other fields.
+    - A command that needs an answer is a request (`id`). The server sends one response: `result`, or `error` with a reason.
+    - A command without an answer, and each event that the server pushes, is a notification (no `id`).
+    - Each side validates the other side's messages.
+    - The CLI hub (`vibebook listen`) connects to `/mcp?wire=jsonrpc` and gets JSON-RPC too. A CLI before 1.6.21 connects to `/mcp` and gets the old tagged JSON (`{ t, ... }`). Keep that legacy path until old CLIs are gone.
   - Document text: the Yjs protocol on `/yjs/:name`. This is the only channel that is not RPC.
 - Do not call `fetch` directly from the Svelte app.
 - Do not use `any`, and do not use a type cast to hide a type error.

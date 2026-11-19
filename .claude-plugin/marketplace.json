@@ -11,13 +11,13 @@
     {
       "name": "vibebook",
       "source": "./claude-plugin",
-      "description": "Two-way channel between Claude Code and your vibebook rooms: listens to the repo's room and reports progress there (commits, PRs ready for review, deploys). Uses the vibebook CLI (curl -fsSL https://vibebook.dev/install.sh | sh; vibebook login once per machine).",
+      "description": "Two-way channel between Claude Code and your vibebook rooms: listens to the repo's room and reports progress there (commits, PRs ready for review, deploys). Uses the vibebook CLI (curl -fsSL https://chat.decocms.com/install.sh | sh; vibebook login once per machine).",
       "version": "0.9.1",
       "author": {
         "name": "vibebook",
         "email": "gui@deco.cx"
       },
-      "homepage": "https://vibebook.dev",
+      "homepage": "https://chat.decocms.com",
       "repository": "https://github.com/decocms/chat",
       "license": "MIT",
       "keywords": [

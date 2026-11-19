@@ -4,7 +4,6 @@ import {
   AccessRequestResult,
   ConsentContext,
   ConsentError,
-  EmailVerifyResult,
   ErrorBody,
   LoginContext,
   OkResult,
@@ -64,31 +63,6 @@ export function createAuthApi(fetcher?: FetchLike) {
         ),
       );
       return LoginContext.parse(value);
-    },
-    async start(email: string, signal?: AbortSignal) {
-      return OkResult.parse(
-        await json(
-          await auth.email.start.$post(
-            { json: { email } },
-            { init: { signal } },
-          ),
-        ),
-      );
-    },
-    async verify(
-      email: string,
-      code: string,
-      next: string,
-      signal?: AbortSignal,
-    ) {
-      return EmailVerifyResult.parse(
-        await json(
-          await auth.email.verify.$post(
-            { json: { email, code, next } },
-            { init: { signal } },
-          ),
-        ),
-      );
     },
     async access(id: string, signal?: AbortSignal) {
       return AccessContext.parse(

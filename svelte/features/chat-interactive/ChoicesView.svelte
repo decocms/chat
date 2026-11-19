@@ -111,9 +111,6 @@
           >{#if on}<Icon icon={Check} size={14} />{/if}{label}</button
         >{/each}
     </div>
-    <small class="block text-muted-foreground"
-      >{vb.t("escolha e envie pela caixa de mensagem")}</small
-    >
   {:else}<div class="flex flex-wrap gap-2" aria-disabled="true">
       {#each choices.options as label}{@render option(
           label,

@@ -25,7 +25,7 @@ self.addEventListener("push", (event) => {
     data: { url: notificationTarget(data.url, self.location.origin) },
   } satisfies NotificationOptions & { renotify: boolean };
   event.waitUntil(
-    self.registration.showNotification(data.title || "vibebook", options),
+    self.registration.showNotification(data.title || "deco.chat", options),
   );
 });
 self.addEventListener("notificationclick", (event) => {

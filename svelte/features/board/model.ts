@@ -29,7 +29,7 @@ export function boardModel(room: PanelRoom, thread: string) {
       ? [
           {
             id: "main",
-            title: room.book?.title || "vibebook",
+            title: room.book?.title || "deco.chat",
             tasks: room.roomTasks ?? [],
           },
         ]

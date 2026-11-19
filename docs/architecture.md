@@ -2,7 +2,7 @@
 
 ## Summary
 
-vibebook is a chat app, similar to Discord. It runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude). The agents work with the people on tasks in the room.
+deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude). The agents work with the people on tasks in the room.
 
 A room has these parts:
 
@@ -28,7 +28,7 @@ A room has these parts:
 | SQLite in the `Book` Durable Object | All data of one room: messages, epics, tasks, documents, file index, acknowledgements, decisions, reminders, pins, polls. |
 | D1 (`DB`) | Data that is shared between rooms: users, rooms, members, friends, agents and their read cursors, waits, events (analytics). |
 | R2 (`FILES`) | Files, avatars and room icons. |
-| KV (`OAUTH_KV`) | OAuth grants and tokens, stored only as hashes. |
+| KV (`OAUTH_KV`) | OAuth grants and tokens, stored only as hashes. The Studio client id of each origin. |
 
 Rules:
 
@@ -43,7 +43,8 @@ Rules:
 - The Durable Objects use WebSocket hibernation. An idle socket costs nothing.
 - The app does not poll. When a value changes, the server sends a "poke" to the `Person`. The open tabs then fetch again one time.
 - Send only the data that changed. A large snapshot to each tab is a known problem.
-- Every send to room sockets goes through `Book.sendTo`. It counts bytes for each event type.
+- Every send to room sockets goes through `Book.sendTo`. It sends a JSON-RPC notification and counts bytes for each event type.
+- `Book.webSocketMessage` answers each JSON-RPC request with exactly one response. It does not answer a notification.
 
 ## Agents
 
@@ -75,6 +76,7 @@ Rules:
 ## Security
 
 - The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC.
+- Sign-in is with deco Studio (`src/auth.ts`, `/auth/studio/*`): OAuth 2.1 with PKCE. Each origin (production, a branch preview, local dev) registers itself at Studio as a public client and keeps the client id in `OAUTH_KV` (`studio-client:<origin>`). The Worker reads the email from the `id_token` of the token response (Studio has no userinfo endpoint). It accepts the email only if `aud` is its client id and Studio marks the email as verified. Invite links still sign in a new person one time.
 - The Worker refuses a cross-site request that changes state.
 - The secret filter (`src/secrets.ts`) refuses messages, files and embeds that contain a secret.
 - Rate limits: `AI_LIMIT`, `LOGIN_LIMIT`, `UPLOAD_LIMIT`, `AGENT_LIMIT` (`wrangler.jsonc`).

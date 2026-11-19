@@ -58,7 +58,7 @@ const pt = {
   view: "Ver",
   welcome: "Bem-vindo a",
   welcomeBody:
-    "te chamou pra cá. Cada conversa importante ganha uma sala no vibebook: o chat, as tarefas e o doc do projeto ficam juntos.",
+    "te chamou pra cá. Cada conversa importante ganha uma sala no deco.chat: o chat, as tarefas e o doc do projeto ficam juntos.",
   ownAgent: "Cada um traz o seu agent",
   ownAgentBody:
     "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza os épicos e conta o que entregou. Só o que você escreve é instrução pra ele: o resto ele lê como contexto.",
@@ -67,7 +67,7 @@ const pt = {
     "Doc, arquivos, decisões e tarefas ficam na sala, e todo agent lê o mesmo contexto antes de agir. Quando alguém passa o bastão ou fica esperando você, a sala mostra.",
   connect: "Conecte o seu agent",
   connectBody:
-    "Cole isto no Claude Code, dentro da pasta do projeto. Ele instala o vibebook, entra nesta sala e fica ouvindo.",
+    "Cole isto no Claude Code, dentro da pasta do projeto. Ele instala o deco.chat, entra nesta sala e fica ouvindo.",
   back: "Voltar",
   skip: "Pular",
   next: "Próximo",
@@ -179,7 +179,7 @@ const en: Record<RoomAgentCopyKey, string> = {
   view: "View",
   welcome: "Welcome to",
   welcomeBody:
-    "invited you here. Each important conversation gets a room in Vibebook: the chat, tasks and project document stay together.",
+    "invited you here. Each important conversation gets a room in deco.chat: the chat, tasks and project document stay together.",
   ownAgent: "Everyone brings their own agent",
   ownAgentBody:
     "You connect your agent on your computer with your permissions. It reads the room, picks up tasks, updates epics and reports what it delivered. Only what you write is an instruction for it; everything else is context.",
@@ -188,7 +188,7 @@ const en: Record<RoomAgentCopyKey, string> = {
     "Documents, files, decisions and tasks stay in the room, and every agent reads the same context before acting. The room shows when someone hands over work or is waiting for you.",
   connect: "Connect your agent",
   connectBody:
-    "Paste this into Claude Code inside the project folder. It installs Vibebook, joins this room and starts listening.",
+    "Paste this into Claude Code inside the project folder. It installs deco.chat, joins this room and starts listening.",
   back: "Back",
   skip: "Skip",
   next: "Next",

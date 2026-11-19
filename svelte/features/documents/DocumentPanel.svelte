@@ -107,7 +107,7 @@
         aria-pressed={!$view.target?.epicId}
         onclick={(event) => {
           if (connected(event)) owner.chooseRoom(true);
-        }}>{props.room.book.title || "vibebook"}</Button
+        }}>{props.room.book.title || "deco.chat"}</Button
       ><span aria-hidden="true">›</span><Button
         size="sm"
         variant={$view.target?.epicId ? "secondary" : "ghost"}

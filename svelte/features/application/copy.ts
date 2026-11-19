@@ -19,11 +19,11 @@ export const applicationLocale = (
 ): ApplicationLocale => (language === "en" ? "en-US" : "pt-BR");
 const EN: Readonly<Record<string, string>> = {
   direto: "direct",
-  "via vibebook": "via vibebook",
-  "As chamadas vão do seu navegador direto pro servidor; o vibebook só assina quem é você.":
-    "Calls go from your browser straight to the server; vibebook only signs who you are.",
-  "As chamadas passam pelo vibebook (o servidor não libera chamada direta ou pede login).":
-    "Calls go through vibebook (the server doesn't allow direct calls or wants a sign-in).",
+  "via deco.chat": "via deco.chat",
+  "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você.":
+    "Calls go from your browser straight to the server; deco.chat only signs who you are.",
+  "As chamadas passam pelo deco.chat (o servidor não libera chamada direta ou pede login).":
+    "Calls go through deco.chat (the server doesn't allow direct calls or wants a sign-in).",
   "Toque pra ditar (ou segure espaço na caixa)":
     "Tap to dictate (or hold Space in the box)",
   "Uma versão está no ar; você pediu correções depois":
@@ -240,13 +240,13 @@ const EN: Readonly<Record<string, string>> = {
   "Voltar pra sala principal": "Back to the main thread",
   "Sala principal": "Main thread",
   Conversa: "Conversation",
-  "Seus vibebooks": "Your vibebooks",
+  "Suas salas": "Your rooms",
   "{theme} (clique pra trocar)": "{theme} (click to change)",
   "Tema: {theme}": "Theme: {theme}",
-  "Ir para um vibebook (⌘K)": "Go to a vibebook (⌘K)",
-  "Ir para um vibebook": "Go to a vibebook",
-  "Ir para um vibebook…": "Go to a vibebook…",
-  "Novo vibebook": "New vibebook",
+  "Ir para uma sala (⌘K)": "Go to a room (⌘K)",
+  "Ir para uma sala": "Go to a room",
+  "Ir para uma sala…": "Go to a room…",
+  "Nova sala": "New room",
   "sem cor": "no color",
   "Trocar ícone…": "Change icon…",
   "Tirar ícone": "Remove icon",
@@ -257,8 +257,8 @@ const EN: Readonly<Record<string, string>> = {
   "ativa há {ago}": "active {ago} ago",
   "Nada com esse nome.": "Nothing by that name.",
   Entrar: "Sign in",
-  "Seus vibebooks e seus amigos te esperando.":
-    "Your vibebooks and your friends are waiting.",
+  "Suas salas e seus amigos te esperando.":
+    "Your rooms and your friends are waiting.",
   "Continuar com GitHub": "Continue with GitHub",
   "Não deu certo com o GitHub (precisa de um email principal verificado). Tenta com email.":
     "That didn't work with GitHub (it needs a verified primary email). Try email.",
@@ -282,14 +282,14 @@ const EN: Readonly<Record<string, string>> = {
   "áudio maior que 50MB.": "audio larger than 50MB.",
   Tudo: "All",
   "{n} versões": "{n} versions",
-  "Sem token aqui: se o servidor pedir login, cada pessoa entra com a própria conta dela, e o vibebook só diz quem é e de qual sala.":
-    "No token here: if the server asks for a sign-in, each person signs in with their own account, and vibebook only says who they are and from which room.",
+  "Sem token aqui: se o servidor pedir login, cada pessoa entra com a própria conta dela, e o deco.chat só diz quem é e de qual sala.":
+    "No token here: if the server asks for a sign-in, each person signs in with their own account, and deco.chat only says who they are and from which room.",
   "Da sala: todo mundo vê; cada um entra com a própria conta":
     "Room: everyone sees it; each one signs in with their own account",
   "Você entrou em {host} com a sua conta.":
     "You're signed in to {host} with your account.",
-  "Entre em {host} com a sua conta pra usar. O vibebook não guarda token: só diz quem é você e de qual sala.":
-    "Sign in to {host} with your account to use it. vibebook keeps no token: it only says who you are and from which room.",
+  "Entre em {host} com a sua conta pra usar. O deco.chat não guarda token: só diz quem é você e de qual sala.":
+    "Sign in to {host} with your account to use it. deco.chat keeps no token: it only says who you are and from which room.",
   "Entrar em {host}": "Sign in to {host}",
   "Conectar seu agente": "Connect your agent",
   "Copiar prompt": "Copy prompt",
@@ -330,21 +330,21 @@ const EN: Readonly<Record<string, string>> = {
   amigo: "friend",
   amigos: "friends",
   Arquivo: "Archive",
-  "Nenhum vibebook ainda. Crie um, chame quem trabalha com você e conecte seu agent ao lado.":
-    "No vibebooks yet. Create one, invite the people you work with and connect your agent on the side.",
+  "Nenhuma sala ainda. Crie uma, chame quem trabalha com você e conecte seu agent ao lado.":
+    "No rooms yet. Create one, invite the people you work with and connect your agent on the side.",
   Arquivar: "Archive",
   "Arquivar {title}": "Archive {title}",
   "Ainda sem resumo. O @vibe escreve um quando a conversa andar.":
     "No summary yet. @vibe writes one once the conversation gets going.",
   Amigos: "Friends",
-  "vibebook junto": "shared vibebook",
-  "vibebooks juntos": "shared vibebooks",
-  "na plataforma": "on vibebook",
+  "sala em comum": "shared room",
+  "salas em comum": "shared rooms",
+  "na plataforma": "on deco.chat",
   convidado: "invited",
   "Remover {email} dos amigos": "Remove {email} from friends",
   "Remover dos amigos": "Remove from friends",
-  "Quem você convida para um vibebook vira amigo aqui.":
-    "People you invite to a vibebook show up here as friends.",
+  "Quem você convida para uma sala vira amigo aqui.":
+    "People you invite to a room show up here as friends.",
   "email do amigo": "friend's email",
   "Email do amigo": "Friend's email",
   Convidar: "Invite",
@@ -354,8 +354,8 @@ const EN: Readonly<Record<string, string>> = {
     "What do you want to get done? I'll find the right room and epic.",
   Notificações: "Notifications",
   "Seu nome:": "Your name:",
-  "Remover {email} dos seus amigos? Os vibebooks em comum continuam.":
-    "Remove {email} from your friends? Shared vibebooks stay.",
+  "Remover {email} dos seus amigos? As salas em comum continuam.":
+    "Remove {email} from your friends? Shared rooms stay.",
   "Enviando…": "Sending…",
   "Procurando a sala certa…": "Finding the right room…",
   "sala nova <b>“{title}”</b>": "new room <b>“{title}”</b>",
@@ -378,8 +378,8 @@ const EN: Readonly<Record<string, string>> = {
   Restaurar: "Restore",
   "Nada arquivado.": "Nothing archived.",
   "conectado {ago}": "connected {ago} ago",
-  "Peça pro seu agent: <i>“vê o que tem de novo no vibebook”</i> ou <i>“vai na sala tal e fala com a Marina…”</i>":
-    "Ask your agent: <i>“what's new on vibebook?”</i> or <i>“go to room X and tell Marina…”</i>",
+  "Peça pro seu agent: <i>“vê o que tem de novo no deco.chat”</i> ou <i>“vai na sala tal e fala com a Marina…”</i>":
+    "Ask your agent: <i>“what's new on deco.chat?”</i> or <i>“go to room X and tell Marina…”</i>",
   "Seus agents conectados": "Your connected agents",
   "usado {ago}": "used {ago}",
   "sem uso ainda": "not used yet",
@@ -401,8 +401,8 @@ const EN: Readonly<Record<string, string>> = {
   "Traga seu agent pra esta sala": "Bring your agent to this room",
   "Conecte seu agent": "Connect your agent",
   "Conecte sua conta do Claude": "Connect your Claude account",
-  "O vibebook funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:":
-    "vibebook works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
+  "O deco.chat funciona com o agent de cada pessoa: ele lê a sala, conversa com os agents dos outros e te pergunta antes de agir. Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:":
+    "deco.chat works with each person's own agent: it reads the room, talks to the other people's agents and asks you before acting. Paste this into <b>Claude Code</b>, inside the project folder:",
   Copiar: "Copy",
   "esperando seu agent conectar…": "waiting for your agent to connect…",
   "Claude.ai ou outro cliente": "Claude.ai or another client",
@@ -429,10 +429,10 @@ const EN: Readonly<Record<string, string>> = {
     "Couldn't copy: select the text and copy it.",
   "Selecione e copie": "Select and copy",
   Carregando: "Loading",
-  "Você foi removido deste vibebook.": "You were removed from this vibebook.",
-  "seus vibebooks": "your vibebooks",
-  "Sem acesso a este vibebook. Peça para alguém de dentro te convidar.":
-    "No access to this vibebook. Ask someone in it to invite you.",
+  "Você foi removido desta sala.": "You were removed from this room.",
+  "suas salas": "your rooms",
+  "Sem acesso a esta sala. Peça para alguém de dentro te convidar.":
+    "No access to this room. Ask someone in it to invite you.",
   voltar: "back",
   "pensando ({mode})": "thinking ({mode})",
   "Não enviei: parece {reason}. Segredo não entra na sala, nem pra você nem pros agents. Manda por um canal seguro.":
@@ -449,8 +449,8 @@ const EN: Readonly<Record<string, string>> = {
     "Notifications blocked in this browser",
   "Este navegador não tem notificações":
     "This browser doesn't support notifications",
-  "As notificações estão bloqueadas pra vibebook.dev neste navegador. Clique no cadeado ao lado do endereço → Notificações → Permitir, e recarregue a página.":
-    "Notifications are blocked for vibebook.dev in this browser. Click the lock next to the address → Notifications → Allow, and reload the page.",
+  "As notificações estão bloqueadas pra este site neste navegador. Clique no cadeado ao lado do endereço → Notificações → Permitir, e recarregue a página.":
+    "Notifications are blocked for this site in this browser. Click the lock next to the address → Notifications → Allow, and reload the page.",
   "Te mencionaram": "You were mentioned",
   "Suas tarefas": "Your tasks",
   revisar: "review",
@@ -485,8 +485,8 @@ const EN: Readonly<Record<string, string>> = {
   "Seu agent espera você": "Your agent is waiting for you",
   "em {where}": "in {where}",
   Editar: "Edit",
-  "O documento do vibebook. Todo mundo edita; o @vibe mantém atualizado com as decisões.":
-    "The vibebook's doc. Everyone edits it; @vibe keeps it up to date with the decisions.",
+  "O documento da sala. Todo mundo edita; o @vibe mantém atualizado com as decisões.":
+    "The room's doc. Everyone edits it; @vibe keeps it up to date with the decisions.",
   "Nova votação": "New poll",
   "Pergunta (ex.: Qual cruzeiro?)": "Question (e.g. Which cruise?)",
   opção: "option",
@@ -500,8 +500,8 @@ const EN: Readonly<Record<string, string>> = {
   "Encerrar a votação?": "Close the poll?",
   "Bem-vindo a <b>{room}</b>": "Welcome to <b>{room}</b>",
   "esta sala": "this room",
-  "{owner} te chamou pra cá. Cada conversa importante ganha uma sala no vibebook: o chat, as tarefas e o doc do projeto ficam juntos.":
-    "{owner} invited you here. Every important conversation gets a room on vibebook: the chat, the tasks and the project doc live together.",
+  "{owner} te chamou pra cá. Cada conversa importante ganha uma sala no deco.chat: o chat, as tarefas e o doc do projeto ficam juntos.":
+    "{owner} invited you here. Every important conversation gets a room on deco.chat: the chat, the tasks and the project doc live together.",
   "Cada um traz o seu agent": "Everyone brings their own agent",
   "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza os épicos e conta o que entregou. Só o que <b>você</b> escreve é instrução pra ele: o resto ele lê como contexto.":
     "You connect your agent, on your computer and with your permissions. It reads the room, picks up tasks, updates the epics and reports what it delivered. Only what <b>you</b> write is an instruction to it: everything else it reads as context.",
@@ -509,8 +509,8 @@ const EN: Readonly<Record<string, string>> = {
   "Doc, arquivos, decisões e tarefas ficam na sala, e todo agent lê o mesmo contexto antes de agir. Quando alguém passa o bastão ou fica esperando você, a sala mostra.":
     "Doc, files, decisions and tasks live in the room, and every agent reads the same context before acting. When someone hands off or is waiting on you, the room shows it.",
   "Conecte o seu agent": "Connect your agent",
-  "Cole isto no <b>Claude Code</b>, dentro da pasta do projeto. Ele instala o vibebook, entra nesta sala e fica ouvindo.":
-    "Paste this into <b>Claude Code</b>, inside the project folder. It installs vibebook, joins this room and listens.",
+  "Cole isto no <b>Claude Code</b>, dentro da pasta do projeto. Ele instala o deco.chat, entra nesta sala e fica ouvindo.":
+    "Paste this into <b>Claude Code</b>, inside the project folder. It installs deco.chat, joins this room and listens.",
   Pular: "Skip",
   "Entrar na sala": "Enter the room",
   Próximo: "Next",
@@ -568,13 +568,15 @@ const EN: Readonly<Record<string, string>> = {
   "novo épico": "new epic",
   Arquivados: "Archived",
   Outro: "Other",
-  "escolha e envie pela caixa de mensagem":
-    "pick, then send from the message box",
   Todos: "All",
   "Esse épico não existe mais nesta sala.":
     "That epic is no longer in this room.",
   "Novo épico: escreva o título…": "New epic: type its title…",
   Épicos: "Epics",
+  "Ver menos": "Show less",
+  "Ver mais ({n})": "Show more ({n})",
+  "Fixar no topo": "Pin to top",
+  Fixado: "Pinned",
   "Buscar salas, conversas e arquivos…":
     "Search rooms, conversations and files…",
   "Buscando nas conversas…": "Searching conversations…",
@@ -583,11 +585,11 @@ const EN: Readonly<Record<string, string>> = {
   editar: "edit",
   Buscar: "Search",
   "Exigir Face ID ao abrir": "Require Face ID to open",
-  "Pronto: o vibebook pede Face ID ao abrir neste aparelho.":
-    "Done: vibebook asks for Face ID when it opens on this device.",
+  "Pronto: o deco.chat pede Face ID ao abrir neste aparelho.":
+    "Done: deco.chat asks for Face ID when it opens on this device.",
   "Face ID desligado neste aparelho.": "Face ID turned off on this device.",
   "Não deu pra usar o Face ID aqui.": "Couldn't use Face ID here.",
-  "vibebook (trava do app)": "vibebook (app lock)",
+  "deco.chat (trava do app)": "deco.chat (app lock)",
   "Desbloquear com Face ID": "Unlock with Face ID",
   "Toque pra tentar de novo.": "Tap to try again.",
   "Conecte seu agent (o card acima diz como)":
@@ -640,7 +642,7 @@ const EN: Readonly<Record<string, string>> = {
   reenviar: "resend",
   "Remover {email}": "Remove {email}",
   "Cancelar convite": "Cancel invite",
-  "Remover do vibebook": "Remove from vibebook",
+  "Remover da sala": "Remove from room",
   "Seus amigos": "Your friends",
   "Convidar para {title}": "Invite to {title}",
   "Buscar amigos ou digitar um email…": "Search friends or type an email…",
@@ -685,7 +687,7 @@ const EN: Readonly<Record<string, string>> = {
   "Adicionar {email}": "Add {email}",
   "convidar por email": "invite by email",
   "Cancelar o convite de {email}?": "Cancel {email}'s invite?",
-  "Remover {email} deste vibebook?": "Remove {email} from this vibebook?",
+  "Remover {email} desta sala?": "Remove {email} from this room?",
   "Não deu para remover.": "Couldn't remove.",
   "Recusar o pedido de {email}?": "Decline {email}'s request?",
   "{email} entrou na sala e recebeu o link por email.":
@@ -693,8 +695,8 @@ const EN: Readonly<Record<string, string>> = {
   enviado: "sent",
   "Não deu para salvar a foto.": "Couldn't save the photo.",
   "Não deu para ler essa imagem.": "Couldn't read that image.",
-  'Te convidei pro vibebook "{title}": {url}':
-    'I invited you to the vibebook "{title}": {url}',
+  'Te convidei pra sala "{title}" no deco.chat: {url}':
+    'I invited you to the room "{title}" on deco.chat: {url}',
   "1. Entra com {email} (o convite chegou nesse email).":
     "1. Sign in with {email} (the invite went to that address).",
   "2. Manda isto pro seu Claude Code:": "2. Send this to your Claude Code:",
@@ -730,7 +732,7 @@ const EN: Readonly<Record<string, string>> = {
   "esperando OK": "waiting for OK",
   "a fazer": "to do",
   "Nome do épico:": "Epic name:",
-  "Nome do vibebook:": "Vibebook name:",
+  "Nome da sala:": "Room name:",
   'Apagar o épico "{title}", as tasks e a discussão dele? Não dá pra desfazer.':
     'Delete the epic "{title}", its tasks and its discussion? This can\'t be undone.',
   Tarefas: "Tasks",
@@ -856,8 +858,8 @@ const EN: Readonly<Record<string, string>> = {
   "Novo lembrete": "New reminder",
   "O sandbox roda na sua conta do freestyle.sh. Crie uma conta lá e, no seu terminal, gere uma API key:":
     "The sandbox runs on your freestyle.sh account. Create one there and make an API key in your terminal:",
-  "Cole a key aqui. Ela fica cifrada no vibebook e nunca vai pra sala nem pros agents.":
-    "Paste the key here. It's kept encrypted in vibebook and never goes to the room or to agents.",
+  "Cole a key aqui. Ela fica cifrada no deco.chat e nunca vai pra sala nem pros agents.":
+    "Paste the key here. It's kept encrypted in deco.chat and never goes to the room or to agents.",
   "No seu terminal, rode:": "In your terminal, run:",
   "Cole o token (sk-ant-…) aqui: o Claude do sandbox já sobe logado na sua assinatura. Fica cifrado, igual à key do freestyle. Sem isso, faça /login no terminal do sandbox.":
     "Paste the token (sk-ant-…) here: the sandbox's Claude starts logged in to your subscription. It's kept encrypted, like the freestyle key. Without it, run /login in the sandbox terminal.",
@@ -872,8 +874,8 @@ const EN: Readonly<Record<string, string>> = {
   "seu agent no sandbox": "your agent in the sandbox",
   "todos na sala": "everyone in the room",
   "Quadro de tarefas": "Task board",
-  "Nova versão do vibebook · toque pra atualizar":
-    "New vibebook version · tap to update",
+  "Nova versão do deco.chat · toque pra atualizar":
+    "New deco.chat version · tap to update",
   "Seu agent espera você no terminal":
     "Your agent is waiting for you in the terminal",
   feito: "done",
@@ -926,8 +928,8 @@ const EN: Readonly<Record<string, string>> = {
   "Apagar sandbox": "Delete sandbox",
   "Um agent na nuvem pra esta sala, configurado por agents/&lt;nome&gt;.md nos arquivos. Rodando custa uns US$0,13/hora na sua conta; pausado, só o disco.":
     "An agent in the cloud for this room, set up by agents/&lt;name&gt;.md in the files. Running costs about US$0.13/hour on your account; paused, only the disk.",
-  "Desconectar sua conta do freestyle.sh? Os sandboxes continuam lá, mas o vibebook não consegue mais ligar, pausar nem abrir o terminal deles.":
-    "Disconnect your freestyle.sh account? The sandboxes stay there, but vibebook can no longer start, pause or open their terminal.",
+  "Desconectar sua conta do freestyle.sh? Os sandboxes continuam lá, mas o deco.chat não consegue mais ligar, pausar nem abrir o terminal deles.":
+    "Disconnect your freestyle.sh account? The sandboxes stay there, but deco.chat can no longer start, pause or open their terminal.",
   "Apagar este sandbox? A VM e tudo que está nela somem do freestyle.sh.":
     "Delete this sandbox? The VM and everything in it are gone from freestyle.sh.",
   "conectando…": "connecting…",
@@ -979,8 +981,8 @@ const EN: Readonly<Record<string, string>> = {
     "Build a poll app for this room so we can vote.",
   "Nenhum lembrete ainda. Clique em Novo lembrete, ou peça pro seu agent: “todo dia às 8h, me manda o resumo do que mudou”.":
     "No reminders yet. Click New reminder, or ask your agent: “every day at 8am, send me a summary of what changed”.",
-  "Cole uma imagem no chat (Cmd+V), arraste um arquivo ou use o clipe. Tudo que for enviado neste vibebook fica aqui.":
-    "Paste an image in the chat (Cmd+V), drag a file in or use the clip. Everything shared in this vibebook lands here.",
+  "Cole uma imagem no chat (Cmd+V), arraste um arquivo ou use o clipe. Tudo que for enviado nesta sala fica aqui.":
+    "Paste an image in the chat (Cmd+V), drag a file in or use the clip. Everything shared in this room lands here.",
   "Carregar mensagens anteriores": "Load earlier messages",
   "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em épicos: site novo, aluguéis e domínio</i>.":
     "Start the conversation. The agents on in this room read and reply; yours acts with your OK. E.g. <i>organize the project into epics: new site, rentals and domain</i>.",

@@ -10,8 +10,9 @@ import { TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion } from "../shared/room";
 import { RoomEventSchemas } from "../shared/events";
-import { parseCommandEnvelope } from "../shared/validation";
-import type { CommandOutcome, CommandResult, RoomCommand } from "../shared/commands";
+import { parseRoomCall } from "../shared/validation";
+import { encodeCall, encodeError, encodeResult, RpcErrorCode, type RpcId } from "../shared/jsonRpc";
+import type { RoomCommand } from "../shared/commands";
 
 /** A room command the server turned down: its reason goes back to a correlated sender (see webSocketMessage). */
 class Refused {
@@ -56,7 +57,7 @@ export const epicDocSeed = (title: string, why = "") =>
 /** Epic titles compared without numbering, case or accents: "2. Primeira limpeza" = "primeira limpeza". */
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
-const DEFAULT_TITLE = "Novo vibebook";
+const DEFAULT_TITLE = "Nova sala";
 
 const CLASSIFY_DELAY_MS = 30_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
@@ -122,11 +123,12 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS ws_bytes (h INTEGER, t TEXT, c TEXT, n INTEGER, b INTEGER, PRIMARY KEY (h, t, c));
       CREATE TABLE IF NOT EXISTS doc_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, doc TEXT, text TEXT, by TEXT, msg_id INTEGER, ts INTEGER);
       CREATE INDEX IF NOT EXISTS doc_versions_doc ON doc_versions (doc, id);
+      CREATE INDEX IF NOT EXISTS messages_thread ON messages (thread, id);
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -192,13 +194,15 @@ export class Book extends DurableObject<Env> {
       for (const x of fs) { const o = list.find((y) => y.name === x.name); if (o) o.n++; else if (list.length < 8) list.push({ id: x.id, name: x.name, type: x.type, n: 1 }); }
     }
     const parent = new Map(this.sql.exec<{ id: string; p: string }>(`SELECT c.id, m.thread AS p FROM epics c JOIN messages m ON m.id = c.from_msg WHERE m.thread != 'main' AND m.thread != c.id`).toArray().map((r) => [r.id, r.p]));
+    // The sidebar orders epics by their latest message (pinned ones first): when each thread last spoke.
+    const last = new Map(this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' GROUP BY thread`).toArray().map((r) => [r.thread, r.ts]));
     return this.sql
-      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null }>(`SELECT id, title, archived, from_msg, prod, owner FROM epics ORDER BY pos IS NULL, pos, ts`)
+      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
-      .map((e) => {
+      .map(({ ts, pinned, ...e }) => {
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_epic prod).
-        return { ...e, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
@@ -680,7 +684,7 @@ export class Book extends DurableObject<Env> {
     if (!to.length) return;
     to.forEach((e) => this.pushedAt.set(e, now));
     // A DM's push is titled by who wrote (its stored "A · B" title says nothing more).
-    const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "vibebook");
+    const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "deco.chat");
     const url = `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`;
     const langs = typeof title === "string" ? null : await this.langs(to);
     const groups = langs ? [false, true].map((en) => ({ en, to: to.filter((e) => (langs[e] === "en") === en) })).filter((g) => g.to.length) : [{ en: false, to }];
@@ -704,7 +708,7 @@ export class Book extends DurableObject<Env> {
    *  since the vanilla app left in Nov 2026) per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
-    const s = JSON.stringify(data);
+    const s = encodeCall(data); // a JSON-RPC notification, method = t
     const by: Record<string, number> = {};
     for (const ws of to) {
       try { ws.send(s); } catch { continue; } // socket already gone
@@ -868,7 +872,7 @@ export class Book extends DurableObject<Env> {
     const facts: MailFacts = {
       to,
       toName,
-      room: { id: bookId, title: book?.title ?? "vibebook" },
+      room: { id: bookId, title: book?.title ?? "deco.chat" },
       epic: epicRow ? { id: epicRow.id, title: epicRow.title } : null,
       mentions: rows.map((r) => ({ from: label(r), text: r.text as string, ts: r.ts as number })),
       context: recent.map((x) => `${x.kind === "agent" ? `${x.via || "Claude"} de ${nm(x.author)}` : nm(x.author)}: ${x.text.slice(0, 400)}`).join("\n"),
@@ -902,7 +906,7 @@ export class Book extends DurableObject<Env> {
     const { html, text } = mailBody(facts, copy, url, await unsubscribeUrl(this.env.SESSION_SECRET, origin, to), lastAuthor !== "ai");
     await this.env.EMAIL.send({
       to,
-      from: { email: mailFrom(this.env, "mention"), name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via vibebook` }, // "@vibe" in a display name is risky
+      from: { email: mailFrom(this.env, "mention"), name: `${facts.mentions.at(-1)!.from.replace(/[@<>"]/g, "")} via deco.chat` }, // "@vibe" in a display name is risky
       ...(lastAuthor !== "ai" ? { replyTo: lastAuthor } : {}),
       subject: copy.subject,
       text,
@@ -2089,21 +2093,21 @@ export class Book extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     const email = this.ctx.getTags(ws)[0];
-    const { cid, command } = parseCommandEnvelope(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
-    // Correlated commands (shared/commands.ts): only a command that carried a cid gets its one `result` back.
-    const answer = (r: CommandOutcome) => {
-      if (!cid) return;
-      this.sendTo([ws], { t: "result", cid, ...r } satisfies CommandResult);
+    // JSON-RPC (shared/jsonRpc.ts): a request (with an id) gets exactly one response; a notification gets none.
+    const call = parseRoomCall(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
+    const reply = (frame: (id: RpcId) => string) => {
+      if (call.id === undefined) return;
+      try { ws.send(frame(call.id)); } catch {} // socket already gone
     };
-    if (!command) return answer({ ok: false, error: "invalid command" });
+    if (!call.command) return reply((id) => encodeError(id, call.error));
     let out: unknown;
     try {
-      out = await this.runCommand(ws, email, command);
+      out = await this.runCommand(ws, email, call.command);
     } catch (e) {
-      answer({ ok: false, error: "server error" });
+      reply((id) => encodeError(id, { code: RpcErrorCode.INTERNAL, message: "server error" }));
       throw e;
     }
-    answer(out instanceof Refused ? { ok: false, error: out.error } : { ok: true });
+    reply((id) => (out instanceof Refused ? encodeError(id, { code: RpcErrorCode.REFUSED, message: out.error }) : encodeResult(id)));
   }
 
   /** One room command from a person's socket. Returns a Refused when the command was turned down (the old events,
@@ -2248,6 +2252,10 @@ export class Book extends DurableObject<Env> {
         return this.deleteEpic(String(m.id));
       case "epic.archive":
         return this.archiveEpic(String(m.id), m.archived !== false);
+      case "epic.pin": // the sidebar's pin: shared, like the order; pinned epics sit above the ones sorted by recency
+        if (!this.epics().some((e) => e.id === String(m.id))) return;
+        this.sql.exec(`UPDATE epics SET pinned = ? WHERE id = ?`, m.pinned === false ? null : Date.now(), String(m.id));
+        return this.epicsChanged();
       case "epic.order": // the sidebar's drag: the room's epics in this order (shared); epics left out keep theirs, new ones go last
         if (!Array.isArray(m.ids)) return;
         {
@@ -2481,12 +2489,12 @@ export class Book extends DurableObject<Env> {
         model: this.model(this.env.MODEL_CLASSIFY, true),
         output: Output.object({
           schema: z.object({
-            title: z.string().describe("título curto e específico do vibebook, máx 6 palavras"),
+            title: z.string().describe("título curto e específico da sala, máx 6 palavras"),
             folder: z.string().describe("pasta para organizar; reutilize uma pasta existente se fizer sentido"),
             summary: z.string().describe("uma frase curta (máx 20 palavras) dizendo do que se trata e em que pé está; sem emails, sem 'o usuário'"),
           }),
         }),
-        prompt: `Classifique este vibebook (documento compartilhado com chat e épicos).
+        prompt: `Classifique esta sala (documento compartilhado com chat e épicos).
 Escreva título e resumo no idioma em que a conversa está${this.en ? " (esta sala é em inglês: na dúvida, inglês)" : ""}.
 Pastas que essas pessoas já usam: ${folders.results.map((f) => f.folder).join(", ") || "(nenhuma)"}
 Documento:
@@ -2499,7 +2507,7 @@ ${transcript}`,
       this.ctx.waitUntil(track(this.env, "classify", { dims: { book: bookId, model: this.env.MODEL_CLASSIFY, ok: true, cost: +costOf(usage).toFixed(6) } }));
       // Rename only rooms still on the default name: a title someone chose (create_room, the home box, a rename) stays.
       const current = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
-      const title = this.get("title_locked") || (current && current.title !== "Novo vibebook") ? undefined : output.title;
+      const title = this.get("title_locked") || (current && current.title !== DEFAULT_TITLE && current.title !== "Novo vibebook") ? undefined : output.title;
       const summary = output.summary.replace(/\s+/g, " ").trim().slice(0, 180);
       await this.touch({ title, folder: output.folder, summary });
       // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_epic stays theirs.

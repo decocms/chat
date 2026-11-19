@@ -24,7 +24,6 @@ function api(overrides: Partial<AccountApi> = {}): AccountApi {
   return {
     logins: async () => ({
       logins: [],
-      providers: { google: false, github: false },
     }),
     name: async (name) => ({ ok: true, name }),
     avatar: async () => ({ ok: true, avatar: 2 }),
@@ -119,7 +118,6 @@ test("identity replacement closes private state synchronously and fences late mu
   response.resolve({ ok: true, name: "Private A" });
   history.resolve({
     logins: [{ method: "email", last: 1, n: 1 }],
-    providers: { google: true, github: false },
   });
   await settle();
   expect(get(h.owner.state)).toMatchObject({
@@ -183,8 +181,7 @@ test("typed Account API rejects malformed success and preserves explicit server 
     async () =>
       new Response(
         JSON.stringify({
-          logins: [],
-          providers: { google: "yes", github: false },
+          logins: [{ method: "studio", last: "yes", n: 1 }],
         }),
         { headers: { "content-type": "application/json" } },
       ),

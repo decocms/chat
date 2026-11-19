@@ -1,4 +1,5 @@
 // Real Worker/Book/D1/R2/MCP and browser UI. No canonical/API/WS response mocks.
+import { receivedEvent, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -138,7 +139,9 @@ export async function auditDocumentAnswers(
   };
   await mkdir(fixture.output, { recursive: true });
   try {
-    for (const variant of ["svelte", "vanilla"] as const) {
+    const variants: Variant[] = ["svelte"];
+    // The Svelte app is the only app since #181; the vanilla branches below are dead until they are removed.
+    for (const variant of variants) {
       const result: Evidence["variants"][number] = {
         variant,
         status: "running",
@@ -219,26 +222,13 @@ export async function auditDocumentAnswers(
         const watchWire = (owned: Page) =>
           owned.on("websocket", (socket) => {
             if (new URL(socket.url()).pathname !== `/ws/${roomId}`) return;
-            const tag = z.object({ t: z.string() });
             socket.on("framereceived", (frame) => {
-              if (typeof frame.payload !== "string") return;
-              try {
-                const event = tag.safeParse(JSON.parse(frame.payload));
-                if (event.success && event.data.t === "openDoc")
-                  result.openDocEvents++;
-              } catch {
-                /* Not a JSON event. */
-              }
+              if (receivedEvent(frame.payload)?.t === "openDoc")
+                result.openDocEvents++;
             });
             socket.on("framesent", (frame) => {
-              if (typeof frame.payload !== "string") return;
-              try {
-                const command = tag.safeParse(JSON.parse(frame.payload));
-                if (command.success && command.data.t === "msg")
-                  result.browserMessageCommands++;
-              } catch {
-                /* Not a command. */
-              }
+              if (sentFrame(frame.payload)?.t === "msg")
+                result.browserMessageCommands++;
             });
           });
         watchWire(page);
