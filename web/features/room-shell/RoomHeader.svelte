@@ -137,7 +137,7 @@
 >
 
 <header
-  data-native-room-header
+  data-room-bar
   data-room-document-toolbar
   class="flex min-w-0 flex-1 flex-wrap items-center gap-1 font-sans text-sm text-foreground md:flex-nowrap"
 >
@@ -158,7 +158,7 @@
     >{/key}
   <button
     type="button"
-    data-native-phone-title
+    data-phone-title
     aria-label={t("Trocar de conversa")}
     class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
     onclick={(event) => {
@@ -191,7 +191,7 @@
   <!-- Desktop, one bar over chat and pane: what fills the middle (with the epic's actions), then the pane's tabs at the end. -->
   <div class="contents md:flex md:min-w-0 md:flex-1 md:items-center md:gap-1">
     <div
-      data-native-header-title
+      data-header-title
       class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24"
     >
       <RoomBarTitle
@@ -203,7 +203,7 @@
       />
     </div>
     {#if appNavigation}<IconButton
-        data-native-phone-search
+        data-phone-search
         label={t("Buscar")}
         size="icon"
         class="rounded-full text-muted-foreground hover:text-foreground md:hidden"
@@ -214,7 +214,7 @@
       >{/if}
     <!-- Phones: the inbox in the bar. Desktop: it and the board are views in the sidebar, under the main thread. -->
     {#if $geometry.mobile}<IconButton
-        data-native-inbox-toggle
+        data-inbox-toggle
         label={t("Caixa de entrada")}
         tooltipSide="bottom"
         size="icon"
@@ -231,7 +231,7 @@
       >{/if}
   </div>
   <div class="contents md:flex md:min-w-0 md:shrink md:items-center md:gap-1">
-    {#if tabs}<div data-native-header-tabs class="hidden min-w-0 md:block">
+    {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
           {...tabs}
           bare
@@ -242,7 +242,7 @@
           onPane={pickPane}
         />
       </div>{/if}
-    {#if $personal.me}<span data-native-phone-account class="contents md:hidden"
+    {#if $personal.me}<span data-phone-account class="contents md:hidden"
         ><AccountRow me={$personal.me} row={false} /></span
       >{/if}
   </div>

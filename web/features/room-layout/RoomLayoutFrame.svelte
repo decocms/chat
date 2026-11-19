@@ -115,7 +115,7 @@
 
 <div
   bind:this={root}
-  data-native-room-layout
+  data-room-layout
   data-pane={$view.pane}
   data-sheet={$view.sheet ?? undefined}
   data-board-full={$view.boardFull}
@@ -255,7 +255,7 @@
               : $view.mobile
                 ? "pb-[env(safe-area-inset-bottom)]"
                 : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                  "mr-2 mb-2 rounded-br-surface [&>[data-native-composer]]:rounded-br-surface px-2",
+                  "mr-2 mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface px-2",
           ]}
     >
       {@render props.composer()}
@@ -346,7 +346,7 @@
     {#if tabs}<div
         data-room-tabbar
         inert={$view.sheet === "side"}
-        class="z-30 col-start-2 row-start-6 min-w-0 [[data-native-room-layout]:has([data-room-composer]:focus-within)_&]:hidden"
+        class="z-30 col-start-2 row-start-6 min-w-0 [[data-room-layout]:has([data-room-composer]:focus-within)_&]:hidden"
       >
         {@render props.tabbar?.()}
       </div>{/if}

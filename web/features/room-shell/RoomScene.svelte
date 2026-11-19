@@ -353,7 +353,7 @@
                 {services}
                 documentWidth={layout.bindDocumentWidth}
                 sidebarCollapsed={$geometry.sidebarCollapsed}
-              />{:else}<div data-native-room-inbox-loading class="p-6">
+              />{:else}<div data-room-inbox-loading class="p-6">
                 <DeferredViewStatus
                   phase={$roomInboxView.phase}
                   lang={services.language}
@@ -384,7 +384,7 @@
         )}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
-              data-native-agent-footer
+              data-agent-footer
               class={collapsed ? "flex justify-center" : ""}
             >
               {#if collapsed}<AgentTrigger

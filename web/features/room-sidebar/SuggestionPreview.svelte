@@ -29,7 +29,7 @@
       value={suggestion}
       >{#snippet children(shown)}
         <article
-          data-native-suggestion
+          data-suggestion-preview
           class="mx-auto w-full max-w-2xl space-y-4 p-6 font-sans text-sm leading-6 text-foreground"
         >
           <p class="m-0 text-xs text-muted-foreground">

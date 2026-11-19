@@ -14,7 +14,7 @@
 </script>
 
 {#if story === "default"}
-  <!-- The parity page lacks Studio's 1.5 root line height, which sets the line box around a bare inline control. -->
+  <!-- This page lacks Studio's 1.5 root line height, which sets the line box around a bare inline control. -->
   <div class="leading-[1.5]">
     <Switch aria-label="Toggle setting" />
   </div>

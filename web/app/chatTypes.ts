@@ -5,7 +5,7 @@ import type {
   RichNavigation,
 } from "../features/rich-text/types";
 export type ChatMessage = Message & { runs?: number[]; group?: ChatMessage[] };
-/** Formatting data only; all message presentation is native. */
+/** Formatting data only; all message presentation is done by components. */
 export type ChatBridge = {
   t: (text: string, vars?: Record<string, string | number>) => string;
   name: (email: string) => string;
@@ -39,7 +39,7 @@ export type ChatActions = {
     text: string;
   }) => void;
   openApp?: (target: { connection: string; tool: string }) => void;
-  /** Temporary F49 protocol integration. Native iframe geometry/consent/lifetime are component-owned. */
+  /** Iframe geometry/consent/lifetime are component-owned. */
   mountEmbed?: (
     frame: HTMLIFrameElement,
     file: Attachment,

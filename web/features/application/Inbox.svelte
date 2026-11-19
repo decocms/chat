@@ -150,7 +150,7 @@
   }}
 >
   <DialogContent
-    data-native-inbox
+    data-inbox
     class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}
     preventScroll={false}

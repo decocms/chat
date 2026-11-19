@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NativeAuthMetadata } from "../../../shared/nativeAuth";
+  import type { AuthPageMetadata } from "../../../shared/authPage";
   import { createAuthApi, type AuthApi } from "./api";
   import { authText } from "./copy";
   import AuthFrame from "./AuthFrame.svelte";
@@ -14,7 +14,7 @@
     api = createAuthApi(),
     navigate = (url: string) => location.assign(url),
   }: {
-    metadata: NativeAuthMetadata | null;
+    metadata: AuthPageMetadata | null;
     href?: string;
     api?: AuthApi;
     navigate?: (url: string) => void;

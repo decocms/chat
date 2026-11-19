@@ -216,7 +216,7 @@
 </script>
 
 <div
-  data-native-app-shell
+  data-app-shell
   class={[
     $application.route.kind === "room"
       ? "grid h-dvh min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden md:grid-cols-[68px_minmax(0,1fr)] md:bg-sidebar"
@@ -253,7 +253,7 @@
       <!-- Your DMs (or the settings' sections): beside the page on desktop (the sidebar of that surface); the DMs
         go under the home on a phone, where the settings need no list. -->
       <aside
-        data-native-home-dms
+        data-home-dms
         class="{settings
           ? 'hidden md:flex'
           : ''} col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
@@ -272,7 +272,7 @@
         >
       </aside>{/if}
     <div
-      data-native-application-route
+      data-application-route
       class={$application.route.kind === "room"
         ? "col-start-1 row-start-1 h-full min-h-0 min-w-0 overflow-hidden md:col-start-2"
         : [
@@ -339,7 +339,7 @@
             {current}
           />{/if}
       {:else if $application.route.kind === "room"}<div
-          data-native-room-root
+          data-room-root
           class="h-full min-h-0 min-w-0 overflow-hidden"
         >
           {@render roomSnippet({ services, openInbox, inbox })}

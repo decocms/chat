@@ -24,7 +24,7 @@
   ] as const;
 </script>
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "default"}
     <Badge variant="default" size="default">Active</Badge>

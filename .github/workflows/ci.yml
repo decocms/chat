@@ -39,7 +39,7 @@ jobs:
         if: ${{ always() && steps.preview.outcome == 'success' }}
         run: git diff --exit-code -- public/app.html public/svelte-preview/ public/sw.js
 
-  # The real Worker, Book, D1, R2 and NativeApplication cohort (the long one).
+  # The real Worker, Book, D1, R2 and Application cohort (the long one).
   browser-app:
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-24.04
@@ -47,7 +47,7 @@ jobs:
     env:
       CI: "true"
       TEST_APP_REVISION: ${{ github.sha }}
-      TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/native-application-browser/report
+      TEST_OUTPUT_DIR: ${{ github.workspace }}/.artifacts/application-browser/report
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,12 +57,12 @@ jobs:
           browser: "true"
       - run: bun run build:ui
       - run: bun run build:mcp
-      - run: bun run test:native-application:ci
+      - run: bun run test:application:ci
       - name: Retain safe browser evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: native-application-browser-${{ github.sha }}
+          name: application-browser-${{ github.sha }}
           path: ${{ env.TEST_OUTPUT_DIR }}/
           if-no-files-found: warn
           retention-days: 7
@@ -96,7 +96,7 @@ jobs:
           TEST_OUTPUT: ${{ github.workspace }}/.artifacts/app-document
       - name: Design system and Studio
         if: ${{ !cancelled() }}
-        run: bun scripts/native-application-ci.ts --suite design-system
+        run: bun scripts/application-ci.ts --suite design-system
         env:
           CI: "true"
           TEST_APP_REVISION: ${{ github.sha }}

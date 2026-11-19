@@ -141,7 +141,7 @@
               {#each body as id}{@render draw(card.elements[id], id)}{/each}
             </div>{/if}
           {#each footer as id}<div
-              data-native-card-actions
+              data-card-actions
               class="border-t border-border bg-muted/40 px-4 py-2.5"
             >
               {@render draw(card.elements[id], id)}
@@ -225,7 +225,7 @@
     </div>
   {:else if element.type === "Button"}{@const value =
       element.props.value || element.props.label}{#if actionable}<Button
-        data-native-card-answer={value}
+        data-card-answer={value}
         class="h-auto min-h-8 whitespace-pre-wrap text-left"
         size="sm"
         variant={element.props.style === "danger"
@@ -236,7 +236,7 @@
         disabled={busy}
         onclick={(event) => reply(value, event)}>{element.props.label}</Button
       >{:else}<span
-        data-native-card-picked={answer?.text === value ? value : undefined}
+        data-card-picked={answer?.text === value ? value : undefined}
         class={answer?.text === value
           ? "inline-flex items-center gap-1 whitespace-pre-wrap rounded-button border border-primary bg-primary/10 px-3 py-1.5 text-sm"
           : "inline-flex items-center whitespace-pre-wrap rounded-button border border-border px-3 py-1.5 text-sm text-muted-foreground"}
@@ -266,8 +266,8 @@
   {/if}
 {/snippet}
 <div
-  data-native-card
-  data-native-card-readonly={readOnly || undefined}
+  data-card
+  data-card-readonly={readOnly || undefined}
   class={[
     "space-y-2 font-sans text-sm text-foreground",
     // In the chat a card gets a little room from the line above it (in a doc it sits as it is).

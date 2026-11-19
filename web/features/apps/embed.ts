@@ -2,7 +2,7 @@ import { MOBILE_QUERY } from "../../lib/breakpoints";
 import type { Room, Attachment } from "../../../shared/room";
 import type { ChatEmbedControls } from "../../app/chatTypes";
 import type { RequestRoomCommand } from "../../app/roomConnection";
-import type { NativeAppBridge } from "./bridge";
+import type { RoomAppBridge } from "./bridge";
 import {
   appMembershipFailure,
   appSessionFailure,
@@ -12,7 +12,7 @@ import { createAppsApi, createAppMetrics, type AppsApi } from "./api";
 import { createAppRequests } from "./requests";
 import { appDocumentAction } from "./documentAction";
 import { createRoomAppTools, roomTools } from "./tools";
-export function mountNativeChatApp(options: {
+export function mountChatApp(options: {
   frame: HTMLIFrameElement;
   file: Attachment;
   controls: ChatEmbedControls;
@@ -39,7 +39,7 @@ export function mountNativeChatApp(options: {
     api = options.api ?? createAppsApi(roomId),
     metrics = options.metrics ?? createAppMetrics();
   let active = true,
-    bridge: NativeAppBridge | null = null;
+    bridge: RoomAppBridge | null = null;
   const current = () => {
     const room = options.room();
     return (
@@ -115,7 +115,7 @@ export function mountNativeChatApp(options: {
           .catch((error) => appSessionFailure(authority, error)),
       t: options.t,
     });
-    bridge = protocol.createNativeAppBridge({
+    bridge = protocol.createRoomAppBridge({
       frame,
       current,
       revoked: () => {

@@ -345,7 +345,7 @@ export function appDevelopment(
           const cookies = response.headers.getSetCookie();
           if (cookies.length) res.setHeader("set-cookie", cookies);
           if (!consentPost) res.setHeader("cache-control", "no-store");
-          const nativeErrorShell = fileShell
+          const errorShell = fileShell
             ? [401, 403].includes(response.status) &&
               /<meta\b(?=[^>]*\bname=["']vb-page["'])(?=[^>]*\bcontent=["']file-access["'])[^>]*>/i.test(
                 html,
@@ -356,14 +356,14 @@ export function appDevelopment(
               );
           if (
             (consentPost
-              ? !nativeErrorShell ||
+              ? !errorShell ||
                 !/<meta\b(?=[^>]*\bname=["']vb-page["'])(?=[^>]*\bcontent=["']consent["'])[^>]*>/i.test(
                   html,
                 ) ||
                 !/^text\/html(?:;|$)/i.test(
                   response.headers.get("content-type") ?? "",
                 )
-              : !response.ok && !nativeErrorShell) ||
+              : !response.ok && !errorShell) ||
             (fileShell &&
               !/<meta\b(?=[^>]*\bname=["']vb-page["'])(?=[^>]*\bcontent=["']file-access["'])[^>]*>/i.test(
                 html,

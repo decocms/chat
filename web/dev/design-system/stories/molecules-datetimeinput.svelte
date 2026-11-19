@@ -13,7 +13,7 @@
 <!-- React renders each interpolation as its own text node, and glyph positions restart at each one. -->
 {#snippet text(content: string)}{content}{/snippet}
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "default" || story === "absolute-date"}
     <div class="w-80 space-y-2">

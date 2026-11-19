@@ -6,7 +6,7 @@
   const ROWS = [0, 1, 2];
 </script>
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "default"}
     <Skeleton class="h-4 w-64" />

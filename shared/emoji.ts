@@ -1,4 +1,4 @@
-// Exact existing shortcode vocabulary, shared by native rich text and the pending composer.
+// Exact existing shortcode vocabulary, shared by rich text and the pending composer.
 export const EMOJI = {
   "100": "💯",
   point_up: "☝️",

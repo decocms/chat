@@ -93,7 +93,7 @@ test("HTTP and websocket proxy trust the configured Vite origin, never a supplie
     );
 });
 
-test("native auth error shells retain status and cookies while using source HMR", async () => {
+test("auth error shells retain status and cookies while using source HMR", async () => {
   let middleware: Function = () => {};
   const plugin = appDevelopment(projectRoot, "http://127.0.0.1:8787");
   (plugin.configureServer as Function)({
@@ -144,7 +144,7 @@ test("native auth error shells retain status and cookies while using source HMR"
         { url: "/authorize", method: "GET", headers: {} },
         res,
         () => {
-          throw new Error("native auth route bypassed");
+          throw new Error("auth route bypassed");
         },
       );
       expect(res.statusCode).toBe(fixture.status);
@@ -221,7 +221,7 @@ function consentResponse() {
     },
   });
 }
-test("selected consent POST forwards exact raw form, cookie and origin boundary before transforming only native consent errors", async () => {
+test("selected consent POST forwards exact raw form, cookie and origin boundary before transforming only consent errors", async () => {
   const middleware = consentMiddleware(),
     previousFetch = globalThis.fetch;
   const body = "handle=✓a%2Bb%3D&decision=deny&state=%E2%9C%93&next=%2Fapp";
@@ -515,7 +515,7 @@ test("source GET access-return Referer preserves the Worker's real autoAccess tr
           expect(headers.get("cookie")).toBe("session=local");
           expect(headers.get("content-length")).toBeNull();
           // Exact predicate used by src/index.ts accessPage metadata. This proves
-          // forwarding parity, not a real browser access request or permission grant.
+          // forwarding behavior, not a real browser access request or permission grant.
           const url = new URL(String(input)),
             auto =
               url.searchParams.has("pedir") &&
@@ -979,7 +979,7 @@ test("an earlier server exit and startup deadline both terminate readiness and r
   }
 });
 
-test("only explicit native denied file navigations transform; successful bytes and Range remain raw", async () => {
+test("only explicit denied file navigations transform; successful bytes and Range remain raw", async () => {
   const middleware = consentMiddleware(),
     previousFetch = globalThis.fetch;
   try {
@@ -1003,7 +1003,7 @@ test("only explicit native denied file navigations transform; successful bytes a
       req.method = "GET";
       const res = consentResponse();
       await middleware(req, res, () => {
-        throw Error("native file bypassed");
+        throw Error("file bypassed");
       });
       expect(res.statusCode).toBe(status);
       expect(res.body).toContain('src="/main.ts"');

@@ -23,7 +23,7 @@
 
 {#key `${room.id}:${room.me}:${message.id}:${message.thread}`}
   {#if rawCard && rawCard.length > 1_000_000}<pre
-      data-native-card-fallback
+      data-card-fallback
       class="max-w-full overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{rawCard}</pre>{:else if card}<CardView
       {card}
       {message}

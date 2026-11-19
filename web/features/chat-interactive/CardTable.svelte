@@ -49,7 +49,7 @@
     </table>
   </div>
 {/snippet}
-<div data-native-card-table class="space-y-2">
+<div data-card-table class="space-y-2">
   <Dialog {open} {onOpenChange}>
     <DialogTrigger class={buttonVariants({ variant: "outline", size: "sm" })}
       ><Icon icon={Expand01} size={16} />{vb.t(

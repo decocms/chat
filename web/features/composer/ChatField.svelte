@@ -381,7 +381,7 @@
 <form
   bind:this={root}
   data-chat-box
-  data-native-composer-field
+  data-composer-field
   aria-busy={busy || pending || undefined}
   class="flex items-end gap-0.5 font-sans text-sm text-foreground rounded-2xl bg-[var(--vb-studio-input-background)] py-3 pr-3 pl-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d] transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
   onsubmit={(event) => {

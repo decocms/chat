@@ -165,9 +165,9 @@ afterEach(() => {
 async function expectInteractiveReady(target: HTMLElement) {
   for (let frame = 0; frame < 20; frame++) {
     if (
-      target.querySelector('[data-native-interactive-state="ready"]') &&
+      target.querySelector('[data-interactive-state="ready"]') &&
       !target.querySelector(
-        '[data-native-interactive-state]:not([data-native-interactive-state="ready"])',
+        '[data-interactive-state]:not([data-interactive-state="ready"])',
       )
     )
       return;
@@ -179,11 +179,11 @@ async function expectInteractiveReady(target: HTMLElement) {
   }
   expect(
     target.querySelectorAll(
-      '[data-native-interactive-state]:not([data-native-interactive-state="ready"])',
+      '[data-interactive-state]:not([data-interactive-state="ready"])',
     ),
   ).toHaveLength(0);
   expect(
-    target.querySelector('[data-native-interactive-state="ready"]') !== null,
+    target.querySelector('[data-interactive-state="ready"]') !== null,
   ).toBe(true);
 }
 // Poll actual DOM state and report identity as a boolean, avoiding huge DOM graphs.
@@ -344,7 +344,7 @@ function hoverMessages(target: HTMLElement) {
   flushSync();
 }
 
-describe("native Svelte room panels", () => {
+describe("room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();
     room.epics[0].tasks[0].flags = ["review note"];
@@ -843,7 +843,7 @@ describe("native Svelte room panels", () => {
       );
       try {
         const link = target.querySelector<HTMLAnchorElement>(
-          "a[data-native-account-row]",
+          "a[data-account-row]",
         );
         expect(link?.getAttribute("href")).toBe("/settings");
         // The shell follows data-nav links in place (no reload).
@@ -851,7 +851,7 @@ describe("native Svelte room panels", () => {
         expect(link?.getAttribute("aria-label")).toBe("Ana");
         expect(link?.getAttribute("aria-current")).toBe(row ? null : "page");
         expect(target.textContent?.includes("Ana")).toBe(row);
-        expect(target.querySelector("[data-native-user-menu]")).toBeNull();
+        expect(target.querySelector("[data-user-menu]")).toBeNull();
       } finally {
         await unmount(instance);
         target.remove();
@@ -1127,7 +1127,7 @@ describe("native Svelte room panels", () => {
       target.remove();
     }
   }, 30_000);
-  test("native decisions render escaped canonical rows in reverse order and preserve empty state", () => {
+  test("decisions render escaped canonical rows in reverse order and preserve empty state", () => {
     const room = fixture();
     room.decisions = [
       {
@@ -1306,7 +1306,7 @@ describe("native Svelte room panels", () => {
         ).toBe(false);
     }, 30_000);
   }
-  test("native reminder disclosure and controlled switches wait for server acknowledgement", async () => {
+  test("reminder disclosure and controlled switches wait for server acknowledgement", async () => {
     const room = fixture();
     room.reminders = [
       {
@@ -1447,7 +1447,7 @@ describe("native Svelte room panels", () => {
       "new room draft",
     );
   }, 30_000);
-  test("native files preserve exact viewer selection, pin ACK errors and disposed callbacks", async () => {
+  test("files preserve exact viewer selection, pin ACK errors and disposed callbacks", async () => {
     const room = fixture();
     const file = {
       id: "v1",
@@ -1628,7 +1628,7 @@ describe("native Svelte room panels", () => {
   }, 30_000);
 });
 
-describe("native Svelte chat", () => {
+describe("chat", () => {
   const message = (
     id: number,
     text: string,
@@ -1680,7 +1680,7 @@ describe("native Svelte chat", () => {
       },
     };
   }
-  test("native production endcard shows requested corrections without rewriting verified or archived state", async () => {
+  test("production endcard shows requested corrections without rewriting verified or archived state", async () => {
     const room = fixture();
     room.epics = [
       {
@@ -1795,7 +1795,7 @@ describe("native Svelte chat", () => {
     expect(sent).toHaveLength(1);
     owner.dispose();
   }, 30_000);
-  test("native fenced code is a keyboard focus target without changing its canonical text", () => {
+  test("fenced code is a keyboard focus target without changing its canonical text", () => {
     const code = "const wide = " + "x".repeat(240) + ";";
     const room = {
       ...fixture(),
@@ -1812,7 +1812,7 @@ describe("native Svelte chat", () => {
     expect(document.activeElement).toBe(pre);
     expect(pre!.classList.contains("focus-visible:outline-ring")).toBe(true);
   });
-  test("native rich content preserves safe semantics and exact direct actions without HTML hooks", () => {
+  test("rich content preserves safe semantics and exact direct actions without HTML hooks", () => {
     const file = {
       id: "aa11",
       name: "report.html",
@@ -1872,11 +1872,8 @@ describe("native Svelte chat", () => {
     )!;
     expect(external.target).toBe("_blank");
     expect(external.rel).toContain("noopener");
-    expect(body.querySelector("[data-legacy-chat-content]") === null).toBe(
-      true,
-    );
   }, 30_000);
-  test("native live cards expose four-series legend/axis/tooltips, Field delta and primary links", async () => {
+  test("live cards expose four-series legend/axis/tooltips, Field delta and primary links", async () => {
     const card = {
       root: "c",
       elements: {
@@ -1931,13 +1928,13 @@ describe("native Svelte chat", () => {
         (node) => node.textContent,
       ),
     ).toEqual(["80", "30", "-20"]);
+    expect(target.querySelectorAll("[data-card-chart] polyline")).toHaveLength(
+      4,
+    );
     expect(
-      target.querySelectorAll("[data-native-card-chart] polyline"),
-    ).toHaveLength(4);
-    expect(
-      target.querySelectorAll("[data-native-card-chart] rect title"),
+      target.querySelectorAll("[data-card-chart] rect title"),
     ).toHaveLength(3);
-    expect(target.querySelector("[data-native-card-chart] img")).toBe(null);
+    expect(target.querySelector("[data-card-chart] img")).toBe(null);
     expect(target.textContent).toContain("Safe <b>trend</b>");
     expect(target.querySelector("dd")?.textContent).toContain("-3%");
     const link = target.querySelector<HTMLAnchorElement>(
@@ -1975,7 +1972,7 @@ describe("native Svelte chat", () => {
       },
     });
     await expectInteractiveReady(target);
-    const card = target.querySelector("[data-native-card]")!;
+    const card = target.querySelector("[data-card]")!;
     expect(card.textContent).toContain("historical alias");
     expect(card.querySelector("td")?.textContent).toBe("1");
     expect(card.querySelector("polyline") !== null).toBe(true);
@@ -1995,7 +1992,7 @@ describe("native Svelte chat", () => {
     flushSync();
     await tick();
     const button = card.querySelector<HTMLButtonElement>(
-      '[data-native-card-answer="3"]',
+      '[data-card-answer="3"]',
     )!;
     button.click();
     button.click();
@@ -2010,9 +2007,7 @@ describe("native Svelte chat", () => {
     await tick();
     flushSync();
     expect(
-      target
-        .querySelector('[data-native-card-answer="3"]')
-        ?.hasAttribute("disabled"),
+      target.querySelector('[data-card-answer="3"]')?.hasAttribute("disabled"),
     ).toBe(true);
     room = {
       ...room,
@@ -2022,19 +2017,15 @@ describe("native Svelte chat", () => {
       ],
     };
     update(room);
-    expect(target.querySelector('[data-native-card-answer="3"]') === null).toBe(
-      true,
-    );
-    expect(target.querySelector('[data-native-card-picked="3"]') !== null).toBe(
-      true,
-    );
+    expect(target.querySelector('[data-card-answer="3"]') === null).toBe(true);
+    expect(target.querySelector('[data-card-picked="3"]') !== null).toBe(true);
     update({ ...room, messages: [{ ...q, card: "{invalid" }] });
-    expect(target.querySelector("[data-native-card]") === null).toBe(true);
+    expect(target.querySelector("[data-card]") === null).toBe(true);
     expect(target.querySelector("[data-rich-content]")?.textContent).toBe(
       "Surrounding message",
     );
   }, 30_000);
-  test("native choices populate editable composer drafts with Other and never submit", async () => {
+  test("choices populate editable composer drafts with Other and never submit", async () => {
     const q = {
       ...message(41, "Question"),
       author: fixture().me,
@@ -2057,7 +2048,7 @@ describe("native Svelte chat", () => {
     });
     await expectInteractiveReady(target);
     const radios = target.querySelectorAll<HTMLButtonElement>(
-      '[data-native-choices] [role="radio"]',
+      '[data-choices] [role="radio"]',
     );
     radios[0].click();
     flushSync();
@@ -2088,18 +2079,18 @@ describe("native Svelte chat", () => {
     expect(drafts).toHaveLength(2);
     expect(
       target.querySelector(
-        '[data-native-choices] input, [data-native-choices] [role="radio"]',
+        '[data-choices] input, [data-choices] [role="radio"]',
       ) === null,
     ).toBe(true);
     expect(target.textContent).toContain("foi pro terminal");
     update({ ...room, me: "you@test", messages: [q] });
     expect(
       target.querySelector(
-        '[data-native-choices] input, [data-native-choices] [role="radio"]',
+        '[data-choices] input, [data-choices] [role="radio"]',
       ) === null,
     ).toBe(true);
   }, 30_000);
-  test("native multi choices keep option order and Other clears draft without submitting", async () => {
+  test("multi choices keep option order and Other clears draft without submitting", async () => {
     const q = {
         ...message(42, "Question"),
         author: fixture().me,
@@ -2120,7 +2111,7 @@ describe("native Svelte chat", () => {
     );
     await expectInteractiveReady(target);
     const checks = target.querySelectorAll<HTMLButtonElement>(
-      '[data-native-choices] [role="checkbox"]',
+      '[data-choices] [role="checkbox"]',
     );
     for (const index of [1, 0, 2]) {
       checks[index].click();
@@ -2128,7 +2119,7 @@ describe("native Svelte chat", () => {
     }
     expect(drafts).toEqual(["Second", "First · Second", ""]);
   }, 30_000);
-  test("native permission confirmation cancels safely and canonical target removal suppresses late errors", async () => {
+  test("permission confirmation cancels safely and canonical target removal suppresses late errors", async () => {
     const q = {
       ...message(51, "⏸ Seu Claude pede permissão"),
       author: fixture().me,
@@ -2151,9 +2142,7 @@ describe("native Svelte chat", () => {
     });
     await expectInteractiveReady(target);
     target
-      .querySelector<HTMLButtonElement>(
-        '[data-native-permission-value="Aprovar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[data-permission-value="Aprovar"]')!
       .click();
     flushSync();
     await tick();
@@ -2170,9 +2159,7 @@ describe("native Svelte chat", () => {
     await expectAlertDialogClosed();
     expect(sent).toHaveLength(0);
     target
-      .querySelector<HTMLButtonElement>(
-        '[data-native-permission-value="Negar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[data-permission-value="Negar"]')!
       .click();
     flushSync();
     await tick();
@@ -2191,7 +2178,7 @@ describe("native Svelte chat", () => {
     await expectAlertDialogClosed();
     expect(target.textContent).not.toContain("late permission failure");
   }, 30_000);
-  test("native poll votes retain canonical pressed state, report failure and gate closure by author", async () => {
+  test("poll votes retain canonical pressed state, report failure and gate closure by author", async () => {
     const q = { ...message(61, ""), poll: "p" };
     const poll = {
       id: "p",
@@ -2218,9 +2205,7 @@ describe("native Svelte chat", () => {
       },
     });
     await expectInteractiveReady(target);
-    const stale = target.querySelector<HTMLButtonElement>(
-      '[data-native-vote="0"]',
-    )!;
+    const stale = target.querySelector<HTMLButtonElement>('[data-vote="0"]')!;
     stale.click();
     expect(sent[0]).toEqual({ t: "vote", id: "p", opt: 0 });
     expect(stale.getAttribute("aria-pressed")).toBe("false");
@@ -2230,17 +2215,11 @@ describe("native Svelte chat", () => {
     expect(target.textContent).toContain("server refused");
     update({ ...room, polls: { p: { ...poll, votes: [[room.me], []] } } });
     expect(
-      target
-        .querySelector('[data-native-vote="0"]')
-        ?.getAttribute("aria-pressed"),
+      target.querySelector('[data-vote="0"]')?.getAttribute("aria-pressed"),
     ).toBe("true");
-    expect(target.querySelector("[data-native-poll-close]") !== null).toBe(
-      true,
-    );
+    expect(target.querySelector("[data-poll-close]") !== null).toBe(true);
     update({ ...room, me: "you@test" });
-    expect(target.querySelector("[data-native-poll-close]") === null).toBe(
-      true,
-    );
+    expect(target.querySelector("[data-poll-close]") === null).toBe(true);
     const before = sent.length;
     stale.click();
     expect(sent).toHaveLength(before);
@@ -2267,9 +2246,7 @@ describe("native Svelte chat", () => {
     });
     await expectInteractiveReady(target);
     target
-      .querySelector<HTMLButtonElement>(
-        '[data-native-permission-value="Aprovar"]',
-      )!
+      .querySelector<HTMLButtonElement>('[data-permission-value="Aprovar"]')!
       .click();
     flushSync();
     await tick();
@@ -2312,11 +2289,11 @@ describe("native Svelte chat", () => {
       ],
     });
     await expectInteractiveReady(target);
-    expect(target.querySelectorAll("[data-native-card-table]")).toHaveLength(3);
+    expect(target.querySelectorAll("[data-card-table]")).toHaveLength(3);
     expect(
-      target.querySelectorAll("[data-native-card-table] td").length,
+      target.querySelectorAll("[data-card-table] td").length,
     ).toBeLessThanOrEqual(1000);
-    const tables = target.querySelectorAll("[data-native-card-table]");
+    const tables = target.querySelectorAll("[data-card-table]");
     tables[2].querySelector<HTMLButtonElement>("button")!.click();
     flushSync();
     await tick();
@@ -2351,9 +2328,7 @@ describe("native Svelte chat", () => {
       },
     });
     await expectInteractiveReady(target);
-    const vote = target.querySelector<HTMLButtonElement>(
-      '[data-native-vote="0"]',
-    )!;
+    const vote = target.querySelector<HTMLButtonElement>('[data-vote="0"]')!;
     vote.click();
     resolve({ ok: false, error: "disconnected" });
     await tick();
@@ -2363,14 +2338,12 @@ describe("native Svelte chat", () => {
     vote.click();
     expect(sent).toHaveLength(1);
     update({ ...room, polls: { p: { ...poll, votes: [[room.me], []] } } });
-    const current = target.querySelector<HTMLButtonElement>(
-      '[data-native-vote="0"]',
-    )!;
+    const current = target.querySelector<HTMLButtonElement>('[data-vote="0"]')!;
     expect(current.disabled).toBe(false);
     expect(current.getAttribute("aria-pressed")).toBe("true");
     expect(sent).toHaveLength(1);
   }, 30_000);
-  test("streaming typing notes and repeated text updates retain native message anchors", async () => {
+  test("streaming typing notes and repeated text updates retain message anchors", async () => {
     let room: Room = {
       ...fixture(),
       messages: [message(1, "")],
@@ -2399,7 +2372,7 @@ describe("native Svelte chat", () => {
     update({ ...room, messages: [...room.messages, message(2, "next reply")] });
     expect(target.querySelectorAll("[data-chat-message]")).toHaveLength(2);
     // The hover toolbar mounts on the first pointer or focus in a message.
-    expect(target.querySelectorAll("[data-native-reply]")).toHaveLength(0);
+    expect(target.querySelectorAll("[data-reply]")).toHaveLength(0);
     expect(
       target.querySelectorAll("[data-message-toolbar-entry]"),
     ).toHaveLength(2);
@@ -2456,7 +2429,7 @@ describe("native Svelte chat", () => {
       document.activeElement?.closest("#m3 [data-message-toolbar]"),
     ).not.toBeNull();
     hoverMessages(target);
-    expect(target.querySelectorAll('[data-native-reply="1"]')).toHaveLength(1);
+    expect(target.querySelectorAll('[data-reply="1"]')).toHaveLength(1);
   }, 30_000);
   test("empty failed initial history mounts the real older control and clicks explicit retry", async () => {
     const { createChatViewport } =
@@ -2498,7 +2471,7 @@ describe("native Svelte chat", () => {
       owner.dispose();
     }
   }, 30_000);
-  test("quotes, native actions and origin survive chat refresh; @vibe notices are hidden", () => {
+  test("quotes, actions and origin survive chat refresh; @vibe notices are hidden", () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
     const notice = {
@@ -2516,19 +2489,15 @@ describe("native Svelte chat", () => {
     });
     expect(target.querySelector("[data-chat-origin] #m7")).toBeNull();
     expect(
-      target.querySelector('[data-chat-origin] [data-native-origin="7"]'),
+      target.querySelector('[data-chat-origin] [data-origin-id="7"]'),
     ).not.toBeNull();
     expect(
-      target
-        .querySelector("#m8 [data-native-quote]")
-        ?.getAttribute("data-native-quote"),
+      target.querySelector("#m8 [data-quote]")?.getAttribute("data-quote"),
     ).toBe("7");
     // @vibe's routine notices are hidden (Gui #3317).
     expect(target.querySelector("#m9")).toBeNull();
     hoverMessages(target);
-    expect(
-      target.querySelector('#m8 [data-native-copylink="8"]'),
-    ).not.toBeNull();
+    expect(target.querySelector('#m8 [data-copylink="8"]')).not.toBeNull();
     target.querySelector<HTMLElement>("#olderBtn")!.click();
     expect(pages).toBe(1);
     update({
@@ -2541,7 +2510,7 @@ describe("native Svelte chat", () => {
     expect(target.querySelectorAll("[data-chat-origin]")).toHaveLength(1);
     expect(target.querySelectorAll("#m9")).toHaveLength(0);
   }, 30_000);
-  test("special reminder origins omit self-linking cards without removing native DOM", () => {
+  test("special reminder origins omit self-linking cards without removing DOM", () => {
     const origin = { ...message(7, "Reminder origin"), tag: "reminder" };
     const normal = { ...message(8, "Reminder reply"), tag: "reminder" };
     const room = {
@@ -2564,7 +2533,7 @@ describe("native Svelte chat", () => {
     ).toBeNull();
     expect(target.querySelectorAll("#m8 [data-thread-card]")).toHaveLength(1);
   }, 30_000);
-  test("native thread cards use canonical descendants and exact metadata-only file callbacks", async () => {
+  test("thread cards use canonical descendants and exact metadata-only file callbacks", async () => {
     const source = message(71, "Request"),
       room: Room = {
         ...fixture(),
@@ -2614,11 +2583,8 @@ describe("native Svelte chat", () => {
     await tick();
     expect(targets).toHaveLength(1);
     expect(files).toHaveLength(1);
-    expect(target.querySelector("[data-legacy-chat-content]") === null).toBe(
-      true,
-    );
   }, 30_000);
-  test("native chat controls call typed actions and preserve exact attachment versions and sandbox restrictions", async () => {
+  test("chat controls call typed actions and preserve exact attachment versions and sandbox restrictions", async () => {
     const file = (id: string, type: string, embed = false) => ({
       id,
       name: "report.html",
@@ -2665,21 +2631,19 @@ describe("native Svelte chat", () => {
       },
     });
     hoverMessages(target);
-    target.querySelector<HTMLButtonElement>("#m8 [data-native-reply]")!.click();
-    target.querySelector<HTMLButtonElement>("#m8 [data-native-quote]")!.click();
-    target.querySelector<HTMLButtonElement>("[data-native-origin]")!.click();
+    target.querySelector<HTMLButtonElement>("#m8 [data-reply]")!.click();
+    target.querySelector<HTMLButtonElement>("#m8 [data-quote]")!.click();
+    target.querySelector<HTMLButtonElement>("[data-origin-id]")!.click();
     expect(replied).toEqual([8]);
     expect(navigated).toEqual([
       { id: 7, thread: "main" },
       { id: 7, thread: "main" },
     ]);
-    target.querySelector<HTMLButtonElement>("#m8 [data-native-copy]")!.click();
+    target.querySelector<HTMLButtonElement>("#m8 [data-copy]")!.click();
     await tick();
     flushSync();
     expect(copied).toContain("Body");
-    target
-      .querySelector<HTMLButtonElement>("#m8 [data-native-copylink]")!
-      .click();
+    target.querySelector<HTMLButtonElement>("#m8 [data-copylink]")!.click();
     await tick();
     flushSync();
     expect(copied.at(-1)).toContain("/b/r?t=e#m8");
@@ -2751,7 +2715,7 @@ describe("native Svelte chat", () => {
       .click();
     expect(opened).toEqual([first, second]);
   });
-  test("compact native receipts show five faces, overflow and read/delivery details on focus and tap", async () => {
+  test("compact receipts show five faces, overflow and read/delivery details on focus and tap", async () => {
     const room: Room = {
       ...fixture(),
       messages: [message(1, "Receipt target")],
@@ -2814,7 +2778,7 @@ describe("native Svelte chat", () => {
     ).toBe("visto por 1");
     expect(target.querySelectorAll("[data-message-footer]")).toHaveLength(1);
   }, 30_000);
-  test("native quiet rows retain folding, status ownership and canonical native thread cards", async () => {
+  test("quiet rows retain folding, status ownership and canonical thread cards", async () => {
     const reminder = {
       ...message(1, "⏰ **daily** report\n\nDetails"),
       tag: "reminder",
@@ -2873,14 +2837,12 @@ describe("native Svelte chat", () => {
       "@person rich",
     );
     await expectInteractiveReady(target);
-    expect(target.querySelector("#m3 [data-native-card]") !== null).toBe(true);
-    expect(target.querySelector("#m3 [data-native-choices]") !== null).toBe(
-      true,
-    );
-    expect(target.querySelector("#m3 [data-native-vote]") !== null).toBe(true);
+    expect(target.querySelector("#m3 [data-card]") !== null).toBe(true);
+    expect(target.querySelector("#m3 [data-choices]") !== null).toBe(true);
+    expect(target.querySelector("#m3 [data-vote]") !== null).toBe(true);
     expect(target.querySelectorAll("#m2 [data-thread-card]")).toHaveLength(2);
   });
-  test("room replacement disposes native action feedback and detached message handlers", async () => {
+  test("room replacement disposes action feedback and detached message handlers", async () => {
     let resolveCopy!: () => void;
     window.navigator.clipboard.writeText = () =>
       new Promise<void>((resolve) => {
@@ -2902,13 +2864,11 @@ describe("native Svelte chat", () => {
       },
     });
     hoverMessages(target);
-    const staleReply = target.querySelector<HTMLButtonElement>(
-      "[data-native-reply]",
-    )!;
+    const staleReply = target.querySelector<HTMLButtonElement>("[data-reply]")!;
     const staleRich = target.querySelector<HTMLAnchorElement>(
       '[data-rich-link="message"]',
     )!;
-    target.querySelector<HTMLButtonElement>("[data-native-copy]")!.click();
+    target.querySelector<HTMLButtonElement>("[data-copy]")!.click();
     update({ ...room, id: "next", messages: [message(2, "Next room")] });
     staleReply.click();
     staleRich.click();
@@ -2921,7 +2881,7 @@ describe("native Svelte chat", () => {
     expect(target.querySelector("#m1") === null).toBe(true);
     expect(target.querySelector("#m2") !== null).toBe(true);
   }, 30_000);
-  test("native embeds own consent, bounded media geometry and cleanup while retaining the typed protocol integration", async () => {
+  test("embeds own consent, bounded media geometry and cleanup while retaining the typed protocol integration", async () => {
     const embedded = {
       id: "embedded",
       name: "app.html",
@@ -3026,7 +2986,7 @@ describe("native Svelte chat", () => {
     flushSync();
     expect(current.getAttribute("height")).toBe(before);
   }, 30_000);
-  test("revoked native embed retains only a hidden denial frame and reopens a fresh owned iframe", async () => {
+  test("revoked embed retains only a hidden denial frame and reopens a fresh owned iframe", async () => {
     const embedded = {
       id: "document-file",
       name: "app.html",
@@ -3141,7 +3101,7 @@ describe("native Svelte chat", () => {
     );
     expect(threads).toEqual(["main"]);
   });
-  test("multitouch cancels a locked native swipe before it can reply or copy", () => {
+  test("multitouch cancels a locked swipe before it can reply or copy", () => {
     const replied: number[] = [];
     const { target } = renderChat(
       { ...fixture(), messages: [message(1, "Swipe target")] },
@@ -3298,7 +3258,7 @@ test("a left swipe copies the text from the top half and the link from the botto
   }
 });
 
-test("fenced document cards reuse native presentation read-only, including nested cards and malformed fallback", async () => {
+test("fenced document cards reuse presentation read-only, including nested cards and malformed fallback", async () => {
   const card = {
     root: "c",
     elements: {
@@ -3375,30 +3335,27 @@ test("fenced document cards reuse native presentation read-only, including neste
       await tick();
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       flushSync();
-      if (target.querySelectorAll("[data-native-card-readonly]").length === 2)
-        break;
+      if (target.querySelectorAll("[data-card-readonly]").length === 2) break;
     }
-    expect(target.querySelectorAll("[data-native-card-readonly]").length).toBe(
-      2,
-    );
+    expect(target.querySelectorAll("[data-card-readonly]").length).toBe(2);
     expect(target.textContent).toContain("Document result");
     expect(target.textContent).toContain("Safe <img src=x onerror=evil()>");
-    expect(
-      target.querySelector("img,script,[data-native-card-answer]") === null,
-    ).toBe(true);
+    expect(target.querySelector("img,script,[data-card-answer]") === null).toBe(
+      true,
+    );
     expect(target.querySelector("pre code")?.textContent).toContain(
       "{broken-json}",
     );
     const link = [
       ...target.querySelectorAll<HTMLButtonElement>(
-        "[data-native-card-readonly] button",
+        "[data-card-readonly] button",
       ),
     ].find((button) => button.textContent?.includes("Epic"));
     expect(link !== undefined).toBe(true);
     link!.click();
     expect(navigated).toEqual([{ kind: "thread", id: "abcd" }]);
     for (const node of target.querySelectorAll<HTMLElement>(
-      "[data-native-card-readonly] span",
+      "[data-card-readonly] span",
     ))
       node.click();
     expect(commands.filter((command) => command.t === "msg")).toEqual([]);
@@ -3412,7 +3369,7 @@ test("fenced document cards reuse native presentation read-only, including neste
   }
 }, 30_000);
 
-test("native document task slots dispose across suggestion scope and detached controls cannot write", async () => {
+test("document task slots dispose across suggestion scope and detached controls cannot write", async () => {
   const room = fixture();
   room.doc = "# Room document";
   room.docs = { e: "# Epic document\n\n## Tarefas\n" };
@@ -3487,7 +3444,7 @@ test("native document task slots dispose across suggestion scope and detached co
   }
 });
 
-describe("stable native sidebar integration", () => {
+describe("stable sidebar integration", () => {
   function deferredOutcome() {
     let resolve!: (outcome: CommandOutcome) => void;
     let reject!: (error: unknown) => void;
@@ -3624,7 +3581,7 @@ describe("stable native sidebar integration", () => {
       { id: "p", kind: "link", ref: "https://example.com/", title: "Example" },
     ];
     const rendered = sidebar(room);
-    const pins = rendered.target.querySelector("[data-native-pins]")!;
+    const pins = rendered.target.querySelector("[data-pins]")!;
     const people = rendered.target.querySelector("[data-people-panel]")!;
     const headers = [pins, people].map((section) =>
       section.querySelector<HTMLElement>("[data-section-header]")!,
@@ -3667,7 +3624,7 @@ describe("stable native sidebar integration", () => {
     );
     rendered.destroy();
   });
-  test("native epic tree changes cue follows the reader’s canonical post-deploy message and clears for archived epics", async () => {
+  test("epic tree changes cue follows the reader’s canonical post-deploy message and clears for archived epics", async () => {
     const room = fixture();
     room.epics = [
       {
@@ -3894,7 +3851,7 @@ describe("stable native sidebar integration", () => {
       ),
     ).toBeNull();
   }, 30_000);
-  test("native epic drafts survive refused and uncertain requests", async () => {
+  test("epic drafts survive refused and uncertain requests", async () => {
     const room = fixture();
     let fail: "offline" | "throw" | null = "offline";
     const commands: RoomCommand[] = [];
@@ -3972,7 +3929,7 @@ describe("stable native sidebar integration", () => {
         cancelable: true,
       }),
     );
-  test("native order shortcut submits a full permutation without mutating the room or using stale targets", async () => {
+  test("order shortcut submits a full permutation without mutating the room or using stale targets", async () => {
     const room = fixture();
     // Only pinned epics take a hand-made order (the rest follow recency).
     room.epics[0] = { ...room.epics[0], pinned: true };
@@ -4125,19 +4082,18 @@ describe("stable native sidebar integration", () => {
     const first = sidebar(room);
     first.target
       .querySelector<HTMLButtonElement>(
-        '[data-native-pins] button[aria-label="Fixar um link"]',
+        '[data-pins] button[aria-label="Fixar um link"]',
       )!
       .click();
     await tick();
     flushSync();
     const oldInput = first.target.querySelector<HTMLInputElement>(
-      "[data-native-pins] input[name=url]",
+      "[data-pins] input[name=url]",
     )!;
     oldInput.value = "example.com";
     oldInput.dispatchEvent(new window.Event("input", { bubbles: true }));
-    const oldForm = first.target.querySelector<HTMLFormElement>(
-      "[data-native-pins] form",
-    )!;
+    const oldForm =
+      first.target.querySelector<HTMLFormElement>("[data-pins] form")!;
     const session = first.props.pins;
     first.destroy();
     expect(session.active).toBe(true);
@@ -4151,12 +4107,11 @@ describe("stable native sidebar integration", () => {
     expect(first.events).toEqual([]);
     expect(next.events).toEqual([]);
     expect(
-      next.target.querySelector<HTMLInputElement>(
-        "[data-native-pins] input[name=url]",
-      )?.value,
+      next.target.querySelector<HTMLInputElement>("[data-pins] input[name=url]")
+        ?.value,
     ).toBe("example.com");
     next.target
-      .querySelector<HTMLFormElement>("[data-native-pins] form")!
+      .querySelector<HTMLFormElement>("[data-pins] form")!
       .dispatchEvent(
         new window.Event("submit", { bubbles: true, cancelable: true }),
       );
@@ -4166,29 +4121,28 @@ describe("stable native sidebar integration", () => {
     disposePinsSession(session);
   }, 30_000);
 
-  test("native pins queue once, preserve an edited draft and follow canonical updates", async () => {
+  test("pins queue once, preserve an edited draft and follow canonical updates", async () => {
     const room = fixture();
     const rendered = sidebar(room);
     rendered.target
       .querySelector<HTMLButtonElement>(
-        '[data-native-pins] button[aria-label="Fixar um link"]',
+        '[data-pins] button[aria-label="Fixar um link"]',
       )!
       .click();
     await tick();
     flushSync();
     const url = rendered.target.querySelector<HTMLInputElement>(
-      "[data-native-pins] input[name=url]",
+      "[data-pins] input[name=url]",
     )!;
     const title = rendered.target.querySelector<HTMLInputElement>(
-      "[data-native-pins] input[name=title]",
+      "[data-pins] input[name=title]",
     )!;
     url.value = "example.com";
     url.dispatchEvent(new window.Event("input", { bubbles: true }));
     title.value = "Example";
     title.dispatchEvent(new window.Event("input", { bubbles: true }));
-    const form = rendered.target.querySelector<HTMLFormElement>(
-      "[data-native-pins] form",
-    )!;
+    const form =
+      rendered.target.querySelector<HTMLFormElement>("[data-pins] form")!;
     form.dispatchEvent(
       new window.Event("submit", { bubbles: true, cancelable: true }),
     );
@@ -4222,7 +4176,7 @@ describe("stable native sidebar integration", () => {
     rendered.view.update({ ...rendered.props, room: next });
     expect(
       rendered.target.querySelector<HTMLInputElement>(
-        "[data-native-pins] input[name=title]",
+        "[data-pins] input[name=title]",
       )?.value,
     ).toBe("Edited while waiting");
     expect(rendered.target.querySelectorAll("[data-pin-id]")).toHaveLength(1);
@@ -4253,13 +4207,13 @@ describe("stable native sidebar integration", () => {
     expect(rendered.target.querySelectorAll("[data-pin-id]")).toHaveLength(0);
     expect(
       rendered.target.querySelector<HTMLButtonElement>(
-        "[data-native-pins] button[type=submit]",
+        "[data-pins] button[type=submit]",
       )?.disabled,
     ).toBe(true);
     await rendered.settle(1, { ok: true });
     expect(
       rendered.target.querySelector<HTMLButtonElement>(
-        "[data-native-pins] button[type=submit]",
+        "[data-pins] button[type=submit]",
       )?.disabled,
     ).toBe(false);
     disposePinsSession(rendered.props.pins);
@@ -4272,24 +4226,23 @@ describe("stable native sidebar integration", () => {
   ) {
     rendered.target
       .querySelector<HTMLButtonElement>(
-        '[data-native-pins] button[aria-label="Fixar um link"]',
+        '[data-pins] button[aria-label="Fixar um link"]',
       )!
       .click();
     await tick();
     flushSync();
     const input = rendered.target.querySelector<HTMLInputElement>(
-      "[data-native-pins] input[name=url]",
+      "[data-pins] input[name=url]",
     )!;
     const name = rendered.target.querySelector<HTMLInputElement>(
-      "[data-native-pins] input[name=title]",
+      "[data-pins] input[name=title]",
     )!;
     input.value = url;
     input.dispatchEvent(new window.Event("input", { bubbles: true }));
     name.value = title;
     name.dispatchEvent(new window.Event("input", { bubbles: true }));
-    const form = rendered.target.querySelector<HTMLFormElement>(
-      "[data-native-pins] form",
-    )!;
+    const form =
+      rendered.target.querySelector<HTMLFormElement>("[data-pins] form")!;
     return {
       input,
       name,
@@ -4308,7 +4261,7 @@ describe("stable native sidebar integration", () => {
     form.submit();
     expect(rendered.events).toHaveLength(1);
     await rendered.settle(0, { ok: true });
-    expect(rendered.target.querySelector("[data-native-pins] form")).toBeNull();
+    expect(rendered.target.querySelector("[data-pins] form")).toBeNull();
     expect(rendered.target.querySelectorAll("[data-pin-id]")).toHaveLength(0);
     const next = {
       ...room,
@@ -4370,11 +4323,11 @@ describe("stable native sidebar integration", () => {
     expect(current.name.value).toBe("Next");
     expect(
       next.target.querySelector<HTMLButtonElement>(
-        "[data-native-pins] button[type=submit]",
+        "[data-pins] button[type=submit]",
       )?.disabled,
     ).toBe(true);
     await next.settle(0, { ok: true });
-    expect(next.target.querySelector("[data-native-pins] form")).toBeNull();
+    expect(next.target.querySelector("[data-pins] form")).toBeNull();
   }, 30_000);
   test("duplicate explicit pin submit reports a no-op without calling the Promise request", async () => {
     const room = {
@@ -4400,13 +4353,12 @@ describe("stable native sidebar integration", () => {
     flushSync();
     expect(rendered.events).toEqual([]);
     expect(
-      rendered.target.querySelector("[data-native-pins] [role=status]")
-        ?.textContent,
+      rendered.target.querySelector("[data-pins] [role=status]")?.textContent,
     ).toContain("Este link já está nos fixados");
-    expect(rendered.target.querySelector("[data-native-pins] form")).toBeNull();
+    expect(rendered.target.querySelector("[data-pins] form")).toBeNull();
   }, 30_000);
 
-  test("native file/app pins open typed targets and disposed room actions stay inert", async () => {
+  test("file/app pins open typed targets and disposed room actions stay inert", async () => {
     const file = {
       id: "f",
       name: "report.pdf",
@@ -4563,7 +4515,7 @@ describe("stable native sidebar integration", () => {
     // No row reserves room for a hover button any more: names use the full width.
     expect(
       rendered.target.querySelector(
-        "[data-native-pins] li button[aria-label^=Desafixar]",
+        "[data-pins] li button[aria-label^=Desafixar]",
       ),
     ).toBeNull();
     for (const id of ["site", "repo", "app", "doc"]) {
@@ -4661,7 +4613,7 @@ describe("stable native sidebar integration", () => {
       }
       // Every row points at its menu shortcut; the broken row is a menu button.
       const hint = rendered.target.querySelector<HTMLElement>(
-        "[data-native-pins] .sr-only[id]",
+        "[data-pins] .sr-only[id]",
       )!;
       expect(hint.textContent).toBe("Shift+F10 abre mais ações");
       for (const id of ["site", "app", "doc", "gone"])
@@ -4876,7 +4828,7 @@ describe("stable native sidebar integration", () => {
     expect(
       rendered.target.querySelector("[data-pin-id=p]")?.textContent,
     ).not.toContain("Arquivo indisponível");
-    expect(rendered.target.querySelector("[data-native-pins]")).not.toBeNull();
+    expect(rendered.target.querySelector("[data-pins]")).not.toBeNull();
     requestPinnedFiles(rendered.props.pins, room, rendered.props.send);
     flushSync();
     rendered.target
@@ -4946,7 +4898,7 @@ describe("stable native sidebar integration", () => {
   }, 30_000);
 });
 
-describe("native People interactions", () => {
+describe("People interactions", () => {
   type PeopleProps = ComponentProps<typeof People>;
   const personRoom = (): Room => ({
     ...fixture(),
@@ -5353,7 +5305,7 @@ describe("native People interactions", () => {
   });
 });
 
-describe("native composer ownership and interactions", () => {
+describe("composer ownership and interactions", () => {
   const chatBridge: import("../web/app/chatTypes").ChatBridge = {
     t: vb.t,
     name: vb.name,
@@ -5431,7 +5383,7 @@ describe("native composer ownership and interactions", () => {
     flushSync();
     expect(document.querySelector('[role="dialog"]') === null).toBe(true);
   }
-  test("native composer Enter preserves draft until correlated ACK and canonical message; Shift/IME never submit", async () => {
+  test("composer Enter preserves draft until correlated ACK and canonical message; Shift/IME never submit", async () => {
     const room = fixture(),
       sent: RoomCommand[] = [];
     let resolve!: (outcome: CommandOutcome) => void;
@@ -5665,7 +5617,7 @@ describe("native composer ownership and interactions", () => {
     target.querySelector<HTMLTextAreaElement>("textarea")!.dispatchEvent(paste);
     expect(uploads).toBe(1);
   }, 30_000);
-  test("native poll creation keeps form until ACK plus same-thread authoritative poll message", async () => {
+  test("poll creation keeps form until ACK plus same-thread authoritative poll message", async () => {
     const room = fixture(),
       sent: RoomCommand[] = [];
     let resolve!: (outcome: CommandOutcome) => void;
@@ -5911,7 +5863,7 @@ describe("native composer ownership and interactions", () => {
     expect(commands[0]).toMatchObject({ t: "msg", text: "refined" });
   }, 30_000);
 
-  test("native mic capability projects interim text and cancels stale recognition across thread changes", async () => {
+  test("mic capability projects interim text and cancels stale recognition across thread changes", async () => {
     const engines: import("../web/features/composer/speech").SpeechRecognizer[] =
       [];
     let starts = 0,
@@ -6081,7 +6033,7 @@ describe("native composer ownership and interactions", () => {
     flushSync();
     expect(input.value).toBe("");
   }, 30000);
-  test("native Hold-Space starts only after threshold; contenteditable and unavailable capability remain ordinary", async () => {
+  test("Hold-Space starts only after threshold; contenteditable and unavailable capability remain ordinary", async () => {
     let starts = 0;
     const rec: import("../web/features/composer/speech").SpeechRecognizer = {
       lang: "",
@@ -6229,7 +6181,7 @@ describe("native composer ownership and interactions", () => {
   }, 30_000);
 });
 
-describe("native room sidebar header and suggestion ownership", () => {
+describe("room sidebar header and suggestion ownership", () => {
   function deferredMutationOutcome() {
     let resolve!: (value: CommandOutcome) => void;
     const promise = new Promise<CommandOutcome>((done) => {
@@ -6257,7 +6209,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     flushSync();
     expect(document.querySelector(`[role="${role}"]`) === null).toBe(true);
   }
-  test("native epic delete confirmation cancels on canonical replacement and old detached actions cannot write", async () => {
+  test("epic delete confirmation cancels on canonical replacement and old detached actions cannot write", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       owner = createRoomMutations(room.me, room.id),
@@ -6315,7 +6267,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     await tick();
     expect(commands).toHaveLength(0);
   }, 30_000);
-  test("native epic rename retains text until ACK and canonical title and archive uses direct correlated action", async () => {
+  test("epic rename retains text until ACK and canonical title and archive uses direct correlated action", async () => {
     const room = fixture(),
       owner = createRoomMutations(room.me, room.id),
       commands: RoomCommand[] = [],
@@ -6630,8 +6582,8 @@ describe("native room sidebar header and suggestion ownership", () => {
   });
 });
 
-describe("native collapsed sidebar and typed presence", () => {
-  test("collapsed create expands and focuses retained draft; agent presence stays native", async () => {
+describe("collapsed sidebar and typed presence", () => {
+  test("collapsed create expands and focuses retained draft; agent presence stays typed", async () => {
     const room = fixture(),
       target = document.createElement("div");
     document.body.append(target);
@@ -6688,7 +6640,7 @@ describe("native collapsed sidebar and typed presence", () => {
     };
     props.navigation.state.update((value) => ({
       ...value,
-      draft: "Retained native draft",
+      draft: "Retained draft",
     }));
     const view = mountView("sidebar", target, props);
     active.push(view);
@@ -6700,7 +6652,7 @@ describe("native collapsed sidebar and typed presence", () => {
     await tick();
     flushSync();
     const input = target.querySelector<HTMLInputElement>("#newEpic input")!;
-    expect(input.value).toBe("Retained native draft");
+    expect(input.value).toBe("Retained draft");
     expect(document.activeElement === input).toBe(true);
     expect(
       target.querySelector("[data-agent-presence]")?.textContent,
@@ -6711,13 +6663,10 @@ describe("native collapsed sidebar and typed presence", () => {
         button.textContent?.includes("sandbox"),
       ),
     ).toBe(false);
-    expect(target.querySelector("[data-legacy-chat-content]") === null).toBe(
-      true,
-    );
   }, 30_000);
 });
 
-describe("native account", () => {
+describe("account", () => {
   const cleanup: (() => void)[] = [];
   afterEach(() => {
     for (const dispose of cleanup.splice(0)) dispose();
@@ -6729,7 +6678,7 @@ describe("native account", () => {
     const { createPersonalSession } =
       await import("../web/features/home/personal");
     const { homeApi, me, manualClock, deferred, settle } =
-      await import("./native-home-fixtures");
+      await import("./home-fixtures");
     const time = manualClock(),
       pending = deferred<{ ok: true; name: string }>();
     let canonical = me(
@@ -6856,9 +6805,9 @@ describe("native account", () => {
     flushSync();
     await tick();
     expect(input.value).toBe("My new name");
-    expect(
-      document.querySelector("[data-native-account]")?.textContent,
-    ).toContain("unconfirmed");
+    expect(document.querySelector("[data-account]")?.textContent).toContain(
+      "unconfirmed",
+    );
     expect(h.names).toEqual(["My new name"]);
     h.owner.close();
     flushSync();
@@ -6888,7 +6837,7 @@ describe("native account", () => {
     h.personal.acceptIdentity("b@test", false);
     flushSync();
     await tick();
-    expect(document.querySelector("[data-native-account]")).toBeNull();
+    expect(document.querySelector("[data-account]")).toBeNull();
     h.pending.resolve({ ok: true, name: "Private A" });
     await h.settle();
     flushSync();
@@ -6897,15 +6846,15 @@ describe("native account", () => {
   test("unsupported device lock is explicit, never invokes a prompt and has an accessible label", async () => {
     await account();
     const checkbox = document.querySelector<HTMLButtonElement>(
-      '[data-native-account] [aria-labelledby="settings-lock"]',
+      '[data-account] [aria-labelledby="settings-lock"]',
     );
     expect(checkbox?.disabled).toBe(true);
     expect(checkbox?.closest("label")?.textContent).toContain(
       "Require Face ID",
     );
-    expect(
-      document.querySelector("[data-native-account]")?.textContent,
-    ).toContain("Unavailable in this browser");
+    expect(document.querySelector("[data-account]")?.textContent).toContain(
+      "Unavailable in this browser",
+    );
   });
   test("connected old account form is inert when account B reopens before a DOM flush", async () => {
     const h = await account();
@@ -6960,8 +6909,8 @@ describe("native account", () => {
   });
 });
 
-describe("native agent settings and sandbox ownership", () => {
-  test("native grant confirmation cancels on canonical removal and ignores a late revoke error", async () => {
+describe("agent settings and sandbox ownership", () => {
+  test("grant confirmation cancels on canonical removal and ignores a late revoke error", async () => {
     const { createAgentsApi } = await import("../web/features/agents/api");
     const { createAgentAccountSession } =
       await import("../web/features/agents/account");
@@ -7025,7 +6974,7 @@ describe("native agent settings and sandbox ownership", () => {
     flushSync();
     expect(target.querySelector('[role="alert"]') === null).toBe(true);
   }, 30_000);
-  test("native sandbox delete confirmation cannot target a same-ID replacement and password clears before reply", async () => {
+  test("sandbox delete confirmation cannot target a same-ID replacement and password clears before reply", async () => {
     const { createAgentsApi } = await import("../web/features/agents/api");
     const { createSandboxCredentials } =
       await import("../web/features/sandboxes/credentials");
@@ -7129,7 +7078,7 @@ describe("native agent settings and sandbox ownership", () => {
       'input[aria-label="Freestyle key"]',
     )!;
     expect(password.value).toBe("");
-    password.value = "secret-native-credential";
+    password.value = "secret-credential";
     password.dispatchEvent(new Event("input", { bubbles: true }));
     password.form!.dispatchEvent(
       new Event("submit", { bubbles: true, cancelable: true }),
@@ -7138,9 +7087,7 @@ describe("native agent settings and sandbox ownership", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(password.value).toBe("");
-    expect(target.textContent?.includes("secret-native-credential")).toBe(
-      false,
-    );
+    expect(target.textContent?.includes("secret-credential")).toBe(false);
     resolveKey(
       new Response('{"ok":true}', {
         headers: { "content-type": "application/json" },
@@ -7150,7 +7097,7 @@ describe("native agent settings and sandbox ownership", () => {
   }, 30_000);
 });
 
-test("denied native agent metadata can recover through explicit read-only retry", async () => {
+test("denied agent metadata can recover through explicit read-only retry", async () => {
   const { createAgentsApi } = await import("../web/features/agents/api"),
     { createAgentAccountSession } =
       await import("../web/features/agents/account"),
@@ -7235,8 +7182,8 @@ test("denied native agent metadata can recover through explicit read-only retry"
   expect(owner.current()).toBe(true);
   expect(target.textContent).toContain("Recovered agent");
 }, 30_000);
-// Source-only native MCP catalog ownership; real iframe/remote OAuth gates run separately.
-describe("native Apps catalog", () => {
+// Source-only MCP catalog ownership; real iframe/remote OAuth gates run separately.
+describe("Apps catalog", () => {
   async function appsFixture() {
     const { createAppsSession } = await import("../web/features/apps/session");
     const { toolOutput } = await import("../web/features/apps/tools");
@@ -7439,10 +7386,8 @@ describe("native Apps catalog", () => {
     expect(get(h.owner.state).url).toBe("");
     await tick();
     flushSync();
-    expect(h.target.querySelector("[data-native-apps]") === null).toBe(true);
-    expect(h.target.querySelector("[data-native-apps-denied]") !== null).toBe(
-      true,
-    );
+    expect(h.target.querySelector("[data-apps]") === null).toBe(true);
+    expect(h.target.querySelector("[data-apps-denied]") !== null).toBe(true);
     expect(h.target.textContent).not.toContain("example.test");
   }, 30_000);
 });
@@ -7469,7 +7414,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
   const { createAppsSession } = await import("../web/features/apps/session");
   const protocol = await import("../web/features/apps/bridge");
   const { toolOutput } = await import("../web/features/apps/tools");
-  type Options = import("../web/features/apps/bridge").NativeAppBridgeOptions;
+  type Options = import("../web/features/apps/bridge").RoomAppBridgeOptions;
   const bridges: Options[] = [],
     calls: string[] = [],
     uiReads: string[] = [],
@@ -7587,7 +7532,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
       return {
         appToolInfo: protocol.appToolInfo,
         remoteToolResult: protocol.remoteToolResult,
-        createNativeAppBridge: (options) => {
+        createRoomAppBridge: (options) => {
           bridges.push(options);
           let active = true;
           return {

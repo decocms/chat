@@ -21,7 +21,7 @@ type AudioLevels = {
   sample(): number;
   close(): Promise<void>;
 };
-/** Explicit native-browser effects. The generic stream/timer preserve actual
+/** Explicit browser effects. The generic stream/timer preserve actual
  * browser types without a DOM/global mock or type assertion in owner tests. */
 export type FireAudioPorts<Stream extends AudioStream, Timer> = {
   stream(): Promise<Stream>;

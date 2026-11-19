@@ -80,7 +80,7 @@
 </script>
 
 <section
-  data-native-poll={poll.id}
+  data-poll={poll.id}
   class="space-y-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground"
 >
   <h4
@@ -91,7 +91,7 @@
   {#each view.rows as row}<div class="space-y-1">
       <Button
         class="h-auto w-full justify-start whitespace-normal text-left"
-        data-native-vote={row.index}
+        data-vote={row.index}
         variant={row.mine ? "secondary" : "outline"}
         disabled={!canVote ||
           status.phase === "pending" ||
@@ -134,7 +134,7 @@
         size="sm"
         variant="link"
         class="h-auto px-0 text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
-        data-native-poll-close
+        data-poll-close
         disabled={status.phase === "pending" || status.phase === "unconfirmed"}
         onclick={(event) => {
           if (active && canClose && event.currentTarget.isConnected) {

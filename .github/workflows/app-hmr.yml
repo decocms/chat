@@ -1,4 +1,4 @@
-name: Full native application source HMR
+name: Full application source HMR
 
 on:
   pull_request:

@@ -1,5 +1,5 @@
 import { mount, unmount } from "svelte";
-import NativeApplication from "./NativeApplication.svelte";
+import Application from "./Application.svelte";
 
 import { applicationShellVersion } from "./version";
 export { applicationShellVersion } from "./version";
@@ -9,7 +9,7 @@ export function mountApplication(
   target: HTMLElement,
   doc: Document = document,
 ) {
-  const instance = mount(NativeApplication, {
+  const instance = mount(Application, {
     target,
     props: { document: doc, shellVersion: applicationShellVersion(doc) },
   });

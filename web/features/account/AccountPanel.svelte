@@ -153,7 +153,7 @@
       value={$view.binding}
       >{#snippet children(rendered: AccountBinding)}
         {#if $view.me}<div
-            data-native-account
+            data-account
             class="mx-auto w-full max-w-2xl flex flex-col gap-10 px-4 py-8 font-sans text-sm text-foreground md:px-8 md:py-12"
           >
             {#snippet head(title: string)}<Heading
@@ -337,7 +337,7 @@
                   </ul>{/if}
               </div>
             </section>
-            <section id="agents" data-native-account-agents class={section}>
+            <section id="agents" data-account-agents class={section}>
               {@render head(text("agents"))}
               {@render agentSettings()}
             </section>

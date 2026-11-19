@@ -16,10 +16,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { startupTimeout, DEVELOPMENT_READY_URLS } from "./dev-app";
-import {
-  nativeBrowserFixtures,
-  localBrowserError,
-} from "./native-browser-fixtures";
+import { browserFixtures, localBrowserError } from "./browser-fixtures";
 import {
   MeResult,
   CreateRoomResult,
@@ -43,7 +40,7 @@ const result: Record<string, unknown> = {
   limitations: [
     "Requires an isolated checkout, installed Chromium/dependencies and DEV_EMAIL configured in private .dev.vars; actual API requests initialize local D1 normally.",
     "Creates one local fixture room; no production data or credentials are used.",
-    "OAuth provider callbacks, mobile/accessibility parity, collaborative editor content and production bundle integrity are separate gates.",
+    "OAuth provider callbacks, mobile/accessibility checks, collaborative editor content and production bundle integrity are separate gates.",
     "Draft check covers the application-owned ComposerDrafts bank; Svelte component-local state may reset.",
     "Linux /proc process identity checks cover observed descendants; very short-lived unobserved descendants are not claimed.",
     "Startup/shutdown and initial build memory are real; run only after other memory-heavy checks finish.",
@@ -417,7 +414,7 @@ try {
     locale: "en-US",
     viewport: { width: 1440, height: 1000 },
   });
-  await nativeBrowserFixtures(context, base);
+  await browserFixtures(context, base);
   const email = `hmr-${token}@example.test`;
   await context.addCookies([
     { name: "dev_as", value: email, url: base },
@@ -456,7 +453,7 @@ try {
   assert(
     deniedHTML.includes('name="vb-page" content="access"') &&
       deniedHTML.includes('src="/main.ts"'),
-    "Missing room must serve source native access presentation, not RoomShell",
+    "Missing room must serve source access presentation, not RoomShell",
   );
   assert.equal(
     AccessContext.parse(
@@ -485,7 +482,7 @@ try {
     assert(
       inaccessibleHTML.includes('name="vb-page" content="access"') &&
         inaccessibleHTML.includes('src="/main.ts"'),
-      "Unauthorized identity receives only the native access source shell",
+      "Unauthorized identity receives only the access source shell",
     );
     const access = AccessContext.parse(
       await (await outsider.request.get(`${base}/auth/room/${room}`)).json(),
@@ -502,7 +499,7 @@ try {
     await expect(
       accessPage.getByRole("button", { name: "Ask to join", exact: true }),
     ).toBeVisible();
-    await expect(accessPage.locator("[data-native-room-root]")).toHaveCount(0);
+    await expect(accessPage.locator("[data-room-root]")).toHaveCount(0);
     assert.equal(
       unauthorizedRoomSockets,
       0,
@@ -632,8 +629,8 @@ try {
   await page.goto(`${base}/b/${room}`, {
     waitUntil: "domcontentloaded",
   });
-  const composer = page.locator("[data-native-composer] textarea");
-  await expect(page.locator("[data-native-room-layout]")).toBeVisible();
+  const composer = page.locator("[data-composer] textarea");
+  await expect(page.locator("[data-room-layout]")).toBeVisible();
   await expect(composer).toBeVisible();
   await expect(composer).toBeEnabled();
   await poll(() => snapshots > 0, "actual room snapshot");
@@ -721,7 +718,7 @@ try {
     '[data-room-document-toolbar] [data-document-pane="files"]',
   );
   if (!(await filesTab.isVisible()))
-    await page.locator("[data-native-document-toggle]").click();
+    await page.locator("[data-document-toggle]").click();
   await filesTab.click();
   const filesView = page.locator('[data-view="files"]');
   await expect(filesView).toBeVisible();
@@ -886,7 +883,7 @@ try {
   const generationDraft = `After generation draft ${token}`;
   await composer.fill(generationDraft);
   if (!(await filesTab.isVisible()))
-    await page.locator("[data-native-document-toggle]").click();
+    await page.locator("[data-document-toggle]").click();
   await filesTab.click();
   await expect(filesView).toBeVisible();
   await page

@@ -81,7 +81,7 @@
 
 {#if $view.room}
   <section
-    data-native-apps
+    data-apps
     class="flex min-h-0 flex-1 flex-col gap-3 p-3 font-sans text-foreground"
   >
     {#if $pinView.phase === "pending" || $pinView.phase === "waiting"}<p
@@ -353,7 +353,7 @@
               >{item.host} · {props.name(item.owner)}</small
             >{#if $modes.get(item.id)}{@const mode = $modes.get(item.id)}<Badge
                 variant="neutral"
-                data-native-connection-mode={mode}
+                data-connection-mode={mode}
                 title={props.t(
                   mode === "direct"
                     ? "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você."
@@ -455,7 +455,7 @@
           />{/snippet}</Snapshot
       >{/key}{/if}
 {:else if $view.denied}<section
-    data-native-apps-denied
+    data-apps-denied
     class="space-y-2 p-3 font-sans text-foreground"
   >
     <p role="alert">{props.t("Você não tem acesso a esta sala.")}</p>

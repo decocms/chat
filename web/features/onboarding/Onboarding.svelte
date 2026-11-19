@@ -66,12 +66,12 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected &&
     event.currentTarget
-      .closest("[data-native-onboarding]")
+      .closest("[data-onboarding]")
       ?.getAttribute("data-onboarding-scope") === owner.actionScope();
 </script>
 
 <main
-  data-native-onboarding
+  data-onboarding
   data-onboarding-step={$view.step}
   data-onboarding-scope={actionScope}
   class="flex min-h-dvh flex-col items-center bg-background px-4 py-6 font-sans text-sm leading-6 text-foreground"

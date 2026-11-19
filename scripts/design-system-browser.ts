@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { verifyStudioPalette } from "./studio-browser";
-import { nativeBrowserFixtures } from "./native-browser-fixtures";
+import { browserFixtures } from "./browser-fixtures";
 import { auditDesignSystemInbox } from "./design-system-inbox-browser";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -50,7 +50,7 @@ try {
   context.setDefaultTimeout(60_000);
   context.setDefaultNavigationTimeout(120_000);
   results.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     ...(!onlyGallery
       ? [
           "Schema-validated controlled Inbox and matching profile waits",
@@ -262,7 +262,7 @@ try {
       await metrics.detach();
     }
     console.log(
-      "PASS native gallery: fonts, controls, keyboard tabs, focus trap/restoration, scroll lock, sheet, light/dark/mobile axe",
+      "PASS gallery: fonts, controls, keyboard tabs, focus trap/restoration, scroll lock, sheet, light/dark/mobile axe",
     );
   }
   if (!onlyGallery) {

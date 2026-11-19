@@ -46,7 +46,7 @@
 </script>
 
 <section
-  data-native-agent-setup
+  data-setup-instructions
   class="space-y-3 rounded-surface border border-border bg-card p-4 text-card-foreground"
 >
   {#if intro}<Heading level={3}

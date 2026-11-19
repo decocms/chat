@@ -121,7 +121,7 @@
     void rows.length;
     void tick().then(() =>
       list
-        ?.querySelector(`#native-result-${index}`)
+        ?.querySelector(`#result-${index}`)
         ?.scrollIntoView({ block: "nearest" }),
     );
   });
@@ -160,7 +160,7 @@
   }}
 >
   <DialogContent
-    data-native-search
+    data-search
     closeLabel={text("close")}
     closeButtonClassName="hidden"
     preventScroll={false}
@@ -201,9 +201,9 @@
         aria-label={text("search")}
         aria-autocomplete="list"
         aria-expanded="true"
-        aria-controls="native-room-results"
+        aria-controls="room-results"
         aria-activedescendant={rows[$view.selected]
-          ? `native-result-${$view.selected}`
+          ? `result-${$view.selected}`
           : undefined}
         autocomplete="off"
         spellcheck="false"
@@ -230,7 +230,7 @@
     </div>
     <div
       bind:this={list}
-      id="native-room-results"
+      id="room-results"
       role="listbox"
       aria-label={text("search")}
       class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [scrollbar-width:thin]"
@@ -249,7 +249,7 @@
           {#each entries as { row, index } (row.key)}<a
               href={targetHref(row.target)}
               role="option"
-              id={`native-result-${index}`}
+              id={`result-${index}`}
               aria-selected={$view.selected === index}
               data-selected={$view.selected === index ? "" : undefined}
               tabindex="-1"

@@ -1,4 +1,4 @@
-// Real browser HTTP/form + native SDK boundary. Synthetic cookie/file server,
+// Real browser HTTP/form + app SDK boundary. Synthetic cookie/file server,
 // no Worker/D1/R2/session authorization claim and no canonical room mutations.
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { fileHeaders } from "../src/fileHeaders";
 import { buildBrowser } from "./browser-build";
-import { appProbeDocument } from "./native-app-probe-documents";
+import { appProbeDocument } from "./app-probe-documents";
 import { record } from "../shared/validation";
 
 export async function auditAppDocumentFilePost(options: {
@@ -32,7 +32,7 @@ export async function auditAppDocumentFilePost(options: {
     status: "running",
     phase: "output-directory",
     scope:
-      "Actual native bridge/MessagePort and parent form HTTP with exact production file headers; synthetic cookie/file server, not Worker membership/session/R2 proof",
+      "Actual app bridge/MessagePort and parent form HTTP with exact production file headers; synthetic cookie/file server, not Worker membership/session/R2 proof",
     http,
     consoleCategories,
     pageErrors: errors,
@@ -52,7 +52,7 @@ export async function auditAppDocumentFilePost(options: {
     try {
       const url = new URL(value);
       if (url.origin !== ownedServer?.url.origin) return "unexpected-origin";
-      return ["/", filePath, "/replacement", "/native-bridge.js"].includes(
+      return ["/", filePath, "/replacement", "/app-bridge.js"].includes(
         url.pathname,
       )
         ? url.origin + url.pathname
@@ -63,7 +63,7 @@ export async function auditAppDocumentFilePost(options: {
   };
   try {
     await mkdir(output, { recursive: true });
-    report.phase = "build-native-bridge";
+    report.phase = "build-app-bridge";
     // Called after the main harness built the actual generated bootstrap string.
     const { AppDocumentClaim, withAppDocumentBootstrap } =
       await import("../shared/appDocument");
@@ -74,7 +74,7 @@ export async function auditAppDocumentFilePost(options: {
     const bridgeOutput = build.outputs[0];
     assert(
       build.success && build.outputs.length === 1 && bridgeOutput,
-      "Actual native bridge must bundle",
+      "Actual app bridge must bundle",
     );
     const bridgeJS = await bridgeOutput.text();
     const marker = `file-positive-${randomBytes(16).toString("hex")}`,
@@ -86,7 +86,7 @@ export async function auditAppDocumentFilePost(options: {
       port: 0,
       async fetch(request) {
         const url = new URL(request.url);
-        if (url.pathname === "/native-bridge.js")
+        if (url.pathname === "/app-bridge.js")
           return new Response(bridgeJS, {
             headers: { "content-type": "text/javascript" },
           });
@@ -167,7 +167,7 @@ export async function auditAppDocumentFilePost(options: {
         if (url.pathname !== "/")
           return new Response("Not found", { status: 404 });
         return new Response(
-          "<!doctype html><title>Native authenticated-file form control</title>",
+          "<!doctype html><title>Authenticated-file form control</title>",
           { headers: { "content-type": "text/html;charset=utf-8" } },
         );
       },
@@ -274,7 +274,7 @@ export async function auditAppDocumentFilePost(options: {
     report.phase = "load-file";
     await page.evaluate(
       async ({ filePath, marker }) => {
-        const moduleURL = "/native-bridge.js";
+        const moduleURL = "/app-bridge.js";
         const module: typeof import("../web/features/apps/bridge") =
           await import(/* @vite-ignore */ moduleURL);
         const frame = document.createElement("iframe");
@@ -283,7 +283,7 @@ export async function auditAppDocumentFilePost(options: {
         frame.id = "file-positive-frame";
         document.body.append(frame);
         const state = { calls: 0, revoked: false };
-        const bridge = module.createNativeAppBridge({
+        const bridge = module.createRoomAppBridge({
           frame,
           current: () => frame.isConnected,
           context: () => ({ theme: "light", displayMode: "fullscreen" }),
@@ -376,7 +376,7 @@ export async function auditAppDocumentFilePost(options: {
         bodyBytes: 70,
       },
     ]);
-    report.initial = { read: true, nativeEvent: true, ...documentEvidence };
+    report.initial = { read: true, bridgeEvent: true, ...documentEvidence };
     assert.equal(
       extraPages.length,
       0,

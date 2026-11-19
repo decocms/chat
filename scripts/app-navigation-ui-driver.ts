@@ -14,20 +14,20 @@ export type AppNavigationUIDriver = {
   openButton(page: Page): Locator;
 };
 
-export function nativeAppNavigationDriver(
+export function appNavigationDriver(
   openPane: (page: Page, pane: "apps") => Promise<void>,
 ): AppNavigationUIDriver {
   return {
-    frameSelector: "[data-native-app-frame] iframe",
-    containerSelector: "[data-native-app-frame]",
+    frameSelector: "[data-app-frame] iframe",
+    containerSelector: "[data-app-frame]",
     async openRoom(page, base, roomId) {
       await page.goto(`${base}/b/${roomId}`);
-      await expect(page.locator("[data-native-room-header]")).toBeVisible();
+      await expect(page.locator("[data-room-bar]")).toBeVisible();
     },
     openApps: (page) => openPane(page, "apps"),
     openButton: (page) =>
       page
-        .locator("[data-native-apps]")
+        .locator("[data-apps]")
         .getByRole("button", { name: /capability-probe/ }),
   };
 }

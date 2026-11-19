@@ -27,7 +27,7 @@
   const STATES = [undefined, "hover", "focus-visible"];
 </script>
 
-<!-- Studio's root line height, which the parity page does not inherit. -->
+<!-- Studio's root line height, which this page does not inherit. -->
 <div class="leading-[1.5]">
   {#if story === "playground"}
     <Card size="default" interactive={false} class="w-80">

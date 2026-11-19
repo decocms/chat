@@ -252,7 +252,7 @@
        curls up into a small picture, the author and the start of their message; a click jumps there. -->
     <button
       type="button"
-      data-native-quote={m.reply_to}
+      data-quote={m.reply_to}
       title={vb.t("Ver a mensagem respondida")}
       class="group/quote relative mb-1 flex h-[22px] w-full min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 pl-14 text-left font-sans text-sm leading-[18px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onclick={() => {

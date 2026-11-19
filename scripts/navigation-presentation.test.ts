@@ -11,7 +11,7 @@ import {
   me,
   room,
   settle,
-} from "./native-home-fixtures";
+} from "./home-fixtures";
 
 async function fixture() {
   const timer = manualClock();

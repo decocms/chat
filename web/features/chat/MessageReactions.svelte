@@ -98,7 +98,7 @@
     type="button"
     aria-label={vb.t("Reagir a esta mensagem")}
     title={vb.t("Reagir a esta mensagem")}
-    data-native-add-reaction
+    data-add-reaction
     class="inline-flex h-8 cursor-pointer items-center justify-center rounded-full border border-transparent bg-muted px-2.5 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
     onclick={() => (open = true)}><Icon icon={FaceSmile} size={18} /></button
   >

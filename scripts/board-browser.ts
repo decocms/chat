@@ -8,10 +8,7 @@ import {
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
-import {
-  nativeBrowserFixtures,
-  openNativeRoomPane,
-} from "./native-browser-fixtures";
+import { browserFixtures, openRoomPane } from "./browser-fixtures";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
@@ -19,16 +16,14 @@ assert(
   /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),
   "Use a local test Worker",
 );
-const output =
-  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-board-browser";
+const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-board-browser";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox", "--disable-gpu"],
 });
 const result: Record<string, unknown> = {
-  scope:
-    "Native board/list incremental verification; not production or full feature parity",
+  scope: "Board/list verification; not production acceptance",
 };
 const errors: string[] = [];
 let failedPage: Page | undefined;
@@ -46,13 +41,13 @@ try {
   context.setDefaultTimeout(60_000);
   context.setDefaultNavigationTimeout(120_000);
   result.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     "transparent WebSocket forwarding observes initial room readiness",
     "temporary browser-side WebSocket closure for rejected sends",
     "unfinished control task preserves the epic during status moves",
   ];
   const created = await context.request.post(`${base}/api/books`, {
-    data: { title: "Native board verification" },
+    data: { title: "Board verification" },
     headers: { origin: base },
   });
   assert(created.ok(), `Create local room: ${created.status()}`);
@@ -89,7 +84,7 @@ try {
     if (await toggle.isVisible()) {
       if ((await toggle.getAttribute("aria-pressed")) !== "true")
         await toggle.click();
-    } else await openNativeRoomPane(page, "board");
+    } else await openRoomPane(page, "board");
     await expect(region).toBeVisible();
     await expect.poll(() => ready).toBe(true);
   };
@@ -138,7 +133,7 @@ try {
     name: "Status: Keyboard workflow task",
     exact: true,
   });
-  step("Checking keyboard movement, native status selection and focus");
+  step("Checking keyboard movement, status selection and focus");
   await open.focus();
   await open.press("ArrowRight");
   await expect(target).toHaveAttribute("data-status", "doing");
@@ -183,7 +178,7 @@ try {
   await board.getByRole("tab", { name: "List", exact: true }).click();
   await expect(draft).toHaveValue("Draft survives view changes");
   await draft.fill("");
-  step("Checking persisted mode/status and native Enter/Space navigation");
+  step("Checking persisted mode/status and Enter/Space navigation");
   await navigate(`/b/${id}`);
   await expect(
     board.getByRole("tab", { name: "List", exact: true }),
@@ -228,13 +223,13 @@ try {
     assert.equal(
       theme.actual,
       theme.expected,
-      "Legacy background leaked into native board",
+      "Page background leaked into board",
     );
     assert(theme.family.includes("Inter var"));
     for (const heading of theme.headings) {
       assert(
         heading.family.includes("Inter var"),
-        "Legacy heading font leaked into board",
+        "Page heading font leaked into board",
       );
       assert.equal(heading.weight, "500");
       assert.equal(heading.size, "14px");
@@ -286,7 +281,7 @@ try {
   await expect(draft).toHaveValue("Preserved layout draft");
   await draft.fill("");
   result.layoutRoundTrip =
-    "1440→768→390→1440→390 preserves native DOM, draft and mode; automatic desktop return preserves focus";
+    "1440→768→390→1440→390 preserves DOM, draft and mode; automatic desktop return preserves focus";
   step("Checking disconnected drafts, status rollback and retry");
   assert(sockets.length > 0);
   disconnected = true;
@@ -385,7 +380,7 @@ try {
   assert.deepEqual(errors, []);
   result.status = "pass";
   console.log(
-    "PASS native board/list: room tasks, creation, keyboard/drag/status, focus, mode/persistence, Enter/Space, responsive axe, disconnected retention/retry",
+    "PASS board/list: room tasks, creation, keyboard/drag/status, focus, mode/persistence, Enter/Space, responsive axe, disconnected retention/retry",
   );
 } catch (error) {
   result.status = "fail";

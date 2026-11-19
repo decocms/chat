@@ -98,7 +98,7 @@
     <TooltipProvider>
       {#if canReact}{#each QUICK_REACTIONS as emoji (emoji)}<IconButton
             label={vb.t("Reagir com {emoji}", { emoji })}
-            data-native-quick-react={emoji}
+            data-quick-react={emoji}
             aria-pressed={mine(emoji)}
             class={cn(
               "text-base leading-none",
@@ -113,7 +113,7 @@
         ></div>{/if}
       <IconButton
         label={vb.t("Responder a esta mensagem")}
-        data-native-reply={message.id}
+        data-reply={message.id}
         class={floating
           ? "rounded-full text-muted-foreground hover:text-foreground"
           : ""}
@@ -125,7 +125,7 @@
         label={copied === "text"
           ? vb.t("Copiado")
           : vb.t("Copiar o texto desta mensagem")}
-        data-native-copy={message.id}
+        data-copy={message.id}
         class={floating
           ? "rounded-full text-muted-foreground hover:text-foreground"
           : ""}
@@ -141,7 +141,7 @@
           label={copied === "link"
             ? vb.t("Copiado")
             : vb.t("Copiar o link desta mensagem")}
-          data-native-copylink={message.id}
+          data-copylink={message.id}
           class={floating
             ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}

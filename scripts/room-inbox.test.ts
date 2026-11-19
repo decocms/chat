@@ -5,7 +5,7 @@ import type { Wait, InboxMention, InboxTask } from "../web/app/types";
 import { roomInboxModel } from "../web/features/application/roomInboxModel";
 import { createApplicationInbox } from "../web/features/application/inbox";
 import { roomScopeFixture } from "./room-scope-fixtures";
-import { deferred, me, settle } from "./native-home-fixtures";
+import { deferred, me, settle } from "./home-fixtures";
 const wait = (ref: string, ts = 2, book_id = "aaaaaa"): Wait => ({
   book_id,
   room: "Room",

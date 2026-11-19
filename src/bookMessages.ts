@@ -188,7 +188,7 @@ export function storedMessageRows(
       return [];
     }
     const card = storedCard(row.card, room, issue);
-    // Native's existing over-budget branch exposes escaped original text.
+    // The over-budget branch exposes escaped original text.
     // Keep the opaque string without parsing it into agent card logic.
     const cardWire =
       typeof row.card === "string" && row.card.length > 1_000_000

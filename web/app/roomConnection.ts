@@ -147,7 +147,7 @@ export function createRoomConnection(options: RoomConnectionOptions) {
   };
 }
 
-/** Inferred Promise-only command request surface for new native mutation slices. */
+/** Inferred Promise-only command request surface for new mutations. */
 export type RequestRoomCommand = ReturnType<
   typeof createRoomConnection
 >["request"];

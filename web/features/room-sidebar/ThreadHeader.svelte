@@ -26,7 +26,7 @@
 </script>
 
 {#if epic}<div
-    data-native-thread-header
+    data-thread-header
     class="flex min-w-0 flex-1 flex-nowrap items-center gap-1 font-sans text-sm tracking-normal text-foreground"
   >
     <h2 class="m-0 min-w-0 overflow-hidden text-sm font-medium">

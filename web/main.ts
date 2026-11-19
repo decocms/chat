@@ -2,7 +2,7 @@ import "./styles";
 
 if (document.querySelector('meta[name="vb-page"]')) {
   const target = document.getElementById("app");
-  if (!target) throw new Error("Missing native page root");
+  if (!target) throw new Error("Missing page root");
   const { mountAuthPage } = await import("./features/auth/mount");
   mountAuthPage(target, document);
 } else if (new URLSearchParams(location.search).get("gallery") === "1") {
@@ -12,7 +12,7 @@ if (document.querySelector('meta[name="vb-page"]')) {
   mountGallery(target);
 } else {
   const target = document.getElementById("app");
-  if (!target) throw new Error("Missing native application root");
+  if (!target) throw new Error("Missing application root");
   const { mountApplication } = await import("./features/application/mount");
   mountApplication(target, document);
 }

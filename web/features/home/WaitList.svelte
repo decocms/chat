@@ -57,7 +57,7 @@
         "relative flex items-start gap-2.5 px-3 py-2.5 [&+&]:border-t [&+&]:border-border",
         urgent && "bg-destructive/5",
       ]}
-      data-native-wait={wait.ref}
+      data-wait={wait.ref}
     >
       {#if urgent}<span
           aria-hidden="true"

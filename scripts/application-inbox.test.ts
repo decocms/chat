@@ -7,13 +7,7 @@ import {
 } from "../web/features/application/inbox";
 import { HomeFailure } from "../web/features/home/api";
 import type { HomeApi } from "../web/features/home/api";
-import {
-  homeApi,
-  me,
-  manualClock,
-  deferred,
-  settle,
-} from "./native-home-fixtures";
+import { homeApi, me, manualClock, deferred, settle } from "./home-fixtures";
 const wait = {
   book_id: "aaaaaa",
   room: "Room",

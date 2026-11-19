@@ -1,11 +1,11 @@
 import { mount } from "svelte";
-import { NativeAuthMetadata } from "../../../shared/nativeAuth";
+import { AuthPageMetadata } from "../../../shared/authPage";
 import AuthRoot from "./AuthRoot.svelte";
-export function readNativeAuthMetadata(document: Document) {
+export function readAuthPageMetadata(document: Document) {
   const consentFailure = document.querySelector(
     'meta[name="vb-consent-failure"]',
   );
-  const parsed = NativeAuthMetadata.safeParse({
+  const parsed = AuthPageMetadata.safeParse({
     ...(document.querySelector('meta[name="vb-connection-failure"]')
       ? {
           connectionFailure: document
@@ -46,6 +46,6 @@ export function mountAuthPage(target: Element, document: Document) {
   restoreAuthTheme(document);
   return mount(AuthRoot, {
     target,
-    props: { metadata: readNativeAuthMetadata(document) },
+    props: { metadata: readAuthPageMetadata(document) },
   });
 }

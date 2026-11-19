@@ -230,7 +230,7 @@ const normalReply = (url: string) =>
       ? { client_id: "registered-client" }
       : metadata;
 
-test("actual startAuth falls back past malformed metadata, then keeps PKCE/fixed redirect/exact native state", async () => {
+test("actual startAuth falls back past malformed metadata, then keeps PKCE/fixed redirect/exact state", async () => {
   const h = fixture(),
     fetching = h.fetching((url) =>
       url.includes("oauth-authorization-server")

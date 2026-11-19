@@ -547,3 +547,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A slow room can animate in before its messages arrive.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · chore/drop-native-naming · New names for the "native" code
+- Agent: claude-opus-5-5
+- Context: The human asked that no name tell that a second UI once existed. "Native" meant the Svelte port. Most names only lose the word. Some new names would collide with a name that is already in use.
+- Decision: `NativeComposer` is now `ComposerForm` (`Composer` is its wrapper). `src/native-page.ts` is now `src/auth-page.ts`, and `shared/nativeAuth.ts` is now `shared/authPage.ts`. The colliding attributes are now `data-room-bar`, `data-room-sidebar-panel`, `data-setup-instructions`, `data-suggestion-preview` and `data-origin-id`. The app bridge is now `RoomAppBridge`. The `check:styles:native` subset is removed, because `check:styles` audits all of `web/`; its two policy tests now run in `check:styles`. "Native" stays where it means the browser, the OS (Web Push) or the product's chat cards.
+- Other options: Other names. Keep the subset style check under a new name.
+- Risk: low. Open branches that use the old names need a rebase.
+- Undo: Revert this commit.
+- Status: open

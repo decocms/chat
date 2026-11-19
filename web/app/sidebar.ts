@@ -7,7 +7,7 @@ import type { NavigationSession } from "../features/navigation/session";
 import type { PinsSession } from "../features/pins/session";
 import type { PinAppTarget } from "../features/pins/model";
 
-/** Formatting and canonical status data only; native sidebar never accepts HTML. */
+/** Formatting and canonical status data only; the sidebar never accepts HTML. */
 export type SidebarBridge = {
   t: (text: string, vars?: Record<string, string | number>) => string;
   ago: (ts: number) => string;

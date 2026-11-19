@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NativeAuthMetadata } from "../../../shared/nativeAuth";
+  import type { AuthPageMetadata } from "../../../shared/authPage";
   import AuthFrame from "./AuthFrame.svelte";
   import { buttonVariants } from "../../lib/studio/button";
   let {
@@ -8,7 +8,7 @@
     href,
   }: {
     lang: "en" | "pt";
-    failure: NonNullable<NativeAuthMetadata["connectionFailure"]>;
+    failure: NonNullable<AuthPageMetadata["connectionFailure"]>;
     href: string;
   } = $props();
   const copy = {

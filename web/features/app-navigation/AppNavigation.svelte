@@ -194,7 +194,7 @@
   </div>{/snippet}
 <div
   data-view="room-navigation"
-  data-native-app-navigation
+  data-app-navigation
   class={cn(
     studioType,
     "col-start-1 row-start-1 min-h-0 min-w-0 w-full items-center gap-2 bg-sidebar px-3 py-2 text-sm text-sidebar-foreground sticky top-0 z-40 md:flex md:h-dvh md:flex-col md:px-2 md:pt-2 md:pb-3",
@@ -245,7 +245,7 @@
     </div>{/if}
   <Button
     variant="ghost"
-    data-native-room-switcher
+    data-room-switcher
     aria-haspopup="dialog"
     aria-expanded={switcher}
     class="min-w-0 flex-1 justify-start gap-1 px-2 text-base font-semibold md:hidden"

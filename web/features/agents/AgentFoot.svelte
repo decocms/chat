@@ -182,7 +182,7 @@
 {/snippet}
 
 {#if $view.data}
-  {#if empty}<div data-native-agent-foot="setup" class="grid gap-0.5">
+  {#if empty}<div data-agent-foot="setup" class="grid gap-0.5">
       <div class="flex min-h-11 items-center gap-2.5 px-2.5">
         <span
           aria-hidden="true"
@@ -254,7 +254,7 @@
         </div>
       </div>
     </div>{:else}<div
-      data-native-agent-foot="here"
+      data-agent-foot="here"
       data-agent-status={mark.state}
       class="grid gap-0.5"
     >

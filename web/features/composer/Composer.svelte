@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { ComposerProps } from "./types";
-  import NativeComposer from "./NativeComposer.svelte";
+  import ComposerForm from "./ComposerForm.svelte";
   let props: ComposerProps = $props();
 </script>
 
-{#key props.drafts}{#key `${props.room.me}:${props.room.id}:${props.thread}`}<NativeComposer
+{#key props.drafts}{#key `${props.room.me}:${props.room.id}:${props.thread}`}<ComposerForm
       {...props}
     />{/key}{/key}

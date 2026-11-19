@@ -130,7 +130,7 @@
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
   function measure() {
-    const side = list?.closest("[data-native-room-sidebar]");
+    const side = list?.closest("[data-room-sidebar-panel]");
     const foot = side?.querySelector("[data-sidebar-self]");
     if (!list || !side || !foot?.getClientRects().length) {
       fit = EPIC_PAGE;
@@ -147,7 +147,7 @@
     );
   }
   $effect(() => {
-    const side = list?.closest("[data-native-room-sidebar]");
+    const side = list?.closest("[data-room-sidebar-panel]");
     if (!side) return;
     // After layout, and whenever the sidebar or its foot change size (window, a section growing above).
     const observer = new ResizeObserver(() => measure());

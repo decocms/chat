@@ -52,10 +52,7 @@
 </script>
 
 {#if authorized}
-  <div
-    data-native-interactive-state={$view.phase}
-    aria-busy={$view.phase !== "ready"}
-  >
+  <div data-interactive-state={$view.phase} aria-busy={$view.phase !== "ready"}>
     {#if Loaded}<Loaded {room} {message} actions={guarded} {vb} />{:else}
       <DeferredViewStatus
         phase={$view.phase}

@@ -9,11 +9,8 @@ import {
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
-import {
-  nativeBrowserFixtures,
-  openNativeSidebar,
-} from "./native-browser-fixtures";
-import { nativeTestAgent } from "./native-test-mcp";
+import { browserFixtures, openRoomSidebar } from "./browser-fixtures";
+import { testAgent } from "./test-mcp";
 import { AttachmentSchema } from "../shared/schemas";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -22,8 +19,7 @@ assert(
   /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(base),
   "Use a loopback test Worker with DEV_EMAIL enabled",
 );
-const output =
-  process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-pins-browser";
+const output = process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-pins-browser";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -31,10 +27,10 @@ const browser = await chromium.launch({
 });
 const result: Record<string, unknown> = {
   scope:
-    "Incremental native pinned items against a real loopback Worker; not production or full sidebar acceptance",
+    "Pinned items against a real loopback Worker; not production or full sidebar acceptance",
   gaps: [
     "No supported public file-deletion operation exists, so a truly deleted-file pin is covered by unit/DOM tests, not created by modifying the test database or fabricating room frames.",
-    "Unavailable-app acceptance covers the real disconnected MCP target through the existing Apps adapter; it does not claim that the remaining legacy Apps UI is native.",
+    "Unavailable-app acceptance covers the real disconnected MCP target through the existing Apps adapter; it does not claim more than that adapter path.",
   ],
 };
 const errors: string[] = [];
@@ -61,7 +57,7 @@ try {
   // Its protocol answers are fixture data; room HTTP/WS state always comes from Book.
   const appMethods: string[] = [];
   const appHTML =
-    "<!doctype html><html lang='en'><head><meta charset='utf-8'><title>Native pins app</title></head><body><h1>Native pins app ready</h1><p>Real local MCP resource opened from a pinned app.</p></body></html>";
+    "<!doctype html><html lang='en'><head><meta charset='utf-8'><title>Pins app</title></head><body><h1>Pins app ready</h1><p>Real local MCP resource opened from a pinned app.</p></body></html>";
   const appFixture = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -83,7 +79,7 @@ try {
           answer = {
             protocolVersion: "2025-03-26",
             capabilities: { tools: {}, resources: {} },
-            serverInfo: { name: "Native pins verification", version: "1" },
+            serverInfo: { name: "Pins verification", version: "1" },
           };
           break;
         case "tools/list":
@@ -95,14 +91,14 @@ try {
                 description: "A local read-only browser fixture",
                 inputSchema: { type: "object", properties: {} },
                 annotations: { readOnlyHint: true },
-                _meta: { ui: { resourceUri: "ui://native-pins/proof" } },
+                _meta: { ui: { resourceUri: "ui://pins/proof" } },
               },
             ],
           };
           break;
         case "tools/call":
           answer = {
-            content: [{ type: "text", text: "Native pins fixture data" }],
+            content: [{ type: "text", text: "Pins fixture data" }],
             structuredContent: { ready: true },
           };
           break;
@@ -110,7 +106,7 @@ try {
           answer = {
             contents: [
               {
-                uri: "ui://native-pins/proof",
+                uri: "ui://pins/proof",
                 mimeType: "text/html;profile=mcp-app",
                 text: appHTML,
               },
@@ -140,7 +136,7 @@ try {
   context.setDefaultNavigationTimeout(120_000);
   await context.addCookies([{ name: "vb_lang", value: "en", url: base }]);
   result.fixtures = [
-    ...(await nativeBrowserFixtures(context, base)),
+    ...(await browserFixtures(context, base)),
     "real OAuth/PKCE agent uses supported local pin/unpin/connect/disconnect tools",
     "real uploads populate R2 and Book's file index; no direct database edits",
     "transparent WebSocket observer counts real client commands and real server snapshots",
@@ -149,7 +145,7 @@ try {
     "actual loopback read-only MCP server serves the pinned app resource",
   ];
   const created = await context.request.post(`${base}/api/books`, {
-    data: { title: "Native pinned items verification" },
+    data: { title: "Pinned items verification" },
     headers: { origin: base },
   });
   assert(created.ok(), `Create room: ${created.status()}`);
@@ -166,7 +162,7 @@ try {
       errors.push(message.text());
   });
   step("Creating real file history and a local MCP app connection");
-  const agent = await nativeTestAgent(page, base);
+  const agent = await testAgent(page, base);
   const upload = async (name: string, text: string) => {
     const response = await context.request.post(
       `${base}/api/books/${id}/files`,
@@ -196,7 +192,7 @@ try {
         room_id: id,
         url: appURL,
         scope: "me",
-        title: "Native pins fixture",
+        title: "Pins fixture",
       }),
     ).connection;
   result.files = { older: older.id, newer: newer.id, uploads: 15 };
@@ -275,7 +271,7 @@ try {
     sent.filter(
       (command) => command.t === type && (!field || command[field] === value),
     ).length;
-  const pins = page.locator("[data-native-pins]");
+  const pins = page.locator("[data-pins]");
   const row = (pinID: string) => pins.locator(`[data-pin-id="${pinID}"]`);
   // Unpin lives in the row's context menu (right-click, long press or Shift+F10).
   const unpin = async (pinID: string) => {
@@ -288,7 +284,7 @@ try {
       .click();
   };
   const show = async () => {
-    await openNativeSidebar(page);
+    await openRoomSidebar(page);
     await expect(pins).toBeVisible();
     await pins.scrollIntoViewIfNeeded();
   };
@@ -484,7 +480,7 @@ try {
   await expect(
     page
       .frameLocator(".connFrame")
-      .getByRole("heading", { name: "Native pins app ready", exact: true }),
+      .getByRole("heading", { name: "Pins app ready", exact: true }),
   ).toBeVisible();
   assert(appMethods.includes("resources/read"));
   await agent("disconnect_mcp", { room_id: id, connection_id: connection.id });
@@ -579,24 +575,24 @@ try {
     await name.fill(
       language === "en" ? "Keyboard draft" : "Rascunho do teclado",
     );
-    const native = await pins.evaluate((element) => ({
+    const metrics = await pins.evaluate((element) => ({
       family: getComputedStyle(element.querySelector("h3") ?? element)
         .fontFamily,
       pageWidth: document.documentElement.scrollWidth,
       viewport: innerWidth,
     }));
-    assert(native.family.includes("Inter var"));
+    assert(metrics.family.includes("Inter var"));
     assert(
-      native.pageWidth <= native.viewport,
-      "Native pinned items must not cause horizontal document overflow",
+      metrics.pageWidth <= metrics.viewport,
+      "Pinned items must not cause horizontal document overflow",
     );
     const accessibility = await new AxeBuilder({ page })
-      .include("[data-native-pins]")
+      .include("[data-pins]")
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
     assert.deepEqual(accessibility.violations, []);
     const key = `pins-${language}-${dark ? "dark" : "light"}-${width}`;
-    result[key] = { native, violations: accessibility.violations };
+    result[key] = { metrics, violations: accessibility.violations };
     await pins.screenshot({ path: `${output}/${key}.png` });
     if (width <= 900) {
       const lastControl = pins
@@ -649,7 +645,7 @@ try {
   };
   result.status = "pass";
   console.log(
-    "PASS native pins: real canonical writes, queued-edit retention, explicit no-op, older-file lookup/version identity, MCP app/unavailable target, offline/reconnect, EN/PT responsive axe and keyboard focus",
+    "PASS pins: real canonical writes, queued-edit retention, explicit no-op, older-file lookup/version identity, MCP app/unavailable target, offline/reconnect, EN/PT responsive axe and keyboard focus",
   );
 } catch (error) {
   result.status = "fail";
