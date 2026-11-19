@@ -34,10 +34,16 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 - **Server:** keep presence in the Durable Object of the person channel (memory and storage), keyed by machine. Write to D1 only the switch (`machine_rooms`) and the relation agent → machine. When the socket of a machine closes, its agents are offline.
 - **Pane:** a machine row with its switch, then one row for each live agent (model, room or folder, `listening` or `working`, context %). No switch for each agent.
 
+## Decisions
+
+- Switch: one for each machine in each room. Default: off. The person turns it on manually for a room. There is no fallback to `members.claude_on`.
+- A listen always goes through the hub, so its machine is always connected. A Claude that listens to a room where the switch of its machine is off shows in the pane under its machine. The hub does not wake it. The CLI prints one line that tells this.
+- Pane: one row for each live agent under its machine, with its name.
+- Delivery: the current behavior is sufficient. A listener that works gets the event on its next `/wait`, through `since`.
+
 ## Open questions
 
 1. MCP clients without the CLI: can they still call the tools (but never show in the pane and never wake), or does deco.chat refuse them?
-2. A Claude starts `vibebook listen` in a room where its machine is off: does that turn the machine on for that room, or does the Claude stay muted? Must the CLI tell the person?
-3. Pane: a row for each live agent under its machine, or only a machine row with a count?
-4. The default value of the switch when a machine has no value for a room: on, off or `members.claude_on`?
-5. Delivery: is the current behavior enough? Today a listener that works (not waiting) gets the event on its next `/wait`, through `since`.
+2. Off and the herdr runner: CLI 1.7.1 closes the Claude that the runner opened for the room. Other Claudes only stop getting events. Keep this difference, or make the runner only mute too?
+3. One switch, two effects: on enables delivery and also makes the herdr runner open a Claude for the room. Is that correct when the person only wants to wake a Claude that they opened manually?
+4. Migration: with off as the default, the Claudes that listen now in rooms without a value stop getting events. Turn on the rooms where a machine has a live listener at the release?
