@@ -37,7 +37,7 @@
   <Button
     variant="outline"
     data-thread-card={epic.id}
-    class="mt-2 h-auto w-full justify-start gap-3 rounded-xl p-3 text-left font-normal whitespace-normal"
+    class="mt-2 h-auto w-full justify-start gap-3 rounded-xl p-3 text-left font-normal whitespace-normal select-none"
     onclick={(event) => {
       if (
         event.currentTarget.isConnected &&

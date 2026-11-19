@@ -821,3 +821,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A browser without Web Locks plays the chime in each open tab.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · fix/copy-no-ui-marks · Copying messages takes only their text
+- Agent: claude-opus-5-5
+- Context: The human copied messages from one conversation to another, and the UI's marks came along. They asked that these marks are not selectable.
+- Decision: `select-none` on the bar under a message (reactions, acks, seen), the epic thread cards, the time zone, the quote's ✦, the "agent" and "entregue" badges, and every `Avatar` (initials and agent glyphs). The author's name, the time and the text stay selectable, so a pasted conversation still says who wrote what and when. Checked on the live room: a copied range had ✓ ⏳ ✻, "3/4 tasks · 3 replies" and "GMT-3" before, and only the author, the time and the text with the same rules.
+- Other options: Also make the author and the time not selectable. A copy handler that writes a clean text to the clipboard.
+- Risk: low. A person can no longer select an avatar's initials or a badge's text.
+- Undo: Revert this commit.
+- Status: open

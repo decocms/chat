@@ -81,6 +81,8 @@
   {...passthrough}
   class={cn(
     avatarVariants({ shape, size }),
+    // A picture, not text: its initials or agent glyph (✻, ✦) never join a copied selection.
+    "select-none",
     // A hairline keeps a white logo from dissolving into the page.
     url && "outline-1 -outline-offset-1 outline-hairline",
     selected && "outline-2 outline-offset-0 outline-foreground",
