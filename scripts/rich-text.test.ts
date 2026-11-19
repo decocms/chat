@@ -1,17 +1,17 @@
 import { expect, test } from "bun:test";
-import { richText } from "../svelte/features/rich-text/project";
-import { createRichSession } from "../svelte/features/rich-text/session";
-import { safeUrl } from "../svelte/features/rich-text/links";
+import { richText } from "../web/features/rich-text/project";
+import { createRichSession } from "../web/features/rich-text/session";
+import { safeUrl } from "../web/features/rich-text/links";
 import {
   createFileChipIndex,
   hasMissingFileReference,
-} from "../svelte/features/rich-text/fileIndex";
+} from "../web/features/rich-text/fileIndex";
 import {
   RoomCommandSchema,
   type CommandOutcome,
   type RoomCommand,
 } from "../shared/commands";
-import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
+import type { RichContext, RichNode } from "../web/features/rich-text/types";
 const context: RichContext = {
   room: {
     id: "abc123",

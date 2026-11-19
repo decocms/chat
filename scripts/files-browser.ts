@@ -12,7 +12,7 @@ import {
 } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
-import { createRoomApi } from "../svelte/transport";
+import { createRoomApi } from "../web/app/transport";
 import {
   nativeBrowserFixtures,
   openNativeRoomPane,

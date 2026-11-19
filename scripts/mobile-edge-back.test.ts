@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import {
   createRoomEdgeGesture,
   fromRoomEdge,
-} from "../svelte/features/room-shell/edgeBack";
+} from "../web/features/room-shell/edgeBack";
 function fixture() {
   let mobile = true,
     standalone = true,

@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { cardOf } from "../shared/card";
-import { inlineCardNodes } from "../svelte/features/chat-interactive/model";
+import { inlineCardNodes } from "../web/features/chat-interactive/model";
 import {
   chartSeriesView,
   fieldDeltaTone,
-} from "../svelte/features/chat-interactive/chartProjection";
+} from "../web/features/chat-interactive/chartProjection";
 const chart = {
   kind: "line",
   labels: ["A", "B", "C"],

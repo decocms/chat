@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
 import { writable } from "svelte/store";
-import type { AuthApi } from "../svelte/features/auth/api";
+import type { AuthApi } from "../web/features/auth/api";
 import type { NativeAuthMetadata } from "../shared/nativeAuth";
 const environment = new Window({
   url: "https://vibebook.test/login",
@@ -80,9 +80,9 @@ plugin({
 });
 const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: AuthRoot } =
-  await import("../svelte/features/auth/AuthRoot.svelte");
+  await import("../web/features/auth/AuthRoot.svelte");
 const { readNativeAuthMetadata, restoreAuthTheme } =
-  await import("../svelte/features/auth/mount");
+  await import("../web/features/auth/mount");
 const login = {
   next: "/b/abcdef",
   error: null,
@@ -345,7 +345,7 @@ test("native POST failure marker renders an error without context creation until
 // These fixtures intercept requestSubmit only to observe the real form boundary;
 // they do not fabricate a server logout, cookie deletion or push delivery.
 const { default: AuthLogoutForm } =
-  await import("../svelte/features/auth/AuthLogoutForm.svelte");
+  await import("../web/features/auth/AuthLogoutForm.svelte");
 test("consent sign-out cleanup keeps real POST and original query, then submits only its owned form", async () => {
   let finish!: (value: {
     local: boolean;

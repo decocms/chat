@@ -4,7 +4,7 @@ import type { Message, Room } from "../shared/room";
 import {
   createInteractivePresentation,
   interactiveCurrent,
-} from "../svelte/features/chat-interactive/deferred";
+} from "../web/features/chat-interactive/deferred";
 
 const prompt: Message = {
   id: 1,

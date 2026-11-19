@@ -5,46 +5,40 @@ import {
   createDocumentAppAuthority,
   resizeDocumentApp,
   appendDocumentApp,
-} from "../svelte/features/documents/appMarkers";
+} from "../web/features/documents/appMarkers";
 // Focused adapter/model fixtures. No Worker, real Yjs transport, renderer CDN or browser acceptance.
 import { afterAll, expect, test } from "bun:test";
 import { Window } from "happy-dom";
 import { get } from "svelte/store";
 import type { Room } from "../shared/room";
-import type { AuthApi } from "../svelte/features/auth/api";
+import type { AuthApi } from "../web/features/auth/api";
 import type { CommandOutcome } from "../shared/commands";
-import type { RequestRoomCommand } from "../svelte/roomConnection";
+import type { RequestRoomCommand } from "../web/app/roomConnection";
 import type { RoomCommand } from "../shared/commands";
-import {
-  documentTarget,
-  safeAwareness,
-} from "../svelte/features/documents/model";
+import { documentTarget, safeAwareness } from "../web/features/documents/model";
 import {
   createDocumentDrafts,
   createDocumentSession,
-} from "../svelte/features/documents/session";
+} from "../web/features/documents/session";
 import type {
   Editor,
   EditorModule,
   EditorOptions,
-} from "../svelte/features/documents/types";
-import {
-  richText,
-  parseRichSource,
-} from "../svelte/features/rich-text/project";
-import { createRichSession } from "../svelte/features/rich-text/session";
-import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
+} from "../web/features/documents/types";
+import { richText, parseRichSource } from "../web/features/rich-text/project";
+import { createRichSession } from "../web/features/rich-text/session";
+import type { RichContext, RichNode } from "../web/features/rich-text/types";
 import {
   documentBlocks,
   documentAppNodes,
   documentCardSource,
   mermaidSource,
-} from "../svelte/features/documents/preview";
+} from "../web/features/documents/preview";
 import {
   diagramNodes,
   renderDiagram,
   createPeleLoader,
-} from "../svelte/features/documents/mermaid";
+} from "../web/features/documents/mermaid";
 const environment = new Window();
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
 Reflect.set(globalThis, "document", environment.document);

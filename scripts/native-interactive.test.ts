@@ -11,13 +11,13 @@ import {
   answerOf,
   inlineCardNodes,
   CARD_INLINE_BUDGET,
-} from "../svelte/features/chat-interactive/model";
+} from "../web/features/chat-interactive/model";
 import {
   createInteractiveSession,
   idleState,
   type InteractiveClock,
   type InteractiveState,
-} from "../svelte/features/chat-interactive/session";
+} from "../web/features/chat-interactive/session";
 import type { Room, Message, Poll } from "../shared/room";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 const fixture = JSON.parse(

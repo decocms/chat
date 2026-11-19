@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { Writable } from "svelte/store";
   import type { Message, Room } from "../shared/room";
-  import type { ChatActions, ChatBridge } from "../svelte/chatTypes";
-  import DeferredInteractiveBody from "../svelte/features/chat-interactive/DeferredInteractiveBody.svelte";
-  import type InteractiveBody from "../svelte/features/chat-interactive/InteractiveBody.svelte";
+  import type { ChatActions, ChatBridge } from "../web/app/chatTypes";
+  import DeferredInteractiveBody from "../web/features/chat-interactive/DeferredInteractiveBody.svelte";
+  import type InteractiveBody from "../web/features/chat-interactive/InteractiveBody.svelte";
   let {
     state,
     actions,

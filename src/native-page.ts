@@ -61,7 +61,6 @@ export async function nativeAuthPage(
   const headers = {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "no-store",
-    "x-vibebook-ui": "svelte",
     "x-frame-options": "DENY",
     "content-security-policy": "frame-ancestors 'none'",
   };

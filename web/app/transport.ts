@@ -1,0 +1,155 @@
+import type { RoomCommand } from "../../shared/commands";
+import type { RoomEvent } from "../../shared/room";
+import type { RoomApi } from "../../shared/rpc";
+import {
+  AttachmentSchema,
+  AvatarResult,
+  ErrorBody,
+  RoomIconResult,
+  PostMessageResult,
+  UploadFileResult,
+} from "../../shared/schemas";
+import type { CommandOutcome } from "../../shared/commands";
+import { decodeServerMessage, encodeCall } from "../../shared/jsonRpc";
+import { isRoomCommand, toRoomEvent } from "../../shared/validation";
+import { client } from "../lib/client/api";
+
+/** The socket surface needed by the UI, allowing deterministic transport tests without a server. */
+export interface RoomSocket {
+  readonly readyState: number;
+  send(data: string): void;
+}
+/** Queue a command on an open socket as a JSON-RPC call: a request when `id` is set (the server answers it once),
+ *  else a notification (shared/jsonRpc.ts). */
+export function sendRoomCommand(
+  socket: RoomSocket | null | undefined,
+  command: RoomCommand,
+  id?: string,
+): boolean {
+  if (!isRoomCommand(command)) throw new TypeError("Invalid room command");
+  if (!socket || socket.readyState !== 1) return false;
+  socket.send(encodeCall(command, id));
+  return true;
+}
+/** One message from the room's socket: the response to one of our requests, or an event (a notification). */
+export type RoomMessage =
+  | { kind: "response"; id: string; outcome: CommandOutcome }
+  | { kind: "event"; event: RoomEvent };
+export function receiveRoomMessage(raw: unknown): RoomMessage {
+  if (typeof raw !== "string")
+    throw new TypeError("Room messages must be JSON text");
+  const message = decodeServerMessage(raw);
+  if (!message) throw new TypeError("Invalid room message");
+  if (message.kind === "response")
+    return {
+      kind: "response",
+      id: String(message.id),
+      outcome: message.outcome.ok
+        ? { ok: true }
+        : { ok: false, error: message.outcome.error.message },
+    };
+  return { kind: "event", event: toRoomEvent(message.message) };
+}
+
+/** HTTP calls through the inferred Hono client (web/lib/client/api.ts): request shapes come from the Worker's
+ *  validated routes, and responses are checked against the shared schemas before the UI sees them. Authorization and
+ *  business rules stay on the Worker. */
+export type FetchLike = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
+/** What these helpers read of a response (both fetch's Response and hc's typed ClientResponse have it). */
+type Answer = { ok: boolean; status: number; json(): Promise<unknown> };
+async function body(response: Answer): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    throw error;
+  }
+}
+function failure(response: Answer, value: unknown): Error {
+  const e = ErrorBody.safeParse(value);
+  return new Error(e.success ? e.data.error : `HTTP ${response.status}`);
+}
+export function createRoomApi(
+  roomId: string,
+  fetcher: FetchLike = fetch,
+): RoomApi {
+  const api = client("/", fetcher);
+  const room = api.api.books[":id"];
+  const id = encodeURIComponent(roomId); // hc puts params into the path as they are
+
+  return {
+    async postMessage(input) {
+      const response = await room.post.$post({
+        param: { id },
+        json: input,
+      });
+      const value = await body(response);
+      // 400 with { ok: false } is a business answer (empty message…), not a failure.
+      if (response.ok || response.status === 400) {
+        const r = PostMessageResult.safeParse(value);
+        if (r.success) return r.data;
+        if (response.ok) throw new TypeError("Invalid post response");
+      }
+      throw failure(response, value);
+    },
+    async uploadFile(input) {
+      // The file is the raw body (hc's init.body), its type and name go in the validated headers.
+      const response = await room.files.$post(
+        {
+          param: { id },
+          header: {
+            "content-type": input.type,
+            "x-filename": encodeURIComponent(input.name),
+          },
+        },
+        { init: { body: input.body } },
+      );
+      const value = await body(response);
+      if (!response.ok) throw failure(response, value);
+      const r = UploadFileResult.safeParse(value);
+      if (!r.success)
+        throw new TypeError(
+          AttachmentSchema.safeParse(value).success
+            ? "Invalid reminder response"
+            : "Invalid upload response",
+        );
+      return r.data;
+    },
+    async setIcon(image) {
+      // Raw bytes like uploadFile; a JSON body ({}) removes the icon.
+      const response = await room.icon.$post(
+        {
+          param: { id },
+          header: { "content-type": image ? image.type : "application/json" },
+        },
+        { init: { body: image ? image.body : "{}" } },
+      );
+      const value = await body(response);
+      if (!response.ok) throw failure(response, value);
+      const r = RoomIconResult.safeParse(value);
+      if (!r.success) throw new TypeError("Invalid icon response");
+      return r.data;
+    },
+  };
+}
+
+/** The signed-in person's own account calls that carry raw bytes (the profile picture). */
+export function createAccountApi(fetcher: FetchLike = fetch) {
+  const api = client("/", fetcher);
+  return {
+    async uploadAvatar(image: { type: string; body: BodyInit }) {
+      const response = await api.api.me.avatar.$post(
+        { header: { "content-type": image.type } },
+        { init: { body: image.body } },
+      );
+      const value = await body(response);
+      if (!response.ok) throw failure(response, value);
+      const r = AvatarResult.safeParse(value);
+      if (!r.success) throw new TypeError("Invalid avatar response");
+      return r.data;
+    },
+  };
+}

@@ -4,14 +4,14 @@ import type { Room } from "../shared/room";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import { RoomCommandSchema } from "../shared/commands";
 import { matchesSuggestion, suggestionIdentity } from "../shared/suggestions";
-import { createRoomMutations } from "../svelte/features/room-sidebar/session";
+import { createRoomMutations } from "../web/features/room-sidebar/session";
 import {
   treeFiles,
   agentRows,
   roomListenerCount,
   contextPercent,
   suggestionAt,
-} from "../svelte/features/room-sidebar/model";
+} from "../web/features/room-sidebar/model";
 const room = (): Room => ({
   id: "abc123",
   me: "me@test",

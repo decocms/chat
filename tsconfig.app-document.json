@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.tooling.json",
   "include": [
-    "browser/app-document/*.ts",
+    "web/app-document/*.ts",
     "scripts/build-app-document.ts",
     "scripts/app-document-build.test.ts",
     "scripts/app-document-browser.ts",

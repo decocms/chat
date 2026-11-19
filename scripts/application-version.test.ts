@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Window } from "happy-dom";
-import { applicationShellVersion } from "../svelte/features/application/version";
+import { applicationShellVersion } from "../web/features/application/version";
 
 function document(html: string) {
   const page = new Window().document;
@@ -31,7 +31,7 @@ test("missing production ETag stays unknown instead of inventing a release ident
 test("source development has an explicit sentinel and keeps no production ETag", () => {
   expect(
     applicationShellVersion(
-      document('<script type="module" src="/bootstrap.ts"></script>'),
+      document('<script type="module" src="/main.ts"></script>'),
     ),
   ).toBe("development");
 });

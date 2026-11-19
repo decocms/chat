@@ -13,7 +13,7 @@
 |---|---|
 | `bun run dev` | Builds the browser files, then starts the Worker at http://127.0.0.1:8797. |
 | `bun run dev:app` | Starts the Worker (8787) and Vite (5173) with hot reload. Open http://127.0.0.1:5173/app. |
-| `bun run dev:components` | Starts the component gallery with hot reload. |
+| `bun run dev:components` | Starts Vite with hot reload. Open http://127.0.0.1:5173/dev/gallery.html (components) or `/dev/design-system.html?id=<story>` (design system). |
 
 Rules:
 
@@ -55,7 +55,7 @@ Some build output is in git. If you change the source, build it and commit the o
 
 | Source | Command | Output to commit |
 |---|---|---|
-| `svelte/`, `shared/`, `service-worker/` | `bun run build:ui` | `public/app.html`, all of `public/svelte-preview/`, `public/sw.js` |
+| `web/`, `shared/` | `bun run build:ui` | `public/app.html`, all of `public/svelte-preview/`, `public/sw.js` |
 | `cli/` | `bun run build:cli` | `public/cli.mjs`, `cli/cli.mjs` |
 | `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 

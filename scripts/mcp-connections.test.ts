@@ -161,7 +161,6 @@ test("signin preserves membership/missing/rate HTTP failures using typed styled 
       html = await response.text();
     expect(response.status).toBe(status);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("x-vibebook-ui")).toBe("svelte");
     expect(html).toContain('name="vb-page" content="connection-error"');
     expect(html).toContain(`name="vb-connection-failure" content="${failure}"`);
     expect(html).not.toContain("style=");

@@ -4,7 +4,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import type { DocumentPane } from "../svelte/features/documents/types";
+import type { DocumentPane } from "../web/features/documents/types";
 const expect = baseExpect.configure({ timeout: 60_000 });
 
 /** Public local script locations only; never persist error text, auth URLs or query strings. */

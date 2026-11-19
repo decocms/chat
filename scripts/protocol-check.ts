@@ -19,7 +19,7 @@ import {
   receiveRoomMessage,
   sendRoomCommand,
   type FetchLike,
-} from "../svelte/transport";
+} from "../web/app/transport";
 
 const task = {
   id: "task",

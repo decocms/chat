@@ -40,17 +40,17 @@ test("native component audit rejects style blocks, directives, markup and CSSOM 
     '<script lang="ts">const props = {style: "color:red"};</script>',
   ])
     expect(
-      auditPresentation("svelte/lib/components/Test.svelte", source).length,
+      auditPresentation("web/lib/components/Test.svelte", source).length,
     ).toBeGreaterThan(0);
   expect(
     auditPresentation(
-      "svelte/lib/components/Test.svelte",
+      "web/lib/components/Test.svelte",
       '<script lang="ts">let value = $state("hello");</script><p class="text-foreground">{value}</p>',
     ),
   ).toEqual([]);
 });
 test("closed card variants select Tailwind utilities without permitting CSSOM or inline CSS", () => {
-  const file = "svelte/features/chat-interactive/CardView.svelte";
+  const file = "web/features/chat-interactive/CardView.svelte";
   expect(
     auditPresentation(
       file,
@@ -70,7 +70,7 @@ test("closed card variants select Tailwind utilities without permitting CSSOM or
 });
 
 test("number-format options do not permit inline CSS or arbitrary style objects", () => {
-  const file = "svelte/features/room-sidebar/Test.svelte";
+  const file = "web/features/room-sidebar/Test.svelte";
   for (const source of [
     '<span>{new Intl.NumberFormat("en", {style: "currency", currency: "USD"}).format(1)}</span>',
     '<script>const formatter = Intl.NumberFormat("pt", {style: "percent"});</script>',
@@ -112,16 +112,16 @@ test("stylesheet policy distinguishes tokens from custom selector and import esc
     ),
   ).toEqual([]);
   expect(
-    auditPresentation("svelte/lib/components/test.ts", 'import "./extra.css";'),
+    auditPresentation("web/lib/components/test.ts", 'import "./extra.css";'),
   ).toHaveLength(1);
   expect(
-    auditPresentation("svelte/styles.ts", 'import "./styles/tailwind.css";'),
+    auditPresentation("web/styles.ts", 'import "./styles/tailwind.css";'),
   ).toEqual([]);
 });
 
 test("approved terminal CSS enters only the sole top-level Tailwind entry and native semantic theme options stay scoped", () => {
   const css = '@import "@xterm/xterm/css/xterm.css" layer(components);';
-  expect(auditTailwind("svelte/styles/tailwind.css", css)).toEqual([]);
+  expect(auditTailwind("web/styles/tailwind.css", css)).toEqual([]);
   for (const source of [
     '@import "@xterm/xterm/css/xterm.css";',
     '@import "@xterm/xterm/css/theme.css" layer(components);',
@@ -129,12 +129,12 @@ test("approved terminal CSS enters only the sole top-level Tailwind entry and na
     ':where(main) { @import "@xterm/xterm/css/xterm.css" layer(components); }',
   ])
     expect(
-      auditTailwind("svelte/styles/tailwind.css", source).length,
+      auditTailwind("web/styles/tailwind.css", source).length,
     ).toBeGreaterThan(0);
   expect(auditTailwind("other.css", css).length).toBeGreaterThan(0);
   for (const file of [
-    "svelte/lib/components/test.ts",
-    "svelte/features/sandboxes/terminalRenderer.ts",
+    "web/lib/components/test.ts",
+    "web/features/sandboxes/terminalRenderer.ts",
   ]) {
     expect(
       auditPresentation(file, 'new Terminal({theme:{background:"red"}});')
@@ -146,20 +146,20 @@ test("approved terminal CSS enters only the sole top-level Tailwind entry and na
   }
   expect(
     auditPresentation(
-      "svelte/features/sandboxes/terminalRenderer.ts",
+      "web/features/sandboxes/terminalRenderer.ts",
       "new Terminal({theme:resolveTerminalTheme(mount)});terminal.options.theme=resolveTerminalTheme(mount);",
     ),
   ).toEqual([]);
   expect(
     auditPresentation(
-      "svelte/lib/components/test.ts",
+      "web/lib/components/test.ts",
       "terminal.options.theme=resolveTerminalTheme(mount);",
     ).length,
   ).toBeGreaterThan(0);
 });
 
 test("terminal semantic options cannot escape through shorthand, spread or computed assignment", () => {
-  const file = "svelte/features/sandboxes/terminalRenderer.ts";
+  const file = "web/features/sandboxes/terminalRenderer.ts";
   for (const source of [
     "new Terminal(options);",
     "new Terminal({...options});",
@@ -176,6 +176,6 @@ test("terminal constructor aliases cannot import vendor runtime outside its scop
     'import {FitAddon} from "@xterm/addon-fit";',
   ])
     expect(
-      auditPresentation("svelte/lib/components/test.ts", source).length,
+      auditPresentation("web/lib/components/test.ts", source).length,
     ).toBeGreaterThan(0);
 });

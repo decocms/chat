@@ -1,10 +1,10 @@
-import { createRoomMutations } from "../svelte/features/room-sidebar/session";
-import { createFileChipIndex } from "../svelte/features/rich-text/fileIndex";
+import { createRoomMutations } from "../web/features/room-sidebar/session";
+import { createFileChipIndex } from "../web/features/rich-text/fileIndex";
 import {
   createDocumentDrafts,
   createDocumentSession,
-} from "../svelte/features/documents/session";
-import type { DocumentProps } from "../svelte/features/documents/types";
+} from "../web/features/documents/session";
+import type { DocumentProps } from "../web/features/documents/types";
 import { afterEach, describe, expect, test } from "bun:test";
 import { plugin } from "bun";
 import type { Component, ComponentProps } from "svelte";
@@ -12,22 +12,22 @@ import { get, writable } from "svelte/store";
 import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window as HappyDOMWindow } from "happy-dom";
-import type { Room } from "../svelte/roomStore";
-import type { ChatProps } from "../svelte/chatTypes";
+import type { Room } from "../web/app/roomStore";
+import type { ChatProps } from "../web/app/chatTypes";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
-import type { PanelBridge, PanelProps } from "../svelte/panels";
-import type { SidebarProps } from "../svelte/sidebar";
-import { createNavigationSession } from "../svelte/features/navigation/session";
+import type { PanelBridge, PanelProps } from "../web/app/panels";
+import type { SidebarProps } from "../web/app/sidebar";
+import { createNavigationSession } from "../web/features/navigation/session";
 import {
   disposePinsSession,
   requestPinnedFiles,
   syncPinsSession,
-} from "../svelte/features/pins/session";
-import { createFilesSession } from "../svelte/features/files/session";
-import type { FilesProps } from "../svelte/features/files/types";
-import type { PeopleAction } from "../svelte/features/people/model";
-import { createComposerDrafts } from "../svelte/features/composer/drafts";
-import { boardModel, lanes } from "../svelte/features/board/model";
+} from "../web/features/pins/session";
+import { createFilesSession } from "../web/features/files/session";
+import type { FilesProps } from "../web/features/files/types";
+import type { PeopleAction } from "../web/features/people/model";
+import { createComposerDrafts } from "../web/features/composer/drafts";
+import { boardModel, lanes } from "../web/features/board/model";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -110,11 +110,12 @@ plugin({
 const { flushSync, tick, mount, unmount, createRawSnippet } =
   await import("svelte");
 const { default: AccountPanel } =
-  await import("../svelte/features/account/AccountPanel.svelte");
+  await import("../web/features/account/AccountPanel.svelte");
 const { default: SuggestionPreviewHarness } =
   await import("./suggestion-preview-harness.svelte");
 const { mountView, dismissDialogs } = await import("./ui-panel-mount");
-const { default: People } = await import("../svelte/People.svelte");
+const { default: People } =
+  await import("../web/features/people/People.svelte");
 const { default: PeopleView } = await import("./UiPanelView.svelte");
 const vb: PanelBridge = {
   t: (s, vars) =>
@@ -336,7 +337,7 @@ function newEpicInput(target: ParentNode) {
   return target.querySelector<HTMLInputElement>("#newEpic input")!;
 }
 
-/** The chat's hover toolbar mounts on the first pointer in a message (svelte/Message.svelte). */
+/** The chat's hover toolbar mounts on the first pointer in a message (web/features/chat/Message.svelte). */
 function hoverMessages(target: HTMLElement) {
   for (const row of target.querySelectorAll("[data-chat-message]"))
     row.dispatchEvent(new PointerEvent("pointerenter"));
@@ -791,7 +792,7 @@ describe("native Svelte room panels", () => {
   }, 30_000);
 
   test("shared switch keeps default local updates and rejects them only in controlled mode", async () => {
-    const Switch = (await import("../svelte/lib/studio/Switch.svelte")).default;
+    const Switch = (await import("../web/lib/studio/Switch.svelte")).default;
     for (const controlled of [false, true]) {
       const target = document.createElement("div");
       document.body.append(target);
@@ -828,7 +829,7 @@ describe("native Svelte room panels", () => {
   }, 30_000);
   test("account row: you at a sidebar's foot (or a phone's top bar) is a link to your settings page", async () => {
     const { default: AccountRow } =
-      await import("../svelte/features/app-navigation/AccountRow.svelte");
+      await import("../web/features/app-navigation/AccountRow.svelte");
     const me = {
       email: "ana@example.test",
       name: "Ana",
@@ -859,12 +860,12 @@ describe("native Svelte room panels", () => {
   });
   test("one avatar language: people are round beam faces, agents square marks, rooms marble tiles", async () => {
     const { default: PersonAvatar } =
-      await import("../svelte/lib/components/PersonAvatar.svelte");
+      await import("../web/lib/components/PersonAvatar.svelte");
     const { default: AgentMark } =
-      await import("../svelte/lib/components/AgentMark.svelte");
+      await import("../web/lib/components/AgentMark.svelte");
     const { default: RoomTile } =
-      await import("../svelte/features/home/RoomTile.svelte");
-    const { beam, marble } = await import("../svelte/lib/components/boring");
+      await import("../web/features/home/RoomTile.svelte");
+    const { beam, marble } = await import("../web/lib/components/boring");
     const classes = (el: Element | null | undefined) =>
       (el?.getAttribute("class") ?? "").split(/\s+/);
     const cases: [Component<any>, Record<string, unknown>][] = [
@@ -959,7 +960,7 @@ describe("native Svelte room panels", () => {
   }, 30_000);
   test("a rail room is marked current by a bar on the rail's edge, never a ring, and explains itself in a tooltip", async () => {
     const RailRoom = (
-      await import("../svelte/features/app-navigation/RailRoom.svelte")
+      await import("../web/features/app-navigation/RailRoom.svelte")
     ).default;
     const summary = (extra: Record<string, unknown> = {}) =>
       ({
@@ -1016,9 +1017,9 @@ describe("native Svelte room panels", () => {
   }, 30_000);
   test("a rail room without an icon draws the marble its title makes; with an icon it shows the icon", async () => {
     const RailRoom = (
-      await import("../svelte/features/app-navigation/RailRoom.svelte")
+      await import("../web/features/app-navigation/RailRoom.svelte")
     ).default;
-    const { marble } = await import("../svelte/lib/components/boring");
+    const { marble } = await import("../web/lib/components/boring");
     const cases = [
       { title: "Casa da Praia", icon: undefined, tint: "purple" },
       { title: "Design System", icon: undefined, tint: null },
@@ -1070,9 +1071,9 @@ describe("native Svelte room panels", () => {
     }
   }, 30_000);
   test("a home-grid room without an icon draws its marble and its badges keep their own background", async () => {
-    const RoomTile = (await import("../svelte/features/home/RoomTile.svelte"))
+    const RoomTile = (await import("../web/features/home/RoomTile.svelte"))
       .default;
-    const { marble } = await import("../svelte/lib/components/boring");
+    const { marble } = await import("../web/lib/components/boring");
     const target = document.createElement("div");
     document.body.append(target);
     const instance = flushSync(() =>
@@ -1631,7 +1632,7 @@ describe("native Svelte chat", () => {
   const message = (
     id: number,
     text: string,
-  ): import("../svelte/chatTypes").ChatMessage => ({
+  ): import("../web/app/chatTypes").ChatMessage => ({
     id,
     text,
     thread: "e",
@@ -1640,8 +1641,8 @@ describe("native Svelte chat", () => {
     ts: id * 1000,
   });
   const bridge = (
-    overrides: Partial<import("../svelte/chatTypes").ChatBridge> = {},
-  ): import("../svelte/chatTypes").ChatBridge => ({
+    overrides: Partial<import("../web/app/chatTypes").ChatBridge> = {},
+  ): import("../web/app/chatTypes").ChatBridge => ({
     t: vb.t,
     name: vb.name,
     avatarVersion: vb.avatarVersion,
@@ -2459,7 +2460,7 @@ describe("native Svelte chat", () => {
   }, 30_000);
   test("empty failed initial history mounts the real older control and clicks explicit retry", async () => {
     const { createChatViewport } =
-      await import("../svelte/features/chat-viewport/controller");
+      await import("../web/features/chat-viewport/controller");
     const room = { ...fixture(), messages: [] };
     let queued = false;
     const sent: RoomCommand[] = [];
@@ -2580,10 +2581,9 @@ describe("native Svelte chat", () => {
           },
         ],
       };
-    const targets: import("../svelte/features/rich-text/types").RichNavigation[] =
+    const targets: import("../web/features/rich-text/types").RichNavigation[] =
         [],
-      files: import("../svelte/features/rich-text/types").RichFileReference[] =
-        [];
+      files: import("../web/features/rich-text/types").RichFileReference[] = [];
     const { target, update } = renderChat(room, {
       actions: {
         request: async () => ({ ok: true }),
@@ -2935,7 +2935,7 @@ describe("native Svelte chat", () => {
       ...fixture(),
       messages: [{ ...message(1, "App"), files: [embedded] }],
     };
-    let controls: import("../svelte/chatTypes").ChatEmbedControls | undefined;
+    let controls: import("../web/app/chatTypes").ChatEmbedControls | undefined;
     let detached = 0;
     const mounted: string[] = [];
     const { target, update } = renderChat(room, {
@@ -3036,7 +3036,7 @@ describe("native Svelte chat", () => {
       ts: 1,
       size: 10,
     };
-    const controls: import("../svelte/chatTypes").ChatEmbedControls[] = [];
+    const controls: import("../web/app/chatTypes").ChatEmbedControls[] = [];
     let detached = 0;
     const { target } = renderChat(
       { ...fixture(), messages: [{ ...message(1, "App"), files: [embedded] }] },
@@ -3190,9 +3190,9 @@ describe("native Svelte chat", () => {
 });
 
 test("phone edge observes installed Back without consuming browser gestures or replying", async () => {
-  const { swipeMessage } = await import("../svelte/features/chat/swipe");
+  const { swipeMessage } = await import("../web/features/chat/swipe");
   const { attachRoomEdgeBack } =
-    await import("../svelte/features/room-shell/edgeBack");
+    await import("../web/features/room-shell/edgeBack");
   const width = Object.getOwnPropertyDescriptor(window, "innerWidth");
   Object.defineProperty(window, "innerWidth", {
     value: 390,
@@ -3258,7 +3258,7 @@ test("phone edge observes installed Back without consuming browser gestures or r
 });
 
 test("a left swipe copies the text from the top half and the link from the bottom half", async () => {
-  const { swipeMessage } = await import("../svelte/features/chat/swipe");
+  const { swipeMessage } = await import("../web/features/chat/swipe");
   const row = window.document.createElement("div");
   window.document.body.append(row);
   const copies: boolean[] = [];
@@ -5354,7 +5354,7 @@ describe("native People interactions", () => {
 });
 
 describe("native composer ownership and interactions", () => {
-  const chatBridge: import("../svelte/chatTypes").ChatBridge = {
+  const chatBridge: import("../web/app/chatTypes").ChatBridge = {
     t: vb.t,
     name: vb.name,
     avatarVersion: vb.avatarVersion,
@@ -5373,9 +5373,7 @@ describe("native composer ownership and interactions", () => {
   });
   function renderComposer(
     room: Room,
-    extra: Partial<
-      import("../svelte/features/composer/types").ComposerProps
-    > = {},
+    extra: Partial<import("../web/features/composer/types").ComposerProps> = {},
   ) {
     const drafts = createComposerDrafts();
     peopleCleanups.push(() => drafts.dispose());
@@ -5383,7 +5381,7 @@ describe("native composer ownership and interactions", () => {
       slot = document.createElement("div");
     target.append(slot);
     document.body.append(target);
-    const props: import("../svelte/features/composer/types").ComposerProps = {
+    const props: import("../web/features/composer/types").ComposerProps = {
       room,
       thread: "main",
       vb: chatBridge,
@@ -5914,13 +5912,13 @@ describe("native composer ownership and interactions", () => {
   }, 30_000);
 
   test("native mic capability projects interim text and cancels stale recognition across thread changes", async () => {
-    const engines: import("../svelte/features/composer/speech").SpeechRecognizer[] =
+    const engines: import("../web/features/composer/speech").SpeechRecognizer[] =
       [];
     let starts = 0,
       aborts = 0;
-    const factory: import("../svelte/features/composer/speech").SpeechFactory =
+    const factory: import("../web/features/composer/speech").SpeechFactory =
       () => {
-        const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
+        const rec: import("../web/features/composer/speech").SpeechRecognizer =
           {
             lang: "",
             continuous: false,
@@ -5985,18 +5983,17 @@ describe("native composer ownership and interactions", () => {
 
   test("dictation-ended focus respects a dialog opened before either pending focus tick", async () => {
     for (const afterFirstTick of [false, true]) {
-      const rec: import("../svelte/features/composer/speech").SpeechRecognizer =
-        {
-          lang: "",
-          continuous: false,
-          interimResults: false,
-          onresult: null,
-          onerror: null,
-          onend: null,
-          start() {},
-          stop() {},
-          abort() {},
-        };
+      const rec: import("../web/features/composer/speech").SpeechRecognizer = {
+        lang: "",
+        continuous: false,
+        interimResults: false,
+        onresult: null,
+        onerror: null,
+        onend: null,
+        start() {},
+        stop() {},
+        abort() {},
+      };
       const { target } = renderComposer(fixture(), {
         speechFactory: () => rec,
       });
@@ -6030,7 +6027,7 @@ describe("native composer ownership and interactions", () => {
     }
   });
   test("Send cancels dictation before dispatch and late recognition never restores the sent draft", async () => {
-    const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
+    const rec: import("../web/features/composer/speech").SpeechRecognizer = {
       lang: "",
       continuous: false,
       interimResults: false,
@@ -6086,7 +6083,7 @@ describe("native composer ownership and interactions", () => {
   }, 30000);
   test("native Hold-Space starts only after threshold; contenteditable and unavailable capability remain ordinary", async () => {
     let starts = 0;
-    const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
+    const rec: import("../web/features/composer/speech").SpeechRecognizer = {
       lang: "",
       continuous: false,
       interimResults: false,
@@ -6272,7 +6269,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     owner.sync(room, request);
     const target = document.createElement("div");
     document.body.append(target);
-    const props: import("../svelte/features/room-sidebar/types").ThreadHeaderProps =
+    const props: import("../web/features/room-sidebar/types").ThreadHeaderProps =
       {
         room,
         thread: "e",
@@ -6333,7 +6330,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     owner.sync(room, request);
     const target = document.createElement("div");
     document.body.append(target);
-    const props: import("../svelte/features/room-sidebar/types").ThreadHeaderProps =
+    const props: import("../web/features/room-sidebar/types").ThreadHeaderProps =
       {
         room,
         thread: "e",
@@ -6384,7 +6381,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     });
   }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
-    typeof import("../svelte/features/room-shell/RoomBarTitle.svelte").default
+    typeof import("../web/features/room-shell/RoomBarTitle.svelte").default
   >;
   function barTitle(
     room: Room,
@@ -6530,7 +6527,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     owner.sync(room, request);
     const target = document.createElement("div");
     document.body.append(target);
-    const props: import("../svelte/features/room-sidebar/types").SuggestionPreviewProps =
+    const props: import("../web/features/room-sidebar/types").SuggestionPreviewProps =
       {
         room,
         index: 0,
@@ -6583,7 +6580,7 @@ describe("native room sidebar header and suggestion ownership", () => {
     owner.sync(room, request);
     peopleCleanups.push(() => owner.dispose());
     const values = writable<
-      import("../svelte/features/room-sidebar/types").SuggestionPreviewProps
+      import("../web/features/room-sidebar/types").SuggestionPreviewProps
     >({
       room,
       index: 0,
@@ -6727,11 +6724,10 @@ describe("native account", () => {
   });
   async function account(withFriend = false) {
     const { createAccountSession } =
-      await import("../svelte/features/account/session");
-    const { createDeviceLock } =
-      await import("../svelte/features/account/device");
+      await import("../web/features/account/session");
+    const { createDeviceLock } = await import("../web/features/account/device");
     const { createPersonalSession } =
-      await import("../svelte/features/home/personal");
+      await import("../web/features/home/personal");
     const { homeApi, me, manualClock, deferred, settle } =
       await import("./native-home-fixtures");
     const time = manualClock(),
@@ -6966,9 +6962,9 @@ describe("native account", () => {
 
 describe("native agent settings and sandbox ownership", () => {
   test("native grant confirmation cancels on canonical removal and ignores a late revoke error", async () => {
-    const { createAgentsApi } = await import("../svelte/features/agents/api");
+    const { createAgentsApi } = await import("../web/features/agents/api");
     const { createAgentAccountSession } =
-      await import("../svelte/features/agents/account");
+      await import("../web/features/agents/account");
     let grants = [
       {
         id: "grant-a",
@@ -7030,15 +7026,15 @@ describe("native agent settings and sandbox ownership", () => {
     expect(target.querySelector('[role="alert"]') === null).toBe(true);
   }, 30_000);
   test("native sandbox delete confirmation cannot target a same-ID replacement and password clears before reply", async () => {
-    const { createAgentsApi } = await import("../svelte/features/agents/api");
+    const { createAgentsApi } = await import("../web/features/agents/api");
     const { createSandboxCredentials } =
-      await import("../svelte/features/sandboxes/credentials");
+      await import("../web/features/sandboxes/credentials");
     const { createSandboxSession } =
-      await import("../svelte/features/sandboxes/session");
+      await import("../web/features/sandboxes/session");
     const { createTerminalSession } =
-      await import("../svelte/features/sandboxes/terminalSession");
+      await import("../web/features/sandboxes/terminalSession");
     const { default: SandboxPanel } =
-      await import("../svelte/features/sandboxes/SandboxPanel.svelte");
+      await import("../web/features/sandboxes/SandboxPanel.svelte");
     let cards = [
         {
           id: "a",
@@ -7155,9 +7151,9 @@ describe("native agent settings and sandbox ownership", () => {
 });
 
 test("denied native agent metadata can recover through explicit read-only retry", async () => {
-  const { createAgentsApi } = await import("../svelte/features/agents/api"),
+  const { createAgentsApi } = await import("../web/features/agents/api"),
     { createAgentAccountSession } =
-      await import("../svelte/features/agents/account"),
+      await import("../web/features/agents/account"),
     { UNAUTHENTICATED } = await import("../shared/schemas");
   let denied = true;
   const api = createAgentsApi(
@@ -7242,9 +7238,8 @@ test("denied native agent metadata can recover through explicit read-only retry"
 // Source-only native MCP catalog ownership; real iframe/remote OAuth gates run separately.
 describe("native Apps catalog", () => {
   async function appsFixture() {
-    const { createAppsSession } =
-      await import("../svelte/features/apps/session");
-    const { toolOutput } = await import("../svelte/features/apps/tools");
+    const { createAppsSession } = await import("../web/features/apps/session");
+    const { toolOutput } = await import("../web/features/apps/tools");
     const connection = {
       id: "abcdef123456",
       title: "<img src=x onerror=alert(1)>",
@@ -7269,7 +7264,7 @@ describe("native Apps catalog", () => {
     let writes = 0,
       uiReads = 0,
       bridgeLoads = 0;
-    const api: import("../svelte/features/apps/api").AppsApi = {
+    const api: import("../web/features/apps/api").AppsApi = {
       identity: async () => ({ direct: false, why: "signed_in" }),
       list: async () => ({ connections: [connection] }),
       create: async () => {
@@ -7471,11 +7466,10 @@ async function pickSize(root: Element, label: string) {
   await new Promise((done) => setTimeout(done, 0));
 }
 test("document inline Apps keep independent consent and stable frames, and revoke removed-marker callbacks before flush", async () => {
-  const { createAppsSession } = await import("../svelte/features/apps/session");
-  const protocol = await import("../svelte/features/apps/bridge");
-  const { toolOutput } = await import("../svelte/features/apps/tools");
-  type Options =
-    import("../svelte/features/apps/bridge").NativeAppBridgeOptions;
+  const { createAppsSession } = await import("../web/features/apps/session");
+  const protocol = await import("../web/features/apps/bridge");
+  const { toolOutput } = await import("../web/features/apps/tools");
+  type Options = import("../web/features/apps/bridge").NativeAppBridgeOptions;
   const bridges: Options[] = [],
     calls: string[] = [],
     uiReads: string[] = [],
@@ -7522,7 +7516,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
     ],
     context: {},
   };
-  const api: import("../svelte/features/apps/api").AppsApi = {
+  const api: import("../web/features/apps/api").AppsApi = {
     identity: async () => ({ direct: false, why: "signed_in" }),
     list: async () => ({ connections: [connection] }),
     create: async () => ({
@@ -7573,7 +7567,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
     navigate() {},
   });
   appsOwner.sync(canonical);
-  const appProps: import("../svelte/features/apps/types").AppsProps = {
+  const appProps: import("../web/features/apps/types").AppsProps = {
     owner: appsOwner,
     api,
     room: canonical,
@@ -7832,7 +7826,7 @@ test("document inline Apps keep independent consent and stable frames, and revok
 describe("People & agents presence", () => {
   type Agent = NonNullable<
     ComponentProps<
-      typeof import("../svelte/features/room-sidebar/AgentPresenceRows.svelte").default
+      typeof import("../web/features/room-sidebar/AgentPresenceRows.svelte").default
     >["presence"]
   >["agents"][number];
   const agent = (extra: Partial<Agent> = {}): Agent => ({
@@ -7850,7 +7844,7 @@ describe("People & agents presence", () => {
     extra: { surface?: "sidebar" | "background" } = {},
   ) {
     const { default: AgentPresenceRows } =
-      await import("../svelte/features/room-sidebar/AgentPresenceRows.svelte");
+      await import("../web/features/room-sidebar/AgentPresenceRows.svelte");
     const target = document.createElement("div");
     document.body.append(target);
     const instance = flushSync(() =>
@@ -7905,7 +7899,7 @@ describe("People & agents presence", () => {
 
   test("provider detection picks the agent and tints the tile", async () => {
     const { agentProvider, agentMark, AGENT_TILES } =
-      await import("../svelte/lib/components/agent");
+      await import("../web/lib/components/agent");
     const table: [string | null, string, string][] = [
       ["Codex", "codex", "◎"],
       ["gpt-5.1-codex", "codex", "◎"],
@@ -7975,7 +7969,7 @@ describe("People & agents presence", () => {
 
   test("context bar: width is the percent, green, yellow from 60%, red from 80%", async () => {
     const { contextTone, compactTokens } =
-      await import("../svelte/features/room-sidebar/model");
+      await import("../web/features/room-sidebar/model");
     expect([0, 59, 60, 79, 80, 100].map(contextTone)).toEqual([
       "ok",
       "ok",
@@ -8118,7 +8112,7 @@ describe("People & agents presence", () => {
 
   test("weekly limit shows its weekday; limits without context are not shown", async () => {
     const { contextSections } =
-      await import("../svelte/features/room-sidebar/model");
+      await import("../web/features/room-sidebar/model");
     const now = Date.UTC(2026, 10, 16, 12) / 1000;
     const sections = contextSections(
       {

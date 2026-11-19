@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import type { Attachment, Message, Room } from "../shared/room";
-import { reduceRoom } from "../svelte/roomStore";
+import { reduceRoom } from "../web/app/roomStore";
 import {
   collectRoomFiles,
   createRichFileIndex,
-} from "../svelte/features/rich-text/roomFiles";
-import { fileTarget, knownFiles } from "../svelte/features/rich-text/links";
-import { createRichSession } from "../svelte/features/rich-text/session";
-import type { RichContext } from "../svelte/features/rich-text/types";
+} from "../web/features/rich-text/roomFiles";
+import { fileTarget, knownFiles } from "../web/features/rich-text/links";
+import { createRichSession } from "../web/features/rich-text/session";
+import type { RichContext } from "../web/features/rich-text/types";
 const scope = {
   roomId: "abc123",
   account: "me@example.test",

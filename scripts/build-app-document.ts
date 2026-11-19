@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 import { buildBrowser } from "./browser-build";
 
 export const APP_DOCUMENT_NONCE_PLACEHOLDER = "__VIBEBOOK_APP_DOCUMENT_NONCE__";
@@ -42,7 +42,7 @@ export async function buildAppDocument(
   const bootstrap = await buildBrowser(
     {
       entrypoints: [
-        options.bootstrap ?? join(root, "browser/app-document/bootstrap.ts"),
+        options.bootstrap ?? join(root, "web/app-document/bootstrap.ts"),
       ],
       format: "iife",
     },

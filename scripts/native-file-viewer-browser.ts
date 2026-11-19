@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, expect as baseExpect, type Page } from "@playwright/test";
 import * as z from "zod/mini";
 import { openNativeRoomPane } from "./native-browser-fixtures";
-import { createRoomApi } from "../svelte/transport";
+import { createRoomApi } from "../web/app/transport";
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
 assert(

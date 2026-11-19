@@ -5,7 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildAppDocument } from "./build-app-document";
 import { buildBrowser } from "./browser-build";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 
 const output = resolve(
   process.env.TEST_OUTPUT ?? "/tmp/vibebook-app-document-browser",
@@ -14,7 +14,7 @@ await mkdir(output, { recursive: true });
 await buildAppDocument();
 // The host is bundled into the Svelte app; this page loads it on its own.
 const hostBuild = await buildBrowser(
-  { entrypoints: [resolve(projectRoot, "browser/app-document/host.ts")] },
+  { entrypoints: [resolve(projectRoot, "web/app-document/host.ts")] },
   projectRoot,
 );
 const hostFile = await hostBuild.outputs[0]!.text();
@@ -64,7 +64,7 @@ try {
   await activePage.goto(server.url.href);
   await activePage.evaluate(async () => {
     const moduleURL = "/app-document-host.js";
-    const module: typeof import("../browser/app-document/host") = await import(
+    const module: typeof import("../web/app-document/host") = await import(
       /* @vite-ignore */ moduleURL
     );
     const frame = document.createElement("iframe");

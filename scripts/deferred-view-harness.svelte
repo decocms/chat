@@ -2,8 +2,8 @@
   import { onDestroy, untrack } from "svelte";
   import type { Writable } from "svelte/store";
   import type Fixture from "./deferred-view-fixture.svelte";
-  import { createDeferredModule } from "../svelte/features/deferred-view/module";
-  import DeferredViewStatus from "../svelte/features/deferred-view/DeferredViewStatus.svelte";
+  import { createDeferredModule } from "../web/features/deferred-view/module";
+  import DeferredViewStatus from "../web/features/deferred-view/DeferredViewStatus.svelte";
   let {
     state: scenario,
     load,

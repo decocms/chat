@@ -9,7 +9,7 @@ import {
 } from "./guidelines-check";
 
 const rules = (violations: Violation[]) => violations.map((v) => v.rule);
-const svelte = (text: string, path = "svelte/features/x/X.svelte") =>
+const svelte = (text: string, path = "web/features/x/X.svelte") =>
   rules(auditSvelte(path, text));
 
 test("colors: only theme tokens", () => {
@@ -37,7 +37,7 @@ test("colors: only theme tokens", () => {
   ).toEqual([]);
   // A hex value outside a class string is data (avatar palettes, brand icons).
   expect(
-    svelte('const colors = ["#d0ec1a"];', "svelte/lib/components/boring.ts"),
+    svelte('const colors = ["#d0ec1a"];', "web/lib/components/boring.ts"),
   ).toEqual([]);
 });
 
@@ -51,58 +51,54 @@ test("breakpoints: only the md token (md = desktop, max-md = mobile)", () => {
   expect(svelte('<div class="max-[720px]:p-2"></div>')).toEqual(["breakpoint"]);
   expect(svelte('<div class="min-[901px]:p-2"></div>')).toEqual(["breakpoint"]);
   expect(svelte('<div class="@min-3xl:grid"></div>')).toEqual([]);
-  expect(svelte("const m = matchMedia(MOBILE_QUERY);", "svelte/a.ts")).toEqual(
-    [],
-  );
+  expect(svelte("const m = matchMedia(MOBILE_QUERY);", "web/a.ts")).toEqual([]);
   expect(
-    svelte('const m = matchMedia("(max-width: 900px)");', "svelte/a.ts"),
+    svelte('const m = matchMedia("(max-width: 900px)");', "web/a.ts"),
   ).toEqual(["breakpoint"]);
   expect(
-    svelte('const m = new MediaQuery("(min-width: 720px)");', "svelte/a.ts"),
+    svelte('const m = new MediaQuery("(min-width: 720px)");', "web/a.ts"),
   ).toEqual(["breakpoint"]);
-  expect(svelte('matchMedia("(pointer: coarse)")', "svelte/a.ts")).toEqual([]);
+  expect(svelte('matchMedia("(pointer: coarse)")', "web/a.ts")).toEqual([]);
 });
 
 test("no style blocks, CSS imports or direct fetch", () => {
   expect(svelte("<style>\n.a { color: red }\n</style>")).toEqual([
     "style-block",
   ]);
-  expect(svelte('import "./x.css";', "svelte/lib/a.ts")).toEqual([
-    "css-import",
-  ]);
-  expect(svelte('import "./styles/tailwind.css";', "svelte/styles.ts")).toEqual(
+  expect(svelte('import "./x.css";', "web/lib/a.ts")).toEqual(["css-import"]);
+  expect(svelte('import "./styles/tailwind.css";', "web/styles.ts")).toEqual(
     [],
   );
-  expect(
-    svelte('const r = await fetch("/api/me");', "svelte/lib/a.ts"),
-  ).toEqual(["fetch"]);
-  expect(svelte("await window.fetch(url);", "svelte/a.ts")).toEqual(["fetch"]);
-  expect(svelte("client.fetch(url); prefetch(x);", "svelte/a.ts")).toEqual([]);
-  expect(svelte("// we never fetch( here", "svelte/a.ts")).toEqual([]);
+  expect(svelte('const r = await fetch("/api/me");', "web/lib/a.ts")).toEqual([
+    "fetch",
+  ]);
+  expect(svelte("await window.fetch(url);", "web/a.ts")).toEqual(["fetch"]);
+  expect(svelte("client.fetch(url); prefetch(x);", "web/a.ts")).toEqual([]);
+  expect(svelte("// we never fetch( here", "web/a.ts")).toEqual([]);
   // The gallery and parity pages are development tools, not the app.
-  expect(svelte("await fetch(url);", "svelte/gallery/G.svelte")).toEqual([]);
+  expect(svelte("await fetch(url);", "web/dev/gallery/G.svelte")).toEqual([]);
 });
 
 test("atomic levels come from the parity stories", () => {
   const files: Record<string, string> = {
-    "svelte/parity/stories/atoms-button.svelte":
-      'import Button from "../../lib/studio/Button.svelte";',
-    "svelte/parity/stories/molecules-card.svelte":
-      'import Card from "../../lib/studio/Card.svelte";\nimport Button from "../../lib/studio/Button.svelte";',
-    "svelte/parity/stories/organisms-dialog.svelte":
+    "web/dev/design-system/stories/atoms-button.svelte":
+      'import Button from "../../../lib/studio/Button.svelte";',
+    "web/dev/design-system/stories/molecules-card.svelte":
+      'import Card from "../../../lib/studio/Card.svelte";\nimport Button from "../../../lib/studio/Button.svelte";',
+    "web/dev/design-system/stories/organisms-dialog.svelte":
       'import Dialog from "$lib/studio/Dialog.svelte";',
-    "svelte/lib/studio/Button.svelte": 'import Card from "./Card.svelte";',
-    "svelte/lib/studio/Card.svelte":
+    "web/lib/studio/Button.svelte": 'import Card from "./Card.svelte";',
+    "web/lib/studio/Card.svelte":
       'import Button from "./Button.svelte";\nimport Dialog from "./Dialog.svelte";',
-    "svelte/lib/studio/Dialog.svelte": 'import Card from "./Card.svelte";',
-    "svelte/lib/studio/Loose.svelte": 'import Dialog from "./Dialog.svelte";',
+    "web/lib/studio/Dialog.svelte": 'import Card from "./Card.svelte";',
+    "web/lib/studio/Loose.svelte": 'import Dialog from "./Dialog.svelte";',
   };
   const found = audit(Object.keys(files), (p) => files[p] ?? "").filter(
     (v) => v.rule === "atomic",
   );
   expect(found.map((v) => `${v.file}:${v.line}`)).toEqual([
-    "svelte/lib/studio/Button.svelte:1",
-    "svelte/lib/studio/Card.svelte:2",
+    "web/lib/studio/Button.svelte:1",
+    "web/lib/studio/Card.svelte:2",
   ]);
 });
 
@@ -117,16 +113,16 @@ test("markdown: allowed files, working links, folder map", () => {
     "lib/x.ts": "",
     ".github/ci.yml": "",
     ".cursor/rules": "",
-    "svelte/NOTES.md": "",
+    "web/NOTES.md": "",
     "claude-plugin/skills/vibebook/SKILL.md": "",
   };
   const found = auditMarkdown(Object.keys(files), (p) => files[p] ?? "");
   expect(found.map((v) => `${v.rule} ${v.file}:${v.line} ${v.text}`)).toEqual([
-    "markdown-file svelte/NOTES.md:1 Markdown file outside the allowed places (docs/writing.md, rule 6)",
+    "markdown-file web/NOTES.md:1 Markdown file outside the allowed places (docs/writing.md, rule 6)",
     "markdown-link AGENTS.md:1 broken link docs/nope.md",
     "folder-map claude-plugin:1 top-level folder claude-plugin/ is missing from docs/folder-map.md",
     "folder-map lib:1 top-level folder lib/ is missing from docs/folder-map.md",
-    "folder-map svelte:1 top-level folder svelte/ is missing from docs/folder-map.md",
+    "folder-map web:1 top-level folder web/ is missing from docs/folder-map.md",
   ]);
 });
 

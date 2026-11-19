@@ -21,10 +21,10 @@ import {
   PostMessageResult,
 } from "../shared/schemas";
 import { parseRoomEvent, record } from "../shared/validation";
-import { createRoomStore } from "../svelte/roomStore";
-import { createRoomApi } from "../svelte/transport";
-import type { FetchLike } from "../svelte/transport";
-import type { DocumentPane } from "../svelte/features/documents/types";
+import { createRoomStore } from "../web/app/roomStore";
+import { createRoomApi } from "../web/app/transport";
+import type { FetchLike } from "../web/app/transport";
+import type { DocumentPane } from "../web/features/documents/types";
 import {
   nativeBrowserFixtures,
   openNativeRoomPane,

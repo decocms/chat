@@ -6,8 +6,8 @@ import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
 import { get } from "svelte/store";
 import type { Room, Attachment } from "../shared/room";
-import { createSideFileSession } from "../svelte/features/file-viewer/side";
-import { createFileViewer } from "../svelte/features/file-viewer/session";
+import { createSideFileSession } from "../web/features/file-viewer/side";
+import { createFileViewer } from "../web/features/file-viewer/session";
 const environment = new Window({
   url: "https://vibebook.test/b/aaaaaa",
 });
@@ -81,9 +81,9 @@ plugin({
 });
 const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: FileViewer } =
-  await import("../svelte/features/file-viewer/FileViewer.svelte");
+  await import("../web/features/file-viewer/FileViewer.svelte");
 const { default: SideFilePanel } =
-  await import("../svelte/features/file-viewer/SideFilePanel.svelte");
+  await import("../web/features/file-viewer/SideFilePanel.svelte");
 const file = (id: string, ts = 1): Attachment => ({
   id,
   name: "report.md",
@@ -287,7 +287,7 @@ test("beside-chat native pane follows versions, rejects old connected controls a
     current: () => true,
     changed() {},
   });
-  const request: import("../svelte/roomConnection").RequestRoomCommand =
+  const request: import("../web/app/roomConnection").RequestRoomCommand =
     async () => ({ ok: true });
   side.sync(room([file("aa")]), request);
   side.open(file("aa"));

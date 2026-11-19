@@ -8,9 +8,9 @@ import {
   decodeHTMLAttribute as legacyAttribute,
   decodeHTMLStrict as legacyStrict,
 } from "entities-legacy";
-import { safeUrl } from "../svelte/features/rich-text/links";
-import { richText } from "../svelte/features/rich-text/project";
-import type { RichContext, RichNode } from "../svelte/features/rich-text/types";
+import { safeUrl } from "../web/features/rich-text/links";
+import { richText } from "../web/features/rich-text/project";
+import type { RichContext, RichNode } from "../web/features/rich-text/types";
 
 const corpusBytes = readFileSync(
   new URL("./fixtures/entities/whatwg-entities.json", import.meta.url),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createRoomStore, reduceRoom } from "../svelte/roomStore";
+import { createRoomStore, reduceRoom } from "../web/app/roomStore";
 import type {
   Ack,
   Attachment,

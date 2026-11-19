@@ -2,22 +2,22 @@ import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Room, RoomEvent } from "../shared/room";
 import type { CommandOutcome } from "../shared/commands";
-import type { RootConnection } from "../svelte/features/root-room/session";
-import type { RoomConnectionOptions } from "../svelte/roomConnection";
-import type { AgentsApi } from "../svelte/features/agents/api";
-import { createApplicationServices } from "../svelte/features/application/services";
-import { HomeFailure } from "../svelte/features/home/api";
+import type { RootConnection } from "../web/features/root-room/session";
+import type { RoomConnectionOptions } from "../web/app/roomConnection";
+import type { AgentsApi } from "../web/features/agents/api";
+import { createApplicationServices } from "../web/features/application/services";
+import { HomeFailure } from "../web/features/home/api";
 import {
   applicationRoute,
   createApplicationRouter,
   roomTransition,
-} from "../svelte/features/app-navigation/router";
-import { createDocumentDrafts } from "../svelte/features/documents/session";
-import { targetHref } from "../svelte/features/home/model";
+} from "../web/features/app-navigation/router";
+import { createDocumentDrafts } from "../web/features/documents/session";
+import { targetHref } from "../web/features/home/model";
 import type {
   ApplicationRoomAdapter,
   ApplicationRoomIntent,
-} from "../svelte/features/application/types";
+} from "../web/features/application/types";
 import {
   homeApi,
   me,
@@ -75,7 +75,7 @@ function fixture(
   }[] = [];
   const channels: {
     options: Parameters<
-      typeof import("../svelte/features/home/connection").createPersonalConnection
+      typeof import("../web/features/home/connection").createPersonalConnection
     >[0];
     disposed: number;
   }[] = [];

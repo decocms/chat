@@ -1,6 +1,6 @@
 import { watch } from "node:fs";
 import { join } from "node:path";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 import { buildAppDocument } from "./build-app-document";
 
 export const APP_DOCUMENT_READY = "[app-document] ready";
@@ -38,7 +38,7 @@ export function createGenerationQueue(build: () => Promise<unknown>) {
 export function watchAppDocumentSources(root: string, changed: () => void) {
   return [
     watch(
-      join(root, "browser/app-document"),
+      join(root, "web/app-document"),
       { recursive: true },
       (_event, filename) => {
         if (filename === null || filename.toString().endsWith(".ts")) changed();

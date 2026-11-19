@@ -3,15 +3,15 @@ import { get } from "svelte/store";
 import {
   createPeopleSession,
   type PeopleClock,
-} from "../svelte/features/people/session";
+} from "../web/features/people/session";
 import {
   canAct,
   canRemove,
   inviteMessage,
   peopleModel,
   type PeopleRoom,
-} from "../svelte/features/people/model";
-import { createPeopleRequest } from "../svelte/features/people/api";
+} from "../web/features/people/model";
+import { createPeopleRequest } from "../web/features/people/api";
 const owner = "owner@test.com",
   member = "member@test.com",
   pending = "pending@test.com",

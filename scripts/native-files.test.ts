@@ -1,8 +1,8 @@
 import { test, expect } from "bun:test";
 import { get } from "svelte/store";
-import { filesModel } from "../svelte/features/files/model";
-import { createFilesSession } from "../svelte/features/files/session";
-import type { PanelRoom, RoomFile } from "../svelte/panels";
+import { filesModel } from "../web/features/files/model";
+import { createFilesSession } from "../web/features/files/session";
+import type { PanelRoom, RoomFile } from "../web/app/panels";
 const file = (id: string, name = "reports/a.md", ts = 1): RoomFile => ({
   id,
   name,

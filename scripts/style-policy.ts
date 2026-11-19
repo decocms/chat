@@ -346,7 +346,7 @@ export function auditPresentation(
         const path = node.moduleSpecifier.text;
         if (
           /\.(?:css|scss|sass|less)(?:[?#]|$)/.test(path) &&
-          !(file === "svelte/styles.ts" && path === "./styles/tailwind.css")
+          !(file === "web/styles.ts" && path === "./styles/tailwind.css")
         )
           add(at, "Stylesheet import outside the sole entry");
         if (
@@ -541,7 +541,7 @@ export function auditTailwind(file: string, source: string): StyleViolation[] {
     if (
       rule.name === "import" &&
       !(
-        file === "svelte/styles/tailwind.css" &&
+        file === "web/styles/tailwind.css" &&
         rule.parent?.type === "root" &&
         rule.params === '"@xterm/xterm/css/xterm.css" layer(components)'
       ) &&

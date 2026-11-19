@@ -3,7 +3,7 @@ import {
   applicationLocale,
   createApplicationCopy,
   resolveApplicationLanguage,
-} from "../svelte/features/application/copy";
+} from "../web/features/application/copy";
 test("application language keeps cookie precedence, browser fallback and original locale mapping", () => {
   expect(resolveApplicationLanguage("other=1; vb_lang=en", "pt-BR")).toBe("en");
   expect(resolveApplicationLanguage("vb_lang=pt; other=1", "en-US")).toBe("pt");

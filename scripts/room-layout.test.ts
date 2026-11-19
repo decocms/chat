@@ -11,16 +11,16 @@ import {
   sheetEndpoint,
   sheetEasing,
   hasSheetSurface,
-} from "../svelte/features/room-layout/model";
-import { createRoomSheetHistory } from "../svelte/features/room-layout/history";
+} from "../web/features/room-layout/model";
+import { createRoomSheetHistory } from "../web/features/room-layout/history";
 import {
   createRoomLayout,
   createRoomLayoutIntents,
-} from "../svelte/features/room-layout/controller";
+} from "../web/features/room-layout/controller";
 import type {
   RoomLayoutBrowser,
   RoomSheet,
-} from "../svelte/features/room-layout/types";
+} from "../web/features/room-layout/types";
 import { auditPresentation, auditTailwind } from "./style-policy";
 
 function fixture() {
@@ -420,7 +420,7 @@ test("production geometry stays in the sole stylesheet with no authored JS prese
     "RoomLayout.svelte",
     "RoomLayoutFrame.svelte",
   ]) {
-    const path = `svelte/features/room-layout/${file}`,
+    const path = `web/features/room-layout/${file}`,
       source = readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
     expect(auditPresentation(path, source)).toEqual([]);
     expect(source).not.toMatch(
@@ -429,9 +429,9 @@ test("production geometry stays in the sole stylesheet with no authored JS prese
   }
   expect(
     auditTailwind(
-      "svelte/styles/tailwind.css",
+      "web/styles/tailwind.css",
       readFileSync(
-        new URL("../svelte/styles/tailwind.css", import.meta.url),
+        new URL("../web/styles/tailwind.css", import.meta.url),
         "utf8",
       ),
     ),

@@ -13,8 +13,8 @@ import {
 import * as z from "zod/mini";
 import { MeResult } from "../shared/schemas";
 import { desktopAgentsPane } from "./native-browser-fixtures";
-import { homeText } from "../svelte/features/home/copy";
-import { createApplicationCopy } from "../svelte/features/application/copy";
+import { homeText } from "../web/features/home/copy";
+import { createApplicationCopy } from "../web/features/application/copy";
 import {
   settleAnimations,
   verifyStudioPalette,

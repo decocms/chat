@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { createApplicationServices } from "../svelte/features/application/services";
+import { createApplicationServices } from "../web/features/application/services";
 import {
   createApplicationInbox,
   type InboxBinding,
-} from "../svelte/features/application/inbox";
-import { HomeFailure } from "../svelte/features/home/api";
-import type { HomeApi } from "../svelte/features/home/api";
+} from "../web/features/application/inbox";
+import { HomeFailure } from "../web/features/home/api";
+import type { HomeApi } from "../web/features/home/api";
 import {
   homeApi,
   me,

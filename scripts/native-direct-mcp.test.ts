@@ -2,14 +2,14 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import { Connection, ConnectionIdentityResult } from "../shared/schemas";
-import { createDirectMcp } from "../svelte/features/apps/direct";
-import { connectDirectSdk } from "../svelte/features/apps/directSdk";
+import { createDirectMcp } from "../web/features/apps/direct";
+import { connectDirectSdk } from "../web/features/apps/directSdk";
 import {
   DirectCancelled,
   type DirectSdkModule,
-} from "../svelte/features/apps/directTypes";
-import { AppsFailure } from "../svelte/features/apps/api";
-import type { FetchLike } from "../svelte/transport";
+} from "../web/features/apps/directTypes";
+import { AppsFailure } from "../web/features/apps/api";
+import type { FetchLike } from "../web/app/transport";
 import { deferred, manualClock, settle } from "./native-home-fixtures";
 const connection: Connection = {
   id: "abcdef123456",

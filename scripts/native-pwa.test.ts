@@ -3,16 +3,16 @@ import { get } from "svelte/store";
 import {
   createPushReconciler,
   type Subscription,
-} from "../svelte/features/notifications/reconcile";
-import type { PushApi } from "../svelte/features/notifications/api";
-import { createPushApi } from "../svelte/features/notifications/api";
-import { notificationPolicy } from "../svelte/features/notifications/policy";
-import { installOutcome } from "../svelte/features/pwa/platform";
-import { notificationTarget } from "../service-worker/payload";
+} from "../web/features/notifications/reconcile";
+import type { PushApi } from "../web/features/notifications/api";
+import { createPushApi } from "../web/features/notifications/api";
+import { notificationPolicy } from "../web/features/notifications/policy";
+import { installOutcome } from "../web/features/pwa/platform";
+import { notificationTarget } from "../web/service-worker/payload";
 import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDevelopmentRequestPolicy } from "../svelte/build/developmentRequests";
+import { createDevelopmentRequestPolicy } from "../web/build/developmentRequests";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -272,23 +272,23 @@ test("only emitted stable worker assets are public; raw worker realm source and 
   const root = await mkdtemp(join(tmpdir(), "vibebook-worker-policy-"));
   try {
     await Promise.all(
-      ["svelte", "shared", "public", "service-worker"].map((path) =>
-        mkdir(join(root, path)),
+      ["web", "web/service-worker", "shared", "public"].map((path) =>
+        mkdir(join(root, path), { recursive: true }),
       ),
     );
     await writeFile(
       join(root, "public/sw.js"),
       "self.addEventListener('push',()=>{});",
     );
-    const source = join(root, "service-worker/notifications.ts");
+    const source = join(root, "web/service-worker/notifications.ts");
     await writeFile(source, "export {};");
-    await symlink(source, join(root, "svelte/worker.ts"));
+    await symlink(source, join(root, "web/worker.ts"));
     await symlink(source, join(root, "public/sw-source.js"));
     const policy = createDevelopmentRequestPolicy(root);
     expect(() => policy.assertRequest("/sw.js")).not.toThrow();
     for (const url of [
       `/@fs/${source}?raw`,
-      `/@fs/${root}/%73ervice-worker/notifications.ts?raw`,
+      `/@fs/${root}/web/%73ervice-worker/notifications.ts?raw`,
       `/@id/${source}?raw`,
       "/worker.ts?raw",
       "/sw-source.js?raw",

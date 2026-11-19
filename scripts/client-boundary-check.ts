@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { build } from "vite";
 import tailwindcss from "@tailwindcss/vite";
-import { clientBoundary, projectRoot } from "../svelte/build/clientBoundary";
+import { clientBoundary, projectRoot } from "../web/build/clientBoundary";
 
 // Real Vite graph builds: these exercise resolution, aliases, transitive imports and type erasure.
 const root = await mkdtemp(join(tmpdir(), "vibebook-client-boundary-"));

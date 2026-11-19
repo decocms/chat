@@ -5,16 +5,16 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window } from "happy-dom";
 import { get, writable } from "svelte/store";
-import { createPersonalSession } from "../svelte/features/home/personal";
-import { createRoomsSession } from "../svelte/features/rooms/session";
-import { createNewRoomSession } from "../svelte/features/home/session";
-import { createAccountSession } from "../svelte/features/account/session";
-import { createApplicationInbox } from "../svelte/features/application/inbox";
-import type { HomeApi } from "../svelte/features/home/api";
-import type { AccountApi } from "../svelte/features/account/api";
-import type { RoomTarget } from "../svelte/features/home/model";
-import type { InboxMention, InboxTask } from "../svelte/types";
-import { createPwaService } from "../svelte/features/pwa/service";
+import { createPersonalSession } from "../web/features/home/personal";
+import { createRoomsSession } from "../web/features/rooms/session";
+import { createNewRoomSession } from "../web/features/home/session";
+import { createAccountSession } from "../web/features/account/session";
+import { createApplicationInbox } from "../web/features/application/inbox";
+import type { HomeApi } from "../web/features/home/api";
+import type { AccountApi } from "../web/features/account/api";
+import type { RoomTarget } from "../web/features/home/model";
+import type { InboxMention, InboxTask } from "../web/app/types";
+import { createPwaService } from "../web/features/pwa/service";
 import {
   deferred,
   homeApi,
@@ -99,27 +99,27 @@ plugin({
   },
 });
 const { mount, unmount, flushSync, tick } = await import("svelte");
-const { default: Home } =
-  await import("../svelte/features/home/HomePanel.svelte");
-const { default: Inbox } = await import("../svelte/Inbox.svelte");
+const { default: Home } = await import("../web/features/home/HomePanel.svelte");
+const { default: Inbox } =
+  await import("../web/features/application/Inbox.svelte");
 const { default: WaitList } =
-  await import("../svelte/features/home/WaitList.svelte");
+  await import("../web/features/home/WaitList.svelte");
 const { default: AppNavigation } =
-  await import("../svelte/features/app-navigation/AppNavigation.svelte");
+  await import("../web/features/app-navigation/AppNavigation.svelte");
 const { default: NavigationDialogs } =
-  await import("../svelte/features/app-navigation/AppNavigationDialogs.svelte");
+  await import("../web/features/app-navigation/AppNavigationDialogs.svelte");
 const { default: RoomTile } =
-  await import("../svelte/features/home/RoomTile.svelte");
+  await import("../web/features/home/RoomTile.svelte");
 const { default: ApplicationShellHarness } =
   await import("./application-shell-harness.svelte");
 const { shellFixture } = await import("./application-shell-fixtures");
 const { default: RoomShellHarness } =
   await import("./room-shell-harness.svelte");
 const { createRoomResources } =
-  await import("../svelte/features/application/roomResources");
+  await import("../web/features/application/roomResources");
 import type { Room, RoomEvent } from "../shared/room";
-import type { RoomScopeBrowser } from "../svelte/features/room-scope/types";
-import type { RoomLayoutBrowser } from "../svelte/features/room-layout/types";
+import type { RoomScopeBrowser } from "../web/features/room-scope/types";
+import type { RoomLayoutBrowser } from "../web/features/room-layout/types";
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const dispose of cleanups.splice(0).reverse()) dispose();
@@ -284,7 +284,7 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
 });
 test("the phone thread sheet's tabs: This room shows the sidebar, All rooms lists every room", async () => {
   const { default: RoomStrip } =
-    await import("../svelte/features/app-navigation/RoomStrip.svelte");
+    await import("../web/features/app-navigation/RoomStrip.svelte");
   const { createRawSnippet } = await import("svelte");
   const h = shellFixture();
   h.canonical(
@@ -965,7 +965,7 @@ test("native Home renders untrusted room metadata as text and passes exact room 
   );
 });
 test("native Home ask box is the room's chat box: emoji, + menu and dictation that keeps listening", async () => {
-  const rec: import("../svelte/features/composer/speech").SpeechRecognizer = {
+  const rec: import("../web/features/composer/speech").SpeechRecognizer = {
     lang: "",
     continuous: false,
     interimResults: false,
@@ -1675,7 +1675,7 @@ test("real RoomShell rejects connected card-A intent after same-ID canonical msg
 });
 test("Pedidos: an invite's Entrar joins, a message request shows its first message and × declines", async () => {
   const { default: Requests } =
-    await import("../svelte/features/app-navigation/Requests.svelte");
+    await import("../web/features/app-navigation/Requests.svelte");
   const joins: [string, boolean][] = [],
     answers: [string, boolean][] = [];
   const target = document.createElement("div");
@@ -1736,7 +1736,7 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
 
 test("a DM still loading draws your real DM list beside the placeholder chat; a room keeps its own skeleton", async () => {
   const { default: RoomSkeleton } =
-    await import("../svelte/features/room-shell/RoomSkeleton.svelte");
+    await import("../web/features/room-shell/RoomSkeleton.svelte");
   const h = shellFixture();
   h.services.start();
   await h.services.personal.refresh();
@@ -1768,7 +1768,7 @@ test("a DM still loading draws your real DM list beside the placeholder chat; a 
 
 test("a DM still loading is named after the other person and its main thread reads Conversation", async () => {
   const { default: RoomSkeleton } =
-    await import("../svelte/features/room-shell/RoomSkeleton.svelte");
+    await import("../web/features/room-shell/RoomSkeleton.svelte");
   const pair = `dm${"b".repeat(20)}`;
   const h = shellFixture({
     me: async () =>
@@ -1813,7 +1813,7 @@ test("a DM still loading is named after the other person and its main thread rea
 
 test("the same person draws the same face whatever case their email is written in", async () => {
   const { default: PersonAvatar } =
-    await import("../svelte/lib/components/PersonAvatar.svelte");
+    await import("../web/lib/components/PersonAvatar.svelte");
   const draw = async (email: string) => {
     const target = document.createElement("div");
     document.body.append(target);

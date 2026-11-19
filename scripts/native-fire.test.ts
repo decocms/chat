@@ -1,16 +1,16 @@
 // Ordinary dictation owners; no runner mode or automatic message dispatch.
 import { expect, test } from "bun:test";
-import { createDictationController } from "../svelte/features/composer/dictation";
+import { createDictationController } from "../web/features/composer/dictation";
 import type {
   FireCapture,
   FireCaptureFactory,
-} from "../svelte/features/composer/fireAudio";
-import { createFireCaptureFactory } from "../svelte/features/composer/fireAudio";
+} from "../web/features/composer/fireAudio";
+import { createFireCaptureFactory } from "../web/features/composer/fireAudio";
 import {
   createVoiceApi,
   VoiceFailure,
-} from "../svelte/features/composer/voiceApi";
-import type { SpeechRecognizer } from "../svelte/features/composer/speech";
+} from "../web/features/composer/voiceApi";
+import type { SpeechRecognizer } from "../web/features/composer/speech";
 import { manualClock, deferred, settle } from "./native-home-fixtures";
 function fixture(
   input: {

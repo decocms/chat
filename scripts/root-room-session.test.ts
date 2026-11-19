@@ -6,8 +6,8 @@ import {
   type RootConnection,
   type RootRoomTransition,
   type RootRoomSnapshot,
-} from "../svelte/features/root-room/session";
-import type { RoomConnectionOptions } from "../svelte/roomConnection";
+} from "../web/features/root-room/session";
+import type { RoomConnectionOptions } from "../web/app/roomConnection";
 
 const room = (id = "aaaaaa", me = "a@test"): Room => ({
   id,

@@ -7,7 +7,7 @@ import {
   createRemindersSession,
   reminderFileName,
   type ReminderClock,
-} from "../svelte/features/reminders/session";
+} from "../web/features/reminders/session";
 const reminder: Reminder = {
   id: "r",
   name: "daily",

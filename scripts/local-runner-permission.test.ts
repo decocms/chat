@@ -4,7 +4,7 @@ import {
   createLocalRunner,
   localNetworkPermission,
   LOCAL_RUNNER_ORIGIN,
-} from "../svelte/features/agents/runner";
+} from "../web/features/agents/runner";
 const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 };
@@ -188,7 +188,7 @@ test("actual permission adapter uses original receiver, validates result and tol
 });
 
 test("inferred focus API sends same-origin POST and rejects a successful non-contract body", async () => {
-  const { createAgentsApi } = await import("../svelte/features/agents/api");
+  const { createAgentsApi } = await import("../web/features/agents/api");
   const calls: { url: string; method: string }[] = [];
   let response: unknown = { ok: true };
   const api = createAgentsApi(async (input, init) => {

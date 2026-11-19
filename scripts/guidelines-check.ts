@@ -65,7 +65,7 @@ function segments(token: string): string[] {
 
 function badBreakpoint(variant: string): boolean {
   if (variant.startsWith("@")) return false; // container query, not the screen
-  // The theme has one breakpoint token, md (svelte/styles/tailwind.css): md = desktop, max-md = mobile.
+  // The theme has one breakpoint token, md (web/styles/tailwind.css): md = desktop, max-md = mobile.
   if (variant === "md" || variant === "max-md") return false;
   if (/^(?:max-|min-)?(?:sm|lg|xl|[2-7]xl)$/.test(variant)) return true;
   return /^(max|min)-\[.+\]$/.test(variant); // pixel values: use md / max-md
@@ -77,7 +77,7 @@ function badColor(utility: string): boolean {
   return PALETTE_CLASS.test(bare.replace(/\/[^/]+$/, ""));
 }
 
-/** A width media query written as a literal: use MOBILE_QUERY from svelte/lib/breakpoints.ts. */
+/** A width media query written as a literal: use MOBILE_QUERY from web/lib/breakpoints.ts. */
 function badMedia(line: string): boolean {
   return /(?:matchMedia|MediaQuery)\([^)]*?\(\s*(?:max|min)-width\s*:/.test(
     line,
@@ -85,19 +85,22 @@ function badMedia(line: string): boolean {
 }
 
 const isSvelteSource = (path: string) =>
-  path.startsWith("svelte/") &&
+  path.startsWith("web/") &&
   /\.(?:svelte|ts)$/.test(path) &&
-  !path.startsWith("svelte/build/") &&
+  !path.startsWith("web/build/") &&
+  !path.startsWith("web/app-document/") &&
+  !path.startsWith("web/service-worker/") &&
   !/\.(?:test|typetest)\.ts$/.test(path) &&
   !/(?:^|\/)vite\.config\.ts$/.test(path) &&
   !path.endsWith(".d.ts");
 
-/** The Svelte app proper: features, lib and the root files of svelte/. */
+/** The app proper: features, lib, app and the root files of web/. */
 const isAppSource = (path: string) =>
   isSvelteSource(path) &&
-  (path.startsWith("svelte/features/") ||
-    path.startsWith("svelte/lib/") ||
-    !path.slice("svelte/".length).includes("/"));
+  (path.startsWith("web/features/") ||
+    path.startsWith("web/lib/") ||
+    path.startsWith("web/app/") ||
+    !path.slice("web/".length).includes("/"));
 
 export function auditSvelte(path: string, text: string): Violation[] {
   const out: Violation[] = [];
@@ -123,7 +126,7 @@ export function auditSvelte(path: string, text: string): Violation[] {
     if (path.endsWith(".svelte") && /<style[\s>]/.test(line))
       add("style-block", i);
     if (
-      path !== "svelte/styles.ts" &&
+      path !== "web/styles.ts" &&
       /(?:import\s*\(?\s*|from\s+)["'][^"']+\.css(?:\?[^"']*)?["']/.test(line)
     )
       add("css-import", i);
@@ -137,7 +140,7 @@ export function auditSvelte(path: string, text: string): Violation[] {
 }
 
 function resolveImport(from: string, spec: string): string | undefined {
-  if (spec.startsWith("$lib/")) return normalize(`svelte/lib/${spec.slice(5)}`);
+  if (spec.startsWith("$lib/")) return normalize(`web/lib/${spec.slice(5)}`);
   if (spec.startsWith("./") || spec.startsWith("../"))
     return normalize(join(dirname(from), spec));
   return undefined;
@@ -161,7 +164,7 @@ export function componentLevels(sources: Source[]): Map<string, number> {
   const levels = new Map<string, number>();
   for (const source of sources) {
     const m =
-      /^svelte\/parity\/stories\/(atoms|molecules|organisms)-[^/]+\.svelte$/.exec(
+      /^web\/dev\/design-system\/stories\/(atoms|molecules|organisms)-[^/]+\.svelte$/.exec(
         source.path,
       );
     if (!m) continue;

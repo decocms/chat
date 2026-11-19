@@ -1,26 +1,26 @@
-import { createSideFileSession } from "../svelte/features/file-viewer/side";
+import { createSideFileSession } from "../web/features/file-viewer/side";
 // Pure owners and HTTP stream fixtures; not browser/media/provider acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Room, Attachment } from "../shared/room";
-import type { RequestRoomCommand } from "../svelte/roomConnection";
-import { createFileViewer } from "../svelte/features/file-viewer/session";
-import { consumeFileViewerPop } from "../svelte/features/file-viewer/navigation";
-import { createViewerHistory } from "../svelte/features/file-viewer/history";
+import type { RequestRoomCommand } from "../web/app/roomConnection";
+import { createFileViewer } from "../web/features/file-viewer/session";
+import { consumeFileViewerPop } from "../web/features/file-viewer/navigation";
+import { createViewerHistory } from "../web/features/file-viewer/history";
 import {
   createApplicationRouter,
   applicationRoute,
-} from "../svelte/features/app-navigation/router";
+} from "../web/features/app-navigation/router";
 import {
   createFileReadApi,
   FILE_PREVIEW_BYTES,
-} from "../svelte/features/file-viewer/api";
+} from "../web/features/file-viewer/api";
 import {
   csvRows,
   fileTargetFromURL,
   fileVersions,
   viewerKind,
-} from "../svelte/features/file-viewer/model";
+} from "../web/features/file-viewer/model";
 import { manualClock, deferred, settle } from "./native-home-fixtures";
 const attachment = (id = "aa", ts = 1): Attachment => ({
   id,

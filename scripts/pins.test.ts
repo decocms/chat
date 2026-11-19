@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { reduceRoom } from "../svelte/roomStore";
+import { reduceRoom } from "../web/app/roomStore";
 import type { Attachment, Pin, Room } from "../shared/room";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
-import type { RequestRoomCommand } from "../svelte/roomConnection";
+import type { RequestRoomCommand } from "../web/app/roomConnection";
 import {
   normalizePinLink,
   pinAppTarget,
   pinAppInitials,
   pinFileDetail,
   resolvePin,
-} from "../svelte/features/pins/model";
+} from "../web/features/pins/model";
 import {
   createPinsSession,
   disposePinsSession,
@@ -21,7 +21,7 @@ import {
   submitPinDraft,
   syncPinsSession,
   updatePinDraft,
-} from "../svelte/features/pins/session";
+} from "../web/features/pins/session";
 
 const pin = (
   id: string,

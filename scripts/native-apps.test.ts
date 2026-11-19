@@ -7,16 +7,16 @@ import {
   createAppsApi,
   AppsFailure,
   type AppsApi,
-} from "../svelte/features/apps/api";
-import { createAppsSession } from "../svelte/features/apps/session";
-import { createAppRequests } from "../svelte/features/apps/requests";
+} from "../web/features/apps/api";
+import { createAppsSession } from "../web/features/apps/session";
+import { createAppRequests } from "../web/features/apps/requests";
 import {
   roomApps,
   appIdentity,
   safeOpenLink,
-} from "../svelte/features/apps/model";
-import { decodeAppEnvelope } from "../svelte/features/apps/transport";
-import { createRoomAppTools, toolOutput } from "../svelte/features/apps/tools";
+} from "../web/features/apps/model";
+import { decodeAppEnvelope } from "../web/features/apps/transport";
+import { createRoomAppTools, toolOutput } from "../web/features/apps/tools";
 import { deferred, manualClock, settle } from "./native-home-fixtures";
 const connection: Connection = {
   id: "abcdef123456",
@@ -371,8 +371,7 @@ test("a successful command ACK with no canonical task change is reported unconfi
   expect(writes).toBe(2);
 });
 test("opaque iframe policy requires exact live source, null origin and unchanged owner together", async () => {
-  const { acceptsAppSource } =
-    await import("../svelte/features/apps/transport");
+  const { acceptsAppSource } = await import("../web/features/apps/transport");
   const source = {},
     other = {},
     frame = { window: source, connected: true, opaque: true };
@@ -413,7 +412,7 @@ test("opaque iframe policy requires exact live source, null origin and unchanged
   ).toBe(false);
 });
 test("old frame toolbar ownership cannot pin/reload a newly selected instance and malformed duplicate app names do not create duplicate keys", async () => {
-  const { connectionApps } = await import("../svelte/features/apps/model");
+  const { connectionApps } = await import("../web/features/apps/model");
   expect(
     connectionApps({
       ...connection,
@@ -440,7 +439,7 @@ test("old frame toolbar ownership cannot pin/reload a newly selected instance an
   owner.dispose();
 });
 test("consent buttons own immutable exact questions; an old A approval cannot approve unseen B", async () => {
-  const { createAppConsent } = await import("../svelte/features/apps/consent");
+  const { createAppConsent } = await import("../web/features/apps/consent");
   const consent = createAppConsent(() => true),
     a = consent.ask("A", "first"),
     b = consent.ask("B", "second");
@@ -459,7 +458,7 @@ test("consent buttons own immutable exact questions; an old A approval cannot ap
   consent.dispose();
 });
 test("opaque room reads use the same private ask/parent/permission-reply visibility projection as native Chat", async () => {
-  const { roomRead } = await import("../svelte/features/apps/tools");
+  const { roomRead } = await import("../web/features/apps/tools");
   const r = room();
   const own = {
     id: 4,
@@ -513,8 +512,8 @@ test("opaque room reads use the same private ask/parent/permission-reply visibil
 });
 test("connection endpoint membership403 latches authority; metrics403/bad-Origin403 do not revoke membership", async () => {
   const { createAppsAuthority, appMembershipFailure } =
-    await import("../svelte/features/apps/authority");
-  const { createAppMetrics } = await import("../svelte/features/apps/api");
+    await import("../web/features/apps/authority");
+  const { createAppMetrics } = await import("../web/features/apps/api");
   const signal = new AbortController().signal;
   const authority = createAppsAuthority(() => true);
   let cancelled = 0;
@@ -551,7 +550,7 @@ test("connection endpoint membership403 latches authority; metrics403/bad-Origin
   authority.dispose();
 });
 test("app pin ACK waits for canonical state and late canonical confirmation settles missing-ACK uncertainty", async () => {
-  const { createAppPinOwner } = await import("../svelte/features/apps/pin");
+  const { createAppPinOwner } = await import("../web/features/apps/pin");
   const time = manualClock(),
     owner = createAppPinOwner(() => true, time.clock),
     r = room();
@@ -588,8 +587,8 @@ test("app pin ACK waits for canonical state and late canonical confirmation sett
 });
 test("global unauthenticated401 clears frame authority even through metrics; remote sign_in401 stays a server sign-in flow", async () => {
   const { createAppsAuthority, appMembershipFailure, appSessionFailure } =
-    await import("../svelte/features/apps/authority");
-  const { createAppMetrics } = await import("../svelte/features/apps/api");
+    await import("../web/features/apps/authority");
+  const { createAppMetrics } = await import("../web/features/apps/api");
   const { UNAUTHENTICATED } = await import("../shared/schemas");
   const signal = new AbortController().signal,
     authority = createAppsAuthority(() => true);
