@@ -512,3 +512,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Shrink each section by its length (a long list lost almost all of its height). Fixed thirds. A JavaScript layout.
 - Risk: low
 - Undo: Revert this commit.
+### 2026-11-19 · perf/immutable-chunks · Browser chunks are cached for one year
+- Agent: claude-opus-5-5
+- Context: The human asked to make navigation faster. Production served each `/svelte-preview/*` file with `max-age=0, must-revalidate`, so each page load sent about 80 revalidation requests (304).
+- Decision: `public/_headers` gives `/svelte-preview/*` `Cache-Control: public, max-age=31536000, immutable`. Each file there has a content hash in its name, or (`app.js`, `ui.css`) a `?v=` content hash in each reference. `app.html` keeps revalidation, so a deploy still reaches people.
+- Other options: Cache the chunks in the service worker (it has no fetch handler on purpose). Rename `app.js` and `ui.css` with a hash.
+- Risk: low. A request for `app.js` without `?v=` stays cached; no code makes one.
+- Undo: Delete `public/_headers`.
+- Status: open
