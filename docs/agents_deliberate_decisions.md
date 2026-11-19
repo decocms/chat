@@ -464,7 +464,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 ### 2026-11-19 · feat/composer-focus-on-enter · The composer takes the focus when you enter a room or a DM
 - Agent: claude-opus-5-5
 - Context: The human asked that the composer have the focus when a person enters a room or a DM.
-- Decision: The composer focuses its field each time it mounts (room, DM or thread). It does not focus on a touch screen (`pointer: coarse`), because the keyboard then covers the messages. It does not take the focus from another field or from an open dialog.
+- Decision: The composer focuses its field when you enter a room, a DM or a thread (not when it mounts again in the same thread, for example after the Inbox closes: then the focus goes back to the Inbox button). It does not focus on a touch screen (`pointer: coarse`) or in the phone layout (`MOBILE_QUERY`), because the keyboard then covers the messages and the phone layout hides its tab bar while the composer has the focus. It does not take the focus from another field or from an open dialog.
 - Other options: Focus on touch screens too. Focus only on a room change, not on a thread change.
 - Risk: low
 - Undo: Revert this commit.
