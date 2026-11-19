@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import type { ComponentProps } from "svelte";
+  import type { ComponentProps, Snippet } from "svelte";
+  import Separator from "../../lib/studio/Separator.svelte";
   import RoomBarTitle from "./RoomBarTitle.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
@@ -29,6 +30,7 @@
     onPane,
     inboxOpen = false,
     tochat,
+    viewControls,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
@@ -45,6 +47,9 @@
     inboxOpen?: boolean;
     /** Back to the chat: closes the inbox and the full board. */
     tochat?(): void;
+    /** Desktop: the controls of the view in the middle (the inbox's scope and "Resolve all"),
+     * before the pane's tabs, after a vertical divider. See docs/design.md (Top bar). */
+    viewControls?: Snippet;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
@@ -225,6 +230,15 @@
       >{/if}
   </div>
   <div class="contents md:flex md:min-w-0 md:shrink md:items-center md:gap-1">
+    {#if viewControls}<div
+        data-header-view-controls
+        class="hidden shrink-0 items-center gap-1 md:flex"
+      >
+        {@render viewControls()}{#if tabs}<Separator
+            orientation="vertical"
+            class="mx-1.5 h-5 data-[orientation=vertical]:h-5"
+          />{/if}
+      </div>{/if}
     {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
           {...tabs}

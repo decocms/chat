@@ -206,11 +206,9 @@ export async function auditDesignSystemInbox(
       await trigger.click();
       await expect(roomInbox).toBeVisible();
       await expect.poll(() => result.inboxReads).toBeGreaterThan(before);
+      // The read landed: the "Suas tarefas" chip shows only when you have tasks.
       await expect(
-        roomInbox.getByRole("button", {
-          name: "Controlled open task",
-          exact: true,
-        }),
+        roomInbox.locator('[data-inbox-filter="task"]'),
       ).toBeVisible();
     }
     result.phase = "in-place Inbox and three input sections";
@@ -224,28 +222,19 @@ export async function auditDesignSystemInbox(
     await expect(page).toHaveURL(originalUrl);
     await expect(composer).toBeHidden();
     await expect(roomInbox.locator("[data-room-inbox-chat]")).toBeVisible();
-    await expect(roomInbox.locator("[data-room-inbox-doc]")).toBeVisible();
     await expect(
       roomInbox.getByText(initial.text, { exact: true }),
     ).toBeVisible();
     await expect(
       roomInbox.getByText("Controlled Inbox mention", { exact: true }),
     ).toBeVisible();
+    // Reviews are rows of the list; your tasks are behind their chip.
     await expect(
-      roomInbox.getByRole("heading", {
-        name: "Waiting on your OK",
-        exact: true,
-      }),
+      roomInbox
+        .locator('[data-room-inbox-message][data-kind="review"]')
+        .filter({ hasText: "Controlled review approval" }),
     ).toBeVisible();
-    await expect(
-      roomInbox.getByRole("button", {
-        name: "Controlled review approval",
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      roomInbox.getByRole("heading", { name: "Your tasks", exact: true }),
-    ).toBeVisible();
+    await expect(roomInbox.locator('[data-inbox-filter="task"]')).toBeVisible();
     await expect(
       roomInbox.getByRole("button", { name: "This room", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -282,23 +271,24 @@ export async function auditDesignSystemInbox(
     await roomInbox
       .getByRole("button", { name: "Try again", exact: true })
       .click();
+    await roomInbox.locator('[data-inbox-filter="task"]').click();
     await expect(
-      roomInbox.getByRole("button", {
-        name: "Controlled open task",
-        exact: true,
-      }),
+      roomInbox
+        .locator('[data-room-inbox-message][data-kind="task"]')
+        .filter({ hasText: "Controlled open task" }),
     ).toBeVisible();
+    await roomInbox.locator('[data-inbox-filter="all"]').click();
     await expect(roomInbox.getByRole("alert")).toHaveCount(0);
-    await roomInbox
-      .getByRole("button", { name: "Resolved", exact: true })
-      .click();
-    await expect.poll(() => held !== null).toBe(true);
+    // Resolve waits for the Undo window (INBOX_UNDO_MS) before it calls the server.
+    await roomInbox.locator("[data-inbox-resolve]").first().click();
+    await expect(roomInbox.locator("[data-inbox-undo]")).toBeVisible();
+    await expect.poll(() => held !== null, { timeout: 10_000 }).toBe(true);
     await finish(500);
     await expect(roomInbox.getByRole("alert")).toContainText(
       "Couldn't resolve this request",
     );
     await expect(
-      roomInbox.getByRole("button", { name: "Resolved", exact: true }),
+      roomInbox.locator("[data-inbox-resolve]").first(),
     ).toBeEnabled();
     await roomInbox.locator("[data-room-inbox-close]").click();
     await expect(trigger).toBeFocused();
@@ -310,6 +300,7 @@ export async function auditDesignSystemInbox(
       .locator("[data-room-inbox-message]")
       .filter({ hasText: "Controlled Inbox mention" })
       .getByRole("button")
+      .first()
       .click();
     await expect(page).toHaveURL(
       (url) =>
@@ -320,8 +311,12 @@ export async function auditDesignSystemInbox(
       "Controlled Inbox mention",
     );
     await openRoomInbox();
+    await roomInbox.locator('[data-inbox-filter="task"]').click();
     await roomInbox
-      .getByRole("button", { name: "Controlled open task", exact: true })
+      .locator('[data-room-inbox-message][data-kind="task"]')
+      .filter({ hasText: "Controlled open task" })
+      .getByRole("button")
+      .first()
       .click();
     await expect(page).toHaveURL(
       (url) =>
@@ -334,9 +329,11 @@ export async function auditDesignSystemInbox(
 
     result.phase = "all-room navigation preserves selected UI";
     await openRoomInbox();
-    await roomInbox.getByRole("button", { name: "All", exact: true }).click();
+    await roomInbox
+      .getByRole("button", { name: "All rooms", exact: true })
+      .click();
     await expect(
-      roomInbox.getByRole("button", { name: "All", exact: true }),
+      roomInbox.getByRole("button", { name: "All rooms", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     const crossRoomOpen = roomInbox
       .locator("[data-room-inbox-message]")

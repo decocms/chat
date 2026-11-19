@@ -472,7 +472,10 @@ async function keyboardOverlays(
     "In-room Inbox does not change the thread URL",
   );
   await expect(roomInbox.locator("[data-room-inbox-chat]")).toBeVisible();
-  await expect(roomInbox.locator("[data-room-inbox-doc]")).toBeVisible();
+  // The Inbox's scope and "Resolve all": in the top bar (desktop) or atop the list (phones).
+  await expect(
+    page.locator("[data-inbox-controls]:visible").first(),
+  ).toBeVisible();
   await axe(page, "in-place room Inbox open", evidence);
   await roomInbox.locator("[data-room-inbox-close]").focus();
   await page.keyboard.press("Enter");
@@ -482,7 +485,7 @@ async function keyboardOverlays(
   await expect(inbox).toBeFocused();
   await composer.fill(originalDraft);
   evidence.keyboard.push(
-    "Room Inbox opens in place with chat/doc regions, unchanged URL and hidden composer; keyboard close restores the draft and opening trigger",
+    "Room Inbox opens in place with its list and controls, unchanged URL and hidden composer; keyboard close restores the draft and opening trigger",
   );
 }
 

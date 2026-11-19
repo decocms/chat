@@ -12,6 +12,7 @@ This file contains only the global rules. Read the specific document before you 
 | [docs/stack.md](docs/stack.md) | add a dependency, a tool or a third-party asset. |
 | [docs/workflow.md](docs/workflow.md) | develop, check, build, deploy or release. |
 | [docs/folder-map.md](docs/folder-map.md) | look for code, or add a folder. |
+| [docs/design.md](docs/design.md) | add or change a view, a control in the top bar, a list, or loading and done feedback. |
 | [docs/writing.md](docs/writing.md) | write or change a Markdown file, a code comment or a commit message. |
 | [docs/agents_deliberate_decisions.md](docs/agents_deliberate_decisions.md) | make a decision that no human gave you. |
 

@@ -681,3 +681,30 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/inbox-triage · The Inbox is a triage list
+- Agent: claude-opus-5-5
+- Context: The human chose direction A of the Inbox brainstorm: compact rows, Reply, Open and Resolve on each row, and "Resolve all". The human asked for loading states and an animation when an item is resolved.
+- Decision: `RoomInbox` shows one list, newest first, two lines for each item, with the Markdown removed (`inboxPreview`). The "O que é seu" panel is gone. Its reviews are rows of the list, and your tasks are behind the "Suas tarefas" chip. Chips filter by kind. In "Todas as salas", the list has one group for each room. Asks have a checkbox and a bar to resolve the selected asks. Reply opens a composer under the row and posts in the item's thread (`inbox.reply`). Keys: j, k, o, r, e, x.
+- Other options: A list with the conversation beside it (direction B). One item at a time (direction C). Keep the "O que é seu" panel.
+- Risk: medium. The Inbox looks different, and your tasks are one click away now.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/inbox-triage · Resolve waits 5 seconds, with Undo
+- Agent: claude-opus-5-5
+- Context: "Resolve all" removes many asks at once. The human asked for Undo, not a confirmation.
+- Decision: `inbox.resolveLater` hides the asks at once and sends them after `INBOX_UNDO_MS` (5 s). "Desfazer" puts them back. If the Inbox closes first, the asks go at once. One new route, `POST /api/waits/resolve-many`, deletes up to 200 asks of the signed-in person in one batch. A row collapses for 200 ms before it leaves (Tailwind `grid-rows` transition, 0 with reduced motion).
+- Other options: A confirmation dialog. Send at once and add a route that puts the rows back.
+- Risk: low. If the tab closes in the 5 seconds, the asks stay open.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/inbox-triage · The controls of a view go in the top bar
+- Agent: claude-opus-5-5
+- Context: The human asked that "Esta sala / Todas as salas" and "Resolver todos os pedidos (n)" go in the top bar, after a vertical divider, and that the docs make this a rule.
+- Decision: `RoomHeader` takes a `viewControls` snippet. It draws it before the pane tabs, then a vertical `Separator`. `InboxControls` is the Inbox's snippet. On phones, `RoomInbox` draws the same component at its top. The rule and the steps are in the new `docs/design.md`, with the list and feedback rules.
+- Other options: Keep the controls in a header inside the Inbox.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

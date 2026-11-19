@@ -100,6 +100,13 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.waits.resolve
         .$post({ json: { book_id, ref } }, { init: { signal } })
         .then((response) => read(response, OkResult)),
+    resolveMany: (
+      items: { book_id: string; ref: string }[],
+      signal?: AbortSignal,
+    ) =>
+      api.waits["resolve-many"]
+        .$post({ json: { items } }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
     agents: (signal?: AbortSignal) =>
       api.agents
         .$get({}, { init: { signal } })

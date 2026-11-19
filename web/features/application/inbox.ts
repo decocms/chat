@@ -7,6 +7,7 @@ import { HomeFailure } from "../home/api";
 import { messageIdentity } from "../home/model";
 import { AUTH_REQUEST_TIMEOUT, type AuthClock } from "../auth/owner";
 import { createAgentLease } from "../agents/lease";
+import { clientClock } from "../../lib/client/clock";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -22,7 +23,13 @@ export type InboxSnapshot = {
   data: InboxResult;
   phase: "idle" | "loading" | "ready" | "error";
   error: string | null;
+  /** Asks resolved in the app but not yet sent (the Undo window): `${book_id}/${ref}`. */
+  hidden: string[];
+  /** How many asks the Undo toast offers back; 0 = no toast. */
+  undo: number;
 };
+/** How long "Resolve" waits before it calls the server, so Undo only puts the rows back. */
+export const INBOX_UNDO_MS = 5000;
 /** Global Inbox presentation owns no canonical waits. Every callback belongs to
  * one account/opening, including the interval before outgoing DOM is flushed. */
 export function createApplicationInbox(
@@ -57,7 +64,48 @@ export function createApplicationInbox(
     data: empty(),
     phase: "idle",
     error: null,
+    hidden: [],
+    undo: 0,
   });
+  const timers = clock ?? clientClock;
+  // The Undo window: asks the person resolved, sent when it closes (or at once when the Inbox closes).
+  let later: { waits: Wait[]; timer: unknown } | null = null;
+  async function send(waits: Wait[]) {
+    try {
+      await (waits.length === 1
+        ? services.personal.api.resolve(waits[0]!.book_id, waits[0]!.ref)
+        : services.personal.api.resolveMany(
+            waits.map((wait) => ({ book_id: wait.book_id, ref: wait.ref })),
+          ));
+    } catch (error) {
+      if (error instanceof HomeFailure && error.status === 401)
+        services.actions.sessionLost();
+      const keys = new Set(waits.map(waitsKey));
+      state.update((value) => ({
+        ...value,
+        hidden: value.hidden.filter((key) => !keys.has(key)),
+        error: value.binding ? "resolve" : value.error,
+      }));
+      return;
+    }
+    if (!active) return;
+    services.personal.invalidate();
+    await services.personal.refresh();
+    const keys = new Set(waits.map(waitsKey));
+    state.update((value) => ({
+      ...value,
+      hidden: value.hidden.filter((key) => !keys.has(key)),
+    }));
+  }
+  /** Close the Undo window now: the resolved asks go to the server. */
+  function flush() {
+    if (!later) return;
+    const { waits, timer } = later;
+    later = null;
+    timers.cancel(timer);
+    state.update((value) => ({ ...value, undo: 0 }));
+    void send(waits);
+  }
   let active = true,
     generation = 0,
     pending = false,
@@ -86,6 +134,7 @@ export function createApplicationInbox(
     get(state).binding === binding && sameScope(binding);
   function close(expected?: InboxBinding) {
     if (expected && get(state).binding !== expected) return;
+    flush();
     generation++;
     readRevision++;
     writer.cancel();
@@ -97,6 +146,7 @@ export function createApplicationInbox(
       data: empty(),
       phase: "idle",
       error: null,
+      undo: 0,
     }));
   }
   let lastWaits = services.personal.peek()?.waits;
@@ -313,6 +363,64 @@ export function createApplicationInbox(
           : undefined,
       );
     },
+    /** "Resolve" with Undo: the asks leave the list now and go to the server after INBOX_UNDO_MS. */
+    resolveLater(binding: InboxBinding, waits: readonly Wait[]) {
+      if (!owns(binding)) return;
+      const data = get(state).data.waits,
+        hidden = new Set(get(state).hidden);
+      const picked = waits.filter(
+        (wait) =>
+          wait.ref.startsWith("m") &&
+          data.includes(wait) &&
+          canonical(wait) &&
+          !hidden.has(waitsKey(wait)),
+      );
+      if (!picked.length) return;
+      flush();
+      later = {
+        waits: picked,
+        timer: timers.schedule(flush, INBOX_UNDO_MS),
+      };
+      state.update((value) => ({
+        ...value,
+        hidden: [...value.hidden, ...picked.map(waitsKey)],
+        undo: picked.length,
+        error: null,
+      }));
+    },
+    undo(binding: InboxBinding) {
+      if (!owns(binding) || !later) return;
+      const keys = new Set(later.waits.map(waitsKey));
+      timers.cancel(later.timer);
+      later = null;
+      state.update((value) => ({
+        ...value,
+        hidden: value.hidden.filter((key) => !keys.has(key)),
+        undo: 0,
+      }));
+    },
+    flush,
+    /** Reply in the item's thread. A reply answers the asks before it there (the server clears them). */
+    async reply(
+      binding: InboxBinding,
+      item: { book: string; thread: string },
+      text: string,
+    ) {
+      const body = text.trim();
+      if (!owns(binding) || !body) return false;
+      try {
+        await services.personal.api.post(item.book, body, item.thread);
+      } catch (error) {
+        if (error instanceof HomeFailure && error.status === 401)
+          services.actions.sessionLost();
+        return false;
+      }
+      if (!owns(binding)) return true;
+      services.personal.invalidate();
+      void services.personal.refresh();
+      void refresh(binding);
+      return true;
+    },
     async resolve(binding: InboxBinding, wait: Wait) {
       if (
         !owns(binding) ||
@@ -344,6 +452,7 @@ export function createApplicationInbox(
     },
     dispose() {
       if (!active) return;
+      flush();
       active = false;
       readRevision++;
       stopPersonal();

@@ -114,3 +114,27 @@ export function inboxTopic(
         : "")
   );
 }
+/** One line of a message for the Inbox: no Markdown marks, no line breaks. */
+export function inboxPreview(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__|\*|_|~~|`)(.+?)\1/g, "$2")
+    .replace(/\s*\n+\s*/g, " · ")
+    .trim();
+}
+/** The asks "Resolve all" takes: in this scope, not already resolved in the app. */
+export function inboxAsks(
+  messages: readonly RoomInboxMessage[],
+  hidden: readonly string[],
+) {
+  const gone = new Set(hidden);
+  return messages.flatMap((message) =>
+    message.kind === "ask" &&
+    message.wait &&
+    !gone.has(`${message.wait.book_id}/${message.wait.ref}`)
+      ? [message.wait]
+      : [],
+  );
+}
