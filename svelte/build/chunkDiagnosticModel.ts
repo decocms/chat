@@ -21,7 +21,6 @@ const Asset = z.object({
 });
 export const ChunkDiagnostic = z.object({
   formatVersion: z.literal(1),
-  variant: z.enum(["svelte", "vanilla"]),
   revision: z.string(),
   assetPrefix: z.string(),
   contributionSemantics: z.string(),
@@ -42,7 +41,6 @@ export const MetricChunkInput = z.object({
   assets: z.array(z.object({ key: z.string(), sourceSHA256: Hash })),
   samples: z.array(
     z.object({
-      variant: z.enum(["svelte", "vanilla"]),
       device: z.string(),
       profile: z.string(),
       repetition: z.number(),
@@ -124,7 +122,7 @@ export function attributeChunks(
       hashes.set(a.key, a.sourceSHA256);
     }
     const requested = new Set<string>();
-    const samples = metrics.samples.filter((s) => s.variant === report.variant);
+    const samples = metrics.samples;
     if (!samples.length) throw Error("No matching observed samples");
     for (const sample of samples) {
       const files = [
@@ -155,8 +153,7 @@ export function attributeChunks(
         entryAssets: files,
       });
     }
-    if (!requested.size && report.variant === "svelte")
-      throw Error("No matching observed entry requests");
+    if (!requested.size) throw Error("No matching observed entry requests");
     selected = report.assets.filter((a) => requested.has(a.fileName));
   }
   const allowed = new Set(selected.flatMap((a) => a.modules.map((m) => m.id)));
@@ -200,7 +197,6 @@ export function attributeChunks(
   }
   return {
     revision: report.revision,
-    variant: report.variant,
     selection: metrics
       ? "observed-entry-requests-hash-and-revision-matched"
       : "static-entry-import-closure-only",
@@ -222,7 +218,6 @@ export function attributeChunks(
       "Import witnesses describe source edges among selected modules, not which symbol caused retention",
       "Static-only mode does not establish which dynamic chunks execute at startup",
       "CSS is measured as an emitted asset; individual CSS rule/source attribution is not supplied",
-      "Vanilla inline HTML/JS/CSS is outside this Vite graph; zero observed Vite entry files is not zero application code",
       "No performance budget, authority, schema or runtime behavior is changed",
     ],
   };

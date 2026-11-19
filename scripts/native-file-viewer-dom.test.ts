@@ -9,7 +9,7 @@ import type { Room, Attachment } from "../shared/room";
 import { createSideFileSession } from "../svelte/features/file-viewer/side";
 import { createFileViewer } from "../svelte/features/file-viewer/session";
 const environment = new Window({
-  url: "https://vibebook.test/b/aaaaaa?ui=svelte",
+  url: "https://vibebook.test/b/aaaaaa",
 });
 // One environment boundary: Svelte sees the same Happy DOM constructors as the mounted DOM nodes.
 for (const name of [
@@ -114,7 +114,7 @@ afterEach(() => {
       void unmount(instance);
     });
   document.body.replaceChildren();
-  window.history.replaceState(null, "", "/b/aaaaaa?ui=svelte");
+  window.history.replaceState(null, "", "/b/aaaaaa");
 });
 async function settle() {
   for (let i = 0; i < 8; i++) {

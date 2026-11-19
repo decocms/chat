@@ -190,13 +190,12 @@ export async function auditDesignSystemInbox(
       ],
     });
     await page.route("**/api/inbox", inboxRoute);
-    // The app asks for /api/me without the old ?ui=svelte marker since #181.
     await page.route(meUrl, meRoute);
     await page.route("**/api/waits/resolve", resolveRoute);
     const trigger = page.locator("[data-native-inbox-toggle]");
     const roomInbox = page.locator("[data-native-room-inbox]");
     const composer = page.locator("[data-native-composer] textarea");
-    const roomUrl = `${base}/b/${first.id}?ui=svelte`;
+    const roomUrl = `${base}/b/${first.id}`;
     async function enterRoom() {
       await page.goto(roomUrl);
       await expect(trigger).toBeVisible();

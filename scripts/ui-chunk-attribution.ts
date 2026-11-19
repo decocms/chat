@@ -21,7 +21,7 @@ const report = attributeChunks(
   observed === undefined ? undefined : MetricChunkInput.parse(observed),
 );
 const target = resolve(
-  output ?? `.artifacts/chunk-diagnostics/${build.variant}-attribution.json`,
+  output ?? ".artifacts/chunk-diagnostics/app-attribution.json",
 );
 await mkdir(dirname(target), { recursive: true });
 await writeFile(target, JSON.stringify(report, null, 2) + "\n");

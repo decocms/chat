@@ -1,4 +1,4 @@
-// Room events the Book sends over the WebSocket (M1): one schema per `t`, the RoomEvent type is derived from them.
+// Room events the Book sends over the WebSocket: one schema per `t`, the RoomEvent type is derived from them.
 // On the wire each event is a JSON-RPC notification, method = t (shared/jsonRpc.ts).
 // Browser-safe: zod/mini only. A valid event is passed on as sent (extra keys are ignored, as before).
 import * as z from "zod/mini";

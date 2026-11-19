@@ -22,12 +22,7 @@ test("only app pages select source HTML", () => {
     "/b/abc",
   ])
     expect(isSourceApp(path)).toBe(true);
-  for (const path of [
-    "/app",
-    "/api/me",
-    "/app.html?ui=svelte",
-    "/b/a/files?ui=svelte",
-  ])
+  for (const path of ["/app", "/api/me", "/app.html", "/b/a/files"])
     expect(isSourceApp(path)).toBe(false);
   for (const path of [
     "/api/me",
@@ -146,7 +141,7 @@ test("native auth error shells retain status and cookies while using source HMR"
         },
       };
       await middleware(
-        { url: "/authorize?ui=svelte", method: "GET", headers: {} },
+        { url: "/authorize", method: "GET", headers: {} },
         res,
         () => {
           throw new Error("native auth route bypassed");
@@ -187,7 +182,7 @@ function consentMiddleware() {
 }
 function consentRequest(
   body: string,
-  url = "/authorize?ui=svelte",
+  url = "/authorize",
   headers: Record<string, string> = {},
 ) {
   const bytes = Buffer.from(body);
@@ -266,9 +261,7 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
           globalThis.fetch = Object.assign(
             async (input: RequestInfo | URL, init?: RequestInit) => {
               forwarded = true;
-              expect(String(input)).toBe(
-                "http://127.0.0.1:8787/authorize?ui=svelte",
-              );
+              expect(String(input)).toBe("http://127.0.0.1:8787/authorize");
               expect(init?.redirect).toBe("manual");
               expect(Reflect.get(init!, "duplex")).toBe("half");
               const request = new Request(input, init);
@@ -289,7 +282,7 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
                   : (origin ?? null),
               );
               expect(request.headers.get("referer")).toBe(
-                "http://127.0.0.1:8787/authorize?ui=svelte",
+                "http://127.0.0.1:8787/authorize",
               );
               expect(request.headers.get("host")).toBeNull();
               expect(request.headers.get("connection")).toBeNull();
@@ -314,9 +307,9 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
             },
             { preconnect: previousFetch.preconnect },
           );
-          const req = consentRequest(body, "/authorize?ui=svelte", {
+          const req = consentRequest(body, "/authorize", {
               ...(origin ? { origin } : {}),
-              referer: "http://127.0.0.1:5173/authorize?ui=svelte",
+              referer: "http://127.0.0.1:5173/authorize",
               connection:
                 "keep-alive, x-private-hop, origin, sec-fetch-site, referer, cookie, content-type, content-length",
               "x-private-hop": "removed",
@@ -380,10 +373,7 @@ test("other POST routes remain with the ordinary proxy unread", async () => {
       expect(next).toBe(1);
       expect(req.readableDidRead).toBe(false);
     }
-    const req = consentRequest(
-        "handle=private",
-        "//evil.test/authorize?ui=svelte",
-      ),
+    const req = consentRequest("handle=private", "//evil.test/authorize"),
       res = consentResponse();
     await middleware(req, res, () => {
       throw Error("authority reached proxy");
@@ -463,7 +453,7 @@ test("consent POST byte adapter preserves backpressure, rejects decoded chunks a
         }
       }
       const req = Object.assign(Readable.from(chunks(), { highWaterMark: 1 }), {
-          url: "/authorize?ui=svelte",
+          url: "/authorize",
           method: "POST",
           headers: { "content-type": "application/x-www-form-urlencoded" },
           aborted: false,
@@ -517,9 +507,7 @@ test("source GET access-return Referer preserves the Worker's real autoAccess tr
         : referrer;
       globalThis.fetch = Object.assign(
         async (input: RequestInfo | URL, init?: RequestInit) => {
-          expect(String(input)).toBe(
-            "http://127.0.0.1:8787/b/abcdef?ui=svelte&pedir=1",
-          );
+          expect(String(input)).toBe("http://127.0.0.1:8787/b/abcdef?pedir=1");
           const headers = new Headers(init?.headers);
           expect(headers.get("referer")).toBe(translated ?? null);
           expect(headers.get("origin")).toBe("https://evil.test");
@@ -541,7 +529,7 @@ test("source GET access-return Referer preserves the Worker's real autoAccess tr
         { preconnect: previousFetch.preconnect },
       );
       const req = {
-          url: "/b/abcdef?ui=svelte&pedir=1",
+          url: "/b/abcdef?pedir=1",
           method: "GET",
           headers: {
             ...(referrer ? { referer: referrer } : {}),
@@ -564,7 +552,7 @@ test("source GET access-return Referer preserves the Worker's real autoAccess tr
 });
 
 test("runtime contracts reload while component/style edits remain HMR", () => {
-  for (const file of ["src/api.ts", "shared/protocol.ts", "collab/editor.ts"])
+  for (const file of ["src/api.ts", "shared/protocol.ts"])
     expect(requiresAppReload(projectRoot, resolve(projectRoot, file))).toBe(
       true,
     );
@@ -631,7 +619,6 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
       "svelte/build",
       "svelte/lib",
       "shared",
-      "collab",
       "public",
       "src",
       "scripts",
@@ -642,7 +629,6 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
     for (const file of [
       "svelte/lib/ok.ts",
       "shared/contracts.ts",
-      "collab/editor.ts",
       "src/secret.ts",
       "scripts/build.ts",
       ".wrangler/tmp/worker.js",
@@ -672,7 +658,6 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
       "/@vite/client",
       "/@vite/env",
       `/@fs/${root}/shared/contracts.ts`,
-      `/@fs/${root}/collab/editor.ts`,
       `/@fs/${root}/node_modules/.vite/deps/svelte.js`,
     ])
       expect(() => policy.assertRequest(path)).not.toThrow();
@@ -702,11 +687,11 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
     ])
       expect(() => policy.assertRequest(path)).toThrow("[client-boundary]");
     for (const path of [
-      "//evil.example/app?ui=svelte",
-      "/\t/evil.example/app?ui=svelte",
-      "http://evil.example/app?ui=svelte",
-      "https://evil.example/app?ui=svelte",
-      "/\\evil.example/app?ui=svelte",
+      "//evil.example/app",
+      "/\t/evil.example/app",
+      "http://evil.example/app",
+      "https://evil.example/app",
+      "/\\evil.example/app",
     ]) {
       expect(isSourceApp(path)).toBe(false);
       expect(() => localRequestUrl(path)).toThrow("[client-boundary]");
@@ -714,9 +699,9 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
         "[client-boundary]",
       );
     }
-    expect(
-      workerRequestUrl("/app?ui=svelte", "http://127.0.0.1:8787").href,
-    ).toBe("http://127.0.0.1:8787/app?ui=svelte");
+    expect(workerRequestUrl("/app", "http://127.0.0.1:8787").href).toBe(
+      "http://127.0.0.1:8787/app",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(deps, { recursive: true, force: true });
@@ -1012,7 +997,7 @@ test("only explicit native denied file navigations transform; successful bytes a
           }),
         { preconnect: previousFetch.preconnect },
       );
-      const req = consentRequest("", "/api/books/aaaaaa/files/aa?ui=svelte", {
+      const req = consentRequest("", "/api/books/aaaaaa/files/aa", {
         accept: "text/html",
       });
       req.method = "GET";
@@ -1038,7 +1023,7 @@ test("only explicit native denied file navigations transform; successful bytes a
         }),
       { preconnect: previousFetch.preconnect },
     );
-    const req = consentRequest("", "/api/books/aaaaaa/files/aa?ui=svelte", {
+    const req = consentRequest("", "/api/books/aaaaaa/files/aa", {
       accept: "text/html",
     });
     req.method = "GET";
@@ -1060,11 +1045,7 @@ test("only explicit native denied file navigations transform; successful bytes a
       { accept: "text/html", range: "bytes=0-0" },
     ];
     for (const headers of bypassHeaders) {
-      const request = consentRequest(
-        "",
-        "/api/books/aaaaaa/files/aa?ui=svelte",
-        headers,
-      );
+      const request = consentRequest("", "/api/books/aaaaaa/files/aa", headers);
       request.method = "GET";
       let next = 0;
       await middleware(request, consentResponse(), () => {
@@ -1098,7 +1079,6 @@ test("whole project and external dependency aliases share one physical source bo
     for (const directory of [
       "svelte/lib",
       "shared",
-      "collab",
       "public",
       "src",
       "scripts",
@@ -1187,11 +1167,7 @@ test("contract watcher recognizes logical and physical project-root paths, inclu
   try {
     await mkdir(resolve(physical, "src"), { recursive: true });
     await symlink(physical, logical);
-    for (const file of [
-      "src/not-created.ts",
-      "shared/not-created.ts",
-      "collab/not-created.ts",
-    ])
+    for (const file of ["src/not-created.ts", "shared/not-created.ts"])
       for (const candidate of [logical, physical])
         expect(requiresAppReload(logical, resolve(candidate, file))).toBe(true);
     for (const candidate of [logical, physical])

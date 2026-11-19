@@ -186,7 +186,7 @@
   --vb-project-purple: #a855f7;
   --vb-project-red: #ef4444;
   --vb-project-amber: #f59e0b;
-  /* Agent avatar tiles by provider (vanilla .avatar.claude.<kind>): text glyphs on tinted
+  /* Agent avatar tiles by provider: text glyphs on tinted
      squares, not brand logos. Claude's warm orange, Codex/Cursor monochrome (inverted in dark). */
   --vb-agent-claude: #d97757;
   --vb-agent-claude-foreground: #fff;
@@ -204,7 +204,7 @@
   --vb-agent-gemini-text: #2f5fd6;
   --vb-agent-cursor-text: var(--vb-agent-cursor);
   --vb-agent-copilot-text: var(--vb-agent-copilot);
-  /* Room tints, as vanilla .sw-group[data-tint]. */
+  /* Room tints. */
   --vb-room-tint-blue: oklch(0.6 0.15 248);
   --vb-room-tint-green: oklch(0.62 0.14 155);
   --vb-room-tint-yellow: oklch(0.8 0.15 95);

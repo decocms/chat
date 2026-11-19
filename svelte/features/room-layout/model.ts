@@ -43,7 +43,7 @@ export function documentProgress(
     : (documentWidth(value, containerWidth, collapsed) - DOCUMENT_MIN) /
         (maximum - DOCUMENT_MIN);
 }
-/** The doc width someone dragged, per browser (vanilla reads the same key). */
+/** The doc width someone dragged, per browser. */
 export const DOCUMENT_WIDTH_KEY = "vb.docW";
 export function storedDocumentWidth(value: string | null) {
   const parsed = Number(value);

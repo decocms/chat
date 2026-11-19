@@ -66,7 +66,6 @@ test("browser roots, temporary entries and package-internal tooling names remain
     "shared/value.ts",
     "shared/.browser-value.ts",
     "svelte/Chat.svelte",
-    "collab/editor.ts",
     "mcp-app/app.ts",
     "public/vendor.js",
     "node_modules/package/scripts/browser.js",

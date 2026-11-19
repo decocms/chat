@@ -1,7 +1,7 @@
 import * as z from "zod/mini";
 import { TASK_STATUSES, SuggestionSchema } from "./room";
 
-// Commands accepted by Book.webSocketMessage (M1): the runtime schemas are the source, the TypeScript type is derived
+// Commands accepted by Book.webSocketMessage: the runtime schemas are the source, the TypeScript type is derived
 // from them. On the wire each command is a JSON-RPC call, method = t (shared/jsonRpc.ts). Authentication and every business rule stay on the server. Browser-safe: zod/mini only.
 const id = z.string();
 const num = z.number();
@@ -98,7 +98,7 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
 ]);
 export type RoomCommand = z.infer<typeof RoomCommandSchema>;
 
-/** The existing bridge: true only means the command was queued on an open socket (vanilla and the preview use it). */
+/** True only means the command was queued on an open socket. */
 export type SendRoomCommand = (command: RoomCommand) => boolean;
 
 /** What a room request resolves with. On the wire a command that wants an answer is a JSON-RPC request; the room

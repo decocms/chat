@@ -89,7 +89,6 @@ export function diagnosticModuleLabel(root: string) {
 }
 export function chunkDiagnostics(options: {
   root: string;
-  variant: "svelte" | "vanilla";
   enabled: boolean;
   revision?: string;
 }): Plugin {
@@ -121,13 +120,11 @@ export function chunkDiagnostics(options: {
         .sort((a, b) => a.id.localeCompare(b.id));
       report = {
         formatVersion: 1,
-        variant: options.variant,
         revision:
           options.revision && /^[a-f0-9]{40}$/.test(options.revision)
             ? options.revision
             : "unrecorded",
-        assetPrefix:
-          options.variant === "vanilla" ? "/svelte/" : "/svelte-preview/",
+        assetPrefix: "/svelte-preview/",
         contributionSemantics:
           "Vite8/Rolldown RenderedModule.renderedLength: rendered code contribution, NOT gzip/network byte allocation",
         assets: Object.values(bundle)
@@ -179,7 +176,7 @@ export function chunkDiagnostics(options: {
       const path = resolve(
         options.root,
         ".artifacts/chunk-diagnostics",
-        options.variant + ".json",
+        "app.json",
       );
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, JSON.stringify(checked, null, 2) + "\n");

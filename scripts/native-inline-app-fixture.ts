@@ -4,7 +4,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { record } from "../shared/validation";
-export type InlineVariant = "svelte" | "vanilla";
 export const inlineTools = ["mutate_a", "mutate_b", "mutate_pending"] as const;
 export type InlineTool = (typeof inlineTools)[number];
 export type InlineCounters = {
@@ -93,10 +92,7 @@ export async function startInlineAppFixture(hostOrigin: string) {
     record(metadata) && metadata.version === "1.7.4",
     "Pinned stock SDK changed",
   );
-  const states = new Map<
-    InlineVariant,
-    { counters: InlineCounters; read(): Promise<string> }
-  >();
+  let state: { counters: InlineCounters; read(): Promise<string> } | undefined;
   const nonce = randomBytes(16).toString("hex");
   let origin = "";
   const clients = new Map<string, string>(),
@@ -111,17 +107,15 @@ export async function startInlineAppFixture(hostOrigin: string) {
   };
   const approvals = new Map<string, Approval>(),
     codes = new Map<string, Approval>();
-  const route = (variant: InlineVariant) => `/${nonce}/${variant}`;
+  const prefix = `/${nonce}`;
   const second = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname;
-      const entry = [...states].find(
-        ([variant]) => path === `${route(variant)}/replacement`,
-      );
-      if (!entry) return new Response("missing", { status: 404 });
-      entry[1].counters.replacements++;
+      if (!state || path !== `${prefix}/replacement`)
+        return new Response("missing", { status: 404 });
+      state.counters.replacements++;
       return new Response(replacement(hostOrigin), {
         headers: {
           "content-type": "text/html; charset=utf-8",
@@ -143,14 +137,11 @@ export async function startInlineAppFixture(hostOrigin: string) {
         if (body === null)
           return new Response("large or interrupted", { status: 413 });
         if (url.pathname.startsWith("/.well-known/oauth-protected-resource")) {
-          const target = [...states.keys()].find(
-            (variant) =>
-              url.pathname ===
-              "/.well-known/oauth-protected-resource" + route(variant) + "/mcp",
-          );
-          return target
+          return state &&
+            url.pathname ===
+              "/.well-known/oauth-protected-resource" + prefix + "/mcp"
             ? Response.json({
-                resource: origin + route(target) + "/mcp",
+                resource: origin + prefix + "/mcp",
                 authorization_servers: [origin],
                 scopes_supported: ["inline-fixture"],
               })
@@ -208,9 +199,8 @@ export async function startInlineAppFixture(hostOrigin: string) {
             !/^[A-Za-z0-9_-]{43}$/.test(challenge) ||
             !state ||
             url.searchParams.get("scope") !== "inline-fixture" ||
-            ![...states.keys()].some(
-              (variant) => resource === origin + route(variant) + "/mcp",
-            )
+            !state ||
+            resource !== origin + prefix + "/mcp"
           )
             return new Response("invalid", { status: 400 });
           const handle = randomBytes(24).toString("hex");
@@ -290,12 +280,9 @@ export async function startInlineAppFixture(hostOrigin: string) {
             expires_in: 3600,
           });
         }
-        const entry = [...states].find(([variant]) =>
-          url.pathname.startsWith(route(variant) + "/"),
-        );
-        if (!entry) return new Response("missing", { status: 404 });
-        const [variant, state] = entry;
-        if (url.pathname === `${route(variant)}/sdk.js`) {
+        if (!state || !url.pathname.startsWith(prefix + "/"))
+          return new Response("missing", { status: 404 });
+        if (url.pathname === `${prefix}/sdk.js`) {
           state.counters.sdk++;
           return new Response(new Uint8Array(sdk), {
             headers: {
@@ -305,20 +292,17 @@ export async function startInlineAppFixture(hostOrigin: string) {
             },
           });
         }
-        if (
-          url.pathname !== `${route(variant)}/mcp` ||
-          request.method !== "POST"
-        )
+        if (url.pathname !== `${prefix}/mcp` || request.method !== "POST")
           return new Response("missing", { status: 404 });
         const bearer = request.headers.get("authorization");
         if (
           !bearer?.startsWith("Bearer ") ||
-          tokens.get(bearer.slice(7)) !== origin + route(variant) + "/mcp"
+          tokens.get(bearer.slice(7)) !== origin + prefix + "/mcp"
         )
           return new Response("Sign in to controlled provider", {
             status: 401,
             headers: {
-              "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${route(variant)}/mcp"`,
+              "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${prefix}/mcp"`,
             },
           });
         if (
@@ -342,7 +326,7 @@ export async function startInlineAppFixture(hostOrigin: string) {
         const result = (value: unknown) =>
           Response.json(
             { jsonrpc: "2.0", id: message.id, result: value },
-            { headers: { "mcp-session-id": `inline-${variant}` } },
+            { headers: { "mcp-session-id": "inline" } },
           );
         const params = record(message.params) ? message.params : {};
         if (message.method === "initialize")
@@ -391,8 +375,8 @@ export async function startInlineAppFixture(hostOrigin: string) {
                 uri: params.uri,
                 mimeType: "text/html;profile=mcp-app",
                 text: appDocument(
-                  new URL(`${route(variant)}/sdk.js`, origin).href,
-                  new URL(`${route(variant)}/replacement`, second.url).href,
+                  new URL(`${prefix}/sdk.js`, origin).href,
+                  new URL(`${prefix}/replacement`, second.url).href,
                 ),
                 _meta: { ui: { csp: { resourceDomains: [origin] } } },
               },
@@ -445,11 +429,11 @@ export async function startInlineAppFixture(hostOrigin: string) {
         version: "1.7.4",
         sha256: createHash("sha256").update(sdk).digest("hex"),
       },
-      configure(variant: InlineVariant, read: () => Promise<string>) {
+      configure(read: () => Promise<string>) {
         const counters = zero();
-        states.set(variant, { counters, read });
+        state = { counters, read };
         return {
-          url: new URL(`${route(variant)}/mcp`, server.url).href,
+          url: new URL(`${prefix}/mcp`, server.url).href,
           counters,
         };
       },
@@ -460,7 +444,7 @@ export async function startInlineAppFixture(hostOrigin: string) {
           try {
             await second.stop(true);
           } finally {
-            states.clear();
+            state = undefined;
             tokens.clear();
             codes.clear();
             approvals.clear();

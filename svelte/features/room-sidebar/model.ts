@@ -106,11 +106,11 @@ export function contextPercent(tokens: number, window: number) {
     ? Math.max(0, Math.min(100, Math.round((tokens / window) * 100)))
     : 0;
 }
-/** The context bar's color (vanilla `.ctx`): green, yellow from 60%, red from 80%
+/** The context bar's color: green, yellow from 60%, red from 80%
  * (the runner compacts a free Claude at 75%). */
 export const contextTone = (percent: number) =>
   percent >= 80 ? "hot" : percent >= 60 ? "mid" : "ok";
-/** Token counts as vanilla `kTok`: 1.2M, 180k. */
+/** Short token counts: 1.2M, 180k. */
 export const compactTokens = (value: number) =>
   value >= 1e6
     ? `${+(value / 1e6).toFixed(1)}M`
@@ -122,7 +122,7 @@ export type ContextSection = {
   percent: number;
   detail: string;
 };
-/** The hover card's meters (vanilla `ctxTip`): context, then the plan's limits that
+/** The hover card's meters: context, then the plan's limits that
  * are present and not yet reset. Empty when the agent reports no context. */
 export function contextSections(
   context: AgentRow["context"],

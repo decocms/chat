@@ -71,7 +71,7 @@ const room = (
 });
 const context = (policy?: RichContext["policy"]): RichContext => ({
   room: room(),
-  pageUrl: "https://vibebook.test/b/aaaaaa?ui=svelte",
+  pageUrl: "https://vibebook.test/b/aaaaaa",
   idPrefix: "private-doc",
   policy,
 });

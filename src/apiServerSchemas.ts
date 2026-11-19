@@ -2,7 +2,7 @@ import "server-only";
 import * as z from "zod/mini";
 
 // Input and database validators used only by the actual API handlers. No browser DTO or barrel re-export.
-/** Upload headers: the file's media type and its name (URI-encoded, the vanilla app's x-filename). */
+/** Upload headers: the file's media type and its name (URI-encoded, the x-filename header). */
 export const UploadHeaders = z.object({
   "content-type": z.string(),
   "x-filename": z.optional(z.string()),

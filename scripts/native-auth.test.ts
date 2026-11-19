@@ -83,7 +83,7 @@ function timer() {
     },
   };
 }
-test("continuations stay on supported local routes and drop ?ui=", () => {
+test("continuations stay on supported local routes", () => {
   for (const unsafe of [
     "//evil.test/app",
     "https://evil.test/app",
@@ -107,7 +107,6 @@ test("continuations stay on supported local routes and drop ?ui=", () => {
   expect(
     authContinuation("/b/abcdef?t=epic#file", "https://vibebook.test"),
   ).toBe("/b/abcdef?t=epic#file");
-  expect(authContinuation("/?ui=svelte", "https://vibebook.test")).toBe("/");
   expect(
     authContinuation("/api/books/abcdef/files/123abc", "https://vibebook.test"),
   ).toBe("/api/books/abcdef/files/123abc");
@@ -489,7 +488,7 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
     shell = `<link href="/svelte-preview/ui.css?v=${version}"><script src="/svelte-preview/app.js?v=${version}"></script>`;
   const response = await nativeAuthPage(
     { ASSETS: { fetch: async () => new Response(shell) } },
-    new Request("https://vibebook.test/authorize?ui=svelte&client_id=x"),
+    new Request("https://vibebook.test/authorize?client_id=x"),
     "consent",
     { status: 500, consentFailure: true },
   );
@@ -499,13 +498,10 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
   );
   expect(response.headers.get("cache-control")).toBe("no-store");
   const login = new URL(
-    consentLoginUrl("https://vibebook.test/authorize?ui=svelte&client_id=x"),
+    consentLoginUrl("https://vibebook.test/authorize?client_id=x"),
     "https://vibebook.test",
   );
-  expect(login.searchParams.get("ui")).toBeNull(); // Svelte is the default: no marker
-  expect(login.searchParams.get("next")).toBe(
-    "/authorize?ui=svelte&client_id=x",
-  );
+  expect(login.searchParams.get("next")).toBe("/authorize?client_id=x");
 });
 
 test("native file-access shell preserves denial status and no-store/frame boundary", async () => {
@@ -514,7 +510,7 @@ test("native file-access shell preserves denial status and no-store/frame bounda
   for (const status of [401, 403] as const) {
     const response = await nativeAuthPage(
       { ASSETS: { fetch: async () => new Response(shell) } },
-      new Request("https://vibebook.test/api/books/abcdef/files/aa?ui=svelte"),
+      new Request("https://vibebook.test/api/books/abcdef/files/aa"),
       "file-access",
       { status },
     );

@@ -442,16 +442,7 @@ app.get("/api/avatar/:email", (c) =>
   }),
 );
 
-// Archive is per person: the room leaves your list (and your agent's inbox) and lands in /archived.
-// Everyone else keeps it; restoring brings it back. Nothing is deleted.
-
-// The agents of this room's members: model/client, last seen, and whether they're listening to this room now.
-// Search everything of yours (⌘K): messages, epics (archived too) and attached files across your rooms.
-// GET /api/books/:id/agents is a typed route now (src/api.ts, slice 7).
-
-// Home composer: suggest where a message should go, then post it there.
-
-// Typed routes (src/api.ts): post and upload, mounted here so they run after the auth middleware like before.
+// Typed routes (src/api.ts), mounted here so they run after the auth middleware.
 // The typed routes get their services (src/services.ts) instead of the bindings.
 app.use("/api/*", async (c, next) => { c.set("svc", services(c.env, c.executionCtx, c.get("email"), c.req.raw)); await next(); });
 app.route("/", uploadsApi);

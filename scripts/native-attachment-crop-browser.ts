@@ -1,6 +1,6 @@
 // Real Worker uploads + Book command + native chat rendering. Width probes only alter layout.
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import * as z from "zod/mini";
 import { RoomCommandSchema } from "../shared/commands";
@@ -14,12 +14,9 @@ assert(
 const output =
   process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-native-attachment-crop";
 await mkdir(output, { recursive: true });
-const vanilla = await readFile(
-  new URL("../public/app.html", import.meta.url),
-  "utf8",
-);
-const imageRule = vanilla.match(/\.atts img\s*\{([^}]+)\}/)?.[1];
-assert(imageRule, "Actual vanilla attachment rule must exist");
+// The expected chat image geometry: 220-320px wide, at most 260px high, cropped from the top.
+const imageRule =
+  "display: block; max-width: min(320px, 100%); min-width: 220px; max-height: 260px; object-fit: cover; object-position: top; border-radius: 12px;";
 const browser = await chromium.launch({
   headless: true,
   args: ["--no-sandbox", "--disable-gpu"],
@@ -29,7 +26,7 @@ const report: Record<string, unknown> = {
   scope:
     "Real typed HTTP PNG uploads, actual Book WebSocket message and native chat/viewer. Reference CSS and narrow parent widths are controlled geometry probes, not fabricated application state.",
   gaps: [
-    "No production/Safari acceptance. The narrow parent deliberately fits below vanilla's fixed 220px minimum rather than overflowing.",
+    "No production/Safari acceptance. The narrow parent deliberately fits below the fixed 220px reference minimum rather than overflowing.",
     "Fixture attachment posting uses the supported Book command rather than composer input.",
   ],
 };
@@ -95,7 +92,7 @@ try {
     });
     ids.push(uploaded.id);
   }
-  await page.goto(`${base}/b/${roomId}?ui=svelte`, {
+  await page.goto(`${base}/b/${roomId}`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
@@ -204,7 +201,7 @@ try {
     assert(
       Math.abs(actual.width - reference.width) <= 2 &&
         Math.abs(actual.height - reference.height) <= 2,
-      `${source.name}: native geometry must match actual vanilla at ordinary width`,
+      `${source.name}: native geometry must match the reference at ordinary width`,
     );
     metrics.push({ name: source.name, actual, reference });
   }

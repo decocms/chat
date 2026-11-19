@@ -117,7 +117,7 @@ export async function identify<E extends { Bindings: Env }>(c: Context<E>): Prom
   return (as && EMAIL_RE.test(as) ? as : env.DEV_EMAIL).toLowerCase();
 }
 
-/** The public auth routes' side (src/api.ts authApi): every check and write of the old handlers, answering a value
+/** The public auth routes' side (src/api.ts authApi): every check and write, answering a value
  *  or { error, status }. Built per request; the route only validates the body and turns the answer into JSON. */
 export function authServices<E extends { Bindings: Env }>(c: Context<E>, deps: Pick<AuthServices, "roomAccess">): AuthServices {
   const fail = (error: string, status: AuthFail["status"]): AuthFail => ({ error, status });

@@ -92,7 +92,7 @@ async function identity(email: string, clipboardFailure = false) {
         },
       });
     });
-  const me = await context.request.get(`${base}/api/me?ui=svelte`);
+  const me = await context.request.get(`${base}/api/me`);
   assert(me.ok(), "Worker must have local DEV_EMAIL enabled");
   assert.equal(
     (await me.json()).email,
@@ -118,9 +118,7 @@ async function openPeople(target: Page) {
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 try {
-  step(
-    "Record actual source/build identity and verify vanilla stays the default",
-  );
+  step("Record actual source/build identity");
   const owner = await identity(ownerEmail, true);
   const made = await owner.request.post(`${base}/api/books`, {
     headers: { origin: base },
@@ -133,7 +131,7 @@ try {
     cwd: new URL("..", import.meta.url).pathname,
   });
   assert.equal(source.exitCode, 0);
-  const shellResponse = await owner.request.get(`${base}/b/${room}?ui=svelte`);
+  const shellResponse = await owner.request.get(`${base}/b/${room}`);
   const shell = await shellResponse.text();
   const entry = shell.match(
     /<script\b[^>]*\bsrc=["']([^"']*\/svelte-preview\/app\.js[^"']*)["']/,
@@ -152,12 +150,6 @@ try {
       shell.match(/name=["']vb-v["'][^>]*content=["']([^"']+)/)?.[1] ?? null,
     shellEtag: shellResponse.headers().etag ?? null,
   };
-  const vanilla = await (await owner.request.get(`${base}/b/${room}`)).text();
-  assert(
-    !vanilla.includes("/svelte-preview/app.js") &&
-      !vanilla.includes("/bootstrap.ts"),
-    "Unselected room stays vanilla",
-  );
 
   page = await owner.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
@@ -180,7 +172,7 @@ try {
     });
   });
   const agent = await nativeTestAgent(page, base);
-  await page.goto(`${base}/b/${room}?ui=svelte`);
+  await page.goto(`${base}/b/${room}`);
   await expect(page.locator("#input")).toBeVisible();
   await expect.poll(() => roomStore.get()?.me).toBe(ownerEmail);
 

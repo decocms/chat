@@ -22,7 +22,6 @@ If you add, move or delete a top-level folder, update this file in the same comm
 | `svelte/build/` | Vite plugins: client boundary, UI version, development proxy. |
 | `svelte/styles/` | `tailwind.css`, the only authored stylesheet of the Svelte app. |
 | `svelte/gallery/`, `svelte/parity/` | Component gallery and parity stories for development. |
-| `collab/` | The document editor (CodeMirror and Yjs). Builds to `public/collab.js`. |
 | `browser/app-document/` | The host for app documents. |
 | `service-worker/` | Web push code. Builds to `public/sw.js`. |
 | `mcp-app/` | The admin MCP app UI. Builds to `dist-mcp/`. |

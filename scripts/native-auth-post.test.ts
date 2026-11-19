@@ -133,7 +133,6 @@ test("signed-out native POST preserves only the local authorize query for login,
     "http://127.0.0.1:8797",
   );
   expect(location.pathname).toBe("/login");
-  expect(location.searchParams.get("ui")).toBeNull();
   expect(location.searchParams.get("next")).toBe(
     "/authorize?client_id=client&state=original",
   );

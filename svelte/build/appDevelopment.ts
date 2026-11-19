@@ -217,7 +217,7 @@ function postBody(request: IncomingMessage): ReadableStream<Uint8Array> {
 
 /** Runtime/contract edits need fresh connections; component/CSS edits use HMR. */
 export function requiresAppReload(root: string, file: string): boolean {
-  return /^(?:src|shared|collab)\//.test(
+  return /^(?:src|shared)\//.test(
     relative(
       canonicalFilesystemPath(root),
       canonicalFilesystemPath(file),
@@ -237,11 +237,7 @@ export function appDevelopment(
     name: "vibebook-app-development",
     apply: "serve",
     configureServer(server) {
-      server.watcher.add([
-        resolve(root, "src"),
-        resolve(root, "shared"),
-        resolve(root, "collab"),
-      ]);
+      server.watcher.add([resolve(root, "src"), resolve(root, "shared")]);
       const reload = (file: string) => {
         if (requiresAppReload(root, file))
           server.ws.send({ type: "full-reload" });

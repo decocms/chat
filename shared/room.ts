@@ -1,4 +1,4 @@
-// JSON DTOs shared by the Cloudflare Worker and browser (M1): runtime schemas first, every type derived from them.
+// JSON DTOs shared by the Cloudflare Worker and browser: runtime schemas first, every type derived from them.
 // Browser-safe: zod/mini only, no backend imports. The events built from these live in events.ts.
 import * as z from "zod/mini";
 

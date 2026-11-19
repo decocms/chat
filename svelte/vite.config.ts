@@ -40,14 +40,9 @@ export default defineConfig(({ mode, command }) => ({
         }
       : {}),
     fs: {
-      allow: [
-        "svelte",
-        "shared",
-        "collab",
-        "browser",
-        "public",
-        "node_modules",
-      ].map((path) => realpathSync(join(projectRoot, path))),
+      allow: ["svelte", "shared", "browser", "public", "node_modules"].map(
+        (path) => realpathSync(join(projectRoot, path)),
+      ),
       deny: [
         "**/.env",
         "**/.env.*",
@@ -84,7 +79,6 @@ export default defineConfig(({ mode, command }) => ({
     uiVersion(join(projectRoot, "public")),
     chunkDiagnostics({
       root: projectRoot,
-      variant: "svelte",
       enabled: process.env.VIBEBOOK_CHUNK_DIAGNOSTICS === "1",
       revision: process.env.TEST_APP_REVISION,
     }),

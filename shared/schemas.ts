@@ -1,4 +1,4 @@
-// Runtime schemas for what the browser sends the Worker (M1): the TypeScript types are derived from them, so a schema
+// Runtime schemas for what the browser sends the Worker: the TypeScript types are derived from them, so a schema
 // edit changes every consumer's type. Browser-safe: zod/mini only, no Worker or database types.
 import * as z from "zod/mini";
 
@@ -43,7 +43,7 @@ export type UploadFileResult = z.infer<typeof UploadFileResult>;
 /** Any error answer of the app's routes. */
 export const ErrorBody = z.object({ error: z.string() });
 
-// Slice 2: small account/room mutations. Lenient where the old handlers were (unknown tint → none, non-string ids dropped).
+// Small account/room mutations. Lenient: an unknown tint is none, non-string ids are dropped.
 export const TINTS = [
   "blue",
   "green",
@@ -79,7 +79,7 @@ export const PushTestResult = z.object({
 export type PushTestResult = z.infer<typeof PushTestResult>;
 export type ErrorBody = z.infer<typeof ErrorBody>;
 
-// Slice 3: account and room lists. Database rows are parsed against these before they leave the Worker.
+// Account and room lists. Database rows are parsed against these before they leave the Worker.
 export const EmailBody = z.object({ email: z.string() });
 export const ArchivedRoom = z.object({
   id: z.string(),
@@ -132,7 +132,7 @@ export const LoginsResult = z.object({
 });
 export type LoginsResult = z.infer<typeof LoginsResult>;
 
-// Slice 4: the room's "Ligar Claude" toggle and access requests.
+// The room's "Ligar Claude" toggle and access requests.
 export const ClaudeToggleBody = z.object({ on: z.optional(z.boolean()) });
 export const ClaudeToggleResult = z.object({
   ok: z.literal(true),
@@ -151,7 +151,7 @@ export const DecideRequestBody = z.object({
 export const AccessResult = z.object({ member: z.boolean() });
 export type AccessResult = z.infer<typeof AccessResult>;
 
-// Slice 5: your name, new rooms and the home's router.
+// Your name, new rooms and the home's router.
 export const SetNameBody = z.object({ name: z.optional(z.string()) });
 export const SetNameResult = z.object({
   ok: z.literal(true),
@@ -184,13 +184,13 @@ export const RouteResult = z.object({
 });
 export type RouteResult = z.infer<typeof RouteResult>;
 
-// Slice 6: the person's freestyle API key and Claude subscription token (sealed on the server, never sent back).
+// The person's freestyle API key and Claude subscription token (sealed on the server, never sent back).
 export const ConnectedResult = z.object({ connected: z.boolean() });
 export type ConnectedResult = z.infer<typeof ConnectedResult>;
 export const FreestyleKeyBody = z.object({ key: z.optional(z.string()) });
 export const ClaudeTokenBody = z.object({ token: z.optional(z.string()) });
 
-// Slice 7: a room's Claudes (people's own agents) and cloud sandboxes, for Pessoas and the ✻ pane.
+// A room's Claudes (people's own agents) and cloud sandboxes, for Pessoas and the ✻ pane.
 const num = z.nullable(z.number());
 const str = z.nullable(z.string());
 export const AgentLimits = z.record(
@@ -258,7 +258,7 @@ export const AgentsResult = z.object({
   machines: z.optional(z.array(RoomMachine)),
 });
 export type AgentsResult = z.infer<typeof AgentsResult>;
-// Slice 8: the person's own cloud sandboxes in a room (freestyle.sh VMs; the key never leaves the server).
+// The person's own cloud sandboxes in a room (freestyle.sh VMs; the key never leaves the server).
 export const SandboxCard = z.object({
   id: z.string(),
   name: z.nullable(z.string()),
@@ -298,7 +298,7 @@ export const SandboxTerminalResult = z.object({
 });
 export type SandboxTerminalResult = z.infer<typeof SandboxTerminalResult>;
 
-// Slice 9: a room's MCP connections (src/mcpconn.ts). No token or URL path ever reaches the browser.
+// A room's MCP connections (src/mcpconn.ts). No token or URL path ever reaches the browser.
 export const ConnectionApp = z.object({
   tool: z.string(),
   title: z.string(),
@@ -397,7 +397,7 @@ export const ConnectionError = z.object({
 });
 export type ConnectionError = z.infer<typeof ConnectionError>;
 
-// Slice 10: GET /api/me, the home and rail's one read (served from the Person DO's cache while nothing changed).
+// GET /api/me, the home and rail's one read (served from the Person DO's cache while nothing changed).
 export const MeBook = z.object({
   id: z.string(),
   title: str,
@@ -520,9 +520,6 @@ export const MeResult = z.extend(MeData, {
   cached: z.optional(z.literal(true)),
 });
 export type MeResult = z.infer<typeof MeResult>;
-/** Unknown UI names intentionally retain the existing vanilla fallback. */
-export const MeQuery = z.object({ ui: z.optional(z.string()) });
-export type MeQuery = z.infer<typeof MeQuery>;
 
 // Inbox (GET /api/inbox): everything across the person's rooms that needs them — waits (reuses MeWait), the @mentions
 // held back for the digest, and their open tasks (todo/doing/review). D1 for waits + mentions; a DO fan-out for tasks.
@@ -553,7 +550,7 @@ export const InboxResult = z.object({
 });
 export type InboxResult = z.infer<typeof InboxResult>;
 
-// Slice 11: the two image uploads (raw bytes; the app resizes first). Their type is the request's content-type.
+// The two image uploads (raw bytes; the app resizes first). Their type is the request's content-type.
 export const ImageHeaders = z.object({
   "content-type": z.optional(z.string()),
 });

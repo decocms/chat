@@ -255,20 +255,11 @@ describe("native push ownership", () => {
     }
   });
 });
-test("notification navigation keeps the room target, drops ?ui= and refuses unsafe targets", () => {
+test("notification navigation keeps the room target and refuses unsafe targets", () => {
   const origin = "https://vibebook.example.test",
     target = "/b/abc123?t=thread#m1";
   const native = new URL(notificationTarget(target, origin));
-  expect(native.searchParams.has("ui")).toBe(false);
   expect(native.searchParams.get("t")).toBe("thread");
-  expect(
-    new URL(
-      notificationTarget("/b/abc123?ui=svelte#m1", origin),
-    ).searchParams.has("ui"),
-  ).toBe(false);
-  expect(
-    new URL(notificationTarget("/?ui=svelte", origin)).searchParams.has("ui"),
-  ).toBe(false);
   for (const unsafe of [
     "https://evil.example.test/b/abc123",
     "javascript:alert(1)",
@@ -281,7 +272,7 @@ test("only emitted stable worker assets are public; raw worker realm source and 
   const root = await mkdtemp(join(tmpdir(), "vibebook-worker-policy-"));
   try {
     await Promise.all(
-      ["svelte", "shared", "collab", "public", "service-worker"].map((path) =>
+      ["svelte", "shared", "public", "service-worker"].map((path) =>
         mkdir(join(root, path)),
       ),
     );

@@ -44,7 +44,7 @@ const room = (extra: Partial<Room> = {}): Room => ({
   filesAll: true,
   ...extra,
 });
-function browser(initial = "https://test.local/b/aaaaaa?ui=svelte") {
+function browser(initial = "https://test.local/b/aaaaaa") {
   let at = 0,
     backs = 0;
   const entries: { url: string; state: unknown }[] = [
@@ -272,7 +272,7 @@ test("owned Back closes once, Forward adopts same entry, and close queues route 
   history.dispose();
 });
 test("direct deep link has a safe base entry and versions replace history", () => {
-  const nav = browser("https://test.local/b/aaaaaa?ui=svelte&t=epic#faa"),
+  const nav = browser("https://test.local/b/aaaaaa?t=epic#faa"),
     timer = manualClock();
   const history = createViewerHistory({
     ...nav,
@@ -496,7 +496,7 @@ test("foreign account/thread and unowned valid file pops route while malformed f
       nav.href(),
     ),
   ).toBe(false);
-  nav.history.replaceState(null, "", "/b/bbbbbb?ui=svelte#faa");
+  nav.history.replaceState(null, "", "/b/bbbbbb#faa");
   expect(
     consumeFileViewerPop(
       session,
@@ -506,7 +506,7 @@ test("foreign account/thread and unowned valid file pops route while malformed f
     ),
   ).toBe(false);
   expect(sheets).toBe(0);
-  nav.history.replaceState(null, "", "/b/aaaaaa?ui=svelte#fINVALID");
+  nav.history.replaceState(null, "", "/b/aaaaaa#fINVALID");
   expect(
     consumeFileViewerPop(
       session,
@@ -521,7 +521,7 @@ test("foreign account/thread and unowned valid file pops route while malformed f
 
 test("validated legacy epic route keeps one entry and Viewer Back/Forward retains its actual thread", () => {
   for (const hash of ["#eother", "#doc:other"]) {
-    const nav = browser("https://test.local/b/aaaaaa?ui=svelte" + hash),
+    const nav = browser("https://test.local/b/aaaaaa" + hash),
       timer = manualClock();
     const router = createApplicationRouter({
       current: nav.href,
@@ -532,7 +532,7 @@ test("validated legacy epic route keeps one entry and Viewer Back/Forward retain
       consumePop: () => false,
       document() {},
     });
-    expect(router.canonicalizeLegacyThread("aaaaaa", "other")).toBe(true);
+    expect(router.canonicalizeHashThread("aaaaaa", "other")).toBe(true);
     expect(nav.entries).toHaveLength(1);
     expect(new URL(nav.href()).searchParams.get("t")).toBe("other");
     const viewer = createFileViewer({

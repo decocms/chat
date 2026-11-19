@@ -1,4 +1,4 @@
-// Compile-time contract tests (M2): checked by svelte-check, never run or bundled. Each @ts-expect-error must stay an
+// Compile-time contract tests: checked by svelte-check, never run or bundled. Each @ts-expect-error must stay an
 // error; if a server change makes it compile, the contract moved and this file fails the check.
 import type { InferRequestType, InferResponseType } from "hono/client";
 import { globalFailure, type Client } from "./api";
@@ -6,7 +6,6 @@ import type {
   SandboxesResult,
   ConnectionsResult,
   MeResult,
-  MeQuery,
   AvatarResult,
   RoomIconResult,
   ConnectionCallResult,
@@ -72,7 +71,7 @@ const req: UploadReq = {
 };
 void [name, size, req];
 
-// Slice 2: account and room mutations.
+// Account and room mutations.
 const subscribe = api.api.push.subscribe.$post;
 const archive = api.api.books[":id"].archive.$post;
 void subscribe({ json: { endpoint: "https://push", p256dh: "k", auth: "a" } });
@@ -108,7 +107,7 @@ sameAs<Equal<Key, PushKeyResult>>(true);
 sameAs<Equal<Sent, PushTestResult>>(true);
 sameAs<Equal<InferResponseType<typeof archive, 200>, OkResult>>(true);
 
-// Slice 3: account and room lists.
+// Account and room lists.
 const friends = api.api.friends.$post;
 void friends({ json: { email: "a@b.co" } });
 const noEmail = {};
@@ -134,7 +133,7 @@ void api.api.search.$get({ query: { q: 123 } });
 // @ts-expect-error this endpoint has no room query input
 void api.api.search.$get({ query: { room: "room" } });
 
-// Slice 4: "Ligar Claude" and access requests.
+// "Ligar Claude" and access requests.
 const room4 = api.api.books[":id"];
 void room4.claude.$post({ param: { id: "r" }, json: { on: true } });
 void room4.requests.$post({
@@ -154,7 +153,7 @@ sameAs<Equal<InferResponseType<typeof room4.access.$get, 200>, AccessResult>>(
   true,
 );
 
-// Slice 5: your name, new rooms and the home's router.
+// Your name, new rooms and the home's router.
 void api.api.me.$post({ json: { name: "Gui" } });
 void api.api.books.$post({ json: { title: "x" } });
 void api.api.books.start.$post({ json: { text: "viagem com a Ana" } });
@@ -178,7 +177,7 @@ sameAs<Equal<InferResponseType<typeof api.api.route.$post, 200>, RouteResult>>(
   true,
 );
 
-// Slice 6: freestyle key and Claude token.
+// Freestyle key and Claude token.
 void api.api.freestyle.$post({ json: { key: "fs-key" } });
 void api.api["claude-token"].$post({ json: { token: "sk-ant-x" } });
 // @ts-expect-error key is a string
@@ -190,7 +189,7 @@ sameAs<
   Equal<InferResponseType<typeof api.api.freestyle.$delete, 200>, OkResult>
 >(true);
 
-// Slice 7: a room's Claudes and sandboxes.
+// A room's Claudes and sandboxes.
 void api.api.books[":id"].agents.$get({ param: { id: "r" } });
 // @ts-expect-error the room id is required
 void api.api.books[":id"].agents.$get({ param: {} });
@@ -201,7 +200,7 @@ sameAs<
   >
 >(true);
 
-// Slice 8: sandboxes.
+// Sandboxes.
 void api.api.books[":id"].sandboxes.$post({
   param: { id: "r" },
   json: { name: "box" },
@@ -227,7 +226,7 @@ sameAs<
 >(true);
 void api.api.sandboxes[":sid"].pause.$post({ param: { sid: "s" } });
 
-// Slice 9: MCP connections.
+// MCP connections.
 sameAs<
   Equal<
     InferResponseType<
@@ -255,15 +254,11 @@ void api.api.books[":id"].connections[":cid"].ui.$get({
   query: { tool: "board" },
 });
 
-// Slice 10: GET /api/me.
+// GET /api/me.
 sameAs<Equal<InferResponseType<typeof api.api.me.$get, 200>, MeResult>>(true);
-sameAs<Equal<InferRequestType<typeof api.api.me.$get>["query"], MeQuery>>(true);
-void api.api.me.$get({ query: { ui: "svelte" } });
-void api.api.me.$get({ query: { ui: "unknown-still-vanilla" } });
-// @ts-expect-error UI query is a permissive string, not unknown input
-void api.api.me.$get({ query: { ui: 123 } });
+void api.api.me.$get();
 
-// Slice 11: avatar and room icon (raw bytes; the typed client sees the JSON answers).
+// Avatar and room icon (raw bytes; the typed client sees the JSON answers).
 sameAs<
   Equal<InferResponseType<typeof api.api.me.avatar.$post, 200>, AvatarResult>
 >(true);

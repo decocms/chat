@@ -294,7 +294,7 @@ try {
   };
   const navigate = async () => {
     const before = snapshots;
-    await page.goto(`${base}/b/${id}?ui=svelte`);
+    await page.goto(`${base}/b/${id}`);
     await show();
     await expect.poll(() => snapshots).toBeGreaterThan(before);
   };

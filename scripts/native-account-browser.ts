@@ -33,7 +33,7 @@ const report: Record<string, unknown> = {
   ],
 };
 const initial = MeResult.parse(
-  await (await context.request.get(`${base}/api/me?ui=svelte`)).json(),
+  await (await context.request.get(`${base}/api/me`)).json(),
 );
 const friend = `native-account-${Date.now()}@example.test`;
 try {
@@ -51,7 +51,7 @@ try {
       },
     },
   );
-  await page.goto(`${base}/app?ui=svelte`, {
+  await page.goto(`${base}/app`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
@@ -81,7 +81,7 @@ try {
     .poll(
       async () =>
         MeResult.parse(
-          await (await context.request.get(`${base}/api/me?ui=svelte`)).json(),
+          await (await context.request.get(`${base}/api/me`)).json(),
         ).name,
     )
     .toBe(wanted);
@@ -101,7 +101,7 @@ try {
   await expect
     .poll(async () =>
       MeResult.parse(
-        await (await context.request.get(`${base}/api/me?ui=svelte`)).json(),
+        await (await context.request.get(`${base}/api/me`)).json(),
       ).friends.some((value) => value.email === friend),
     )
     .toBe(true);
@@ -131,7 +131,7 @@ try {
   await expect
     .poll(async () =>
       MeResult.parse(
-        await (await context.request.get(`${base}/api/me?ui=svelte`)).json(),
+        await (await context.request.get(`${base}/api/me`)).json(),
       ).friends.some((value) => value.email === friend),
     )
     .toBe(false);

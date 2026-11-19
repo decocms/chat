@@ -18,7 +18,6 @@ export function authContinuation(value: string, origin: string): string {
     return target.pathname + target.search + target.hash;
   if (!/^\/(?:archived|login|b\/[a-z0-9]+|authorize)?$/.test(target.pathname))
     return fallback;
-  target.searchParams.delete("ui");
   return target.pathname + target.search + target.hash;
 }
 /** Error redirects are offered explicitly, never followed automatically or interpreted as script URLs. */

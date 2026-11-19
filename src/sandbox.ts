@@ -66,7 +66,7 @@ export async function checkFreestyleKey(env: Env, key: string): Promise<string |
 }
 /** One freestyle REST call with the person's key. Throws an Error with freestyle's message. */
 const useEnv = (env: Env) => { if (env.FREESTYLE_API) API = env.FREESTYLE_API; };
-// What freestyle's REST API answers, checked where it comes in (M1/M2 review, room 1935): a shape we don't expect is an
+// What freestyle's REST API answers, checked where it comes in: a shape we don't expect is an
 // error with the path, not a value the rest of the code trusts.
 const FsIgnored = z.unknown();
 export const FsCreated = z.object({ id: z.string() });
@@ -265,7 +265,7 @@ export async function redoSetup(env: Env, email: string, sid: string, origin: st
 // A sandbox appeared, changed state or went away: the room's Pessoas and everyone's rail (☁) follow, no polling.
 const roomChanged = (env: Env, book: string) => Promise.all([pokeRoom(env, book, { t: "agents", book }), pokeRoom(env, book, { t: "me" })]);
 
-/** The person's sandboxes, for the typed routes (src/api.ts, slice 8 → ApiServices.sandboxes). Membership of the room
+/** The person's sandboxes, for the typed routes (src/api.ts → ApiServices.sandboxes). Membership of the room
  *  is checked by the route; every sandbox here is looked up by id AND the signed-in email, so nobody acts on another's. */
 export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string, en = false) {
   useEnv(env);

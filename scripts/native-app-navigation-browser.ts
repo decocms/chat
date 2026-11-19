@@ -22,7 +22,7 @@ try {
   const discovery = await browser.newContext();
   let ownerEmail: string;
   try {
-    const response = await discovery.request.get(`${base}/api/me?ui=svelte`);
+    const response = await discovery.request.get(`${base}/api/me`);
     assert(response.ok(), "Requires a disposable signed-in DEV Worker");
     ownerEmail = MeResult.parse(await response.json()).email;
     assert(
@@ -75,47 +75,23 @@ try {
       await run();
     },
   };
-  const results: {
-    variant: "svelte" | "vanilla";
-    status: string;
-    verdict: string;
-  }[] = [];
-  // The Svelte app is the only app since #181.
-  for (const variant of ["svelte"] as const) {
-    try {
-      const evidence = await auditNativeAppNavigation(fixture);
-      results.push({
-        variant,
-        status: evidence.status,
-        verdict: evidence.verdict,
-      });
-    } catch {
-      // A cleanup/startup failure must not suppress the other independent frontend.
-      results.push({
-        variant,
-        status: "inconclusive",
-        verdict: "inconclusive",
-      });
-    }
+  let result: { status: string; verdict: string };
+  try {
+    const evidence = await auditNativeAppNavigation(fixture);
+    result = { status: evidence.status, verdict: evidence.verdict };
+  } catch {
+    // A cleanup/startup failure is reported as inconclusive, not as a pass.
+    result = { status: "inconclusive", verdict: "inconclusive" };
   }
-  const passed = results.every(
-    (result) => result.verdict === "explicit-denial",
-  );
+  const passed = result.verdict === "explicit-denial";
+  const summary = { status: passed ? "passed" : "failed", result };
   await mkdir(output, { recursive: true });
   await writeFile(
-    `${output}/app-navigation-variants.json`,
-    JSON.stringify({ status: passed ? "passed" : "failed", results }, null, 2) +
-      "\n",
+    `${output}/app-navigation-summary.json`,
+    JSON.stringify(summary, null, 2) + "\n",
   );
-  console.info(
-    JSON.stringify({ status: passed ? "passed" : "failed", results, output }),
-  );
-  if (!passed)
-    process.exitCode = results.some(
-      (result) => result.verdict === "read-inherited",
-    )
-      ? 2
-      : 1;
+  console.info(JSON.stringify({ ...summary, output }));
+  if (!passed) process.exitCode = result.verdict === "read-inherited" ? 2 : 1;
 } finally {
   await browser.close();
 }

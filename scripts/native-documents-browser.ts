@@ -205,27 +205,21 @@ async function identity(context: BrowserContext, email: string) {
 }
 const nativeEditor = (page: Page) =>
   page.locator("[data-document-editor] .cm-content");
-const oldEditor = (page: Page) => page.locator("#cm .cm-content");
-async function edit(page: Page, native: boolean) {
+async function edit(page: Page) {
   await expect(page.locator(".book:not(.skel)")).toBeAttached();
   const welcome = page.locator("dialog.welcome[open]");
   if (await welcome.isVisible()) {
     await welcome.getByRole("button", { name: /^(Skip|Pular)$/ }).click();
     await expect(welcome).toHaveCount(0);
   }
-  if (native) {
-    await nativeDocumentMode(page, "edit");
-  } else {
-    if ((await page.locator(".doc").getAttribute("data-view")) !== "edit")
-      await page.locator("#docEditBar").click();
-  }
-  const editor = native ? nativeEditor(page) : oldEditor(page);
+  await nativeDocumentMode(page, "edit");
+  const editor = nativeEditor(page);
   await expect(editor).toBeVisible();
   await expect(editor).toHaveAttribute("contenteditable", "true");
   return editor;
 }
-async function copiedEditorText(page: Page, native: boolean) {
-  const editor = native ? nativeEditor(page) : oldEditor(page);
+async function copiedEditorText(page: Page) {
+  const editor = nativeEditor(page);
   await editor.click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("ControlOrMeta+c");
@@ -233,8 +227,8 @@ async function copiedEditorText(page: Page, native: boolean) {
   await page.keyboard.press("ArrowRight");
   return text;
 }
-async function append(page: Page, native: boolean, text: string) {
-  const editor = native ? nativeEditor(page) : oldEditor(page);
+async function append(page: Page, text: string) {
+  const editor = nativeEditor(page);
   await editor.click();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.insertText(text);
@@ -345,14 +339,10 @@ try {
   }
   const rootSeed = "# Real document\n\nRoot αβ 日本語 👩🏽‍💻\n";
   await setDoc(rootSeed);
-  await a.goto(`${app}/b/${room}?ui=svelte`);
-  await b.goto(`${base}/b/${room}`);
+  await a.goto(`${app}/b/${room}`);
+  await b.goto(`${app}/b/${room}`);
   await expect(a.locator("[data-native-document]")).toBeAttached();
-  assert.equal(
-    await b.locator("[data-native-document]").count(),
-    0,
-    "Vanilla remains default",
-  );
+  await expect(b.locator("[data-native-document]")).toBeAttached();
   results.shellVersion = await a
     .locator('meta[name="vb-v"]')
     .evaluateAll((nodes) => nodes[0]?.getAttribute("content") ?? null);
@@ -377,34 +367,34 @@ try {
       "Recognizable compiled or source entry required",
     );
   phase = "unicode and collaborative undo";
-  phase = "unicode: open native editor";
-  await edit(a, true);
-  phase = "unicode: open vanilla editor";
-  await edit(b, false);
-  phase = "unicode: native write reaches vanilla";
-  await append(a, true, "\nNative café 日本語 🧪");
-  await expect(oldEditor(b)).toContainText("Native café 日本語 🧪");
-  phase = "unicode: vanilla write reaches native";
-  await append(b, false, "\nVanilla Ω🚀");
-  await expect(nativeEditor(a)).toContainText("Vanilla Ω🚀");
+  phase = "unicode: open owner editor";
+  await edit(a);
+  phase = "unicode: open peer editor";
+  await edit(b);
+  phase = "unicode: owner write reaches peer";
+  await append(a, "\nNative café 日本語 🧪");
+  await expect(nativeEditor(b)).toContainText("Native café 日本語 🧪");
+  phase = "unicode: peer write reaches owner";
+  await append(b, "\nPeer Ω🚀");
+  await expect(nativeEditor(a)).toContainText("Peer Ω🚀");
   // Separate real editor undo capture groups; no fake timer or direct Y.Doc mutation.
   await a.waitForTimeout(650);
-  await append(a, true, "\nUNDO_NATIVE_MARKER");
-  await expect(oldEditor(b)).toContainText("UNDO_NATIVE_MARKER");
+  await append(a, "\nUNDO_NATIVE_MARKER");
+  await expect(nativeEditor(b)).toContainText("UNDO_NATIVE_MARKER");
   await a.keyboard.press("ControlOrMeta+z");
   await expect(nativeEditor(a)).not.toContainText("UNDO_NATIVE_MARKER");
-  await expect(oldEditor(b)).not.toContainText("UNDO_NATIVE_MARKER");
-  await expect.poll(() => readDoc()).toContain("Vanilla Ω🚀");
+  await expect(nativeEditor(b)).not.toContainText("UNDO_NATIVE_MARKER");
+  await expect.poll(() => readDoc()).toContain("Peer Ω🚀");
   await setDoc((await readDoc()) + "\nAGENT_CANONICAL_UPDATE\n");
   await expect(nativeEditor(a)).toContainText("AGENT_CANONICAL_UPDATE");
-  await expect(oldEditor(b)).toContainText("AGENT_CANONICAL_UPDATE");
+  await expect(nativeEditor(b)).toContainText("AGENT_CANONICAL_UPDATE");
   phase = "unicode and collaborative undo";
   phases.push(phase);
   phase = "scoped epic, crumbs and >8k offline reconnect";
-  await a.goto(`${app}/b/${room}?ui=svelte&t=${epic}`);
-  await b.goto(`${base}/b/${room}?t=${epic}`);
-  await edit(a, true);
-  await edit(b, false);
+  await a.goto(`${app}/b/${room}?t=${epic}`);
+  await b.goto(`${app}/b/${room}?t=${epic}`);
+  await edit(a);
+  await edit(b);
   const crumb = a.getByRole("navigation", { name: "Document scope" });
   await expect(crumb).toBeVisible();
   await crumb.getByRole("button").first().click();
@@ -422,13 +412,11 @@ try {
     ).join("\n") +
     "\n```\nOFFLINE_END\n";
   assert(offline.length > 8192);
-  await append(a, true, offline);
-  await append(b, false, "\nONLINE_PEER_MARKER\n");
+  await append(a, offline);
+  await append(b, "\nONLINE_PEER_MARKER\n");
   aWire.restore();
-  await expect
-    .poll(() => copiedEditorText(a, true))
-    .toContain("ONLINE_PEER_MARKER");
-  await expect.poll(() => copiedEditorText(b, false)).toContain("OFFLINE_END");
+  await expect.poll(() => copiedEditorText(a)).toContain("ONLINE_PEER_MARKER");
+  await expect.poll(() => copiedEditorText(b)).toContain("OFFLINE_END");
   assert(
     await original.evaluate((node) => node.isConnected),
     "Transient reconnect keeps same CM element/Y.Doc owner",
@@ -454,9 +442,9 @@ try {
     await original.evaluate((node) => node.isConnected),
     "Authorized peer resumes original CM/Y.Doc",
   );
-  await append(a, true, "\nAFTER_AUTHORIZED_KICK\n");
+  await append(a, "\nAFTER_AUTHORIZED_KICK\n");
   await expect
-    .poll(() => copiedEditorText(b, false))
+    .poll(() => copiedEditorText(b))
     .toContain("AFTER_AUTHORIZED_KICK");
   assert.equal(
     aWire.stats.fullTextCommands,
@@ -492,7 +480,7 @@ try {
   await setDoc(
     `# Real preview\n\n![safe image](${imageUrl})\n\n\`\`\`mermaid\ngraph TD\nA-->B\n\`\`\`\n\n\`\`\`mermaid\ngraph TD\nA-->B\n\`\`\`\n\n## Tarefas\n- [ ] Canonical root task\n`,
   );
-  await a.goto(`${app}/b/${room}?ui=svelte`);
+  await a.goto(`${app}/b/${room}`);
   await nativeDocumentMode(a, "preview");
   await expect(a.locator("[data-document-tasks]")).toHaveCount(1);
   const preview = a.locator("[data-document-preview]");
@@ -541,9 +529,9 @@ try {
   await preview.screenshot({ path: `${output}/document-preview.png` });
   phases.push(phase);
   phase = "removed member privacy and authorized peer resume";
-  await b.goto(`${app}/b/${room}?ui=svelte`);
-  await edit(a, true);
-  await edit(b, true);
+  await b.goto(`${app}/b/${room}`);
+  await edit(a);
+  await edit(b);
   const kicked = aWire.stats.real4003;
   const removal = await owner.request.delete(
     `${base}/api/books/${room}/members/${encodeURIComponent(peerEmail)}`,
@@ -562,7 +550,7 @@ try {
   await expect
     .poll(async () => b.locator("[data-document-preview]").count())
     .toBe(0);
-  await append(a, true, "\nPRIVATE_AFTER_REMOVAL\n");
+  await append(a, "\nPRIVATE_AFTER_REMOVAL\n");
   await expect.poll(() => readDoc()).toContain("PRIVATE_AFTER_REMOVAL");
   assert(
     !(await b.locator("body").innerText()).includes("PRIVATE_AFTER_REMOVAL"),
@@ -580,7 +568,7 @@ try {
       await expect(nativeEditor(a)).toHaveAttribute("contenteditable", "true");
       const staleEditor = await nativeEditor(a).elementHandle();
       assert(staleEditor);
-      await a.goto(`${app}/app?ui=svelte`, { waitUntil: "domcontentloaded" });
+      await a.goto(`${app}/app`, { waitUntil: "domcontentloaded" });
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       await expect(a.locator(".book")).toHaveCount(0);
       assert(
@@ -597,7 +585,7 @@ try {
       const foreign = `doc-foreign-${suffix}@example.test`;
       await identity(owner, foreign);
       // Full navigation tests a real account boundary, not fabricated internal callbacks.
-      await a.goto(`${app}/b/${room}?ui=svelte`, {
+      await a.goto(`${app}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
       await expect(a.locator('[data-vb-native="auth"]')).toBeVisible();
@@ -637,7 +625,7 @@ try {
     "direct 390px owner room app readiness without desktop restoration detour",
     async () => {
       await a.setViewportSize({ width: 390, height: 844 });
-      await a.goto(`${app}/b/${room}?ui=svelte`, {
+      await a.goto(`${app}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
       await expect(a.locator(".book:not(.skel)")).toBeAttached();

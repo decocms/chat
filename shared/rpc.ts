@@ -6,7 +6,7 @@ import type {
   RoomIconResult,
 } from "./schemas";
 
-/** Browser-facing room HTTP operations. The wire types are derived from the runtime schemas in schemas.ts (M1). */
+/** Browser-facing room HTTP operations. The wire types are derived from the runtime schemas in schemas.ts. */
 export type PostMessageRequest = PostMessageBody;
 export type PostMessageResponse = PostMessageResult;
 export type SaveReminderResult = SaveReminder;

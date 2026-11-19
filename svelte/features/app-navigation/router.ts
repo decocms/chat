@@ -106,9 +106,9 @@ export function createApplicationRouter(options: {
   }
   return {
     go,
-    /** Only after canonical room validation. Carry the legacy hash's thread in
+    /** Only after canonical room validation. Carry a thread in the hash over to
      * the query before another feature (notably Viewer) owns the hash. */
-    canonicalizeLegacyThread(roomId: string, thread: string) {
+    canonicalizeHashThread(roomId: string, thread: string) {
       if (!active) return false;
       const url = new URL(options.current());
       if (roomIdFromPath(url.pathname) !== roomId || url.searchParams.has("t"))

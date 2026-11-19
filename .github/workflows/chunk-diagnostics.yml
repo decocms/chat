@@ -32,11 +32,9 @@ jobs:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun test scripts/ui-chunk-diagnostics.test.ts
-      - run: bun run build:vanilla-ui && bun run build:ui
+      - run: bun run build:ui
       - name: Explain static bootstrap closure without pretending dynamic startup was observed
-        run: |
-          bun scripts/ui-chunk-attribution.ts .artifacts/chunk-diagnostics/vanilla.json
-          bun scripts/ui-chunk-attribution.ts .artifacts/chunk-diagnostics/svelte.json
+        run: bun scripts/ui-chunk-attribution.ts .artifacts/chunk-diagnostics/app.json
       - name: Preserve module/chunk graph and exact emitted asset hashes
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

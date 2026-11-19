@@ -5,10 +5,9 @@ import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/sc
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
-// Typed application routes (M2): validated Hono handlers chained into one app whose type (AppType) the Svelte client
+// Typed application routes: validated Hono handlers chained into one app whose type (AppType) the Svelte client
 // consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
-// The vanilla app calls the same paths with the same payloads. Routes move here slice by slice
-// (each JSON route the app calls); index.ts mounts this app after its auth middleware.
+// index.ts mounts this app after its auth middleware.
 //
 // Handlers never touch c.env: they get ApiServices (src/services.ts, built per request by index.ts for the signed-in
 // person), whose types are plain wire types. So AppType's declaration (.api-types, `bun run build:api-types`) stays free
@@ -31,7 +30,6 @@ import {
   CreateConnectionBody,
   type CreateConnectionResult,
   type MeResult,
-  MeQuery,
   AVATAR_TYPES,
   type AvatarResult,
   ImageHeaders,
@@ -218,7 +216,7 @@ export interface AuthServices {
   sameOrigin: boolean;
   /** Where to go after login: a same-site app path, else /app. */
   safeNext(next: string | undefined): string;
-  /** /login plus a query, in the UI (?ui=svelte) that `next` carries. */
+  /** /login plus a query. */
   loginUrl(next: string | undefined, query: string): string;
   /** Drop this browser's session cookie. */
   logout(): void;
@@ -339,7 +337,7 @@ export const api = roomPosts
     return c.json(ok, 200);
   });
 
-// Slice 3: account and room lists.
+// Account and room lists.
 export const accountApi = api
   .get("/api/archived", async (c) => {
     const rows = await c.get("svc").sqlAll(
@@ -406,7 +404,7 @@ export const accountApi = api
     return c.json(ok, 200);
   });
 
-// Slice 4: "Ligar Claude" and access requests.
+// "Ligar Claude" and access requests.
 export const roomApi = accountApi
   .post("/api/books/:id/claude", body(ClaudeToggleBody), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
@@ -499,7 +497,7 @@ export const roomApi = accountApi
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));
 
 const tooManyAsks = (en: boolean) => ({ error: en ? "Too many requests in a row. Wait a minute." : "Muitos pedidos seguidos. Espera um minuto." }) satisfies ErrorBody;
-// Slice 5: your name, new rooms and the home's router. Model answers are parsed with their schema before they leave.
+// Your name, new rooms and the home's router. Model answers are parsed with their schema before they leave.
 export const homeApi = roomApi
   .post("/api/me", body(SetNameBody), async (c) => {
     const clean = (c.req.valid("json").name ?? "").replace(/[<>"@\p{Cc}]/gu, "").replace(/\s+/g, " ").trim().slice(0, 60);
@@ -533,7 +531,7 @@ export const homeApi = roomApi
     }
   });
 
-// Slice 6: your freestyle.sh key and Claude subscription token (cloud agents). Only "connected" ever comes back.
+// Your freestyle.sh key and Claude subscription token (cloud agents). Only "connected" ever comes back.
 const tooMany = (en: boolean) => ({ error: en ? "Too many tries. Wait a minute." : "Muitas tentativas. Espera um minuto." }) satisfies ErrorBody;
 export const keysApi = homeApi
   .get("/api/freestyle", async (c) => {
@@ -571,7 +569,7 @@ export const keysApi = homeApi
     return c.json(ok, 200);
   });
 
-// Slice 7: the room's Claudes (sessions connected to this room) and everyone's cloud sandboxes in it.
+// The room's Claudes (sessions connected to this room) and everyone's cloud sandboxes in it.
 const limitsOf = (s: string | null) => {
   try {
     const r = AgentLimits.safeParse(s ? JSON.parse(s) : null);
@@ -665,7 +663,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
   return c.json(out, 200);
 });
 
-// Slice 8: your cloud sandboxes (freestyle.sh). Errors keep the old shape: { error } with 400/404/502.
+// Your cloud sandboxes (freestyle.sh). Errors keep the old shape: { error } with 400/404/502.
 const notFound = { error: "not found" } satisfies ErrorBody;
 const failed = (e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }) satisfies ErrorBody;
 const power = (act: "pause" | "start") => async (c: import("hono").Context<ApiCtx, "/api/sandboxes/:sid/pause" | "/api/sandboxes/:sid/start">) => {
@@ -712,7 +710,7 @@ export const sandboxApi = agentsApi
     }
   });
 
-// Slice 9: the room's MCP connections. Sign-in and its OAuth callback stay browser redirects (src/mcpconn.ts).
+// The room's MCP connections. Sign-in and its OAuth callback stay browser redirects (src/mcpconn.ts).
 const connFail = (r: ConnFail) => ({ error: r.error, ...(r.sign_in ? { sign_in: true as const } : {}) }) satisfies ConnectionError;
 const uiQuery = validator("query", (value, c) => {
   const r = ConnectionUiQuery.safeParse(value);
@@ -776,13 +774,10 @@ export const connectionsApi = sandboxApi
     return "error" in r ? c.json(connFail(r), r.status) : c.json(ok, 200);
   });
 
-// Slice 10: GET /api/me (POST /api/me, your name, is slice 5).
-export const meApi = connectionsApi.get("/api/me", validator("query", (value,c) => {
-  const r=MeQuery.safeParse({ui:Array.isArray(value.ui)?value.ui[0]:value.ui});
-  return r.success?r.data:c.json({error:"bad request"} satisfies ErrorBody,400);
-}), async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200));
+// GET /api/me (POST /api/me sets your name).
+export const meApi = connectionsApi.get("/api/me", async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200));
 
-// Slice 11: the profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.
+// The profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.
 const imageHeaders = validator("header", (value, c) => {
   const r = ImageHeaders.safeParse(value);
   return r.success ? r.data : c.json({ error: "bad request" } satisfies ErrorBody, 400);
@@ -830,7 +825,7 @@ export const uploadsApi = meApi
       return c.json(failed(e), 400);
     }
   })
-  // Slice 13: your connected Claudes (OAuth grants), moved from src/connect.ts.
+  // Your connected Claudes (OAuth grants), moved from src/connect.ts.
   .get("/api/agents", async (c) => c.json((await c.get("svc").grants.list()) satisfies AgentGrantsResult, 200))
   .post("/api/agents/revoke", body(RevokeAgentsBody, "ids must be a list"), async (c) => {
     const svc = c.get("svc");
@@ -844,7 +839,7 @@ export const uploadsApi = meApi
     await svc.grants.revoke([c.req.param("id")]);
     return c.json(ok, 200);
   })
-  // Slice 14: the agent-connect consent page's context (the approval itself stays the form POST /authorize).
+  // The agent-connect consent page's context (the approval itself stays the form POST /authorize).
   .get("/api/authorize/context", async (c) => {
     const r = await c.get("svc").consentContext();
     if ("error" in r) return c.json({ error: r.error, ...(r.redirect_to ? { redirect_to: r.redirect_to } : {}) } satisfies ConsentError, 400);

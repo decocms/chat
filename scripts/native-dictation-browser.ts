@@ -223,7 +223,7 @@ export async function auditNativeDictation(
       });
     });
     page.on("pageerror", (error) => report.pageErrors.push(error.name));
-    await page.goto(`${fixture.base}/b/${fixture.roomId}?ui=svelte`, {
+    await page.goto(`${fixture.base}/b/${fixture.roomId}`, {
       waitUntil: "domcontentloaded",
     });
     const media = () =>

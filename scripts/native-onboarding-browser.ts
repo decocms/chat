@@ -49,7 +49,7 @@ try {
     data: { name: "" },
   });
   assert(reset.ok());
-  await page.goto(`${base}/app?ui=svelte`, {
+  await page.goto(`${base}/app`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });

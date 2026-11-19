@@ -281,7 +281,7 @@ export function mountConnections(app: Hono<Ctx>, deps: { isMember: (db: D1Databa
   });
 }
 
-/** The typed routes' side (src/api.ts, slice 9): the signed-in person's view of a room's connections. Room membership
+/** The typed routes' side (src/api.ts): the signed-in person's view of a room's connections. Room membership
  *  is checked by the route; a failure is { error, status } (401 + sign_in = sign in on that server first). */
 export type ConnFail = { error: string; status: 400 | 401 | 403 | 404 | 429 | 502; sign_in?: true };
 export function connOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }, email: string, origin: string, track: (env: Env, name: string, o: object) => Promise<unknown>) {

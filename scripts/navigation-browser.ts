@@ -146,7 +146,7 @@ try {
   const navigate = async (thread = "main") => {
     ready = false;
     await current.goto(
-      `${base}/b/${id}?ui=svelte${thread === "main" ? "" : `&t=${thread}`}`,
+      `${base}/b/${id}${thread === "main" ? "" : `&t=${thread}`}`,
     );
     await show();
     await expect.poll(() => ready).toBe(true);

@@ -7,6 +7,6 @@ export type FilesProps = Omit<PanelProps, "room"> & {
   session: FilesSession;
   request: FileRequest;
   onfolderchange: () => void;
-  /** Explicit legacy viewer boundary; the selected immutable upload has been revalidated. */
+  /** Opens the file in the viewer; the selected upload has been revalidated. */
   onopenfile: (file: RoomFile) => void;
 };

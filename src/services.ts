@@ -22,7 +22,7 @@ import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { aiSpend } from "./reports";
 
-// The app shell's version per UI variant, per isolate (a deploy is a new isolate): open tabs compare it to reload.
+// The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
 const ProfileName = z.pick(MeData, { name: true });
 const ProfileAvatar = z.pick(MeData, { avatar: true });

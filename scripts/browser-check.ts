@@ -81,7 +81,7 @@ try {
     await page.route("http://127.0.0.1:47321/**", (route) => route.abort());
   }
   const opened = Date.now();
-  await a.goto(`${base}/b/${id}?ui=svelte`, {
+  await a.goto(`${base}/b/${id}`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
@@ -115,7 +115,7 @@ try {
   await aTasks.locator("#newTask input").press("Enter");
   await expect(aTasks.locator("[data-task]")).toHaveCount(2);
   console.log("PASS desktop renders; native epic and tasks created");
-  await b.goto(`${base}/b/${id}?t=${eid}&ui=svelte`, {
+  await b.goto(`${base}/b/${id}?t=${eid}`, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
@@ -140,62 +140,19 @@ try {
   await expect(remoteCheckbox).toBeChecked({ timeout: 90_000 });
   await checkbox.uncheck();
   await expect(remoteCheckbox).not.toBeChecked({ timeout: 90_000 });
-  // A normal URL in another tab remains vanilla and shares the same room data.
-  const vanilla = await desktop.newPage();
-  const vanillaRequests: string[] = [];
-  vanilla.on("request", (request) => vanillaRequests.push(request.url()));
-  vanilla.on("pageerror", (error) => errors.push(error.message));
-  await vanilla.route("https://fonts.googleapis.com/**", (route) =>
-    route.abort(),
-  );
-  await vanilla.route("https://fonts.gstatic.com/**", (route) => route.abort());
-  await vanilla.route("http://127.0.0.1:47321/**", (route) => route.abort());
-  const defaultResponse = await vanilla.goto(`${base}/b/${id}?t=${eid}`, {
-    waitUntil: "domcontentloaded",
-    timeout: 120_000,
-  });
-  expect(defaultResponse?.headers()["x-vibebook-ui"]).toBe("vanilla");
-  await expect(vanilla.locator("#composer")).toBeVisible({ timeout: 120_000 });
-  await expect(vanilla.locator("[data-native-document]")).toHaveCount(0);
-  expect(
-    vanillaRequests.some(
-      (url) =>
-        url.includes("/svelte-preview/") || url.includes("/collab-svelte.js"),
-    ),
-  ).toBe(false);
-  const vanillaCheckbox = vanilla.locator(
-    `[data-task="${taskId}"] input[type=checkbox]`,
-  );
-  await vanillaCheckbox.check();
-  await expect(checkbox).toBeChecked({ timeout: 90_000 });
-  await checkbox.uncheck();
-  await expect(vanillaCheckbox).not.toBeChecked({ timeout: 90_000 });
-  const [vanillaMe, previewMe, previewShell] = await Promise.all([
+  const [me, shell] = await Promise.all([
     desktop.request.get(`${base}/api/me`),
-    desktop.request.get(`${base}/api/me?ui=svelte`),
-    desktop.request.get(`${base}/b/${id}?ui=svelte`),
+    desktop.request.get(`${base}/b/${id}`),
   ]);
-  const vanillaVersion = z
-    .object({ v: z.string() })
-    .parse(await vanillaMe.json()).v;
-  const previewVersion = z
-    .object({ v: z.string() })
-    .parse(await previewMe.json()).v;
-  expect(vanillaVersion).not.toBe(previewVersion);
-  expect(await previewShell.text()).toContain(
-    `name="vb-v" content="${previewVersion}"`,
-  );
-  expect(previewShell.headers()["x-vibebook-ui"]).toBe("svelte");
-  await vanilla.close();
-  expect(new URL(a.url()).searchParams.get("ui")).toBe("svelte");
+  const version = z.object({ v: z.string() }).parse(await me.json()).v;
+  expect(await shell.text()).toContain(`name="vb-v" content="${version}"`);
   await a.reload({ waitUntil: "domcontentloaded", timeout: 120_000 });
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
   await showNativeTasks(a);
   await expect(aTasks.locator(`[data-task="${taskId}"]`)).toBeVisible();
   console.log(
-    "PASS vanilla default, isolated assets/versions, preview reload and cross-variant task fan-out",
+    "PASS release version in the room shell and task state after reload",
   );
-  // Native composer/chat selectors are scoped separately from the deliberate vanilla tab.
   const composer = a.locator("[data-native-composer]");
   const send = composer.locator("[data-composer-send]");
   // A native keyed message row preserves escaping, actions and reply context.
@@ -290,28 +247,21 @@ try {
   );
   console.log("PASS two live Yjs document editors");
   // Exercise real SPA navigation while an editor owns a live provider.
-  await a.locator('a[data-nav][href="/app?ui=svelte"]:visible').first().click();
+  await a.locator('a[data-nav][href="/app"]:visible').first().click();
   await expect.poll(() => new URL(a.url()).pathname).toBe("/app");
-  expect(new URL(a.url()).searchParams.get("ui")).toBe("svelte");
   await expect(a.locator("[data-document-editor] .cm-content")).toHaveCount(0);
   await a.goBack();
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
-  expect(new URL(a.url()).searchParams.get("ui")).toBe("svelte");
-  await a.locator('a[data-nav][href="/app?ui=svelte"]:visible').first().click();
+  await a.locator('a[data-nav][href="/app"]:visible').first().click();
   await expect(
-    a
-      .locator(`[data-room-id="${id}"] a[href="/b/${id}?ui=svelte"]:visible`)
-      .first(),
+    a.locator(`[data-room-id="${id}"] a[href="/b/${id}"]:visible`).first(),
   ).toBeVisible({ timeout: 90_000 });
   await a
-    .locator(`[data-room-id="${id}"] a[href="/b/${id}?ui=svelte"]:visible`)
+    .locator(`[data-room-id="${id}"] a[href="/b/${id}"]:visible`)
     .first()
     .click();
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
-  expect(new URL(a.url()).searchParams.get("ui")).toBe("svelte");
-  console.log(
-    "PASS preview home/back/room navigation and live editor teardown",
-  );
+  console.log("PASS home/back/room navigation and live editor teardown");
   const invalid = await desktop.request.post(`${base}/api/books/${id}/post`, {
     data: { text: 42 },
     headers: { origin: base },
@@ -333,10 +283,9 @@ try {
         readyMs,
         checks: [
           "two live sessions",
-          "vanilla default and cross-variant task updates",
-          "isolated assets and release versions",
-          "preview URL and reload",
-          "preview home/back/room navigation and editor teardown",
+          "release version in the room shell",
+          "reload",
+          "home/back/room navigation and editor teardown",
           "task updates",
           "escaped chat",
           "reply context",

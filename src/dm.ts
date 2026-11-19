@@ -138,7 +138,7 @@ async function makeDm(env: Pick<Env, "DB">, id: string, me: string, peer: string
   const first = (e: string) =>
     names.results.find((u) => u.email === e)?.name?.split(" ")[0] ||
     e.split("@")[0];
-  // The row's own title is only a fallback (vanilla, e-mails): each side sees the DM under the other person's name.
+  // The row's own title is only a fallback (e-mails): each side sees the DM under the other person's name.
   const title = peer === me ? first(me) : `${first(me)} · ${first(peer)}`;
   await env.DB.batch([
     env.DB.prepare(

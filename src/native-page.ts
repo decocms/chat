@@ -28,7 +28,7 @@ function oneAsset(
     throw new Error(`Native shell requires a versioned ${name} reference`);
   return value;
 }
-/** Reuse only allowlisted generated references, never the hybrid shell's authored styles or executable chrome. */
+/** Reuse only the app shell's generated asset references, never its other markup. */
 export function nativeAuthHtml(shell: string, metadata: NativeAuthMetadata) {
   const data = NativeAuthMetadata.parse(metadata),
     app = oneAsset(shell, "src", "app.js"),
@@ -38,7 +38,7 @@ export function nativeAuthHtml(shell: string, metadata: NativeAuthMetadata) {
   const version = app.split("?v=")[1]!;
   return `<!doctype html><html lang="${data.lang === "en" ? "en" : "pt-BR"}"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="robots" content="noindex" /><meta name="vb-ui" content="svelte" /><meta name="vb-page" content="${data.page}" /><meta name="vb-auto-access" content="${data.autoAccess ? "1" : "0"}" /><meta name="vb-consent-failure" content="${data.page === "consent" && data.consentFailure ? "1" : "0"}" />${data.page === "connection-error" ? `<meta name="vb-connection-failure" content="${data.connectionFailure ?? "failed"}" />` : ""}<meta name="vb-v" content="${version}" />
+<meta name="robots" content="noindex" /><meta name="vb-page" content="${data.page}" /><meta name="vb-auto-access" content="${data.autoAccess ? "1" : "0"}" /><meta name="vb-consent-failure" content="${data.page === "consent" && data.consentFailure ? "1" : "0"}" />${data.page === "connection-error" ? `<meta name="vb-connection-failure" content="${data.connectionFailure ?? "failed"}" />` : ""}<meta name="vb-v" content="${version}" />
 <title>deco.chat</title><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="${css}" /></head>
 <body class="m-0 min-h-dvh bg-background font-sans text-foreground"><div id="app"></div><noscript><main><p>${data.lang === "en" ? "deco.chat needs JavaScript." : "O deco.chat precisa de JavaScript."}</p></main></noscript><script type="module" src="${app}"></script></body></html>`;
 }

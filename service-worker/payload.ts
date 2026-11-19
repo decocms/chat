@@ -17,6 +17,5 @@ export function notificationTarget(value: unknown, origin: string) {
     !/^\/(?:(?:archived|b\/[a-z0-9]+)\/?)?$/.test(target.pathname)
   )
     target = new URL("/", origin);
-  target.searchParams.delete("ui");
   return target.href;
 }

@@ -282,7 +282,7 @@ async function actor(
     302,
     "Supported loopback DEV identity endpoint required",
   );
-  const meResponse = await context.request.get(`${base}/api/me?ui=svelte`, {
+  const meResponse = await context.request.get(`${base}/api/me`, {
     timeout,
   });
   assert(meResponse.ok(), "DEV identity confirmation failed");
@@ -344,7 +344,6 @@ async function client(actor: Actor): Promise<Client> {
       code_challenge: createHash("sha256").update(verifier).digest("base64url"),
       code_challenge_method: "S256",
       state,
-      ui: "svelte",
     }),
   };
 }
@@ -540,12 +539,9 @@ function nativeAssets(actor: Actor, from: number) {
   const paths = actor.requests.slice(from);
   assert(
     !paths.some(
-      (url) =>
-        /\/(?:legacy\/host(?:\.js)?|host[-.]|collab(?:-svelte)?\.js|inbox\.js|ws(?:\/|-)|yjs\/)/.test(
-          new URL(url).pathname,
-        ) || new URL(url).origin === "https://fonts.googleapis.com",
+      (url) => new URL(url).origin === "https://fonts.googleapis.com",
     ),
-    "Native auth loaded a legacy host/runtime/style asset",
+    "Auth page loaded an external stylesheet",
   );
 }
 
@@ -591,31 +587,6 @@ try {
     };
     denied(await decision(primary, fresh, "deny", true), fresh.client);
     await noGrant(primary, baseline);
-    const legacy = await client(primary);
-    legacy.query.delete("ui");
-    const response = await primary.context.request.get(
-      `${base}/authorize?${legacy.query}`,
-      { maxRedirects: 0, timeout },
-    );
-    assert.equal(response.status(), 200, "Vanilla consent default failed");
-    const html = await response.text();
-    assert(
-      !html.includes('name="vb-page"'),
-      "Default consent selected native UI",
-    );
-    const handle = secret(
-      /name="handle" value="([^"]+)"/.exec(html)?.[1] ?? "",
-    );
-    assert(handle, "Vanilla real handle missing");
-    denied(
-      await protocol(
-        base,
-        `/authorize?${legacy.query}`,
-        form(handle),
-        await cookieHeader(primary),
-      ),
-      legacy,
-    );
     await noGrant(primary, baseline);
   });
   await step(
@@ -897,9 +868,7 @@ try {
         0,
       );
       const missing = randomBytes(6).toString("hex"),
-        access = await primary.page.goto(
-          `${primary.ui}/b/${missing}?ui=svelte`,
-        );
+        access = await primary.page.goto(`${primary.ui}/b/${missing}`);
       assert(
         access && access.status() === 404,
         "Missing room page did not return real404",
@@ -951,24 +920,13 @@ try {
       await audit(mobile, "PT mobile native consent");
       denied(await decision(mobile, tx, "deny", true), tx.client);
       await noGrant(mobile, before);
-      const native = await mobile.page.goto(
-        `${mobile.ui}/login?ui=svelte&next=%2Fapp`,
-      );
+      const native = await mobile.page.goto(`${mobile.ui}/login?next=%2Fapp`);
       assert(native && native.status() === 200);
       assert((await native.text()).includes('name="vb-page" content="login"'));
       await expect(mobile.page.locator('input[type="email"]')).toBeVisible();
       await audit(
         mobile,
         "PT mobile native login (DEV identity, no login success claim)",
-      );
-      const vanilla = await mobile.context.request.get(
-        `${base}/login?next=%2Fapp`,
-        { timeout },
-      );
-      assert(vanilla.ok());
-      assert(
-        !(await vanilla.text()).includes('name="vb-page"'),
-        "Login default selected native UI",
       );
       await mobile.context.close();
     },
@@ -1068,11 +1026,6 @@ try {
       });
       const login = new URL(primary.page.url()),
         next = new URL(login.searchParams.get("next") ?? "/", primary.ui);
-      assert.equal(
-        login.searchParams.get("ui"),
-        "svelte",
-        "Logout continuation lost native selection",
-      );
       assert.equal(
         next.origin,
         new URL(primary.ui).origin,
