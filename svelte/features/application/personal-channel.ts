@@ -20,7 +20,7 @@ type ConnectionOptions = Parameters<typeof createPersonalConnection>[0];
 export function createApplicationPersonalChannel(options: {
   personal: Pick<
     PersonalSession,
-    "observe" | "invalidate" | "refresh" | "refreshAgents"
+    "observe" | "invalidate" | "refresh" | "refreshAgents" | "setPushed"
   >;
   agents: Pick<AgentsService, "refreshAccount">;
   listenIdentity(
@@ -60,6 +60,7 @@ export function createApplicationPersonalChannel(options: {
     const captured = identity;
     const prior = connection;
     connection = null;
+    options.personal.setPushed(false);
     prior?.dispose();
     if (!active || !started || !captured.account || ticket !== generation)
       return;
@@ -114,7 +115,13 @@ export function createApplicationPersonalChannel(options: {
           if (sameRoom(before, route)) void options.agents.refreshAccount();
         }, 600);
       },
-      onConnected: () => refresh(true),
+      onConnected: () => {
+        refresh(true);
+        if (owns()) options.personal.setPushed(true);
+      },
+      onDisconnected: () => {
+        if (owns()) options.personal.setPushed(false);
+      },
       onVisible: () => refresh(false),
     });
     if (!owns()) {
@@ -154,6 +161,7 @@ export function createApplicationPersonalChannel(options: {
       generation++;
       routeChanged();
       unlisten();
+      options.personal.setPushed(false);
       connection?.dispose();
       connection = null;
     },
