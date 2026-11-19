@@ -504,3 +504,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the big 36px rows with the last message under the name. Make "Pedidos" one row with a count that opens its own view.
 - Risk: low
 - Undo: Revert this commit.
+
+### 2026-11-19 · feat/sidebar-section-scroll · Each sidebar section scrolls its own list
+- Agent: claude-opus-5-5
+- Context: The human asked that the sidebar stop scrolling whole, and that Epics, Pinned and People & agents each scroll inside. They accepted the recommended answers in the mockup: short lists keep their height and the long ones share the rest; the phone keeps one scroll; the DM sidebar does the same.
+- Decision: `lib/components/sidebarSection.ts` holds two class lists, `sidebarSection` and `sectionScroll`, used by EpicTree, PinnedItems, PeoplePanel and DmNav. Desktop only: each section is `flex-1` with `max-h-max`, so it never grows past its content and the free height goes in equal parts to the long ones. The floor is a title and one row (`min-h-16`; Epics `min-h-20` for its tabs). On desktop the room's wrapper is `contents`, so the name and the Main thread / Inbox / Board rows stay put and are not part of the shared height. The DM sidebar keeps Home, You and the requests still; the conversations scroll.
+- Other options: Shrink each section by its length (a long list lost almost all of its height). Fixed thirds. A JavaScript layout.
+- Risk: low
+- Undo: Revert this commit.
