@@ -81,7 +81,7 @@ test("the consent page's sign-out form returns to the login with its next", asyn
         env,
       )
     ).headers.get("location");
-  expect(await out("/b/abc")).toBe(`/login?next=${next("/b/abc")}`);
+  expect(await out("/b/abc")).toBe(`/login?next=${next("/b/abc")}&out=1`);
 });
 
 // The typed public routes with fake services: validation, origin check, statuses and bodies as the client sees them.
