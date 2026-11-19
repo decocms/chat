@@ -451,3 +451,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-18 · fix/herdr-app-switch-now · Off closes the Claude even when it works
+- Agent: claude-opus-5-5
+- Context: The human asked that "Ligar Claude" off stop or close the Claude of the room on the desktop at once. This replaces the earlier behavior (off only stops delivery, and the workspace stays open).
+- Decision: Off closes the workspace (terminal mode) or the space (`--app`) at once, also when its Claude works. If the workspace or space has other terminals, the runner ends only the Claude of the room and keeps the rest. The runner keeps the session, and on again opens it with `--resume`.
+- Other options: Wait until the Claude is free, then close it. That is slower, and the human asked for "immediately".
+- Risk: medium. Work in progress stops. The conversation is kept.
+- Undo: Revert this commit.
+- Status: open
