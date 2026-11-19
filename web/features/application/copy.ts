@@ -463,6 +463,7 @@ const EN: Readonly<Record<string, string>> = {
   "Abrir documento": "Open document",
   "Fechar documento": "Close document",
   Renomear: "Rename",
+  "Editar sala": "Edit room",
   "Trocar de conversa": "Switch conversation",
   "Trocar de sala": "Switch room",
   "Ir pro seu agent desta sala no herdr":

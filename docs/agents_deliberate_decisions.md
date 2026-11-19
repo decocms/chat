@@ -601,3 +601,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the `/settings` sidebar on desktop changes. Phones do not show this sidebar.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · edit-room-dialog-icon · The room pencil opens "Edit room" with the icon field of Settings
+- Agent: claude-opus-5-5
+- Context: The human asked that the pencil next to the room name open a dialog for the name and a new image, and that it reuse the existing room icon upload.
+- Decision: The rename dialog is now "Editar sala" / "Edit room". An `iconField` snippet in `AppNavigationDialogs.svelte` shows the icon (`RoomMark`, `lg`), "Trocar ícone" and "Tirar ícone". It uses `roomIconPng` and `rooms.icon`. The Settings dialog uses the same snippet, so its plain file input is replaced by the preview and the buttons. `RoomMark` takes an optional `size`. The pencil label is now "Editar sala". I did not add a component.
+- Other options: Add the icon only to the rename dialog and keep the Settings file input. Make a separate `RoomIconField` component.
+- Risk: low. The Settings dialog looks different. The upload and the API are the same.
+- Undo: Revert this commit.
+- Status: open
