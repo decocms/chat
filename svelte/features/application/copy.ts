@@ -592,8 +592,6 @@ const EN: Readonly<Record<string, string>> = {
   "deco.chat (trava do app)": "deco.chat (app lock)",
   "Desbloquear com Face ID": "Unlock with Face ID",
   "Toque pra tentar de novo.": "Tap to try again.",
-  "Conecte seu agent (o card acima diz como)":
-    "Connect your agent (the card above shows how)",
   "Seu agent está aqui": "Your agent is here",
   "Seu agent está desligado nesta sala": "Your agent is off in this room",
   Ligar: "Turn on",
