@@ -1,4 +1,4 @@
-import { chatTime, chatDateTime } from "../web/features/chat/time";
+import { chatTime, chatDateTime, chatZone } from "../web/features/chat/time";
 import { productionStatuses } from "../web/features/chat/production";
 import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../web/features/chat/privacy";
@@ -223,7 +223,7 @@ test("Fire transcript pieces stay canonical while visible rows and receipt place
   expect(r.messages).toEqual([ordinary, fire]);
 });
 
-test("chat time retains browser locale formatting across locale switches and date boundaries", () => {
+test("chat time is 24h in every locale, across locale switches and date boundaries (Gui #3586)", () => {
   for (const locale of ["en-US", "pt-BR", "en-GB", "pt-BR"])
     for (const ts of [
       0,
@@ -237,6 +237,7 @@ test("chat time retains browser locale formatting across locale switches and dat
         new Date(ts).toLocaleTimeString(locale, {
           hour: "2-digit",
           minute: "2-digit",
+          hourCycle: "h23",
         }),
       );
 });
@@ -323,4 +324,14 @@ test("production cue includes loaded origins but canonical message IDs take prec
   const before = JSON.stringify(r);
   productionStatuses(r);
   expect(JSON.stringify(r)).toBe(before);
+});
+
+test("chat zone is the viewer's UTC offset, empty for invalid dates", () => {
+  expect(chatZone(Date.UTC(2026, 10, 19, 20, 58))).toMatch(
+    /^GMT([+-]\d{1,2}(:\d{2})?)?$/,
+  );
+  expect(chatZone(NaN)).toBe("");
+  expect(chatTime("en-US", Date.UTC(2026, 10, 19, 20, 58))).not.toMatch(
+    /AM|PM/,
+  );
 });
