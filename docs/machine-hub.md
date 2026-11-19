@@ -15,7 +15,7 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 3. **The hub knows which agents are alive.** It only observes. It does not start or stop Claudes. The herdr runner continues to start and stop Claudes.
 4. **The hub delivers.** A room event goes to each agent of the machine that listens to that room, if the machine is on in that room.
 5. **The hub reports changes immediately.** When an agent starts, dies or disconnects, the hub tells the server.
-6. **One switch for each machine in each room.** The switch has one current value. There is no history. Off: the hub does not wake the agents of that machine for that room. The agents stay alive. The herdr runner closes the Claude that it opened for that room (CLI 1.7.1).
+6. **One switch for each machine in each room.** The switch has one current value. There is no history. Off: the hub does not wake the agents of that machine for that room, and their read cursor in that room does not advance. No process stops.
 
 ## Transport
 
@@ -40,10 +40,10 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 - A listen always goes through the hub, so its machine is always connected. A Claude that listens to a room where the switch of its machine is off shows in the pane under its machine. The hub does not wake it. The CLI prints one line that tells this.
 - Pane: one row for each live agent under its machine, with its name.
 - Delivery: the current behavior is sufficient. A listener that works gets the event on its next `/wait`, through `since`.
+- Off stops only the delivery: the hub does not wake the agents, and their read cursor in the room does not advance. When the switch is on again, they get the messages that they did not read. Nothing stops a process, also not the herdr runner. This replaces the behavior of CLI 1.7.1, which closes the Claude of the runner.
+- On does not start a second Claude. The herdr runner starts a Claude for a room only when the machine runs in herdr mode and no live agent of that machine listens to that room.
 
 ## Open questions
 
 1. MCP clients without the CLI: can they still call the tools (but never show in the pane and never wake), or does deco.chat refuse them?
-2. Off and the herdr runner: CLI 1.7.1 closes the Claude that the runner opened for the room. Other Claudes only stop getting events. Keep this difference, or make the runner only mute too?
-3. One switch, two effects: on enables delivery and also makes the herdr runner open a Claude for the room. Is that correct when the person only wants to wake a Claude that they opened manually?
-4. Migration: with off as the default, the Claudes that listen now in rooms without a value stop getting events. Turn on the rooms where a machine has a live listener at the release?
+2. Migration: with off as the default, the Claudes that listen now in rooms without a value stop getting events. Turn on the rooms where a machine has a live listener at the release?
