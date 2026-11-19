@@ -26,6 +26,7 @@ const pt = {
   reviewed: "Conferi o estado atual",
   refresh: "Atualizar",
   photoLabel: "Foto do perfil",
+  dropPhoto: "Solte a imagem aqui",
   language: "Idioma",
 } as const;
 export type OnboardingCopy = keyof typeof pt;
@@ -57,6 +58,7 @@ const en: Record<OnboardingCopy, string> = {
   reviewed: "I reviewed the current state",
   refresh: "Refresh",
   photoLabel: "Profile photo",
+  dropPhoto: "Drop the image here",
   language: "Language",
 };
 export const onboardingText = (
