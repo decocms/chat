@@ -201,14 +201,14 @@
     reply: () => {
       if (active) actions.reply(m.id);
     },
-    copy: () => {
+    copy: (link) => {
       // On a touch screen pointerenter comes before touchstart, so the toolbar is mounted: copy now, inside the
       // gesture, because iOS Safari allows the clipboard only there.
-      if (actionController) void actionController.copy();
+      if (actionController) void actionController.copy(link);
       else {
         showToolbar();
         void tick().then(() => {
-          if (active) void actionController?.copy();
+          if (active) void actionController?.copy(link);
         });
       }
     },
@@ -228,6 +228,23 @@
       : "",
   ]}
 >
+  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's edges as it slides. Right: Reply →.
+       Left: Copy on top, Link below; the half under the finger is outlined, and lit past the threshold. -->
+  <span
+    aria-hidden="true"
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground"
+    >{vb.t("Responder")} →</span
+  ><span
+    aria-hidden="true"
+    data-swipe-target="copy"
+    class="pointer-events-none absolute bottom-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=copy]:border-brand in-data-[swipe-pick=copy]:text-foreground in-data-[swipe=copy]:bg-brand/15"
+    >{vb.t("Copiar")}</span
+  ><span
+    aria-hidden="true"
+    data-swipe-target="link"
+    class="pointer-events-none absolute top-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=link]:border-brand in-data-[swipe-pick=link]:text-foreground in-data-[swipe=link]:bg-brand/15"
+    >{vb.t("Link")}</span
+  >
   {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
        curls up into a small picture, the author and the start of their message; a click jumps there. -->
     <button
