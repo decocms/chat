@@ -3,6 +3,7 @@
   import type { ComponentProps, Snippet } from "svelte";
   import Separator from "../../lib/studio/Separator.svelte";
   import RoomBarTitle from "./RoomBarTitle.svelte";
+  import { tabTitle } from "../notifications/title";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
@@ -147,9 +148,12 @@
 <!-- The tab's name follows the room (the server's <title> only names the first page, in the room's language). -->
 <svelte:head
   ><title
-    >{header.room.book.title
-      ? `${header.room.book.title} · deco.chat`
-      : "deco.chat"}</title
+    >{tabTitle(
+      header.room.book.title
+        ? `${header.room.book.title} · deco.chat`
+        : "deco.chat",
+      waits.length,
+    )}</title
   ></svelte:head
 >
 

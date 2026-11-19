@@ -220,6 +220,22 @@ export function createPwaService() {
       if (get(state).notifications) void this.setNotifications(true);
       else void sync();
     },
+    /** Something in a room you do not have open is for you (a DM, a mention, your agent asks): the same chime as a
+     *  message in the open room. With several tabs open, only the tab that takes the lock plays it. */
+    alert() {
+      if (!active || leaving || !account || !get(state).sound) return;
+      const locks =
+        typeof navigator === "undefined" ? undefined : navigator.locks;
+      if (!locks) return sound.play();
+      void locks
+        .request("vb-chime", { ifAvailable: true }, async (lock) => {
+          if (!lock || !active) return;
+          sound.play();
+          // Hold the lock while the chime plays, so the other tabs that got the same alert stay quiet.
+          await new Promise((done) => setTimeout(done, 1500));
+        })
+        .catch(() => {});
+    },
     /** The Sound switch (the in-app chime). Turning it on plays the chime once; that click unlocks audio. */
     setSound(on: boolean) {
       if (!active || leaving) return;

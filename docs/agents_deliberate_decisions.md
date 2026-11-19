@@ -812,3 +812,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A real network failure on a lazy view also reloads the page once.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/notifications-phase1 · One chime for what is for you, in any room, and the Inbox count in the tab's name
+- Agent: claude-opus-5-5
+- Context: The human asked for notifications like WhatsApp (a DM, an agent that needs them) and for the Inbox count in the tab's name. They said: first one uniform notification and sound, ship, then iterate (two and three notes later). The chime played only for messages in the open room. A DM or a mention in another room made a web push, but only for people who turned on Notifications.
+- Decision: `Book.notify` (DM, mention, an agent asks you) also pokes the recipients' `Person` with `{t: "alert", book}`. The open app plays the same chime as a message in the open room, if Sound is on. With two or more tabs, only the tab that gets the `vb-chime` Web Lock plays it. The same 20-second limit as the push applies. The tab's name starts with the Inbox count (`tabTitle`, "(3) Sala · deco.chat") on Home and in a room. I did not add the request for notification permission at the right time. It stays a task for the next epic.
+- Other options: The service worker tells the open tabs about each push. That works only for people who turned on Notifications. A `BroadcastChannel` to choose one tab. The Web Lock needs no election.
+- Risk: low. A browser without Web Locks plays the chime in each open tab.
+- Undo: Revert this commit.
+- Status: open

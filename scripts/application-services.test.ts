@@ -150,6 +150,7 @@ function fixture(
       account: (value) => {
         accounts.push(value);
       },
+      alert: () => {},
       beforeLogout: () => cleanup.promise,
       dispose: () => {
         pwaDisposals++;

@@ -34,6 +34,8 @@ export function createApplicationPersonalChannel(options: {
   currentRoom(): string | null;
   room(): PersonalChannelRoom | null;
   refreshRoom(): unknown;
+  /** Something in a room you do not have open is for you: the PWA owner plays the chime. */
+  alert?(book: string): void;
   url: ConnectionOptions["url"];
   visible: ConnectionOptions["visible"];
   listenVisibility: ConnectionOptions["listenVisibility"];
@@ -122,6 +124,9 @@ export function createApplicationPersonalChannel(options: {
       },
       onPresence(update) {
         if (owns()) options.personal.presence(update);
+      },
+      onAlert(book) {
+        if (owns() && book !== options.currentRoom()) options.alert?.(book);
       },
       onConnected: () => {
         refresh(true);

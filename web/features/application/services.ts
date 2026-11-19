@@ -40,7 +40,7 @@ import type { FetchLike } from "../../app/transport";
 
 export type ApplicationPwa = Pick<
   PwaService,
-  "account" | "beforeLogout" | "dispose"
+  "account" | "beforeLogout" | "dispose" | "alert"
 >;
 export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   browser: ApplicationBrowser;
@@ -318,6 +318,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         : null;
     },
     refreshRoom: refreshRoomAgents,
+    alert: () => pwa.alert(),
     url: () => browser.socketUrl("/ws-me"),
     visible: browser.visible,
     listenVisibility: browser.listenVisibility,

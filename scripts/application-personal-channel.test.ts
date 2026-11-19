@@ -88,6 +88,9 @@ function harness() {
     refreshRoom: () => {
       calls.push("room");
     },
+    alert: (book) => {
+      calls.push(`alert:${book}`);
+    },
     url: () => "wss://vb.test/ws-me",
     visible: () => true,
     listenVisibility: () => () => {},
@@ -303,4 +306,16 @@ test("a contact's presence reaches the session only while the channel owns the s
     all: false,
   });
   expect(h.calls).toEqual(["presence:all:b@test=true"]);
+});
+
+test("an alert from another room plays the chime; the open room's own alert does not", () => {
+  const h = harness();
+  h.owner.start();
+  const options = h.connections[0]!.options;
+  options.onAlert?.("dm-bbbbbb");
+  options.onAlert?.("aaaaaa");
+  expect(h.calls).toEqual(["alert:dm-bbbbbb"]);
+  h.owner.dispose();
+  options.onAlert?.("dm-cccccc");
+  expect(h.calls).toEqual(["alert:dm-bbbbbb"]);
 });

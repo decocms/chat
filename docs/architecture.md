@@ -43,6 +43,7 @@ Rules:
 - The Durable Objects use WebSocket hibernation. An idle socket costs nothing.
 - The app does not poll. When a value changes, the server sends a "poke" to the `Person`. The open tabs then fetch again one time.
 - Send only the data that changed. A large snapshot to each tab is a known problem.
+- A DM, a mention or an ask from an agent in a room that you do not have open sends `{ t: "alert", book }` to your `Person` (`Book.notify`, with the web push). The open app plays the chime.
 - Every send to room sockets goes through `Book.sendTo`. It sends a JSON-RPC notification and counts bytes for each event type.
 - `Book.webSocketMessage` answers each JSON-RPC request with exactly one response. It does not answer a notification.
 - DM presence (the dots in the DM list) goes from `Person` to `Person`. The browser sends no request for it. The rules are in `src/presence.ts`.

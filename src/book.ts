@@ -684,11 +684,14 @@ export class Book extends DurableObject<Env> {
   /** `title` as a function is written in each recipient's language (users.lang). */
   async notify(emails: string[], title: string | ((en: boolean) => string), body: string, msgId: number, thread: string) {
     const bookId = this.get("book_id");
-    if (!bookId || !this.env.VAPID_PUBLIC_KEY) return;
+    if (!bookId) return;
     const here = new Set(this.online()), now = Date.now();
     const to = [...new Set(emails)].filter((e) => !here.has(e) && now - (this.pushedAt.get(e) ?? 0) > 20_000);
     if (!to.length) return;
     to.forEach((e) => this.pushedAt.set(e, now));
+    // Their open apps play the chime too (in another room, on Home), so a DM sounds the same wherever you are.
+    this.ctx.waitUntil(poke(this.env, to, { t: "alert", book: bookId }));
+    if (!this.env.VAPID_PUBLIC_KEY) return;
     // A DM's push is titled by who wrote (its stored "A · B" title says nothing more).
     const room = this.isDm ? null : ((await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title ?? "deco.chat");
     const url = `/b/${bookId}${thread && thread !== "main" ? `?t=${encodeURIComponent(thread)}` : ""}#m${msgId}`;

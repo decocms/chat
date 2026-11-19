@@ -10,6 +10,9 @@ export const PersonEventSchemas = {
   }),
   agents: z.object({ t: z.literal("agents"), book: z.string() }),
   focus: z.object({ t: z.literal("focus"), book: z.string() }),
+  /** Something in a room you do not have open is for you (a DM, a mention, your agent asks): the app plays the
+   *  chime, the same one a message in the open room plays. Sent with the web push (src/book.ts notify). */
+  alert: z.object({ t: z.literal("alert"), book: z.string() }),
   /** Who of your DM contacts has the app open (src/person.ts). `all: 1` is the full list a new socket gets first:
    *  it replaces what the app knew. Without it, only the people listed changed. */
   presence: z.object({
@@ -22,6 +25,7 @@ export const PersonEventSchema = z.discriminatedUnion("t", [
   PersonEventSchemas.me,
   PersonEventSchemas.agents,
   PersonEventSchemas.focus,
+  PersonEventSchemas.alert,
   PersonEventSchemas.presence,
 ]);
 export type PersonEvent = z.infer<typeof PersonEventSchema>;

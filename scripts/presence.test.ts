@@ -102,6 +102,20 @@ test("the presence event is typed on the wire and in the app", () => {
   ).toBe(null);
 });
 
+test("the alert event is typed on the wire and in the app", () => {
+  const alert = { t: "alert" as const, book: "dm-abc" };
+  expect(parsePersonEvent(encodeCall(alert))).toEqual(alert);
+  expect(decodePersonalNotice(encodeCall(alert))).toEqual({
+    kind: "alert",
+    book: "dm-abc",
+  });
+  expect(
+    parsePersonEvent(
+      JSON.stringify({ jsonrpc: "2.0", method: "alert", params: {} }),
+    ),
+  ).toBe(null);
+});
+
 // A Person DO with fake sockets, storage, D1 and contacts' DOs.
 function fakePerson(contacts: string[] = []) {
   const store = new Map<string, unknown>();
