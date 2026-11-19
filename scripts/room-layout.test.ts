@@ -25,7 +25,7 @@ import { auditPresentation, auditTailwind } from "./style-policy";
 
 function fixture() {
   const entries: { href: string; state: unknown }[] = [
-    { href: "https://vibebook.test/b/abcdef?ui=svelte#emain", state: null },
+    { href: "https://vibebook.test/b/abcdef#emain", state: null },
   ];
   let index = 0,
     backs = 0,
@@ -109,7 +109,7 @@ function fixture() {
     },
     foreign() {
       entries[index] = {
-        href: "https://vibebook.test/b/ffffff?ui=svelte",
+        href: "https://vibebook.test/b/ffffff",
         state: { another: true },
       };
     },
@@ -279,7 +279,7 @@ test("taking a sheet entry asks the route owner to replace, never asynchronously
   expect(f.read().backs).toBe(0);
   expect(f.read().sheet).toBeNull();
   expect(f.browser.state()).toBeNull();
-  f.browser.history.replaceState(null, "", "/b/abcdef?ui=svelte#eabc123");
+  f.browser.history.replaceState(null, "", "/b/abcdef#eabc123");
   expect(f.entries).toHaveLength(2);
   expect(f.owner.take()).toBe(false);
   f.owner.dispose();
@@ -528,7 +528,7 @@ test("reload adoption never overwrites a newer token or URL written during curre
           f.browser.history.replaceState(
             replaceURL ? original : newer,
             "",
-            replaceURL ? "/b/ffffff?ui=svelte" : f.browser.href(),
+            replaceURL ? "/b/ffffff" : f.browser.href(),
           );
         }
         return true;

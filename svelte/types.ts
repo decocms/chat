@@ -1,5 +1,5 @@
 import type { MeResult, InboxResult } from "../shared/schemas";
-/** Canonical Personal wait DTO. Vanilla's independent legacy bridge stays separate. */
+/** A wait on the signed-in person. */
 export type Wait = MeResult["waits"][number];
 
 // A @mention held back for the digest (not an ask that became a wait): shown in the inbox so it isn't missed.

@@ -107,7 +107,7 @@ try {
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   // Cloud agents live in Settings, on the room you pick (here, from the room's link).
-  const cloud = `${base}/settings?room=${room}&ui=svelte#cloud`;
+  const cloud = `${base}/settings?room=${room}#cloud`;
   await page.goto(cloud, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
@@ -247,7 +247,7 @@ try {
   await pane.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(terminal).toHaveAttribute("data-terminal-phase", "connected");
   assert.equal(connections, 2);
-  await page.goto(`${base}/app?ui=svelte`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${base}/app`, { waitUntil: "domcontentloaded" });
   await expect(page.locator(".xterm")).toHaveCount(0);
   assert.deepEqual(errors, []);
   report.status = "passed";

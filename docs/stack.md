@@ -17,7 +17,7 @@
 |---|---|
 | Server | TypeScript, Hono, zod, `@cloudflare/workers-oauth-provider`, `y-durableobjects`, Vercel AI SDK |
 | Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants |
-| Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`collab/`) |
+| Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`svelte/features/documents/`) |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
 
 ## Type safety and RPC

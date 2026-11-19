@@ -76,7 +76,7 @@ try {
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
   });
-  await page.goto(`${base}/b/${id}?ui=svelte`);
+  await page.goto(`${base}/b/${id}`);
   await page.locator("[data-new-epic]").click();
   await page
     .getByRole("textbox", { name: "New epic", exact: true })

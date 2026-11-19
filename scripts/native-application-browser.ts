@@ -243,7 +243,7 @@ async function identity(
     if (window !== window.top) return;
     localStorage.setItem("vb.theme", theme);
   }, profile.theme);
-  const response = await context.request.get(`${base}/api/me?ui=svelte`);
+  const response = await context.request.get(`${base}/api/me`);
   assert(response.ok(), "Local DEV identity must be enabled");
   const me = MeResult.parse(await response.json());
   assert.equal(
@@ -397,11 +397,10 @@ async function expectThread(page: Page, roomId: string, thread = "main") {
       const url = new URL(page.url());
       return {
         path: url.pathname,
-        ui: url.searchParams.get("ui"),
         thread: url.searchParams.get("t") ?? "main",
       };
     })
-    .toEqual({ path: "/b/" + roomId, ui: null, thread }); // Svelte is the default: no marker
+    .toEqual({ path: "/b/" + roomId, thread });
 }
 async function nativeEdit(page: Page) {
   await openIntegratedPane(page, "doc");
@@ -574,9 +573,7 @@ try {
       await expect
         .poll(async () =>
           MeResult.parse(
-            await (
-              await owner.context.request.get(`${base}/api/me?ui=svelte`)
-            ).json(),
+            await (await owner.context.request.get(`${base}/api/me`)).json(),
           ).books.some((book) => book.id === roomA),
         )
         .toBe(true);
@@ -604,9 +601,7 @@ try {
       await a.goto(`${base}/`);
       await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
       const freshVersion = MeResult.parse(
-        await (
-          await owner.context.request.get(`${base}/api/me?ui=svelte`)
-        ).json(),
+        await (await owner.context.request.get(`${base}/api/me`)).json(),
       ).v;
       assert.equal(
         await a.locator('meta[name="vb-v"]').getAttribute("content"),
@@ -658,7 +653,7 @@ try {
       await a.goBack();
       await expectThread(a, roomA);
       await expect(composer).toHaveValue(`Root draft ${token}`);
-      await b.goto(`${base}/b/${roomA}?ui=svelte`);
+      await b.goto(`${base}/b/${roomA}`);
       await expect.poll(() => bWire.store.get()?.me).toBe(peerEmail);
       await expect(b.locator("[data-native-composer] #input")).toBeVisible();
     },

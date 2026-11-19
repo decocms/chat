@@ -107,7 +107,7 @@ try {
     await submit.click();
     await expect(card(title)).toBeVisible();
   };
-  await navigate(`/b/${id}?ui=svelte`);
+  await navigate(`/b/${id}`);
   step("Checking room tasks without any epics");
   await expect(board).toHaveAttribute("data-board-scope", "all");
   await add("Standalone room task");
@@ -184,7 +184,7 @@ try {
   await expect(draft).toHaveValue("Draft survives view changes");
   await draft.fill("");
   step("Checking persisted mode/status and native Enter/Space navigation");
-  await navigate(`/b/${id}?ui=svelte`);
+  await navigate(`/b/${id}`);
   await expect(
     board.getByRole("tab", { name: "List", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
@@ -193,7 +193,7 @@ try {
   await showBoard();
   await expect(board).toHaveAttribute("data-board-scope", epicID);
   await expect(card("Standalone room task")).toHaveCount(0);
-  await navigate(`/b/${id}?ui=svelte`);
+  await navigate(`/b/${id}`);
   await open.press("Space");
   await showBoard();
   await expect(board).toHaveAttribute("data-board-scope", epicID);
@@ -317,7 +317,7 @@ try {
     )
     .toBe("");
   await expect(card("Retained board draft")).toBeVisible();
-  await navigate(`/b/${id}?ui=svelte&t=${epicID}`);
+  await navigate(`/b/${id}?t=${epicID}`);
   await expect(card("Retained board draft")).toBeVisible();
   await expect(status).toHaveValue("review");
   step("Checking board scrolling keeps the form and final card reachable");

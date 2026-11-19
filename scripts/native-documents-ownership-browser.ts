@@ -70,7 +70,7 @@ async function identity(owner: BrowserContext, email: string) {
   );
   assert(result.ok());
   await owner.addCookies([{ name: "vb_lang", value: "en", url: base }]);
-  const response = await owner.request.get(`${base}/api/me?ui=svelte`);
+  const response = await owner.request.get(`${base}/api/me`);
   assert(response.ok());
   const me = z
     .object({ email: z.string(), v: z.string() })
@@ -149,7 +149,7 @@ try {
   await step(
     "owner room app readiness and actual native editor write",
     async () => {
-      const response = await current.goto(`${base}/b/${room}?ui=svelte`, {
+      const response = await current.goto(`${base}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
       assert(response?.ok());
@@ -193,7 +193,7 @@ try {
     .elementHandle();
   assert(stale);
   await step("real home readiness and prior editor teardown", async () => {
-    await current.goto(`${base}/app?ui=svelte`, {
+    await current.goto(`${base}/app`, {
       waitUntil: "domcontentloaded",
     });
     await expect(current.locator('[data-vb-native="home"]')).toBeVisible();
@@ -208,7 +208,7 @@ try {
     "foreign identity and positive real native access-page readiness",
     async () => {
       await identity(owner, foreignEmail);
-      const response = await current.goto(`${base}/b/${room}?ui=svelte`, {
+      const response = await current.goto(`${base}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
       assert(response?.ok());
@@ -243,7 +243,7 @@ try {
     "restore owner and prove desktop room/editor readiness again",
     async () => {
       await identity(owner, ownerEmail);
-      await current.goto(`${base}/b/${room}?ui=svelte`, {
+      await current.goto(`${base}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
       await expect(current.locator("[data-native-composer]")).toBeVisible();

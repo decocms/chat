@@ -4,7 +4,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import * as z from "zod/mini";
 import { record } from "../shared/validation";
-export type DirectVariant = "svelte" | "vanilla";
 export type DirectMeter = {
   verified: number;
   browserVerified: number;
@@ -98,24 +97,17 @@ export async function startDirectMcpFixture(base: string) {
     .object({ keys: z.array(jwkSchema) })
     .parse(await jwksResponse.json());
   const nonce = randomBytes(16).toString("hex");
-  const states = new Map<
-    DirectVariant,
-    { room: string; email: string; meter: DirectMeter }
-  >();
+  let state: { room: string; email: string; meter: DirectMeter } | undefined;
+  const prefix = `/${nonce}`;
   let origin = "";
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
       const url = new URL(request.url);
-      const variant = [...states.keys()].find((v) =>
-        url.pathname.startsWith(`/${nonce}/${v}/`),
-      );
-      if (!variant) return new Response("missing", { status: 404 });
-      const state = states.get(variant);
-      assert(state);
-      const prefix = `/${nonce}/${variant}`,
-        endpoint = origin + prefix + "/mcp";
+      if (!state || !url.pathname.startsWith(prefix + "/"))
+        return new Response("missing", { status: 404 });
+      const endpoint = origin + prefix + "/mcp";
       const headers = {
         "access-control-allow-origin": base,
         "access-control-allow-methods": "POST, GET, DELETE, OPTIONS",
@@ -208,7 +200,7 @@ export async function startDirectMcpFixture(base: string) {
         const reply = (result: unknown) =>
           Response.json(
             { jsonrpc: "2.0", id: message.id, result },
-            { headers: { ...headers, "mcp-session-id": `direct-${variant}` } },
+            { headers: { ...headers, "mcp-session-id": "direct" } },
           );
         if (message.method === "initialize")
           return reply({
@@ -290,16 +282,16 @@ export async function startDirectMcpFixture(base: string) {
   origin = server.url.origin;
   return {
     sdk: sdkProof,
-    configure(variant: DirectVariant, room: string, email: string) {
+    configure(room: string, email: string) {
       const meter = zero();
-      states.set(variant, { room, email, meter });
-      return { url: origin + `/${nonce}/${variant}/mcp`, meter };
+      state = { room, email, meter };
+      return { url: origin + prefix + "/mcp", meter };
     },
     stop: async () => {
       try {
         await server.stop(true);
       } finally {
-        states.clear();
+        state = undefined;
       }
     },
   };

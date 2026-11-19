@@ -7907,7 +7907,7 @@ describe("People & agents presence", () => {
     flushSync();
   }
 
-  test("provider detection matches vanilla agentKind() and tints the tile", async () => {
+  test("provider detection picks the agent and tints the tile", async () => {
     const { agentProvider, agentMark, AGENT_TILES } =
       await import("../svelte/lib/components/agent");
     const table: [string | null, string, string][] = [

@@ -28,7 +28,6 @@ export type NativeAppNavigationFixture = Pick<
   "base" | "ownerEmail" | "output" | "createProfile" | "openPane" | "step"
 > & { ui?: AppNavigationUIDriver };
 export type NativeAppNavigationEvidence = {
-  variant: AppNavigationUIDriver["variant"];
   status: "running" | "diagnosed" | "inconclusive";
   verdict: "pending" | "read-inherited" | "explicit-denial" | "inconclusive";
   roomId?: string;
@@ -83,7 +82,6 @@ export async function auditNativeAppNavigation(
   const ui = fixture.ui ?? nativeAppNavigationDriver(fixture.openPane);
   const marker = `Controlled read marker ${randomBytes(16).toString("hex")}`;
   const evidence: NativeAppNavigationEvidence = {
-    variant: ui.variant,
     status: "running",
     phase: "listen",
     http: [],
@@ -95,7 +93,8 @@ export async function auditNativeAppNavigation(
     replacementOriginDiffers: false,
     replacementRequests: 0,
     pageErrors: [],
-    scope: `Actual ${ui.variant} room-App self-navigation with real Worker/Book/R2 and its production document-bound host; synthetic canonical message only`,
+    scope:
+      "Actual room-App self-navigation with real Worker/Book/R2 and its production document-bound host; synthetic canonical message only",
     gaps: [
       "Opening the initial room App is the trusted user capability grant; vibebook_read has no separate confirmation prompt",
       "HTML judgments use a controlled external-model ALLOW/DENY protocol fixture; actual model intelligence/quality remains unverified",
@@ -184,9 +183,7 @@ export async function auditNativeAppNavigation(
       ),
     );
     evidence.phase = "identity";
-    const meResponse = await owned.request.get(
-      `${fixture.base}/api/me?ui=svelte`,
-    );
+    const meResponse = await owned.request.get(`${fixture.base}/api/me`);
     evidence.http.push(probeHTTP(evidence.phase, meResponse.status()));
     assert(meResponse.ok());
     assert.equal(
@@ -501,7 +498,7 @@ export async function auditNativeAppNavigation(
       );
     await mkdir(fixture.output, { recursive: true });
     await writeFile(
-      `${fixture.output}/${ui.variant === "svelte" ? "native" : "vanilla"}-app-navigation.json`,
+      `${fixture.output}/app-navigation.json`,
       JSON.stringify(evidence, null, 2),
     );
   }

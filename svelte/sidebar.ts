@@ -44,9 +44,9 @@ export type SidebarProps = {
   onthreadintent?: () => boolean;
   /** Desktop: the room's name or icon at the top brings the chat back. */
   onroomhome?: () => void;
-  /** Pending F50 shell geometry adapter, disposed with its native handle. */
+  /** Mounts the phone sheet's grab handle; returns its cleanup. */
   mountSheetHandle?: (node: HTMLElement) => () => void;
-  /** Direct RoomLayout owns the mobile grab handle; legacy shells retain theirs. */
+  /** RoomLayout draws the phone grab handle itself. */
   hideSheetHandle?: boolean;
   /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
   /** The foot: your agent, then (desktop) `rows` = your agents' rows, then you. */

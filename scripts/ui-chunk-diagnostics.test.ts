@@ -42,7 +42,6 @@ function fixture(): ChunkDiagnostic {
   });
   return {
     formatVersion: 1,
-    variant: "svelte",
     revision,
     assetPrefix: "/svelte-preview/",
     contributionSemantics: "renderedLength is not gzip bytes",
@@ -108,7 +107,6 @@ function observed(build: ChunkDiagnostic): MetricChunkInput {
     })),
     samples: [
       {
-        variant: "svelte",
         device: "desktop",
         profile: "long",
         repetition: 1,
@@ -256,25 +254,4 @@ test("module project identity survives aliases above and at the root with missin
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
-});
-
-test("vanilla delayed Inbox bundle is not falsely attributed to initial inline Home code", () => {
-  const build = {
-    ...fixture(),
-    variant: "vanilla" as const,
-    assetPrefix: "/svelte/",
-  };
-  const m = observed(build);
-  const result = attributeChunks(build, {
-    ...m,
-    samples: [
-      {
-        ...m.samples[0],
-        variant: "vanilla",
-        resources: [{ phase: "entry", assetKey: "@shell/vanilla" }],
-      },
-    ],
-  });
-  expect(result.selectedAssets).toEqual([]);
-  expect(result.packages).toEqual([]);
 });

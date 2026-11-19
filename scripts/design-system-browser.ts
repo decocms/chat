@@ -77,7 +77,7 @@ try {
     }),
   );
   if (!onlyInbox) {
-    await page.goto(`${base}/app?ui=svelte&gallery=1`, {
+    await page.goto(`${base}/app?gallery=1`, {
       waitUntil: "domcontentloaded",
     });
     await expect(

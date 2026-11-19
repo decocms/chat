@@ -434,7 +434,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         : "main";
     if (
       requested === thread &&
-      router.canonicalizeLegacyThread(scope.roomId, thread)
+      router.canonicalizeHashThread(scope.roomId, thread)
     ) {
       publishRoute();
       if (

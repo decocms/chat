@@ -1,4 +1,4 @@
-// Requires an already built Svelte preview and a loopback Worker with DEV_EMAIL.
+// Requires an already built Svelte app and a loopback Worker with DEV_EMAIL.
 // This script creates isolated rooms through public APIs; it never fabricates room state.
 import { receivedFrame, sentFrame } from "./room-frames";
 import assert from "node:assert/strict";
@@ -208,23 +208,10 @@ try {
     await expect(viewer).not.toBeVisible();
     await expect.poll(() => new URL(page.url()).hash).toBe("");
   };
-  const vanilla = await context.request.get(`${base}/b/${id}`);
-  assert(vanilla.ok());
-  const vanillaHTML = await vanilla.text();
-  assert(
-    !vanillaHTML.includes("/svelte-preview/app.js") &&
-      !vanillaHTML.includes('src="/bootstrap.ts"'),
-    "Unselected room must keep the vanilla shell",
-  );
-  assert(
-    vanillaHTML.includes("function renderFiles()"),
-    "Expected existing vanilla inline Files renderer",
-  );
-  result.vanillaDefault = true;
   const loadedApp = page.waitForResponse(
     (response) => new URL(response.url()).pathname === "/svelte-preview/app.js",
   );
-  await page.goto(`${base}/b/${id}?ui=svelte`);
+  await page.goto(`${base}/b/${id}`);
   const appResponse = await loadedApp;
   result.app = {
     revisionSuppliedByRunner: process.env.TEST_APP_REVISION ?? null,
@@ -454,7 +441,7 @@ try {
   await page.locator(".phHome").click();
   await expect(page).toHaveURL(/\/app(?:\?|$)/);
   const otherLink = page
-    .locator(`[data-room-id="${other}"] a[href="/b/${other}?ui=svelte"]`)
+    .locator(`[data-room-id="${other}"] a[href="/b/${other}"]`)
     .first();
   await expect(otherLink).toBeVisible();
   await otherLink.click();

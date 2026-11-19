@@ -709,8 +709,7 @@ export class Book extends DurableObject<Env> {
   sockets(except?: WebSocket) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
   }
-  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind (app "s", the only one
-   *  since the vanilla app left in Nov 2026) per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
+  /** Every send to the room's sockets goes through here, so the bytes are counted by event kind (app "s") per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
   sendTo<T extends { t: string }>(to: WebSocket[], data: T) {
     const s = encodeCall(data); // a JSON-RPC notification, method = t

@@ -319,8 +319,8 @@ export const tintClasses = {
   purple: "bg-secondary text-secondary-foreground",
   none: "bg-muted text-foreground",
 } as const;
-// Vanilla shows a room's tint as a tinted backdrop around its rail tile
-// (.sw-group[data-tint], 22% of the tint), not on the tile itself.
+// A room's tint shows as a backdrop around its rail tile (22% of the tint),
+// not on the tile itself.
 const roomRailTintClasses = {
   blue: "bg-room-tint-blue/22",
   green: "bg-room-tint-green/22",

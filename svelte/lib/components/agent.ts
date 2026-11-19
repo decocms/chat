@@ -1,5 +1,4 @@
-/** Which coding agent it is, from the model or client it reported (vanilla
- * `agentKind()` in public/app.html). Unknown names (e.g. "vibebook CLI", which
+/** Which coding agent it is, from the model or client it reported. Unknown names (e.g. "vibebook CLI", which
  * Claude Code drives) keep the Claude mark. */
 export type AgentProvider =
   "claude" | "codex" | "gemini" | "cursor" | "copilot";

@@ -119,9 +119,9 @@ test("login context: a safe next and only the known Studio error", async () => {
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ next: "/", error: "studio" });
   const r2 = await client.auth.context.$get({
-    query: { next: "/b/abc?ui=svelte", error: "<script>" },
+    query: { next: "/b/abc", error: "<script>" },
   });
-  expect(await r2.json()).toEqual({ next: "/b/abc?ui=svelte", error: null });
+  expect(await r2.json()).toEqual({ next: "/b/abc", error: null });
 });
 
 test("a room link's context for the access page", async () => {

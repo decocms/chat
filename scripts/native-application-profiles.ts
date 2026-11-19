@@ -615,7 +615,7 @@ export async function auditNativeApplicationProfiles(
             await page.screenshot({
               path: `${fixture.output}/${key}-home.png`,
             });
-            await page.goto(`${fixture.base}/b/${fixture.roomId}?ui=svelte`, {
+            await page.goto(`${fixture.base}/b/${fixture.roomId}`, {
               waitUntil: "domcontentloaded",
               timeout: 120_000,
             });
@@ -789,7 +789,7 @@ export async function auditNativeApplicationProfiles(
             }
             // A fresh document navigation closes all sheet/history ownership before
             // the independent keyboard overlay proof; draft banks are not retargeted.
-            await page.goto(`${fixture.base}/b/${fixture.roomId}?ui=svelte`, {
+            await page.goto(`${fixture.base}/b/${fixture.roomId}`, {
               waitUntil: "domcontentloaded",
             });
             await expect(

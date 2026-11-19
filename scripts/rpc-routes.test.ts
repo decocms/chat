@@ -5,7 +5,7 @@ import { uploadsApi as api, type ApiCtx, type ApiServices } from "../src/api";
 import { AgentDbRow, UploadHeaders } from "../src/apiServerSchemas";
 import { encodeCall } from "../shared/jsonRpc";
 import { parsePersonEvent, PersonEventSchema } from "../shared/person";
-import type { MeQuery, SearchQuery } from "../shared/schemas";
+import type { SearchQuery } from "../shared/schemas";
 import {
   connectionIdentity,
   type ConnectionIdentityPorts,
@@ -21,12 +21,6 @@ type Equal<A, B> =
     : false;
 type Assert<T extends true> = T;
 export type PersonalQueryContracts = [
-  Assert<
-    Equal<
-      InferRequestType<PersonalClient["api"]["me"]["$get"]>["query"],
-      MeQuery
-    >
-  >,
   Assert<
     Equal<
       InferRequestType<PersonalClient["api"]["search"]["$get"]>["query"],
@@ -727,7 +721,7 @@ test("me: the home's one read, typed end to end", async () => {
   expect([r.status, (await r.json()).v]).toEqual([200, "v1"]);
 });
 
-test("personal query contracts preserve first duplicates, search normalization and UI fallback", async () => {
+test("personal query contracts preserve first duplicates, search normalization", async () => {
   const searches: string[] = [];
   const f = fixture({
     search: async (q) => {
@@ -736,10 +730,7 @@ test("personal query contracts preserve first duplicates, search normalization a
     },
   });
   const rpc = hc<typeof api>("http://localhost", { fetch: f.app.request });
-  expect((await rpc.api.me.$get({ query: { ui: "svelte" } })).status).toBe(200);
-  expect((await rpc.api.me.$get({ query: { ui: "unknown" } })).status).toBe(
-    200,
-  );
+  expect((await rpc.api.me.$get()).status).toBe(200);
   expect(
     (await rpc.api.search.$get({ query: { q: "  typed search  " } })).status,
   ).toBe(200);
@@ -765,17 +756,7 @@ test("personal query contracts preserve first duplicates, search normalization a
     });
   }
   expect(searches).toHaveLength(count);
-  for (const query of [
-    "ui=svelte&ui=unknown",
-    "ui=unknown&ui=svelte",
-    "ui=&ui=svelte",
-  ]) {
-    const url = `http://localhost/api/me?${query}`;
-    expect((await f.app.request(url)).status).toBe(200);
-  }
   if (false) {
-    // @ts-expect-error inferred ui accepts a string, not an untyped numeric value.
-    await rpc.api.me.$get({ query: { ui: 123 } });
     // @ts-expect-error inferred q accepts a string, not an untyped numeric value.
     await rpc.api.search.$get({ query: { q: 123 } });
     // @ts-expect-error there is no room search query in this existing endpoint.
@@ -809,12 +790,10 @@ test("personal query contracts leave rate limits and cached me payloads unchange
       };
     },
   });
-  for (const query of ["", "?ui=unknown", "?ui=svelte&ui=unknown"]) {
-    const response = await cached.app.request(`/api/me${query}`);
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ v: "current", cached: true });
-  }
-  expect(calls).toBe(3);
+  const me = await cached.app.request("/api/me");
+  expect(me.status).toBe(200);
+  expect(await me.json()).toMatchObject({ v: "current", cached: true });
+  expect(calls).toBe(1);
 });
 
 test("personal event contracts decode raw ws-me data and retain the literal new-message flag", () => {

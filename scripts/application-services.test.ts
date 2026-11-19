@@ -289,7 +289,7 @@ function adapter() {
 }
 
 test("transient suggestion navigation keeps main URL and one live connection, including deferred sheet-entry reuse", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte");
+  const h = fixture("http://vb.test/b/aaaaaa");
   h.services.start();
   await settle();
   const room = canonical();
@@ -329,7 +329,7 @@ test("transient suggestion navigation keeps main URL and one live connection, in
 });
 
 test("deferred transient route retains its target once, but cannot run after router disposal", () => {
-  let href = "http://vb.test/b/aaaaaa?ui=svelte",
+  let href = "http://vb.test/b/aaaaaa",
     holding = true;
   let queued: (() => void) | undefined;
   const targets: string[] = [],
@@ -412,7 +412,7 @@ test("application starts one account/channel and disposes every document listene
 });
 
 test("initial deep file intent waits for canonical room and late RoomShell attachment, then replays once", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#fabcdef");
+  const h = fixture("http://vb.test/b/aaaaaa#fabcdef");
   h.services.start();
   await settle();
   expect(h.services.roomScope()).toBeNull();
@@ -432,7 +432,7 @@ test("initial deep file intent waits for canonical room and late RoomShell attac
 });
 
 test("same-room target preserves history/router and validates selected thread before message/file intent", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte");
+  const h = fixture("http://vb.test/b/aaaaaa");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -588,7 +588,7 @@ test("navigation requested by the synchronous identity reset runs after private 
 });
 
 test("known Personal global 401 revokes private scope and caches before login redirect, never reviving from old callbacks", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#fabcdef");
+  const h = fixture("http://vb.test/b/aaaaaa#fabcdef");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -606,7 +606,6 @@ test("known Personal global 401 revokes private scope and caches before login re
   await settle();
   expect(h.documentNavigations).toHaveLength(1);
   expect(h.documentNavigations[0]).toContain("/login?");
-  expect(h.documentNavigations[0]).not.toContain("&ui="); // Svelte is the default: the login needs no marker
   h.connections[0]!.callbacks.onEvent(event(canonical()));
   h.channels[0]!.options.onAccount();
   h.flushQueued();
@@ -633,7 +632,7 @@ test("release availability compares the shell ETag, stays quiet on fresh load an
 });
 
 test("validated app catalog/tool and legacy epic/document hashes preserve explicit query precedence", () => {
-  const root = "http://vb.test/b/aaaaaa?ui=svelte",
+  const root = "http://vb.test/b/aaaaaa",
     cid = "abcdef123456";
   expect(applicationRoute(root + "#app:" + cid)).toMatchObject({
     kind: "room",
@@ -655,11 +654,11 @@ test("validated app catalog/tool and legacy epic/document hashes preserve explic
     kind: "room",
     target: { thread: "other", document: true },
   });
-  expect(applicationRoute(root + "&t=main#doc:other")).toMatchObject({
+  expect(applicationRoute(root + "?t=main#doc:other")).toMatchObject({
     kind: "room",
     target: { thread: "main", document: true },
   });
-  expect(applicationRoute(root + "&t=explicit#eother")).toMatchObject({
+  expect(applicationRoute(root + "?t=explicit#eother")).toMatchObject({
     kind: "room",
     target: { thread: "explicit" },
   });
@@ -681,7 +680,7 @@ test("validated app catalog/tool and legacy epic/document hashes preserve explic
 });
 
 test("initial OAuth catalog return is delivered once after canonical room validation and late attachment", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#app:abcdef123456");
+  const h = fixture("http://vb.test/b/aaaaaa#app:abcdef123456");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -696,7 +695,7 @@ test("initial OAuth catalog return is delivered once after canonical room valida
 });
 
 test("app route ownership survives Viewer/Sheet deferral as an immutable target but cannot cross disposal", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte");
+  const h = fixture("http://vb.test/b/aaaaaa");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -722,7 +721,7 @@ test("app route ownership survives Viewer/Sheet deferral as an immutable target 
   });
   expect(h.connections).toHaveLength(1);
   holding = true;
-  h.services.actions.navigate("/b/aaaaaa?ui=svelte#app:abcdef123456");
+  h.services.actions.navigate("/b/aaaaaa#app:abcdef123456");
   h.services.dispose();
   holding = false;
   queued?.();
@@ -730,7 +729,7 @@ test("app route ownership survives Viewer/Sheet deferral as an immutable target 
 });
 
 test("deleted legacy document target is marked unavailable instead of opening it as main", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#doc:deleted");
+  const h = fixture("http://vb.test/b/aaaaaa#doc:deleted");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -746,7 +745,7 @@ test("deleted legacy document target is marked unavailable instead of opening it
 
 test("authorized legacy epic hashes canonicalize in place before Viewer can own the hash", async () => {
   for (const hash of ["#eother", "#doc:other"]) {
-    const h = fixture("http://vb.test/b/aaaaaa?ui=svelte" + hash);
+    const h = fixture("http://vb.test/b/aaaaaa" + hash);
     h.services.start();
     await settle();
     const room = canonical();
@@ -765,7 +764,7 @@ test("authorized legacy epic hashes canonicalize in place before Viewer can own 
 });
 
 test("an initial app continuation cannot survive room departure or negative canonical membership", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#app:abcdef123456");
+  const h = fixture("http://vb.test/b/aaaaaa#app:abcdef123456");
   h.services.start();
   await settle();
   h.connections[0]!.callbacks.onEvent(event(canonical()));
@@ -775,7 +774,7 @@ test("an initial app continuation cannot survive room departure or negative cano
   h.services.attachRoom(h.services.roomScope()!, next.owner);
   expect(next.targets).toHaveLength(1);
   expect(next.targets[0]?.target.app).toBeUndefined();
-  h.services.actions.navigate("/b/aaaaaa?ui=svelte#app:abcdef123456");
+  h.services.actions.navigate("/b/aaaaaa#app:abcdef123456");
   h.connections
     .at(-1)!
     .callbacks.onEvent(event({ ...canonical(), members: [] }));
@@ -786,7 +785,7 @@ test("an initial app continuation cannot survive room departure or negative cano
 });
 
 test("reentrant navigation during canonical legacy URL publication cancels the old target", async () => {
-  const h = fixture("http://vb.test/b/aaaaaa?ui=svelte#eother");
+  const h = fixture("http://vb.test/b/aaaaaa#eother");
   h.services.start();
   await settle();
   const room = canonical();

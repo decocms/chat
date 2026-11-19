@@ -109,7 +109,7 @@ test("document resize pixels do not rebuild Chat or feature props", async () => 
 });
 
 test("CID-only OAuth return opens a fresh Apps catalog without selecting or invoking any tool", async () => {
-  const h = await roomScopeFixture("/b/aaaaaa?ui=svelte#app:abcdef123456");
+  const h = await roomScopeFixture("/b/aaaaaa#app:abcdef123456");
   await settle();
   expect(get(h.app.services.state).pane).toBe("apps");
   expect(get(h.owner.state)?.toolbar.pane).toBe("apps");
@@ -123,14 +123,14 @@ test("CID-only OAuth return opens a fresh Apps catalog without selecting or invo
 });
 
 test("tool app route remains exact, while deferred catalog return cannot mutate a departed scope", async () => {
-  const h = await roomScopeFixture("/b/aaaaaa?ui=svelte#app:room/report-v2");
+  const h = await roomScopeFixture("/b/aaaaaa#app:room/report-v2");
   await settle();
   expect(get(get(h.owner.state)!.apps.owner.state).target).toEqual({
     connection: "room",
     tool: "report-v2",
   });
   h.hold();
-  h.app.services.actions.navigate("/b/aaaaaa?ui=svelte#app:abcdef123456");
+  h.app.services.actions.navigate("/b/aaaaaa#app:abcdef123456");
   h.owner.dispose();
   h.app.services.actions.home();
   h.release();
@@ -140,14 +140,14 @@ test("tool app route remains exact, while deferred catalog return cannot mutate 
 });
 
 test("legacy document hashes select the real epic and never open a deleted epic as the main document", async () => {
-  const h = await roomScopeFixture("/b/aaaaaa?ui=svelte#doc:other");
+  const h = await roomScopeFixture("/b/aaaaaa#doc:other");
   expect(h.app.services.rootRoom.read().thread).toBe("other");
   expect(get(get(h.owner.state)!.document.owner.state).target?.epicId).toBe(
     "other",
   );
   expect(new URL(h.app.href()).searchParams.get("t")).toBe("other");
   h.owner.actions.setPane("files");
-  h.app.services.actions.navigate("/b/aaaaaa?ui=svelte#doc:deleted");
+  h.app.services.actions.navigate("/b/aaaaaa#doc:deleted");
   expect(h.app.services.rootRoom.read().thread).toBe("main");
   expect(get(h.app.services.state).pane).toBe("files");
   expect(get(h.owner.state)?.notice).toBeTruthy();

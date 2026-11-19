@@ -79,7 +79,7 @@ const encoded = (value: unknown) =>
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-const oauthCookie = (next = "/b/aaaaaa?ui=svelte") =>
+const oauthCookie = (next = "/b/aaaaaa") =>
   `vb_oauth=${encodeURIComponent(`fixture-state|${next}|fixture-verifier`)}`;
 const callback = "/studio/callback?state=fixture-state&code=fixture-code";
 const STUDIO = "https://studio.decocms.com";
@@ -103,9 +103,7 @@ test("Studio start registers this origin once, then binds state and a PKCE verif
   );
   try {
     for (let i = 0; i < 2; i++) {
-      const start = await f.request(
-        "/studio/start?next=%2Fb%2Faaaaaa%3Fui%3Dsvelte",
-      );
+      const start = await f.request("/studio/start?next=%2Fb%2Faaaaaa");
       const location = new URL(start.headers.get("location")!);
       expect(location.origin + location.pathname).toBe(
         `${STUDIO}/api/auth/mcp/authorize`,
@@ -120,7 +118,7 @@ test("Studio start registers this origin once, then binds state and a PKCE verif
       );
       const cookie = decodeURIComponent(start.headers.get("set-cookie")!);
       expect(cookie).toContain(
-        `${location.searchParams.get("state")}|/b/aaaaaa?ui=svelte|`,
+        `${location.searchParams.get("state")}|/b/aaaaaa|`,
       );
       expect(cookie).toContain("HttpOnly");
     }
@@ -301,7 +299,7 @@ test("Studio verified identity starts the session, keeps a safe next and a bound
   try {
     let response = await f.request(callback, oauthCookie());
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/b/aaaaaa?ui=svelte");
+    expect(response.headers.get("location")).toBe("/b/aaaaaa");
     const cookie = response.headers.get("set-cookie")!;
     for (const flag of [
       "vb_session=",
@@ -448,7 +446,7 @@ test("correctly signed malformed invites reject before DB/session effects or uns
     { ...valid, e: "invalid" },
     { ...valid, b: {} },
     { ...valid, b: "aaaaaa/../other" },
-    { ...valid, b: "aaaaaa?ui=svelte" },
+    { ...valid, b: "aaaaaa?t=main" },
     { ...valid, x: "9999999999999" },
     { ...valid, x: null },
   ]) {

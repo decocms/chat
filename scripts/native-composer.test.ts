@@ -509,7 +509,7 @@ test("origin-only private parents hide replies and invalidate selected reply wit
   ).toHaveLength(0);
 });
 
-test("speech hold/tap and fast typing preserve vanilla selection semantics without implicit sending", () => {
+test("speech hold/tap and fast typing preserve the selection without implicit sending", () => {
   const timer = clock();
   let value = "before selected after",
     start = 7,

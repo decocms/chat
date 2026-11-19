@@ -32,49 +32,40 @@ const uploaded = z.object({
     size: z.number(),
   }),
 });
-type Variant = "svelte" | "vanilla";
+type Result = {
+  status: "running" | "passed" | "failed";
+  phase: string;
+  roomId?: string;
+  epicId?: string;
+  ownTabs?: number;
+  openDocEvents: number;
+  refusals: number;
+  cardVersions: number;
+  readonlyMessagesBefore?: number;
+  readonlyMessagesAfter?: number;
+  browserMessageCommands: number;
+  uploads: {
+    id: string;
+    htmlSHA256: string;
+    rawR2Verified: boolean;
+    privateRead: boolean;
+    docPaneRetained: boolean;
+  }[];
+  pageErrors: ReturnType<typeof localBrowserError>[];
+  failure?: { phase: string; code: "audit-failed" };
+  cleanupFailure?: "archive" | "context";
+};
 type Evidence = {
   status: "running" | "passed" | "failed";
-  variants: {
-    variant: Variant;
-    status: "running" | "passed" | "failed";
-    phase: string;
-    roomId?: string;
-    epicId?: string;
-    ownTabs?: number;
-    openDocEvents: number;
-    refusals: number;
-    cardVersions: number;
-    readonlyMessagesBefore?: number;
-    readonlyMessagesAfter?: number;
-    browserMessageCommands: number;
-    uploads: {
-      id: string;
-      htmlSHA256: string;
-      rawR2Verified: boolean;
-      privateRead: boolean;
-      docPaneRetained: boolean;
-    }[];
-    pageErrors: ReturnType<typeof localBrowserError>[];
-    failure?: { phase: string; code: "audit-failed" };
-    cleanupFailure?: "archive" | "context";
-  }[];
+  result: Result;
   gaps: string[];
 };
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
-const preview = (page: Page, variant: Variant) =>
-  page.locator(variant === "svelte" ? "[data-document-preview]" : "#preview");
-const header = (page: Page, variant: Variant) =>
-  page.locator(
-    variant === "svelte" ? "[data-native-room-header]" : "#threadTitle",
-  );
-async function documentVisible(page: Page, variant: Variant) {
-  await expect(
-    page.locator(
-      variant === "svelte" ? "[data-native-document]" : '.doc[data-pane="doc"]',
-    ),
-  ).toBeVisible();
-  await expect(preview(page, variant)).toBeVisible();
+const preview = (page: Page) => page.locator("[data-document-preview]");
+const header = (page: Page) => page.locator("[data-native-room-header]");
+async function documentVisible(page: Page) {
+  await expect(page.locator("[data-native-document]")).toBeVisible();
+  await expect(preview(page)).toBeVisible();
 }
 async function quietWindow(page: Page) {
   await page.waitForTimeout(600);
@@ -125,9 +116,19 @@ export async function auditDocumentAnswers(
 ): Promise<Evidence> {
   assert(/^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}$/.test(fixture.base));
   assert(fixture.ownerEmail.endsWith("@example.test"));
+  const result: Result = {
+    status: "running",
+    phase: "profile",
+    openDocEvents: 0,
+    refusals: 0,
+    cardVersions: 0,
+    browserMessageCommands: 0,
+    uploads: [],
+    pageErrors: [],
+  };
   const evidence: Evidence = {
     status: "running",
-    variants: [],
+    result,
     gaps: [
       "Actual disposable local Worker/Auth DCR+PKCE/Book/D1/R2/MCP/UI paths; DEV identity does not verify email issuance or production OAuth.",
       "Room App HTML is the existing exact allowlisted read-probe document, with two different inactive loopback navigation destinations; external model judgments are simulated, not provider intelligence acceptance.",
@@ -139,335 +140,284 @@ export async function auditDocumentAnswers(
   };
   await mkdir(fixture.output, { recursive: true });
   try {
-    const variants: Variant[] = ["svelte"];
-    // The Svelte app is the only app since #181; the vanilla branches below are dead until they are removed.
-    for (const variant of variants) {
-      const result: Evidence["variants"][number] = {
-        variant,
-        status: "running",
-        phase: "profile",
-        openDocEvents: 0,
-        refusals: 0,
-        cardVersions: 0,
-        browserMessageCommands: 0,
-        uploads: [],
-        pageErrors: [],
-      };
-      evidence.variants.push(result);
-      let context: BrowserContext | null = null;
-      try {
-        const profile = await fixture.createProfile({
-          lang: "en",
-          theme: "light",
-          width: 1440,
-        });
-        context = profile.context;
-        // A vanilla user since Svelte became the default: this device chose vanilla.
-        if (variant === "vanilla")
-          await context.addCookies([
-            { name: "vb_ui", value: "vanilla", url: fixture.base },
-          ]);
-        const page = profile.page;
-        const watchErrors = (owned: Page) =>
-          owned.on("pageerror", (error) =>
-            result.pageErrors.push(localBrowserError(error, fixture.base)),
-          );
-        watchErrors(page);
-        const me = MeResult.parse(
-          await (
-            await context.request.get(`${fixture.base}/api/me?ui=svelte`)
-          ).json(),
+    let context: BrowserContext | null = null;
+    try {
+      const profile = await fixture.createProfile({
+        lang: "en",
+        theme: "light",
+        width: 1440,
+      });
+      context = profile.context;
+      const page = profile.page;
+      const watchErrors = (owned: Page) =>
+        owned.on("pageerror", (error) =>
+          result.pageErrors.push(localBrowserError(error, fixture.base)),
         );
-        assert.equal(me.email, fixture.ownerEmail);
-        result.phase = "real-dcr-pkce";
-        const agent = await nativeTestAgent(page, fixture.base);
-        result.phase = "create-disposable-room";
-        const created = await context.request.post(
-          `${fixture.base}/api/books`,
-          {
-            headers: { origin: fixture.base },
-            data: { title: `Document answer ${variant}` },
-          },
-        );
-        assert(created.ok());
-        const roomId = CreateRoomResult.parse(await created.json()).id;
-        result.roomId = roomId;
-        const epicTitle = `Controlled document epic ${variant}`;
-        const epic = z.object({ epic_id: z.string() }).parse(
-          await agent("start_epic", {
-            room_id: roomId,
-            title: epicTitle,
-            why: "Disposable document-answer verification",
-            tasks: ["Keep the answer open"],
-            backlog: true,
-          }),
-        ).epic_id;
-        result.epicId = epic;
-        const roomText = "Controlled room document marker",
-          epicText = "Controlled epic document marker";
-        OkResult.parse(
-          await agent("update_doc", { room_id: roomId, markdown: roomText }),
-        );
-        OkResult.parse(
-          await agent("update_doc", {
-            room_id: roomId,
-            epic_id: epic,
-            markdown: epicText,
-          }),
-        );
-        await context.addInitScript(() => {
-          if (window.top !== window) return;
-          localStorage.setItem("vb.docView", "preview");
-        });
-        const watchWire = (owned: Page) =>
-          owned.on("websocket", (socket) => {
-            if (new URL(socket.url()).pathname !== `/ws/${roomId}`) return;
-            socket.on("framereceived", (frame) => {
-              if (receivedEvent(frame.payload)?.t === "openDoc")
-                result.openDocEvents++;
-            });
-            socket.on("framesent", (frame) => {
-              if (sentFrame(frame.payload)?.t === "msg")
-                result.browserMessageCommands++;
-            });
+      watchErrors(page);
+      const me = MeResult.parse(
+        await (await context.request.get(`${fixture.base}/api/me`)).json(),
+      );
+      assert.equal(me.email, fixture.ownerEmail);
+      result.phase = "real-dcr-pkce";
+      const agent = await nativeTestAgent(page, fixture.base);
+      result.phase = "create-disposable-room";
+      const created = await context.request.post(`${fixture.base}/api/books`, {
+        headers: { origin: fixture.base },
+        data: { title: "Document answer" },
+      });
+      assert(created.ok());
+      const roomId = CreateRoomResult.parse(await created.json()).id;
+      result.roomId = roomId;
+      const epicTitle = "Controlled document epic";
+      const epic = z.object({ epic_id: z.string() }).parse(
+        await agent("start_epic", {
+          room_id: roomId,
+          title: epicTitle,
+          why: "Disposable document-answer verification",
+          tasks: ["Keep the answer open"],
+          backlog: true,
+        }),
+      ).epic_id;
+      result.epicId = epic;
+      const roomText = "Controlled room document marker",
+        epicText = "Controlled epic document marker";
+      OkResult.parse(
+        await agent("update_doc", { room_id: roomId, markdown: roomText }),
+      );
+      OkResult.parse(
+        await agent("update_doc", {
+          room_id: roomId,
+          epic_id: epic,
+          markdown: epicText,
+        }),
+      );
+      await context.addInitScript(() => {
+        if (window.top !== window) return;
+        localStorage.setItem("vb.docView", "preview");
+      });
+      const watchWire = (owned: Page) =>
+        owned.on("websocket", (socket) => {
+          if (new URL(socket.url()).pathname !== `/ws/${roomId}`) return;
+          socket.on("framereceived", (frame) => {
+            if (receivedEvent(frame.payload)?.t === "openDoc")
+              result.openDocEvents++;
           });
-        watchWire(page);
-        const second = await context.newPage();
-        watchErrors(second);
-        watchWire(second);
-        const roomUrl = `${fixture.base}/b/${roomId}${variant === "svelte" ? "?ui=svelte" : "?ui=vanilla"}`;
-        for (const tab of [page, second]) {
-          await tab.goto(roomUrl);
-          await expect(header(tab, variant)).toBeVisible();
-          await expect(
-            tab
-              .locator(
-                variant === "svelte"
-                  ? `[data-epic-thread="${epic}"]`
-                  : `[data-thread="${epic}"]`,
-              )
-              .first(),
-          ).toBeAttached();
-        }
-        result.phase = "open-exact-epic-in-own-tabs";
-        await fixture.step(`document-answer-${variant}-open-doc`, async () => {
-          const openedEpic = opened.parse(
-            await agent("open_doc", { room_id: roomId, epic_id: epic }),
-          );
-          assert(openedEpic.opened_in_tabs >= 2);
-          result.ownTabs = openedEpic.opened_in_tabs;
-          for (const tab of [page, second]) {
-            await documentVisible(tab, variant);
-            await expect(preview(tab, variant)).toContainText(epicText);
-            await expect(header(tab, variant)).toContainText(epicTitle);
-            if (variant === "svelte")
-              assert.equal(new URL(tab.url()).searchParams.get("t"), epic);
-          }
-          opened.parse(await agent("open_doc", { room_id: roomId }));
-          for (const tab of [page, second]) {
-            await expect(preview(tab, variant)).toContainText(roomText);
-            await expect(header(tab, variant)).toContainText(epicTitle);
-          }
+          socket.on("framesent", (frame) => {
+            if (sentFrame(frame.payload)?.t === "msg")
+              result.browserMessageCommands++;
+          });
         });
-        await expect.poll(() => result.openDocEvents).toBeGreaterThanOrEqual(4);
-        result.phase = "unknown-and-deleted-target-refusal";
-        const unused = z.object({ epic_id: z.string() }).parse(
-          await agent("start_epic", {
-            room_id: roomId,
-            title: "Disposable deleted target",
-            why: "Refusal control",
-            tasks: [],
-            backlog: true,
-          }),
-        ).epic_id;
-        OkResult.parse(
-          await agent("delete_epic", { room_id: roomId, epic_id: unused }),
-        );
-        const beforeRefusal = result.openDocEvents;
-        for (const target of ["000000000000", unused]) {
-          refused.parse(
-            await agent(
-              "open_doc",
-              { room_id: roomId, epic_id: target },
-              "refusal",
-            ),
-          );
-          result.refusals++;
-        }
-        await quietWindow(page);
-        assert.equal(result.openDocEvents, beforeRefusal);
-        for (const tab of [page, second]) {
-          await expect(preview(tab, variant)).toContainText(roomText);
-          await expect(header(tab, variant)).toContainText(epicTitle);
-        }
-        await second.close();
-        result.phase = "return-from-room-doc-to-same-epic";
-        opened.parse(
+      watchWire(page);
+      const second = await context.newPage();
+      watchErrors(second);
+      watchWire(second);
+      const roomUrl = `${fixture.base}/b/${roomId}`;
+      for (const tab of [page, second]) {
+        await tab.goto(roomUrl);
+        await expect(header(tab)).toBeVisible();
+        await expect(
+          tab.locator(`[data-epic-thread="${epic}"]`).first(),
+        ).toBeAttached();
+      }
+      result.phase = "open-exact-epic-in-own-tabs";
+      await fixture.step("document-answer-open-doc", async () => {
+        const openedEpic = opened.parse(
           await agent("open_doc", { room_id: roomId, epic_id: epic }),
         );
-        await expect(preview(page, variant)).toContainText(epicText);
-        for (const version of [1, 2]) {
-          result.phase = `live-readonly-card-${version}`;
-          OkResult.parse(
-            await agent("update_doc", {
-              room_id: roomId,
-              epic_id: epic,
-              markdown: cardDocument(version),
-            }),
-          );
-          await documentVisible(page, variant);
-          const card = preview(page, variant).locator(
-            variant === "svelte" ? "[data-native-card-readonly]" : ".vcard",
-          );
-          await expect(card).toHaveCount(1);
-          await expect(card).toContainText(
-            `Controlled document card ${version}`,
-          );
-          await expect(card).toContainText(String(41 + version));
-          await expect(card).toContainText(
-            "Literal <img src=x onerror=evil()>",
-          );
-          await expect(
-            preview(page, variant).locator("pre code"),
-          ).toContainText('{invalid:"<img src=x onerror=evil()>"}');
-          await expect(
-            preview(page, variant).locator(
-              "img,script,[data-native-card-answer],[data-cardbtn]",
-            ),
-          ).toHaveCount(0);
-          if (version === 2)
-            await expect(card).not.toContainText("Controlled document card 1");
-          result.cardVersions++;
+        assert(openedEpic.opened_in_tabs >= 2);
+        result.ownTabs = openedEpic.opened_in_tabs;
+        for (const tab of [page, second]) {
+          await documentVisible(tab);
+          await expect(preview(tab)).toContainText(epicText);
+          await expect(header(tab)).toContainText(epicTitle);
+          assert.equal(new URL(tab.url()).searchParams.get("t"), epic);
         }
-        result.phase = "readonly-no-message-mutation";
-        const before = read
-          .parse(await agent("read_room", { room_id: roomId, all: true }))
-          .messages.map((message) => message.id);
-        result.readonlyMessagesBefore = before.length;
-        const sentBefore = result.browserMessageCommands;
-        await preview(page, variant)
-          .getByText("Confirm synthetic answer", { exact: true })
-          .click();
-        await quietWindow(page);
-        const after = read
-          .parse(await agent("read_room", { room_id: roomId, all: true }))
-          .messages.map((message) => message.id);
-        result.readonlyMessagesAfter = after.length;
-        assert.deepEqual(after, before);
-        assert.equal(result.browserMessageCommands, sentBefore);
-        result.phase = "embedded-html-r2-live-version";
-        const appName = "doc-answer",
-          filename = `apps/${appName}.html`;
+        opened.parse(await agent("open_doc", { room_id: roomId }));
+        for (const tab of [page, second]) {
+          await expect(preview(tab)).toContainText(roomText);
+          await expect(header(tab)).toContainText(epicTitle);
+        }
+      });
+      await expect.poll(() => result.openDocEvents).toBeGreaterThanOrEqual(4);
+      result.phase = "unknown-and-deleted-target-refusal";
+      const unused = z.object({ epic_id: z.string() }).parse(
+        await agent("start_epic", {
+          room_id: roomId,
+          title: "Disposable deleted target",
+          why: "Refusal control",
+          tasks: [],
+          backlog: true,
+        }),
+      ).epic_id;
+      OkResult.parse(
+        await agent("delete_epic", { room_id: roomId, epic_id: unused }),
+      );
+      const beforeRefusal = result.openDocEvents;
+      for (const target of ["000000000000", unused]) {
+        refused.parse(
+          await agent(
+            "open_doc",
+            { room_id: roomId, epic_id: target },
+            "refusal",
+          ),
+        );
+        result.refusals++;
+      }
+      await quietWindow(page);
+      assert.equal(result.openDocEvents, beforeRefusal);
+      for (const tab of [page, second]) {
+        await expect(preview(tab)).toContainText(roomText);
+        await expect(header(tab)).toContainText(epicTitle);
+      }
+      await second.close();
+      result.phase = "return-from-room-doc-to-same-epic";
+      opened.parse(await agent("open_doc", { room_id: roomId, epic_id: epic }));
+      await expect(preview(page)).toContainText(epicText);
+      for (const version of [1, 2]) {
+        result.phase = `live-readonly-card-${version}`;
         OkResult.parse(
           await agent("update_doc", {
             room_id: roomId,
             epic_id: epic,
-            markdown: `# Controlled embedded answer\n\n[[app:room/${appName}|m]]\n`,
+            markdown: cardDocument(version),
           }),
         );
-        await expect(preview(page, variant)).toContainText(
-          "Controlled embedded answer",
+        await documentVisible(page);
+        const card = preview(page).locator("[data-native-card-readonly]");
+        await expect(card).toHaveCount(1);
+        await expect(card).toContainText(`Controlled document card ${version}`);
+        await expect(card).toContainText(String(41 + version));
+        await expect(card).toContainText("Literal <img src=x onerror=evil()>");
+        await expect(preview(page).locator("pre code")).toContainText(
+          '{invalid:"<img src=x onerror=evil()>"}',
         );
-        const port = Number(new URL(fixture.base).port);
-        for (const version of [1, 2]) {
-          result.phase = `embedded-html-upload-${version}`;
-          const destinationPort = ((port + version - 1) % 65535) + 1;
-          const html = appProbeDocument(
-            "initial",
-            fixture.base,
-            `http://127.0.0.1:${destinationPort}/replacement`,
-          );
-          const marker = `Controlled uploaded version ${version}`;
-          const stored = uploaded.parse(
-            await agent("upload_file", {
-              room_id: roomId,
-              filename,
-              content_type: "text/html",
-              text: html,
-              message: marker,
-              thread: "main",
-            }),
-          );
-          assert.equal(stored.file.name, filename);
-          if (version === 2)
-            assert.notEqual(stored.file.id, result.uploads[0].id);
-          const record = {
-            id: stored.file.id,
-            htmlSHA256: hash(html),
-            rawR2Verified: false,
-            privateRead: false,
-            docPaneRetained: false,
-          };
-          result.uploads.push(record);
-          result.phase = `embedded-html-r2-${version}`;
-          const raw: APIResponse = await context.request.get(
-            `${fixture.base}/api/books/${roomId}/files/${stored.file.id}`,
-          );
-          assert(raw.ok());
-          assert.equal(hash(await raw.text()), record.htmlSHA256);
-          record.rawR2Verified = true;
-          result.phase = `embedded-html-private-read-${version}`;
-          await documentVisible(page, variant);
-          const frame = preview(page, variant).frameLocator(
-            variant === "svelte"
-              ? "[data-document-app] iframe"
-              : ".docApp iframe",
-          );
-          await expect(frame.locator("#stage")).toHaveText("initial");
-          await expect(frame.locator("#result")).toHaveAttribute(
-            "data-outcome",
-            "read",
-          );
-          await expect(frame.locator("#result")).toHaveText(marker);
-          record.privateRead = true;
-          result.phase = `embedded-html-doc-pane-${version}`;
-          await quietWindow(page);
-          await documentVisible(page, variant);
-          record.docPaneRetained = true;
-        }
-        assert.equal(result.uploads.length, 2);
-        assert.deepEqual(result.pageErrors, []);
-        result.phase = "complete";
-        result.status = "passed";
-      } catch {
-        result.status = "failed";
-        result.failure = { phase: result.phase, code: "audit-failed" };
-      } finally {
-        if (context && result.roomId) {
-          try {
-            const archive = await context.request.post(
-              `${fixture.base}/api/books/${result.roomId}/archive`,
-              {
-                headers: { origin: fixture.base },
-                data: { archived: true },
-                timeout: 5000,
-              },
-            );
-            assert(archive.ok());
-            OkResult.parse(await archive.json());
-          } catch {
-            result.cleanupFailure = "archive";
-            result.status = "failed";
-          }
-        }
-        if (context)
-          try {
-            await context.close();
-          } catch {
-            result.cleanupFailure = "context";
-            result.status = "failed";
-          }
+        await expect(
+          preview(page).locator(
+            "img,script,[data-native-card-answer],[data-cardbtn]",
+          ),
+        ).toHaveCount(0);
+        if (version === 2)
+          await expect(card).not.toContainText("Controlled document card 1");
+        result.cardVersions++;
       }
-      if (result.pageErrors.length) {
-        result.status = "failed";
-        result.failure ??= { phase: result.phase, code: "audit-failed" };
+      result.phase = "readonly-no-message-mutation";
+      const before = read
+        .parse(await agent("read_room", { room_id: roomId, all: true }))
+        .messages.map((message) => message.id);
+      result.readonlyMessagesBefore = before.length;
+      const sentBefore = result.browserMessageCommands;
+      await preview(page)
+        .getByText("Confirm synthetic answer", { exact: true })
+        .click();
+      await quietWindow(page);
+      const after = read
+        .parse(await agent("read_room", { room_id: roomId, all: true }))
+        .messages.map((message) => message.id);
+      result.readonlyMessagesAfter = after.length;
+      assert.deepEqual(after, before);
+      assert.equal(result.browserMessageCommands, sentBefore);
+      result.phase = "embedded-html-r2-live-version";
+      const appName = "doc-answer",
+        filename = `apps/${appName}.html`;
+      OkResult.parse(
+        await agent("update_doc", {
+          room_id: roomId,
+          epic_id: epic,
+          markdown: `# Controlled embedded answer\n\n[[app:room/${appName}|m]]\n`,
+        }),
+      );
+      await expect(preview(page)).toContainText("Controlled embedded answer");
+      const port = Number(new URL(fixture.base).port);
+      for (const version of [1, 2]) {
+        result.phase = `embedded-html-upload-${version}`;
+        const destinationPort = ((port + version - 1) % 65535) + 1;
+        const html = appProbeDocument(
+          "initial",
+          fixture.base,
+          `http://127.0.0.1:${destinationPort}/replacement`,
+        );
+        const marker = `Controlled uploaded version ${version}`;
+        const stored = uploaded.parse(
+          await agent("upload_file", {
+            room_id: roomId,
+            filename,
+            content_type: "text/html",
+            text: html,
+            message: marker,
+            thread: "main",
+          }),
+        );
+        assert.equal(stored.file.name, filename);
+        if (version === 2)
+          assert.notEqual(stored.file.id, result.uploads[0].id);
+        const record = {
+          id: stored.file.id,
+          htmlSHA256: hash(html),
+          rawR2Verified: false,
+          privateRead: false,
+          docPaneRetained: false,
+        };
+        result.uploads.push(record);
+        result.phase = `embedded-html-r2-${version}`;
+        const raw: APIResponse = await context.request.get(
+          `${fixture.base}/api/books/${roomId}/files/${stored.file.id}`,
+        );
+        assert(raw.ok());
+        assert.equal(hash(await raw.text()), record.htmlSHA256);
+        record.rawR2Verified = true;
+        result.phase = `embedded-html-private-read-${version}`;
+        await documentVisible(page);
+        const frame = preview(page).frameLocator("[data-document-app] iframe");
+        await expect(frame.locator("#stage")).toHaveText("initial");
+        await expect(frame.locator("#result")).toHaveAttribute(
+          "data-outcome",
+          "read",
+        );
+        await expect(frame.locator("#result")).toHaveText(marker);
+        record.privateRead = true;
+        result.phase = `embedded-html-doc-pane-${version}`;
+        await quietWindow(page);
+        await documentVisible(page);
+        record.docPaneRetained = true;
       }
+      assert.equal(result.uploads.length, 2);
+      assert.deepEqual(result.pageErrors, []);
+      result.phase = "complete";
+      result.status = "passed";
+    } catch {
+      result.status = "failed";
+      result.failure = { phase: result.phase, code: "audit-failed" };
+    } finally {
+      if (context && result.roomId) {
+        try {
+          const archive = await context.request.post(
+            `${fixture.base}/api/books/${result.roomId}/archive`,
+            {
+              headers: { origin: fixture.base },
+              data: { archived: true },
+              timeout: 5000,
+            },
+          );
+          assert(archive.ok());
+          OkResult.parse(await archive.json());
+        } catch {
+          result.cleanupFailure = "archive";
+          result.status = "failed";
+        }
+      }
+      if (context)
+        try {
+          await context.close();
+        } catch {
+          result.cleanupFailure = "context";
+          result.status = "failed";
+        }
     }
-    evidence.status = evidence.variants.every(
-      (result) => result.status === "passed",
-    )
-      ? "passed"
-      : "failed";
+    if (result.pageErrors.length) {
+      result.status = "failed";
+      result.failure ??= { phase: result.phase, code: "audit-failed" };
+    }
+    evidence.status = result.status === "passed" ? "passed" : "failed";
     return evidence;
   } finally {
     if (evidence.status === "running") evidence.status = "failed";

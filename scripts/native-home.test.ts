@@ -112,9 +112,7 @@ test("wait links preserve numeric message identity and task thread navigation", 
   expect(
     applicationRoute("https://vb.test/b/aaaaaa#m9007199254740993"),
   ).toMatchObject({ kind: "room", target: { messageId: undefined } });
-  expect(
-    applicationRoute("https://vb.test/b/aaaaaa?t=epic-1&ui=svelte#m42"),
-  ).toEqual({
+  expect(applicationRoute("https://vb.test/b/aaaaaa?t=epic-1#m42")).toEqual({
     kind: "room",
     target: {
       roomId: "aaaaaa",
@@ -1092,10 +1090,10 @@ test("phone triage groups waits by room: a blocked Claude first, then the newest
 test("home rows: wait text is one plain line and every wait has a filter kind", () => {
   expect(
     plainWaitText(
-      "@gimenes spike do **app** pronto: PR https://github.com/eitri-tech/eitri-shopping-monte-carlo/pull/689\n\nolha `?ui=svelte`",
+      "@gimenes spike do **app** pronto: PR https://github.com/eitri-tech/eitri-shopping-monte-carlo/pull/689\n\nolha `?t=epic`",
     ),
   ).toBe(
-    "spike do app pronto: PR github.com/eitri-tech/eitri-shopp… olha ?ui=svelte",
+    "spike do app pronto: PR github.com/eitri-tech/eitri-shopp… olha ?t=epic",
   );
   expect(
     plainWaitText("⏸ Seu Claude pede permissão: Bash · npx wrangler deploy"),

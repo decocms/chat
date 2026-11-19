@@ -423,7 +423,7 @@ try {
     { name: "dev_as", value: email, url: base },
     { name: "vb_lang", value: "en", url: base },
   ]);
-  const me = await context.request.get(`${base}/api/me?ui=svelte`);
+  const me = await context.request.get(`${base}/api/me`);
   assert(me.ok(), "Local Worker must have DEV_EMAIL and migrated fixtures");
   assert.equal(
     MeResult.parse(await me.json()).email,
@@ -439,10 +439,8 @@ try {
   assert.match(room, /^[a-z0-9]+$/);
   result.room = room;
 
-  step(
-    "Check selected source shells, vanilla default and Worker access denial",
-  );
-  for (const path of ["/app?ui=svelte", `/b/${room}?ui=svelte`]) {
+  step("Check source shells and Worker access denial");
+  for (const path of ["/app", `/b/${room}`]) {
     const response = await context.request.get(base + path);
     const html = await response.text();
     assert(response.ok());
@@ -453,14 +451,8 @@ try {
       !html.includes('name="vb-v"') && !html.includes("/svelte-preview/app.js"),
     );
   }
-  const vanilla = await (await context.request.get(`${base}/b/${room}`)).text();
-  assert(
-    !vanilla.includes("/bootstrap.ts") && !vanilla.includes("/@vite/client"),
-  );
   const missingRoom = `hmrmustnotexist${token}`;
-  const denied = await context.request.get(
-    `${base}/b/${missingRoom}?ui=svelte`,
-  );
+  const denied = await context.request.get(`${base}/b/${missingRoom}`);
   assert.equal(denied.status(), 404);
   const deniedHTML = await denied.text();
   assert(
@@ -485,9 +477,7 @@ try {
         url: base,
       },
     ]);
-    const inaccessible = await outsider.request.get(
-      base + "/b/" + room + "?ui=svelte",
-    );
+    const inaccessible = await outsider.request.get(base + "/b/" + room + "");
     assert.equal(
       inaccessible.status(),
       200,
@@ -509,7 +499,7 @@ try {
       if (new URL(socket.url()).pathname === `/ws/${room}`)
         unauthorizedRoomSockets++;
     });
-    await accessPage.goto(`${base}/b/${room}?ui=svelte`);
+    await accessPage.goto(`${base}/b/${room}`);
     await expect(accessPage.locator('[data-vb-native="auth"]')).toBeVisible();
     await expect(
       accessPage.getByRole("button", { name: "Ask to join", exact: true }),
@@ -609,7 +599,7 @@ try {
       `http://127.0.0.1:${trap.port}`,
       `//127.0.0.1:${trap.port}`,
     ]) {
-      const status = await rawRequest(`${prefix}/app?ui=svelte`, { cookie });
+      const status = await rawRequest(`${prefix}/app`, { cookie });
       assert([400, 403].includes(status), `Hostile authority status ${status}`);
     }
     assert.equal(
@@ -641,7 +631,7 @@ try {
       }
     });
   });
-  await page.goto(`${base}/b/${room}?ui=svelte`, {
+  await page.goto(`${base}/b/${room}`, {
     waitUntil: "domcontentloaded",
   });
   const composer = page.locator("[data-native-composer] textarea");
@@ -817,62 +807,19 @@ try {
     await readFile(resolve(root, bootstrapPath), "utf8"),
   );
   const originalGeneratedSHA = digest(await readFile(generatedPath, "utf8"));
-  const vanillaHost = async () => {
-    const response = await context.request.get(`${base}/app`);
-    assert(response.ok(), "Unselected vanilla shell must remain available");
-    const html = await response.text();
-    const matches = [
-      ...html.matchAll(
-        /import\(["'](\/app-document-host\.[a-f0-9]{20}\.js)["']\)/g,
-      ),
-    ];
-    assert.equal(
-      matches.length,
-      1,
-      "Vanilla shell must select one content-addressed host",
-    );
-    const path = matches[0]![1]!;
-    const asset = await context.request.get(base + path);
-    assert(
-      asset.ok(),
-      "The selected document host asset must actually be served",
-    );
-    const body = await asset.text();
-    return { path, sha256: digest(body), bytes: Buffer.byteLength(body), body };
-  };
-  const originalHost = await vanillaHost();
   const generationEvidence: Record<string, unknown> = {
     status: "running",
     originalBootstrapSHA,
     originalGeneratedSHA,
-    originalHost: {
-      path: originalHost.path,
-      sha256: originalHost.sha256,
-      bytes: originalHost.bytes,
-    },
     limitation:
       "Generated shared code may trigger an automatic full-runtime reload; an in-memory composer draft is not promised across that boundary. No reload is forced by the fixture.",
   };
   result.generator = generationEvidence;
   restoreGeneration = async () => {
     await poll(
-      async () => {
-        if (
-          digest(await readFile(generatedPath, "utf8")) !== originalGeneratedSHA
-        )
-          return false;
-        const shell = await readFile(resolve(root, "public/app.html"), "utf8");
-        if (!shell.includes(originalHost.path)) return false;
-        return (
-          digest(
-            await readFile(
-              resolve(root, "public", originalHost.path.slice(1)),
-              "utf8",
-            ),
-          ) === originalHost.sha256
-        );
-      },
-      "cleanup restores generated bootstrap and original host bytes",
+      async () =>
+        digest(await readFile(generatedPath, "utf8")) === originalGeneratedSHA,
+      "cleanup restores the generated bootstrap",
       60_000,
       true,
     );
@@ -908,23 +855,9 @@ try {
       generated.includes(generatorMarker)
     );
   }, "actual bootstrap watcher regenerates the shared string");
-  await poll(async () => {
-    const served = await vanillaHost();
-    return (
-      served.path !== originalHost.path &&
-      served.sha256 !== originalHost.sha256 &&
-      served.body.includes(generatorMarker)
-    );
-  }, "vanilla HTTP shell imports and serves the actual newly generated host");
-  const mutatedHost = await vanillaHost();
   generationEvidence.mutatedGeneratedSHA = digest(
     await readFile(generatedPath, "utf8"),
   );
-  generationEvidence.mutatedHost = {
-    path: mutatedHost.path,
-    sha256: mutatedHost.sha256,
-    bytes: mutatedHost.bytes,
-  };
   assertSameSupervisor();
   await expect(composer).toBeVisible();
   await expect(composer).toBeEnabled();
@@ -979,14 +912,6 @@ try {
       digest(await readFile(generatedPath, "utf8")) === originalGeneratedSHA,
     "restored source regenerates the exact original shared string",
   );
-  await poll(async () => {
-    const served = await vanillaHost();
-    return (
-      served.path === originalHost.path &&
-      served.sha256 === originalHost.sha256 &&
-      !served.body.includes(generatorMarker)
-    );
-  }, "restored vanilla shell and served host return to their exact original hashes");
   assert.equal(
     digest(await readFile(resolve(root, bootstrapPath), "utf8")),
     originalBootstrapSHA,
@@ -1010,8 +935,6 @@ try {
     automaticDocumentReload: restoreReloaded,
     priorDraftRetained: (await composer.inputValue()) === generationDraft,
     generatedSHA: originalGeneratedSHA,
-    hostPath: originalHost.path,
-    hostSHA: originalHost.sha256,
     snapshots,
     roomSockets,
   };

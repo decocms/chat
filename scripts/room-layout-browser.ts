@@ -87,7 +87,7 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.name));
   report.pageErrors = errors;
-  await page.goto(`${base}/app?ui=svelte&gallery=1&probe=room-layout`, {
+  await page.goto(`${base}/app?gallery=1&probe=room-layout`, {
     waitUntil: "domcontentloaded",
     timeout: 90_000,
   });
@@ -442,10 +442,9 @@ try {
   await page.screenshot({ path: `${output}/room-layout.png` });
   checkpoint("mobile/default-chat-capacity");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(
-    `${base}/app?ui=svelte&gallery=1&probe=room-layout&capacity=1`,
-    { waitUntil: "domcontentloaded" },
-  );
+  await page.goto(`${base}/app?gallery=1&probe=room-layout&capacity=1`, {
+    waitUntil: "domcontentloaded",
+  });
   const capacityRoot = page.locator("[data-native-room-layout]");
   await expect(capacityRoot).toBeVisible();
   await expect(page.locator("[data-native-agent-setup]")).toBeVisible();

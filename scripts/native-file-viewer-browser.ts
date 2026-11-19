@@ -145,17 +145,12 @@ try {
     audio: audio.id,
     pdf: pdfFile.id,
   };
-  const vanilla = await context.request.get(`${base}/b/${id}`);
-  assert(
-    !(await vanilla.text()).includes('name="vb-ui" content="svelte"'),
-    "Vanilla remains default",
-  );
   const page = await context.newPage();
   failedPage = page;
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const open = async (fid: string) => {
-    await page.goto(`${base}/b/${id}?ui=svelte#f${fid}`);
+    await page.goto(`${base}/b/${id}#f${fid}`);
     await expect(
       page.locator("[data-file-viewer][data-file-id]"),
     ).toHaveAttribute("data-file-id", fid);
@@ -237,7 +232,7 @@ try {
   await open(pdfFile.id);
   await expect(page.locator("[data-file-viewer] iframe")).toHaveAttribute(
     "src",
-    `/api/books/${id}/files/${pdfFile.id}?ui=svelte`,
+    `/api/books/${id}/files/${pdfFile.id}`,
   );
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
@@ -288,7 +283,7 @@ try {
   await cacheContext.addCookies([{ name: "vb_lang", value: "en", url: base }]);
   const cachePage = await cacheContext.newPage();
   await cachePage.goto(base + "/login");
-  const raw = `/api/books/${id}/files/${image.id}?ui=svelte`;
+  const raw = `/api/books/${id}/files/${image.id}`;
   const first = await cachePage.evaluate(async (url) => {
     const response = await fetch(url);
     const img = new Image();

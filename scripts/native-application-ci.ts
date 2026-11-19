@@ -253,7 +253,7 @@ try {
       if (workerExit !== null)
         throw Error("Owned Worker exited before readiness");
       try {
-        const response = await fetch(`${base}/api/me?ui=svelte`, {
+        const response = await fetch(`${base}/api/me`, {
           signal: AbortSignal.any([abort.signal, AbortSignal.timeout(2000)]),
         });
         if (response.ok) {
