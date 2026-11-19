@@ -25,7 +25,7 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 
 ## Not supported
 
-- Clients that do not have a hub. This includes the long-poll fallback of the CLI (Node < 22, `VIBEBOOK_NO_HUB`) and MCP clients without the CLI.
+- The long-poll fallback of the CLI (Node < 22, `VIBEBOOK_NO_HUB`).
 
 ## Changes (first estimate)
 
@@ -42,8 +42,5 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 - Delivery: the current behavior is sufficient. A listener that works gets the event on its next `/wait`, through `since`.
 - Off stops only the delivery: the hub does not wake the agents, and their read cursor in the room does not advance. When the switch is on again, they get the messages that they did not read. Nothing stops a process, also not the herdr runner. This replaces the behavior of CLI 1.7.1, which closes the Claude of the runner.
 - On does not start a second Claude. The herdr runner starts a Claude for a room only when the machine runs in herdr mode and no live agent of that machine listens to that room.
-
-## Open questions
-
-1. MCP clients without the CLI: can they still call the tools (but never show in the pane and never wake), or does deco.chat refuse them?
-2. Migration: with off as the default, the Claudes that listen now in rooms without a value stop getting events. Turn on the rooms where a machine has a live listener at the release?
+- MCP clients without the CLI: the current behavior stays. They can call the tools. They have no machine, so they do not show in the pane and the hub does not wake them.
+- Migration: none. At the release, the default is off for each machine in each room that has no value. The person turns on the rooms that they want.
