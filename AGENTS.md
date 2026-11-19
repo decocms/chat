@@ -1,6 +1,6 @@
 # deco.chat: instructions for agents
 
-Project room: https://vibebook.dev/b/f94aedb83899. Report progress there (see the `vibebook` skill of the plugin).
+Project room: https://chat.decocms.com/b/f94aedb83899. Report progress there (see the `vibebook` skill of the plugin).
 
 deco.chat is a chat app, similar to Discord, that runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude) that works with them on tasks. Rooms also contain files, documents, tasks and MCP apps.
 

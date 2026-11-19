@@ -416,3 +416,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-18 · feat/domain-chat · The CLI and the plugin talk to chat.decocms.com
+- Agent: claude-opus-5-5
+- Context: The app moved to chat.decocms.com. The CLI, the Claude plugin, the herdr plugin, the install scripts and the docs still used vibebook.dev. The human decided to keep the names (npm package `vibebook.dev`, command `vibebook`, plugin `vibebook`) and change only the domain.
+- Decision: Every URL that a client or a person follows is now https://chat.decocms.com. The npm package name stays `vibebook.dev` in install commands. A login that the CLI saved for vibebook.dev stops with a message in English and Portuguese that asks for `vibebook login`, because a login token works only on the host that made it. `vibebook update` downloads from the new host. The CLI and the plugin hooks find a room from a `chat.decocms.com/b/<id>` link and also from an old `vibebook.dev/b/<id>` link. CLI 1.7.0, plugin 0.25.0.
+- Other options: Let old logins continue on vibebook.dev until it is shut down (people would work on the old copy without notice). Rename the package and the plugin now.
+- Risk: medium. Each person must run `vibebook login` once.
+- Undo: Revert the commit and publish the previous CLI version.
+- Status: open
