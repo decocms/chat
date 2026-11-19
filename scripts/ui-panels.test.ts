@@ -5133,7 +5133,8 @@ describe("People interactions", () => {
     await settle();
     expect(inviteForm().classList.contains("hidden")).toBe(true);
     expect(inviteSearch().value).toBe("");
-    expect(rendered.target.textContent).toContain("new@test.com · enviado ✓");
+    // No "sent" line: the invited person's row is the confirmation.
+    expect(rendered.target.textContent).not.toContain("enviado");
     rendered.update({
       ...room,
       members: [...room.members, "new@test.com"],

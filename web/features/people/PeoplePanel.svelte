@@ -218,12 +218,7 @@
     >
       {email} · {issueText(issue)}
     </p>{/each}
-  {#each Object.entries($view.notices) as [email, action]}{#if action === "invite" || action === "resend"}<p
-        role="status"
-        class="m-0 px-2 break-words text-xs text-muted-foreground"
-      >
-        {email} · {vb.t("enviado")} ✓
-      </p>{/if}{/each}
+  <!-- A sent invite needs no line of its own: the person shows up in Invited, "waiting". -->
   {#if $view.clipboard}<p
       role={$view.clipboard.status === "failed" ? "alert" : "status"}
       class="m-0 px-2 break-words text-xs text-muted-foreground"
