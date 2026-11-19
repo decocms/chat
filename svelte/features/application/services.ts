@@ -494,7 +494,9 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         roomGeneration: null,
         account: null,
       };
-      void personal.refresh();
+      // The room socket open makes the server send {t:"me"} (src/index.ts), so an open person socket already
+      // brings the new /api/me; a second fetch here was a duplicate on each room change.
+      personal.ensure();
       root.open(route.target.roomId, route.target.thread || "main");
     }
   }
