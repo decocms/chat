@@ -1,5 +1,6 @@
 import "server-only";
 import { caughtMessage } from "./providerMetadata";
+import { askThread } from "./askThread";
 import { matchesSuggestion } from "../shared/suggestions";
 import { storedNotes, storedHashes, storedFlags, storedProd, storedEpicFiles, storedSuggestions, storedFileRows, storedPollRows } from "./bookStored";
 import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRefs, storedReactions, AccessRequested } from "./bookMessages";
@@ -1463,15 +1464,16 @@ export class Book extends DurableObject<Env> {
     const files = (fileIds.length ? this.files().filter((f) => fileIds.includes(f.id)) : []).map((f) => (embed ? { ...f, embed: true } : f));
     if (!text && !files.length && !card) return { ok: false, error: "empty message" };
     // A hook's question (⏸ permission, ❓ AskUserQuestion) comes with no thread: it belongs where this Claude is
-    // working, the thread of the request it acked last, so the person sees it in the conversation they're in.
-    // A request acked in main that became an epic: the work (and so the question) is in that epic.
+    // working now. Two signals, the newer wins: the newest request it acked and still works on (by when that request
+    // was written, not by the ack a later post touched: a ⏸ for "publica" landed in another epic, Nov 2026), and the
+    // thread of its own latest post in the last 30 min (work picked up from the terminal has no ack in the room: its
+    // ⏸ landed in an older epic's thread, Gui #3349). A request acked in main that became an epic counts as that epic.
     if (!thread && !replyTo && agent && ASK_OPENER.test(text)) {
-      const r = this.sql.exec<{ id: number; thread: string }>(`SELECT m.id, m.thread FROM acks a JOIN messages m ON m.id = a.msg_id WHERE a.agent = ? AND a.status IN ('doing', 'blocked') ORDER BY a.msg_id DESC LIMIT 1`, agent).toArray()[0]; // the newest request it's on, not the ack a later post touched (a ⏸ for "publica" landed in another epic, Nov 2026)
+      const r = this.sql.exec<{ id: number; thread: string; ts: number }>(`SELECT m.id, m.thread, m.ts FROM acks a JOIN messages m ON m.id = a.msg_id WHERE a.agent = ? AND a.status IN ('doing', 'blocked') ORDER BY a.msg_id DESC LIMIT 1`, agent).toArray()[0];
       const ep = r && this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0 ORDER BY ts DESC LIMIT 1`, r.id).toArray()[0]?.id;
-      // No live ack (it answered in a thread without acking, or already closed it): where this person and their
-      // Claudes last wrote in the last 30 min, so an ask mid-conversation in an epic doesn't land in main.
-      const last = ep || r?.thread ? undefined : this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE author = ? AND ts > ? AND text NOT LIKE '⏸ Seu Claude%' AND text NOT LIKE '❓ Seu Claude%' ORDER BY id DESC LIMIT 1`, email, Date.now() - 30 * 60_000).toArray()[0]?.thread;
-      thread = ep || r?.thread || (last && (last === "main" || this.epics().some((e) => e.id === last)) ? last : "");
+      const last = this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, ts FROM messages WHERE author = ? AND kind = 'agent' AND ts > ? AND text NOT LIKE '⏸ Seu Claude%' AND text NOT LIKE '❓ Seu Claude%' ORDER BY id DESC LIMIT 1`, email, Date.now() - 30 * 60_000).toArray()[0];
+      const acked = ep || r?.thread;
+      thread = askThread(acked && r ? { thread: acked, ts: r.ts } : undefined, last, (t) => t === "main" || this.epics().some((e) => e.id === t));
     }
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
