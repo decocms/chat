@@ -321,7 +321,7 @@ describe("native People", () => {
     expect(text).toContain(newcomer);
     expect(text).toContain("https://example.test/b/room");
     expect(text).toContain(
-      "Read https://example.test/llms.txt and set up vibebook",
+      "Read https://example.test/llms.txt and set up deco.chat",
     );
   });
   test("typed HTTP adapter scopes encoded room/email, validates success and surfaces server failures", async () => {

@@ -10,7 +10,7 @@ export const SANDBOX_POLL = 5000,
   AGENT_REQUEST_TIMEOUT = 20_000,
   SETUP_TIMEOUT = 300_000;
 export const connectPrompt = (origin: string, roomId?: string) =>
-  `Read ${origin}/llms.txt and set up vibebook for this project.${roomId ? ` Room: ${origin}/b/${roomId}` : ""}`;
+  `Read ${origin}/llms.txt and set up deco.chat for this project.${roomId ? ` Room: ${origin}/b/${roomId}` : ""}`;
 export function grantGroups(result: AgentGrantsResult, now: number) {
   const groups = new Map<
     string,

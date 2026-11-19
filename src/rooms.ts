@@ -111,7 +111,7 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
     const title = book?.title ?? (en ? "a room" : "uma sala");
     const name = inviter.split("@")[0];
     const connect = `${origin}/llms.txt`; // the setup guide for every client
-    const setup = `Read ${origin}/llms.txt and set up vibebook for this project. Room: ${origin}/b/${bookId}`;
+    const setup = `Read ${origin}/llms.txt and set up deco.chat for this project. Room: ${origin}/b/${bookId}`;
     ctx.waitUntil(
       env.EMAIL.send({
         to: who,
