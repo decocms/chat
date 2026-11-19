@@ -4,6 +4,7 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // whose props carry the person's email. Every room call re-checks membership in D1.
 import { gate, routerOn, routerStats } from "./router";
 import { ownSession } from "./ownSession";
+import { isDmId } from "./dm";
 import { bumpStat, isLaunchCard, recordLimits, recordUsage } from "./profile";
 import {
   createConn,
@@ -229,6 +230,19 @@ const TOOLS = [
       type: "object",
       properties: { room_id: { type: "string" }, title: { type: "string" } },
       required: ["room_id", "title"],
+    },
+  },
+  {
+    name: "invite",
+    description:
+      "Invite people to an existing room by email, like the People tab's invite: each gets an email with the room link and joins when they accept. Only when your human asked for it, and only the people they named or clearly meant (e.g. \"everyone from room X\": read that room's members first). Not in DMs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        room_id: { type: "string" },
+        emails: { type: "array", items: { type: "string" }, maxItems: 20 },
+      },
+      required: ["room_id", "emails"],
     },
   },
   {
@@ -1642,6 +1656,25 @@ async function call(
         }),
       );
       return { ok: true, room_id: id, on: !!a.on };
+    }
+    case "invite": {
+      // Same rules as POST /api/books/:id/members (the People tab): a member invites, never in a DM, valid emails only;
+      // the invite is an email with the link, and they join when they accept (Gui #3655).
+      const id = await room();
+      if (isDmId(id)) throw new Error("a DM is only for its two people: start a room to bring others");
+      if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success) throw new Error("rate limited. Wait a bit.");
+      const wanted = [...new Set((Array.isArray(a.emails) ? a.emails : []).map((e) => str(e).trim().toLowerCase()))];
+      const bad = wanted.filter((e) => !EMAIL_RE.test(e));
+      const emails = wanted.filter((e) => EMAIL_RE.test(e) && e !== me.email).slice(0, 20);
+      if (!emails.length) throw new Error(bad.length ? `invalid email: ${bad.join(", ")}` : "emails is required");
+      const already: string[] = [], invited: string[] = [];
+      for (const who of emails) {
+        if (await isMember(db, id, who)) { already.push(who); continue; }
+        await inviteMember(env, ctx, origin, me.email, id, who);
+        invited.push(who);
+      }
+      ctx.waitUntil(track(env, "invite_sent", { user: me.email, dims: { book: id, n: invited.length, via: "agent" } }));
+      return { invited, already_members: already, invalid: bad, note: "Each invited person gets an email with the link and appears in People once they accept." };
     }
     case "rename_room": {
       const id = await room();
