@@ -109,7 +109,7 @@
        your Claude and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
-      class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-2 text-sidebar-foreground md:row-span-2 md:flex"
+      class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-4 text-sidebar-foreground md:row-span-2 md:flex"
     >
       {#if dm}<div class="flex min-h-0 flex-col pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
