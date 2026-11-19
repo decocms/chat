@@ -15,7 +15,8 @@ import { clientBoundary, projectRoot } from "./build/clientBoundary.ts";
 const entries = (mode: string): Record<string, string> =>
   mode === "gallery"
     ? { gallery: join(import.meta.dirname, "dev/gallery.html") }
-    : { index: join(import.meta.dirname, "index.html") };
+    : // The key names the entry chunk: tests and tools look for /assets/main-<hash>.js.
+      { main: join(import.meta.dirname, "index.html") };
 
 export default defineConfig(({ mode, command }) => ({
   root: import.meta.dirname,
