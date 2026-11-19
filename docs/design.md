@@ -26,7 +26,7 @@ The top bar has one row on desktop. Its parts are in this order:
 4. The room's search field ("Buscar nesta sala"). Typing opens the Search pane beside the chat with the matches. Not in a DM.
 5. The pane tabs (`DocumentToolbar`): Doc, files, apps, decisions, reminders, People & agents. They are 32px buttons in the top bar (`size="icon"`, Doc `size="default"`).
 
-People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Closing the Doc opens People & agents; closing People & agents closes the pane.
+People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Closing the Doc opens People & agents; closing People & agents closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
 
 The separator divides two scopes. On its left, the controls change the view in the middle. On its right, the controls open parts of the room.
 
