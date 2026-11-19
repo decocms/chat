@@ -67,10 +67,12 @@ export function createBrowserApplicationServices(options: {
       }
       // The chat's layer name applies only while a room switch runs (the vt-room variant).
       root.dataset.vt = "room";
+      // The screen is frozen until update settles, so wait at most 120 ms for the
+      // next room's state; a slow room animates in and its messages fill in after.
       const transition = doc.startViewTransition(async () => {
         await Promise.race([
           update(),
-          new Promise((done) => win.setTimeout(done, 300)),
+          new Promise((done) => win.setTimeout(done, 120)),
         ]);
         await tick();
       });
@@ -78,13 +80,19 @@ export function createBrowserApplicationServices(options: {
       // The old conversation fades up and out, the new one rises in; the rest crossfades.
       void transition.ready.then(
         () => {
+          // The browser's own crossfade of the rest of the page is 250 ms; make it 150.
+          for (const animation of doc.getAnimations()) {
+            const effect = animation.effect as KeyframeEffect | null;
+            if (effect?.pseudoElement?.startsWith("::view-transition"))
+              effect.updateTiming({ duration: 150 });
+          }
           root.animate(
             [
               { opacity: 1, transform: "none" },
               { opacity: 0, transform: "translateY(-6px)" },
             ],
             {
-              duration: 140,
+              duration: 90,
               easing: "ease-in",
               fill: "both",
               pseudoElement: "::view-transition-old(room-chat)",
@@ -96,8 +104,8 @@ export function createBrowserApplicationServices(options: {
               { opacity: 1, transform: "none" },
             ],
             {
-              duration: 200,
-              delay: 60,
+              duration: 150,
+              delay: 30,
               easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
               fill: "both",
               pseudoElement: "::view-transition-new(room-chat)",
