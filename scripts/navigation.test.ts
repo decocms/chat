@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
-import type { Epic } from "../shared/room";
+import type { Epic, Message } from "../shared/room";
 import {
   archivedEpics,
   epicAncestors,
   epicForest,
   reorderEpics,
+  sidebarEpics,
   visibleEpics,
 } from "../svelte/features/navigation/model";
 import {
@@ -298,4 +299,28 @@ describe("room-owned navigation session", () => {
     toggleNavigationBranch(session, "root");
     expect([...get(session.state).closed]).toEqual(["root"]);
   });
+});
+
+test("sidebar epics: pinned first in their order, then newest activity first", () => {
+  const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
+    id,
+    title: id,
+    tasks: [],
+    ...extra,
+  });
+  const epics = [
+    epic("old", { last: 10 }),
+    epic("pinB", { pinned: true, last: 1 }),
+    epic("new", { last: 30 }),
+    epic("pinA", { pinned: true, last: 50 }),
+    epic("live", { last: 5 }),
+  ];
+  const messages = [{ thread: "live", ts: 40 }] as Message[];
+  expect(sidebarEpics(epics, messages).map((e) => e.id)).toEqual([
+    "pinB",
+    "pinA",
+    "live",
+    "new",
+    "old",
+  ]);
 });

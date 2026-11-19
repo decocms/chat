@@ -27,6 +27,7 @@
     CheckCircle,
     ChevronDown,
     DotsHorizontal,
+    Pin02,
     Plus,
     RefreshCw01,
     Rocket01,
@@ -41,7 +42,9 @@
     activeEpics,
     epicForest,
     reorderEpics,
+    sidebarEpics,
     visibleEpics,
+    EPIC_PAGE,
   } from "./model";
   import {
     createSortableRows,
@@ -117,7 +120,44 @@
         (position.get(b.id) ?? order.length),
     );
   });
-  const active = $derived(activeEpics(orderedEpics, thread));
+  const active = $derived(
+    sidebarEpics(activeEpics(orderedEpics, thread), room.messages),
+  );
+  /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
+  let showAll = $state(false);
+  /** How many epics fit before the sidebar's foot with "Ver mais", "Novo épico" and the next section's title still
+   *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
+  let fit = $state(EPIC_PAGE);
+  let list = $state<HTMLElement | null>(null);
+  function measure() {
+    const side = list?.closest("[data-native-room-sidebar]");
+    const foot = side?.querySelector("[data-sidebar-self]");
+    if (!list || !side || !foot?.getClientRects().length) {
+      fit = EPIC_PAGE;
+      return;
+    }
+    const box = side.getBoundingClientRect();
+    const top = list.getBoundingClientRect().top - box.top + side.scrollTop;
+    const bottom = foot.getBoundingClientRect().top - box.top;
+    const pitch =
+      (list.firstElementChild?.getBoundingClientRect().height || 36) + 2;
+    fit = Math.min(
+      EPIC_PAGE,
+      Math.max(3, Math.floor((bottom - top - 132) / pitch)),
+    );
+  }
+  $effect(() => {
+    const side = list?.closest("[data-native-room-sidebar]");
+    if (!side) return;
+    // After layout, and whenever the sidebar or its foot change size (window, a section growing above).
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(side);
+    for (const node of side.querySelectorAll(
+      "[data-sidebar-self], [data-room-views]",
+    ))
+      observer.observe(node);
+    return () => observer.disconnect();
+  });
   const archived = $derived(archivedEpics(orderedEpics, room.messages));
   const production = $derived(productionStatuses(room));
   const mode = $derived(
@@ -135,9 +175,25 @@
       room.epics.filter((epic) => vb.epicBusy(epic)).map((epic) => epic.id),
     ),
   );
-  const rows = $derived(
+  const allRows = $derived(
     visibleEpics(forest, $navigation.closed, workingEpics, true),
   );
+  const page = $derived(
+    Math.max(3, fit - allRows.filter((row) => row.epic.pinned).length),
+  );
+  const hiddenCount = $derived(
+    Math.max(0, allRows.filter((row) => !row.epic.pinned).length - page),
+  );
+  const rows = $derived.by(() => {
+    if (showAll || !hiddenCount) return allRows;
+    let shown = 0;
+    return allRows.filter(
+      (row) =>
+        row.epic.pinned ||
+        shown++ < page ||
+        (!selectionDisabled && row.epic.id === thread),
+    );
+  });
   const groupOf = (id: string) => forest.parents.get(id) ?? ROOT_GROUP;
   const groupMembers = (group: string) =>
     group === ROOT_GROUP ? forest.roots : (forest.children.get(group) ?? []);
@@ -202,8 +258,9 @@
     const parent = forest.parents.get(id);
     return parent ? (forest.children.get(parent) ?? []) : forest.roots;
   }
+  /** Only pinned epics take a hand-made order; the rest follow recency. */
   function adjacent(id: string, direction: -1 | 1) {
-    const peers = siblings(id);
+    const peers = siblings(id).filter((epic) => epic.pinned);
     return peers[peers.findIndex((epic) => epic.id === id) + direction];
   }
   async function reorder(from: string, to: string, after: boolean) {
@@ -332,14 +389,15 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    "m-0 box-border flex min-h-[max(12rem,40dvh)] grow basis-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
+    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
   )}
 >
   {#snippet panel(value: string)}
     {#if value === mode}
       <ul
+        bind:this={list}
         aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
-        class="m-0 flex min-h-0 flex-initial list-none flex-col gap-0.5 overflow-x-hidden overflow-y-auto overscroll-contain p-0"
+        class="m-0 flex list-none flex-col gap-0.5 p-0"
       >
         {#each rows as row (row.epic.id)}
           {@const epic = row.epic}
@@ -351,7 +409,11 @@
               id: epic.id,
               index: siblingIndex.get(epic.id) ?? 0,
               group: groupOf(epic.id),
-              disabled: mutationBusy || value !== "active" || row.hasChildren,
+              disabled:
+                mutationBusy ||
+                value !== "active" ||
+                row.hasChildren ||
+                !epic.pinned,
             }}
             id={rowIds.get(epic.id)}
             data-epic={epic.id}
@@ -375,11 +437,12 @@
                 title={epic.owner
                   ? `${epic.title} · ${vb.name(epic.owner)}`
                   : epic.title}
-                aria-keyshortcuts={value === "active"
+                aria-keyshortcuts={value === "active" && epic.pinned
                   ? "Alt+ArrowUp Alt+ArrowDown"
                   : undefined}
                 onkeydown={(event) => {
-                  if (value !== "active" || !event.altKey) return;
+                  if (value !== "active" || !event.altKey || !epic.pinned)
+                    return;
                   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
                     event.preventDefault();
                     move(epic.id, event.key === "ArrowUp" ? -1 : 1);
@@ -404,6 +467,13 @@
                       >({vb.t("Arquivado")})</span
                     >{/if}</span
                 >
+                {#if epic.pinned && value === "active"}<span
+                    role="img"
+                    data-epic-pinned
+                    aria-label={vb.t("Fixado")}
+                    class="flex shrink-0 text-muted-foreground"
+                    ><Icon icon={Pin02} class="size-3.5" /></span
+                  >{/if}
                 {#if working}<span
                     role="img"
                     aria-label={vb.t("{who} está trabalhando", {
@@ -468,6 +538,21 @@
               >
                 {#if value === "active"}
                   <DropdownMenuItem
+                    data-epic-pin={epic.id}
+                    disabled={mutationBusy}
+                    onSelect={() =>
+                      void submit({
+                        t: "epic.pin",
+                        id: epic.id,
+                        pinned: !epic.pinned,
+                      })}
+                    ><Icon icon={Pin02} />{vb.t(
+                      epic.pinned ? "Desafixar" : "Fixar no topo",
+                    )}</DropdownMenuItem
+                  >
+                {/if}
+                {#if value === "active" && epic.pinned}
+                  <DropdownMenuItem
                     disabled={mutationBusy || !adjacent(epic.id, -1)}
                     onSelect={() => move(epic.id, -1)}
                     ><Icon icon={ArrowUp} />{vb.t(
@@ -481,8 +566,8 @@
                       "Mover para baixo",
                     )}</DropdownMenuItem
                   >
-                  <DropdownMenuSeparator />
                 {/if}
+                {#if value === "active"}<DropdownMenuSeparator />{/if}
                 <DropdownMenuLabel class="text-xs text-muted-foreground"
                   >{vb.t("Dono do épico")}</DropdownMenuLabel
                 >
@@ -507,6 +592,28 @@
           </li>
         {/each}
       </ul>
+      {#if hiddenCount}<button
+          type="button"
+          data-epics-more
+          aria-expanded={showAll}
+          onclick={() => (showAll = !showAll)}
+          class="mt-0.5 flex h-8 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-2 text-left font-sans text-sm text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+        >
+          <span class="flex size-5 shrink-0 items-center justify-center"
+            ><Icon
+              icon={ChevronDown}
+              size={16}
+              class={cn(
+                "transition-transform duration-150 motion-reduce:transition-none",
+                showAll && "rotate-180",
+              )}
+            /></span
+          ><span class="min-w-0 truncate"
+            >{showAll
+              ? vb.t("Ver menos")
+              : vb.t("Ver mais ({n})", { n: hiddenCount })}</span
+          >
+        </button>{/if}
       {#if value === "active"}
         {#if creating}
           <form
@@ -617,22 +724,17 @@
       {/if}
     {/if}
   {/snippet}
-  <Tabs
-    value={mode}
-    onValueChange={switchMode}
-    class="min-h-0 flex-initial gap-2"
-  >
-    <TabsList aria-label={vb.t("Épicos")} class="w-full shrink-0">
+  <Tabs value={mode} onValueChange={switchMode} class="gap-2">
+    <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
           disabled={view.disabled}
-          class="flex-1">{view.label}</TabsTrigger
+          class="h-6 flex-1 text-xs">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class="flex h-auto min-h-0 flex-initial flex-col"
-        >{@render panel(view.value)}</TabsContent
+        class="flex h-auto flex-col">{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>

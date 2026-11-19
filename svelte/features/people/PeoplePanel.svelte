@@ -276,13 +276,7 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class={cn(
-    "mt-auto max-h-[32%] space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain font-sans text-sm leading-5 text-sidebar-foreground outline-none",
-    // In the sidebar it gives way to the epics, down to its title and ~3 rows.
-    everyone.length + model.invited.length + (room.requests?.length ?? 0) > 1
-      ? "min-h-32 shrink"
-      : "shrink-0",
-  )}
+  class="mt-auto shrink-0 space-y-0.5 font-sans text-sm leading-5 text-sidebar-foreground outline-none"
 >
   {#if room.requests?.length}<div class="mb-6 space-y-0.5">
       <SectionHeader title={vb.t("Pedindo pra entrar")} level={4} />

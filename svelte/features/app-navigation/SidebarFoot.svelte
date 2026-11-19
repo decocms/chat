@@ -10,7 +10,7 @@
 </script>
 
 <div
-  class="sticky bottom-0 z-10 mt-auto -mb-2 shrink-0 bg-sidebar pb-2 max-md:hidden"
+  class="sticky -bottom-2 z-10 mt-auto -mb-2 shrink-0 bg-sidebar pb-4 max-md:hidden"
 >
   <div
     data-sidebar-self

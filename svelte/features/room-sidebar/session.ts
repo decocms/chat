@@ -10,6 +10,7 @@ type Command = Extract<
       | "epic"
       | "epic.owner"
       | "epic.order"
+      | "epic.pin"
       | "epic.rename"
       | "epic.archive"
       | "epic.del"
@@ -82,6 +83,7 @@ export function createRoomMutations(
     if (command.t === "epic.del") return !epic;
     if (!epic) return false;
     if (command.t === "epic.owner") return (epic.owner ?? "") === command.owner;
+    if (command.t === "epic.pin") return !!epic.pinned === command.pinned;
     if (command.t === "epic.rename")
       return epic.title === command.title.trim().slice(0, 200);
     return !!epic.archived === (command.archived !== false);

@@ -79,6 +79,7 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     archived: z.optional(z.boolean()),
   }),
   z.object({ t: z.literal("epic.order"), ids: z.array(z.string()) }),
+  z.object({ t: z.literal("epic.pin"), id: z.string(), pinned: z.boolean() }),
   z.object({
     t: z.literal("poll.create"),
     thread: z.string(),
