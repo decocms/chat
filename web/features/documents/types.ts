@@ -12,6 +12,8 @@ export type DocumentPane =
   | "decisions"
   | "reminders"
   | "agents"
+  | "people"
+  | "search"
   | "view";
 export type Editor = {
   destroy(): void;

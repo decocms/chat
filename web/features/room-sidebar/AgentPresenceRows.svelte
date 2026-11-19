@@ -24,6 +24,7 @@
     ago,
     locale = "pt-BR",
     surface = "sidebar",
+    large = false,
   }: {
     presence: Presence;
     self?: boolean;
@@ -34,6 +35,8 @@
     locale?: string;
     /** The surface the rows sit on: sets the status dot's ring and the row hover tint. */
     surface?: "sidebar" | "background";
+    /** The members pane: rows sized to sit under its 32px faces, lined up with the name. */
+    large?: boolean;
   } = $props();
   const listeners = $derived(self ? roomListenerCount(presence, email) : 0);
   const rows = $derived(agentRows(presence, email));
@@ -77,21 +80,25 @@
       data-agent-provider={agentProvider(agent.who)}
       data-agent-listening={agent.listening}
       class={cn(
-        "ml-7 box-border flex w-[calc(100%-1.75rem)] cursor-default flex-col gap-1 rounded-lg border-0 bg-transparent px-2 py-1 text-left font-sans text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring",
+        "box-border flex cursor-default flex-col gap-1 rounded-lg border-0 bg-transparent px-2 py-1 text-left font-sans text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring",
+        large
+          ? "ml-9 w-[calc(100%-2.25rem)] py-1.5 text-sm"
+          : "ml-7 w-[calc(100%-1.75rem)] text-xs",
         tone.hover,
       )}
     >
       <span class="flex w-full items-center gap-2">
         <span class="relative inline-flex shrink-0">
           <AgentMark
-            size="2xs"
+            size={large ? "xs" : "2xs"}
             tint
             via={agent.who}
-            class="text-[0.625rem]"
+            class={large ? "text-xs" : "text-[0.625rem]"}
           /><span
             data-status-dot={agent.listening ? "listening" : "idle"}
             class={cn(
-              "absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2",
+              "absolute -right-0.5 -bottom-0.5 rounded-full ring-2",
+              large ? "size-2.5" : "size-2",
               tone.ring,
               agent.listening ? "bg-brand" : "bg-muted-foreground",
             )}
@@ -114,7 +121,12 @@
           data-context-bar
           aria-hidden="true"
           value={percent}
-          class={cn("ml-6 h-[3px] w-[calc(100%-1.5rem)]", meter(percent))}
+          class={cn(
+            large
+              ? "ml-8 h-1 w-[calc(100%-2rem)]"
+              : "ml-6 h-[3px] w-[calc(100%-1.5rem)]",
+            meter(percent),
+          )}
         />{/if}
     </button>
   {/snippet}

@@ -458,6 +458,10 @@
                 class={cn(
                   "h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none [@media(hover:none)]:pr-9",
                   current && "font-medium",
+                  // Done: finished work reads quieter, and comes back on hover or when open.
+                  value === "archived" &&
+                    !current &&
+                    "text-muted-foreground group-hover/row:text-sidebar-foreground",
                 )}
                 data-epic-thread={epic.id}
                 title={epic.owner
@@ -485,10 +489,15 @@
                   version={epic.owner
                     ? vb.avatarVersion(epic.owner)
                     : undefined}
-                  class="size-5"
+                  class={cn(
+                    "size-5",
+                    value === "archived" &&
+                      !current &&
+                      "opacity-60 group-hover/row:opacity-100",
+                  )}
                 />
                 <span class="min-w-0 flex-1 truncate" data-epic-title
-                  >{epic.title}{#if epic.archived}<span
+                  >{epic.title}{#if epic.archived && value !== "archived"}<span
                       class="ml-1 text-xs text-muted-foreground"
                       >({vb.t("Arquivado")})</span
                     >{/if}</span

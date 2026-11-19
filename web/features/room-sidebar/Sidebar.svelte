@@ -5,7 +5,6 @@
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   import { navRow } from "../../lib/components/navRow";
-  import People from "../people/People.svelte";
   import EpicTree from "../navigation/EpicTree.svelte";
   import PinnedItems from "../pins/PinnedItems.svelte";
   import RoomMark from "./RoomMark.svelte";
@@ -393,7 +392,7 @@
           }}
         />
       </div>{/snippet}
-    <!-- On a phone these live in the bottom bar: Pinned in Files, People in Claude. A DM has neither. -->
+    <!-- On a phone Pinned lives in the Files tab. People & agents is a pane beside the chat (desktop) or the Claude tab (phone). A DM has neither. -->
     {#if !dm}<div class="contents max-md:hidden">
         <PinnedItems
           {room}
@@ -404,28 +403,6 @@
           onopenapp={onopenpinapp}
           activeApp={activePinApp}
           t={vb.t}
-        />
-        {#snippet agents(email: string)}<AgentPresenceRows
-            {presence}
-            self={email === room.me}
-            {email}
-            t={vb.t}
-            name={vb.name}
-            ago={vb.ago}
-            {locale}
-          />{/snippet}
-        <People
-          {room}
-          {friends}
-          vb={{
-            t: vb.t,
-            name: vb.name,
-            ago: vb.ago,
-            avatarVersion: vb.avatarVersion,
-          }}
-          {agents}
-          hideSelf
-          onopen={appNavigation?.controller.callbacks.connect}
         />
       </div>{/if}
     <MutationStatus {owner} t={vb.t} />

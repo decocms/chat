@@ -59,6 +59,7 @@
         "apps",
         "decisions",
         "reminders",
+        "people",
         "agents",
       ] as const
     ).map((id) => ({ id, label: paneLabel(id, en) })),
@@ -162,7 +163,13 @@
         <TooltipTrigger>
           {#snippet child({ props })}<Button
               {...props}
-              size="sm"
+              size={labelled
+                ? bare
+                  ? "default"
+                  : "sm"
+                : bare
+                  ? "icon"
+                  : "icon-sm"}
               variant="ghost"
               disabled={$view.denied && item.id !== "doc"}
               role={compact ? undefined : "tab"}
@@ -177,8 +184,7 @@
                   ? item.label
                   : undefined}
               class={cn(
-                "relative shrink-0 gap-1.5 text-muted-foreground hover:text-foreground",
-                labelled ? "px-2.5" : "px-2",
+                "text-muted-foreground hover:text-foreground",
                 selected && "bg-accent text-foreground",
                 labelled && compact && "flex-1 justify-start",
               )}

@@ -55,7 +55,8 @@
       <DialogTitle class="pr-8 font-sans">{t("Emoji")}</DialogTitle>
     </DialogHeader>
     <Input
-      type="search"
+      type="text"
+      inputmode="search"
       bind:ref={search}
       aria-label={t("Buscar emoji…")}
       placeholder={t("Buscar emoji…")}
