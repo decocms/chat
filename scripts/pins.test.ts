@@ -7,7 +7,6 @@ import type { RequestRoomCommand } from "../web/app/roomConnection";
 import {
   normalizePinLink,
   pinAppTarget,
-  pinAppInitials,
   pinFileDetail,
   resolvePin,
 } from "../web/features/pins/model";
@@ -111,9 +110,6 @@ describe("pinned target resolution", () => {
     expect(
       resolvePin({ id: "l", kind: "link", ref: "notgithub.com" }, {}),
     ).toMatchObject({ github: false, detail: "notgithub.com" });
-    expect(pinAppInitials("Roteador A/B")).toBe("RA");
-    expect(pinAppInitials("chart")).toBe("C");
-    expect(pinAppInitials("my-cool_app")).toBe("MC");
     expect(
       resolvePin(
         { id: "gone", kind: "file", ref: "gone" },

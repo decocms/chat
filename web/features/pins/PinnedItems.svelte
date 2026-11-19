@@ -16,13 +16,8 @@
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import LiveFrame from "./LiveFrame.svelte";
   import { readable, type Readable } from "svelte/store";
-  import {
-    pinAppInitials,
-    pinAppTint,
-    resolvePin,
-    samePinApp,
-    type PinAppTarget,
-  } from "./model";
+  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
+  import { resolvePin, samePinApp, type PinAppTarget } from "./model";
   import {
     closePinDraft,
     openPinDraft,
@@ -634,13 +629,14 @@
                     }}
                   >
                     {#if target.kind === "app"}<span
-                        class={cn(
-                          kindClass,
-                          "text-[0.625rem] font-semibold leading-none",
-                          pinAppTint(target.app),
-                        )}
+                        class={kindClass}
                         data-pin-icon="tile"
-                        aria-hidden="true">{pinAppInitials(target.label)}</span
+                        aria-hidden="true"
+                        ><OrgAvatar
+                          name={target.label}
+                          size="2xs"
+                          class="size-5 rounded-md"
+                        /></span
                       >{:else}<span class={kindClass} data-pin-icon="file"
                         ><Icon
                           icon="file-02"

@@ -760,3 +760,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The route answers without CORS headers, as `/wait` does. Thus a web page cannot read it.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · explore/pin-app-icons · A pinned app's tile is the marble its name draws
+- Agent: claude-opus-5-5
+- Context: The human selected option A (a marble tile, like a room) from a side-by-side test against B (the marble tile with an app glyph on it). These details were not given by the human.
+- Decision: The tile uses `OrgAvatar` with the app's label as its seed, like a room uses its title. It is 20 px with `rounded-md`, the rail's ratio (about 30% of the side). `pinAppTint` and `pinAppInitials` are removed. Links keep their line glyph: a glyph leaves deco.chat, a tile opens inside the room.
+- Other options: Seed with `connectionId/tool`, so that a rename does not change the colour. In the test, two room apps with that seed got almost the same marble. Use `rounded-sm`, the 16 px avatar's radius.
+- Risk: low. A rename of an app gives it a new colour.
+- Undo: Revert the commit.
+- Status: open

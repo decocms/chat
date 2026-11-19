@@ -4497,7 +4497,11 @@ describe("stable sidebar integration", () => {
     expect(app.dataset.pinKind).toBe("app");
     expect(app.dataset.pinOpens).toBe("inline");
     expect(app.querySelector("a")).toBeNull();
-    expect(app.querySelector("[data-pin-icon=tile]")?.textContent).toBe("RA");
+    // The app's tile is the marble its name draws, like a room's: no initials.
+    expect(app.querySelector("[data-pin-icon=tile] svg")).not.toBeNull();
+    expect(app.querySelector("[data-pin-icon=tile]")?.textContent?.trim()).toBe(
+      "",
+    );
     const appButton = app.querySelector<HTMLButtonElement>("button")!;
     expect(appButton.textContent).toContain("Roteador A/B");
     expect(appButton.textContent).toContain("App");
