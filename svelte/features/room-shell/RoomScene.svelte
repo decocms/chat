@@ -159,13 +159,6 @@
     if (inboxOpen) leaveInbox();
     if (layout.read().boardFull) layout.toggleBoard();
   }
-  // The room crumb in the top bar: the main thread's chat, from any thread or view.
-  function toMain() {
-    if (!current()) return;
-    toChat();
-    if (current() && get(owner.state)?.header.thread !== "main")
-      owner.actions.setThread("main");
-  }
   // Desktop, the sidebar's views (chat, inbox, board): each takes the middle.
   function toggleBoard() {
     if (!current()) return;
@@ -412,7 +405,6 @@
         tabs={$view.toolbar}
         {inboxOpen}
         tochat={toChat}
-        tomain={toMain}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}

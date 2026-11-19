@@ -9,7 +9,7 @@
   /**
    * The open epic's title in the phone's thread sheet, with its actions
    * behind "⋯". A tap on the title closes the sheet. The desktop top bar has
-   * RoomBreadcrumb instead.
+   * RoomBarTitle instead.
    */
   let {
     room,

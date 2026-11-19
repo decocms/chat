@@ -6277,62 +6277,67 @@ describe("native room sidebar header and suggestion ownership", () => {
       archived: true,
     });
   }, 30_000);
-  type BreadcrumbProps = import("svelte").ComponentProps<
-    typeof import("../svelte/features/room-shell/RoomBreadcrumb.svelte").default
+  type BarTitleProps = import("svelte").ComponentProps<
+    typeof import("../svelte/features/room-shell/RoomBarTitle.svelte").default
   >;
-  function breadcrumb(
+  function barTitle(
     room: Room,
-    extra: Partial<BreadcrumbProps> = {},
+    extra: Partial<BarTitleProps> = {},
     request: (command: RoomCommand) => Promise<CommandOutcome> = async () => ({
       ok: true,
     }),
   ) {
-    const owner = createRoomMutations(room.me, room.id),
-      calls: string[] = [];
+    const owner = createRoomMutations(room.me, room.id);
     peopleCleanups.push(() => owner.dispose());
     owner.sync(room, request);
     const target = document.createElement("div");
     document.body.append(target);
-    const props: BreadcrumbProps = {
+    const props: BarTitleProps = {
       room,
       thread: "main",
       owner,
       vb: bridge,
-      onrenameroom: () => calls.push("rename"),
-      onroom: () => calls.push("room"),
       ...extra,
     };
-    const view = mountView("roomBreadcrumb", target, props);
+    const view = mountView("roomBarTitle", target, props);
     active.push(view);
-    return { target, view, props, owner, calls };
+    return { target, view, props, owner };
   }
-  test("desktop breadcrumb: the room alone with ✎ on main, a link back from an epic, a view or a gone thread; a DM has no ✎", () => {
+  test("desktop bar title names the view, never the room again; a DM names the person; only an epic has actions", () => {
     const room = fixture();
-    let { target, calls } = breadcrumb(room);
-    expect(target.querySelector("button[data-room-crumb]")).toBeNull();
-    expect(target.querySelector("[data-thread-crumb]")).toBeNull();
-    target.querySelector<HTMLElement>("[data-room-rename]")!.click();
-    expect(calls).toEqual(["rename"]);
-    for (const [extra, leaf, actions] of [
-      [{ thread: "e" }, "Epic", true],
-      [{ thread: "e", view: "board" }, "Quadro de tarefas", false],
-      [{ thread: "main", view: "inbox" }, "Caixa de entrada", false],
-      [{ thread: "gone" }, "Conversa", false],
+    for (const [r, extra, title, actions] of [
+      [room, {}, "Sala principal", false],
+      [room, { thread: "e" }, "Epic", true],
+      [room, { thread: "e", view: "board" }, "Quadro de tarefas", false],
+      [room, { thread: "main", view: "inbox" }, "Caixa de entrada", false],
+      [room, { thread: "gone" }, "Sala principal", false],
+      [
+        { ...room, book: { ...room.book, dm: true } },
+        {},
+        room.book.title,
+        false,
+      ],
     ] as const) {
-      ({ target, calls } = breadcrumb(room, extra));
+      const { target } = barTitle(r, extra);
       expect(
-        target.querySelector("[data-thread-crumb]")?.textContent?.trim(),
-      ).toBe(leaf);
-      expect(target.querySelector("[data-room-rename]")).toBeNull();
-      expect(!!target.querySelector("[data-epic-archive]")).toBe(actions);
-      target.querySelector<HTMLElement>("button[data-room-crumb]")!.click();
-      expect(calls).toEqual(["room"]);
+        target.querySelector("[data-thread-title]")?.textContent?.trim(),
+      ).toBe(title);
+      expect(!!target.querySelector("[data-epic-bar-actions]")).toBe(actions);
     }
-    ({ target } = breadcrumb({ ...room, book: { ...room.book, dm: true } }));
-    expect(target.querySelector("[data-room-rename]")).toBeNull();
-    expect(target.querySelector("[data-room-crumb]")?.textContent).toContain(
-      room.book.title,
-    );
+    // In an epic: ✎, Archive and 🗑 together, then the line before the pane's tabs.
+    const { target } = barTitle(room, { thread: "e" });
+    expect(
+      [...target.querySelector("[data-epic-bar-actions]")!.children].map(
+        (node) =>
+          node.hasAttribute("data-epic-rename")
+            ? "rename"
+            : node.hasAttribute("data-epic-archive")
+              ? "archive"
+              : node.hasAttribute("data-epic-delete")
+                ? "delete"
+                : node.getAttribute("data-orientation"),
+      ),
+    ).toEqual(["rename", "archive", "delete", "vertical"]);
   });
   test("desktop epic bar: archive toggles with its label, delete confirmation cancels on canonical replacement and detached buttons cannot write", async () => {
     const room = fixture(),
@@ -6341,7 +6346,7 @@ describe("native room sidebar header and suggestion ownership", () => {
         commands.push(command);
         return { ok: true };
       };
-    const { target, view, props, owner } = breadcrumb(
+    const { target, view, props, owner } = barTitle(
       room,
       { thread: "e" },
       request,

@@ -43,13 +43,14 @@
   import Requests from "./Requests.svelte";
   import HomeRow from "./HomeRow.svelte";
   import RoomLink from "./RoomLink.svelte";
-  import SearchField from "./SearchField.svelte";
+  import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   /**
-   * Your home's own sidebar, like a room's: Home, "Você" (you and your
-   * Claude), "Pedidos" (invites and message requests waiting for your yes),
-   * then the conversations you've had (src/dm.ts), with a `+` to start one. A DM is only a
-   * conversation: its row opens it, with nothing nested under it. Search
-   * finds a person or a conversation (⌘K).
+   * Your home's own sidebar, like a room's: Home in the header row (where a
+   * room has its name), "Você" (you and your Claude), "Pedidos" (invites and
+   * message requests waiting for your yes), then the conversations you've had
+   * (src/dm.ts), with a `+` to start one. A DM is only a conversation: its
+   * row opens it, with nothing nested under it. The rail's search (⌘K) finds
+   * a person or a conversation.
    */
   let {
     controller,
@@ -86,18 +87,19 @@
   use:keepRow
   class="flex min-h-0 flex-col gap-3 font-sans"
 >
-  <SearchField {controller} label={homeText(lang, "findConversation")} />
+  <SidebarHeader
+    ><div class="min-w-0 flex-1">
+      <HomeRow
+        selected={!current}
+        waits={$personal.me?.waits.length ?? 0}
+        {lang}
+        onhome={controller.callbacks.home}
+      />
+    </div></SidebarHeader
+  >
   {#if dms}<ul
       class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0"
     >
-      <li>
-        <HomeRow
-          selected={!current}
-          waits={$personal.me?.waits.length ?? 0}
-          {lang}
-          onhome={controller.callbacks.home}
-        />
-      </li>
       {@render dm(dms.self)}
       {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
           class="mt-3"

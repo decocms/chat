@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { ComponentProps } from "svelte";
-  import RoomBreadcrumb from "./RoomBreadcrumb.svelte";
+  import RoomBarTitle from "./RoomBarTitle.svelte";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
@@ -35,7 +35,6 @@
     onPane,
     inboxOpen = false,
     tochat,
-    tomain,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
@@ -52,8 +51,6 @@
     inboxOpen?: boolean;
     /** Back to the chat: closes the inbox and the full board. */
     tochat?(): void;
-    /** Back to the main thread's chat (the room crumb). */
-    tomain?(): void;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
     geometry = untrack(() => layout.state);
@@ -192,23 +189,18 @@
       ></span
     ></button
   >
-  <!-- Desktop, one bar over chat and pane: the breadcrumb (with the epic's actions), then the pane's tabs at the end. -->
+  <!-- Desktop, one bar over chat and pane: what fills the middle (with the epic's actions), then the pane's tabs at the end. -->
   <div class="contents md:flex md:min-w-0 md:flex-1 md:items-center md:gap-1">
     <div
       data-native-header-title
       class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24"
     >
-      <RoomBreadcrumb
+      <RoomBarTitle
         room={header.room}
         thread={header.thread}
         owner={header.owner}
         vb={header.vb}
-        roomIcon={header.roomIcon}
-        onrenameroom={header.onrenameroom}
         view={inboxOpen ? "inbox" : $geometry.boardFull ? "board" : null}
-        onroom={() => {
-          if (current()) tomain?.();
-        }}
       />
     </div>
     {#if appNavigation}<IconButton
