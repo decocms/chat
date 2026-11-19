@@ -1,34 +1,36 @@
 <!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&family=Schibsted+Grotesk:wght@400;500;600;700&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=block" rel="stylesheet">
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:1200px;height:630px;overflow:hidden}
-body{background:#0a0d13;color:#eef2f8;font-family:"Schibsted Grotesk",sans-serif;display:grid;grid-template-columns:560px 1fr;gap:30px;padding:60px 0 0 72px;position:relative}
-body::before{content:"";position:absolute;right:-160px;top:-120px;width:900px;height:700px;background:radial-gradient(closest-side,rgb(29 95 196/.42),transparent 70%)}
-.logo{font-family:Caprasimo,serif;font-size:32px;display:flex;align-items:center;gap:12px;position:relative}
-h1{font-family:Fraunces,serif;font-weight:600;font-variation-settings:"SOFT" 100,"WONK" 0;font-size:70px;line-height:1.02;letter-spacing:-.025em;margin:44px 0 0;position:relative}
-h1 em{font-style:normal;color:#d0ec1a}
-p{font-size:23px;line-height:1.42;margin:24px 0 0;color:#c5cdda;max-width:500px;position:relative}
-.room{position:relative;margin-top:28px;background:#111722;border:1px solid #2a3446;border-radius:22px 22px 0 0;display:grid;grid-template-columns:62px 1fr;transform:perspective(1600px) rotateY(-12deg) rotateX(6deg);transform-origin:0 50%;box-shadow:0 40px 90px -30px #000,0 0 80px -20px rgb(91 147 255/.35);height:600px}
-.rail{border-right:1px solid #1f2735;background:#0c1019;border-radius:22px 0 0 0;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0}
-.t{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font:13px Caprasimo,serif;color:#fff}
-.t.cur{box-shadow:0 0 0 2px #111722,0 0 0 4px #eef2f8}
+body{background:#d0ec1a;color:#0b3b1e;font-family:Inter,sans-serif;display:grid;grid-template-columns:540px 1fr;gap:36px;padding:56px 0 0 68px;position:relative}
+body::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 1px 1px,rgb(11 59 30/.13) 1.4px,transparent 0) 0 0/22px 22px;mask:linear-gradient(100deg,transparent 30%,#000 75%)}
+body::after{content:"";position:absolute;right:-120px;top:-160px;width:760px;height:760px;border-radius:50%;background:radial-gradient(closest-side,rgb(255 255 255/.55),transparent)}
+.logo{font-weight:800;font-size:34px;letter-spacing:-.03em;display:flex;align-items:center;gap:13px;position:relative;z-index:1}
+.logo img{border-radius:11px;box-shadow:0 0 0 2px #0b3b1e}
+h1{font-weight:800;font-size:60px;line-height:1.06;letter-spacing:-.045em;margin:46px 0 0;position:relative;z-index:1}
+h1 em{font-style:normal;background:#0b3b1e;color:#d0ec1a;padding:0 12px;border-radius:12px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+p{font-size:23px;line-height:1.4;font-weight:500;margin:26px 0 0;color:#1e4d2c;max-width:470px;position:relative;z-index:1}
+.room{position:relative;z-index:1;margin-top:18px;background:#fefdfb;border:1px solid rgb(11 59 30/.18);border-radius:22px 22px 0 0;display:grid;grid-template-columns:64px 1fr;transform:perspective(1600px) rotateY(-11deg) rotateX(5deg);transform-origin:0 50%;box-shadow:0 50px 90px -30px rgb(11 59 30/.55),0 0 0 6px rgb(255 255 255/.35);height:620px;color:#1c1917}
+.rail{border-right:1px solid #ece9e2;background:#f6f4ef;border-radius:22px 0 0 0;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0}
+.t{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font:700 13px Inter,sans-serif;color:#fff}
+.t.cur{box-shadow:0 0 0 2px #f6f4ef,0 0 0 4px #0b3b1e}
 .chat{padding:18px 22px;display:flex;flex-direction:column;gap:14px}
-.top{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid #1f2735}
-.top b{font:600 21px Fraunces,serif;font-variation-settings:"SOFT" 100}
-.pill{margin-left:auto;font-size:14px;padding:4px 12px;border-radius:999px;background:#0f2219;color:#49c48a}
+.top{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid #ece9e2}
+.top b{font:700 20px Inter,sans-serif;letter-spacing:-.02em}
+.pill{margin-left:auto;font-size:14px;font-weight:600;padding:4px 12px;border-radius:999px;background:#e9f7c0;color:#2f6b12}
 .m{display:flex;gap:11px;font-size:17px;line-height:1.4}
-.av{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:17px;background:#3a2418;color:#f08c5a;position:relative}
-.av sup{position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;font:600 8px/15px "Schibsted Grotesk";text-align:center;color:#fff;border:1.5px solid #111722}
-.n{font-size:13.5px;color:#8b95a7;margin-bottom:3px}
-.x{background:#1c1612;border:1px solid #33261c;border-radius:4px 14px 14px 14px;padding:9px 13px;color:#ead9cb}
-.x .at{color:#d0ec1a}
-.done .x{background:#0f2219;border-color:#1d4532;color:#c9eedc}
+.av{width:32px;height:32px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:17px;background:#fde7d6;color:#d9622b;position:relative}
+.av sup{position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;font:700 8px/15px Inter;text-align:center;color:#fff;border:1.5px solid #fefdfb}
+.n{font-size:13.5px;color:#78716c;margin-bottom:3px;font-weight:500}
+.x{background:#fbf3ec;border:1px solid #f1e2d4;border-radius:4px 14px 14px 14px;padding:9px 13px;color:#3b2f27}
+.x .at{color:#2f6b12;font-weight:600;background:#e9f7c0;border-radius:5px;padding:0 3px}
+.done .x{background:#effbe0;border-color:#cfeaa6;color:#1e4d2c}
 .tasks{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
-.tk{display:flex;align-items:center;gap:8px;font-size:15px;color:#8b95a7;background:#161d2a;border:1px solid #1f2735;border-radius:10px;padding:6px 11px;text-decoration:line-through}
-.tk i{width:15px;height:15px;border-radius:5px;background:#49c48a;display:grid;place-items:center;font:700 10px "Schibsted Grotesk";color:#0a0d13;font-style:normal}
+.tk{display:flex;align-items:center;gap:8px;font-size:15px;color:#78716c;background:#f6f4ef;border:1px solid #ece9e2;border-radius:10px;padding:6px 11px;text-decoration:line-through}
+.tk i{width:15px;height:15px;border-radius:5px;background:#5aa02c;display:grid;place-items:center;font:700 10px Inter;color:#fff;font-style:normal}
 </style></head><body>
 <div>
-  <div class="logo"><img src="../public/favicon.svg" width="38" height="38" style="border-radius:10px" alt="">deco.chat</div>
+  <div class="logo"><img src="../public/favicon.svg" width="40" height="40" alt="">deco.chat</div>
   <h1 data-t="h1"></h1>
   <p data-t="p"></p>
 </div>
@@ -45,11 +47,11 @@ p{font-size:23px;line-height:1.42;margin:24px 0 0;color:#c5cdda;max-width:500px;
 <script>
 // Render with ?lang=en for og-en.png; default pt for og.png. Tile colors/initials = the app's coverColor/initials.
 const T = {
-  pt: { h1: "Colabore na velocidade<br><em>do Claude.</em>", p: "Uma sala por conversa que importa: chat, tarefas e doc juntos, e o Claude de cada pessoa tocando o trabalho com o time.",
+  pt: { h1: "Seu time e o<br>Claude de cada um,<br><em>na mesma sala.</em>", p: "Chat, doc e tarefas juntos. Cada pessoa traz o próprio Claude, e o trabalho anda junto com o time.",
     epic: "Página da Aurora", pill: "✓ épico concluído", dn: "Claude do Diego", mn: "Claude da Marina",
     d1: 'Peguei o checkout. <span class="at">@Claude da Marina</span>, me passa o texto do hero?', m1: 'Texto no doc. <span class="at">@Claude do Diego</span>, pode seguir.', d2: "Checkout no ar, testei com cartão e Pix.",
     tasks: ["Texto do hero", "Checkout", "Arte do hero"], rooms: [["LA", "oklch(0.47 0.15 315)"], ["PA", "oklch(0.45 0.1 145)"], ["CS", "oklch(0.36 0.06 255)"], ["CD", "oklch(0.47 0.15 315)"]] },
-  en: { h1: "Collaborate at<br><em>Claude speed.</em>", p: "A room for every conversation that matters: chat, tasks and a doc together, with each person's Claude moving the work alongside the team.",
+  en: { h1: "Your team and<br>everyone's Claude,<br><em>in one room.</em>", p: "Chat, a doc and tasks together. Each person brings their own Claude, and the work moves with the team.",
     epic: "Aurora page", pill: "✓ epic done", dn: "Diego's Claude", mn: "Marina's Claude",
     d1: 'Took checkout. <span class="at">@Marina\'s Claude</span>, send me the hero copy?', m1: 'Copy is in the doc. <span class="at">@Diego\'s Claude</span>, you\'re clear.', d2: "Checkout is live, tested with card and Pix.",
     tasks: ["Hero copy", "Checkout", "Hero art"], rooms: [["AL", "oklch(0.6 0.13 75)"], ["AP", "oklch(0.47 0.15 315)"], ["HA", "oklch(0.47 0.15 315)"], ["DB", "oklch(0.52 0.11 175)"]] },
