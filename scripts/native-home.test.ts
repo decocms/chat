@@ -149,6 +149,41 @@ test("invalidated in-flight Me cannot replace canonical state and coalesces refr
   personal.dispose();
   expect(timer.jobs.size).toBe(0);
 });
+test("ensure skips Me only while the person socket pushes and the account data is recent", async () => {
+  const timer = manualClock();
+  let reads = 0;
+  const personal = createPersonalSession(
+    homeApi({
+      me: () => {
+        reads++;
+        return Promise.resolve(me({}));
+      },
+    }),
+    { clock: timer.clock },
+  );
+  personal.setPushed(true);
+  personal.ensure();
+  await settle();
+  expect(reads).toBe(1);
+  personal.ensure();
+  await settle();
+  expect(reads).toBe(1);
+  // An open socket that delivers nothing (after sleep) cannot keep old data for more than a minute.
+  const now = Date.now;
+  Date.now = () => now() + 61_000;
+  try {
+    personal.ensure();
+    await settle();
+    expect(reads).toBe(2);
+  } finally {
+    Date.now = now;
+  }
+  personal.setPushed(false);
+  personal.ensure();
+  await settle();
+  expect(reads).toBe(3);
+  personal.dispose();
+});
 test("account identity clears drafts and cancels older agents responses", async () => {
   const timer = manualClock(),
     agents =

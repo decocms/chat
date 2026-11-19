@@ -16,6 +16,7 @@ import AppsPanel from "../svelte/features/apps/AppsPanel.svelte";
 import AgentSettings from "../svelte/features/agents/AgentSettings.svelte";
 import ThreadHeader from "../svelte/features/room-sidebar/ThreadHeader.svelte";
 import SuggestionPreview from "../svelte/features/room-sidebar/SuggestionPreview.svelte";
+import RoomBarTitle from "../svelte/features/room-shell/RoomBarTitle.svelte";
 export { dismissDialogs } from "../svelte/lib/studio/dialogController";
 const fixtures = {
   tasks: Tasks,
@@ -31,6 +32,7 @@ const fixtures = {
   agentSettings: AgentSettings,
   threadHeader: ThreadHeader,
   suggestionPreview: SuggestionPreview,
+  roomBarTitle: RoomBarTitle,
 };
 type FixtureName = keyof typeof fixtures;
 /** Preserve the existing checked test call-site relation and flush/update/cleanup

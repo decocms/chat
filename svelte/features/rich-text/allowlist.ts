@@ -1,7 +1,7 @@
 // Baseline: DOMPurify 3.1.6 tag sets plus the host's MD_PURIFY exclusions.
 // These are data allowlists, never names supplied directly to a dynamic element.
 export const HTML_TAGS = new Set(
-  "a abbr acronym address area article aside audio b bdi bdo big blink blockquote body br canvas caption center cite code col colgroup content data datalist dd decorator del details dfn dialog dir div dl dt element em fieldset figcaption figure font footer h1 h2 h3 h4 h5 h6 head header hgroup hr html i ins kbd label legend li main map mark marquee menu menuitem meter nav nobr ol optgroup option output p picture pre progress q rp rt ruby s samp section shadow small source spacer span strike strong sub summary sup table tbody td tfoot th thead time track tt u ul var video wbr".split(
+  "a abbr acronym address area article aside audio b bdi bdo big blink blockquote body br canvas caption center cite code col colgroup content data datalist dd decorator del details dfn dialog dir div dl dt element em fieldset figcaption figure font footer h1 h2 h3 h4 h5 h6 head header hgroup hr html i ins kbd label legend li main map mark marquee menu menuitem meter nav nobr ol optgroup option output p picture pre progress q rp rt ruby s samp section shadow small source spacer span strike strong sub summary sup table tbody td tfoot th thead time tr track tt u ul var video wbr".split(
     " ",
   ),
 );

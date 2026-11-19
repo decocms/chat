@@ -279,7 +279,7 @@ async function renderedFonts(page: Page) {
         "Room title",
         phone
           ? "[data-native-room-header] [data-native-phone-title] > span:last-child > span:first-child"
-          : "[data-native-room-header] h2 button",
+          : "[data-native-room-header] [data-thread-title] span.truncate",
         "Inter",
       ],
       ["Canonical code", "[data-chat-message] pre code", "CommitMono"],

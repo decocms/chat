@@ -627,12 +627,14 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     claude_on: flag.success && flag.data.claude_on,
     sandboxes: sbx.flatMap((row) => { try { return [roomSandbox(row)]; } catch { console.error("room sandbox has invalid identity"); return []; } }),
     agents: rows.filter((row, i) => {
-      // Of your agents that are only here for "seen …" (not listening, not in the last hour), the newest one is enough.
-      // "Here" is this room's read cursor (here_at), not seen_at: that one is any room, so every Claude with a listener was live.
-      const a = row as { email: string; listening_at: number | null; listen_room: string | null; here_at: number | null };
-      const live = (x: typeof a) => (!!x.listening_at && now - x.listening_at < svc.listenFresh && (x.listen_room === id || !x.listen_room)) || (x.here_at ?? 0) > now - 3600_000;
-      if (a.email !== me0 || live(a)) return true;
-      return !rows.slice(0, i).some((b) => (b as typeof a).email === me0 && !live(b as typeof a));
+      // Yours: only the ones listening to this room now. A Claude that only read or posted here in the last hour is
+      // usually closed, and listing it (with its switch and context) read as "4 other agents" (Nov 2026). When none of
+      // yours listens, the newest one stays as "seen …", so the room doesn't show the setup.
+      const a = row as { email: string; listening_at: number | null; listen_room: string | null };
+      const live = (x: typeof a) => !!x.listening_at && now - x.listening_at < svc.listenFresh && (x.listen_room === id || !x.listen_room);
+      const own = (x: unknown) => (x as typeof a).email === me0;
+      if (!own(a) || live(a)) return true;
+      return !rows.some((b, j) => own(b) && (live(b as typeof a) || j < i));
     }).map((row) => {
       const a = AgentDbRow.parse(row);
       return {

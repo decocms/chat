@@ -20,6 +20,10 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import { Plus, UserPlus01, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
+  import {
+    sectionScroll,
+    sidebarSection,
+  } from "../../lib/components/sidebarSection";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   let {
     room,
@@ -276,7 +280,10 @@
   tabindex="-1"
   data-vb-native
   data-people-panel
-  class="mt-auto shrink-0 space-y-0.5 font-sans text-sm leading-5 text-sidebar-foreground outline-none"
+  class={cn(
+    sidebarSection,
+    "mt-auto gap-0.5 font-sans text-sm leading-5 text-sidebar-foreground outline-none",
+  )}
 >
   {#if room.requests?.length}<div class="mb-6 space-y-0.5">
       <SectionHeader title={vb.t("Pedindo pra entrar")} level={4} />
@@ -330,53 +337,56 @@
           onclick={openInvite}><Icon icon={Plus} /></IconButton
         >{/if}{/snippet}
   </SectionHeader>
-  {#each everyone as email (email)}{@render member(email)}{/each}
-  {#if model.invited.length}<SectionHeader
-      title={vb.t("Convidados")}
-      level={4}
-    />
-    {#each model.invited as email (email)}{@render member(email)}{/each}{/if}
-  <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
-  {#if !everyone.length && !inviting}<button
-      type="button"
-      data-people-empty
-      class="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
-      onclick={openInvite}
-    >
-      <span class="flex size-5 shrink-0 items-center justify-center"
-        ><Icon icon={UserPlus01} size={16} /></span
+  <!-- Desktop: the title stays, the people and the invite form scroll. -->
+  <div class={cn("flex flex-col gap-0.5", sectionScroll)}>
+    {#each everyone as email (email)}{@render member(email)}{/each}
+    {#if model.invited.length}<SectionHeader
+        title={vb.t("Convidados")}
+        level={4}
+      />
+      {#each model.invited as email (email)}{@render member(email)}{/each}{/if}
+    <!-- Only you here: invite someone, like Pinned's and Epics' empty rows. -->
+    {#if !everyone.length && !inviting}<button
+        type="button"
+        data-people-empty
+        class="flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+        onclick={openInvite}
       >
-      <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
-    </button>{/if}
-  <form
-    id="invite"
-    data-invite-form
-    class={inviting ? "" : "hidden"}
-    onsubmit={submitInvite}
-  >
-    <InlineAdd
-      type="email"
-      bind:ref={input}
-      bind:value={() => $view.draft, (value) => session.edit(value)}
-      placeholder={vb.t("convidar por email")}
-      aria-label={vb.t("convidar por email")}
-      list={`${ids}-friends`}
-      autocomplete="off"
-      autocapitalize="none"
-      spellcheck={false}
-      enterkeyhint="send"
-      confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
-      confirmLabel={vb.t("convidar por email")}
-      cancelLabel={vb.t("Cancelar")}
-      oncancel={closeInvite}
-    />
-    <datalist id={`${ids}-friends`}
-      >{#each model.friends as email (email)}<option value={email}
-          >{label(email)}</option
-        >{/each}</datalist
+        <span class="flex size-5 shrink-0 items-center justify-center"
+          ><Icon icon={UserPlus01} size={16} /></span
+        >
+        <span class="min-w-0 truncate">{vb.t("Convidar alguém pra sala")}</span>
+      </button>{/if}
+    <form
+      id="invite"
+      data-invite-form
+      class={inviting ? "" : "hidden"}
+      onsubmit={submitInvite}
     >
-  </form>
-  {@render outcomes()}
+      <InlineAdd
+        type="email"
+        bind:ref={input}
+        bind:value={() => $view.draft, (value) => session.edit(value)}
+        placeholder={vb.t("convidar por email")}
+        aria-label={vb.t("convidar por email")}
+        list={`${ids}-friends`}
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck={false}
+        enterkeyhint="send"
+        confirmDisabled={!!$view.pending[normalizeEmail($view.draft)]}
+        confirmLabel={vb.t("convidar por email")}
+        cancelLabel={vb.t("Cancelar")}
+        oncancel={closeInvite}
+      />
+      <datalist id={`${ids}-friends`}
+        >{#each model.friends as email (email)}<option value={email}
+            >{label(email)}</option
+          >{/each}</datalist
+      >
+    </form>
+    {@render outcomes()}
+  </div>
 </section>
 <ConfirmDialog
   bind:open={dialogOpen}

@@ -41,9 +41,10 @@
 {#if files.length}<div
     data-vb-native
     data-thread-files
-    class="flex flex-wrap items-center gap-2 p-2 font-sans text-sm text-foreground"
+    class="flex items-center gap-2 overflow-x-auto p-2 font-sans text-sm text-foreground [scrollbar-width:none]"
   >
-    <span class="flex items-center gap-1 text-muted-foreground"
+    <!-- One row that scrolls sideways: wrapped, 6 long names covered half a phone's chat (Gui #3402). -->
+    <span class="flex shrink-0 items-center gap-1 text-muted-foreground"
       ><Icon icon={File02} size={16} />{lang === "en"
         ? "Files from this thread"
         : "Arquivos deste épico"}</span
@@ -65,7 +66,7 @@
           event.preventDefault();
           onopen(file, event.currentTarget);
         }}
-        class="inline-flex max-w-full items-center gap-1 rounded-control border border-border bg-card px-2 py-1 text-foreground no-underline hover:bg-muted"
+        class="inline-flex max-w-56 shrink-0 items-center gap-1 rounded-control border border-border bg-card px-2 py-1 text-foreground no-underline hover:bg-muted"
         ><Icon icon={File02} size={16} /><span class="truncate"
           >{file.name}</span
         >{#if count > 1}<span class="text-xs text-muted-foreground"

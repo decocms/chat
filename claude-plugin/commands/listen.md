@@ -5,7 +5,7 @@ argument-hint: "[room id, optional]"
 
 Start vibebook listen mode. Room: $ARGUMENTS.
 
-If the room is empty, use the room of the repository: `.vibebook` at the root (`room_id=<id>`), or a `chat.decocms.com/b/<id>` link in README or AGENTS.md. If the repository has no linked room, do not listen. Run `vibebook call inbox`. Tell me in one line which rooms have news. Ask me which room to listen to.
+If the room is empty, use the room of the repository: `.vibebook` at the root (`room_id=<id>`), or a `chat.decocms.com/b/<id>` link in README or AGENTS.md. When you have a room (named here or linked to the repository), listen to it. Do not ask, also when it has no new messages. Only when there is no room: run `vibebook call inbox`, tell me in one line which rooms have news, and ask me which room to listen to.
 
 Do all work through the `vibebook` CLI in Bash (see the vibebook skill). If the CLI is not installed, run `npm i -g vibebook.dev` (or `curl -fsSL https://chat.decocms.com/install.sh | sh`). If it says "Not logged in", ask me to type `! vibebook login`. Then continue.
 

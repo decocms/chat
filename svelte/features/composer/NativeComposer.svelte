@@ -1,8 +1,14 @@
+<script module lang="ts">
+  /** The last room and thread a composer mounted for (`me:room:thread`). */
+  let lastEntered = "";
+</script>
+
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
   import { browserSpeech } from "./speech";
   import { browserFireCapture } from "./fireAudio";
   import { onDestroy, onMount, untrack } from "svelte";
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import type { ComposerProps } from "./types";
   import type { PendingAttachment } from "./model";
   import {
@@ -318,6 +324,35 @@
     main?.addEventListener("dragover", drag);
     main?.addEventListener("dragleave", leave);
     main?.addEventListener("drop", drop);
+    // When you enter a room, a DM or a thread, the composer takes the focus,
+    // so you can type at once. It also mounts again when a panel (the Inbox)
+    // closes in the same thread: then the focus goes back to the button that
+    // opened the panel. On a touch screen a focus opens the keyboard over the
+    // messages, and the phone layout hides its tab bar while the composer has
+    // the focus, so there you tap the field yourself. Do not take the focus
+    // from another field or an open dialog.
+    const scope = `${room.me}:${room.id}:${thread}`,
+      entered = scope !== lastEntered;
+    lastEntered = scope;
+    if (
+      entered &&
+      !window.matchMedia("(pointer: coarse)").matches &&
+      !window.matchMedia(MOBILE_QUERY).matches
+    )
+      void field?.focus(undefined, () => {
+        const focused = document.activeElement;
+        return (
+          active &&
+          !hidden &&
+          allowed &&
+          !(
+            focused instanceof HTMLElement &&
+            (focused.isContentEditable ||
+              /^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName) ||
+              focused.closest("[role=dialog],[role=alertdialog]"))
+          )
+        );
+      });
     return () => {
       document.removeEventListener("paste", paste);
       main?.removeEventListener("dragover", drag);
@@ -549,7 +584,16 @@
           close();
           poll = true;
         }}>{vb.t("Criar votação")}</Button
-      >{/snippet}
+      >{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
+          variant="menu"
+          role="menuitem"
+          class="md:hidden"
+          onclick={(event) => {
+            if (!canInteract(event)) return;
+            close();
+            void request({ t: "brief.ask", thread });
+          }}>{vb.t("O que precisa de mim aqui?")}</Button
+        >{/if}{/snippet}
     {#snippet inside()}{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
           variant="outline"
           size="sm"
