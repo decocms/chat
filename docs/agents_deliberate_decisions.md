@@ -434,3 +434,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-18 · feat/digest-cron · Turn on the catch-up e-mail
+- Agent: claude-opus-5-5
+- Context: The 8h/18h digest cron was off until Email Sending worked on chat.decocms.com. It works now.
+- Decision: Set `triggers.crons` to `0 11,21 * * *` (8h and 18h São Paulo). Previews get no cron.
+- Other options: Keep it off.
+- Risk: medium (it e-mails real people; only those with something new who did not turn mention e-mails off)
+- Undo: Set `triggers.crons` to `[]` and deploy.
+- Status: open
