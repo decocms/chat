@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.2";
+const VERSION = "1.7.3";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -335,13 +335,23 @@ const myContext = (): Record<string, string> => {
   return h;
 };
 
+/** This computer for the server (docs/machine-hub.md): every agent belongs to the machine it runs on, so the room
+ *  lists it under that machine and the machine's switch covers it. Header values are ASCII only. */
+function machineHeaders(): Record<string, string> {
+  try {
+    return { "x-vibebook-machine": machineId(), "x-vibebook-machine-name": hostname().replace(/\.local$/, "").replace(/[^\x20-\x7e]/g, "").slice(0, 40) };
+  } catch {
+    return {};
+  }
+}
+
 // ---- MCP over the CLI's session ----
 let rpcId = 0;
 async function rpc(method: string, params: unknown, agent: string): Promise<any> {
   const s = await session();
   const r = await fetch(`${s.origin}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext() },
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders() },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params }),
   });
   if (r.status === 401) return die("Session rejected. Ask your human to run, in their own terminal: vibebook login");
