@@ -425,3 +425,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Each person must run `vibebook login` once.
 - Undo: Revert the commit and publish the previous CLI version.
 - Status: open
+
+### 2026-11-18 · feat/studio-avatar · Studio userinfo first, and the Studio picture as avatar
+- Agent: claude-opus-5-5
+- Context: Studio now has `GET /api/auth/mcp/userinfo` (decocms/studio#8567). Until it is deployed, that path answers 404. The removed avatar code copied the Google or GitHub picture at sign-in.
+- Decision: The callback asks userinfo with the access token. If userinfo answers, its identity is used (the email must be verified). On 404 the callback uses the id_token claims, as before. The picture (`picture` from userinfo, `profile` from the id_token) becomes the avatar when the person has not uploaded one, with source `studio`. The Worker fetches only Google and GitHub picture hosts.
+- Other options: Wait for the Studio deploy and then use userinfo only. Fetch a picture from any https host.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

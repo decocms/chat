@@ -1,5 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
 import { auth, hmac } from "../src/auth";
+import { studioAvatarUrl } from "../src/studioAvatar";
 
 function fixture() {
   const reads: { sql: string; values: unknown[] }[] = [],
@@ -290,8 +291,10 @@ test("Studio verified identity starts the session, keeps a safe next and a bound
   let claims: unknown = verified({ email: "Fixture@example.test", name: null });
   const provider = spyOn(globalThis, "fetch").mockImplementation(
     Object.assign(
-      async () =>
-        Response.json({ access_token: "x", id_token: idToken(claims) }),
+      async (input: Parameters<typeof globalThis.fetch>[0]) =>
+        String(input).endsWith("/userinfo")
+          ? new Response(null, { status: 404 })
+          : Response.json({ access_token: "x", id_token: idToken(claims) }),
       { preconnect: originalFetch.preconnect },
     ),
   );
@@ -325,6 +328,109 @@ test("Studio verified identity starts the session, keeps a safe next and a bound
   } finally {
     provider.mockRestore();
   }
+});
+
+test("Studio userinfo, when it answers, is the identity; a 404 keeps the id_token claims", async () => {
+  const f = fixture(),
+    originalFetch = globalThis.fetch,
+    calls: string[] = [];
+  f.client("fixture-client");
+  let userinfo: Response | (() => Response) = () =>
+    Response.json({
+      sub: "u1",
+      email: "fixture@example.test",
+      email_verified: true,
+      name: "From Userinfo",
+      picture: "https://lh3.googleusercontent.com/a/photo=s96-c",
+    });
+  const provider = spyOn(globalThis, "fetch").mockImplementation(
+    Object.assign(
+      async (
+        input: Parameters<typeof globalThis.fetch>[0],
+        init?: Parameters<typeof globalThis.fetch>[1],
+      ) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.endsWith("/token"))
+          return Response.json({
+            access_token: "synthetic-access",
+            id_token: idToken(verified({ name: "From Id Token" })),
+          });
+        if (url.endsWith("/userinfo")) {
+          expect(new Headers(init?.headers).get("authorization")).toBe(
+            "Bearer synthetic-access",
+          );
+          return typeof userinfo === "function" ? userinfo() : userinfo;
+        }
+        // The avatar fetch: refuse it, this fixture has no R2.
+        return new Response(null, { status: 404 });
+      },
+      { preconnect: originalFetch.preconnect },
+    ),
+  );
+  const nameWrite = () =>
+    f.writes.find((w) =>
+      w.sql.includes("INSERT INTO users (email, created_at, name)"),
+    )?.values;
+  try {
+    let response = await f.request(callback, oauthCookie());
+    expect(response.headers.get("set-cookie")).toContain("vb_session=");
+    await f.settled();
+    expect(nameWrite()).toContain("From Userinfo");
+    // The picture from userinfo is fetched at 256px from the Google host.
+    expect(calls).toContain("https://lh3.googleusercontent.com/a/photo=s256-c");
+
+    // A Studio without userinfo (404): the id_token claims are used.
+    f.writes.length = 0;
+    calls.length = 0;
+    userinfo = () => new Response(null, { status: 404 });
+    response = await f.request(callback, oauthCookie());
+    expect(response.headers.get("set-cookie")).toContain("vb_session=");
+    await f.settled();
+    expect(nameWrite()).toContain("From Id Token");
+
+    // userinfo answers but the identity is not usable: no session.
+    for (const bad of [
+      () =>
+        Response.json({ email: "fixture@example.test", email_verified: false }),
+      () => Response.json({ email: "not-an-email", email_verified: true }),
+      () => new Response("not JSON"),
+      () => new Response(null, { status: 401 }),
+      () => new Response(null, { status: 500 }),
+    ]) {
+      f.writes.length = 0;
+      userinfo = bad;
+      response = await f.request(callback, oauthCookie());
+      expect(response.headers.get("location")).toBe("/login?error=studio");
+      expect(response.headers.get("set-cookie")).not.toContain("vb_session=");
+      expect(f.writes).toHaveLength(0);
+    }
+  } finally {
+    provider.mockRestore();
+  }
+});
+
+test("Studio avatar URLs: only Google and GitHub picture hosts, at 256px", () => {
+  expect(studioAvatarUrl("https://lh3.googleusercontent.com/a/abc=s96-c")).toBe(
+    "https://lh3.googleusercontent.com/a/abc=s256-c",
+  );
+  expect(studioAvatarUrl("https://avatars.githubusercontent.com/u/1?v=4")).toBe(
+    "https://avatars.githubusercontent.com/u/1?v=4&s=256",
+  );
+  for (const bad of [
+    null,
+    42,
+    "",
+    "not a url",
+    "http://lh3.googleusercontent.com/a/abc",
+    "https://evil.test/a.png",
+    "https://lh3.googleusercontent.com.evil.test/a",
+    "https://user:pw@avatars.githubusercontent.com/u/1",
+    "https://avatars.githubusercontent.com:8443/u/1",
+    "data:image/png;base64,AAAA",
+    `https://lh3.googleusercontent.com/${"a".repeat(2100)}`,
+  ])
+    expect(studioAvatarUrl(bad)).toBeNull();
 });
 
 async function invite(f: ReturnType<typeof fixture>, value: unknown) {
