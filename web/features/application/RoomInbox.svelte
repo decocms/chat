@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
+  import { MediaQuery } from "svelte/reactivity";
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -47,6 +49,8 @@
     root = untrack(() => services.rootRoom.state),
     personal = untrack(() => services.personal.state);
   const t = untrack(() => services.t);
+  // The room's phone layout (RoomLayoutFrame) hides its bar while the Inbox is open.
+  const mobile = new MediaQuery(MOBILE_QUERY);
   type Kind = "ask" | "claude" | "mention" | "review" | "task";
   type Item = {
     key: string;
@@ -343,6 +347,17 @@
       selected[row.key] = !selected[row.key];
     }
   }
+  async function close(event: MouseEvent) {
+    if (!live(event)) return;
+    const oldFocus = document.activeElement;
+    owner.close(opening);
+    await tick();
+    if (
+      document.activeElement === document.body ||
+      document.activeElement === oldFocus
+    )
+      owner.restoreFocus(opening);
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -383,6 +398,14 @@
               ></Button
             >{/if}{/each}
       </div>
+      <!-- Phones only (MOBILE_QUERY): the room's bar (with its Inbox button) hides while the Inbox is open, so this is the way out. Desktop: the sidebar's Inbox button. The home's Inbox is a page: you leave it from the DM list. -->
+      {#if opening.roomId && mobile.current}<IconButton
+          data-room-inbox-close
+          label={t("Fechar")}
+          onclick={(event) => {
+            void close(event);
+          }}><Icon icon="x" size={16} /></IconButton
+        >{/if}
     </header>
     {#if picked.length}<div
         data-inbox-selection

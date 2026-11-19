@@ -254,8 +254,9 @@ export async function auditDesignSystemInbox(
       path: `${output}/room-inbox-390.png`,
       fullPage: true,
     });
-    // The sidebar's Inbox button toggles the Inbox closed.
-    await trigger.focus();
+    // Phones (this audit is at 390 px): the bar hides while the Inbox is open, so its ✕ closes it.
+    const close = roomInbox.locator("[data-room-inbox-close]");
+    await close.focus();
     await page.keyboard.press("Enter");
     await expect(roomInbox).toHaveCount(0);
     await expect(composer).toHaveValue("Preserved Inbox draft");
@@ -290,7 +291,7 @@ export async function auditDesignSystemInbox(
     await expect(
       roomInbox.locator("[data-inbox-resolve]").first(),
     ).toBeEnabled();
-    await trigger.click();
+    await roomInbox.locator("[data-room-inbox-close]").click();
     await expect(trigger).toBeFocused();
     result.phases.push(result.phase);
 
