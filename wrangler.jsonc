@@ -51,8 +51,8 @@
     // Sign-in is with deco Studio (src/auth.ts): each origin registers itself there as a public OAuth client.
     "STUDIO_ORIGIN": "https://studio.decocms.com"
   },
-  // Off: the 8h/18h digest mails real people. Turn it on when Email Sending is set up.
-  "triggers": { "crons": [] },
+  // The catch-up e-mail (src/digest.ts) at 8h and 18h São Paulo (11h and 21h UTC). Previews get no cron.
+  "triggers": { "crons": ["0 11,21 * * *"] },
   "observability": { "enabled": true },
   // Worker Previews (one per branch) inherit nothing from above. They get their own D1, KV and R2, so a branch never
   // touches production data, and each Preview gets its own Durable Object storage. No routes, no cron.
