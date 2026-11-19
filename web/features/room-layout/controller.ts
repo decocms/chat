@@ -1,3 +1,4 @@
+import { rememberPane, restingPane } from "./restingPane";
 import { writable } from "svelte/store";
 import { createRoomLayoutBrowser } from "./browser";
 import { createRoomSheetHistory } from "./history";
@@ -94,7 +95,8 @@ export function createRoomLayout(
     geometry: RoomGeometry | null = null,
     mountRevision = 0;
   let value: RoomLayoutState = {
-    pane: "doc",
+    // A DM has no People pane: it always starts on the doc.
+    pane: options.documentHidden ? "doc" : restingPane(browser.storage),
     sheet: null,
     boardFull: false,
     // Desktop: the pane opens as you last left it (closed stays closed when you come back). A DM starts closed.
@@ -147,6 +149,7 @@ export function createRoomLayout(
     if (!value.documentVisible && !value.mobile)
       rememberDocument(browser, true);
     publish({ pane: next, documentVisible: true });
+    if (!options.documentHidden) rememberPane(browser.storage, next);
     geometry?.sync(value);
     if (changed && current()) options.onPane?.(next);
   };
@@ -172,6 +175,8 @@ export function createRoomLayout(
     state,
     read: () => value,
     setPane(next, flags = {}) {
+      // A DM has no People pane: the app-wide choice of People leaves its doc as it is.
+      if (options.documentHidden && next === "people") return;
       if (flags.quiet) {
         // Switch which pane it is, leaving it open or closed as you left it.
         if (value.pane !== next) {
