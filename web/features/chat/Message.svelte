@@ -268,7 +268,7 @@
       ></span>
       {#if quote}{#if quote.author === "ai"}<span
             aria-hidden="true"
-            class="flex size-4 shrink-0 items-center justify-center text-[0.6875rem]"
+            class="flex size-4 shrink-0 items-center justify-center text-[0.6875rem] select-none"
             >✦</span
           >{:else}<PersonAvatar
             size="2xs"
@@ -340,16 +340,17 @@
             ]}>{author(m)}</span
           >{#if m.kind === "agent"}<Badge
               size="sm"
+              class="select-none"
               title={vb.t("Escrito pelo agent dessa pessoa, em nome dela")}
               >agent</Badge
             >{/if}{#if m.tag === "done"}<Badge
               size="sm"
-              class="text-foreground"
+              class="text-foreground select-none"
               variant="success">✓ {vb.t("entregue")}</Badge
             >{/if}<time title={timestamp}
             >{vb.hhmm(m.ts)}<span
               data-time-zone
-              class="ml-1 text-[0.625rem] text-muted-foreground/60"
+              class="ml-1 text-[0.625rem] text-muted-foreground/60 select-none"
               >{chatZone(m.ts)}</span
             ></time
           >
@@ -442,9 +443,10 @@
             {vb}
           />{/each}{/if}
       <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
-           is something in it: an empty bar spread a run of messages from the same person apart. -->
+           is something in it: an empty bar spread a run of messages from the same person apart. Not selectable:
+           copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips (Gimenes #3622). -->
       {#if (footer && !origin) || (!origin && Object.values(m.reactions ?? {}).some((who) => who.length))}<div
-          class="flex flex-wrap items-center justify-between gap-x-3"
+          class="flex flex-wrap items-center justify-between gap-x-3 select-none"
         >
           {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
               message={m}
