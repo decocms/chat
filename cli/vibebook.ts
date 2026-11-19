@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.0";
+const VERSION = "1.7.1";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -583,6 +583,20 @@ async function claudeRooms(agent: string, tools: Tool[], kind: "herdr" | "herdr-
   roomsCache = { gen, at: Date.now(), key, res };
   return res;
 }
+/** The runner's pause between passes: up to `ms`, but it ends as soon as the hub hears {t:"agents"} (a ✻ switch or a
+ *  delivery switch in the app), so a switch opens or closes the room's Claude in about a second, not up to 15 s. */
+async function napOrPoke(ms: number) {
+  const t0 = Date.now();
+  const port = hubPort();
+  const since = roomsCache?.gen ?? -1;
+  if (port && since >= 0)
+    try {
+      const r = (await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=${since}`, { signal: AbortSignal.timeout(ms) })).json()) as { timeout?: boolean };
+      if (!r.timeout) return;
+    } catch {}
+  const left = ms - (Date.now() - t0);
+  if (left > 0) await new Promise((r) => setTimeout(r, left));
+}
 async function herdrSync(agent: string, tools: Tool[]) {
   const map = readJson<Record<string, HerdrRoom>>(HERDR, {});
   const wsList = herdr("workspace", "list").workspaces as { workspace_id: string; label?: string }[];
@@ -725,18 +739,22 @@ async function herdrSync(agent: string, tools: Tool[]) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String((err as { stderr?: Buffer }).stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
     }
   }
-  // Off is delivery off (Nov 2026): the tab stays open with its context and the room just stops waking it. Only a room
-  // that left the list (archived, or you left it) closes its tab.
-  const listed = new Set(rooms.map((r) => r.room_id));
+  // Off closes the tab at once (its session is kept for --resume when it's back on), and so does a room that left the
+  // list (archived, or you left it). Before, off kept the tab with a Claude that still listened (Nov 2026).
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.workspace) continue;
     const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
     if (p?.agent_session?.value) e.session = p.agent_session.value;
-    if (listed.has(room) && live.has(e.workspace)) continue;
-    if (live.has(e.workspace)) {
-      herdr("workspace", "close", e.workspace);
-      log(`${room}: a sala saiu da sua lista, fechei a aba (a conversa fica pra retomar)`);
-    }
+    // A workspace with other panes too (yours): end only the room's Claude (/exit), keep the workspace and forget it.
+    try {
+      if (p && panes.filter((x) => x.workspace_id === e.workspace).length > 1) {
+        herdr("agent", "prompt", p.pane_id, "/exit");
+        log(`${room}: Claude desligado na sala, encerrei o Claude dela (a aba fica com seus outros painéis)`);
+      } else if (live.has(e.workspace)) {
+        herdr("workspace", "close", e.workspace);
+        log(`${room}: Claude desligado na sala, fechei a aba (a conversa fica pra retomar)`);
+      }
+    } catch {}
     delete e.workspace;
   }
   writePrivate(HERDR, map);
@@ -754,13 +772,36 @@ const happ = (...args: string[]) => {
   return r;
 };
 const appClaude = (sp: AppSpace) => sp.tabs.flatMap((t) => t.terminals).find((t) => /claude/i.test(t.app ?? ""));
+/** The Claude Code session running in a herdr-app terminal: its process (hc get) and Claude Code's own
+ *  ~/.claude/sessions/<pid>.json. */
+function appSession(terminal: string): string | undefined {
+  try {
+    const pid = (JSON.parse(execFileSync("hc", ["get", terminal], { stdio: ["ignore", "pipe", "pipe"] }).toString()) as { foreground?: { pid?: number } }).foreground?.pid;
+    if (!pid) return undefined;
+    const s = readJson<{ sessionId?: string }>(join(homedir(), ".claude", "sessions", `${pid}.json`), {}).sessionId;
+    return s && /^[0-9a-f-]{36}$/.test(s) ? s : undefined;
+  } catch {
+    return undefined;
+  }
+}
 async function herdrAppSync(agent: string, tools: Tool[]) {
-  const res = await claudeRooms(agent, tools, "herdr-app");
-  const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
-  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson<Record<string, HerdrRoom & { space?: string }>>(HERDR_APP, {});
   let spaces = happ("ls").spaces as AppSpace[];
   const live = new Set(spaces.map((x) => x.id));
+  // Report the Claudes in our spaces, as the terminal mode does: the server then ties them to this machine, so the
+  // room's switch for this machine mutes them. Without it they were one-off agents, delivered by default (Nov 2026).
+  const managed: string[] = [];
+  for (const e of Object.values(map)) {
+    const sp = e.space ? spaces.find((x) => x.id === e.space) : undefined;
+    const c = sp && appClaude(sp);
+    const sid = c && appSession(c.terminal);
+    if (!sid) continue;
+    e.session = sid;
+    managed.push(sessionAgent(sid));
+  }
+  const res = await claudeRooms(agent, tools, "herdr-app", managed);
+  const rooms = (JSON.parse(res.content[0]?.text ?? "{}") as { rooms?: { room_id: string; title: string; on: boolean; listening?: boolean }[] }).rooms ?? [];
+  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
   const log = (m: string) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}\n`);
   for (const [room, title] of on) {
@@ -801,20 +842,28 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
       log(`${title}: adotei o Claude que já estava em ${e.folder}`);
       continue;
     }
-    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude"]), "--task", "/vibebook:listen");
+    // Back on after an off: the same conversation (--resume), so closing it lost nothing.
+    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...(e.session ? ["--resume", e.session] : [])]), "--task", "/vibebook:listen");
     e.space = r.space as string;
     e.prompted_at = Date.now();
-    log(`${title}: abri um Claude em ${e.folder}`);
+    log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
   }
-  // Off keeps the space (delivery off); only a room that left the list closes it.
-  const listedApp = new Set(rooms.map((r) => r.room_id));
+  // Off closes the space at once (its session is kept in the map for --resume), and so does a room that left the list.
+  // Before, off kept the space with a Claude that still listened (Nov 2026): the person wants off to stop it.
+  // A space with other terminals too (yours): end only the room's Claude, keep the space and forget it.
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space) continue;
-    if (listedApp.has(room) && live.has(e.space)) continue;
-    if (live.has(e.space)) {
-      happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-      log(`${room}: a sala saiu da sua lista, fechei o space`);
-    }
+    const sp = spaces.find((x) => x.id === e.space);
+    const c = sp && appClaude(sp);
+    try {
+      if (sp && c && sp.tabs.flatMap((t) => t.terminals).length > 1) {
+        execFileSync("hc", ["kill", c.terminal], { stdio: "ignore" });
+        log(`${room}: Claude desligado na sala, encerrei o Claude dela (o space fica com seus outros terminais)`);
+      } else if (sp) {
+        happ("do", "space.close", "--id", e.space, "--confirmed", "true");
+        log(`${room}: Claude desligado na sala, fechei o space (a conversa fica pra retomar)`);
+      }
+    } catch {}
     delete e.space;
   }
   writePrivate(HERDR_APP, map);
@@ -1154,7 +1203,7 @@ async function main() {
           process.stderr.write(`vibebook herdr: ${String((e as Error)?.message ?? e)}\n`);
         }
         if (flags.once) return;
-        await new Promise((r) => setTimeout(r, 15_000));
+        await napOrPoke(15_000);
       }
     }
     case "upload": {

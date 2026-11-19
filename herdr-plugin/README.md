@@ -1,6 +1,6 @@
 # vibebook for herdr
 
-This plugin opens one Claude Code for each vibebook room, as herdr workspaces. Turn on **✻ Ligar Claude** in a room at [chat.decocms.com](https://chat.decocms.com). A workspace then opens in the project folder of the room, with Claude listening to the room. Turn it off, and the room stops waking that Claude. The workspace stays open with its context.
+This plugin opens one Claude Code for each vibebook room, as herdr workspaces. Turn on **✻ Ligar Claude** in a room at [chat.decocms.com](https://chat.decocms.com). A workspace then opens in the project folder of the room, with Claude listening to the room. Turn it off, and the runner closes that workspace in about a second. The conversation is kept: when you turn it on again, Claude continues the same conversation (`--resume`).
 
 ```sh
 herdr plugin install decocms/chat/herdr-plugin
