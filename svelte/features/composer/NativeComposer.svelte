@@ -318,6 +318,25 @@
     main?.addEventListener("dragover", drag);
     main?.addEventListener("dragleave", leave);
     main?.addEventListener("drop", drop);
+    // This composer mounts again for each room, DM and thread, so you can
+    // type at once when you enter one. On a touch screen a focus opens the
+    // keyboard over the messages, so there you tap the field yourself. Do not
+    // take the focus from another field or an open dialog.
+    if (!window.matchMedia("(pointer: coarse)").matches)
+      void field?.focus(undefined, () => {
+        const focused = document.activeElement;
+        return (
+          active &&
+          !hidden &&
+          allowed &&
+          !(
+            focused instanceof HTMLElement &&
+            (focused.isContentEditable ||
+              /^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName) ||
+              focused.closest("[role=dialog],[role=alertdialog]"))
+          )
+        );
+      });
     return () => {
       document.removeEventListener("paste", paste);
       main?.removeEventListener("dragover", drag);
