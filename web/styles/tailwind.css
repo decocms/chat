@@ -184,6 +184,20 @@
   --vb-project-amber: #f59e0b;
   /* Agent avatar tiles by provider: text glyphs on tinted
      squares, not brand logos. Claude's warm orange, Codex/Cursor monochrome (inverted in dark). */
+  /* Holographic profile card (web/features/profile/ProfileCard.svelte): always dark, same in both themes. */
+  --vb-holo-from: #1d1a2e;
+  --vb-holo-to: #0b0a10;
+  --vb-holo-foreground: #fff;
+  --vb-holo-muted: rgb(255 255 255 / 0.62);
+  --vb-holo-line: rgb(255 255 255 / 0.14);
+  --vb-holo-tier: #d9c8ff;
+  --vb-holo-glow: rgb(180 140 255 / 0.6);
+  --vb-holo-shadow: rgb(80 40 160 / 0.55);
+  --vb-holo-glare: rgb(255 255 255 / 0.28);
+  --vb-holo-foil-1: rgb(255 0 153 / 0.35);
+  --vb-holo-foil-2: rgb(0 229 255 / 0.35);
+  --vb-holo-foil-3: rgb(196 255 0 / 0.3);
+  --vb-holo-foil-4: rgb(255 170 0 / 0.3);
   --vb-agent-claude: #d97757;
   --vb-agent-claude-foreground: #fff;
   --vb-agent-codex: #111;
@@ -509,6 +523,19 @@
   --color-project-purple: var(--vb-project-purple);
   --color-project-red: var(--vb-project-red);
   --color-project-amber: var(--vb-project-amber);
+  --color-holo-from: var(--vb-holo-from);
+  --color-holo-to: var(--vb-holo-to);
+  --color-holo-foreground: var(--vb-holo-foreground);
+  --color-holo-muted: var(--vb-holo-muted);
+  --color-holo-line: var(--vb-holo-line);
+  --color-holo-tier: var(--vb-holo-tier);
+  --color-holo-glow: var(--vb-holo-glow);
+  --color-holo-shadow: var(--vb-holo-shadow);
+  --color-holo-glare: var(--vb-holo-glare);
+  --color-holo-foil-1: var(--vb-holo-foil-1);
+  --color-holo-foil-2: var(--vb-holo-foil-2);
+  --color-holo-foil-3: var(--vb-holo-foil-3);
+  --color-holo-foil-4: var(--vb-holo-foil-4);
   --color-agent-claude: var(--vb-agent-claude);
   --color-agent-claude-foreground: var(--vb-agent-claude-foreground);
   --color-agent-codex: var(--vb-agent-codex);
