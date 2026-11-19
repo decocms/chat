@@ -425,6 +425,7 @@
           }}
           {agents}
           hideSelf
+          onopen={appNavigation?.controller.callbacks.connect}
         />
       </div>{/if}
     <MutationStatus {owner} t={vb.t} />

@@ -62,7 +62,13 @@ describe("People", () => {
     expect(canRemove(r, member)).toBe(true);
     expect(canRemove({ ...r, me: member }, owner)).toBe(false);
     expect(canRemove({ ...r, me: member }, pending)).toBe(true);
-    expect(canRemove({ ...r, me: member }, member)).toBe(false);
+    expect(canRemove({ ...r, me: member }, member)).toBe(false); // not yourself
+    expect(
+      canRemove(
+        { ...r, me: member, members: [...r.members, newcomer] },
+        newcomer,
+      ),
+    ).toBe(true); // any member removes someone who joined
     expect(canAct(r, "approve", newcomer)).toBe(true);
     expect(canAct(r, "deny", member)).toBe(false);
     expect(canAct(r, "invite", member)).toBe(false);

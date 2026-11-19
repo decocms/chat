@@ -23,12 +23,13 @@ export const isListed = (room: PeopleRoom, email: string) =>
 /** Invited and not in yet: waiting for their yes, or they said no. */
 export const isInvited = (room: PeopleRoom, email: string) =>
   !!room.pending?.includes(email) || !!room.declined?.includes(email);
+/** Any member removes anyone listed but the owner and themselves; a declined invite stays during the hold. */
 export function canRemove(room: PeopleRoom, email: string) {
   return (
     (room.members.includes(email) || !!room.invited?.includes(email)) &&
     email !== room.book.owner &&
-    !(room.declined?.includes(email) && !room.pending?.includes(email)) &&
-    (isInvited(room, email) || room.me === room.book.owner)
+    email !== room.me &&
+    !(room.declined?.includes(email) && !room.pending?.includes(email))
   );
 }
 export function canAct(room: PeopleRoom, action: PeopleAction, email: string) {

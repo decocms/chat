@@ -137,7 +137,7 @@ export interface ApiServices {
   /** Your answer to a room invite; false = no invite waiting. */
   answerInvite(roomId: string, yes: boolean): Promise<boolean>;
   invite(roomId: string, email: string): Promise<void>;
-  /** Remove someone from a room: the owner can't be removed; only the owner removes someone who already joined. */
+  /** Remove someone from a room: any member removes anyone but the owner. */
   removeMember(roomId: string, email: string): Promise<{ error: string; status: 400 | 403 } | null>;
   /** Tell the person's tabs to refetch this room's agents (after the response). */
   pokeAgents(roomId: string): void;

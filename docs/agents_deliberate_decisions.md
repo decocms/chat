@@ -708,3 +708,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/people-remove-and-dm · The name opens the DM, not the row
+- Agent: claude-opus-5-5
+- Context: The human selected "any member removes any member, except the owner", and asked that a click on a person in "Pessoas e agents" opens the DM with that person.
+- Decision: Only the name is a button that opens the DM (the app's `connect`). The avatar keeps its online tooltip, and the ✕, "copiar" and "reenviar" stay as they are. A pending invite has no link. A member cannot remove himself or herself with the ✕ (there is no "leave the room" in this list).
+- Other options: Make all of the row a link. Let a member remove himself or herself.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
