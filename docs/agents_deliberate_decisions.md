@@ -717,3 +717,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · fix/pwa-splash-mark · The PWA splash shows the deco mark without the lime square
+- Agent: claude-opus-5-5
+- Context: The human said that the splash screen of the installed app shows a lime square with the `d`, and asked for only the `d` there. The human wants to keep the lime square on the app icon.
+- Decision: Android makes the splash from the manifest icons with `purpose: "any"`, and the launcher icon from the `maskable` icons. The `any` icons are now `icon-mark-192.png` and `icon-mark-512.png` (transparent, made from `og/icon-mark.html`). The `maskable` icons are the lime `icon-192.png` and `icon-512.png`. iOS uses `apple-touch-icon.png` (lime), unchanged. The install card and notifications use `icon-192.png`, unchanged.
+- Other options: Keep one lime `any` icon at 192 px for the desktop install icon (the desktop icon then mixes two images at different sizes).
+- Risk: low. A desktop install (Chrome on Windows or macOS) can show the mark without the lime square.
+- Undo: Revert this commit.
+- Status: open
