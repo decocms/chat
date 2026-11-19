@@ -297,7 +297,7 @@
     </div>
     <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
-          class="-mb-0.5 flex h-5 flex-wrap items-center gap-2 text-xs text-muted-foreground"
+          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
         >
           <span
             class={[
