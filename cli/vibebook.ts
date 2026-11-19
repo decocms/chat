@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // vibebook CLI: one login per machine (OAuth + PKCE, refreshed on its own), the room tools discovered at run time,
 // and `listen` for the room linked to this folder. Agents call it through Bash; the token never reaches them.
-// Built into public/cli.mjs (bun run build:cli); on npm as vibebook.dev (npm i -g vibebook.dev), or installed by https://vibebook.dev/install.sh.
+// Built into public/cli.mjs (bun run build:cli); on npm as vibebook.dev (npm i -g vibebook.dev), or installed by https://chat.decocms.com/install.sh.
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -9,11 +9,13 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.6.21";
+const VERSION = "1.7.0";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
-const DEFAULT_ORIGIN = "https://vibebook.dev";
+const DEFAULT_ORIGIN = "https://chat.decocms.com";
+// vibebook moved to chat.decocms.com (Nov 2026). A login made on the old host would keep talking to it: ask for a new one.
+const MOVED: Record<string, string> = { "https://vibebook.dev": DEFAULT_ORIGIN };
 const HERDR = join(HOME, "herdr.json");
 
 type Session = { origin: string; client_id: string; access_token: string; refresh_token?: string; expires_at: number };
@@ -58,7 +60,7 @@ for (let i = 0; i < argv.length; i++) {
 }
 const flag = (k: string) => (typeof flags[k] === "string" ? (flags[k] as string) : undefined);
 
-// ---- where we are: the repo root, its room (.vibebook or a vibebook.dev/b/<id> link), the agent id for it ----
+// ---- where we are: the repo root, its room (.vibebook or a chat.decocms.com/b/<id> or old vibebook.dev/b/<id> link), the agent id for it ----
 function repoRoot() {
   try {
     return execSync("git rev-parse --show-toplevel", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
@@ -74,7 +76,7 @@ function roomHere(root: string): string | undefined {
   } catch {}
   for (const f of ["README.md", "AGENTS.md", "CLAUDE.md"]) {
     try {
-      const m = readFileSync(join(root, f), "utf8").match(/vibebook\.dev\/b\/([a-z0-9]{12})/);
+      const m = readFileSync(join(root, f), "utf8").match(/(?:chat\.decocms\.com|vibebook\.dev)\/b\/([a-z0-9]{12})/);
       if (m) return m[1];
     } catch {}
   }
@@ -178,6 +180,12 @@ const fresh = (s: Session | null) => !!s && Date.now() < s.expires_at - 60_000;
 async function session(): Promise<Session> {
   let s = readJson<Session | null>(SESSION, null);
   if (!s) return die("Not logged in. Ask your human to run, in their own terminal: vibebook login");
+  const moved = MOVED[s.origin.replace(/\/$/, "")];
+  if (moved)
+    return die(
+      `vibebook moved to ${moved}. Ask your human to run, in their own terminal: vibebook login\n` +
+        `O vibebook mudou para ${moved}. Peça pro seu humano rodar, no terminal dele: vibebook login`,
+    );
   if (fresh(s)) return s;
   const lock = `${SESSION}.lock`;
   for (let i = 0; ; i++) {
@@ -1109,7 +1117,7 @@ async function main() {
         if (appMode) return die("Herdr (the desktop app) isn't open, or herdr-app isn't installed (https://herdr.dev)");
         // Say which step is missing: herdr isn't installed (the one-line setup does it all), or it's installed but closed.
         return die((e as { code?: string }).code === "ENOENT"
-          ? "herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:\n  curl -fsSL https://vibebook.dev/setup.sh | sh"
+          ? "herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:\n  curl -fsSL https://chat.decocms.com/setup.sh | sh"
           : "herdr isn't open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its \"vibebook\" tab runs this for you.");
       }
       // One runner per machine: a second one (the herdr plugin's pane plus a manual `vibebook herdr`) would open every
@@ -1194,7 +1202,8 @@ async function main() {
         return;
       }
       const s = readJson<Session | null>(SESSION, null);
-      const origin = (flag("origin") ?? s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+      const from = (flag("origin") ?? s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+      const origin = MOVED[from] ?? from;
       const r = await fetch(`${origin}/cli.mjs`);
       if (!r.ok) return die(`could not download: ${r.status}`);
       writeFileSync(join(HOME, "cli.mjs"), await r.text());

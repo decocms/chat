@@ -1,8 +1,8 @@
 #!/bin/sh
-# vibebook CLI installer: curl -fsSL https://vibebook.dev/install.sh | sh
+# vibebook CLI installer: curl -fsSL https://chat.decocms.com/install.sh | sh
 # Puts the CLI in ~/.vibebook and a `vibebook` command in ~/.vibebook/bin (linked into ~/.local/bin when it's on PATH).
 set -e
-ORIGIN="${VIBEBOOK_ORIGIN:-https://vibebook.dev}"
+ORIGIN="${VIBEBOOK_ORIGIN:-https://chat.decocms.com}"
 DIR="${VIBEBOOK_HOME:-$HOME/.vibebook}"
 if command -v node >/dev/null 2>&1; then RUN=node; elif command -v bun >/dev/null 2>&1; then RUN=bun; else
   echo "vibebook needs Node.js 18+ or Bun. Install one (https://bun.com) and run this again." >&2; exit 1; fi

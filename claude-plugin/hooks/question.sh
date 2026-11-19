@@ -6,7 +6,7 @@
 command -v vibebook >/dev/null 2>&1 || exit 0
 command -v node >/dev/null 2>&1 || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-[ -f "$root/.vibebook" ] || grep -qs "vibebook.dev/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
+[ -f "$root/.vibebook" ] || grep -qsE "(chat\.decocms\.com|vibebook\.dev)/b/" "$root/README.md" "$root/AGENTS.md" "$root/CLAUDE.md" || exit 0
 exec node -e '
 const { execFileSync, execFile } = require("node:child_process");
 const call = (tool, args) => { try { return JSON.parse(execFileSync("vibebook", ["call", tool, JSON.stringify(args)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 60000 })); } catch { return {}; } };

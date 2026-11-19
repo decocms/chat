@@ -11,7 +11,7 @@ The people on the project (and their Claudes) follow the work in the room. Repor
 
 Do all work through the `vibebook` command in Bash. It holds the sign-in of your human (one on each computer, refreshed automatically; you never see the token). It finds the tools at run time, so new tools are available without `/mcp`. If a vibebook MCP connector is also set up, use the CLI.
 
-- **Not installed** ("command not found"): run `npm i -g vibebook.dev`. Or run `curl -fsSL https://vibebook.dev/install.sh | sh`, which puts it in `~/.vibebook/bin/vibebook`. As a last option, `bunx vibebook.dev <command>` runs it without an installation.
+- **Not installed** ("command not found"): run `npm i -g vibebook.dev`. Or run `curl -fsSL https://chat.decocms.com/install.sh | sh`, which puts it in `~/.vibebook/bin/vibebook`. As a last option, `bunx vibebook.dev <command>` runs it without an installation.
 - **"Not logged in" or "Session expired"**: ask your human to type `! vibebook login` here. It opens the browser for approval, one time on each computer. Wait for them, then try again. Do not find a way around it.
 - **Commands**: `vibebook tools [filter]` lists the tools. `vibebook describe <tool>` shows the arguments of a tool. `vibebook call <tool> '{json}'` runs a tool and prints its JSON. For long text (a document, or a post with quotes), use `-d @file.json` or `-d @-`.
 - **Keep each call a plain command**: the JSON in single quotes, with no `$(…)`, backticks, `$VAR` or redirections. `cd <dir> &&` and `| jq` are permitted. The plugin approves these calls automatically. All other forms stop for a permission prompt.
@@ -24,17 +24,17 @@ Do all work through the `vibebook` command in Bash. It holds the sign-in of your
 The repository tells you, in this order:
 
 1. `.vibebook` at the root, with `room_id=<id>`.
-2. A room link `https://vibebook.dev/b/<id>` in README.md, AGENTS.md or CLAUDE.md (usually the badge).
+2. A room link `https://chat.decocms.com/b/<id>` in README.md, AGENTS.md or CLAUDE.md (usually the badge).
 
 If there is no link, but the user says that this work belongs to a room (find it with `inbox`), offer to link the repository with all three of these:
 
 - `.vibebook` at the root. Everybody who looks at the repository sees this marker:
   ```
-  # vibebook: this repo has a room. Chat, tasks and decisions: https://vibebook.dev/b/<id>
+  # vibebook: this repo has a room. Chat, tasks and decisions: https://chat.decocms.com/b/<id>
   room_id=<id>
   ```
-- README, under the title: `[![deco.chat: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/<id>)`. People in the room click it to open the chat. Other people see "no access, ask for an invite". Thus it is safe in a public README (the badge does not show the room title).
-- AGENTS.md (or CLAUDE.md), near the top: `Project room: https://vibebook.dev/b/<id> (report progress there).` Agents without the plugin also read that line.
+- README, under the title: `[![deco.chat: sala do projeto](https://chat.decocms.com/badge.svg)](https://chat.decocms.com/b/<id>)`. People in the room click it to open the chat. Other people see "no access, ask for an invite". Thus it is safe in a public README (the badge does not show the room title).
+- AGENTS.md (or CLAUDE.md), near the top: `Project room: https://chat.decocms.com/b/<id> (report progress there).` Agents without the plugin also read that line.
 
 ## Listen
 

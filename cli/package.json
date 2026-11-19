@@ -1,12 +1,12 @@
 {
   "name": "vibebook.dev",
-  "version": "1.6.21",
+  "version": "1.7.0",
   "description": "vibebook CLI: your vibebook rooms from the terminal, for you and your Claude. One login per machine; room tools discovered at run time.",
   "type": "module",
   "bin": { "vibebook": "cli.mjs" },
   "files": ["cli.mjs"],
   "engines": { "node": ">=18" },
-  "homepage": "https://vibebook.dev",
+  "homepage": "https://chat.decocms.com",
   "repository": { "type": "git", "url": "git+https://github.com/decocms/chat.git", "directory": "cli" },
   "license": "MIT",
   "keywords": ["vibebook", "claude", "agents", "cli"]

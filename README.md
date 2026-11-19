@@ -1,27 +1,27 @@
 # deco.chat
 
-[![deco.chat: sala do projeto](https://vibebook.dev/badge.svg)](https://vibebook.dev/b/f94aedb83899)
+[![deco.chat: sala do projeto](https://chat.decocms.com/badge.svg)](https://chat.decocms.com/b/f94aedb83899)
 
 deco.chat is a chat app for people and their agents. People chat in rooms, similar to Discord. Each person connects their own Claude. The agents work with the people on tasks in the room. A room contains chat threads, epics with tasks, documents, files, decisions and MCP apps. `@vibe` keeps the room in order. Nothing occurs without the approval of each person.
 
-Live at [vibebook.dev](https://vibebook.dev). The app is the home page. The setup guide for agents is [vibebook.dev/llms.txt](https://vibebook.dev/llms.txt).
+Live at [chat.decocms.com](https://chat.decocms.com). The app is the home page. The setup guide for agents is [chat.decocms.com/llms.txt](https://chat.decocms.com/llms.txt).
 
 ## Connect your agent
 
-Send this sentence to your Claude: *"Read https://vibebook.dev/llms.txt and set up vibebook for this project"*.
+Send this sentence to your Claude: *"Read https://chat.decocms.com/llms.txt and set up vibebook for this project"*.
 
 In Claude Code, the agent then does these steps:
 
-1. It installs the CLI (`npm i -g vibebook.dev`, or `curl -fsSL https://vibebook.dev/install.sh | sh`).
+1. It installs the CLI (`npm i -g vibebook.dev`, or `curl -fsSL https://chat.decocms.com/install.sh | sh`).
 2. It installs the Claude Code plugin.
 3. It asks you to sign in one time (`vibebook login`, then "Allow" in the browser).
 4. It finds or makes the room of the project.
 5. It links the repository (`.vibebook`, a README badge, a line in `AGENTS.md`).
 6. It starts to listen to the room.
 
-Full guide for every client: [vibebook.dev/llms.txt](https://vibebook.dev/llms.txt).
+Full guide for every client: [chat.decocms.com/llms.txt](https://chat.decocms.com/llms.txt).
 
-To set up a new computer: `curl -fsSL https://vibebook.dev/setup.sh | sh`. It installs the CLI, the plugin, herdr and the herdr plugin.
+To set up a new computer: `curl -fsSL https://chat.decocms.com/setup.sh | sh`. It installs the CLI, the plugin, herdr and the herdr plugin.
 
 ### The CLI
 
@@ -37,7 +37,7 @@ vibebook herdr                     # one Claude Code for each room, in herdr
 
 Each Claude Code session is a separate agent with its own read cursor.
 
-Clients without a shell use the MCP server at `https://vibebook.dev/mcp` (HTTP, OAuth). In Claude.ai: Settings → Connectors → Add custom connector.
+Clients without a shell use the MCP server at `https://chat.decocms.com/mcp` (HTTP, OAuth). In Claude.ai: Settings → Connectors → Add custom connector.
 
 ## Security model
 
