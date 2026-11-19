@@ -87,18 +87,41 @@
       ),
     ),
     inboxModuleView = inboxModule.state;
+  const homeInboxModule = untrack(() =>
+      createDeferredModule(
+        () => import("./HomeInbox.svelte").then((module) => module.default),
+        { current },
+      ),
+    ),
+    homeInboxModuleView = homeInboxModule.state;
   const Home = $derived($homeModuleView.component),
     Archived = $derived($archivedModuleView.component),
     AccountSettings = $derived($accountModuleView.component),
-    Inbox = $derived($inboxModuleView.component);
+    Inbox = $derived($inboxModuleView.component),
+    HomeInbox = $derived($homeInboxModuleView.component);
+  // `/?inbox`: the home shows your Inbox for all rooms (HomeInbox).
+  const homeInbox = $derived(
+    $application.route.kind === "home" && !!$application.route.inbox,
+  );
   const accountView = untrack(() => services.account.state);
+  // The page owns the Inbox while it's open: a route change closes it (inbox.ts), this opens it again.
+  $effect(() => {
+    if (
+      homeInbox &&
+      !$application.sessionDenied &&
+      $personal.me &&
+      !$inboxView.binding
+    )
+      untrack(() => inbox.open());
+  });
   $effect(() => {
     $application.lifecycle;
     if (!$application.sessionDenied) {
-      if ($application.route.kind === "home") void homeModule.ensure();
+      if (homeInbox) void homeInboxModule.ensure();
+      else if ($application.route.kind === "home") void homeModule.ensure();
       if ($application.route.kind === "archived") void archivedModule.ensure();
       if ($application.route.kind === "settings") void accountModule.ensure();
-      if ($inboxView.binding && !$inboxView.binding.roomScope)
+      if ($inboxView.binding && !$inboxView.binding.roomScope && !homeInbox)
         void inboxModule.ensure();
     }
   });
@@ -210,6 +233,7 @@
     archivedModule.dispose();
     accountModule.dispose();
     inboxModule.dispose();
+    homeInboxModule.dispose();
     inbox.dispose();
     services.dispose();
   });
@@ -283,7 +307,19 @@
               : "md:col-start-2 md:ml-px md:rounded-surface md:bg-background md:shadow-edge",
           ]}
     >
-      {#if $application.route.kind === "home"}{#if Home}<Home
+      {#if homeInbox}{#if HomeInbox}<HomeInbox
+            owner={inbox}
+            {services}
+          />{:else}<DeferredRouteStatus
+            phase={$homeInboxModuleView.phase}
+            lang={services.language}
+            label={services.language === "en" ? "Inbox" : "Caixa de entrada"}
+            retry={() => {
+              void homeInboxModule.retry();
+            }}
+            {current}
+          />{/if}
+      {:else if $application.route.kind === "home"}{#if Home}<Home
             {...home}
           />{:else if $homeModuleView.phase !== "error"}<HomeSkeleton
             page
@@ -345,7 +381,7 @@
           {@render roomSnippet({ services, openInbox, inbox })}
         </div>{/if}
     </div>
-    {#if $inboxView.binding && !$inboxView.binding.roomScope}{#key $inboxView.binding}<Snapshot
+    {#if $inboxView.binding && !$inboxView.binding.roomScope && !homeInbox}{#key $inboxView.binding}<Snapshot
           value={$inboxView.binding}
         >
           {#snippet children(binding)}

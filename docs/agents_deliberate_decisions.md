@@ -726,3 +726,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A desktop install (Chrome on Windows or macOS) can show the mark without the lime square.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/inbox-triage · The home's Inbox is a page at /?inbox
+- Agent: claude-opus-5-5
+- Context: The human asked for an Inbox row under Home in the direct messages sidebar, always for all rooms. The room Inbox close button (X) is gone too, so the sidebar Inbox button closes a room's Inbox.
+- Decision: The Inbox row (`InboxRow`) opens `/?inbox`. That is the home route with `inbox: true`. On that route, `HomeInbox` shows the same triage list as a room (`RoomInbox`), with a bar that holds "Resolve all". An Inbox without a room shows all rooms (`roomInboxModel`), and `InboxControls` hides "Esta sala / Todas as salas". The waiting count moves from the Home row to the Inbox row, like a room shows it on its Inbox and not on its Main thread. Two new components: `InboxRow`, because `HomeRow` is Home's row on the phone room list too, and `HomeInbox`, because `RoomInbox` has no top bar of its own.
+- Other options: A `/inbox` path, but it needs a change to `run_worker_first` in `wrangler.jsonc`, and a human must approve deploy configuration. The old Inbox dialog (`Inbox.svelte`), but it is not the triage list. Keep the count on Home too.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

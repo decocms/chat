@@ -35,25 +35,26 @@
 </script>
 
 <div data-inbox-controls class={cn("flex items-center gap-1", className)}>
-  <div
-    role="group"
-    aria-label={t("Salas")}
-    class="inline-flex items-center rounded-lg bg-muted p-0.5"
-  >
-    {#each [false, true] as all}<Button
-        size="sm"
-        variant="ghost"
-        aria-pressed={$inbox.all === all}
-        class={cn(
-          "h-7 rounded-md px-2.5 text-xs font-normal text-muted-foreground",
-          $inbox.all === all &&
-            "bg-background text-foreground shadow-xs hover:bg-background",
-        )}
-        onclick={(event) => {
-          if (live(event)) owner.tab(binding, all);
-        }}>{t(all ? "Todas as salas" : "Esta sala")}</Button
-      >{/each}
-  </div>
+  <!-- The home's Inbox has no room: it always shows all rooms, so no scope. -->
+  {#if binding.roomId}<div
+      role="group"
+      aria-label={t("Salas")}
+      class="inline-flex items-center rounded-lg bg-muted p-0.5"
+    >
+      {#each [false, true] as all}<Button
+          size="sm"
+          variant="ghost"
+          aria-pressed={$inbox.all === all}
+          class={cn(
+            "h-7 rounded-md px-2.5 text-xs font-normal text-muted-foreground",
+            $inbox.all === all &&
+              "bg-background text-foreground shadow-xs hover:bg-background",
+          )}
+          onclick={(event) => {
+            if (live(event)) owner.tab(binding, all);
+          }}>{t(all ? "Todas as salas" : "Esta sala")}</Button
+        >{/each}
+    </div>{/if}
   <Button
     data-inbox-resolve-all
     size="sm"
