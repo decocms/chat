@@ -3,7 +3,7 @@
   import { ProfileSettingsResult } from "../../../shared/schemas";
   import { titleFor } from "../../../shared/titles";
   import Switch from "../../lib/studio/Switch.svelte";
-  import { fetchProfile } from "./api";
+  import { fetchProfile, forgetProfile } from "./api";
   import { profileText, type ProfileLang } from "./copy";
 
   /** Settings → profile: your title, the public page switch (off by default) and its link. */
@@ -28,15 +28,17 @@
       });
       const v = ProfileSettingsResult.safeParse(await r.json());
       if (r.ok && v.success) ({ handle, public: on } = v.data);
+      forgetProfile(email);
     } finally {
       busy = false;
     }
   }
 </script>
 
-<label
+<!-- Not a <label>: a label around the switch button turns one click into two (on, then off again; #3638). -->
+<div
   data-profile-settings
-  class="flex cursor-pointer items-center justify-between gap-4 px-4 py-3"
+  class="flex items-center justify-between gap-4 px-4 py-3"
 >
   <span class="flex min-w-0 flex-col gap-0.5">
     <span class="text-sm font-medium"
@@ -55,5 +57,6 @@
     checked={on}
     disabled={busy || !handle}
     onCheckedChange={(v) => void set(v)}
+    aria-label={profileText(lang, "publicOn")}
   />
-</label>
+</div>
