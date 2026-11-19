@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.3";
+const VERSION = "1.7.4";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -649,7 +649,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
         writePrivate(HERDR, map);
         if (updating) log(`${title}: reabrindo o Claude com o plugin ${e.plugin_v} (mesma conversa)`);
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...(e.session ? ["--resume", e.session] : []), "/vibebook:listen");
+          herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...(e.session ? ["--resume", e.session] : []), `/vibebook:listen ${room}`);
           log(`${title}: o Claude tinha fechado, abri outro em ${e.folder ?? "sua pasta"}`);
         } catch (err) {
           const m = (err as Error).message;
@@ -742,7 +742,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     e.prompted_at = Date.now();
     writePrivate(HERDR, map); // the workspace exists now: never open a second one if the start below fails
     try {
-      herdr(...args, "/vibebook:listen");
+      herdr(...args, `/vibebook:listen ${room}`); // the room id: never "which room?" when its room has no news
       log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
     } catch (err) {
       // Usually Claude Code's "trust this folder?" for a new folder: that answer is the person's, in herdr.
@@ -845,7 +845,7 @@ async function herdrAppSync(agent: string, tools: Tool[]) {
       continue;
     }
     // Back on after an off: the same conversation (--resume), so closing it lost nothing.
-    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...(e.session ? ["--resume", e.session] : [])]), "--task", "/vibebook:listen");
+    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...(e.session ? ["--resume", e.session] : [])]), "--task", `/vibebook:listen ${room}`);
     e.space = r.space as string;
     e.prompted_at = Date.now();
     log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
@@ -966,6 +966,13 @@ const hubPort = () => {
 };
 async function ensureHub(): Promise<number | null> {
   if (typeof WebSocket === "undefined" || process.env.VIBEBOOK_NO_HUB) return null;
+  // A hub of another CLI version (hubs run for days and never update) is replaced: an old one could have stopped
+  // reconnecting for good (before 1.7.4). Its listeners fall back to the server long-poll and come back next time.
+  const h = readJson<{ pid: number; v?: string } | null>(HUB, null);
+  if (h && h.v !== VERSION && hubPort()) {
+    try { process.kill(h.pid, "SIGTERM"); } catch {}
+    for (let i = 0; i < 20 && hubPort(); i++) await new Promise((r) => setTimeout(r, 100));
+  }
   let port = hubPort();
   if (port) return port;
   spawn(process.execPath, [process.argv[1], "hub"], { detached: true, stdio: "ignore", env: process.env }).unref();
@@ -997,20 +1004,26 @@ async function hub() {
     req.on("close", () => { if (waiters.delete(w)) clearTimeout(timer); });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
-  writePrivate(HUB, { pid: process.pid, port: (server.address() as { port: number }).port });
+  writePrivate(HUB, { pid: process.pid, port: (server.address() as { port: number }).port, v: VERSION });
   const quit = () => { try { if (readJson<{ pid: number } | null>(HUB, null)?.pid === process.pid) unlinkSync(HUB); } catch {} process.exit(0); };
   process.on("SIGTERM", quit).on("SIGINT", quit);
   // Nobody listening for 15 min: go away (the next listener starts a fresh one).
   setInterval(() => { if (!waiters.size && Date.now() - lastUse > 15 * 60_000) quit(); }, 60_000);
   let sock: WebSocket | null = null, ping: ReturnType<typeof setInterval> | undefined;
+  // Reconnect forever, with backoff. Before, a failed connect (session refresh while asleep or offline) stopped the
+  // retries for good: the hub stayed up for days with no socket, so no listener or runner heard any event (Nov 2026).
+  const retry = () => { clearInterval(ping); setTimeout(() => connect().catch(retry), backoff); backoff = Math.min(backoff * 2, 60_000); };
   const connect = async () => {
     const s = await session();
     const ws = new (WebSocket as any)(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } }) as WebSocket;
     sock = ws;
-    let closed = false;
-    const again = () => { if (closed) return; closed = true; clearInterval(ping); setTimeout(() => connect().catch(again), backoff); backoff = Math.min(backoff * 2, 60_000); };
-    ws.onopen = () => { backoff = 1000; bump(); bumpAgents(); ping = setInterval(() => { try { ws.send("ping"); } catch {} }, 45_000); }; // (re)connected: everyone checks once
+    let closed = false, heard = Date.now();
+    const again = () => { if (closed) return; closed = true; try { ws.close(); } catch {} retry(); };
+    // A socket that never opens, or goes silent (the server answers each "ping" with "pong" without waking): drop it.
+    setTimeout(() => { if (!closed && ws.readyState !== 1) again(); }, 30_000);
+    ws.onopen = () => { backoff = 1000; heard = Date.now(); bump(); bumpAgents(); clearInterval(ping); ping = setInterval(() => { if (Date.now() - heard > 120_000) return again(); try { ws.send("ping"); } catch {} }, 45_000); }; // (re)connected: everyone checks once
     ws.onmessage = (e) => {
+      heard = Date.now();
       try {
         const m = hubNotice(String(e.data));
         if (!m) return;
@@ -1027,7 +1040,7 @@ async function hub() {
     ws.onclose = again;
     ws.onerror = again;
   };
-  await connect().catch(() => setTimeout(() => connect().catch(() => {}), backoff));
+  await connect().catch(retry);
   void sock;
 }
 
