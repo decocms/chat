@@ -584,7 +584,16 @@
           close();
           poll = true;
         }}>{vb.t("Criar votação")}</Button
-      >{/snippet}
+      >{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
+          variant="menu"
+          role="menuitem"
+          class="md:hidden"
+          onclick={(event) => {
+            if (!canInteract(event)) return;
+            close();
+            void request({ t: "brief.ask", thread });
+          }}>{vb.t("O que precisa de mim aqui?")}</Button
+        >{/if}{/snippet}
     {#snippet inside()}{#if !thread.startsWith("pre:") && !room.briefs?.some((item) => item.thread === thread && !item.answered_at)}<Button
           variant="outline"
           size="sm"
