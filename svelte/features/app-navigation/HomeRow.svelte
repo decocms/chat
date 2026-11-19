@@ -28,10 +28,15 @@
   {variant}
   onopen={onhome}
 >
-  {#snippet leading()}<span
-      class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
-      ><Icon icon={Home02} /></span
-    >{/snippet}
+  <!-- The sidebar: a small icon, like a room's Main thread row. The phone's room list: the tile, as tall as a room's avatar. -->
+  {#snippet leading()}{#if variant === "sidebar"}<Icon
+        icon={Home02}
+        size={16}
+        class="shrink-0 text-muted-foreground"
+      />{:else}<span
+        class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
+        ><Icon icon={Home02} /></span
+      >{/if}{/snippet}
   {#snippet trailing()}{#if waits}<Count
         value={waits}
         label={homeText(lang, "waiting", { n: waits })}

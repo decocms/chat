@@ -1,6 +1,6 @@
 <script lang="ts">
   import PersonAvatar from "./lib/components/PersonAvatar.svelte";
-  import { onDestroy } from "svelte";
+  import { onDestroy, tick } from "svelte";
   import DeferredInteractiveBody from "./features/chat-interactive/DeferredInteractiveBody.svelte";
   import RichContent from "./features/rich-text/RichContent.svelte";
   import type { RichMode } from "./features/rich-text/types";
@@ -45,6 +45,32 @@
   let actionController = $state<
     { copy: (link?: boolean) => Promise<void> } | undefined
   >();
+  // The hover toolbar (8 reactions, reply, copy, link, each with a tooltip) was most of the time to show a room:
+  // about 200 of 300 ms for 60 messages. It mounts on the first pointer or focus in the message.
+  let toolbar = $state(false),
+    article = $state<HTMLElement>();
+  function showToolbar() {
+    toolbar = true;
+  }
+  /** Keyboard and screen readers: one cheap stop stands for the toolbar. Focus or a click mounts it and moves
+   * focus into it: to its last button when focus came backwards (Shift+Tab) from after the message. */
+  async function enterToolbar(event: FocusEvent | MouseEvent) {
+    const from =
+      "relatedTarget" in event ? (event.relatedTarget as Node | null) : null;
+    const backwards =
+      !!from &&
+      !!article &&
+      !article.contains(from) &&
+      // 4 = Node.DOCUMENT_POSITION_FOLLOWING: focus came from an element after this message.
+      !!(article.compareDocumentPosition(from) & 4);
+    showToolbar();
+    await tick();
+    if (!active) return;
+    const buttons = article?.querySelectorAll<HTMLElement>(
+      "[data-message-toolbar] button",
+    );
+    (backwards ? buttons?.[buttons.length - 1] : buttons?.[0])?.focus();
+  }
   let active = true;
   onDestroy(() => {
     active = false;
@@ -176,9 +202,20 @@
       if (active) actions.reply(m.id);
     },
     copy: () => {
-      void actionController?.copy();
+      // On a touch screen pointerenter comes before touchstart, so the toolbar is mounted: copy now, inside the
+      // gesture, because iOS Safari allows the clipboard only there.
+      if (actionController) void actionController.copy();
+      else {
+        showToolbar();
+        void tick().then(() => {
+          if (active) void actionController?.copy();
+        });
+      }
     },
   }}
+  bind:this={article}
+  onpointerenter={showToolbar}
+  onfocusin={showToolbar}
   class={[
     continuous
       ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
@@ -260,7 +297,7 @@
     </div>
     <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
-          class="-mb-0.5 flex h-5 flex-wrap items-center gap-2 text-xs text-muted-foreground"
+          class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
         >
           <span
             class={[
@@ -384,17 +421,25 @@
         </div>{/if}
     </div>
   </div>
-  <MessageActions
-    bind:this={actionController}
-    floating
-    canReact={!origin &&
-      kind !== "issue" &&
-      kind !== "notice" &&
-      kind !== "reminder"}
-    me={room.me}
-    message={m}
-    roomId={room.id}
-    {actions}
-    {vb}
-  />
+  {#if toolbar}<MessageActions
+      bind:this={actionController}
+      floating
+      canReact={!origin &&
+        kind !== "issue" &&
+        kind !== "notice" &&
+        kind !== "reminder"}
+      me={room.me}
+      message={m}
+      roomId={room.id}
+      {actions}
+      {vb}
+    />{:else}<button
+      type="button"
+      data-message-toolbar-entry
+      data-chat-hover-only
+      class="sr-only pointer-coarse:hidden"
+      aria-label={vb.t("Ações desta mensagem")}
+      onfocus={enterToolbar}
+      onclick={enterToolbar}
+    ></button>{/if}
 </article>

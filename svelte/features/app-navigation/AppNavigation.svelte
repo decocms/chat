@@ -30,6 +30,7 @@
   import { get } from "svelte/store";
   import { untrack } from "svelte";
   import type { AppNavigationSession } from "./controller";
+  import { searchShortcut } from "./shortcut";
   let {
     controller,
     lang,
@@ -55,11 +56,6 @@
     nav = $derived(controller.state),
     mutations = $derived(controller.rooms.state),
     search = $derived(controller.search.state);
-  const shortcut =
-    typeof navigator !== "undefined" &&
-    /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent)
-      ? "⌘K"
-      : "Ctrl+K";
   const text = (
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
@@ -283,7 +279,7 @@
     <RailButton
       icon={SearchMd}
       label={text("search")}
-      hint={shortcut}
+      hint={searchShortcut}
       onclick={(event) => {
         if (event.currentTarget.isConnected)
           controller.openSearch(event.currentTarget);

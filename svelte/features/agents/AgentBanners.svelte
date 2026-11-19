@@ -8,13 +8,7 @@
   import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "./SetupInstructions.svelte";
   import type { RoomAgentSession } from "./room";
-  import {
-    agentPresence,
-    agentStatus,
-    connectPrompt,
-    pendingAsk,
-    askPreview,
-  } from "./model";
+  import { agentPresence, agentStatus, pendingAsk, askPreview } from "./model";
   import { roomAgentText } from "./roomCopy";
   let {
     owner,
@@ -45,8 +39,7 @@
       ? title
       : "";
   });
-  let step = $state(0),
-    copied = $state(false);
+  let step = $state(0);
   const presence = $derived(
     agentPresence($view.data, owner.account, $view.now),
   );
@@ -58,10 +51,8 @@
       $view.thread === "main" &&
       !$view.startDismissed,
   );
-  const nudge = $derived($view.hasAgent === false && !$view.setupDismissed);
   const offer = $derived(
     $view.data &&
-      !nudge &&
       $view.hasAgent !== false &&
       !presence.around &&
       (!$view.offerDismissed || !!$view.askedAt),
@@ -69,36 +60,13 @@
   const status = $derived(
     agentStatus(presence, $view.hasAgent, $view.askedAt, $view.now),
   );
-  /** One quiet line, only while the agent can't work here: never connected, or on but not listening. Off in this
-   * room has no line: the sidebar foot's delivery switch already shows it. */
+  /** One quiet line, only while the agent is on but not listening. Off in this room has no line: the sidebar
+   * foot's delivery switch already shows it. */
   const line = $derived(
-    agentsOpen
-      ? null
-      : nudge
-        ? ({ kind: "setup", lead: "lineNone", help: "absentHelp" } as const)
-        : offer && !start && status === "late"
-          ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
-          : null,
+    !agentsOpen && offer && !start && status === "late"
+      ? ({ kind: "offer", lead: "late", help: "lateHelp" } as const)
+      : null,
   );
-  $effect(() => {
-    void status;
-    copied = false;
-  });
-  async function copyPrompt() {
-    if (!owner.current()) return;
-    try {
-      await navigator.clipboard.writeText(connectPrompt(origin, owner.roomId));
-      if (owner.current()) copied = true;
-    } catch {
-      if (owner.current()) open();
-    }
-  }
-  function act() {
-    if (!owner.current()) return;
-    if (status === "none") void copyPrompt();
-    else if (status === "off") void owner.toggle();
-    else open();
-  }
   $effect(() => {
     if ($view.welcome && owner.current())
       return registerDialog(() => owner.closeWelcome());
@@ -134,16 +102,8 @@
             {" "}{text(line.help)}</span
           >{/if}
       </p>
-      <Button variant="link" size="sm" class="shrink-0" onclick={act}
-        >{text(
-          status === "none"
-            ? copied
-              ? "copied"
-              : "copyPrompt"
-            : status === "off"
-              ? "turnOn"
-              : "details",
-        )}</Button
+      <Button variant="link" size="sm" class="shrink-0" onclick={open}
+        >{text("details")}</Button
       ><Button
         variant="ghost"
         size="sm"

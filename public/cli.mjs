@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.7.0";
+var VERSION = "1.7.4";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -367,12 +367,19 @@ var myContext = () => {
     h["x-vibebook-limits"] = JSON.stringify(st.limits);
   return h;
 };
+function machineHeaders() {
+  try {
+    return { "x-vibebook-machine": machineId(), "x-vibebook-machine-name": hostname().replace(/\.local$/, "").replace(/[^\x20-\x7e]/g, "").slice(0, 40) };
+  } catch {
+    return {};
+  }
+}
 var rpcId = 0;
 async function rpc(method, params, agent) {
   const s = await session();
   const r = await fetch(`${s.origin}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext() },
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders() },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params })
   });
   if (r.status === 401)
@@ -624,6 +631,20 @@ async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   roomsCache = { gen, at: Date.now(), key, res };
   return res;
 }
+async function napOrPoke(ms) {
+  const t0 = Date.now();
+  const port = hubPort();
+  const since = roomsCache?.gen ?? -1;
+  if (port && since >= 0)
+    try {
+      const r = await (await fetch(`http://127.0.0.1:${port}/wait?book=agents&since=${since}`, { signal: AbortSignal.timeout(ms) })).json();
+      if (!r.timeout)
+        return;
+    } catch {}
+  const left = ms - (Date.now() - t0);
+  if (left > 0)
+    await new Promise((r) => setTimeout(r, left));
+}
 async function herdrSync(agent, tools) {
   const map = readJson(HERDR, {});
   const wsList = herdr("workspace", "list").workspaces;
@@ -664,7 +685,7 @@ async function herdrSync(agent, tools) {
         if (updating)
           log(`${title}: reabrindo o Claude com o plugin ${e.plugin_v} (mesma conversa)`);
         try {
-          herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...e.session ? ["--resume", e.session] : [], "/vibebook:listen");
+          herdr("agent", "start", `vb-${room}`, "--kind", "claude", "--pane", inWs[0].pane_id, "--timeout", "15000", "--", ...e.session ? ["--resume", e.session] : [], `/vibebook:listen ${room}`);
           log(`${title}: o Claude tinha fechado, abri outro em ${e.folder ?? "sua pasta"}`);
         } catch (err) {
           const m = err.message;
@@ -750,7 +771,7 @@ async function herdrSync(agent, tools) {
     e.prompted_at = Date.now();
     writePrivate(HERDR, map);
     try {
-      herdr(...args, "/vibebook:listen");
+      herdr(...args, `/vibebook:listen ${room}`);
       log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
     } catch (err) {
       log(`${title}: Claude aberto em ${e.folder}, esperando você confirmar no herdr (${String(err.stderr ?? err).match(/"message":"([^"]+)"/)?.[1] ?? "não ficou pronto"})`);
@@ -763,13 +784,8 @@ async function herdrSync(agent, tools) {
     const p = panes.find((x) => x.workspace_id === e.workspace && x.agent === "claude");
     if (p?.agent_session?.value)
       e.session = p.agent_session.value;
-    if (listed.has(room) && live.has(e.workspace))
-      continue;
-    if (live.has(e.workspace)) {
-      herdr("workspace", "close", e.workspace);
-      log(`${room}: a sala saiu da sua lista, fechei a aba (a conversa fica pra retomar)`);
-    }
-    delete e.workspace;
+    if (!listed.has(room) || !live.has(e.workspace))
+      delete e.workspace;
   }
   writePrivate(HERDR, map);
   herdrOrder([...on.keys()], map);
@@ -782,13 +798,34 @@ var happ = (...args) => {
   return r;
 };
 var appClaude = (sp) => sp.tabs.flatMap((t) => t.terminals).find((t) => /claude/i.test(t.app ?? ""));
+function appSession(terminal) {
+  try {
+    const pid = JSON.parse(execFileSync("hc", ["get", terminal], { stdio: ["ignore", "pipe", "pipe"] }).toString()).foreground?.pid;
+    if (!pid)
+      return;
+    const s = readJson(join(homedir(), ".claude", "sessions", `${pid}.json`), {}).sessionId;
+    return s && /^[0-9a-f-]{36}$/.test(s) ? s : undefined;
+  } catch {
+    return;
+  }
+}
 async function herdrAppSync(agent, tools) {
-  const res = await claudeRooms(agent, tools, "herdr-app");
-  const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
-  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const map = readJson(HERDR_APP, {});
   let spaces = happ("ls").spaces;
   const live = new Set(spaces.map((x) => x.id));
+  const managed = [];
+  for (const e of Object.values(map)) {
+    const sp = e.space ? spaces.find((x) => x.id === e.space) : undefined;
+    const c = sp && appClaude(sp);
+    const sid = c && appSession(c.terminal);
+    if (!sid)
+      continue;
+    e.session = sid;
+    managed.push(sessionAgent(sid));
+  }
+  const res = await claudeRooms(agent, tools, "herdr-app", managed);
+  const rooms = JSON.parse(res.content[0]?.text ?? "{}").rooms ?? [];
+  const deaf = new Set(rooms.filter((r) => r.on && r.listening === false).map((r) => r.room_id));
   const on = new Map(rooms.filter((r) => r.on).map((r) => [r.room_id, r.title]));
   const log = (m) => process.stdout.write(`${new Date().toLocaleTimeString()} ${m}
 `);
@@ -831,22 +868,17 @@ async function herdrAppSync(agent, tools) {
       log(`${title}: adotei o Claude que já estava em ${e.folder}`);
       continue;
     }
-    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude"]), "--task", "/vibebook:listen");
+    const r = happ("do", "space.new", "--name", title.slice(0, 40), "--folder", e.folder, "--argv", JSON.stringify(["claude", ...e.session ? ["--resume", e.session] : []]), "--task", `/vibebook:listen ${room}`);
     e.space = r.space;
     e.prompted_at = Date.now();
-    log(`${title}: abri um Claude em ${e.folder}`);
+    log(`${title}: abri um Claude em ${e.folder}${e.session ? " (retomando a conversa)" : ""}`);
   }
   const listedApp = new Set(rooms.map((r) => r.room_id));
   for (const [room, e] of Object.entries(map)) {
     if (on.has(room) || !e.space)
       continue;
-    if (listedApp.has(room) && live.has(e.space))
-      continue;
-    if (live.has(e.space)) {
-      happ("do", "space.close", "--id", e.space, "--confirmed", "true");
-      log(`${room}: a sala saiu da sua lista, fechei o space`);
-    }
-    delete e.space;
+    if (!listedApp.has(room) || !live.has(e.space))
+      delete e.space;
   }
   writePrivate(HERDR_APP, map);
   spaces = happ("ls").spaces;
@@ -960,6 +992,14 @@ var hubPort = () => {
 async function ensureHub() {
   if (typeof WebSocket === "undefined" || process.env.VIBEBOOK_NO_HUB)
     return null;
+  const h = readJson(HUB, null);
+  if (h && h.v !== VERSION && hubPort()) {
+    try {
+      process.kill(h.pid, "SIGTERM");
+    } catch {}
+    for (let i = 0;i < 20 && hubPort(); i++)
+      await new Promise((r) => setTimeout(r, 100));
+  }
   let port = hubPort();
   if (port)
     return port;
@@ -1022,7 +1062,7 @@ async function hub() {
     });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  writePrivate(HUB, { pid: process.pid, port: server.address().port });
+  writePrivate(HUB, { pid: process.pid, port: server.address().port, v: VERSION });
   const quit = () => {
     try {
       if (readJson(HUB, null)?.pid === process.pid)
@@ -1036,30 +1076,45 @@ async function hub() {
       quit();
   }, 60000);
   let sock = null, ping;
+  const retry = () => {
+    clearInterval(ping);
+    setTimeout(() => connect().catch(retry), backoff);
+    backoff = Math.min(backoff * 2, 60000);
+  };
   const connect = async () => {
     const s = await session();
     const ws = new WebSocket(`${s.origin.replace(/^http/, "ws")}/mcp?wire=jsonrpc`, { headers: { authorization: `Bearer ${s.access_token}` } });
     sock = ws;
-    let closed = false;
+    let closed = false, heard = Date.now();
     const again = () => {
       if (closed)
         return;
       closed = true;
-      clearInterval(ping);
-      setTimeout(() => connect().catch(again), backoff);
-      backoff = Math.min(backoff * 2, 60000);
+      try {
+        ws.close();
+      } catch {}
+      retry();
     };
+    setTimeout(() => {
+      if (!closed && ws.readyState !== 1)
+        again();
+    }, 30000);
     ws.onopen = () => {
       backoff = 1000;
+      heard = Date.now();
       bump();
       bumpAgents();
+      clearInterval(ping);
       ping = setInterval(() => {
+        if (Date.now() - heard > 120000)
+          return again();
         try {
           ws.send("ping");
         } catch {}
       }, 45000);
     };
     ws.onmessage = (e) => {
+      heard = Date.now();
       try {
         const m = hubNotice(String(e.data));
         if (!m)
@@ -1077,7 +1132,7 @@ async function hub() {
     ws.onclose = again;
     ws.onerror = again;
   };
-  await connect().catch(() => setTimeout(() => connect().catch(() => {}), backoff));
+  await connect().catch(retry);
 }
 async function main() {
   const cmd = flags.version ? "version" : pos[0];
@@ -1305,7 +1360,7 @@ async function main() {
         }
         if (flags.once)
           return;
-        await new Promise((r) => setTimeout(r, 15000));
+        await napOrPoke(15000);
       }
     }
     case "upload": {

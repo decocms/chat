@@ -43,13 +43,20 @@
   import Requests from "./Requests.svelte";
   import HomeRow from "./HomeRow.svelte";
   import RoomLink from "./RoomLink.svelte";
-  import SearchField from "./SearchField.svelte";
+  import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
+  import {
+    sectionScroll,
+    sidebarSection,
+  } from "../../lib/components/sidebarSection";
+  import { cn } from "../../lib/studio/utils";
   /**
-   * Your home's own sidebar, like a room's: Home, "Você" (you and your
-   * Claude), "Pedidos" (invites and message requests waiting for your yes),
-   * then the conversations you've had (src/dm.ts), with a `+` to start one. A DM is only a
-   * conversation: its row opens it, with nothing nested under it. Search
-   * finds a person or a conversation (⌘K).
+   * Your home's own sidebar, built like a room's: "Mensagens diretas" names
+   * it in the header row, with a `+` to start a conversation. Then small rows
+   * where a room has its Main thread and Inbox: Home and "Você" (you and your
+   * Claude). Then "Pedidos" (invites and message requests waiting for your
+   * yes) and the conversations you've had (src/dm.ts). A DM is only a
+   * conversation: its row opens it, with nothing nested under it. The rail's
+   * search (⌘K) finds a person or a conversation.
    */
   let {
     controller,
@@ -74,7 +81,6 @@
       waits={waits.get(entry.room.id) ?? []}
       now={$personal.now}
       {lang}
-      status
       selected={current === entry.room.id}
       onnavigate={controller.callbacks.navigate}
     />
@@ -86,40 +92,49 @@
   use:keepRow
   class="flex min-h-0 flex-col gap-3 font-sans"
 >
-  <SearchField {controller} label={homeText(lang, "findConversation")} />
-  {#if dms}<ul
-      class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0"
+  <!-- The sidebar's name, like a room's, with a new message (+) at its end. -->
+  <SidebarHeader class="md:pr-2 md:pl-4"
+    ><h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+      {homeText(lang, "dms")}
+    </h2>
+    {#if $personal.me}<NewMessage
+        me={$personal.me}
+        {lang}
+        onconnect={controller.callbacks.connect}
+        ondismiss={controller.callbacks.dismiss}
+      />{/if}</SidebarHeader
+  >
+  <!-- Home and You: where a room has its Main thread and Inbox; they stay put on desktop. -->
+  <ul class="m-0 flex shrink-0 list-none flex-col gap-0.5 p-0">
+    <li>
+      <HomeRow
+        selected={!current}
+        waits={$personal.me?.waits.length ?? 0}
+        {lang}
+        onhome={controller.callbacks.home}
+      />
+    </li>
+    {#if dms}{@render dm(dms.self)}{/if}
+  </ul>
+  {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<div
+      class="shrink-0"
     >
-      <li>
-        <HomeRow
-          selected={!current}
-          waits={$personal.me?.waits.length ?? 0}
-          {lang}
-          onhome={controller.callbacks.home}
-        />
-      </li>
-      {@render dm(dms.self)}
-      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
-          class="mt-3"
-        >
-          <Requests
-            invites={$personal.me.invites ?? []}
-            requests={$personal.me.requests}
-            {lang}
-            onjoin={controller.callbacks.answerInvite}
-            onanswer={controller.callbacks.answerRequest}
-          />
-        </li>{/if}
-      <li class="mt-3">
-        <SectionHeader title={homeText(lang, "dms")}
-          >{#snippet action()}{#if $personal.me}<NewMessage
-                me={$personal.me}
-                {lang}
-                onconnect={controller.callbacks.connect}
-                ondismiss={controller.callbacks.dismiss}
-              />{/if}{/snippet}</SectionHeader
-        >
-      </li>
-      {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}
-    </ul>{/if}
+      <Requests
+        invites={$personal.me.invites ?? []}
+        requests={$personal.me.requests}
+        {lang}
+        onjoin={controller.callbacks.answerInvite}
+        onanswer={controller.callbacks.answerRequest}
+      />
+    </div>{/if}
+  <!-- Desktop: the title stays, the conversations scroll (like a room's sections). -->
+  {#if dms?.talked.length}<section
+      aria-label={homeText(lang, "dmConversations")}
+      class={sidebarSection}
+    >
+      <SectionHeader title={homeText(lang, "dmConversations")} />
+      <ul class={cn("m-0 flex list-none flex-col gap-0.5 p-0", sectionScroll)}>
+        {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}
+      </ul>
+    </section>{/if}
 </nav>

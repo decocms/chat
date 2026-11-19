@@ -60,7 +60,7 @@
       </div>{/if}
     {#if origin}<div
         data-chat-origin
-        class="mx-3 mb-4 rounded-surface border border-border bg-muted/30"
+        class="mx-3 mt-3 mb-4 rounded-surface border border-border bg-muted/30"
       >
         <Message
           message={origin}

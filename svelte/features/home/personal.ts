@@ -3,6 +3,7 @@ import type { AgentGrantsResult, MeResult } from "../../../shared/schemas";
 import type { HomeApi } from "./api";
 import { HomeFailure } from "./api";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
+const ENSURE_MAX_AGE = 60_000;
 export type PersonalInvalidation =
   { kind: "account" } | { kind: "agents"; book?: string };
 /** Account cache survives page changes. Page activation owns drafts' async effects, never the canonical cache. */
@@ -40,7 +41,12 @@ export function createPersonalSession(
     controller: AbortController | null = null,
     deadline: unknown | null = null,
     refreshTimer: unknown | null = null,
-    clockTimer: unknown | null = null;
+    clockTimer: unknown | null = null,
+    // The person socket is open: it tells this session when /api/me changes, so a page change need not ask.
+    pushed = false,
+    // When the last /api/me answer came. A socket can look open after sleep or a network change and deliver
+    // nothing until it closes, so ensure() still fetches when the answer is older than ENSURE_MAX_AGE.
+    loadedAt = 0;
   const agentsOwner = createAuthOwner(clock);
   let agentsPromise: Promise<boolean> | undefined;
   let agentsInflight = false,
@@ -139,6 +145,7 @@ export function createPersonalSession(
       const me = await api.me(signal);
       if (!active || ticket !== request) return;
       if (started === epoch) {
+        loadedAt = Date.now();
         acceptIdentity(me.email, false);
         state.update((s) => ({ ...s, me, loading: false, error: "" }));
         options.onVersion?.(me.v);
@@ -222,6 +229,18 @@ export function createPersonalSession(
     draft,
     api,
     refresh,
+    /** Fetch /api/me unless the person socket will say that it changed and the data is recent. */
+    ensure() {
+      if (
+        active &&
+        !(pushed && get(state).me && Date.now() - loadedAt < ENSURE_MAX_AGE)
+      )
+        void refresh();
+    },
+    /** Called by the personal channel when its socket opens or closes. */
+    setPushed(value: boolean) {
+      pushed = active && value;
+    },
     acceptIdentity,
     invalidate: invalidated,
     peek: () => get(state).me,
