@@ -7,6 +7,7 @@
     User01,
     type IconNode,
   } from "../../lib/studio/icons";
+  import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   import {
     SETTINGS_SECTIONS,
     settingsText,
@@ -15,7 +16,11 @@
   import type { HomeLanguage } from "../home/copy";
   import HomeRow from "./HomeRow.svelte";
   import RoomRow from "./RoomRow.svelte";
-  /** The settings page's sidebar (desktop, where Home has your DMs): Home, then the page's sections. */
+  /**
+   * The settings page's sidebar (desktop), built like the DM list (DmNav):
+   * "Configurações" names it in the header row, then the Home row, then the
+   * page's sections as rows of the same size, with an icon like Home's.
+   */
   let { lang, onhome }: { lang: HomeLanguage; onhome: () => void } = $props();
   const icons: Record<SettingsSection, IconNode> = {
     profile: User01,
@@ -38,21 +43,28 @@
 <nav
   data-settings-nav
   aria-label={settingsText(lang, "title")}
-  class="flex flex-col gap-0.5"
+  class="flex min-h-0 flex-col gap-3 font-sans"
 >
-  <HomeRow selected={false} waits={0} {lang} {onhome} />
-  <p class="m-0 px-2 pt-4 pb-1 text-xs font-medium text-muted-foreground">
-    {settingsText(lang, "title")}
-  </p>
-  {#each SETTINGS_SECTIONS as id (id)}<RoomRow
-      href={`#${id}`}
-      label={settingsText(lang, id)}
-      selected={current === id}
-      onopen={() => go(id)}
-    >
-      {#snippet leading()}<span
-          class="grid size-9 shrink-0 place-items-center rounded-[0.6875rem] bg-muted"
-          ><Icon icon={icons[id]} /></span
-        >{/snippet}
-    </RoomRow>{/each}
+  <SidebarHeader class="md:pr-2 md:pl-4"
+    ><h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
+      {settingsText(lang, "title")}
+    </h2></SidebarHeader
+  >
+  <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
+    <li><HomeRow selected={false} waits={0} {lang} {onhome} /></li>
+    {#each SETTINGS_SECTIONS as id (id)}<li>
+        <RoomRow
+          href={`#${id}`}
+          label={settingsText(lang, id)}
+          selected={current === id}
+          onopen={() => go(id)}
+        >
+          {#snippet leading()}<Icon
+              icon={icons[id]}
+              size={16}
+              class="shrink-0 text-muted-foreground"
+            />{/snippet}
+        </RoomRow>
+      </li>{/each}
+  </ul>
 </nav>
