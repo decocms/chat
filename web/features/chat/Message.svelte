@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { chatZone } from "./time";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onDestroy, tick } from "svelte";
   import DeferredInteractiveBody from "../chat-interactive/DeferredInteractiveBody.svelte";
@@ -345,7 +346,13 @@
               size="sm"
               class="text-foreground"
               variant="success">✓ {vb.t("entregue")}</Badge
-            >{/if}<time title={timestamp}>{vb.hhmm(m.ts)}</time>
+            >{/if}<time title={timestamp}
+            >{vb.hhmm(m.ts)}<span
+              data-time-zone
+              class="ml-1 text-[0.625rem] text-muted-foreground/60"
+              >{chatZone(m.ts)}</span
+            ></time
+          >
         </div>{/if}
       {#if kind === "regular"}
         {#if !m.text && (typing || (m.author === "ai" && !m.poll))}<p
