@@ -44,8 +44,6 @@ const pt = {
   lateHelp:
     "Confira se o vibebook herdr está rodando no seu computador, ou se o agent parou numa pergunta lá.",
   absent: "Seu agent não está nesta sala.",
-  absentHelp:
-    "Cole o prompt no seu Claude Code: ele instala o plugin e a CLI e entra aqui.",
   starting: "Começando a sala",
   roomCreated: "Sala criada",
   alone: "Só você aqui: convide em Pessoas",
@@ -87,8 +85,6 @@ const pt = {
   stateWorking: "Agent trabalhando aqui",
   stateBlocked: "Seu agent espera você no terminal",
   queuedCount: "{n} na fila",
-  lineNone: "Conecte seu agent para trabalhar aqui.",
-  copyPrompt: "Copiar prompt de setup",
   copied: "Copiado",
   details: "Ver",
   footAgents: "Seus agents",
@@ -167,8 +163,6 @@ const en: Record<RoomAgentCopyKey, string> = {
   lateHelp:
     "Check that Vibebook herdr is running on your computer, or whether the agent stopped at a question there.",
   absent: "Your agent is not in this room.",
-  absentHelp:
-    "Paste the prompt into Claude Code: it installs the plugin and CLI and joins this room.",
   starting: "Getting the room started",
   roomCreated: "Room created",
   alone: "Only you here: invite people in People",
@@ -210,8 +204,6 @@ const en: Record<RoomAgentCopyKey, string> = {
   stateWorking: "Agent working here",
   stateBlocked: "Your agent is waiting for you in the terminal",
   queuedCount: "{n} queued",
-  lineNone: "Connect your agent to work here.",
-  copyPrompt: "Copy setup prompt",
   copied: "Copied",
   details: "View",
   footAgents: "Your agents",
