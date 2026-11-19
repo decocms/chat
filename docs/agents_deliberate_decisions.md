@@ -460,3 +460,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Work in progress stops. The conversation is kept.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/composer-focus-on-enter · The composer takes the focus when you enter a room or a DM
+- Agent: claude-opus-5-5
+- Context: The human asked that the composer have the focus when a person enters a room or a DM.
+- Decision: The composer focuses its field each time it mounts (room, DM or thread). It does not focus on a touch screen (`pointer: coarse`), because the keyboard then covers the messages. It does not take the focus from another field or from an open dialog.
+- Other options: Focus on touch screens too. Focus only on a room change, not on a thread change.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
