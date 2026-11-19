@@ -735,3 +735,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · fix/pwa-splash-android · Android gets its own manifest, sized so that only the splash takes the transparent mark
+- Agent: claude-opus-5-5
+- Context: The entry "The PWA splash shows the deco mark without the lime square" is wrong. Chrome on Android makes the splash from a `maskable` icon first (`ShortcutInfo::UpdateBestSplashIcon`), not from an `any` icon. That change only made the desktop icon the bare mark. The human wants the lime icon on desktop and on the phone, and the transparent mark only on the splash.
+- Decision: `public/manifest.webmanifest` has the original lime icons again (desktop, iOS). On Android, a script in `web/index.html` changes the manifest link to `public/manifest-android.webmanifest`. Its `maskable` icons are a lime `icon-maskable-332.png` and a transparent `icon-splash-512.png` (made from `og/icon-splash.html`, the mark in the safe zone). Chrome takes the smallest icon that is not smaller than the ideal size: 83dp for the launcher and 128dp for the splash. For a screen density from 2.625 to 4, the launcher (218 to 332 px) takes the lime 332 px icon and the splash (336 to 512 px) takes the transparent 512 px icon. Desktop Chrome on macOS takes the largest `maskable` icon, so the desktop manifest must not have the transparent icon.
+- Other options: Serve the manifest from the Worker by user agent (changes `run_worker_first` in `wrangler.jsonc`). Accept the lime square on the splash.
+- Risk: medium. It depends on the sizes in Chromium. On a screen with density 2 (xhdpi), the splash shows the lime icon. If Chromium changes the sizes, the launcher can show the transparent mark.
+- Undo: Revert this commit.
+- Status: open
