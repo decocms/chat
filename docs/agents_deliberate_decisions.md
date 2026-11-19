@@ -777,3 +777,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep People in the sidebar. Search in the Cmd+K palette with a room filter.
 - Risk: low. The search over loaded messages misses text inside cards.
 - Undo: Revert this commit.
+
+### 2026-11-19 · fix/stale-chunks · A chunk of an older deploy reloads the page once
+- Agent: claude-opus-5-5
+- Context: A person who opened the app before a deploy got "Não foi possível carregar esta tela" on Settings. Workers Static Assets serves only the newest build, so the old chunk name fell through to the Worker (401), and "Tentar de novo" asked for the same missing file. The human asked for a reload on a stale chunk and a 404 for a missing asset.
+- Decision: `createDeferredModule` and a `vite:preloadError` listener (mount.ts) call `reloadForNewBuild` when the import error is a browser's "module did not load" message (`isStaleChunk`). It reloads at most once in 60 seconds for each tab (`sessionStorage`), and never when storage is blocked, so it cannot loop. A second failure shows the error state. The Worker answers `/assets/*` with 404 and `no-store`, before the sign-in check.
+- Other options: First ask `/api/me` for the current version (`v`) and reload only when it differs. That adds a request and a wait when the network is the cause. Keep the old chunks of earlier deploys. Workers Static Assets cannot do that.
+- Risk: low. A real network failure on a lazy view also reloads the page once.
+- Undo: Revert this commit.
+- Status: open
