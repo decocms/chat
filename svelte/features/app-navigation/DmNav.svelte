@@ -44,11 +44,6 @@
   import HomeRow from "./HomeRow.svelte";
   import RoomLink from "./RoomLink.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
-  import {
-    sectionScroll,
-    sidebarSection,
-  } from "../../lib/components/sidebarSection";
-  import { cn } from "../../lib/studio/utils";
   /**
    * Your home's own sidebar, built like a room's: "Mensagens diretas" names
    * it in the header row, with a `+` to start a conversation. Then small rows
@@ -104,8 +99,8 @@
         ondismiss={controller.callbacks.dismiss}
       />{/if}</SidebarHeader
   >
-  <!-- Home and You: where a room has its Main thread and Inbox; they stay put on desktop. -->
-  <ul class="m-0 flex shrink-0 list-none flex-col gap-0.5 p-0">
+  <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
+    <!-- Home and You: where a room has its Main thread and Inbox. -->
     <li>
       <HomeRow
         selected={!current}
@@ -114,27 +109,21 @@
         onhome={controller.callbacks.home}
       />
     </li>
-    {#if dms}{@render dm(dms.self)}{/if}
+    {#if dms}{@render dm(dms.self)}
+      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
+          class="mt-3"
+        >
+          <Requests
+            invites={$personal.me.invites ?? []}
+            requests={$personal.me.requests}
+            {lang}
+            onjoin={controller.callbacks.answerInvite}
+            onanswer={controller.callbacks.answerRequest}
+          />
+        </li>{/if}
+      {#if dms.talked.length}<li class="mt-3">
+          <SectionHeader title={homeText(lang, "dmConversations")} />
+        </li>{/if}
+      {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}{/if}
   </ul>
-  {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<div
-      class="shrink-0"
-    >
-      <Requests
-        invites={$personal.me.invites ?? []}
-        requests={$personal.me.requests}
-        {lang}
-        onjoin={controller.callbacks.answerInvite}
-        onanswer={controller.callbacks.answerRequest}
-      />
-    </div>{/if}
-  <!-- Desktop: the title stays, the conversations scroll (like a room's sections). -->
-  {#if dms?.talked.length}<section
-      aria-label={homeText(lang, "dmConversations")}
-      class={sidebarSection}
-    >
-      <SectionHeader title={homeText(lang, "dmConversations")} />
-      <ul class={cn("m-0 flex list-none flex-col gap-0.5 p-0", sectionScroll)}>
-        {#each dms.talked as entry (entry.room.id)}{@render dm(entry)}{/each}
-      </ul>
-    </section>{/if}
 </nav>
