@@ -3,11 +3,22 @@ import { fromRoomEdge } from "../room-shell/edgeBack";
 import { MOBILE_QUERY } from "../../lib/breakpoints";
 export function swipeMessage(
   node: HTMLElement,
-  callbacks: { reply: () => void; copy: () => void; enabled?: boolean },
+  callbacks: {
+    reply: () => void;
+    /** Left swipe: the text, or with `link` the message's link. */
+    copy: (link: boolean) => void;
+    enabled?: boolean;
+  },
 ) {
   const phone = node.ownerDocument.defaultView?.matchMedia(MOBILE_QUERY);
   let active = true,
-    start: { x: number; y: number; dx: number; locked: boolean } | null = null;
+    start: {
+      x: number;
+      y: number;
+      dx: number;
+      locked: boolean;
+      link: boolean;
+    } | null = null;
   const classes = [
     "translate-x-5",
     "translate-x-10",
@@ -19,6 +30,8 @@ export function swipeMessage(
   const reset = () => {
     node.classList.remove(...classes);
     node.removeAttribute("data-swipe");
+    node.removeAttribute("data-swipe-dir");
+    node.removeAttribute("data-swipe-pick");
   };
   const begin = (event: TouchEvent) => {
     start = null;
@@ -39,6 +52,7 @@ export function swipeMessage(
       y: event.touches[0].clientY,
       dx: 0,
       locked: false,
+      link: false,
     };
   };
   const move = (event: TouchEvent) => {
@@ -63,7 +77,20 @@ export function swipeMessage(
     reset();
     const step = Math.abs(dx) > 60 ? 2 : Math.abs(dx) > 30 ? 1 : 0;
     node.classList.add(classes[step + (dx < 0 ? 3 : 0)]);
-    node.dataset.swipe = dx > 60 ? "reply" : dx < -60 ? "copy" : "tracking";
+    // The swipe shows what letting go does (Gui #2668). Right: "Reply →" past the left edge. Left: two stacked
+    // targets past the right edge, Copy on top and Link below; the half of the message under the finger picks.
+    const box = node.getBoundingClientRect();
+    start.link = dx < 0 && event.touches[0].clientY > box.top + box.height / 2;
+    node.dataset.swipeDir = dx < 0 ? "left" : "right";
+    if (dx < 0) node.dataset.swipePick = start.link ? "link" : "copy";
+    node.dataset.swipe =
+      dx > 60
+        ? "reply"
+        : dx < -60
+          ? start.link
+            ? "link"
+            : "copy"
+          : "tracking";
   };
   const end = () => {
     const gesture = start;
@@ -71,7 +98,7 @@ export function swipeMessage(
     reset();
     if (!active || !gesture) return;
     if (gesture.dx > 60) callbacks.reply();
-    else if (gesture.dx < -60) callbacks.copy();
+    else if (gesture.dx < -60) callbacks.copy(gesture.link);
   };
   const cancel = () => {
     start = null;

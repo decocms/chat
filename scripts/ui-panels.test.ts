@@ -3257,6 +3257,47 @@ test("phone edge observes installed Back without consuming browser gestures or r
   }
 });
 
+test("a left swipe copies the text from the top half and the link from the bottom half", async () => {
+  const { swipeMessage } = await import("../svelte/features/chat/swipe");
+  const row = window.document.createElement("div");
+  window.document.body.append(row);
+  const copies: boolean[] = [];
+  const swipe = swipeMessage(row, {
+    reply: () => {},
+    copy: (link) => copies.push(link),
+  });
+  const touch = (
+    type: string,
+    points: { clientX: number; clientY: number }[],
+  ) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "touches", { value: points });
+    row.dispatchEvent(event);
+  };
+  try {
+    touch("touchstart", [{ clientX: 200, clientY: 0 }]);
+    touch("touchmove", [{ clientX: 120, clientY: -1 }]);
+    expect(row.dataset.swipeDir).toBe("left");
+    expect(row.dataset.swipePick).toBe("copy");
+    expect(row.dataset.swipe).toBe("copy");
+    touch("touchend", []);
+    expect(row.hasAttribute("data-swipe-dir")).toBe(false);
+    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
+    touch("touchmove", [{ clientX: 120, clientY: 5 }]);
+    expect(row.dataset.swipePick).toBe("link");
+    expect(row.dataset.swipe).toBe("link");
+    touch("touchend", []);
+    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
+    touch("touchmove", [{ clientX: 170, clientY: 5 }]);
+    expect(row.dataset.swipe).toBe("tracking");
+    touch("touchend", []);
+    expect(copies).toEqual([false, true]);
+  } finally {
+    swipe.destroy();
+    row.remove();
+  }
+});
+
 test("fenced document cards reuse native presentation read-only, including nested cards and malformed fallback", async () => {
   const card = {
     root: "c",
