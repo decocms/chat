@@ -277,7 +277,7 @@
               open("main");
             }}
           >
-            <!-- Phones: the room's own row. Desktop: the main thread, under the header. -->
+            <!-- Phones: the room's own row. Desktop: the main thread, under the search. -->
             {#if dm}<Icon
                 icon={MessageCircle01}
                 size={16}
@@ -359,15 +359,7 @@
         {#if thread !== "main" && !thread.startsWith("pre:")}<div
             class="shrink-0 md:hidden"
           >
-            <ThreadHeader
-              {room}
-              {thread}
-              {owner}
-              {vb}
-              {roomIcon}
-              {onopenside}
-              {onrenameroom}
-            />
+            <ThreadHeader {room} {thread} {owner} {vb} {onopenside} />
           </div>{/if}
         <EpicTree
           {room}

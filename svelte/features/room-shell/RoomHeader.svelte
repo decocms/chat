@@ -16,7 +16,7 @@
     SearchMd,
   } from "../../lib/studio/icons";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
-  import { suggestionAt } from "../room-sidebar/model";
+  import { threadTitle } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Count from "../../lib/components/Count.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
@@ -66,9 +66,8 @@
   const peer = $derived(dmPeer(header.room));
   const en = $derived(presentation.services.language === "en");
   // Phone title: the room small on top, the open thread under it.
-  const threadTitle = $derived(
-    suggestionAt(header.room, header.thread)?.title ??
-      header.room.epics.find((epic) => epic.id === header.thread)?.title ??
+  const phoneTitle = $derived(
+    threadTitle(header.room, header.thread) ??
       presentation.services.t(
         header.room.book.dm ? "Conversa" : "Sala principal",
       ),
@@ -185,7 +184,7 @@
         >{header.room.book.title}</span
       ><span
         class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-        ><span class="truncate">{threadTitle}</span><Icon
+        ><span class="truncate">{phoneTitle}</span><Icon
           icon={ChevronDown}
           size={16}
           class="shrink-0"
@@ -193,14 +192,19 @@
       ></span
     ></button
   >
-  <!-- Desktop, one bar over chat and pane: the breadcrumb, the epic's actions, then the pane's tabs at the end. -->
+  <!-- Desktop, one bar over chat and pane: the breadcrumb (with the epic's actions), then the pane's tabs at the end. -->
   <div class="contents md:flex md:min-w-0 md:flex-1 md:items-center md:gap-1">
     <div
       data-native-header-title
       class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24"
     >
       <RoomBreadcrumb
-        {header}
+        room={header.room}
+        thread={header.thread}
+        owner={header.owner}
+        vb={header.vb}
+        roomIcon={header.roomIcon}
+        onrenameroom={header.onrenameroom}
         view={inboxOpen ? "inbox" : $geometry.boardFull ? "board" : null}
         onroom={() => {
           if (current()) tomain?.();

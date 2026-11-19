@@ -9,6 +9,13 @@ export function suggestionAt(room: Room, thread: string) {
   if (!/^pre:\d+$/.test(thread)) return undefined;
   return room.suggestions[Number(thread.slice(4))];
 }
+/** The open thread's own title (a suggestion or an epic); undefined for the main thread or a thread that is gone. */
+export function threadTitle(room: Room, thread: string) {
+  return (
+    suggestionAt(room, thread)?.title ??
+    room.epics.find((epic) => epic.id === thread)?.title
+  );
+}
 export function messageCount(
   room: Pick<Room, "messages" | "counts" | "countsAt">,
   thread: string,

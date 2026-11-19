@@ -473,7 +473,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 ### 2026-11-19 · feat/room-topbar-breadcrumb · Two new components for the top bar
 - Agent: claude-opus-5-5
 - Context: The human selected a breadcrumb in the desktop top bar (room › epic, board or inbox), the search at the top of the sidebar, and the epic actions as buttons in the bar (no "⋯"). `ThreadHeader` was the title of both the desktop bar and the phone sheet, so one component had two layouts.
-- Decision: `RoomBreadcrumb` (room-shell) is the desktop bar. It uses the studio `Breadcrumb` atoms. `EpicActions` (room-sidebar) holds rename, archive, delete and their dialogs once, as a `menu` (phone sheet, in `ThreadHeader`) or as a `bar` (desktop). `SearchField` is the 52px header row of each sidebar: room, DM and home.
+- Decision: `RoomBreadcrumb` (room-shell) is the desktop bar. It uses the studio `Breadcrumb` atoms. The room crumb opens the main thread (`toMain` in `RoomScene`), also from the board, the inbox or a thread that is gone. `EpicActions` (room-sidebar) holds rename, archive, delete and their dialogs once, as a `menu` (phone sheet, in `ThreadHeader`) or as a `bar` (desktop: ✎, a labelled Archive that folds to its icon when the breadcrumb, a container, is narrower than `@xl`, and 🗑). `SearchField` is the 52px header row of each sidebar: room, DM and home, with the `⌘K`/`Ctrl+K` hint (`searchShortcut`, shared with the search dialog). There is no `track()` in the Svelte app yet, so these controls send no event.
 - Other options: Keep the bar in `ThreadHeader` with more flags (one component with two layouts and more branches). Copy the action logic into the bar (two copies of the dialog safety checks).
 - Risk: low
 - Undo: Revert this commit.

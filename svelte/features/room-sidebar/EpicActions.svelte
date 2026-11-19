@@ -47,6 +47,7 @@
   const busy = $derived(
     $status.phase === "pending" || $status.phase === "unconfirmed",
   );
+  const archiveLabel = $derived(t(epic.archived ? "Desarquivar" : "Arquivar"));
   let rename = $state(false),
     remove = $state(false),
     value = $state(""),
@@ -122,15 +123,17 @@
     onclick={() => begin("rename")}><Icon icon={Pencil01} /></IconButton
   >
   <span class="ml-auto flex shrink-0 items-center gap-1">
+    <!-- A short bar (a narrow window, the right pane open): the label folds into the icon. The breadcrumb is the @container. -->
     <Button
       data-epic-archive={epic.id}
       variant="outline"
       size="sm"
       disabled={busy}
+      title={archiveLabel}
       onclick={archive}
-      ><Icon icon={epic.archived ? ReverseLeft : Check} />{t(
-        epic.archived ? "Desarquivar" : "Arquivar",
-      )}</Button
+      ><Icon icon={epic.archived ? ReverseLeft : Check} /><span
+        class="@max-xl:sr-only">{archiveLabel}</span
+      ></Button
     >
     <IconButton
       data-epic-delete={epic.id}
