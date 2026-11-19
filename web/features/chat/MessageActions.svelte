@@ -11,7 +11,8 @@
   import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import { cn } from "../../lib/studio/utils";
   import { copyChatText } from "./clipboard";
-  import { QUICK_REACTIONS } from "./reactions";
+  import EmojiPicker from "../composer/EmojiPicker.svelte";
+  import { QUICK_REACTIONS, TOOLBAR_REACTIONS } from "./reactions";
   let {
     message,
     roomId,
@@ -27,7 +28,8 @@
     actions: ChatActions;
     vb: ChatBridge;
     showLink?: boolean;
-    /** The hover toolbar over the message's top-right corner; status lines stay in the flow. */
+    /** The hover toolbar: on the name row of a message that has one (the row is short), else just above the message,
+     * over the one before it, never over the text you point at; status lines stay in the flow. */
     floating?: boolean;
     /** Offer the suggested reactions (not on @vibe notices, issues or reminders). */
     canReact?: boolean;
@@ -36,6 +38,8 @@
   } = $props();
   const mine = (emoji: string) =>
     !!me && (message.reactions?.[emoji] ?? []).includes(me);
+  // The full emoji picker, past the four quick ones (like Discord's and Slack's "add reaction").
+  let picking = $state(false);
   function react(emoji: string) {
     if (!active) return;
     void actions.request({ t: "react", id: message.id, emoji });
@@ -91,11 +95,11 @@
     class={cn(
       "flex items-center gap-0.5",
       floating &&
-        "pointer-events-none absolute -top-3.5 right-3 z-10 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
+        "pointer-events-none absolute -top-2.5 right-3 z-10 in-data-continuous:-top-7.5 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
     )}
   >
     <TooltipProvider>
-      {#if canReact}{#each QUICK_REACTIONS as emoji (emoji)}<IconButton
+      {#if canReact}{#each floating ? TOOLBAR_REACTIONS : QUICK_REACTIONS as emoji (emoji)}<IconButton
             label={vb.t("Reagir com {emoji}", { emoji })}
             data-quick-react={emoji}
             aria-pressed={mine(emoji)}
@@ -106,6 +110,13 @@
             )}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
+        {#if floating}<IconButton
+            label={vb.t("Mais reações")}
+            data-more-reactions={message.id}
+            class="rounded-full text-muted-foreground hover:text-foreground"
+            onclick={() => (picking = true)}
+            ><Icon icon="face-smile" size={16} /></IconButton
+          >{/if}
         <div
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
@@ -180,3 +191,8 @@
           >{/if}{/if}
     </div>{/if}
 </div>
+{#if floating && canReact}<EmojiPicker
+    t={vb.t}
+    bind:open={picking}
+    onpick={(emoji) => react(emoji)}
+  />{/if}
