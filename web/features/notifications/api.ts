@@ -38,8 +38,11 @@ export function createPushApi(fetcher?: FetchLike) {
         await value(await api.unsubscribe.$post({ json: { endpoint } })),
       );
     },
-    async test() {
-      return PushTestResult.parse(await value(await api.test.$post()));
+    /** One test notification to this device's endpoint (or to all your devices without one). */
+    async test(endpoint?: string) {
+      return PushTestResult.parse(
+        await value(await api.test.$post({ json: { endpoint } })),
+      );
     },
   };
 }

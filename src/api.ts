@@ -74,6 +74,7 @@ import {
   PostMessageBody,
   type PostMessageResult,
   PushSubscribeBody,
+  PushTestBody,
   type PushKeyResult,
   type PushTestResult,
   PushUnsubscribeBody,
@@ -118,7 +119,8 @@ export interface ApiServices {
   /** Tell the person's other tabs and devices to refetch /api/me (after the response). */
   pokeMe(): void;
   vapidKey: string | null;
-  pushToMe(p: { title: string; body: string; url: string; tag: string }): Promise<number>;
+  /** Push to your devices; with `endpoint`, only to that one device. */
+  pushToMe(p: { title: string; body: string; url: string; tag: string }, endpoint?: string): Promise<number>;
   /** Rows of one query, as the database returns them (routes parse them with a schema before answering). */
   sqlAll(query: string, ...binds: Bind[]): Promise<unknown[]>;
   /** Search the person's rooms (rate-limited per person: false = over the limit). */
@@ -234,6 +236,13 @@ const body = <S extends z.ZodMiniType>(schema: S, error = "bad request") =>
     const r = schema.safeParse(value);
     return r.success ? (r.data as z.output<S>) : c.json({ error } satisfies ErrorBody, 400);
   });
+/** The test push when you turn notifications on, in your language, with your first name if we know it. */
+export function testPush(en: boolean, name: string | null) {
+  const first = name?.trim().split(/\s+/)[0] ?? "";
+  return en
+    ? { title: "deco.chat notifications are on 👋", body: `Hi${first ? ` ${first}` : ""}! We'll let you know when someone talks to you.` }
+    : { title: "Notificações do deco.chat ativadas 👋", body: `Oi${first ? `, ${first}` : ""}! A gente te avisa quando alguém falar com você.` };
+}
 const ok = { ok: true as const } satisfies OkResult;
 const forbidden = { error: "forbidden" } satisfies ErrorBody;
 
@@ -297,9 +306,13 @@ export const api = roomPosts
     await c.get("svc").sql(`DELETE FROM push_subs WHERE endpoint = ? AND email = ?`, c.req.valid("json").endpoint ?? "", c.get("email"));
     return c.json(ok, 200);
   })
-  .post("/api/push/test", async (c) => {
-    const svc = c.get("svc");
-    const sent = await svc.pushToMe({ title: "deco.chat", body: svc.en ? "Notifications on for this device ✓" : "Notificações ligadas neste aparelho ✓", url: "/", tag: "test" });
+  // The welcome push when you turn notifications on (settings → This device): to that device only.
+  .post("/api/push/test", body(PushTestBody), async (c) => {
+    const svc = c.get("svc"), { endpoint } = c.req.valid("json");
+    const [row] = await svc.sqlAll(`SELECT name FROM users WHERE email = ?`, c.get("email"));
+    const name = zm.object({ name: zm.nullable(zm.string()) }).safeParse(row);
+    const sent = await svc.pushToMe({ ...testPush(svc.en, name.success ? name.data.name : null), url: "/", tag: "test" }, endpoint);
+    svc.track("push_test", { sent, device: endpoint ? 1 : 0 });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
   // ✓ on a wait: "I answered elsewhere / not for me" (asks only).
