@@ -1,9 +1,9 @@
 ---
-description: Set up vibebook for this project - create or pick its room, link the repo (.vibebook, README badge, AGENTS.md line) and start listening
+description: Set up deco.chat for this project - create or pick its room, link the repo (.vibebook, README badge, AGENTS.md line) and start listening
 argument-hint: "[room link or id, optional]"
 ---
 
-Set up vibebook for the project in the current directory. Room: $ARGUMENTS. If it is empty, decide with me.
+Set up deco.chat for the project in the current directory. Room: $ARGUMENTS. If it is empty, decide with me.
 
 1. **CLI.** Do all work through the `vibebook` command in Bash.
    - If `vibebook status` fails with "command not found", install it: `npm i -g vibebook.dev`. Or use `curl -fsSL https://chat.decocms.com/install.sh | sh`, then call `~/.vibebook/bin/vibebook` if it is not on PATH.
@@ -25,7 +25,7 @@ Set up vibebook for the project in the current directory. Room: $ARGUMENTS. If i
    - Start 2-4 epics with `start_epic`. Give each epic tasks that say when they are done.
    - @vibe grades the document (`doc_notes`) and the epics and tasks (`vibe_notes`) in approximately one minute. Run `read_room` again and correct what it flagged. Then tell your human that the room is ready.
    <!-- /agent-rules -->
-6. **Link the repository.** Show me the diff. If I agree, commit it with `chore: link the repo to its vibebook room`.
+6. **Link the repository.** Show me the diff. If I agree, commit it with `chore: link the repo to its deco.chat room`.
    - `.vibebook` at the root:
      ```
      # vibebook: this repo has a room. Chat, tasks and decisions: https://chat.decocms.com/b/<id>

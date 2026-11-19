@@ -246,7 +246,7 @@
     };
   });
   const setup = $derived(
-    `Read ${location.origin}/llms.txt and set up vibebook for this project.`,
+    `Read ${location.origin}/llms.txt and set up deco.chat for this project.`,
   );
   async function copy() {
     try {
