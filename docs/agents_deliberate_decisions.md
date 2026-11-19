@@ -528,3 +528,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A screen reader user hears one "Actions for this message" button per message instead of the toolbar buttons until they activate it.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · fix/metrics-chat-worker · Drop the zone-wide daily totals in metrics
+- Agent: claude-opus-5-5
+- Context: The product report read the daily totals of the whole zone (`httpRequests1dGroups`). The zone is now `decocms.com`, which also holds the other deco sites, and that dataset cannot filter by host.
+- Decision: I removed the zone-wide block (requests, unique visitors, cache, threats). The report keeps the Worker numbers and the per-kind and per-route lines, now filtered to our own host.
+- Other options: Keep the block with a "all of decocms.com" label (numbers of other sites, not ours). Rebuild it from `httpRequestsAdaptiveGroups` per day (more queries, and the adaptive dataset has no unique visitors).
+- Risk: low
+- Undo: Restore `ZONE_Q` and its block in `productReport` (`src/reports.ts`).
+- Status: open

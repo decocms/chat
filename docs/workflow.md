@@ -73,7 +73,7 @@ If a person can see the change, say what changed in the release message in the p
 
 ## Release (deploy)
 
-Each merge into `main` is a release. Workers Builds deploys the `vibebook` Worker (build command `bun run build:mcp`, deploy command `npx wrangler deploy`).
+Each merge into `main` is a release. Workers Builds deploys the `chat` Worker (build command `bun run build:mcp`, deploy command `npx wrangler deploy`).
 
 **Warning: Never leave `main` red. A red `main` is a failed check on the newest commit of `main`.**
 

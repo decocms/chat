@@ -1,14 +1,16 @@
 // vibebook's own numbers, yesterday vs the 7 days before, as markdown for the MCP tool `metrics` (METRICS_EMAILS only).
 // The daily posts are room reminders (reminders/*.md in vibebook-growth and vibebook-product) that tell a Claude to call it.
 // - growth: our own D1 events: visitors, pageviews, the funnel, active people, top pages/sources.
-// - product: Cloudflare's GraphQL analytics for the Worker (requests, errors, CPU/wall time,
-//   response bytes) and the zone (requests, bandwidth, cache). Needs CF_ANALYTICS_TOKEN (Account Analytics: Read,
+// - product: Cloudflare's GraphQL analytics for the Worker `chat` (requests, errors, CPU/wall time, response bytes)
+//   and, in the zone CF_ZONE, only the requests to our own host (by kind, bandwidth by route, 5xx). The zone holds
+//   other sites too, so the zone-wide daily totals are not used. Needs CF_ANALYTICS_TOKEN (Account Analytics: Read,
 //   Zone Analytics: Read, Zone: Read); without it the report says so instead of showing numbers.
 // Test people (@test.vibebook.dev) are left out. Check: bun scripts/reports-check.ts (formatting only).
 import { AiSpend } from "../shared/schemas";
 import type { Env } from "./index";
+import { publicHost } from "./host";
 import * as z from "zod/mini";
-import { WorkerAnalytics, ZoneAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
+import { WorkerAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
 
 const DAY = 86_400_000;
 const BRT = 3 * 3600_000; // São Paulo, no DST since 2019
@@ -64,7 +66,7 @@ export async function growthReport(env: Env, now = Date.now()) {
         .all<{ k: string | null; v: number }>()
     ).results.filter((x): x is { k: string; v: number } => typeof x.k === "string" && x.k.length > 0);
   const [pages, rawRefs] = await Promise.all([top("path", 5), top("json_extract(dims, '$.ref')", 100)]);
-  const refs = externalRefs(rawRefs);
+  const refs = externalRefs(rawRefs, publicHost(env));
   const pv = y.by("pageview"), pw = w.by("pageview");
   const funnel = FUNNEL.map(([k, label], i) => {
     // pageview and login count distinct people (one visitor logs in more than once); the rest are one-per-person events
@@ -91,12 +93,12 @@ export async function growthReport(env: Env, now = Date.now()) {
 }
 
 /** Referrers folded to their host, our own pages left out (that's navigation, not a source). */
-export function externalRefs(rows: { k: string; v: number }[]) {
+export function externalRefs(rows: { k: string; v: number }[], own = "") {
   const by = new Map<string, number>();
   for (const r of rows) {
     let host = "";
     try { host = new URL(r.k).hostname.replace(/^www\./, ""); } catch { continue; }
-    if (!host || /(^|\.)vibebook\.dev$|^127\.0\.0\.1$|^localhost$/.test(host)) continue;
+    if (!host || host === own || /(^|\.)vibebook\.dev$|^127\.0\.0\.1$|^localhost$/.test(host)) continue;
     by.set(host, (by.get(host) ?? 0) + r.v);
   }
   return [...by].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ k, v }));
@@ -111,11 +113,11 @@ async function cfQuery<S extends z.ZodMiniType>(env: Env, query: string, variabl
   return readAnalyticsResponse(r, schema);
 }
 
-const WORKER_Q = `query($acc: string!, $from: Time!, $to: Time!) { viewer { accounts(filter: { accountTag: $acc }) {
-  workersInvocationsAdaptive(limit: 10, filter: { scriptName: "vibebook", datetime_geq: $from, datetime_lt: $to }) {
+// The Worker's name in wrangler.jsonc.
+const WORKER = "chat";
+const WORKER_Q = `query($acc: string!, $script: string!, $from: Time!, $to: Time!) { viewer { accounts(filter: { accountTag: $acc }) {
+  workersInvocationsAdaptive(limit: 10, filter: { scriptName: $script, datetime_geq: $from, datetime_lt: $to }) {
     dimensions { status } sum { requests errors subrequests responseBodySize } quantiles { cpuTimeP50 cpuTimeP99 wallTimeP50 wallTimeP99 } } } } }`;
-const ZONE_Q = `query($zone: string!, $from: Date!, $to: Date!) { viewer { zones(filter: { zoneTag: $zone }) {
-  httpRequests1dGroups(limit: 10, filter: { date_geq: $from, date_lt: $to }) { dimensions { date } sum { requests bytes cachedBytes threats } uniq { uniques } } } } }`;
 
 /** Failures agents reported themselves (MCP report_issue): yesterday vs the week before by kind, then the latest texts.
  *  dims parsed here, not with json_extract: a `what` cut mid-emoji is JSON SQLite refuses (D1 "malformed JSON"). */
@@ -176,11 +178,11 @@ async function agentCallLine(env: Env, start: number, end: number) {
 export async function productReport(env: Env, now = Date.now()) {
   const { start, end } = yesterday(now);
   const head = `**⚙️ Produto · ${day(end - 1)}** (ontem, vs média diária dos 7 dias antes)\n\n${await issuesLine(env, start, end).catch((e: unknown) => `- Falhas reportadas pelos Claudes: não consegui ler (${reportError(e).slice(0, 160)})`)}${await unblockLine(env, start, end).catch(() => "")}${await wsStateLine(env, now - DAY, now).catch(() => "")}${await agentCallLine(env, now - DAY, now).catch(() => "")}`;
-  if (!env.CF_ANALYTICS_TOKEN) return `${head}\n\nSem números da Cloudflare ainda: falta o token de analytics (secret \`CF_ANALYTICS_TOKEN\`, leitura de analytics da conta e da zona vibebook.dev).`;
+  if (!env.CF_ANALYTICS_TOKEN) return `${head}\n\nSem números da Cloudflare ainda: falta o token de analytics (secret \`CF_ANALYTICS_TOKEN\`, leitura de analytics da conta e da zona ${env.CF_ZONE || "vibebook.dev"}).`;
   try {
     const iso = (ms: number) => new Date(ms).toISOString();
     const worker = async (from: number, to: number) => {
-      const rows = (await cfQuery(env, WORKER_Q, { acc: env.CF_ACCOUNT_ID, from: iso(from), to: iso(to) }, WorkerAnalytics)).viewer.accounts[0]?.workersInvocationsAdaptive ?? [];
+      const rows = (await cfQuery(env, WORKER_Q, { acc: env.CF_ACCOUNT_ID, script: WORKER, from: iso(from), to: iso(to) }, WorkerAnalytics)).viewer.accounts[0]?.workersInvocationsAdaptive ?? [];
       const sum = (k: "requests" | "errors" | "subrequests" | "responseBodySize") => rows.reduce((t, r) => t + (r.sum[k] ?? 0), 0);
       // Quantiles come per row (status, etc.); the busiest row stands for the day.
       const q = [...rows].sort((a, b) => (b.sum.requests ?? 0) - (a.sum.requests ?? 0))[0]?.quantiles;
@@ -192,25 +194,16 @@ export async function productReport(env: Env, now = Date.now()) {
     let zone = "";
     const zid = await zoneId(env);
     if (zid) {
-      const days = (await cfQuery(env, ZONE_Q, { zone: zid, from: day(start - 7 * DAY + 1), to: day(end + 1) }, ZoneAnalytics)).viewer.zones[0]?.httpRequests1dGroups ?? [];
-      const yd = days.find((d) => d.dimensions.date === day(end - 1));
-      const wk = days.filter((d) => d.dimensions.date !== day(end - 1));
-      const tot = (k: "requests" | "bytes" | "cachedBytes" | "threats") => wk.reduce((t, d) => t + d.sum[k], 0);
-      if (yd) zone = [
-        "",
-        `**Zona ${env.CF_ZONE || "vibebook.dev"}** (tudo que passa pela CF)`,
-        `- Requests: ${vs(yd.sum.requests, tot("requests"))} · visitantes únicos ${yd.uniq.uniques}`,
-        `- Banda: **${bytes(yd.sum.bytes)}** (média ${bytes(tot("bytes") / 7)}) · do cache ${yd.sum.bytes ? Math.round((yd.sum.cachedBytes / yd.sum.bytes) * 100) : 0}%`,
-        yd.sum.threats ? `- Ameaças bloqueadas: ${yd.sum.threats}` : "",
-      ].filter(Boolean).join("\n");
-      zone += await kindLines(env, zid, start, end, now).catch((e: unknown) => `\n\n(requests por tipo indisponíveis: ${reportError(e).slice(0, 120)})`);
-      zone += await bytesLines(env, zid, start, end).catch((e: unknown) => `\n\n(banda por rota indisponível: ${reportError(e).slice(0, 120)})`);
+      const host = publicHost(env);
+      zone = `\n\n**${host}** (na zona ${env.CF_ZONE || "vibebook.dev"}, só este host)\n`;
+      zone += await kindLines(env, zid, host, start, end, now).catch((e: unknown) => `\n\n(requests por tipo indisponíveis: ${reportError(e).slice(0, 120)})`);
+      zone += await bytesLines(env, zid, host, start, end).catch((e: unknown) => `\n\n(banda por rota indisponível: ${reportError(e).slice(0, 120)})`);
     }
     const errRate = wy.requests ? ((wy.errors / wy.requests) * 100).toFixed(2) : "0";
     return [
       head,
       "",
-      "**Worker vibebook**",
+      `**Worker ${WORKER}**`,
       `- Requests: ${vs(wy.requests, ww.requests)}`,
       `- Erros: ${vs(wy.errors, ww.errors)} (${errRate}% dos requests)${wy.byStatus ? ` · ${wy.byStatus}` : ""}`,
       `- Tempo de parede p50 / p99: **${ms(wy.q?.wallTimeP50)} / ${ms(wy.q?.wallTimeP99)}** · CPU p50 / p99: ${ms(wy.q?.cpuTimeP50)} / ${ms(wy.q?.cpuTimeP99)}`,
@@ -223,20 +216,20 @@ export async function productReport(env: Env, now = Date.now()) {
 }
 // Requests by kind in a window (zone, adaptive): the Claudes' MCP (/mcp: long-polls and tool calls), the app's API and
 // sockets, and everything else (pages, assets). Per hour, so yesterday and the last hour compare.
-const KIND_Q = `query($zone: string!, $from: Time!, $to: Time!) { viewer { zones(filter: { zoneTag: $zone }) {
-  all: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to }) { count }
-  mcp: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestPath: "/mcp" }) { count }
-  api: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestPath_like: "/api/%" }) { count }
-  ws: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestPath_like: "/ws%" }) { count } } } }`;
-async function kinds(env: Env, zone: string, from: number, to: number) {
-  const z = (await cfQuery(env, KIND_Q, { zone, from: new Date(from).toISOString(), to: new Date(to).toISOString() }, KindAnalytics)).viewer.zones[0];
+const KIND_Q = `query($zone: string!, $host: string!, $from: Time!, $to: Time!) { viewer { zones(filter: { zoneTag: $zone }) {
+  all: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host }) { count }
+  mcp: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, clientRequestPath: "/mcp" }) { count }
+  api: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, clientRequestPath_like: "/api/%" }) { count }
+  ws: httpRequestsAdaptiveGroups(limit: 1, filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, clientRequestPath_like: "/ws%" }) { count } } } }`;
+async function kinds(env: Env, zone: string, host: string, from: number, to: number) {
+  const z = (await cfQuery(env, KIND_Q, { zone, host, from: new Date(from).toISOString(), to: new Date(to).toISOString() }, KindAnalytics)).viewer.zones[0];
   const n = (k: "all" | "mcp" | "api" | "ws") => z?.[k][0]?.count ?? 0;
   const h = (to - from) / 3600_000;
   const per = (x: number) => Math.round(x / h);
   return { mcp: per(n("mcp")), app: per(n("api") + n("ws")), other: per(n("all") - n("mcp") - n("api") - n("ws")) };
 }
-async function kindLines(env: Env, zone: string, start: number, end: number, now: number) {
-  const [y, last] = await Promise.all([kinds(env, zone, start, end), kinds(env, zone, now - 3600_000, now)]);
+async function kindLines(env: Env, zone: string, host: string, start: number, end: number, now: number) {
+  const [y, last] = await Promise.all([kinds(env, zone, host, start, end), kinds(env, zone, host, now - 3600_000, now)]);
   const row = (k: { mcp: number; app: number; other: number }) => `Claudes (/mcp) **${k.mcp}** · app (/api, /ws) ${k.app} · páginas e o resto ${k.other}`;
   return ["", "**Requests por hora, por tipo**", `- Ontem (média): ${row(y)}`, `- Última hora: ${row(last)}`].join("\n");
 }
@@ -245,13 +238,13 @@ async function kindLines(env: Env, zone: string, start: number, end: number, now
 // requestSource "eyeball" = real visitors and Claudes. The Workers' own Cache API calls also land in the zone's
 // analytics (the site's /__deco_cache/*, the cached OAuth client metadata of claude.ai), and a cache miss there reads
 // as a 504: Nov 2026's report listed 49 of those as errors.
-const BYTES_Q = `query($zone: string!, $from: Time!, $to: Time!) { viewer { zones(filter: { zoneTag: $zone }) {
-  paths: httpRequestsAdaptiveGroups(limit: 300, orderBy: [sum_edgeResponseBytes_DESC], filter: { datetime_geq: $from, datetime_lt: $to, requestSource: "eyeball" }) { count sum { edgeResponseBytes } dimensions { clientRequestPath } }
-  types: httpRequestsAdaptiveGroups(limit: 6, orderBy: [sum_edgeResponseBytes_DESC], filter: { datetime_geq: $from, datetime_lt: $to, requestSource: "eyeball" }) { count sum { edgeResponseBytes } dimensions { edgeResponseContentTypeName } }
-  errs: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $from, datetime_lt: $to, edgeResponseStatus_geq: 500, requestSource: "eyeball" }) { count dimensions { clientRequestPath edgeResponseStatus } } } } }`;
+const BYTES_Q = `query($zone: string!, $host: string!, $from: Time!, $to: Time!) { viewer { zones(filter: { zoneTag: $zone }) {
+  paths: httpRequestsAdaptiveGroups(limit: 300, orderBy: [sum_edgeResponseBytes_DESC], filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, requestSource: "eyeball" }) { count sum { edgeResponseBytes } dimensions { clientRequestPath } }
+  types: httpRequestsAdaptiveGroups(limit: 6, orderBy: [sum_edgeResponseBytes_DESC], filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, requestSource: "eyeball" }) { count sum { edgeResponseBytes } dimensions { edgeResponseContentTypeName } }
+  errs: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $from, datetime_lt: $to, clientRequestHTTPHost: $host, edgeResponseStatus_geq: 500, requestSource: "eyeball" }) { count dimensions { clientRequestPath edgeResponseStatus } } } } }`;
 export const foldPath = (p: string) => p.replace(/\/[0-9a-f]{8,}(?=\/|$)/gi, "/:id").replace(/\/avatar\/[^/]+/, "/avatar/:email").replace(/\/upload\/[^/]+/, "/upload/:token");
-async function bytesLines(env: Env, zone: string, from: number, to: number) {
-  const z = (await cfQuery(env, BYTES_Q, { zone, from: new Date(from).toISOString(), to: new Date(to).toISOString() }, BytesAnalytics)).viewer.zones[0];
+async function bytesLines(env: Env, zone: string, host: string, from: number, to: number) {
+  const z = (await cfQuery(env, BYTES_Q, { zone, host, from: new Date(from).toISOString(), to: new Date(to).toISOString() }, BytesAnalytics)).viewer.zones[0];
   const by = new Map<string, { b: number; n: number }>();
   for (const r of z?.paths ?? []) {
     const k = foldPath(r.dimensions.clientRequestPath);
