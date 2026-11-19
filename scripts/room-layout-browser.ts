@@ -2,13 +2,17 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { chromium, expect as baseExpect, type Page } from "@playwright/test";
-import { serveBuiltGallery } from "./browser-static-gallery";
+import { resolve } from "node:path";
+import { galleryPath, serveBuiltGallery } from "./browser-static-gallery";
 const expect = baseExpect.configure({ timeout: 30_000 });
 const output =
   process.env.TEST_OUTPUT_DIR ?? "/tmp/vibebook-production-room-layout";
 await mkdir(output, { recursive: true });
-let base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:8797";
-assert(/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base));
+// The gallery that `bun run build:gallery` writes (dist-gallery/), served on a free loopback port.
+const galleryRoot =
+  process.env.TEST_GALLERY_ROOT ??
+  resolve(import.meta.dirname, "../dist-gallery");
+let base = "";
 let gallery: Awaited<ReturnType<typeof serveBuiltGallery>> | null = null,
   browser: Awaited<ReturnType<typeof chromium.launch>> | null = null,
   page: Page | null = null,
@@ -46,11 +50,9 @@ const signal = () => {
 process.on("SIGINT", signal);
 process.on("SIGTERM", signal);
 try {
-  if (process.env.TEST_PUBLIC_ROOT) {
-    gallery = await serveBuiltGallery(process.env.TEST_PUBLIC_ROOT);
-    base = gallery.base;
-    report.assetProof = gallery.proof;
-  }
+  gallery = await serveBuiltGallery(galleryRoot);
+  base = gallery.base;
+  report.assetProof = gallery.proof;
   checkpoint("launch");
   browser = await chromium.launch({
     headless: true,
@@ -87,7 +89,7 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.name));
   report.pageErrors = errors;
-  await page.goto(`${base}/app?gallery=1&probe=room-layout`, {
+  await page.goto(`${base}${galleryPath}?probe=room-layout`, {
     waitUntil: "domcontentloaded",
     timeout: 90_000,
   });
@@ -442,7 +444,7 @@ try {
   await page.screenshot({ path: `${output}/room-layout.png` });
   checkpoint("mobile/default-chat-capacity");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${base}/app?gallery=1&probe=room-layout&capacity=1`, {
+  await page.goto(`${base}${galleryPath}?probe=room-layout&capacity=1`, {
     waitUntil: "domcontentloaded",
   });
   const capacityRoot = page.locator("[data-room-layout]");

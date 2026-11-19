@@ -12,7 +12,7 @@
 | Command | Result |
 |---|---|
 | `bun run dev` | Starts the Worker at http://127.0.0.1:8797. Wrangler builds the browser app into `dist/` first. |
-| `bun run dev:app` | Starts the Worker (8787) and Vite (5173) with hot reload. Open http://127.0.0.1:5173/app. |
+| `bun run dev:app` | Starts the Worker (8787) and Vite (5173) with hot reload. Open http://127.0.0.1:5173/. |
 | `bun run dev:components` | Starts Vite with hot reload. Open http://127.0.0.1:5173/dev/gallery.html (components) or `/dev/design-system.html?id=<story>` (design system). |
 
 Rules:
@@ -53,6 +53,8 @@ The rule: quick CI on pull requests, long CI on `main`.
 
 `bun run build:ui` builds the browser app (`web/index.html`, `web/auth.html` and the service worker) into `dist/`, together with a copy of `public/`. The Worker serves `dist/`. Wrangler runs this build before `wrangler dev` and `wrangler deploy` (`build` in `wrangler.jsonc`). Do not commit `dist/`.
 
+The component gallery (`web/dev/gallery.html`) is not in `dist/`. `bun run build:gallery` builds it into `dist-gallery/` for the browser tests (`test:room-layout:browser` and the gallery part of `test:design-system`). Run it before these tests. Do not commit `dist-gallery/`.
+
 Some other build output is in git. If you change the source, build it and commit the output in the same commit.
 
 | Source | Command | Output to commit |
@@ -60,7 +62,7 @@ Some other build output is in git. If you change the source, build it and commit
 | `cli/` | `bun run build:cli` | `public/cli.mjs`, `cli/cli.mjs` |
 | `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 
-Do not commit `dist/`, `dist-mcp/` or `.api-types/`. The build makes them.
+Do not commit `dist/`, `dist-gallery/`, `dist-mcp/` or `.api-types/`. The build makes them.
 
 ## Text and languages
 

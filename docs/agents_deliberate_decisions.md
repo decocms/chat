@@ -574,3 +574,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. For the hours around the deploy, old events with `c` and new ones without it sum into the same line.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · chore/drop-app-route · Browser tests open a separate gallery build
+- Agent: claude-opus-5-5
+- Context: The human removed `/app` and the `?gallery=1` branch of `web/main.ts`, so the gallery is not in `dist/`. The room layout and design-system browser tests opened the gallery at `/app?gallery=1`.
+- Decision: `bun run build:gallery` (`vite build --mode gallery`) builds only `web/dev/gallery.html` into `dist-gallery/` (not in git, not deployed). `scripts/browser-static-gallery.ts` serves that build on a free loopback port. `room-layout-browser.ts` and the gallery part of `design-system-browser.ts` open `/dev/gallery.html` there. The Inbox part still uses the Worker. The CI `browser-ui` job runs `build:gallery` and gives `TEST_GALLERY_ROOT`.
+- Other options: Start the Vite dev server in the tests and open `/dev/gallery.html` (source, not built assets). Keep the gallery in the production bundle behind a query parameter.
+- Risk: low. The gallery build uses the same Vite configuration and components as `dist/`, but it is a different bundle, so a bundle-only defect in `dist/` is not seen by these tests.
+- Undo: Revert this commit.
+- Status: open

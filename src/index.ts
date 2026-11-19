@@ -214,7 +214,8 @@ const pageview = async (c: Context<Ctx>, res: Response, user?: string | null) =>
   return res;
 };
 
-// App shell (dist/index.html): /login and /app are public; / and /b/* bounce to /login without a session.
+// App shell (dist/index.html). Only signed-in visitors get it: without a session, /, /archived and /settings go to
+// /login, and /b/* shows the room's access page.
 // Passes the browser's If-None-Match along, so the app shell can come back as a 304.
 // The page carries its own version (the asset's etag) in <meta name="vb-v">, and /api/me says the current one: the
 // app shows "Nova versão" when they differ (an installed PWA keeps an old page around for days).
@@ -239,8 +240,6 @@ app.get("/", async (c) => {
   const email = await identify(c);
   return email ? pageview(c, await shell(c), email) : c.redirect("/login");
 });
-// The bare shell, signed in or not: the app links here, and the browser tests open the gallery here (?gallery=1).
-app.get("/app", (c) => shell(c));
 app.get("/archived", async (c) => {
   const email = await identify(c);
   return email ? pageview(c, await shell(c), email) : c.redirect(`/login?next=${encodeURIComponent("/archived")}`);

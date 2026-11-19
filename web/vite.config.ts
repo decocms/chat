@@ -12,6 +12,14 @@ import {
 } from "./build/appDevelopment.ts";
 import { clientBoundary, projectRoot } from "./build/clientBoundary.ts";
 
+const entries = (mode: string): Record<string, string> =>
+  mode === "gallery"
+    ? { gallery: join(import.meta.dirname, "dev/gallery.html") }
+    : {
+        index: join(import.meta.dirname, "index.html"),
+        auth: join(import.meta.dirname, "auth.html"),
+      };
+
 export default defineConfig(({ mode, command }) => ({
   root: import.meta.dirname,
   publicDir: join(projectRoot, "public"),
@@ -83,15 +91,14 @@ export default defineConfig(({ mode, command }) => ({
   ],
   build: {
     // The Worker serves dist/ (wrangler.jsonc assets.directory); public/ is copied in.
-    outDir: join(projectRoot, "dist"),
+    // `--mode gallery` (bun run build:gallery) builds only the component gallery into dist-gallery/, for the
+    // browser tests. The gallery is never in dist/.
+    outDir: join(projectRoot, mode === "gallery" ? "dist-gallery" : "dist"),
     emptyOutDir: true,
     minify: true,
     cssCodeSplit: false,
     rolldownOptions: {
-      input: {
-        index: join(import.meta.dirname, "index.html"),
-        auth: join(import.meta.dirname, "auth.html"),
-      },
+      input: entries(mode),
     },
   },
 }));

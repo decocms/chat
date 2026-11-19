@@ -190,7 +190,7 @@ try {
     .elementHandle();
   assert(stale);
   await step("real home readiness and prior editor teardown", async () => {
-    await current.goto(`${base}/app`, {
+    await current.goto(`${base}/`, {
       waitUntil: "domcontentloaded",
     });
     await expect(current.locator('[data-view="home"]')).toBeVisible();
