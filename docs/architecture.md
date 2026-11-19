@@ -76,7 +76,7 @@ Rules:
 ## Security
 
 - The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC.
-- Sign-in is with deco Studio (`src/auth.ts`, `/auth/studio/*`): OAuth 2.1 with PKCE. Each origin (production, a branch preview, local dev) registers itself at Studio as a public client and keeps the client id in `OAUTH_KV` (`studio-client:<origin>`). The Worker reads the email from the `id_token` of the token response (Studio has no userinfo endpoint). It accepts the email only if `aud` is its client id and Studio marks the email as verified. Invite links still sign in a new person one time.
+- Sign-in is with deco Studio (`src/auth.ts`, `/auth/studio/*`): OAuth 2.1 with PKCE. Each origin (production, a branch preview, local dev) registers itself at Studio as a public client and keeps the client id in `OAUTH_KV` (`studio-client:<origin>`). The Worker checks the `id_token` of the token response (`aud` must be its client id), then asks Studio's userinfo with the access token. If userinfo answers 404 (an older Studio), the Worker uses the `id_token` claims. It accepts the email only if Studio marks it as verified. The Studio picture (Google or GitHub hosts only) becomes the avatar if the person has not uploaded one (`src/studioAvatar.ts`). Invite links still sign in a new person one time.
 - The Worker refuses a cross-site request that changes state.
 - The secret filter (`src/secrets.ts`) refuses messages, files and embeds that contain a secret.
 - Rate limits: `AI_LIMIT`, `LOGIN_LIMIT`, `UPLOAD_LIMIT`, `AGENT_LIMIT` (`wrangler.jsonc`).

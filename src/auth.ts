@@ -5,6 +5,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Context } from "hono";
 import type { Env } from "./index";
 import { track } from "./track";
+import { syncStudioAvatar } from "./studioAvatar";
 import { DEFAULT_ORIGIN, mailFrom, publicOrigin } from "./host";
 import type { AuthFail, AuthServices } from "./api";
 
@@ -14,17 +15,22 @@ const SessionPayload = z.object({ email: z.string(), iat: z.number() });
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // deco Studio is the identity provider (OAuth 2.1 + PKCE, public client: no secret here).
 const StudioClient = z.object({ client_id: z.string().check(z.minLength(1)) });
-const StudioToken = z.object({ id_token: z.string().check(z.minLength(1)) });
-// The id_token claims. Studio (Better Auth mcp plugin) has no userinfo endpoint (it answers 404) and signs the
-// id_token with a throwaway key, so the signature can't be checked. It comes straight from Studio's token endpoint
-// over TLS for a PKCE-bound code, which OIDC Core 3.1.3.7 accepts in place of the signature. `aud` must be our client.
-const StudioIdentity = z.object({
-  aud: z.string(),
+const StudioToken = z.object({ id_token: z.string().check(z.minLength(1)), access_token: z.optional(z.string()) });
+// Who signed in. Studio's userinfo (GET /api/auth/mcp/userinfo, Bearer access token) is the source when it answers.
+// Before Studio had it (404), the id_token claims were the only source: Studio signs that token with a throwaway key,
+// so the signature can't be checked, but it comes straight from Studio's token endpoint over TLS for a PKCE-bound
+// code, which OIDC Core 3.1.3.7 accepts in place of the signature. `aud` must be our client.
+const studioClaims = {
   email: z.string().check(z.regex(EMAIL_RE)),
   // A Studio account with an unverified email must not become that email here.
   email_verified: z.literal(true),
   name: z.optional(z.nullable(z.string())),
-});
+  // userinfo says `picture`; Better Auth's id_token puts the picture in `profile`.
+  picture: z.optional(z.nullable(z.string())),
+  profile: z.optional(z.nullable(z.string())),
+};
+const StudioUserinfo = z.object(studioClaims);
+const StudioIdToken = z.object({ aud: z.string(), ...studioClaims });
 const InvitePayload = z.object({
   e: z.string().check(z.regex(EMAIL_RE)),
   b: z.string().check(z.regex(/^[a-z0-9]+$/)),
@@ -212,22 +218,43 @@ auth.get("/studio/callback", async (c) => {
     try {
       const part = tok.data.id_token.split(".")[1] ?? "";
       const bytes = Uint8Array.from(atob(part.replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
-      return StudioIdentity.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
+      return StudioIdToken.safeParse(JSON.parse(new TextDecoder().decode(bytes)));
     } catch {
       return null;
     }
   })();
   if (!info?.success) return fail(info?.error.issues.some((i) => i.path[0] === "email_verified") ? "unverified" : "id_token");
   if (info.data.aud !== clientId) return fail("aud");
-  const email = info.data.email.toLowerCase();
+  let who: z.output<typeof StudioUserinfo> = info.data;
+  if (tok.data.access_token) {
+    const res = await fetch(`${studio}/api/auth/mcp/userinfo`, {
+      headers: { authorization: `Bearer ${tok.data.access_token}`, accept: "application/json" },
+    }).catch(() => null);
+    // 404: a Studio without userinfo yet; the id_token claims stay. Any other answer must be a valid identity.
+    if (res && res.status !== 404) {
+      const parsed = res.ok ? StudioUserinfo.safeParse(await res.json().catch(() => null)) : null;
+      if (!parsed?.success) return fail(parsed?.error.issues.some((i) => i.path[0] === "email_verified") ? "unverified" : "userinfo");
+      who = parsed.data;
+    }
+  }
+  const email = who.email.toLowerCase();
   await startSession(c, email);
   c.executionCtx.waitUntil(track(c.env, "login", { user: email, dims: { method: "studio" } }));
-  const name = (info.data.name || "").trim().slice(0, 60);
+  const name = (who.name || "").trim().slice(0, 60);
   if (name)
     await c.env.DB.prepare(`INSERT INTO users (email, created_at, name) VALUES (?, ?, ?) ON CONFLICT(email) DO UPDATE SET name = COALESCE(users.name, excluded.name)`)
       .bind(email, Date.now(), name)
       .run()
       .catch(() => {});
+  const picture = who.picture || who.profile;
+  if (picture)
+    c.executionCtx.waitUntil(
+      syncStudioAvatar(c.env, email, picture)
+        .then(async (ok) => {
+          if (ok) await (await import("./person")).pokeRoommates(c.env, email, { t: "me" });
+        })
+        .catch(() => {}),
+    );
   return c.redirect(safeNext(next));
 });
 
