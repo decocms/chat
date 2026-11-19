@@ -15,10 +15,7 @@ import { clientBoundary, projectRoot } from "./build/clientBoundary.ts";
 const entries = (mode: string): Record<string, string> =>
   mode === "gallery"
     ? { gallery: join(import.meta.dirname, "dev/gallery.html") }
-    : {
-        index: join(import.meta.dirname, "index.html"),
-        auth: join(import.meta.dirname, "auth.html"),
-      };
+    : { index: join(import.meta.dirname, "index.html") };
 
 export default defineConfig(({ mode, command }) => ({
   root: import.meta.dirname,

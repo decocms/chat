@@ -58,7 +58,7 @@ Rules:
 
 ## Browser apps
 
-- The browser app is Svelte 5, in `web/`. Its shells are `web/index.html` (the app, at `/`) and `web/auth.html` (sign-in, consent and connection pages).
+- The browser app is Svelte 5, in `web/`. It has one shell, `web/index.html`. The app (at `/`) and the sign-in, consent, access and connection pages use it. For these pages, `src/auth-page.ts` adds a `vb-page` meta tag and `robots: noindex`, and `web/main.ts` then shows the page. The auth layout (`web/features/auth/AuthFrame.svelte`) sets its own full-height background.
 - A person who is not signed in gets `/login`. There is no landing page.
 - deco Studio is the only sign-in. `/login` sends the person directly to Studio (`/auth/studio/start`). The login page shows only after a failed sign-in (`?error=`) or after a sign-out (`?out=1`). This stops a redirect loop.
 - The browser and the server communicate only through typed RPC. The rules are in [stack.md](stack.md).

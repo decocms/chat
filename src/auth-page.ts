@@ -4,10 +4,11 @@ import { AuthPageMetadata } from "../shared/authPage";
 const escape = (value: string) =>
   value.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`);
 
-/** The auth shell (web/auth.html) with this page's language and metadata. */
+/** The app shell (web/index.html) as an auth page: its language and metadata, and never indexed. */
 export function authPageHtml(shell: string, metadata: AuthPageMetadata) {
   const data = AuthPageMetadata.parse(metadata);
   const meta = {
+    robots: "noindex",
     "vb-page": data.page,
     "vb-auto-access": data.autoAccess ? "1" : "0",
     "vb-consent-failure":
@@ -77,7 +78,7 @@ export async function authPage(
   };
   try {
     const asset = await env.ASSETS.fetch(
-      new Request(new URL("/auth", request.url)),
+      new Request(new URL("/", request.url)),
     );
     if (asset.status !== 200) throw new Error("Auth page shell missing");
     const html = await authPageHtml(await asset.text(), {

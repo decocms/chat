@@ -28,7 +28,7 @@ export function isSourceApp(url: string): boolean {
   );
 }
 
-/** The built entry script of web/index.html or web/auth.html (Vite's hashed /assets/ file). */
+/** The built entry script of web/index.html (Vite's hashed /assets/ file). */
 const builtEntry =
   /<script\b[^>]*\bsrc=["']\/assets\/[^"']+\.js["'][^>]*><\/script>/gi;
 export const isBuiltShell = (html: string) => new RegExp(builtEntry).test(html);

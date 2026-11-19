@@ -9,7 +9,7 @@ mock.module("cloudflare:workers", () => ({
 const { connect } = await import("../src/connect");
 const { AuthorizationError } =
   await import("@cloudflare/workers-oauth-provider");
-const shell = await Bun.file("web/auth.html").text();
+const shell = await Bun.file("web/index.html").text();
 const assets = { fetch: async () => new Response(shell) };
 const here = "http://127.0.0.1:8797/authorize?client_id=client&state=original";
 const post = (decision?: string) => ({

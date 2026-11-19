@@ -14,7 +14,7 @@ If you add, move or delete a top-level folder, update this file in the same comm
 
 | Folder | Contents |
 |---|---|
-| `web/` | The browser app. `index.html` (the app) and `auth.html` (sign-in pages) load `main.ts`. |
+| `web/` | The browser app. `index.html` is the one shell (the app and the sign-in pages). It loads `main.ts`. |
 | `web/app/` | Code that all features use: the room store and connection, the transport, the panel and sidebar types. |
 | `web/features/` | One folder for each feature of the app (chat, documents, apps, agents, home, …). |
 | `web/lib/studio/` | Design-system components, ported from deco Studio. |

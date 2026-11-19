@@ -77,7 +77,7 @@ test("CSP keeps valid provider resource/connection/frame/base domains and ignore
   expect(policy).not.toContain("bad.example.com");
 });
 
-const shell = await Bun.file("web/auth.html").text();
+const shell = await Bun.file("web/index.html").text();
 const connection: Conn = {
   id: "abc123",
   book_id: "abcdef",

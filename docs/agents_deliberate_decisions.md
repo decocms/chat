@@ -583,3 +583,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The gallery build uses the same Vite configuration and components as `dist/`, but it is a different bundle, so a bundle-only defect in `dist/` is not seen by these tests.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · one-html-shell · One HTML shell for the app and the auth pages
+- Agent: claude-opus-5-5
+- Context: The human approved one shell. Vite built two: `web/index.html` (the app) and `web/auth.html` (sign-in, consent, access, file-access and connection pages).
+- Decision: `web/auth.html` is gone. `authPage()` reads `/` (the built `web/index.html`) and adds `robots: noindex` with the page meta tags. Auth pages do not get `vb-v`. The `<noscript>` text is now in `web/index.html`. The auth layout (`AuthFrame.svelte`) owns its background: it already has `min-h-dvh bg-background`, so the `md:bg-sidebar` of the app body does not show on desktop. No change to it was necessary. Auth pages now get the theme script of the shell before the first paint. A dark theme gives a dark sign-in page (`mount.ts` already did this after mount). The `antialiased` class of the app body makes the text of the auth pages a little thinner on macOS. That is the only visible difference in the screenshots.
+- Other options: Keep two shells. Remove `md:bg-sidebar` from the shell body and put it in the app layout. Remove `antialiased` for auth pages.
+- Risk: low. Before the script loads, a desktop auth page shows the sidebar colour for a moment (the app shell does the same). `/auth` is no longer a static asset; the Worker answers it (404 or 401).
+- Undo: Revert this commit.
+- Status: open
