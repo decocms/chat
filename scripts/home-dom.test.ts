@@ -1501,12 +1501,21 @@ test("room Inbox rejects connected old-opening and removed-room task controls be
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  const find = () =>
-    [
-      ...h.target.querySelectorAll<HTMLButtonElement>(
-        "[data-room-inbox] button",
+  // Your tasks are behind the Inbox's "Suas tarefas" chip; a row's first button opens it.
+  const find = () => {
+    h.target
+      .querySelector<HTMLButtonElement>(
+        '[data-inbox-filter="task"][aria-pressed="false"]',
+      )
+      ?.click();
+    return [
+      ...h.target.querySelectorAll<HTMLElement>(
+        '[data-room-inbox-message][data-kind="task"]',
       ),
-    ].find((node) => node.textContent?.trim() === task.title);
+    ]
+      .find((node) => node.textContent?.includes(task.title))
+      ?.querySelector<HTMLButtonElement>("button");
+  };
   for (let i = 0; i < 20 && !find(); i++) await flush();
   const old = find()!;
   expect(!!old).toBe(true);
@@ -1559,9 +1568,9 @@ test("room Inbox old connected question controls cannot act on a same-ID canonic
   await waitForView(h.target, "[data-room-inbox-message] button");
   const article = h.target.querySelector("[data-room-inbox-message]")!,
     oldGo = article.querySelector<HTMLButtonElement>("button")!,
-    oldResolve = [
-      ...article.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((node) => node.textContent?.trim() === h.services.t("Resolvido"))!;
+    oldResolve = article.querySelector<HTMLButtonElement>(
+      "[data-inbox-resolve]",
+    )!;
   expect(!!oldGo && !!oldResolve).toBe(true);
   const edited = { ...original, text: "Edited Inbox question", ts: 2 },
     person = h.services.personal.peek()!;
@@ -1575,17 +1584,24 @@ test("room Inbox old connected question controls cannot act on a same-ID canonic
   const before = h.href();
   oldResolve.click();
   oldGo.click();
+  // The row's exit animation, then the Undo window: send what was resolved now.
+  await new Promise((done) => setTimeout(done, 260));
+  h.inbox.flush();
+  await settle();
   expect(writes).toBe(0);
   expect(h.href()).toBe(before);
   await flush();
   const freshArticle = h.target.querySelector("[data-room-inbox-message]")!,
     freshGo = freshArticle.querySelector<HTMLButtonElement>("button")!,
-    freshResolve = [
-      ...freshArticle.querySelectorAll<HTMLButtonElement>("button"),
-    ].find((node) => node.textContent?.trim() === h.services.t("Resolvido"))!;
+    freshResolve = freshArticle.querySelector<HTMLButtonElement>(
+      "[data-inbox-resolve]",
+    )!;
   expect(freshGo !== oldGo).toBe(true);
   expect(freshArticle.textContent).toContain(edited.text);
   freshResolve.click();
+  await new Promise((done) => setTimeout(done, 260));
+  expect(writes).toBe(0);
+  h.inbox.flush();
   await settle();
   expect(writes).toBe(1);
   await flush();

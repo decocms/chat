@@ -26,6 +26,7 @@
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
+  import InboxControls from "../application/InboxControls.svelte";
   import PhoneTabBar from "./PhoneTabBar.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
   import { phoneTabOf, phoneTabPanes } from "./panelViews";
@@ -116,6 +117,8 @@
           data: { waits: [], mentions: [], tasks: [] },
           phase: "idle",
           error: null,
+          hidden: [],
+          undo: 0,
         }),
     );
   const roomInboxModule = untrack(() =>
@@ -338,6 +341,12 @@
   };
 </script>
 
+{#snippet inboxControls()}{#if inbox && $inboxState.binding}<InboxControls
+      owner={inbox}
+      binding={$inboxState.binding}
+      t={services.t}
+    />{/if}{/snippet}
+
 <RoomLayout
   controller={layout}
   {labels}
@@ -411,6 +420,9 @@
         tabs={$view.toolbar}
         {inboxOpen}
         tochat={toChat}
+        viewControls={inbox && inboxOpen && $inboxState.binding
+          ? inboxControls
+          : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}

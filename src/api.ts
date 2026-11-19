@@ -79,6 +79,7 @@ import {
   type PushTestResult,
   PushUnsubscribeBody,
   ResolveWaitBody,
+  ResolveWaitsBody,
   RoomOrderBody,
   TINTS,
   TintBody,
@@ -321,6 +322,14 @@ export const api = roomPosts
     await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
     svc.track("wait_resolved", { book: book_id });
+    return c.json(ok, 200);
+  })
+  // "Resolve all" in the Inbox: many asks in one request, each scoped to the signed-in person.
+  .post("/api/waits/resolve-many", body(ResolveWaitsBody), async (c) => {
+    const { items } = c.req.valid("json"), svc = c.get("svc"), email = c.get("email");
+    await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, items.map((item) => [item.book_id, item.ref, email]));
+    svc.pokeMe();
+    svc.track("wait_resolved", { n: items.length, many: 1 });
     return c.json(ok, 200);
   })
   // The rail's order, per person (drag a tile).

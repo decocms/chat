@@ -69,6 +69,7 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
     icon: async () => ({ ok: true, icon: 1 }),
     order: async () => ({ ok: true }),
     resolve: async () => ({ ok: true }),
+    resolveMany: async () => ({ ok: true }),
     ...overrides,
   };
 }

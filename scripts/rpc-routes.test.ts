@@ -465,6 +465,8 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ["/api/books/room/tint", { tint: 1 }],
     ["/api/rooms/order", { ids: [] }],
     ["/api/waits/resolve", { book_id: "room", ref: "t1" }],
+    ["/api/waits/resolve-many", { items: [{ book_id: "room", ref: "t1" }] }],
+    ["/api/waits/resolve-many", { items: [] }],
   ] as const)
     expect((await f.json(path, value)).status).toBe(400);
   expect(f.writes).toHaveLength(0);
@@ -473,9 +475,18 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ["/api/books/room/tint", { tint: "blue" }],
     ["/api/rooms/order", { ids: ["room", "other"] }],
     ["/api/waits/resolve", { book_id: "room", ref: "m1" }],
+    [
+      "/api/waits/resolve-many",
+      {
+        items: [
+          { book_id: "room", ref: "m1" },
+          { book_id: "other", ref: "m2" },
+        ],
+      },
+    ],
   ] as const)
     expect((await f.json(path, value)).status).toBe(200);
-  expect(f.writes).toHaveLength(5);
+  expect(f.writes).toHaveLength(7);
   expect(
     f.writes.every((write) => write.values.includes("test@example.com")),
   ).toBe(true);

@@ -67,6 +67,10 @@ export const ResolveWaitBody = z.object({
   book_id: z.string().check(z.minLength(1)),
   ref: z.string().check(z.startsWith("m")),
 });
+/** Many asks at once (the Inbox's "Resolve all"): asks only, at most 200. */
+export const ResolveWaitsBody = z.object({
+  items: z.array(ResolveWaitBody).check(z.minLength(1), z.maxLength(200)),
+});
 export const RoomOrderBody = z.object({ ids: z.array(z.unknown()) });
 export const TintBody = z.object({ tint: z.optional(z.nullable(z.string())) });
 export const ArchiveBody = z.object({ archived: z.optional(z.boolean()) });
