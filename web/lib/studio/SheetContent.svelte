@@ -12,7 +12,6 @@
 <script lang="ts">
   import { Dialog as SheetPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { X } from "./icons";
   import { selectTextOnAutoFocus } from "./overlay";
   import { cn } from "./utils";
 
@@ -59,7 +58,7 @@
       <SheetPrimitive.Close
         class="absolute top-4 right-4 cursor-pointer rounded-lg opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed"
       >
-        <Icon icon={X} class="size-4" />
+        <Icon icon="x" class="size-4" />
         <span class="sr-only">Close</span>
       </SheetPrimitive.Close>
     {/if}

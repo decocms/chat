@@ -9,7 +9,6 @@
   import Spinner from "../../lib/studio/Spinner.svelte";
   import { commandItemVariants } from "../../lib/studio/command";
   import { registerDialog } from "../../lib/studio/dialogController";
-  import { MessageCircle01, SearchMd, Target04 } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   import { studioType } from "../../lib/components/type";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
@@ -192,7 +191,7 @@
       {#if $view.loading}<Spinner
           class="size-5 text-muted-foreground"
         />{:else}<Icon
-          icon={SearchMd}
+          icon="search-md"
           class="size-5 shrink-0 text-muted-foreground"
         />{/if}
       <input
@@ -287,7 +286,9 @@
                 />{:else}<span
                   class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
                   ><Icon
-                    icon={row.group === "epics" ? Target04 : MessageCircle01}
+                    icon={row.group === "epics"
+                      ? "target-04"
+                      : "message-circle-01"}
                     class="size-4"
                   /></span
                 >{/if}
@@ -319,7 +320,7 @@
       {#if !rows.length && !$view.loading}<div
           class="flex flex-col items-center gap-2 px-4 py-10 text-center text-muted-foreground"
         >
-          <Icon icon={SearchMd} class="size-6" />
+          <Icon icon="search-md" class="size-6" />
           <p class="m-0">
             {text(
               $view.query.trim().length >= 2 ? "noConversations" : "noMatches",

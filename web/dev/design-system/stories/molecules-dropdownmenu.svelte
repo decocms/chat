@@ -15,16 +15,6 @@
   import DropdownMenuSubTrigger from "../../../lib/studio/DropdownMenuSubTrigger.svelte";
   import DropdownMenuTrigger from "../../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import {
-    Copy01,
-    LogOut01,
-    Plus,
-    Settings01,
-    Trash01,
-    User01,
-    UserPlus01,
-    Users01,
-  } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 
@@ -45,36 +35,36 @@
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem>
-          <Icon icon={User01} /> Profile
+          <Icon icon="user-01" /> Profile
           <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem>
-          <Icon icon={Settings01} /> Settings
+          <Icon icon="settings-01" /> Settings
           <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem>
-          <Icon icon={Users01} /> Team
+          <Icon icon="users-01" /> Team
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            <Icon icon={UserPlus01} class="mr-2 size-4" /> Invite members
+            <Icon icon="user-plus-01" class="mr-2 size-4" /> Invite members
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem>
-              <Icon icon={Copy01} /> Copy invite link
+              <Icon icon="copy-01" /> Copy invite link
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Icon icon={Plus} /> Invite by email
+              <Icon icon="plus" /> Invite by email
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuItem>
-        <Icon icon={LogOut01} /> Log out
+        <Icon icon="log-out-01" /> Log out
         <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
       </DropdownMenuItem>
     </DropdownMenuContent>
@@ -88,14 +78,14 @@
     </DropdownMenuTrigger>
     <DropdownMenuContent class="w-52">
       <DropdownMenuItem>
-        <Icon icon={Copy01} /> Duplicate connection
+        <Icon icon="copy-01" /> Duplicate connection
       </DropdownMenuItem>
       <DropdownMenuItem>
-        <Icon icon={Settings01} /> Edit configuration
+        <Icon icon="settings-01" /> Edit configuration
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem variant="destructive">
-        <Icon icon={Trash01} /> Delete connection
+        <Icon icon="trash-01" /> Delete connection
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

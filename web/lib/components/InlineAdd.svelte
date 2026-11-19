@@ -2,7 +2,6 @@
   import type { HTMLInputAttributes } from "svelte/elements";
   import Icon from "../studio/Icon.svelte";
   import IconButton from "../studio/IconButton.svelte";
-  import { Check, User01, X } from "../studio/icons";
 
   /** A list row you type into: a blank face, the text, then confirm or cancel. Lives inside the caller's form. */
   let {
@@ -29,7 +28,7 @@
 >
   <span
     class="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-    ><Icon icon={User01} size={12} /></span
+    ><Icon icon="user-01" size={12} /></span
   >
   <input
     bind:this={ref}
@@ -48,12 +47,12 @@
     variant="ghost"
     size="icon-xs"
     disabled={confirmDisabled}
-    label={confirmLabel}><Icon icon={Check} /></IconButton
+    label={confirmLabel}><Icon icon="check" /></IconButton
   >
   <IconButton
     variant="ghost"
     size="icon-xs"
     label={cancelLabel}
-    onclick={oncancel}><Icon icon={X} /></IconButton
+    onclick={oncancel}><Icon icon="x" /></IconButton
   >
 </div>

@@ -4,16 +4,6 @@
 
 <script lang="ts">
   import Icon from "../../../lib/studio/Icon.svelte";
-  import {
-    AlignCenter,
-    AlignLeft,
-    AlignRight,
-    Bold01,
-    Grid01,
-    Italic01,
-    List,
-    Underline01,
-  } from "../../../lib/studio/icons";
   import ToggleGroup from "../../../lib/studio/ToggleGroup.svelte";
   import ToggleGroupItem from "../../../lib/studio/ToggleGroupItem.svelte";
   import Matrix from "../Matrix.svelte";
@@ -27,25 +17,25 @@
 {#if story === "default"}
   <ToggleGroup type="multiple" variant="default" size="default">
     <ToggleGroupItem value="bold" aria-label="Toggle bold" iconOnly>
-      <Icon icon={Bold01} />
+      <Icon icon="bold-01" />
     </ToggleGroupItem>
     <ToggleGroupItem value="italic" aria-label="Toggle italic" iconOnly>
-      <Icon icon={Italic01} />
+      <Icon icon="italic-01" />
     </ToggleGroupItem>
     <ToggleGroupItem value="underline" aria-label="Toggle underline" iconOnly>
-      <Icon icon={Underline01} />
+      <Icon icon="underline-01" />
     </ToggleGroupItem>
   </ToggleGroup>
 {:else if story === "single-selection"}
   <ToggleGroup type="single" value="left" variant="outline">
     <ToggleGroupItem value="left" aria-label="Align left" iconOnly>
-      <Icon icon={AlignLeft} />
+      <Icon icon="align-left" />
     </ToggleGroupItem>
     <ToggleGroupItem value="center" aria-label="Align center" iconOnly>
-      <Icon icon={AlignCenter} />
+      <Icon icon="align-center" />
     </ToggleGroupItem>
     <ToggleGroupItem value="right" aria-label="Align right" iconOnly>
-      <Icon icon={AlignRight} />
+      <Icon icon="align-right" />
     </ToggleGroupItem>
   </ToggleGroup>
 {:else if story === "outline"}
@@ -105,19 +95,19 @@
 {:else if story === "icons"}
   <ToggleGroup type="single" variant="segmented" size="sm" value="grid">
     <ToggleGroupItem value="grid" tooltip="Grid view" iconOnly>
-      <Icon icon={Grid01} />
+      <Icon icon="grid-01" />
     </ToggleGroupItem>
     <ToggleGroupItem value="list" tooltip="List view" iconOnly>
-      <Icon icon={List} />
+      <Icon icon="list" />
     </ToggleGroupItem>
   </ToggleGroup>
 {:else if story === "icon-and-label"}
   <ToggleGroup type="single" variant="segmented" size="sm" value="project">
     <ToggleGroupItem value="project">
-      <Icon icon={Grid01} /> Project
+      <Icon icon="grid-01" /> Project
     </ToggleGroupItem>
     <ToggleGroupItem value="files">
-      <Icon icon={List} /> Files
+      <Icon icon="list" /> Files
     </ToggleGroupItem>
   </ToggleGroup>
 {/if}

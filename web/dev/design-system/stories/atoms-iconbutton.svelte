@@ -6,7 +6,6 @@
   import Button from "../../../lib/studio/Button.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
   import IconButton from "../../../lib/studio/IconButton.svelte";
-  import { Copy01, Pencil01, Trash01 } from "../../../lib/studio/icons";
   import Matrix from "../Matrix.svelte";
 
   let { story }: { story: string } = $props();
@@ -38,7 +37,7 @@
 <div class="leading-[1.5]">
   {#if story === "default"}
     <IconButton label="Copy value" variant="ghost" size="icon-sm">
-      <Icon icon={Copy01} />
+      <Icon icon="copy-01" />
     </IconButton>
   {:else if story === "row-actions"}
     <div
@@ -46,10 +45,10 @@
     >
       <span class="mr-auto font-mono text-xs">API_BASE_URL</span>
       <IconButton label="Edit value">
-        <Icon icon={Pencil01} />
+        <Icon icon="pencil-01" />
       </IconButton>
       <IconButton label="Delete variable">
-        <Icon icon={Trash01} />
+        <Icon icon="trash-01" />
       </IconButton>
     </div>
   {:else if story === "states"}
@@ -62,7 +61,7 @@
           disabled={index === 3}
           aria-label="Edit"
         >
-          <Icon icon={Pencil01} />
+          <Icon icon="pencil-01" />
         </Button>
       {/snippet}
     </Matrix>

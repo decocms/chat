@@ -21,7 +21,6 @@
   import Field from "../../lib/components/Field.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import { registerDialog } from "../../lib/studio/dialogController";
-  import { AlertTriangle, Calendar, Plus, X } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
 
   let {
@@ -160,7 +159,7 @@
         variant="warning"
         title={`@vibe: ${list.flags.join(" · ")}`}
         class="text-foreground max-w-full"
-        ><Icon icon={AlertTriangle} /><span class="truncate"
+        ><Icon icon="alert-triangle" /><span class="truncate"
           >{list.flags.join(" · ")}</span
         ></Badge
       >{/if}
@@ -266,14 +265,14 @@
                       "opacity-0 group-hover/task:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
                   )}
                   onclick={() => openDue(task)}
-                  ><Icon icon={Calendar} class="size-3" />{task.due ??
+                  ><Icon icon="calendar" class="size-3" />{task.due ??
                     ""}</Button
                 >
                 {#if task.flags?.length}<Badge
                     variant="warning"
                     title={`@vibe: ${task.flags.join(" · ")}`}
                     class="max-w-full text-foreground"
-                    ><Icon icon={AlertTriangle} /><span class="truncate"
+                    ><Icon icon="alert-triangle" /><span class="truncate"
                       >{task.flags.join(" · ")}</span
                     ></Badge
                   >{/if}
@@ -286,7 +285,7 @@
             size="icon-xs"
             class="absolute top-1.5 right-1.5 text-muted-foreground opacity-0 group-hover/task:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
             onclick={() => dispatch({ t: "task.del", id: task.id })}
-            ><Icon icon={X} /></IconButton
+            ><Icon icon="x" /></IconButton
           >
         </div>
       {/each}
@@ -312,7 +311,7 @@
         type="submit"
         label={vb.t("Nova tarefa")}
         variant="outline"
-        size="icon"><Icon icon={Plus} /></IconButton
+        size="icon"><Icon icon="plus" /></IconButton
       >
     </form>
   </section>

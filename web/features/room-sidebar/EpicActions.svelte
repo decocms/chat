@@ -18,13 +18,6 @@
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
   import Separator from "../../lib/studio/Separator.svelte";
-  import {
-    Check,
-    DotsHorizontal,
-    Pencil01,
-    ReverseLeft,
-    Trash01,
-  } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
   /**
    * An epic's rename, archive and delete, with their dialogs. `menu`: behind
@@ -126,7 +119,7 @@
       size="icon-sm"
       disabled={busy}
       class="text-muted-foreground hover:text-foreground"
-      onclick={() => begin("rename")}><Icon icon={Pencil01} /></IconButton
+      onclick={() => begin("rename")}><Icon icon="pencil-01" /></IconButton
     >
     <!-- A short bar (a narrow window, the right pane open): the label folds into the icon. The bar's title is the @container. -->
     <Button
@@ -136,7 +129,7 @@
       disabled={busy}
       title={archiveLabel}
       onclick={archive}
-      ><Icon icon={epic.archived ? ReverseLeft : Check} /><span
+      ><Icon icon={epic.archived ? "reverse-left" : "check"} /><span
         class="@max-xl:sr-only">{archiveLabel}</span
       ></Button
     >
@@ -147,7 +140,7 @@
       size="icon-sm"
       disabled={busy}
       class="text-muted-foreground hover:text-destructive"
-      onclick={() => begin("delete")}><Icon icon={Trash01} /></IconButton
+      onclick={() => begin("delete")}><Icon icon="trash-01" /></IconButton
     >
     <!-- The epic's own buttons end here; the pane's tabs (Doc, Files…) follow. -->
     <Separator
@@ -160,14 +153,14 @@
       disabled={busy}
       aria-label={`${t("Ações do épico")}: ${epic.title}`}
       class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-      ><Icon icon={DotsHorizontal} /></DropdownMenuTrigger
+      ><Icon icon="dots-horizontal" /></DropdownMenuTrigger
     >
     <DropdownMenuContent align="end" class={cn(studioType, "w-52")}>
       <DropdownMenuItem disabled={busy} onSelect={() => begin("rename")}
-        ><Icon icon={Pencil01} />{t("Renomear")}</DropdownMenuItem
+        ><Icon icon="pencil-01" />{t("Renomear")}</DropdownMenuItem
       >
       <DropdownMenuItem disabled={busy} onSelect={archive}
-        ><Icon icon={epic.archived ? ReverseLeft : Check} />{t(
+        ><Icon icon={epic.archived ? "reverse-left" : "check"} />{t(
           epic.archived ? "Desarquivar épico" : "Arquivar épico",
         )}</DropdownMenuItem
       >
@@ -176,7 +169,7 @@
         variant="destructive"
         disabled={busy}
         onSelect={() => begin("delete")}
-        ><Icon icon={Trash01} />{t("Apagar épico")}</DropdownMenuItem
+        ><Icon icon="trash-01" />{t("Apagar épico")}</DropdownMenuItem
       >
     </DropdownMenuContent>
   </DropdownMenu>{/if}

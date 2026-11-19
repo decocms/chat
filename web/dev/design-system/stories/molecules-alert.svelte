@@ -3,19 +3,13 @@
   import AlertDescription from "../../../lib/studio/AlertDescription.svelte";
   import AlertTitle from "../../../lib/studio/AlertTitle.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import {
-    AlertCircle,
-    AlertTriangle,
-    CheckCircle,
-    InfoCircle,
-  } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 </script>
 
 {#if story === "default"}
   <Alert variant="default" class="w-96">
-    <Icon icon={InfoCircle} />
+    <Icon icon="info-circle" />
     <div>
       <AlertTitle>Connection created</AlertTitle>
       <AlertDescription>
@@ -27,7 +21,7 @@
 {:else if story === "variants"}
   <div class="flex w-96 flex-col gap-3">
     <Alert>
-      <Icon icon={InfoCircle} />
+      <Icon icon="info-circle" />
       <div>
         <AlertTitle>Heads up</AlertTitle>
         <AlertDescription>
@@ -36,7 +30,7 @@
       </div>
     </Alert>
     <Alert variant="info">
-      <Icon icon={InfoCircle} />
+      <Icon icon="info-circle" />
       <div>
         <AlertTitle>Scheduled maintenance</AlertTitle>
         <AlertDescription>
@@ -45,7 +39,7 @@
       </div>
     </Alert>
     <Alert variant="success">
-      <Icon icon={CheckCircle} />
+      <Icon icon="check-circle" />
       <div>
         <AlertTitle>Deployment succeeded</AlertTitle>
         <AlertDescription>
@@ -54,7 +48,7 @@
       </div>
     </Alert>
     <Alert variant="warning">
-      <Icon icon={AlertTriangle} />
+      <Icon icon="alert-triangle" />
       <div>
         <AlertTitle>Token expiring soon</AlertTitle>
         <AlertDescription>
@@ -64,7 +58,7 @@
       </div>
     </Alert>
     <Alert variant="destructive">
-      <Icon icon={AlertCircle} />
+      <Icon icon="alert-circle" />
       <div>
         <AlertTitle>Payment failed</AlertTitle>
         <AlertDescription>
@@ -76,7 +70,7 @@
   </div>
 {:else if story === "title-only"}
   <Alert variant="success" class="w-96">
-    <Icon icon={CheckCircle} />
+    <Icon icon="check-circle" />
     <AlertTitle>Settings saved</AlertTitle>
   </Alert>
 {/if}

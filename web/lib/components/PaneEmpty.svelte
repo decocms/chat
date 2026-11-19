@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import EmptyState from "../studio/EmptyState.svelte";
   import Icon from "../studio/Icon.svelte";
-  import type { IconNode } from "../studio/icons";
+  import type { IconName } from "../studio/icons";
 
   /** A side-panel tab with nothing in it yet. Same anatomy on every tab: the tab's own icon,
    * what will be here, why it helps, then the two ways in: do it yourself (`action`),
@@ -16,7 +16,7 @@
     askLabel,
     onask,
   }: {
-    icon: IconNode;
+    icon: IconName;
     title: string;
     description: string;
     action?: Snippet;

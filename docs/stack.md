@@ -46,6 +46,11 @@
 - Do not load external CSS. The only exception is CSS that a dependency ships (for example `@xterm/xterm/css/xterm.css`). Import it in `tailwind.css`.
 - Use theme tokens for colors (`bg-background`, `text-muted-foreground`, `border-border`, …). Do not use hard-coded colors (`#hex`, `bg-[#…]`, palette colors such as `bg-red-500`). If no token has the correct meaning, add a token to `tailwind.css`, for light and dark.
 - Use the built-in tokens of the theme before hard-coded values: breakpoints (`md`), spacing (`p-4`, `gap-2`), sizes (`size-8`), radius (`rounded-lg`), font sizes (`text-sm`) and shadows. Use an arbitrary value (`p-[13px]`, `text-[28px]`) only if no token can do it. If you need the same arbitrary value in two places, add a token to `tailwind.css`.
+- Draw icons only with `Icon.svelte`: `<Icon icon="pencil-01" />`. The prop type is `IconName`, the Untitled UI name in kebab case.
+  - All icons are in one static sprite, `web/lib/studio/icons.svg`. Vite gives it a hashed name in `dist/assets/`, so the browser caches it for one year.
+  - A `<use>` to the sprite works only on the origin of the app. An icon in an iframe or an email must have its own inline SVG.
+  - To add an icon, copy its path from `@untitledui/icons` into `icons.ts`. Then run `bun scripts/icon-sprite.ts`.
+  - Import only the type from `icons.ts` (`import type { IconName }`). `bun run check:icons` fails on a value import.
 - Give each clickable element `cursor-pointer`. Give it `cursor-not-allowed` when it is disabled.
 
 ## Screen sizes
@@ -80,5 +85,6 @@
 |---|---|
 | `public/fonts/studio/InterVariable*.woff2` | Inter, SIL Open Font License 1.1. Keep `Inter-LICENSE.txt`. |
 | `public/fonts/studio/CommitMono-*.woff2` | Commit Mono, SIL Open Font License 1.1. Keep `CommitMono-LICENSE.txt`. |
+| `web/lib/studio/icons.ts` | Untitled UI icons, MIT, from `@untitledui/icons` 0.0.23 (`d` of each path, copied, not a dependency). Names that start with `app-` are our own drawings. |
 | `scripts/data/font-assets.json` | Source URL, size and SHA-256 of each font. The file names contain a digest prefix. Do not change a font without a new name. |
 | `scripts/fixtures/entities/whatwg-entities.json` | WHATWG HTML named character references, from https://html.spec.whatwg.org/entities.json (2026-11-14, 145897 bytes, SHA-256 `d741d877…62e6`). Test data only. Do not reformat it. A test checks its digest. |

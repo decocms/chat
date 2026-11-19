@@ -1,7 +1,6 @@
 <script lang="ts">
   import Button from "../studio/Button.svelte";
   import Icon from "../studio/Icon.svelte";
-  import { AlertTriangle } from "../studio/icons";
   import { cn } from "../studio/utils";
   let {
     title,
@@ -23,7 +22,7 @@
   )}
 >
   <Icon
-    icon={AlertTriangle}
+    icon="alert-triangle"
     size={16}
     class="mt-0.5 shrink-0 text-destructive"
   />

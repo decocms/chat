@@ -19,7 +19,6 @@
     FilterOperator,
   } from "./filter-bar";
   import Icon from "./Icon.svelte";
-  import { ArrowLeft, Plus, X } from "./icons";
   import Input from "./Input.svelte";
 
   /** Ported from @decocms/ui `FilterBar`. Controlled: `filters` changes only through `onFiltersChange`. The render props are snippets. */
@@ -197,7 +196,7 @@
       class="h-6 w-6"
       onclick={() => back(column)}
     >
-      <Icon icon={ArrowLeft} size={16} />
+      <Icon icon="arrow-left" size={16} />
     </Button>
     <p class="text-xs text-pretty text-muted-foreground uppercase font-mono">
       {title}
@@ -363,7 +362,7 @@
               }}
               class="flex items-center justify-center w-0 opacity-0 group-hover:w-4 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all overflow-hidden cursor-pointer disabled:cursor-not-allowed"
             >
-              <Icon icon={X} size={16} />
+              <Icon icon="x" size={16} />
             </button>
           </div>
         {/snippet}
@@ -399,7 +398,7 @@
           size="sm"
           class="h-8 text-muted-foreground hover:text-foreground"
         >
-          <Icon icon={Plus} size={16} />
+          <Icon icon="plus" size={16} />
           Add filter
         </Button>
       {/snippet}

@@ -6,7 +6,6 @@
   import CardTitle from "../../../lib/studio/CardTitle.svelte";
   import EmptyState from "../../../lib/studio/EmptyState.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { AlertCircle, Plus, SearchMd, Zap } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 
@@ -16,10 +15,10 @@
     "Automations run a prompt on a schedule or when something happens.";
 </script>
 
-{#snippet zap()}<Icon icon={Zap} />{/snippet}
-{#snippet search()}<Icon icon={SearchMd} />{/snippet}
-{#snippet alert()}<Icon icon={AlertCircle} />{/snippet}
-{#snippet newAutomation()}<Icon icon={Plus} /> New automation{/snippet}
+{#snippet zap()}<Icon icon="zap" />{/snippet}
+{#snippet search()}<Icon icon="search-md" />{/snippet}
+{#snippet alert()}<Icon icon="alert-circle" />{/snippet}
+{#snippet newAutomation()}<Icon icon="plus" /> New automation{/snippet}
 {#snippet clearFilters()}Clear filters{/snippet}
 {#snippet tryAgain()}Try again{/snippet}
 {#snippet agent()}<AgentAvatar src={AGENT_FACE} size={48} />{/snippet}

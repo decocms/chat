@@ -2,7 +2,6 @@
   import type { Attachment, Room } from "../../../shared/room";
   import { fileURL } from "./model";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { File02 } from "../../lib/studio/icons";
   let {
     room,
     thread,
@@ -44,7 +43,7 @@
   >
     <!-- One row that scrolls sideways: wrapped, 6 long names covered half a phone's chat (Gui #3402). -->
     <span class="flex shrink-0 items-center gap-1 text-muted-foreground"
-      ><Icon icon={File02} size={16} />{lang === "en"
+      ><Icon icon="file-02" size={16} />{lang === "en"
         ? "Files from this thread"
         : "Arquivos deste épico"}</span
     >{#each files as { file, count } (file.id)}<a
@@ -66,7 +65,7 @@
           onopen(file, event.currentTarget);
         }}
         class="inline-flex max-w-56 shrink-0 items-center gap-1 rounded-control border border-border bg-card px-2 py-1 text-foreground no-underline hover:bg-muted"
-        ><Icon icon={File02} size={16} /><span class="truncate"
+        ><Icon icon="file-02" size={16} /><span class="truncate"
           >{file.name}</span
         >{#if count > 1}<span class="text-xs text-muted-foreground"
             >v{count}</span

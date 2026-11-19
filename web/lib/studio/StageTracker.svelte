@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { HTMLOlAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { Check } from "./icons";
   import Stage from "./Stage.svelte";
   import { stageNumberVariants, stageStateAt } from "./stage-tracker";
   import { cn } from "./utils";
@@ -38,7 +37,7 @@
     <span class="flex items-center gap-2">
       <span class={stageNumberVariants({ state })}>
         {#if state === "done"}
-          <Icon icon={Check} class="size-3.5" />
+          <Icon icon="check" class="size-3.5" />
         {:else}
           {index + 1}
         {/if}

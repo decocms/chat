@@ -10,7 +10,6 @@
   import { fieldDeltaTone } from "./chartProjection";
   import CardBox from "../../lib/studio/Card.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { ArrowRight, Check, LinkExternal01 } from "../../lib/studio/icons";
   import CardChart from "./CardChart.svelte";
   import CardTable from "./CardTable.svelte";
   import { answerOf, canAnswer, inlineCardNodes } from "./model";
@@ -241,7 +240,7 @@
           ? "inline-flex items-center gap-1 whitespace-pre-wrap rounded-button border border-primary bg-primary/10 px-3 py-1.5 text-sm"
           : "inline-flex items-center whitespace-pre-wrap rounded-button border border-border px-3 py-1.5 text-sm text-muted-foreground"}
         >{#if answer?.text === value}<Icon
-            icon={Check}
+            icon="check"
             size={16}
           />{/if}{element.props.label}</span
       >{/if}
@@ -250,7 +249,7 @@
         size="sm"
         variant={element.props.style === "primary" ? "default" : "outline"}
         onclick={(event) => navigate(element.props.url, event)}
-        >{element.props.label}<Icon icon={ArrowRight} size={14} /></Button
+        >{element.props.label}<Icon icon="arrow-right" size={14} /></Button
       >{:else}<a
         href={element.props.url}
         target="_blank"
@@ -261,7 +260,7 @@
             size: "sm",
           }),
           "h-8 gap-1.5 whitespace-nowrap no-underline",
-        )}>{element.props.label}<Icon icon={LinkExternal01} size={14} /></a
+        )}>{element.props.label}<Icon icon="link-external-01" size={14} /></a
       >{/if}
   {/if}
 {/snippet}

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Checkbox as CheckboxPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { Minus } from "./icons";
   import { cn } from "./utils";
 
   /** Ported from @decocms/ui `Checkbox`. Radix's `checked="indeterminate"` is the separate `indeterminate` prop, as in Bits UI. */
@@ -50,7 +49,7 @@
         data-state={isIndeterminate ? "indeterminate" : "checked"}
         class="pointer-events-none absolute inset-0 hidden items-center justify-center data-[state=indeterminate]:flex"
       >
-        <Icon icon={Minus} class="size-3" />
+        <Icon icon="minus" class="size-3" />
       </span>
     {/if}
   {/snippet}

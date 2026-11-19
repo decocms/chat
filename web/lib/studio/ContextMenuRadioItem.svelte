@@ -1,7 +1,6 @@
 <script lang="ts">
   import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
   import Icon from "./Icon.svelte";
-  import { Circle } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -27,7 +26,7 @@
     >
       {#if state.checked}
         <span data-state="checked"
-          ><Icon icon={Circle} class="size-2 fill-current" /></span
+          ><Icon icon="circle" class="size-2 fill-current" /></span
         >
       {/if}
     </span>

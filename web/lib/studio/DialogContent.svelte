@@ -2,7 +2,6 @@
   import { Dialog as DialogPrimitive } from "bits-ui";
   import DialogOverlay from "./DialogOverlay.svelte";
   import Icon from "./Icon.svelte";
-  import { X } from "./icons";
   import { selectTextOnAutoFocus } from "./overlay";
   import { cn } from "./utils";
 
@@ -45,7 +44,7 @@
         closeButtonClassName,
       )}
     >
-      <Icon icon={X} />
+      <Icon icon="x" />
       <span class="sr-only">{closeLabel}</span>
     </DialogPrimitive.Close>
   </DialogPrimitive.Content>

@@ -2,7 +2,6 @@
   import type { Snippet } from "svelte";
   import type { HTMLButtonAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { ChevronDown } from "./icons";
   import { cn } from "./utils";
 
   /** The model or tier picker's trigger. Spread a Popover or DropdownMenu trigger's `child` props on it. */
@@ -33,5 +32,5 @@
 >
   {@render icon?.()}
   <span class="truncate">{@render children?.()}</span>
-  <Icon icon={ChevronDown} class="opacity-60" />
+  <Icon icon="chevron-down" class="opacity-60" />
 </button>

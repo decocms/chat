@@ -1,12 +1,6 @@
 <script lang="ts">
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    Cloud01,
-    Phone01,
-    Stars01,
-    User01,
-    type IconNode,
-  } from "../../lib/studio/icons";
+  import type { IconName } from "../../lib/studio/icons";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   import {
     SETTINGS_SECTIONS,
@@ -22,11 +16,11 @@
    * page's sections as rows of the same size, with an icon like Home's.
    */
   let { lang, onhome }: { lang: HomeLanguage; onhome: () => void } = $props();
-  const icons: Record<SettingsSection, IconNode> = {
-    profile: User01,
-    agents: Stars01,
-    cloud: Cloud01,
-    device: Phone01,
+  const icons: Record<SettingsSection, IconName> = {
+    profile: "user-01",
+    agents: "stars-01",
+    cloud: "cloud-01",
+    device: "phone-01",
   };
   let current = $state<SettingsSection>(
     SETTINGS_SECTIONS.find((id) => `#${id}` === location.hash) ?? "profile",

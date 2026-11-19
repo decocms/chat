@@ -14,7 +14,6 @@
   import SelectContent from "../../lib/studio/SelectContent.svelte";
   import SelectItem from "../../lib/studio/SelectItem.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { LinkExternal01 } from "../../lib/studio/icons";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   let {
     props,
@@ -121,7 +120,7 @@
       label={props.t("Abrir no painel Apps")}
       onclick={(event) => {
         if (connected(event)) open();
-      }}><Icon icon={LinkExternal01} /></IconButton
+      }}><Icon icon="link-external-01" /></IconButton
     >
   </header>
   <div

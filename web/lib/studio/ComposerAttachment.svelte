@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { HTMLAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { File02, X } from "./icons";
   import { cn } from "./utils";
 
   /** One file or image waiting to be sent. */
@@ -47,7 +46,7 @@
       <span
         class="bg-card text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-edge"
       >
-        <Icon icon={File02} class="size-4 stroke-[1.33]" />
+        <Icon icon="file-02" class="size-4 stroke-[1.33]" />
       </span>
       <span class="flex min-w-0 flex-col">
         <span class="truncate text-xs font-medium">{name}</span>
@@ -66,7 +65,7 @@
       aria-label={removeLabel}
       class="bg-foreground text-background focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 absolute -top-1.5 -right-1.5 flex size-[1.125rem] cursor-pointer items-center justify-center rounded-full opacity-0 transition-opacity group-hover/attachment:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed"
     >
-      <Icon icon={X} class="size-3" />
+      <Icon icon="x" class="size-3" />
     </button>
   {/if}
 </div>

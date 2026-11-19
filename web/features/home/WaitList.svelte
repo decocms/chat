@@ -5,7 +5,6 @@
   import Badge from "../../lib/studio/Badge.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Check } from "../../lib/studio/icons";
   import type { RoomsSession } from "../rooms/session";
   import {
     claudeWait,
@@ -112,7 +111,7 @@
           onclick={(event) => {
             if (event.currentTarget.isConnected)
               void rooms.resolve(wait.book_id, wait.ref);
-          }}><Icon icon={Check} /></IconButton
+          }}><Icon icon="check" /></IconButton
         >{/if}
       {#if $actions.issues[key]}<p
           role="alert"

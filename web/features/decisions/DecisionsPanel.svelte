@@ -6,7 +6,6 @@
   import Badge from "../../lib/studio/Badge.svelte";
   import Card from "../../lib/studio/Card.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
-  import { X } from "../../lib/studio/icons";
   import Icon from "../../lib/studio/Icon.svelte";
   import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
   import PaneHeader from "../../lib/components/PaneHeader.svelte";
@@ -95,7 +94,7 @@
             deletion = decision;
             deleteTrigger = event.currentTarget;
             dialogOpen = true;
-          }}><Icon icon={X} size={16} /></IconButton
+          }}><Icon icon="x" size={16} /></IconButton
         >
       </Card>
     </article>

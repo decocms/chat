@@ -28,7 +28,6 @@
   import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Pencil01 } from "../../lib/studio/icons";
   import { paneIcons } from "./paneIcons";
   let {
     text,
@@ -230,7 +229,7 @@
       props.lang ===
       "en"}{#snippet write()}{#if props.room.members.includes(props.room.me)}<Button
           onclick={() => owner.mode("edit")}
-          ><Icon icon={Pencil01} size={16} />{en
+          ><Icon icon="pencil-01" size={16} />{en
             ? "Start writing"
             : "Começar a escrever"}</Button
         >{/if}{/snippet}<PaneEmpty

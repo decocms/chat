@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { HTMLAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
-  import { DotsHorizontal } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -21,6 +20,6 @@
   {...rest}
   class={cn("flex size-10 items-center justify-center", className)}
 >
-  <Icon icon={DotsHorizontal} class="size-4" />
+  <Icon icon="dots-horizontal" class="size-4" />
   <span class="sr-only">More pages</span>
 </span>

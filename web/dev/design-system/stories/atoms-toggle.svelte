@@ -4,7 +4,6 @@
 
 <script lang="ts">
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Bold01, Italic01, Underline01 } from "../../../lib/studio/icons";
   import Toggle from "../../../lib/studio/Toggle.svelte";
   import Matrix from "../Matrix.svelte";
 
@@ -19,10 +18,10 @@
 {:else if story === "variants"}
   <div class="flex items-center gap-2">
     <Toggle aria-label="Toggle bold">
-      <Icon icon={Bold01} /> Bold
+      <Icon icon="bold-01" /> Bold
     </Toggle>
     <Toggle variant="outline" aria-label="Toggle italic">
-      <Icon icon={Italic01} /> Italic
+      <Icon icon="italic-01" /> Italic
     </Toggle>
   </div>
 {:else if story === "sizes"}
@@ -33,7 +32,7 @@
   </div>
 {:else if story === "pressed"}
   <Toggle variant="default" size="default" pressed>
-    <Icon icon={Underline01} /> Underline
+    <Icon icon="underline-01" /> Underline
   </Toggle>
 {:else if story === "disabled"}
   <Toggle variant="default" size="default" disabled>Unavailable</Toggle>
@@ -50,7 +49,7 @@
         disabled={index === 4}
         aria-label="Bold"
       >
-        <Icon icon={Bold01} /> Bold
+        <Icon icon="bold-01" /> Bold
       </Toggle>
     {/snippet}
   </Matrix>

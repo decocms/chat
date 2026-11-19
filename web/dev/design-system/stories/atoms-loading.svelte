@@ -12,7 +12,6 @@
   import Button from "../../../lib/studio/Button.svelte";
   import GridLoader from "../../../lib/studio/GridLoader.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { RefreshCw01, Stars01 } from "../../../lib/studio/icons";
   import Skeleton from "../../../lib/studio/Skeleton.svelte";
   import Spinner from "../../../lib/studio/Spinner.svelte";
   import Matrix from "../Matrix.svelte";
@@ -112,7 +111,7 @@
   {:else if story === "thinking"}
     <div class="flex w-[30rem] items-center gap-2 py-2.5">
       <Icon
-        icon={Stars01}
+        icon="stars-01"
         class="size-4 shrink-0 animate-pulse text-muted-foreground motion-reduce:animate-none"
       />
       <span class={[SHIMMER, "shrink-0 text-sm"]}>Analyzing...</span>
@@ -172,7 +171,7 @@
         </p>
       {/key}
       <Button size="sm" variant="outline" onclick={() => (run += 1)}>
-        <Icon icon={RefreshCw01} /> Replay
+        <Icon icon="refresh-cw-01" /> Replay
       </Button>
     </div>
   {/if}

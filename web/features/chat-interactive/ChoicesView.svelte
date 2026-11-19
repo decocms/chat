@@ -5,7 +5,6 @@
   import type { Choices } from "./model";
   import { answerOf, canAnswer } from "./model";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { Check } from "../../lib/studio/icons";
   import { buttonVariants } from "../../lib/studio/button";
   import { cn } from "../../lib/studio/utils";
   let {
@@ -74,7 +73,7 @@
       "pointer-events-none h-auto min-h-8 whitespace-pre-wrap text-left",
       disabled && !on && "text-muted-foreground",
     )}
-    >{#if on}<Icon icon={Check} size={14} />{/if}{label}</span
+    >{#if on}<Icon icon="check" size={14} />{/if}{label}</span
   >{/snippet}
 <div data-choices class="space-y-2 font-sans text-sm text-foreground">
   {#if answer}<div class="flex flex-wrap gap-2">
@@ -104,7 +103,7 @@
             "h-auto min-h-8 whitespace-pre-wrap text-left",
           )}
           onclick={() => choose(value, choices.multi ? !on : true)}
-          >{#if on}<Icon icon={Check} size={14} />{/if}{label}</button
+          >{#if on}<Icon icon="check" size={14} />{/if}{label}</button
         >{/each}
     </div>
   {:else}<div class="flex flex-wrap gap-2" aria-disabled="true">

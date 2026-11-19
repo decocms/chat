@@ -1,7 +1,6 @@
 <script lang="ts">
   import Button from "../../../lib/studio/Button.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Copy01 } from "../../../lib/studio/icons";
   import Tooltip from "../../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../../lib/studio/TooltipTrigger.svelte";
@@ -47,7 +46,7 @@
           size="icon"
           aria-label="Copy API key"
         >
-          <Icon icon={Copy01} />
+          <Icon icon="copy-01" />
         </Button>
       {/snippet}
     </TooltipTrigger>

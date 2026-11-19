@@ -16,7 +16,6 @@
   import AvatarImage from "./AvatarImage.svelte";
   import AvatarRoot from "./AvatarRoot.svelte";
   import Icon from "./Icon.svelte";
-  import { User01 } from "./icons";
   import { cn } from "./utils";
 
   /** The image, or the name's initials on its colour; circle for people, square otherwise. */
@@ -90,7 +89,7 @@
 >
   {#if url?.startsWith("icon://")}
     <div class={tile}>
-      <Icon icon={User01} size={ICON_SIZES[size]} />
+      <Icon icon="user-01" size={ICON_SIZES[size]} />
     </div>
   {:else}
     {#if url}

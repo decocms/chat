@@ -2,7 +2,6 @@
   import type { HTMLInputAttributes } from "svelte/elements";
   import Icon from "./Icon.svelte";
   import IconButton from "./IconButton.svelte";
-  import { Check, Copy01, Eye, EyeOff } from "./icons";
   import InputGroup from "./InputGroup.svelte";
   import InputGroupInput from "./InputGroupInput.svelte";
 
@@ -57,7 +56,7 @@
     label={visible ? hideLabel : showLabel}
     onclick={() => (visible = !visible)}
   >
-    <Icon icon={visible ? EyeOff : Eye} />
+    <Icon icon={visible ? "eye-off" : "eye"} />
   </IconButton>
   <IconButton
     type="button"
@@ -65,6 +64,6 @@
     onclick={copy}
     disabled={!value}
   >
-    <Icon icon={copied ? Check : Copy01} />
+    <Icon icon={copied ? "check" : "copy-01"} />
   </IconButton>
 </InputGroup>

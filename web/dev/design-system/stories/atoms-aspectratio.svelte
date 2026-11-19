@@ -1,7 +1,6 @@
 <script lang="ts">
   import AspectRatio from "../../../lib/studio/AspectRatio.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Image01 } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 </script>
@@ -10,7 +9,7 @@
   <div
     class="flex h-full w-full flex-col items-center justify-center gap-2 rounded-md bg-muted text-muted-foreground"
   >
-    <Icon icon={Image01} class="size-6" />
+    <Icon icon="image-01" class="size-6" />
     <span class="text-sm">{label}</span>
   </div>
 {/snippet}

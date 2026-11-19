@@ -60,6 +60,7 @@ Some other build output is in git. If you change the source, build it and commit
 | Source | Command | Output to commit |
 |---|---|---|
 | `cli/` | `bun run build:cli` | `public/cli.mjs`, `cli/cli.mjs` |
+| `web/lib/studio/icons.ts` | `bun scripts/icon-sprite.ts` | `web/lib/studio/icons.svg` (`bun run check:icons` fails if it is different) |
 | `shared/agentRules.ts` | `bun scripts/agent-prompts.ts` | the `<!-- agent-rules:<name> -->` regions in `claude-plugin/skills/vibebook/SKILL.md`, `claude-plugin/commands/{listen,setup}.md`, `public/llms.txt` (`bun run check:agent-prompts` fails if a region is different) |
 
 Do not commit `dist/`, `dist-gallery/`, `dist-mcp/` or `.api-types/`. The build makes them.

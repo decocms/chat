@@ -10,7 +10,6 @@
   import PopoverContent from "./PopoverContent.svelte";
   import PopoverTrigger from "./PopoverTrigger.svelte";
   import ScrollArea from "./ScrollArea.svelte";
-  import { ChevronDown, Clock } from "./icons";
   import {
     expressionToDate,
     getTimeRangeDisplayText,
@@ -106,10 +105,10 @@
         {disabled}
       >
         <div class="flex items-center gap-1.5">
-          <Icon icon={Clock} class="text-muted-foreground size-4" />
+          <Icon icon="clock" class="text-muted-foreground size-4" />
           <span class="text-sm">{displayText}</span>
         </div>
-        <Icon icon={ChevronDown} class="text-muted-foreground size-4" />
+        <Icon icon="chevron-down" class="text-muted-foreground size-4" />
       </Button>
     {/snippet}
   </PopoverTrigger>

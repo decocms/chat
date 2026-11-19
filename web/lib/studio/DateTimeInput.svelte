@@ -51,7 +51,6 @@
   import Popover from "./Popover.svelte";
   import PopoverContent from "./PopoverContent.svelte";
   import PopoverTrigger from "./PopoverTrigger.svelte";
-  import { Calendar as CalendarIcon } from "./icons";
   import { cn } from "./utils";
 
   /** A date and time typed as "now-2d" or "2022-05-01 02:00:00", or picked from a calendar. `value` binds; `onChange` reports the same change. */
@@ -193,7 +192,7 @@
           class="h-8 w-8 shrink-0"
           {disabled}
         >
-          <Icon icon={CalendarIcon} class="h-4 w-4" />
+          <Icon icon="calendar" class="h-4 w-4" />
         </Button>
       {/snippet}
     </PopoverTrigger>

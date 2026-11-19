@@ -7,7 +7,6 @@
   import Heading from "../../lib/ui/Heading.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
-  import { X } from "../../lib/studio/icons";
   let {
     owner,
     lang,
@@ -54,7 +53,7 @@
         label={text("close")}
         onclick={(event) => {
           if (current(event)) owner.dismissInstall();
-        }}><Icon icon={X} /></IconButton
+        }}><Icon icon="x" /></IconButton
       >
     </div>
     {#if $view.steps || ($view.ios && !$view.safari)}<p
@@ -78,7 +77,7 @@
         label={text("close")}
         onclick={(event) => {
           if (current(event)) owner.dismissInstall();
-        }}><Icon icon={X} /></IconButton
+        }}><Icon icon="x" /></IconButton
       >
     </div>
     <p class="m-0 text-muted-foreground">{text("benefits")}</p>

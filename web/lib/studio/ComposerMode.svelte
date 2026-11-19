@@ -3,7 +3,6 @@
   import type { HTMLButtonAttributes } from "svelte/elements";
   import { composerModeVariants, type ComposerModeVariants } from "./composer";
   import Icon from "./Icon.svelte";
-  import { X } from "./icons";
   import { cn } from "./utils";
 
   /** An active mode, e.g. Plan or Web search. Its icon turns into an × on hover. */
@@ -38,6 +37,6 @@
   <span class="group-hover/mode:hidden [&_svg]:text-current!"
     >{@render icon()}</span
   >
-  <Icon icon={X} class="hidden text-current! group-hover/mode:block" />
+  <Icon icon="x" class="hidden text-current! group-hover/mode:block" />
   {@render children?.()}
 </button>

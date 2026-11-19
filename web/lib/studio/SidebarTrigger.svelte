@@ -2,7 +2,6 @@
   import type { ComponentProps } from "svelte";
   import Button from "./Button.svelte";
   import Icon from "./Icon.svelte";
-  import { LayoutLeft } from "./icons";
   import { useSidebar } from "./sidebar";
   import Tooltip from "./Tooltip.svelte";
   import TooltipContent from "./TooltipContent.svelte";
@@ -40,7 +39,7 @@
           }}
           {...rest}
         >
-          <Icon icon={LayoutLeft} />
+          <Icon icon="layout-left" />
           <span class="sr-only">Toggle Sidebar</span>
         </Button>
       {/snippet}

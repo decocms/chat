@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Cube01, Globe01, Lock01, Users01 } from "../../../lib/studio/icons";
   import type { Option } from "../../../lib/studio/multi-select";
   import MultiSelect from "../../../lib/studio/MultiSelect.svelte";
 
@@ -15,10 +14,10 @@
   ];
 
   const roleOptions: Option[] = [
-    { label: "Admins", value: "admins", icon: Lock01 },
-    { label: "Members", value: "members", icon: Users01 },
-    { label: "Guests", value: "guests", icon: Globe01 },
-    { label: "Service accounts", value: "service-accounts", icon: Cube01 },
+    { label: "Admins", value: "admins", icon: "lock-01" },
+    { label: "Members", value: "members", icon: "users-01" },
+    { label: "Guests", value: "guests", icon: "globe-01" },
+    { label: "Service accounts", value: "service-accounts", icon: "cube-01" },
   ];
 
   const noop = () => {};

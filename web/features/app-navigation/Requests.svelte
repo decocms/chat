@@ -2,7 +2,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { X } from "../../lib/studio/icons";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
@@ -76,7 +75,7 @@
             label={homeText(lang, "decline")}
             disabled={!!busy || !answer}
             onclick={() => run(key, answer && (() => answer(false)))}
-            ><Icon icon={X} size={14} /></IconButton
+            ><Icon icon="x" size={14} /></IconButton
           >
         </div>
         {#if failed === key}<p

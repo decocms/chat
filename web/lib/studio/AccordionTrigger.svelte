@@ -3,7 +3,6 @@
   import { getContext } from "svelte";
   import { ACCORDION_LOCK, type AccordionLock } from "./Accordion.svelte";
   import Icon from "./Icon.svelte";
-  import { ChevronRight } from "./icons";
   import { cn } from "./utils";
 
   let {
@@ -42,7 +41,7 @@
           >
             {@render children?.()}
             <Icon
-              icon={ChevronRight}
+              icon="chevron-right"
               class="text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200"
             />
           </button>

@@ -10,14 +10,6 @@
   import CommandSeparator from "../../../lib/studio/CommandSeparator.svelte";
   import CommandShortcut from "../../../lib/studio/CommandShortcut.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import {
-    Calendar,
-    Mail01,
-    Plus,
-    Settings01,
-    User01,
-    Users01,
-  } from "../../../lib/studio/icons";
 
   let { story }: { story: string } = $props();
 
@@ -31,25 +23,25 @@
       <CommandEmpty>No results found.</CommandEmpty>
       <CommandGroup heading="Suggestions">
         <CommandItem>
-          <Icon icon={Plus} /> New connection
+          <Icon icon="plus" /> New connection
         </CommandItem>
         <CommandItem>
-          <Icon icon={Calendar} /> Schedule a task
+          <Icon icon="calendar" /> Schedule a task
         </CommandItem>
         <CommandItem>
-          <Icon icon={Mail01} /> Invite a member
+          <Icon icon="mail-01" /> Invite a member
         </CommandItem>
       </CommandGroup>
       <CommandSeparator />
       <CommandGroup heading="Settings">
         <CommandItem>
-          <Icon icon={User01} /> Profile<CommandShortcut>⇧⌘P</CommandShortcut>
+          <Icon icon="user-01" /> Profile<CommandShortcut>⇧⌘P</CommandShortcut>
         </CommandItem>
         <CommandItem>
-          <Icon icon={Users01} /> Members<CommandShortcut>⌘M</CommandShortcut>
+          <Icon icon="users-01" /> Members<CommandShortcut>⌘M</CommandShortcut>
         </CommandItem>
         <CommandItem>
-          <Icon icon={Settings01} /> Organization settings<CommandShortcut
+          <Icon icon="settings-01" /> Organization settings<CommandShortcut
             >⌘,</CommandShortcut
           >
         </CommandItem>

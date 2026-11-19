@@ -3,13 +3,6 @@
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import {
-    ArrowLeft,
-    ChevronDown,
-    Inbox01,
-    MessageCircle01,
-    SearchMd,
-  } from "../../lib/studio/icons";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import { isDmId } from "../../../shared/dm";
@@ -66,7 +59,7 @@
     services.t(text, vars);
   // PhoneTabBar's tabs, Chat selected (a room opens on its chat).
   const tabs = $derived([
-    { id: "chat", label: "Chat", icon: MessageCircle01 },
+    { id: "chat", label: "Chat", icon: "message-circle-01" as const },
     { id: "doc", label: "Doc", icon: paneIcons.doc },
     { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
     { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },
@@ -129,7 +122,7 @@
             ]}
           >
             <Icon
-              icon={MessageCircle01}
+              icon="message-circle-01"
               size={16}
               class="shrink-0 text-muted-foreground"
             />
@@ -214,7 +207,7 @@
           label={t("Suas salas")}
           size="icon"
           class="rounded-full"
-          onclick={onhome}><Icon icon={ArrowLeft} size={16} /></IconButton
+          onclick={onhome}><Icon icon="arrow-left" size={16} /></IconButton
         >
         <div
           class="flex min-w-0 flex-1 basis-0 items-center gap-2.5 px-1.5 py-1"
@@ -240,7 +233,7 @@
                 >{:else}<span class="flex h-5 items-center"
                   >{@render line("w-32")}</span
                 >{/if}<Icon
-                icon={ChevronDown}
+                icon="chevron-down"
                 size={16}
                 class="shrink-0"
               /></span
@@ -250,12 +243,12 @@
         <span
           aria-hidden="true"
           class="grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon={SearchMd} size={16} /></span
+          ><Icon icon="search-md" size={16} /></span
         >
         <span
           aria-hidden="true"
           class="relative grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon={Inbox01} size={16} />{#if waits}<Count
+          ><Icon icon="inbox-01" size={16} />{#if waits}<Count
               value={waits}
               label={t("Esperando você: {n}", { n: waits })}
               class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"

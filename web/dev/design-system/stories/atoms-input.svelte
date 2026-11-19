@@ -5,7 +5,6 @@
 <script lang="ts">
   import Button from "../../../lib/studio/Button.svelte";
   import Icon from "../../../lib/studio/Icon.svelte";
-  import { Copy01, SearchMd } from "../../../lib/studio/icons";
   import Input from "../../../lib/studio/Input.svelte";
   import InputGroup from "../../../lib/studio/InputGroup.svelte";
   import InputGroupAddon from "../../../lib/studio/InputGroupAddon.svelte";
@@ -106,7 +105,7 @@
   <div class="grid w-80 gap-4">
     <InputGroup>
       <InputGroupAddon>
-        <Icon icon={SearchMd} />
+        <Icon icon="search-md" />
       </InputGroupAddon>
       <InputGroupInput placeholder="Search connections" />
     </InputGroup>
@@ -122,7 +121,7 @@
         variant="ghost"
         size="icon-sm"
       >
-        <Icon icon={Copy01} />
+        <Icon icon="copy-01" />
       </Button>
     </InputGroup>
     <InputGroup>
