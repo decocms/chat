@@ -538,3 +538,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the per-section scroll for the DM sidebar only.
 - Risk: low
 - Undo: Revert this commit.
+
+### 2026-11-19 · fix/snappier-room-switch · Shorter room-switch transition
+- Agent: claude-opus-5-5
+- Context: The human asked to make the room switch feel more snappy. The view transition froze the screen for up to 300 ms while it waited for the next room's state, then animated for about 260 ms.
+- Decision: The wait is at most 120 ms. The old conversation fades out in 90 ms; the new one rises in 150 ms after 30 ms. The browser's crossfade of the rest of the page is 150 ms, not 250 ms (set from `browser.ts` with `updateTiming`, so no new CSS). I kept the custom router and did not add a routing library.
+- Other options: No wait (the new room can show empty, then fill). SvelteKit `onNavigate` (a rewrite of the app shell). A Svelte SPA router (it does not remove the room-specific route code).
+- Risk: low. A slow room can animate in before its messages arrive.
+- Undo: Revert this commit.
+- Status: open
