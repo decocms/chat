@@ -725,6 +725,13 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep one lime `any` icon at 192 px for the desktop install icon (the desktop icon then mixes two images at different sizes).
 - Risk: low. A desktop install (Chrome on Windows or macOS) can show the mark without the lime square.
 - Undo: Revert this commit.
+### 2026-11-19 · fix/composer-keeps-sent-text · Compare the sent text, do not lock the field
+- Agent: claude-opus-5-5
+- Context: A phone keyboard can send an input event with the same text after Enter. The composer counted it as an edit, kept the sent text in the box, and people sent the message again (two copies in a DM).
+- Decision: An input event with the same text is not an edit. When the message arrives, the box clears if it holds the same text, reply and files as the message that was sent.
+- Other options: Lock the text field while the message is sent. That stops fast typing of the next message, which the composer supports now.
+- Risk: low
+- Undo: Revert the commit.
 - Status: open
 
 ### 2026-11-19 · feat/inbox-triage · The home's Inbox is a page at /?inbox
