@@ -235,3 +235,29 @@ export function threadWorkers(
     ? [{ who: last.via || "Agent", email: last.author }]
     : [];
 }
+/** Day divider (Gui #3423): true when `current` starts a new local calendar day after `previous`. */
+export const newDay = (
+  previous: ChatMessage | undefined,
+  current: ChatMessage,
+) =>
+  !previous ||
+  new Date(previous.ts).toDateString() !== new Date(current.ts).toDateString();
+/** "Hoje", "Ontem", else a weekday and date ("quarta, 18 de nov."), with the year when it isn't this year. */
+export function dayLabel(
+  ts: number,
+  now: number,
+  locale: string | undefined,
+  t: (text: string) => string,
+) {
+  const d = new Date(ts),
+    today = new Date(now);
+  if (d.toDateString() === today.toDateString()) return t("Hoje");
+  if (d.toDateString() === new Date(now - 864e5).toDateString())
+    return t("Ontem");
+  return d.toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
