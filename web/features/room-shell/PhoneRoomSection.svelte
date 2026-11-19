@@ -8,8 +8,16 @@
    * Files tab and People & agents closes the Claude tab. Same components and
    * props as the desktop sidebar.
    */
-  let { part, sidebar }: { part: "pins" | "people"; sidebar: SidebarProps } =
-    $props();
+  let {
+    part,
+    sidebar,
+    members = false,
+  }: {
+    part: "pins" | "people";
+    sidebar: SidebarProps;
+    /** Desktop: the pane beside the chat, laid out like a member list. */
+    members?: boolean;
+  } = $props();
 </script>
 
 <div data-phone-room-section={part} class="p-2">
@@ -31,6 +39,8 @@
         name={sidebar.vb.name}
         ago={sidebar.vb.ago}
         locale={sidebar.locale}
+        surface={members ? "background" : "sidebar"}
+        large={members}
       />{/snippet}
     <People
       room={sidebar.room}
@@ -43,5 +53,6 @@
       }}
       {agents}
       onopen={sidebar.appNavigation?.controller.callbacks.connect}
+      {members}
     />{/if}
 </div>

@@ -14,7 +14,8 @@ export type Rule =
   | "atomic"
   | "markdown-file"
   | "markdown-link"
-  | "folder-map";
+  | "folder-map"
+  | "native-icon";
 export type Violation = {
   rule: Rule;
   file: string;
@@ -125,6 +126,9 @@ export function auditSvelte(path: string, text: string): Violation[] {
     if (badMedia(line)) add("breakpoint", i);
     if (path.endsWith(".svelte") && /<style[\s>]/.test(line))
       add("style-block", i);
+    // Icons come only from the design system (AGENTS.md): type="search" makes the browser draw its own ✕.
+    if (path.endsWith(".svelte") && /\btype=["']search["']/.test(line))
+      add("native-icon", i);
     if (
       path !== "web/styles.ts" &&
       /(?:import\s*\(?\s*|from\s+)["'][^"']+\.css(?:\?[^"']*)?["']/.test(line)

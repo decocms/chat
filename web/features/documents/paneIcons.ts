@@ -9,6 +9,8 @@ export const paneIcons: Record<DocumentPane, IconName> = {
   decisions: "check",
   reminders: "clock",
   agents: "app-agents",
+  people: "users-01",
+  search: "search-md",
   view: "file-06",
 };
 
@@ -28,6 +30,10 @@ export function paneLabel(pane: DocumentPane, en: boolean): string {
       return en ? "Reminders" : "Lembretes";
     case "agents":
       return "Agents";
+    case "people":
+      return en ? "People" : "Pessoas";
+    case "search":
+      return en ? "Search" : "Busca";
     case "view":
       return en ? "Beside chat" : "Ao lado";
     default: {

@@ -769,3 +769,11 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A rename of an app gives it a new colour.
 - Undo: Revert the commit.
 - Status: open
+
+### 2026-11-19 · feat/room-members-search · People & agents beside the chat, and a search for the room's messages
+- Agent: claude-opus-5-5
+- Context: The human asked for People & agents like Discord's member list, beside the chat, and for a search of the room's messages. They reviewed it on a local build and asked to ship it.
+- Decision: Two new panes, `people` and `search` (`DocumentPane`). `people` reuses `PeoplePanel` with a `members` variant (Online / Offline / Invited with counts, 32px faces, offline dimmed, an "Invite people" button) and `AgentPresenceRows` with `large`. The sidebar no longer shows People. `search` is a new component, `web/features/chat/RoomSearch.svelte`: no existing one searched one room's messages. It matches the loaded messages, then the server's `/api/search` filtered to the room, and a click jumps to the message. The field is in the top bar (`roomSearchQuery`). Closing the Doc opens People; closing People closes the pane.
+- Other options: Keep People in the sidebar. Search in the Cmd+K palette with a room filter.
+- Risk: low. The search over loaded messages misses text inside cards.
+- Undo: Revert this commit.

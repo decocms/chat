@@ -17,6 +17,8 @@
   import Chat from "../chat/Chat.svelte";
   import Composer from "../composer/Composer.svelte";
   import DocumentPanel from "../documents/DocumentPanel.svelte";
+  import RoomSearch from "../chat/RoomSearch.svelte";
+  import { threadTitle } from "../room-sidebar/model";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import { isDmId } from "../../../shared/dm";
   import AgentBanners from "../agents/AgentBanners.svelte";
@@ -585,6 +587,24 @@
       {#if $geometry.mobile && $geometry.pane === "agents"}<PhoneRoomSection
           part="people"
           sidebar={$view.sidebar}
+        />{/if}
+      <!-- Desktop: People & agents beside the chat, like Discord's member list (the sidebar no longer has it). -->
+      {#if $geometry.pane === "people"}<div data-pane-people class="min-h-0">
+          <PhoneRoomSection part="people" sidebar={$view.sidebar} members />
+        </div>{/if}
+      {#if $geometry.pane === "search"}<RoomSearch
+          roomId={$view.sidebar.room.id}
+          messages={$view.sidebar.room.messages}
+          epicTitle={(thread) =>
+            threadTitle($view.sidebar.room, thread) ?? null}
+          vb={{
+            t: services.t,
+            name: $view.sidebar.vb.name,
+            ago: $view.sidebar.vb.ago,
+            avatarVersion: $view.sidebar.vb.avatarVersion,
+          }}
+          search={(q, signal) => services.personal.api.search(q, signal)}
+          onjump={(id, thread) => $view?.chat?.actions.navigate(id, thread)}
         />{/if}
     {/if}{/snippet}
   {#snippet board()}{#if $view && boardMounted}{#if Board}<Board
