@@ -9,6 +9,7 @@
   import Label from "../../lib/studio/Label.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
+  import ProfileSettings from "../profile/ProfileSettings.svelte";
   import ThemeIcon from "../app-navigation/ThemeIcon.svelte";
   import ToggleGroup from "../../lib/studio/ToggleGroup.svelte";
   import ToggleGroupItem from "../../lib/studio/ToggleGroupItem.svelte";
@@ -234,6 +235,10 @@
                     >
                   </div>
                 </form>
+                <ProfileSettings
+                  email={$view.me.email}
+                  lang={en ? "en" : "pt"}
+                />
                 {#if $view.phase === "pending" || $view.phase === "confirming"}<p
                     role="status"
                     class="m-0 px-4 py-3 text-sm text-muted-foreground"

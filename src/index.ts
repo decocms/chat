@@ -23,6 +23,7 @@ import { validUnsub } from "./mentionmail";
 import { sendDigests } from "./digest";
 
 import { jwks } from "./mcpauth";
+import { avatarEmail, profileFor } from "./profile";
 import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
 import { pushTo } from "./webpush";
@@ -85,6 +86,11 @@ export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices;
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, created_at INTEGER)`,
+  // Profile stats (src/profile.ts): a daily rollup per person, each Claude Code session's token total seen so far
+  // (for the delta), and each time a plan limit hit 100% (once per window).
+  `CREATE TABLE IF NOT EXISTS user_stats (email TEXT, day TEXT, tokens INTEGER DEFAULT 0, messages INTEGER DEFAULT 0, deploys INTEGER DEFAULT 0, limits_hit INTEGER DEFAULT 0, PRIMARY KEY (email, day))`,
+  `CREATE TABLE IF NOT EXISTS usage_sessions (agent TEXT, sid TEXT, tokens INTEGER, PRIMARY KEY (agent, sid))`,
+  `CREATE TABLE IF NOT EXISTS limit_hits (email TEXT, kind TEXT, reset INTEGER, at INTEGER, PRIMARY KEY (email, kind, reset))`,
   `CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, folder TEXT, summary TEXT, owner TEXT, created_at INTEGER, updated_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS members (book_id TEXT, email TEXT, PRIMARY KEY (book_id, email))`,
   `CREATE TABLE IF NOT EXISTS friends (a TEXT, b TEXT, created_at INTEGER, PRIMARY KEY (a, b))`,
@@ -161,7 +167,7 @@ const SCHEMA = [
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
-const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar_src TEXT`];
+const ALTERS = [`ALTER TABLE sandboxes ADD COLUMN state TEXT`, `ALTER TABLE sandboxes ADD COLUMN run_s INTEGER`, `ALTER TABLE sandboxes ADD COLUMN rate REAL`, `ALTER TABLE sandboxes ADD COLUMN disk_rate REAL`, `ALTER TABLE sandboxes ADD COLUMN checked_at INTEGER`, `ALTER TABLE users ADD COLUMN name TEXT`, `ALTER TABLE books ADD COLUMN last_msg_id INTEGER`, `ALTER TABLE members ADD COLUMN archived_at INTEGER`, `ALTER TABLE books ADD COLUMN epics TEXT`, `ALTER TABLE books ADD COLUMN last_human_id INTEGER`, `ALTER TABLE books ADD COLUMN last_agent_id INTEGER`, `ALTER TABLE agents ADD COLUMN listening_at INTEGER`, `ALTER TABLE agents ADD COLUMN listen_room TEXT`, `ALTER TABLE agents ADD COLUMN repo TEXT`, `ALTER TABLE agent_reads ADD COLUMN seen_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar INTEGER`, `ALTER TABLE users ADD COLUMN mention_mail INTEGER`, `ALTER TABLE members ADD COLUMN claude_on INTEGER`, `ALTER TABLE members ADD COLUMN position INTEGER`, `ALTER TABLE members ADD COLUMN tint TEXT`, `ALTER TABLE books ADD COLUMN icon INTEGER`, `ALTER TABLE books ADD COLUMN busy_until INTEGER`, `ALTER TABLE members ADD COLUMN opened_at INTEGER`, `ALTER TABLE users ADD COLUMN lang TEXT`, `ALTER TABLE agents ADD COLUMN ctx_tokens INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_window INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_at INTEGER`, `ALTER TABLE agents ADD COLUMN ctx_limits TEXT`, `ALTER TABLE users ADD COLUMN session_after INTEGER`, `ALTER TABLE users ADD COLUMN router INTEGER`, `ALTER TABLE members ADD COLUMN fire_at INTEGER`, `ALTER TABLE books ADD COLUMN dm TEXT`, `ALTER TABLE agents ADD COLUMN machine_id TEXT`, `ALTER TABLE friends ADD COLUMN msg TEXT`, `ALTER TABLE friends ADD COLUMN declined_at INTEGER`, `ALTER TABLE users ADD COLUMN avatar_src TEXT`, `ALTER TABLE users ADD COLUMN handle TEXT`, `ALTER TABLE users ADD COLUMN profile_public INTEGER`, `CREATE UNIQUE INDEX IF NOT EXISTS users_handle ON users (handle)`];
 // Only when the schema text changed since the last run (a cold isolate used to send ~60 DDL writes to the primary).
 const schemaKey = (alters: string[]) => { let h = 0; for (const ch of [...SCHEMA, ...alters].join(";")) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0; return String(h); };
 export const ensureSchema = (db: D1Database) =>
@@ -187,7 +193,7 @@ app.use("*", async (c, next) => {
 //   cross-site, is refused: the session cookie is SameSite=Lax already, this is the second lock (also for /ws, /yjs).
 // - Pages that act with your session (the app, login, OAuth consent, mail links) can't be framed by anyone,
 //   so no site can overlay an invisible "Permitir" on the consent page (clickjacking).
-const NO_FRAME = /^\/($|archived|settings|login|b\/|authorize|auth\/|mail\/)/;
+const NO_FRAME = /^\/($|archived|settings|login|b\/|u\/|authorize|auth\/|mail\/)/;
 app.use("*", async (c, next) => {
   const url = new URL(c.req.url);
   const origin = c.req.header("origin");
@@ -202,7 +208,7 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.use("/auth/*", async (c, next) => { c.set("auth", authServices(c, { roomAccess: async (id) => roomAccess(c.env.DB, id, await identify(c)) })); await next(); });
+app.use("/auth/*", async (c, next) => { c.set("auth", authServices(c, { roomAccess: async (id) => roomAccess(c.env.DB, id, await identify(c)), profile: async (who) => profileFor(c.env.DB, await identify(c), who) })); await next(); });
 app.route("/", authApi);
 app.route("/auth", auth);
 app.route("/", connect);
@@ -265,6 +271,16 @@ app.get("/b/*", async (c) => {
   const res = page.status === 503 ? page : new HTMLRewriter().on("title", { element: (el) => { el.replace(roomMeta(url.origin, id, state === "missing" ? null : title), { html: true }); } }).transform(page);
   return pageview(c, res, email ?? undefined);
 });
+
+// A person's profile page (src/profile.ts): the same page for everyone; what it shows comes from /auth/profile/:who,
+// which decides who may see it. The avatar by handle, so the page never carries the email.
+app.get("/u/:handle/avatar", async (c) => {
+  const email = await avatarEmail(c.env.DB, await identify(c), c.req.param("handle"));
+  if (!email) return c.notFound();
+  const obj = await c.env.FILES.get(`avatars/${email}`);
+  return obj ? new Response(obj.body, { headers: { ...fileHeaders(obj.httpMetadata?.contentType ?? "image/png", "avatar"), "cache-control": "public, max-age=300" } }) : c.notFound();
+});
+app.get("/u/:handle", async (c) => pageview(c, await authPage(c.env, c.req.raw, "profile"), (await identify(c)) ?? undefined));
 
 // Agent file upload by link (MCP upload_link): PUT the raw bytes once, within 10 minutes. The token is the gate.
 app.put("/api/upload/:token", async (c) => {

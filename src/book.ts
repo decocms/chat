@@ -37,6 +37,7 @@ import { decide, type Question } from "./jev";
 import { track } from "./track";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
+import { bumpStat } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
 
 // OpenRouter reports each call's USD cost in usage.raw.cost; the admin sums it per model.
@@ -1500,6 +1501,7 @@ export class Book extends DurableObject<Env> {
       if (this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE email = ? AND msg_id = ? AND status = 'doing'`, now + 1, email, replyTo).rowsWritten)
         this.pushAcks(`email = ? AND ts = ?`, email, now + 1);
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", agent: true } }));
+    this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     this.ctx.waitUntil(this.markBusy(!done));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
     return { ok: true, id: m.id };
@@ -1769,6 +1771,7 @@ export class Book extends DurableObject<Env> {
     this.reopenIfArchived(thread);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
+    this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
     return { ok: true, id: m.id, thread };
   }
@@ -2140,6 +2143,7 @@ export class Book extends DurableObject<Env> {
         this.ctx.waitUntil(
           track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
         );
+        this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
         await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
         return;
       }

@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
-const VERSION = "1.7.5";
+const VERSION = "1.7.6";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -286,6 +286,43 @@ function sessionContext(sid: string): { tokens: number; window: number } | undef
     }
   } catch {}
 }
+/** Every token this Claude Code session spent so far (input, cached input and output of each model call), for the
+ *  profile stats. Read incrementally: ~/.vibebook/usage/<session>.json keeps the byte offset and the sum, so each call
+ *  reads only what the transcript grew. One model call can span several lines with the same message id: counted once. */
+const USAGE = join(HOME, "usage");
+function sessionUsage(sid: string): number | undefined {
+  if (!/^[\w-]{8,80}$/.test(sid)) return;
+  try {
+    const root = join(homedir(), ".claude", "projects");
+    const dir = readdirSync(root).find((d) => existsSync(join(root, d, `${sid}.jsonl`)));
+    if (!dir) return;
+    const file = join(USAGE, `${sid}.json`);
+    const st = readJson<{ off: number; total: number; last: string }>(file, { off: 0, total: 0, last: "" });
+    const fd = openSync(join(root, dir, `${sid}.jsonl`), "r");
+    const size = fstatSync(fd).size;
+    if (size < st.off) Object.assign(st, { off: 0, total: 0, last: "" });
+    const n = Math.min(size - st.off, 64 << 20);
+    const buf = Buffer.alloc(n);
+    readSync(fd, buf, 0, n, st.off);
+    closeSync(fd);
+    const text = buf.toString("utf8");
+    const end = text.lastIndexOf("\n") + 1; // a half-written last line waits for the next call
+    for (const line of text.slice(0, end).split("\n")) {
+      if (!line.includes('"usage"')) continue;
+      try {
+        const m = JSON.parse(line)?.message;
+        const u = m?.usage;
+        if (!u || (m.id && m.id === st.last)) continue;
+        st.last = m.id ?? "";
+        st.total += (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+      } catch {}
+    }
+    st.off += Buffer.byteLength(text.slice(0, end), "utf8");
+    mkdirSync(USAGE, { recursive: true });
+    writeFileSync(file, JSON.stringify(st));
+    return st.total;
+  } catch {}
+}
 // Claude Code hands its statusLine command what the transcript lacks: the model's context window and the plan's
 // limits (5-hour and weekly, % used + reset). `vibebook statusline [your command]` keeps them per session in
 // ~/.vibebook/status/<session>.json, then runs your command with the same input (its output is the statusline).
@@ -359,6 +396,8 @@ const myContext = (): Record<string, string> => {
   if (!c) return {};
   const st = sessionStatus(sid);
   const h: Record<string, string> = { "x-vibebook-context": `${c.tokens}/${st?.window ?? c.window}` };
+  const used = sessionUsage(sid);
+  if (used !== undefined) h["x-vibebook-usage"] = `${sid}:${used}`;
   if (st?.limits && Object.keys(st.limits).length) h["x-vibebook-limits"] = JSON.stringify(st.limits);
   return h;
 };

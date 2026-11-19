@@ -1,4 +1,17 @@
 import { TERMINAL_RENDERER_SOURCE } from "./terminal-vendor-policy";
+
+/** The holographic profile card (Gui #3579): this one file may move its foil and tilt by setting these custom
+ *  properties with `element.style.setProperty(<literal name>, …)`. Nothing else: no other property, no colors. */
+export const HOLO_SOURCE = "web/features/profile/holo.ts";
+export const HOLO_PROPERTIES = [
+  "--mx",
+  "--my",
+  "--posx",
+  "--posy",
+  "--rx",
+  "--ry",
+  "--active",
+];
 import ts from "typescript";
 import { parse } from "svelte/compiler";
 import postcss from "postcss";
@@ -151,6 +164,22 @@ export function auditPresentation(
     // The card protocol's `props.style` is a closed semantic variant, not CSS.
     // Permit only strict comparisons with its catalog values, never mutation,
     // forwarding as inline CSS, computed access, or reading DOM style fields.
+    // `x.style.setProperty("--mx", …)` in HOLO_SOURCE, with a listed name as a string literal.
+    const holoProperty = (node: ts.PropertyAccessExpression) => {
+      const call = node.parent?.parent;
+      return (
+        file === HOLO_SOURCE &&
+        node.name.text === "style" &&
+        ts.isPropertyAccessExpression(node.parent) &&
+        node.parent.name.text === "setProperty" &&
+        !!call &&
+        ts.isCallExpression(call) &&
+        call.expression === node.parent &&
+        !!call.arguments[0] &&
+        ts.isStringLiteralLike(call.arguments[0]) &&
+        HOLO_PROPERTIES.includes(call.arguments[0].text)
+      );
+    };
     const cardVariantComparison = (node: ts.PropertyAccessExpression) => {
       if (
         node.name.text !== "style" ||
@@ -223,7 +252,8 @@ export function auditPresentation(
       if (
         ts.isPropertyAccessExpression(node) &&
         ["style", "adoptedStyleSheets"].includes(node.name.text) &&
-        !cardVariantComparison(node)
+        !cardVariantComparison(node) &&
+        !holoProperty(node)
       )
         add(at, `CSSOM access: ${node.name.text}`);
       if (

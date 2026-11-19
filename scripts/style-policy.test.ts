@@ -175,3 +175,20 @@ test("terminal constructor aliases cannot import vendor runtime outside its scop
       auditPresentation("web/lib/components/test.ts", source).length,
     ).toBeGreaterThan(0);
 });
+
+test("only the holo card file may set its listed custom properties", () => {
+  const ok =
+    'export const f = (el: HTMLElement) => el.style.setProperty("--mx", "10%");';
+  expect(auditPresentation("web/features/profile/holo.ts", ok)).toEqual([]);
+  expect(
+    auditPresentation("web/features/other/holo.ts", ok).length,
+  ).toBeGreaterThan(0);
+  for (const bad of [
+    'export const f = (el: HTMLElement) => el.style.setProperty("color", "red");',
+    'export const f = (el: HTMLElement, n: string) => el.style.setProperty(n, "red");',
+    'export const f = (el: HTMLElement) => { el.style.color = "red"; };',
+  ])
+    expect(
+      auditPresentation("web/features/profile/holo.ts", bad).length,
+    ).toBeGreaterThan(0);
+});

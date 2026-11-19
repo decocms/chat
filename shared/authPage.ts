@@ -7,6 +7,7 @@ export const AuthPageMetadata = z.object({
     "consent",
     "file-access",
     "connection-error",
+    "profile",
   ]),
   lang: z.enum(["pt", "en"]),
   autoAccess: z.boolean(),

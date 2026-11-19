@@ -68,6 +68,7 @@ test("the consent page's sign-out form returns to the login with its next", asyn
             title: null,
             email: null,
           }),
+          profile: async () => null,
         }),
       );
       await next();
@@ -97,6 +98,7 @@ function authFixture(over: Partial<AuthServices> = {}) {
       id === "abc123"
         ? { state: "ask", title: "Room", email: "a@x.dev" }
         : { state: "missing", title: null, email: null },
+    profile: async () => null,
     ...over,
   };
   const app = new Hono<AuthCtx>()

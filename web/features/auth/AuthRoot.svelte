@@ -7,6 +7,7 @@
   import AccessPage from "./AccessPage.svelte";
   import ConsentPage from "./ConsentPage.svelte";
   import ConnectionErrorPage from "./ConnectionErrorPage.svelte";
+  import ProfilePage from "../profile/ProfilePage.svelte";
   import { fileTargetFromURL } from "../file-viewer/model";
   let {
     metadata,
@@ -60,6 +61,10 @@
       />{:else}<AuthFrame title={authText(metadata.lang, "missing")}
         ><p>{authText(metadata.lang, "missingBody")}</p></AuthFrame
       >{/if}
+  {:else if metadata.page === "profile"}<ProfilePage
+      handle={decodeURIComponent(url.pathname.split("/")[2] ?? "")}
+      lang={metadata.lang}
+    />
   {:else if metadata.page === "connection-error"}<ConnectionErrorPage
       lang={metadata.lang}
       failure={metadata.connectionFailure ?? "failed"}

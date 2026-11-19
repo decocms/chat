@@ -28,6 +28,7 @@
   import Attachments from "./Attachments.svelte";
   import ThreadCards from "../room-sidebar/ThreadCards.svelte";
   import { swipeMessage } from "./swipe";
+  import PersonCard from "../profile/PersonCard.svelte";
   let {
     message: m,
     previous,
@@ -293,25 +294,33 @@
             size="base"
             class="text-base"
           />{:else if m.kind === "agent"}<!-- As in the classic app: the agent's tile, with the person it speaks for in the corner. -->
-          <div class="relative size-10" title={author(m)}>
-            <AgentMark
-              via={m.via}
-              tint
+          <PersonCard
+            email={m.author}
+            lang={vb.locale?.startsWith("en") ? "en" : "pt"}
+            ><div class="relative size-10" title={author(m)}>
+              <AgentMark
+                via={m.via}
+                tint
+                size="base"
+                class="text-lg"
+              /><PersonAvatar
+                size="xs"
+                data-avatar="person"
+                email={m.author}
+                version={vb.avatarVersion(m.author)}
+                class="absolute -right-1.5 -bottom-1.5 size-5 ring-2 ring-background"
+              />
+            </div></PersonCard
+          >{:else}<PersonCard
+            email={m.author}
+            lang={vb.locale?.startsWith("en") ? "en" : "pt"}
+            ><PersonAvatar
               size="base"
-              class="text-lg"
-            /><PersonAvatar
-              size="xs"
               data-avatar="person"
               email={m.author}
               version={vb.avatarVersion(m.author)}
-              class="absolute -right-1.5 -bottom-1.5 size-5 ring-2 ring-background"
-            />
-          </div>{:else}<PersonAvatar
-            size="base"
-            data-avatar="person"
-            email={m.author}
-            version={vb.avatarVersion(m.author)}
-          />{/if}{:else}<time
+            /></PersonCard
+          >{/if}{:else}<time
           title={timestamp}
           class="-mx-3 block text-center text-xs leading-6 whitespace-nowrap text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
           >{vb.hhmm(m.ts)}</time

@@ -41,6 +41,9 @@ import {
   type SandboxTerminalResult,
   AgentLimits,
   type AgentsResult,
+  type ProfileResult,
+  ProfileSettingsBody,
+  type ProfileSettingsResult,
   ClaudeTokenBody,
   type ConnectedResult,
   FreestyleKeyBody,
@@ -204,6 +207,8 @@ export interface ApiServices {
    *  consent transaction's binding cookie. */
   /** The hub router's A/B for this person (src/router.ts), all rooms or one. */
   routerStats(roomId?: string): Promise<RouterStats>;
+  /** Turn your public profile page (/u/<handle>) on or off (src/profile.ts). */
+  setProfilePublic(on: boolean): Promise<ProfileSettingsResult>;
   /** vibebook's model spend (src/reports.ts aiSpend), only for members of the report rooms (METRICS_ROOMS). */
   reportRoom(roomId: string): boolean;
   aiSpend(): Promise<AiSpend>;
@@ -227,6 +232,8 @@ export interface AuthServices {
   logoutAll(): Promise<OkResult | AuthFail>;
   /** Where the caller (signed in or not) stands with a room, from its link: the access page's context. */
   roomAccess(roomId: string): Promise<AccessContext>;
+  /** A profile by handle (anyone, when public) or by email (someone you share a room with); null = not yours to see. */
+  profile(who: string): Promise<ProfileResult | null>;
 }
 export type AuthFail = { error: string; status: 400 | 401 | 403 | 429 | 502 };
 export type AuthCtx = { Variables: { auth: AuthServices } };
@@ -797,7 +804,13 @@ export const connectionsApi = sandboxApi
   });
 
 // GET /api/me (POST /api/me sets your name).
-export const meApi = connectionsApi.get("/api/me", async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200));
+export const meApi = connectionsApi
+  .get("/api/me", async (c) => c.json((await c.get("svc").me()) satisfies MeResult, 200))
+  .post("/api/me/profile", body(ProfileSettingsBody), async (c) => {
+    const svc = c.get("svc"), on = c.req.valid("json").public;
+    svc.track("profile_public", { on });
+    return c.json((await svc.setProfilePublic(on)) satisfies ProfileSettingsResult, 200);
+  });
 
 // The profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.
 const imageHeaders = validator("header", (value, c) => {
@@ -900,6 +913,12 @@ export const authApi = new Hono<AuthCtx>()
     },
   )
   .get("/auth/room/:id", async (c) => c.json((await c.get("auth").roomAccess(c.req.param("id"))) satisfies AccessContext, 200))
+  // A profile card or page (src/profile.ts): public by handle when its owner turned it on, else only for people who
+  // share a room with them. 404 either way, so a private handle can't be told from a missing one.
+  .get("/auth/profile/:who", async (c) => {
+    const p = await c.get("auth").profile(c.req.param("who"));
+    return p ? c.json(p satisfies ProfileResult, 200) : c.json({ error: "not found" } satisfies ErrorBody, 404);
+  })
   .post("/auth/logout", async (c) => {
     const auth = c.get("auth");
     auth.logout();

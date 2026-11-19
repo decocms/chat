@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.7.5";
+var VERSION = "1.7.6";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -298,6 +298,47 @@ function sessionContext(sid) {
     }
   } catch {}
 }
+var USAGE = join(HOME, "usage");
+function sessionUsage(sid) {
+  if (!/^[\w-]{8,80}$/.test(sid))
+    return;
+  try {
+    const root = join(homedir(), ".claude", "projects");
+    const dir = readdirSync(root).find((d) => existsSync(join(root, d, `${sid}.jsonl`)));
+    if (!dir)
+      return;
+    const file = join(USAGE, `${sid}.json`);
+    const st = readJson(file, { off: 0, total: 0, last: "" });
+    const fd = openSync(join(root, dir, `${sid}.jsonl`), "r");
+    const size = fstatSync(fd).size;
+    if (size < st.off)
+      Object.assign(st, { off: 0, total: 0, last: "" });
+    const n = Math.min(size - st.off, 64 << 20);
+    const buf = Buffer.alloc(n);
+    readSync(fd, buf, 0, n, st.off);
+    closeSync(fd);
+    const text = buf.toString("utf8");
+    const end = text.lastIndexOf(`
+`) + 1;
+    for (const line of text.slice(0, end).split(`
+`)) {
+      if (!line.includes('"usage"'))
+        continue;
+      try {
+        const m = JSON.parse(line)?.message;
+        const u = m?.usage;
+        if (!u || m.id && m.id === st.last)
+          continue;
+        st.last = m.id ?? "";
+        st.total += (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+      } catch {}
+    }
+    st.off += Buffer.byteLength(text.slice(0, end), "utf8");
+    mkdirSync(USAGE, { recursive: true });
+    writeFileSync(file, JSON.stringify(st));
+    return st.total;
+  } catch {}
+}
 var STATUS = join(HOME, "status");
 function statusline() {
   const input = readFileSync(0);
@@ -391,6 +432,9 @@ var myContext = () => {
     return {};
   const st = sessionStatus(sid);
   const h = { "x-vibebook-context": `${c.tokens}/${st?.window ?? c.window}` };
+  const used = sessionUsage(sid);
+  if (used !== undefined)
+    h["x-vibebook-usage"] = `${sid}:${used}`;
   if (st?.limits && Object.keys(st.limits).length)
     h["x-vibebook-limits"] = JSON.stringify(st.limits);
   return h;
