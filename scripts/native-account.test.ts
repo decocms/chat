@@ -1,17 +1,17 @@
 // Pure owners and actual typed HTTP boundary fixtures, not Worker/WebAuthn runtime acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { createAccountSession } from "../svelte/features/account/session";
+import { createAccountSession } from "../web/features/account/session";
 import {
   AccountFailure,
   createAccountApi,
   type AccountApi,
-} from "../svelte/features/account/api";
-import { createPersonalSession } from "../svelte/features/home/personal";
+} from "../web/features/account/api";
+import { createPersonalSession } from "../web/features/home/personal";
 import {
   createDeviceLock,
   DEVICE_LOCK_AFTER,
-} from "../svelte/features/account/device";
+} from "../web/features/account/device";
 import {
   deferred,
   homeApi,
@@ -321,7 +321,7 @@ test("unsupported device authentication remains explicit without clearing an exi
 
 test("actual logout helper is single-flight and refuses POST after observed account replacement during cleanup", async () => {
   const { createAccountLogout } =
-    await import("../svelte/features/account/logout");
+    await import("../web/features/account/logout");
   const cleanup = deferred<{ confirmed: boolean }>();
   let identity = { email: "a@test", revision: 1 },
     posts = 0,
@@ -356,7 +356,7 @@ test("actual logout helper is single-flight and refuses POST after observed acco
 });
 test("actual logout helper preserves unconfirmed cleanup warning, endpoint choice, failure reload and success navigation", async () => {
   const { createAccountLogout } =
-    await import("../svelte/features/account/logout");
+    await import("../web/features/account/logout");
   for (const ok of [false, true]) {
     const events: string[] = [];
     const logout = createAccountLogout({
@@ -391,7 +391,7 @@ test("actual logout helper preserves unconfirmed cleanup warning, endpoint choic
 });
 test("disposed logout helper cannot POST, alert or reload after late cleanup", async () => {
   const { createAccountLogout } =
-    await import("../svelte/features/account/logout");
+    await import("../web/features/account/logout");
   const cleanup = deferred<{ confirmed: boolean }>();
   const events: string[] = [];
   const logout = createAccountLogout({

@@ -219,7 +219,7 @@ export async function runDevelopmentProcesses(
         "--no-install",
         "vite",
         "--config",
-        "svelte/vite.config.ts",
+        "web/vite.config.ts",
         "--mode",
         "app",
         "--clearScreen",

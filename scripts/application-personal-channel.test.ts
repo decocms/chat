@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import type { AuthClock } from "../svelte/features/auth/owner";
-import { createPersonalConnection } from "../svelte/features/home/connection";
+import type { AuthClock } from "../web/features/auth/owner";
+import { createPersonalConnection } from "../web/features/home/connection";
 import {
   createApplicationPersonalChannel,
   type PersonalChannelIdentity,
   type PersonalChannelRoom,
-} from "../svelte/features/application/personal-channel";
+} from "../web/features/application/personal-channel";
 
 function harness() {
   let sequence = 0;

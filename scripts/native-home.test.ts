@@ -1,9 +1,9 @@
 // Pure owners/protocol fixtures. These assertions do not represent Worker or browser acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { waitIndicator } from "../svelte/features/waits/model";
+import { waitIndicator } from "../web/features/waits/model";
 import { avatarKey, avatarUrl } from "../shared/avatar";
-import { dmPeer, roomAvatarVersion } from "../svelte/features/room-scope/model";
+import { dmPeer, roomAvatarVersion } from "../web/features/room-scope/model";
 import type { Room } from "../shared/room";
 type PersonalSocketFixture = {
   readyState: WebSocket["readyState"];
@@ -12,26 +12,26 @@ type PersonalSocketFixture = {
   onclose: WebSocket["onclose"];
   close(): void;
 };
-import { createHomeApi } from "../svelte/features/home/api";
+import { createHomeApi } from "../web/features/home/api";
 import {
   byImportance,
   fanClasses,
   fanSize,
   fanSlot,
   inFan,
-} from "../svelte/features/home/deskHand";
-import { createPersonalSession } from "../svelte/features/home/personal";
+} from "../web/features/home/deskHand";
+import { createPersonalSession } from "../web/features/home/personal";
 import {
   createHomeSession,
   createNewRoomSession,
   createArchivedSession,
-} from "../svelte/features/home/session";
-import { createRoomsSession } from "../svelte/features/rooms/session";
-import { createSearchSession } from "../svelte/features/app-navigation/search";
+} from "../web/features/home/session";
+import { createRoomsSession } from "../web/features/rooms/session";
+import { createSearchSession } from "../web/features/app-navigation/search";
 import {
   createApplicationRouter,
   applicationRoute,
-} from "../svelte/features/app-navigation/router";
+} from "../web/features/app-navigation/router";
 import {
   plainWaitText,
   waitKind,
@@ -46,11 +46,11 @@ import {
   titleOwnDm,
   personVersion,
   roomLabel,
-} from "../svelte/features/home/model";
+} from "../web/features/home/model";
 import {
   contacts,
   matchContacts,
-} from "../svelte/features/app-navigation/contacts";
+} from "../web/features/app-navigation/contacts";
 import {
   deferred,
   homeApi,
@@ -562,7 +562,7 @@ test("only asks resolve, and obsolete room mutation responses cannot survive acc
 
 test("personal socket ignores replaced/disposed callbacks and current-room message-only invalidations", async () => {
   const { createPersonalConnection } =
-    await import("../svelte/features/home/connection");
+    await import("../web/features/home/connection");
   const timer = manualClock();
   let account = 0,
     agents = 0,
@@ -924,7 +924,7 @@ test("room path matching rejects suffixes and encoded separators", () => {
 });
 test("each successful personal reconnect reconciles once and old socket open cannot refresh", async () => {
   const { createPersonalConnection } =
-    await import("../svelte/features/home/connection");
+    await import("../web/features/home/connection");
   const timer = manualClock();
   let reads = 0;
   function socket(): PersonalSocketFixture & { open(): void; lost(): void } {
@@ -1006,7 +1006,7 @@ test("agents timeout releases ownership even when aborted transport never settle
 
 test("navigation account reset releases private rename draft and return-focus reference", async () => {
   const { createAppNavigationSession } =
-    await import("../svelte/features/app-navigation/controller");
+    await import("../web/features/app-navigation/controller");
   const timer = manualClock();
   let current = me({ books: [room("aaaaaa", { title: "Private A title" })] });
   const personal = createPersonalSession(homeApi({ me: async () => current }), {

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { dayLabel, newDay } from "../svelte/features/chat/model";
+import { dayLabel, newDay } from "../web/features/chat/model";
 const t = (s: string) => s;
 const at = (iso: string) =>
   ({

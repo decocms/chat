@@ -6,7 +6,7 @@ import {
   createDecisionsSession,
   decisionRows,
   type DecisionsClock,
-} from "../svelte/features/decisions/model";
+} from "../web/features/decisions/model";
 const decision: Decision = {
   id: 7,
   kind: "decision",

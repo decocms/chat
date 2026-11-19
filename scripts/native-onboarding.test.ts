@@ -1,20 +1,17 @@
 // Ownership/protocol fixtures. No provider, Worker, browser speech or Claude connection is represented.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { createAccountSession } from "../svelte/features/account/session";
-import {
-  AccountFailure,
-  type AccountApi,
-} from "../svelte/features/account/api";
-import { createPersonalSession } from "../svelte/features/home/personal";
-import { createNewRoomSession } from "../svelte/features/home/session";
-import { createOnboardingSession } from "../svelte/features/onboarding/session";
+import { createAccountSession } from "../web/features/account/session";
+import { AccountFailure, type AccountApi } from "../web/features/account/api";
+import { createPersonalSession } from "../web/features/home/personal";
+import { createNewRoomSession } from "../web/features/home/session";
+import { createOnboardingSession } from "../web/features/onboarding/session";
 import {
   ONBOARDING_DONE,
   ONBOARDING_SKIP_CLAUDE,
   onboardingEligible,
   onboardingStep,
-} from "../svelte/features/onboarding/model";
+} from "../web/features/onboarding/model";
 import {
   deferred,
   homeApi,
@@ -22,8 +19,8 @@ import {
   me,
   settle,
 } from "./native-home-fixtures";
-import type { HomeApi } from "../svelte/features/home/api";
-import type { RoomTarget } from "../svelte/features/home/model";
+import type { HomeApi } from "../web/features/home/api";
+import type { RoomTarget } from "../web/features/home/model";
 
 async function fixture(
   options: {

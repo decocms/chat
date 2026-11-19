@@ -8,7 +8,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import { createHash } from "node:crypto";
 import postcss, { type AnyNode } from "postcss";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 import {
   auditPresentation,
   auditTailwind,
@@ -30,73 +30,72 @@ async function collect(path: string) {
 }
 if (native) {
   for (const directory of [
-    "browser",
-    "svelte/lib/ui",
-    "svelte/lib/studio",
-    "svelte/parity",
-    "svelte/lib/components",
-    "svelte/gallery",
-    "svelte/styles",
-    "svelte/features/board",
-    "svelte/features/navigation",
-    "svelte/features/pins",
-    "svelte/features/reminders",
-    "svelte/features/files",
-    "svelte/features/decisions",
-    "svelte/features/people",
-    "svelte/features/auth",
-    "svelte/features/pwa",
-    "svelte/features/notifications",
-    "svelte/features/chat",
-    "svelte/features/rich-text",
-    "svelte/features/chat-interactive",
-    "svelte/features/home",
-    "svelte/features/onboarding",
-    "svelte/features/app-navigation",
-    "svelte/features/rooms",
-    "svelte/features/documents",
-    "svelte/features/account",
-    "svelte/features/agents",
-    "svelte/features/sandboxes",
-    "svelte/features/file-viewer",
-    "svelte/features/composer",
-    "svelte/features/room-sidebar",
-    "svelte/features/waits",
-    "svelte/features/apps",
-    "svelte/features/room-layout",
-    "svelte/features/application",
-    "svelte/features/room-shell",
+    "web/app-document",
+    "web/lib/ui",
+    "web/lib/studio",
+    "web/dev/design-system",
+    "web/lib/components",
+    "web/dev/gallery",
+    "web/styles",
+    "web/features/board",
+    "web/features/navigation",
+    "web/features/pins",
+    "web/features/reminders",
+    "web/features/files",
+    "web/features/decisions",
+    "web/features/people",
+    "web/features/auth",
+    "web/features/pwa",
+    "web/features/notifications",
+    "web/features/chat",
+    "web/features/rich-text",
+    "web/features/chat-interactive",
+    "web/features/home",
+    "web/features/onboarding",
+    "web/features/app-navigation",
+    "web/features/rooms",
+    "web/features/documents",
+    "web/features/account",
+    "web/features/agents",
+    "web/features/sandboxes",
+    "web/features/file-viewer",
+    "web/features/composer",
+    "web/features/room-sidebar",
+    "web/features/waits",
+    "web/features/apps",
+    "web/features/room-layout",
+    "web/features/application",
+    "web/features/room-shell",
   ])
     await collect(directory);
   files.push(
-    "svelte/Inbox.svelte",
-    "svelte/TaskList.svelte",
-    "svelte/Tasks.svelte",
-    "svelte/Board.svelte",
-    "svelte/Files.svelte",
-    "svelte/Reminders.svelte",
-    "svelte/Decisions.svelte",
-    "svelte/People.svelte",
-    "svelte/Sidebar.svelte",
-    "svelte/sidebar.ts",
-    "svelte/Chat.svelte",
-    "svelte/Composer.svelte",
-    "svelte/Message.svelte",
-    "svelte/chatTypes.ts",
-    "svelte/styles.ts",
-    "svelte/index.html",
-    "svelte/parity.html",
+    "web/features/application/Inbox.svelte",
+    "web/features/tasks/TaskList.svelte",
+    "web/features/tasks/Tasks.svelte",
+    "web/features/board/Board.svelte",
+    "web/features/files/Files.svelte",
+    "web/features/reminders/Reminders.svelte",
+    "web/features/decisions/Decisions.svelte",
+    "web/features/people/People.svelte",
+    "web/features/room-sidebar/Sidebar.svelte",
+    "web/app/sidebar.ts",
+    "web/features/chat/Chat.svelte",
+    "web/features/composer/Composer.svelte",
+    "web/features/chat/Message.svelte",
+    "web/app/chatTypes.ts",
+    "web/styles.ts",
+    "web/dev/gallery.html",
+    "web/dev/design-system.html",
   );
 } else {
-  await collect("svelte");
-  await collect("browser");
+  await collect("web");
   files.push("public/app.html");
 }
 for (const file of files.sort()) {
   const source = await readFile(join(projectRoot, file), "utf8");
   if (file.endsWith(".d.ts")) continue;
   if (/\.(?:css|scss|sass|less)$/.test(file)) {
-    if (file !== "svelte/styles/tailwind.css")
+    if (file !== "web/styles/tailwind.css")
       issues.push({ file, line: 1, reason: "Additional authored stylesheet" });
     else issues.push(...auditTailwind(file, source));
   } else issues.push(...auditPresentation(file, source));
@@ -162,7 +161,7 @@ if (
   !generator.tailwind ||
   typeof generator.tailwind !== "object" ||
   !("css" in generator.tailwind) ||
-  generator.tailwind.css !== "svelte/styles/tailwind.css"
+  generator.tailwind.css !== "web/styles/tailwind.css"
 )
   throw new Error("Component generator must use the sole Tailwind entry");
 if (
@@ -208,7 +207,7 @@ const families = new Map([
   [TERMINAL_VENDOR_FAMILY, new Set(["@xterm/xterm", "@xterm/addon-fit"])],
 ]);
 const vendor: unknown = JSON.parse(
-  await readFile(join(projectRoot, "svelte/styles/vendor-css.json"), "utf8"),
+  await readFile(join(projectRoot, "web/styles/vendor-css.json"), "utf8"),
 );
 if (
   !vendor ||

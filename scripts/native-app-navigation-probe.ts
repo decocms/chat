@@ -9,7 +9,7 @@ import {
   MeResult,
   PostMessageResult,
 } from "../shared/schemas";
-import { createRoomApi } from "../svelte/transport";
+import { createRoomApi } from "../web/app/transport";
 import { localBrowserError } from "./native-browser-fixtures";
 import type { NativeApplicationAuditFixture } from "./native-application-browser-types";
 import {

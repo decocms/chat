@@ -1,7 +1,7 @@
-import { chatTime, chatDateTime } from "../svelte/features/chat/time";
-import { productionStatuses } from "../svelte/features/chat/production";
+import { chatTime, chatDateTime } from "../web/features/chat/time";
+import { productionStatuses } from "../web/features/chat/production";
 import { expect, test } from "bun:test";
-import { visibleChatMessages } from "../svelte/features/chat/privacy";
+import { visibleChatMessages } from "../web/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
 import {
   continues,
@@ -9,8 +9,8 @@ import {
   messageFooters,
   threadWorkers,
   reminderParts,
-} from "../svelte/features/chat/model";
-import { agentMark } from "../svelte/lib/components/agent";
+} from "../web/features/chat/model";
+import { agentMark } from "../web/lib/components/agent";
 const message = (id: number, text = "text", thread = "main"): Message => ({
   id,
   text,

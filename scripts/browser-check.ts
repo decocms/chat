@@ -4,7 +4,7 @@ import { receivedEvent, sentFrame } from "./room-frames";
 import { chromium, expect as baseExpect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { parseRoomEvent } from "../shared/validation";
-import { createRoomStore } from "../svelte/roomStore";
+import { createRoomStore } from "../web/app/roomStore";
 import * as z from "zod/mini";
 import {
   openNativeRoomPane,

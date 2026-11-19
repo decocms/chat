@@ -15,7 +15,7 @@ import AxeBuilder from "@axe-core/playwright";
 import * as z from "zod/mini";
 import { UploadFileResult } from "../shared/schemas";
 import { parseRoomEvent } from "../shared/validation";
-import { createRoomStore } from "../svelte/roomStore";
+import { createRoomStore } from "../web/app/roomStore";
 import {
   nativeBrowserFixtures,
   openNativeRoomPane,

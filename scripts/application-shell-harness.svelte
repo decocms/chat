@@ -1,8 +1,8 @@
 <script lang="ts">
-  import AppShell from "../svelte/features/application/AppShell.svelte";
-  import type { BrowserApplicationServices } from "../svelte/features/application/browser";
-  import type { ApplicationShellEffects } from "../svelte/features/application/shellTypes";
-  import Button from "../svelte/lib/studio/Button.svelte";
+  import AppShell from "../web/features/application/AppShell.svelte";
+  import type { BrowserApplicationServices } from "../web/features/application/browser";
+  import type { ApplicationShellEffects } from "../web/features/application/shellTypes";
+  import Button from "../web/lib/studio/Button.svelte";
   let {
     services,
     effects,

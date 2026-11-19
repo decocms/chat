@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { build } from "vite";
-import { clientBoundary } from "../svelte/build/clientBoundary";
+import { clientBoundary } from "../web/build/clientBoundary";
 
 // Real nested browser builds, using the production default worker plugin setup:
 // no worker.plugins override. A parent-only module fixture cannot prove these edges.

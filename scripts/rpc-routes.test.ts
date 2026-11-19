@@ -891,7 +891,7 @@ test("avatar and room icon: same origin, type, size and rate limits keep their o
 });
 
 test("global middleware answers (401 signed out, 403 cross-site) are typed by globalFailure", async () => {
-  const { globalFailure } = await import("../svelte/lib/client/api");
+  const { globalFailure } = await import("../web/lib/client/api");
   const { CROSS_SITE, UNAUTHENTICATED } = await import("../shared/schemas");
   expect(globalFailure({ status: 401 }, UNAUTHENTICATED)).toEqual({
     status: 401,
@@ -911,7 +911,7 @@ test("global middleware answers (401 signed out, 403 cross-site) are typed by gl
 
 test("native raw-body adapters (icon, avatar) go through the typed routes and check the answers", async () => {
   const { createRoomApi, createAccountApi } =
-    await import("../svelte/transport");
+    await import("../web/app/transport");
   const f = fixture();
   const fetcher = (input: RequestInfo | URL, init?: RequestInit) =>
     Promise.resolve(

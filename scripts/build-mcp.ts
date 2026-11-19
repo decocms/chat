@@ -1,7 +1,7 @@
 // Builds the MCP-App UI into one self-contained HTML (dist-mcp/index.html),
 // which the Worker imports as text (wrangler.jsonc rules) and serves from ui://vibebook/*.
 import { join } from "node:path";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 import { buildBrowser } from "./browser-build";
 
 export async function buildMcp(

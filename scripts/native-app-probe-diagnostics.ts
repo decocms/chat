@@ -47,8 +47,8 @@ export function probeHTTP(phase: ProbePhase, status: number, body?: unknown) {
 }
 const allowed = new Set([
   "scripts/native-app-navigation-probe.ts",
-  "svelte/transport.ts",
-  "svelte/lib/client/api.ts",
+  "web/app/transport.ts",
+  "web/lib/client/api.ts",
 ]);
 export function probeFailure(error: unknown) {
   const sourceFrames: string[] = [];

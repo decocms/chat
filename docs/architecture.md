@@ -58,12 +58,12 @@ Rules:
 
 ## Browser apps
 
-- Svelte 5 is the only app (`svelte/`). Its shell is `public/app.html`. The app is at `/`.
+- The browser app is Svelte 5, in `web/`. Its shell is `public/app.html`. The app is at `/`.
 - A person who is not signed in gets `/login`. There is no landing page.
 - deco Studio is the only sign-in. `/login` sends the person directly to Studio (`/auth/studio/start`). The login page shows only after a failed sign-in (`?error=`) or after a sign-out (`?out=1`). This stops a redirect loop.
 - The browser and the server communicate only through typed RPC. The rules are in [stack.md](stack.md).
 - Wire contracts are in `shared/` (zod schemas). The API routes in `src/api.ts` use these schemas. The browser gets only the types (`hc<AppType>`).
-- The browser build must not import backend code. `svelte/build/clientBoundary.ts` stops the build if it does.
+- The browser build must not import backend code. `web/build/clientBoundary.ts` stops the build if it does.
 
 ## AI-native formats
 

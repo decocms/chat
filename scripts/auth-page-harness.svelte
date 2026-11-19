@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Readable } from "svelte/store";
-  import type { AuthApi } from "../svelte/features/auth/api";
+  import type { AuthApi } from "../web/features/auth/api";
   import type { NativeAuthMetadata } from "../shared/nativeAuth";
-  import AuthRoot from "../svelte/features/auth/AuthRoot.svelte";
+  import AuthRoot from "../web/features/auth/AuthRoot.svelte";
   let {
     href,
     page,

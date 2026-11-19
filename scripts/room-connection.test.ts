@@ -5,7 +5,7 @@ import {
   encodeResult,
   RpcErrorCode,
 } from "../shared/jsonRpc";
-import { createRoomConnection } from "../svelte/roomConnection";
+import { createRoomConnection } from "../web/app/roomConnection";
 import type { RoomEvent } from "../shared/room";
 
 type Timer = number | ReturnType<typeof setTimeout>;

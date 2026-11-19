@@ -29,10 +29,10 @@ test("classic bootstrap rejects missing/duplicate nonces and HTML script termina
 test("build emits the classic bootstrap string and leaves an unchanged module alone", async () => {
   const root = await mkdtemp(join(tmpdir(), "vibebook-app-document-build-"));
   try {
-    await mkdir(join(root, "browser/app-document"), { recursive: true });
+    await mkdir(join(root, "web/app-document"), { recursive: true });
     await mkdir(join(root, "shared/generated"), { recursive: true });
     await writeFile(
-      join(root, "browser/app-document/bootstrap.ts"),
+      join(root, "web/app-document/bootstrap.ts"),
       'window.addEventListener("message",()=>{ console.info("__VIBEBOOK_APP_DOCUMENT_NONCE__") });',
     );
     await buildAppDocument({ root });
@@ -60,7 +60,7 @@ test("build emits the classic bootstrap string and leaves an unchanged module al
       'export const secret="backend-only"',
     );
     await writeFile(
-      join(root, "browser/app-document/bootstrap.ts"),
+      join(root, "web/app-document/bootstrap.ts"),
       'import {secret} from "../../src/private"; console.info(secret, "__VIBEBOOK_APP_DOCUMENT_NONCE__");',
     );
     await expect(buildAppDocument({ root })).rejects.toThrow(

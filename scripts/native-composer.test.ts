@@ -4,7 +4,7 @@ import {
   createComposerDrafts,
   definiteMessageFailure,
   type ComposerClock,
-} from "../svelte/features/composer/drafts";
+} from "../web/features/composer/drafts";
 import {
   mediaType,
   normalizeFile,
@@ -18,16 +18,16 @@ import {
   emojiPicks,
   insertAt,
   matchingMessage,
-} from "../svelte/features/composer/model";
+} from "../web/features/composer/model";
 import {
   createSpeechController,
   type SpeechRecognizer,
-} from "../svelte/features/composer/speech";
+} from "../web/features/composer/speech";
 import {
   privateAskForOther,
   permissionReply,
   visibleChatMessages,
-} from "../svelte/features/chat/privacy";
+} from "../web/features/chat/privacy";
 import type { Message, Room, Attachment } from "../shared/room";
 import type { RoomCommand, CommandOutcome } from "../shared/commands";
 import type { UploadFileResult } from "../shared/schemas";

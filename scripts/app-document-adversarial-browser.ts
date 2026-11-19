@@ -120,7 +120,7 @@ export async function auditAppDocumentAdversarial(
         );
         const oldWindow = oldFrame?.contentWindow;
         old?.dispose();
-        const imported: typeof import("../browser/app-document/host") =
+        const imported: typeof import("../web/app-document/host") =
           await import(/* @vite-ignore */ hostModuleURL);
         const frame = document.createElement("iframe");
         frame.dataset.matrixFrame = "";

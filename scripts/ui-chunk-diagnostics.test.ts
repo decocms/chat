@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { diagnosticModuleLabel } from "../svelte/build/chunkDiagnostics";
+import { diagnosticModuleLabel } from "../web/build/chunkDiagnostics";
 import {
   attributeChunks,
   ChunkDiagnostic,
   type MetricChunkInput,
-} from "../svelte/build/chunkDiagnosticModel";
+} from "../web/build/chunkDiagnosticModel";
 const revision = "a".repeat(40),
   hash = "b".repeat(64);
 function fixture(): ChunkDiagnostic {
@@ -51,14 +51,14 @@ function fixture(): ChunkDiagnostic {
         true,
         [],
         ["mount.js"],
-        [module("project:svelte/bootstrap.ts", null, 10)],
+        [module("project:web/main.ts", null, 10)],
       ),
       asset(
         "mount.js",
         false,
         ["Button.js"],
         ["editor.js"],
-        [module("project:svelte/NativeApplication.svelte", null, 100)],
+        [module("project:web/NativeApplication.svelte", null, 100)],
       ),
       asset(
         "Button.js",
@@ -83,13 +83,13 @@ function fixture(): ChunkDiagnostic {
     ],
     moduleGraph: [
       {
-        id: "project:svelte/bootstrap.ts",
+        id: "project:web/main.ts",
         isEntry: true,
         staticImports: [],
-        dynamicImports: ["project:svelte/NativeApplication.svelte"],
+        dynamicImports: ["project:web/NativeApplication.svelte"],
       },
       {
-        id: "project:svelte/NativeApplication.svelte",
+        id: "project:web/NativeApplication.svelte",
         isEntry: false,
         staticImports: ["npm:@modelcontextprotocol/sdk@1.7.4/schema.js"],
         dynamicImports: ["npm:codemirror@1.7.4/editor.js"],
@@ -135,8 +135,8 @@ test("actual observed dynamic startup attributes modules/packages rather than mi
   );
   expect(actual.loadedBeyondBootstrapStatic).toEqual(["mount.js", "Button.js"]);
   expect(actual.largestModules[0].sourceImportWitness).toEqual([
-    { id: "project:svelte/bootstrap.ts", via: "entry" },
-    { id: "project:svelte/NativeApplication.svelte", via: "dynamic" },
+    { id: "project:web/main.ts", via: "entry" },
+    { id: "project:web/NativeApplication.svelte", via: "dynamic" },
     { id: "npm:@modelcontextprotocol/sdk@1.7.4/schema.js", via: "static" },
   ]);
   expect(actual.selectedAssets.reduce((n, a) => n + a.gzipBytes, 0)).toBe(300);
@@ -190,8 +190,8 @@ test("module identities retain package version/source scope but strip physical r
     const alias = join(dir, "alias");
     await symlink(physical, alias, "dir");
     const label = diagnosticModuleLabel(alias);
-    expect(label(join(physical, "svelte", "Root.svelte")).id).toBe(
-      "project:svelte/Root.svelte",
+    expect(label(join(physical, "web", "Root.svelte")).id).toBe(
+      "project:web/Root.svelte",
     );
     const dependency = label(
       join(physical, "node_modules", "@scope", "parser", "dist", "index.js"),
@@ -220,7 +220,7 @@ test("module identities retain package version/source scope but strip physical r
       label(join(duplicate, "dist", "index.js")).id === dependency.id,
     ).toBe(false);
     const query = label(
-      join(alias, "svelte", "Root.svelte") + "?secret=never-persist-this",
+      join(alias, "web", "Root.svelte") + "?secret=never-persist-this",
     );
     expect(query.id).not.toContain("never-persist");
     expect(query.id).not.toContain(dir);
@@ -245,9 +245,9 @@ test("module project identity survives aliases above and at the root with missin
     await symlink(project, join(parent, "root-alias"), "dir");
     await symlink(parent, ancestor, "dir");
     const label = diagnosticModuleLabel(join(ancestor, "root-alias"));
-    expect(
-      label(join(ancestor, "project", "svelte", "Missing.svelte")).id,
-    ).toBe("project:svelte/Missing.svelte");
+    expect(label(join(ancestor, "project", "web", "Missing.svelte")).id).toBe(
+      "project:web/Missing.svelte",
+    );
     const external = label(join(ancestor, "unrelated", "secret.ts"));
     expect(external.id).toMatch(/^external:[a-f0-9]{20}$/);
     expect(external.id).not.toContain("secret");

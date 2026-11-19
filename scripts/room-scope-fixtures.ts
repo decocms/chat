@@ -1,17 +1,17 @@
 import { get, writable } from "svelte/store";
 import type { Room, RoomEvent } from "../shared/room";
-import { createRoomScope } from "../svelte/features/room-scope/controller";
-import { createRoomResources } from "../svelte/features/application/roomResources";
+import { createRoomScope } from "../web/features/room-scope/controller";
+import { createRoomResources } from "../web/features/application/roomResources";
 import type {
   RoomLayoutController,
   RoomLayoutState,
-} from "../svelte/features/room-layout/types";
-import type { HomeApi } from "../svelte/features/home/api";
+} from "../web/features/room-layout/types";
+import type { HomeApi } from "../web/features/home/api";
 import { shellFixture } from "./application-shell-fixtures";
 import { settle } from "./native-home-fixtures";
-import type { RoomTarget } from "../svelte/features/home/model";
-import type { PwaService } from "../svelte/features/pwa/service";
-import type { PushState } from "../svelte/features/notifications/reconcile";
+import type { RoomTarget } from "../web/features/home/model";
+import type { PwaService } from "../web/features/pwa/service";
+import type { PushState } from "../web/features/notifications/reconcile";
 
 /** PWA/browser effects are not under test in the pure room-owner cohort. DOM
  * fixtures keep shellFixture's real owner default; no browser globals are set. */

@@ -3,7 +3,7 @@ import type { BuildConfig, BunPlugin } from "bun";
 import {
   createClientBoundaryPolicy,
   projectRoot,
-} from "../svelte/build/clientBoundary";
+} from "../web/build/clientBoundary";
 
 /** Apply the same policy as Vite without replacing Bun's native module resolution. */
 export function bunClientBoundary(root: string): BunPlugin {

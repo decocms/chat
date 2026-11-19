@@ -68,7 +68,7 @@ export async function auditAppDocumentFilePost(options: {
     const { AppDocumentClaim, withAppDocumentBootstrap } =
       await import("../shared/appDocument");
     const build = await buildBrowser({
-      entrypoints: [resolve("svelte/features/apps/bridge.ts")],
+      entrypoints: [resolve("web/features/apps/bridge.ts")],
       format: "esm",
     });
     const bridgeOutput = build.outputs[0];
@@ -275,7 +275,7 @@ export async function auditAppDocumentFilePost(options: {
     await page.evaluate(
       async ({ filePath, marker }) => {
         const moduleURL = "/native-bridge.js";
-        const module: typeof import("../svelte/features/apps/bridge") =
+        const module: typeof import("../web/features/apps/bridge") =
           await import(/* @vite-ignore */ moduleURL);
         const frame = document.createElement("iframe");
         frame.name = `app-document-${crypto.randomUUID()}`;

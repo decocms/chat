@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { InboxResult } from "../shared/schemas";
-import type { Wait, InboxMention, InboxTask } from "../svelte/types";
-import { roomInboxModel } from "../svelte/features/application/roomInboxModel";
-import { createApplicationInbox } from "../svelte/features/application/inbox";
+import type { Wait, InboxMention, InboxTask } from "../web/app/types";
+import { roomInboxModel } from "../web/features/application/roomInboxModel";
+import { createApplicationInbox } from "../web/features/application/inbox";
 import { roomScopeFixture } from "./room-scope-fixtures";
 import { deferred, me, settle } from "./native-home-fixtures";
 const wait = (ref: string, ts = 2, book_id = "aaaaaa"): Wait => ({

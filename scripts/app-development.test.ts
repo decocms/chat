@@ -10,8 +10,8 @@ import {
   sourceShell,
   workerProxy,
   workerRoutes,
-} from "../svelte/build/appDevelopment";
-import { projectRoot } from "../svelte/build/clientBoundary";
+} from "../web/build/appDevelopment";
+import { projectRoot } from "../web/build/clientBoundary";
 
 test("only app pages select source HTML", () => {
   for (const path of [
@@ -36,7 +36,7 @@ test("only app pages select source HTML", () => {
     "/oauth/code",
   ])
     expect(new RegExp(workerRoutes).test(path)).toBe(true);
-  expect(new RegExp(workerRoutes).test("/bootstrap.ts")).toBe(false);
+  expect(new RegExp(workerRoutes).test("/main.ts")).toBe(false);
   expect(new RegExp(workerRoutes).test("/app")).toBe(false);
 });
 
@@ -45,7 +45,7 @@ test("source HTML removes production version and compiled entry without changing
   const dev = sourceShell(
     shell.replace("<head>", '<head><meta name="vb-v" content="production" />'),
   );
-  expect(dev).toContain('src="/bootstrap.ts"');
+  expect(dev).toContain('src="/main.ts"');
   expect(dev).not.toContain('name="vb-v"');
   expect(dev).not.toContain("/svelte-preview/ui.css");
   expect(dev).not.toContain("/svelte-preview/app.js");
@@ -150,7 +150,7 @@ test("native auth error shells retain status and cookies while using source HMR"
       expect(res.statusCode).toBe(fixture.status);
       expect(headers["set-cookie"]).toEqual(["local-fixture=1; HttpOnly"]);
       if (fixture.transform) {
-        expect(body).toContain('src="/bootstrap.ts"');
+        expect(body).toContain('src="/main.ts"');
         expect(body).toContain("<!-- HMR -->");
         expect(body).not.toContain('name="vb-v"');
         expect(body).not.toContain("/svelte-preview/ui.css");
@@ -333,7 +333,7 @@ test("selected consent POST forwards exact raw form, cookie and origin boundary 
           expect(res.headers["x-consent-test"]).toBe("kept");
           if (fixture.transform) {
             expect(res.body).toContain("<!-- HMR -->");
-            expect(res.body).toContain('src="/bootstrap.ts"');
+            expect(res.body).toContain('src="/main.ts"');
             expect(res.body).not.toContain('name="vb-v"');
             expect(res.headers.etag).toBeUndefined();
             expect(res.headers["cache-control"]).toBe("no-store");
@@ -557,8 +557,8 @@ test("runtime contracts reload while component/style edits remain HMR", () => {
       true,
     );
   for (const file of [
-    "svelte/Chat.svelte",
-    "svelte/styles/tailwind.css",
+    "web/features/chat/Chat.svelte",
+    "web/styles/tailwind.css",
     ".api-types/src/api.d.ts",
   ])
     expect(requiresAppReload(projectRoot, resolve(projectRoot, file))).toBe(
@@ -582,8 +582,8 @@ test("raw source middleware denies backend and private reads before Vite serves 
     "src/api.ts",
     ".dev.vars",
     ".env.local",
-    "svelte/server/secret.ts",
-    "svelte/foo.server.ts",
+    "web/server/secret.ts",
+    "web/foo.server.ts",
   ])
     for (const query of ["?raw", "?url", ""]) {
       let body = "";
@@ -608,7 +608,7 @@ test("raw source middleware denies backend and private reads before Vite serves 
 
 test("request allowlist excludes tooling, caches, encoded paths and real symlink escapes", async () => {
   const { createDevelopmentRequestPolicy, localRequestUrl, workerRequestUrl } =
-    await import("../svelte/build/developmentRequests");
+    await import("../web/build/developmentRequests");
   const { mkdtemp, mkdir, writeFile, symlink, rename, rm } =
     await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
@@ -616,8 +616,8 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
   const deps = await mkdtemp(resolve(tmpdir(), "vb-dev-dependencies-"));
   try {
     for (const dir of [
-      "svelte/build",
-      "svelte/lib",
+      "web/build",
+      "web/lib",
       "shared",
       "public",
       "src",
@@ -627,7 +627,7 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
     ])
       await mkdir(resolve(root, dir), { recursive: true });
     for (const file of [
-      "svelte/lib/ok.ts",
+      "web/lib/ok.ts",
       "shared/contracts.ts",
       "src/secret.ts",
       "scripts/build.ts",
@@ -637,7 +637,7 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
       await writeFile(resolve(root, file), "export const value = 1");
     await symlink(
       resolve(root, "src/secret.ts"),
-      resolve(root, "svelte/lib/backend.ts"),
+      resolve(root, "web/lib/backend.ts"),
     );
     await symlink(
       resolve(root, "scripts/build.ts"),
@@ -645,7 +645,7 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
     );
     await symlink(
       resolve(root, ".wrangler/tmp/worker.js"),
-      resolve(root, "svelte/lib/cache.js"),
+      resolve(root, "web/lib/cache.js"),
     );
     await rename(resolve(root, "node_modules"), resolve(deps, "node_modules"));
     await symlink(resolve(deps, "node_modules"), resolve(root, "node_modules"));
@@ -666,11 +666,11 @@ test("request allowlist excludes tooling, caches, encoded paths and real symlink
       "wrangler.jsonc",
       ".wrangler/tmp/worker.js",
       ".wrangler/qa-test/worker.js",
-      "svelte/build/appDevelopment.ts",
-      "svelte/vite.config.ts",
-      "svelte/tsconfig.json",
-      "svelte/lib/backend.ts",
-      "svelte/lib/cache.js",
+      "web/build/appDevelopment.ts",
+      "web/vite.config.ts",
+      "web/tsconfig.json",
+      "web/lib/backend.ts",
+      "web/lib/cache.js",
       "public/escape.js",
       "node_modules/.cache/worker.js",
     ])
@@ -1006,7 +1006,7 @@ test("only explicit native denied file navigations transform; successful bytes a
         throw Error("native file bypassed");
       });
       expect(res.statusCode).toBe(status);
-      expect(res.body).toContain('src="/bootstrap.ts"');
+      expect(res.body).toContain('src="/main.ts"');
       expect(res.body).toContain("<!-- HMR -->");
       expect(res.headers["set-cookie"]).toEqual(["session=next; HttpOnly"]);
     }
@@ -1063,7 +1063,7 @@ test("whole project and external dependency aliases share one physical source bo
     await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const { createDevelopmentRequestPolicy } =
-    await import("../svelte/build/developmentRequests");
+    await import("../web/build/developmentRequests");
   const storage = await mkdtemp(resolve(tmpdir(), "vb-project-root-alias-"));
   // Model macOS /tmp -> /private/tmp even when this test runs on Linux.
   // A second alias ensures no finite list of root spellings is sufficient.
@@ -1077,7 +1077,7 @@ test("whole project and external dependency aliases share one physical source bo
     depAlias = resolve(base, "logical-dependencies");
   try {
     for (const directory of [
-      "svelte/lib",
+      "web/lib",
       "shared",
       "public",
       "src",
@@ -1087,7 +1087,7 @@ test("whole project and external dependency aliases share one physical source bo
       await mkdir(resolve(physical, directory), { recursive: true });
     await mkdir(resolve(deps, ".vite/deps"), { recursive: true });
     for (const file of [
-      "svelte/lib/ok.ts",
+      "web/lib/ok.ts",
       "shared/contracts.ts",
       "src/secret.ts",
       "scripts/build.ts",
@@ -1103,7 +1103,7 @@ test("whole project and external dependency aliases share one physical source bo
     await symlink(depAlias, resolve(physical, "node_modules"));
     await symlink(
       resolve(physical, "src/secret.ts"),
-      resolve(physical, "svelte/lib/backend.ts"),
+      resolve(physical, "web/lib/backend.ts"),
     );
     await symlink(
       resolve(physical, "scripts/build.ts"),
@@ -1111,7 +1111,7 @@ test("whole project and external dependency aliases share one physical source bo
     );
     await symlink(
       resolve(physical, ".wrangler/tmp/worker.js"),
-      resolve(physical, "svelte/lib/generated.js"),
+      resolve(physical, "web/lib/generated.js"),
     );
     await symlink(
       resolve(physical, "shared/contracts.ts"),
@@ -1136,9 +1136,9 @@ test("whole project and external dependency aliases share one physical source bo
         "scripts/not-created.ts",
         ".wrangler/tmp/worker.js",
         ".wrangler/not-created/worker.js",
-        "svelte/build/not-created.ts",
-        "svelte/lib/backend.ts",
-        "svelte/lib/generated.js",
+        "web/build/not-created.ts",
+        "web/lib/backend.ts",
+        "web/lib/generated.js",
         "shared/.hidden-alias.ts",
         "shared/private.key",
         "public/escape.js",
@@ -1172,7 +1172,10 @@ test("contract watcher recognizes logical and physical project-root paths, inclu
         expect(requiresAppReload(logical, resolve(candidate, file))).toBe(true);
     for (const candidate of [logical, physical])
       expect(
-        requiresAppReload(logical, resolve(candidate, "svelte/Chat.svelte")),
+        requiresAppReload(
+          logical,
+          resolve(candidate, "web/features/chat/Chat.svelte"),
+        ),
       ).toBe(false);
   } finally {
     await rm(base, { recursive: true, force: true });

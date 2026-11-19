@@ -3,6 +3,6 @@
   "include": [
     "scripts/room-layout*.ts",
     "scripts/browser-static-gallery.ts",
-    "svelte/features/room-layout/**/*.ts"
+    "web/features/room-layout/**/*.ts"
   ]
 }

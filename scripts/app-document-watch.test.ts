@@ -61,7 +61,7 @@ test("source directory watcher follows repeated atomic replacements and excludes
   let notify: (() => void) | undefined;
   const watchers: ReturnType<typeof watchAppDocumentSources> = [];
   try {
-    await mkdir(join(root, "browser/app-document"), { recursive: true });
+    await mkdir(join(root, "web/app-document"), { recursive: true });
     await mkdir(join(root, "shared/generated"), { recursive: true });
     await writeFile(join(root, "shared/appDocumentProtocol.ts"), "original");
     watchers.push(...watchAppDocumentSources(root, () => notify?.()));

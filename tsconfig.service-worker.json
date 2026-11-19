@@ -10,5 +10,5 @@
     "noEmit": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["service-worker/**/*.ts"]
+  "include": ["web/service-worker/**/*.ts"]
 }

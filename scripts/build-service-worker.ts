@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import { bunClientBoundary } from "./browser-build";
-import { projectRoot } from "../svelte/build/clientBoundary";
+import { projectRoot } from "../web/build/clientBoundary";
 export async function buildServiceWorker(root = projectRoot) {
   const result = await Bun.build({
-    entrypoints: [join(root, "service-worker/notifications.ts")],
+    entrypoints: [join(root, "web/service-worker/notifications.ts")],
     target: "browser",
     format: "iife",
     minify: true,

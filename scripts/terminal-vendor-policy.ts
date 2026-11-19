@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 export const TERMINAL_VENDOR_FAMILY = "xterm terminal rendering internals";
 export const TERMINAL_VENDOR_SCOPE = "[data-native-terminal-renderer] .xterm";
 export const TERMINAL_RENDERER_SOURCE =
-  "svelte/features/sandboxes/terminalRenderer.ts";
+  "web/features/sandboxes/terminalRenderer.ts";
 export const TERMINAL_PACKAGES = [
   { name: "@xterm/xterm", version: "5.5.0" },
   { name: "@xterm/addon-fit", version: "0.10.0" },

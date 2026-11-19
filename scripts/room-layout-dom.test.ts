@@ -75,7 +75,7 @@ plugin({
 });
 const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: Fixture } =
-  await import("../svelte/gallery/RoomLayoutFixture.svelte");
+  await import("../web/dev/gallery/RoomLayoutFixture.svelte");
 let cleanup: (() => Promise<void>) | null = null;
 const settle = async () => {
   await Promise.resolve();

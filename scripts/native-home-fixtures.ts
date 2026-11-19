@@ -1,6 +1,6 @@
-import type { HomeApi } from "../svelte/features/home/api";
+import type { HomeApi } from "../web/features/home/api";
 import type { MeResult, RouteResult } from "../shared/schemas";
-import type { AuthClock } from "../svelte/features/auth/owner";
+import type { AuthClock } from "../web/features/auth/owner";
 export const room = (
   id = "aaaaaa",
   extra: Partial<MeResult["books"][number]> = {},

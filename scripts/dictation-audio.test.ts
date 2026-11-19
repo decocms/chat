@@ -1,7 +1,7 @@
 // Direct native-effect adapter coverage retained when runner Fire was retired.
 import { expect, test } from "bun:test";
-import { createFireCaptureFactory } from "../svelte/features/composer/fireAudio";
-import { createDictationController } from "../svelte/features/composer/dictation";
+import { createFireCaptureFactory } from "../web/features/composer/fireAudio";
+import { createDictationController } from "../web/features/composer/dictation";
 import { deferred, manualClock, settle } from "./native-home-fixtures";
 /** Native effects ports for the actual factory, not a mirrored capture owner. */
 function browserAudioFixture(

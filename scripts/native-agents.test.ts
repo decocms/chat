@@ -5,33 +5,33 @@ import {
   createAgentsApi,
   AgentsFailure,
   type AgentsApi,
-} from "../svelte/features/agents/api";
-import { createAgentAccountSession } from "../svelte/features/agents/account";
+} from "../web/features/agents/api";
+import { createAgentAccountSession } from "../web/features/agents/account";
 import {
   createAgentLease,
   type AgentClock,
-} from "../svelte/features/agents/lease";
-import { createSandboxCredentials } from "../svelte/features/sandboxes/credentials";
+} from "../web/features/agents/lease";
+import { createSandboxCredentials } from "../web/features/sandboxes/credentials";
 import {
   createSandboxSession,
   sandboxIdentity,
   type SandboxCard,
-} from "../svelte/features/sandboxes/session";
+} from "../web/features/sandboxes/session";
 import {
   createTerminalSession,
   type TerminalSocket,
-} from "../svelte/features/sandboxes/terminalSession";
-import type { TerminalRenderer } from "../svelte/features/sandboxes/terminalRenderer";
+} from "../web/features/sandboxes/terminalSession";
+import type { TerminalRenderer } from "../web/features/sandboxes/terminalRenderer";
 import {
   terminalEndpoint,
   terminalProtocols,
   terminalDimensions,
   terminalControl,
-} from "../svelte/features/sandboxes/terminalProtocol";
-import { agentQueue } from "../svelte/features/agents/model";
-import { sandboxStateText } from "../svelte/features/sandboxes/copy";
-import { sandboxLog } from "../svelte/features/sandboxes/log";
-import { createRoomAgentSession } from "../svelte/features/agents/room";
+} from "../web/features/sandboxes/terminalProtocol";
+import { agentQueue } from "../web/features/agents/model";
+import { sandboxStateText } from "../web/features/sandboxes/copy";
+import { sandboxLog } from "../web/features/sandboxes/log";
+import { createRoomAgentSession } from "../web/features/agents/room";
 function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: Error) => void;
   const promise = new Promise<T>((yes, no) => {
@@ -508,7 +508,7 @@ test("old renderer cancellation cannot abort a new terminal mount", async () => 
 });
 test("account replacement synchronously fences old grant replies and clears metadata", async () => {
   const { createAgentsService } =
-    await import("../svelte/features/agents/service");
+    await import("../web/features/agents/service");
   const fixture = apiFixture(),
     pending = deferred<Awaited<ReturnType<AgentsApi["grants"]>>>();
   fixture.api.grants = () => pending.promise;
@@ -566,7 +566,7 @@ test("shared session rejection clears account grants immediately; unrelated memb
 });
 test("known session loss from toggle clears shared room/account/wait/credential projections and ignores cached room authority", async () => {
   const { createAgentsService } =
-      await import("../svelte/features/agents/service"),
+      await import("../web/features/agents/service"),
     { UNAUTHENTICATED } = await import("../shared/schemas");
   const fixture = apiFixture();
   fixture.api.grants = async () => ({
@@ -656,7 +656,7 @@ test("initial terminal focus is owned and respects intervening user intent", asy
 });
 test("toggle membership refusal revokes only this room and preserves authorized account grant metadata", async () => {
   const { createAgentsService } =
-    await import("../svelte/features/agents/service");
+    await import("../web/features/agents/service");
   const fixture = apiFixture(),
     service = createAgentsService({
       origin: "https://vibebook.dev",
@@ -763,7 +763,7 @@ test("identity change during recovering read rejects its result and late identit
 });
 test("shared global denial also gates a newly created cached-room actor before exposing projections", async () => {
   const { createAgentsService } =
-      await import("../svelte/features/agents/service"),
+      await import("../web/features/agents/service"),
     { UNAUTHENTICATED } = await import("../shared/schemas");
   const fixture = apiFixture(),
     service = createAgentsService({

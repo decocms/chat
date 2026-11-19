@@ -444,9 +444,7 @@ try {
     const response = await context.request.get(base + path);
     const html = await response.text();
     assert(response.ok());
-    assert(
-      html.includes('src="/bootstrap.ts"') && html.includes("/@vite/client"),
-    );
+    assert(html.includes('src="/main.ts"') && html.includes("/@vite/client"));
     assert(
       !html.includes('name="vb-v"') && !html.includes("/svelte-preview/app.js"),
     );
@@ -457,7 +455,7 @@ try {
   const deniedHTML = await denied.text();
   assert(
     deniedHTML.includes('name="vb-page" content="access"') &&
-      deniedHTML.includes('src="/bootstrap.ts"'),
+      deniedHTML.includes('src="/main.ts"'),
     "Missing room must serve source native access presentation, not RoomShell",
   );
   assert.equal(
@@ -486,7 +484,7 @@ try {
     const inaccessibleHTML = await inaccessible.text();
     assert(
       inaccessibleHTML.includes('name="vb-page" content="access"') &&
-        inaccessibleHTML.includes('src="/bootstrap.ts"'),
+        inaccessibleHTML.includes('src="/main.ts"'),
       "Unauthorized identity receives only the native access source shell",
     );
     const access = AccessContext.parse(
@@ -559,18 +557,18 @@ try {
     resolve(fixtureDir, "index.js"),
     'export const secret = "SYNTHETIC_BACKEND_MUST_NOT_SHIP";',
   );
-  const link = resolve(root, `svelte/lib/hmr-denied-${token}.js`);
+  const link = resolve(root, `web/lib/hmr-denied-${token}.js`);
   await symlink(resolve(fixtureDir, "index.js"), link);
   created.push(link);
   for (const path of [
     "src/api.ts",
     "scripts/dev-app.ts",
     "wrangler.jsonc",
-    "svelte/build/clientBoundary.ts",
-    "svelte/vite.config.ts",
-    "svelte/tsconfig.json",
+    "web/build/clientBoundary.ts",
+    "web/vite.config.ts",
+    "web/tsconfig.json",
     `.wrangler/qa-hmr-${token}/index.js`,
-    `svelte/lib/hmr-denied-${token}.js`,
+    `web/lib/hmr-denied-${token}.js`,
   ])
     for (const query of ["?raw", "?url"])
       assert.equal(
@@ -647,7 +645,7 @@ try {
   await composer.fill(`Unsent HMR draft ${token}`);
   const socketsBefore = roomSockets;
   await mutate(
-    "svelte/Sidebar.svelte",
+    "web/features/room-sidebar/Sidebar.svelte",
     (source) =>
       `${source}\n<span hidden data-hmr-verification="${token}"></span>\n`,
   );
@@ -657,7 +655,7 @@ try {
   assert.equal(await documentId(), token, "Component HMR must not navigate");
   await expect(composer).toHaveValue(`Unsent HMR draft ${token}`);
   await mutate(
-    "svelte/styles/tailwind.css",
+    "web/styles/tailwind.css",
     (source) => `${source}\n:root { --vb-hmr-verification: ${token}; }\n`,
   );
   await poll(
@@ -736,7 +734,7 @@ try {
   await expect(
     filesView.locator(`[data-file-id="${markdownFile.id}"]`),
   ).toHaveCount(0);
-  await mutate("svelte/Files.svelte", (source) =>
+  await mutate("web/features/files/Files.svelte", (source) =>
     source.replace(
       '<section\n  data-view="files"',
       `<section\n  data-hmr-lazy-verification="${token}"\n  data-view="files"`,
@@ -798,7 +796,7 @@ try {
   step(
     "Edit the actual app-document bootstrap and observe the owned generator without rebuilding or restarting",
   );
-  const bootstrapPath = "browser/app-document/bootstrap.ts";
+  const bootstrapPath = "web/app-document/bootstrap.ts";
   const generatedPath = resolve(
     root,
     "shared/generated/appDocumentBootstrap.ts",

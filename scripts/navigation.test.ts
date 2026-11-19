@@ -8,13 +8,13 @@ import {
   reorderEpics,
   sidebarEpics,
   visibleEpics,
-} from "../svelte/features/navigation/model";
+} from "../web/features/navigation/model";
 import {
   createNavigationSession,
   enterNavigationThread,
   toggleNavigationBranch,
   syncNavigationSession,
-} from "../svelte/features/navigation/session";
+} from "../web/features/navigation/session";
 
 const epic = (
   id: string,

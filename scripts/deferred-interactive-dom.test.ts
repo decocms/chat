@@ -59,9 +59,9 @@ const { mount, unmount, flushSync, tick } = await import("svelte");
 const { default: Harness } =
   await import("./deferred-interactive-harness.svelte");
 const { default: InteractiveBody } =
-  await import("../svelte/features/chat-interactive/InteractiveBody.svelte");
+  await import("../web/features/chat-interactive/InteractiveBody.svelte");
 import type { Room, Message } from "../shared/room";
-import type { ChatActions, ChatBridge } from "../svelte/chatTypes";
+import type { ChatActions, ChatBridge } from "../web/app/chatTypes";
 const prompt: Message = {
   id: 1,
   thread: "main",

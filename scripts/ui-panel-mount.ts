@@ -3,21 +3,21 @@ import { flushSync, mount, unmount } from "svelte";
 import type { Component, ComponentProps } from "svelte";
 import { writable } from "svelte/store";
 import View from "./UiPanelView.svelte";
-import Tasks from "../svelte/Tasks.svelte";
-import Board from "../svelte/Board.svelte";
-import Files from "../svelte/Files.svelte";
-import Reminders from "../svelte/Reminders.svelte";
-import Decisions from "../svelte/Decisions.svelte";
-import Sidebar from "../svelte/Sidebar.svelte";
-import Chat from "../svelte/Chat.svelte";
-import Composer from "../svelte/Composer.svelte";
-import DocumentPanel from "../svelte/features/documents/DocumentPanel.svelte";
-import AppsPanel from "../svelte/features/apps/AppsPanel.svelte";
-import AgentSettings from "../svelte/features/agents/AgentSettings.svelte";
-import ThreadHeader from "../svelte/features/room-sidebar/ThreadHeader.svelte";
-import SuggestionPreview from "../svelte/features/room-sidebar/SuggestionPreview.svelte";
-import RoomBarTitle from "../svelte/features/room-shell/RoomBarTitle.svelte";
-export { dismissDialogs } from "../svelte/lib/studio/dialogController";
+import Tasks from "../web/features/tasks/Tasks.svelte";
+import Board from "../web/features/board/Board.svelte";
+import Files from "../web/features/files/Files.svelte";
+import Reminders from "../web/features/reminders/Reminders.svelte";
+import Decisions from "../web/features/decisions/Decisions.svelte";
+import Sidebar from "../web/features/room-sidebar/Sidebar.svelte";
+import Chat from "../web/features/chat/Chat.svelte";
+import Composer from "../web/features/composer/Composer.svelte";
+import DocumentPanel from "../web/features/documents/DocumentPanel.svelte";
+import AppsPanel from "../web/features/apps/AppsPanel.svelte";
+import AgentSettings from "../web/features/agents/AgentSettings.svelte";
+import ThreadHeader from "../web/features/room-sidebar/ThreadHeader.svelte";
+import SuggestionPreview from "../web/features/room-sidebar/SuggestionPreview.svelte";
+import RoomBarTitle from "../web/features/room-shell/RoomBarTitle.svelte";
+export { dismissDialogs } from "../web/lib/studio/dialogController";
 const fixtures = {
   tasks: Tasks,
   board: Board,

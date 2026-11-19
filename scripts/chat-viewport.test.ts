@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import type { Room, Message } from "../shared/room";
 import type { RoomCommand } from "../shared/commands";
-import { createChatPresentation } from "../svelte/features/chat-viewport/presentation";
+import { createChatPresentation } from "../web/features/chat-viewport/presentation";
 import {
   createChatViewport,
   type ChatViewport,
   type ChatSurface,
   type KeepChat,
-} from "../svelte/features/chat-viewport/controller";
+} from "../web/features/chat-viewport/controller";
 const message = (id: number): Message => ({
   id,
   thread: "main",

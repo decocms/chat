@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClientBoundaryPolicy } from "../svelte/build/clientBoundary";
+import { createClientBoundaryPolicy } from "../web/build/clientBoundary";
 
 let root: string;
 beforeAll(async () => {
@@ -11,7 +11,7 @@ beforeAll(async () => {
     "client",
     ".wrangler/qa-test",
     "scripts",
-    "svelte/build",
+    "web/build",
     "shared",
     "node_modules/package/scripts",
   ])
@@ -39,9 +39,9 @@ test("shared browser policy refuses generated backend strings, tooling and symli
     ".api-types/src/api.d.ts",
     "scripts/build.ts",
     "cli/vibebook.ts",
-    "svelte/build/uiVersion.ts",
-    "svelte/vite.config.ts",
-    "svelte/tsconfig.json",
+    "web/build/uiVersion.ts",
+    "web/vite.config.ts",
+    "web/tsconfig.json",
     "wrangler.qa.jsonc",
     "wrangler.toml",
     "shared/private.key",
@@ -65,7 +65,7 @@ test("browser roots, temporary entries and package-internal tooling names remain
     "client/main.ts",
     "shared/value.ts",
     "shared/.browser-value.ts",
-    "svelte/Chat.svelte",
+    "web/features/chat/Chat.svelte",
     "mcp-app/app.ts",
     "public/vendor.js",
     "node_modules/package/scripts/browser.js",
@@ -87,8 +87,8 @@ test("whole project-root aliases retain lexical and physical backend/tooling den
         "scripts/build.ts",
         "scripts/not-created.ts",
         "cli/not-created.ts",
-        "svelte/build/not-created.ts",
-        "svelte/vite.config.ts",
+        "web/build/not-created.ts",
+        "web/vite.config.ts",
         "package.json",
         ".wrangler/not-created/worker.js",
         "shared/private.key",
@@ -130,7 +130,7 @@ test("a checkout under .claude/worktrees passes; its own .claude/ and private fi
   const project = createClientBoundaryPolicy({ projectRoot: checkout });
   for (const path of [
     "shared/value.ts",
-    "svelte/Chat.svelte",
+    "web/features/chat/Chat.svelte",
     "node_modules/pkg/index.css",
   ])
     expect(() => project.assertClient(join(checkout, path))).not.toThrow();

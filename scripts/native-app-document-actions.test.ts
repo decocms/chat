@@ -3,8 +3,8 @@ import { expect, test } from "bun:test";
 import {
   appDocumentAction,
   type AppDocumentCapability,
-} from "../svelte/features/apps/documentAction";
-import { createRoomAppTools, toolError } from "../svelte/features/apps/tools";
+} from "../web/features/apps/documentAction";
+import { createRoomAppTools, toolError } from "../web/features/apps/tools";
 import { deferred, settle } from "./native-home-fixtures";
 import type { Room } from "../shared/room";
 

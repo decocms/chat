@@ -1,5 +1,5 @@
 import type { BrowserContext, Page } from "@playwright/test";
-import type { DocumentPane } from "../svelte/features/documents/types";
+import type { DocumentPane } from "../web/features/documents/types";
 
 export type NativeApplicationProfile = {
   lang: "en" | "pt";

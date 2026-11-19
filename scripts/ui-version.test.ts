@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { build } from "vite";
-import { uiVersion, versionAppShell } from "../svelte/build/uiVersion";
+import { uiVersion, versionAppShell } from "../web/build/uiVersion";
 
 const shell =
   '<!doctype html>\n<link rel="stylesheet" href="/svelte-preview/ui.css">\n<script type="module" src="/svelte-preview/app.js"></script>\n';

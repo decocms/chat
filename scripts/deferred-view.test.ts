@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { createDeferredModule } from "../svelte/features/deferred-view/module";
-import type { AuthClock } from "../svelte/features/auth/owner";
+import { createDeferredModule } from "../web/features/deferred-view/module";
+import type { AuthClock } from "../web/features/auth/owner";
 const flush = async () => {
   await Promise.resolve();
   await Promise.resolve();

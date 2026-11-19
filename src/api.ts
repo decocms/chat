@@ -6,7 +6,7 @@ import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
 // Typed application routes: validated Hono handlers chained into one app whose type (AppType) the Svelte client
-// consumes through hc<AppType> (svelte/lib/client/api.ts, import type only: no backend code reaches the browser).
+// consumes through hc<AppType> (web/lib/client/api.ts, import type only: no backend code reaches the browser).
 // index.ts mounts this app after its auth middleware.
 //
 // Handlers never touch c.env: they get ApiServices (src/services.ts, built per request by index.ts for the signed-in

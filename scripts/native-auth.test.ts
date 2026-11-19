@@ -6,24 +6,24 @@ import {
   AuthFailure,
   oauthQuery,
   type AuthApi,
-} from "../svelte/features/auth/api";
+} from "../web/features/auth/api";
 
-import { createAuthOwner, type AuthClock } from "../svelte/features/auth/owner";
+import { createAuthOwner, type AuthClock } from "../web/features/auth/owner";
 import {
   createLoginSession,
   createAccessSession,
   createConsentSession,
-} from "../svelte/features/auth/session";
+} from "../web/features/auth/session";
 import {
   authContinuation,
   consentReturn,
-} from "../svelte/features/auth/navigation";
+} from "../web/features/auth/navigation";
 import {
   nativeAuthHtml,
   nativeAuthPage,
   consentLoginUrl,
 } from "../src/native-page";
-import { authIssue } from "../svelte/features/auth/copy";
+import { authIssue } from "../web/features/auth/copy";
 import { NativeAuthMetadata } from "../shared/nativeAuth";
 import type { LoginContext } from "../shared/schemas";
 const login: LoginContext = {

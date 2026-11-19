@@ -1,20 +1,20 @@
 {
   "atomic": {
-    "svelte/lib/studio/Combobox.svelte": 6,
-    "svelte/lib/studio/FilterBar.svelte": 6,
-    "svelte/lib/studio/MultiSelect.svelte": 6,
-    "svelte/lib/studio/Tooltip.svelte": 1
+    "web/lib/studio/Combobox.svelte": 6,
+    "web/lib/studio/FilterBar.svelte": 6,
+    "web/lib/studio/MultiSelect.svelte": 6,
+    "web/lib/studio/Tooltip.svelte": 1
   },
   "color": {
-    "svelte/features/composer/ChatField.svelte": 2,
-    "svelte/features/pins/LiveFrame.svelte": 1,
-    "svelte/features/room-shell/RoomSkeleton.svelte": 1,
-    "svelte/lib/studio/composer.ts": 2,
-    "svelte/lib/studio/SidebarTrigger.svelte": 3,
-    "svelte/lib/studio/Slider.svelte": 1,
-    "svelte/lib/studio/Switch.svelte": 1,
-    "svelte/lib/studio/TabsList.svelte": 1,
-    "svelte/lib/studio/toggle.ts": 1,
-    "svelte/lib/studio/ToggleGroup.svelte": 1
+    "web/features/composer/ChatField.svelte": 2,
+    "web/features/pins/LiveFrame.svelte": 1,
+    "web/features/room-shell/RoomSkeleton.svelte": 1,
+    "web/lib/studio/composer.ts": 2,
+    "web/lib/studio/SidebarTrigger.svelte": 3,
+    "web/lib/studio/Slider.svelte": 1,
+    "web/lib/studio/Switch.svelte": 1,
+    "web/lib/studio/TabsList.svelte": 1,
+    "web/lib/studio/toggle.ts": 1,
+    "web/lib/studio/ToggleGroup.svelte": 1
   }
 }

@@ -1,19 +1,16 @@
 import { get } from "svelte/store";
-import { createApplicationServices } from "../svelte/features/application/services";
-import { createApplicationCopy } from "../svelte/features/application/copy";
-import { createDeviceLock } from "../svelte/features/account/device";
-import {
-  createPwaService,
-  type PwaService,
-} from "../svelte/features/pwa/service";
-import type { BrowserApplicationServices } from "../svelte/features/application/browser";
+import { createApplicationServices } from "../web/features/application/services";
+import { createApplicationCopy } from "../web/features/application/copy";
+import { createDeviceLock } from "../web/features/account/device";
+import { createPwaService, type PwaService } from "../web/features/pwa/service";
+import type { BrowserApplicationServices } from "../web/features/application/browser";
 import type {
   ApplicationShellEffects,
   ApplicationTheme,
-} from "../svelte/features/application/shellTypes";
-import type { AgentsApi } from "../svelte/features/agents/api";
-import type { HomeApi } from "../svelte/features/home/api";
-import type { RoomConnectionOptions } from "../svelte/roomConnection";
+} from "../web/features/application/shellTypes";
+import type { AgentsApi } from "../web/features/agents/api";
+import type { HomeApi } from "../web/features/home/api";
+import type { RoomConnectionOptions } from "../web/app/roomConnection";
 import type { RoomCommand } from "../shared/commands";
 import { homeApi, me, manualClock } from "./native-home-fixtures";
 export function shellFixture(

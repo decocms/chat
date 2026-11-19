@@ -17,14 +17,14 @@
 |---|---|
 | Server | TypeScript, Hono, zod, `@cloudflare/workers-oauth-provider`, `y-durableobjects`, Vercel AI SDK |
 | Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants |
-| Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`svelte/features/documents/`) |
+| Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`web/features/documents/`) |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
 
 ## Type safety and RPC
 
 - Write all code in TypeScript. The code is type-safe from end to end: server, wire and browser.
 - All communication between the browser and the server goes through typed RPC. Do not use other kinds of requests.
-  - HTTP: Hono RPC. Add the route to `src/api.ts` with a zod schema from `shared/schemas.ts`. The browser calls it through `hc<AppType>` (`svelte/lib/client/api.ts`).
+  - HTTP: Hono RPC. Add the route to `src/api.ts` with a zod schema from `shared/schemas.ts`. The browser calls it through `hc<AppType>` (`web/lib/client/api.ts`).
   - WebSockets (`/ws/:id`, `/ws-me`): JSON-RPC 2.0, with a small helper in `shared/jsonRpc.ts`. Do not add an RPC library.
     - The code uses typed tagged messages (`{ t: "doc.get", epic }`). The schemas are in `shared/commands.ts`, `shared/events.ts` and `shared/person.ts`. On the wire, `method` is `t` and `params` is the other fields.
     - A command that needs an answer is a request (`id`). The server sends one response: `result`, or `error` with a reason.
@@ -37,11 +37,11 @@
 
 ## Frontend
 
-- The browser app is Svelte 5 with shadcn-svelte components (`components.json`). The design system is a port of deco Studio (`@decocms/ui`) into `svelte/lib/studio/`.
-- Before you make a component, look in `svelte/lib/studio/`, `svelte/lib/components/` and the feature folder. Use an existing component if possible.
-- Arrange components by atomic design: atoms, then molecules, then organisms. An atom does not import a molecule. A molecule does not import an organism. The stories in `svelte/parity/stories/` use the same levels (`atoms-*`, `molecules-*`, `organisms-*`).
+- The browser app is Svelte 5 with shadcn-svelte components (`components.json`). The design system is a port of deco Studio (`@decocms/ui`) into `web/lib/studio/`.
+- Before you make a component, look in `web/lib/studio/`, `web/lib/components/` and the feature folder. Use an existing component if possible.
+- Arrange components by atomic design: atoms, then molecules, then organisms. An atom does not import a molecule. A molecule does not import an organism. The stories in `web/dev/design-system/stories/` use the same levels (`atoms-*`, `molecules-*`, `organisms-*`).
 - Style components only with Tailwind CSS v4 utility classes. The classes have no prefix (`bg-card`, `md:flex`). Use `tailwind-variants` (`tv`) for variants.
-- The only authored stylesheet is `svelte/styles/tailwind.css`. Put design tokens and `@font-face` rules there.
+- The only authored stylesheet is `web/styles/tailwind.css`. Put design tokens and `@font-face` rules there.
 - Do not write other CSS: no `<style>` blocks, no CSS files, no inline `style` for design.
 - Do not load external CSS. The only exception is CSS that a dependency ships (for example `@xterm/xterm/css/xterm.css`). Import it in `tailwind.css`.
 - Use theme tokens for colors (`bg-background`, `text-muted-foreground`, `border-border`, …). Do not use hard-coded colors (`#hex`, `bg-[#…]`, palette colors such as `bg-red-500`). If no token has the correct meaning, add a token to `tailwind.css`, for light and dark.
@@ -50,11 +50,11 @@
 
 ## Screen sizes
 
-- The app has two layouts: mobile and desktop. The theme has one breakpoint token, `md` (`--breakpoint-md: 901px` in `svelte/styles/tailwind.css`). The theme removes all other breakpoint tokens.
+- The app has two layouts: mobile and desktop. The theme has one breakpoint token, `md` (`--breakpoint-md: 901px` in `web/styles/tailwind.css`). The theme removes all other breakpoint tokens.
   - Mobile: width 900px or less. Use `max-md:`.
   - Desktop: width 901px or more. Use `md:`.
 - Do not write a pixel breakpoint (`max-[900px]:`, `min-[901px]:`, other `max-[…]`/`min-[…]`). Do not use `sm:`, `lg:` or `xl:`.
-- In TypeScript, use `MOBILE_QUERY` from `svelte/lib/breakpoints.ts` for `matchMedia` and `MediaQuery`. Do not write a width media query as a literal.
+- In TypeScript, use `MOBILE_QUERY` from `web/lib/breakpoints.ts` for `matchMedia` and `MediaQuery`. Do not write a width media query as a literal.
 - To move the breakpoint, change `--breakpoint-md` and `MOBILE_QUERY` together.
 - `bun run check:guidelines` fails on each of these violations.
 - If a layout must change inside the desktop width, use a container query (`@container`) or an automatic grid (`grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`). Do not add a breakpoint.

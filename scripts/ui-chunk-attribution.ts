@@ -5,7 +5,7 @@ import {
   ChunkDiagnostic,
   MetricChunkInput,
   attributeChunks,
-} from "../svelte/build/chunkDiagnosticModel";
+} from "../web/build/chunkDiagnosticModel";
 const [metadata, metrics, output] = process.argv.slice(2);
 if (!metadata)
   throw Error(

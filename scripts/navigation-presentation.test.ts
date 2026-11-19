@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { createPersonalSession } from "../svelte/features/home/personal";
-import { createRoomsSession } from "../svelte/features/rooms/session";
-import { createAppNavigationSession } from "../svelte/features/app-navigation/controller";
-import { createNavigationPresentation } from "../svelte/features/app-navigation/presentation";
+import { createPersonalSession } from "../web/features/home/personal";
+import { createRoomsSession } from "../web/features/rooms/session";
+import { createAppNavigationSession } from "../web/features/app-navigation/controller";
+import { createNavigationPresentation } from "../web/features/app-navigation/presentation";
 import {
   deferred,
   homeApi,
