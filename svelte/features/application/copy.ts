@@ -573,6 +573,10 @@ const EN: Readonly<Record<string, string>> = {
     "That epic is no longer in this room.",
   "Novo épico: escreva o título…": "New epic: type its title…",
   Épicos: "Epics",
+  "Ver menos": "Show less",
+  "Ver mais ({n})": "Show more ({n})",
+  "Fixar no topo": "Pin to top",
+  Fixado: "Pinned",
   "Buscar salas, conversas e arquivos…":
     "Search rooms, conversations and files…",
   "Buscando nas conversas…": "Searching conversations…",

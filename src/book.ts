@@ -127,11 +127,12 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS ws_bytes (h INTEGER, t TEXT, c TEXT, n INTEGER, b INTEGER, PRIMARY KEY (h, t, c));
       CREATE TABLE IF NOT EXISTS doc_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, doc TEXT, text TEXT, by TEXT, msg_id INTEGER, ts INTEGER);
       CREATE INDEX IF NOT EXISTS doc_versions_doc ON doc_versions (doc, id);
+      CREATE INDEX IF NOT EXISTS messages_thread ON messages (thread, id);
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -197,13 +198,15 @@ export class Book extends DurableObject<Env> {
       for (const x of fs) { const o = list.find((y) => y.name === x.name); if (o) o.n++; else if (list.length < 8) list.push({ id: x.id, name: x.name, type: x.type, n: 1 }); }
     }
     const parent = new Map(this.sql.exec<{ id: string; p: string }>(`SELECT c.id, m.thread AS p FROM epics c JOIN messages m ON m.id = c.from_msg WHERE m.thread != 'main' AND m.thread != c.id`).toArray().map((r) => [r.id, r.p]));
+    // The sidebar orders epics by their latest message (pinned ones first): when each thread last spoke.
+    const last = new Map(this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' GROUP BY thread`).toArray().map((r) => [r.thread, r.ts]));
     return this.sql
-      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null }>(`SELECT id, title, archived, from_msg, prod, owner FROM epics ORDER BY pos IS NULL, pos, ts`)
+      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
-      .map((e) => {
+      .map(({ ts, pinned, ...e }) => {
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_epic prod).
-        return { ...e, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
@@ -2263,6 +2266,10 @@ export class Book extends DurableObject<Env> {
         return this.deleteEpic(String(m.id));
       case "epic.archive":
         return this.archiveEpic(String(m.id), m.archived !== false);
+      case "epic.pin": // the sidebar's pin: shared, like the order; pinned epics sit above the ones sorted by recency
+        if (!this.epics().some((e) => e.id === String(m.id))) return;
+        this.sql.exec(`UPDATE epics SET pinned = ? WHERE id = ?`, m.pinned === false ? null : Date.now(), String(m.id));
+        return this.epicsChanged();
       case "epic.order": // the sidebar's drag: the room's epics in this order (shared); epics left out keep theirs, new ones go last
         if (!Array.isArray(m.ids)) return;
         {
