@@ -28,6 +28,7 @@
     agents,
     request,
     hideSelf = false,
+    onopen,
   }: {
     room: PeopleRoom;
     friends?: string[];
@@ -41,6 +42,8 @@
     request?: PeopleRequest;
     /** Desktop sidebar: you sit at its foot, not in the list. */
     hideSelf?: boolean;
+    /** Opens your DM with this person (the app's `connect`): their name is a link to it. */
+    onopen?: (email: string) => Promise<unknown>;
   } = $props();
   const session = untrack(() => createPeopleSession(room.id));
   const http = untrack(() => createPeopleRequest(room.id));
@@ -51,6 +54,19 @@
     deletion = $state<{ email: string; action: "remove" | "deny" } | null>(
       null,
     );
+  /** The person whose DM is opening: one at a time, so a double click opens it once. */
+  let opening = $state<string | null>(null);
+  async function open(email: string) {
+    if (!onopen || opening) return;
+    opening = email;
+    try {
+      await onopen(email);
+    } catch {
+      // The DM didn't open: the row stays, and a new click tries again.
+    } finally {
+      opening = null;
+    }
+  }
   let trigger = $state<HTMLElement | null>(null),
     root = $state<HTMLElement | null>(null);
   /** The invite row: the `+` in the header turns into a row you type an email into (friends are suggested). */
@@ -222,7 +238,19 @@
         label={here ? vb.t("Online") : vb.t("Offline")}
         trigger={face}
       />{/if}
-    <span class="min-w-0 flex-1 truncate" title={email}>{label(email)}</span>
+    {#if onopen && !pending}<button
+        type="button"
+        data-open-dm={email}
+        title={email}
+        aria-label={vb.t("Abrir conversa com {name}", { name: label(email) })}
+        aria-busy={opening === email}
+        class="min-w-0 flex-1 cursor-pointer truncate rounded-sm border-0 bg-transparent p-0 text-left font-sans text-sm leading-5 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        onclick={() => {
+          void open(email);
+        }}>{label(email)}</button
+      >{:else}<span class="min-w-0 flex-1 truncate" title={email}
+        >{label(email)}</span
+      >{/if}
     {#if pending}
       <Badge
         variant="muted"

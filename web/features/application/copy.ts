@@ -669,6 +669,7 @@ const EN: Readonly<Record<string, string>> = {
   Convidados: "Invited",
   reenviar: "resend",
   "Remover {email}": "Remove {email}",
+  "Abrir conversa com {name}": "Open conversation with {name}",
   "Cancelar convite": "Cancel invite",
   "Remover da sala": "Remove from room",
   "Seus amigos": "Your friends",

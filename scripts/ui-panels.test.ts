@@ -4994,6 +4994,26 @@ describe("People interactions", () => {
     submitInvite();
     return input;
   }
+  test("a joined person's name opens your DM with them; an invite waiting has no link", async () => {
+    const opened: string[] = [];
+    const rendered = people(personRoom(), {
+      onopen: async (email: string) => {
+        opened.push(email);
+        return "dm";
+      },
+    });
+    const link = rendered.target.querySelector<HTMLButtonElement>(
+      '[data-open-dm="member@test.com"]',
+    );
+    expect(link).not.toBeNull();
+    expect(
+      rendered.target.querySelector('[data-open-dm="pending@test.com"]'),
+    ).toBeNull();
+    link!.click();
+    link!.click(); // a double click opens it once
+    await Promise.resolve();
+    expect(opened).toEqual(["member@test.com"]);
+  });
   test("owner and member see the authorized removal controls and plain-text access requests", () => {
     const room = personRoom();
     const rendered = people(room);
