@@ -7,7 +7,7 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-var VERSION = "1.7.2";
+var VERSION = "1.7.3";
 var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 var SESSION = join(HOME, "session.json");
 var AGENTS = join(HOME, "agents.json");
@@ -367,12 +367,19 @@ var myContext = () => {
     h["x-vibebook-limits"] = JSON.stringify(st.limits);
   return h;
 };
+function machineHeaders() {
+  try {
+    return { "x-vibebook-machine": machineId(), "x-vibebook-machine-name": hostname().replace(/\.local$/, "").replace(/[^\x20-\x7e]/g, "").slice(0, 40) };
+  } catch {
+    return {};
+  }
+}
 var rpcId = 0;
 async function rpc(method, params, agent) {
   const s = await session();
   const r = await fetch(`${s.origin}/mcp`, {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext() },
+    headers: { "content-type": "application/json", authorization: `Bearer ${s.access_token}`, "mcp-session-id": agent, ...myContext(), ...machineHeaders() },
     body: JSON.stringify({ jsonrpc: "2.0", id: ++rpcId, method, params })
   });
   if (r.status === 401)

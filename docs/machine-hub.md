@@ -29,6 +29,8 @@ Status: proposal. It is not built yet. Discuss it in the epic in the project roo
 
 ## Changes (first estimate)
 
+- **Done (CLI 1.7.3):** each CLI call sends the machine ID and the computer name (`x-vibebook-machine`, `x-vibebook-machine-name`). The server registers the machine for the person, keeps it online while its agents call, and relates each agent to it. The pane shows agents only under their machine. There is no "Other agents" group.
+
 - **CLI, `vibebook listen`:** send the agent ID and the PID of its Claude to the hub (`/wait?book=…&agent=…&pid=…`).
 - **CLI, `vibebook hub`:** keep a table of agents (agent ID, Claude PID, room, `listening` or `working`). Check the PIDs every few seconds. Send the table to the server when it changes. Stay alive while a Claude in the table is alive.
 - **Server:** keep presence in the Durable Object of the person channel (memory and storage), keyed by machine. Write to D1 only the switch (`machine_rooms`) and the relation agent → machine. When the socket of a machine closes, its agents are offline.
