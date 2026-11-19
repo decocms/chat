@@ -51,7 +51,7 @@ The rule: quick CI on pull requests, long CI on `main`.
 
 ## Build output
 
-`bun run build:ui` builds the browser app (`web/index.html`, `web/auth.html` and the service worker) into `dist/`, together with a copy of `public/`. The Worker serves `dist/`. Wrangler runs this build before `wrangler dev` and `wrangler deploy` (`build` in `wrangler.jsonc`). Do not commit `dist/`.
+`bun run build:ui` builds the browser app (`web/index.html` and the service worker) into `dist/`, together with a copy of `public/`. The Worker serves `dist/`. Wrangler runs this build before `wrangler dev` and `wrangler deploy` (`build` in `wrangler.jsonc`). Do not commit `dist/`.
 
 The component gallery (`web/dev/gallery.html`) is not in `dist/`. `bun run build:gallery` builds it into `dist-gallery/` for the browser tests (`test:room-layout:browser` and the gallery part of `test:design-system`). Run it before these tests. Do not commit `dist-gallery/`.
 

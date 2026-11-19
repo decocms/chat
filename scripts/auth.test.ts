@@ -112,7 +112,7 @@ test("continuations stay on supported local routes", () => {
     "http://127.0.0.1:1234/?error=denied",
   );
 });
-const authShell = () => Bun.file("web/auth.html").text();
+const authShell = () => Bun.file("web/index.html").text();
 test("the auth shell gets the page, the language and no private data", async () => {
   const shell = await authShell();
   for (const page of ["login", "access", "consent", "file-access"] as const) {
@@ -122,6 +122,8 @@ test("the auth shell gets the page, the language and no private data", async () 
       autoAccess: false,
     });
     expect(html).toContain(`name="vb-page" content="${page}"`);
+    expect(html).toContain('name="robots" content="noindex"');
+    expect(html).not.toContain('name="vb-v"');
     expect(html).toContain('<html lang="en">');
     expect(html).toContain("deco.chat needs JavaScript.");
     expect(html).not.toContain("handle");
@@ -482,12 +484,22 @@ test("failed consent metadata creates no handle and retry remains explicit;500 p
 test("file-access shell preserves denial status and no-store/frame boundary", async () => {
   const shell = await authShell();
   for (const status of [401, 403] as const) {
+    const fetched: string[] = [];
     const response = await authPage(
-      { ASSETS: { fetch: async () => new Response(shell) } },
+      {
+        ASSETS: {
+          fetch: async (input) => {
+            fetched.push(new Request(input).url);
+            return new Response(shell);
+          },
+        },
+      },
       new Request("https://vibebook.test/api/books/abcdef/files/aa"),
       "file-access",
       { status },
     );
+    // One shell: auth pages are the app's web/index.html.
+    expect(fetched).toEqual(["https://vibebook.test/"]);
     expect(response.status).toBe(status);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("x-frame-options")).toBe("DENY");
