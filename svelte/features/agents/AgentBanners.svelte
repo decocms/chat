@@ -37,6 +37,14 @@
   const view = untrack(() => owner.state);
   const text = (key: Parameters<typeof roomAgentText>[1]) =>
     roomAgentText(lang, key);
+  // The welcome names the room only when it adds something: a room titled with the owner's name would read "Gimenes invited you to Gimenes".
+  const inviter = $derived(name($view.room?.book.owner || ""));
+  const welcomeRoom = $derived.by(() => {
+    const title = $view.room?.book.title?.trim() || "";
+    return title && title.toLowerCase() !== inviter.trim().toLowerCase()
+      ? title
+      : "";
+  });
   let step = $state(0),
     copied = $state(false);
   const presence = $derived(
@@ -216,24 +224,35 @@
     preventOverflowTextSelection={false}
   >
     <DialogHeader class="pr-8">
+      {#if step === 0}<img
+          src="/favicon.svg"
+          width="40"
+          height="40"
+          alt=""
+          draggable="false"
+          class="size-10 rounded-xl"
+        />{/if}
       <DialogTitle class="font-sans"
         >{step === 0
-          ? `${text("welcome")} ${$view.room?.book.title || text("main")}`
+          ? text("welcome")
           : text(
               step === 1 ? "ownAgent" : step === 2 ? "context" : "connect",
             )}</DialogTitle
       >
     </DialogHeader>
     <p class="m-0 text-muted-foreground">
-      {step === 0
-        ? `${name($view.room?.book.owner || "")} ${text("welcomeBody")}`
-        : text(
-            step === 1
-              ? "ownAgentBody"
-              : step === 2
-                ? "contextBody"
-                : "connectBody",
-          )}
+      {#if step === 0}{inviter}
+        {#if welcomeRoom}{text("welcomeTo")}
+          <b class="text-foreground">{welcomeRoom}</b>.{:else}{text(
+            "welcomeHere",
+          )}{/if}
+        {text("welcomeBody")}{:else}{text(
+          step === 1
+            ? "ownAgentBody"
+            : step === 2
+              ? "contextBody"
+              : "connectBody",
+        )}{/if}
     </p>
     {#if step === 3 && $view.hasAgent !== true}<SetupInstructions
         {origin}
