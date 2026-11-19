@@ -314,8 +314,6 @@ const EN: Readonly<Record<string, string>> = {
     "Room: everyone sees it; each one signs in with their own account",
   "Você entrou em {host} com a sua conta.":
     "You're signed in to {host} with your account.",
-  "Entre em {host} com a sua conta pra usar. O deco.chat não guarda token: só diz quem é você e de qual sala.":
-    "Sign in to {host} with your account to use it. deco.chat keeps no token: it only says who you are and from which room.",
   "Entrar em {host}": "Sign in to {host}",
   "Conectar seu agente": "Connect your agent",
   "Copiar prompt": "Copy prompt",

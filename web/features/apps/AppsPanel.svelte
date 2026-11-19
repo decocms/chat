@@ -9,14 +9,12 @@
     roomApps,
     connectionApps,
     appIdentity,
-    signinUrl,
     type AppTarget,
   } from "./model";
   import AppFrame from "./AppFrame.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
-  import { buttonVariants } from "../../lib/studio/button";
   import RadioGroup from "../../lib/studio/RadioGroup.svelte";
   import RadioGroupItem from "../../lib/studio/RadioGroupItem.svelte";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
@@ -340,88 +338,105 @@
           (app) => app.screen,
         )}{@const visible =
           screens.length && !$view.more.has(item.id) ? screens : all}
-        <section class="space-y-2 rounded-control border border-border p-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <h3 class="m-0 font-sans font-semibold tracking-normal text-base">
-              {item.title}
-            </h3>
-            <span class="rounded-control bg-muted px-2 text-xs"
-              >{item.scope === "me"
-                ? props.t("minha")
-                : props.t("da sala")}</span
-            ><small class="break-words text-muted-foreground"
-              >{item.host} · {props.name(item.owner)}</small
-            >{#if $modes.get(item.id)}{@const mode = $modes.get(item.id)}<Badge
-                variant="neutral"
-                data-connection-mode={mode}
-                title={props.t(
-                  mode === "direct"
-                    ? "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você."
-                    : "As chamadas passam pelo deco.chat (o servidor não libera chamada direta ou pede login).",
-                )}
-                >{props.t(
-                  mode === "direct" ? "direto" : "via deco.chat",
-                )}</Badge
-              >{/if}<Button
-              variant="ghost"
-              disabled={busy}
-              onclick={(event) => {
-                if (live(event)) owner.refresh(item.id);
-              }}>{props.t("Atualizar")}</Button
-            >{#if item.mine}<Button
+        <section
+          data-connection-card={item.id}
+          class="space-y-3 rounded-control border border-border p-3"
+        >
+          <header class="flex items-start gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <h3
+                  class="m-0 truncate font-sans text-base font-semibold tracking-normal"
+                >
+                  {item.title}
+                </h3>
+                <Badge variant="neutral"
+                  >{item.scope === "me"
+                    ? props.t("minha")
+                    : props.t("da sala")}</Badge
+                >{#if $modes.get(item.id)}{@const mode = $modes.get(
+                    item.id,
+                  )}<Badge
+                    variant="neutral"
+                    data-connection-mode={mode}
+                    title={props.t(
+                      mode === "direct"
+                        ? "As chamadas vão do seu navegador direto pro servidor; o deco.chat só assina quem é você."
+                        : "As chamadas passam pelo deco.chat (o servidor não libera chamada direta ou pede login).",
+                    )}
+                    >{props.t(
+                      mode === "direct" ? "direto" : "via deco.chat",
+                    )}</Badge
+                  >{/if}
+              </div>
+              <p class="m-0 truncate text-xs text-muted-foreground">
+                {item.host} · {props.name(item.owner)}
+              </p>
+            </div>
+            <div class="flex shrink-0 items-center gap-1">
+              <Button
                 variant="ghost"
+                size="sm"
                 disabled={busy}
                 onclick={(event) => {
-                  if (live(event)) remove = item;
-                }}>{props.t("Remover conexão")}</Button
-              >{/if}
-          </div>
-          {#if item.signed_in}<p class="text-sm">
+                  if (live(event)) owner.refresh(item.id);
+                }}>{props.t("Atualizar")}</Button
+              >{#if item.mine}<Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onclick={(event) => {
+                    if (live(event)) remove = item;
+                  }}>{props.t("Remover")}</Button
+                >{/if}
+            </div>
+          </header>
+          <!-- Signed in on its own login: say so, with a way out. A server without a login (it trusts the identity
+               deco.chat signs) needs nothing here; an app that gets a 401 asks to sign in where it opens. -->
+          {#if item.signed_in}<p class="m-0 text-xs text-muted-foreground">
               {props.t("Você entrou em {host} com a sua conta.", {
                 host: item.host,
               })}
               <Button
                 variant="link"
-                class="h-auto px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
+                class="h-auto px-0 text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
                 disabled={busy}
                 onclick={(event) => {
                   if (live(event)) owner.signout(item.id);
                 }}>{props.t("Sair")}</Button
               >
-            </p>{:else}<p class="text-sm">
-              {props.t(
-                "Entre em {host} com a sua conta pra usar. O deco.chat não guarda token: só diz quem é você e de qual sala.",
-                { host: item.host },
-              )}
-            </p>
-            <a
-              class={buttonVariants()}
-              href={signinUrl(props.room.id, item.id)}
-              onclick={(event) => {
-                if (!live(event)) event.preventDefault();
-              }}>{props.t("Entrar em {host}", { host: item.host })}</a
-            >{/if}
-          {#if visible.length}<div class="grid gap-2">
-              {#each visible as app (app.tool)}<Button
-                  variant="outline"
-                  class="h-auto justify-start whitespace-normal text-left"
-                  onclick={(event) => {
-                    if (live(event))
-                      owner.open({ connection: item.id, tool: app.tool });
-                  }}
-                  ><span
-                    ><strong class="block">{app.title}</strong><small
-                      class="block text-muted-foreground"
-                      >{app.description}</small
-                    ></span
-                  ></Button
-                >{/each}
-            </div>{:else}<p class="text-xs text-muted-foreground">
+            </p>{/if}
+          {#if visible.length}<ul class="m-0 grid list-none gap-1 p-0">
+              {#each visible as app (app.tool)}<li>
+                  <Button
+                    variant="ghost"
+                    class="h-auto w-full justify-start gap-3 whitespace-normal rounded-lg px-2 py-2 text-left"
+                    onclick={(event) => {
+                      if (live(event))
+                        owner.open({ connection: item.id, tool: app.tool });
+                    }}
+                    ><span
+                      aria-hidden="true"
+                      class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-semibold"
+                      >{app.title.slice(0, 1).toUpperCase()}</span
+                    ><span class="min-w-0 flex-1"
+                      ><span class="block truncate text-sm font-medium"
+                        >{app.title}</span
+                      ><span
+                        class="line-clamp-2 block text-xs font-normal text-muted-foreground"
+                        >{app.description}</span
+                      ></span
+                    ><span aria-hidden="true" class="text-muted-foreground"
+                      >›</span
+                    ></Button
+                  >
+                </li>{/each}
+            </ul>{:else}<p class="m-0 text-xs text-muted-foreground">
               {props.t("{n} tools, nenhum app", { n: item.tools.length })}
             </p>{/if}
           {#if screens.length && screens.length < all.length}<Button
               variant="link"
-              class="h-auto px-0 text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
+              class="h-auto px-0 text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
               onclick={(event) => {
                 if (live(event)) owner.more(item.id);
               }}
