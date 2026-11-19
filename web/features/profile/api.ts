@@ -25,3 +25,8 @@ export function fetchProfile(
   cache.set(who, { at: Date.now(), value });
   return value;
 }
+
+/** Drop a cached profile (after you change your own settings, so the next read is fresh). */
+export function forgetProfile(who: string) {
+  cache.delete(who);
+}
