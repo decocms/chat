@@ -641,8 +641,8 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 ### 2026-11-19 · image-picker · One picker for a person's photo and a room's icon
 - Agent: claude-opus-5-5
 - Context: The human chose direction B of the picker brainstorm: a badge on the picture that is always visible, a click opens the file picker, and an image dropped on the picture is taken. The human asked for one component for the photo and the room icon.
-- Decision: New molecule `web/lib/components/ImagePicker.svelte`. No existing component wraps a picture as a button with drop. The caller draws the picture, converts the file (`avatarImage` or `roomIconPng`) and saves it. It replaces the "Change photo" button in Account, the photo button in onboarding, and the icon button in Edit room and room settings. The badge uses the `Pencil01` icon: the repo has no camera icon yet. A file over the picture shows a dashed outline and an upload icon. Busy shows a spinner. Account passes only `disabled`, because its profile phase is the same for a name change and a photo change.
-- Other options: A hover overlay (direction A). A dropzone row (direction C). A camera icon added by hand.
+- Decision: New molecule `web/lib/components/ImagePicker.svelte`. No existing component wraps a picture as a button with drop. The caller draws the picture, converts the file (`avatarImage` or `roomIconPng`) and saves it. It replaces the "Change photo" button in Account, the photo button in onboarding, and the icon button in Edit room and room settings. The badge uses the `camera-01` icon (added by the icon sprite change). A file over the picture shows a dashed outline and an upload icon. Busy shows a spinner. Account passes only `disabled`, because its profile phase is the same for a name change and a photo change.
+- Other options: A hover overlay (direction A). A dropzone row (direction C). A pencil badge.
 - Risk: low. The upload calls and the image conversion are the same. Remove icon stays a separate text button.
 - Undo: Revert this commit.
 - Status: open
