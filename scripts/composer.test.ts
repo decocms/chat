@@ -278,6 +278,25 @@ test("canonical-before-ACK settles only after ACK and keeps edits made while sen
   expect(get(h.entry.state).text).toBe("next draft");
   expect(get(h.entry.state).notice).toBe("sent-edited");
 });
+test("an input event with the same text while sending (phone autocorrect) still clears the sent draft", async () => {
+  for (const after of ["melhor dia", "melhor dia "]) {
+    const h = harness();
+    h.entry.edit("melhor dia");
+    const pending = h.entry.submit();
+    h.entry.edit(after);
+    h.reply.resolve({ ok: true });
+    await pending;
+    h.entry.sync(
+      { ...room(), messages: [message(11, "melhor dia")] },
+      h.request,
+      h.upload,
+    );
+    expect(get(h.entry.state).text).toBe("");
+    expect(get(h.entry.state).notice).toBe("sent");
+    expect(h.commands).toHaveLength(1);
+    h.drafts.dispose();
+  }
+});
 test("same-text row after lost ACK remains ambiguous and cannot auto-clear or auto-resend", async () => {
   for (const error of ["timeout", "disconnected", "server error"]) {
     const h = harness();
