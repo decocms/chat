@@ -246,41 +246,13 @@
           controller={appNavigation.controller}
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
+        <!-- The search on top (the room's name is in the top bar's breadcrumb, not here too). -->
         <div class="flex shrink-0 flex-col gap-3">
-          {@render roomHeader()}{#if appNavigation}<SearchField
+          {#if appNavigation}<SearchField
               controller={appNavigation.controller}
               label={homeText(appNavigation.lang, "search")}
             />{/if}{@render roomThreads()}
         </div>{/if}{/snippet}
-    {#snippet roomHeader()}
-      <!-- Desktop: the room's own header (not a button), the same 52px as the top bar beside it; ✎ on hover. -->
-      <div
-        data-room-sidebar-header
-        class="group/name relative -mx-2 -mt-2 hidden h-[52px] shrink-0 items-center gap-2 border-b border-border pr-2 pl-4 md:flex"
-      >
-        <!-- The room's icon and name: back to the chat (from the board or the inbox). -->
-        <button
-          type="button"
-          data-room-home
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent p-0 text-left font-sans text-sidebar-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          title={room.book.summary
-            ? `${room.book.title}\n${room.book.summary}`
-            : room.book.title}
-          onclick={() => onroomhome?.()}
-        >
-          <RoomMark title={room.book.title} src={roomIcon} />
-          <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
-            {room.book.title}
-          </h2>
-        </button>
-        <IconButton
-          label={vb.t("Renomear")}
-          size="icon-xs"
-          tooltipSide="bottom"
-          class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/name:opacity-100 motion-reduce:transition-none"
-          onclick={onrenameroom}><Icon icon={Pencil01} /></IconButton
-        >
-      </div>{/snippet}
     <!-- The room's threads: the main one, the views, the epics. A DM nests them under its row in the DM list. -->
     {#snippet roomThreads()}<div
         class={dm

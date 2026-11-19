@@ -723,6 +723,7 @@ const EN: Readonly<Record<string, string>> = {
   "sugestão do @vibe": "suggested by @vibe",
   "Clique para renomear": "Click to rename",
   "Desarquivar épico": "Unarchive epic",
+  Desarquivar: "Unarchive",
   "Arquivar épico (concluído)": "Archive epic (done)",
   "Arquivar épico": "Archive epic",
   "Apagar épico": "Delete epic",

@@ -469,3 +469,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/room-topbar-breadcrumb · Two new components for the top bar
+- Agent: claude-opus-5-5
+- Context: The human selected a breadcrumb in the desktop top bar (room › epic, board or inbox), the search at the top of the sidebar, and the epic actions as buttons in the bar (no "⋯"). `ThreadHeader` was the title of both the desktop bar and the phone sheet, so one component had two layouts.
+- Decision: `RoomBreadcrumb` (room-shell) is the desktop bar. It uses the studio `Breadcrumb` atoms. `EpicActions` (room-sidebar) holds rename, archive, delete and their dialogs once, as a `menu` (phone sheet, in `ThreadHeader`) or as a `bar` (desktop). `SearchField` is the 52px header row of each sidebar: room, DM and home.
+- Other options: Keep the bar in `ThreadHeader` with more flags (one component with two layouts and more branches). Copy the action logic into the bar (two copies of the dialog safety checks).
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-19 · feat/room-topbar-breadcrumb · Rename the room from the top bar
+- Agent: claude-opus-5-5
+- Context: The sidebar header had the room name and its ✎. The human asked to remove that header, so on desktop the ✎ needed a new place.
+- Decision: On the main thread, a ✎ follows the room crumb in the top bar. A DM has no ✎. The phone keeps the ✎ on the room's row in the sheet.
+- Other options: Rename from a click on the crumb (a click on a crumb usually navigates). Rename only from the room settings.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open
