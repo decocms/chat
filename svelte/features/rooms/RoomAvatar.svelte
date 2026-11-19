@@ -2,6 +2,7 @@
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Avatar from "../../lib/studio/Avatar.svelte";
+  import type { AvatarSize } from "../../lib/studio/avatar";
   import Icon from "../../lib/studio/Icon.svelte";
   import { Cloud01 } from "../../lib/studio/icons";
   import { cn } from "../../lib/studio/utils";
@@ -32,7 +33,7 @@
     /** The room's icon URL, if it has one. */
     icon?: string | null;
     lang: HomeLanguage;
-    size?: "xs" | "md" | "base";
+    size?: AvatarSize;
     surface?: "sidebar" | "background";
     /** Who wrote since you last looked: a person or only agents. */
     unread?: "human" | "agent" | null;
