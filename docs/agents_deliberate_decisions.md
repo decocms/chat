@@ -519,4 +519,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Cache the chunks in the service worker (it has no fetch handler on purpose). Rename `app.js` and `ui.css` with a hash.
 - Risk: low. A request for `app.js` without `?v=` stays cached; no code makes one.
 - Undo: Delete `public/_headers`.
+
+### 2026-11-19 · perf/lazy-message-toolbar · The message hover toolbar mounts on demand
+- Agent: claude-opus-5-5
+- Context: The human asked to make navigation faster. A profile showed that the hover toolbar of each message (8 quick reactions, reply, copy, link, each with a tooltip) was about 200 of the 300 ms to show a room with 60 messages.
+- Decision: `svelte/Message.svelte` mounts `MessageActions` (floating) on the first `pointerenter` or `focusin` in the message. Until then, one visually hidden button ("Ações desta mensagem" / "Actions for this message") keeps the toolbar in the tab order. When it gets focus or a click (a screen reader in browse mode), the toolbar mounts and focus moves to its first button, or to its last button after Shift+Tab. The button is hidden on coarse pointers, like the toolbar. A swipe copy calls the mounted toolbar at once, inside the gesture (iOS allows the clipboard only there).
+- Other options: Remove the tooltips from the toolbar buttons. Virtualize the message list. Keep one shared toolbar for the whole list.
+- Risk: low. A screen reader user hears one "Actions for this message" button per message instead of the toolbar buttons until they activate it.
+- Undo: Revert this commit.
 - Status: open

@@ -336,6 +336,13 @@ function newEpicInput(target: ParentNode) {
   return target.querySelector<HTMLInputElement>("#newEpic input")!;
 }
 
+/** The chat's hover toolbar mounts on the first pointer in a message (svelte/Message.svelte). */
+function hoverMessages(target: HTMLElement) {
+  for (const row of target.querySelectorAll("[data-chat-message]"))
+    row.dispatchEvent(new PointerEvent("pointerenter"));
+  flushSync();
+}
+
 describe("native Svelte room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();
@@ -2362,7 +2369,7 @@ describe("native Svelte chat", () => {
     expect(current.getAttribute("aria-pressed")).toBe("true");
     expect(sent).toHaveLength(1);
   }, 30_000);
-  test("streaming typing notes and repeated text updates retain native message anchors", () => {
+  test("streaming typing notes and repeated text updates retain native message anchors", async () => {
     let room: Room = {
       ...fixture(),
       messages: [message(1, "")],
@@ -2390,6 +2397,64 @@ describe("native Svelte chat", () => {
     }
     update({ ...room, messages: [...room.messages, message(2, "next reply")] });
     expect(target.querySelectorAll("[data-chat-message]")).toHaveLength(2);
+    // The hover toolbar mounts on the first pointer or focus in a message.
+    expect(target.querySelectorAll("[data-native-reply]")).toHaveLength(0);
+    expect(
+      target.querySelectorAll("[data-message-toolbar-entry]"),
+    ).toHaveLength(2);
+    // Keyboard: the one tab stop opens the toolbar and moves focus to its first button.
+    target
+      .querySelector<HTMLButtonElement>("#m2 [data-message-toolbar-entry]")!
+      .focus();
+    await tick();
+    flushSync();
+    await tick();
+    expect(
+      document.activeElement?.closest("#m2 [data-message-toolbar]"),
+    ).not.toBeNull();
+    expect(target.querySelector("#m2 [data-message-toolbar-entry]")).toBeNull();
+    // Shift+Tab from after the message lands on the toolbar's last button.
+    const lastOfM2 = [
+      ...target.querySelectorAll<HTMLElement>(
+        "#m2 [data-message-toolbar] button",
+      ),
+    ].at(-1)!;
+    const view = target.ownerDocument.defaultView as unknown as {
+      FocusEvent: typeof FocusEvent;
+    };
+    target
+      .querySelector<HTMLButtonElement>("#m1 [data-message-toolbar-entry]")!
+      .dispatchEvent(new view.FocusEvent("focus", { relatedTarget: lastOfM2 }));
+    await tick();
+    flushSync();
+    await tick();
+    const m1Buttons = [
+      ...target.querySelectorAll<HTMLElement>(
+        "#m1 [data-message-toolbar] button",
+      ),
+    ];
+    expect(m1Buttons.length).toBeGreaterThan(1);
+    expect(document.activeElement).toBe(m1Buttons.at(-1)!);
+    update({
+      ...room,
+      messages: [
+        ...room.messages,
+        message(2, "next reply"),
+        message(3, "third"),
+      ],
+    });
+    flushSync();
+    // A screen reader's browse mode clicks without focus.
+    target
+      .querySelector<HTMLButtonElement>("#m3 [data-message-toolbar-entry]")!
+      .click();
+    await tick();
+    flushSync();
+    await tick();
+    expect(
+      document.activeElement?.closest("#m3 [data-message-toolbar]"),
+    ).not.toBeNull();
+    hoverMessages(target);
     expect(target.querySelectorAll('[data-native-reply="1"]')).toHaveLength(1);
   }, 30_000);
   test("empty failed initial history mounts the real older control and clicks explicit retry", async () => {
@@ -2459,6 +2524,7 @@ describe("native Svelte chat", () => {
     ).toBe("7");
     // @vibe's routine notices are hidden (Gui #3317).
     expect(target.querySelector("#m9")).toBeNull();
+    hoverMessages(target);
     expect(
       target.querySelector('#m8 [data-native-copylink="8"]'),
     ).not.toBeNull();
@@ -2598,6 +2664,7 @@ describe("native Svelte chat", () => {
         },
       },
     });
+    hoverMessages(target);
     target.querySelector<HTMLButtonElement>("#m8 [data-native-reply]")!.click();
     target.querySelector<HTMLButtonElement>("#m8 [data-native-quote]")!.click();
     target.querySelector<HTMLButtonElement>("[data-native-origin]")!.click();
@@ -2834,6 +2901,7 @@ describe("native Svelte chat", () => {
         openFile: () => {},
       },
     });
+    hoverMessages(target);
     const staleReply = target.querySelector<HTMLButtonElement>(
       "[data-native-reply]",
     )!;

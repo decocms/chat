@@ -782,6 +782,7 @@ const EN: Readonly<Record<string, string>> = {
   "pensando…": "thinking…",
   Responder: "Reply",
   "Responder a esta mensagem": "Reply to this message",
+  "Ações desta mensagem": "Actions for this message",
   "Reagir a esta mensagem": "React to this message",
   "Reagir com {emoji}": "React with {emoji}",
   "{n} itens": "{n} items",
