@@ -52,10 +52,6 @@
     type SortableMove,
   } from "./sortable";
   import { enterNavigationThread, type NavigationSession } from "./session";
-  import {
-    sectionScroll,
-    sidebarSection,
-  } from "../../lib/components/sidebarSection";
 
   let {
     room,
@@ -393,9 +389,7 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    sidebarSection,
-    // The tabs and at least one row (the floor of the other sections is a title and one row).
-    "m-0 box-border p-0 text-sm leading-5 text-sidebar-foreground md:min-h-20",
+    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
   )}
 >
   {#snippet panel(value: string)}
@@ -730,8 +724,7 @@
       {/if}
     {/if}
   {/snippet}
-  <!-- Desktop: the tabs stay, the list under them scrolls. -->
-  <Tabs value={mode} onValueChange={switchMode} class="gap-2 md:min-h-0">
+  <Tabs value={mode} onValueChange={switchMode} class="gap-2">
     <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
@@ -741,8 +734,7 @@
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class={cn("flex h-auto flex-col", sectionScroll)}
-        >{@render panel(view.value)}</TabsContent
+        class="flex h-auto flex-col">{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
