@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ImagePicker from "../../lib/components/ImagePicker.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { untrack, tick } from "svelte";
   import Heading from "../../lib/ui/Heading.svelte";
@@ -30,8 +31,7 @@
     ["pending", "confirming", "unconfirmed"].includes($profile.phase),
   );
   let nameInput = $state<HTMLInputElement | null>(null),
-    roomInput = $state<HTMLTextAreaElement | null>(null),
-    photo = $state<HTMLInputElement | null>(null);
+    roomInput = $state<HTMLTextAreaElement | null>(null);
   const focusScope = $derived(
     $view.visible
       ? `${$account.identityRevision}:${$account.me?.email}:${$view.step}`
@@ -142,31 +142,26 @@
           >{text("next")}</Button
         >
       </form>
-      <div>
-        <Button
-          variant="ghost"
+      <div class="flex items-center gap-3">
+        <ImagePicker
+          id="onboarding-photo"
+          label={text($account.me?.avatar ? "changePhoto" : "photoLabel")}
+          dropLabel={text("dropPhoto")}
           disabled={busyProfile || !$view.profileBinding}
-          onclick={(event) => {
-            if (live(event)) photo?.click();
-          }}
-          >{#if $account.me?.avatar}<PersonAvatar
-              size="xs"
-              email={$account.me.email}
-              version={$account.me.avatar}
-            />{/if}{text($account.me?.avatar ? "changePhoto" : "photo")}</Button
-        ><input
-          bind:this={photo}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          aria-label={text("photoLabel")}
-          class="sr-only"
-          onchange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            event.currentTarget.value = "";
-            if (live(event) && file)
+          onfile={(file, event) => {
+            if (live(event))
               owner.photo((current) => avatarImage(file, current));
           }}
-        />
+          ><PersonAvatar
+            size="lg"
+            email={$account.me?.email}
+            version={$account.me?.avatar}
+          /></ImagePicker
+        ><label
+          for="onboarding-photo"
+          class="cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+          >{text($account.me?.avatar ? "changePhoto" : "photo")}</label
+        >
       </div>
       {#if $profile.phase === "pending" || $profile.phase === "confirming"}<p
           role="status"

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
+  import ImagePicker from "../../lib/components/ImagePicker.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
@@ -83,14 +84,19 @@
   const dialogRoom = (intent: NavigationDialogIntent) =>
     intent.kind === "rename" ? $nav.renameId : $nav.settingsId;
   async function upload(
-    event: Event & { currentTarget: EventTarget & HTMLInputElement },
+    file: File,
+    event: Event,
     intent: NavigationDialogIntent,
   ) {
     const input = event.currentTarget,
-      file = input.files?.[0],
       id = dialogRoom(intent);
-    input.value = "";
-    if (!current(intent) || !mounted || !input.isConnected || !file || !id)
+    if (
+      !current(intent) ||
+      !mounted ||
+      !(input instanceof HTMLElement) ||
+      !input.isConnected ||
+      !id
+    )
       return;
     const ticket = ++imageSequence,
       identity = $personal.identityRevision;
@@ -127,26 +133,26 @@
   }
 </script>
 
-<!-- The room's icon: a preview, change and remove. The settings and the rename dialogs share it. -->
+<!-- The room's icon: click or drop on it to change it, and remove. The settings and the rename dialogs share it. -->
 {#snippet iconField(room: RoomSummary, intent: NavigationDialogIntent)}
   {@const pending = !!$mutations.pending[`icon:${room.id}`]}
   {@const inputId =
     intent.kind === "settings" ? "room-icon" : `room-icon-${intent.kind}`}
   <div class="space-y-2">
     <div class="flex flex-wrap items-center gap-3">
-      <RoomMark title={room.title ?? ""} src={roomIcon(room)} size="lg" />
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={imageBusy || pending}
-        aria-busy={imageBusy || pending || undefined}
-        onclick={(event) => {
-          if (current(intent) && event.currentTarget.isConnected)
-            document.getElementById(inputId)?.click();
-        }}
-        >{#if imageBusy || pending}<Spinner size="xs" />{/if}{text(
-          "icon",
-        )}</Button
+      <ImagePicker
+        id={inputId}
+        shape="square"
+        label={text("icon")}
+        dropLabel={text("dropImage")}
+        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
+        busy={imageBusy || pending}
+        onfile={(file, event) => upload(file, event, intent)}
+        ><RoomMark
+          title={room.title ?? ""}
+          src={roomIcon(room)}
+          size="lg"
+        /></ImagePicker
       >{#if room.icon}<Button
           variant="ghost"
           size="sm"
@@ -155,15 +161,7 @@
             if (current(intent) && event.currentTarget.isConnected)
               controller.rooms.icon(room.id, null);
           }}>{text("removeIcon")}</Button
-        >{/if}<input
-        id={inputId}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
-        aria-label={text("icon")}
-        class="sr-only"
-        disabled={imageBusy || pending}
-        onchange={(event) => upload(event, intent)}
-      />
+        >{/if}
     </div>
     {#if $mutations.issues[`icon:${room.id}`]}<p
         role="alert"

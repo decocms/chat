@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ImagePicker from "../../lib/components/ImagePicker.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onDestroy, onMount, tick, untrack } from "svelte";
   import type { Snippet } from "svelte";
@@ -99,8 +100,7 @@
   );
   let name = $state(""),
     draftAccount = $state(""),
-    lastName = $state(""),
-    photo: HTMLInputElement | undefined = $state();
+    lastName = $state("");
   let logoutAll = $state.raw<{
     account: string;
     binding: AccountBinding;
@@ -173,11 +173,22 @@
               <div class={card}>
                 <div class={rowClass}>
                   <div class="flex min-w-0 items-center gap-3">
-                    <PersonAvatar
-                      size="lg"
-                      email={$view.me.email}
-                      version={$view.me.avatar}
-                    />
+                    <ImagePicker
+                      label={en ? "Change photo" : "Trocar foto"}
+                      dropLabel={en
+                        ? "Drop the image here"
+                        : "Solte a imagem aqui"}
+                      disabled={busy}
+                      onfile={(file, event) => {
+                        if (live(event, rendered) && !busy)
+                          owner.photo((current) => avatarImage(file, current));
+                      }}
+                      ><PersonAvatar
+                        size="lg"
+                        email={$view.me.email}
+                        version={$view.me.avatar}
+                      /></ImagePicker
+                    >
                     <div class="min-w-0 break-words">
                       <p class="m-0 font-medium">
                         {$view.me.name || $view.me.email}
@@ -185,26 +196,6 @@
                       <p class={hint}>{$view.me.email}</p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onclick={(event) => {
-                      if (live(event, rendered)) photo?.click();
-                    }}>{en ? "Change photo" : "Trocar foto"}</Button
-                  ><input
-                    bind:this={photo}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    aria-label={en ? "Profile photo" : "Foto do perfil"}
-                    class="sr-only"
-                    onchange={(event) => {
-                      const file = event.currentTarget.files?.[0];
-                      if (live(event, rendered) && file && !busy)
-                        owner.photo((current) => avatarImage(file, current));
-                      event.currentTarget.value = "";
-                    }}
-                  />
                 </div>
                 <form
                   class={rowClass}
