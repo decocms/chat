@@ -65,6 +65,7 @@ async function fixture(
     }),
     pwa: () => ({
       account() {},
+      alert() {},
       beforeLogout: async () => ({
         local: true,
         settled: true,

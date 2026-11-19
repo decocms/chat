@@ -3,6 +3,7 @@
   import { onMount, onDestroy, untrack, tick } from "svelte";
   import { MediaQuery } from "svelte/reactivity";
   import Button from "../../lib/studio/Button.svelte";
+  import { tabTitle } from "../notifications/title";
   import InstallCard from "../pwa/InstallCard.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
@@ -371,7 +372,7 @@
       {homeIssue(lang, $view.error)}
     </p>{/if}{/snippet}
 
-<svelte:head><title>deco.chat</title></svelte:head>
+<svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
 {#if $onboardingView.visible}
   <Onboarding owner={onboarding} {lang} {onlanguage} />
 {:else}

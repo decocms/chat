@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import { waitIndicator } from "../web/features/waits/model";
+import { tabTitle } from "../web/features/notifications/title";
 import { avatarKey, avatarUrl } from "../shared/avatar";
 import { dmPeer, roomAvatarVersion } from "../web/features/room-scope/model";
 import type { Room } from "../shared/room";
@@ -1313,4 +1314,10 @@ test("new message search: people from your rooms, then connections, accents igno
   ]);
   expect(matchContacts(list, "nobody")).toEqual([]);
   expect(matchContacts(list, "")).toHaveLength(2);
+});
+
+test("the tab's name starts with the Inbox count, and stays plain when the Inbox is empty", () => {
+  expect(tabTitle("deco.chat", 0)).toBe("deco.chat");
+  expect(tabTitle("Sala · deco.chat", 3)).toBe("(3) Sala · deco.chat");
+  expect(tabTitle("deco.chat", 150)).toBe("(99+) deco.chat");
 });

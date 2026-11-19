@@ -8,6 +8,7 @@ export type PresenceUpdate = {
 export type PersonalNotice =
   | { kind: "account"; book?: string; message?: boolean }
   | { kind: "agents"; book: string }
+  | { kind: "alert"; book: string }
   | ({ kind: "presence" } & PresenceUpdate);
 export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
   const event = parsePersonEvent(raw);
@@ -15,9 +16,11 @@ export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
     ? { kind: "account", book: event.book, message: event.msg === 1 }
     : event?.t === "agents"
       ? { kind: "agents", book: event.book }
-      : event?.t === "presence"
-        ? { kind: "presence", people: event.people, all: event.all === 1 }
-        : null;
+      : event?.t === "alert"
+        ? { kind: "alert", book: event.book }
+        : event?.t === "presence"
+          ? { kind: "presence", people: event.people, all: event.all === 1 }
+          : null;
 }
 type PersonalSocket = Pick<
   WebSocket,
@@ -28,6 +31,8 @@ export function createPersonalConnection(options: {
   decode?: (raw: unknown) => PersonalNotice | null;
   onAccount: () => void;
   onAgents: (book: string) => void;
+  /** Something in another room is for you (src/book.ts notify): play the chime. */
+  onAlert?: (book: string) => void;
   /** A DM contact opened or closed the app (src/person.ts). */
   onPresence?: (update: PresenceUpdate) => void;
   onVisible: () => void;
@@ -83,6 +88,7 @@ export function createPersonalConnection(options: {
         ))
           options.onAccount();
       } else if (notice.kind === "agents") options.onAgents(notice.book);
+      else if (notice.kind === "alert") options.onAlert?.(notice.book);
       else options.onPresence?.({ people: notice.people, all: notice.all });
     };
     current.onclose = () => {

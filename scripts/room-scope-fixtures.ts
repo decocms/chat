@@ -44,6 +44,7 @@ function fixturePwa(): PwaService {
     dismissInstall() {},
     install: async () => {},
     notify() {},
+    alert() {},
     beforeLogout: async () => ({ local: true, settled: true, confirmed: true }),
     dispose() {},
   };
