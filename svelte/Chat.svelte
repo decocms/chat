@@ -5,6 +5,8 @@
   import type { ChatProps } from "./chatTypes";
   import {
     foldMessages,
+    newDay,
+    dayLabel,
     messageFooters,
     threadWorkers,
     prettyModel,
@@ -86,9 +88,17 @@
           >
         </div>
       </div>{/if}
-    {#if rows.length}{#each rows as message, i (message.id)}<Message
+    {#if rows.length}{#each rows as message, i (message.id)}{@const before = i
+          ? rows[i - 1]
+          : previous}{#if newDay(before, message)}<div
+            data-day-divider
+            role="separator"
+            class="my-3 flex items-center gap-3 px-3 text-xs font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+          >
+            {dayLabel(message.ts, Date.now(), vb.locale, (text) => vb.t(text))}
+          </div>{/if}<Message
           {message}
-          previous={i ? rows[i - 1] : previous}
+          previous={newDay(before, message) ? undefined : before}
           typing={room.typing[message.id]}
           {vb}
           {room}
