@@ -282,7 +282,7 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
     await new Promise((resolve) => setTimeout(resolve, 0));
     await flush();
   }
-  expect(h.documents).toEqual(["/"]);
+  expect(h.documents).toEqual(["/login?out=1"]);
 });
 test("the phone thread sheet's tabs: This room shows the sidebar, All rooms lists every room", async () => {
   const { default: RoomStrip } =
