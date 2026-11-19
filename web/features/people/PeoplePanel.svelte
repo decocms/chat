@@ -12,6 +12,7 @@
   import { createPeopleSession } from "./session";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import InlineAdd from "../../lib/components/InlineAdd.svelte";
+  import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import TapTooltip from "../../lib/components/TapTooltip.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
@@ -212,13 +213,10 @@
             {email}
             version={vb.avatarVersion(email)}
             class="size-5"
-          /><span
-            data-status-dot={here ? "online" : "offline"}
-            class={cn(
-              "absolute -right-0.5 -bottom-0.5 size-2 rounded-full ring-2 ring-sidebar group-hover/member:ring-sidebar-accent",
-              here ? "bg-brand" : "bg-subtle-foreground",
-            )}
-          ></span></button
+          /><PresenceDot
+            online={here}
+            class="ring-sidebar group-hover/member:ring-sidebar-accent"
+          /></button
         >{/snippet}
       <TapTooltip
         label={here ? vb.t("Online") : vb.t("Offline")}

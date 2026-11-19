@@ -3,7 +3,7 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import type { NavRowVariant } from "../../lib/components/navRow";
   import type { WaitReference } from "../waits/model";
-  import type { HomeLanguage } from "../home/copy";
+  import { homeText, type HomeLanguage } from "../home/copy";
   import {
     roomIcon,
     roomStatus,
@@ -33,6 +33,7 @@
     status = false,
     note,
     variant = "sidebar",
+    online,
     children,
     onnavigate,
   }: {
@@ -49,11 +50,21 @@
     /** The line under the name when nothing is going on (with `status`). */
     note?: string;
     variant?: NavRowVariant;
+    /** A DM: the other person has the app open (their dot on the avatar). Left out: no dot. */
+    online?: boolean;
     children?: Snippet;
     onnavigate: (target: RoomTarget) => void;
   } = $props();
   const title = $derived(
     dm ? (dm.self ? selfLabel : dm.name) : (room.title ?? "deco.chat"),
+  );
+  const presence = $derived(
+    online === undefined
+      ? null
+      : {
+          online,
+          label: `${title} · ${homeText(lang, online ? "online" : "offline")}`,
+        },
   );
   const meta = $derived(
     status ? (roomStatus(room, seen, waits, now, lang)[0] ?? note) : undefined,
@@ -77,6 +88,7 @@
       {title}
       icon={roomIcon(room)}
       person={dm}
+      {presence}
       {lang}
       surface={variant === "sidebar" ? "sidebar" : "background"}
       unread={selected ? null : unread(room, seen)}

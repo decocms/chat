@@ -3,6 +3,7 @@ import type { AgentGrantsResult, MeResult } from "../../../shared/schemas";
 import type { HomeApi } from "./api";
 import { HomeFailure } from "./api";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
+import type { PresenceUpdate } from "./connection";
 const ENSURE_MAX_AGE = 60_000;
 export type PersonalInvalidation =
   { kind: "account" } | { kind: "agents"; book?: string };
@@ -26,6 +27,8 @@ export function createPersonalSession(
     identityRevision: 0,
     now: Date.now(),
     seen: {} as Record<string, number>,
+    /** Your DM contacts who have the app open, by email (the person socket's {t:"presence"}). */
+    online: {} as Record<string, boolean>,
   });
   const draft = writable({
     ask: "",
@@ -88,6 +91,7 @@ export function createPersonalSession(
         me: null,
         identityRevision: s.identityRevision + 1,
         seen: {},
+        online: {},
         agents: null,
         loading: false,
         error: "",
@@ -305,6 +309,17 @@ export function createPersonalSession(
           : null,
       }));
     },
+    /** The person socket's presence: a full list replaces what was known, a change patches it. */
+    presence(update: PresenceUpdate) {
+      if (!active) return;
+      state.update((s) => {
+        const online = update.all ? {} : { ...s.online };
+        for (const person of update.people)
+          if (person.online) online[person.email] = true;
+          else delete online[person.email];
+        return { ...s, online };
+      });
+    },
     seen(roomId: string, upto: number) {
       if (active && Number.isSafeInteger(upto) && upto >= 0)
         state.update((s) => ({
@@ -342,6 +357,7 @@ export function createPersonalSession(
         me: null,
         agents: null,
         seen: {},
+        online: {},
         loading: false,
         error: "unauthorized",
         identityRevision: value.identityRevision + 1,

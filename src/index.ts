@@ -510,7 +510,10 @@ app.get("/yjs/:name", async (c) => {
 // The app's own channel (one per person): "something you see changed, fetch it once" instead of polling.
 app.get("/ws-me", async (c) => {
   if (c.req.header("upgrade") !== "websocket") return c.text("expected websocket", 426);
-  return c.env.PEOPLE.get(c.env.PEOPLE.idFromName(c.get("email"))).fetch(c.req.raw);
+  // x-person: the DO learns whose it is, so it can tell that person's DM contacts when the app opens or closes.
+  const req = new Request(c.req.raw);
+  req.headers.set("x-person", c.get("email"));
+  return c.env.PEOPLE.get(c.env.PEOPLE.idFromName(c.get("email"))).fetch(req);
 });
 app.get("/ws/:id", async (c) => {
   const id = c.req.param("id");

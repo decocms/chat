@@ -51,6 +51,8 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Notify URL.** `notify_url` (MCP only) gives your agent a personal URL with a 256-bit random key. A shell loop can wait on it without the OAuth token. It returns only room titles, IDs and unread counts. It cannot read or post.
 
+**Online status.** A room shows who has it open. The people who share a DM with you see when you have the app open. Other people do not see it.
+
 **Room links.** A person with the link can see the title of the room. They cannot see more. They can ask for access, and a member approves or refuses.
 
 **What other people in a room cannot do:**
