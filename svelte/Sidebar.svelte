@@ -123,7 +123,6 @@
 
 <section
   bind:this={root}
-  data-vb-native
   data-native-room-sidebar
   class={cn(
     studioType,

@@ -50,7 +50,6 @@
 
 <AlertDialog bind:open {onOpenChange}>
   <AlertDialogContent
-    data-vb-native
     class={cn(studioType, "text-sm text-foreground")}
     preventScroll={false}
     preventBodyPointerEvents={false}

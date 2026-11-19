@@ -115,7 +115,6 @@
 
 <div
   bind:this={root}
-  data-vb-native
   data-native-room-layout
   data-pane={$view.pane}
   data-sheet={$view.sheet ?? undefined}

@@ -500,7 +500,7 @@ try {
         unauthorizedRoomSockets++;
     });
     await accessPage.goto(`${base}/b/${room}`);
-    await expect(accessPage.locator('[data-vb-native="auth"]')).toBeVisible();
+    await expect(accessPage.locator('[data-view="auth"]')).toBeVisible();
     await expect(
       accessPage.getByRole("button", { name: "Ask to join", exact: true }),
     ).toBeVisible();
@@ -677,7 +677,7 @@ try {
     "Component/style HMR must keep the existing room connection",
   );
   assert.equal(
-    await page.locator('[data-vb-native="update"]').count(),
+    await page.locator('[data-view="update"]').count(),
     0,
     "Production version banner must remain disabled in source mode",
   );
@@ -725,7 +725,7 @@ try {
   if (!(await filesTab.isVisible()))
     await page.locator("[data-native-document-toggle]").click();
   await filesTab.click();
-  const filesView = page.locator('[data-vb-native="files"]');
+  const filesView = page.locator('[data-view="files"]');
   await expect(filesView).toBeVisible();
   const textFilter = filesView.locator('[data-fkind="txt"]');
   await textFilter.click();
@@ -738,8 +738,8 @@ try {
   ).toHaveCount(0);
   await mutate("svelte/Files.svelte", (source) =>
     source.replace(
-      '<section\n  data-vb-native="files"',
-      `<section\n  data-hmr-lazy-verification="${token}"\n  data-vb-native="files"`,
+      '<section\n  data-view="files"',
+      `<section\n  data-hmr-lazy-verification="${token}"\n  data-view="files"`,
     ),
   );
   await expect(filesView).toHaveAttribute("data-hmr-lazy-verification", token);
@@ -766,7 +766,7 @@ try {
     await expect(filesView).toBeVisible();
     assert.equal(
       await retainedFiles.evaluate(
-        (node) => node === document.querySelector('[data-vb-native="files"]'),
+        (node) => node === document.querySelector('[data-view="files"]'),
       ),
       true,
       "Leaving and reopening the loaded view must retain its actual updated mount",

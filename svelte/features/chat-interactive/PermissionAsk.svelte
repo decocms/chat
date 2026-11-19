@@ -80,11 +80,7 @@
   }
 </script>
 
-<div
-  data-native-permission
-  data-vb-native
-  class="space-y-2 font-sans text-sm text-foreground"
->
+<div data-native-permission class="space-y-2 font-sans text-sm text-foreground">
   {#if answer}<p
       role="status"
       class="m-0 rounded-control border border-border bg-muted p-3"

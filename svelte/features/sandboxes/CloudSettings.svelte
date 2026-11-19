@@ -55,7 +55,7 @@
         <SelectTrigger id="cloud-room" data-cloud-room class="w-full">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent data-vb-native class="font-sans">
+        <SelectContent class="font-sans">
           {#each rooms as r (r.id)}<SelectItem value={r.id} label={r.title}
               >{r.title}</SelectItem
             >{/each}

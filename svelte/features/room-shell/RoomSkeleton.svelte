@@ -97,7 +97,6 @@
 {/snippet}
 
 <div
-  data-vb-native
   data-room-skeleton
   class="grid h-full min-h-0 w-full min-w-0 grid-cols-[minmax(0,1fr)] overflow-hidden bg-background font-sans text-sm text-foreground [container-type:inline-size] md:bg-sidebar md:py-2 md:pr-2 md:pl-px"
 >

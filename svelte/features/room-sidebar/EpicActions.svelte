@@ -162,11 +162,7 @@
       class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
       ><Icon icon={DotsHorizontal} /></DropdownMenuTrigger
     >
-    <DropdownMenuContent
-      data-vb-native
-      align="end"
-      class={cn(studioType, "w-52")}
-    >
+    <DropdownMenuContent align="end" class={cn(studioType, "w-52")}>
       <DropdownMenuItem disabled={busy} onSelect={() => begin("rename")}
         ><Icon icon={Pencil01} />{t("Renomear")}</DropdownMenuItem
       >

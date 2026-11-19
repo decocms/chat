@@ -381,7 +381,7 @@
        (scrolling deals them into a grid). Your rooms follow the cards. -->
   <main
     bind:this={home}
-    data-vb-native="home"
+    data-view="home"
     data-home-layout="desk"
     data-home-dealt={dealt ? "" : undefined}
     class="relative min-h-full overflow-x-clip bg-background font-sans text-sm leading-6 text-foreground"

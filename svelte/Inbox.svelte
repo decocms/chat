@@ -150,7 +150,6 @@
   }}
 >
   <DialogContent
-    data-vb-native
     data-native-inbox
     class="font-sans text-sm text-foreground"
     closeLabel={vb.t("Fechar")}

@@ -1,10 +1,7 @@
 /* Studio source digest: eb3311919cdb7d1d1ff2dfb8d422e3d449526450239c572f194b35de1f4aaafb. */
-@layer theme, base, legacy, components, utilities;
+@layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
-/* Keep upstream resets inside migrated surfaces while the legacy host remains. */
-:where([data-vb-native]) {
-  @import "tailwindcss/preflight.css" layer(base);
-}
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @import "@xterm/xterm/css/xterm.css" layer(components);
 @source "../";

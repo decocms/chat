@@ -141,7 +141,6 @@
 
 {#if list}
   <section
-    data-vb-native
     class="m-0 box-border space-y-3 rounded-surface bg-background p-3 font-sans text-sm text-foreground"
     aria-label={vb.t("Tarefas")}
   >
@@ -246,7 +245,7 @@
                   >
                     <SelectValue placeholder={vb.t("sem dono")} />
                   </SelectTrigger>
-                  <SelectContent data-vb-native class="font-sans">
+                  <SelectContent class="font-sans">
                     {#each owners as owner (owner.value)}<SelectItem
                         value={owner.value}
                         label={owner.label}>{owner.label}</SelectItem
@@ -326,7 +325,6 @@
     }}
   >
     <DialogContent
-      data-vb-native
       class="font-sans text-sm text-foreground"
       closeLabel={vb.t("Fechar")}
       preventScroll={false}

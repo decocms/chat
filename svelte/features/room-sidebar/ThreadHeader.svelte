@@ -26,7 +26,6 @@
 </script>
 
 {#if epic}<div
-    data-vb-native
     data-native-thread-header
     class="flex min-w-0 flex-1 flex-nowrap items-center gap-1 font-sans text-sm tracking-normal text-foreground"
   >

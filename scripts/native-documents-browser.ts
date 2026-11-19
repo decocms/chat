@@ -569,7 +569,7 @@ try {
       const staleEditor = await nativeEditor(a).elementHandle();
       assert(staleEditor);
       await a.goto(`${app}/app`, { waitUntil: "domcontentloaded" });
-      await expect(a.locator('[data-vb-native="home"]')).toBeVisible();
+      await expect(a.locator('[data-view="home"]')).toBeVisible();
       await expect(a.locator(".book")).toHaveCount(0);
       assert(
         !(await staleEditor
@@ -588,7 +588,7 @@ try {
       await a.goto(`${app}/b/${room}`, {
         waitUntil: "domcontentloaded",
       });
-      await expect(a.locator('[data-vb-native="auth"]')).toBeVisible();
+      await expect(a.locator('[data-view="auth"]')).toBeVisible();
       await expect(
         a.getByRole("button", { name: "Ask to join", exact: true }),
       ).toBeVisible();

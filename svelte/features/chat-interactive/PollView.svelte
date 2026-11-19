@@ -81,7 +81,6 @@
 
 <section
   data-native-poll={poll.id}
-  data-vb-native
   class="space-y-3 rounded-surface border border-border bg-card p-4 font-sans text-sm text-card-foreground"
 >
   <h4

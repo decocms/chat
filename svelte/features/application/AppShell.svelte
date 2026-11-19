@@ -216,7 +216,6 @@
 </script>
 
 <div
-  data-vb-native
   data-native-app-shell
   class={[
     $application.route.kind === "room"
@@ -393,7 +392,6 @@
                 }}
               >
                 <DialogContent
-                  data-vb-native
                   class="font-sans text-sm text-foreground"
                   closeLabel={services.t("Fechar")}
                   preventScroll={false}

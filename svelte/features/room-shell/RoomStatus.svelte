@@ -37,7 +37,6 @@
 </script>
 
 {#if snapshot.phase === "removed" || snapshot.phase === "unavailable"}<main
-    data-vb-native
     data-native-room-status={snapshot.phase}
     data-room-generation={snapshot.generation}
     class="mx-auto flex min-h-[50dvh] w-full max-w-xl flex-col justify-center gap-4 p-6 font-sans text-sm leading-6 text-foreground"

@@ -36,7 +36,6 @@
 
 <Dialog bind:open>
   <DialogContent
-    data-vb-native
     class="font-sans text-sm text-foreground"
     closeLabel={t("Fechar")}
     preventScroll={false}

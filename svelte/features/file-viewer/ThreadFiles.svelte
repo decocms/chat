@@ -39,7 +39,6 @@
 </script>
 
 {#if files.length}<div
-    data-vb-native
     data-thread-files
     class="flex items-center gap-2 overflow-x-auto p-2 font-sans text-sm text-foreground [scrollbar-width:none]"
   >

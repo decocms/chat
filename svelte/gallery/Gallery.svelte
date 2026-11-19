@@ -90,7 +90,6 @@
 </script>
 
 <main
-  data-vb-native
   class="m-0 box-border min-h-dvh bg-background px-4 py-8 font-sans text-sm font-normal leading-5 text-foreground md:px-8"
   data-gallery
 >
@@ -237,7 +236,7 @@
               <SelectTrigger {...props} class="w-full">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent data-vb-native class="font-sans">
+              <SelectContent class="font-sans">
                 {#each filters as item (item.value)}<SelectItem
                     value={item.value}
                     label={item.label}>{item.label}</SelectItem
@@ -267,7 +266,6 @@
                 >{/snippet}
             </DialogTrigger>
             <DialogContent
-              data-vb-native
               class={overlay}
               closeLabel="Close dialog"
               preventScroll={false}
@@ -300,7 +298,6 @@
                 >{/snippet}
             </SheetTrigger>
             <SheetContent
-              data-vb-native
               class={overlay}
               preventScroll={false}
               preventBodyPointerEvents={false}

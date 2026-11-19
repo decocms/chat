@@ -162,7 +162,7 @@ test("login renders one deco sign-in link with a safe next and keeps the server 
     "login",
     api({ login: async () => ({ ...login, error: "studio" }) }),
   );
-  expect(target.querySelector('[data-vb-native="auth"]')).not.toBeNull();
+  expect(target.querySelector('[data-view="auth"]')).not.toBeNull();
   const links = target.querySelectorAll<HTMLAnchorElement>('a[href^="/auth/"]');
   expect(links).toHaveLength(1);
   expect(links[0]!.getAttribute("href")).toBe(

@@ -193,7 +193,7 @@
     />
   </div>{/snippet}
 <div
-  data-vb-native="room-navigation"
+  data-view="room-navigation"
   data-native-app-navigation
   class={cn(
     studioType,
@@ -372,7 +372,7 @@
     >{/key}{/if}
 
 {#if $draft.unknown && $draft.unknown.roomId === $nav.roomId}<aside
-    data-vb-native="home-notice"
+    data-view="home-notice"
     role="status"
     class="fixed bottom-4 right-4 z-30 flex max-w-[calc(100vw-2rem)] items-start gap-2 rounded-2xl bg-popover p-4 font-sans text-sm text-popover-foreground shadow-lg outline-1 outline-hairline"
   >
@@ -388,7 +388,7 @@
   </aside>{/if}
 
 {#if $personal.updateAvailable}<Button
-    data-vb-native="update"
+    data-view="update"
     class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 whitespace-normal shadow-lg"
     onclick={(event) => {
       if (event.currentTarget.isConnected) onreload();

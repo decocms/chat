@@ -12,7 +12,6 @@
 <Dialog.Root open={$view.locked}>
   <Dialog.Portal>
     <Dialog.Content
-      data-vb-native
       data-device-lock
       onEscapeKeydown={(event) => event.preventDefault()}
       onInteractOutside={(event) => event.preventDefault()}

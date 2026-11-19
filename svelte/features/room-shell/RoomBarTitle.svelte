@@ -51,7 +51,6 @@
 </script>
 
 <div
-  data-vb-native
   data-room-bar-title
   class="@container flex min-w-0 flex-1 items-center gap-1 font-sans text-sm text-foreground"
 >

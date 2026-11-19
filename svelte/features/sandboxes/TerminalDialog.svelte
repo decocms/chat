@@ -79,7 +79,6 @@
     }}
   >
     <DialogContent
-      data-vb-native
       closeLabel={text("close")}
       preventScroll={false}
       preventBodyPointerEvents={false}

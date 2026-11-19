@@ -27,7 +27,6 @@
 </script>
 
 <span
-  data-vb-native
   data-native-notifications
   class="inline-flex items-center gap-1 font-sans text-sm text-foreground"
 >

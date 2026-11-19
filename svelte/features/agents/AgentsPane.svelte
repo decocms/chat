@@ -51,7 +51,6 @@
 </script>
 
 <section
-  data-vb-native
   data-native-agents
   class="space-y-5 p-4 font-sans text-sm text-foreground"
 >

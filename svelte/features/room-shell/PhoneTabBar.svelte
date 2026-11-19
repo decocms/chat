@@ -87,7 +87,6 @@
 </script>
 
 <nav
-  data-vb-native
   data-native-phone-tabs
   aria-label={en ? "Room" : "Sala"}
   class="grid grid-cols-5 border-t border-border bg-background px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] font-sans"

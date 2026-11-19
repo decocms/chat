@@ -30,7 +30,6 @@
 </script>
 
 <div
-  data-vb-native
   data-live-frame={href}
   role="dialog"
   aria-label={t("Site externo · {host}", { host })}

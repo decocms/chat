@@ -193,7 +193,7 @@ try {
   await send.click();
   await openNativeRoomPane(a, "files");
   const fileTile = a
-    .locator('[data-vb-native="files"] [data-file-id]')
+    .locator('[data-view="files"] [data-file-id]')
     .filter({ hasText: "verification.txt" });
   await expect(fileTile).toHaveCount(1, { timeout: 90_000 });
   console.log("PASS typed file upload");

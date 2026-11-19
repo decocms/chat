@@ -49,7 +49,6 @@
 
 <Dialog bind:open>
   <DialogContent
-    data-vb-native
     class="max-h-[90dvh] overflow-auto font-sans text-sm text-foreground"
     closeLabel={text("close")}
     preventScroll={false}

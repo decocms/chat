@@ -50,7 +50,7 @@
       sheet?.focus();
     }}
     tabindex={-1}
-    data-vb-native="room-switcher"
+    data-view="room-switcher"
     class="max-h-[80dvh] gap-2 outline-none rounded-b-2xl px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 font-sans text-sm"
   >
     <SheetTitle class="sr-only">{homeText(lang, "switchRoom")}</SheetTitle>

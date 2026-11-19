@@ -33,7 +33,6 @@
     </TooltipPrimitive.Trigger>
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
-        data-vb-native
         data-hover-card
         {side}
         sideOffset={8}

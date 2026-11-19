@@ -109,7 +109,7 @@
               size="xs"
               aria-label={props.t("Tamanho")}
               class="w-auto"><SelectValue /></SelectTrigger
-            ><SelectContent data-vb-native class="font-sans"
+            ><SelectContent class="font-sans"
               >{#each sizes as item (item.value)}<SelectItem
                   value={item.value}
                   label={item.label}>{item.label}</SelectItem

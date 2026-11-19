@@ -82,7 +82,6 @@
 {#if $view.room}
   <section
     data-native-apps
-    data-vb-native
     class="flex min-h-0 flex-1 flex-col gap-3 p-3 font-sans text-foreground"
   >
     {#if $pinView.phase === "pending" || $pinView.phase === "waiting"}<p
@@ -457,7 +456,6 @@
       >{/key}{/if}
 {:else if $view.denied}<section
     data-native-apps-denied
-    data-vb-native
     class="space-y-2 p-3 font-sans text-foreground"
   >
     <p role="alert">{props.t("Você não tem acesso a esta sala.")}</p>

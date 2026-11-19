@@ -427,7 +427,6 @@
   bind:this={sectionElement}
   tabindex="-1"
   data-native-pins
-  data-vb-native
 >
   <SectionHeader id={`pins-title-${room.id}`} title={t("Fixados")}>
     {#snippet action()}{#if !$pinState.adding}<IconButton
@@ -687,7 +686,6 @@
             <ContextMenu.Portal>
               <ContextMenu.Content
                 id={menuId(pin.id)}
-                data-vb-native
                 data-pin-menu={pin.id}
                 aria-label={t("Ações de {name}", { name: target.label })}
                 collisionPadding={8}

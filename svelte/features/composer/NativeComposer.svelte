@@ -365,7 +365,6 @@
 <section
   bind:this={root}
   data-native-composer
-  data-vb-native
   {hidden}
   class={hidden
     ? "hidden"

@@ -48,7 +48,6 @@
 <section
   bind:this={panelRoot}
   tabindex="-1"
-  data-vb-native
   data-decisions-panel
   class="space-y-4 p-4 font-sans text-sm text-foreground"
 >

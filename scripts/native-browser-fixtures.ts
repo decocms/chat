@@ -78,7 +78,7 @@ export async function openNativeRoomPane(
   const content: Record<Exclude<DocumentPane, "view">, string> = {
     doc: "[data-native-document]",
     board: "[data-board-scope]",
-    files: '[data-vb-native="files"]',
+    files: '[data-view="files"]',
     apps: "[data-native-apps]",
     agents: "[data-native-agents]",
     decisions: "[data-decisions-panel]",
