@@ -46,6 +46,12 @@
   const footers = $derived(messageFooters(room, thread, now));
   const workers = $derived(threadWorkers(room, thread, now));
   const epic = $derived(room.epics.find((e) => e.id === thread));
+  // Work taken from here to an epic: the banner names that epic (and opens it) instead of "on this".
+  const moved = $derived(
+    workers[0]?.epic && workers.every((w) => w.epic?.id === workers[0].epic?.id)
+      ? workers[0].epic
+      : undefined,
+  );
   const production = $derived(productionStatuses(room).get(thread));
 </script>
 
@@ -156,11 +162,23 @@
               }),
             )
             .join(", ")}
-          {vb.t(
-            workers.length === 1
-              ? "está trabalhando nisso"
-              : "estão trabalhando nisso",
-          )}
+          {#if moved}{vb.t(
+              workers.length === 1
+                ? "está trabalhando em"
+                : "estão trabalhando em",
+            )}
+            <button
+              type="button"
+              data-working-epic={moved.id}
+              class="cursor-pointer border-0 bg-transparent p-0 font-sans font-semibold text-inherit underline decoration-current/40 underline-offset-2 hover:decoration-current focus-visible:outline-2 focus-visible:outline-current"
+              onclick={() =>
+                actions.navigateRich?.({ kind: "thread", id: moved.id })}
+              >{moved.title}</button
+            >{:else}{vb.t(
+              workers.length === 1
+                ? "está trabalhando nisso"
+                : "estão trabalhando nisso",
+            )}{/if}
         </p>
         <span aria-hidden="true" class="animate-spin motion-reduce:animate-none"
           >✻</span
