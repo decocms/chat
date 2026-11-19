@@ -735,3 +735,36 @@ export const SttResult = z.object({
 });
 export type SttResult = z.infer<typeof SttResult>;
 export const STT_AUDIO_MAX = 4_000_000;
+
+// A person's profile (Gui #3526): what they and their Claudes did, as stats and a title (shared/titles.ts). Never the
+// email: `who` is a handle (public page) or, for someone you share a room with, their email (the hover card).
+export const ProfileStats = z.object({
+  tokens: z.number(),
+  messages: z.number(),
+  deploys: z.number(),
+  limits: z.number(),
+});
+export type ProfileStats = z.infer<typeof ProfileStats>;
+export const ProfileResult = z.object({
+  handle: z.string(),
+  name: z.string(),
+  /** Public avatar URL (by handle), or null. */
+  avatar: z.nullable(z.string()),
+  public: z.boolean(),
+  self: z.boolean(),
+  since: z.number(),
+  totals: ProfileStats,
+  /** The last 30 days, oldest first: tokens per UTC day. */
+  days: z.array(z.object({ day: z.string(), tokens: z.number() })),
+  /** The plan's limits now (five_hour, seven_day: % used + reset epoch s), from the newest Claude that reported them. */
+  limits: z.nullable(AgentLimits),
+  /** The latest times a limit hit 100%, newest first. */
+  hits: z.array(z.object({ kind: z.string(), at: z.number() })),
+});
+export type ProfileResult = z.infer<typeof ProfileResult>;
+export const ProfileSettingsBody = z.object({ public: z.boolean() });
+export const ProfileSettingsResult = z.object({
+  handle: z.string(),
+  public: z.boolean(),
+});
+export type ProfileSettingsResult = z.infer<typeof ProfileSettingsResult>;

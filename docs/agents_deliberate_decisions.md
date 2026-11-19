@@ -708,3 +708,30 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/profile-stats · The public profile is off by default
+- Agent: claude-opus-5-5
+- Context: The human asked for a public profile with the tokens, messages, deploys and limits of each person (#3526), to make it a badge to share.
+- Decision: `/u/<handle>` shows only to the person, and to people who share a room with them, until they turn on "Perfil público" in Settings. The hover card on a chat avatar works for people who share a room. A profile never shows the email. The avatar on the page comes from `/u/<handle>/avatar`.
+- Other options: Public by default, with a switch to hide it.
+- Risk: low. Fewer public pages until people turn it on.
+- Undo: Set `profile_public` to 1 when it is NULL in `profileFor`.
+- Status: open
+
+### 2026-11-19 · feat/profile-stats · Tokens count input, cache and output
+- Agent: claude-opus-5-5
+- Context: The CLI reads the Claude Code transcript. Each model call has input, cache read, cache write and output tokens.
+- Decision: The CLI sends the sum of all four for the session (`x-vibebook-usage: <session>:<tokens>`). The server adds the growth to `user_stats` for the day. Cache reads are most of it, so the number is large (one long session: about 1.6 billion).
+- Other options: Only input and output tokens. Cost in dollars.
+- Risk: low. The titles thresholds in `shared/titles.ts` assume this sum.
+- Undo: Change the sum in `sessionUsage` (cli/vibebook.ts) and the thresholds.
+- Status: open
+
+### 2026-11-19 · feat/profile-stats · The profile page is a public page, served like the login
+- Agent: claude-opus-5-5
+- Context: The page must open without a session. The typed routes in `api.ts` need a session.
+- Decision: `/u/:handle` serves the page shell with `vb-page=profile` (the same shell as the login and access pages). The data comes from `GET /auth/profile/:who` in `authApi`, which checks who may see it. The Settings switch is `POST /api/me/profile`.
+- Other options: A new public app type beside `authApi`.
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

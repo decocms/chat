@@ -1,0 +1,63 @@
+// Profile words in both languages (the auth pages' pattern: a plain table, the Portuguese one is the key set).
+const pt = {
+  tokens: "Tokens gastos",
+  messages: "Mensagens",
+  deploys: "Deploys",
+  limits: "Limites batidos",
+  next: "{left} pro próximo: {tier}",
+  top: "Topo da trilha",
+  last30: "Tokens nos últimos 30 dias",
+  limitsNow: "Limites do plano agora",
+  fiveHour: "Sessão de 5 horas",
+  sevenDay: "Semana",
+  resets: "renova {when}",
+  hits: "Quando bateu 100%",
+  noHits: "Nunca bateu o limite. Ainda.",
+  noLimits: "Sem leitura recente: ligue `vibebook statusline` no Claude Code.",
+  since: "no deco.chat desde {date}",
+  missing: "Perfil não encontrado",
+  missingBody: "Este perfil não existe ou não é público.",
+  open: "Ver perfil",
+  private: "Só quem divide uma sala com você vê este perfil.",
+  publicOn: "Perfil público",
+  how: "Os números vêm dos seus Claudes: tokens que a CLI lê do Claude Code, mensagens, deploys (🚀) e limites batidos.",
+  join: "Entrar no deco.chat",
+  loading: "Carregando…",
+} as const;
+const en: Record<keyof typeof pt, string> = {
+  tokens: "Tokens spent",
+  messages: "Messages",
+  deploys: "Deploys",
+  limits: "Limits hit",
+  next: "{left} to the next: {tier}",
+  top: "Top of the track",
+  last30: "Tokens in the last 30 days",
+  limitsNow: "Plan limits now",
+  fiveHour: "5-hour session",
+  sevenDay: "Week",
+  resets: "resets {when}",
+  hits: "When it hit 100%",
+  noHits: "Never hit the limit. Yet.",
+  noLimits: "No recent reading: turn on `vibebook statusline` in Claude Code.",
+  since: "on deco.chat since {date}",
+  missing: "Profile not found",
+  missingBody: "This profile does not exist or is not public.",
+  open: "View profile",
+  private: "Only people who share a room with you see this profile.",
+  publicOn: "Public profile",
+  how: "The numbers come from your Claudes: tokens the CLI reads from Claude Code, messages, deploys (🚀) and limits hit.",
+  join: "Join deco.chat",
+  loading: "Loading…",
+};
+export type ProfileLang = "pt" | "en";
+export type ProfileCopyKey = keyof typeof pt;
+export function profileText(
+  lang: ProfileLang,
+  key: ProfileCopyKey,
+  vars: Record<string, string> = {},
+) {
+  return (lang === "en" ? en : pt)[key].replace(
+    /\{(\w+)\}/g,
+    (_, name: string) => vars[name] ?? "",
+  );
+}

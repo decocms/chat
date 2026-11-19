@@ -119,7 +119,7 @@ export async function identify<E extends { Bindings: Env }>(c: Context<E>): Prom
 
 /** The public auth routes' side (src/api.ts authApi): every check and write, answering a value
  *  or { error, status }. Built per request; the route only validates the body and turns the answer into JSON. */
-export function authServices<E extends { Bindings: Env }>(c: Context<E>, deps: Pick<AuthServices, "roomAccess">): AuthServices {
+export function authServices<E extends { Bindings: Env }>(c: Context<E>, deps: Pick<AuthServices, "roomAccess" | "profile">): AuthServices {
   const fail = (error: string, status: AuthFail["status"]): AuthFail => ({ error, status });
   const OK = { ok: true as const };
   return {

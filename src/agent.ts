@@ -4,6 +4,7 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // whose props carry the person's email. Every room call re-checks membership in D1.
 import { gate, routerOn, routerStats } from "./router";
 import { ownSession } from "./ownSession";
+import { bumpStat, isLaunchCard, recordLimits, recordUsage } from "./profile";
 import {
   createConn,
   deleteConn,
@@ -1970,6 +1971,7 @@ async function call(
         a.card === undefined ? undefined : cardOf(a.card, id),
         me.agent,
       );
+      if (posted.ok && isLaunchCard(a.card)) ctx.waitUntil(bumpStat(db, me.email, "deploys"));
       // Your own post shouldn't wake you up: if you were caught up, stay caught up.
       if (posted.ok && posted.id)
         await db
@@ -2458,7 +2460,9 @@ async function call(
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
         throw new Error("rate limited. Wait a bit.");
-      return bookStub(env, id).agentEdit(id, me.email, name, a);
+      const edited = await bookStub(env, id).agentEdit(id, me.email, name, a);
+      if (name === "update_epic" && a.prod === "deployed") ctx.waitUntil(bumpStat(db, me.email, "deploys"));
+      return edited;
     }
     case "fire_card": {
       const id = await room();
@@ -2819,6 +2823,14 @@ export async function handleAgentMcp(
       return null;
     }
   })();
+  // Profile stats (src/profile.ts): the tokens this Claude Code session spent so far, and plan limits at 100%.
+  if (due(`usage:${agentId}`, 120_000))
+    ctx.waitUntil(
+      Promise.all([
+        recordUsage(env.DB, props.email, agentId, request.headers.get("x-vibebook-usage")),
+        recordLimits(env.DB, props.email, limits),
+      ]),
+    );
   if (due(`seen:${agentId}`))
     ctx.waitUntil(
       (cx
