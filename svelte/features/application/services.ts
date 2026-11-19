@@ -326,7 +326,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     post: browser.logoutPost,
     failure: browser.logoutFailure,
     reload: browser.reload,
-    success: (all) => browser.navigateDocument(all ? "/login" : "/"),
+    // Signed out: the login page (out=1), not "/", which goes on to Studio and can sign the same person in again.
+    success: () => browser.navigateDocument("/login?out=1"),
   });
   const stopPersonal = personal.state.subscribe((value) => {
     if (!active) return;

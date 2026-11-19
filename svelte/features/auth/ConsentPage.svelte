@@ -43,27 +43,33 @@
       {text("loading")}
     </p>
   {:else if $view.context}
-    <p class="m-0 break-words">
-      {text("as", { email: $view.context.email })}
-    </p>
-    <ul class="m-0 list-disc space-y-1 pl-5">
-      <li>{text("rooms")}</li>
-      <li>{text("read")}</li>
-      <li>{text("post")}</li>
-    </ul>
-    <p class="m-0 text-muted-foreground">{text("cant")}</p>
-    <p class="m-0 break-words text-muted-foreground">
-      {$view.context.client_domain
-        ? text("publisher", { domain: $view.context.client_domain })
-        : text("unverified")}
-      {text("goes", { host: $view.context.redirect_host })}
-    </p>
-    <p class="m-0 break-words text-xs text-muted-foreground">
-      {text("scope")}: {$view.context.scope.join(", ")}
-    </p>
+    <section class="flex flex-col gap-3">
+      <p class="m-0 break-words text-muted-foreground">
+        {text("as", { email: $view.context.email })}
+      </p>
+      <ul class="m-0 flex list-disc flex-col gap-2 pl-5">
+        <li>{text("rooms")}</li>
+        <li>{text("read")}</li>
+        <li>{text("post")}</li>
+      </ul>
+    </section>
+    <section
+      class="flex flex-col gap-2 border-t border-border pt-5 text-muted-foreground"
+    >
+      <p class="m-0">{text("cant")}</p>
+      <p class="m-0 break-words">
+        {$view.context.client_domain
+          ? text("publisher", { domain: $view.context.client_domain })
+          : text("unverified")}
+        {text("goes", { host: $view.context.redirect_host })}
+      </p>
+      <p class="m-0 break-words text-xs">
+        {text("scope")}: {$view.context.scope.join(", ")}
+      </p>
+    </section>
     {#if $view.context.redirect_is_loopback}<p
         role="note"
-        class="m-0 rounded-control border border-warning bg-warning/10 p-3 text-foreground"
+        class="m-0 rounded-control border border-warning bg-warning/10 p-4 text-foreground"
       >
         {text("local")}
       </p>{/if}
@@ -71,7 +77,7 @@
       method="post"
       action={`/authorize${search}`}
       aria-busy={submitted}
-      class="flex flex-wrap gap-2"
+      class="grid grid-cols-2 gap-3"
       onsubmit={(event) => {
         if (submitted || leaving) event.preventDefault();
         else submitted = true;
@@ -83,26 +89,30 @@
         name="decision"
         value="deny"
         variant="outline"
+        size="lg"
         aria-disabled={submitted || leaving}>{text("cancel")}</Button
       >
       <Button
         type="submit"
         name="decision"
         value="approve"
+        size="lg"
         aria-disabled={submitted || leaving}>{text("allow")}</Button
       >
     </form>
     {#if submitted}<p role="status" class="m-0 text-muted-foreground">
         {text("waiting")}
       </p>{/if}
-    <AuthLogoutForm
-      next={`/authorize${search}`}
-      {lang}
-      blocked={submitted}
-      onBegin={() => {
-        leaving = true;
-      }}
-    />
+    <div class="border-t border-border pt-5">
+      <AuthLogoutForm
+        next={`/authorize${search}`}
+        {lang}
+        blocked={submitted}
+        onBegin={() => {
+          leaving = true;
+        }}
+      />
+    </div>
   {:else}<p role="alert" class="m-0 break-words text-destructive">
       {authIssue(lang, $view.error)}
     </p>

@@ -225,8 +225,13 @@ const shell = async (c: { env: Env; req: { url: string; raw: Request } }) => {
   return res.status === 200 && v ? new HTMLRewriter().on("head", { element: (el) => { el.append(`<meta name="vb-v" content="${v.replace(/[^\w-]/g, "")}" />`, { html: true }); } }).transform(res) : res;
 };
 // Already signed in: /login goes straight to the app (or to ?next=, which the client keeps safe).
+// Studio is the only sign-in, so /login goes straight to it. The page shows only after a failed Studio round trip
+// (?error=) or a sign-out (?out=1): this stops a loop, and a Studio that is still signed in does not sign you back in.
 app.get("/login", async (c) => {
-  if ((await identify(c)) && !c.req.query("next")) return c.redirect("/");
+  const next = c.req.query("next");
+  if ((await identify(c)) && !next) return c.redirect("/");
+  if (c.req.query("error") === undefined && c.req.query("out") === undefined)
+    return pageview(c, c.redirect(`/auth/studio/start${next ? `?next=${encodeURIComponent(next)}` : ""}`));
   return pageview(c, await nativeAuthPage(c.env, c.req.raw, "login"));
 });
 // The app is the home page (Nov 2026: the landing left this repo). Signed out: the login.

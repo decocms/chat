@@ -434,3 +434,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-18 · feat/digest-cron · Turn on the catch-up e-mail
+- Agent: claude-opus-5-5
+- Context: The 8h/18h digest cron was off until Email Sending worked on chat.decocms.com. It works now.
+- Decision: Set `triggers.crons` to `0 11,21 * * *` (8h and 18h São Paulo). Previews get no cron.
+- Other options: Keep it off.
+- Risk: medium (it e-mails real people; only those with something new who did not turn mention e-mails off)
+- Undo: Set `triggers.crons` to `[]` and deploy.
+
+### 2026-11-18 · feat/login-straight-to-studio · /login goes directly to Studio, and a sign-out stays on the login page
+- Agent: claude-opus-5-5
+- Context: The human asked that `/login` go directly to the Studio OAuth, because it has only one button, and that the page show only after an error, to stop a loop. After a sign-out, `/login` (and `/`) would go to Studio again, and a Studio that is still signed in would sign the same person in again at once.
+- Decision: `/login` without `error` or `out` redirects to `/auth/studio/start` (with `next`). Each sign-out goes to `/login?out=1`: the sign-out of this browser (it went to `/`), the sign-out of all browsers, and the "Not you?" form of the consent page.
+- Other options: Go to `/` after a sign-out of this browser (that signs the person in again). Sign out of Studio too (deco.chat does not call Studio for the person).
+- Risk: low
+- Undo: Revert this commit.
+- Status: open

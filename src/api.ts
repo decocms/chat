@@ -885,9 +885,10 @@ export const authApi = new Hono<AuthCtx>()
     const auth = c.get("auth");
     auth.logout();
     // A form post (the consent page's "Not you?") signs out and goes back to the login with where it came from.
+    // out=1 keeps the login page on screen: without it, /login goes to Studio, which can sign the same person in again.
     if (!c.req.header("content-type")?.includes("form")) return c.json(ok, 200);
     const next = auth.safeNext(String((await c.req.parseBody()).next ?? ""));
-    return c.redirect(auth.loginUrl(next, `?next=${encodeURIComponent(next)}`), 303);
+    return c.redirect(auth.loginUrl(next, `?next=${encodeURIComponent(next)}&out=1`), 303);
   })
   .post("/auth/logout-all", async (c) => {
     const auth = c.get("auth");
