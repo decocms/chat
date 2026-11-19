@@ -1818,3 +1818,76 @@ test("the same person draws the same face whatever case their email is written i
   expect(face).toBeTruthy();
   expect(await draw(" Ana@Test.COM ")).toBe(face);
 });
+
+test("DM list: each person's online dot follows the person socket's presence, and You is always online", async () => {
+  const { default: DmNav } =
+    await import("../web/features/app-navigation/DmNav.svelte");
+  const bia = `dm${"b".repeat(20)}`,
+    caio = `dm${"c".repeat(20)}`;
+  const dm = (id: string, email: string) =>
+    room(id, { dm: 1, title: null, members: `me@test.com,${email}` });
+  const h = shellFixture({
+    me: async () =>
+      me({
+        books: [dm(bia, "bia@test.com"), dm(caio, "caio@test.com")],
+        people: [
+          { email: "bia@test.com", name: "Bia", avatar: null, rooms: [] },
+          { email: "caio@test.com", name: "Caio", avatar: null, rooms: [] },
+        ],
+      }),
+  });
+  h.services.start();
+  await h.services.personal.refresh();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(DmNav, {
+      target,
+      props: { controller: h.services.navigation, lang: "en" },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    target.remove();
+    h.services.dispose();
+  });
+  await flush();
+  const row = (id: string) =>
+    target.querySelector<HTMLElement>(`li[data-dm="${id}"]`)!;
+  const dot = (id: string) =>
+    row(id).querySelector<HTMLElement>("[data-status-dot]")!;
+  expect(row(bia).dataset.presence).toBe("offline");
+  expect(dot(bia).dataset.statusDot).toBe("offline");
+  expect(dot(bia).getAttribute("aria-label")).toBe("Bia · Offline");
+  const self = row("dm000000000000000000aa");
+  expect(self.dataset.presence).toBe("online");
+  expect(
+    self.querySelector("[data-status-dot]")!.getAttribute("aria-label"),
+  ).toBe("You · Online");
+
+  h.services.personal.presence({
+    people: [
+      { email: "bia@test.com", online: true },
+      { email: "caio@test.com", online: true },
+    ],
+    all: true,
+  });
+  await flush();
+  expect(row(bia).dataset.presence).toBe("online");
+  expect(dot(bia).getAttribute("aria-label")).toBe("Bia · Online");
+  expect(row(caio).dataset.presence).toBe("online");
+
+  // A change patches one person; a new full list replaces everything.
+  h.services.personal.presence({
+    people: [{ email: "bia@test.com", online: false }],
+    all: false,
+  });
+  await flush();
+  expect(row(bia).dataset.presence).toBe("offline");
+  expect(row(caio).dataset.presence).toBe("online");
+  h.services.personal.presence({ people: [], all: true });
+  await flush();
+  expect(row(caio).dataset.presence).toBe("offline");
+});

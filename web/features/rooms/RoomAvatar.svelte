@@ -1,6 +1,7 @@
 <script lang="ts">
   import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import Avatar from "../../lib/studio/Avatar.svelte";
   import type { AvatarSize } from "../../lib/studio/avatar";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -26,6 +27,7 @@
     cloud = false,
     waits = [],
     person = null,
+    presence = null,
     class: className,
   }: {
     title: string;
@@ -45,6 +47,8 @@
     waits?: readonly WaitReference[];
     /** A DM: the other person (you in "Você") drawn as PersonAvatar, not a room's tile. */
     person?: { email: string; version?: number | null } | null;
+    /** A DM's person: their online dot, and what it says ("Name · Online"). */
+    presence?: { online: boolean; label: string } | null;
     class?: string;
   } = $props();
   const text = (
@@ -116,6 +120,11 @@
         fill,
       )}><Icon icon="cloud-01" size={10} /></span
     >{/if}
+  {#if presence}<PresenceDot
+      online={presence.online}
+      label={presence.label}
+      class={ring}
+    />{/if}
   <WaitBadge
     solid
     {surface}

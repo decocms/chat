@@ -67,11 +67,15 @@
   const current = $derived($nav.roomId ?? null);
 </script>
 
-{#snippet dm(entry: DmEntry)}<li data-dm={entry.room.id}>
+{#snippet dm(entry: DmEntry)}
+  <!-- You are always online to yourself: this page is connected. -->
+  {@const online = entry.self || $personal.online[entry.email] === true}
+  <li data-dm={entry.room.id} data-presence={online ? "online" : "offline"}>
     <RoomLink
       room={entry.room}
       dm={entry}
       selfLabel={homeText(lang, "you")}
+      {online}
       seen={$personal.seen[entry.room.id] ?? 0}
       waits={waits.get(entry.room.id) ?? []}
       now={$personal.now}

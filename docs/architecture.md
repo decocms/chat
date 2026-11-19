@@ -19,7 +19,7 @@ A room has these parts:
 | Worker | `src/index.ts` (Hono) | Serves pages, the API, OAuth and `/mcp`. Sends WebSockets to the correct Durable Object. |
 | `Book` Durable Object | `src/book.ts` | One for each room. Keeps the room data in SQLite. Sends real-time events. Runs the room alarm. |
 | `DocRoom` Durable Object | `src/docroom.ts` | One for each document. Keeps the live Yjs text for co-editing. Copies the text back to the `Book`. |
-| `Person` Durable Object | `src/person.ts` | One for each person. Holds the app WebSocket of that person. Tells open tabs to fetch again. |
+| `Person` Durable Object | `src/person.ts` | One for each person. Holds the app WebSocket of that person. Tells open tabs to fetch again. Sends DM presence. |
 
 ## Storage
 
@@ -45,6 +45,13 @@ Rules:
 - Send only the data that changed. A large snapshot to each tab is a known problem.
 - Every send to room sockets goes through `Book.sendTo`. It sends a JSON-RPC notification and counts bytes for each event type.
 - `Book.webSocketMessage` answers each JSON-RPC request with exactly one response. It does not answer a notification.
+- DM presence (the dots in the DM list) goes from `Person` to `Person`. The browser sends no request for it. The rules are in `src/presence.ts`.
+  - A person is online when their `Person` has one or more open `/ws-me` sockets (the `app` tag).
+  - The first socket sends `online` to the `Person` of each DM contact (`POST /presence`). Contacts are the people of the DMs that have a message (`dmContacts`, one D1 read).
+  - After the last socket closes, an alarm waits 30 seconds (`PRESENCE_GRACE`). Then it sends `offline`. A new socket in that time cancels it.
+  - While the person is online, the alarm sends `online` again every 30 minutes. A stored `online` older than 75 minutes is offline.
+  - The receiving `Person` keeps each contact's state (`p:<email>`). It sends `{ t: "presence", people }` to its open app sockets. A new socket first gets the full list (`all: 1`).
+  - Only people who share a DM with you get your presence.
 
 ## Agents
 

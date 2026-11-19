@@ -65,6 +65,11 @@ function harness() {
       setPushed: (value) => {
         pushed = value;
       },
+      presence: (update) => {
+        calls.push(
+          `presence:${update.all ? "all" : "change"}:${update.people.map((p) => `${p.email}=${p.online}`).join(",")}`,
+        );
+      },
     },
     agents: {
       refreshAccount: async () => {
@@ -281,4 +286,21 @@ test("disposed document ignores queued timers, connection callbacks and later id
   expect(h.connections).toHaveLength(1);
   expect(h.connections[0]!.disposed).toBe(1);
   expect(h.unlistened()).toBe(1);
+});
+
+test("a contact's presence reaches the session only while the channel owns the socket", () => {
+  const h = harness();
+  h.owner.start();
+  const options = h.connections[0]!.options;
+  options.onPresence?.({
+    people: [{ email: "b@test", online: true }],
+    all: true,
+  });
+  expect(h.calls).toEqual(["presence:all:b@test=true"]);
+  h.owner.dispose();
+  options.onPresence?.({
+    people: [{ email: "b@test", online: false }],
+    all: false,
+  });
+  expect(h.calls).toEqual(["presence:all:b@test=true"]);
 });

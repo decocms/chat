@@ -20,7 +20,12 @@ type ConnectionOptions = Parameters<typeof createPersonalConnection>[0];
 export function createApplicationPersonalChannel(options: {
   personal: Pick<
     PersonalSession,
-    "observe" | "invalidate" | "refresh" | "refreshAgents" | "setPushed"
+    | "observe"
+    | "invalidate"
+    | "refresh"
+    | "refreshAgents"
+    | "setPushed"
+    | "presence"
   >;
   agents: Pick<AgentsService, "refreshAccount">;
   listenIdentity(
@@ -114,6 +119,9 @@ export function createApplicationPersonalChannel(options: {
           options.refreshRoom();
           if (sameRoom(before, route)) void options.agents.refreshAccount();
         }, 600);
+      },
+      onPresence(update) {
+        if (owns()) options.personal.presence(update);
       },
       onConnected: () => {
         refresh(true);

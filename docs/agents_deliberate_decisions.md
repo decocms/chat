@@ -636,6 +636,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Turn the switch off after each failure. Then "Try again" is the same as the switch.
 - Risk: low
 - Undo: Revert this commit.
+
+### 2026-11-19 · feat/dm-presence · DM presence: contacts, refresh and reply
+- Agent: claude-opus-5-5
+- Context: The human approved Person-to-Person presence for the DM list, with a grace period. The contact source, the staleness rule and the shared dot were open.
+- Decision: The contacts are the people of the DMs that have a message (one D1 read in `dmContacts`, only on a transition), the same people whose DM list shows you. While online, the alarm sends `online` again every 30 minutes; a stored `online` older than 75 minutes is offline. When a `Person` hears from a contact that it did not know, it answers one time with its own state (`reply`), so a new DM gets both dots. I made `web/lib/components/PresenceDot.svelte` from the dot of `PeoplePanel`, and both lists use it.
+- Other options: Read the contacts from the cached `/api/me` in the `Person` (it is often missing or stale). Give a contact's state no expiry (a lost "offline" stays forever). No refresh (a missed message stays until the next change). Copy the dot classes into `RoomAvatar` (two copies of one visual).
+- Risk: low
+- Undo: Revert the commit. The `Person` storage keys `announced`, `email` and `p:*` then stay unused.
 - Status: open
 
 ### 2026-11-19 · image-picker · One picker for a person's photo and a room's icon

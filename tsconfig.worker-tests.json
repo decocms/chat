@@ -5,6 +5,7 @@
   },
   "include": [
     "scripts/me-cache.test.ts",
+    "scripts/presence.test.ts",
     "scripts/file-cache.test.ts",
     "scripts/service-boundaries.test.ts",
     "scripts/auth-ui.test.ts",

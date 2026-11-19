@@ -1,15 +1,23 @@
 import { parsePersonEvent } from "../../../shared/person";
 import { authClock, type AuthClock } from "../auth/owner";
+export type PresenceUpdate = {
+  people: { email: string; online: boolean }[];
+  /** The full list a new socket gets first: it replaces what the app knew. */
+  all: boolean;
+};
 export type PersonalNotice =
   | { kind: "account"; book?: string; message?: boolean }
-  | { kind: "agents"; book: string };
+  | { kind: "agents"; book: string }
+  | ({ kind: "presence" } & PresenceUpdate);
 export function decodePersonalNotice(raw: unknown): PersonalNotice | null {
   const event = parsePersonEvent(raw);
   return event?.t === "me"
     ? { kind: "account", book: event.book, message: event.msg === 1 }
     : event?.t === "agents"
       ? { kind: "agents", book: event.book }
-      : null;
+      : event?.t === "presence"
+        ? { kind: "presence", people: event.people, all: event.all === 1 }
+        : null;
 }
 type PersonalSocket = Pick<
   WebSocket,
@@ -20,6 +28,8 @@ export function createPersonalConnection(options: {
   decode?: (raw: unknown) => PersonalNotice | null;
   onAccount: () => void;
   onAgents: (book: string) => void;
+  /** A DM contact opened or closed the app (src/person.ts). */
+  onPresence?: (update: PresenceUpdate) => void;
   onVisible: () => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -73,6 +83,7 @@ export function createPersonalConnection(options: {
         ))
           options.onAccount();
       } else if (notice.kind === "agents") options.onAgents(notice.book);
+      else options.onPresence?.({ people: notice.people, all: notice.all });
     };
     current.onclose = () => {
       if (!active || socket !== current) return;
