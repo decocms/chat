@@ -601,6 +601,8 @@ const EN: Readonly<Record<string, string>> = {
     "That epic is no longer in this room.",
   "Novo épico: escreva o título…": "New epic: type its title…",
   Épicos: "Epics",
+  Plano: "Plan",
+  Feitos: "Done",
   "Ver menos": "Show less",
   "Ver mais ({n})": "Show more ({n})",
   "Fixar no topo": "Pin to top",
@@ -646,7 +648,6 @@ const EN: Readonly<Record<string, string>> = {
   "@vibe sugere": "@vibe suggests",
   "sugestão do @vibe, clique para ver": "suggested by @vibe, click to see",
   "Sugestões do @vibe": "@vibe's suggestions",
-  "{n} sugestões do @vibe": "{n} suggestions from @vibe",
   "Pedindo pra entrar": "Asking to join",
   "pediu {ago}": "asked {ago} ago",
   "Liberar: entra na sala e recebe o link por email":
