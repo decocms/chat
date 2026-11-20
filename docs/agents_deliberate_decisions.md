@@ -848,3 +848,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. All the badges in the product change their look at the same time. Badges with a class that sets a background (`Count`, `TagsInput`) keep that background.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-20 · feat/composer-single-field · The composer is one filled field, and send has its own slot
+- Agent: claude-opus-5-5
+- Context: The human asked for a composer like the Discord phone composer, then approved the artifact in epic c01ee455 (a ghost +, and a reply strip with a preview). They asked for no horizontal shift while you type, support and speed for long texts, and CSS transitions. They did not select between "Enter only" and "button while typing" for send on a computer.
+- Decision: `ChatField` is one `bg-muted` field (`rounded-3xl`, `md:rounded-xl`) with no edge, and a thin ring on focus. The order is + (ghost), the text, emoji, mic and send. The icons in the field hover with `bg-secondary-hover`, because `accent` is the same colour as `muted` in light mode. On a phone, send takes the mic's cell when there is something to send, but not while you dictate. On a computer, send keeps its slot and fades in when there is text. Thus the text never moves sideways. The reply strip (one line: "Respondendo a **who** · start of the message…", without "Respondendo a" on a phone) and the attachments are inside the field, on top, through the new `above` snippet. The text grows up to 160px (256px on a computer) and then scrolls. The line count and the "has text" test stop early, so a long text costs nothing per keystroke. The computer hint line ("Enter envia · Shift+Enter nova linha") is not added, because send stays visible.
+- Other options: Enter only on a computer, with no send button (the artifact's default). The browser tests click send, and a hidden action is harder to find. Show send only on a computer when there is text, without a reserved slot (the text moves 32px sideways).
+- Risk: low. The home ask box uses the same field, so it changes too.
+- Undo: Revert this commit.
+- Status: open

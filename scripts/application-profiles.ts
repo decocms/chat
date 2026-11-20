@@ -145,10 +145,10 @@ const rootRoles: StudioRenderedRole[] = [
   },
   {
     role: "Composer input fill",
-    // The rounded box is the filled input surface; its textarea is transparent.
+    // The rounded box is the filled input surface (muted, as the search field); its textarea is transparent.
     selector: "[data-composer] [data-composer-field]",
     property: "background-color",
-    cssVariable: "--studio-input-background",
+    cssVariable: "--muted",
   },
   {
     role: "Composer input label",

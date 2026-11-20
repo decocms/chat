@@ -810,6 +810,7 @@ const EN: Readonly<Record<string, string>> = {
   "Ver a mensagem respondida": "See the message being replied to",
   "mensagem anterior": "earlier message",
   "Respondendo a <b>{who}</b>": "Replying to <b>{who}</b>",
+  "Respondendo a": "Replying to",
   "Cancelar resposta": "Cancel reply",
   "Essa mensagem está mais acima: role o chat pra carregar.":
     "That message is further up: scroll the chat to load it.",
