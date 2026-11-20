@@ -3,17 +3,80 @@
 // cli/vibebook.ts
 import { execFileSync, execSync, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync as existsSync2, fstatSync, mkdirSync, openSync, readdirSync as readdirSync2, readFileSync, readSync, renameSync, rmSync, statSync as statSync2, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
-var VERSION = "1.7.6";
-var HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
-var SESSION = join(HOME, "session.json");
-var AGENTS = join(HOME, "agents.json");
+import { basename, dirname, join as join2 } from "node:path";
+
+// cli/backfill.ts
+import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { createInterface } from "node:readline";
+async function scanTranscripts(root, skip) {
+  const days = new Map;
+  const sessions = [];
+  if (!existsSync(root))
+    return { days, sessions };
+  const files = [];
+  for (const dir of readdirSync(root)) {
+    try {
+      for (const f of readdirSync(join(root, dir))) {
+        if (f.endsWith(".jsonl"))
+          files.push(join(root, dir, f));
+        else if (existsSync(join(root, dir, f, "subagents"))) {
+          for (const g of readdirSync(join(root, dir, f, "subagents")))
+            if (g.endsWith(".jsonl"))
+              files.push(join(root, dir, f, "subagents", g));
+        }
+      }
+    } catch {}
+  }
+  {
+    for (const path of files) {
+      const sid = path.slice(path.lastIndexOf("/") + 1, -6);
+      if (!/^[\w-]{8,80}$/.test(sid) || skip(sid))
+        continue;
+      let bytes = 0, last = "", fallback = "";
+      try {
+        fallback = new Date(statSync(path).mtimeMs).toISOString().slice(0, 10);
+      } catch {
+        continue;
+      }
+      const lines = createInterface({
+        input: createReadStream(path, { encoding: "utf8" }),
+        crlfDelay: Infinity
+      });
+      for await (const line of lines) {
+        bytes += Buffer.byteLength(line, "utf8") + 1;
+        if (!line.includes('"usage"'))
+          continue;
+        try {
+          const e = JSON.parse(line);
+          const m = e?.message, u = m?.usage;
+          if (!u || m.id && m.id === last)
+            continue;
+          last = m.id ?? "";
+          const n = (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+          if (!(n > 0))
+            continue;
+          const day = typeof e.timestamp === "string" && /^\d{4}-\d{2}-\d{2}T/.test(e.timestamp) ? new Date(e.timestamp).toISOString().slice(0, 10) : fallback;
+          days.set(day, (days.get(day) ?? 0) + n);
+        } catch {}
+      }
+      sessions.push({ sid, bytes, last });
+    }
+  }
+  return { days, sessions };
+}
+
+// cli/vibebook.ts
+var VERSION = "1.7.7";
+var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
+var SESSION = join2(HOME, "session.json");
+var AGENTS = join2(HOME, "agents.json");
 var DEFAULT_ORIGIN = "https://chat.decocms.com";
 var MOVED = { "https://vibebook.dev": DEFAULT_ORIGIN };
-var HERDR = join(HOME, "herdr.json");
+var HERDR = join2(HOME, "herdr.json");
 var jsonErrors = false;
 var die = (msg, code = 1) => {
   if (jsonErrors)
@@ -92,7 +155,7 @@ function repoRoot() {
     return process.cwd();
   }
 }
-var linkedRoom = (root) => readFileSync(join(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
+var linkedRoom = (root) => readFileSync(join2(root, ".vibebook"), "utf8").match(/^room_id=([a-z0-9]+)/m)?.[1];
 function roomHere(root) {
   try {
     const r = linkedRoom(root);
@@ -101,7 +164,7 @@ function roomHere(root) {
   } catch {}
   for (const f of ["README.md", "AGENTS.md", "CLAUDE.md"]) {
     try {
-      const m = readFileSync(join(root, f), "utf8").match(/(?:chat\.decocms\.com|vibebook\.dev)\/b\/([a-z0-9]{12})/);
+      const m = readFileSync(join2(root, f), "utf8").match(/(?:chat\.decocms\.com|vibebook\.dev)\/b\/([a-z0-9]{12})/);
       if (m)
         return m[1];
     } catch {}
@@ -226,7 +289,7 @@ async function session() {
       break;
     } catch {
       try {
-        if (Date.now() - statSync(lock).mtimeMs > 30000)
+        if (Date.now() - statSync2(lock).mtimeMs > 30000)
           rmSync(lock, { recursive: true, force: true });
       } catch {}
       if (i > 100)
@@ -266,11 +329,11 @@ function transcriptTail(sid, max = 4 << 20) {
   if (!/^[\w-]{8,80}$/.test(sid))
     return;
   try {
-    const root = join(homedir(), ".claude", "projects");
-    const dir = readdirSync(root).find((d) => existsSync(join(root, d, `${sid}.jsonl`)));
+    const root = join2(homedir(), ".claude", "projects");
+    const dir = readdirSync2(root).find((d) => existsSync2(join2(root, d, `${sid}.jsonl`)));
     if (!dir)
       return;
-    const fd = openSync(join(root, dir, `${sid}.jsonl`), "r");
+    const fd = openSync(join2(root, dir, `${sid}.jsonl`), "r");
     const size = fstatSync(fd).size;
     const n = Math.min(size, max);
     const buf = Buffer.alloc(n);
@@ -298,18 +361,18 @@ function sessionContext(sid) {
     }
   } catch {}
 }
-var USAGE = join(HOME, "usage");
+var USAGE = join2(HOME, "usage");
 function sessionUsage(sid) {
   if (!/^[\w-]{8,80}$/.test(sid))
     return;
   try {
-    const root = join(homedir(), ".claude", "projects");
-    const dir = readdirSync(root).find((d) => existsSync(join(root, d, `${sid}.jsonl`)));
+    const root = join2(homedir(), ".claude", "projects");
+    const dir = readdirSync2(root).find((d) => existsSync2(join2(root, d, `${sid}.jsonl`)));
     if (!dir)
       return;
-    const file = join(USAGE, `${sid}.json`);
+    const file = join2(USAGE, `${sid}.json`);
     const st = readJson(file, { off: 0, total: 0, last: "" });
-    const fd = openSync(join(root, dir, `${sid}.jsonl`), "r");
+    const fd = openSync(join2(root, dir, `${sid}.jsonl`), "r");
     const size = fstatSync(fd).size;
     if (size < st.off)
       Object.assign(st, { off: 0, total: 0, last: "" });
@@ -339,7 +402,7 @@ function sessionUsage(sid) {
     return st.total;
   } catch {}
 }
-var STATUS = join(HOME, "status");
+var STATUS = join2(HOME, "status");
 function statusline() {
   const input = readFileSync(0);
   try {
@@ -352,7 +415,7 @@ function statusline() {
           limits[k] = { p: Math.round(l.used_percentage), r: Number(l.resets_at) || 0 };
       }
       mkdirSync(STATUS, { recursive: true });
-      writeFileSync(join(STATUS, `${j.session_id}.json`), JSON.stringify({ window: Number(j.context_window?.context_window_size) || undefined, limits, at: Date.now() }));
+      writeFileSync(join2(STATUS, `${j.session_id}.json`), JSON.stringify({ window: Number(j.context_window?.context_window_size) || undefined, limits, at: Date.now() }));
     }
   } catch {}
   const rest = process.argv.slice(process.argv.indexOf("statusline") + 1).join(" ").trim();
@@ -362,19 +425,19 @@ function statusline() {
 var sessionStatus = (sid) => {
   if (!/^[\w-]{8,80}$/.test(sid))
     return;
-  const s = readJson(join(STATUS, `${sid}.json`), null);
+  const s = readJson(join2(STATUS, `${sid}.json`), null);
   return s && Date.now() - s.at < 6 * 3600000 ? s : undefined;
 };
 function codexContext() {
   try {
-    const root = join(homedir(), ".codex", "sessions");
-    if (!existsSync(root))
+    const root = join2(homedir(), ".codex", "sessions");
+    if (!existsSync2(root))
       return {};
     const day = (d) => {
       const t = new Date(Date.now() - d * 86400000);
-      return join(root, String(t.getFullYear()), String(t.getMonth() + 1).padStart(2, "0"), String(t.getDate()).padStart(2, "0"));
+      return join2(root, String(t.getFullYear()), String(t.getMonth() + 1).padStart(2, "0"), String(t.getDate()).padStart(2, "0"));
     };
-    const files = [day(0), day(1)].filter((d) => existsSync(d)).flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".jsonl")).map((f) => join(d, f))).map((f) => ({ f, m: statSync(f).mtimeMs })).filter((x) => Date.now() - x.m < 15 * 60000).sort((a, b) => b.m - a.m).slice(0, 10);
+    const files = [day(0), day(1)].filter((d) => existsSync2(d)).flatMap((d) => readdirSync2(d).filter((f) => f.endsWith(".jsonl")).map((f) => join2(d, f))).map((f) => ({ f, m: statSync2(f).mtimeMs })).filter((x) => Date.now() - x.m < 15 * 60000).sort((a, b) => b.m - a.m).slice(0, 10);
     const cwd = process.cwd();
     const read = (f, from, n) => {
       const fd = openSync(f, "r");
@@ -502,7 +565,7 @@ var printResult = (res) => {
 `);
       } catch {}
     } else if (c.data) {
-      const f = join(tmpdir(), `vibebook-${randomBytes(4).toString("hex")}.${(c.mimeType ?? "").split("/")[1] || "bin"}`);
+      const f = join2(tmpdir(), `vibebook-${randomBytes(4).toString("hex")}.${(c.mimeType ?? "").split("/")[1] || "bin"}`);
       writeFileSync(f, Buffer.from(c.data, "base64"));
       process.stdout.write(`${c.type} saved to ${f}
 `);
@@ -528,14 +591,14 @@ function readData() {
 var COMPACT_AT = Number(process.env.VIBEBOOK_COMPACT_AT) || 0.75;
 function pluginVersion() {
   try {
-    const j = JSON.parse(readFileSync(join(homedir(), ".claude", "plugins", "installed_plugins.json"), "utf8"));
+    const j = JSON.parse(readFileSync(join2(homedir(), ".claude", "plugins", "installed_plugins.json"), "utf8"));
     return String((j.plugins ?? j)["vibebook@vibebook"]?.[0]?.version ?? "");
   } catch {
     return "";
   }
 }
 var herdr = (...args) => JSON.parse(execFileSync("herdr", args, { stdio: ["ignore", "pipe", "pipe"] }).toString()).result;
-var PROJECTS = join(homedir(), "Projects");
+var PROJECTS = join2(homedir(), "Projects");
 var LISTEN_PROMPT = 'Ouça a sala do vibebook desta pasta: rode `vibebook listen --model "<seu modelo>"` em background (Bash run_in_background); quando ele sair, `vibebook call read_room`, aja nas mensagens from_your_human e volte a ouvir. (Com o plugin, é o /vibebook:listen.)';
 var STOP = new Set("a o as os e de da do das dos para pra pro com em no na nos nas um uma por que the of for with and to in on at my our".split(" "));
 var slug = (t) => {
@@ -546,7 +609,7 @@ function roomFolder(room, title) {
   const look = (dir, depth) => {
     let names = [];
     try {
-      names = readdirSync(dir);
+      names = readdirSync2(dir);
     } catch {
       return;
     }
@@ -560,24 +623,24 @@ function roomFolder(room, title) {
       return;
     for (const n of names)
       if (!n.startsWith(".") && n !== "node_modules" && n !== "_archive") {
-        const f = look(join(dir, n), depth - 1);
+        const f = look(join2(dir, n), depth - 1);
         if (f)
           return f;
       }
   };
-  return look(PROJECTS, 2) ?? join(PROJECTS, slug(title));
+  return look(PROJECTS, 2) ?? join2(PROJECTS, slug(title));
 }
 function linkFolder(folder, room) {
   mkdirSync(folder, { recursive: true });
-  const f = join(folder, ".vibebook");
+  const f = join2(folder, ".vibebook");
   try {
     if (linkedRoom(folder) === room)
       return;
   } catch {}
   writeFileSync(f, `room_id=${room}
 `);
-  const exclude = join(folder, ".git", "info", "exclude");
-  if (existsSync(exclude) && !readFileSync(exclude, "utf8").split(`
+  const exclude = join2(folder, ".git", "info", "exclude");
+  if (existsSync2(exclude) && !readFileSync(exclude, "utf8").split(`
 `).includes(".vibebook"))
     appendFileSync(exclude, `
 .vibebook
@@ -646,7 +709,7 @@ function herdrServer(appMode = false) {
         } catch {
           return false;
         }
-      })() ? "linked" : existsSync(folder) ? "slug" : "new";
+      })() ? "linked" : existsSync2(folder) ? "slug" : "new";
       return send(200, { folder, home: homedir(), how });
     }
     if (u.pathname !== "/focus")
@@ -679,7 +742,89 @@ function herdrServer(appMode = false) {
     }
   }).on("error", (e) => log("warn", "focus", `the app's ↗ button is off: ${e.message}`, { port })).on("listening", () => log("debug", "focus", "local endpoint for the app's ↗ button is up", { addr: `127.0.0.1:${port}` })).listen(port, "127.0.0.1");
 }
-var MACHINE = join(HOME, "machine.json");
+var BACKFILL = join2(HOME, "backfill.json");
+async function backfill(agent, tools, dry = false) {
+  const mark = readJson(BACKFILL, {});
+  if (!dry && (mark.done || mark.pid && mark.pid !== process.pid && Date.now() - (mark.at ?? 0) < 3600000 && alive(mark.pid)))
+    return;
+  if (!dry && !tools?.some((t) => t.name === "usage_backfill"))
+    return;
+  if (!dry)
+    writePrivate(BACKFILL, { pid: process.pid, at: Date.now() });
+  const root = join2(homedir(), ".claude", "projects");
+  const scan = await scanTranscripts(root, (sid) => existsSync2(join2(USAGE, `${sid}.json`)));
+  const oldest = new Date(Date.now() - 730 * 86400000).toISOString().slice(0, 10);
+  const days = [...scan.days].filter(([d]) => d >= oldest).sort(([a], [b]) => a < b ? -1 : 1).map(([day, tokens]) => ({ day, tokens }));
+  if (dry) {
+    process.stdout.write(`${days.length} dias, ${days.reduce((n, d) => n + d.tokens, 0)} tokens, ${scan.sessions.length} sessões
+`);
+    return;
+  }
+  const machine = machineId();
+  for (let i = 0;i < days.length; i += 200) {
+    const res = await callTool("usage_backfill", { machine, days: days.slice(i, i + 200) }, agent, tools);
+    if (res.isError) {
+      writePrivate(BACKFILL, {});
+      return;
+    }
+  }
+  mkdirSync(USAGE, { recursive: true });
+  for (const x of scan.sessions) {
+    const file = join2(USAGE, `${x.sid}.json`);
+    if (existsSync2(file))
+      continue;
+    let size = x.bytes;
+    try {
+      const dir = readdirSync2(root).find((d) => existsSync2(join2(root, d, `${x.sid}.jsonl`)));
+      if (dir)
+        size = Math.min(size, statSync2(join2(root, dir, `${x.sid}.jsonl`)).size);
+    } catch {}
+    writeFileSync(file, JSON.stringify({ off: size, total: 0, last: x.last }));
+  }
+  writePrivate(BACKFILL, { done: Date.now(), days: days.length });
+}
+var alive = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+var UPDATE = join2(HOME, "update.json");
+var newer = (a, b) => {
+  const x = a.split(".").map(Number), y = b.split(".").map(Number);
+  for (let i = 0;i < 3; i++)
+    if ((x[i] ?? 0) !== (y[i] ?? 0))
+      return (x[i] ?? 0) > (y[i] ?? 0);
+  return false;
+};
+async function autoUpdate() {
+  try {
+    const st = readJson(UPDATE, {});
+    const npm = !import.meta.url.startsWith(`file://${HOME}`);
+    if (Date.now() - (st.at ?? 0) < (npm ? 24 : 6) * 3600000)
+      return;
+    writePrivate(UPDATE, { at: Date.now() });
+    const s = readJson(SESSION, null);
+    const from = (s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+    const r = await fetch(`${MOVED[from] ?? from}/cli.mjs`, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok)
+      return;
+    const text = await r.text();
+    const v = /const VERSION = "(\d+\.\d+\.\d+)"/.exec(text)?.[1];
+    if (!v || !newer(v, VERSION))
+      return;
+    if (npm) {
+      writePrivate(UPDATE, { at: Date.now(), latest: v });
+      return;
+    }
+    const tmp = join2(HOME, `cli.mjs.${process.pid}`);
+    writeFileSync(tmp, text);
+    renameSync(tmp, join2(HOME, "cli.mjs"));
+  } catch {}
+}
+var MACHINE = join2(HOME, "machine.json");
 function machineId() {
   const m = readJson(MACHINE, {});
   if (m.id && /^m_[a-f0-9]{32}$/.test(m.id))
@@ -933,7 +1078,7 @@ async function herdrSync(agent, tools) {
   writePrivate(HERDR, map);
   herdrOrder([...on.keys()], map);
 }
-var HERDR_APP = join(HOME, "herdr-app.json");
+var HERDR_APP = join2(HOME, "herdr-app.json");
 var happ = (...args) => {
   const r = JSON.parse(execFileSync("herdr-app", args, { stdio: ["ignore", "pipe", "pipe"] }).toString());
   if (r?.error)
@@ -946,7 +1091,7 @@ function appSession(terminal) {
     const pid = JSON.parse(execFileSync("hc", ["get", terminal], { stdio: ["ignore", "pipe", "pipe"] }).toString()).foreground?.pid;
     if (!pid)
       return;
-    const s = readJson(join(homedir(), ".claude", "sessions", `${pid}.json`), {}).sessionId;
+    const s = readJson(join2(homedir(), ".claude", "sessions", `${pid}.json`), {}).sessionId;
     return s && /^[0-9a-f-]{36}$/.test(s) ? s : undefined;
   } catch {
     return;
@@ -1120,7 +1265,7 @@ function hubNotice(raw) {
   }
   return typeof o.t === "string" ? o : null;
 }
-var HUB = join(HOME, "hub.json");
+var HUB = join2(HOME, "hub.json");
 var hubPort = () => {
   const h = readJson(HUB, null);
   if (!h)
@@ -1388,7 +1533,7 @@ async function main() {
       const parent = process.ppid;
       const self = process.argv[1], born = (() => {
         try {
-          return statSync(self).mtimeMs;
+          return statSync2(self).mtimeMs;
         } catch {
           return 0;
         }
@@ -1398,7 +1543,7 @@ async function main() {
           process.exit(0);
         let now = born;
         try {
-          now = statSync(self).mtimeMs;
+          now = statSync2(self).mtimeMs;
         } catch {}
         if (born && now !== born) {
           try {
@@ -1423,7 +1568,7 @@ async function main() {
         } catch {}
         process.exit(0);
       });
-      const lock = join(HOME, `listen-${agent}-${room ?? "all"}.pid`);
+      const lock = join2(HOME, `listen-${agent}-${room ?? "all"}.pid`);
       try {
         const old = Number(readFileSync(lock, "utf8"));
         if (old > 1 && old !== process.pid && /vibebook.*listen|cli\.mjs.*listen/.test(execFileSync("ps", ["-p", String(old), "-o", "command="], { encoding: "utf8" })))
@@ -1434,6 +1579,20 @@ async function main() {
         writeFileSync(lock, String(process.pid));
       } catch {}
       const tools = await listTools(agent);
+      const due = (f, ms) => {
+        const m = readJson(f, {});
+        return !m.done && Date.now() - (m.at ?? 0) > ms;
+      };
+      if (due(UPDATE, 6 * 3600000) || due(BACKFILL, 3600000))
+        spawn(process.execPath, [process.argv[1], "maintain"], { detached: true, stdio: "ignore", env: process.env, cwd: process.cwd() }).unref();
+      {
+        const u = readJson(UPDATE, {});
+        if (u.latest && newer(u.latest, VERSION) && Date.now() - (u.told ?? 0) > 86400000) {
+          process.stderr.write(`vibebook ${u.latest} saiu (você tem ${VERSION}): npm i -g vibebook.dev@latest
+`);
+          writePrivate(UPDATE, { ...u, told: Date.now() });
+        }
+      }
       const check = async (timeout) => {
         const res = await callTool("wait_for_messages", { timeout_seconds: timeout, ...room ? { room_id: room } : {} }, agent, tools);
         const out = JSON.parse(res.content[0]?.text ?? "{}");
@@ -1498,8 +1657,8 @@ async function main() {
         return die(e.code === "ENOENT" ? `herdr isn't installed. It's the terminal your room Claudes open in. Set everything up with one line:
   curl -fsSL https://chat.decocms.com/setup.sh | sh` : 'herdr isn\'t open. Run `herdr` in a terminal: with the vibebook plugin (herdr plugin install decocms/chat/herdr-plugin) its "vibebook" tab runs this for you.');
       }
-      const lock = join(HOME, "herdr.pid");
-      const other = Number(existsSync(lock) ? readFileSync(lock, "utf8") : 0);
+      const lock = join2(HOME, "herdr.pid");
+      const other = Number(existsSync2(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
         let alive = true;
         try {
@@ -1570,7 +1729,7 @@ async function main() {
     }
     case "upload": {
       const file = pos[1];
-      if (!file || !existsSync(file))
+      if (!file || !existsSync2(file))
         return die("usage: vibebook upload <file> [--message ..] [--thread ..]");
       const ext = file.toLowerCase().split(".").pop() ?? "";
       const type = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", pdf: "application/pdf", html: "text/html", md: "text/markdown", txt: "text/plain", csv: "text/csv", m4a: "audio/x-m4a", mp3: "audio/mpeg", wav: "audio/wav", aac: "audio/aac", ogg: "audio/ogg", opus: "audio/ogg", webm: "audio/webm", flac: "audio/flac" }[ext];
@@ -1623,6 +1782,17 @@ async function main() {
         process.exit(1);
       return;
     }
+    case "maintain":
+      await autoUpdate();
+      return backfill(agent, await listTools(agent).catch(() => {
+        return;
+      }));
+    case "backfill": {
+      if (flags.force)
+        writePrivate(BACKFILL, {});
+      await backfill(agent, flags["dry-run"] ? undefined : await listTools(agent), !!flags["dry-run"]);
+      return;
+    }
     case "update": {
       if (!import.meta.url.startsWith(`file://${HOME}`)) {
         process.stdout.write(`Instalado pelo npm: rode npm i -g vibebook.dev@latest (ou bun add -g vibebook.dev@latest).
@@ -1635,7 +1805,7 @@ async function main() {
       const r = await fetch(`${origin}/cli.mjs`);
       if (!r.ok)
         return die(`could not download: ${r.status}`);
-      writeFileSync(join(HOME, "cli.mjs"), await r.text());
+      writeFileSync(join2(HOME, "cli.mjs"), await r.text());
       process.stdout.write(`Atualizado.
 `);
       return;

@@ -90,6 +90,9 @@ const SCHEMA = [
   // (for the delta), and each time a plan limit hit 100% (once per window).
   `CREATE TABLE IF NOT EXISTS user_stats (email TEXT, day TEXT, tokens INTEGER DEFAULT 0, messages INTEGER DEFAULT 0, deploys INTEGER DEFAULT 0, limits_hit INTEGER DEFAULT 0, PRIMARY KEY (email, day))`,
   `CREATE TABLE IF NOT EXISTS usage_sessions (agent TEXT, sid TEXT, tokens INTEGER, PRIMARY KEY (agent, sid))`,
+  // Tokens spent before the live counter (CLI 1.7.7 scans the machine's old Claude Code transcripts once): per machine and
+  // day, kept at the largest value sent, so a rerun never counts twice.
+  `CREATE TABLE IF NOT EXISTS usage_backfill (email TEXT, machine TEXT, day TEXT, tokens INTEGER, PRIMARY KEY (email, machine, day))`,
   `CREATE TABLE IF NOT EXISTS limit_hits (email TEXT, kind TEXT, reset INTEGER, at INTEGER, PRIMARY KEY (email, kind, reset))`,
   `CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, folder TEXT, summary TEXT, owner TEXT, created_at INTEGER, updated_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS members (book_id TEXT, email TEXT, PRIMARY KEY (book_id, email))`,

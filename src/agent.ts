@@ -5,7 +5,7 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 import { gate, routerOn, routerStats } from "./router";
 import { ownSession } from "./ownSession";
 import { isDmId } from "./dm";
-import { bumpStat, isLaunchCard, recordLimits, recordUsage } from "./profile";
+import { bumpStat, isLaunchCard, recordBackfill, recordLimits, recordUsage } from "./profile";
 import {
   createConn,
   deleteConn,
@@ -705,6 +705,23 @@ const TOOLS = [
         model: { type: "string" },
       },
       required: ["room_id", "message_id"],
+    },
+  },
+  {
+    name: "usage_backfill",
+    description:
+      "Used by the vibebook CLI, not by you: the tokens this computer's older Claude Code sessions spent, per UTC day, so your human's profile counts them. Each day is kept at the largest value sent for that machine, so sending again never counts twice.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        machine: { type: "string", description: "this computer's id (~/.vibebook/machine.json)" },
+        days: {
+          type: "array",
+          items: { type: "object", properties: { day: { type: "string" }, tokens: { type: "number" } }, required: ["day", "tokens"] },
+        },
+        model: { type: "string" },
+      },
+      required: ["machine", "days"],
     },
   },
   {
@@ -2372,6 +2389,10 @@ async function call(
     case "permission_close": {
       const id = await room();
       return bookStub(env, id).closeAsk(id, Number(a.message_id), me.email);
+    }
+    case "usage_backfill": {
+      if (!MACHINE_ID.test(str(a.machine))) throw new Error("machine must be this computer's id");
+      return { ok: true, days: await recordBackfill(db, me.email, str(a.machine), a.days) };
     }
     case "report_issue": {
       const id = a.room_id ? await room() : "";

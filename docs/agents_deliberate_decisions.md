@@ -830,3 +830,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person can no longer select an avatar's initials or a badge's text.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-19 · feat/token-backfill · The profile counts a machine's older Claude Code tokens
+- Agent: claude-opus-5-5
+- Context: The human asked why the profile did not count the tokens they spent before CLI 1.7.6 (#3646). The live counter only sees sessions from 1.7.6 on, and the CLI did not update itself.
+- Decision: Once per machine, a detached `vibebook maintain` (started by `listen`) scans every transcript in `~/.claude/projects`, including the subagents' (`<session>/subagents/*.jsonl`), sums the same four token kinds by the entry's UTC day and sends them with the `usage_backfill` tool. It counts all Claude Code use on that machine, not only sessions in deco.chat rooms. Sessions the live counter already reported (`~/.vibebook/usage/<session>.json`) are skipped; the scanned ones get that file at the scanned offset with total 0, so the live counter adds only what comes after. The server keeps `usage_backfill (email, machine, day)` at the largest value sent, so a rerun (`vibebook backfill --force`) never counts twice; the profile adds it to the live total. Last 2 years only, ≤ 1e11 a day. The same child also updates an install.sh CLI every 6h when the server's is newer (the running listen exits with "a CLI foi atualizada"); an npm install gets one stderr line a day.
+- Other options: Count only sessions in folders linked to a room. Send per session instead of per day.
+- Risk: low. Two machines that share transcripts (a synced home) would count them twice. A session open during the scan loses the bytes written between the scan and the marker.
+- Undo: `DELETE FROM usage_backfill`; drop `maintain` from `listen`.
+- Status: open

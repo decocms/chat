@@ -8,8 +8,9 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync,
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.6";
+const VERSION = "1.7.7";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -637,6 +638,66 @@ function herdrServer(appMode = false) {
 // claude_rooms for the runner, which loops every 15s for local work (herdr panes, idle Claudes, compaction): asked again
 // only when the hub says a ✻ toggle or a listener changed ({t:"agents"} poke), or 5 min passed. Asking every 15s was
 // 5.5k requests a day per machine, a quarter of all of vibebook's (Nov 2026). No hub: every 15s, as before.
+/** Once per machine (~/.vibebook/backfill.json): send the tokens of the older Claude Code sessions here (cli/backfill.ts)
+ *  so the profile counts everything since. `dry` only prints how many days and tokens it found. A failed send is retried
+ *  by the next listen; the server keeps each day at its largest value, so a retry never counts twice. */
+const BACKFILL = join(HOME, "backfill.json");
+async function backfill(agent: string, tools: Tool[] | undefined, dry = false) {
+  const mark = readJson<{ done?: number; pid?: number; at?: number }>(BACKFILL, {});
+  if (!dry && (mark.done || (mark.pid && mark.pid !== process.pid && Date.now() - (mark.at ?? 0) < 3600_000 && alive(mark.pid)))) return;
+  if (!dry && !tools?.some((t) => t.name === "usage_backfill")) return; // an older server, or offline
+  if (!dry) writePrivate(BACKFILL, { pid: process.pid, at: Date.now() });
+  const root = join(homedir(), ".claude", "projects");
+  const scan = await scanTranscripts(root, (sid) => existsSync(join(USAGE, `${sid}.json`)));
+  const oldest = new Date(Date.now() - 730 * 864e5).toISOString().slice(0, 10);
+  const days = [...scan.days].filter(([d]) => d >= oldest).sort(([a], [b]) => (a < b ? -1 : 1)).map(([day, tokens]) => ({ day, tokens }));
+  if (dry) {
+    process.stdout.write(`${days.length} dias, ${days.reduce((n, d) => n + d.tokens, 0)} tokens, ${scan.sessions.length} sessões\n`);
+    return;
+  }
+  const machine = machineId();
+  for (let i = 0; i < days.length; i += 200) {
+    const res = await callTool("usage_backfill", { machine, days: days.slice(i, i + 200) }, agent, tools);
+    if (res.isError) { writePrivate(BACKFILL, {}); return; }
+  }
+  // The live counter (sessionUsage) continues these sessions from where the scan stopped, counting only what's new.
+  mkdirSync(USAGE, { recursive: true });
+  for (const x of scan.sessions) {
+    const file = join(USAGE, `${x.sid}.json`);
+    if (existsSync(file)) continue;
+    let size = x.bytes;
+    try { const dir = readdirSync(root).find((d) => existsSync(join(root, d, `${x.sid}.jsonl`))); if (dir) size = Math.min(size, statSync(join(root, dir, `${x.sid}.jsonl`)).size); } catch {}
+    writeFileSync(file, JSON.stringify({ off: size, total: 0, last: x.last }));
+  }
+  writePrivate(BACKFILL, { done: Date.now(), days: days.length });
+}
+const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+/** Installed by install.sh (~/.vibebook/cli.mjs): at most every 6h, fetch the server's CLI and replace ours when its
+ *  VERSION is newer; a running listen sees the file change and exits ("a CLI foi atualizada"), so its Claude starts the
+ *  new one. From npm it only notes the newer version; listen prints one line a day suggesting the update. Never throws. */
+const UPDATE = join(HOME, "update.json");
+const newer = (a: string, b: string) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0); return false; };
+async function autoUpdate() {
+  try {
+    const st = readJson<{ at?: number }>(UPDATE, {});
+    const npm = !import.meta.url.startsWith(`file://${HOME}`);
+    if (Date.now() - (st.at ?? 0) < (npm ? 24 : 6) * 3600_000) return;
+    writePrivate(UPDATE, { at: Date.now() });
+    const s = readJson<Session | null>(SESSION, null);
+    const from = (s?.origin ?? DEFAULT_ORIGIN).replace(/\/$/, "");
+    const r = await fetch(`${MOVED[from] ?? from}/cli.mjs`, { signal: AbortSignal.timeout(15_000) });
+    if (!r.ok) return;
+    const text = await r.text();
+    const v = /const VERSION = "(\d+\.\d+\.\d+)"/.exec(text)?.[1];
+    if (!v || !newer(v, VERSION)) return;
+    if (npm) { writePrivate(UPDATE, { at: Date.now(), latest: v }); return; } // listen says it (stderr), this runs detached
+    const tmp = join(HOME, `cli.mjs.${process.pid}`);
+    writeFileSync(tmp, text);
+    renameSync(tmp, join(HOME, "cli.mjs"));
+  } catch {}
+}
+
 // This computer, as vibebook knows it (Nov 2026): a stable id in ~/.vibebook/machine.json and its name. The runner sends
 // it with claude_rooms (the check-in that shows the machine online in the app) together with the agent ids of the
 // Claudes it runs, so the room's switch for this machine covers them. Old servers don't take it: only sent when the
@@ -1272,6 +1333,13 @@ async function main() {
       try { const old = Number(readFileSync(lock, "utf8")); if (old > 1 && old !== process.pid && /vibebook.*listen|cli\.mjs.*listen/.test(execFileSync("ps", ["-p", String(old), "-o", "command="], { encoding: "utf8" }))) process.kill(old, "SIGUSR2"); } catch {} // the ps check: a pid reused by another program is left alone
       try { mkdirSync(HOME, { recursive: true }); writeFileSync(lock, String(process.pid)); } catch {}
       const tools = await listTools(agent);
+      // The CLI's own update and the one-time token backfill run in a detached child (`vibebook maintain`): a scan of GBs
+      // of transcripts must not keep this listen alive after it returns, nor slow it.
+      const due = (f: string, ms: number) => { const m = readJson<{ at?: number; done?: number }>(f, {}); return !m.done && Date.now() - (m.at ?? 0) > ms; };
+      if (due(UPDATE, 6 * 3600_000) || due(BACKFILL, 3600_000))
+        spawn(process.execPath, [process.argv[1], "maintain"], { detached: true, stdio: "ignore", env: process.env, cwd: process.cwd() }).unref();
+      { const u = readJson<{ at?: number; latest?: string; told?: number }>(UPDATE, {});
+        if (u.latest && newer(u.latest, VERSION) && Date.now() - (u.told ?? 0) > 864e5) { process.stderr.write(`vibebook ${u.latest} saiu (você tem ${VERSION}): npm i -g vibebook.dev@latest\n`); writePrivate(UPDATE, { ...u, told: Date.now() }); } }
       // One server check: prints what woke us and says so (true), else false.
       const check = async (timeout: number) => {
         const res = await callTool("wait_for_messages", { timeout_seconds: timeout, ...(room ? { room_id: room } : {}) }, agent, tools);
@@ -1417,6 +1485,16 @@ async function main() {
       const res = await callTool("connect_mcp", args, agent);
       process.stdout.write(`${res.content[0]?.text ?? ""}\n`);
       if (res.isError) process.exit(1);
+      return;
+    }
+    case "maintain":
+      await autoUpdate();
+      return backfill(agent, await listTools(agent).catch(() => undefined));
+    case "backfill": {
+      // Send (or with --dry-run only count) this machine's older Claude Code tokens for the profile; normally a listen
+      // does it by itself once. --force sends again (the server keeps the largest value per day).
+      if (flags.force) writePrivate(BACKFILL, {});
+      await backfill(agent, flags["dry-run"] ? undefined : await listTools(agent), !!flags["dry-run"]);
       return;
     }
     case "update": {
