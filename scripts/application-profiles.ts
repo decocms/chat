@@ -720,6 +720,13 @@ export async function auditApplicationProfiles(
               evidence.servedFonts = await actualFontAssets(fixture, page);
               fontsVerified = true;
             }
+            // Send shows only when there is something to send (#3692): a draft makes it visible to measure.
+            const draft = page.locator("[data-composer] #input");
+            await draft.fill("Profile");
+            await expect(
+              page.locator("[data-composer] [data-composer-send]"),
+            ).toBeVisible();
+            await settleAnimations(page);
             evidence.palettes.push({
               surface: "Room/Composer/canonical code",
               evidence: await verifyStudioPalette(
@@ -728,6 +735,9 @@ export async function auditApplicationProfiles(
                 frameRoles(width),
               ),
             });
+            await draft.fill("");
+            await draft.blur();
+            await settleAnimations(page);
             await axe(page, "Room initial", evidence);
             await page.screenshot({
               path: `${fixture.output}/${key}-room.png`,
