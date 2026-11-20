@@ -66,8 +66,8 @@
   {:else if story === "tones"}
     <Matrix
       columns={[
-        "sm · 16 · counts",
-        "default · 20",
+        "sm · 18 · counts",
+        "default · 22",
         "lg · 24 · tags",
         "With dot",
       ]}

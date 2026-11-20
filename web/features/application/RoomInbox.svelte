@@ -7,6 +7,7 @@
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
+  import type { BadgeVariants } from "../../lib/studio/badge";
   import Button from "../../lib/studio/Button.svelte";
   import Checkbox from "../../lib/studio/Checkbox.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -236,13 +237,16 @@
     review: "revisar",
     task: "tarefa",
   };
-  const kindTone: Record<Kind, string> = {
-    ask: "bg-warning/20 text-foreground",
-    claude: "bg-accent text-accent-foreground",
-    mention: "bg-muted text-muted-foreground",
-    review: "bg-success/20 text-foreground",
-    task: "bg-muted text-muted-foreground",
+  // The row's kind is a Badge tone; a task row takes its status's tone instead.
+  const kindTone: Record<Kind, NonNullable<BadgeVariants["variant"]>> = {
+    ask: "warning",
+    claude: "agent",
+    mention: "muted",
+    review: "success",
+    task: "muted",
   };
+  const statusTone = (status: string) =>
+    status === "review" ? "success" : status === "doing" ? "info" : "muted";
   const avatar = (email: string) =>
     roomAvatarVersion($root.room, $personal.me, email);
 
@@ -384,9 +388,12 @@
         {#each chips as chip (chip.filter)}{#if chip.filter === "all" || counts[chip.filter] || filter === chip.filter}<Button
               data-inbox-filter={chip.filter}
               size="sm"
-              variant={filter === chip.filter ? "default" : "outline"}
+              variant={filter === chip.filter ? "outline" : "ghost"}
               aria-pressed={filter === chip.filter}
-              class="h-7 rounded-full px-2.5 text-xs font-normal"
+              class={cn(
+                "h-7 rounded-full px-2.5 text-xs font-normal",
+                filter !== chip.filter && "text-muted-foreground",
+              )}
               onclick={(event) => {
                 if (live(event)) {
                   filter = chip.filter;
@@ -529,11 +536,11 @@
                           >
                             {#if row.kind !== "task"}<strong class="font-medium"
                                 >{name(row)}</strong
-                              >{/if}<span
-                              class={cn(
-                                "rounded-full px-1.5 text-[0.6875rem] font-medium",
-                                kindTone[row.kind],
-                              )}
+                              >{/if}<Badge
+                              size="sm"
+                              variant={row.task
+                                ? statusTone(row.task.status)
+                                : kindTone[row.kind]}
                               >{t(
                                 row.task
                                   ? row.task.status === "review"
@@ -542,15 +549,16 @@
                                       ? "fazendo"
                                       : "a fazer"
                                   : kindLabel[row.kind],
-                              )}</span
+                              )}</Badge
                             ><span
                               class="min-w-0 truncate text-xs text-muted-foreground"
                               >{row.where}</span
                             >{#if row.ts}<span
                                 class="text-xs text-muted-foreground tabular-nums"
                                 >{when(row.ts)}</span
-                              >{/if}{#if row.task?.due}<Badge variant="neutral"
-                                >{row.task.due}</Badge
+                              >{/if}{#if row.task?.due}<Badge
+                                variant="neutral"
+                                size="sm">{row.task.due}</Badge
                               >{/if}
                           </span>
                           <span class="line-clamp-2 break-words text-sm"

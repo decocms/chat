@@ -1,37 +1,38 @@
 import { tv, type VariantProps } from "tailwind-variants";
 
-/** Ported 1:1 from @decocms/ui `badge.tsx`: a status, a count or a tag. Entities (a goal, an app) are `Chip`s, not badges. */
-const NEUTRAL = "bg-muted text-foreground [a&]:hover:bg-secondary-hover";
+/** A status, a count or a tag. Entities (a goal, an app) are `Chip`s, not badges.
+ *  Every badge is the same white pill with an edge (like `Chip` and the outline controls). A tone does not paint the
+ *  pill: it sets `--badge-tone`, which colours a 6px dot before the text (or the leading icon, when there is one).
+ *  `BadgeDot` uses the same colour, so an explicit dot does not double the automatic one. */
+const PLAIN = "text-foreground [a&]:hover:bg-accent [button&]:hover:bg-accent";
+const TONED = `${PLAIN} before:size-1.5 before:shrink-0 before:rounded-full before:bg-(--badge-tone) before:content-[''] has-[>svg]:before:hidden has-[>[data-slot=badge-dot]]:before:hidden [&>svg]:text-(--badge-tone)`;
 
 export const badgeVariants = tv(
   {
-    base: "inline-flex items-center justify-center rounded-full text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1.5 [&>svg]:pointer-events-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 transition-[color,background-color] overflow-hidden [button&]:cursor-pointer [button&]:disabled:cursor-not-allowed",
+    base: "inline-flex items-center justify-center rounded-full bg-card shadow-edge text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1.5 [&>svg]:pointer-events-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring focus-visible:outline-offset-2 transition-[color,background-color] overflow-hidden [button&]:cursor-pointer [button&]:disabled:cursor-not-allowed",
     variants: {
       variant: {
-        default: NEUTRAL,
-        neutral: NEUTRAL,
-        secondary: NEUTRAL,
-        success: "bg-success/10 text-success [a&]:hover:bg-success/15",
-        warning: "bg-warning/10 text-warning [a&]:hover:bg-warning/15",
-        destructive:
-          "bg-destructive/10 text-destructive [a&]:hover:bg-destructive/15",
-        agent:
-          "bg-brand-purple-tint text-brand-purple-dark dark:bg-brand-purple/20 dark:text-brand-purple",
-        lime: "bg-brand-lime-tint text-brand-green-dark dark:bg-brand/20 dark:text-brand",
-        info: "bg-brand-blue-tint text-brand-blue-dark dark:bg-brand-blue/20 dark:text-brand-blue",
-        outline:
-          "bg-card shadow-edge text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        muted: "bg-muted text-muted-foreground [a&]:hover:bg-secondary-hover",
-        brand:
-          "bg-brand/30 text-foreground [a&]:hover:bg-brand/40 [button&]:hover:bg-brand/40",
+        default: PLAIN,
+        neutral: PLAIN,
+        secondary: PLAIN,
+        outline: PLAIN,
+        muted:
+          "text-muted-foreground [a&]:hover:bg-accent [button&]:hover:bg-accent",
+        success: `${TONED} [--badge-tone:var(--color-success)]`,
+        warning: `${TONED} [--badge-tone:var(--color-warning)]`,
+        destructive: `${TONED} [--badge-tone:var(--color-destructive)]`,
+        agent: `${TONED} [--badge-tone:var(--color-brand-purple-text)]`,
+        lime: `${TONED} [--badge-tone:var(--color-brand-soft)] dark:[--badge-tone:var(--color-brand)]`,
+        info: `${TONED} [--badge-tone:var(--color-notice)]`,
+        brand: `${TONED} [--badge-tone:var(--color-brand-soft)] dark:[--badge-tone:var(--color-brand)]`,
       },
       size: {
-        sm: "h-4 gap-1 px-1.5 text-[0.6875rem]",
-        default: "h-5 px-2",
+        sm: "h-4.5 gap-1 px-1.5 text-[0.6875rem]",
+        default: "h-5.5 px-2",
         lg: "h-6 px-2.5 text-sm [&>svg]:size-3.5",
         control: "h-7 gap-1.5 pr-3 pl-1.5",
-        icon: "size-5",
-        segmented: "h-7 gap-0 rounded-lg bg-card p-0 shadow-edge",
+        icon: "size-5 before:hidden",
+        segmented: "h-7 gap-0 rounded-lg p-0 before:hidden",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

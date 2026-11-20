@@ -345,8 +345,8 @@
               >agent</Badge
             >{/if}{#if m.tag === "done"}<Badge
               size="sm"
-              class="text-foreground select-none"
-              variant="success">✓ {vb.t("entregue")}</Badge
+              class="select-none"
+              variant="success">{vb.t("entregue")}</Badge
             >{/if}<time title={timestamp}
             >{vb.hhmm(m.ts)}<span
               data-time-zone
