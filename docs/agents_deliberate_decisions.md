@@ -839,3 +839,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Two machines that share transcripts (a synced home) would count them twice. A session open during the scan loses the bytes written between the scan and the marker.
 - Undo: `DELETE FROM usage_backfill`; drop `maintain` from `listen`.
 - Status: open
+
+### 2026-11-20 · feat/pill-atom-b · Every badge is a white pill with an edge, and the tone is a dot
+- Agent: claude-opus-5-5
+- Context: The human said that the Inbox pills did not match the rest of the product, and then asked to change the pill atom itself, so that every pill changes. They compared 4 options in a playground and selected option B: a white pill with an edge, with the colour only in a dot.
+- Decision: `badgeVariants`: all variants are `bg-card shadow-edge`, with foreground text (`muted` keeps the muted text). A toned variant (success, warning, destructive, agent, lime, info, brand) sets `--badge-tone`. The tone colours a 6px dot before the text, or the leading icon when there is one. `BadgeDot` uses the same colour, so an explicit dot does not make a second dot. `sm` is 18px and `default` is 22px, so the edge does not touch the text. info uses `--color-notice`, because `--color-brand-blue` is too pale for a dot on white. The Inbox row kind is now a `Badge` (Claude is `agent`, purple; a task takes its status's tone), not a span with its own colours. The Inbox filters stay buttons (`aria-pressed`): the selected one is `outline` and the others are `ghost`, not black. "✓ entregue" lost the ✓, because the dot now says it.
+- Other options: Make the filters a `ToggleGroup` (its items are radios, not `aria-pressed`, so the tests and the keyboard behaviour change). Keep the tinted pills and change only the corners (option A).
+- Risk: low. All the badges in the product change their look at the same time. Badges with a class that sets a background (`Count`, `TagsInput`) keep that background.
+- Undo: Revert this commit.
+- Status: open
