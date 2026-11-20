@@ -1016,7 +1016,7 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
     [...box.querySelectorAll("button")].map((button) =>
       button.getAttribute("aria-label"),
     ),
-  ).toEqual(["Emoji", "More options", "Dictate message", "Send"]);
+  ).toEqual(["More options", "Emoji", "Dictate message", "Send"]);
   const input = box.querySelector("textarea")!,
     mic = box.querySelector<HTMLButtonElement>(
       'button[aria-label="Dictate message"]',

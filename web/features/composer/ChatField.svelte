@@ -39,6 +39,8 @@
     onkeydown,
     menu,
     inside,
+    above,
+    ready = undefined,
     speechFactory,
     captureFactory,
     transcribe,
@@ -88,6 +90,10 @@
     menu?: Snippet<[close: () => void, trigger: HTMLElement | null]>;
     /** Shown at the right end of the field while it's empty (the room's "O que precisa de mim aqui?"). */
     inside?: Snippet;
+    /** Shown inside the field, above the text: the reply strip and the attachments of the room's composer. */
+    above?: Snippet;
+    /** There is something to send: the send button shows (on phones it takes the mic's place). Defaults to text in the field. */
+    ready?: boolean;
     speechFactory?: SpeechFactory | null;
     captureFactory?: FireCaptureFactory | null;
     transcribe?: (audio: Blob, signal: AbortSignal) => Promise<string>;
@@ -164,7 +170,15 @@
     }
     return counted;
   };
-  const lines = $derived(rows ?? Math.min(6, value.split("\n").length));
+  // Counts at most 6 line breaks, so a long text costs nothing per keystroke (the field sizes itself to the content).
+  const lines = $derived.by(() => {
+    if (rows !== undefined) return rows;
+    let count = 1;
+    for (let at = value.indexOf("\n"); at !== -1 && count < 6; count++)
+      at = value.indexOf("\n", at + 1);
+    return count;
+  });
+  const filled = $derived(ready ?? /\S/.test(value));
   // `enabled` goes first: the room's fence must run before any of its live props are read.
   const ok = () => active && enabled() && !disabled && !!root?.isConnected;
 
@@ -370,174 +384,201 @@
     };
   });
   const off = $derived(waiting || disabled);
+  // Phones: send takes the mic's cell when there is something to send, but never while you dictate.
+  const swap = $derived(filled && !dictating && !refining);
+  // Icons inside the field: ghost, with a hover one step darker than the field (muted = accent in light).
+  const FIELD_ICON =
+    "text-muted-foreground hover:bg-secondary-hover hover:text-foreground";
+  const SLOT =
+    "transition-[opacity,scale,visibility] duration-150 ease-[var(--vb-ease-out-cubic)]";
 </script>
 
+<!-- One filled field (#3692): the + on the left, emoji and the mic on the right, the reply and the
+     attachments inside it, on top. Send has its own slot, so the text never moves sideways: on phones
+     it takes the mic's place when there is something to send; on a computer it fades in beside the mic. -->
 <form
   bind:this={root}
   data-chat-box
   data-composer-field
+  data-ready={filled ? "true" : "false"}
+  data-swap={swap ? "true" : "false"}
   aria-busy={busy || pending || undefined}
-  class="flex items-end gap-0.5 font-sans text-sm text-foreground rounded-2xl bg-[var(--vb-studio-input-background)] py-3 pr-3 pl-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d] transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input),0_6px_20px_0_#00000014]"
+  class="group flex flex-col rounded-3xl bg-muted font-sans text-sm text-foreground transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input)] md:rounded-xl"
   onsubmit={(event) => {
     event.preventDefault();
     void submit();
   }}
 >
-  <IconButton
-    label={t("Emoji")}
-    size="icon"
-    class="text-muted-foreground hover:text-foreground"
-    disabled={off}
-    onclick={() => {
-      if (!ok()) return;
-      speech.cancel();
-      readCaret();
-      emoji = true;
-    }}><Icon icon="face-smile" size={16} /></IconButton
-  >
-  <div class="relative">
-    <IconButton
-      label={t("Mais opções")}
-      size="icon"
-      class="text-muted-foreground hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground"
-      bind:ref={more}
-      data-composer-more
-      aria-haspopup="menu"
-      aria-expanded={menuOpen}
-      disabled={off || !menu}
-      onpointerdown={(event) => {
-        if (document.activeElement === textarea) event.preventDefault();
-      }}
-      onkeydown={(event) => {
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          void openMenu(true);
-        }
-      }}
-      onclick={(event) => {
-        if (!ok()) return;
-        if (menuOpen) menuOpen = false;
-        else void openMenu(event.detail === 0);
-      }}><Icon icon="plus" size={16} /></IconButton
-    >
-    {#if menuOpen && menu}<div
-        bind:this={menuNode}
-        role="menu"
-        tabindex="-1"
-        class="absolute bottom-full left-0 z-20 mb-2 grid min-w-56 gap-0.5 rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised"
-        onkeydown={menuKeydown}
-      >
-        {@render menu(closeMenu, more)}
-      </div>{/if}
-  </div>
-  {#if label}<label for={id} class="sr-only">{label}</label>{/if}
-  <div class="relative flex min-w-0 flex-1">
-    {#if mention}<div
-        bind:this={mirror}
-        aria-hidden="true"
-        data-mention-mirror
+  {@render above?.()}
+  <div class="flex items-end gap-0.5 p-1.5">
+    <div class="relative">
+      <IconButton
+        label={t("Mais opções")}
+        size="icon"
         class={cn(
-          "pointer-events-none absolute inset-0 overflow-hidden break-words whitespace-pre-wrap text-transparent",
-          FIELD_TYPE,
+          FIELD_ICON,
+          "aria-expanded:bg-secondary-hover aria-expanded:text-foreground",
         )}
+        bind:ref={more}
+        data-composer-more
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        disabled={off || !menu}
+        onpointerdown={(event) => {
+          if (document.activeElement === textarea) event.preventDefault();
+        }}
+        onkeydown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            void openMenu(true);
+          }
+        }}
+        onclick={(event) => {
+          if (!ok()) return;
+          if (menuOpen) menuOpen = false;
+          else void openMenu(event.detail === 0);
+        }}><Icon icon="plus" size={16} /></IconButton
       >
-        {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
-                class="rounded-sm bg-primary/15 text-transparent ring-2 ring-primary/15"
-                >{segment.text}</mark
-              >{:else}{segment.text}{/if}{/each}{/if}{"\u200b"}
-      </div>{/if}
-    <Textarea
-      bind:ref={textarea}
-      {id}
-      rows={lines}
-      {maxlength}
-      {placeholder}
-      {value}
-      {...inputProps}
-      disabled={off}
-      class={cn(
-        "relative block max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-lg bg-transparent shadow-none [field-sizing:content] hover:bg-transparent focus-visible:outline-none",
-        FIELD_TYPE,
-        dictating && "ring-2 ring-destructive",
-      )}
-      onscroll={() => {
-        if (mirror && textarea) mirror.scrollTop = textarea.scrollTop;
-      }}
-      oninput={(event) => {
-        if (!ok()) return;
-        speech.cancel();
-        typedAt =
-          "inputType" in event && event.inputType === "insertText"
-            ? event.currentTarget.selectionStart
-            : -1;
-        onedit(event.currentTarget.value);
-        readCaret();
-        oninputtext?.();
-      }}
-      onselect={readCaret}
-      onclick={readCaret}
-      onkeyup={(event) => {
-        speech.keyup(event);
-        readCaret();
-      }}
-      onkeydown={keydown}
-      onblur={() => {
-        if (!waiting) speech.cancel();
-        onblurfield?.();
-      }}
-    />
-    <!-- Phones: the field is too narrow to share; the chip covered the whole box (Gui #3397). -->
-    {#if inside && !value && !off}<div
-        class="absolute top-1/2 right-1 hidden -translate-y-1/2 md:block"
-      >
-        {@render inside()}
-      </div>{/if}
-  </div>
-  <!-- The mic sits right before send, as in the classic app (Gui #2896). -->
-  {#if speech.supported}<IconButton
+      {#if menuOpen && menu}<div
+          bind:this={menuNode}
+          role="menu"
+          tabindex="-1"
+          class="absolute bottom-full left-0 z-20 mb-2 grid min-w-56 origin-bottom-left gap-0.5 rounded-xl bg-popover p-1 text-popover-foreground shadow-edge-raised transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+          onkeydown={menuKeydown}
+        >
+          {@render menu(closeMenu, more)}
+        </div>{/if}
+    </div>
+    {#if label}<label for={id} class="sr-only">{label}</label>{/if}
+    <div class="relative flex min-w-0 flex-1">
+      {#if mention}<div
+          bind:this={mirror}
+          aria-hidden="true"
+          data-mention-mirror
+          class={cn(
+            "pointer-events-none absolute inset-0 overflow-hidden break-words whitespace-pre-wrap text-transparent",
+            FIELD_TYPE,
+          )}
+        >
+          {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
+                  class="rounded-sm bg-primary/15 text-transparent ring-2 ring-primary/15"
+                  >{segment.text}</mark
+                >{:else}{segment.text}{/if}{/each}{/if}{"​"}
+        </div>{/if}
+      <Textarea
+        bind:ref={textarea}
+        {id}
+        rows={lines}
+        {maxlength}
+        {placeholder}
+        {value}
+        {...inputProps}
+        disabled={off}
+        class={cn(
+          "relative block max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-lg bg-transparent break-words shadow-none [field-sizing:content] hover:bg-transparent focus-visible:outline-none md:max-h-64",
+          FIELD_TYPE,
+          dictating && "ring-2 ring-destructive",
+        )}
+        onscroll={() => {
+          if (mirror && textarea) mirror.scrollTop = textarea.scrollTop;
+        }}
+        oninput={(event) => {
+          if (!ok()) return;
+          speech.cancel();
+          typedAt =
+            "inputType" in event && event.inputType === "insertText"
+              ? event.currentTarget.selectionStart
+              : -1;
+          onedit(event.currentTarget.value);
+          readCaret();
+          oninputtext?.();
+        }}
+        onselect={readCaret}
+        onclick={readCaret}
+        onkeyup={(event) => {
+          speech.keyup(event);
+          readCaret();
+        }}
+        onkeydown={keydown}
+        onblur={() => {
+          if (!waiting) speech.cancel();
+          onblurfield?.();
+        }}
+      />
+      <!-- Phones: the field is too narrow to share; the chip covered the whole box (Gui #3397). -->
+      {#if inside && !value && !off}<div
+          class="absolute top-1/2 right-1 hidden -translate-y-1/2 transition-opacity duration-150 starting:opacity-0 md:block"
+        >
+          {@render inside()}
+        </div>{/if}
+    </div>
+    <IconButton
+      label={t("Emoji")}
       size="icon"
-      aria-busy={refining || undefined}
-      label={t("Ditar mensagem")}
-      title={t("Toque pra ditar (ou segure espaço na caixa)")}
-      aria-pressed={dictating}
-      class={dictating
-        ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
-        : "text-muted-foreground hover:text-foreground"}
-      disabled={off || busy || refining}
-      onpointerdown={(event) => {
-        if (ok()) event.preventDefault();
-      }}
+      class={FIELD_ICON}
+      disabled={off}
       onclick={() => {
         if (!ok()) return;
-        textarea?.focus();
-        if (dictating) speech.stop();
-        else void speech.start();
-      }}
-      >{#if refining}<Spinner size="xs" />{:else}<Icon
-          icon="microphone-01"
-          size={16}
-        />{/if}</IconButton
-    >{/if}
-  <IconButton
-    type="submit"
-    variant="default"
-    size="icon"
-    label={t("Enviar")}
-    data-composer-send
-    aria-busy={pending || undefined}
-    class="rounded-full"
-    disabled={off || busy || sendDisabled}
-    onmousedown={(event) => event.preventDefault()}
-    ontouchend={(event) => {
-      if (!busy && !sendDisabled && ok()) {
-        event.preventDefault();
-        void submit();
-      }
-    }}
-    >{#if pending}<Spinner size="xs" />{:else}<Icon
-        icon="arrow-up"
-        size={16}
-      />{/if}</IconButton
-  >
+        speech.cancel();
+        readCaret();
+        emoji = true;
+      }}><Icon icon="face-smile" size={16} /></IconButton
+    >
+    <!-- The mic sits right before send, as in the classic app (Gui #2896). On phones both share one cell. -->
+    <div class="grid *:col-start-1 *:row-start-1 md:flex md:gap-0.5">
+      {#if speech.supported}<IconButton
+          size="icon"
+          aria-busy={refining || undefined}
+          label={t("Ditar mensagem")}
+          title={t("Toque pra ditar (ou segure espaço na caixa)")}
+          aria-pressed={dictating}
+          class={cn(
+            SLOT,
+            "max-md:group-data-[swap=true]:invisible max-md:group-data-[swap=true]:scale-75 max-md:group-data-[swap=true]:opacity-0",
+            dictating
+              ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
+              : FIELD_ICON,
+          )}
+          disabled={off || busy || refining}
+          onpointerdown={(event) => {
+            if (ok()) event.preventDefault();
+          }}
+          onclick={() => {
+            if (!ok()) return;
+            textarea?.focus();
+            if (dictating) speech.stop();
+            else void speech.start();
+          }}
+          >{#if refining}<Spinner size="xs" />{:else}<Icon
+              icon="microphone-01"
+              size={16}
+            />{/if}</IconButton
+        >{/if}
+      <IconButton
+        type="submit"
+        variant="default"
+        size="icon"
+        label={t("Enviar")}
+        data-composer-send
+        aria-busy={pending || undefined}
+        class={cn(
+          SLOT,
+          "rounded-full max-md:group-data-[swap=false]:invisible max-md:group-data-[swap=false]:scale-75 max-md:group-data-[swap=false]:opacity-0 md:group-data-[ready=false]:invisible md:group-data-[ready=false]:scale-75 md:group-data-[ready=false]:opacity-0",
+        )}
+        disabled={off || busy || sendDisabled}
+        onmousedown={(event) => event.preventDefault()}
+        ontouchend={(event) => {
+          if (!busy && !sendDisabled && ok()) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+        >{#if pending}<Spinner size="xs" />{:else}<Icon
+            icon="arrow-up"
+            size={16}
+          />{/if}</IconButton
+      >
+    </div>
+  </div>
 </form>
 <EmojiPicker {t} bind:open={emoji} onpick={insert} />

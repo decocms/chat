@@ -374,68 +374,6 @@
     >
       {vb.t("Anexar arquivo")}
     </div>{/if}
-  {#if $draft.attachments.length}<div class="flex flex-wrap gap-2">
-      {#each $draft.attachments as item (item.id)}{@const image = preview(item)}
-        <div
-          data-composer-attachment={item.id}
-          class="relative flex w-32 flex-col gap-1 rounded-control border border-border bg-card p-2"
-        >
-          {#if image}<img
-              src={image}
-              alt={item.name}
-              class="h-20 w-full rounded-sm object-cover"
-            />{:else}<Icon icon="file-02" size={16} />{/if}<span
-            class="break-words text-xs">{item.name}</span
-          ><span role="status" class="text-xs text-muted-foreground"
-            >{item.phase === "queued" || item.phase === "uploading"
-              ? vb.t("Enviando…")
-              : item.phase === "error"
-                ? composerError(item.error || "failed", vb.t)
-                : vb.t("Pronto")}</span
-          >{#if item.phase === "error"}<Button
-              size="sm"
-              variant="outline"
-              onclick={(event) => {
-                if (canInteract(event)) entry.retryUpload(item.id);
-              }}>{vb.t("Tentar novamente")}</Button
-            >{/if}<IconButton
-            label={vb.t("Remover anexo")}
-            size="icon-xs"
-            class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
-            onclick={(event) => {
-              if (canInteract(event)) entry.removeFile(item.id);
-            }}><Icon icon="x" size={14} /></IconButton
-          >
-        </div>{/each}
-    </div>{/if}
-  {#if $draft.replyId}<div
-      data-composer-reply
-      class="flex items-center gap-2 rounded-control border-l-2 border-foreground bg-muted p-2"
-    >
-      <Icon icon="reverse-left" size={16} />
-      <div class="min-w-0 flex-1 text-xs">
-        {#if reply}<b
-            >{reply.author === "ai"
-              ? "@vibe"
-              : reply.kind === "agent"
-                ? vb.t("{via} de {who}", {
-                    via: "Agent",
-                    who: vb.name(reply.author),
-                  })
-                : vb.name(reply.author)}</b
-          ><span class="block truncate"
-            >{!reply.text && reply.poll
-              ? vb.t("votação")
-              : quoteSnippet(reply)}</span
-          >{:else}{vb.t("A mensagem não está mais disponível.")}{/if}
-      </div>
-      <IconButton
-        label={vb.t("Cancelar resposta")}
-        onclick={(event) => {
-          if (canInteract(event)) entry.clearReply();
-        }}><Icon icon="x" size={16} /></IconButton
-      >
-    </div>{/if}
   {#if items.length}<div
       id={`${uid}-mentions`}
       role="listbox"
@@ -539,7 +477,8 @@
     enabled={() => canInteract()}
     {busy}
     pending={$draft.phase === "pending"}
-    sendDisabled={(!$draft.text.trim() && !$draft.attachments.length) ||
+    ready={/\S/.test($draft.text) || $draft.attachments.length > 0}
+    sendDisabled={(!/\S/.test($draft.text) && !$draft.attachments.length) ||
       $draft.attachments.some(
         (item) => item.phase === "queued" || item.phase === "uploading",
       )}
@@ -555,6 +494,81 @@
       onfocus: () => clearTimeout(blurTimer),
     }}
   >
+    {#snippet above()}
+      {#if $draft.replyId}<div
+          data-composer-reply
+          class="flex items-center gap-2 border-b border-border py-1 pr-1.5 pl-3.5 text-xs text-muted-foreground transition-[opacity,translate] duration-150 ease-[var(--vb-ease-out-cubic)] starting:translate-y-1 starting:opacity-0"
+        >
+          <Icon icon="reverse-left" size={14} class="shrink-0" />
+          {#if reply}<span class="flex min-w-0 flex-1 items-baseline gap-1.5"
+              ><span class="shrink-0 whitespace-nowrap"
+                ><span class="hidden md:inline"
+                  >{vb.t("Respondendo a")}&nbsp;</span
+                ><b class="font-semibold text-foreground"
+                  >{reply.author === "ai"
+                    ? "@vibe"
+                    : reply.kind === "agent"
+                      ? vb.t("{via} de {who}", {
+                          via: "Agent",
+                          who: vb.name(reply.author),
+                        })
+                      : vb.name(reply.author)}</b
+                ></span
+              ><span class="min-w-0 truncate"
+                >· {!reply.text && reply.poll
+                  ? vb.t("votação")
+                  : quoteSnippet(reply)}</span
+              ></span
+            >{:else}<span class="min-w-0 flex-1 truncate"
+              >{vb.t("A mensagem não está mais disponível.")}</span
+            >{/if}
+          <IconButton
+            label={vb.t("Cancelar resposta")}
+            size="icon-xs"
+            class="shrink-0 text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+            onclick={(event) => {
+              if (canInteract(event)) entry.clearReply();
+            }}><Icon icon="x" size={14} /></IconButton
+          >
+        </div>{/if}
+      {#if $draft.attachments.length}<div
+          class="flex flex-wrap gap-2 px-2 pt-2"
+        >
+          {#each $draft.attachments as item (item.id)}{@const image =
+              preview(item)}
+            <div
+              data-composer-attachment={item.id}
+              class="relative flex w-32 flex-col gap-1 rounded-control bg-card p-2 shadow-edge transition-[opacity,scale] duration-150 ease-[var(--vb-ease-out-cubic)] starting:scale-95 starting:opacity-0"
+            >
+              {#if image}<img
+                  src={image}
+                  alt={item.name}
+                  class="h-20 w-full rounded-sm object-cover"
+                />{:else}<Icon icon="file-02" size={16} />{/if}<span
+                class="break-words text-xs">{item.name}</span
+              ><span role="status" class="text-xs text-muted-foreground"
+                >{item.phase === "queued" || item.phase === "uploading"
+                  ? vb.t("Enviando…")
+                  : item.phase === "error"
+                    ? composerError(item.error || "failed", vb.t)
+                    : vb.t("Pronto")}</span
+              >{#if item.phase === "error"}<Button
+                  size="sm"
+                  variant="outline"
+                  onclick={(event) => {
+                    if (canInteract(event)) entry.retryUpload(item.id);
+                  }}>{vb.t("Tentar novamente")}</Button
+                >{/if}<IconButton
+                label={vb.t("Remover anexo")}
+                size="icon-xs"
+                class="absolute right-1 top-1 rounded-full bg-card shadow-edge"
+                onclick={(event) => {
+                  if (canInteract(event)) entry.removeFile(item.id);
+                }}><Icon icon="x" size={14} /></IconButton
+              >
+            </div>{/each}
+        </div>{/if}
+    {/snippet}
     {#snippet menu(close)}<Button
         variant="menu"
         role="menuitem"
