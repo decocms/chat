@@ -617,7 +617,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
     // another room) shows as "seen …", not as "no agent here yet" with the setup. Not every Claude of yours listening
     // anywhere: with herdr that's one per room, and every room listed all of them (Gui #3100, 17 rows).
     svc.sqlAll(
-      `SELECT ag.id, ag.client, ag.machine_id, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
+      `SELECT ag.id, ag.client, ag.machine_id, ag.role, ag.email, coalesce(ag.model, ag.client) AS who, ag.repo, ag.seen_at, ag.listening_at, ag.listen_room, ag.ctx_tokens, ag.ctx_window, ag.ctx_at, ag.ctx_limits, r.seen_at AS here_at, lb.title AS listen_title, ${DELIVERS} AS delivers
        FROM agents ag JOIN members m ON m.email = ag.email AND m.book_id = ?1
        LEFT JOIN agent_reads r ON r.agent = ag.id AND r.book_id = ?1
        LEFT JOIN books lb ON lb.id = ag.listen_room
@@ -671,6 +671,7 @@ export const agentsApi = keysApi.get("/api/books/:id/agents", async (c) => {
         seen_at: a.seen_at,
         listening: !!a.listening_at && now - a.listening_at < svc.listenFresh && (a.listen_room === id || !a.listen_room),
         all_rooms: !a.listen_room,
+        role: a.role ?? null,
         // How full its context was at its last call (only from the CLI inside Claude Code); older than 1h = unknown.
         context: a.ctx_tokens != null && a.ctx_window && now - (a.ctx_at ?? 0) < 3600_000 ? { tokens: a.ctx_tokens, window: a.ctx_window, at: a.ctx_at, limits: limitsOf(a.ctx_limits) } : null,
         // Yours also say which room each one listens to: the herdr tab is named after it (Gui #3120), clearer than

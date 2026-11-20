@@ -3,6 +3,7 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import HoverCard from "../../lib/components/HoverCard.svelte";
   import { contextSections, contextTone } from "../room-sidebar/model";
   import { cn } from "../../lib/studio/utils";
@@ -196,7 +197,12 @@
             class="inline-block animate-[spin_3s_linear_infinite] text-agent-claude motion-reduce:animate-none"
             >✻</span
           >
-        {/if}{who(a)}</span
+        {/if}{who(a)}{#if a.role}<Badge
+            size="sm"
+            variant="neutral"
+            data-agent-role={a.role}
+            class="ml-1 align-middle">{a.role}</Badge
+          >{/if}</span
       >
       <span class="truncate text-[0.6875rem] text-muted-foreground"
         >{line(a, muted)}</span

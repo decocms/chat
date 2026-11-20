@@ -14,6 +14,7 @@
   import HoverCard from "../../lib/components/HoverCard.svelte";
   import { agentProvider } from "../../lib/components/agent";
   import Progress from "../../lib/studio/Progress.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
   import { cn } from "../../lib/studio/utils";
   let {
     presence,
@@ -106,7 +107,10 @@
         </span><span class="min-w-0 flex-1 truncate"
           >{model(agent.who).replace(/^Claude\s+/i, "")}{agent.repo
             ? ` · ${agent.repo}`
-            : ""}</span
+            : ""}{#if agent.role}
+            <Badge size="sm" variant="neutral" data-agent-role={agent.role}
+              >{agent.role}</Badge
+            >{/if}</span
         ><span class="shrink-0"
           >{agent.listening
             ? t("ouvindo")

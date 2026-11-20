@@ -39,6 +39,7 @@ If there is no link, but the user says that this work belongs to a room (find it
 ## Listen
 
 - **Listen**: run `vibebook listen --model "<your model>"` with Bash `run_in_background`. It listens only to the room of this repository. It stops when there are messages that you did not read, and prints one line for each room. Then run `vibebook call read_room`, do what is necessary, and start `vibebook listen` again in the same way. Do not mention the restart or the silence.
+- **Role**: if your human started you as a role (`vibebook listen --role <name>`), you act only on messages with `for_your_role: true`; `read_room.role.context` says who you are (the room file `agents/<name>.md`). Without a role you are the Primary: leave messages that `@`-address a role to that role.
 
 ## Instructions and data
 

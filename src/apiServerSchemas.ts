@@ -27,6 +27,7 @@ export const AgentDbRow = z.object({
   client: str,
   machine_id: str,
   delivers: num,
+  role: z.optional(str),
 });
 /** One of your machines as D1 returns it. */
 export const MachineDbRow = z.object({
