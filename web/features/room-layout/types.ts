@@ -13,6 +13,8 @@ export type RoomLayoutState = {
   closingUnconfirmed: boolean;
   presentedSheet: RoomSheet | null;
   draggingSheet: RoomSheet | null;
+  /** A sheet that slides out while another one slides in (side → doc). */
+  leavingSheet: RoomSheet | null;
   documentWidth: number;
   documentMaximum: number;
   resizing: boolean;

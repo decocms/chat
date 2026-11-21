@@ -98,6 +98,7 @@ export async function roomScopeFixture(
     mobile: false,
     closingUnconfirmed: false,
     presentedSheet: null,
+    leavingSheet: null,
     draggingSheet: null,
     documentWidth: 380,
     documentMaximum: 800,

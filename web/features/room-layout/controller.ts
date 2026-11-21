@@ -106,6 +106,7 @@ export function createRoomLayout(
     closingUnconfirmed: false,
     presentedSheet: null,
     draggingSheet: null,
+    leavingSheet: null,
     documentWidth: 380,
     documentMaximum: 380,
     resizing: false,
@@ -377,6 +378,7 @@ export function createRoomLayout(
         sheet: null,
         presentedSheet: null,
         draggingSheet: null,
+        leavingSheet: null,
         closingUnconfirmed: false,
         resizing: false,
       });

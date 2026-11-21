@@ -25,10 +25,14 @@
   // The phone room's bottom bar: a sixth grid row, absent on desktop.
   const tabs = $derived($view.mobile && !!props.tabbar);
   const docPresented = $derived(
-    $view.presentedSheet === "doc" || $view.draggingSheet === "doc",
+    $view.presentedSheet === "doc" ||
+      $view.draggingSheet === "doc" ||
+      $view.leavingSheet === "doc",
   );
   const sidePresented = $derived(
-    $view.presentedSheet === "side" || $view.draggingSheet === "side",
+    $view.presentedSheet === "side" ||
+      $view.draggingSheet === "side" ||
+      $view.leavingSheet === "side",
   );
   const docLive = $derived(
     !$view.mobile || $view.sheet === "doc" || $view.draggingSheet === "doc",
@@ -47,7 +51,7 @@
       ? // A tab, not a floor: it fills the space between the header and the bar.
         "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-sheet"
       : $view.mobile
-        ? "col-start-2 row-start-3 row-end-6 z-20 h-room-document-sheet w-full self-start animate-room-sheet rounded-b-surface shadow-lg has-[form:focus-within]:h-full has-[[contenteditable=true]:focus]:h-full has-[form:focus-within]:rounded-none"
+        ? "col-start-2 row-start-3 row-end-6 z-20 h-room-document-sheet w-full self-start animate-room-sheet rounded-b-surface shadow-lg"
         : [
             "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
             widthClass,
@@ -203,7 +207,9 @@
       class={!props.overlayOpen &&
       $view.mobile &&
       !$view.boardFull &&
-      $view.sheet === "doc"
+      // The doc sheet's height is a share of the rows under this strip, so the
+      // strip stays until the slide out ends: the sheet keeps one height.
+      ($view.sheet === "doc" || docPresented)
         ? "relative z-30 col-start-2 row-start-2 min-w-0 touch-none border-b border-border bg-background"
         : "hidden"}
     >

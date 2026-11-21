@@ -866,3 +866,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Each phone room changes. The browser fixture opens the panes through the menu now.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-21 · fix/mobile-drawer · A phone sheet is only open or closed, and keeps one height while it slides
+- Agent: claude-opus-5-5
+- Context: The human said that the phone drawer shrinks when it opens, is not only open or closed, and does not slide with a good ease. Three adversarial reviews (state, CSS, and a frame-by-frame measurement at 390px) found the causes. The human did not select the fixes, the durations, or what to do with the full-height doc while you type.
+- Decision: The thread's files strip above the doc sheet stays until the slide out ends, so the sheet keeps one height (it changed from 560px to 606px at the start of each close). The doc sheet no longer becomes full height when a field in it has focus. A drag only previews: its release always settles to fully open or fully closed, also when the sheet stays open or a tap stops a slide. A menu shortcut changes the side sheet to the doc sheet in the same history entry: the side sheet slides out while the doc slides in (`leavingSheet`), and the backdrop stays on. An open takes 360 ms and a close takes 260 ms, with the existing `.32,.72,0,1` curve, in proportion to the distance that is left (at least 40%).
+- Other options: Take the doc sheet out of the grid with the strip inside it (a bigger change to the layout and the tests). Keep the full-height doc while you type, as a separate mode. Keep one 300 ms time for all slides.
+- Risk: low. Only the phone sheets change. The doc sheet no longer grows when you type in it; the keyboard can cover more of a long document.
+- Undo: Revert this commit.
+- Status: open
