@@ -87,16 +87,19 @@
     if (!current() || !(trigger instanceof HTMLElement) || !trigger.isConnected)
       return;
     const state = layout.read();
-    if (state.sheet === "side") layout.closeSheet();
     if (id === "search") {
+      if (state.sheet === "side") layout.closeSheet();
       onsearch?.(trigger);
       return;
     }
     if (id === "board") {
+      if (state.sheet === "side") layout.closeSheet();
       if (!state.boardFull) layout.toggleBoard();
       return;
     }
     if (state.boardFull) layout.toggleBoard();
+    // The pane opens the doc sheet in the side sheet's own history entry: one
+    // swap (the side slides out while the doc slides in), with no Back to wait for.
     onPane(phoneTabPanes[id].includes(state.pane) ? state.pane : last[id]);
   }
 </script>
