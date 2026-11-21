@@ -411,7 +411,12 @@
                 if (current()) owner.actions.setPane(pane, { open: true });
               }}
               onsearch={(trigger) =>
-                $view?.sidebar.appNavigation?.controller.openSearch(trigger)}
+                // The menu closes first, so focus comes back to its opener (the title), not to a hidden shortcut.
+                $view?.sidebar.appNavigation?.controller.openSearch(
+                  trigger.ownerDocument.querySelector<HTMLElement>(
+                    "[data-room-bar] [data-phone-title]",
+                  ) ?? trigger,
+                )}
             />{/if}{/snippet}
         {#snippet footer(
           collapsed,
