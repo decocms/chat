@@ -57,6 +57,7 @@
     onroomhome,
     mountSheetHandle,
     hideSheetHandle = false,
+    phoneMenu,
     footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
@@ -232,6 +233,9 @@
         class="mx-auto h-5 w-12 shrink-0 cursor-pointer rounded-full border-0 bg-muted md:hidden"
         onclick={onopenside}
       ></button>{/if}
+    {#if phoneMenu}<div class="-mb-2 shrink-0 md:hidden">
+        {@render phoneMenu()}
+      </div>{/if}
     {#if appNavigation}<RoomStrip
         controller={appNavigation.controller}
         lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip

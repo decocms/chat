@@ -278,7 +278,7 @@ async function renderedFonts(page: Page) {
       [
         "Room title",
         phone
-          ? "[data-room-bar] [data-phone-title] > span:last-child > span:first-child"
+          ? "[data-room-bar] [data-phone-title] [data-phone-thread]"
           : "[data-room-bar] [data-thread-title] span.truncate",
         "Inter",
       ],
@@ -367,19 +367,30 @@ async function keyboardOverlays(
   evidence: ApplicationProfileEvidence,
 ) {
   const t = createApplicationCopy(profile.lang);
-  // Phones carry Search in the room header, which the thread sheet covers when
-  // it drops from the top (#80); desktop keeps it in the sidebar.
+  // Phones carry Search in the title's menu (#3738): the title opens it, the
+  // shortcut opens Search, and focus comes back to the title. Desktop keeps it
+  // in the sidebar.
   const phone = profile.width <= 900;
   if (!phone) await fixture.openSidebar(page);
-  const search = page
-    .getByRole("button", {
-      name: homeText(profile.lang, "search"),
-      exact: true,
-    })
-    .filter({ visible: true })
-    .first();
+  const search = phone
+    ? page.locator("[data-room-bar] [data-phone-title]")
+    : page
+        .getByRole("button", {
+          name: homeText(profile.lang, "search"),
+          exact: true,
+        })
+        .filter({ visible: true })
+        .first();
   await search.focus();
   await page.keyboard.press("Enter");
+  if (phone) {
+    const shortcut = page.locator(
+      '[data-phone-menu] [data-phone-tab="search"]',
+    );
+    await expect(shortcut).toBeVisible();
+    await shortcut.focus();
+    await page.keyboard.press("Enter");
+  }
   const searchDialog = page.getByRole("dialog", {
     name: homeText(profile.lang, "search"),
     exact: true,

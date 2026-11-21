@@ -63,12 +63,31 @@
   // A DM's face stands for it, the same as in your DM list.
   const peer = $derived(dmPeer(header.room));
   const en = $derived(presentation.services.language === "en");
-  // Phone title: the room small on top, the open thread under it.
+  // Phone title: the most important line first (the open thread, or a DM's
+  // person), and under it the room with the epic's progress (Gimenes #3739).
   const phoneTitle = $derived(
-    threadTitle(header.room, header.thread) ??
-      presentation.services.t(
-        header.room.book.dm ? "Conversa" : "Sala principal",
-      ),
+    header.room.book.dm
+      ? header.room.book.title
+      : (threadTitle(header.room, header.thread) ??
+          presentation.services.t("Sala principal")),
+  );
+  const phoneEpic = $derived(
+    header.room.epics.find((epic) => epic.id === header.thread),
+  );
+  const phoneSubtitle = $derived(
+    header.room.book.dm
+      ? ""
+      : [
+          header.room.book.title,
+          phoneEpic?.tasks.length
+            ? presentation.services.t("{done} de {total} tarefas", {
+                done: phoneEpic.tasks.filter((task) => task.done).length,
+                total: phoneEpic.tasks.length,
+              })
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
   );
   const t = (text: string, vars?: Record<string, string | number>) =>
     presentation.services.t(text, vars);
@@ -170,43 +189,44 @@
               : "Voltar pra sala principal",
           )}
           tooltipSide="bottom"
+          data-phone-back
           size="icon"
-          class="rounded-full md:hidden"
+          class="size-10 rounded-full md:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
-          }}><Icon icon="arrow-left" size={16} /></IconButton
+          }}><Icon icon="arrow-left" size={20} /></IconButton
         >{/snippet}</Snapshot
     >{/key}
   <button
     type="button"
     data-phone-title
     aria-label={t("Trocar de conversa")}
-    class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+    class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-transparent px-1.5 py-1 text-center font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
     onclick={(event) => {
       if (live(event)) header.onopenside();
     }}
-    ><RoomAvatar
-      title={header.room.book.title}
-      icon={header.roomIcon}
-      person={peer
-        ? {
-            email: peer,
-            version: roomAvatarVersion(header.room, $personal.me, peer),
-          }
-        : null}
-      lang={en ? "en" : "pt"}
-      surface="background"
-    /><span class="flex min-w-0 flex-col"
-      ><span class="truncate text-xs leading-4 text-muted-foreground"
-        >{header.room.book.title}</span
+    >{#if peer}<!-- A DM: the person's face beside their name. --><RoomAvatar
+        title={header.room.book.title}
+        icon={header.roomIcon}
+        person={{
+          email: peer,
+          version: roomAvatarVersion(header.room, $personal.me, peer),
+        }}
+        lang={en ? "en" : "pt"}
+        surface="background"
+      />{/if}<span class="flex min-w-0 flex-col items-center"
       ><span
-        class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-        ><span class="truncate">{phoneTitle}</span><Icon
+        class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
+        ><span data-phone-thread class="truncate">{phoneTitle}</span><Icon
           icon="chevron-down"
           size={16}
           class="shrink-0"
         /></span
-      ></span
+      >{#if phoneSubtitle}<span
+          data-phone-room
+          class="max-w-full truncate text-xs leading-4 text-muted-foreground"
+          >{phoneSubtitle}</span
+        >{/if}</span
     ></button
   >
   <!-- Desktop, one bar over chat and pane: what fills the middle (with the epic's actions), then the pane's tabs at the end. -->
@@ -223,28 +243,18 @@
         view={inboxOpen ? "inbox" : $geometry.boardFull ? "board" : null}
       />
     </div>
-    {#if appNavigation}<IconButton
-        data-phone-search
-        label={t("Buscar")}
-        size="icon"
-        class="rounded-full text-muted-foreground hover:text-foreground md:hidden"
-        onclick={(event) => {
-          if (live(event))
-            appNavigation.controller.openSearch(event.currentTarget);
-        }}><Icon icon="search-md" size={16} /></IconButton
-      >{/if}
-    <!-- Phones: the inbox in the bar. Desktop: it and the board are views in the sidebar, under the main thread. -->
+    <!-- Phones: the inbox in the bar (the search is in the title's menu). Desktop: it and the board are views in the sidebar, under the main thread. -->
     {#if $geometry.mobile}<IconButton
         data-inbox-toggle
         label={t("Caixa de entrada")}
         tooltipSide="bottom"
         size="icon"
         aria-pressed={inboxOpen}
-        class="relative rounded-full text-muted-foreground hover:text-foreground md:aria-pressed:bg-accent md:aria-pressed:text-foreground"
+        class="relative size-10 rounded-full text-muted-foreground hover:text-foreground md:aria-pressed:bg-accent md:aria-pressed:text-foreground"
         onclick={(event) => {
           if (live(event)) toggleInbox(event.currentTarget);
         }}
-        ><Icon icon="inbox-01" size={16} />{#if waits.length}<Count
+        ><Icon icon="inbox-01" size={20} />{#if waits.length}<Count
             value={waits.length}
             label={t("Esperando você: {n}", { n: waits.length })}
             class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"

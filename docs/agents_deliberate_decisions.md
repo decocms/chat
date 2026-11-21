@@ -857,3 +857,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The home ask box uses the same field, so it changes too.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-21 · feat/mobile-controls · The phone room has no bottom bar; the title's menu holds the room's shortcuts
+- Agent: claude-opus-5-5
+- Context: The human selected proposal C in epic 7f79a4ab: the bottom of a phone room is only for the composer, the title opens a menu from the top, the top bar keeps the most important information, and the thread's files strip stays. The mockup did not say where the shortcuts go in the existing menu, what Back does on the board, or how big the controls are.
+- Decision: The bottom bar (`PhoneTabBar`) becomes `PhoneRoomMenu`: five shortcuts (Doc, Board, Files, Agents, Search) at the top of the menu that the title already opens, above "Esta sala | Todas as salas". A DM shows only Files and Search. A shortcut closes the menu, then opens its panes. Search leaves the top bar for the menu. The top bar shows the thread's title in the middle and, under it, the room and the epic's progress ("Produto · 2 de 4 tarefas"). The room's avatar is not in the bar any more (a DM keeps the person's face). The back button, the inbox and your avatar have 40px targets, the icons are 20px, and your avatar is 32px (it was 16px); the home's bar uses the same avatar. On a phone, Back (and the edge swipe) first leaves the full board or closes the doc sheet, and only then goes to the main thread or to the rooms. The doc sheet uses the layout's existing top sheet with a handle.
+- Other options: A new drawer from the left (proposal A) or tabs at the top (proposal B), which the human did not select. A separate drawer component, instead of the menu that the title already opens. Keep search in the top bar.
+- Risk: medium. Each phone room changes. The browser fixture opens the panes through the menu now.
+- Undo: Revert this commit.
+- Status: open
