@@ -10,7 +10,7 @@ export function isPanelToggleKey(event: KeyboardEvent, mac: boolean) {
   );
 }
 
-/** The phone room's bottom bar: five tabs over the room's panes. */
+/** The phone room's places: the chat and the shortcuts of the title menu (PhoneRoomMenu) over the room's panes. */
 export type PhoneTab = "chat" | "doc" | "board" | "files" | "claude";
 
 /** The panes each phone tab holds; the doc sheet's tab row shows only these. */

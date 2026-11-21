@@ -9,7 +9,6 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Count from "../../lib/components/Count.svelte";
-  import { paneIcons, paneLabel } from "../documents/paneIcons";
   import { roomIcon, switcherDms } from "../home/model";
   import { homeText } from "../home/copy";
   import { roomDocumentWidth } from "../room-layout/preview";
@@ -17,9 +16,8 @@
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
    * right) with the name and icon the home already knows, so nothing moves when
-   * the state lands. On a phone it is RoomHeader's one row (back, the room's
-   * avatar with its name over the thread, search, inbox, you) and PhoneTabBar
-   * under the composer. */
+   * the state lands. On a phone it is RoomHeader's one row (back, the thread
+   * over the room, centered, inbox, you) and the composer alone at the bottom. */
   let {
     roomId,
     thread = "main",
@@ -57,18 +55,6 @@
   const en = $derived(services.language === "en");
   const t = (text: string, vars?: Record<string, string | number>) =>
     services.t(text, vars);
-  // PhoneTabBar's tabs, Chat selected (a room opens on its chat).
-  const tabs = $derived([
-    { id: "chat", label: "Chat", icon: "message-circle-01" as const },
-    { id: "doc", label: "Doc", icon: paneIcons.doc },
-    { id: "board", label: en ? "Board" : "Quadro", icon: paneIcons.board },
-    { id: "files", label: en ? "Files" : "Arquivos", icon: paneIcons.files },
-    {
-      id: "claude",
-      label: paneLabel("agents", en),
-      icon: paneIcons.agents,
-    },
-  ]);
 </script>
 
 {#snippet mark(size: string, square = "")}
@@ -206,30 +192,25 @@
         <IconButton
           label={t("Suas salas")}
           size="icon"
-          class="rounded-full"
-          onclick={onhome}><Icon icon="arrow-left" size={16} /></IconButton
+          class="size-10 rounded-full"
+          onclick={onhome}><Icon icon="arrow-left" size={20} /></IconButton
         >
         <div
-          class="flex min-w-0 flex-1 basis-0 items-center gap-2.5 px-1.5 py-1"
+          class="flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 px-1.5 py-1"
         >
-          {#if title}<RoomAvatar
+          {#if peer && title}<RoomAvatar
               {title}
               {icon}
               person={peer}
               lang={en ? "en" : "pt"}
               surface="background"
-            />{:else}<Skeleton class="size-8 shrink-0 rounded-lg" />{/if}
-          <span class="flex min-w-0 flex-1 flex-col">
-            {#if title}<span
-                class="truncate text-xs leading-4 text-muted-foreground"
-                >{title}</span
-              >{:else}<span class="flex h-4 items-center"
-                >{@render line("w-20", "h-2.5")}</span
-              >{/if}
+            />{/if}
+          <span class="flex min-w-0 flex-col items-center">
             <span
-              class="flex min-w-0 items-center gap-1 text-base leading-5 font-semibold"
-              >{#if thread === "main"}<span class="truncate"
-                  >{t(dm ? "Conversa" : "Sala principal")}</span
+              class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
+              >{#if dm && title}<span class="truncate">{title}</span
+                >{:else if thread === "main" && !dm}<span class="truncate"
+                  >{t("Sala principal")}</span
                 >{:else}<span class="flex h-5 items-center"
                   >{@render line("w-32")}</span
                 >{/if}<Icon
@@ -238,28 +219,31 @@
                 class="shrink-0"
               /></span
             >
+            {#if !dm}{#if title}<span
+                  class="max-w-full truncate text-xs leading-4 text-muted-foreground"
+                  >{title}</span
+                >{:else}<span class="flex h-4 items-center"
+                  >{@render line("w-20", "h-2.5")}</span
+                >{/if}{/if}
           </span>
         </div>
         <span
           aria-hidden="true"
-          class="grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="search-md" size={16} /></span
-        >
-        <span
-          aria-hidden="true"
-          class="relative grid size-8 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="inbox-01" size={16} />{#if waits}<Count
+          class="relative grid size-10 shrink-0 place-items-center text-muted-foreground"
+          ><Icon icon="inbox-01" size={20} />{#if waits}<Count
               value={waits}
               label={t("Esperando você: {n}", { n: waits })}
               class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
             />{/if}</span
         >
-        <span aria-hidden="true" class="grid size-8 shrink-0 place-items-center"
+        <span
+          aria-hidden="true"
+          class="grid size-10 shrink-0 place-items-center"
           >{#if me}<PersonAvatar
               email={me.email}
               version={me.avatar}
-              size="2xs"
-            />{:else}<Skeleton class="size-4 rounded-full" />{/if}</span
+              size="sm"
+            />{:else}<Skeleton class="size-8 rounded-full" />{/if}</span
         >
       </header>
 
@@ -291,8 +275,11 @@
         </div>
       </div>
 
-      <!-- The composer; on phones the tab bar under it carries the home-bar inset. -->
-      <div aria-hidden="true" class="shrink-0">
+      <!-- The composer, alone at the bottom on phones: it carries the home-bar inset. -->
+      <div
+        aria-hidden="true"
+        class="shrink-0 max-md:pb-[env(safe-area-inset-bottom)]"
+      >
         <div class="px-3 pt-1 pb-3 md:pb-2 md:px-4">
           <div
             class="mb-2 flex h-14 items-center gap-2 rounded-2xl bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d]"
@@ -302,28 +289,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Phones: PhoneTabBar, Chat selected. -->
-      <nav
-        aria-hidden="true"
-        class="grid shrink-0 grid-cols-5 border-t border-border bg-background px-1 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] md:hidden"
-      >
-        {#each tabs as tab (tab.id)}
-          {@const on = tab.id === "chat"}
-          <span
-            class={[
-              "flex min-w-0 flex-col items-center gap-0.5 py-1 text-[0.6875rem] leading-4 text-muted-foreground",
-              on && "font-semibold text-foreground",
-            ]}
-            ><span
-              class={[
-                "flex h-7 w-12 items-center justify-center rounded-full",
-                on && "bg-accent",
-              ]}><Icon icon={tab.icon} size={18} /></span
-            ><span class="max-w-full truncate">{tab.label}</span></span
-          >
-        {/each}
-      </nav>
     </main>
 
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same

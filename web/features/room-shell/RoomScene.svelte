@@ -29,7 +29,7 @@
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import InboxControls from "../application/InboxControls.svelte";
-  import PhoneTabBar from "./PhoneTabBar.svelte";
+  import PhoneRoomMenu from "./PhoneRoomMenu.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
   import { phoneTabOf, phoneTabPanes } from "./panelViews";
   import { attachRoomEdgeBack } from "./edgeBack";
@@ -93,6 +93,16 @@
   function back(expectedThread: string) {
     const value = get(owner.state);
     if (!current() || !value || value.header.thread !== expectedThread) return;
+    // Phones have no bottom bar (#3738): Back first leaves the full board or the doc sheet, back to the chat.
+    const state = layout.read();
+    if (state.mobile && state.boardFull) {
+      layout.toggleBoard();
+      return;
+    }
+    if (state.mobile && state.sheet === "doc") {
+      layout.closeSheet();
+      return;
+    }
     if (expectedThread !== "main") owner.actions.setThread("main");
     else services.actions.home();
   }
@@ -389,6 +399,20 @@
         inboxCount={$personal.me?.waits?.length ?? 0}
         hideSheetHandle
       >
+        {#snippet phoneMenu()}{#if $view && $geometry.mobile}<PhoneRoomMenu
+              {layout}
+              {current}
+              lang={services.language}
+              dm={!!$view.header.room.book.dm}
+              boardCount={$view.toolbar.counts?.board}
+              agent={$view.toolbar.agent}
+              agentTitle={$view.toolbar.agentTitle}
+              onPane={(pane) => {
+                if (current()) owner.actions.setPane(pane, { open: true });
+              }}
+              onsearch={(trigger) =>
+                $view?.sidebar.appNavigation?.controller.openSearch(trigger)}
+            />{/if}{/snippet}
         {#snippet footer(
           collapsed,
           rows,
@@ -434,17 +458,6 @@
         only={phoneTabPanes[
           phoneTabOf($geometry.pane) as keyof typeof phoneTabPanes
         ] ?? undefined}
-        onPane={(pane) => {
-          if (current()) owner.actions.setPane(pane, { open: true });
-        }}
-      />{/if}{/snippet}
-  {#snippet tabbar()}{#if $view}<PhoneTabBar
-        {layout}
-        {current}
-        lang={services.language}
-        boardCount={$view.toolbar.counts?.board}
-        agent={$view.toolbar.agent}
-        agentTitle={$view.toolbar.agentTitle}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}

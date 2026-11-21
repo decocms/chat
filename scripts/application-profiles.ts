@@ -278,7 +278,7 @@ async function renderedFonts(page: Page) {
       [
         "Room title",
         phone
-          ? "[data-room-bar] [data-phone-title] > span:last-child > span:first-child"
+          ? "[data-room-bar] [data-phone-title] [data-phone-thread]"
           : "[data-room-bar] [data-thread-title] span.truncate",
         "Inter",
       ],

@@ -28,7 +28,7 @@
     aria-current={current ? "page" : undefined}
     class={row
       ? "flex h-11 w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 text-left font-sans text-sm text-sidebar-foreground no-underline transition-colors hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
-      : "relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent motion-reduce:transition-none outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"}
+      : "relative flex size-10 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent motion-reduce:transition-none outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"}
   >
     {#if row}<span class="relative flex shrink-0"
         ><PersonAvatar
@@ -44,8 +44,8 @@
           class="truncate text-xs text-muted-foreground">Online</span
         ></span
       >{:else}
-      <!-- 16px, the same as the search and + glyphs beside it. -->
-      <PersonAvatar email={me.email} version={me.avatar} size="2xs" />{/if}
+      <!-- 32px in a 40px target: 16px read as a dot beside the bar's 20px glyphs (Gimenes #3716). -->
+      <PersonAvatar email={me.email} version={me.avatar} size="sm" />{/if}
   </a>
 {/snippet}
 

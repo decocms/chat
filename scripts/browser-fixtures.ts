@@ -83,27 +83,32 @@ export async function openRoomPane(
   await expect(layout).toBeVisible();
   const full = page.locator("[data-board-toggle]");
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones: the bottom bar (Chat, Doc, Board, Files, Claude) owns the board
-    // and opens the doc sheet; the header's board toggle is desktop only.
-    const tabBar = (tab: string) =>
-      page.locator(`[data-phone-tabs] [data-phone-tab="${tab}"]`);
+    // Phones: no bottom bar (#3738). The title opens a menu whose shortcuts
+    // (Doc, Board, Files, Agents) own the board and open the doc sheet; Back
+    // leaves the board. The header's board toggle is desktop only.
+    const shortcut = async (tab: string) => {
+      if ((await layout.getAttribute("data-sheet")) !== "side")
+        await page.locator("[data-room-bar] [data-phone-title]").click();
+      await expect(layout).toHaveAttribute("data-sheet", "side");
+      await page.locator(`[data-phone-menu] [data-phone-tab="${tab}"]`).click();
+    };
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
     );
     if (pane === "board") {
       if ((await layout.getAttribute("data-board-full")) !== "true")
-        await tabBar("board").click();
+        await shortcut("board");
       await expect(layout).toHaveAttribute("data-board-full", "true");
       await expect(page.locator(content.board)).toBeVisible();
       return;
     }
     if ((await layout.getAttribute("data-board-full")) === "true") {
-      await tabBar("chat").click();
+      await page.locator("[data-room-bar] [data-phone-back]").click();
       await expect(layout).not.toHaveAttribute("data-board-full", "true");
     }
     // The peek tabs show only while the doc sheet is open (#80), and only the
-    // panes of the bottom bar tab it was opened from: Doc + Decisions, Files +
-    // Apps, Agents + Reminders. Switch tabs first when the pane is elsewhere.
+    // panes of the shortcut it was opened from: Doc + Decisions, Files + Apps,
+    // Agents + Reminders. Use the shortcut first when the pane is elsewhere.
     const tab =
       pane === "doc" || pane === "decisions"
         ? "doc"
@@ -112,11 +117,11 @@ export async function openRoomPane(
           : "claude";
     if (
       (await layout.getAttribute("data-sheet")) !== "doc" ||
-      (await tabBar(tab).getAttribute("aria-current")) !== "page"
+      !(await button.isVisible())
     ) {
-      await tabBar(tab).click();
+      await shortcut(tab);
       await expect(layout).toHaveAttribute("data-sheet", "doc");
-      await expect(tabBar(tab)).toHaveAttribute("aria-current", "page");
+      await expect(button).toBeVisible();
     }
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
