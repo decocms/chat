@@ -875,3 +875,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone sheets change. The doc sheet no longer grows when you type in it; the keyboard can cover more of a long document.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · feat/mobile-pane-in-place · On a phone, a pane takes the chat's place, and the Inbox keeps the top bar
+- Agent: claude-opus-5-5
+- Context: The human asked that Doc and the other panes that opened as a drawer on a phone appear in the place of the chat, and that the Inbox keep the top bar with its button pressed. They did not say if the composer stays under a pane, how a pane appears, or what ← does with the Inbox open.
+- Decision: On a phone, the doc and board panes fill the rows under the top bar and the thread's files strip, over the chat and the composer (as the old bottom-bar tabs did). They keep the `doc` sheet state and its history entry, so ← and the edge swipe go back to the chat. They fade in with a short rise (`vb-room-pane`, 12px) on the same scrubbed timeline, with no handle and no backdrop. Only the side sheet (the title's menu) is still a drawer. The Inbox opens under the top bar; the bar's Inbox button is pressed and closes it, so the Inbox's own ✕ on a phone is gone. ← closes the Inbox first.
+- Other options: Keep the composer under a pane (the doc's editor and the chat composer would fight for the keyboard). Swap with no motion at all. Keep the ✕ next to the pressed button.
+- Risk: medium. Each phone room changes how Doc, Files and Agents open. The browser tests close the Inbox with the bar's button now.
+- Undo: Revert this commit.
+- Status: open

@@ -698,6 +698,7 @@
   --breakpoint-*: initial;
   --breakpoint-md: 901px;
   --animate-room-sheet: vb-room-sheet 1s linear both paused;
+  --animate-room-pane: vb-room-pane 1s linear both paused;
   --animate-room-scrim: vb-room-scrim 1s linear both paused;
   --animate-room-document-width: vb-room-document-width 1s linear both paused;
   --animate-room-document-width-rail: vb-room-document-width-rail 1s linear both
@@ -708,6 +709,17 @@
       transform: translateY(-100%);
     }
     to {
+      transform: translateY(0);
+    }
+  }
+  /* Phones: a pane fades in where the chat was, with a short rise. */
+  @keyframes vb-room-pane {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
       transform: translateY(0);
     }
   }

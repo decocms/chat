@@ -51,7 +51,8 @@
       ? // A tab, not a floor: it fills the space between the header and the bar.
         "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-sheet"
       : $view.mobile
-        ? "col-start-2 row-start-3 row-end-6 z-20 h-room-document-sheet w-full self-start animate-room-sheet rounded-b-surface shadow-lg"
+        ? // Phones: the pane takes the chat's place (under the top bar and the files strip), not a drawer.
+          "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-pane pb-[env(safe-area-inset-bottom)]"
         : [
             "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
             widthClass,
@@ -183,7 +184,7 @@
       ></div>{/if}
     <div
       bind:this={header}
-      inert={$view.mobile && (props.overlayOpen || $view.sheet === "side")}
+      inert={$view.mobile && $view.sheet === "side"}
       data-room-header
       class={[
         "relative z-30 col-start-2 row-start-1 min-w-0",
@@ -193,8 +194,6 @@
               "mt-2 mr-2 flex h-[52px] items-center rounded-tr-surface border-b border-border pr-3 pl-5",
               (split || props.overlayOpen) && "col-end-4",
             ],
-        // Desktop keeps the top bar over the inbox (it fills the middle, like the board).
-        $view.mobile && props.overlayOpen && "hidden",
       ]}
     >
       {@render props.header()}
@@ -301,9 +300,7 @@
           $view.sheet !== "doc" ||
           $view.pane === "board"}
         onclick={close}
-        class={$view.mobile && !tabs
-          ? "flex h-6 shrink-0 touch-none items-center justify-center border-0 bg-background"
-          : "hidden"}
+        class="hidden"
         ><span class="h-1 w-10 rounded-full bg-border"></span></button
       >
     </section>
@@ -343,9 +340,7 @@
           $view.sheet !== "doc" ||
           $view.pane !== "board"}
         onclick={close}
-        class={$view.mobile && !$view.boardFull
-          ? "flex h-6 shrink-0 touch-none items-center justify-center border-0 bg-background"
-          : "hidden"}
+        class="hidden"
         ><span class="h-1 w-10 rounded-full bg-border"></span></button
       >
     </div>
@@ -361,9 +356,9 @@
         inert={$view.mobile && $view.sheet === "side"}
         class={[
           "z-30 col-start-2 col-end-4 row-end-6 min-h-0 min-w-0 overflow-hidden bg-background",
-          // Phones: over the whole room. Desktop: under the top bar, in the frame.
+          // Under the top bar, which keeps its Inbox button pressed (phones) or runs across (desktop).
           $view.mobile
-            ? "row-start-1"
+            ? "row-start-2"
             : "row-start-2 mr-2 mb-2 rounded-br-surface",
         ]}
       >
@@ -398,9 +393,8 @@
             // The thread sheet dims the bottom bar too.
             tabs ? "row-end-7" : "row-end-6",
             $view.presentedSheet === "side" ? "absolute inset-0 z-40" : "z-10",
-            $view.presentedSheet || $view.draggingSheet
-              ? "visible"
-              : "invisible",
+            // The doc pane covers the chat; only the side sheet dims the room.
+            sidePresented ? "visible" : "invisible",
             $view.sheet ? "pointer-events-auto" : "pointer-events-none",
           ]}
     ></button>

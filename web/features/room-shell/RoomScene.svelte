@@ -95,6 +95,11 @@
     if (!current() || !value || value.header.thread !== expectedThread) return;
     // Phones have no bottom bar (#3738): Back first leaves the full board or the doc sheet, back to the chat.
     const state = layout.read();
+    // The Inbox opens under the top bar, so ← closes it first.
+    if (state.mobile && inboxOpen) {
+      toChat();
+      return;
+    }
     if (state.mobile && state.boardFull) {
       layout.toggleBoard();
       return;

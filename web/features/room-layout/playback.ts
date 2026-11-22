@@ -1,6 +1,7 @@
 import { clamp, TIMELINE_MS } from "./model";
 export type RoomAnimation =
   | "vb-room-sheet"
+  | "vb-room-pane"
   | "vb-room-scrim"
   | "vb-room-document-width"
   | "vb-room-document-width-rail"

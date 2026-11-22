@@ -68,8 +68,8 @@ export function createRoomGeometry(options: {
     ),
     scrim = createRoomPlayback(cells.scrim, () => "vb-room-scrim", issue);
   const side = createRoomPlayback(cells.sidebar, () => "vb-room-sheet", issue),
-    doc = createRoomPlayback(cells.document, () => "vb-room-sheet", issue),
-    board = createRoomPlayback(cells.board, () => "vb-room-sheet", issue);
+    doc = createRoomPlayback(cells.document, () => "vb-room-pane", issue),
+    board = createRoomPlayback(cells.board, () => "vb-room-pane", issue);
   const docWidth = createRoomPlayback(cells.document, widthName, issue),
     boardWidth = createRoomPlayback(cells.board, widthName, issue);
   const extraWidths = new Map<HTMLElement, RoomPlayback>();
