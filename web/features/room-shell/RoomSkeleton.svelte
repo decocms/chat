@@ -196,7 +196,7 @@
           onclick={onhome}><Icon icon="arrow-left" size={20} /></IconButton
         >
         <div
-          class="flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 px-1.5 py-1"
+          class="flex min-w-0 flex-1 basis-0 items-center justify-start gap-2 px-1.5 py-1"
         >
           {#if peer && title}<RoomAvatar
               {title}
@@ -205,7 +205,8 @@
               lang={en ? "en" : "pt"}
               surface="background"
             />{/if}
-          <span class="flex min-w-0 flex-col items-center">
+          <!-- Left, right after ←, like RoomHeader's title (Gimenes #3796). -->
+          <span class="flex min-w-0 flex-col items-start">
             <span
               class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
               >{#if dm && title}<span class="truncate">{title}</span
