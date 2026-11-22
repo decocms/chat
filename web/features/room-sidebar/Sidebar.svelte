@@ -119,9 +119,11 @@
     studioType,
     "flex h-full min-h-[32rem] flex-col overflow-x-hidden bg-sidebar p-2 text-sm leading-5 text-sidebar-foreground",
     // Expanded, the sections take their full height and the sidebar scrolls whole.
+    // A phone's title menu keeps its shortcuts and the room's row in place:
+    // only the epics scroll (Gimenes #3775).
     collapsed
       ? "items-center gap-2 overflow-y-auto overscroll-contain"
-      : "gap-6 overflow-y-auto overscroll-contain",
+      : "gap-6 overflow-y-auto overscroll-contain max-md:min-h-0 max-md:overflow-y-hidden",
   )}
 >
   {#if collapsed}
@@ -245,7 +247,7 @@
           controller={appNavigation.controller}
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
-        <div class="flex shrink-0 flex-col gap-3">
+        <div class="flex shrink-0 flex-col gap-3 max-md:min-h-0 max-md:shrink">
           <!-- Desktop: the room's name on top (phones have it on the main thread's row); ✎ on hover. -->
           <SidebarHeader class="group/name max-md:hidden md:pl-4"
             ><button

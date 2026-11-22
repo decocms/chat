@@ -884,3 +884,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Each phone room changes how Doc, Files and Agents open. The browser tests close the Inbox with the bar's button now.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · fix/mobile-menu-scroll · In the phone's title menu, only the epics scroll
+- Agent: claude-opus-5-5
+- Context: The human said that in the menu that the room's title opens on a phone, all of the menu scrolls, and that only the epics must scroll. They did not say if the epics' tabs (Épicos, Plano, Feitos) stay in place.
+- Decision: On a phone, the menu does not scroll. The shortcuts, the "Esta sala | Todas as salas" tabs, the room's row and the epics' tabs stay in place. Only the list under the epics' tabs scrolls. The DM list and the list of all rooms already scroll in their own area. The desktop sidebar still scrolls whole.
+- Other options: Scroll the epics' tabs with the list. Keep one scroll for the whole menu, and make the shortcuts sticky.
+- Risk: low. Only the phone menu changes.
+- Undo: Revert this commit.
+- Status: open
