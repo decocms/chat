@@ -920,3 +920,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone's top bar changes.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · feat/mobile-home-chat-list · The phone's home is a list of conversations
+- Agent: claude-opus-5-5
+- Context: The human asked for a phone home like WhatsApp: a list of the rooms with a preview of the last message, where a tap opens the room. They said the top bar stays as it is. They did not say what happens to the cube, the ask box, the wait cards and the grid of room icons, or how the preview reads.
+- Decision:
+  - On a phone, the home is `ChatList`: all rooms and DMs, the newest message first. Each row is the existing `RoomLink` (avatar with the unread dot, ✻ and waits), with the time at the end and one line under the name: "Você: …", "Ana: …", "Claude: …" or "@vibe: …". A DM does not show the other person's name in its line. Your own DM shows only after you wrote in it.
+  - The cube, the ask box, the wait cards and the grid of icons do not show on a phone that has a conversation. The waits stay in the inbox and on the avatars. A person with no conversation still gets the old home, with its way in.
+  - The server keeps the newest message in the D1 `books` row: three new columns (`last_by`, `last_text` with the first 160 characters, `last_agent`), added by `ensureSchema`. A message for one person (`for_who`) and @vibe's quiet lines do not change it. A room without a stored line shows its summary until its next message.
+  - The browser app has no `track()`, so the list sends no event.
+- Other options: Read the last message from each room's Durable Object (one call for each room on each home load). Keep the ask box over the list. Sort by the rail's order, not by activity.
+- Risk: medium. D1 now holds a short copy of each room's newest message. The README already says that D1 holds messages. The desktop does not change.
+- Undo: Revert this commit. The columns can stay; nothing else reads them.
+- Status: open

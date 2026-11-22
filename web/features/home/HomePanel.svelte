@@ -26,9 +26,11 @@
     waitKind,
     orderedRooms,
     roomsOnly,
+    chatList,
     type WaitKind,
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
+  import ChatList from "./ChatList.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
@@ -375,6 +377,26 @@
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
 {#if $onboardingView.visible}
   <Onboarding owner={onboarding} {lang} {onlanguage} />
+{:else if mobile.current && $account.me && chatList($account.me).length}
+  <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
+       Someone with no conversation yet gets the desk below, with its way in. -->
+  <main
+    data-view="home"
+    data-home-layout="chats"
+    class="min-h-full bg-background px-2 pt-2 pb-16 font-sans text-sm leading-6 text-foreground"
+  >
+    <div class="mb-2 px-2">
+      <InstallCard owner={pwa} {lang} compact />
+    </div>
+    <ChatList
+      me={$account.me}
+      seen={$account.seen}
+      now={$account.now}
+      {lang}
+      {ago}
+      {onnavigate}
+    />
+  </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the
        ask box, and what waits as a hand of cards at the foot of the screen

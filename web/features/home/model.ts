@@ -402,3 +402,45 @@ export function plainWaitText(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+/**
+ * The phone's list of rooms, like a chat app: every room and DM you talked in,
+ * the one with the newest message first. Your own DM ("Você") only once you
+ * wrote there.
+ */
+export function chatList(me: MeResult | null) {
+  if (!me) return [];
+  const dms = new Map(switcherDms(me).map((entry) => [entry.room.id, entry]));
+  return [...me.books]
+    .filter(
+      (room) =>
+        !room.dm ||
+        (dms.has(room.id) && (!dms.get(room.id)?.self || room.last_text)),
+    )
+    .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
+    .map((room) => ({ room, dm: dms.get(room.id) }));
+}
+/**
+ * A room's newest message as one line under its name: "Você: …", "Ana: …",
+ * "Claude: …" or "@vibe: …". A DM leaves out the other person's name (the row
+ * is theirs). A room with no stored line yet shows its summary.
+ */
+export function lastLine(
+  room: RoomSummary,
+  me: MeResult | null,
+  lang: HomeLanguage,
+  dm?: DmEntry,
+) {
+  const text = plainWaitText(room.last_text ?? "");
+  if (!text) return room.summary ?? "";
+  const by = room.last_by ?? "";
+  const who = room.last_agent
+    ? "Claude"
+    : by === "ai"
+      ? "@vibe"
+      : by && by === me?.email
+        ? homeText(lang, "you")
+        : dm
+          ? ""
+          : (room.last_by_name ?? by.split("@")[0]).split(" ")[0];
+  return who ? `${who}: ${text}` : text;
+}
