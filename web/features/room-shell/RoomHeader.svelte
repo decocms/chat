@@ -250,7 +250,7 @@
         tooltipSide="bottom"
         size="icon"
         aria-pressed={inboxOpen}
-        class="relative size-10 rounded-full text-muted-foreground hover:text-foreground md:aria-pressed:bg-accent md:aria-pressed:text-foreground"
+        class="relative size-10 rounded-full text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground"
         onclick={(event) => {
           if (live(event)) toggleInbox(event.currentTarget);
         }}
