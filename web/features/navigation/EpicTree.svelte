@@ -385,7 +385,7 @@
   aria-label={vb.t("Épicos")}
   class={cn(
     studioType,
-    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground",
+    "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground max-md:min-h-0 max-md:shrink",
   )}
 >
   {#snippet panel(value: string)}
@@ -696,7 +696,11 @@
       {/if}
     {/if}
   {/snippet}
-  <Tabs value={mode} onValueChange={switchMode} class="gap-2">
+  <Tabs
+    value={mode}
+    onValueChange={switchMode}
+    class="gap-2 max-md:min-h-0 max-md:flex-1"
+  >
     <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
@@ -706,7 +710,8 @@
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
-        class="flex h-auto flex-col">{@render panel(view.value)}</TabsContent
+        class="flex h-auto flex-col max-md:min-h-0 max-md:overflow-y-auto max-md:overscroll-contain"
+        >{@render panel(view.value)}</TabsContent
       >{/each}
   </Tabs>
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
