@@ -911,3 +911,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone menu's backdrop changes. The browser test swipes on it and expects the menu to close.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · feat/mobile-title-left · The phone's title is on the left, right after ←
+- Agent: claude-opus-5-5
+- Context: The human asked that the room's title on a phone be aligned left, right after the back button, not in the center. They did not say where the second line (the room and the epic's progress) and the ▾ go.
+- Decision: The title button keeps all of the space between ← and the inbox, so the tap area does not change. Its text starts at its left: the thread's title with ▾ right after it, and the second line under it, also aligned left. A DM keeps the person's face before the name.
+- Other options: Make the button only as wide as the text. Keep the second line in the center.
+- Risk: low. Only the phone's top bar changes.
+- Undo: Revert this commit.
+- Status: open
