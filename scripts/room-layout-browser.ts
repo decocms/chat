@@ -323,35 +323,32 @@ try {
   await expect.poll(hasSheetEntry).toBe(false);
   const samples: unknown[] = [];
   report.samples = samples;
-  checkpoint("mobile/drag-to-close");
-  // The peek strip (and its opening drag) shows only while the doc sheet is
-  // open (#80): a closed phone room opens the document with its button.
+  checkpoint("mobile/pane-in-place-of-chat");
+  // Phones (#3767): the doc is a pane in the chat's place, not a drawer: no
+  // handle to drag, no backdrop, and Escape (like Back) returns to the chat.
   await expect(page.locator("[data-layout-open-drag]")).toBeHidden();
-  const height = await documentCell.evaluate(
-    (node) => node.getBoundingClientRect().height,
-  );
-  assert(height > 0);
   await page
     .getByRole("button", { name: "Open document", exact: true })
     .click();
   await expect.poll(alpha).toBe(1);
-  const close = page
+  await expect(
+    page
       .getByRole("button", { name: "Close document", exact: true })
       .filter({ visible: true }),
-    closeBox = await close.boundingBox();
-  assert(closeBox);
-  const distance = Math.max(139.2, height * 0.4);
-  samples.push({
-    closeDistance: distance,
-    measuredHeight: height,
-    quarterThreshold: height / 4,
+  ).toHaveCount(0);
+  await expect(page.locator("[data-room-scrim]")).toBeHidden();
+  const pane = await documentCell.evaluate((node) => {
+    const box = node.getBoundingClientRect(),
+      root = node.closest("[data-room-layout]")!.getBoundingClientRect();
+    return { bottom: box.bottom, rootBottom: root.bottom, height: box.height };
   });
-  await page.mouse.move(closeBox.x + 10, closeBox.y + 5);
-  await page.mouse.down();
-  await page.mouse.move(closeBox.x + 10, closeBox.y + 5 - distance, {
-    steps: 5,
-  });
-  await page.mouse.up();
+  samples.push(pane);
+  assert(pane.height > 0);
+  assert(
+    Math.abs(pane.bottom - pane.rootBottom) < 1,
+    "The phone pane reaches the bottom of the room, where the chat was",
+  );
+  await page.keyboard.press("Escape");
   await expect.poll(alpha).toBe(0);
   await expect.poll(sheet).toBe("closed");
   checkpoint("mobile/cancel-form-focus-dialog-escape");
