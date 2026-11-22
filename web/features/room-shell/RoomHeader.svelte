@@ -201,7 +201,7 @@
     type="button"
     data-phone-title
     aria-label={t("Trocar de conversa")}
-    class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 bg-transparent px-1.5 py-1 text-center font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+    class="flex min-w-0 flex-1 basis-0 cursor-pointer items-center justify-start gap-2 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
     onclick={(event) => {
       if (live(event)) header.onopenside();
     }}
@@ -214,7 +214,8 @@
         }}
         lang={en ? "en" : "pt"}
         surface="background"
-      />{/if}<span class="flex min-w-0 flex-col items-center"
+      />{/if}<!-- Left, right after ← (Gimenes #3791). --><span
+      class="flex min-w-0 flex-col items-start"
       ><span
         class="flex max-w-full min-w-0 items-center gap-1 text-base leading-5 font-semibold"
         ><span data-phone-thread class="truncate">{phoneTitle}</span><Icon
