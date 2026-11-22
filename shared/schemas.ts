@@ -428,6 +428,12 @@ export const MeBook = z.object({
   /** A DM's other person's name and picture version (null in rooms and your own DM): your other lists may not know them. */
   peer_name: z.optional(str),
   peer_avatar: z.optional(num),
+  /** The newest message, for the phone's list of rooms: its author (an email, or "ai" for @vibe), that person's name and its start. */
+  last_by: z.optional(str),
+  last_by_name: z.optional(str),
+  last_text: z.optional(str),
+  /** 1 = that person's agent wrote it. */
+  last_agent: z.optional(num),
 });
 export const MeFriend = z.object({
   email: z.string(),

@@ -65,6 +65,13 @@ const CLASSIFY_DELAY_MS = 30_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
 const CLASSIFY_MIN_NEW_MSGS = 3; // after the first classification
+/** A message's first line for the list of rooms: its text, else its card's title, else its first file's name. */
+export const previewText = (text: string, card?: Card, files: readonly FileMeta[] = []) => {
+  const root = card?.elements[card.root]?.props;
+  const title = root && "title" in root ? root.title : undefined;
+  const line = text.trim() || (typeof title === "string" ? title : "") || files[0]?.name || "";
+  return line.replace(/\s+/g, " ").slice(0, 160);
+};
 const CLASSIFY_FIRST_MSGS = 1; // a new room gets its title/summary after its first message
 
 // Agents can't talk among themselves forever: after this many messages in a row with no human, the thread pauses.
@@ -773,7 +780,9 @@ export class Book extends DurableObject<Env> {
     // The D1 index keeps the newest id so the agent inbox is one query, not one DO call per room, and which kind
     // spoke last (people vs agents/@vibe) for the switcher's dots. People here now have seen it.
     const byPerson = !extra.kind && author !== "ai";
-    if (!extra.quiet) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id }).then(() => this.markRead([...new Set([...this.online(), ...(byPerson ? [author] : [])])], id)));
+    // A message for one person (a reminder) is not the room's last line for everyone else.
+    const last = extra.forWho ? undefined : { by: author, text: previewText(text, extra.card, files), agent: extra.kind === "agent" };
+    if (!extra.quiet) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.markRead([...new Set([...this.online(), ...(byPerson ? [author] : [])])], id)));
     if (byPerson && replyTo) {
       const q = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE id = ? AND kind = 'agent' AND choices IS NOT NULL`, replyTo).toArray()[0];
       // Answered in the room: its wait goes, and so does the "⏸ espera você no terminal" the Notification hook put up
@@ -1238,15 +1247,20 @@ export class Book extends DurableObject<Env> {
     if (only !== undefined) return Object.fromEntries(this.sql.exec<{ k: string; v: string }>(`SELECT k, v FROM meta WHERE k = ?`, `doc:${only}`).toArray().map((r) => [r.k.slice(4), r.v]));
     return Object.fromEntries(this.sql.exec<{ k: string; v: string }>(`SELECT k, v FROM meta WHERE k LIKE 'doc:%'`).toArray().map((r) => [r.k.slice(4), r.v]));
   }
-  async touch(fields: { title?: string; folder?: string; summary?: string; lastId?: number; human?: number; agent?: number } = {}) {
+  async touch(fields: { title?: string; folder?: string; summary?: string; lastId?: number; human?: number; agent?: number; last?: { by: string; text: string; agent: boolean } } = {}) {
     const id = this.get("book_id");
     if (!id) return;
+    // `last`: who wrote the newest message (an email, or "ai"; `agent` = that person's agent wrote it) and its start,
+    // for the phone's list of rooms. Only when it is newer than the one there (two touches can land out of order).
     await this.env.DB.prepare(
-      `UPDATE books SET updated_at = ?, title = COALESCE(?, title), folder = COALESCE(?, folder), summary = COALESCE(?, summary),
-         last_msg_id = max(coalesce(last_msg_id, 0), coalesce(?, 0)),
-         last_human_id = max(coalesce(last_human_id, 0), coalesce(?, 0)), last_agent_id = max(coalesce(last_agent_id, 0), coalesce(?, 0)) WHERE id = ?`,
+      `UPDATE books SET updated_at = ?1, title = COALESCE(?2, title), folder = COALESCE(?3, folder), summary = COALESCE(?4, summary),
+         last_by = CASE WHEN ?9 IS NOT NULL AND coalesce(?5, 0) >= coalesce(last_msg_id, 0) THEN ?9 ELSE last_by END,
+         last_text = CASE WHEN ?9 IS NOT NULL AND coalesce(?5, 0) >= coalesce(last_msg_id, 0) THEN ?10 ELSE last_text END,
+         last_agent = CASE WHEN ?9 IS NOT NULL AND coalesce(?5, 0) >= coalesce(last_msg_id, 0) THEN ?11 ELSE last_agent END,
+         last_msg_id = max(coalesce(last_msg_id, 0), coalesce(?5, 0)),
+         last_human_id = max(coalesce(last_human_id, 0), coalesce(?6, 0)), last_agent_id = max(coalesce(last_agent_id, 0), coalesce(?7, 0)) WHERE id = ?8`,
     )
-      .bind(Date.now(), fields.title ?? null, fields.folder ?? null, fields.summary ?? null, fields.lastId ?? null, fields.human ?? null, fields.agent ?? null, id)
+      .bind(Date.now(), fields.title ?? null, fields.folder ?? null, fields.summary ?? null, fields.lastId ?? null, fields.human ?? null, fields.agent ?? null, id, fields.last?.by ?? null, fields.last?.text ?? null, fields.last?.agent ? 1 : 0)
       .run();
     this.pokeMembers(true);
   }

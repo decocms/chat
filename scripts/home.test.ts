@@ -1321,3 +1321,53 @@ test("the tab's name starts with the Inbox count, and stays plain when the Inbox
   expect(tabTitle("Sala · deco.chat", 3)).toBe("(3) Sala · deco.chat");
   expect(tabTitle("deco.chat", 150)).toBe("(99+) deco.chat");
 });
+
+test("the phone's chat list: newest first, and who wrote last before the line", async () => {
+  const { chatList, lastLine } = await import("../web/features/home/model");
+  const a = room("aaaaaa", {
+    updated_at: 100,
+    last_by: "me@test.com",
+    last_text: "**Oi** [site](https://x.com)",
+  });
+  const b = room("bbbbbb", {
+    updated_at: 300,
+    last_by: "ana@test.com",
+    last_by_name: "Ana Souza",
+    last_text: "Pronto",
+  });
+  const c = room("cccccc", {
+    updated_at: 200,
+    last_by: "me@test.com",
+    last_agent: 1,
+    last_text: "Subi o PR",
+  });
+  const d = room("dddddd", {
+    updated_at: 50,
+    last_by: "ai",
+    last_text: "Lembrete",
+  });
+  const e = room("eeeeee", { updated_at: 80, summary: "Sobre o site" });
+  const account = me({ books: [a, b, c, d, e] });
+  expect(chatList(account).map((row) => row.room.id)).toEqual([
+    "bbbbbb",
+    "cccccc",
+    "aaaaaa",
+    "eeeeee",
+    "dddddd",
+  ]);
+  expect(lastLine(a, account, "pt")).toBe("Você: Oi site");
+  expect(lastLine(b, account, "en")).toBe("Ana: Pronto");
+  expect(lastLine(c, account, "pt")).toBe("Claude: Subi o PR");
+  expect(lastLine(d, account, "pt")).toBe("@vibe: Lembrete");
+  // No stored line yet (a room from before): its summary.
+  expect(lastLine(e, account, "pt")).toBe("Sobre o site");
+  // A DM leaves out the other person's name: the row is theirs.
+  expect(
+    lastLine(b, account, "pt", {
+      email: "ana@test.com",
+      name: "Ana",
+      room: b,
+      self: false,
+    }),
+  ).toBe("Pronto");
+});
