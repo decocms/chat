@@ -385,12 +385,13 @@
       aria-label={props.labels.closeSheet}
       disabled={!$view.active || !$view.sheet}
       onclick={close}
+      use:handle={{ sheet: "side", opening: false }}
       data-room-scrim
       class={!$view.mobile
         ? "hidden"
         : [
             // Glass (Gimenes #3781): the room behind the title menu blurs as it dims; a tap on it closes the menu.
-            "col-start-2 row-start-3 animate-room-scrim border-0 bg-scrim p-0 backdrop-blur-sm",
+            "col-start-2 row-start-3 animate-room-scrim touch-none border-0 bg-scrim p-0 backdrop-blur-sm",
             // The thread sheet dims the bottom bar too.
             tabs ? "row-end-7" : "row-end-6",
             $view.presentedSheet === "side" ? "absolute inset-0 z-40" : "z-10",

@@ -469,7 +469,14 @@ export function createRoomGeometry(options: {
             : value.sheet !== sheet
         )
           return;
-        if (!opening && !sheetElement(sheet).contains(node)) return;
+        // A closing handle is inside its sheet, or is the backdrop under the
+        // title menu: a swipe up on the glass slides the menu away (#3786).
+        if (
+          !opening &&
+          !sheetElement(sheet).contains(node) &&
+          !(sheet === "side" && node === cells.scrim)
+        )
+          return;
         const height = sheetElement(sheet).getBoundingClientRect().height;
         if (!(height > 0)) return;
         cancelMotion();

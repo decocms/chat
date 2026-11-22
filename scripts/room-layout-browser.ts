@@ -277,6 +277,17 @@ try {
   await page.mouse.click(195, 990);
   await expect.poll(sheet).toBe("closed");
   await expect.poll(alpha).toBe(0);
+  // A swipe up on the glass slides the menu away too (Gimenes #3786).
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await expect.poll(sheet).toBe("side");
+  await expect.poll(alpha).toBe(1);
+  await page.mouse.move(195, 990);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step++)
+    await page.mouse.move(195, 990 - step * 60);
+  await page.mouse.up();
+  await expect.poll(sheet).toBe("closed");
+  await expect.poll(alpha).toBe(0);
   // Closing changes presentation before Back completes. Do not let a pending
   // sheet traversal contaminate this independent media-query transition.
   const historyPage = page;

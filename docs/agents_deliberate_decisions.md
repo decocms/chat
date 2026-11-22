@@ -902,3 +902,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone menu's backdrop changes. A blur costs more to draw on old phones.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · fix/mobile-menu-swipe-glass · A swipe up on the glass under the title menu closes it
+- Agent: claude-opus-5-5
+- Context: The human said that a swipe on the glass under the phone's title menu does not slide the menu. Only the handle at the bottom of the menu started a drag, because a closing handle had to be inside its sheet.
+- Decision: The backdrop under the title menu is also a closing handle of the side sheet. A swipe up on it moves the menu with the finger, and the release settles fully open or fully closed, as with the handle. A tap on it still closes the menu. A swipe down on it does nothing. The backdrop has `touch-none`, so the browser does not scroll the page during the swipe.
+- Other options: Close the menu at once when a swipe on the backdrop starts, with no drag. Make all of the room under the menu a drag area, also when the menu is closed.
+- Risk: low. Only the phone menu's backdrop changes. The browser test swipes on it and expects the menu to close.
+- Undo: Revert this commit.
+- Status: open
