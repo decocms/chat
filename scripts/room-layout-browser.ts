@@ -266,6 +266,17 @@ try {
     .click();
   await expect.poll(sheet).toBe("closed");
   await expect.poll(alpha).toBe(0);
+  // A tap on the blurred room under the title menu closes it (Gimenes #3781).
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await expect.poll(sheet).toBe("side");
+  await expect.poll(alpha).toBe(1);
+  assert.match(
+    await scrim.evaluate((node) => getComputedStyle(node).backdropFilter),
+    /blur/,
+  );
+  await page.mouse.click(195, 990);
+  await expect.poll(sheet).toBe("closed");
+  await expect.poll(alpha).toBe(0);
   // Closing changes presentation before Back completes. Do not let a pending
   // sheet traversal contaminate this independent media-query transition.
   const historyPage = page;

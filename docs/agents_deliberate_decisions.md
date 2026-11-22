@@ -893,3 +893,12 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone menu changes.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-22 · fix/mobile-menu-dismiss · The room behind the phone's title menu is glass
+- Agent: claude-opus-5-5
+- Context: The human asked that the part of the room outside the phone's title menu close the menu when you tap it, and that it use a glass effect. A tap on that part already closed the menu in the browser test at 390px. The human did not say how strong the glass is.
+- Decision: The backdrop under the title menu keeps its color and adds a small blur (`backdrop-blur-sm`). It fades in and out with the menu's slide. The browser test now taps the backdrop and expects the menu to close, so that this behavior stays.
+- Other options: A stronger blur, as in the dialogs (`backdrop-blur-[32px]`, `bg-glass`). A shorter menu, so that more of the room shows under it.
+- Risk: low. Only the phone menu's backdrop changes. A blur costs more to draw on old phones.
+- Undo: Revert this commit.
+- Status: open
