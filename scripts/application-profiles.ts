@@ -765,7 +765,6 @@ export async function auditApplicationProfiles(
             });
             for (const pane of [
               "doc",
-              "board",
               "files",
               "apps",
               "agents",
@@ -779,8 +778,7 @@ export async function auditApplicationProfiles(
               )
                 continue;
               await fixture.openPane(page, pane);
-              const selector =
-                pane === "board" ? "[data-room-board]" : "[data-room-document]";
+              const selector = "[data-room-document]";
               await expect(page.locator(selector)).toBeVisible();
               evidence.paneFonts.push({
                 surface: pane,

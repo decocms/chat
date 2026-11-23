@@ -168,19 +168,10 @@ test("measured fast-close threshold and release curve preserve actual endpoints"
     previous = next;
   }
 });
-test("full Board has no document-sheet surface to seek after replacing the pane", () => {
-  expect(
-    hasSheetSurface("doc", { documentVisible: true, boardFull: false }),
-  ).toBe(true);
-  expect(
-    hasSheetSurface("doc", { documentVisible: false, boardFull: true }),
-  ).toBe(false);
-  expect(
-    hasSheetSurface("doc", { documentVisible: true, boardFull: true }),
-  ).toBe(false);
-  expect(
-    hasSheetSurface("side", { documentVisible: false, boardFull: true }),
-  ).toBe(true);
+test("a closed document has no document-sheet surface to seek; the side sheet always has one", () => {
+  expect(hasSheetSurface("doc", { documentVisible: true })).toBe(true);
+  expect(hasSheetSurface("doc", { documentVisible: false })).toBe(false);
+  expect(hasSheetSurface("side", { documentVisible: false })).toBe(true);
 });
 test("switching sheets uses one history entry; real Back and Forward close/restore it", () => {
   const f = fixture();
@@ -379,34 +370,16 @@ test("viewer-first deferral and exact gate cleanup cannot apply into a replaced 
     },
   });
   stopOld();
-  owner.toggleBoard();
+  const visible = owner.read().documentVisible;
+  owner.toggleDocument();
   expect(first).toHaveLength(0);
   expect(second).toHaveLength(1);
-  expect(owner.read().boardFull).toBe(false);
+  expect(owner.read().documentVisible).toBe(visible);
   current = false;
   second[0]!();
-  expect(owner.read().boardFull).toBe(false);
+  expect(owner.read().documentVisible).toBe(visible);
   owner.dispose();
   expect(owner.read().active).toBe(false);
-});
-test("one Board placement has explicit full/pane transitions and independent desktop document visibility", () => {
-  const f = fixture();
-  const owner = createRoomLayout({
-    scopeKey: "room",
-    current: () => true,
-    browser: f.browser,
-    onDocumentClosed() {},
-  });
-  owner.toggleBoard();
-  expect(owner.read().boardFull).toBe(true);
-  expect(owner.read().documentVisible).toBe(false);
-  owner.toggleDocument();
-  expect(owner.read().documentVisible).toBe(true);
-  expect(owner.read().boardFull).toBe(true);
-  owner.setPane("board");
-  expect(owner.read().pane).toBe("board");
-  expect(owner.read().boardFull).toBe(false);
-  owner.dispose();
 });
 test("production geometry stays in the sole stylesheet with no authored JS presentation", () => {
   for (const file of [

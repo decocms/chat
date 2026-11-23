@@ -4,7 +4,6 @@ import type { Component, ComponentProps } from "svelte";
 import { writable } from "svelte/store";
 import View from "./UiPanelView.svelte";
 import Tasks from "../web/features/tasks/Tasks.svelte";
-import Board from "../web/features/board/Board.svelte";
 import Files from "../web/features/files/Files.svelte";
 import Reminders from "../web/features/reminders/Reminders.svelte";
 import Decisions from "../web/features/decisions/Decisions.svelte";
@@ -20,7 +19,6 @@ import RoomBarTitle from "../web/features/room-shell/RoomBarTitle.svelte";
 export { dismissDialogs } from "../web/lib/studio/dialogController";
 const fixtures = {
   tasks: Tasks,
-  board: Board,
   files: Files,
   reminders: Reminders,
   decisions: Decisions,

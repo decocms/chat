@@ -27,7 +27,6 @@ import { createFilesSession } from "../web/features/files/session";
 import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
-import { boardModel, lanes } from "../web/features/board/model";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -215,7 +214,7 @@ async function expectAlertDialogClosed() {
 }
 
 function render(
-  kind: "tasks" | "board" | "files" | "reminders" | "decisions",
+  kind: "tasks" | "files" | "reminders" | "decisions",
   room: Room,
   extra: Partial<PanelProps & FilesProps> = {},
 ) {
@@ -325,8 +324,6 @@ function menuItem(trigger: Element, name: string) {
 /** The label a closed Studio Select shows for its committed value. */
 const shown = (trigger: Element) =>
   trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
-const laneLabel = (status: string) =>
-  lanes.find((lane) => lane.value === status)?.label;
 
 /** The new-epic field opens from the + in the Épicos header. */
 function newEpicInput(target: ParentNode) {
@@ -622,252 +619,6 @@ describe("room panels", () => {
     update({ ...room, epics: [{ ...room.epics[0], tasks: [] }] });
     await tick();
     expect(window.document.querySelector('[role="dialog"]')).toBeNull();
-    expect(events).toHaveLength(1);
-  }, 30_000);
-  test("board supports keyboard status moves and native list navigation", () => {
-    const opened: string[] = [];
-    const { target, events } = render("board", fixture(), {
-      onopen: (id) => opened.push(id),
-    });
-    target.querySelector("[data-board-open]")!.dispatchEvent(
-      new window.KeyboardEvent("keydown", {
-        key: "ArrowRight",
-        bubbles: true,
-      }),
-    );
-    flushSync();
-    expect(events).toEqual([{ t: "task.status", id: "t", status: "doing" }]);
-    [...target.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
-      .find((button) => button.textContent?.trim() === "Lista")!
-      .click();
-    flushSync();
-    target.querySelector<HTMLElement>("[data-board-open]")!.click();
-    expect(opened).toEqual(["e"]);
-  }, 30_000);
-  test("board projection retains room tasks, explicit archived scopes and invalid scope boundaries", () => {
-    const room = fixture();
-    room.roomTasks = [{ ...room.epics[0].tasks[0], id: "room-task" }];
-    room.epics[0].archived = true;
-    expect(boardModel(room, "main").tasks.map((task) => task.id)).toEqual([
-      "room-task",
-    ]);
-    expect(boardModel(room, "e").tasks.map((task) => task.id)).toEqual(["t"]);
-    expect(boardModel(room, "missing").missingScope).toBe(true);
-    expect(boardModel(room, "missing").targets).toEqual([]);
-    expect(boardModel(room, "missing").tasks).toEqual([]);
-    room.epics = [];
-    expect(boardModel(room, "main").targets).toEqual([
-      { id: "main", title: "Room" },
-    ]);
-    expect(boardModel(room, "main").tasks[0].epicId).toBe("main");
-  });
-  test("board preserves failed drafts and never retargets a deleted or archived selection", () => {
-    for (const removal of ["delete", "archive"] as const) {
-      const room = fixture();
-      const attempted: RoomCommand[] = [];
-      let failure: "reject" | "throw" | null = "reject";
-      const { target, update } = render("board", room, {
-        thread: "main",
-        send: (command) => {
-          attempted.push(command);
-          if (failure === "throw") throw new Error("Socket closed");
-          return failure === null;
-        },
-      });
-      const form = target.querySelector<HTMLFormElement>("form")!;
-      const input = form.querySelector<HTMLInputElement>("input")!;
-      const epic = form.querySelector(selectTrigger)!;
-      input.value = "Keep this draft";
-      input.dispatchEvent(new window.Event("input", { bubbles: true }));
-      const submit = () => {
-        form.dispatchEvent(
-          new window.Event("submit", { bubbles: true, cancelable: true }),
-        );
-        flushSync();
-      };
-      submit();
-      expect(input.value).toBe("Keep this draft");
-      expect(shown(epic)).toBe("Epic");
-      expect(target.querySelector('[role="alert"]')).not.toBeNull();
-      failure = "throw";
-      submit();
-      expect(input.value).toBe("Keep this draft");
-      expect(attempted).toHaveLength(2);
-      update({
-        ...room,
-        epics:
-          removal === "delete" ? [] : [{ ...room.epics[0], archived: true }],
-      });
-      flushSync();
-      expect(input.value).toBe("Keep this draft");
-      expect(shown(epic)).toBe("Epic");
-      expect(
-        form.querySelector<HTMLButtonElement>('button[type="submit"]')
-          ?.disabled,
-      ).toBe(true);
-      submit();
-      expect(attempted).toHaveLength(2);
-      choose(epic, "main");
-      failure = null;
-      submit();
-      expect(attempted.at(-1)).toEqual({
-        t: "task.add",
-        epic: "main",
-        title: "Keep this draft",
-      });
-      expect(input.value).toBe("");
-    }
-  }, 30_000);
-  test("board keyboard movement retains focus after a live update without stealing an intervening focus", async () => {
-    const room = fixture();
-    const { target, events, update } = render("board", room);
-    const button =
-      target.querySelector<HTMLButtonElement>("[data-board-open]")!;
-    button.focus();
-    button.dispatchEvent(
-      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-    );
-    flushSync();
-    expect(document.activeElement).toBe(button);
-    expect(events).toEqual([{ t: "task.status", id: "t", status: "doing" }]);
-    const doing = {
-      ...room,
-      epics: [
-        {
-          ...room.epics[0],
-          tasks: [{ ...room.epics[0].tasks[0], status: "doing" as const }],
-        },
-      ],
-    };
-    update(doing);
-    await tick();
-    await tick();
-    const replacement = target.querySelector<HTMLButtonElement>(
-      '[data-status="doing"] [data-board-open]',
-    )!;
-    expect(replacement).not.toBe(button);
-    expect(document.activeElement).toBe(replacement);
-    replacement.dispatchEvent(
-      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-    );
-    flushSync();
-    const draft = target.querySelector<HTMLInputElement>("form input")!;
-    draft.focus();
-    update({
-      ...doing,
-      epics: [
-        {
-          ...doing.epics[0],
-          tasks: [{ ...doing.epics[0].tasks[0], status: "review" }],
-        },
-      ],
-    });
-    await tick();
-    await tick();
-    expect(document.activeElement).toBe(draft);
-  }, 30_000);
-  test("board status controls preserve the focused list occurrence and do not open its epic", async () => {
-    localStorage.setItem("vb.boardMode", "list");
-    const room = fixture();
-    const opened: string[] = [];
-    const { target, events, update } = render("board", room, {
-      onopen: (id) => opened.push(id),
-    });
-    const controls = target.querySelectorAll<HTMLElement>(
-      `[data-board-task="t"] ${selectTrigger}`,
-    );
-    expect(controls.length).toBe(2);
-    const mine = controls[0];
-    mine.focus();
-    mine.dispatchEvent(
-      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-    );
-    expect(events).toEqual([]);
-    choose(mine, "doing");
-    expect(events).toEqual([{ t: "task.status", id: "t", status: "doing" }]);
-    expect(shown(mine)).toBe(laneLabel("todo"));
-    update({
-      ...room,
-      epics: [
-        {
-          ...room.epics[0],
-          tasks: [{ ...room.epics[0].tasks[0], status: "doing" }],
-        },
-      ],
-    });
-    await tick();
-    await tick();
-    expect(document.activeElement).toBe(mine);
-    expect(shown(mine)).toBe(laneLabel("doing"));
-    expect(opened).toEqual([]);
-    choose(mine, "done");
-    update({
-      ...room,
-      epics: [
-        {
-          ...room.epics[0],
-          archived: true,
-          tasks: [{ ...room.epics[0].tasks[0], done: true, status: "done" }],
-        },
-      ],
-    });
-    await tick();
-    await tick();
-    expect(document.activeElement).toBe(target.querySelector("form input"));
-    expect(target.querySelector('[role="status"]')?.textContent).toContain(
-      "Feito",
-    );
-  }, 30_000);
-  test("board disposal cancels focus restoration into the next scope", async () => {
-    const room = fixture();
-    const { target, update } = render("board", room);
-    const button =
-      target.querySelector<HTMLButtonElement>("[data-board-open]")!;
-    button.focus();
-    button.dispatchEvent(
-      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
-    );
-    flushSync();
-    const next = {
-      ...room,
-      epics: [
-        {
-          ...room.epics[0],
-          tasks: [{ ...room.epics[0].tasks[0], status: "doing" as const }],
-        },
-      ],
-    };
-    update(next);
-    flushSync();
-    update(next, "main");
-    flushSync();
-    const draft = target.querySelector<HTMLInputElement>("form input")!;
-    draft.focus();
-    await tick();
-    await tick();
-    expect(document.activeElement).toBe(draft);
-  }, 30_000);
-  test("board ignores foreign and removed drag IDs", () => {
-    const room = fixture();
-    const { target, events, update } = render("board", room);
-    const drop = (id: string) => {
-      const event = new window.Event("drop", {
-        bubbles: true,
-        cancelable: true,
-      });
-      Object.defineProperty(event, "dataTransfer", {
-        value: { getData: () => id },
-      });
-      target.querySelector('[data-lane="doing"]')!.dispatchEvent(event);
-      flushSync();
-    };
-    drop("foreign");
-    expect(events).toEqual([]);
-    drop("t");
-    expect(events).toEqual([{ t: "task.status", id: "t", status: "doing" }]);
-    update({ ...room, epics: [{ ...room.epics[0], tasks: [] }] });
-    flushSync();
-    drop("t");
     expect(events).toHaveLength(1);
   }, 30_000);
   test("files group versions in folders, filter and send pin events", () => {
@@ -3867,12 +3618,42 @@ describe("stable sidebar integration", () => {
     await tick();
     flushSync();
     expect(title!.getAttribute("aria-current")).toBe("page");
-    h.view.update({ ...h.props, thread: "main", boardOpen: true });
+  });
+  test("on a desktop the room's name is the main thread: no separate row, no message count, what waits on you (Gimenes #3989)", async () => {
+    const room = fixture();
+    const h = sidebar(room, {
+      thread: "e",
+      vb: {
+        ...vb,
+        epicBusy: () => null,
+        waitsIn: (id: string) => (id === "main" ? [{ ref: "m1" }] : []),
+        waitsInRoom: () => [],
+      },
+    });
+    const name = h.target.querySelector<HTMLButtonElement>(
+      "button[data-room-home]",
+    )!;
+    expect(name.textContent).toContain(room.book.title);
+    expect(
+      name.querySelector("[data-wait-badge] [data-count]")?.textContent,
+    ).toBe("1");
+    expect(name.getAttribute("aria-current")).toBeNull();
+    // The room's own row is for phones only; nothing in the sidebar opens a task board.
+    expect(
+      h.target
+        .querySelector("button[data-room-title]")!
+        .parentElement!.className.split(/\s+/),
+    ).toContain("md:hidden");
+    expect(h.target.querySelector("[data-board-toggle]")).toBeNull();
+    expect(h.target.textContent).not.toContain("Sala principal");
+    name.click();
+    expect(h.opened).toEqual(["main"]);
+    h.view.update({ ...h.props, thread: "main" });
     await tick();
     flushSync();
-    expect(title!.getAttribute("aria-current")).toBeNull();
+    expect(name.getAttribute("aria-current")).toBe("page");
   });
-  test("the room row is the room's mark, title, what waits on you in its main thread and its message count, with rename behind hover", async () => {
+  test("the room row is the room's mark, title and what waits on you in its main thread, with rename behind hover", async () => {
     const room = fixture();
     const h = sidebar(room, {
       thread: "main",
@@ -6484,7 +6265,6 @@ describe("room sidebar header and suggestion ownership", () => {
     for (const [r, extra, title, actions] of [
       [room, {}, "Sala principal", false],
       [room, { thread: "e" }, "Epic", true],
-      [room, { thread: "e", view: "board" }, "Quadro de tarefas", false],
       [room, { thread: "gone" }, "Sala principal", false],
       [
         { ...room, book: { ...room.book, dm: true } },

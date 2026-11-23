@@ -9,10 +9,10 @@ The room screen has five areas, from left to right.
 | Area | Component | Contents |
 |---|---|---|
 | Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), the views (main thread, task board), the epics, the people. |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics and the people. |
 | Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
-| Main view | `RoomScene` | The chat of a thread or the full task board. |
-| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, the board, beside the main view. |
+| Main view | `RoomScene` | The chat of a thread. |
+| Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
 
@@ -22,7 +22,7 @@ A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox
 
 The top bar has one row on desktop. Its parts are in this order:
 
-1. The name of the view (`RoomBarTitle`): the epic's title, "Quadro de tarefas". In a room's main thread, the room's search field is here in place of the name.
+1. The name of the view (`RoomBarTitle`): the epic's title. In a room's main thread, the room's search field is here in place of the name.
 2. The controls of the view.
 3. A vertical `Separator`.
 4. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". Not in a DM.
@@ -57,7 +57,7 @@ The top bar on phones has no space for the controls of a view. That is why the v
 |---|---|---|
 | Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions` (`bar`), in `RoomBarTitle`. On phones: `EpicActions` (`sheet`), under the title in `ThreadHeader` |
 | Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
-| Main thread, task board | None | |
+| Main thread | None | |
 
 ### What does not go in the top bar
 

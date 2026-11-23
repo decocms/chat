@@ -6,7 +6,6 @@ export type RoomSheet = "side" | "doc";
 export type RoomLayoutState = {
   pane: DocumentPane;
   sheet: RoomSheet | null;
-  boardFull: boolean;
   documentVisible: boolean;
   sidebarCollapsed: boolean;
   mobile: boolean;
@@ -33,7 +32,6 @@ export type RoomLayoutCells = {
   composer: HTMLElement;
   documentToolbar: HTMLElement;
   document: HTMLElement;
-  board: HTMLElement;
   scrim: HTMLElement;
 };
 export type RoomLayoutController = {
@@ -44,7 +42,6 @@ export type RoomLayoutController = {
     /** quiet: switch the pane without opening it (a fallback, not you). */
     options?: { open?: boolean; toggle?: boolean; quiet?: boolean },
   ): void;
-  toggleBoard(): void;
   toggleDocument(): void;
   /** The app opening the pane on its own (an epic with your tasks): not when you closed it, and not remembered. */
   revealDocument(): void;
@@ -81,7 +78,6 @@ export type RoomLayoutProps = {
   tabbar?: Snippet;
   documentToolbar: Snippet;
   document: Snippet;
-  board: Snippet;
   overlay?: Snippet;
   overlayOpen?: boolean;
   /** Exact scroller attachment; cleanup must detach only this same node. */

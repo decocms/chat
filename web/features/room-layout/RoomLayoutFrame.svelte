@@ -16,7 +16,6 @@
     composer = $state<HTMLDivElement>(),
     documentToolbar = $state<HTMLDivElement>(),
     documentCell = $state<HTMLElement>(),
-    board = $state<HTMLDivElement>(),
     scrim = $state<HTMLButtonElement>();
   const widthClass = $derived(
     $view.sidebarCollapsed
@@ -41,9 +40,7 @@
   const sideLive = $derived(
     !$view.mobile || $view.sheet === "side" || $view.draggingSheet === "side",
   );
-  const rightVisible = $derived(
-    $view.documentVisible && !($view.boardFull && $view.pane === "board"),
-  );
+  const rightVisible = $derived($view.documentVisible);
   // Desktop: one frame (sidebar, chat and the open pane on one surface, hairlines
   // between them); with the pane open the top bar runs across chat and pane.
   const split = $derived(!$view.mobile && rightVisible && !props.overlayOpen);
@@ -90,7 +87,6 @@
       !composer ||
       !documentToolbar ||
       !documentCell ||
-      !board ||
       !scrim
     )
       return;
@@ -105,7 +101,6 @@
       composer,
       documentToolbar,
       document: documentCell,
-      board,
       scrim,
     };
     const stop = owner.mount(cells);
@@ -124,7 +119,6 @@
   data-room-layout
   data-pane={$view.pane}
   data-sheet={$view.sheet ?? undefined}
-  data-board-full={$view.boardFull}
   class={[
     "relative h-full min-h-0 w-full min-w-0 overflow-hidden font-sans text-sm text-foreground",
     $view.mobile ? "bg-background" : "bg-sidebar",
@@ -206,7 +200,6 @@
       data-room-peek
       class={!props.overlayOpen &&
       $view.mobile &&
-      !$view.boardFull &&
       // The doc sheet's height is a share of the rows under this strip, so the
       // strip stays until the slide out ends: the sheet keeps one height.
       ($view.sheet === "doc" || docPresented)
@@ -236,7 +229,7 @@
       bind:this={chat}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
       data-room-chat
-      class={props.overlayOpen || $view.boardFull
+      class={props.overlayOpen
         ? "hidden"
         : [
             "col-start-2 row-start-4 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4",
@@ -252,7 +245,7 @@
       bind:this={composer}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
       data-room-composer
-      class={props.overlayOpen || $view.boardFull
+      class={props.overlayOpen
         ? "hidden"
         : [
             "col-start-2 row-start-5 min-w-0",
@@ -284,7 +277,7 @@
       class={[
         "relative min-h-0 min-w-0 flex-col overflow-hidden",
         $view.mobile && "bg-background",
-        rightVisible && $view.pane !== "board" ? "flex" : "hidden",
+        rightVisible ? "flex" : "hidden",
         paneClass,
         props.overlayOpen || ($view.mobile && !docPresented)
           ? "invisible"
@@ -300,54 +293,12 @@
         type="button"
         use:handle={{ sheet: "doc", opening: false }}
         aria-label={props.labels.closeDocument}
-        disabled={!$view.active ||
-          $view.sheet !== "doc" ||
-          $view.pane === "board"}
+        disabled={!$view.active || $view.sheet !== "doc"}
         onclick={close}
         class="hidden"
         ><span class="h-1 w-10 rounded-full bg-border"></span></button
       >
     </section>
-    <div
-      bind:this={board}
-      inert={props.overlayOpen ||
-        ($view.mobile &&
-          ($view.sheet === "side" || (!$view.boardFull && !docLive)))}
-      data-room-board
-      data-placement={$view.boardFull ? "full" : "pane"}
-      class={[
-        "relative min-h-0 min-w-0 flex-col overflow-hidden",
-        $view.mobile && "bg-background",
-        $view.boardFull
-          ? [
-              "col-start-2 row-start-4 row-end-6 flex h-full",
-              $view.mobile ? "w-full" : "mr-2 mb-2 h-auto rounded-br-surface",
-            ]
-          : $view.pane === "board" && rightVisible
-            ? ["flex", paneClass]
-            : "hidden",
-        props.overlayOpen || ($view.mobile && !$view.boardFull && !docPresented)
-          ? "invisible"
-          : "visible",
-      ]}
-    >
-      <div
-        class="flex min-h-0 flex-1 flex-col overflow-auto overscroll-contain p-4"
-      >
-        {@render props.board()}
-      </div>
-      <button
-        type="button"
-        use:handle={{ sheet: "doc", opening: false }}
-        aria-label={props.labels.closeDocument}
-        disabled={!$view.active ||
-          $view.sheet !== "doc" ||
-          $view.pane !== "board"}
-        onclick={close}
-        class="hidden"
-        ><span class="h-1 w-10 rounded-full bg-border"></span></button
-      >
-    </div>
     {#if tabs}<div
         data-room-tabbar
         inert={$view.sheet === "side"}

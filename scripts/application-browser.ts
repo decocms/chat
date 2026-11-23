@@ -710,9 +710,6 @@ try {
             visible: node.getClientRects().length > 0,
             pane: layout?.getAttribute("data-pane"),
             sheet: layout?.getAttribute("data-sheet"),
-            boardPressed: document
-              .querySelector("[data-board-toggle]")
-              ?.getAttribute("aria-pressed"),
             mountedRows: rows.length,
             rowIds: rows.map((row) => row.id),
             firstId: rows[0]?.id,
@@ -757,13 +754,7 @@ try {
         );
         reading.before = before;
         assert(before.top > 150);
-        await checkpoint("hide-with-full-board");
-        await a.locator("[data-board-toggle]").click();
-        await expect(scroller).toBeHidden();
-        await expect(
-          a.locator('[data-room-board][data-placement="full"]'),
-        ).toBeVisible();
-        await checkpoint("peer-post-while-hidden");
+        await checkpoint("peer-post-while-unpinned");
         const id = await post(
           peer.context,
           roomA,
@@ -776,7 +767,7 @@ try {
             aWire.store.get()?.messages.some((message) => message.id === id),
           )
           .toBe(true);
-        await checkpoint("hidden-canonical-update-keeps-reading-window");
+        await checkpoint("unpinned-canonical-update-keeps-reading-window");
         // Give the actual application its DOM flush before checking that the
         // new canonical tail remains deferred while this reader is unpinned.
         await a.evaluate(
@@ -793,9 +784,6 @@ try {
           "Canonical append must not roll the unpinned DOM window",
         );
         await expect(a.locator(`[data-room-chat] #m${id}`)).toHaveCount(0);
-        await checkpoint("restore-chat-visibility");
-        await a.locator("[data-board-toggle]").click();
-        await expect(scroller).toBeVisible();
         await checkpoint("restore-visible-anchor-y");
         await expect
           .poll(() =>

@@ -40,7 +40,6 @@ export type RoomScopePresentation = {
   document: { owner: DocumentSession; props: DocumentProps };
   toolbar: ComponentProps<typeof DocumentToolbar>;
   peek: ComponentProps<typeof DocumentToolbar>;
-  board: PanelProps;
   files: FilesProps;
   decisions: PanelProps;
   reminders: PanelProps;
