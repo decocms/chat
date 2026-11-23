@@ -18,6 +18,9 @@
   import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitCount, type WaitReference } from "../waits/model";
   import Progress from "../../lib/studio/Progress.svelte";
+  import Tooltip from "../../lib/studio/Tooltip.svelte";
+  import TooltipContent from "../../lib/studio/TooltipContent.svelte";
+  import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { EPIC_PROGRESS } from "../room-shell/shape";
   import SortableItem from "../../lib/components/SortableItem.svelte";
   import { landing } from "../../lib/components/sortOrder";
@@ -419,97 +422,129 @@
                   current && "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
-                <Button
-                  variant="ghost"
-                  class={cn(
-                    "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal hover:bg-transparent",
-                    current && "font-medium",
-                    // Done: finished work reads quieter, and comes back on hover or when open.
-                    value === "archived" &&
-                      !current &&
-                      "text-muted-foreground group-hover/row:text-sidebar-foreground",
-                  )}
-                  data-epic-thread={epic.id}
-                  title={epic.owner
-                    ? `${epic.title} · ${vb.name(epic.owner)}`
-                    : epic.title}
-                  aria-keyshortcuts={value === "active" && epic.pinned
-                    ? "Alt+ArrowUp Alt+ArrowDown"
-                    : undefined}
-                  onkeydown={(event) => {
-                    if (value !== "active" || !event.altKey || !epic.pinned)
-                      return;
-                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-                      event.preventDefault();
-                      move(epic.id, event.key === "ArrowUp" ? -1 : 1);
-                    }
-                  }}
-                  aria-current={current ? "page" : undefined}
-                  onclick={() => {
-                    if (onBeforeOpen && !onBeforeOpen()) return;
-                    onopen(epic.id);
-                  }}
-                >
-                  <PersonAvatar
-                    email={epic.owner}
-                    version={epic.owner
-                      ? vb.avatarVersion(epic.owner)
-                      : undefined}
-                    class={cn(
-                      "size-5",
-                      value === "archived" &&
-                        !current &&
-                        "opacity-60 group-hover/row:opacity-100",
-                    )}
-                  />
-                  <span class="min-w-0 flex-1 truncate" data-epic-title
-                    >{epic.title}{#if epic.archived && value !== "archived"}<span
-                        class="ml-1 text-xs text-muted-foreground"
-                        >({vb.t("Arquivado")})</span
-                      >{/if}</span
-                  >
-                  {#if epic.pinned && value === "active"}<span
-                      role="img"
-                      data-epic-pinned
-                      aria-label={vb.t("Fixado")}
-                      class="flex shrink-0 text-muted-foreground"
-                      ><Icon icon="pin-02" class="size-3.5" /></span
-                    >{/if}
-                  {#if working}<span
-                      role="img"
-                      aria-label={vb.t("{who} está trabalhando", {
-                        who: working,
-                      })}
-                      class="shrink-0 text-xs text-muted-foreground">✻</span
-                    >{/if}
-                  <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
-                  {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
-                      waits={vb.waitsIn(epic.id)}
-                      label={(n) => vb.t("{n} coisas esperando você", { n })}
-                    />{:else}<span
-                      role="img"
-                      data-epic-status-icon={status}
-                      aria-label={vb.t(epicStatusLook(status).label)}
-                      class={cn("flex shrink-0", epicStatusLook(status).text)}
-                      ><Icon
-                        icon={epicStatusLook(status).icon}
-                        class="size-3.5"
-                      /></span
-                    >{/if}
-                  <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
-                  {#if epic.tasks.length}<Progress
-                      data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
-                      aria-label={vb.t("{done} de {total} tarefas", {
-                        done: epic.tasks.filter((task) => task.done).length,
-                        total: epic.tasks.length,
-                      })}
-                      value={(100 *
-                        epic.tasks.filter((task) => task.done).length) /
-                        epic.tasks.length}
-                      tone="success"
-                      class={EPIC_PROGRESS}
-                    />{/if}
-                </Button>
+                <!-- Hover: the full title, whose it is, and how much of it is done (Gimenes #4156). -->
+                <Tooltip>
+                  <TooltipTrigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        class={cn(
+                          "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal hover:bg-transparent",
+                          current && "font-medium",
+                          // Done: finished work reads quieter, and comes back on hover or when open.
+                          value === "archived" &&
+                            !current &&
+                            "text-muted-foreground group-hover/row:text-sidebar-foreground",
+                        )}
+                        data-epic-thread={epic.id}
+                        aria-keyshortcuts={value === "active" && epic.pinned
+                          ? "Alt+ArrowUp Alt+ArrowDown"
+                          : undefined}
+                        onkeydown={(event) => {
+                          if (
+                            value !== "active" ||
+                            !event.altKey ||
+                            !epic.pinned
+                          )
+                            return;
+                          if (
+                            event.key === "ArrowUp" ||
+                            event.key === "ArrowDown"
+                          ) {
+                            event.preventDefault();
+                            move(epic.id, event.key === "ArrowUp" ? -1 : 1);
+                          }
+                        }}
+                        aria-current={current ? "page" : undefined}
+                        onclick={() => {
+                          if (onBeforeOpen && !onBeforeOpen()) return;
+                          onopen(epic.id);
+                        }}
+                      >
+                        <PersonAvatar
+                          email={epic.owner}
+                          version={epic.owner
+                            ? vb.avatarVersion(epic.owner)
+                            : undefined}
+                          class={cn(
+                            "size-5",
+                            value === "archived" &&
+                              !current &&
+                              "opacity-60 group-hover/row:opacity-100",
+                          )}
+                        />
+                        <span class="min-w-0 flex-1 truncate" data-epic-title
+                          >{epic.title}{#if epic.archived && value !== "archived"}<span
+                              class="ml-1 text-xs text-muted-foreground"
+                              >({vb.t("Arquivado")})</span
+                            >{/if}</span
+                        >
+                        {#if epic.pinned && value === "active"}<span
+                            role="img"
+                            data-epic-pinned
+                            aria-label={vb.t("Fixado")}
+                            class="flex shrink-0 text-muted-foreground"
+                            ><Icon icon="pin-02" class="size-3.5" /></span
+                          >{/if}
+                        {#if working}<span
+                            role="img"
+                            aria-label={vb.t("{who} está trabalhando", {
+                              who: working,
+                            })}
+                            class="shrink-0 text-xs text-muted-foreground"
+                            >✻</span
+                          >{/if}
+                        <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
+                        {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
+                            waits={vb.waitsIn(epic.id)}
+                            label={(n) =>
+                              vb.t("{n} coisas esperando você", { n })}
+                          />{:else}<span
+                            role="img"
+                            data-epic-status-icon={status}
+                            aria-label={vb.t(epicStatusLook(status).label)}
+                            class={cn(
+                              "flex shrink-0",
+                              epicStatusLook(status).text,
+                            )}
+                            ><Icon
+                              icon={epicStatusLook(status).icon}
+                              class="size-3.5"
+                            /></span
+                          >{/if}
+                        <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
+                        {#if epic.tasks.length}<Progress
+                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
+                            aria-label={vb.t("{done} de {total} tarefas", {
+                              done: epic.tasks.filter((task) => task.done)
+                                .length,
+                              total: epic.tasks.length,
+                            })}
+                            value={(100 *
+                              epic.tasks.filter((task) => task.done).length) /
+                              epic.tasks.length}
+                            tone="success"
+                            class={EPIC_PROGRESS}
+                          />{/if}
+                      </Button>
+                    {/snippet}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" class="max-w-64">
+                    <span class="block font-medium" data-epic-tooltip-title
+                      >{epic.owner
+                        ? `${epic.title} · ${vb.name(epic.owner)}`
+                        : epic.title}</span
+                    >{#if epic.tasks.length}<span
+                        class="block"
+                        data-epic-tooltip-tasks
+                        >{vb.t("{done} de {total} tarefas feitas", {
+                          done: epic.tasks.filter((task) => task.done).length,
+                          total: epic.tasks.length,
+                        })}</span
+                      >{/if}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </SortableItem>
           {/each}
