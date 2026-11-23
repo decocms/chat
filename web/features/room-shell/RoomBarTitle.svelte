@@ -72,6 +72,6 @@
       class="min-w-0 shrink-[2] truncate text-xs text-muted-foreground"
       >✦ {t("sugestão do @vibe")}</span
     >{/if}
-  {#if epic}<EpicActions {epic} {room} {owner} {t} variant="bar" />{/if}
+  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" />{/if}
   <MutationStatus {owner} {t} />
 </div>

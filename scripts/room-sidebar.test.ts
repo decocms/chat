@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import type { Room } from "../shared/room";
+import type { Epic, Room, Task, TaskStatus } from "../shared/room";
+import { epicStatus } from "../shared/epicStatus";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import { RoomCommandSchema } from "../shared/commands";
 import { matchesSuggestion, suggestionIdentity } from "../shared/suggestions";
@@ -292,4 +293,54 @@ test("duplicate room listeners exclude dedicated Fire Haiku and all-room workers
     ),
   ).toBe(1);
   expect(agentRows(presence, agent.email).slice(0, 2)).toEqual([agent, agent]);
+});
+test("epicStatus: the chosen status first, then prod, the archive and the tasks", () => {
+  const task = (status: TaskStatus): Task => ({
+    id: status,
+    title: status,
+    done: status === "done",
+    status,
+  });
+  const epic = (over: Partial<Epic> = {}): Epic => ({
+    id: "e",
+    title: "Epic",
+    tasks: [],
+    ...over,
+  });
+  expect(epicStatus(epic())).toBe("todo");
+  expect(epicStatus(epic({ tasks: [task("todo")] }))).toBe("todo");
+  expect(epicStatus(epic({ tasks: [task("todo"), task("done")] }))).toBe(
+    "doing",
+  );
+  expect(epicStatus(epic({ tasks: [task("doing")] }))).toBe("doing");
+  expect(epicStatus(epic({ tasks: [task("doing"), task("review")] }))).toBe(
+    "review",
+  );
+  // Archived: the app gets only the open tasks of an archived epic.
+  expect(epicStatus(epic({ archived: true }))).toBe("done");
+  expect(epicStatus(epic({ archived: true, tasks: [task("todo")] }))).toBe(
+    "dismissed",
+  );
+  expect(epicStatus(epic({ prod: { stage: "deployed" } }))).toBe("live");
+  expect(
+    epicStatus(epic({ archived: true, prod: { stage: "verified" } })),
+  ).toBe("live");
+  expect(epicStatus(epic({ prod: { stage: "other" } }))).toBe("todo");
+  expect(
+    epicStatus(
+      epic({ status: "review", archived: true, prod: { stage: "deployed" } }),
+    ),
+  ).toBe("review");
+  expect(epicStatus(epic({ status: null, tasks: [task("review")] }))).toBe(
+    "review",
+  );
+  // The status menu sends a typed room command.
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "live" })
+      .success,
+  ).toBe(true);
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "x" })
+      .success,
+  ).toBe(false);
 });

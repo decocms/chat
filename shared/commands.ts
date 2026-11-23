@@ -1,5 +1,5 @@
 import * as z from "zod/mini";
-import { TASK_STATUSES, SuggestionSchema } from "./room";
+import { EPIC_STATUSES, TASK_STATUSES, SuggestionSchema } from "./room";
 
 // Commands accepted by Book.webSocketMessage: the runtime schemas are the source, the TypeScript type is derived
 // from them. On the wire each command is a JSON-RPC call, method = t (shared/jsonRpc.ts). Authentication and every business rule stay on the server. Browser-safe: zod/mini only.
@@ -78,6 +78,8 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     id,
     archived: z.optional(z.boolean()),
   }),
+  // The epic bar's status menu: "done" and "dismissed" archive it, the open ones reopen it (Book.setEpicStatus).
+  z.object({ t: z.literal("epic.status"), id, status: z.enum(EPIC_STATUSES) }),
   z.object({ t: z.literal("epic.order"), ids: z.array(z.string()) }),
   z.object({ t: z.literal("epic.pin"), id: z.string(), pinned: z.boolean() }),
   z.object({

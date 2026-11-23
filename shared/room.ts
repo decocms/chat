@@ -11,6 +11,16 @@ const strings = z.array(str);
 
 export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+/** An epic's status, in the order of its menu. `dismissed` = archived without being done. */
+export const EPIC_STATUSES = [
+  "todo",
+  "doing",
+  "review",
+  "done",
+  "live",
+  "dismissed",
+] as const;
+export type EpicStatus = (typeof EPIC_STATUSES)[number];
 
 export const BookMetaSchema = z.object({
   title: str,
@@ -77,6 +87,8 @@ export const EpicSchema = z.object({
   files: opt(z.array(z.object({ id: str, name: str, type: str, n: num }))),
   flags: opt(strings),
   prod: maybe(z.object({ stage: str, note: opt(str), at: opt(num) })),
+  /** The status a person or an agent chose; null = worked out by epicStatus (shared/epicStatus.ts). */
+  status: maybe(z.enum(EPIC_STATUSES)),
   // An epic that answers a question (start_epic answer: true or answerIntent, Gui #2767).
   answer: opt(bool),
   /** When its thread last spoke (or it was made): the sidebar sorts by it. */

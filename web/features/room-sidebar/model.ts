@@ -1,5 +1,61 @@
-import type { Epic, Room, Suggestion } from "../../../shared/room";
+import {
+  EPIC_STATUSES,
+  type Epic,
+  type EpicStatus,
+  type Room,
+  type Suggestion,
+} from "../../../shared/room";
+import type { IconName } from "../../lib/studio/icons";
 import { prettyModel } from "../chat/model";
+export { epicStatus } from "../../../shared/epicStatus";
+/** How each epic status looks: the epic bar's pill and menu, and the sidebar's icon. `text` tints the icon alone. */
+const epicStatusLooks = {
+  todo: {
+    label: "A fazer",
+    icon: "circle",
+    pill: "bg-muted text-muted-foreground",
+    text: "text-muted-foreground",
+  },
+  doing: {
+    label: "Fazendo",
+    icon: "clock",
+    pill: "bg-warning/15 text-warning",
+    text: "text-warning",
+  },
+  review: {
+    label: "Esperando OK",
+    icon: "eye",
+    pill: "bg-brand-purple-tint text-brand-purple-text",
+    text: "text-brand-purple-text",
+  },
+  done: {
+    label: "Feito",
+    icon: "check-circle",
+    pill: "bg-success/15 text-success",
+    text: "text-success",
+  },
+  live: {
+    label: "No ar",
+    icon: "rocket-01",
+    pill: "bg-brand text-brand-foreground",
+    text: "text-success",
+  },
+  dismissed: {
+    label: "Arquivado",
+    icon: "archive",
+    pill: "bg-muted text-muted-foreground",
+    text: "text-muted-foreground",
+  },
+} satisfies Record<
+  EpicStatus,
+  { label: string; icon: IconName; pill: string; text: string }
+>;
+export const epicStatusLook = (status: EpicStatus) => epicStatusLooks[status];
+/** The status menu, in this order. */
+export const epicStatusChoices = EPIC_STATUSES.map((value) => ({
+  value,
+  ...epicStatusLooks[value],
+}));
 import type { AgentsResult } from "../../../shared/schemas";
 export type Presence = Pick<AgentsResult, "agents" | "sandboxes">;
 export { suggestionIdentity } from "../../../shared/suggestions";

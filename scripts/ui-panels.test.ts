@@ -6213,7 +6213,7 @@ describe("room sidebar header and suggestion ownership", () => {
     flushSync();
     expect(document.querySelector(`[role="${role}"]`) === null).toBe(true);
   }
-  test("epic delete confirmation cancels on canonical replacement and old detached actions cannot write", async () => {
+  test("phone thread sheet: the status pill sits under the title and its menu sets the status, no rename or delete", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       owner = createRoomMutations(room.me, room.id),
@@ -6236,105 +6236,31 @@ describe("room sidebar header and suggestion ownership", () => {
       };
     const view = mountView("threadHeader", target, props);
     active.push(view);
-    // Rename, archive and delete live behind the header's ⋯, so the title keeps the row.
-    expect(target.querySelector('[aria-label="Apagar épico"]')).toBeNull();
-    menuItem(
-      target.querySelector("[data-thread-actions]")!,
-      "Apagar épico",
-    ).click();
-    flushSync();
+    // No ⋯ menu any more: the pill is the epic's only action.
+    expect(target.querySelector("[data-thread-actions]")).toBeNull();
+    const pill = target.querySelector<HTMLElement>("[data-epic-status]")!;
+    expect(pill.getAttribute("data-epic-status")).toBe("todo");
+    expect(pill.textContent?.trim()).toBe("A fazer");
+    menuItem(pill, "Fazendo").click();
     await tick();
-    const dialog = document.querySelector('[role="alertdialog"]')!,
-      confirm = [...dialog.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Apagar",
-      )!;
-    const replacement: Room = {
-      ...room,
-      epics: room.epics.map((epic) => ({
-        ...epic,
-        title: "Replaced canonical target",
-      })),
-    };
-    owner.sync(replacement, request);
-    view.update({ ...props, room: replacement });
-    await closed("alertdialog");
-    confirm.click();
-    await tick();
-    expect(commands).toHaveLength(0);
-    const at = active.indexOf(view);
-    active.splice(at, 1);
-    view.destroy();
-    for (const item of document.querySelectorAll<HTMLElement>(
-      "[role=menuitem]",
-    ))
-      if (item.textContent?.trim() === "Apagar épico") item.click();
-    await tick();
-    expect(commands).toHaveLength(0);
-  }, 30_000);
-  test("epic rename retains text until ACK and canonical title and archive uses direct correlated action", async () => {
-    const room = fixture(),
-      owner = createRoomMutations(room.me, room.id),
-      commands: RoomCommand[] = [],
-      responses: ReturnType<typeof deferredMutationOutcome>[] = [];
-    peopleCleanups.push(() => owner.dispose());
-    const request = (command: RoomCommand) => {
-      commands.push(command);
-      const response = deferredMutationOutcome();
-      responses.push(response);
-      return response.promise;
-    };
-    owner.sync(room, request);
-    const target = document.createElement("div");
-    document.body.append(target);
-    const props: import("../web/features/room-sidebar/types").ThreadHeaderProps =
-      {
-        room,
-        thread: "e",
-        owner,
-        vb: bridge,
-        onopenside: () => {},
-        onrenameroom: () => {},
-      };
-    const view = mountView("threadHeader", target, props);
-    active.push(view);
-    menuItem(
-      target.querySelector("[data-thread-actions]")!,
-      "Renomear",
-    ).click();
-    flushSync();
-    await tick();
-    const dialog = document.querySelector('[role="dialog"]')!,
-      input = dialog.querySelector<HTMLInputElement>("input")!;
-    input.value = "Typed title";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    dialog
-      .querySelector("form")!
-      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-    await tick();
-    expect(commands).toEqual([
-      { t: "epic.rename", id: "e", title: "Typed title" },
-    ]);
-    expect(input.value).toBe("Typed title");
-    responses[0]!.resolve({ ok: true });
-    await tick();
-    expect(document.querySelector('[role="dialog"]') !== null).toBe(true);
+    expect(commands).toEqual([{ t: "epic.status", id: "e", status: "doing" }]);
     const next: Room = {
       ...room,
-      epics: room.epics.map((epic) => ({ ...epic, title: "Typed title" })),
+      epics: room.epics.map((epic) => ({ ...epic, status: "doing" as const })),
     };
     owner.sync(next, request);
     view.update({ ...props, room: next });
-    await closed("dialog");
-    menuItem(
-      target.querySelector("[data-thread-actions]")!,
-      "Arquivar épico",
-    ).click();
     await tick();
-    expect(commands.at(-1)).toEqual({
-      t: "epic.archive",
-      id: "e",
-      archived: true,
-    });
+    flushSync();
+    expect(
+      target.querySelector("[data-epic-status]")?.textContent?.trim(),
+    ).toBe("Fazendo");
+    const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
+    active.splice(active.indexOf(view), 1);
+    view.destroy();
+    stale.click();
+    await tick();
+    expect(commands).toHaveLength(1);
   }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
     typeof import("../web/features/room-shell/RoomBarTitle.svelte").default
@@ -6383,22 +6309,18 @@ describe("room sidebar header and suggestion ownership", () => {
       ).toBe(title);
       expect(!!target.querySelector("[data-epic-bar-actions]")).toBe(actions);
     }
-    // In an epic: ✎, Archive and 🗑 together, then the line before the pane's tabs.
+    // In an epic: the status pill, then the line before the pane's tabs. No ✎ and no 🗑.
     const { target } = barTitle(room, { thread: "e" });
     expect(
       [...target.querySelector("[data-epic-bar-actions]")!.children].map(
         (node) =>
-          node.hasAttribute("data-epic-rename")
-            ? "rename"
-            : node.hasAttribute("data-epic-archive")
-              ? "archive"
-              : node.hasAttribute("data-epic-delete")
-                ? "delete"
-                : node.getAttribute("data-orientation"),
+          node.hasAttribute("data-epic-status")
+            ? "status"
+            : node.getAttribute("data-orientation"),
       ),
-    ).toEqual(["rename", "archive", "delete", "vertical"]);
+    ).toEqual(["status", "vertical"]);
   });
-  test("desktop epic bar: archive toggles with its label, delete confirmation cancels on canonical replacement and detached buttons cannot write", async () => {
+  test("desktop epic bar: the status menu lists the six statuses, Feito sends epic.status and the pill follows the server; detached pills cannot write", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       request = async (command: RoomCommand): Promise<CommandOutcome> => {
@@ -6410,59 +6332,67 @@ describe("room sidebar header and suggestion ownership", () => {
       { thread: "e" },
       request,
     );
-    // The phone's ⋯ menu is not in the bar.
     expect(target.querySelector("[data-thread-actions]")).toBeNull();
-    const archive = target.querySelector<HTMLElement>("[data-epic-archive]")!;
-    expect(archive.textContent?.trim()).toBe("Arquivar");
-    archive.click();
+    const pill = target.querySelector<HTMLElement>("[data-epic-status]")!;
+    expect(pill.textContent?.trim()).toBe("A fazer");
+    const done = menuItem(pill, "Feito");
+    expect(
+      [
+        ...document.querySelectorAll<HTMLElement>("[data-epic-status-choice]"),
+      ].map((item) => item.textContent?.trim()),
+    ).toEqual([
+      "A fazer",
+      "Fazendo",
+      "Esperando OK",
+      "Feito",
+      "No ar",
+      "Arquivado",
+    ]);
+    done.click();
     await tick();
     expect(commands.at(-1)).toEqual({
-      t: "epic.archive",
+      t: "epic.status",
       id: "e",
-      archived: true,
+      status: "done",
     });
     const archived: Room = {
       ...room,
-      epics: room.epics.map((epic) => ({ ...epic, archived: true })),
+      epics: room.epics.map((epic) => ({
+        ...epic,
+        archived: true,
+        status: "done" as const,
+      })),
     };
     owner.sync(archived, request);
     view.update({ ...props, room: archived });
-    expect(
-      target.querySelector("[data-epic-archive]")?.textContent?.trim(),
-    ).toBe("Desarquivar");
-    commands.length = 0;
-    // The archive settled: the bar's buttons are enabled again.
     await tick();
     flushSync();
     expect(
-      target.querySelector<HTMLButtonElement>("[data-epic-delete]")!.disabled,
-    ).toBe(false);
-    target.querySelector<HTMLElement>("[data-epic-delete]")!.click();
-    flushSync();
-    await tick();
-    const dialog = document.querySelector('[role="alertdialog"]')!,
-      confirm = [...dialog.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Apagar",
-      )!;
-    const replacement: Room = {
+      target.querySelector("[data-epic-status]")?.textContent?.trim(),
+    ).toBe("Feito");
+    // Without a chosen status an archived epic with open tasks shows Arquivado.
+    const dropped: Room = {
       ...archived,
       epics: archived.epics.map((epic) => ({
         ...epic,
-        title: "Replaced canonical target",
+        status: null,
+        tasks: [{ id: "t", title: "T", done: false, status: "todo" as const }],
       })),
     };
-    owner.sync(replacement, request);
-    view.update({ ...props, room: replacement });
-    await closed("alertdialog");
-    confirm.click();
-    await tick();
-    expect(commands).toHaveLength(0);
-    const stale = target.querySelector<HTMLElement>("[data-epic-delete]")!;
+    owner.sync(dropped, request);
+    view.update({ ...props, room: dropped });
+    flushSync();
+    expect(
+      target
+        .querySelector("[data-epic-status]")
+        ?.getAttribute("data-epic-status"),
+    ).toBe("dismissed");
+    commands.length = 0;
+    const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
     active.splice(active.indexOf(view), 1);
     view.destroy();
     stale.click();
     await tick();
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(commands).toHaveLength(0);
   }, 30_000);
   test("suggestion accept sends displayed snapshot only, handles server refusal and stale room controls", async () => {

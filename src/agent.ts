@@ -926,6 +926,12 @@ const TOOLS = [
         mark_done: { type: "boolean" },
         prod: { type: "string", enum: ["deployed", "verified", ""] },
         prod_note: { type: "string" },
+        status: {
+          type: "string",
+          enum: ["todo", "doing", "review", "done", "live", "dismissed"],
+          description:
+            "the status the room shows on the epic. done archives it and closes its open tasks; dismissed archives it without closing them (dropped); todo/doing/review reopen it; live = it is in production (prod stays as it is). Leave it out and the room works it out from the tasks",
+        },
         owner: {
           type: "string",
           description:
