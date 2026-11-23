@@ -383,6 +383,80 @@ test("a copy across messages reads as WhatsApp's; inside one message's text the 
   root.remove();
 });
 
+test("a room held on the rail lands before the tile under the pointer, or after the last (Gimenes #3978)", async () => {
+  const { railSortTarget } =
+    await import("../web/features/app-navigation/railSort");
+  const tiles = [
+    { id: "a", top: 0, height: 36 },
+    { id: "b", top: 46, height: 36 },
+    { id: "c", top: 92, height: 36 },
+  ];
+  expect(railSortTarget(5, tiles, "c")).toEqual({ to: "a", after: false });
+  expect(railSortTarget(70, tiles, "a")).toEqual({ to: "c", after: false });
+  expect(railSortTarget(200, tiles, "a")).toEqual({ to: "c", after: true });
+  expect(railSortTarget(20, [tiles[0]!], "a")).toBe(null);
+});
+test("holding a rail room moves it and saves the order once; a short press only clicks; Escape puts it back", async () => {
+  const { railSort, RAIL_SORT_HOLD_MS } =
+    await import("../web/features/app-navigation/railSort");
+  const list = window.document.createElement("div");
+  list.innerHTML = ["a", "b", "c"]
+    .map(
+      (id) =>
+        `<article data-room-id="${id}"><a href="#${id}">${id}</a></article>`,
+    )
+    .join("");
+  window.document.body.append(list);
+  [...list.children].forEach((tile, i) => {
+    (tile as HTMLElement).getBoundingClientRect = () =>
+      ({ top: i * 46, height: 36, left: 0, width: 36 }) as DOMRect;
+  });
+  const orders: [string, string, boolean][] = [];
+  const action = railSort(list as unknown as HTMLElement, {
+    onorder: (from, to, after) => orders.push([from, to, after]),
+  });
+  const pointer = (type: string, target: Element, y: number) =>
+    target.dispatchEvent(
+      new window.PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 10,
+        clientY: y,
+      }),
+    );
+  const a = list.querySelector("[data-room-id=a] a")!;
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // A short press: no move, no order.
+  pointer("pointerdown", a, 10);
+  pointer("pointerup", a, 10);
+  await wait(RAIL_SORT_HOLD_MS + 20);
+  expect(list.hasAttribute("data-rail-sorting")).toBe(false);
+  // Hold, move under "c", let go: one order, a before nothing → after c.
+  pointer("pointerdown", a, 10);
+  await wait(RAIL_SORT_HOLD_MS + 20);
+  expect(list.hasAttribute("data-rail-sorting")).toBe(true);
+  pointer("pointermove", list, 200);
+  expect(
+    list.querySelector("[data-room-id=c]")!.getAttribute("data-rail-drop"),
+  ).toBe("after");
+  pointer("pointerup", list, 200);
+  expect(orders).toEqual([["a", "c", true]]);
+  expect(list.querySelector("[data-rail-drop]")).toBe(null);
+  expect(list.querySelector("[data-rail-moving]")).toBe(null);
+  // Escape while moving: nothing saved.
+  pointer("pointerdown", a, 10);
+  await wait(RAIL_SORT_HOLD_MS + 20);
+  pointer("pointermove", list, 70);
+  window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" }));
+  pointer("pointerup", list, 70);
+  expect(orders).toHaveLength(1);
+  action.destroy();
+  list.remove();
+});
+
 describe("room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();
