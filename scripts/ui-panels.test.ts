@@ -344,6 +344,45 @@ function hoverMessages(target: HTMLElement) {
   flushSync();
 }
 
+test("a copy across messages reads as WhatsApp's; inside one message's text the browser copies (Gimenes #3955)", async () => {
+  const { selectedMessageIds, transcriptText } =
+    await import("../web/features/chat/clipboard");
+  const root = window.document.createElement("section");
+  root.innerHTML =
+    '<article data-chat-message="1"><div data-message-avatar>✻</div><div data-message-head>Ana</div><div data-rich-content><p id="a">first line</p></div></article>' +
+    '<article data-chat-message="2"><div data-message-head>Bia</div><div data-rich-content><p id="b">second</p></div></article>';
+  window.document.body.append(root);
+  const range = (from: Node, to: Node) => {
+    const r = window.document.createRange();
+    r.setStart(from, 0);
+    r.setEnd(to, 1);
+    return r as unknown as Range;
+  };
+  const a = root.querySelector("#a")!.firstChild!;
+  const b = root.querySelector("#b")!.firstChild!;
+  expect(selectedMessageIds(range(a, a), root as unknown as Element)).toBe(
+    null,
+  );
+  expect(selectedMessageIds(range(a, b), root as unknown as Element)).toEqual([
+    "1",
+    "2",
+  ]);
+  const head = root.querySelector("[data-message-head]")!.firstChild!;
+  expect(
+    selectedMessageIds(range(head, a), root as unknown as Element),
+  ).toEqual(["1"]);
+  expect(
+    transcriptText([
+      { when: "14:02, 23/11/2026", who: "Ana", text: "first line\nmore " },
+      { when: "14:03, 23/11/2026", who: "Bia", text: "  " },
+      { when: "14:04, 23/11/2026", who: "Claude de Bia", text: "second" },
+    ]),
+  ).toBe(
+    "[14:02, 23/11/2026] Ana: first line\nmore\n[14:04, 23/11/2026] Claude de Bia: second",
+  );
+  root.remove();
+});
+
 describe("room panels", () => {
   test("tasks send canonical toggles, assignment and rename without flag text entering title", () => {
     const room = fixture();

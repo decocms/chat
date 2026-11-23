@@ -1,5 +1,5 @@
 import type { Ack, Room } from "../../../shared/room";
-import type { ChatMessage } from "../../app/chatTypes";
+import type { ChatBridge, ChatMessage } from "../../app/chatTypes";
 type Receipt = NonNullable<Room["receipts"]>[number];
 function lastWhere<T>(
   rows: readonly T[],
@@ -342,4 +342,19 @@ export function dayLabel(
     month: "short",
     ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
   });
+}
+
+/** Who wrote a message, as its row names them and as a copy of it reads. */
+export function messageAuthor(
+  message: ChatMessage,
+  vb: Pick<ChatBridge, "t" | "name">,
+) {
+  return message.author === "ai"
+    ? "@vibe"
+    : message.kind === "agent"
+      ? vb.t("{via} de {who}", {
+          via: message.via || "agent",
+          who: vb.name(message.author),
+        })
+      : vb.name(message.author);
 }
