@@ -25,7 +25,7 @@ const pt = {
   inRooms: "em {rooms}",
   writeTo: "Escrever para {email}",
   requestNote:
-    "Vocês não estão numa sala juntos: a mensagem chega como um pedido, e a conversa abre quando a pessoa aceitar.",
+    "Vocês não estão numa sala juntos: a mensagem chega como um pedido, e a conversa abre quando a pessoa aceitar. Se ela ainda não usa o deco.chat, recebe um convite por email.",
   firstMessage: "Sua primeira mensagem",
   sendRequest: "Enviar pedido",
   requestSent: "Pedido enviado. Se a pessoa aceitar, a conversa aparece aqui.",
@@ -209,7 +209,7 @@ const en: Record<keyof typeof pt, string> = {
   inRooms: "in {rooms}",
   writeTo: "Write to {email}",
   requestNote:
-    "You're not in a room together: the message arrives as a request, and the conversation opens once they accept.",
+    "You're not in a room together: the message arrives as a request, and the conversation opens once they accept. If they're not on deco.chat yet, they get an invite by email.",
   firstMessage: "Your first message",
   sendRequest: "Send request",
   requestSent: "Request sent. If they accept, the conversation shows up here.",

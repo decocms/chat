@@ -14,6 +14,7 @@ import { canDm, dmIds, openDmWith } from "./dm";
 import { findSecret } from "./secrets";
 import { isDmId, MUTUAL } from "../shared/dm";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
+import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
 import { pushTo } from "./webpush";
 import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
@@ -189,10 +190,15 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       }
       if (!(await env.LOGIN_LIMIT.limit({ key: `dmreq:${email}` })).success) return { error: "rate" };
       // A request they turned down stays closed; sending again changes nothing (and says nothing).
+      const before = await env.DB.prepare(`SELECT 1 FROM friends WHERE a = ? AND b = ?`).bind(email, who).first();
       await env.DB.prepare(`INSERT INTO friends (a, b, created_at, msg) VALUES (?, ?, ?, ?) ON CONFLICT (a, b) DO UPDATE SET msg = excluded.msg, created_at = excluded.created_at WHERE friends.declined_at IS NULL`)
         .bind(email, who, Date.now(), msg || null)
         .run();
       ctx.waitUntil(poke(env, [email, who], { t: "me" }));
+      // Someone not on deco.chat yet can't see Pedidos: the first request to them goes out as an invite email
+      // (src/invite-mail.ts). The answer here is the same either way, so it never says whether the email has an account.
+      if (!before && !(await env.DB.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first()))
+        ctx.waitUntil(sendInviteEmail(env, ctx, { origin: new URL(req0.url).origin, inviter: email, who, lang: reqLang(req0) }));
       ctx.waitUntil(track(env, "dm_request_sent", { user: email }));
       return {};
     },
