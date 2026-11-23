@@ -107,7 +107,7 @@
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
-  /** How many epics fit before the sidebar's foot with "Ver mais", "Novo épico" and the next section's title still
+  /** How many epics fit before the sidebar's foot with "Ver mais", "Nova thread" and the next section's title still
    *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
@@ -141,13 +141,11 @@
     return () => observer.disconnect();
   });
   const archived = $derived(archivedEpics(orderedEpics, room.messages));
-  // Epics / Plan / Done: Plan is @vibe's proposals (open one to see it, start it to make it an epic), Done the archive.
+  // Two tabs (Gimenes #3989): open threads (to do, doing, requires action,
+  // then @vibe's proposals: open one to see it, start it to make it a thread)
+  // and done (the archive).
   const mode = $derived(
-    $navigation.archived && archived.length > 0
-      ? "archived"
-      : $navigation.suggestions && room.suggestions.length > 0
-        ? "plan"
-        : "active",
+    $navigation.archived && archived.length > 0 ? "archived" : "active",
   );
   /** The list is flat: sub-epics are plain rows, with no branches to open. */
   const flat = (list: readonly Epic[]) =>
@@ -206,7 +204,7 @@
     navigation.update((state) => ({
       ...state,
       archived,
-      suggestions: value === "plan",
+      suggestions: false,
     }));
     onarchchange(archived);
     error = "";
@@ -237,13 +235,9 @@
     mode === "active" && ($navigation.creating || $navigation.draft !== ""),
   );
   $effect(() => {
-    // A suggestion opened from elsewhere (a link, Back) opens the Plan tab, with its row.
-    if (thread.startsWith("pre:") && !untrack(() => $navigation.suggestions))
-      navigation.update((state) => ({
-        ...state,
-        suggestions: true,
-        archived: false,
-      }));
+    // A suggestion opened from elsewhere (a link, Back) opens the open threads, with its row.
+    if (thread.startsWith("pre:") && untrack(() => $navigation.archived))
+      navigation.update((state) => ({ ...state, archived: false }));
   });
   function siblings(id: string) {
     const parent = forest.parents.get(id);
@@ -313,7 +307,7 @@
       return;
     requested = null;
     localOrder = null;
-    announcement = vb.t("Ordem dos épicos atualizada.");
+    announcement = vb.t("Ordem das threads atualizada.");
     restoreOrderFocus(request);
   });
   function restoreOrderFocus(request: OrderRequest) {
@@ -355,15 +349,10 @@
   const dashedRow =
     "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
   const views = $derived([
-    { value: "active", label: vb.t("Épicos"), disabled: false },
-    {
-      value: "plan",
-      label: vb.t("Plano"),
-      disabled: room.suggestions.length === 0,
-    },
+    { value: "active", label: vb.t("Threads abertas"), disabled: false },
     {
       value: "archived",
-      label: vb.t("Feitos"),
+      label: vb.t("Feitas"),
       disabled: archived.length === 0,
     },
   ]);
@@ -371,47 +360,19 @@
 
 <section
   data-view="epics"
-  aria-label={vb.t("Épicos")}
+  aria-label={vb.t("Threads")}
   class={cn(
     studioType,
     "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground max-md:min-h-0 max-md:shrink",
   )}
 >
   {#snippet panel(value: string)}
-    {#if value === mode && value === "plan"}
-      <div
-        role="group"
-        aria-label={vb.t("Sugestões do @vibe")}
-        data-epic-plan
-        class="flex shrink-0 flex-col gap-0.5"
-      >
-        {#each room.suggestions as suggestion, index}
-          <Button
-            variant="ghost"
-            class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
-            aria-current={thread === `pre:${index}` ? "page" : undefined}
-            title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
-            data-suggestion={index}
-            onclick={() => {
-              if (onBeforeOpen && !onBeforeOpen()) return;
-              onopen(`pre:${index}`);
-            }}
-            ><span
-              aria-hidden="true"
-              class="w-5 shrink-0 text-center text-muted-foreground">✦</span
-            ><span class="min-w-0 flex-1 truncate">{suggestion.title}</span
-            >{#if suggestion.tasks.length}<span
-                class="shrink-0 text-xs text-muted-foreground tabular-nums"
-                >0/{suggestion.tasks.length}</span
-              >{/if}<span class="sr-only">{vb.t("sugestão do @vibe")}</span
-            ></Button
-          >
-        {/each}
-      </div>
-    {:else if value === mode}
+    {#if value === mode}
       <ul
         bind:this={list}
-        aria-label={value === "archived" ? vb.t("Arquivados") : vb.t("Épicos")}
+        aria-label={value === "archived"
+          ? vb.t("Feitas")
+          : vb.t("Threads abertas")}
         class="m-0 flex list-none flex-col gap-0.5 p-0"
       >
         {#each rows as row (row.epic.id)}
@@ -538,6 +499,37 @@
           </li>
         {/each}
       </ul>
+      {#if value === "active" && room.suggestions.length}
+        <div
+          role="group"
+          aria-label={vb.t("Sugestões do @vibe")}
+          data-epic-plan
+          class="mt-0.5 flex shrink-0 flex-col gap-0.5"
+        >
+          {#each room.suggestions as suggestion, index}
+            <Button
+              variant="ghost"
+              class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
+              aria-current={thread === `pre:${index}` ? "page" : undefined}
+              title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
+              data-suggestion={index}
+              onclick={() => {
+                if (onBeforeOpen && !onBeforeOpen()) return;
+                onopen(`pre:${index}`);
+              }}
+              ><span
+                aria-hidden="true"
+                class="w-5 shrink-0 text-center text-muted-foreground">✦</span
+              ><span class="min-w-0 flex-1 truncate">{suggestion.title}</span
+              >{#if suggestion.tasks.length}<span
+                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  >0/{suggestion.tasks.length}</span
+                >{/if}<span class="sr-only">{vb.t("sugestão do @vibe")}</span
+              ></Button
+            >
+          {/each}
+        </div>
+      {/if}
       {#if hiddenCount}<button
           type="button"
           data-epics-more
@@ -574,7 +566,7 @@
             }}
           >
             <Label for={`${uid}-new`} class="sr-only"
-              >{vb.t("Novo épico")}</Label
+              >{vb.t("Nova thread")}</Label
             >
             <InlineAdd
               id={`${uid}-new`}
@@ -585,10 +577,10 @@
                   if (!disposed) $navigation.draft = value;
                 }
               }
-              placeholder={vb.t("Novo épico: escreva o título…")}
+              placeholder={vb.t("Nova thread: escreva o título…")}
               enterkeyhint="done"
               confirmDisabled={mutationBusy}
-              confirmLabel={vb.t("Criar épico")}
+              confirmLabel={vb.t("Criar thread")}
               cancelLabel={vb.t("Cancelar")}
               oncancel={() => closeCreate(true)}
             />
@@ -605,7 +597,7 @@
             <span class="flex size-5 shrink-0 items-center justify-center"
               ><Icon icon="plus" size={16} /></span
             >
-            <span class="min-w-0 truncate">{vb.t("Novo épico")}</span>
+            <span class="min-w-0 truncate">{vb.t("Nova thread")}</span>
           </button>
         {/if}
       {/if}
@@ -616,7 +608,7 @@
     onValueChange={switchMode}
     class="gap-2 max-md:min-h-0 max-md:flex-1"
   >
-    <TabsList aria-label={vb.t("Épicos")} class="h-8 w-full shrink-0">
+    <TabsList aria-label={vb.t("Threads")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
           disabled={view.disabled}

@@ -7,8 +7,17 @@ import {
 } from "../../../shared/room";
 import type { IconName } from "../../lib/studio/icons";
 import { prettyModel } from "../chat/model";
-export { epicStatus } from "../../../shared/epicStatus";
-/** How each epic status looks: the epic bar's pill and menu, and the sidebar's icon. `text` tints the icon alone. */
+import { epicStatus as storedStatus } from "../../../shared/epicStatus";
+/** A thread has 4 states (Gimenes #3989): to do, doing, requires action
+ * (stored as `review`) and done. Archived without being done (`dismissed`)
+ * shows as done. */
+export const epicStatus = (
+  epic: Parameters<typeof storedStatus>[0],
+): EpicStatus => {
+  const status = storedStatus(epic);
+  return status === "dismissed" ? "done" : status;
+};
+/** How each thread state looks: the thread bar's pill and menu, and the sidebar's icon. `text` tints the icon alone. */
 const epicStatusLooks = {
   todo: {
     label: "A fazer",
@@ -23,7 +32,7 @@ const epicStatusLooks = {
     text: "text-warning",
   },
   review: {
-    label: "Esperando OK",
+    label: "Requer ação",
     icon: "eye",
     pill: "bg-brand-purple-tint text-brand-purple-text",
     text: "text-brand-purple-text",
@@ -45,8 +54,10 @@ const epicStatusLooks = {
   { label: string; icon: IconName; pill: string; text: string }
 >;
 export const epicStatusLook = (status: EpicStatus) => epicStatusLooks[status];
-/** The status menu, in this order. */
-export const epicStatusChoices = EPIC_STATUSES.map((value) => ({
+/** The status menu, in this order: the 4 states (no separate archive). */
+export const epicStatusChoices = EPIC_STATUSES.filter(
+  (value) => value !== "dismissed",
+).map((value) => ({
   value,
   ...epicStatusLooks[value],
 }));

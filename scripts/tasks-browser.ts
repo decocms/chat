@@ -78,7 +78,7 @@ try {
   await page.goto(`${base}/b/${id}`);
   await page.locator("[data-new-epic]").click();
   await page
-    .getByRole("textbox", { name: "New epic", exact: true })
+    .getByRole("textbox", { name: "New thread", exact: true })
     .fill("Task workflow");
   await page.locator("#newEpic").getByRole("button").click();
   const epic = page

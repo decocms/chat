@@ -33,7 +33,7 @@
           class="mx-auto w-full max-w-2xl space-y-4 p-6 font-sans text-sm leading-6 text-foreground"
         >
           <p class="m-0 text-xs text-muted-foreground">
-            ✦ {vb.t("O @vibe sugere um épico")}
+            ✦ {vb.t("O @vibe sugere uma thread")}
           </p>
           <h3 class="m-0 text-base leading-6 font-semibold">
             {suggestion.title}
@@ -41,7 +41,7 @@
           <p class="m-0">
             {suggestion.why ||
               vb.t(
-                "Ele viu isso na conversa e acha que vale virar um épico, com as tarefas abaixo.",
+                "Ele viu isso na conversa e acha que vale virar uma thread, com as tarefas abaixo.",
               )}
           </p>
           {#if suggestion.tasks.length}<h4
@@ -68,7 +68,7 @@
           </div>
           <p class="m-0 text-muted-foreground">
             {vb.t(
-              "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria o épico.",
+              "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria a thread.",
             )}
           </p>
           <MutationStatus {owner} t={vb.t} />

@@ -164,7 +164,7 @@
       >
     {/each}
     <IconButton
-      label={vb.t("Novo épico")}
+      label={vb.t("Nova thread")}
       tooltipSide="right"
       size="icon"
       onclick={(event) => expandForCreate(event.currentTarget)}

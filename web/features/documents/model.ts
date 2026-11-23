@@ -27,7 +27,7 @@ export function documentText(room: Room, target: DocumentTarget) {
     return room.docs?.[target.epicId] ?? "";
   const epic = room.epics.find((epic) => epic.id === target.epicId);
   return epic
-    ? `# ${epic.title}\n\n**Objetivo:** o que este épico entrega e por quê (edite aqui ou peça pro seu Claude).\n\n## Contexto\n\n- \n\n## Decisões\n\n- \n`
+    ? `# ${epic.title}\n\n**Objetivo:** o que esta thread entrega e por quê (edite aqui ou peça pro seu Claude).\n\n## Contexto\n\n- \n\n## Decisões\n\n- \n`
     : "";
 }
 const record = (value: unknown): value is Record<string, unknown> =>

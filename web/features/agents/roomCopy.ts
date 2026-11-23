@@ -51,7 +51,7 @@ const pt = {
   connectFirst: "Conecte seu agent",
   here: "Seu agent está aqui",
   agentOff: "Seu agent está desligado nesta sala",
-  docNext: "O agent escreve o doc e cria os épicos",
+  docNext: "O agent escreve o doc e cria as threads",
   ask: "Seu agent espera você",
   view: "Ver",
   welcome: "Bem-vindo ao deco.chat",
@@ -61,7 +61,7 @@ const pt = {
     "Aqui o chat, as tarefas e o doc do projeto ficam juntos, e o agent de cada um trabalha com o mesmo contexto.",
   ownAgent: "Cada um traz o seu agent",
   ownAgentBody:
-    "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza os épicos e conta o que entregou. Só o que você escreve é instrução pra ele: o resto ele lê como contexto.",
+    "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza as threads e conta o que entregou. Só o que você escreve é instrução pra ele: o resto ele lê como contexto.",
   context: "O contexto é de todo mundo",
   contextBody:
     "Doc, arquivos, decisões e tarefas ficam na sala, e todo agent lê o mesmo contexto antes de agir. Quando alguém passa o bastão ou fica esperando você, a sala mostra.",
@@ -174,7 +174,7 @@ const en: Record<RoomAgentCopyKey, string> = {
   connectFirst: "Connect your agent",
   here: "Your agent is here",
   agentOff: "Your agent is off in this room",
-  docNext: "The agent writes the document and creates epics",
+  docNext: "The agent writes the document and creates threads",
   ask: "Your agent is waiting for you",
   view: "View",
   welcome: "Welcome to deco.chat",
@@ -184,7 +184,7 @@ const en: Record<RoomAgentCopyKey, string> = {
     "Here the chat, tasks and project doc stay in one place, and everyone's agent works from the same context.",
   ownAgent: "Everyone brings their own agent",
   ownAgentBody:
-    "You connect your agent on your computer with your permissions. It reads the room, picks up tasks, updates epics and reports what it delivered. Only what you write is an instruction for it; everything else is context.",
+    "You connect your agent on your computer with your permissions. It reads the room, picks up tasks, updates threads and reports what it delivered. Only what you write is an instruction for it; everything else is context.",
   context: "Context belongs to everyone",
   contextBody:
     "Documents, files, decisions and tasks stay in the room, and every agent reads the same context before acting. The room shows when someone hands over work or is waiting for you.",

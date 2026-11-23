@@ -45,7 +45,7 @@
     <span class="flex shrink-0 items-center gap-1 text-muted-foreground"
       ><Icon icon="file-02" size={16} />{lang === "en"
         ? "Files from this thread"
-        : "Arquivos deste épico"}</span
+        : "Arquivos desta thread"}</span
     >{#each files as { file, count } (file.id)}<a
         href={fileURL({ roomId: room.id, id: file.id })}
         target="_blank"

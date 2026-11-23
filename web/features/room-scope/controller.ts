@@ -504,7 +504,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       thread !== "main" &&
       !room()!.epics.some((epic) => epic.id === thread)
     ) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+      showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
     if (thread !== selected()) pickThread(thread);
@@ -537,7 +537,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   function openAgentDocument(epic: string) {
     if (!current() || defer(() => openAgentDocument(epic))) return;
     if (epic && !room()!.epics.some((entry) => entry.id === epic)) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+      showNotice(t("Essa thread não existe mais nesta sala."));
       return;
     }
     if (epic && selected() !== epic) pickThread(epic);
@@ -1125,7 +1125,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     const latest = room();
                     if (!latest) throw new VoiceFailure(0);
                     const prompt =
-                      `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Épicos: ${latest.epics
+                      `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Threads: ${latest.epics
                         .filter((epic) => !epic.archived)
                         .slice(0, 15)
                         .map((epic) => epic.title)
@@ -1283,7 +1283,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       return;
     document.chooseRoom(false);
     if (intent.unavailableThread) {
-      showNotice(t("Esse épico não existe mais nesta sala."));
+      showNotice(t("Essa thread não existe mais nesta sala."));
       if (intent.target.document) return;
     }
     if (intent.pane) setPane(intent.pane);

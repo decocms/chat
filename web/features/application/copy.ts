@@ -185,13 +185,13 @@ const EN: Readonly<Record<string, string>> = {
   "Dono: {who}": "Owner: {who}",
   "clique pra trocar": "click to change",
   "Sem dono · clique pra escolher": "No owner · click to pick one",
-  "Dono do épico": "Epic owner",
-  "Ordem dos épicos atualizada.": "Epic order updated.",
+  "Dono da thread": "Thread owner",
+  "Ordem das threads atualizada.": "Thread order updated.",
   "Abrir galho": "Expand branch",
   "Fechar galho": "Collapse branch",
-  "Subépico de {title}": "Sub-epic of {title}",
-  "Trabalho em um subépico": "Work in a sub-epic",
-  "Ações do épico": "Epic actions",
+  "Subthread de {title}": "Sub-thread of {title}",
+  "Trabalho em uma subthread": "Work in a sub-thread",
+  "Ações da thread": "Thread actions",
   "Mover para cima": "Move up",
   "Mover para baixo": "Move down",
   "Sem dono": "No owner",
@@ -328,7 +328,7 @@ const EN: Readonly<Record<string, string>> = {
     "Paste into Claude Code (or another agent), inside the project folder: it installs the plugin and the CLI and joins this room.",
   Versão: "Version",
   "mais nova": "newest",
-  "Arquivos deste épico": "Files in this epic",
+  "Arquivos desta thread": "Files in this thread",
   Imagens: "Images",
   "Texto e CSV": "Text and CSV",
   "Nada aqui.": "Nothing here.",
@@ -340,8 +340,8 @@ const EN: Readonly<Record<string, string>> = {
   Tema: "Theme",
   Sair: "Sign out",
   "O que você quer resolver?": "What do you want to get done?",
-  "Um pedido, uma ideia, uma tarefa pra alguém… eu acho a sala e o épico certos.":
-    "A request, an idea, a task for someone… I'll find the right room and epic.",
+  "Um pedido, uma ideia, uma tarefa pra alguém… eu acho a sala e a thread certas.":
+    "A request, an idea, a task for someone… I'll find the right room and thread.",
   "Achar a sala →": "Find the room →",
   "Como seus amigos te chamam?": "What do your friends call you?",
   "O pessoal e os agents vão te chamar assim.":
@@ -376,8 +376,8 @@ const EN: Readonly<Record<string, string>> = {
   Convidar: "Invite",
   "Seu perfil": "Your profile",
   Novo: "New",
-  "O que você quer resolver? Eu acho a sala e o épico certos.":
-    "What do you want to get done? I'll find the right room and epic.",
+  "O que você quer resolver? Eu acho a sala e a thread certas.":
+    "What do you want to get done? I'll find the right room and thread.",
   Notificações: "Notifications",
   "Seu nome:": "Your name:",
   "Remover {email} dos seus amigos? As salas em comum continuam.":
@@ -536,8 +536,8 @@ const EN: Readonly<Record<string, string>> = {
   "{owner} te chamou pra cá. Cada conversa importante ganha uma sala no deco.chat: o chat, as tarefas e o doc do projeto ficam juntos.":
     "{owner} invited you here. Every important conversation gets a room on deco.chat: the chat, the tasks and the project doc live together.",
   "Cada um traz o seu agent": "Everyone brings their own agent",
-  "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza os épicos e conta o que entregou. Só o que <b>você</b> escreve é instrução pra ele: o resto ele lê como contexto.":
-    "You connect your agent, on your computer and with your permissions. It reads the room, picks up tasks, updates the epics and reports what it delivered. Only what <b>you</b> write is an instruction to it: everything else it reads as context.",
+  "Você conecta o seu agent, no seu computador e com as suas permissões. Ele lê a sala, pega tarefas, atualiza as threads e conta o que entregou. Só o que <b>você</b> escreve é instrução pra ele: o resto ele lê como contexto.":
+    "You connect your agent, on your computer and with your permissions. It reads the room, picks up tasks, updates the threads and reports what it delivered. Only what <b>you</b> write is an instruction to it: everything else it reads as context.",
   "O contexto é de todo mundo": "The context is shared",
   "Doc, arquivos, decisões e tarefas ficam na sala, e todo agent lê o mesmo contexto antes de agir. Quando alguém passa o bastão ou fica esperando você, a sala mostra.":
     "Doc, files, decisions and tasks live in the room, and every agent reads the same context before acting. When someone hands off or is waiting on you, the room shows it.",
@@ -552,16 +552,16 @@ const EN: Readonly<Record<string, string>> = {
     "Turn it on in this room with ✻ Turn on agent, at the top.",
   "Não consegui ler essa imagem.": "Couldn't read that image.",
   "Abrir menu": "Open menu",
-  "Novo épico": "New epic",
+  "Nova thread": "New thread",
   "{n} pedindo pra entrar": "{n} asking to join",
-  "O @vibe sugere um épico": "@vibe suggests an epic",
-  "Ele viu isso na conversa e acha que vale virar um épico, com as tarefas abaixo.":
-    "It saw this in the conversation and thinks it's worth an epic, with the tasks below.",
+  "O @vibe sugere uma thread": "@vibe suggests a thread",
+  "Ele viu isso na conversa e acha que vale virar uma thread, com as tarefas abaixo.":
+    "It saw this in the conversation and thinks it's worth a thread, with the tasks below.",
   "Tarefas propostas": "Proposed tasks",
-  "Criar épico": "Create epic",
+  "Criar thread": "Create thread",
   "Pedir pro meu agent": "Ask my agent",
-  "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria o épico.":
-    "It becomes your request in the room: your agent checks it still makes sense, adjusts the doc and tasks and creates the epic.",
+  "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria a thread.":
+    "It becomes your request in the room: your agent checks it still makes sense, adjusts the doc and tasks and creates the thread.",
   Descartar: "Dismiss",
   "a pasta onde ele já abriu antes": "the folder where it opened before",
   "ligada a esta sala pelo arquivo .vibebook":
@@ -600,16 +600,15 @@ const EN: Readonly<Record<string, string>> = {
   "{who} está trabalhando aqui": "{who} is working here",
   "{who} está trabalhando": "{who} is working",
   "Recolher menu": "Collapse menu",
-  "novo épico": "new epic",
-  Arquivados: "Archived",
+  "nova thread": "new thread",
   Outro: "Other",
   Todos: "All",
-  "Esse épico não existe mais nesta sala.":
-    "That epic is no longer in this room.",
-  "Novo épico: escreva o título…": "New epic: type its title…",
-  Épicos: "Epics",
-  Plano: "Plan",
-  Feitos: "Done",
+  "Essa thread não existe mais nesta sala.":
+    "That thread is no longer in this room.",
+  "Nova thread: escreva o título…": "New thread: type its title…",
+  Threads: "Threads",
+  "Threads abertas": "Open threads",
+  Feitas: "Done",
   "Ver menos": "Show less",
   "Ver mais ({n})": "Show more ({n})",
   "Fixar no topo": "Pin to top",
@@ -636,8 +635,8 @@ const EN: Readonly<Record<string, string>> = {
   "Sala criada": "Room created",
   "Na sala: {who}": "In the room: {who}",
   "Só você aqui: convide em Pessoas": "Only you here: invite people in People",
-  "O agent escreve o doc e cria os épicos":
-    "Agent writes the doc and creates the epics",
+  "O agent escreve o doc e cria as threads":
+    "Agent writes the doc and creates the threads",
   "Não achei {who} nas suas salas: convide pelo email em Pessoas.":
     "Couldn't find {who} in your rooms: invite them by email in People.",
   "O que é e com quem?": "What is it, and with whom?",
@@ -742,34 +741,34 @@ const EN: Readonly<Record<string, string>> = {
     'Couldn\'t copy. Use "copy" next to {email} in People.',
   "A fazer": "To do",
   Fazendo: "Doing",
-  "Esperando OK": "Waiting for OK",
+  "Requer ação": "Requires action",
   Feito: "Done",
-  "Arraste, ou use ← →. Clique pra abrir o épico.":
-    "Drag, or use ← →. Click to open the epic.",
+  "Arraste, ou use ← →. Clique pra abrir a thread.":
+    "Drag, or use ← →. Click to open the thread.",
   você: "you",
   "Nada a fazer.": "Nothing to do.",
   "Arraste um card pra cá.": "Drag a card here.",
   "nova tarefa": "new task",
   "Nova tarefa": "New task",
-  Épico: "Epic",
-  "Ainda não tem épico nem tarefa. Crie um épico na barra ao lado, ou peça pro seu agent organizar o projeto em épicos e tarefas.":
-    "No epics or tasks yet. Create an epic in the sidebar, or ask your agent to organize the project into epics and tasks.",
+  Thread: "Thread",
+  "Ainda não tem thread nem tarefa. Crie uma thread na barra ao lado, ou peça pro seu agent organizar o projeto em threads e tarefas.":
+    "No threads or tasks yet. Create a thread in the sidebar, or ask your agent to organize the project into threads and tasks.",
   "sugestão do @vibe": "suggested by @vibe",
   "Clique para renomear": "Click to rename",
-  "Desarquivar épico": "Unarchive epic",
+  "Desarquivar thread": "Unarchive thread",
   Desarquivar: "Unarchive",
-  "Arquivar épico (concluído)": "Archive epic (done)",
-  "Arquivar épico": "Archive epic",
-  "Apagar épico": "Delete epic",
+  "Arquivar thread (concluída)": "Archive thread (done)",
+  "Arquivar thread": "Archive thread",
+  "Apagar thread": "Delete thread",
   esperando: "waiting on",
   "Ver as tasks abertas": "See open tasks",
   "Esperando {who}": "Waiting on {who}",
   "esperando OK": "waiting for OK",
   "a fazer": "to do",
-  "Nome do épico:": "Epic name:",
+  "Nome da thread:": "Thread name:",
   "Nome da sala:": "Room name:",
-  'Apagar o épico "{title}", as tasks e a discussão dele? Não dá pra desfazer.':
-    'Delete the epic "{title}", its tasks and its discussion? This can\'t be undone.',
+  'Apagar a thread "{title}", as tasks e a discussão dela? Não dá pra desfazer.':
+    'Delete the thread "{title}", its tasks and its discussion? This can\'t be undone.',
   Tarefas: "Tasks",
   Feita: "Done",
   "Clique para editar": "Click to edit",
@@ -917,11 +916,11 @@ const EN: Readonly<Record<string, string>> = {
     "Your agent is waiting for you in the terminal",
   feito: "done",
   Lista: "List",
-  "Todos os épicos": "All epics",
-  "Sem épico": "No epic",
+  "Todas as threads": "All threads",
+  "Sem thread": "No thread",
   "Nenhuma tarefa aberta.": "No open tasks.",
-  "Escolha um épico.": "Choose an epic.",
-  "Épico não encontrado.": "Epic not found.",
+  "Escolha uma thread.": "Choose a thread.",
+  "Thread não encontrada.": "Thread not found.",
   Status: "Status",
   "Sair de todos os aparelhos": "Sign out everywhere",
   "Sai em todos os navegadores e celulares onde você entrou":
@@ -934,7 +933,7 @@ const EN: Readonly<Record<string, string>> = {
   "Remover o token do Claude? Sandboxes que já têm o token continuam logados até você apagá-los.":
     "Remove the Claude token? Sandboxes that already have it stay logged in until you delete them.",
   "sala principal": "main room",
-  épico: "epic",
+  thread: "thread",
   "Fila do seu agent: {n}": "Your agent's queue: {n}",
   "Seu agent está livre": "Your agent is free",
   "Fila do seu agent": "Your agent's queue",
@@ -1021,10 +1020,10 @@ const EN: Readonly<Record<string, string>> = {
   "Cole uma imagem no chat (Cmd+V), arraste um arquivo ou use o clipe. Tudo que for enviado nesta sala fica aqui.":
     "Paste an image in the chat (Cmd+V), drag a file in or use the clip. Everything shared in this room lands here.",
   "Carregar mensagens anteriores": "Load earlier messages",
-  "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em épicos: site novo, aluguéis e domínio</i>.":
-    "Start the conversation. The agents on in this room read and reply; yours acts with your OK. E.g. <i>organize the project into epics: new site, rentals and domain</i>.",
-  "Discussão deste épico. Os agents leem as tarefas, o doc e a sala principal.":
-    "This epic's discussion. The agents read the tasks, the doc and the main room.",
+  "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.":
+    "Start the conversation. The agents on in this room read and reply; yours acts with your OK. E.g. <i>organize the project into threads: new site, rentals and domain</i>.",
+  "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.":
+    "This thread's discussion. The agents read the tasks, the doc and the main room.",
   "ver na sala principal": "see in the main room",
   "{who} está fazendo isso": "{who} is on it",
   "{who} fez isso": "{who} did it",

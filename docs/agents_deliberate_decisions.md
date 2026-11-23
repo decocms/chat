@@ -1327,3 +1327,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. It removes a view. Tasks of the main thread show only in the room's doc.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/threads-four-states · Epics show as threads, with 4 states and 2 tabs
+- Agent: claude-opus-5-5
+- Context: Gimenes #3989 (items 3 and 4), with the defaults he approved in #3993.
+- Decision:
+  - The visible text says "thread" (Portuguese: "a thread", feminine), not "épico". The code, the commands, the tool names and the `epics` table keep their names. There is no migration.
+  - The states are A fazer, Fazendo, Requer ação (stored as `review`) and Feito. An epic archived without being done (`dismissed`) shows as Feito. The menu has no separate "Arquivado".
+  - The sidebar has 2 tabs: "Threads abertas" and "Feitas". @vibe's suggestions (the old Plano tab) show under the open threads.
+- Other options: Rename the storage and the tools too. Keep "Arquivado" as a fifth state.
+- Risk: low. The server is unchanged.
+- Undo: Revert this commit.
+- Status: open
