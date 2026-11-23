@@ -31,6 +31,11 @@
     quietLabel?: boolean;
   } = $props();
   const t = $derived(vb.t);
+  // The epic list has no actions menu: the epic's own menu pins it and picks its owner (Gimenes #3933).
+  const owners = $derived([
+    { value: "", label: vb.t("Sem dono") },
+    ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
+  ]);
   const peer = $derived(dmPeer(room));
   const epic = $derived(
     view ? undefined : room.epics.find((item) => item.id === thread),
@@ -73,6 +78,6 @@
       class="min-w-0 shrink-[2] truncate text-xs text-muted-foreground"
       >✦ {t("sugestão do @vibe")}</span
     >{/if}
-  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" />{/if}
+  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" {owners} />{/if}
   <MutationStatus {owner} {t} />
 </div>

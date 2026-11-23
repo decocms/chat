@@ -1225,3 +1225,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A touch laptop with no mouse loses the row menu, but it has the menu inside the epic.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-row-no-menu · The epic list has no actions menu on desktop either
+- Agent: claude-opus-5-5
+- Context: The human asked to remove the `...` from the epic list on desktop too (#3933). The row menu pinned the epic, moved a pinned epic up or down, and picked its owner.
+- Decision:
+  - The epic row has no actions menu on any screen.
+  - The epic's status menu in the desktop top bar (`RoomBarTitle`) also has "Fixar no topo"/"Desafixar" and the owner choice, as the phone sheet does.
+  - A pinned epic still moves up or down with Alt+↑/↓ on its row. There is no menu item for this any more.
+- Other options: Put "Mover para cima/baixo" in the epic's status menu as well.
+- Risk: low. Moving pinned epics is now only on the keyboard.
+- Undo: Revert this commit.
+- Status: open

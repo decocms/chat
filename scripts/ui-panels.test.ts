@@ -3685,6 +3685,8 @@ describe("stable sidebar integration", () => {
       )?.value,
     ).toBe(0);
     expect(row("n").querySelector("[data-epic-progress]")).toBeNull();
+    // No ⋯ on any row, on desktop or phone: the actions are inside the epic (Gimenes #3933).
+    expect(h.target.querySelector("[data-epic-actions]")).toBeNull();
   });
   test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
@@ -6426,6 +6428,15 @@ describe("room sidebar header and suggestion ownership", () => {
         ...document.querySelectorAll<HTMLElement>("[data-epic-status-choice]"),
       ].map((item) => item.textContent?.trim()),
     ).toEqual(["A fazer", "Fazendo", "Esperando OK", "Feito", "Arquivado"]);
+    // The epic list has no actions menu: this menu pins the epic and picks its owner (Gimenes #3933).
+    expect(
+      [...document.querySelectorAll("[role=menuitem]")].some(
+        (item) => item.textContent?.trim() === "Fixar no topo",
+      ),
+    ).toBe(true);
+    expect(
+      document.querySelector('[data-epic-owner-choice="you@test"]'),
+    ).not.toBeNull();
     done.click();
     await tick();
     expect(commands.at(-1)).toEqual({
