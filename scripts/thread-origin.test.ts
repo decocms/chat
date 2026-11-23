@@ -196,7 +196,7 @@ test("a thread from an unknown message is refused", async () => {
   expect(f.messages()).toHaveLength(0);
 });
 
-test("an agent's start_epic inside a thread: a line in main by the agent, and a sibling thread", async () => {
+test("an agent's start_thread inside a thread: a line in main by the agent, and a sibling thread", async () => {
   const f = fixture();
   await f.run({ t: "epic", title: "Pagamentos", id: "aaaa0005" });
   await f.run({
@@ -227,7 +227,7 @@ test("an agent's start_epic inside a thread: a line in main by the agent, and a 
   expect(f.book.epics().find((e) => e.id === out.epic_id)?.parent).toBeNull();
 });
 
-test("an agent's start_epic with no request: its line in main is the thread's origin", async () => {
+test("an agent's start_thread with no request: its line in main is the thread's origin", async () => {
   const f = fixture();
   const out = (await f.book.agentEpic(
     "abcdef",

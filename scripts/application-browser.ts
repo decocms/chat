@@ -492,7 +492,7 @@ try {
       );
       assert(joined.ok(), `Join status ${joined.status()}`);
       epic = z.object({ epic_id: z.string() }).parse(
-        await agent("start_epic", {
+        await agent("start_thread", {
           room_id: roomA,
           title: `Integrated thread ${token}`,
           why: "Real RootScope browser verification",

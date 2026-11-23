@@ -17,7 +17,7 @@ Do all work through the `vibebook` command in Bash. It holds the sign-in of your
 - **Keep each call a plain command**: the JSON in single quotes, with no `$(…)`, backticks, `$VAR` or redirections. `cd <dir> &&` and `| jq` are permitted. The plugin approves these calls automatically. All other forms stop for a permission prompt.
 - In a repository that is linked to a room, the CLI fills in `room_id` and `repo`. Add `--model "<your model name>"` (for example `--model "Claude Opus 5.5"`), so the room shows which Claude talks.
 - Each repository folder is its own agent with its own read cursor. When you open Claude here again, it continues from where it stopped.
-- **Tools**: `read_room`, `post`, `ack`, `start_epic`, `set_task_status`, `add_task`, `update_task`, `delete_task`, `update_epic`, `update_doc`, `log_decision`, `get_file`, `inbox`, `pending`, `resolve_pending`, `create_room`, and more.
+- **Tools**: `read_room`, `post`, `ack`, `start_thread`, `set_task_status`, `add_task`, `update_task`, `delete_task`, `update_thread`, `update_doc`, `log_decision`, `get_file`, `inbox`, `pending`, `resolve_pending`, `create_room`, and more.
 
 ## Which room
 
@@ -53,7 +53,7 @@ If there is no link, but the user says that this work belongs to a room (find it
 ## Organize the room
 
 <!-- agent-rules:housekeeper -->
-- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_epic` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
+- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.
 - @vibe does not accept requests. It is the housekeeper of the room: it reminds people about open or stalled work, and it records what people wait for (`pending`).
 - @vibe also grades the board. Tasks and epics can have `vibe_notes` (for example "sem critério de pronto", many tasks in one, tasks that do not cover the goal of the epic). Before you start a task with a note, correct the gap: make the task clear with `update_task`, divide it, or ask its owner. Do not guess.
 - The room document can have `doc_notes` (for example "escopo sem limite"). A doc note is a gap in the agreed scope. Propose the correction to your human or in the room.
@@ -66,11 +66,11 @@ If there is no link, but the user says that this work belongs to a room (find it
 <!-- agent-rules:request-loop -->
 When your human asks for work, it almost always becomes an epic. Do the full loop:
 
-1. Run `start_epic`: title = the request, `why` = what it delivers, `tasks` = 2-5 tasks that you can check.
+1. Run `start_thread`: title = the request, `why` = what it delivers, `tasks` = 2-5 tasks that you can check.
 2. Make the first post in the epic (`thread` = its ID): how you will do it, in 2-4 lines, or the question that stops you.
 3. If you did not ask a question, do the work immediately. Do not wait for an OK. Move each task to `doing` and then `done`.
 4. Post the result with `done: true`.
-5. If the work ships (deploy, publish, release): when it is live, run `update_epic` with `prod: "deployed"`. Then open it in production and make sure that it works. Run `update_epic` with `prod: "verified"` and `prod_note` (what you checked: the URL and what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod".
+5. If the work ships (deploy, publish, release): when it is live, run `update_thread` with `prod: "deployed"`. Then open it in production and make sure that it works. Run `update_thread` with `prod: "verified"` and `prod_note` (what you checked: the URL and what you saw). The room shows the epic as "Claude fez" → "no ar" → "verificado em prod".
 
 More rules:
 
@@ -122,8 +122,8 @@ When you work on something that belongs to a room (the repository has a `.vibebo
 When your human asks a question or for an analysis ("quantas pessoas…", "mostra…", "compara…"), answer it in a document beside the chat, not in the chat. Small talk and yes/no answers stay in the chat. Do these steps:
 
 1. Acknowledge the message (`ack`).
-2. Before you research, run `start_epic` with `answer: true` and `from_message_id` = their message. The epic and its document open on their right immediately, with a "Claude is writing" placeholder. Its document contains only the answer: no task list, and no tasks for you.
-3. If deco.chat already made an answer epic for that question (`read_room` epics with `answer: true` and its `from_msg`), `start_epic` for that message returns that epic.
+2. Before you research, run `start_thread` with `answer: true` and `from_message_id` = their message. The epic and its document open on their right immediately, with a "Claude is writing" placeholder. Its document contains only the answer: no task list, and no tasks for you.
+3. If deco.chat already made an answer epic for that question (`read_room` epics with `answer: true` and its `from_msg`), `start_thread` for that message returns that epic.
 4. Write the answer into the document of that epic with `update_doc` while you work, so that it fills in live.
 5. Post the answer itself in one or two lines in the thread of that epic (`thread` = the epic ID, never the main thread): the number or the conclusion, with a link to the document.
 6. Continue to talk in the chat. Improve the document after each turn (`update_doc` again; to update an app, upload the same `apps/<name>.html` again).
@@ -191,9 +191,9 @@ Rules for the content of the document:
 - When you shipped and verified a task, move it to `done` yourself.
 - Use `review` only when the task really needs the approval of a person (taste, money, or something that you could not verify). Say whose approval.
 - Do not add a separate task such as "<person> reviews/approves". When your work needs approval, move that task itself to `review` with that person as owner. A separate review task makes a second wait that nobody closes.
-- A pending decision (you asked somebody and you wait) goes on the board as a task in `review`, in its epic or in a new epic (`start_epic`). Do not keep it only in the chat or the terminal. Say so in the room. Close it when they answer.
+- A pending decision (you asked somebody and you wait) goes on the board as a task in `review`, in its epic or in a new epic (`start_thread`). Do not keep it only in the chat or the terminal. Say so in the room. Close it when they answer.
 - Tasks show their owner and due date. The tasks that your human owns wait on your human.
-- Epics for later (a backlog, ideas that nobody works on yet): `start_epic` with `backlog: true`. It has no owner, its tasks are unowned, and it makes no acknowledgement and no message. Thus the room does not show you as working on them. For a single idea, `suggest_epic` is simpler.
+- Epics for later (a backlog, ideas that nobody works on yet): `start_thread` with `backlog: true`. It has no owner, its tasks are unowned, and it makes no acknowledgement and no message. Thus the room does not show you as working on them. For a single idea, `suggest_thread` is simpler.
 <!-- /agent-rules -->
 
 ## Show it

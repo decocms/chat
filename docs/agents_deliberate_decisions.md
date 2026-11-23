@@ -1405,3 +1405,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Every new thread now writes one more message in the main thread when it does not start from a main message.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/thread-tool-names · The thread tools have thread names
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked to rename `start_epic` to `start_thread` (#4132), with the old names as aliases (#4134). Installed plugins and CLIs call the old names, and the CLI refuses a name that `tools/list` does not have.
+- Decision:
+  - The tools are `start_thread`, `update_thread`, `suggest_thread` and `delete_thread`. The agent rules, the plugin skill and `llms.txt` use these names.
+  - `tools/list` also lists the four old names, each marked "Old name of …". A call with an old name runs the new tool (`TOOL_ALIASES` in `src/agent.ts`).
+  - `delete_epic` is in the rename too, so that all thread tools have one form.
+- Other options: Accept the old names in `tools/call` only (an old CLI then refuses them). No aliases (old plugins break).
+- Risk: low. The old names keep working.
+- Undo: Revert this commit.
+- Status: open

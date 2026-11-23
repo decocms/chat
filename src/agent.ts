@@ -5,7 +5,13 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 import { gate, routerOn, routerStats } from "./router";
 import { ownSession } from "./ownSession";
 import { isDmId } from "./dm";
-import { bumpStat, isLaunchCard, recordBackfill, recordLimits, recordUsage } from "./profile";
+import {
+  bumpStat,
+  isLaunchCard,
+  recordBackfill,
+  recordLimits,
+  recordUsage,
+} from "./profile";
 import {
   createConn,
   deleteConn,
@@ -18,7 +24,13 @@ import { signedInTo } from "./mcpauth";
 import { ASK_OPENER } from "./book";
 import { cardOf } from "./card";
 import { LISTEN_FRESH, markListening, poke } from "./person";
-import { DELIVERS, deliveryJoins, MACHINE_FRESH, MACHINE_ID, sandboxMachine } from "./delivery";
+import {
+  DELIVERS,
+  deliveryJoins,
+  MACHINE_FRESH,
+  MACHINE_ID,
+  sandboxMachine,
+} from "./delivery";
 import type { AgentProps } from "./connect";
 import type { Env } from "./index";
 import { checkEmbed, EMBED_MAX, withBridge } from "./embed";
@@ -203,7 +215,8 @@ const TOOLS = [
       properties: {
         machine: {
           type: "object",
-          description: "the runner's machine: id (m_ + 32 hex), name, kind herdr | herdr-app",
+          description:
+            "the runner's machine: id (m_ + 32 hex), name, kind herdr | herdr-app",
         },
         agents: {
           type: "array",
@@ -588,7 +601,10 @@ const TOOLS = [
       type: "object",
       properties: {
         room_id: { type: "string" },
-        brief_id: { type: "number", description: "from read_room brief_requests" },
+        brief_id: {
+          type: "number",
+          description: "from read_room brief_requests",
+        },
         text: { type: "string", description: "2-4 short lines, ≤600 chars" },
         model: { type: "string" },
       },
@@ -721,10 +737,17 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        machine: { type: "string", description: "this computer's id (~/.vibebook/machine.json)" },
+        machine: {
+          type: "string",
+          description: "this computer's id (~/.vibebook/machine.json)",
+        },
         days: {
           type: "array",
-          items: { type: "object", properties: { day: { type: "string" }, tokens: { type: "number" } }, required: ["day", "tokens"] },
+          items: {
+            type: "object",
+            properties: { day: { type: "string" }, tokens: { type: "number" } },
+            required: ["day", "tokens"],
+          },
         },
         model: { type: "string" },
       },
@@ -821,9 +844,9 @@ const TOOLS = [
     },
   },
   {
-    name: "suggest_epic",
+    name: "suggest_thread",
     description:
-      "Propose an epic instead of creating it: it shows as a dashed suggestion in the room's sidebar (like @vibe's), and accepting it posts it to the person's Claude to check, sharpen and create. For work worth doing that nobody asked for yet, or to turn an epic back into a proposal (then delete_epic).",
+      "Propose an epic instead of creating it: it shows as a dashed suggestion in the room's sidebar (like @vibe's), and accepting it posts it to the person's Claude to check, sharpen and create. For work worth doing that nobody asked for yet, or to turn an epic back into a proposal (then delete_thread).",
     inputSchema: {
       type: "object",
       properties: {
@@ -843,9 +866,9 @@ const TOOLS = [
     },
   },
   {
-    name: "delete_epic",
+    name: "delete_thread",
     description:
-      "Delete an epic with its tasks and doc. Only while nobody has written in its thread (@vibe's lines don't count); one with a conversation is archived instead (update_epic archived: true), so the history stays.",
+      "Delete an epic with its tasks and doc. Only while nobody has written in its thread (@vibe's lines don't count); one with a conversation is archived instead (update_thread archived: true), so the history stays.",
     inputSchema: {
       type: "object",
       properties: { room_id: { type: "string" }, epic_id: { type: "string" } },
@@ -872,7 +895,7 @@ const TOOLS = [
   {
     name: "open_doc",
     description:
-      "Open a doc beside the chat for your human, in the room tabs they have open: an epic's doc (epic_id) or the room's (no epic_id). The way to answer a question or an analysis: start_epic, open_doc, then write the answer into that doc with update_doc (a ```card block for a simple one, a [[app:room/<name>]] line of an apps/<name>.html for a complex one); it shows up live as you write.",
+      "Open a doc beside the chat for your human, in the room tabs they have open: an epic's doc (epic_id) or the room's (no epic_id). The way to answer a question or an analysis: start_thread, open_doc, then write the answer into that doc with update_doc (a ```card block for a simple one, a [[app:room/<name>]] line of an apps/<name>.html for a complex one); it shows up live as you write.",
     inputSchema: {
       type: "object",
       properties: {
@@ -920,7 +943,7 @@ const TOOLS = [
     },
   },
   {
-    name: "update_epic",
+    name: "update_thread",
     description:
       'Rename an epic, set its owner (owner: a member\'s email, "" clears) and/or archive it (archived: true; mark_done: true also closes its open tasks, for when it\'s all delivered) or bring it back (archived: false). An epic whose tasks are all done archives itself (one an agent worked in also needs a done delivery saying what was tested in its thread). prod = its deploy stage after the work is done: "deployed" once it\'s shipped, "verified" once you opened it in production and checked it works (prod_note: what you checked, e.g. the URL and what you saw); "" clears it. The room shows the stage on the epic.',
     inputSchema: {
@@ -1023,9 +1046,9 @@ const TOOLS = [
     },
   },
   {
-    name: "start_epic",
+    name: "start_thread",
     description:
-      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one, or from_message_id). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic archives itself. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_epic there with its room_id, and answer in the DM with the link.",
+      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one, or from_message_id). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic archives itself. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1135,7 +1158,7 @@ const TOOLS = [
   {
     name: "create_room",
     description:
-      "Create a room for a project and invite people by email (they get a sign-in link). Only when your human asked for it. Then don't leave it empty: read the project (README, AGENTS.md/CLAUDE.md, recent commits, open issues), write the room's doc with update_doc (what it delivers and for whom, what's in and out of scope, how we'll know it worked, next steps and who owns what), and start 2–4 epics (start_epic) for the work ahead, each with a few tasks that say when they're done. @vibe grades the doc (doc_notes) and the epics and tasks (vibe_notes) within a minute: read_room again and sharpen what it flagged before telling your human the room is ready.",
+      "Create a room for a project and invite people by email (they get a sign-in link). Only when your human asked for it. Then don't leave it empty: read the project (README, AGENTS.md/CLAUDE.md, recent commits, open issues), write the room's doc with update_doc (what it delivers and for whom, what's in and out of scope, how we'll know it worked, next steps and who owns what), and start 2–4 epics (start_thread) for the work ahead, each with a few tasks that say when they're done. @vibe grades the doc (doc_notes) and the epics and tasks (vibe_notes) within a minute: read_room again and sharpen what it flagged before telling your human the room is ready.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1159,6 +1182,22 @@ for (const t of TOOLS) {
     type: "string",
     description: "your model's name, shown next to your human's name",
   };
+}
+// The old names of the thread tools (Gimenes #4132). Installed plugins and CLIs call them, and the CLI refuses a
+// name that tools/list does not have, so they stay listed (marked old) and run as the new tool.
+export const TOOL_ALIASES: Record<string, string> = {
+  start_epic: "start_thread",
+  update_epic: "update_thread",
+  suggest_epic: "suggest_thread",
+  delete_epic: "delete_thread",
+};
+for (const [old, name] of Object.entries(TOOL_ALIASES)) {
+  const tool = TOOLS.find((t) => t.name === name)!;
+  TOOLS.push({
+    ...tool,
+    name: old,
+    description: `Old name of ${name}; it does the same. Use ${name}.`,
+  });
 }
 
 const rpcError = (id: unknown, code: number, message: string, status = 200) =>
@@ -1355,9 +1394,13 @@ async function call(
       // Rooms whose delivery is off for this agent: the router still sorts their new messages with its fixed rules (no
       // model), so turning delivery back on only asks the model about what the rules left open (gate, src/router.ts).
       if (routed)
-        for (const b of (await unreadRooms(db, me.email, me.agent, only, 0, true)).results)
+        for (const b of (
+          await unreadRooms(db, me.email, me.agent, only, 0, true)
+        ).results)
           if (due(`rules:${me.agent}:${b.id}:${b.n}`, 600_000))
-            await gate(env, me, b.id, true).catch((e) => console.error("router rules", String(e)));
+            await gate(env, me, b.id, true).catch((e) =>
+              console.error("router rules", String(e)),
+            );
       for (;;) {
         // Your human asked "O que precisa de mim aqui?" (Book.briefAsk): wakes once, read_room carries brief_requests.
         const briefs = (
@@ -1612,10 +1655,17 @@ async function call(
       // A runner that sends its machine checks in (machines.seen_at) and gets that machine's switch per room
       // (machine_rooms, else members.claude_on); the Claudes it runs (agent ids) become that machine's agents.
       const mc = recordValue(a.machine) ? a.machine : null;
-      const mid = mc && typeof mc.id === "string" && MACHINE_ID.test(mc.id) ? await ownMachine(db, mc.id, me.email) : "";
+      const mid =
+        mc && typeof mc.id === "string" && MACHINE_ID.test(mc.id)
+          ? await ownMachine(db, mc.id, me.email)
+          : "";
       let machine = "";
       if (mid) {
-        const name = (typeof mc!.name === "string" ? mc!.name : "").replace(/[\p{Cc}]/gu, "").trim().slice(0, 40) || "computer";
+        const name =
+          (typeof mc!.name === "string" ? mc!.name : "")
+            .replace(/[\p{Cc}]/gu, "")
+            .trim()
+            .slice(0, 40) || "computer";
         const kind = mc!.kind === "herdr-app" ? "herdr-app" : "herdr";
         const before = await db
           .prepare(`SELECT email, seen_at FROM machines WHERE id = ?`)
@@ -1631,7 +1681,10 @@ async function call(
             .bind(mid, me.email, name, kind, Date.now())
             .run();
           const ids = (Array.isArray(a.agents) ? a.agents : [])
-            .filter((x): x is string => typeof x === "string" && /^s_[a-f0-9]{32}$/.test(x))
+            .filter(
+              (x): x is string =>
+                typeof x === "string" && /^s_[a-f0-9]{32}$/.test(x),
+            )
             .slice(0, 50);
           if (ids.length)
             await db
@@ -1641,7 +1694,11 @@ async function call(
               .bind(mid, me.email, ...ids)
               .run();
           // Back online (or new): the person's open Agents views refetch.
-          if (!before || !before.seen_at || Date.now() - before.seen_at > MACHINE_FRESH)
+          if (
+            !before ||
+            !before.seen_at ||
+            Date.now() - before.seen_at > MACHINE_FRESH
+          )
             ctx.waitUntil(poke(env, [me.email], { t: "me" }));
         }
       }
@@ -1691,20 +1748,51 @@ async function call(
       // Same rules as POST /api/books/:id/members (the People tab): a member invites, never in a DM, valid emails only;
       // the invite is an email with the link, and they join when they accept (Gui #3655).
       const id = await room();
-      if (isDmId(id)) throw new Error("a DM is only for its two people: start a room to bring others");
-      if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success) throw new Error("rate limited. Wait a bit.");
-      const wanted = [...new Set((Array.isArray(a.emails) ? a.emails : []).map((e) => str(e).trim().toLowerCase()))];
+      if (isDmId(id))
+        throw new Error(
+          "a DM is only for its two people: start a room to bring others",
+        );
+      if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
+        throw new Error("rate limited. Wait a bit.");
+      const wanted = [
+        ...new Set(
+          (Array.isArray(a.emails) ? a.emails : []).map((e) =>
+            str(e).trim().toLowerCase(),
+          ),
+        ),
+      ];
       const bad = wanted.filter((e) => !EMAIL_RE.test(e));
-      const emails = wanted.filter((e) => EMAIL_RE.test(e) && e !== me.email).slice(0, 20);
-      if (!emails.length) throw new Error(bad.length ? `invalid email: ${bad.join(", ")}` : "emails is required");
-      const already: string[] = [], invited: string[] = [];
+      const emails = wanted
+        .filter((e) => EMAIL_RE.test(e) && e !== me.email)
+        .slice(0, 20);
+      if (!emails.length)
+        throw new Error(
+          bad.length
+            ? `invalid email: ${bad.join(", ")}`
+            : "emails is required",
+        );
+      const already: string[] = [],
+        invited: string[] = [];
       for (const who of emails) {
-        if (await isMember(db, id, who)) { already.push(who); continue; }
+        if (await isMember(db, id, who)) {
+          already.push(who);
+          continue;
+        }
         await inviteMember(env, ctx, origin, me.email, id, who);
         invited.push(who);
       }
-      ctx.waitUntil(track(env, "invite_sent", { user: me.email, dims: { book: id, n: invited.length, via: "agent" } }));
-      return { invited, already_members: already, invalid: bad, note: "Each invited person gets an email with the link and appears in People once they accept." };
+      ctx.waitUntil(
+        track(env, "invite_sent", {
+          user: me.email,
+          dims: { book: id, n: invited.length, via: "agent" },
+        }),
+      );
+      return {
+        invited,
+        already_members: already,
+        invalid: bad,
+        note: "Each invited person gets an email with the link and appears in People once they accept.",
+      };
     }
     case "rename_room": {
       const id = await room();
@@ -1989,13 +2077,26 @@ async function call(
     }
     case "post": {
       // client_id: checked before any work. Stored as "<agent>:<id>": two agents of one person don't share ids.
-      if (a.client_id !== undefined && !(typeof a.client_id === "string" && CLIENT_ID_PATTERN.test(a.client_id)))
+      if (
+        a.client_id !== undefined &&
+        !(
+          typeof a.client_id === "string" && CLIENT_ID_PATTERN.test(a.client_id)
+        )
+      )
         return { ok: false, error: INVALID_CLIENT_ID };
-      const clientKey = typeof a.client_id === "string" ? `${me.agent}:${a.client_id}` : undefined;
+      const clientKey =
+        typeof a.client_id === "string"
+          ? `${me.agent}:${a.client_id}`
+          : undefined;
       const id = await room();
       // A retry of a post that is already in the room: the first post, with no html check, file, stat or cursor move.
       if (clientKey && a.html) {
-        const repeat = await bookStub(env, id).agentRepeat(id, me.email, clientKey, str(a.text));
+        const repeat = await bookStub(env, id).agentRepeat(
+          id,
+          me.email,
+          clientKey,
+          str(a.text),
+        );
         if (repeat) return repeat;
       }
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
@@ -2045,8 +2146,10 @@ async function call(
         clientKey,
       );
       if ("repeat" in posted) return posted;
-      if (posted.ok && isLaunchCard(a.card)) ctx.waitUntil(bumpStat(db, me.email, "deploys"));
-      if (posted.ok && posted.id) await keepCaughtUp(db, me.agent, id, posted.id);
+      if (posted.ok && isLaunchCard(a.card))
+        ctx.waitUntil(bumpStat(db, me.email, "deploys"));
+      if (posted.ok && posted.id)
+        await keepCaughtUp(db, me.agent, id, posted.id);
       // Your human wrote while you were working (after your last read_room): hand it back now, so a reply doesn't go
       // out answering only the first of two messages (the missed_message most Claudes reported).
       if (posted.ok && posted.id && before !== undefined) {
@@ -2300,7 +2403,9 @@ async function call(
       const text = Array.from(str(a.text).trim()).slice(0, 600).join("");
       if (!text) throw new Error("text is required");
       if (findSecret(text))
-        throw new Error("blocked: looks like a secret; say it without the value");
+        throw new Error(
+          "blocked: looks like a secret; say it without the value",
+        );
       return bookStub(env, id).briefReply(
         me.email,
         Number(a.brief_id),
@@ -2408,8 +2513,12 @@ async function call(
       return bookStub(env, id).closeAsk(id, Number(a.message_id), me.email);
     }
     case "usage_backfill": {
-      if (!MACHINE_ID.test(str(a.machine))) throw new Error("machine must be this computer's id");
-      return { ok: true, days: await recordBackfill(db, me.email, str(a.machine), a.days) };
+      if (!MACHINE_ID.test(str(a.machine)))
+        throw new Error("machine must be this computer's id");
+      return {
+        ok: true,
+        days: await recordBackfill(db, me.email, str(a.machine), a.days),
+      };
     }
     case "report_issue": {
       const id = a.room_id ? await room() : "";
@@ -2483,7 +2592,7 @@ async function call(
         me.email,
       );
     }
-    case "start_epic": {
+    case "start_thread": {
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
         throw new Error("rate limited. Wait a bit.");
@@ -2523,16 +2632,17 @@ async function call(
     case "add_task":
     case "update_task":
     case "delete_task":
-    case "suggest_epic":
-    case "delete_epic":
-    case "update_epic":
+    case "suggest_thread":
+    case "delete_thread":
+    case "update_thread":
     case "move_message":
     case "update_doc": {
       const id = await room();
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
         throw new Error("rate limited. Wait a bit.");
       const edited = await bookStub(env, id).agentEdit(id, me.email, name, a);
-      if (name === "update_epic" && a.prod === "deployed") ctx.waitUntil(bumpStat(db, me.email, "deploys"));
+      if (name === "update_thread" && a.prod === "deployed")
+        ctx.waitUntil(bumpStat(db, me.email, "deploys"));
       return edited;
     }
     case "fire_card": {
@@ -2712,7 +2822,10 @@ const agentOwner = new Map<string, string>();
  *  from vibebook.dev belong to the old email), then a stable per-person id derived from it. Without this the
  *  machine was ignored, the person had no machine and every room showed "No agent here yet" (Gui #3513). */
 async function ownMachine(db: D1Database, mid: string, email: string) {
-  const owner = await db.prepare(`SELECT email FROM machines WHERE id = ?`).bind(mid).first<string>("email");
+  const owner = await db
+    .prepare(`SELECT email FROM machines WHERE id = ?`)
+    .bind(mid)
+    .first<string>("email");
   return owner && owner !== email ? ownSession(mid, email, "m_") : mid;
 }
 /** agent|machine → when this isolate last recorded that agent's machine (x-vibebook-machine). */
@@ -2758,13 +2871,21 @@ async function stalledFor(env: Env, me: Me, only: string) {
 }
 /** grant_seen key for a grant without a gid: "g:<grant id>" from the Bearer token (`<user>:<grant>:<secret>`). */
 /** Your own post shouldn't wake you up: if you were caught up, stay caught up. The cursor never moves back. */
-export async function keepCaughtUp(db: D1Database, agent: string, bookId: string, id: number) {
+export async function keepCaughtUp(
+  db: D1Database,
+  agent: string,
+  bookId: string,
+  id: number,
+) {
   await db
-    .prepare(`UPDATE agent_reads SET last_id = max(last_id, ?) WHERE agent = ? AND book_id = ? AND last_id >= ?`)
+    .prepare(
+      `UPDATE agent_reads SET last_id = max(last_id, ?) WHERE agent = ? AND book_id = ? AND last_id >= ?`,
+    )
     .bind(id, agent, bookId, id - 1)
     .run();
 }
-export const INVALID_CLIENT_ID = "invalid client_id: 8 to 64 characters of A-Z a-z 0-9 _ -";
+export const INVALID_CLIENT_ID =
+  "invalid client_id: 8 to 64 characters of A-Z a-z 0-9 _ -";
 export const grantKey = (auth: string | null) => {
   const parts = auth?.replace(/^Bearer\s+/i, "").split(":") ?? [];
   return parts.length >= 3 && parts.at(-2) ? `g:${parts.at(-2)}` : undefined;
@@ -2815,7 +2936,8 @@ export async function handleAgentMcp(
     // Claude Code session now signs in as another email): its own id for this person, derived from that session,
     // not the person-wide fallback that every Claude of theirs would share (one listener at a time, wrong room
     // labels, Gui #3332).
-    if (owner && owner !== props.email) sid = await ownSession(sid, props.email);
+    if (owner && owner !== props.email)
+      sid = await ownSession(sid, props.email);
   }
   const agentId = /^s_[a-f0-9]{32}$/.test(sid)
     ? sid
@@ -2824,7 +2946,9 @@ export async function handleAgentMcp(
     await ensureAgent(env.DB, agentId, props.email, props.client);
     // A sandbox's Claude is that sandbox's agent: its switch in the room covers it (src/delivery.ts).
     if (props.sandbox)
-      await env.DB.prepare(`UPDATE agents SET machine_id = ? WHERE id = ? AND machine_id IS NULL`)
+      await env.DB.prepare(
+        `UPDATE agents SET machine_id = ? WHERE id = ? AND machine_id IS NULL`,
+      )
         .bind(sandboxMachine(props.sandbox), agentId)
         .run();
     if (agentOwner.size > 20_000) agentOwner.clear();
@@ -2836,24 +2960,35 @@ export async function handleAgentMcp(
   // belongs to someone else maps to a per-person one (ownMachine). A sandbox keeps its own machine.
   const sent = request.headers.get("x-vibebook-machine") ?? "";
   const mKey = `${agentId}|${sent}`;
-  if (!props.sandbox && MACHINE_ID.test(sent) && Date.now() - (machineSeen.get(mKey) ?? 0) > 120_000) {
+  if (
+    !props.sandbox &&
+    MACHINE_ID.test(sent) &&
+    Date.now() - (machineSeen.get(mKey) ?? 0) > 120_000
+  ) {
     if (machineSeen.size > 20_000) machineSeen.clear();
     machineSeen.set(mKey, Date.now());
     const name =
-      (request.headers.get("x-vibebook-machine-name") ?? "").replace(/[\p{Cc}]/gu, "").trim().slice(0, 40) || "computer";
+      (request.headers.get("x-vibebook-machine-name") ?? "")
+        .replace(/[\p{Cc}]/gu, "")
+        .trim()
+        .slice(0, 40) || "computer";
     const now = Date.now();
     ctx.waitUntil(
-      ownMachine(env.DB, sent, props.email).then((mid) => env.DB.batch([
-        env.DB.prepare(
-          `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, 'herdr', ?4, ?4)
+      ownMachine(env.DB, sent, props.email)
+        .then((mid) =>
+          env.DB.batch([
+            env.DB.prepare(
+              `INSERT INTO machines (id, email, name, kind, seen_at, created_at) VALUES (?1, ?2, ?3, 'herdr', ?4, ?4)
            ON CONFLICT(id) DO UPDATE SET seen_at = excluded.seen_at WHERE machines.email = excluded.email`,
-        ).bind(mid, props.email, name, now),
-        env.DB.prepare(
-          `UPDATE agents SET machine_id = ?1 WHERE id = ?2 AND email = ?3 AND (machine_id IS NULL OR machine_id != ?1)
+            ).bind(mid, props.email, name, now),
+            env.DB.prepare(
+              `UPDATE agents SET machine_id = ?1 WHERE id = ?2 AND email = ?3 AND (machine_id IS NULL OR machine_id != ?1)
              AND (machine_id IS NULL OR machine_id NOT LIKE 'sb!_%' ESCAPE '!')
              AND EXISTS (SELECT 1 FROM machines WHERE id = ?1 AND email = ?3)`,
-        ).bind(mid, agentId, props.email),
-      ])).catch(() => {}),
+            ).bind(mid, agentId, props.email),
+          ]),
+        )
+        .catch(() => {}),
     );
   }
   // This grant was used now (written at most every 5 min per grant): the app lists connections with their last use.
@@ -2906,7 +3041,12 @@ export async function handleAgentMcp(
   if (due(`usage:${agentId}`, 120_000))
     ctx.waitUntil(
       Promise.all([
-        recordUsage(env.DB, props.email, agentId, request.headers.get("x-vibebook-usage")),
+        recordUsage(
+          env.DB,
+          props.email,
+          agentId,
+          request.headers.get("x-vibebook-usage"),
+        ),
         recordLimits(env.DB, props.email, limits),
       ]),
     );
@@ -2947,7 +3087,8 @@ export async function handleAgentMcp(
       try {
         const args = mcpArguments(p.arguments);
         // Unknown arguments are an error, not silently dropped (a misnamed "goal" left an epic's doc empty).
-        const tool = TOOLS.find((t) => t.name === p.name);
+        const name = TOOL_ALIASES[String(p.name)] ?? String(p.name);
+        const tool = TOOLS.find((t) => t.name === name);
         const known = Object.keys(tool?.inputSchema.properties ?? {});
         const bad = tool
           ? Object.keys(args).filter((k) => !known.includes(k))
@@ -2956,7 +3097,7 @@ export async function handleAgentMcp(
           throw new Error(
             `unknown argument${bad.length > 1 ? "s" : ""} ${bad.join(", ")} for ${tool!.name}; it takes: ${known.join(", ")}`,
           );
-        const out = await call(String(p.name), args, env, ctx, me, origin);
+        const out = await call(name, args, env, ctx, me, origin);
         const model =
           typeof args.model === "string" ? args.model.trim().slice(0, 40) : "";
         const repo =

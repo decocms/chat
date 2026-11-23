@@ -170,7 +170,7 @@ export async function auditDocumentAnswers(
       result.roomId = roomId;
       const epicTitle = "Controlled document epic";
       const epic = z.object({ epic_id: z.string() }).parse(
-        await agent("start_epic", {
+        await agent("start_thread", {
           room_id: roomId,
           title: epicTitle,
           why: "Disposable document-answer verification",
@@ -241,7 +241,7 @@ export async function auditDocumentAnswers(
       await expect.poll(() => result.openDocEvents).toBeGreaterThanOrEqual(4);
       result.phase = "unknown-and-deleted-target-refusal";
       const unused = z.object({ epic_id: z.string() }).parse(
-        await agent("start_epic", {
+        await agent("start_thread", {
           room_id: roomId,
           title: "Disposable deleted target",
           why: "Refusal control",
@@ -250,7 +250,7 @@ export async function auditDocumentAnswers(
         }),
       ).epic_id;
       OkResult.parse(
-        await agent("delete_epic", { room_id: roomId, epic_id: unused }),
+        await agent("delete_thread", { room_id: roomId, epic_id: unused }),
       );
       const beforeRefusal = result.openDocEvents;
       for (const target of ["000000000000", unused]) {
