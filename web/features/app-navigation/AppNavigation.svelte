@@ -296,13 +296,15 @@
     <!-- A new version waits here, at the rail's foot, instead of over the chat box: you load it when you want. -->
     {#if $personal.updateAvailable}<RailButton
         data-view="update"
-        icon="refresh-cw-01"
         label={text("update")}
-        dot
         onclick={(event) => {
           if (event.currentTarget.isConnected) onreload();
         }}
-      />{/if}
+        ><span
+          class="flex size-9 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm transition-transform duration-150 hover:scale-105 active:scale-95 motion-reduce:transition-none"
+          ><Icon icon="refresh-cw-01" class="size-4" /></span
+        ></RailButton
+      >{/if}
     <RailButton
       icon="search-md"
       label={text("search")}
