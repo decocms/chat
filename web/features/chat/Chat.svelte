@@ -10,7 +10,9 @@
     messageFooters,
     threadWorkers,
     prettyModel,
+    messageAuthor,
   } from "./model";
+  import { selectedMessageIds, transcriptText } from "./clipboard";
   import Button from "../../lib/studio/Button.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import {
@@ -53,10 +55,48 @@
       : undefined,
   );
   const production = $derived(productionStatuses(room).get(thread));
+  // A copy that takes in more than one message's text (names, avatars, marks,
+  // reactions) becomes "[time, date] name: text" lines, as WhatsApp copies
+  // (Gimenes #3955). Inside one message's text, the browser copies as usual.
+  function copySelection(event: ClipboardEvent) {
+    const selection = window.getSelection();
+    if (!event.clipboardData || !selection?.rangeCount || selection.isCollapsed)
+      return;
+    const ids = selectedMessageIds(
+      selection.getRangeAt(0),
+      event.currentTarget as Element,
+    );
+    if (!ids) return;
+    const byId = new Map(
+      list
+        .flatMap((m) => [m, ...(m.group ?? [])])
+        .map((m) => [String(m.id), m]),
+    );
+    const text = transcriptText(
+      ids.flatMap((id) => {
+        const m = byId.get(id);
+        if (!m) return [];
+        return [
+          {
+            when: `${vb.hhmm(m.ts)}, ${new Date(m.ts).toLocaleDateString(vb.locale)}`,
+            who: messageAuthor(m, vb),
+            text: m.text || m.files?.map((f) => f.name).join(", ") || "",
+          },
+        ];
+      }),
+    );
+    if (!text) return;
+    event.clipboardData.setData("text/plain", text);
+    event.preventDefault();
+  }
 </script>
 
 {#key room.id + ":" + thread}
-  <section data-chat-timeline class="pb-4 font-sans text-sm text-foreground">
+  <section
+    data-chat-timeline
+    class="pb-4 font-sans text-sm text-foreground"
+    oncopy={copySelection}
+  >
     {#if more}<div class="flex justify-center p-3">
         <Button variant="outline" size="sm" id="olderBtn" onclick={onloadolder}
           >{vb.t("Carregar mensagens anteriores")}</Button

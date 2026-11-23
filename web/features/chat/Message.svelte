@@ -16,6 +16,7 @@
     continues,
     issueParts,
     messageKind,
+    messageAuthor,
     messageSnippet,
     reminderParts,
     type MessageFooter as Footer,
@@ -171,15 +172,7 @@
     const said = words(m.text);
     return said.length > 0 && said.every((word) => inTitle.has(word));
   });
-  const author = (message: ChatMessage) =>
-    message.author === "ai"
-      ? "@vibe"
-      : message.kind === "agent"
-        ? vb.t("{via} de {who}", {
-            via: message.via || "agent",
-            who: vb.name(message.author),
-          })
-        : vb.name(message.author);
+  const author = (message: ChatMessage) => messageAuthor(message, vb);
   const day = (ts: number) =>
     new Date(ts).toDateString() === new Date().toDateString()
       ? vb.hhmm(ts)
@@ -290,7 +283,7 @@
     </button>{/if}
   <!-- The row's shape is shared with the room's loading state (room-shell/shape.ts). -->
   <div class={MESSAGE_ROW}>
-    <div class={MESSAGE_AVATAR}>
+    <div data-message-avatar class={MESSAGE_AVATAR}>
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
             size="base"
@@ -330,6 +323,7 @@
     </div>
     <div data-message-body class="min-w-0 flex-1 space-y-1">
       {#if !continuous}<div
+          data-message-head
           class="-mb-0.5 flex min-h-5 flex-wrap items-center gap-x-2 text-xs text-muted-foreground"
         >
           <span

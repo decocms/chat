@@ -1260,3 +1260,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/chat-copy-transcript · A copy across messages reads as WhatsApp's
+- Agent: claude-opus-5-5
+- Context: The human said that a copy of many messages brings emoji and pieces of the UI. They asked for a copy like WhatsApp's: the name, the time and the message (#3955).
+- Decision:
+  - When a selection reaches past the text of one message (into a name line, an avatar, or a second message), the chat timeline writes one line for each message that it touches: `[hh:mm, date] name: text`. The text is the message's own text, so agent marks, reactions, badges and buttons stay out. A message with only files gives the file names.
+  - A selection inside the text of one message keeps the browser's copy, so a person can still copy a part of a message.
+  - A message that the selection only touches gives its full text, as in WhatsApp.
+  - The date uses the person's locale. The name is the same as on the message row (`messageAuthor` in `chat/model.ts`, now shared).
+- Other options: Copy only the text, without names and times. Copy only the part of each message that is selected.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open
