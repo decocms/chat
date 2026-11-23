@@ -43,9 +43,11 @@ function mentions(text: string, context: RichContext): RichNode[] {
     if (!who) continue;
     const start = match.index + match[1].length;
     if (start > at) out.push({ kind: "text", text: text.slice(at, start) });
+    // Shown as the person's @handle today (whoever typed @rafael before they became @valls sees @valls).
+    const current = who === "ai" ? null : context.room.handles?.[who];
     out.push({
       kind: "mention",
-      text: `@${match[2]}`,
+      text: `@${current || match[2]}`,
       who,
       mine: who === context.room.me,
     });
