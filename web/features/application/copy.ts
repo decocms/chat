@@ -910,8 +910,7 @@ const EN: Readonly<Record<string, string>> = {
     "Claude connected: new sandboxes start logged in",
   "seu agent no sandbox": "your agent in the sandbox",
   "todos na sala": "everyone in the room",
-  "Nova versão do deco.chat · toque pra atualizar":
-    "New deco.chat version · tap to update",
+  "Nova versão do deco.chat · atualizar": "New deco.chat version · update",
   "Seu agent espera você no terminal":
     "Your agent is waiting for you in the terminal",
   feito: "done",

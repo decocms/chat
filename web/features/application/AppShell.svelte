@@ -13,6 +13,7 @@
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SettingsNav from "../app-navigation/SettingsNav.svelte";
+  import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
@@ -320,7 +321,12 @@
             lang={services.language}
           />{/if}
         <SidebarFoot
-          ><AccountRow me={$personal.me} current={settings} /></SidebarFoot
+          >{#if $personal.updateAvailable}<div class="pb-1">
+              <UpdateRow lang={services.language === "en" ? "en" : "pt"} />
+            </div>{/if}<AccountRow
+            me={$personal.me}
+            current={settings}
+          /></SidebarFoot
         >
       </aside>{/if}
     <div

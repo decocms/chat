@@ -421,10 +421,4 @@
     >
   </aside>{/if}
 
-{#if $personal.updateAvailable}<Button
-    data-view="update"
-    class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 whitespace-normal shadow-lg"
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) onreload();
-    }}>{text("update")}</Button
-  >{/if}
+<!-- A new version waits at the sidebar's foot (UpdateRow), over your account, not over the chat box. -->
