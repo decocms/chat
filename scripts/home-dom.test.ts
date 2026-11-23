@@ -777,29 +777,6 @@ test("real RoomShell uses genuine loading/terminal states and directly renders c
   expect(h.target.querySelector("[data-composer]")).toBe(null);
   expect(h.target.textContent).not.toContain("Canonical visible message");
 });
-// Desktop has no board pane: the board is always full width, behind its toggle.
-test("real RoomShell retains one Board DOM instance across full-board openings", async () => {
-  const h = await actualRoomShell();
-  h.publish(h.canonical);
-  await flush();
-  const toggle = h.target.querySelector<HTMLButtonElement>(
-    "[data-board-toggle]",
-  )!;
-  expect(toggle !== null).toBe(true);
-  toggle.click();
-  await flush();
-  await waitForView(h.target, "[data-board-scope]");
-  const board = h.target.querySelector("[data-board-scope]");
-  expect(board !== null).toBe(true);
-  toggle.click();
-  await flush();
-  h.services.actions.selectPane("doc");
-  await flush();
-  toggle.click();
-  await flush();
-  expect(h.target.querySelectorAll("[data-board-scope]").length).toBe(1);
-  expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
-});
 test("real RoomShell revokes connected outgoing Composer controls before a removed frame reaches the DOM", async () => {
   const h = await actualRoomShell();
   h.publish(h.canonical);

@@ -353,7 +353,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const activePinApp = derived([apps.state, layout.state], ([value, view]) =>
     value.target &&
     view.pane === "apps" &&
-    !view.boardFull &&
     (view.mobile || view.documentVisible)
       ? value.target
       : null,
@@ -709,8 +708,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         changed &&
         snapshot.thread !== "main" &&
         !snapshot.thread.startsWith("pre:") &&
-        !layout.read().documentVisible &&
-        !layout.read().boardFull
+        !layout.read().documentVisible
       ) {
         const tasks =
           value.epics.find((epic) => epic.id === snapshot.thread)?.tasks ?? [];
@@ -804,7 +802,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           waits = me()?.waits ?? [],
           display = get(layout.state);
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
-        chatPresentation.capture(nextKeep, !display.boardFull);
+        chatPresentation.capture(nextKeep, true);
         const revision = ++chatRevision;
         const appProps: import("../apps/types").AppsProps = {
           ask: (prompt) => {
@@ -972,10 +970,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         );
         const mark = agentMark(data ? status : "off", queue);
         const counts = {
-          board: [
-            ...value.epics.flatMap((epic) => epic.tasks),
-            ...(value.roomTasks ?? []),
-          ].filter((task) => !task.done && task.owner === value.me).length,
           files: value.filesN ?? value.files?.length ?? 0,
           apps: apps.connectionCount() + roomApps(value).length,
           decisions: value.decisions?.length ?? 0,
@@ -1162,7 +1156,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);
                 },
-                hidden: display.boardFull,
               },
           suggestion: pre
             ? {
@@ -1201,7 +1194,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
               if (current()) setPane(pane, { open: true, toggle: true });
             },
           },
-          board: panel,
           decisions: panel,
           reminders: panel,
           files: {
@@ -1425,7 +1417,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       const projected = [
         value.pane,
         value.sheet,
-        value.boardFull,
         value.documentVisible,
         value.sidebarCollapsed,
         value.mobile,
@@ -1516,7 +1507,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (!current() || revision !== chatRevision || !chatElement?.isConnected)
         return;
       if (chatSurface) viewport.attach(chatSurface);
-      if (!chatPresentation.rendered(!layout.read().boardFull)) return;
+      if (!chatPresentation.rendered(true)) return;
       const intent = pendingMessage;
       if (intent && intent.navigation === services.router.generation()) {
         pendingMessage = null;

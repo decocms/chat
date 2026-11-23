@@ -91,12 +91,8 @@
   function back(expectedThread: string) {
     const value = get(owner.state);
     if (!current() || !value || value.header.thread !== expectedThread) return;
-    // Phones have no bottom bar (#3738): Back first leaves the full board or the doc sheet, back to the chat.
+    // Phones have no bottom bar (#3738): Back first leaves the doc sheet, back to the chat.
     const state = layout.read();
-    if (state.mobile && state.boardFull) {
-      layout.toggleBoard();
-      return;
-    }
     if (state.mobile && state.sheet === "doc") {
       layout.closeSheet();
       return;
@@ -117,34 +113,6 @@
       back,
     });
   }
-  // The chat back in the middle: the full board gives way.
-  function toChat() {
-    if (!current()) return;
-    if (layout.read().boardFull) layout.toggleBoard();
-  }
-  // Desktop, the sidebar's views (chat, board): each takes the middle.
-  function toggleBoard() {
-    if (!current()) return;
-    layout.toggleBoard();
-  }
-  // Desktop has no board pane any more (the board is always full width): a
-  // remembered "board" pane falls back to the doc.
-  $effect(() => {
-    if (
-      !$geometry.mobile &&
-      !$geometry.boardFull &&
-      $geometry.pane === "board" &&
-      current()
-    )
-      untrack(() => owner.actions.setPane("doc", { quiet: true }));
-  });
-  const boardModule = untrack(() =>
-      createDeferredModule(
-        () => import("../board/Board.svelte").then((module) => module.default),
-        { current },
-      ),
-    ),
-    boardView = boardModule.state;
   const filesModule = untrack(() =>
       createDeferredModule(
         () => import("../files/Files.svelte").then((module) => module.default),
@@ -211,8 +179,7 @@
       ),
     ),
     viewerView = viewerModule.state;
-  const Board = $derived($boardView.component),
-    Files = $derived($filesView.component),
+  const Files = $derived($filesView.component),
     Decisions = $derived($decisionsView.component),
     Reminders = $derived($remindersView.component),
     AppsPanel = $derived($appsView.component),
@@ -220,17 +187,11 @@
     FileViewer = $derived($viewerView.component);
   const viewerState = owner.viewer.state;
   const documentShown = $derived(
-    !$geometry.boardFull &&
-      ($geometry.mobile
-        ? $geometry.sheet === "doc" || $geometry.presentedSheet === "doc"
-        : $geometry.documentVisible),
+    $geometry.mobile
+      ? $geometry.sheet === "doc" || $geometry.presentedSheet === "doc"
+      : $geometry.documentVisible,
   );
-  let boardMounted = $state(false);
   $effect(() => {
-    if ($geometry.boardFull || (documentShown && $geometry.pane === "board")) {
-      boardMounted = true;
-      void boardModule.ensure();
-    }
     if (documentShown) {
       if ($geometry.pane === "files") void filesModule.ensure();
       if ($geometry.pane === "view") void sideModule.ensure();
@@ -251,7 +212,6 @@
   });
   onDestroy(() => {
     active = false;
-    boardModule.dispose();
     filesModule.dispose();
     decisionsModule.dispose();
     remindersModule.dispose();
@@ -294,20 +254,12 @@
   onChatSurface={owner.attachChat}
   onCells={edgeBack}
 >
-  {#snippet sidebar()}{#if $view}<Sidebar
-        {...$view.sidebar}
-        onroomhome={toChat}
-        onboard={$geometry.mobile ? undefined : toggleBoard}
-        boardOpen={!$geometry.mobile && $geometry.boardFull}
-        boardCount={$view.toolbar.counts?.board}
-        hideSheetHandle
-      >
+  {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<PhoneRoomMenu
               {layout}
               {current}
               lang={services.language}
               dm={!!$view.header.room.book.dm}
-              boardCount={$view.toolbar.counts?.board}
               agent={$view.toolbar.agent}
               agentTitle={$view.toolbar.agentTitle}
               onPane={(pane) => {
@@ -352,7 +304,6 @@
         {current}
         {back}
         tabs={$view.toolbar}
-        tochat={toChat}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
@@ -368,13 +319,13 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
-        <div class={$geometry.boardFull ? "hidden" : ""}>
+        <div>
           {#if $view.banners}<AgentBanners
               {...$view.banners}
               agentsOpen={$geometry.pane === "agents" &&
                 ($geometry.mobile
                   ? $geometry.sheet === "doc"
-                  : $geometry.documentVisible && !$geometry.boardFull)}
+                  : $geometry.documentVisible)}
             />{/if}
         </div>
         <div class="px-4"><ThreadFiles {...$view.threadFiles} /></div>
@@ -387,7 +338,7 @@
     {/if}{/snippet}
   {#snippet composer()}{#if $view?.composer}<Composer
         {...$view.composer}
-        hidden={$view.composer.hidden || $geometry.boardFull}
+        hidden={$view.composer.hidden}
       />{/if}{/snippet}
   <!-- Desktop pane tabs live in the room header now (one top bar). -->
   {#snippet documentToolbar()}{/snippet}
@@ -524,17 +475,6 @@
           onjump={(id, thread) => $view?.chat?.actions.navigate(id, thread)}
         />{/if}
     {/if}{/snippet}
-  {#snippet board()}{#if $view && boardMounted}{#if Board}<Board
-          {...$view.board}
-        />{:else}<DeferredViewStatus
-          phase={$boardView.phase}
-          lang={services.language}
-          label={services.language === "en" ? "Board" : "Quadro"}
-          retry={() => {
-            void boardModule.retry();
-          }}
-          {current}
-        />{/if}{/if}{/snippet}
 </RoomLayout>
 {#if $view}{#if FileViewer}<FileViewer
       {...$view.viewer}

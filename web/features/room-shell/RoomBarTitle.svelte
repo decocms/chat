@@ -19,35 +19,28 @@
     thread,
     owner,
     vb,
-    view = null,
     quietLabel = true,
   }: {
     room: Room;
     thread: string;
     owner: RoomMutations;
     vb: SidebarBridge;
-    /** A full view in the middle instead of the chat. */
-    view?: "board" | null;
     /** Show "Sala principal" in a room's main thread; the header leaves it out when its search stands there. */
     quietLabel?: boolean;
   } = $props();
   const t = $derived(vb.t);
   const peer = $derived(dmPeer(room));
-  const epic = $derived(
-    view ? undefined : room.epics.find((item) => item.id === thread),
-  );
-  const suggestion = $derived(view ? undefined : suggestionAt(room, thread));
+  const epic = $derived(room.epics.find((item) => item.id === thread));
+  const suggestion = $derived(suggestionAt(room, thread));
   // A DM's own conversation is the person; a room's main thread (or a thread
   // that is gone) is a quiet label, not a second copy of the room's name.
-  const person = $derived(!view && !epic && !suggestion ? peer : null);
+  const person = $derived(!epic && !suggestion ? peer : null);
   const title = $derived(
-    view === "board"
-      ? t("Quadro de tarefas")
-      : person
-        ? room.book.title
-        : (threadTitle(room, thread) ?? t("Sala principal")),
+    person
+      ? room.book.title
+      : (threadTitle(room, thread) ?? t("Sala principal")),
   );
-  const quiet = $derived(!view && !epic && !suggestion && !person);
+  const quiet = $derived(!epic && !suggestion && !person);
   // The face beside the title: the epic's owner, or the DM's person.
   const face = $derived((epic ? epic.owner : person) ?? undefined);
 </script>

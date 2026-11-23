@@ -24,27 +24,22 @@
     header,
     layout,
     current,
-    boardCount,
     appNavigation,
     back,
     tabs,
     onPane,
-    tochat,
     viewControls,
   }: {
     presentation: ApplicationRoomPresentation;
     header: ThreadHeaderProps;
     layout: RoomLayoutController;
     current(): boolean;
-    boardCount?: number | string;
     /** Search and your settings: on a phone the rail is hidden, so the header carries them. */
     appNavigation?: SidebarProps["appNavigation"];
     back(expectedThread: string): void;
     /** Desktop: the pane tabs live in this bar (one top bar, the split below it). */
     tabs?: ComponentProps<typeof DocumentToolbar>;
     onPane?(pane: DocumentPane): void;
-    /** Back to the chat: closes the full board. */
-    tochat?(): void;
     /** Desktop: the controls of the view in the middle, before the pane's tabs,
      * after a vertical divider. See docs/design.md (Top bar). */
     viewControls?: Snippet;
@@ -72,7 +67,6 @@
   // the epic or the view, and the search stays at the end.
   const searchInTitle = $derived(
     !header.room.book.dm &&
-      !$geometry.boardFull &&
       threadTitle(header.room, header.thread) === undefined,
   );
   const searchLabel = $derived(
@@ -105,12 +99,9 @@
   const mac =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  // Desktop, two slots: the middle is the chat or the full board;
-  // the right pane (doc, files, apps, decisions, reminders) shows only beside
+  // Desktop: the right pane (doc, files, apps, decisions, reminders) beside
   // the chat. The pane open beside the chat: its tab shows selected.
-  const split = $derived(
-    !$geometry.mobile && !$geometry.boardFull && $geometry.documentVisible,
-  );
+  const split = $derived(!$geometry.mobile && $geometry.documentVisible);
   // A tab brings the chat back, then opens that pane, or closes it when it's
   // the one already open (this replaced the pane toggle button).
   /** The open pane's tab is a toggle: a second click closes the pane, the Doc too (Gimenes #3900). */
@@ -123,7 +114,6 @@
       closePane();
       return;
     }
-    tochat?.();
     if (!layout.read().documentVisible) layout.toggleDocument();
     onPane?.(pane);
   }
@@ -132,28 +122,12 @@
     if (!current()) return;
     roomSearchQuery.set(value);
     if (value.trim() && !(split && layout.read().pane === "search")) {
-      tochat?.();
       if (!layout.read().documentVisible) layout.toggleDocument();
       onPane?.("search");
     }
   }
-  const editable = (target: EventTarget | null) =>
-    target instanceof HTMLElement &&
-    !!target.closest("input, textarea, select, [contenteditable=true]");
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.defaultPrevented || !current()) return;
-    // Esc leaves the full board for the chat.
-    if (
-      event.key === "Escape" &&
-      !layout.read().mobile &&
-      layout.read().boardFull &&
-      !editable(event.target) &&
-      !document.querySelector("[data-dialog-content], [role=dialog]")
-    ) {
-      event.preventDefault();
-      layout.toggleBoard();
-      return;
-    }
     if (!isPanelToggleKey(event, mac)) return;
     event.preventDefault();
     if (split) closePane();
@@ -270,7 +244,6 @@
         thread={header.thread}
         owner={header.owner}
         vb={header.vb}
-        view={$geometry.boardFull ? "board" : null}
         quietLabel={!searchInTitle}
       />
     </div>
@@ -293,8 +266,8 @@
           {...tabs}
           bare
           exclude={header.room.book.dm
-            ? ["agents", "board", "doc", "people", "search"]
-            : ["agents", "board", "search"]}
+            ? ["agents", "doc", "people", "search"]
+            : ["agents", "search"]}
           pane={split ? tabs.pane : ("" as DocumentPane)}
           onPane={pickPane}
         />

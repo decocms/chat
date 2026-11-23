@@ -9,9 +9,9 @@ export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 export function hasSheetSurface(
   sheet: "side" | "doc",
-  state: { documentVisible: boolean; boardFull: boolean },
+  state: { documentVisible: boolean },
 ) {
-  return sheet === "side" || (state.documentVisible && !state.boardFull);
+  return sheet === "side" || state.documentVisible;
 }
 export function documentMaximum(containerWidth: number, collapsed: boolean) {
   return Math.max(

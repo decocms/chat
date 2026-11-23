@@ -71,7 +71,6 @@ export async function openRoomPane(
   const layout = page.locator("[data-room-layout]");
   const content: Record<Exclude<DocumentPane, "view">, string> = {
     doc: "[data-document]",
-    board: "[data-board-scope]",
     files: '[data-view="files"]',
     apps: "[data-apps]",
     agents: "[data-agents]",
@@ -81,11 +80,9 @@ export async function openRoomPane(
     search: "[data-room-search]",
   };
   await expect(layout).toBeVisible();
-  const full = page.locator("[data-board-toggle]");
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
     // Phones: no bottom bar (#3738). The title opens a menu whose shortcuts
-    // (Doc, Board, Files, Agents) own the board and open the doc sheet; Back
-    // leaves the board. The header's board toggle is desktop only.
+    // (Doc, Files, Agents) open the doc sheet.
     const shortcut = async (tab: string) => {
       if ((await layout.getAttribute("data-sheet")) !== "side")
         await page.locator("[data-room-bar] [data-phone-title]").click();
@@ -95,17 +92,6 @@ export async function openRoomPane(
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
     );
-    if (pane === "board") {
-      if ((await layout.getAttribute("data-board-full")) !== "true")
-        await shortcut("board");
-      await expect(layout).toHaveAttribute("data-board-full", "true");
-      await expect(page.locator(content.board)).toBeVisible();
-      return;
-    }
-    if ((await layout.getAttribute("data-board-full")) === "true") {
-      await page.locator("[data-room-bar] [data-phone-back]").click();
-      await expect(layout).not.toHaveAttribute("data-board-full", "true");
-    }
     // The peek tabs show only while the doc sheet is open (#80), and only the
     // panes of the shortcut it was opened from: Doc + Decisions, Files + Apps,
     // Agents + Reminders. Use the shortcut first when the pane is elsewhere.
@@ -126,16 +112,6 @@ export async function openRoomPane(
     if ((await layout.getAttribute("data-pane")) !== pane) await button.click();
     await expect(layout).toHaveAttribute("data-sheet", "doc");
   } else {
-    // Desktop: the board is always full width, behind its toggle (no pane tab).
-    if (pane === "board") {
-      if ((await full.getAttribute("aria-pressed")) !== "true")
-        await full.click();
-      await expect(layout).toHaveAttribute("data-board-full", "true");
-      await expect(page.locator(content.board)).toBeVisible();
-      return;
-    }
-    if ((await full.getAttribute("aria-pressed")) === "true")
-      await full.click();
     // The tabs live in the room's top bar and open the pane when it's closed;
     // your Claude (the Agents pane) opens from its row at the foot of the
     // sidebar. With no agent the foot has only setup options (the cloud one

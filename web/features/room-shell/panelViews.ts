@@ -11,11 +11,11 @@ export function isPanelToggleKey(event: KeyboardEvent, mac: boolean) {
 }
 
 /** The phone room's places: the chat and the shortcuts of the title menu (PhoneRoomMenu) over the room's panes. */
-export type PhoneTab = "chat" | "doc" | "board" | "files" | "claude";
+export type PhoneTab = "chat" | "doc" | "files" | "claude";
 
 /** The panes each phone tab holds; the doc sheet's tab row shows only these. */
 export const phoneTabPanes: Record<
-  Exclude<PhoneTab, "chat" | "board">,
+  Exclude<PhoneTab, "chat">,
   readonly DocumentPane[]
 > = {
   doc: ["doc", "decisions"],
@@ -23,9 +23,8 @@ export const phoneTabPanes: Record<
   claude: ["agents", "reminders"],
 };
 
-/** Which tab a pane belongs to (the board is its own full-screen tab). */
+/** Which tab a pane belongs to. */
 export function phoneTabOf(pane: DocumentPane): PhoneTab {
-  if (pane === "board") return "board";
   for (const tab of ["doc", "files", "claude"] as const)
     if (phoneTabPanes[tab].includes(pane)) return tab;
   return "doc";
@@ -33,11 +32,9 @@ export function phoneTabOf(pane: DocumentPane): PhoneTab {
 
 /** The tab shown as selected for a phone layout state. */
 export function phoneTab(state: {
-  boardFull: boolean;
   sheet: "side" | "doc" | null;
   pane: DocumentPane;
 }): PhoneTab {
-  if (state.boardFull) return "board";
   if (state.sheet === "doc") return phoneTabOf(state.pane);
   return "chat";
 }

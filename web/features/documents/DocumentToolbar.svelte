@@ -6,7 +6,6 @@
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
-  import Count from "../../lib/components/Count.svelte";
   import { paneIcons, paneLabel } from "./paneIcons";
   import AgentMark from "../agents/AgentMark.svelte";
   import type { AgentMarkView } from "../agents/model";
@@ -54,7 +53,6 @@
     ...(
       [
         "doc",
-        "board",
         "files",
         "apps",
         "decisions",
@@ -93,10 +91,7 @@
   const items = $derived(
     only
       ? only.flatMap((id) => allItems.filter((item) => item.id === id))
-      : allItems.filter(
-          (item) =>
-            (!compact || item.id !== "board") && !exclude?.includes(item.id),
-        ),
+      : allItems.filter((item) => !exclude?.includes(item.id)),
   );
   function choose(event: MouseEvent, id: DocumentPane) {
     event.stopPropagation();
@@ -199,13 +194,7 @@
                   size={16}
                 />{/if}{#if labelled}<span class="max-w-40 truncate"
                   >{item.label}</span
-                >{/if}{#if item.id === "agents"}{:else if item.id === "board" && typeof count === "number" && count}<Count
-                  value={count}
-                  label={en
-                    ? `Waiting on you: ${count}`
-                    : `Esperando você: ${count}`}
-                  class={bare ? corner : undefined}
-                />{:else if count && (item.id === "reminders" || item.id === "doc")}<span
+                >{/if}{#if item.id === "agents"}{:else if count && (item.id === "reminders" || item.id === "doc")}<span
                   class={cn(
                     "min-w-[1.125rem] rounded-full bg-muted px-1 text-center text-xs leading-[1.125rem] text-muted-foreground tabular-nums",
                     // Same pill as the inbox's count; gray (lime is only for what waits on you).

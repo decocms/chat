@@ -97,7 +97,7 @@
   <div
     class="contents md:grid md:min-h-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:grid-rows-[52px_minmax(0,1fr)] md:overflow-hidden md:rounded-surface md:bg-background md:shadow-edge"
   >
-    <!-- Sidebar: the room's name, the main thread, epics, Pinned, People, then
+    <!-- Sidebar: the room's name (the main thread), epics, Pinned, People, then
        your Claude and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
@@ -106,38 +106,13 @@
       {#if dm}<div class="flex min-h-0 flex-col pt-2">
           <DmNav controller={services.navigation} lang={services.language} />
         </div>{:else}<div class="flex flex-col gap-3">
-          <!-- The room's name row (SidebarHeader) as it will land. -->
+          <!-- The room's name row (SidebarHeader) as it will land, then the epic list's tabs (EpicTree). -->
           <div
             class="-mx-2 flex h-[52px] shrink-0 items-center gap-2 border-b border-border pr-2 pl-4 font-semibold"
           >
             {@render mark("size-6")}
             {#if title}<span class="min-w-0 flex-1 truncate">{title}</span
               >{:else}{@render line("w-32")}{/if}
-          </div>
-          <div
-            class={[
-              "flex h-9 min-w-0 items-center gap-2 rounded-lg px-2 font-medium",
-              thread === "main" && "bg-sidebar-accent",
-            ]}
-          >
-            <Icon
-              icon="message-circle-01"
-              size={16}
-              class="shrink-0 text-muted-foreground"
-            />
-            <span class="min-w-0 flex-1 truncate">{t("Sala principal")}</span>
-          </div>
-          <!-- The task board's row, then the epic list's tabs (EpicTree), as they will land. -->
-          <div
-            class="-mt-2 flex h-9 min-w-0 items-center gap-2 rounded-lg px-2"
-          >
-            <Icon
-              icon="layout-alt-01"
-              size={16}
-              class="shrink-0 text-muted-foreground"
-            />
-            <span class="min-w-0 flex-1 truncate">{t("Quadro de tarefas")}</span
-            >
           </div>
           <div
             class="grid grid-cols-3 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"

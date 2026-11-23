@@ -92,7 +92,6 @@ export async function roomScopeFixture(
   const state = writable<RoomLayoutState>({
     pane: "doc",
     sheet: null,
-    boardFull: false,
     documentVisible: false,
     sidebarCollapsed: false,
     mobile: false,
@@ -119,7 +118,6 @@ export async function roomScopeFixture(
       })),
     revealDocument: () =>
       state.update((before) => ({ ...before, documentVisible: true })),
-    toggleBoard() {},
     toggleSidebar() {},
     openSheet() {},
     closeSheet() {},

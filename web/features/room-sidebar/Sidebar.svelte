@@ -21,7 +21,6 @@
   import AgentPresenceRows from "./AgentPresenceRows.svelte";
   import MutationStatus from "./MutationStatus.svelte";
   import { createRoomMutations } from "./session";
-  import { messageCount } from "./model";
   import { dmPeer } from "../room-scope/model";
   import type { SidebarProps } from "../../app/sidebar";
   let {
@@ -47,10 +46,6 @@
     ontogglerail = () => {},
     onrenameroom = () => {},
     onopenside = () => {},
-    onboard,
-    boardOpen = false,
-    boardCount,
-    onroomhome,
     mountSheetHandle,
     hideSheetHandle = false,
     phoneMenu,
@@ -96,11 +91,8 @@
   function open(id: string) {
     if (active) onopen(id);
   }
-  // The room's name and the main thread's row: the main thread is also the
-  // chat view, so it leaves the full board.
+  // The room's name (desktop) and the room's row (phones) open the main thread.
   function openMain() {
-    if (!active) return;
-    if (boardOpen) onroomhome?.();
     open("main");
   }
   function sheetHandle(node: HTMLElement) {
@@ -137,17 +129,6 @@
       tooltipSide="right"
       size="icon"><Icon icon="arrow-left" /></IconButton
     >
-    {#if onboard}<IconButton
-        data-board-toggle
-        variant={boardOpen ? "secondary" : "ghost"}
-        aria-pressed={boardOpen}
-        label={vb.t("Quadro de tarefas (kanban)")}
-        tooltipSide="right"
-        size="icon"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) onboard?.();
-        }}><Icon icon="layout-alt-01" /></IconButton
-      >{/if}
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
@@ -232,12 +213,13 @@
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
         <div class="flex shrink-0 flex-col gap-3 max-md:min-h-0 max-md:shrink">
-          <!-- Desktop: the room's name on top (phones have it on the main thread's row); ✎ on hover. -->
-          <SidebarHeader class="group/name max-md:hidden md:pl-4"
+          <!-- Desktop: the room's name on top is the main thread (Gimenes #3989): selected there, with what waits on you; ✎ on hover. Phones have the room's row below. -->
+          <SidebarHeader class="group/name max-md:hidden"
             ><button
               type="button"
               data-room-home
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent p-0 text-left font-sans text-sidebar-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-current={thread === "main" ? "page" : undefined}
+              class="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left font-sans text-sidebar-foreground outline-none transition-colors duration-150 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-sidebar-accent motion-reduce:transition-none"
               title={room.book.summary
                 ? `${room.book.title}\n${room.book.summary}`
                 : room.book.title}
@@ -249,6 +231,10 @@
               <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold">
                 {room.book.title}
               </h2>
+              <WaitBadge
+                waits={vb.waitsIn("main")}
+                label={(n) => vb.t("{n} coisas esperando você", { n })}
+              />
             </button>
             <IconButton
               label={vb.t("Editar sala")}
@@ -265,11 +251,12 @@
           ? "mt-1 ml-4 flex min-h-0 flex-col gap-3 border-l border-sidebar-border pl-2"
           : "contents"}
       >
-        <div class="group/room relative shrink-0">
+        <!-- Phones and DMs: the room's (or the conversation's) own row. On a desktop room the name above is the main thread. -->
+        <div class={cn("group/room relative shrink-0", !dm && "md:hidden")}>
           <button
             type="button"
             data-room-title
-            aria-current={!boardOpen && thread === "main" ? "page" : undefined}
+            aria-current={thread === "main" ? "page" : undefined}
             class={navRow({
               class:
                 "transition-[background-color,padding] duration-150 ease-out group-hover/room:pr-9 group-focus-within/room:pr-9 md:group-hover/room:pr-2 md:group-focus-within/room:pr-2 motion-reduce:transition-none [@media(hover:none)]:pr-9",
@@ -278,34 +265,18 @@
               if (event.currentTarget.isConnected) openMain();
             }}
           >
-            <!-- Phones: the room's own row. Desktop: the main thread, under the room's name. -->
             {#if dm}<Icon
                 icon="message-circle-01"
                 size={16}
                 class="shrink-0 text-muted-foreground"
               /><span class="min-w-0 flex-1 truncate">{vb.t("Conversa")}</span
-              >{:else}<RoomMark
-                title={room.book.title}
-                src={roomIcon}
-                class="md:hidden"
-              /><Icon
-                icon="message-circle-01"
-                size={16}
-                class="hidden shrink-0 text-muted-foreground md:block"
-              />
-              <span class="min-w-0 flex-1 truncate"
-                ><span class="md:hidden">{room.book.title}</span><span
-                  class="hidden md:inline">{vb.t("Sala principal")}</span
-                ></span
+              >{:else}<RoomMark title={room.book.title} src={roomIcon} />
+              <span class="min-w-0 flex-1 truncate">{room.book.title}</span
               >{/if}
             <WaitBadge
               waits={vb.waitsIn("main")}
               label={(n) => vb.t("{n} coisas esperando você", { n })}
             />
-            <span
-              class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
-              >{messageCount(room, "main")}</span
-            >
           </button>
           <IconButton
             label={vb.t("Editar sala")}
@@ -315,28 +286,6 @@
             onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
           >
         </div>
-        {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
-          <div data-room-views class="-mt-2.5 flex shrink-0 flex-col gap-0.5">
-            <button
-              type="button"
-              data-board-toggle
-              aria-pressed={boardOpen}
-              class={navRow()}
-              onclick={(event) => {
-                if (event.currentTarget.isConnected) onboard?.();
-              }}
-              ><Icon
-                icon="layout-alt-01"
-                size={16}
-                class="shrink-0 text-muted-foreground"
-              /><span class="min-w-0 flex-1 truncate"
-                >{vb.t("Quadro de tarefas")}</span
-              >{#if typeof boardCount === "number" && boardCount}<Count
-                  value={boardCount}
-                  label={vb.t("Esperando você: {n}", { n: boardCount })}
-                />{/if}</button
-            >
-          </div>{/if}
         {#if thread !== "main" && !thread.startsWith("pre:")}<div
             class="shrink-0 md:hidden"
           >

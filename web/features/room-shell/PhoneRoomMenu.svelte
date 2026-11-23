@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import Count from "../../lib/components/Count.svelte";
   import { cn } from "../../lib/studio/utils";
   import { paneIcons, paneLabel } from "../documents/paneIcons";
   import AgentMark from "../agents/AgentMark.svelte";
@@ -10,18 +9,17 @@
   import type { RoomLayoutController } from "../room-layout/types";
   import { phoneTab, phoneTabPanes, type PhoneTab } from "./panelViews";
   /**
-   * The top of the phone's title menu: the room's shortcuts (Doc, Board,
-   * Files, Agents, Search). The bottom of a phone room is the composer's alone
+   * The top of the phone's title menu: the room's shortcuts (Doc, Files,
+   * Agents, Search). The bottom of a phone room is the composer's alone
    * (Gimenes #3738), so these left the bottom bar. A shortcut closes the menu,
    * then opens its panes in the doc sheet (Doc and Decisions, Files and Apps,
-   * Agents and Reminders), the full-screen board, or the search.
+   * Agents and Reminders), or the search.
    */
   let {
     layout,
     current,
     lang,
     dm = false,
-    boardCount,
     agent = { state: "off", count: 0, on: false },
     agentTitle = "Claude",
     onPane,
@@ -32,7 +30,6 @@
     lang: string;
     /** A DM has no doc, board or agents: only its files and the search. */
     dm?: boolean;
-    boardCount?: number | string;
     /** The ✻ (`agentMark`), drawn as the Agents shortcut's icon. */
     agent?: AgentMarkView;
     agentTitle?: string;
@@ -61,11 +58,6 @@
     [
       { id: "doc" as const, label: "Doc", icon: paneIcons.doc },
       {
-        id: "board" as const,
-        label: en ? "Board" : "Quadro",
-        icon: paneIcons.board,
-      },
-      {
         id: "files" as const,
         label: en ? "Files" : "Arquivos",
         icon: paneIcons.files,
@@ -92,12 +84,6 @@
       onsearch?.(trigger);
       return;
     }
-    if (id === "board") {
-      if (state.sheet === "side") layout.closeSheet();
-      if (!state.boardFull) layout.toggleBoard();
-      return;
-    }
-    if (state.boardFull) layout.toggleBoard();
     // The pane opens the doc sheet in the side sheet's own history entry: one
     // swap (the side slides out while the doc slides in), with no Back to wait for.
     onPane(phoneTabPanes[id].includes(state.pane) ? state.pane : last[id]);
@@ -109,7 +95,7 @@
   aria-label={en ? "Room" : "Sala"}
   class={cn(
     "grid gap-1 px-2 pt-1 font-sans",
-    dm ? "grid-cols-2" : "grid-cols-5",
+    dm ? "grid-cols-2" : "grid-cols-4",
   )}
 >
   {#each shortcuts as shortcut (shortcut.id)}
@@ -127,14 +113,7 @@
             on={agent.on}
             size={20}
           />{:else}<Icon icon={shortcut.icon} size={20} />{/if}</span
-      ><span class="max-w-full truncate">{shortcut.label}</span
-      >{#if shortcut.id === "board" && typeof boardCount === "number" && boardCount}<Count
-          value={boardCount}
-          label={en
-            ? `Waiting on you: ${boardCount}`
-            : `Esperando você: ${boardCount}`}
-          class="absolute top-0 left-[calc(50%+0.875rem)] shadow-[0_0_0_2px_var(--vb-sidebar)]"
-        />{/if}</button
+      ><span class="max-w-full truncate">{shortcut.label}</span></button
     >
   {/each}
 </nav>

@@ -500,8 +500,6 @@ const EN: Readonly<Record<string, string>> = {
   "Ir pro seu agent desta sala no herdr":
     "Go to your agent for this room in herdr",
   "Ir pro seu agent no herdr": "Go to your agent in herdr",
-  "Quadro de tarefas (kanban)": "Task board (kanban)",
-  Quadro: "Board",
   "mostrar/ocultar documento": "show/hide doc",
   "Esperando você: {n}": "Waiting on you: {n}",
   Mencionar: "Mention",
@@ -913,7 +911,6 @@ const EN: Readonly<Record<string, string>> = {
     "Claude connected: new sandboxes start logged in",
   "seu agent no sandbox": "your agent in the sandbox",
   "todos na sala": "everyone in the room",
-  "Quadro de tarefas": "Task board",
   "Nova versão do deco.chat · toque pra atualizar":
     "New deco.chat version · tap to update",
   "Seu agent espera você no terminal":

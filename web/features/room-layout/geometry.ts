@@ -56,11 +56,7 @@ export function createRoomGeometry(options: {
       ? ("vb-room-document-width-rail" as const)
       : ("vb-room-document-width" as const);
   const sheetElement = (sheet: RoomSheet) =>
-    sheet === "side"
-      ? cells.sidebar
-      : options.read().pane === "board"
-        ? cells.board
-        : cells.document;
+    sheet === "side" ? cells.sidebar : cells.document;
   const viewport = createRoomPlayback(
       cells.viewport,
       () => "vb-room-viewport",
@@ -68,20 +64,10 @@ export function createRoomGeometry(options: {
     ),
     scrim = createRoomPlayback(cells.scrim, () => "vb-room-scrim", issue);
   const side = createRoomPlayback(cells.sidebar, () => "vb-room-sheet", issue),
-    doc = createRoomPlayback(cells.document, () => "vb-room-pane", issue),
-    board = createRoomPlayback(cells.board, () => "vb-room-pane", issue);
-  const docWidth = createRoomPlayback(cells.document, widthName, issue),
-    boardWidth = createRoomPlayback(cells.board, widthName, issue);
+    doc = createRoomPlayback(cells.document, () => "vb-room-pane", issue);
+  const docWidth = createRoomPlayback(cells.document, widthName, issue);
   const extraWidths = new Map<HTMLElement, RoomPlayback>();
-  const all: RoomPlayback[] = [
-    viewport,
-    scrim,
-    side,
-    doc,
-    board,
-    docWidth,
-    boardWidth,
-  ];
+  const all: RoomPlayback[] = [viewport, scrim, side, doc, docWidth];
   let drag: {
     id: number;
     handle: HTMLElement;
@@ -102,8 +88,7 @@ export function createRoomGeometry(options: {
     width: number;
   } | null = null;
   const stops = new Set<() => void>();
-  const sheetPlayback = (sheet: RoomSheet) =>
-    sheet === "side" ? side : options.read().pane === "board" ? board : doc;
+  const sheetPlayback = (sheet: RoomSheet) => (sheet === "side" ? side : doc);
   const cancelMotion = () => {
     motionRevision++;
     if (motion !== null) win.cancelAnimationFrame(motion);
@@ -303,22 +288,9 @@ export function createRoomGeometry(options: {
         )
       : available;
     viewport.set(available > 0 ? visible / available : 1);
-    if (value.mobile) {
-      docWidth.suspend();
-      boardWidth.suspend();
-    } else if (
-      value.documentVisible &&
-      !(value.boardFull && value.pane === "board")
-    ) {
-      const activeWidth = value.pane === "board" ? boardWidth : docWidth;
-      (value.pane === "board" ? docWidth : boardWidth).suspend();
-      activeWidth.set(
-        documentProgress(width, rootWidth, value.sidebarCollapsed),
-      );
-    } else {
-      docWidth.suspend();
-      boardWidth.suspend();
-    }
+    if (!value.mobile && value.documentVisible)
+      docWidth.set(documentProgress(width, rootWidth, value.sidebarCollapsed));
+    else docWidth.suspend();
     if (value.mobile && win.scrollY) win.scrollTo(0, 0);
     for (const [node, player] of extraWidths) {
       if (value.mobile || !node.isConnected) player.suspend();
@@ -328,14 +300,13 @@ export function createRoomGeometry(options: {
   }
   function sync(value: RoomLayoutState) {
     if (!current()) return;
-    // Full Board replaces the document cell. There is no stylesheet-created
-    // sheet animation on that hidden/full-width target to finish seeking.
+    // A sheet with no surface any more (the doc closed) has no animation to
+    // finish seeking.
     if (shown && !hasSheetSurface(shown, value)) {
       cancelMotion();
       stopLeaving();
       releaseDrag();
       doc.suspend();
-      board.suspend();
       scrim.suspend();
       positions.doc = 0;
       lastSheet = null;
@@ -360,7 +331,6 @@ export function createRoomGeometry(options: {
       releaseResize();
       side.suspend();
       doc.suspend();
-      board.suspend();
       scrim.suspend();
       if (shown) present(null);
       positions.doc = positions.side = 0;
@@ -463,12 +433,7 @@ export function createRoomGeometry(options: {
         )
           return;
         const value = options.read();
-        if (
-          opening
-            ? value.sheet !== null || value.boardFull
-            : value.sheet !== sheet
-        )
-          return;
+        if (opening ? value.sheet !== null : value.sheet !== sheet) return;
         // A closing handle is inside its sheet, or is the backdrop under the
         // title menu: a swipe up on the glass slides the menu away (#3786).
         if (
@@ -530,8 +495,7 @@ export function createRoomGeometry(options: {
         current() &&
         node.isConnected &&
         !media.matches &&
-        options.read().documentVisible &&
-        !(options.read().boardFull && options.read().pane === "board");
+        options.read().documentVisible;
       const down = (event: PointerEvent) => {
         if (
           !allowed() ||

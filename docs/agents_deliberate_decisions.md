@@ -1314,3 +1314,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/no-task-board · The task board leaves the product; the room's name is the main thread
+- Agent: claude-opus-5-5
+- Context: Gimenes #3989 (items 1 and 2): remove the task board from the sidebar and the product. Move the main thread's button up to the room's name, and remove the room's message count. Simplify the data fetching if possible.
+- Decision:
+  - The board, its full-width mode in the room layout (`boardFull`, `toggleBoard`, the board cell) and its "board" pane are gone. Its entry points are gone too: the sidebar row, the collapsed rail button, the phone menu shortcut and the count.
+  - The tasks stay. They show in the doc of their epic (or of the room), as before.
+  - On a desktop, the room's name at the top of the sidebar is the main thread. It is selected there and shows what waits on you. The "Sala principal" row is only on phones (with the room's name) and in DMs.
+  - I kept the server's per-thread message counts (`counts`). The reply count on the thread cards in the chat still uses them. Only the sidebar's use is gone.
+- Other options: Hide the board only and keep its code for later. Keep the "Sala principal" row under the name.
+- Risk: medium. It removes a view. Tasks of the main thread show only in the room's doc.
+- Undo: Revert this commit.
+- Status: open

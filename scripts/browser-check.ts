@@ -202,31 +202,12 @@ try {
   await expect(b.locator("[data-pins]")).toContainText("verification.txt", {
     timeout: 90_000,
   });
-  await openRoomPane(a, "board");
-  const board = a.getByRole("region", { name: "Task board", exact: true });
-  const card = board.locator(`[data-board-task="${taskId}"]`);
-  await expect(card).toBeVisible();
-  const openCard = card.locator("[data-board-open]");
-  await openCard.focus();
-  await openCard.press("ArrowRight");
-  await expect(card).toHaveAttribute("data-status", "doing", {
-    timeout: 90_000,
-  });
-  await board.getByRole("tab", { name: "List", exact: true }).click();
-  await expect(
-    board.getByRole("tab", { name: "List", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(
-    board
-      .locator(`[data-board-task="${taskId}"]`)
-      .filter({ hasText: "Check two-session updates" }),
-  ).toHaveCount(1);
   await openRoomPane(a, "doc");
   await a.locator("#inboxBtn").click();
   const inbox = a.getByRole("dialog", { name: "Inbox", exact: true });
   await expect(inbox).toBeVisible();
   await inbox.getByRole("button", { name: "Close", exact: true }).click();
-  console.log("PASS files/pins, board keyboard/list and Inbox");
+  console.log("PASS files/pins and Inbox");
   await a.screenshot({ path: `${output}/desktop-after.png`, fullPage: true });
   await b.screenshot({ path: `${output}/mobile-after.png`, fullPage: true });
   // Both CodeMirror instances edit the same Yjs document; the backend mirrors it to Book.

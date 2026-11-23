@@ -91,7 +91,6 @@ export function createRoomLayout(
     // A DM has no People pane: it always starts on the doc.
     pane: options.documentHidden ? "doc" : restingPane(browser.storage),
     sheet: null,
-    boardFull: false,
     // Desktop: the pane opens as you last left it (closed stays closed when you come back). A DM starts closed.
     documentVisible:
       !options.documentHidden && !documentClosedBefore(browser.storage),
@@ -165,7 +164,6 @@ export function createRoomLayout(
     geometry?.dispose();
     geometry = null;
   };
-  let paneBeforeBoard = true;
   const controller: RoomLayoutController = {
     state,
     read: () => value,
@@ -187,8 +185,6 @@ export function createRoomLayout(
           value.mobile &&
           value.sheet === "doc" &&
           value.pane === next;
-        if (next === "board" || (value.mobile && flags.open))
-          publish({ boardFull: false });
         pane(next);
         if (value.mobile && flags.open) {
           if (toggle) history.close();
@@ -196,25 +192,12 @@ export function createRoomLayout(
         }
       });
     },
-    toggleBoard() {
-      intent(() => {
-        const boardFull = !value.boardFull;
-        // Leaving the board brings the pane back as it was (open or closed).
-        if (boardFull) paneBeforeBoard = value.documentVisible;
-        publish({
-          boardFull,
-          documentVisible: boardFull ? false : paneBeforeBoard,
-        });
-        if (boardFull) history.close();
-        geometry?.sync(value);
-      });
-    },
     toggleDocument() {
       intent(() => {
         if (value.mobile) {
           if (value.sheet === "doc") history.close();
           else {
-            publish({ documentVisible: true, boardFull: false });
+            publish({ documentVisible: true });
             history.open("doc");
           }
         } else {
@@ -245,8 +228,7 @@ export function createRoomLayout(
     openSheet(which) {
       intent(() => {
         if (value.mobile && value.sheet !== which) {
-          if (which === "doc")
-            publish({ documentVisible: true, boardFull: false });
+          if (which === "doc") publish({ documentVisible: true });
           history.open(which);
         }
       });
@@ -338,13 +320,7 @@ export function createRoomLayout(
           if (!current() || value.mobile === mobile) return;
           const wasMobile = value.mobile;
           publish({ mobile });
-          if (!mobile && wasMobile) {
-            history.beforeNavigation();
-            if (value.boardFull) {
-              publish({ boardFull: false });
-              pane("board");
-            }
-          }
+          if (!mobile && wasMobile) history.beforeNavigation();
         },
       });
       for (const [node, entry] of handles)
