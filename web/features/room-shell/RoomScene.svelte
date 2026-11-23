@@ -24,6 +24,7 @@
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import AgentFoot from "../agents/AgentFoot.svelte";
+  import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -292,7 +293,11 @@
                   queue={$view.trigger.queue}
                   ago={$view.sidebar.vb.ago}
                 />{/if}
-            </div>{:else}{@render rows?.()}{/if}{#if $personal.me && !collapsed}<AccountRow
+            </div>{:else}{@render rows?.()}{/if}{#if $personal.updateAvailable && !collapsed}<div
+              class="px-2 pb-1"
+            >
+              <UpdateRow lang={services.language === "en" ? "en" : "pt"} />
+            </div>{/if}{#if $personal.me && !collapsed}<AccountRow
               me={$personal.me}
             />{/if}{/snippet}
       </Sidebar>{/if}{/snippet}

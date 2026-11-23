@@ -293,18 +293,6 @@
     </SortableList>
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
-    <!-- A new version waits here, at the rail's foot, instead of over the chat box: you load it when you want. -->
-    {#if $personal.updateAvailable}<RailButton
-        data-view="update"
-        label={text("update")}
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) onreload();
-        }}
-        ><span
-          class="flex size-9 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm transition-transform duration-150 hover:scale-105 active:scale-95 motion-reduce:transition-none"
-          ><Icon icon="refresh-cw-01" class="size-4" /></span
-        ></RailButton
-      >{/if}
     <RailButton
       icon="search-md"
       label={text("search")}
@@ -415,3 +403,5 @@
       }}><Icon icon="x" /></IconButton
     >
   </aside>{/if}
+
+<!-- A new version waits at the sidebar's foot (UpdateRow), over your account, not over the chat box. -->
