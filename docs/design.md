@@ -22,10 +22,10 @@ A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox
 
 The top bar has one row on desktop. Its parts are in this order:
 
-1. The name of the view (`RoomBarTitle`): "Sala principal", the epic's title, "Quadro de tarefas".
+1. The name of the view (`RoomBarTitle`): the epic's title, "Quadro de tarefas". In a room's main thread, the room's search field is here in place of the name.
 2. The controls of the view.
 3. A vertical `Separator`.
-4. The room's search field ("Buscar nesta sala"). Typing opens the Search pane beside the chat with the matches. Not in a DM.
+4. In other views, the room's search field. Typing opens the Search pane beside the chat with the matches. Its placeholder is "Buscar em {room}". Not in a DM.
 5. The pane tabs (`DocumentToolbar`): Doc, files, apps, decisions, reminders, People & agents. They are 32px buttons in the top bar (`size="icon"`, Doc `size="default"`).
 
 People & agents is a pane beside the chat, like Discord's member list (Online, Offline, Invited, with counts). It is not in the sidebar. Each pane button is a toggle: a click on the button of the open pane (the Doc too) closes the pane. The browser remembers which of the two you left open (and whether you closed the pane), so every room opens the same way. A DM always starts on its doc.
