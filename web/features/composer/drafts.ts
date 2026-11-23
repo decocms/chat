@@ -95,6 +95,8 @@ type MessageOperation = {
   snapshot: MessageSnapshot;
   ack: boolean;
   timer?: unknown;
+  /** What the box held when it was sent (it empties at once): put back if the send fails or you keep it. */
+  restore: Pick<ComposerState, "text" | "replyId" | "attachments">;
 };
 type PollOperation = {
   token: symbol;
@@ -318,11 +320,32 @@ export function createComposerDrafts(clock = defaultClock) {
         notice: "poll-created",
       }));
     }
+    /** The sent text, reply and files back in the box, unless you already typed something new there. */
+    function putBack(s: ComposerState, op: MessageOperation): ComposerState {
+      if (s.revision !== op.snapshot.revision || s.text.trim()) return s;
+      return {
+        ...s,
+        text: op.restore.text,
+        replyId: op.restore.replyId,
+        attachments: [
+          ...op.restore.attachments,
+          ...s.attachments.filter(
+            (item) => !op.restore.attachments.some((a) => a.id === item.id),
+          ),
+        ],
+        revision: s.revision + 1,
+      };
+    }
     function uncertain(op: MessageOperation, error: string) {
       if (ownMessage(op)) {
         cancel(op);
         op.timer = undefined;
-        state.update((s) => ({ ...s, phase: "unconfirmed", error }));
+        // Not sure it arrived: the text is back in the box, with the question whether it went (review).
+        state.update((s) => ({
+          ...putBack(s, op),
+          phase: "unconfirmed",
+          error,
+        }));
       }
     }
     function uncertainPoll(op: PollOperation, error: string) {
@@ -557,10 +580,17 @@ export function createComposerDrafts(clock = defaultClock) {
         const payload = { text, fileIds, replyId: reply?.id };
         const op: MessageOperation = {
           token: Symbol(),
+          restore: {
+            text: draft.text,
+            replyId: draft.replyId,
+            attachments: draft.attachments,
+          },
           snapshot: {
             ...payload,
             baseline: maxMessageId(room!),
-            revision: draft.revision,
+            // The box empties as the message leaves (the next revision): a message you send looks sent right away,
+            // even when the room takes a moment to confirm it (Valls #4167).
+            revision: draft.revision + 1,
             clientId:
               kept?.clientId && payloadKey(kept) === payloadKey(payload)
                 ? kept.clientId
@@ -572,6 +602,10 @@ export function createComposerDrafts(clock = defaultClock) {
         kept = undefined;
         state.update((s) => ({
           ...s,
+          text: "",
+          replyId: undefined,
+          attachments: s.attachments.filter((item) => item.phase === "error"),
+          revision: s.revision + 1,
           phase: "pending",
           error: "",
           candidate: undefined,
@@ -591,7 +625,7 @@ export function createComposerDrafts(clock = defaultClock) {
             if (definiteMessageFailure(result.error)) {
               operation = undefined;
               state.update((s) => ({
-                ...s,
+                ...putBack(s, op),
                 phase: "error",
                 error: result.error,
               }));
@@ -613,7 +647,7 @@ export function createComposerDrafts(clock = defaultClock) {
           ) {
             operation = undefined;
             state.update((s) => ({
-              ...s,
+              ...putBack(s, op),
               phase: "error",
               error: error.message,
             }));
@@ -623,7 +657,8 @@ export function createComposerDrafts(clock = defaultClock) {
       },
       review(keep: boolean) {
         if (!alive || !operation || get(state).phase !== "unconfirmed") return;
-        const snapshot = operation.snapshot;
+        const snapshot = operation.snapshot,
+          restoreOf = operation;
         cancel(operation);
         operation = undefined;
         // Kept: a resend of it is the same send. Discarded: the same text typed later is a new message.
@@ -644,7 +679,7 @@ export function createComposerDrafts(clock = defaultClock) {
                 notice: "reviewed-discarded",
               }
             : {
-                ...s,
+                ...(keep ? putBack(s, restoreOf) : s),
                 phase: "idle",
                 error: "",
                 candidate: undefined,
