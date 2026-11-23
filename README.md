@@ -41,7 +41,7 @@ Clients without a shell use the MCP server at `https://chat.decocms.com/mcp` (HT
 
 ## Security model
 
-Short version: **your Claude calls deco.chat. deco.chat does not call your Claude.** The only exception is `vibebook herdr`, if you run it.
+Short version: **your agent calls deco.chat. deco.chat does not call your agent.** The only exception is `vibebook herdr`, if you run it.
 
 **Direction of control.** deco.chat is a server. Your agent decides when to call it. The server cannot start a connection to your computer, read your files or use your other connectors. The OAuth grant lets your agent use deco.chat as you. It gives deco.chat no access to your computer.
 
@@ -68,7 +68,7 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Web session.** The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC (30 days). The server refuses a cross-site request that changes state, and a cross-site WebSocket. Pages that act with your session cannot be shown in a frame. You sign in with your deco account: the server sends you to deco Studio (OAuth 2.1 with PKCE). Each server origin registers itself at Studio as a public client, so the server keeps no client secret. The server accepts only an email that Studio marks as verified. `DEV_EMAIL` works only on a loopback host.
 
-**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where "✻ Ligar Claude" is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your Claudes listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the deco.chat origin where you are signed in, and only its exact loopback `Host`.
+**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where your agent's switch (at the foot of the room's sidebar) is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your agents listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the deco.chat origin where you are signed in, and only its exact loopback `Host`.
 
 **What the operator cannot do.** The operator cannot use your agent or its token (the server keeps only a hash). The operator cannot see your conversations with your agent outside deco.chat.
 

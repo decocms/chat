@@ -1,6 +1,6 @@
 #!/bin/sh
 # "This computer" in one line: curl -fsSL https://chat.decocms.com/setup.sh | sh
-# Everything a computer needs so "✻ Ligar Claude" in a room opens a Claude Code here, each step skipped when it's done:
+# Everything a computer needs so turning your agent on in a room opens a Claude Code here, each step skipped when it's done:
 # the vibebook CLI, the vibebook plugin in Claude Code, herdr (the terminal the Claudes open in, herdr.dev), the
 # vibebook plugin in herdr (its tab runs `vibebook herdr`), the login, and then herdr opens.
 set -e
@@ -21,7 +21,7 @@ claude plugin marketplace add decocms/chat >/dev/null 2>&1 || true
 claude plugin install vibebook@vibebook >/dev/null 2>&1 || fail "Couldn't install the vibebook plugin. Run: claude plugin install vibebook@vibebook"
 echo "ok"
 
-step "3/5 herdr (where your Claudes open, herdr.dev)"
+step "3/5 herdr (where your agents open, herdr.dev)"
 if command -v herdr >/dev/null 2>&1; then echo "ok: $(command -v herdr)"
 else curl -fsSL https://herdr.dev/install.sh | sh; command -v herdr >/dev/null 2>&1 || fail "herdr didn't install. See https://herdr.dev"; fi
 
@@ -33,7 +33,7 @@ if [ -f "${VIBEBOOK_HOME:-$HOME/.vibebook}/session.json" ]; then echo "ok: alrea
 else vibebook login </dev/null || fail "Login didn't finish. Run: vibebook login"; fi
 
 printf '\n\033[1mDone.\033[0m herdr opens now with a "vibebook" tab: leave it open.\n'
-printf 'In any room, click "✻ Ligar Claude" and a Claude Code opens here, in the room'"'"'s folder.\n'
+printf 'In any room, turn your agent on (the switch at the foot of the sidebar) and a Claude Code opens here, in the room'"'"'s folder.\n'
 case ":$PATH_BEFORE:" in
   *":$LOCAL:"*) printf 'Next time just run: herdr\n\n';;
   *) printf 'Next time just run: herdr  (add %s to your PATH first: export PATH="%s:$PATH")\n\n' "$LOCAL" "$LOCAL";;
