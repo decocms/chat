@@ -14,7 +14,6 @@
     agentMark,
     agentPresence,
     agentStatus,
-    agentQueue,
     connectPrompt,
   } from "./model";
   import { runnerPath } from "./runner";
@@ -180,9 +179,6 @@
     if (owner.current() && $runner.available)
       void owner.runner.focus(owner.roomId);
   }
-  /** What you asked in this room that no agent of yours closed (the old Agents pane's queue). */
-  const asks = $derived($view.room ? agentQueue($view.room, $view.now) : []);
-  let queueOpen = $state(false);
   const L = (pt: string, en: string) => (lang === "en" ? en : pt);
   /** The agent that answers here (the first one listening), for its mark and color. */
   const lead = $derived(live[0] ?? mine.find((a) => a.listening) ?? null);
@@ -339,52 +335,6 @@
                 ></button
               >{/if}
           {/each}
-          {#if asks.length}<!-- What you asked here that no agent of yours closed yet: count, then the list with ✕. -->
-            <button
-              type="button"
-              data-agent-queue
-              aria-expanded={queueOpen}
-              class="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2 text-left font-sans text-sm text-foreground hover:bg-accent"
-              onclick={() => (queueOpen = !queueOpen)}
-              ><span
-                class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold tabular-nums"
-                >{asks.length}</span
-              ><span class="min-w-0 flex-1 truncate"
-                >{L("na fila", "queued")}</span
-              ><Icon
-                icon={queueOpen ? "chevron-up" : "chevron-down"}
-                class="size-4 text-muted-foreground"
-              /></button
-            >
-            {#if queueOpen}<ul class="m-0 grid list-none gap-0.5 p-0 pl-10.5">
-                {#each asks.slice(0, 6) as item (item.message.id)}<li
-                    class="flex min-w-0 items-center gap-1"
-                  >
-                    <span class="min-w-0 flex-1 truncate text-xs"
-                      >{item.message.text.replace(/\s+/g, " ")}</span
-                    ><span
-                      class="shrink-0 text-[0.6875rem] text-muted-foreground"
-                      >{text(
-                        item.phase === "blocked"
-                          ? "blocked"
-                          : item.phase === "doing"
-                            ? "doing"
-                            : "queued",
-                      )}</span
-                    ><button
-                      type="button"
-                      title={text("dismiss")}
-                      aria-label={text("dismiss")}
-                      class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
-                      onclick={() => void owner.dismiss(item.message.id)}
-                      ><Icon icon="x" class="size-3.5" /></button
-                    >
-                  </li>{/each}
-                {#if asks.length > 6}<li class="text-xs text-muted-foreground">
-                    +{asks.length - 6}
-                  </li>{/if}
-              </ul>{/if}
-          {/if}
           {#if !more}<button
               type="button"
               data-agent-more
