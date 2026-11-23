@@ -624,7 +624,7 @@ try {
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
         .locator('[data-view="room-navigation"]')
-        .getByRole("button", { name: "Your rooms", exact: true })
+        .getByRole("button", { name: "Inbox", exact: true })
         .click();
       await expect(a.locator('[data-view="home"]')).toBeVisible();
       await a

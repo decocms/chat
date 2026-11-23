@@ -28,7 +28,11 @@
   const waiting = $derived($personal.me?.waits.length ?? 0);
 </script>
 
-<div data-home-inbox class="flex h-full min-h-0 min-w-0 flex-col">
+<div
+  data-view="home"
+  data-home-inbox
+  class="flex h-full min-h-0 min-w-0 flex-col"
+>
   <header
     class="hidden h-13 shrink-0 items-center gap-2 border-b border-border pr-3 pl-5 font-sans text-sm text-foreground md:flex"
   >
