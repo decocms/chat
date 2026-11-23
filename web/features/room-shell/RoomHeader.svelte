@@ -67,6 +67,21 @@
       : (threadTitle(header.room, header.thread) ??
           presentation.services.t("Sala principal")),
   );
+  // Desktop: in a room's main thread the search takes the quiet "Sala principal"
+  // label's place, at the bar's start (Gimenes #3902). Elsewhere the bar names
+  // the epic or the view, and the search stays at the end.
+  const searchInTitle = $derived(
+    !header.room.book.dm &&
+      !$geometry.boardFull &&
+      threadTitle(header.room, header.thread) === undefined,
+  );
+  const searchLabel = $derived(
+    header.room.book.title
+      ? presentation.services.t("Buscar em {room}", {
+          room: header.room.book.title,
+        })
+      : presentation.services.t("Buscar nesta sala"),
+  );
   const phoneEpic = $derived(
     header.room.epics.find((epic) => epic.id === header.thread),
   );
@@ -147,6 +162,36 @@
 </script>
 
 <svelte:window onkeydown={onwindowkeydown} />
+<!-- The room's search field: at the bar's start in the main thread, else at its end. -->
+{#snippet search(size: string)}<label
+    data-room-search-field
+    class={[
+      "hidden shrink-0 items-center gap-1.5 rounded-lg bg-muted text-muted-foreground focus-within:text-foreground md:flex",
+      size,
+    ]}
+    ><Icon icon="search-md" size={14} /><input
+      type="text"
+      inputmode="search"
+      value={$roomSearchQuery}
+      placeholder={searchLabel}
+      aria-label={searchLabel}
+      class="h-full min-w-0 flex-1 border-0 bg-transparent font-sans text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      oninput={(event) => searchRoom(event.currentTarget.value)}
+      onkeydown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          searchRoom("");
+          event.currentTarget.blur();
+        }
+      }}
+    />{#if $roomSearchQuery}<IconButton
+        label={t("Limpar busca")}
+        tooltipSide="bottom"
+        size="icon-xs"
+        class="-mr-1.5 text-muted-foreground hover:text-foreground"
+        onclick={() => searchRoom("")}><Icon icon="x" size={14} /></IconButton
+      >{/if}</label
+  >{/snippet}
 <!-- The tab's name follows the room (the server's <title> only names the first page, in the room's language). -->
 <svelte:head
   ><title
@@ -219,12 +264,14 @@
       data-header-title
       class="hidden min-w-0 flex-1 basis-0 md:flex md:min-w-24"
     >
+      {#if searchInTitle}{@render search("h-8 w-full max-w-80 px-2.5")}{/if}
       <RoomBarTitle
         room={header.room}
         thread={header.thread}
         owner={header.owner}
         vb={header.vb}
         view={$geometry.boardFull ? "board" : null}
+        quietLabel={!searchInTitle}
       />
     </div>
   </div>
@@ -238,33 +285,9 @@
             class="mx-1.5 h-5 data-[orientation=vertical]:h-5"
           />{/if}
       </div>{/if}
-    {#if !header.room.book.dm}<label
-        data-room-search-field
-        class="mr-1 hidden h-8 w-44 shrink-0 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-muted-foreground transition-[width] duration-150 focus-within:w-60 focus-within:text-foreground md:flex"
-        ><Icon icon="search-md" size={14} /><input
-          type="text"
-          inputmode="search"
-          value={$roomSearchQuery}
-          placeholder={t("Buscar nesta sala")}
-          aria-label={t("Buscar nesta sala")}
-          class="h-full min-w-0 flex-1 border-0 bg-transparent font-sans text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          oninput={(event) => searchRoom(event.currentTarget.value)}
-          onkeydown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              searchRoom("");
-              event.currentTarget.blur();
-            }
-          }}
-        />{#if $roomSearchQuery}<IconButton
-            label={t("Limpar busca")}
-            tooltipSide="bottom"
-            size="icon-xs"
-            class="-mr-1.5 text-muted-foreground hover:text-foreground"
-            onclick={() => searchRoom("")}
-            ><Icon icon="x" size={14} /></IconButton
-          >{/if}</label
-      >{/if}
+    {#if !header.room.book.dm && !searchInTitle}{@render search(
+        "mr-1 h-8 w-44 px-2.5 transition-[width] duration-150 focus-within:w-60",
+      )}{/if}
     {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
         <DocumentToolbar
           {...tabs}

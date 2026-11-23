@@ -1171,6 +1171,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The desktop loading state does not change.
   - A person with no conversation yet sees the list's bars first and then the desk. This is rare, and the title stays on the left until the account answers.
 - Other options: Keep the desk skeleton and only add the title bar above it.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-23 · feat/search-in-title · The room search stands where "Sala principal" was
+- Agent: claude-opus-5-5
+- Context: The human asked to move the room search to where the desktop bar says "Main thread", with the placeholder "Search in <room name>" (#3902). An epic's thread shows the epic's title and status pill in that place.
+- Decision:
+  - In a room's main thread (desktop), the search field is at the start of the bar, up to 320 px wide, and the "Sala principal" label is not shown. The sidebar still marks the main thread.
+  - In an epic or a suggestion, and on the full board, the bar keeps its title and the search stays at the end of the bar, as before.
+  - The placeholder is "Buscar em {room}" / "Search in {room}" in both places. The search pane's own field does not change.
+  - The profile font audit reads the room's name in the sidebar header, because the main thread's bar has no title text now.
+- Other options: Put the search at the start of the bar in every thread, before the epic's title.
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open

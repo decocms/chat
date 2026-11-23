@@ -6312,6 +6312,17 @@ describe("room sidebar header and suggestion ownership", () => {
       ).toBe(title);
       expect(!!target.querySelector("[data-epic-bar-actions]")).toBe(actions);
     }
+    // The header's search stands in for "Sala principal" (Gimenes #3902); an epic keeps its title.
+    expect(
+      barTitle(room, { quietLabel: false }).target.querySelector(
+        "[data-thread-title]",
+      ),
+    ).toBe(null);
+    expect(
+      barTitle(room, { thread: "e", quietLabel: false })
+        .target.querySelector("[data-thread-title]")
+        ?.textContent?.trim(),
+    ).toBe("Epic");
     // In an epic: the status pill, then the line before the pane's tabs. No ✎ and no 🗑.
     const { target } = barTitle(room, { thread: "e" });
     expect(

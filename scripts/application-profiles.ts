@@ -279,7 +279,9 @@ async function renderedFonts(page: Page) {
         "Room title",
         phone
           ? "[data-room-bar] [data-phone-title] [data-phone-thread]"
-          : "[data-room-bar] [data-thread-title] span.truncate",
+          : // The desktop main thread's bar holds the search, so the room's
+            // name in the sidebar's header carries the title glyphs.
+            "[data-room-home] h2",
         "Inter",
       ],
       ["Canonical code", "[data-chat-message] pre code", "CommitMono"],

@@ -19,6 +19,7 @@
     owner,
     vb,
     view = null,
+    quietLabel = true,
   }: {
     room: Room;
     thread: string;
@@ -26,6 +27,8 @@
     vb: SidebarBridge;
     /** A full view in the middle instead of the chat. */
     view?: "board" | null;
+    /** Show "Sala principal" in a room's main thread; the header leaves it out when its search stands there. */
+    quietLabel?: boolean;
   } = $props();
   const t = $derived(vb.t);
   const peer = $derived(dmPeer(room));
@@ -52,20 +55,20 @@
   data-room-bar-title
   class="@container flex min-w-0 flex-1 items-center gap-1 font-sans text-sm text-foreground"
 >
-  <h2
-    data-thread-title
-    {title}
-    class={[
-      "m-0 flex min-w-0 items-center gap-2 pl-1 text-sm font-medium",
-      quiet && "text-muted-foreground",
-    ]}
-  >
-    {#if epic || person}<PersonAvatar
-        email={face}
-        version={face ? vb.avatarVersion(face) : undefined}
-        class="size-6"
-      />{/if}<span class="truncate">{title}</span>
-  </h2>
+  {#if !quiet || quietLabel}<h2
+      data-thread-title
+      {title}
+      class={[
+        "m-0 flex min-w-0 items-center gap-2 pl-1 text-sm font-medium",
+        quiet && "text-muted-foreground",
+      ]}
+    >
+      {#if epic || person}<PersonAvatar
+          email={face}
+          version={face ? vb.avatarVersion(face) : undefined}
+          class="size-6"
+        />{/if}<span class="truncate">{title}</span>
+    </h2>{/if}
   {#if suggestion}<span
       class="min-w-0 shrink-[2] truncate text-xs text-muted-foreground"
       >✦ {t("sugestão do @vibe")}</span
