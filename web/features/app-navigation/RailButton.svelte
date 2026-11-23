@@ -18,6 +18,7 @@
     icon,
     hint,
     current = false,
+    dot = false,
     ref = $bindable(null),
     children,
     ...rest
@@ -27,6 +28,8 @@
     /** Shown after the label in the tooltip, e.g. a keyboard shortcut. */
     hint?: string;
     current?: boolean;
+    /** A small brand dot in the corner: something new here (a new version to load). */
+    dot?: boolean;
     ref?: HTMLButtonElement | null;
     children?: Snippet;
   } = $props();
@@ -51,6 +54,10 @@
       >
         {#if current}<RailPill state="selected" />{/if}
         {#if icon}<Icon {icon} class="size-4" />{/if}{@render children?.()}
+        {#if dot}<span
+            aria-hidden="true"
+            class="absolute top-0.5 right-0.5 size-2 rounded-full bg-brand ring-2 ring-sidebar"
+          ></span>{/if}
       </button>
     {/snippet}
   </TooltipTrigger>

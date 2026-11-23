@@ -293,6 +293,16 @@
     </SortableList>
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
+    <!-- A new version waits here, at the rail's foot, instead of over the chat box: you load it when you want. -->
+    {#if $personal.updateAvailable}<RailButton
+        data-view="update"
+        icon="refresh-cw-01"
+        label={text("update")}
+        dot
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) onreload();
+        }}
+      />{/if}
     <RailButton
       icon="search-md"
       label={text("search")}
@@ -403,11 +413,3 @@
       }}><Icon icon="x" /></IconButton
     >
   </aside>{/if}
-
-{#if $personal.updateAvailable}<Button
-    data-view="update"
-    class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 whitespace-normal shadow-lg"
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) onreload();
-    }}>{text("update")}</Button
-  >{/if}
