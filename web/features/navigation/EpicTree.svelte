@@ -17,11 +17,9 @@
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitCount, type WaitReference } from "../waits/model";
-  import Progress from "../../lib/studio/Progress.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
-  import { EPIC_PROGRESS } from "../room-shell/shape";
   import SortableItem from "../../lib/components/SortableItem.svelte";
   import { landing } from "../../lib/components/sortOrder";
   import SortableList, {
@@ -388,7 +386,7 @@
         aria-label={value === "archived"
           ? vb.t("Feitas")
           : vb.t("Threads abertas")}
-        class="m-0 flex list-none flex-col gap-0.5 p-0"
+        class="m-0 flex list-none flex-col gap-1 p-0"
       >
         <SortableList
           ids={orderedEpics.map((epic) => epic.id)}
@@ -430,7 +428,7 @@
                         {...props}
                         variant="ghost"
                         class={cn(
-                          "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal hover:bg-transparent",
+                          "relative h-10 min-w-0 flex-1 justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal hover:bg-transparent",
                           current && "font-medium",
                           // Done: finished work reads quieter, and comes back on hover or when open.
                           value === "archived" &&
@@ -468,7 +466,7 @@
                             ? vb.avatarVersion(epic.owner)
                             : undefined}
                           class={cn(
-                            "size-5",
+                            "size-6",
                             value === "archived" &&
                               !current &&
                               "opacity-60 group-hover/row:opacity-100",
@@ -495,6 +493,17 @@
                             class="shrink-0 text-xs text-muted-foreground"
                             >✻</span
                           >{/if}
+                        {#if epic.tasks.length}<span
+                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
+                            aria-label={vb.t("{done} de {total} tarefas", {
+                              done: epic.tasks.filter((task) => task.done)
+                                .length,
+                              total: epic.tasks.length,
+                            })}
+                            class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                            >{epic.tasks.filter((task) => task.done)
+                              .length}/{epic.tasks.length}</span
+                          >{/if}
                         <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
                         {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
                             waits={vb.waitsIn(epic.id)}
@@ -513,20 +522,6 @@
                               class="size-3.5"
                             /></span
                           >{/if}
-                        <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
-                        {#if epic.tasks.length}<Progress
-                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
-                            aria-label={vb.t("{done} de {total} tarefas", {
-                              done: epic.tasks.filter((task) => task.done)
-                                .length,
-                              total: epic.tasks.length,
-                            })}
-                            value={(100 *
-                              epic.tasks.filter((task) => task.done).length) /
-                              epic.tasks.length}
-                            tone="success"
-                            class={EPIC_PROGRESS}
-                          />{/if}
                       </Button>
                     {/snippet}
                   </TooltipTrigger>
@@ -555,12 +550,12 @@
           role="group"
           aria-label={vb.t("Sugestões do @vibe")}
           data-epic-plan
-          class="mt-0.5 flex shrink-0 flex-col gap-0.5"
+          class="mt-1 flex shrink-0 flex-col gap-1"
         >
           {#each room.suggestions as suggestion, index}
             <Button
               variant="ghost"
-              class="h-9 w-full justify-start gap-2 rounded-lg px-2 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
+              class="h-10 w-full justify-start gap-2.5 rounded-lg px-2.5 text-left font-normal text-sidebar-foreground hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium"
               aria-current={thread === `pre:${index}` ? "page" : undefined}
               title={`${suggestion.title} · ${vb.t("sugestão do @vibe, clique para ver")}`}
               data-suggestion={index}
