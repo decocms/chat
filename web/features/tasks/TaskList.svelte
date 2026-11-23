@@ -147,13 +147,15 @@
       <h3 class="m-0 font-sans text-sm font-semibold">
         {vb.t("Tarefas")}
       </h3>
-      <Badge>{done}/{list.tasks.length}</Badge>
-      <Progress
-        aria-label={vb.t("Tarefas")}
-        value={(done / Math.max(1, list.tasks.length)) * 100}
-        aria-valuetext={`${done}/${list.tasks.length}`}
-        class="ml-auto max-w-24"
-      />
+      <!-- Count and bar only when there is something to count (Gimenes #3957): a new epic has none. -->
+      {#if list.tasks.length}<Badge>{done}/{list.tasks.length}</Badge>
+        <Progress
+          data-task-progress
+          aria-label={vb.t("Tarefas")}
+          value={(done / list.tasks.length) * 100}
+          aria-valuetext={`${done}/${list.tasks.length}`}
+          class="ml-auto max-w-24"
+        />{/if}
     </header>
     {#if list.flags?.length}<Badge
         variant="warning"
