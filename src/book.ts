@@ -262,7 +262,7 @@ export class Book extends DurableObject<Env> {
     const closed: number[] = [];
     for (const e of done) {
       // All its tasks are done: a chosen open status (todo, doing, review) no longer applies, the app shows "done".
-      this.sql.exec(`UPDATE epics SET archived = 1, status = CASE WHEN status = 'live' THEN status ELSE NULL END WHERE id = ?`, e.id);
+      this.sql.exec(`UPDATE epics SET archived = 1, status = NULL WHERE id = ?`, e.id);
       // No @vibe line any more (Gui #3317); the last message id marks where a reopened round starts (unproven).
       this.set(`arch:${e.id}`, String(this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ?`, e.id).one().id ?? 0));
       // The request it came from: "fazendo isso" turns into "fez isso".
@@ -990,7 +990,7 @@ export class Book extends DurableObject<Env> {
   }
   // Done with it: leaves the sidebar list and the board, keeps its tasks and discussion. markDone closes every task.
   // A chosen status that contradicts the archive goes away: an open one (todo, doing, review) when it is archived,
-  // a closed one (done, dismissed) when it is reopened. "live" stays either way.
+  // a closed one (done, dismissed) when it is reopened.
   archiveEpic(id: string, archived = true, markDone = false, changed = true) {
     if (markDone) this.sql.exec(`UPDATE tasks SET done = 1, status = 'done' WHERE epic_id = ?`, id);
     this.sql.exec(
@@ -1001,13 +1001,13 @@ export class Book extends DurableObject<Env> {
     if (changed) this.epicsChanged();
   }
   // The epic bar's status menu (epic.status) and update_epic status. "done" archives and closes the open tasks (the old
-  // Archive button), "dismissed" archives and leaves them, "live" only sets the status (the prod stage stays), and an
-  // open status reopens an archived epic (the old Unarchive).
+  // Archive button), "dismissed" archives and leaves them, and an open status reopens an archived epic (the old
+  // Unarchive). There is no "live" status (Gimenes #3877): in production is done.
   setEpicStatus(id: string, status: EpicStatus) {
     const row = this.sql.exec<{ archived: number | null }>(`SELECT archived FROM epics WHERE id = ?`, id).toArray()[0];
     if (!row) return new Refused("unknown epic");
     if (status === "done" || status === "dismissed") this.archiveEpic(id, true, status === "done", false);
-    else if (status !== "live" && row.archived === 1) this.archiveEpic(id, false, false, false);
+    else if (row.archived === 1) this.archiveEpic(id, false, false, false);
     this.sql.exec(`UPDATE epics SET status = ? WHERE id = ?`, status, id);
     this.epicsChanged();
   }

@@ -17,7 +17,6 @@ export const EPIC_STATUSES = [
   "doing",
   "review",
   "done",
-  "live",
   "dismissed",
 ] as const;
 export type EpicStatus = (typeof EPIC_STATUSES)[number];

@@ -6351,14 +6351,7 @@ describe("room sidebar header and suggestion ownership", () => {
       [
         ...document.querySelectorAll<HTMLElement>("[data-epic-status-choice]"),
       ].map((item) => item.textContent?.trim()),
-    ).toEqual([
-      "A fazer",
-      "Fazendo",
-      "Esperando OK",
-      "Feito",
-      "No ar",
-      "Arquivado",
-    ]);
+    ).toEqual(["A fazer", "Fazendo", "Esperando OK", "Feito", "Arquivado"]);
     done.click();
     await tick();
     expect(commands.at(-1)).toEqual({

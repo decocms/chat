@@ -34,12 +34,6 @@ const epicStatusLooks = {
     pill: "bg-success/15 text-success",
     text: "text-success",
   },
-  live: {
-    label: "No ar",
-    icon: "rocket-01",
-    pill: "bg-brand text-brand-foreground",
-    text: "text-success",
-  },
   dismissed: {
     label: "Arquivado",
     icon: "archive",
