@@ -1313,6 +1313,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the browser's drag and only restyle the drop box. Move tiles live to open a gap, as some apps do; tint groups make that harder.
 - Risk: low.
 - Undo: Revert this commit.
+- Status: superseded by "The rail sorts with dnd-kit, as one flat list" (feat/rail-dnd-kit)
+
+### 2026-11-23 · feat/rail-dnd-kit · The rail sorts with dnd-kit, as one flat list
+- Agent: claude-opus-5-5
+- Context: Gimenes #3997: the rail's hold-to-sort was still poor on desktop. He wanted a preview of what is dragged, like dnd-kit, and asked to use dnd-kit where the product drags things.
+- Decision:
+  - The rail uses the epic list's sorter (`navigation/sortable.ts`, @dnd-kit/dom). The dragged room follows the pointer and the others make room. A mouse starts after 6 px; a finger holds 250 ms. `railSort.ts` is gone.
+  - The rail is one flat list now. Each tile carries the tint of its run, with the run's corners on its first and last tile, so a room can move between colour runs.
+  - The new order shows at once (a local order) until the saved order arrives, or for 10 s if the save gives up.
+  - Other drags in the product: the task board's (removed in #329) and file drops from the computer (composer, image picker). dnd-kit does not handle file drops, so those stay.
+- Other options: Keep the tint boxes and sort inside each box only.
+- Risk: low.
+- Undo: Revert this commit.
 - Status: open
 
 ### 2026-11-23 · feat/no-task-board · The task board leaves the product; the room's name is the main thread

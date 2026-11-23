@@ -44,10 +44,10 @@
   const icon = $derived(roomIcon(room));
 </script>
 
-<!-- Held and moved (railSort.ts): the tile lifts in place; a line marks where it lands. -->
+<!-- Sorted by dnd-kit from the rail's list (AppNavigation); the browser's own drag of the link is off. -->
 <article
   data-room-id={room.id}
-  class="relative flex touch-pan-y items-center justify-center select-none data-rail-moving:z-10 data-rail-moving:scale-105 data-rail-moving:opacity-90 data-rail-moving:drop-shadow-lg data-[rail-drop]:before:pointer-events-none data-[rail-drop]:before:absolute data-[rail-drop]:before:left-1/2 data-[rail-drop]:before:h-0.5 data-[rail-drop]:before:w-8 data-[rail-drop]:before:-translate-x-1/2 data-[rail-drop]:before:rounded-full data-[rail-drop]:before:bg-foreground data-[rail-drop=after]:before:-bottom-1.5 data-[rail-drop=before]:before:-top-1.5"
+  class="relative flex touch-pan-y items-center justify-center select-none"
   ondragstart={(event) => event.preventDefault()}
   oncontextmenu={(event) => {
     if (!event.currentTarget.isConnected || !onsettings) return;

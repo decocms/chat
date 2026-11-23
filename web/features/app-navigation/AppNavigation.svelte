@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { railSort } from "./railSort";
+  import { createSortableRows, ROOT_GROUP } from "../navigation/sortable";
   import { onMount, onDestroy } from "svelte";
   import { isDmId } from "../../../shared/dm";
   import Count from "../../lib/components/Count.svelte";
@@ -123,15 +123,57 @@
   const focusBack = () => controller.returnFocus(homeButton);
   // Neighbours of one colour stand as a group on a tinted backdrop; everything else stands alone.
   const waitsIn = $derived(waitsByRoom($personal.me?.waits ?? []));
-  const groups = $derived.by(() => {
-    const result: { tint: string | undefined; rooms: RoomSummary[] }[] = [];
-    for (const room of orderedRooms(roomsOnly($personal.me?.books ?? []))) {
+  // A room moved on the rail shows at its new place at once; the saved order
+  // takes over when it arrives (or after the save gives up, 10 s).
+  let localOrder = $state<string[] | null>(null),
+    localTimer: ReturnType<typeof setTimeout> | undefined;
+  const serverRooms = $derived(
+    orderedRooms(roomsOnly($personal.me?.books ?? [])),
+  );
+  const railRooms = $derived.by(() => {
+    const order = localOrder;
+    if (!order) return serverRooms;
+    const position = new Map(order.map((id, index) => [id, index]));
+    return [...serverRooms].sort(
+      (a, b) => (position.get(a.id) ?? 1e9) - (position.get(b.id) ?? 1e9),
+    );
+  });
+  $effect(() => {
+    if (
+      localOrder &&
+      serverRooms.map((room) => room.id).join("\0") === localOrder.join("\0")
+    )
+      localOrder = null;
+  });
+  // One flat list, so a room can move between colour runs: each tile carries
+  // its run's tint, with the run's corners on its first and last tile.
+  const tiles = $derived(
+    railRooms.map((room, index) => {
       const tint = roomRailTint(room),
-        last = result.at(-1);
-      if (last && tint && last.tint === tint) last.rooms.push(room);
-      else result.push({ tint, rooms: [room] });
-    }
-    return result;
+        before = index > 0 ? roomRailTint(railRooms[index - 1]!) : undefined,
+        after = roomRailTint(railRooms[index + 1] ?? room);
+      const joinsBefore = !!tint && before === tint,
+        joinsAfter = !!tint && index < railRooms.length - 1 && after === tint;
+      return { room, tint, joinsBefore, joinsAfter, first: index === 0 };
+    }),
+  );
+  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it
+  // follows the pointer and the others make room (dnd-kit, Gimenes #3997).
+  const sorter = createSortableRows((move) => {
+    const ids = railRooms.map((room) => room.id),
+      target = ids[move.toIndex];
+    if (!target || target === move.id || ids[move.fromIndex] !== move.id)
+      return;
+    const next = ids.filter((id) => id !== move.id);
+    next.splice(move.toIndex, 0, move.id);
+    localOrder = next;
+    clearTimeout(localTimer);
+    localTimer = setTimeout(() => (localOrder = null), 10_000);
+    controller.drop(move.id, target, move.toIndex > move.fromIndex);
+  });
+  onDestroy(() => {
+    clearTimeout(localTimer);
+    sorter.destroy();
   });
   // A DM belongs to your home: there the home logo is the current one.
   const atHome = $derived(
@@ -148,14 +190,31 @@
   let switcher = $state(false);
 </script>
 
-{#snippet roomTile(room: RoomSummary)}<div role="listitem">
+{#snippet roomTile(tile: (typeof tiles)[number], index: number)}<div
+    role="listitem"
+    use:sorter.row={{
+      id: tile.room.id,
+      index,
+      group: ROOT_GROUP,
+      disabled: false,
+    }}
+    data-tint-run={tile.tint ? "" : undefined}
+    class={cn(
+      "shrink-0",
+      !tile.first && !tile.joinsBefore && "mt-2.5",
+      tile.tint && [tile.tint, "px-1.5"],
+      tile.tint && !tile.joinsBefore && "rounded-t-2xl pt-1.5",
+      tile.tint && !tile.joinsAfter && "rounded-b-2xl pb-1.5",
+      tile.joinsAfter && "pb-2.5",
+    )}
+  >
     <RailRoom
-      {room}
+      room={tile.room}
       {lang}
       now={$personal.now}
-      selected={$nav.roomId === room.id}
-      seen={$personal.seen[room.id] ?? 0}
-      waits={waitsIn.get(room.id) ?? []}
+      selected={$nav.roomId === tile.room.id}
+      seen={$personal.seen[tile.room.id] ?? 0}
+      waits={waitsIn.get(tile.room.id) ?? []}
       onnavigate={controller.callbacks.navigate}
       onsettings={(id, trigger) => controller.openSettings(id, trigger)}
     />
@@ -232,27 +291,14 @@
     /></Button
   >
   <div
-    class="flex min-h-0 min-w-0 flex-1 flex-row items-center gap-2.5 self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
+    class="flex min-h-0 min-w-0 flex-1 flex-row items-center self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
     role="list"
     aria-label={text("home")}
-    use:railSort={{
-      onorder: (from, to, after) => controller.drop(from, to, after),
-    }}
   >
-    {#each groups as group (group.rooms[0]?.id)}{#if group.tint}<div
-          role="listitem"
-          data-tint-group
-          class={cn(
-            "flex flex-row gap-2.5 rounded-2xl p-1.5 md:flex-col",
-            group.tint,
-          )}
-        >
-          <div role="list" class="contents">
-            {#each group.rooms as room (room.id)}{@render roomTile(room)}{/each}
-          </div>
-        </div>{:else}{#each group.rooms as room (room.id)}{@render roomTile(
-            room,
-          )}{/each}{/if}{/each}
+    {#each tiles as tile, index (tile.room.id)}{@render roomTile(
+        tile,
+        index,
+      )}{/each}
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
     <RailButton
