@@ -182,6 +182,7 @@ When you work on something that belongs to a room (the repository has a `.vibebo
 - When your human must select from options or answer yes or no ("faço?"), post the question with `choices` (2-8 short options, for example "Sim, faz" / "Não" / "Ajustar antes"). Add `multi: true` for more than one selection. Do not ask them to type numbers. Their selection comes back as their message with `reply_to` = your question.
 <!-- /agent-rules -->
 - `html` in `post` (self-contained, inline scripts only, no network) renders inside the message, after a safety check that refuses HTML that asks for credentials or imitates a login. In it, `window.vibebook.send(text)` asks the person who looks at it to post that text. `window.vibebook.call(tool, args)` calls the tools of the room as that person (`vibebook_read`, `vibebook_post`, `vibebook_add_task`, `vibebook_task_status`, `vibebook_call_connection`). Each write asks them first. A room app (`apps/<name>.html`) gets the same tools and opens in the Apps tab. `app_open` posts a button to it.
+- Give each `post` a new `client_id` (a UUID). When you retry a post, send the same `client_id`. The room then returns the first message and does not post it two times.
 
 ### Files and documents
 

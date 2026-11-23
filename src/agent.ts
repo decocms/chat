@@ -47,6 +47,7 @@ import { EMAIL_RE } from "./auth";
 import { track } from "./track";
 import { findSecret } from "./secrets";
 import { AGENT_RULES } from "../shared/agentRules";
+import { CLIENT_ID_PATTERN } from "../shared/commands";
 
 // The shared rule blocks come from shared/agentRules.ts, the same text as the
 // plugin skill and llms.txt (bun scripts/agent-prompts.ts keeps those copies).
@@ -439,6 +440,7 @@ const TOOLS = [
         },
         client_id: {
           type: "string",
+          pattern: CLIENT_ID_PATTERN.source,
           description:
             "optional: a new random id for this message (a UUID; 8-64 characters of A-Z a-z 0-9 _ -). When a post fails or you are not sure it went out, retry it with the SAME client_id: the room returns the first message instead of posting it twice. A new message needs a new client_id.",
         },
@@ -1986,7 +1988,16 @@ async function call(
       };
     }
     case "post": {
+      // client_id: checked before any work. Stored as "<agent>:<id>": two agents of one person don't share ids.
+      if (a.client_id !== undefined && !(typeof a.client_id === "string" && CLIENT_ID_PATTERN.test(a.client_id)))
+        return { ok: false, error: INVALID_CLIENT_ID };
+      const clientKey = typeof a.client_id === "string" ? `${me.agent}:${a.client_id}` : undefined;
       const id = await room();
+      // A retry of a post that is already in the room: the first post, with no html check, file, stat or cursor move.
+      if (clientKey && a.html) {
+        const repeat = await bookStub(env, id).agentRepeat(id, me.email, clientKey, str(a.text));
+        if (repeat) return repeat;
+      }
       if (!(await env.AGENT_LIMIT.limit({ key: me.email })).success)
         throw new Error(
           "rate limited: too many agent posts in the last minute. Wait a bit.",
@@ -1997,11 +2008,7 @@ async function call(
           track(env, "terminal_ask", { user: me.email, dims: { book: id } }),
         );
       let fileIds: string[] = [];
-      const clientId = typeof a.client_id === "string" ? a.client_id : undefined;
-      // A retry of an html post that is already in the room keeps its embed: no second file, no second check.
-      const earlier = a.html && clientId ? await bookStub(env, id).clientFiles(id, me.email, clientId) : null;
-      if (earlier) fileIds = earlier;
-      else if (a.html) {
+      if (a.html) {
         const html = str(a.html);
         await checkEmbed(env, html, me.email);
         const meta = await storeFile(
@@ -2035,17 +2042,11 @@ async function call(
         choicesOf(a),
         a.card === undefined ? undefined : cardOf(a.card, id),
         me.agent,
-        clientId,
+        clientKey,
       );
+      if ("repeat" in posted) return posted;
       if (posted.ok && isLaunchCard(a.card)) ctx.waitUntil(bumpStat(db, me.email, "deploys"));
-      // Your own post shouldn't wake you up: if you were caught up, stay caught up.
-      if (posted.ok && posted.id)
-        await db
-          .prepare(
-            `UPDATE agent_reads SET last_id = ? WHERE agent = ? AND book_id = ? AND last_id >= ?`,
-          )
-          .bind(posted.id, me.agent, id, posted.id - 1)
-          .run();
+      if (posted.ok && posted.id) await keepCaughtUp(db, me.agent, id, posted.id);
       // Your human wrote while you were working (after your last read_room): hand it back now, so a reply doesn't go
       // out answering only the first of two messages (the missed_message most Claudes reported).
       if (posted.ok && posted.id && before !== undefined) {
@@ -2756,6 +2757,14 @@ async function stalledFor(env: Env, me: Me, only: string) {
   return out.flat().slice(0, 10);
 }
 /** grant_seen key for a grant without a gid: "g:<grant id>" from the Bearer token (`<user>:<grant>:<secret>`). */
+/** Your own post shouldn't wake you up: if you were caught up, stay caught up. The cursor never moves back. */
+export async function keepCaughtUp(db: D1Database, agent: string, bookId: string, id: number) {
+  await db
+    .prepare(`UPDATE agent_reads SET last_id = max(last_id, ?) WHERE agent = ? AND book_id = ? AND last_id >= ?`)
+    .bind(id, agent, bookId, id - 1)
+    .run();
+}
+export const INVALID_CLIENT_ID = "invalid client_id: 8 to 64 characters of A-Z a-z 0-9 _ -";
 export const grantKey = (auth: string | null) => {
   const parts = auth?.replace(/^Bearer\s+/i, "").split(":") ?? [];
   return parts.length >= 3 && parts.at(-2) ? `g:${parts.at(-2)}` : undefined;

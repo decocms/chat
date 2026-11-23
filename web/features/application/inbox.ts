@@ -8,6 +8,7 @@ import { messageIdentity } from "../home/model";
 import { AUTH_REQUEST_TIMEOUT, type AuthClock } from "../auth/owner";
 import { createAgentLease } from "../agents/lease";
 import { clientClock } from "../../lib/client/clock";
+import { createSendIds } from "../../lib/client/sendIds";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -56,6 +57,8 @@ export function createApplicationInbox(
       return old && JSON.stringify(old) === JSON.stringify(row) ? old : row;
     });
   };
+  // A reply that failed keeps its client_id: replying again with the same text is the same send.
+  const sends = createSendIds();
   const waitsKey = (wait: Wait) => `${wait.book_id}/${wait.ref}`;
   const empty = (): InboxResult => ({ waits: [], mentions: [], tasks: [] });
   const state = writable<InboxSnapshot>({
@@ -414,13 +417,14 @@ export function createApplicationInbox(
           item.book,
           body,
           item.thread,
-          crypto.randomUUID(),
+          sends.take(JSON.stringify([item.book, item.thread, body])),
         );
       } catch (error) {
         if (error instanceof HomeFailure && error.status === 401)
           services.actions.sessionLost();
         return false;
       }
+      sends.done(JSON.stringify([item.book, item.thread, body]));
       if (!owns(binding)) return true;
       services.personal.invalidate();
       void services.personal.refresh();

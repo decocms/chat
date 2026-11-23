@@ -756,6 +756,37 @@ test("each send carries a client_id; a resend of the unchanged draft reuses it, 
   expect(sent[4].client_id).not.toBe(sent[2].client_id);
   drafts.dispose();
 });
+test("a resend refused as an idempotency conflict is a definite failure, and the next send gets a new id", async () => {
+  expect(definiteMessageFailure("idempotency conflict")).toBe(true);
+  const timer = clock(),
+    drafts = createComposerDrafts(timer.api),
+    entry = drafts.entry({
+      account: "me@test",
+      roomId: "abc123",
+      thread: "main",
+    }),
+    sent: Extract<RoomCommand, { t: "msg" }>[] = [],
+    outcomes: CommandOutcome[] = [
+      { ok: false, error: "timeout" },
+      { ok: false, error: "idempotency conflict" },
+      { ok: false, error: "timeout" },
+    ];
+  const request = async (command: RoomCommand) => {
+    if (command.t === "msg") sent.push(command);
+    return outcomes.shift() ?? { ok: true };
+  };
+  entry.sync(room(), request, async () => meta());
+  entry.edit("oi");
+  await entry.submit();
+  entry.review(true);
+  await entry.submit();
+  expect(sent[1].client_id).toBe(sent[0].client_id);
+  expect(get(entry.state).phase).toBe("error");
+  expect(get(entry.state).text).toBe("oi");
+  await entry.submit();
+  expect(sent[2].client_id).not.toBe(sent[0].client_id);
+  drafts.dispose();
+});
 test("a discarded unconfirmed draft does not lend its client_id to the same text typed again", async () => {
   const h = harness();
   h.entry.edit("de novo");

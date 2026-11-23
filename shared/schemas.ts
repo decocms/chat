@@ -1,12 +1,13 @@
 // Runtime schemas for what the browser sends the Worker: the TypeScript types are derived from them, so a schema
 // edit changes every consumer's type. Browser-safe: zod/mini only, no Worker or database types.
 import * as z from "zod/mini";
+import { ClientIdSchema } from "./commands";
 
 export const PostMessageBody = z.object({
   text: z.string(),
   thread: z.optional(z.string()),
-  // The send's random id, the same on each retry: the server answers a retry with the first message (Book.repeatOf).
-  client_id: z.optional(z.string()),
+  // The send's random id, the same on each retry: the server answers a retry with the first message (Book.byClientId).
+  client_id: z.optional(ClientIdSchema),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 

@@ -18,7 +18,7 @@ import {
   matchingMessage,
   maxMessageId,
   normalizeFile,
-  samePayload,
+  payloadKey,
   type MessageSnapshot,
   type PendingAttachment,
 } from "./model";
@@ -77,17 +77,18 @@ export const MAX_COMPOSER_DRAFTS = 64;
 // These msg Refused paths all precede addMessage; other errors may follow a durable write.
 /** The draft still holds what was sent (the same text, reply and files), even if its revision moved. */
 const sameDraft = (s: ComposerState, sent: MessageSnapshot) =>
-  s.text.trim() === sent.text &&
-  s.replyId === sent.replyId &&
-  s.attachments
-    .flatMap((item) => (item.meta ? [item.meta.id] : []))
-    .sort()
-    .join(",") === sent.fileIds.slice().sort().join(",");
+  payloadKey({
+    text: s.text.trim(),
+    replyId: s.replyId,
+    fileIds: s.attachments.flatMap((item) => (item.meta ? [item.meta.id] : [])),
+  }) === payloadKey(sent);
 export const definiteMessageFailure = (error: string) =>
   error === "offline" ||
   error === "invalid command" ||
   error === "empty message" ||
   error === "unknown thread" ||
+  // The room refused this client_id for another text: nothing was stored. A resend gets a new id.
+  error === "idempotency conflict" ||
   error.startsWith("blocked:");
 type MessageOperation = {
   token: symbol;
@@ -224,9 +225,9 @@ export function createComposerDrafts(clock = defaultClock) {
       focusToken: symbol | undefined;
     let operation: MessageOperation | undefined,
       pollOperation: PollOperation | undefined;
-    // The last send not known to be in the room: sending the same draft again reuses its client_id, so the room
-    // answers with that message if it got there (docs/architecture.md, "One send, one message").
-    let lastSend: MessageSnapshot | undefined;
+    // The unconfirmed send the person kept (review(true)): sending the same draft again reuses its client_id, so the
+    // room answers with that message if it got there (docs/architecture.md, "One send, one message").
+    let kept: MessageSnapshot | undefined;
     const uploadOwners = new Map<number, AbortController>();
     const valid = () =>
       storageAvailable &&
@@ -254,7 +255,6 @@ export function createComposerDrafts(clock = defaultClock) {
       if (!op.ack || !candidate) return;
       cancel(op);
       operation = undefined;
-      lastSend = undefined;
       state.update((s) =>
         s.revision === op.snapshot.revision || sameDraft(s, op.snapshot)
           ? {
@@ -562,14 +562,14 @@ export function createComposerDrafts(clock = defaultClock) {
             baseline: maxMessageId(room!),
             revision: draft.revision,
             clientId:
-              lastSend?.clientId && samePayload(lastSend, payload)
-                ? lastSend.clientId
+              kept?.clientId && payloadKey(kept) === payloadKey(payload)
+                ? kept.clientId
                 : crypto.randomUUID(),
           },
           ack: false,
         };
         operation = op;
-        lastSend = op.snapshot;
+        kept = undefined;
         state.update((s) => ({
           ...s,
           phase: "pending",
@@ -590,7 +590,6 @@ export function createComposerDrafts(clock = defaultClock) {
           if (!result.ok) {
             if (definiteMessageFailure(result.error)) {
               operation = undefined;
-              lastSend = undefined;
               state.update((s) => ({
                 ...s,
                 phase: "error",
@@ -613,7 +612,6 @@ export function createComposerDrafts(clock = defaultClock) {
             error.message === "Invalid room command"
           ) {
             operation = undefined;
-            lastSend = undefined;
             state.update((s) => ({
               ...s,
               phase: "error",
@@ -628,8 +626,8 @@ export function createComposerDrafts(clock = defaultClock) {
         const snapshot = operation.snapshot;
         cancel(operation);
         operation = undefined;
-        // Discarded: typing the same text later is a new message.
-        if (!keep) lastSend = undefined;
+        // Kept: a resend of it is the same send. Discarded: the same text typed later is a new message.
+        kept = keep ? snapshot : undefined;
         state.update((s) =>
           !keep && s.revision === snapshot.revision
             ? {
@@ -748,7 +746,7 @@ export function createComposerDrafts(clock = defaultClock) {
         cancel(pollOperation);
         operation = undefined;
         pollOperation = undefined;
-        lastSend = undefined;
+        kept = undefined;
         for (const controller of uploadOwners.values()) controller.abort();
         uploadOwners.clear();
         focus = undefined;
