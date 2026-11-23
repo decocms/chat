@@ -1,9 +1,12 @@
 <script lang="ts">
-  import { createSortableRows, ROOT_GROUP } from "../navigation/sortable";
   import { onMount, onDestroy } from "svelte";
   import { isDmId } from "../../../shared/dm";
   import Count from "../../lib/components/Count.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
+  import SortableItem from "../../lib/components/SortableItem.svelte";
+  import SortableList, {
+    type SortMove,
+  } from "../../lib/components/SortableList.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
@@ -124,14 +127,16 @@
   // Neighbours of one colour stand as a group on a tinted backdrop; everything else stands alone.
   const waitsIn = $derived(waitsByRoom($personal.me?.waits ?? []));
   // A room moved on the rail shows at its new place at once; the saved order
-  // takes over when it arrives (or after the save gives up, 10 s).
+  // takes over when it arrives (or after the save gives up, 10 s). While a
+  // room is dragged, the others make room (dragOrder).
   let localOrder = $state<string[] | null>(null),
+    dragOrder = $state<string[] | null>(null),
     localTimer: ReturnType<typeof setTimeout> | undefined;
   const serverRooms = $derived(
     orderedRooms(roomsOnly($personal.me?.books ?? [])),
   );
   const railRooms = $derived.by(() => {
-    const order = localOrder;
+    const order = dragOrder ?? localOrder;
     if (!order) return serverRooms;
     const position = new Map(order.map((id, index) => [id, index]));
     return [...serverRooms].sort(
@@ -157,24 +162,17 @@
       return { room, tint, joinsBefore, joinsAfter, first: index === 0 };
     }),
   );
-  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it
-  // follows the pointer and the others make room (dnd-kit, Gimenes #3997).
-  const sorter = createSortableRows((move) => {
-    const ids = railRooms.map((room) => room.id),
-      target = ids[move.toIndex];
-    if (!target || target === move.id || ids[move.fromIndex] !== move.id)
-      return;
-    const next = ids.filter((id) => id !== move.id);
-    next.splice(move.toIndex, 0, move.id);
-    localOrder = next;
+  const railIds = $derived(railRooms.map((room) => room.id));
+  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it follows the pointer and the
+  // others make room (SortableList, Gimenes #3997 #4020). The whole new order is saved, so a second
+  // drop before the first is confirmed builds on it.
+  function moved(move: SortMove) {
+    localOrder = move.order;
     clearTimeout(localTimer);
     localTimer = setTimeout(() => (localOrder = null), 10_000);
-    controller.drop(move.id, target, move.toIndex > move.fromIndex);
-  });
-  onDestroy(() => {
-    clearTimeout(localTimer);
-    sorter.destroy();
-  });
+    controller.order(move.order);
+  }
+  onDestroy(() => clearTimeout(localTimer));
   // A DM belongs to your home: there the home logo is the current one.
   const atHome = $derived(
     !$nav.roomId || dmIds($personal.me).has($nav.roomId) || isDmId($nav.roomId),
@@ -190,35 +188,6 @@
   let switcher = $state(false);
 </script>
 
-{#snippet roomTile(tile: (typeof tiles)[number], index: number)}<div
-    role="listitem"
-    use:sorter.row={{
-      id: tile.room.id,
-      index,
-      group: ROOT_GROUP,
-      disabled: false,
-    }}
-    data-tint-run={tile.tint ? "" : undefined}
-    class={cn(
-      "shrink-0",
-      !tile.first && !tile.joinsBefore && "mt-2.5",
-      tile.tint && [tile.tint, "px-1.5"],
-      tile.tint && !tile.joinsBefore && "rounded-t-2xl pt-1.5",
-      tile.tint && !tile.joinsAfter && "rounded-b-2xl pb-1.5",
-      tile.joinsAfter && "pb-2.5",
-    )}
-  >
-    <RailRoom
-      room={tile.room}
-      {lang}
-      now={$personal.now}
-      selected={$nav.roomId === tile.room.id}
-      seen={$personal.seen[tile.room.id] ?? 0}
-      waits={waitsIn.get(tile.room.id) ?? []}
-      onnavigate={controller.callbacks.navigate}
-      onsettings={(id, trigger) => controller.openSettings(id, trigger)}
-    />
-  </div>{/snippet}
 <div
   data-view="room-navigation"
   data-app-navigation
@@ -295,10 +264,33 @@
     role="list"
     aria-label={text("home")}
   >
-    {#each tiles as tile, index (tile.room.id)}{@render roomTile(
-        tile,
-        index,
-      )}{/each}
+    <SortableList ids={railIds} bind:order={dragOrder} onmove={moved}>
+      {#each tiles as tile, index (tile.room.id)}<SortableItem
+          sortId={tile.room.id}
+          {index}
+          role="listitem"
+          data-tint-run={tile.tint ? "" : undefined}
+          class={cn(
+            "shrink-0",
+            !tile.first && !tile.joinsBefore && "mt-2.5",
+            tile.tint && [tile.tint, "px-1.5"],
+            tile.tint && !tile.joinsBefore && "rounded-t-2xl pt-1.5",
+            tile.tint && !tile.joinsAfter && "rounded-b-2xl pb-1.5",
+            tile.joinsAfter && "pb-2.5",
+          )}
+        >
+          <RailRoom
+            room={tile.room}
+            {lang}
+            now={$personal.now}
+            selected={$nav.roomId === tile.room.id}
+            seen={$personal.seen[tile.room.id] ?? 0}
+            waits={waitsIn.get(tile.room.id) ?? []}
+            onnavigate={controller.callbacks.navigate}
+            onsettings={(id, trigger) => controller.openSettings(id, trigger)}
+          />
+        </SortableItem>{/each}
+    </SortableList>
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
     <RailButton
