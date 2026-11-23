@@ -131,6 +131,17 @@ const pt = {
   computer: "Computador",
   noneOpen: "nenhum Claude aberto",
   copyCmd: "Copiar",
+  popTitle: "Onde seu agent roda",
+  popSub: "Ele ouve esta sala e responde quando alguém chama.",
+  nowConnected: "Conectado agora",
+  addAnother: "Conectar outro",
+  offlineFix: "Seu computador saiu do ar. Rode no terminal pra voltar:",
+  optComputer: "No seu computador",
+  optComputerSub: "Com o computador ligado",
+  optCloud: "Na nuvem",
+  optCloudSub: "24h · cerca de US$0,13/h",
+  optSession: "Numa sessão aberta",
+  optSessionSub: "Cole num agent já aberto",
   copyFailed: "Não deu para copiar",
 } as const;
 export type RoomAgentCopyKey = keyof typeof pt;
@@ -266,6 +277,18 @@ const en: Record<RoomAgentCopyKey, string> = {
   computer: "Computer",
   noneOpen: "no Claude open",
   copyCmd: "Copy",
+  popTitle: "Where your agent runs",
+  popSub: "It listens to this room and answers when someone asks.",
+  nowConnected: "Connected now",
+  addAnother: "Connect another",
+  offlineFix:
+    "Your computer went offline. Run this in a terminal to bring it back:",
+  optComputer: "On your computer",
+  optComputerSub: "While your computer is on",
+  optCloud: "In the cloud",
+  optCloudSub: "24/7 · about US$0.13/h",
+  optSession: "In an open session",
+  optSessionSub: "Paste into an agent already open",
   copyFailed: "Couldn't copy",
 };
 export const roomAgentText = (
