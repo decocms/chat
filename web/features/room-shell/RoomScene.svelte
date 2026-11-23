@@ -28,9 +28,9 @@
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
-  import PhoneRoomMenu from "./PhoneRoomMenu.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
   import { phonePanes } from "./panelViews";
+  import type { DocumentPane } from "../documents/types";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -256,16 +256,19 @@
   onCells={edgeBack}
 >
   {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
-        {#snippet phoneMenu()}{#if $view && $geometry.mobile}<PhoneRoomMenu
-              {current}
-              lang={services.language}
-              dm={!!$view.header.room.book.dm}
-              agent={$view.toolbar.agent}
-              agentTitle={$view.toolbar.agentTitle}
-              onPane={(pane) => {
-                if (current()) owner.actions.setPane(pane, { open: true });
-              }}
-            />{/if}{/snippet}
+        <!-- Phones: the drawer's shortcuts are the same tab row as the doc sheet's, with no tab selected (Gimenes #4088). -->
+        {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
+              data-phone-menu
+            >
+              <DocumentToolbar
+                {...$view.peek}
+                pane={"" as DocumentPane}
+                only={phonePanes(!!$view.header.room.book.dm)}
+                onPane={(pane) => {
+                  if (current()) owner.actions.setPane(pane, { open: true });
+                }}
+              />
+            </div>{/if}{/snippet}
         {#snippet footer(
           collapsed,
           rows,

@@ -81,13 +81,15 @@ export async function openRoomPane(
   };
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones: no bottom bar (#3738). The title opens a menu with one shortcut
-    // per pane, in the desktop's order (#4076); a shortcut opens the doc sheet.
+    // Phones: no bottom bar (#3738). The title opens the drawer, whose tab row
+    // has the desktop's panes in its order (#4076, #4088); a tab opens the doc sheet.
     const shortcut = async (tab: string) => {
       if ((await layout.getAttribute("data-sheet")) !== "side")
         await page.locator("[data-room-bar] [data-phone-title]").click();
       await expect(layout).toHaveAttribute("data-sheet", "side");
-      await page.locator(`[data-phone-menu] [data-phone-tab="${tab}"]`).click();
+      await page
+        .locator(`[data-phone-menu] [data-document-pane="${tab}"]`)
+        .click();
     };
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
