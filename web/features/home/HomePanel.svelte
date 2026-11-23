@@ -395,6 +395,7 @@
       {lang}
       {ago}
       {onnavigate}
+      {oninbox}
     />
   </main>
 {:else}
