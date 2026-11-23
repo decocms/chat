@@ -6,14 +6,13 @@
     PointerSensor,
     defaultPreset,
   } from "@dnd-kit/dom";
+  import { current } from "./sortOrder";
 
   export const ROOT_GROUP = "root";
   export type SortMove = {
     id: string;
     group: string;
-    fromIndex: number;
-    toIndex: number;
-    /** The whole list in its new order. */
+    /** All of `ids`, in the new order. */
     order: string[];
   };
 
@@ -47,7 +46,7 @@
   /**
    * Drag to sort (@dnd-kit/svelte). `order` is the order while a row is dragged (null otherwise): the
    * parent shows it, so the others make room. On drop it goes back to null and `onmove` gets the move.
-   * `fromIndex` and `toIndex` count only the row's group (the sortable index); `order` is all of `ids`.
+   * The move names rows by id: indices change when the list changes mid-drag.
    */
   let {
     ids,
@@ -72,11 +71,11 @@
   {sensors}
   {plugins}
   onDragOver={(event) => {
-    // The dragged row takes the place of the row under it. Indices here are in `ids`, the whole list; a
-    // row's sortable index counts only its group, so dnd-kit's move() helper does not fit.
+    // The dragged row takes the place of the row under it, in `ids` (the whole list). A row's sortable
+    // index counts only its group, so dnd-kit's move() helper does not fit.
     const { source, target } = event.operation;
     if (!source || !target || source.id === target.id) return;
-    const next = [...(order ?? ids)],
+    const next = current(order, ids),
       from = next.indexOf(String(source.id)),
       to = next.indexOf(String(target.id));
     if (from < 0 || to < 0) return;
@@ -85,16 +84,14 @@
     order = next;
   }}
   onDragEnd={(event) => {
-    const final = order;
+    const final = order && current(order, ids);
     order = null;
     const source = event.operation.source;
     if (event.canceled || !final || !isSortable(source)) return;
-    if (source.initialIndex === source.index) return;
+    if (final.join("\0") === ids.join("\0")) return;
     onmove({
       id: String(source.id),
       group: String(source.group),
-      fromIndex: source.initialIndex,
-      toIndex: source.index,
       order: final,
     });
   }}

@@ -324,3 +324,23 @@ test("sidebar epics: pinned first in their order, then newest activity first", (
     "old",
   ]);
 });
+
+test("a drag names its landing by id, and its order follows a list that changed mid-drag (#4020)", async () => {
+  const { current, landing } = await import("../web/lib/components/sortOrder");
+  // A room arrived (N, at index 2) and one left (X) while A was dragged after C.
+  expect(current(["B", "C", "A", "X", "D"], ["A", "B", "N", "C", "D"])).toEqual(
+    ["B", "C", "N", "A", "D"],
+  );
+  expect(current(null, ["A", "B"])).toEqual(["A", "B"]);
+  // Before the next peer; after the previous one when it lands last; rows of another group are skipped.
+  const peer = (id: string) => id !== "s";
+  expect(landing(["B", "A", "s", "C"], "A", peer)).toEqual({
+    to: "C",
+    after: false,
+  });
+  expect(landing(["B", "C", "s", "A"], "A", peer)).toEqual({
+    to: "C",
+    after: true,
+  });
+  expect(landing(["A"], "A", peer)).toBe(null);
+});

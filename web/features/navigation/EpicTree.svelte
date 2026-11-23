@@ -20,6 +20,7 @@
   import Progress from "../../lib/studio/Progress.svelte";
   import { EPIC_PROGRESS } from "../room-shell/shape";
   import SortableItem from "../../lib/components/SortableItem.svelte";
+  import { landing } from "../../lib/components/sortOrder";
   import SortableList, {
     ROOT_GROUP,
     type SortMove,
@@ -178,16 +179,25 @@
         (!selectionDisabled && row.epic.id === thread),
     );
   });
-  const groupOf = (id: string) => forest.parents.get(id) ?? ROOT_GROUP;
-  const groupMembers = (group: string) =>
-    group === ROOT_GROUP ? forest.roots : (forest.children.get(group) ?? []);
-  const siblingIndex = $derived(
-    new Map(
-      [ROOT_GROUP, ...forest.children.keys()].flatMap((group) =>
-        groupMembers(group).map((epic, index) => [epic.id, index] as const),
-      ),
-    ),
+  // The rows are flat, but a sub-thread sorts only among its siblings (the order the server keeps,
+  // reorderEpics): its group is its real parent.
+  const parents = $derived(
+    epicForest(orderedEpics.filter((epic) => !epic.archived)).parents,
   );
+  const groupOf = (id: string) => parents.get(id) ?? ROOT_GROUP;
+  const groupMembers = (group: string) =>
+    forest.roots.filter((epic) => groupOf(epic.id) === group);
+  const siblingIndex = $derived.by(() => {
+    const counts = new Map<string, number>();
+    return new Map(
+      forest.roots.map((epic) => {
+        const group = groupOf(epic.id),
+          index = counts.get(group) ?? 0;
+        counts.set(group, index + 1);
+        return [epic.id, index] as const;
+      }),
+    );
+  });
   const rowIds = $derived(
     new Map(rows.map((row, index) => [row.epic.id, `${uid}-row-${index}`])),
   );
@@ -240,8 +250,7 @@
       navigation.update((state) => ({ ...state, archived: false }));
   });
   function siblings(id: string) {
-    const parent = forest.parents.get(id);
-    return parent ? (forest.children.get(parent) ?? []) : forest.roots;
+    return groupMembers(groupOf(id));
   }
   /** Only pinned epics take a hand-made order; the rest follow recency. */
   function adjacent(id: string, direction: -1 | 1) {
@@ -269,8 +278,13 @@
   /** A row was dropped at a new place among its siblings. */
   function sorted(move: SortMove) {
     if (disposed || mode !== "active") return;
-    const target = groupMembers(move.group)[move.toIndex];
-    if (target) void reorder(move.id, target.id, move.toIndex > move.fromIndex);
+    const shown = new Set(forest.roots.map((epic) => epic.id));
+    const place = landing(
+      move.order,
+      move.id,
+      (id) => shown.has(id) && groupOf(id) === move.group,
+    );
+    if (place) void reorder(move.id, place.to, place.after);
   }
   const registerRow = (id: string) => (node: HTMLElement) => {
     rowNodes.set(id, node);

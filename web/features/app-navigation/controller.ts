@@ -123,14 +123,18 @@ export function createAppNavigationSession(
       ids.splice(to, 0, id);
       void rooms.order(ids);
     },
-    drop(from: string, to: string, after: boolean) {
-      const ids = orderedRooms(get(personal.state).me?.books ?? []).map(
+    /** The rail's rooms in a new order (a drop): only a reorder of the rooms there are now. */
+    order(ids: readonly string[]) {
+      const known = orderedRooms(get(personal.state).me?.books ?? []).map(
         (room) => room.id,
       );
-      if (from === to || !ids.includes(from) || !ids.includes(to)) return;
-      const rest = ids.filter((id) => id !== from);
-      rest.splice(rest.indexOf(to) + (after ? 1 : 0), 0, from);
-      void rooms.order(rest);
+      if (
+        ids.length !== known.length ||
+        new Set(ids).size !== ids.length ||
+        !ids.every((id) => known.includes(id))
+      )
+        return;
+      void rooms.order([...ids]);
     },
     askRename(id: string) {
       const room = get(personal.state).me?.books.find((room) => room.id === id);

@@ -164,14 +164,13 @@
   );
   const railIds = $derived(railRooms.map((room) => room.id));
   // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it follows the pointer and the
-  // others make room (SortableList, Gimenes #3997 #4020). railIds is still the order before the drag.
+  // others make room (SortableList, Gimenes #3997 #4020). The whole new order is saved, so a second
+  // drop before the first is confirmed builds on it.
   function moved(move: SortMove) {
-    const target = railIds[move.toIndex];
-    if (!target) return;
     localOrder = move.order;
     clearTimeout(localTimer);
     localTimer = setTimeout(() => (localOrder = null), 10_000);
-    controller.drop(move.id, target, move.toIndex > move.fromIndex);
+    controller.order(move.order);
   }
   onDestroy(() => clearTimeout(localTimer));
   // A DM belongs to your home: there the home logo is the current one.
