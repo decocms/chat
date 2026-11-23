@@ -11,7 +11,7 @@
    * The desktop top bar's title: what fills the middle. The room's name is in
    * the sidebar's header, so the bar names only the view: "Sala principal"
    * (a DM: the other person), the open epic or suggestion, or a full view
-   * (board, inbox). An epic's actions follow at the end (EpicActions `bar`).
+   * (the board). An epic's actions follow at the end (EpicActions `bar`).
    */
   let {
     room,
@@ -25,7 +25,7 @@
     owner: RoomMutations;
     vb: SidebarBridge;
     /** A full view in the middle instead of the chat. */
-    view?: "board" | "inbox" | null;
+    view?: "board" | null;
   } = $props();
   const t = $derived(vb.t);
   const peer = $derived(dmPeer(room));
@@ -39,11 +39,9 @@
   const title = $derived(
     view === "board"
       ? t("Quadro de tarefas")
-      : view === "inbox"
-        ? t("Caixa de entrada")
-        : person
-          ? room.book.title
-          : (threadTitle(room, thread) ?? t("Sala principal")),
+      : person
+        ? room.book.title
+        : (threadTitle(room, thread) ?? t("Sala principal")),
   );
   const quiet = $derived(!view && !epic && !suggestion && !person);
   // The face beside the title: the epic's owner, or the DM's person.

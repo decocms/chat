@@ -8,7 +8,6 @@
   import { isDmId } from "../../../shared/dm";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
-  import Count from "../../lib/components/Count.svelte";
   import { roomIcon, switcherDms } from "../home/model";
   import { homeText } from "../home/copy";
   import { roomDocumentWidth } from "../room-layout/preview";
@@ -17,7 +16,7 @@
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
    * right) with the name and icon the home already knows, so nothing moves when
    * the state lands. On a phone it is RoomHeader's one row (back, the thread
-   * over the room, centered, inbox, you) and the composer alone at the bottom. */
+   * over the room, centered, you) and the composer alone at the bottom. */
   let {
     roomId,
     thread = "main",
@@ -51,7 +50,6 @@
         : peer.name
       : (room?.title ?? ""),
   );
-  const waits = $derived(me?.waits.length ?? 0);
   const en = $derived(services.language === "en");
   const t = (text: string, vars?: Record<string, string | number>) =>
     services.t(text, vars);
@@ -228,15 +226,6 @@
                 >{/if}{/if}
           </span>
         </div>
-        <span
-          aria-hidden="true"
-          class="relative grid size-10 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="inbox-01" size={20} />{#if waits}<Count
-              value={waits}
-              label={t("Esperando você: {n}", { n: waits })}
-              class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
-            />{/if}</span
-        >
         <span
           aria-hidden="true"
           class="grid size-10 shrink-0 place-items-center"

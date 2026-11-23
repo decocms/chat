@@ -381,7 +381,7 @@
           data-room-root
           class="h-full min-h-0 min-w-0 overflow-hidden"
         >
-          {@render roomSnippet({ services, openInbox, inbox })}
+          {@render roomSnippet({ services })}
         </div>{/if}
     </div>
     {#if $inboxView.binding && !$inboxView.binding.roomScope && !homeInbox}{#key $inboxView.binding}<Snapshot

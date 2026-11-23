@@ -47,13 +47,9 @@
     ontogglerail = () => {},
     onrenameroom = () => {},
     onopenside = () => {},
-    oninbox,
-    inboxOpen = false,
     onboard,
     boardOpen = false,
     boardCount,
-    inboxCount = 0,
-    onthreadintent,
     onroomhome,
     mountSheetHandle,
     hideSheetHandle = false,
@@ -98,10 +94,10 @@
     if (!external) owner.dispose();
   });
   function open(id: string) {
-    if (active && (onthreadintent?.() ?? true)) onopen(id);
+    if (active) onopen(id);
   }
   // The room's name and the main thread's row: the main thread is also the
-  // chat view, so it leaves the full board (and the inbox, in open()).
+  // chat view, so it leaves the full board.
   function openMain() {
     if (!active) return;
     if (boardOpen) onroomhome?.();
@@ -141,18 +137,7 @@
       tooltipSide="right"
       size="icon"><Icon icon="arrow-left" /></IconButton
     >
-    {#if oninbox}<IconButton
-        data-inbox-toggle={onboard ? "" : undefined}
-        variant={inboxOpen ? "secondary" : "ghost"}
-        aria-current={inboxOpen ? "page" : undefined}
-        aria-pressed={onboard ? inboxOpen : undefined}
-        label={vb.t("Caixa de entrada")}
-        tooltipSide="right"
-        size="icon"
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) oninbox?.(event.currentTarget);
-        }}><Icon icon="inbox-01" /></IconButton
-      >{/if}{#if onboard}<IconButton
+    {#if onboard}<IconButton
         data-board-toggle
         variant={boardOpen ? "secondary" : "ghost"}
         aria-pressed={boardOpen}
@@ -166,9 +151,9 @@
     {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
-        variant={!inboxOpen && thread === epic.id ? "secondary" : "ghost"}
+        variant={thread === epic.id ? "secondary" : "ghost"}
         class="relative h-auto flex-col gap-1 rounded-lg p-1"
-        aria-current={!inboxOpen && thread === epic.id ? "page" : undefined}
+        aria-current={thread === epic.id ? "page" : undefined}
         title={epic.title}
         onclick={(event) => {
           if (event.currentTarget.isConnected) open(epic.id);
@@ -284,9 +269,7 @@
           <button
             type="button"
             data-room-title
-            aria-current={!inboxOpen && !boardOpen && thread === "main"
-              ? "page"
-              : undefined}
+            aria-current={!boardOpen && thread === "main" ? "page" : undefined}
             class={navRow({
               class:
                 "transition-[background-color,padding] duration-150 ease-out group-hover/room:pr-9 group-focus-within/room:pr-9 md:group-hover/room:pr-2 md:group-focus-within/room:pr-2 motion-reduce:transition-none [@media(hover:none)]:pr-9",
@@ -334,26 +317,7 @@
         </div>
         {#if onboard}<!-- Desktop: the room's views, like the main thread above (chat): they change the whole middle. -->
           <div data-room-views class="-mt-2.5 flex shrink-0 flex-col gap-0.5">
-            {#if oninbox}<button
-                type="button"
-                data-inbox-toggle
-                aria-pressed={inboxOpen}
-                class={navRow()}
-                onclick={(event) => {
-                  if (event.currentTarget.isConnected)
-                    oninbox?.(event.currentTarget);
-                }}
-                ><Icon
-                  icon="inbox-01"
-                  size={16}
-                  class="shrink-0 text-muted-foreground"
-                /><span class="min-w-0 flex-1 truncate"
-                  >{vb.t("Caixa de entrada")}</span
-                >{#if inboxCount}<Count
-                    value={inboxCount}
-                    label={vb.t("Esperando você: {n}", { n: inboxCount })}
-                  />{/if}</button
-              >{/if}<button
+            <button
               type="button"
               data-board-toggle
               aria-pressed={boardOpen}
@@ -381,8 +345,6 @@
         <EpicTree
           {room}
           {thread}
-          selectionDisabled={inboxOpen}
-          onBeforeOpen={onthreadintent}
           session={navigation}
           mutations={owner}
           {onarchchange}

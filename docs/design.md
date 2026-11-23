@@ -8,19 +8,21 @@ The room screen has five areas, from left to right.
 
 | Area | Component | Contents |
 |---|---|---|
-| Rail | `AppNavigation` | Your rooms, search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), the views (main thread, Inbox, task board), the epics, the people. |
+| Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), the views (main thread, task board), the epics, the people. |
 | Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
-| Main view | `RoomScene` overlay or chat | The chat of a thread, the Inbox (`RoomInbox`) or the full task board. |
+| Main view | `RoomScene` | The chat of a thread or the full task board. |
 | Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, the board, beside the main view. |
 
 The sidebar names the room. The top bar names the view. Do not show the room's name two times.
+
+A room has no Inbox of its own. The Inbox is global: the home's page at `/?inbox` (`HomeInbox`, which draws `RoomInbox`). Desktop opens it from the rail. Do not add an Inbox entry to a room.
 
 ## The top bar
 
 The top bar has one row on desktop. Its parts are in this order:
 
-1. The name of the view (`RoomBarTitle`): "Sala principal", the epic's title, "Caixa de entrada", "Quadro de tarefas".
+1. The name of the view (`RoomBarTitle`): "Sala principal", the epic's title, "Quadro de tarefas".
 2. The controls of the view.
 3. A vertical `Separator`.
 4. The room's search field ("Buscar nesta sala"). Typing opens the Search pane beside the chat with the matches. Not in a DM.
@@ -44,7 +46,7 @@ A control of the view acts on all of the view, not on one item in it. Examples: 
 
 To add controls for a view:
 
-1. Write one component for the controls, in the folder of the view. Example: `web/features/application/InboxControls.svelte`.
+1. Write one component for the controls, in the folder of the view. Example: `web/features/application/InboxControls.svelte` (in `HomeInbox`).
 2. In `RoomScene`, give that component to `RoomHeader` as the `viewControls` snippet.
 3. Give `viewControls` only while the view is open.
 4. On phones, draw the same component at the top of the view, with `md:hidden`.
@@ -54,7 +56,6 @@ The top bar on phones has no space for the controls of a view. That is why the v
 | View | Controls of the view | Component |
 |---|---|---|
 | Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions` (`bar`), in `RoomBarTitle`. On phones: `EpicActions` (`sheet`), under the title in `ThreadHeader` |
-| Inbox | "Esta sala" / "Todas as salas", "Resolver todos os pedidos (n)" | `InboxControls`, in the `viewControls` slot |
 | Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
 | Main thread, task board | None | |
 

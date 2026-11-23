@@ -101,8 +101,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   let active = true,
     synchronizing = false,
     projecting = false,
-    projectAgain = false,
-    inboxVisible = false;
+    projectAgain = false;
   const voiceApi = createVoiceApi(browser.fetcher);
   const voiceLeaving = new Set<() => void>();
   function leaveVoice() {
@@ -126,7 +125,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   const forThread = (thread: string) => current() && selected() === thread;
   function composerRequestFor(thread: string): RequestRoomCommand {
     return (command) => {
-      if (!forThread(thread) || inboxVisible) return failed();
+      if (!forThread(thread)) return failed();
       if (command.t !== "msg") return request(command);
       if ((command.thread ?? "main") !== thread) return failed();
       const target = side.target();
@@ -801,11 +800,11 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           value = snapshot?.room;
         if (!snapshot || !value) break;
         const thread = snapshot.thread,
-          owned = () => forThread(thread) && !inboxVisible,
+          owned = () => forThread(thread),
           waits = me()?.waits ?? [],
           display = get(layout.state);
         if (nextKeep !== "stay" && nextKeep !== true) viewport.followLatest();
-        chatPresentation.capture(nextKeep, !display.boardFull && !inboxVisible);
+        chatPresentation.capture(nextKeep, !display.boardFull);
         const revision = ++chatRevision;
         const appProps: import("../apps/types").AppsProps = {
           ask: (prompt) => {
@@ -1163,7 +1162,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);
                 },
-                hidden: display.boardFull || inboxVisible,
+                hidden: display.boardFull,
               },
           suggestion: pre
             ? {
@@ -1486,11 +1485,6 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     viewer,
     richFiles,
     current,
-    setInboxVisible(value) {
-      if (!current() || inboxVisible === value) return;
-      inboxVisible = value;
-      project("stay");
-    },
     attachChat(element) {
       if (!current() || !element.isConnected) return () => {};
       const surface = createChatSurface(element);
@@ -1522,8 +1516,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (!current() || revision !== chatRevision || !chatElement?.isConnected)
         return;
       if (chatSurface) viewport.attach(chatSurface);
-      if (!chatPresentation.rendered(!layout.read().boardFull && !inboxVisible))
-        return;
+      if (!chatPresentation.rendered(!layout.read().boardFull)) return;
       const intent = pendingMessage;
       if (intent && intent.navigation === services.router.generation()) {
         pendingMessage = null;

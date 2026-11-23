@@ -86,7 +86,6 @@ export type RoomScope = {
   readonly viewer: FileViewer;
   readonly richFiles: RichFileReader;
   current(): boolean;
-  setInboxVisible(value: boolean): void;
   attachChat(element: HTMLElement): () => void;
   attachFiles(element: HTMLElement): () => void;
   attachAttention(element: HTMLElement): () => void;
