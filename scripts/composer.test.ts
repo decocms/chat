@@ -5,6 +5,7 @@ import {
   definiteMessageFailure,
   type ComposerClock,
 } from "../web/features/composer/drafts";
+import { MAX_STORED, storageDrafts } from "../web/features/composer/draftStore";
 import {
   mediaType,
   normalizeFile,
@@ -830,4 +831,71 @@ test("matching by client_id: another tab's row with the same text is not this se
     matchingMessage({ ...r, messages: [message(11, "ok")] }, "main", snapshot)
       ?.id,
   ).toBe(11);
+});
+
+/** A Storage over a Map, as the browser's localStorage (the drafts' store). */
+function memoryStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    key: (i: number) => [...map.keys()][i] ?? null,
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, String(v)),
+    removeItem: (k: string) => void map.delete(k),
+    clear: () => map.clear(),
+  };
+}
+
+test("a draft's text and reply come back from storage after the drafts are gone (leave, reload), and a cleared draft leaves storage (Gimenes #4172)", () => {
+  const storage = memoryStorage();
+  const r = room();
+  const scope = { account: r.me, roomId: r.id, thread: "main" };
+  const first = createComposerDrafts(undefined, storageDrafts(storage));
+  first.entry(scope).edit("half a thought");
+  first.entry(scope).state.update((s) => ({ ...s, replyId: 7 }));
+  first.dispose();
+  // A new page: a new drafts bag reads the same storage.
+  const again = createComposerDrafts(undefined, storageDrafts(storage));
+  const state = get(again.entry(scope).state);
+  expect(state.text).toBe("half a thought");
+  expect(state.replyId).toBe(7);
+  // Another account or thread does not get it.
+  expect(get(again.entry({ ...scope, account: "other@test" }).state).text).toBe(
+    "",
+  );
+  expect(get(again.entry({ ...scope, thread: "epic" }).state).text).toBe("");
+  again
+    .entry(scope)
+    .state.update((s) => ({ ...s, text: "", replyId: undefined }));
+  expect(storage.length).toBe(0);
+});
+
+test("the drafts' storage keeps the newest MAX_STORED drafts and survives a storage that throws", () => {
+  const storage = memoryStorage();
+  let clock = 0;
+  const store = storageDrafts(storage, () => ++clock);
+  for (let i = 0; i < MAX_STORED + 3; i++)
+    store.write(`k${i}`, { text: `t${i}` });
+  expect(storage.length).toBe(MAX_STORED);
+  expect(store.read("k0")).toBeUndefined();
+  expect(store.read(`k${MAX_STORED + 2}`)?.text).toBe(`t${MAX_STORED + 2}`);
+  const blocked = () => {
+    throw new Error("blocked");
+  };
+  const broken = {
+    get length(): number {
+      return blocked();
+    },
+    key: blocked,
+    getItem: blocked,
+    setItem: blocked,
+    removeItem: blocked,
+    clear() {},
+  } as unknown as Storage;
+  const safe = storageDrafts(broken);
+  expect(() => safe.write("k", { text: "x" })).not.toThrow();
+  expect(safe.read("k")).toBeUndefined();
+  expect(() => safe.remove("k")).not.toThrow();
 });

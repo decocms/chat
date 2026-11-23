@@ -1,9 +1,10 @@
 import { createComposerDrafts } from "../composer/drafts";
+import { browserDrafts } from "../composer/draftStore";
 import { createDocumentDrafts } from "../documents/session";
 
 /** Drafts belong to this application/account, rather than a mounted room. */
 export function createRoomResources() {
-  const composer = createComposerDrafts();
+  const composer = createComposerDrafts(undefined, browserDrafts());
   const documents = createDocumentDrafts();
   let active = true;
   return {

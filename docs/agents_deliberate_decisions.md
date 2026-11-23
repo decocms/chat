@@ -1418,3 +1418,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The old names keep working.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/draft-storage · Composer drafts stay in localStorage
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes asked that the text in the message field come back after the person leaves a room or a thread and returns (#4172), "in sessionStorage or another local storage". The drafts lived only in memory, so a reload or a closed app lost them.
+- Decision:
+  - The text and the reply of each draft go to `localStorage` (`composer/draftStore.ts`), keyed by account, room and thread. A phone app that the system closes loses `sessionStorage`, so `localStorage` is the one that brings a draft back there.
+  - Files and polls stay in memory only: a file cannot go into storage, and a half-made poll is rare.
+  - At most 64 stored drafts; the oldest go first. A draft that becomes empty (sent, or erased) leaves storage.
+  - A successful sign-out removes all stored drafts, so a shared device keeps none.
+  - Every storage access is guarded. A blocked storage only loses persistence.
+- Other options: `sessionStorage` (lost when the app closes). Store files too (they do not fit in storage).
+- Risk: low. A draft can stay on a device until it is sent, erased, pushed out by newer drafts, or the person signs out.
+- Undo: Revert this commit.
+- Status: open
