@@ -128,7 +128,7 @@ try {
     },
   );
   const nav = page.getByRole("region", {
-    name: "Epics",
+    name: "Threads",
     exact: true,
     includeHidden: true,
   });
@@ -147,8 +147,11 @@ try {
     await show();
     await expect.poll(() => ready).toBe(true);
   };
-  const draft = nav.getByRole("textbox", { name: "New epic", exact: true });
-  const submit = nav.getByRole("button", { name: "Create epic", exact: true });
+  const draft = nav.getByRole("textbox", { name: "New thread", exact: true });
+  const submit = nav.getByRole("button", {
+    name: "Create thread",
+    exact: true,
+  });
   await navigate();
   step("Checking the flat list, live updates and draft retention");
   // Sub-epics are plain rows: nothing nests, indents or collapses.
@@ -398,16 +401,16 @@ try {
   await context.addCookies([{ name: "vb_lang", value: "pt", url: base }]);
   await page.reload();
   const portuguese = page.getByRole("region", {
-    name: "Épicos",
+    name: "Threads",
     exact: true,
     includeHidden: true,
   });
   await show(portuguese);
   await portuguese
-    .getByRole("textbox", { name: "Novo épico", exact: true })
+    .getByRole("textbox", { name: "Nova thread", exact: true })
     .fill("Navegação verificada");
   await portuguese
-    .getByRole("button", { name: "Criar épico", exact: true })
+    .getByRole("button", { name: "Criar thread", exact: true })
     .click();
   await expect(
     portuguese

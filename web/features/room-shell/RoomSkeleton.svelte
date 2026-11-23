@@ -115,13 +115,11 @@
               >{:else}{@render line("w-32")}{/if}
           </div>
           <div
-            class="grid grid-cols-3 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
+            class="grid grid-cols-2 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
           >
             <span class="rounded-md bg-background py-1 text-foreground"
-              >{t("Épicos")}</span
-            ><span class="py-1">{t("Plano")}</span><span class="py-1"
-              >{t("Feitos")}</span
-            >
+              >{t("Threads abertas")}</span
+            ><span class="py-1">{t("Feitas")}</span>
           </div>
           <!-- Epic rows (EpicTree): avatar, title, the status at the end, the task bar under. -->
           <div class="-mt-1 flex flex-col gap-0.5">
@@ -141,7 +139,7 @@
           >
             <span class="flex size-5 shrink-0 items-center justify-center"
               ><Icon icon="plus" size={16} /></span
-            >{t("Novo épico")}
+            >{t("Nova thread")}
           </div>
         </div>{/if}
       <div

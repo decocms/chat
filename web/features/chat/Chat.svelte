@@ -154,11 +154,11 @@
         {thread === "main"
           ? vb
               .t(
-                "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em épicos: site novo, aluguéis e domínio</i>.",
+                "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.",
               )
               .replace(/<\/?i>/g, "")
           : vb.t(
-              "Discussão deste épico. Os agents leem as tarefas, o doc e a sala principal.",
+              "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
             )}
       </p>{/if}
     {#if workers.length}<!-- Who is working here, in the agent's own color (a full block, like its tile): the agent is the

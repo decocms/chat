@@ -325,7 +325,7 @@ function menuItem(trigger: Element, name: string) {
 const shown = (trigger: Element) =>
   trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
 
-/** The new-epic field opens from the + in the Épicos header. */
+/** The new-thread field opens from the + in the threads list. */
 function newEpicInput(target: ParentNode) {
   if (!target.querySelector("#newEpic input")) {
     target.querySelector<HTMLButtonElement>("[data-new-epic]")!.click();
@@ -3913,7 +3913,7 @@ describe("stable sidebar integration", () => {
     );
     expect(
       rendered.target.querySelector("[role=status]")?.textContent,
-    ).toContain("Ordem dos épicos atualizada.");
+    ).toContain("Ordem das threads atualizada.");
     rendered.view.update(rendered.props);
     down.focus();
     altDown(down);
@@ -6304,7 +6304,7 @@ describe("room sidebar header and suggestion ownership", () => {
       target.querySelector("[data-thread-title]")?.nextElementSibling,
     ).toBe(target.querySelector("[data-epic-bar-actions]"));
   });
-  test("desktop epic bar: the status menu lists the six statuses, Feito sends epic.status and the pill follows the server; detached pills cannot write", async () => {
+  test("desktop thread bar: the status menu lists the 4 states (Gimenes #3989), Feito sends epic.status and the pill follows the server; detached pills cannot write", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       request = async (command: RoomCommand): Promise<CommandOutcome> => {
@@ -6324,7 +6324,7 @@ describe("room sidebar header and suggestion ownership", () => {
       [
         ...document.querySelectorAll<HTMLElement>("[data-epic-status-choice]"),
       ].map((item) => item.textContent?.trim()),
-    ).toEqual(["A fazer", "Fazendo", "Esperando OK", "Feito", "Arquivado"]);
+    ).toEqual(["A fazer", "Fazendo", "Requer ação", "Feito"]);
     // The epic list has no actions menu: this menu pins the epic (Gimenes #3933); it picks no owner (#3975).
     expect(
       [...document.querySelectorAll("[role=menuitem]")].some(
@@ -6354,7 +6354,7 @@ describe("room sidebar header and suggestion ownership", () => {
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Feito");
-    // Without a chosen status an archived epic with open tasks shows Arquivado.
+    // Without a chosen status an archived thread with open tasks shows done too: there is no separate archive state.
     const dropped: Room = {
       ...archived,
       epics: archived.epics.map((epic) => ({
@@ -6370,7 +6370,7 @@ describe("room sidebar header and suggestion ownership", () => {
       target
         .querySelector("[data-epic-status]")
         ?.getAttribute("data-epic-status"),
-    ).toBe("dismissed");
+    ).toBe("done");
     commands.length = 0;
     const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
     active.splice(active.indexOf(view), 1);
@@ -6563,7 +6563,7 @@ describe("collapsed sidebar and typed presence", () => {
     const view = mountView("sidebar", target, props);
     active.push(view);
     target
-      .querySelector<HTMLButtonElement>('[aria-label="Novo épico"]')!
+      .querySelector<HTMLButtonElement>('[aria-label="Nova thread"]')!
       .click();
     expect(expanded).toBe(1);
     view.update({ ...props, collapsed: false });

@@ -121,8 +121,8 @@
     >
       <p class="m-0 text-sm">
         {en
-          ? "Retained edits belong to epics that no longer exist. They will never be sent to another document."
-          : "Edições guardadas pertencem a épicos que não existem mais. Elas nunca serão enviadas para outro documento."}
+          ? "Retained edits belong to threads that no longer exist. They will never be sent to another document."
+          : "Edições guardadas pertencem a threads que não existem mais. Elas nunca serão enviadas para outro documento."}
       </p>
       {#each $view.orphaned as draft (draft.epicId)}<details>
           <summary class="cursor-pointer text-sm">{draft.epicId}</summary>
