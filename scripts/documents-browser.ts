@@ -302,7 +302,7 @@ try {
   });
   assert(joined.ok(), `Join status ${joined.status()}`);
   const epic = z.object({ epic_id: z.string() }).parse(
-    await agent("start_epic", {
+    await agent("start_thread", {
       room_id: room,
       title: "Document scope",
       why: "Real CRDT verification",
@@ -453,7 +453,7 @@ try {
   phases.push(phase);
   phase = "deleted open epic cannot retarget room document";
   const rootBeforeDelete = await readDoc();
-  await agent("delete_epic", { room_id: room, epic_id: epic });
+  await agent("delete_thread", { room_id: room, epic_id: epic });
   await expect(
     a.getByRole("navigation", { name: "Document scope" }),
   ).toHaveCount(0);

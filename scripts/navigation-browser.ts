@@ -83,7 +83,7 @@ try {
       message = posted.id;
     }
     return z.object({ epic_id: z.string() }).parse(
-      await agent("start_epic", {
+      await agent("start_thread", {
         room_id: id,
         title,
         why: "Verify the hierarchy, navigation and persistence against real room state.",
@@ -98,12 +98,12 @@ try {
   const other = await newEpic("Second branch");
   const oldParent = await newEpic("Archived parent");
   const oldChild = await newEpic("Archived child", oldParent);
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: oldParent,
     archived: true,
   });
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: oldChild,
     archived: true,
@@ -160,7 +160,7 @@ try {
   await expect(nav.locator("[data-depth]")).toHaveCount(0);
   await expect(nav.getByRole("button", { name: /branch:/ })).toHaveCount(0);
   await draft.fill("Draft survives live updates");
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: leaf,
     title: "Leaf initial live update",
@@ -172,7 +172,7 @@ try {
   await navigate(leaf);
   await expect(row(leaf)).toBeVisible();
   await expect(title(leaf)).toHaveAttribute("aria-current", "page");
-  await agent("update_epic", {
+  await agent("update_thread", {
     room_id: id,
     epic_id: leaf,
     title: "Leaf updated remotely",

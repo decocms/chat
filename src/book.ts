@@ -220,10 +220,10 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
       .map(({ ts, pinned, status: chosen, ...e }) => {
-        // The status a person or an agent chose (epic.status, update_epic status); null = the app works it out (epicStatus).
+        // The status a person or an agent chose (epic.status, update_thread status); null = the app works it out (epicStatus).
         const status = (EPIC_STATUSES as readonly string[]).includes(chosen ?? "") ? (chosen as EpicStatus) : null;
         const f = flags[e.id] ?? {};
-        // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_epic prod).
+        // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_thread prod).
         return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
@@ -515,7 +515,7 @@ export class Book extends DurableObject<Env> {
     const covered = (t: string) => { const w = words(t); return epicWords.some((e) => [...w].filter((x) => e.has(x)).length >= Math.max(1, Math.ceil(Math.min(w.size, e.size) / 2))); };
     return storedSuggestions(this.get("suggestions"), (kind) => console.warn("book stored projection", kind)).filter((x) => x.title.trim() && !have.has(epicKey(x.title)) && !covered(x.title));
   }
-  /** The one gate for epic suggestions (@vibe's classify and agents' suggest_epic): one Jev call asks, for each,
+  /** The one gate for epic suggestions (@vibe's classify and agents' suggest_thread): one Jev call asks, for each,
    * whether an epic of this room, open or archived, already does it (by goal, not by name), and drops those.
    * Re-run over the stored ones on each pass, so a suggestion that became an epic since goes away. Jev down = kept
    * (it's only a suggestion; the word filter in suggestions() still applies). */
@@ -1045,7 +1045,7 @@ export class Book extends DurableObject<Env> {
     );
     if (changed) this.epicsChanged();
   }
-  // The epic bar's status menu (epic.status) and update_epic status. "done" archives and closes the open tasks (the old
+  // The epic bar's status menu (epic.status) and update_thread status. "done" archives and closes the open tasks (the old
   // Archive button), "dismissed" archives and leaves them, and an open status reopens an archived epic (the old
   // Unarchive). There is no "live" status (Gimenes #3877): in production is done.
   setEpicStatus(id: string, status: EpicStatus) {
@@ -1255,7 +1255,7 @@ export class Book extends DurableObject<Env> {
   /** A question or analysis asked in the main thread becomes an answer epic right away (Gui #2767): one Jev call (~1s)
    *  asks whether it's to be answered with information; ≥0.7 and the author has a Claude listening here makes the epic
    *  (title = the question, the doc's task list last), links it under the message and opens its doc in the author's
-   *  tabs, where "Claude está escrevendo a resposta…" shows until their Claude writes. Their Claude's start_epic for
+   *  tabs, where "Claude está escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for
    *  that message returns this epic instead of a new one. Jev down = nothing happens (the Claude still answers). */
   async answerIntent(msgId: number, email: string, text: string) {
     const bookId = this.get("book_id");
@@ -1811,7 +1811,7 @@ export class Book extends DurableObject<Env> {
     if (!(await this.members()).includes(email)) return { ok: false, error: "forbidden" };
     const event = RoomEventSchemas.openDoc.safeParse({ t: "openDoc", epic });
     if (!event.success) return { ok: false, error: "invalid doc target" };
-    if (event.data.epic && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, event.data.epic).toArray().length) return { ok: false, error: "no such epic in this room (epic_id from start_epic / read_room)" };
+    if (event.data.epic && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, event.data.epic).toArray().length) return { ok: false, error: "no such epic in this room (epic_id from start_thread / read_room)" };
     const tabs = this.sockets().filter((ws) => this.ctx.getTags(ws)[0] === email);
     this.sendTo(tabs, event.data);
     return tabs.length
@@ -1924,7 +1924,7 @@ export class Book extends DurableObject<Env> {
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
     this.bind(bookId);
     // A DM is only a conversation: an epic asked for here goes to the room it belongs to.
-    if (this.isDm) return { ok: false, error: "A DM has no epics. Create it in the room it belongs to (start_epic with that room's room_id; inbox lists the rooms), then say in this DM where it went, with the link." };
+    if (this.isDm) return { ok: false, error: "A DM has no epics. Create it in the room it belongs to (start_thread with that room's room_id; inbox lists the rooms), then say in this DM where it went, with the link." };
     // Owner: the one asked for when it's a member, else whoever the agent works for (they asked for it).
     const members = await this.members();
     // Backlog (kept for later, nobody on it yet): no owner unless one is given.
@@ -2001,7 +2001,7 @@ export class Book extends DurableObject<Env> {
           this.deleteTask(id);
           return { ok: true };
         }
-        case "suggest_epic": {
+        case "suggest_thread": {
           const title = s("title")?.trim().slice(0, 200);
           if (!title) return { ok: false, error: "title is required" };
           const tasks = (Array.isArray(a.tasks) ? a.tasks : []).map((t) => String(t).trim().slice(0, 300)).filter(Boolean).slice(0, 8);
@@ -2012,11 +2012,11 @@ export class Book extends DurableObject<Env> {
           this.broadcast({ t: "suggestions", suggestions: this.suggestions() });
           return { ok: true, suggestions: this.suggestions().length };
         }
-        case "delete_epic": {
+        case "delete_thread": {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND author != 'ai' LIMIT 1`, e).toArray().length)
-            return { ok: false, error: "people or agents wrote in this epic's thread: archive it instead (update_epic archived: true)" };
+            return { ok: false, error: "people or agents wrote in this epic's thread: archive it instead (update_thread archived: true)" };
           this.deleteEpic(e);
           return { ok: true };
         }
@@ -2029,7 +2029,7 @@ export class Book extends DurableObject<Env> {
           this.broadcast({ t: "moved", id, thread: to });
           return { ok: true };
         }
-        case "update_epic": {
+        case "update_thread": {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (s("title")) this.renameEpic(e, s("title")!);
@@ -2682,7 +2682,7 @@ ${transcript}`,
       const title = this.get("title_locked") || (current && current.title !== DEFAULT_TITLE && current.title !== "Novo vibebook") ? undefined : output.title;
       const summary = output.summary.replace(/\s+/g, " ").trim().slice(0, 180);
       await this.touch({ title, folder: output.folder, summary });
-      // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_epic stays theirs.
+      // No epic suggestions from here any more (Gui #3030): the Claudes open an epic per request, and suggest_thread stays theirs.
       this.broadcast({ t: "meta", title, folder: output.folder, summary });
     } catch (e) {
       // Negative cache: mark as classified anyway so a failing provider isn't retried every alarm.
