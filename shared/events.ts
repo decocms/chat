@@ -98,6 +98,8 @@ export const RoomEventSchemas = {
     declined: z.optional(strings),
     requests: z.optional(z.array(AccessRequestSchema)),
     names: z.optional(z.record(str, str)),
+    /** email → @handle (shared/mention.ts) */
+    handles: z.optional(z.record(str, str)),
     avatars: z.optional(z.record(str, num)),
   }),
   files: event("files", { files: z.array(AttachmentSchema) }),

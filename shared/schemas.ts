@@ -774,3 +774,8 @@ export const ProfileSettingsResult = z.object({
   public: z.boolean(),
 });
 export type ProfileSettingsResult = z.infer<typeof ProfileSettingsResult>;
+/** Your @handle (Settings › Profile): 2–24 of a-z, 0-9, ".", "_", "-", unique across the app. */
+export const HANDLE_RE = /^[a-z0-9][a-z0-9._-]{1,23}$/;
+export const SetHandleBody = z.object({ handle: z.string() });
+export const SetHandleResult = z.object({ handle: z.string() });
+export type SetHandleResult = z.infer<typeof SetHandleResult>;

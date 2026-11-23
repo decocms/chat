@@ -423,9 +423,12 @@
                 size="xs"
                 aria-hidden="true"
                 fallback="@"
-              />{/if}<b>@{item.handle}</b><small class="text-muted-foreground"
-              >{vb.t(item.label)}</small
-            ></button
+              />{/if}{#if item.email && !item.agent}<b class="font-medium"
+                >{item.label}</b
+              ><small class="text-muted-foreground">@{item.handle}</small
+              >{:else}<b>@{item.handle}</b><small class="text-muted-foreground"
+                >{vb.t(item.label)}</small
+              >{/if}</button
           >{/each}{/if}
     </div>{/if}
   {#if refining || voiceWaiting}<p

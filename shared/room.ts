@@ -179,6 +179,8 @@ export const RoomSnapshotSchema = z.object({
   members: strings,
   online: strings,
   names: opt(z.record(str, str)),
+  /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
+  handles: opt(z.record(str, str)),
   avatars: opt(z.record(str, num)),
   pending: opt(strings),
   /** Invited and not in (src/rooms.ts invites): waiting for their yes, then the ones who said no. Not members. */
