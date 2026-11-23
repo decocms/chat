@@ -1136,3 +1136,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-no-rocket · The epic list has no deploy icon
+- Agent: claude-opus-5-5
+- Context: After "No ar" was removed (#3877), the human asked to also remove the rocket in the epic list (#3882).
+- Decision:
+  - The epic list does not show the `prod` icon (rocket, verified, changes requested) any more.
+  - Each epic shows its status icon, also when it has a `prod` stage. An epic in production shows Feito. Before, the `prod` icon replaced the status icon.
+  - The `prod` stage itself stays: agents set it, the epic's thread still shows it (`Chat.svelte`), and it gives the Feito status.
+- Other options: Show nothing for an epic with a `prod` stage.
+- Risk: low. The "changes requested after deploy" cue is not in the list now. It is still in the thread.
+- Undo: Revert this commit.
+- Status: open

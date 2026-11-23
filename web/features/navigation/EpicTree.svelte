@@ -25,7 +25,6 @@
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import type { WaitReference } from "../waits/model";
-  import { productionStatuses } from "../chat/production";
   import {
     archivedEpics,
     activeEpics,
@@ -148,7 +147,6 @@
     return () => observer.disconnect();
   });
   const archived = $derived(archivedEpics(orderedEpics, room.messages));
-  const production = $derived(productionStatuses(room));
   // Epics / Plan / Done: Plan is @vibe's proposals (open one to see it, start it to make it an epic), Done the archive.
   const mode = $derived(
     $navigation.archived && archived.length > 0
@@ -504,17 +502,17 @@
                       >({vb.t("Arquivado")})</span
                     >{/if}</span
                 >
-                <!-- The epic's status (shared/epicStatus.ts); an epic with a prod stage shows that icon below instead. -->
-                {#if !epic.prod}<span
-                    role="img"
-                    data-epic-status-icon={status}
-                    aria-label={vb.t(epicStatusLook(status).label)}
-                    class={cn("flex shrink-0", epicStatusLook(status).text)}
-                    ><Icon
-                      icon={epicStatusLook(status).icon}
-                      class="size-3.5"
-                    /></span
-                  >{/if}
+                <!-- The epic's status (shared/epicStatus.ts); an epic in production shows Feito. -->
+                <span
+                  role="img"
+                  data-epic-status-icon={status}
+                  aria-label={vb.t(epicStatusLook(status).label)}
+                  class={cn("flex shrink-0", epicStatusLook(status).text)}
+                  ><Icon
+                    icon={epicStatusLook(status).icon}
+                    class="size-3.5"
+                  /></span
+                >
                 {#if epic.pinned && value === "active"}<span
                     role="img"
                     data-epic-pinned
@@ -533,34 +531,6 @@
                   waits={vb.waitsIn(epic.id)}
                   label={(n) => vb.t("{n} coisas esperando você", { n })}
                 />
-                {#if epic.prod}{@const changes =
-                    production.get(epic.id) === "changes"}<span
-                    role="img"
-                    data-epic-prod={changes ? "changes" : epic.prod.stage}
-                    aria-label={vb.t(
-                      changes
-                        ? "Uma versão está no ar; você pediu correções depois"
-                        : epic.prod.stage === "verified"
-                          ? "Verificado em prod"
-                          : "No ar, falta verificar em prod",
-                    )}
-                    title={vb.t(
-                      changes
-                        ? "Uma versão está no ar; você pediu correções depois"
-                        : epic.prod.stage === "verified"
-                          ? "Verificado em prod"
-                          : "No ar, falta verificar em prod",
-                    )}
-                    class="flex shrink-0 text-muted-foreground"
-                    ><Icon
-                      icon={changes
-                        ? "refresh-cw-01"
-                        : epic.prod.stage === "verified"
-                          ? "check-circle"
-                          : "rocket-01"}
-                      class="size-3.5"
-                    /></span
-                  >{/if}
                 {#if epic.tasks.length}<span
                     class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
                     >{epic.tasks.filter((task) => task.done).length}/{epic.tasks
