@@ -173,7 +173,8 @@ test("direct application shell renders Home/Archive and the required room snippe
   ).not.toBeNull();
   h.services.actions.home();
   await flush();
-  await waitForView(target, '[data-view="home"]');
+  // A desktop's Home is the Caixa de entrada once you have rooms (Gimenes #3967).
+  await waitForView(target, "[data-home-inbox]");
   expect(target.querySelector("[data-app-navigation]")).toBe(navigation);
   flushSync(() => {
     void unmount(component);

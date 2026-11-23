@@ -105,8 +105,17 @@
       />{/if}</SidebarHeader
   >
   <ul class="m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto p-0">
-    <!-- Home, Inbox and You: where a room has its Main thread and Inbox. -->
-    <li>
+    <!-- Desktop: Home is the Caixa de entrada (Gimenes #3967), one row with its count. -->
+    <li data-home-inbox-desk class="max-md:hidden">
+      <InboxRow
+        selected={!current}
+        waits={$personal.me?.waits.length ?? 0}
+        {lang}
+        oninbox={controller.callbacks.home}
+      />
+    </li>
+    <!-- Phone: Home, Inbox and You, where a room has its Main thread and Inbox. -->
+    <li class="md:hidden">
       <!-- With an Inbox row under it, the count is on the Inbox (like a room's), not on Home. -->
       <HomeRow
         selected={!current && !$nav.inbox}
@@ -117,7 +126,6 @@
         onhome={controller.callbacks.home}
       />
     </li>
-    <!-- Desktop: the rail's Inbox button, under the logo, replaces this row. -->
     {#if controller.callbacks.inbox}<li data-home-inbox-row class="md:hidden">
         <InboxRow
           selected={!current && $nav.inbox}

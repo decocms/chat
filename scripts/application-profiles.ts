@@ -462,17 +462,22 @@ async function keyboardOverlays(
       "Escape closes the mobile side sheet with confirmed history departure",
     );
   }
-  // A room has no Inbox of its own: the Inbox is global (`/?inbox`). Desktop
-  // opens it from the rail (while something waits on you); phones by its URL.
+  // A room has no Inbox of its own: the Inbox is global. Desktop opens it
+  // from the rail's logo, as the Home (`/`, Gimenes #3967); phones by `/?inbox`.
   await expect(page.locator("[data-inbox-toggle]")).toHaveCount(0);
   const roomUrl = page.url();
-  const railInbox = page.locator("[data-rail-inbox] button");
+  const railInbox = page
+    .locator("[data-app-navigation]")
+    .getByRole("button", { name: t("Caixa de entrada"), exact: true });
   const byRail = !phone && (await railInbox.count()) > 0;
   if (byRail) {
     await railInbox.focus();
     await page.keyboard.press("Enter");
-  } else await page.goto(new URL("/?inbox", roomUrl).href);
-  await page.waitForURL((url) => url.searchParams.has("inbox"));
+    await page.waitForURL((url) => url.pathname === "/");
+  } else {
+    await page.goto(new URL("/?inbox", roomUrl).href);
+    await page.waitForURL((url) => url.searchParams.has("inbox"));
+  }
   const homeInbox = page.locator("[data-home-inbox]");
   await expect(homeInbox).toBeVisible();
   await expect(homeInbox.locator("[data-room-inbox]")).toBeVisible();

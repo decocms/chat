@@ -1273,3 +1273,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/desktop-home-inbox · On a desktop, the Home is the Caixa de entrada
+- Agent: claude-opus-5-5
+- Context: The human chose option 2 of the mockup (#3967): on a desktop the logo opens the Caixa de entrada, with the search in the top bar as a room has it. The phone keeps its list.
+- Decision:
+  - On a desktop, `/` shows the Inbox (`HomeInbox`). `/?inbox` still works on both.
+  - A person with no rooms yet still gets the old Home on a desktop, because it has the first-room and connect-agent steps. Until the account loads, a desktop shows the Inbox, because most people have rooms.
+  - The Inbox's bar: the search on the left (same size and place as "Buscar em <sala>"), which opens the search palette as the phone's search does. Then "N esperando você" and "Resolver todos".
+  - The rail: the logo carries the count and opens the Caixa. The separate Inbox button is gone.
+  - The desktop list: one row "Caixa de entrada" with its count, in place of "Início". The phone's rows do not change.
+  - The ask box ("O que você quer resolver?"), the cube and the card fan are not on the desktop Home now. They stay in the code for the no-rooms Home.
+  - Not in this change: Abrir/Responder/Resolver buttons on hover. The keys o, r and e do these now.
+- Other options: Keep the Home for everybody and only move the search. Show the Inbox also to people with no rooms.
+- Risk: medium. It changes the first screen on a desktop.
+- Undo: Revert this commit.
+- Status: open
