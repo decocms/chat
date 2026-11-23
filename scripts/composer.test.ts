@@ -232,14 +232,14 @@ test("account room/thread draft scopes stay separate and reset invalidates old o
   expect(get(h.entry.state).text).toBe("");
   expect(get(h.drafts.entry(h.scope).state).text).toBe("");
 });
-test("message ACK and exact new canonical row are both required before clearing unchanged draft", async () => {
+test("the box empties as a message is sent; ACK and the exact new canonical row settle it", async () => {
   const h = harness();
   h.entry.edit("post me");
   const pending = h.entry.submit();
   h.reply.resolve({ ok: true });
   await pending;
   expect(get(h.entry.state).phase).toBe("pending");
-  expect(get(h.entry.state).text).toBe("post me");
+  expect(get(h.entry.state).text).toBe("");
   h.entry.sync(
     {
       ...room(),
@@ -252,13 +252,14 @@ test("message ACK and exact new canonical row are both required before clearing 
     h.request,
     h.upload,
   );
-  expect(get(h.entry.state).text).toBe("post me");
+  expect(get(h.entry.state).phase).toBe("pending");
   h.entry.sync(
     { ...room(), messages: [message(13, "post me")] },
     h.request,
     h.upload,
   );
   expect(get(h.entry.state).text).toBe("");
+  expect(get(h.entry.state).phase).toBe("idle");
   expect(h.timer.jobs.size).toBe(0);
   expect(h.commands).toHaveLength(1);
 });
@@ -271,7 +272,7 @@ test("canonical-before-ACK settles only after ACK and keeps edits made while sen
     h.request,
     h.upload,
   );
-  expect(get(h.entry.state).text).toBe("submitted");
+  expect(get(h.entry.state).text).toBe("");
   h.entry.edit("next draft");
   h.reply.resolve({ ok: true });
   await pending;

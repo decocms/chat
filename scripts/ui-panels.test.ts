@@ -5344,7 +5344,7 @@ describe("composer ownership and interactions", () => {
     flushSync();
     expect(document.querySelector('[role="dialog"]') === null).toBe(true);
   }
-  test("composer Enter preserves draft until correlated ACK and canonical message; Shift/IME never submit", async () => {
+  test("composer Enter empties the box as it sends; Shift/IME never submit", async () => {
     const room = fixture(),
       sent: RoomCommand[] = [];
     let resolve!: (outcome: CommandOutcome) => void;
@@ -5384,10 +5384,12 @@ describe("composer ownership and interactions", () => {
       thread: "main",
       text: "keep until canonical",
     });
+    // The box empties as the message leaves (Valls #4167), before the room confirms it.
+    flushSync();
+    expect(input.value).toBe("");
     resolve({ ok: true });
     await tick();
     flushSync();
-    expect(input.value).toBe("keep until canonical");
     update({
       ...room,
       messages: [
