@@ -8,14 +8,6 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
-  import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
-  import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
-  import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
-  import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
-  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
-  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
-  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
-  import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import Label from "../../lib/studio/Label.svelte";
   import Tabs from "../../lib/studio/Tabs.svelte";
@@ -359,10 +351,6 @@
         if (!disposed) newButton?.focus();
       });
   }
-  const owners = $derived([
-    { value: "", label: vb.t("Sem dono") },
-    ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
-  ]);
   const dashedRow =
     "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
   const views = $derived([
@@ -450,14 +438,14 @@
               role="group"
               aria-label={epic.title}
               class={cn(
-                "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent group-has-[[data-state=open]]/row:bg-sidebar-accent",
+                "flex items-center rounded-lg transition-colors duration-150 hover:bg-sidebar-accent",
                 current && "bg-sidebar-accent text-sidebar-accent-foreground",
               )}
             >
               <Button
                 variant="ghost"
                 class={cn(
-                  "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none",
+                  "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal hover:bg-transparent",
                   current && "font-medium",
                   // Done: finished work reads quieter, and comes back on hover or when open.
                   value === "archived" &&
@@ -546,71 +534,6 @@
                   />{/if}
               </Button>
             </div>
-            <!-- A touch screen has no hover: the epic's actions are only inside the epic (Gimenes #3924). -->
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                data-epic-actions={epic.id}
-                aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
-                class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:hidden"
-                ><Icon
-                  icon="dots-horizontal"
-                  class="size-4"
-                /></DropdownMenuTrigger
-              >
-              <DropdownMenuContent align="end" class={cn(studioType, "w-56")}>
-                {#if value === "active"}
-                  <DropdownMenuItem
-                    data-epic-pin={epic.id}
-                    disabled={mutationBusy}
-                    onSelect={() =>
-                      void submit({
-                        t: "epic.pin",
-                        id: epic.id,
-                        pinned: !epic.pinned,
-                      })}
-                    ><Icon icon="pin-02" />{vb.t(
-                      epic.pinned ? "Desafixar" : "Fixar no topo",
-                    )}</DropdownMenuItem
-                  >
-                {/if}
-                {#if value === "active" && epic.pinned}
-                  <DropdownMenuItem
-                    disabled={mutationBusy || !adjacent(epic.id, -1)}
-                    onSelect={() => move(epic.id, -1)}
-                    ><Icon icon="arrow-up" />{vb.t(
-                      "Mover para cima",
-                    )}</DropdownMenuItem
-                  >
-                  <DropdownMenuItem
-                    disabled={mutationBusy || !adjacent(epic.id, 1)}
-                    onSelect={() => move(epic.id, 1)}
-                    ><Icon icon="arrow-down" />{vb.t(
-                      "Mover para baixo",
-                    )}</DropdownMenuItem
-                  >
-                {/if}
-                {#if value === "active"}<DropdownMenuSeparator />{/if}
-                <DropdownMenuLabel class="text-xs text-muted-foreground"
-                  >{vb.t("Dono do épico")}</DropdownMenuLabel
-                >
-                <DropdownMenuRadioGroup
-                  bind:value={
-                    () => epic.owner ?? "",
-                    (owner) => {
-                      if (owner !== (epic.owner ?? ""))
-                        void submit({ t: "epic.owner", id: epic.id, owner });
-                    }
-                  }
-                >
-                  {#each owners as owner (owner.value)}<DropdownMenuRadioItem
-                      value={owner.value}
-                      disabled={mutationBusy}
-                      ><span class="min-w-0 truncate">{owner.label}</span
-                      ></DropdownMenuRadioItem
-                    >{/each}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </li>
         {/each}
       </ul>

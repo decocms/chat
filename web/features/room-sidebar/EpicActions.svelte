@@ -22,8 +22,8 @@
    * reopens it (Book.setEpicStatus). `bar`: at the end of the desktop top
    * bar's title, then a vertical line before the pane's tabs. `sheet`: under
    * the title in the phone's thread sheet. `owners`: the menu also pins the
-   * epic and picks its owner; the phone passes it, since a touch screen has no
-   * actions menu on the epic's row (Gimenes #3924).
+   * epic and picks its owner, since the epic list has no actions menu
+   * (Gimenes #3924, #3933).
    */
   let {
     epic,
