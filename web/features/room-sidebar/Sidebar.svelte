@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy, untrack, tick } from "svelte";
-  import RoomStrip from "../app-navigation/RoomStrip.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
@@ -204,10 +203,8 @@
     {#if phoneMenu}<div class="-mb-2 shrink-0 md:hidden">
         {@render phoneMenu()}
       </div>{/if}
-    {#if appNavigation}<RoomStrip
-        controller={appNavigation.controller}
-        lang={appNavigation.lang}>{@render thisRoom()}</RoomStrip
-      >{:else}{@render thisRoom()}{/if}
+    <!-- No This room | All rooms tabs: the phone's Home lists every room (Gimenes #4071). -->
+    {@render thisRoom()}
     {#snippet thisRoom()}{#if dm && appNavigation}<!-- A DM is only a conversation: its row, no threads, views or epics under it. -->
         <DmNav
           controller={appNavigation.controller}

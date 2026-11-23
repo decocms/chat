@@ -289,57 +289,6 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
   }
   expect(h.documents).toEqual(["/login?out=1"]);
 });
-test("the phone thread sheet's tabs: This room shows the sidebar, All rooms lists every room", async () => {
-  const { default: RoomStrip } =
-    await import("../web/features/app-navigation/RoomStrip.svelte");
-  const { createRawSnippet } = await import("svelte");
-  const h = shellFixture();
-  h.canonical(
-    me({
-      books: [room("aaaaaa"), room("bbbbbb"), room("cccccc"), room("dddddd")],
-    }),
-  );
-  h.services.start();
-  await h.services.personal.refresh();
-  cleanups.push(() => h.services.dispose());
-  const target = document.createElement("div");
-  document.body.append(target);
-  const component = flushSync(() =>
-    mount(RoomStrip, {
-      target,
-      props: {
-        controller: h.services.navigation,
-        lang: "en",
-        children: createRawSnippet(() => ({
-          render: () => "<p data-this-room>epics</p>",
-        })),
-      },
-    }),
-  );
-  cleanups.push(() => {
-    flushSync(() => {
-      void unmount(component);
-    });
-    target.remove();
-  });
-  await flush();
-  // This room first: the sidebar's own content, no room list, no avatar.
-  expect(target.querySelector("[data-this-room]")).not.toBe(null);
-  expect(target.querySelector('[data-room-scope-panel="all"]')).toBe(null);
-  expect(target.querySelector("[data-user-menu-trigger]")).toBe(null);
-  const all = target.querySelector<HTMLElement>('[data-room-scope="all"]')!;
-  expect(all.textContent).toContain("All rooms");
-  all.click();
-  await flush();
-  // All rooms: Home + every room + "Você" (your own DM), and the room's own content steps aside.
-  const list = target.querySelector('[data-room-scope-panel="all"]')!;
-  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(5);
-  expect(
-    target
-      .querySelector('[data-room-scope-panel="room"]')!
-      .className.includes("hidden"),
-  ).toBe(true);
-});
 test("connected old creator controls cannot edit or submit a replacement opening before DOM flush", async () => {
   let creates = 0;
   const h = shellFixture({
