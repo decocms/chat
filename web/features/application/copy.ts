@@ -417,7 +417,6 @@ const EN: Readonly<Record<string, string>> = {
     "Remove {n} connections? Their agents lose access right away.",
   "Esperando você": "Waiting on you",
   "Tarefa sua esperando OK:": "Your task waiting for OK:",
-  "Tarefa sua pendente": "A task of yours is pending",
   "Já resolvi (respondi em outro lugar, ou não é comigo)":
     "Done (I answered elsewhere, or it's not for me)",
   "Seu agent conectou.": "Your agent is connected.",

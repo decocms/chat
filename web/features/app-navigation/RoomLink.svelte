@@ -103,7 +103,6 @@
       surface={variant === "sidebar" ? "sidebar" : "background"}
       unread={selected ? null : unread(room, seen)}
       busy={(room.busy_until ?? 0) > now}
-      cloud={!!room.sandboxes_running}
       {waits}
     />{/snippet}
 </RoomRow>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { waitIndicator, type WaitReference } from "../waits/model";
+  import type { WaitReference } from "../waits/model";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
@@ -7,12 +7,13 @@
   import type { AvatarSize } from "../../lib/studio/avatar";
   import {
     roomIcon,
+    roomStatus,
     targetHref,
     unread,
     type RoomSummary,
     type RoomTarget,
   } from "./model";
-  import { homeText, type HomeLanguage } from "./copy";
+  import type { HomeLanguage } from "./copy";
   /** A room in the home grid: the same RoomAvatar as the rail, with its name under it. */
   let {
     room,
@@ -34,27 +35,11 @@
     onsettings?: (id: string, trigger: HTMLElement) => void;
   } = $props();
   const news = $derived(unread(room, seen));
-  const waiting = $derived(waitIndicator(waits));
   const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
-  const text = (
-    key: Parameters<typeof homeText>[1],
-    vars?: Record<string, string | number>,
-  ) => homeText(lang, key, vars);
+  // The same words, in the same order, as the rail's tooltip.
   const description = $derived(
-    [
-      title,
-      news ? text(news === "human" ? "newHuman" : "newAgent") : "",
-      busy ? text("busy") : "",
-      room.sandboxes_running ? text("cloud") : "",
-      waiting.asks
-        ? text("waiting", { n: waiting.asks })
-        : waiting.tasks
-          ? text("taskPending")
-          : "",
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    [title, ...roomStatus(room, seen, waits, now, lang)].join(" · "),
   );
 </script>
 
@@ -98,7 +83,6 @@
             surface="background"
             unread={news}
             {busy}
-            cloud={!!room.sandboxes_running}
             {waits}
           /><span class="w-full truncate text-center text-xs leading-4"
             >{title}</span

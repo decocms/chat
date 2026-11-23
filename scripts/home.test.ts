@@ -1,7 +1,7 @@
 // Pure owners/protocol fixtures. These assertions do not represent Worker or browser acceptance.
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
-import { waitIndicator } from "../web/features/waits/model";
+import { waitCount } from "../web/features/waits/model";
 import { tabTitle } from "../web/features/notifications/title";
 import { avatarKey, avatarUrl } from "../shared/avatar";
 import { dmPeer, roomAvatarVersion } from "../web/features/room-scope/model";
@@ -47,6 +47,7 @@ import {
   titleOwnDm,
   personVersion,
   roomLabel,
+  roomStatus,
 } from "../web/features/home/model";
 import {
   contacts,
@@ -1036,27 +1037,48 @@ test("navigation account reset releases private rename draft and return-focus re
   personal.dispose();
 });
 
-test("canonical asks are numbered, task-review waits are a dot, and Claude questions retain their signal", () => {
-  expect(waitIndicator([{ ref: "t1" }, { ref: "t2" }])).toEqual({
-    asks: 0,
-    tasks: true,
-    claude: false,
-  });
+test("the one number counts every wait: asks, your Claude's questions and your tasks in review", () => {
+  expect(waitCount([{ ref: "t1" }, { ref: "t2" }])).toBe(2);
   expect(
-    waitIndicator([{ ref: "m1" }, { ref: "a2" }, { ref: "b3" }, { ref: "t4" }]),
-  ).toEqual({ asks: 3, tasks: true, claude: true });
-  expect(waitIndicator([{ ref: "m1" }])).toEqual({
-    asks: 1,
-    tasks: false,
-    claude: false,
-  });
+    waitCount([{ ref: "m1" }, { ref: "a2" }, { ref: "b3" }, { ref: "t4" }]),
+  ).toBe(4);
   // A refreshed server list after a human reply removes the ask, not their task.
-  expect(waitIndicator([{ ref: "t4" }])).toEqual({
-    asks: 0,
-    tasks: true,
-    claude: false,
-  });
-  expect(waitIndicator([])).toEqual({ asks: 0, tasks: false, claude: false });
+  expect(waitCount([{ ref: "t4" }])).toBe(1);
+  expect(waitCount([])).toBe(0);
+});
+
+test("a room's tooltip lists the three signals in their order, then the cloud sandbox that has no mark", () => {
+  const room = {
+    id: "r1",
+    last_human_id: 9,
+    last_agent_id: 12,
+    read_id: 4,
+    busy_until: 2_000,
+    sandboxes_running: 1,
+  } as never;
+  expect(
+    roomStatus(
+      room,
+      0,
+      [{ ref: "m1" }, { ref: "m2" }, { ref: "t3" }],
+      1_000,
+      "en",
+    ),
+  ).toEqual([
+    "3 waiting for you",
+    "new messages from people",
+    "an agent is working here",
+    "cloud sandbox running",
+  ]);
+  expect(
+    roomStatus(
+      { ...(room as object), last_human_id: 3 } as never,
+      0,
+      [],
+      3_000,
+      "pt",
+    ),
+  ).toEqual(["só agents escreveram", "sandbox na nuvem rodando"]);
 });
 
 test("phone triage groups waits by room: a blocked Claude first, then the newest ask", () => {

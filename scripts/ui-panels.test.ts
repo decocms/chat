@@ -973,7 +973,8 @@ describe("room panels", () => {
       }) as never;
     const cases: [string, Record<string, unknown>, boolean][] = [
       ["idle", {}, false],
-      ["news", { last_human_id: 5 }, false],
+      ["human", { last_human_id: 5 }, false],
+      ["agent", { last_agent_id: 5 }, false],
       ["selected", { last_human_id: 5 }, true],
     ];
     for (const [label, extra, selected] of cases) {
@@ -993,22 +994,26 @@ describe("room panels", () => {
       );
       try {
         const pill = target.querySelector("[data-rail-pill]");
-        if (selected) {
-          expect(pill?.getAttribute("data-rail-pill"), label).toBe("selected");
-          expect(pill?.getAttribute("class")?.split(/\s+/), label).toContain(
-            "md:w-[3px]",
-          );
-        } else expect(pill, label).toBeNull();
+        const pillClass = pill?.getAttribute("class")?.split(/\s+/) ?? [];
+        if (label === "idle") expect(pill, label).toBeNull();
+        else expect(pill?.getAttribute("data-rail-pill"), label).toBe(label);
+        // The current room: the tall bar. New messages: a short mark in the same place, strong for people, muted for agents.
+        if (selected) expect(pillClass, label).toContain("md:w-[3px]");
+        if (label === "human") expect(pillClass).toContain("bg-foreground");
+        if (label === "agent")
+          expect(pillClass).toContain("bg-muted-foreground");
+        if (label === "human" || label === "agent")
+          expect(pillClass, label).toContain("md:h-2");
         const link = target.querySelector("a")!;
         // A styled tooltip (bits trigger), not the slow native title.
         expect(link.hasAttribute("title"), label).toBe(false);
         expect(link.getAttribute("data-state"), label).toBe("closed");
         expect(link.className, label).not.toMatch(/(^| )ring/);
-        // The unread dot stays off the current room.
+        // In the rail, new messages are the edge mark only: no number and no dot on the avatar.
         expect(
-          target.querySelector('[data-room-badge="unread-human"]') !== null,
+          target.querySelector('[data-room-badge^="unread"]'),
           label,
-        ).toBe(label === "news");
+        ).toBeNull();
       } finally {
         await unmount(instance);
         target.remove();
@@ -1090,6 +1095,7 @@ describe("room panels", () => {
             last_agent_id: 0,
             read_id: 0,
           } as never,
+          waits: [{ ref: "m1" }, { ref: "t2" }],
           lang: "en",
           now: 0,
           onnavigate: () => {},
@@ -1097,6 +1103,15 @@ describe("room panels", () => {
       }),
     );
     try {
+      // Three signals: the one number (asks and reviews together), the new-messages dot, the ✻. The cloud is words only.
+      expect(target.querySelector("[data-room-badge=cloud]")).toBeNull();
+      expect(target.querySelector("[data-count]")?.textContent).toBe("2");
+      expect(
+        target.querySelector('[data-room-badge="unread-human"]'),
+      ).not.toBeNull();
+      expect(target.querySelector("a")!.getAttribute("aria-label")).toContain(
+        "cloud sandbox running",
+      );
       const mark = target.querySelector<HTMLElement>("[data-room-cover]")!;
       expect(mark.getAttribute("data-room-cover")).toBe("marble");
       expect(mark.querySelector("svg > rect")?.getAttribute("fill")).toBe(
@@ -3715,8 +3730,8 @@ describe("stable sidebar integration", () => {
     )!;
     expect(title.querySelector("[data-room-mark]")).not.toBeNull();
     expect(
-      title.querySelector('[data-wait-kind="asks"] [data-count]')?.textContent,
-    ).toBe("2");
+      title.querySelector("[data-wait-badge] [data-count]")?.textContent,
+    ).toBe("3");
     // The Inbox lives in the chat header; the sidebar has no second entry to it.
     expect(h.target.querySelector("[data-room-inbox-button]")).toBeNull();
     const rename = title.parentElement!.querySelector(
@@ -3731,9 +3746,9 @@ describe("stable sidebar integration", () => {
     const room = fixture();
     const h = sidebar(room, { thread: "main" });
     const title = h.target.querySelector("button[data-room-title]")!;
-    expect(title.querySelector("[data-wait-kind]")).toBeNull();
+    expect(title.querySelector("[data-wait-badge]")).toBeNull();
   });
-  test("epic and rail indicators count asks only and keep canonical task-only waits as a dot", async () => {
+  test("epic and rail indicators count asks and task reviews in one lime number", async () => {
     const room = fixture();
     const base = {
       ...vb,
@@ -3745,10 +3760,11 @@ describe("stable sidebar integration", () => {
     };
     const h = sidebar(room, { vb: base });
     const epic = h.target.querySelector('[data-epic="e"]')!;
-    expect(
-      epic.querySelector('[data-wait-kind="asks"]')?.textContent?.trim(),
-    ).toBe("2");
-    expect(epic.querySelector('[data-wait-kind="tasks"]')).toBeNull();
+    const badge = epic.querySelector("[data-wait-badge] [data-count]");
+    expect(badge?.textContent?.trim()).toBe("4");
+    // One colour: your Claude's ask (a2) does not turn the number red.
+    expect(badge?.className.split(/\s+/)).toContain("bg-brand");
+    expect(badge?.className).not.toContain("destructive");
     h.view.update({
       ...h.props,
       vb: {
@@ -3759,13 +3775,9 @@ describe("stable sidebar integration", () => {
     await tick();
     flushSync();
     expect(
-      h.target.querySelector('[data-epic="e"] [data-wait-kind="asks"]'),
-    ).toBeNull();
-    expect(
-      h.target
-        .querySelector('[data-epic="e"] [data-wait-kind="tasks"]')
-        ?.getAttribute("aria-label"),
-    ).toBe("Tarefa sua pendente");
+      h.target.querySelector('[data-epic="e"] [data-wait-badge] [data-count]')
+        ?.textContent,
+    ).toBe("1");
     h.view.update({
       ...h.props,
       collapsed: true,
@@ -3773,10 +3785,9 @@ describe("stable sidebar integration", () => {
     });
     await tick();
     flushSync();
-    expect(h.target.querySelector('[data-wait-kind="asks"]')).toBeNull();
     expect(
-      h.target.querySelector('[data-wait-kind="tasks"]')?.textContent,
-    ).toBe("");
+      h.target.querySelector("[data-wait-badge] [data-count]")?.textContent,
+    ).toBe("1");
   }, 30_000);
   test("the epic list is flat: sub-epics are plain rows and drafts survive updates and a remount", () => {
     const room = fixture();
