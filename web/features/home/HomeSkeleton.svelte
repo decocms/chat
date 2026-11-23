@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Icon from "../../lib/studio/Icon.svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   import { COMPOSER_BOX, COMPOSER_ROW } from "../composer/shape";
   // The home's one loading state: the headline and the ask box as bars. The
@@ -7,13 +6,19 @@
   // square where the cube goes), and the home keeps the same bars until your
   // account answers, so nothing moves between the two.
   // A phone gets the list's bar instead (`chats`, or `page` on a phone): the
-  // app's name on the left, the inbox and you, so the title does not start
-  // centred and then jump left (Gimenes #3878).
+  // title ("Conversas" / "Chats") on the left and you, so the title does not
+  // start centred and then jump left (Gimenes #3878, #4144).
   let {
     label,
+    title,
     page = false,
     chats = false,
-  }: { label: string; page?: boolean; chats?: boolean } = $props();
+  }: {
+    label: string;
+    title: string;
+    page?: boolean;
+    chats?: boolean;
+  } = $props();
 </script>
 
 {#snippet bars()}<div role="status" aria-label={label}>
@@ -42,12 +47,7 @@
       <div class="-mx-2 flex h-14 items-center gap-1 pr-3 pl-4">
         <span
           class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight"
-          >deco.chat</span
-        >
-        <span
-          aria-hidden="true"
-          class="grid size-10 shrink-0 place-items-center text-muted-foreground"
-          ><Icon icon="inbox-01" class="size-5" /></span
+          >{title}</span
         >
         <span
           aria-hidden="true"
