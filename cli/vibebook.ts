@@ -10,7 +10,7 @@ import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.7";
+const VERSION = "1.7.8";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -593,7 +593,8 @@ function herdrServer(appMode = false) {
     const u = new URL(req.url ?? "/", "http://127.0.0.1");
     const map = readJson<Record<string, HerdrRoom & { space?: string }>>(appMode ? HERDR_APP : HERDR, {});
     const target = (r: string) => (appMode ? map[r]?.space : map[r]?.workspace);
-    if (u.pathname === "/ping") return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)) });
+    // machine: this computer's id, so the page can tell which of your machines it runs on (no "This computer" row for it).
+    if (u.pathname === "/ping") return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)), machine: machineId() });
     // Where "Ligar Claude" will open this room: the folder it used before, the one linked by .vibebook, else
     // ~/Projects/<title slug> (how = new when that folder doesn't exist yet). Same rule herdrSync follows.
     if (u.pathname === "/where") {

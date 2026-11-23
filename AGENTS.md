@@ -2,7 +2,7 @@
 
 Project room: https://chat.decocms.com/b/f94aedb83899. Report progress there (see the `vibebook` skill of the plugin).
 
-deco.chat is a chat app, similar to Discord, that runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude) that works with them on tasks. Rooms also contain files, documents, tasks and MCP apps.
+deco.chat is a chat app, similar to Discord, that runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (for example Claude Code) that works with them on tasks. Rooms also contain files, documents, tasks and MCP apps.
 
 This file contains only the global rules. Read the specific document before you change an area.
 
@@ -35,6 +35,7 @@ This file contains only the global rules. Read the specific document before you 
 11. Style the browser app only with Tailwind CSS v4 classes and shadcn-svelte components, arranged as atoms, molecules and organisms. Use the built-in theme tokens (`md`, `p-4`, `text-sm`, `bg-background`), not hard-coded values. Do not write other CSS. Do not load external CSS, except CSS that a dependency ships.
 12. Keep the public security text true: `README.md` (Security model) and `public/llms.txt`.
 13. Take every icon from the design system: the `Icon` component (`web/lib/studio/Icon.svelte`) with an Untitled UI name from its sprite. Do not use an emoji, a text character (`×`, `✓`, `→`) or a control that the browser draws as an icon. For example, a search field is `type="text"` with an `x` icon button that clears it, not `type="search"`. Emoji reactions and the agent marks drawn by `AgentMark` (`✻`, `✦`) are content, not icons. `bun run check:guidelines` fails on a new `type="search"`.
+14. In user-visible text, call the agent of a person "agent", in both languages ("Seu agent", "Your agent"). Do not call it "Claude". Claude is one kind of agent. Use "Claude" only for the product or a model, for example "Claude Code" or "Claude Opus 5.5".
 
 ## Procedure for a change
 

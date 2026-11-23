@@ -1,4 +1,8 @@
-import type { AgentGrantsResult, AgentsResult } from "../../../shared/schemas";
+import type {
+  AgentGrantsResult,
+  AgentsResult,
+  RoomMachine,
+} from "../../../shared/schemas";
 import type { Room } from "../../../shared/room";
 import { messageById, permissionAsk } from "../chat/privacy";
 import type { Wait } from "../home/model";
@@ -96,7 +100,7 @@ export const pendingAsk = (
   );
 export const askPreview = (text: string | null | undefined) =>
   (text ?? "")
-    .replace(/^(⏸|❓)\s*Seu Claude\s*/, "")
+    .replace(/^(⏸|❓)\s*Seu (?:Claude|agent)\s*/, "")
     .replace(/[*`]/g, "")
     .slice(0, 160);
 export const preparing = (state: string, ready: boolean) =>
@@ -149,3 +153,12 @@ export function agentMark(
         : status;
   return { state, count, on: on || state === "blocked" };
 }
+/** True when this computer's local runner (its machine id, from its /ping) is one of your machines in the list.
+ * Then "Add an agent" does not offer "This computer": the list shows it already. Without the id (no local network
+ * permission, or a CLI older than 1.7.8) it is false: the page cannot tell which machine it runs on. */
+export const thisComputerListed = (
+  machines: readonly RoomMachine[],
+  runnerMachine: string | null,
+) =>
+  !!runnerMachine &&
+  machines.some((m) => m.id === runnerMachine && m.kind !== "sandbox");

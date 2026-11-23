@@ -9,6 +9,7 @@ Write all Markdown files in this repository in Simplified Technical English (ASD
 3. Use simple verbs. Write "start", not "kick off". Write "make sure", not "ensure that it is the case".
 4. Do not use slang, jokes or idioms.
 5. Use "must" for a rule. Do not use "should" for a rule.
+6. Write "agent" for the agent of a person, also in Portuguese ("seu agent"). Do not write "Claude" for it. Claude is one kind of agent. Write "Claude" only for the product or a model ("Claude Code", "Claude Opus 5.5"). This rule applies also to user-visible text.
 
 ## Sentences
 

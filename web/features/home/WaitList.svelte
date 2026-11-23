@@ -38,7 +38,7 @@
   ) => homeText(lang, key, vars);
   const who = (wait: Wait) =>
     claudeWait(wait)
-      ? text("yourClaude")
+      ? text("yourAgent")
       : wait.author === "ai"
         ? "@vibe"
         : ((wait.author_name || wait.author.split("@")[0] || "").split(
@@ -47,7 +47,7 @@
 </script>
 
 <!-- Dense triage rows: who · when, the ask in one or two clean lines, its epic.
-     Your Claude's asks carry a stripe and a tag; tasks in review a tag. -->
+     Your agent's asks carry a stripe and a tag; tasks in review a tag. -->
 <ul class="m-0 list-none p-0">
   {#each waits as wait (wait.book_id + ":" + wait.ref)}{@const key = `wait:${wait.book_id}:${wait.ref}`}{@const urgent =
       claudeWait(wait)}

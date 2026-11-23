@@ -63,7 +63,7 @@
   // Only an answer epic (a question): a work epic's seed doc is a plan template, not an answer on its way.
   const writer = $derived(
     epic && blank && isAnswer
-      ? (threadWorkers(props.room, epic, Date.now())[0] ?? { who: "Claude" })
+      ? (threadWorkers(props.room, epic, Date.now())[0] ?? { who: "" })
       : null,
   );
   const fileIndex = scopedRichFileIndex();
@@ -203,8 +203,8 @@
     >
       <b class="text-sm font-semibold text-primary"
         >✻ {props.lang === "en"
-          ? `${writer.who || "Claude"} is writing the answer…`
-          : `${writer.who || "Claude"} está escrevendo a resposta…`}</b
+          ? `${writer.who || "An agent"} is writing the answer…`
+          : `${writer.who || "Um agent"} está escrevendo a resposta…`}</b
       >
       {#each ["w-full", "w-full", "w-full", "w-1/2"] as width}<i
           class="block h-3 animate-pulse rounded-md bg-muted {width}"
@@ -246,8 +246,8 @@
           ? "The plan, the decisions and what was delivered in this epic."
           : "O plano, as decisões e o que foi entregue nesta thread."
         : en
-          ? "The goal, what's in and what's out, and how you'll know it worked. Every Claude in the room reads this first."
-          : "O objetivo, o que entra e o que fica de fora, e como saber que deu certo. Todo Claude da sala lê isto primeiro."}
+          ? "The goal, what's in and what's out, and how you'll know it worked. Every agent in the room reads this first."
+          : "O objetivo, o que entra e o que fica de fora, e como saber que deu certo. Todo agent da sala lê isto primeiro."}
       action={write}
       ask={epic
         ? en
@@ -256,7 +256,7 @@
         : en
           ? "Read the project and write the room doc: goal, scope, success criterion and next steps."
           : "Lê o projeto e escreve o doc da sala: objetivo, escopo, critério de sucesso e próximos passos."}
-      askLabel={en ? "Ask your Claude" : "Peça pro seu Claude"}
+      askLabel={en ? "Ask your agent" : "Peça pro seu agent"}
       onask={props.taskProps.ask}
     />{/if}
   {#if literal && text.trim()}<p

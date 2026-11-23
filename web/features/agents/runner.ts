@@ -4,7 +4,11 @@ import type { FetchLike } from "../../app/transport";
 import { createAgentLease, agentClock, type AgentClock } from "./lease";
 import { RUNNER_TTL } from "./model";
 export const LOCAL_RUNNER_ORIGIN = "http://127.0.0.1:47321";
-const Ping = z.object({ rooms: z.array(z.string()) });
+/** `machine`: the id of this computer as the runner checks in (`RoomMachine.id`). CLI 1.7.8 and newer send it. */
+const Ping = z.object({
+  rooms: z.array(z.string()),
+  machine: z.optional(z.string()),
+});
 const Where = z.object({
   folder: z.optional(z.nullable(z.string())),
   home: z.optional(z.nullable(z.string())),
@@ -36,6 +40,8 @@ export type RunnerWhere = z.infer<typeof Where>;
 export type RunnerState = {
   where: RunnerWhere | null;
   available: boolean;
+  /** This computer's machine id, from the local runner. Null if the runner is not reachable or too old. */
+  machine: string | null;
   rooms: readonly string[];
   probing: boolean;
   focusing: boolean;
@@ -45,6 +51,7 @@ export type RunnerState = {
 const blank = (): RunnerState => ({
   where: null,
   available: false,
+  machine: null,
   rooms: [],
   probing: false,
   focusing: false,
@@ -136,7 +143,11 @@ export function createLocalRunner(
               ...value,
               where,
               ...(needPing
-                ? { rooms: ping?.rooms ?? [], available: !!ping }
+                ? {
+                    rooms: ping?.rooms ?? [],
+                    available: !!ping,
+                    machine: ping?.machine ?? null,
+                  }
                 : {}),
               probing: false,
             }));
@@ -149,7 +160,9 @@ export function createLocalRunner(
                 ...value,
                 probing: false,
                 ...(needWhere ? { where: null } : {}),
-                ...(needPing ? { available: false, rooms: [] } : {}),
+                ...(needPing
+                  ? { available: false, machine: null, rooms: [] }
+                  : {}),
               }));
             }
           },

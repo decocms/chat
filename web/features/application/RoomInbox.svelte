@@ -133,7 +133,7 @@
     { filter: "all", label: "Tudo" },
     { filter: "ask", label: "Pedidos" },
     { filter: "review", label: "Revisões" },
-    { filter: "claude", label: "Seu Claude" },
+    { filter: "claude", label: "Seu agent" },
     { filter: "mention", label: "Menções" },
     { filter: "task", label: "Suas tarefas" },
   ];
@@ -202,7 +202,7 @@
     event.currentTarget.isConnected;
   const name = (row: Item) =>
     row.kind === "claude"
-      ? t("Seu Claude")
+      ? t("Seu agent")
       : row.author === "ai"
         ? "@vibe"
         : row.message?.authorName ||
@@ -226,7 +226,7 @@
   };
   const kindLabel: Record<Kind, string> = {
     ask: "pedido",
-    claude: "seu Claude",
+    claude: "seu agent",
     mention: "menção",
     review: "revisar",
     task: "tarefa",

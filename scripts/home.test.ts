@@ -1121,6 +1121,12 @@ test("home rows: wait text is one plain line and every wait has a filter kind", 
   expect(
     plainWaitText("⏸ Seu Claude pede permissão: Bash · npx wrangler deploy"),
   ).toBe("Bash · npx wrangler deploy");
+  expect(
+    plainWaitText("⏸ Seu agent pede permissão: Bash · npx wrangler deploy"),
+  ).toBe("Bash · npx wrangler deploy");
+  expect(plainWaitText("❓ Seu agent pergunta: Which folder?")).toBe(
+    "Which folder?",
+  );
   expect(plainWaitText("veja [o doc](#m12) e https://vibebook.dev/")).toBe(
     "veja o doc e vibebook.dev",
   );
@@ -1379,7 +1385,7 @@ test("the phone's chat list: newest first, and who wrote last before the line", 
   ]);
   expect(lastLine(a, account, "pt")).toBe("Você: Oi site");
   expect(lastLine(b, account, "en")).toBe("Ana: Pronto");
-  expect(lastLine(c, account, "pt")).toBe("Claude: Subi o PR");
+  expect(lastLine(c, account, "pt")).toBe("Agent: Subi o PR");
   expect(lastLine(d, account, "pt")).toBe("@vibe: Lembrete");
   // No stored line yet (a room from before): its summary.
   expect(lastLine(e, account, "pt")).toBe("Sobre o site");

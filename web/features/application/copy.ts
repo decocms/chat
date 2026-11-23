@@ -40,7 +40,7 @@ const EN: Readonly<Record<string, string>> = {
   Pequeno: "Small",
   Médio: "Medium",
   Grande: "Large",
-  "Seu Claude": "Your Claude",
+  "Seu agent": "Your agent",
   Resolvido: "Resolved",
   Resolver: "Resolve",
   Salas: "Rooms",
@@ -73,12 +73,12 @@ const EN: Readonly<Record<string, string>> = {
     "j/k move · r reply · o open · e resolve · x select",
   "esperando você": "waiting on you",
   "O que precisa de mim aqui?": "What needs me here?",
-  "Pedi pro seu Claude… ele responde quando estiver ouvindo.":
-    "Asked your Claude… it answers when it's listening.",
+  "Pedi pro seu agent… ele responde quando estiver ouvindo.":
+    "Asked your agent… it answers when it's listening.",
   "só você vê": "only you see this",
   Dispensar: "Dismiss",
   "Feito / não é comigo": "Done / not for me",
-  "seu Claude espera você": "your Claude is waiting on you",
+  "seu agent espera você": "your agent is waiting on you",
   "sua tarefa, fazendo": "your task, in progress",
   "sua tarefa, a fazer": "your task, to do",
   Arquivado: "Archived",
@@ -195,8 +195,8 @@ const EN: Readonly<Record<string, string>> = {
   "Mover para cima": "Move up",
   "Mover para baixo": "Move down",
   "Sem dono": "No owner",
-  "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
-    "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
+  "{n} agents seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
+    "{n} of your agents are listening to this room: each can take the same request. Close the extras.",
   "app da sala": "room app",
   arquivo: "file",
   "Não deu pra abrir agora. Tente de novo.": "Couldn't open it now. Try again.",
@@ -821,7 +821,7 @@ const EN: Readonly<Record<string, string>> = {
   "Reagir a esta mensagem": "React to this message",
   "Reagir com {emoji}": "React with {emoji}",
   "{n} itens": "{n} items",
-  "Claude de {who}": "{who}'s Claude",
+  "agent de {who}": "{who}'s agent",
   "{names} e mais {n}": "{names} and {n} more",
   "{names} e {last}": "{names} and {last}",
   "{people} reagiu": "{people} reacted",
@@ -927,7 +927,6 @@ const EN: Readonly<Record<string, string>> = {
   "Sair de todos os aparelhos? Todo navegador e celular onde você entrou vai pedir login de novo, este também. Seus agents conectados continuam.":
     "Sign out everywhere? Every browser and phone you signed in on will ask you to log in again, this one too. Your connected agents stay.",
   remover: "remove",
-  "Conecte seu Claude": "Connect your Claude",
   "Salvando…": "Saving…",
   "Remover o token do Claude? Sandboxes que já têm o token continuam logados até você apagá-los.":
     "Remove the Claude token? Sandboxes that already have it stay logged in until you delete them.",
@@ -991,15 +990,15 @@ const EN: Readonly<Record<string, string>> = {
   "Documento e arquivos da sala": "Room doc and files",
   Ligado: "On",
   ligado: "on",
-  "Peça pro seu Claude": "Ask your Claude",
+  "Peça pro seu agent": "Ask your agent",
   "Nenhuma decisão ainda": "No decisions yet",
   "O que a sala decide e cada aprovação, com quem decidiu e quando, pra ninguém precisar caçar no chat.":
     "What the room agrees on and every approval, with who decided and when, so nobody has to dig through the chat.",
   "Lê a conversa desta sala e registra as decisões que a gente já tomou.":
     "Read this room's conversation and log the decisions we've already made.",
   "Nenhum lembrete ainda": "No reminders yet",
-  "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu Claude faz.":
-    "Something that runs on a schedule. When it's due, @vibe posts it in the room and your Claude does it.",
+  "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu agent faz.":
+    "Something that runs on a schedule. When it's due, @vibe posts it in the room and your agent does it.",
   "Todo dia útil às 8h, posta um resumo do que mudou nesta sala.":
     "Every weekday at 8am, post a summary of what changed in this room.",
   "Nenhum arquivo ainda": "No files yet",
@@ -1010,8 +1009,8 @@ const EN: Readonly<Record<string, string>> = {
   "Enviar arquivo": "Upload a file",
   "Conectar app": "Connect an app",
   "Nenhum app ainda": "No apps yet",
-  "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu Claude pode fazer uma, ou você conecta um app que já usa.":
-    "Small tools that live in this room: a poll, a dashboard, a tracker. Your Claude can build one, or you can connect an app you already use.",
+  "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu agent pode fazer uma, ou você conecta um app que já usa.":
+    "Small tools that live in this room: a poll, a dashboard, a tracker. Your agent can build one, or you can connect an app you already use.",
   "Faz um app de enquete pra esta sala, pra gente votar.":
     "Build a poll app for this room so we can vote.",
   "Nenhum lembrete ainda. Clique em Novo lembrete, ou peça pro seu agent: “todo dia às 8h, me manda o resumo do que mudou”.":

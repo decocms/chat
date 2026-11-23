@@ -6,9 +6,9 @@ const pt = {
   next: "Continuar",
   changePhoto: "Trocar foto",
   photo: "Adicionar foto (opcional)",
-  claudeTitle: "Conecte seu Claude",
+  claudeTitle: "Conecte seu agent",
   claudeHelp:
-    "No deco.chat cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:",
+    "No deco.chat cada pessoa traz o próprio agent: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:",
   back: "Voltar",
   skipClaude: "Pular por agora",
   roomTitle: "Sua primeira sala",
@@ -38,9 +38,9 @@ const en: Record<OnboardingCopy, string> = {
   next: "Continue",
   changePhoto: "Change photo",
   photo: "Add a photo (optional)",
-  claudeTitle: "Connect your Claude",
+  claudeTitle: "Connect your agent",
   claudeHelp:
-    "In deco.chat everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
+    "In deco.chat everyone brings their own agent: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
   back: "Back",
   skipClaude: "Skip for now",
   roomTitle: "Your first room",

@@ -15,15 +15,16 @@
     agentPresence,
     agentStatus,
     connectPrompt,
+    thisComputerListed,
   } from "./model";
   import { runnerPath } from "./runner";
   import { roomAgentText, type RoomAgentCopyKey } from "./roomCopy";
   import type { AgentsResult, RoomMachine } from "../../../shared/schemas";
   /**
-   * Your Claude at the foot of the room's sidebar (desktop), in one row: is it answering here, and the switch that
-   * turns it on or off for this room (every machine of yours). The row opens the rest: your machines and the Claudes
-   * listening on them, how to bring a computer back, and the ways to add an agent. With none yet, the row says so
-   * and connects.
+   * Your agent at the foot of the room's sidebar (desktop), in one row: is it answering here, and the switch that
+   * turns it on or off for this room (every machine of yours). The row opens the rest: your machines and the agents
+   * listening on them, how to bring a computer back, and the ways to add an agent ("This computer" only when this
+   * computer is not one of the machines). With none yet, the row says so and connects.
    */
   let {
     owner,
@@ -62,10 +63,12 @@
   const mine = $derived(
     ($view.data?.agents ?? []).filter((a) => a.email === owner.account),
   );
-  /** The Claudes of a machine that are listening now (the ones that stopped are not listed). */
+  /** The agents of a machine that are listening now (the ones that stopped are not listed). */
   const liveOf = (m: RoomMachine) =>
     mine.filter((a) => a.machine === m.id && a.listening);
   const anyOn = $derived(machines.some((m) => m.on));
+  /** This computer is in the list already (its local runner told its machine id): no "This computer" to add. */
+  const listed = $derived(thisComputerListed(machines, $runner.machine));
   const empty = $derived(!machines.length);
   const live = $derived(
     mine.filter(
@@ -167,6 +170,19 @@
   ) => {
     if (owner.current()) void owner.delivery(target, on);
   };
+  // The popover asks the local runner which machine this is (only with a local network permission granted before;
+  // it never prompts), so "This computer" can hide when it is in the list.
+  $effect(() => {
+    if (!open) return;
+    untrack(() => {
+      if (owner.current())
+        void owner.runner.probe(
+          owner.roomId,
+          $view.room?.book.title ?? "",
+          true,
+        );
+    });
+  });
   function goTo() {
     if (!owner.current()) return;
     if (!$runner.available) onopen();
@@ -227,7 +243,7 @@
                 ></span>{/if}</span
             ><span class="grid min-w-0 flex-1"
               ><span class="truncate text-sm font-medium"
-                >{text("yourClaude")}</span
+                >{text("yourAgent")}</span
               ><span
                 class={cn(
                   "truncate text-xs",
@@ -243,7 +259,7 @@
         sideOffset={8}
         class="grid w-80 gap-3 p-3 font-sans text-sm text-foreground"
       >
-        {#if !empty}<!-- Your machines here and the Claudes listening on them. -->
+        {#if !empty}<!-- Your machines here and the agents listening on them. -->
           <div data-agent-machines class="grid gap-1">
             {#each machines as m (m.id)}
               {@const kids = liveOf(m)}
@@ -305,31 +321,34 @@
               >
             </div>{/if}
           <hr class="m-0 border-0 border-t border-border" />{/if}
-        <!-- The ways to add an agent: this computer, the cloud, or one Claude Code just this once. -->
+        <!-- The ways to add an agent: this computer (not when it is in the list above), the cloud, or one Claude Code just this once. -->
         <div data-agent-add class="grid gap-2">
           <span class="text-xs font-medium text-muted-foreground"
             >{text(empty ? "footPick" : "addAgent")}</span
           >
-          <div class="flex items-center gap-2" data-agent-setup="computer">
-            {@render option(
-              "footThisComputer",
-              "footThisComputerSub",
-              "app-laptop",
-            )}{#if $view.data.claude_on && $runner.where}<span
-                class="shrink-0 text-xs text-agent-claude-text"
-                >{text("footOpening")}</span
-              >{:else if $view.data.claude_on}<Button
-                size="xs"
-                variant="outline"
-                onclick={() => void copy("setup", install)}
-                >{label("setup", text("footCopySetup"))}</Button
-              >{:else}<Button
-                size="xs"
-                onclick={() => {
-                  if (owner.current()) void owner.toggle();
-                }}>{text("footTurnOn")}</Button
-              >{/if}
-          </div>
+          {#if !listed}<div
+              class="flex items-center gap-2"
+              data-agent-setup="computer"
+            >
+              {@render option(
+                "footThisComputer",
+                "footThisComputerSub",
+                "app-laptop",
+              )}{#if $view.data.claude_on && $runner.where}<span
+                  class="shrink-0 text-xs text-agent-claude-text"
+                  >{text("footOpening")}</span
+                >{:else if $view.data.claude_on}<Button
+                  size="xs"
+                  variant="outline"
+                  onclick={() => void copy("setup", install)}
+                  >{label("setup", text("footCopySetup"))}</Button
+                >{:else}<Button
+                  size="xs"
+                  onclick={() => {
+                    if (owner.current()) void owner.toggle();
+                  }}>{text("footTurnOn")}</Button
+                >{/if}
+            </div>{/if}
           <div class="flex items-center gap-2" data-agent-setup="sandbox">
             {@render option("footSandbox", "footSandboxSub", "cloud-01")}<Button
               size="xs"

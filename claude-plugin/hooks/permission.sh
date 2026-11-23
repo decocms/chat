@@ -25,8 +25,8 @@ let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
   const what=one(i.command||i.file_path||rest.join(" · ")||JSON.stringify(i)).slice(0,220);
   const head=[verb&&"**"+verb.slice(0,40).replace(/\*/g,"")+"**",i.description&&one(i.description).slice(0,160)].filter(Boolean).join(" · ");
   // A plan to approve (ExitPlanMode) shows as the plan itself, not a cut JSON.
-  if(tool==="ExitPlanMode"&&i.plan){process.stdout.write(JSON.stringify({text:"⏸ Seu Claude quer seguir com este plano:\n\n"+String(i.plan).slice(0,3000),choices:["Aprovar","Negar"]}));return}
-  process.stdout.write(JSON.stringify({text:"⏸ Seu Claude pede permissão: **"+tool+"**"+(head?" · "+head:"")+"\n`"+what.replace(/`/g,"ʼ")+"`\n\nSó vale a resposta da sua conta logada aqui.",choices:["Aprovar","Negar"]}));
+  if(tool==="ExitPlanMode"&&i.plan){process.stdout.write(JSON.stringify({text:"⏸ Seu agent quer seguir com este plano:\n\n"+String(i.plan).slice(0,3000),choices:["Aprovar","Negar"]}));return}
+  process.stdout.write(JSON.stringify({text:"⏸ Seu agent pede permissão: **"+tool+"**"+(head?" · "+head:"")+"\n`"+what.replace(/`/g,"ʼ")+"`\n\nSó vale a resposta da sua conta logada aqui.",choices:["Aprovar","Negar"]}));
 })') || exit 0
 id=$(vibebook call post "$q" 2>/dev/null | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const j=JSON.parse(d);if(j.ok&&j.id)process.stdout.write(String(j.id))}catch{}})')
 [ -n "$id" ] || exit 0

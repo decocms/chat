@@ -392,7 +392,7 @@ export function plainWaitText(value: string) {
     .replace(/(\*\*|__|`+|~~)/g, "")
     .replace(/^[\s>#*-]*(?:[⏸❓]️?\s*)?/u, "")
     .replace(
-      /^(?:Seu Claude|Your Claude) (?:pede permissão|pergunta|quer seguir com este plano|asks? (?:for )?permission|asks|wants to go ahead with this plan):?\s*/iu,
+      /^(?:Seu|Your) (?:Claude|agent) (?:pede permissão|pergunta|quer seguir com este plano|asks? (?:for )?permission|asks|wants to go ahead with this plan):?\s*/iu,
       "",
     )
     .replace(/^@[\p{L}\p{N}._-]+[,:]?\s+/u, "")
@@ -418,7 +418,7 @@ export function chatList(me: MeResult | null) {
 }
 /**
  * A room's newest message as one line under its name: "Você: …", "Ana: …",
- * "Claude: …" or "@vibe: …". A DM leaves out the other person's name (the row
+ * "Agent: …" or "@vibe: …". A DM leaves out the other person's name (the row
  * is theirs). A room with no stored line yet shows its summary.
  */
 export function lastLine(
@@ -431,7 +431,7 @@ export function lastLine(
   if (!text) return room.summary ?? "";
   const by = room.last_by ?? "";
   const who = room.last_agent
-    ? "Claude"
+    ? "Agent"
     : by === "ai"
       ? "@vibe"
       : by && by === me?.email

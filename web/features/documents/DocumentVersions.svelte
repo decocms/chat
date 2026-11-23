@@ -42,7 +42,7 @@
     by
       .map((w) =>
         w === "agent"
-          ? "Claude"
+          ? "agent"
           : w === "yjs"
             ? en
               ? "live editor"

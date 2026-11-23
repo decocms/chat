@@ -30,5 +30,5 @@ export async function own(env: Env, name: string, memory: string, m: JevMsg): Pr
   }).catch(() => null);
   const p = r?.answers.to_claude?.noul;
   if (p === undefined || p === null) return { decision: "wake", why: "mensagem sua · Jev falhou", cost: 0 };
-  return { decision: p < 0.25 ? "ignore" : "wake", why: `mensagem sua · pro seu Claude: ${p.toFixed(2)}`, cost: r?.cost ?? 0 };
+  return { decision: p < 0.25 ? "ignore" : "wake", why: `mensagem sua · pro seu agent: ${p.toFixed(2)}`, cost: r?.cost ?? 0 };
 }

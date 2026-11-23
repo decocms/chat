@@ -20,7 +20,7 @@ const FUNNEL = [
   ["login", "fizeram login (e-mail, Google, GitHub ou convite)"],
   ["signup", "criaram conta"],
   ["book_created", "criaram uma sala"],
-  ["agent_connected", "conectaram o Claude"],
+  ["agent_connected", "conectaram um agent"],
 ] as const;
 
 /** [start, end) of "yesterday" in São Paulo, in ms. */

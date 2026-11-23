@@ -263,13 +263,13 @@
           icon={paneIcons.reminders}
           title={vb.t("Nenhum lembrete ainda")}
           description={vb.t(
-            "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu Claude faz.",
+            "Algo que roda num horário. Na hora, o @vibe posta o texto na sala e seu agent faz.",
           )}
           action={newButton}
           ask={vb.t(
             "Todo dia útil às 8h, posta um resumo do que mudou nesta sala.",
           )}
-          askLabel={vb.t("Peça pro seu Claude")}
+          askLabel={vb.t("Peça pro seu agent")}
           onask={ask}
         />{/if}{/each}
   </div>

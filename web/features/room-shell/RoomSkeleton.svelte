@@ -98,7 +98,7 @@
     class="contents md:grid md:min-h-0 md:grid-cols-[auto_minmax(0,1fr)_auto] md:grid-rows-[52px_minmax(0,1fr)] md:overflow-hidden md:rounded-surface md:bg-background md:shadow-edge"
   >
     <!-- Sidebar: the room's name (the main thread), epics, Pinned, People, then
-       your Claude and you at its foot. -->
+       your agent and you at its foot. -->
     <aside
       aria-hidden={dm ? undefined : "true"}
       class="hidden w-room-sidebar min-h-0 flex-col gap-6 border-r border-border bg-sidebar px-2 pb-4 text-sidebar-foreground md:row-span-2 md:flex"

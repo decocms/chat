@@ -30,7 +30,7 @@
     w === me
       ? vb.t("você")
       : w.endsWith("#agent")
-        ? vb.t("Claude de {who}", { who: vb.name(w.slice(0, -6)) })
+        ? vb.t("agent de {who}", { who: vb.name(w.slice(0, -6)) })
         : vb.name(w);
   const who = (list: string[]) => list.map(nameOf).join(", ");
   // The hover card's line, like Discord's: "Ana, Bruno and you reacted" (past 6 names, "and N more").

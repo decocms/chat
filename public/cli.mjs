@@ -70,7 +70,7 @@ async function scanTranscripts(root, skip) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.7";
+var VERSION = "1.7.8";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -697,7 +697,7 @@ function herdrServer(appMode = false) {
     const map = readJson(appMode ? HERDR_APP : HERDR, {});
     const target = (r) => appMode ? map[r]?.space : map[r]?.workspace;
     if (u.pathname === "/ping")
-      return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)) });
+      return send(200, { ok: true, rooms: Object.keys(map).filter((r) => target(r)), machine: machineId() });
     if (u.pathname === "/where") {
       const room = u.searchParams.get("room") ?? "";
       if (!/^[a-z0-9]{6,40}$/.test(room))

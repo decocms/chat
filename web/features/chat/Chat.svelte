@@ -299,7 +299,7 @@
                   .join(" · ")
               : ""}
           </p>{:else}<p role="status" class="m-0 text-sm text-muted-foreground">
-            {vb.t("Pedi pro seu Claude… ele responde quando estiver ouvindo.")}
+            {vb.t("Pedi pro seu agent… ele responde quando estiver ouvindo.")}
           </p>{/if}
       </section>{/if}
   </section>

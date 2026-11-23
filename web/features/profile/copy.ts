@@ -27,7 +27,7 @@ const pt = {
   handleInvalid: "Use 2 a 24 letras, números, ponto, _ ou -.",
   handleSave: "Salvar",
   handleSaved: "Salvo",
-  how: "Os números vêm dos seus Claudes: tokens que a CLI lê do Claude Code, mensagens, deploys (🚀) e limites batidos.",
+  how: "Os números vêm dos seus agents: tokens que a CLI lê do Claude Code, mensagens, deploys (🚀) e limites batidos.",
   join: "Entrar no deco.chat",
   loading: "Carregando…",
 } as const;
@@ -59,7 +59,7 @@ const en: Record<keyof typeof pt, string> = {
   handleInvalid: "Use 2 to 24 letters, numbers, dot, _ or -.",
   handleSave: "Save",
   handleSaved: "Saved",
-  how: "The numbers come from your Claudes: tokens the CLI reads from Claude Code, messages, deploys (🚀) and limits hit.",
+  how: "The numbers come from your agents: tokens the CLI reads from Claude Code, messages, deploys (🚀) and limits hit.",
   join: "Join deco.chat",
   loading: "Loading…",
 };

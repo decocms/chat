@@ -6,7 +6,7 @@ import type { AccessContext } from "../shared/schemas";
 
 export type AccessState = "out" | "ask" | "asked" | "invited" | "missing";
 
-const DESC = "Sala no deco.chat: chat, doc e tarefas pras pessoas e os Claudes delas trabalharem juntos.";
+const DESC = "Sala no deco.chat: chat, doc e tarefas pras pessoas e os agents delas trabalharem juntos.";
 
 /** <head> tags that make a shared room link render as a card: deco.chat's image + the room's name. */
 export function roomMeta(origin: string, id: string, title: string | null) {

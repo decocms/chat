@@ -28,6 +28,7 @@ import {
   permissionReply,
   visibleChatMessages,
 } from "../web/features/chat/privacy";
+import { askPreview } from "../web/features/agents/model";
 import type { Message, Room, Attachment } from "../shared/room";
 import type { RoomCommand, CommandOutcome } from "../shared/commands";
 import type { UploadFileResult } from "../shared/schemas";
@@ -492,6 +493,35 @@ test("private asks and permission answers retain exact legacy visibility without
   expect(permissionReply(r, answer)).toBe(true);
   expect(visibleChatMessages(r, "main").map((m) => m.id)).toEqual([1, 5]);
   expect(r.messages).toHaveLength(5);
+});
+
+test('private asks keep the old "Seu Claude" prefix and take the new "Seu agent" prefix', () => {
+  const r = room();
+  for (const text of [
+    "⏸ Seu Claude pede permissão",
+    "❓ Seu Claude pergunta",
+    "⏸ Seu agent pede permissão",
+    "⏸ Seu agent quer seguir com este plano:",
+    "❓ Seu agent pergunta",
+  ])
+    expect(
+      privateAskForOther(
+        r,
+        message(9, text, { kind: "agent", author: "you@test" }),
+      ),
+    ).toBe(true);
+  expect(
+    privateAskForOther(
+      r,
+      message(9, "Seu agent pergunta", { kind: "agent", author: "you@test" }),
+    ),
+  ).toBe(false);
+  expect(askPreview("⏸ Seu Claude pede permissão: Bash")).toBe(
+    "pede permissão: Bash",
+  );
+  expect(askPreview("⏸ Seu agent pede permissão: Bash")).toBe(
+    "pede permissão: Bash",
+  );
 });
 
 test("partial sandbox metadata cannot throw or insert null handles", () => {

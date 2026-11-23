@@ -108,7 +108,7 @@
       ask={vb.t(
         "Lê a conversa desta sala e registra as decisões que a gente já tomou.",
       )}
-      askLabel={vb.t("Peça pro seu Claude")}
+      askLabel={vb.t("Peça pro seu agent")}
       onask={ask}
     />
   {/each}

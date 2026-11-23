@@ -56,7 +56,7 @@ const DOC_CHECKS: [string, string, string, string][] = [
   ["proximos", "sem próximos passos ou donos", "O doc diz quais são os próximos passos ou quem cuida de cada parte?", "no next steps or owners"],
 ];
 export const epicDocSeed = (title: string, why = "") =>
-  `# ${title}\n\n**Objetivo:** ${why.trim() || `${SEED_GOAL} (edite aqui ou peça pro seu Claude).`}\n\n## Contexto\n\n- \n\n## Decisões\n\n- \n`;
+  `# ${title}\n\n**Objetivo:** ${why.trim() || `${SEED_GOAL} (edite aqui ou peça pro seu agent).`}\n\n## Contexto\n\n- \n\n## Decisões\n\n- \n`;
 /** Epic titles compared without numbering, case or accents: "2. Primeira limpeza" = "primeira limpeza". */
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
@@ -105,7 +105,7 @@ const hash = (t: string) => { let h = 5381; for (let i = 0; i < t.length; i++) h
 
 // One Durable Object per vibebook: doc, chat threads (main + one per epic), epics/tasks, live sockets.
 /** What the plugin's hooks post when a Claude stops at a question (permission.sh, question.sh). */
-export const ASK_OPENER = /^(⏸ Seu Claude (pede permissão|quer seguir)|❓ Seu Claude pergunta)/;
+export const ASK_OPENER = /^(⏸ Seu (?:Claude|agent) (pede permissão|quer seguir)|❓ Seu (?:Claude|agent) pergunta)/;
 
 export class Book extends DurableObject<Env> {
   sql: SqlStorage;
@@ -865,7 +865,7 @@ export class Book extends DurableObject<Env> {
       const later = rows.filter((r) => !urgent.includes(r.id));
       if (later.length) {
         const names = await this.names();
-        const who = (r: (typeof rows)[number]) => (r.author === "ai" ? "@vibe" : r.kind === "agent" ? `${r.via || "Claude"} de ${names[r.author] ?? r.author.split("@")[0]}` : names[r.author] ?? r.author.split("@")[0]);
+        const who = (r: (typeof rows)[number]) => (r.author === "ai" ? "@vibe" : r.kind === "agent" ? `${r.via || "agent"} de ${names[r.author] ?? r.author.split("@")[0]}` : names[r.author] ?? r.author.split("@")[0]);
         await db.batch(later.map((r) => db.prepare(`INSERT OR IGNORE INTO digest_items (email, book_id, msg_id, thread, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(to, bookId, r.id, r.thread, who(r), r.text.slice(0, 500), r.ts)));
       }
       if (!urgent.length) { drop(); this.ctx.waitUntil(track(this.env, "mention_mail_skipped", { user: to, dims: { book: bookId, why: "digest", n: later.length } })); continue; }
@@ -896,8 +896,8 @@ export class Book extends DurableObject<Env> {
     const thread = rows.at(-1)!.thread as string;
     const epicRow = thread === "main" ? null : this.epics().find((e) => e.id === thread) ?? null;
     const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
-    // Who wrote each mention, in the recipient's language ("Ana's Claude" / "Claude de Ana").
-    const label = (r: Record<string, unknown>) => (r.kind === "agent" ? (lang === "en" ? `${nm(r.author as string)}'s ${r.via || "Claude"}` : `${r.via || "Claude"} de ${nm(r.author as string)}`) : nm(r.author as string));
+    // Who wrote each mention, in the recipient's language ("Ana's agent" / "agent de Ana"; the model name when known).
+    const label = (r: Record<string, unknown>) => (r.kind === "agent" ? (lang === "en" ? `${nm(r.author as string)}'s ${r.via || "agent"}` : `${r.via || "agent"} de ${nm(r.author as string)}`) : nm(r.author as string));
     const recent = this.messages(thread, 14).filter((x) => x.text);
     const facts: MailFacts = {
       to,
@@ -905,7 +905,7 @@ export class Book extends DurableObject<Env> {
       room: { id: bookId, title: book?.title ?? "deco.chat" },
       epic: epicRow ? { id: epicRow.id, title: epicRow.title } : null,
       mentions: rows.map((r) => ({ from: label(r), text: r.text as string, ts: r.ts as number })),
-      context: recent.map((x) => `${x.kind === "agent" ? `${x.via || "Claude"} de ${nm(x.author)}` : nm(x.author)}: ${x.text.slice(0, 400)}`).join("\n"),
+      context: recent.map((x) => `${x.kind === "agent" ? `${x.via || "agent"} de ${nm(x.author)}` : nm(x.author)}: ${x.text.slice(0, 400)}`).join("\n"),
       people: [...new Set(recent.map((x) => nm(x.author)).concat(toName))],
       myTasks: epicRow ? epicRow.tasks.filter((t) => t.owner === to && t.status !== "done").map((t) => t.title) : [],
       lang,
@@ -1343,7 +1343,7 @@ export class Book extends DurableObject<Env> {
         .exec<{ author: string; kind: string | null; text: string }>(`SELECT author, kind, substr(text, 1, 300) AS text FROM messages WHERE thread = ? AND id < ? AND coalesce(text, '') != '' ORDER BY id DESC LIMIT 6`, thread, m.id)
         .toArray()
         .reverse()
-        .map((x) => `${who(x.author)}${x.kind === "agent" ? " (Claude)" : ""}: ${x.text}`)
+        .map((x) => `${who(x.author)}${x.kind === "agent" ? " (agent)" : ""}: ${x.text}`)
         .join("\n");
       const epic = epics.find((e) => e.id === thread);
       // Whom it's addressed to, for the router's rule: the author of the message it replies to, and the epic's owner.
@@ -1419,7 +1419,7 @@ export class Book extends DurableObject<Env> {
         text: ((t: string) => (mine ? t : untrusted(who(m.author), t)))(withQuote(m.reply_to ? quoted.get(m.reply_to) : undefined, m.text || (m.poll ? `[poll ${m.poll}]` : ""))),
         files: m.files?.length ? m.files.map((f) => ({ id: f.id, name: f.name, type: f.type, size: f.size, url: `/api/books/${bookId}/files/${f.id}` })) : undefined,
         // Emoji reactions (Gui #2724): emoji → who (names; "<name>'s Claude" for agents).
-        reactions: m.reactions ? Object.fromEntries(Object.entries(m.reactions).map(([e, list]) => [e, list.map((w) => (w.endsWith("#agent") ? `${who(w.slice(0, -6))}'s Claude` : who(w)))])) : undefined,
+        reactions: m.reactions ? Object.fromEntries(Object.entries(m.reactions).map(([e, list]) => [e, list.map((w) => (w.endsWith("#agent") ? `${who(w.slice(0, -6))}'s agent` : who(w)))])) : undefined,
       }));
     // "O que precisa de mim aqui" your human asked you for (only they see your answer): handle these first.
     const briefs = email
@@ -1469,7 +1469,7 @@ export class Book extends DurableObject<Env> {
             .exec(
               `SELECT m.id, m.thread, m.text, m.ts FROM messages m WHERE m.ts > ? AND coalesce(m.text, '') != '' AND ((m.author = ? AND m.kind IS NULL) OR (m.tag = 'reminder' AND m.for_who = ?))
                AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = m.id AND a.email = ?)
-               AND NOT EXISTS (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND q.text LIKE '⏸ Seu Claude pede permissão%') ORDER BY m.id DESC LIMIT 10`,
+               AND NOT EXISTS (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND (q.text LIKE '⏸ Seu Claude pede permissão%' OR q.text LIKE '⏸ Seu agent pede permissão%')) ORDER BY m.id DESC LIMIT 10`,
               Date.now() - 2 * 864e5, email, email, email,
             )
             .toArray()
@@ -1522,7 +1522,7 @@ export class Book extends DurableObject<Env> {
     if (!thread && !replyTo && agent && ASK_OPENER.test(text)) {
       const r = this.sql.exec<{ id: number; thread: string; ts: number }>(`SELECT m.id, m.thread, m.ts FROM acks a JOIN messages m ON m.id = a.msg_id WHERE a.agent = ? AND a.status IN ('doing', 'blocked') ORDER BY a.msg_id DESC LIMIT 1`, agent).toArray()[0];
       const ep = r && this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0 ORDER BY ts DESC LIMIT 1`, r.id).toArray()[0]?.id;
-      const last = this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, ts FROM messages WHERE author = ? AND kind = 'agent' AND ts > ? AND text NOT LIKE '⏸ Seu Claude%' AND text NOT LIKE '❓ Seu Claude%' ORDER BY id DESC LIMIT 1`, email, Date.now() - 30 * 60_000).toArray()[0];
+      const last = this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, ts FROM messages WHERE author = ? AND kind = 'agent' AND ts > ? AND text NOT LIKE '⏸ Seu Claude%' AND text NOT LIKE '❓ Seu Claude%' AND text NOT LIKE '⏸ Seu agent%' AND text NOT LIKE '❓ Seu agent%' ORDER BY id DESC LIMIT 1`, email, Date.now() - 30 * 60_000).toArray()[0];
       const acked = ep || r?.thread;
       thread = askThread(acked && r ? { thread: acked, ts: r.ts } : undefined, last, (t) => t === "main" || this.epics().some((e) => e.id === t));
     }
@@ -1632,7 +1632,7 @@ export class Book extends DurableObject<Env> {
       return;
     }
     const q = text.startsWith("❓");
-    this.ctx.waitUntil(this.notify([email], (en) => (q ? (en ? "❓ Your agent asks" : "❓ Seu agent pergunta") : en ? "⏸ Your agent asks for permission" : "⏸ Seu agent pede permissão"), text.replace(/^\S+ Seu Claude [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
+    this.ctx.waitUntil(this.notify([email], (en) => (q ? (en ? "❓ Your agent asks" : "❓ Seu agent pergunta") : en ? "⏸ Your agent asks for permission" : "⏸ Seu agent pede permissão"), text.replace(/^\S+ Seu (?:Claude|agent) [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
     const topic = thread !== "main" ? this.epics().find((e) => e.id === thread)?.title ?? "" : "";
     await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`)
       .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now())

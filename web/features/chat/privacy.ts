@@ -10,7 +10,7 @@ export const messageById = (room: Room, id: number): Message | undefined =>
 export const privateAskForOther = (room: Room, message: Message | undefined) =>
   message?.kind === "agent" &&
   message.author !== room.me &&
-  /^(⏸ Seu Claude|❓ Seu Claude)/.test(message.text || "");
+  /^[⏸❓] Seu (?:Claude|agent)/.test(message.text || "");
 export function permissionReply(room: Room, message: Message): boolean {
   if (!message.reply_to || message.kind === "agent") return false;
   const prompt = messageById(room, message.reply_to);

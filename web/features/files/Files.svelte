@@ -227,7 +227,7 @@
       )}
       action={attach ? uploadLarge : undefined}
       ask={vb.t("Sobe nesta sala capturas de tela do que você já fez.")}
-      askLabel={vb.t("Peça pro seu Claude")}
+      askLabel={vb.t("Peça pro seu agent")}
       onask={ask}
     />{/if}
   {#if $fileState.loading}{#if room.files?.length}<LoadingState

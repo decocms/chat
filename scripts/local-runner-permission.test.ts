@@ -5,6 +5,8 @@ import {
   localNetworkPermission,
   LOCAL_RUNNER_ORIGIN,
 } from "../web/features/agents/runner";
+import { thisComputerListed } from "../web/features/agents/model";
+import type { RoomMachine } from "../shared/schemas";
 const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 };
@@ -90,6 +92,43 @@ test("folder/ping hints contact only the fixed credentialless loopback after an 
     );
     runner.dispose();
   }
+});
+test('the runner\'s machine id hides "This computer" only when that machine is in the list', async () => {
+  const machine = (id: string, kind: RoomMachine["kind"] = "herdr") =>
+    ({
+      id,
+      name: "bugmac",
+      kind,
+      online: true,
+      seen_at: 1,
+      on: true,
+    }) satisfies RoomMachine;
+  const runner = createLocalRunner({
+    permission: async () => "granted",
+    fetcher: async (url) =>
+      Response.json(
+        String(url).endsWith("/ping")
+          ? { rooms: [], machine: "m_here" }
+          : { folder: "/p", home: "/h" },
+      ),
+  });
+  await runner.probe("room", "Room", true);
+  const here = get(runner.state).machine;
+  expect(here).toBe("m_here");
+  expect(thisComputerListed([machine("m_here")], here)).toBe(true);
+  expect(thisComputerListed([machine("m_other")], here)).toBe(false);
+  expect(thisComputerListed([machine("m_here", "sandbox")], here)).toBe(false);
+  // An older CLI (no id) or no local network permission: the page cannot tell, so it keeps the row.
+  expect(thisComputerListed([machine("m_here")], null)).toBe(false);
+  runner.dispose();
+  const old = createLocalRunner({
+    permission: async () => "granted",
+    fetcher: async (url) =>
+      Response.json(String(url).endsWith("/ping") ? { rooms: [] } : {}),
+  });
+  await old.probe("room", "Room", true);
+  expect(get(old.state)).toMatchObject({ available: true, machine: null });
+  old.dispose();
 });
 test("cancel/dispose before permission resolves cannot initiate a late hint request", async () => {
   for (const action of ["cancel", "dispose"] as const) {

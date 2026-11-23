@@ -63,7 +63,7 @@
     class="m-0 ml-7 px-2 text-xs text-warning"
   >
     {t(
-      "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
+      "{n} agents seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.",
       { n: listeners },
     )}
   </p>{/if}

@@ -14,7 +14,7 @@ const pt = {
   title: "Sandboxes",
   room: "Sala",
   noRooms: "Crie uma sala primeiro: cada sandbox ouve uma sala.",
-  description: "Seu Claude rodando na nuvem, com uma máquina por sala.",
+  description: "Seu agent rodando na nuvem, com uma máquina por sala.",
   key: "Chave do Freestyle",
   token: "Token do Claude",
   connected: "conectado",
@@ -92,8 +92,7 @@ const en: Record<SandboxCopyKey, string> = {
   title: "Sandboxes",
   room: "Room",
   noRooms: "Create a room first: each sandbox listens to one room.",
-  description:
-    "Your Claude running in the cloud, with a machine for each room.",
+  description: "Your agent running in the cloud, with a machine for each room.",
   key: "Freestyle key",
   token: "Claude token",
   connected: "connected",

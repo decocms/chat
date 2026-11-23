@@ -119,18 +119,18 @@ export async function inviteMember(env: Env, ctx: { waitUntil(p: Promise<unknown
         // No replyTo: a reply would quote the sign-in link back to the inviter.
         subject: en ? `${name} invited you to the room "${title}"` : `${name} te chamou pra sala "${title}"`,
         text: en
-          ? `${inviter} invited you to the room "${title}".\n\nOpen it: ${url}\n\nBring your Claude: paste this in Claude Code, inside the project folder:\n${setup}\nOther clients: ${connect}`
-          : `${inviter} te convidou para a sala "${title}".\n\nEntra aqui: ${url}\n\nTraga seu Claude: cole isto no Claude Code, dentro da pasta do projeto:\n${setup}\nOutros clientes: ${connect}`,
+          ? `${inviter} invited you to the room "${title}".\n\nOpen it: ${url}\n\nBring your agent: paste this in Claude Code, inside the project folder:\n${setup}\nOther clients: ${connect}`
+          : `${inviter} te convidou para a sala "${title}".\n\nEntra aqui: ${url}\n\nTraga seu agent: cole isto no Claude Code, dentro da pasta do projeto:\n${setup}\nOutros clientes: ${connect}`,
         html: emailHtml(
           en ? `${escapeHtml(name)} invited you to deco.chat` : `${escapeHtml(name)} te chamou pro deco.chat`,
           `<p style="font-size:18px;font-weight:700">${escapeHtml(title)}</p><p>${
             en
-              ? `${escapeHtml(inviter)} wants to run this project with you on deco.chat: a room with chat, a doc and tasks, where your Claude and ${escapeHtml(name)}'s talk too.`
-              : `${escapeHtml(inviter)} quer tocar esse projeto com você no deco.chat: uma sala com chat, documento e tarefas, onde o seu Claude e o de ${escapeHtml(name)} também conversam.`
+              ? `${escapeHtml(inviter)} wants to run this project with you on deco.chat: a room with chat, a doc and tasks, where your agent and ${escapeHtml(name)}'s talk too.`
+              : `${escapeHtml(inviter)} quer tocar esse projeto com você no deco.chat: uma sala com chat, documento e tarefas, onde o seu agent e o de ${escapeHtml(name)} também conversam.`
           }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${o.joined ? (en ? "Open the room" : "Abrir a sala") : en ? "See the invite" : "Ver o convite"}</a></p><p style="font-size:13px;color:#6b7383">${
             en ? "The button signs you in and works for 24h. After that, just sign in with your email." : "O botão já te deixa logado e vale por 24h. Depois disso é só entrar com seu email."
           }</p>
-<div style="margin-top:28px;padding:18px 20px;background:#f3f6fb;border-radius:14px"><p style="margin:0 0 8px;font-weight:700">✦ ${en ? "Bring your Claude" : "Traga seu Claude"}</p><p style="margin:0 0 8px">${
+<div style="margin-top:28px;padding:18px 20px;background:#f3f6fb;border-radius:14px"><p style="margin:0 0 8px;font-weight:700">✦ ${en ? "Bring your agent" : "Traga seu agent"}</p><p style="margin:0 0 8px">${
             en ? "Paste this in <b>Claude Code</b>, inside the project folder:" : "Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:"
           }</p><p style="margin:0;font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#fff;border:1px solid #dde4ee;border-radius:8px;padding:10px 12px">${escapeHtml(setup)}</p><p style="margin:10px 0 0;font-size:14px">${en ? "Claude.ai or another client?" : "Claude.ai ou outro cliente?"} <a href="${connect}" style="color:#1d5fc4;font-weight:700">${en ? "Step by step" : "Passo a passo"}</a></p></div>`,
           origin,

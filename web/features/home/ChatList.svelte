@@ -59,7 +59,7 @@
   const pinned = $derived(expanded ? waits : waits.slice(0, PINNED));
   const who = (wait: Wait) =>
     claudeWait(wait)
-      ? homeText(lang, "yourClaude")
+      ? homeText(lang, "yourAgent")
       : wait.author === "ai"
         ? "@vibe"
         : (wait.author_name || wait.author.split("@")[0] || "").split(" ")[0];

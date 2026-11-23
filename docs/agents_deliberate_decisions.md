@@ -1368,3 +1368,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The main chunk is larger.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · fix/agent-not-claude · "agent", not "Claude"; no "This computer" when listed
+- Agent: claude-opus-5-5
+- Context: Gimenes said that the agent of a person is "agent", not "Claude". He also said that "Add an agent" must not show "This computer" when this computer is in the machines list.
+- Decision:
+  - The UI and the texts that the server writes say "agent" ("Seu agent", "Your agent", "agent de Ana"). "Claude" stays for the product and the models: "Claude Code", "Claude.ai", the Claude token and the Claude account of the sandboxes, the model names, and "Abrindo o Claude Code…" (the runner opens Claude Code).
+  - The plugin hooks write "⏸ Seu agent …" and "❓ Seu agent …" (plugin 0.25.2). All parsers (`privacy.ts`, `agents/model.ts`, `home/model.ts`, `ASK_OPENER` and the SQL in `src/book.ts`) accept the old and the new prefix, because old messages stay in the rooms.
+  - The key names `yourClaude` and `filterClaude` are now `yourAgent` and `filterAgent`. Data keys (`filter: "claude"`, `claude_on`) do not change.
+  - The texts for agents (MCP tool descriptions, router prompts in `src/router*.ts`) do not change, except two lines in `read_room` ("Ana's agent", "(agent)"). A change to the router prompts needs `router-bench`, which costs money.
+  - "This computer": the local runner's `/ping` also sends its machine id (CLI 1.7.8). The popover probes `/ping` when it opens and hides the row when that id is one of your machines. The probe works only if the browser has the local network permission already. It never asks for it. Without the id (no permission, or an older CLI), the row stays: the page cannot know which machine it runs on.
+- Other options: Hide the row when the runner answers `/ping` without an id. A runner of another account on the same computer would hide it too. Hide the row when you have any computer. That is a guess: you can add a second computer.
+- Risk: low. A person without the local network permission still sees "This computer".
+- Undo: Revert this commit.
+- Status: open

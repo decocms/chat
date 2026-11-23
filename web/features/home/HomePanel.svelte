@@ -95,7 +95,7 @@
       { kind: "all" as const, label: text("filterAll"), count: waits.length },
       {
         kind: "claude" as const,
-        label: text("filterClaude"),
+        label: text("filterAgent"),
         count: count("claude"),
       },
       {
@@ -227,7 +227,7 @@
       : text("newDestination", { title: choice.book_title });
   const who = (wait: (typeof waits)[number]) =>
     claudeWait(wait)
-      ? text("yourClaude")
+      ? text("yourAgent")
       : wait.author === "ai"
         ? "@vibe"
         : wait.author_name || wait.author.split("@")[0] || "";

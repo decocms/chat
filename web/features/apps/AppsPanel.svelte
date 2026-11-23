@@ -219,11 +219,11 @@
           icon={paneIcons.apps}
           title={props.t("Nenhum app ainda")}
           description={props.t(
-            "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu Claude pode fazer uma, ou você conecta um app que já usa.",
+            "Ferramentas pequenas que vivem nesta sala: uma enquete, um painel, um tracker. Seu agent pode fazer uma, ou você conecta um app que já usa.",
           )}
           action={connectLarge}
           ask={props.t("Faz um app de enquete pra esta sala, pra gente votar.")}
-          askLabel={props.t("Peça pro seu Claude")}
+          askLabel={props.t("Peça pro seu agent")}
           onask={props.ask}
         />{/if}
       {#if $view.form}<form

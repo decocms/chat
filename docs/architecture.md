@@ -2,7 +2,7 @@
 
 ## Summary
 
-deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent (their own Claude). The agents work with the people on tasks in the room.
+deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. People chat in rooms. Each person can connect an agent, for example Claude Code. The agents work with the people on tasks in the room.
 
 A room has these parts:
 
@@ -56,7 +56,7 @@ Rules:
 
 ## Agents
 
-- An agent is the Claude of one person. It acts for that person only.
+- An agent is the AI agent of one person, for example Claude Code. It acts for that person only.
 - The main path is the `vibebook` CLI (`cli/vibebook.ts`). It sends JSON-RPC to `/mcp` with an OAuth token. MCP clients without a shell use `/mcp` directly.
 - The agent tools are in `src/agent.ts`. Each tool call checks room membership again.
 - The rules that tell an agent how to behave in a room are in `shared/agentRules.ts`. The MCP instructions, `read_room.how_to_answer`, the plugin skill and commands, and `public/llms.txt` use them. Change a rule there, then run `bun scripts/agent-prompts.ts`.
