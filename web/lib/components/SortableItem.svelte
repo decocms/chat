@@ -22,6 +22,7 @@
     children: Snippet;
   } = $props();
 
+  const kind = $derived(`sort:${group}`);
   const sortable = createSortable({
     get id() {
       return sortId;
@@ -33,15 +34,14 @@
       return group;
     },
     get type() {
-      return `sort:${group}`;
+      return kind;
     },
     get accept() {
-      return [`sort:${group}`];
+      return [kind];
     },
     get disabled() {
       return disabled;
     },
-    transition: { duration: 200, easing: "ease" },
   });
 </script>
 

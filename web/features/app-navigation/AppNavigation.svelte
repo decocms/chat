@@ -163,14 +163,12 @@
     }),
   );
   const railIds = $derived(railRooms.map((room) => room.id));
-  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it
-  // follows the pointer and the others make room (dnd-kit, Gimenes #3997).
+  // Press and move a room (a mouse moves 6 px; a finger holds 250 ms): it follows the pointer and the
+  // others make room (SortableList, Gimenes #3997 #4020). railIds is still the order before the drag.
   function moved(move: SortMove) {
     const target = railIds[move.toIndex];
-    if (!target || railIds[move.fromIndex] !== move.id) return;
-    const next = railIds.filter((id) => id !== move.id);
-    next.splice(move.toIndex, 0, move.id);
-    localOrder = next;
+    if (!target) return;
+    localOrder = move.order;
     clearTimeout(localTimer);
     localTimer = setTimeout(() => (localOrder = null), 10_000);
     controller.drop(move.id, target, move.toIndex > move.fromIndex);
@@ -191,31 +189,6 @@
   let switcher = $state(false);
 </script>
 
-{#snippet roomTile(tile: (typeof tiles)[number], index: number)}<SortableItem
-    sortId={tile.room.id}
-    {index}
-    role="listitem"
-    data-tint-run={tile.tint ? "" : undefined}
-    class={cn(
-      "shrink-0",
-      !tile.first && !tile.joinsBefore && "mt-2.5",
-      tile.tint && [tile.tint, "px-1.5"],
-      tile.tint && !tile.joinsBefore && "rounded-t-2xl pt-1.5",
-      tile.tint && !tile.joinsAfter && "rounded-b-2xl pb-1.5",
-      tile.joinsAfter && "pb-2.5",
-    )}
-  >
-    <RailRoom
-      room={tile.room}
-      {lang}
-      now={$personal.now}
-      selected={$nav.roomId === tile.room.id}
-      seen={$personal.seen[tile.room.id] ?? 0}
-      waits={waitsIn.get(tile.room.id) ?? []}
-      onnavigate={controller.callbacks.navigate}
-      onsettings={(id, trigger) => controller.openSettings(id, trigger)}
-    />
-  </SortableItem>{/snippet}
 <div
   data-view="room-navigation"
   data-app-navigation
@@ -293,10 +266,31 @@
     aria-label={text("home")}
   >
     <SortableList ids={railIds} bind:order={dragOrder} onmove={moved}>
-      {#each tiles as tile, index (tile.room.id)}{@render roomTile(
-          tile,
-          index,
-        )}{/each}
+      {#each tiles as tile, index (tile.room.id)}<SortableItem
+          sortId={tile.room.id}
+          {index}
+          role="listitem"
+          data-tint-run={tile.tint ? "" : undefined}
+          class={cn(
+            "shrink-0",
+            !tile.first && !tile.joinsBefore && "mt-2.5",
+            tile.tint && [tile.tint, "px-1.5"],
+            tile.tint && !tile.joinsBefore && "rounded-t-2xl pt-1.5",
+            tile.tint && !tile.joinsAfter && "rounded-b-2xl pb-1.5",
+            tile.joinsAfter && "pb-2.5",
+          )}
+        >
+          <RailRoom
+            room={tile.room}
+            {lang}
+            now={$personal.now}
+            selected={$nav.roomId === tile.room.id}
+            seen={$personal.seen[tile.room.id] ?? 0}
+            waits={waitsIn.get(tile.room.id) ?? []}
+            onnavigate={controller.callbacks.navigate}
+            onsettings={(id, trigger) => controller.openSettings(id, trigger)}
+          />
+        </SortableItem>{/each}
     </SortableList>
   </div>
   <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">

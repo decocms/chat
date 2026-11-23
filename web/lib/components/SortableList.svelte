@@ -13,6 +13,8 @@
     group: string;
     fromIndex: number;
     toIndex: number;
+    /** The whole list in its new order. */
+    order: string[];
   };
 
   // A mouse sorts after it moves 6 px; a finger holds 250 ms, so a swipe still scrolls. The row can be a
@@ -45,6 +47,7 @@
   /**
    * Drag to sort (@dnd-kit/svelte). `order` is the order while a row is dragged (null otherwise): the
    * parent shows it, so the others make room. On drop it goes back to null and `onmove` gets the move.
+   * `fromIndex` and `toIndex` count only the row's group (the sortable index); `order` is all of `ids`.
    */
   let {
     ids,
@@ -57,8 +60,9 @@
     onmove: (move: SortMove) => void;
     children: Snippet;
   } = $props();
-  // Made here with the sensors and plugins, so rows register with them (the provider sets its props only
-  // after the rows have registered).
+  // Made here with the sensors and plugins, so rows register with them (the provider applies its props only
+  // after the rows have registered). The props below are needed too: without them, the provider's effect
+  // puts dnd-kit's defaults back (keyboard sensor, Accessibility plugin).
   const manager = new DragDropManager({ sensors, plugins });
   onDestroy(() => manager.destroy());
 </script>
@@ -81,15 +85,17 @@
     order = next;
   }}
   onDragEnd={(event) => {
+    const final = order;
     order = null;
     const source = event.operation.source;
-    if (event.canceled || !isSortable(source)) return;
+    if (event.canceled || !final || !isSortable(source)) return;
     if (source.initialIndex === source.index) return;
     onmove({
       id: String(source.id),
       group: String(source.group),
       fromIndex: source.initialIndex,
       toIndex: source.index,
+      order: final,
     });
   }}
 >

@@ -1326,7 +1326,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the tint boxes and sort inside each box only.
 - Risk: low.
 - Undo: Revert this commit.
-- Status: open
+- Status: superseded by "The rail and the thread list sort with @dnd-kit/svelte" (refactor/dnd-kit-svelte)
 
 ### 2026-11-23 · feat/no-task-board · The task board leaves the product; the room's name is the main thread
 - Agent: claude-opus-5-5
@@ -1350,5 +1350,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The sidebar has 2 tabs: "Threads abertas" and "Feitas". @vibe's suggestions (the old Plano tab) show under the open threads.
 - Other options: Rename the storage and the tools too. Keep "Arquivado" as a fifth state.
 - Risk: low. The server is unchanged.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-23 · refactor/dnd-kit-svelte · The rail and the thread list sort with @dnd-kit/svelte
+- Agent: claude-opus-5-5
+- Context: Gimenes #4020 asked to use @dnd-kit/svelte instead of @dnd-kit/dom, and to make the code simpler.
+- Decision:
+  - New dependency `@dnd-kit/svelte` 0.5.3 (pinned, the same version as `@dnd-kit/dom`). It replaces our own layer (`navigation/sortable.ts` and `sortable-engine.ts`, about 180 lines).
+  - Two new components in `lib/components`, because no existing component sorts:
+    - `SortableList`: the provider, our sensors (a mouse moves 6 px, a finger holds 250 ms) and no Accessibility plugin. It keeps the order while a row is dragged.
+    - `SortableItem`: one row (`createSortable`). Rows sort only in their group.
+  - Svelte moves the rows. While a row is dragged, the parent shows the order of `SortableList`. On drop, the parent saves the order as before.
+  - dnd-kit is now in the main chunk: about 35 KB gzip more (170 KB to 205 KB). The old layer loaded it on idle. A lazy load with @dnd-kit/svelte would render the list twice (without and with sorting) and lose focus, so the static import is the simple choice.
+  - The old layer caught an error when the drag manager was created. The new code does not catch it. The risk is low: the manager is created in the browser and in happy-dom without errors.
+- Other options: Keep @dnd-kit/dom with our layer (lazy, more code). Use dnd-kit's `move()` helper (it mixes the index in the group with the index in the full list).
+- Risk: low. The main chunk is larger.
 - Undo: Revert this commit.
 - Status: open
