@@ -1389,3 +1389,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The column is nullable and old clients keep working.
 - Undo: Revert this commit. The column and the index can stay.
 - Status: open
+
+### 2026-11-23 · feat/thread-origin · Each thread starts from a message in the main thread
+- Agent: claude-opus-5-5
+- Context: Gimenes (#4123, #4126) asked for "Criar thread" on a message, as in Discord. Threads do not nest. A thread from a message in another thread gets a message in the main thread that links it. "Nova thread" in the sidebar also writes a message in the main thread. These points are not from a human:
+- Decision:
+  - One function sets the origin (`Book.threadOrigin`) for the person's command and for the agent's `start_epic`. The line for a request inside a thread replies to that request (`reply_to`). Thus the room shows the quote, and `Book.epicsFrom` finds the thread of a request through the line. The three checks that read `from_msg` for a request (the ask of an agent, the reply that closes an ack, the room check of an ack) use `epicsFrom`.
+  - The line is written as the person (the command) or as the agent (`start_epic`, kind `agent` with its model). It does not wake the router or run `answerIntent`: it is a record that a thread started, not a request.
+  - The client picks the ID of the new thread (8 hex, the same form as the server's IDs). The command result has no payload, so this is how the app opens the new thread. A retry with the same ID makes nothing. An ID of another person's thread is refused.
+  - Phones: a long right swipe (past 140 px) starts a thread. A shorter swipe (past 60 px) still replies. Phones have no message menu, and a third target on the left swipe makes the targets too small.
+  - The title field is `InlineAdd` (the same row as "Nova thread"), filled with the first line of the message, at most 60 characters, cut at a word.
+  - An agent's `start_epic` with no request now also starts from its "↳ virou o épico" line in the main thread.
+  - Old threads that started inside another thread stay. No data changes.
+- Other options: Return the new ID in the RPC result (more protocol work). A long-press menu on phones (a new component). Keep sub-threads for agents.
+- Risk: medium. Every new thread now writes one more message in the main thread when it does not start from a main message.
+- Undo: Revert this commit.
+- Status: open

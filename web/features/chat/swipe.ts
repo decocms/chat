@@ -1,12 +1,16 @@
 /** Lifecycle-owned touch gestures. Finite Tailwind steps replace host-authored inline transforms. */
 import { fromRoomEdge } from "../room-shell/edgeBack";
 import { MOBILE_QUERY } from "../../lib/breakpoints";
+/** How far right a swipe goes to start a thread instead of a reply. */
+const THREAD_DX = 140;
 export function swipeMessage(
   node: HTMLElement,
   callbacks: {
     reply: () => void;
     /** Left swipe: the text, or with `link` the message's link. */
     copy: (link: boolean) => void;
+    /** A long right swipe (past THREAD_DX): start a thread from this message (Gimenes #4123). */
+    thread?: () => void;
     enabled?: boolean;
   },
 ) {
@@ -84,20 +88,23 @@ export function swipeMessage(
     node.dataset.swipeDir = dx < 0 ? "left" : "right";
     if (dx < 0) node.dataset.swipePick = start.link ? "link" : "copy";
     node.dataset.swipe =
-      dx > 60
-        ? "reply"
-        : dx < -60
-          ? start.link
-            ? "link"
-            : "copy"
-          : "tracking";
+      dx > THREAD_DX && callbacks.thread
+        ? "thread"
+        : dx > 60
+          ? "reply"
+          : dx < -60
+            ? start.link
+              ? "link"
+              : "copy"
+            : "tracking";
   };
   const end = () => {
     const gesture = start;
     start = null;
     reset();
     if (!active || !gesture) return;
-    if (gesture.dx > 60) callbacks.reply();
+    if (gesture.dx > THREAD_DX && callbacks.thread) callbacks.thread();
+    else if (gesture.dx > 60) callbacks.reply();
     else if (gesture.dx < -60) callbacks.copy(gesture.link);
   };
   const cancel = () => {

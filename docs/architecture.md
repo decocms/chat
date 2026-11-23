@@ -6,7 +6,13 @@ deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. Peop
 
 A room has these parts:
 
-- Chat threads. The main thread is `main`. Each epic has its own thread.
+- Chat threads. The main thread is `main`. Each epic has its own thread. Each new thread starts from a message in `main` (`epics.from_msg`), as in Discord, so threads do not nest (`Book.threadOrigin`):
+  - From a message in `main` ("Criar thread" on the message): that message is the origin.
+  - From a message in another thread: the server writes a line in `main` that replies to that message ("Nova thread a partir desta mensagem de …"). The quote of the reply links the source. That line is the origin. `Book.epicsFrom` finds the thread of a request through that line.
+  - From the sidebar ("Nova thread"): the server writes the title in `main` as a message of the person. That message is the origin.
+  - From an agent (`start_epic`): the same rules. A line that the server writes for an agent is an agent message.
+  - The client can pick the ID of the new thread (8 hex characters). Then it opens the thread, and a retry with the same ID makes nothing.
+  - Older threads that started inside another thread stay as they are.
 - Epics with tasks. There is no task board: the tasks show in their epic. Each epic shows a status: A fazer, Fazendo, Esperando OK, Feito or Arquivado. An epic in production shows Feito. A person or an agent can set it (`epic.status`, `update_epic` `status`). If nobody set it, `epicStatus` (`shared/epicStatus.ts`) calculates it from `prod`, the archive and the tasks.
 - Documents. The room has one document, and each epic has one document.
 - Files, decisions, reminders, pins and polls.

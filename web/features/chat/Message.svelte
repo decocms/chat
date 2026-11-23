@@ -13,6 +13,7 @@
     ChatMessage,
   } from "../../app/chatTypes";
   import {
+    canStartThread,
     continues,
     issueParts,
     messageKind,
@@ -29,6 +30,7 @@
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
   import ThreadCards from "../room-sidebar/ThreadCards.svelte";
+  import ThreadStart from "./ThreadStart.svelte";
   import { swipeMessage } from "./swipe";
   import PersonCard from "../profile/PersonCard.svelte";
   let {
@@ -57,6 +59,9 @@
   // about 200 of 300 ms for 60 messages. It mounts on the first pointer or focus in the message.
   let toolbar = $state(false),
     article = $state<HTMLElement>();
+  // "Criar thread" (Gimenes #4123): its title line under the message while open.
+  let threading = $state(false);
+  const threadable = $derived(!origin && canStartThread(room, m));
   function showToolbar() {
     toolbar = true;
   }
@@ -201,6 +206,11 @@
     reply: () => {
       if (active) actions.reply(m.id);
     },
+    thread: threadable
+      ? () => {
+          if (active) threading = true;
+        }
+      : undefined,
     copy: (link) => {
       // On a touch screen pointerenter comes before touchstart, so the toolbar is mounted: copy now, inside the
       // gesture, because iOS Safari allows the clipboard only there.
@@ -228,12 +238,18 @@
       : "",
   ]}
 >
-  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's edges as it slides. Right: Reply →.
-       Left: Copy on top, Link below; the half under the finger is outlined, and lit past the threshold. -->
+  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's edges as it slides. Right: Reply →,
+       and further right Create thread → (Gimenes #4123). Left: Copy on top, Link below; the half under the finger
+       is outlined, and lit past the threshold. -->
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground"
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground in-data-[swipe=thread]:hidden"
     >{vb.t("Responder")} →</span
+  ><span
+    aria-hidden="true"
+    data-swipe-target="thread"
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-foreground in-data-[swipe=thread]:block"
+    >{vb.t("Criar thread")} →</span
   ><span
     aria-hidden="true"
     data-swipe-target="copy"
@@ -435,6 +451,12 @@
             )} · <time title={timestamp}>{day(m.ts)}</time></summary
           >{@render rich(m.text)}
         </details>{/if}
+      {#if threading && threadable}<ThreadStart
+          message={m}
+          {actions}
+          {vb}
+          onclose={() => (threading = false)}
+        />{/if}
       {#if !origin && kind !== "issue" && kind !== "notice"}{#each kind === "reminder" ? group : [m] as source (source.id)}<ThreadCards
             {room}
             messageId={source.id}
@@ -469,6 +491,7 @@
       me={room.me}
       message={m}
       roomId={room.id}
+      onthread={threadable ? () => (threading = true) : undefined}
       {actions}
       {vb}
     />{:else}<button

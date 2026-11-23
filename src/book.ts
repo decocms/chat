@@ -989,8 +989,8 @@ export class Book extends DurableObject<Env> {
     });
     this.ctx.waitUntil(track(this.env, preview ? "mention_mail_preview" : "mention_mail", { user: to, dims: { book: bookId, n: rows.length, ai, model: this.env.MODEL_FAST, cost: +cost.toFixed(6), ms: Date.now() - started } }));
   }
-  createEpic(title: string, tasks: (string | { title: string; owner?: string; due?: string })[] = [], members: string[] = [], why = "") {
-    const id = rid();
+  createEpic(title: string, tasks: (string | { title: string; owner?: string; due?: string })[] = [], members: string[] = [], why = "", chosen?: string) {
+    const id = chosen ?? rid();
     const ts = Date.now();
     this.sql.exec(`INSERT INTO epics (id, title, ts) VALUES (?, ?, ?)`, id, title.slice(0, 200), ts);
     // An epic's doc never starts empty: title, goal and the sections people fill as it moves.
@@ -1573,7 +1573,7 @@ export class Book extends DurableObject<Env> {
     // ⏸ landed in an older epic's thread, Gui #3349). A request acked in main that became an epic counts as that epic.
     if (!thread && !replyTo && agent && ASK_OPENER.test(text)) {
       const r = this.sql.exec<{ id: number; thread: string; ts: number }>(`SELECT m.id, m.thread, m.ts FROM acks a JOIN messages m ON m.id = a.msg_id WHERE a.agent = ? AND a.status IN ('doing', 'blocked') ORDER BY a.msg_id DESC LIMIT 1`, agent).toArray()[0];
-      const ep = r && this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0 ORDER BY ts DESC LIMIT 1`, r.id).toArray()[0]?.id;
+      const ep = r && this.epicsFrom(r.id, true)[0]?.id;
       const last = this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, ts FROM messages WHERE author = ? AND kind = 'agent' AND ts > ? AND text NOT LIKE '⏸ Seu Claude%' AND text NOT LIKE '❓ Seu Claude%' ORDER BY id DESC LIMIT 1`, email, Date.now() - 30 * 60_000).toArray()[0];
       const acked = ep || r?.thread;
       thread = askThread(acked && r ? { thread: acked, ts: r.ts } : undefined, last, (t) => t === "main" || this.epics().some((e) => e.id === t));
@@ -1601,7 +1601,7 @@ export class Book extends DurableObject<Env> {
       this.pushAcks(`email = ? AND ts = ?`, email, now);
     // A reply to the message it acked is the answer when that request didn't become an epic (a short answer, no work
     // to deliver): it closes that ack, so the room doesn't show "fazendo" forever without a done:true post.
-    if (!done && replyTo && !this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, replyTo).toArray().length)
+    if (!done && replyTo && !this.epicsFrom(replyTo).length)
       if (this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE email = ? AND msg_id = ? AND status = 'doing'`, now + 1, email, replyTo).rowsWritten)
         this.pushAcks(`email = ? AND ts = ?`, email, now + 1);
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", agent: true } }));
@@ -1634,7 +1634,7 @@ export class Book extends DurableObject<Env> {
       const known =
         m.ts > Date.now() - 48 * 3600e3 ||
         this.sql.exec(`SELECT 1 FROM acks WHERE msg_id = ? AND email = ? LIMIT 1`, msgId, email).toArray().length > 0 ||
-        this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0 LIMIT 1`, msgId).toArray().length > 0;
+        this.epicsFrom(msgId, true).length > 0;
       if (!known) return { ok: false, error: `message ${msgId} in room ${bookId} is from ${new Date(m.ts).toISOString().slice(0, 10)} and nobody of yours is on it: wrong room? pass room_id` };
     }
     // Default: the person's latest own message, in any thread; "blocked" goes on the request this agent is on.
@@ -1898,6 +1898,29 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     return { ok: true as const };
   }
+  /** The main-thread message a new thread starts from (Gimenes #4123, #4126): the tree is shallow, as in Discord.
+   *  A message in main is its own origin. A message in another thread gets a new line in main that replies to it (plain text: a person's message shows no Markdown), and the
+   *  thread starts from that line. No message (the sidebar's "Nova thread", an agent's request with none): a line in
+   *  main with `text`. Older sub-threads (from_msg inside another thread) stay as they are. */
+  threadOrigin(by: { author: string; kind?: "agent"; via?: string }, from: number | undefined, text: string): number {
+    const row = from === undefined ? undefined : this.sql.exec<{ id: number; thread: string }>(`SELECT id, thread FROM messages WHERE id = ?`, from).toArray()[0];
+    if (row?.thread === "main") return row.id;
+    const where = row && this.epics().find((e) => e.id === row.thread)?.title;
+    const line = !row
+      ? text
+      : this.en
+        ? `New thread from this message${where ? ` in “${where}”` : ""}`
+        : `Nova thread a partir desta mensagem${where ? ` de “${where}”` : ""}`;
+    // The line replies to its source, so the room shows the quote and epicsFrom() finds the request's thread.
+    return this.addMessage("main", by.author, line.slice(0, MESSAGE_TEXT_LIMIT), { kind: by.kind, via: by.via, replyTo: row?.id }).id;
+  }
+  /** The threads a request became, newest first: started from it, or from the line in main that links it (a request
+   *  inside a thread, threadOrigin). `open`: not archived. */
+  epicsFrom(msgId: number, open = false) {
+    return this.sql
+      .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.archived, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
+      .toArray();
+  }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
     this.bind(bookId);
     // A DM is only a conversation: an epic asked for here goes to the room it belongs to.
@@ -1928,15 +1951,18 @@ export class Book extends DurableObject<Env> {
     // An answer (Gui #2735): its doc's task list goes last, and the doc opens in its human's tabs right now (below).
     if (answer) this.set(`answer:${id}`, "1"), this.setDoc(`# ${t}\n`, "tasks", undefined, id);
     this.sql.exec(`UPDATE epics SET owner = ? WHERE id = ?`, own, id);
-    if (!src) this.epicsChanged();
     if (src) {
-      this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, src, id);
-      // Asked inside an epic's thread, the request is a sub-epic of it: the parent stays open until its sub-epics close
-      // (autoArchive archives it then, when its own tasks are done).
+      // Every thread starts from a message in main (Gimenes #4123): a request asked inside another thread gets a line
+      // in main that links it, and the new thread is a sibling there, not a sub-thread.
+      this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email, kind: "agent", via: via || undefined }, Number(src), t), id);
       this.epicsChanged();
-      // Opening an epic for a request is taking it: the request shows "X está fazendo isso".
+      // Opening an epic for a request is taking it: the request itself shows "X está fazendo isso".
       if (agent && !backlog) this.agentAck(bookId, agent, email, via || "agent", Number(src));
-    } else if (!backlog) this.addMessage("main", email, this.en ? `↳ became the epic **${t}**: the conversation and progress continue there.` : `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`, { kind: "agent", via: via || undefined });
+    } else if (!backlog) {
+      const line = this.en ? `↳ became the epic **${t}**: the conversation and progress continue there.` : `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`;
+      this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email, kind: "agent", via: via || undefined }, undefined, line), id);
+      this.epicsChanged();
+    } else this.epicsChanged();
     const epic = this.epics().find((e) => e.id === id);
     const opened = answer ? await this.agentOpenDoc(bookId, email, id) : null;
     return { ok: true, epic_id: id, thread: id, tasks: epic?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], ...(opened ? { doc_opened_in_tabs: "opened_in_tabs" in opened ? opened.opened_in_tabs : 0 } : {}) };
@@ -2313,14 +2339,23 @@ export class Book extends DurableObject<Env> {
         if (this.isDm) return new Refused("a DM keeps its name");
         await this.renameRoom(this.get("book_id") ?? "", String(m.title ?? ""));
         return;
-      case "epic":
+      case "epic": {
         if (this.isDm) return new Refused("a DM has no epics");
-        if (String(m.title ?? "").trim()) {
-          const id = this.createEpic(String(m.title).trim());
-          this.sql.exec(`UPDATE epics SET owner = ? WHERE id = ?`, email, id);
-          this.epicsChanged();
+        const title = String(m.title ?? "").trim();
+        if (!title) return;
+        // The same id again is a retry of the same create: done already, nothing twice.
+        if (m.id && this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, m.id).toArray().length) {
+          const mine = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === email;
+          return mine ? undefined : new Refused("epic id in use");
         }
+        const from = m.from === undefined ? undefined : Number(m.from);
+        if (from !== undefined && !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, from).toArray().length) return new Refused("unknown message");
+        const id = this.createEpic(title, [], [], "", m.id);
+        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, from, title), id);
+        this.epicsChanged();
+        this.ctx.waitUntil(track(this.env, "thread_create", { user: email, dims: { book: this.get("book_id") ?? "", from: from === undefined ? "sidebar" : "message" } }));
         return;
+      }
       case "epic.owner":
         return void this.setEpicOwner(String(m.id ?? ""), String(m.owner ?? ""));
       case "task.add":

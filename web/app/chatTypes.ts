@@ -49,6 +49,8 @@ export type ChatActions = {
   openFileReference?: (file: RichFileReference) => void;
   ensureFileIndex?: () => void;
   reply: (id: number) => void;
+  /** Opens a thread of this room (a new one made from a message, Gimenes #4123). */
+  openThread?: (id: string) => void;
   navigate: (id: number, thread?: string) => void;
   openFile: (file: Attachment) => void;
   openSideFile?: (file: Attachment) => void;
