@@ -5459,8 +5459,8 @@ describe("composer ownership and interactions", () => {
     const items = target.querySelectorAll<HTMLButtonElement>(
       '[role="menu"] button',
     );
-    // Attach, mention, poll, and (on phones) "O que precisa de mim aqui?".
-    expect(items.length).toBe(4);
+    // Attach, mention and poll (no "O que precisa de mim aqui?", Gimenes #4155).
+    expect(items.length).toBe(3);
     expect(document.activeElement === items[0]).toBe(true);
     items[0].dispatchEvent(
       new KeyboardEvent("keydown", {

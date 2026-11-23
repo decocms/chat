@@ -14,7 +14,6 @@
   } from "./model";
   import { selectedMessageIds, transcriptText } from "./clipboard";
   import Button from "../../lib/studio/Button.svelte";
-  import AgentMark from "../../lib/components/AgentMark.svelte";
   import {
     AGENT_TILES,
     agentMark,
@@ -33,10 +32,6 @@
     actions,
     onloadolder,
   }: ChatProps = $props();
-  // "O que precisa de mim aqui" (Gui #3011): your latest ask in this thread, answered by your Claude; only you get it.
-  const brief = $derived(
-    room.briefs?.filter((item) => item.thread === thread).at(-1),
-  );
   let now = $state(Date.now());
   onMount(() => {
     const timer = setInterval(() => {
@@ -260,47 +255,5 @@
             {vb.t("Falta o agent verificar em prod.")}
           </p>{/if}
       </div>{/if}
-    {#if brief}<section
-        data-brief
-        aria-label={vb.t("O que precisa de mim aqui?")}
-        class="mx-3 mt-4 space-y-1.5 rounded-surface border border-dashed border-border bg-muted/40 p-3"
-      >
-        <div class="flex flex-wrap items-center gap-2 text-xs">
-          <AgentMark size="2xs" />
-          <b class="font-semibold">{vb.t("O que precisa de mim aqui?")}</b>
-          <span class="rounded-full bg-muted px-2 py-0.5"
-            >{vb.t("só você vê")}</span
-          >
-          <span class="flex-1"></span><Button
-            size="sm"
-            variant="ghost"
-            onclick={(event) => {
-              if (event.currentTarget.isConnected)
-                void actions.request({ t: "brief.dismiss", id: brief.id });
-            }}>{vb.t("Dispensar")}</Button
-          >
-        </div>
-        {#if brief.text}<p
-            data-brief-text
-            class="m-0 whitespace-pre-wrap break-words text-sm leading-6"
-          >
-            {brief.text}
-          </p>
-          <p class="m-0 text-xs text-muted-foreground">
-            {brief.answered_at
-              ? [
-                  brief.model ? prettyModel(brief.model) : "",
-                  new Date(brief.answered_at).toLocaleTimeString(
-                    vb.locale || "pt-BR",
-                    { hour: "2-digit", minute: "2-digit" },
-                  ),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : ""}
-          </p>{:else}<p role="status" class="m-0 text-sm text-muted-foreground">
-            {vb.t("Pedi pro seu Claude… ele responde quando estiver ouvindo.")}
-          </p>{/if}
-      </section>{/if}
   </section>
 {/key}

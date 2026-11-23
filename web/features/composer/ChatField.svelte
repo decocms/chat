@@ -89,7 +89,7 @@
     /** Items of the + menu; `close` closes it, `trigger` is the + button (stays in the page,
      *  so a dialog opened from the menu can return focus to it). Without it the + is disabled. */
     menu?: Snippet<[close: () => void, trigger: HTMLElement | null]>;
-    /** Shown at the right end of the field while it's empty (the room's "O que precisa de mim aqui?"). */
+    /** Shown at the right end of the field while it's empty. */
     inside?: Snippet;
     /** Shown inside the field, above the text: the reply strip and the attachments of the room's composer. */
     above?: Snippet;
