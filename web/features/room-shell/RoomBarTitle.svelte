@@ -11,7 +11,7 @@
    * The desktop top bar's title: what fills the middle. The room's name is in
    * the sidebar's header, so the bar names only the view: "Sala principal"
    * (a DM: the other person), the open epic or suggestion, or a full view
-   * (the board). An epic's status follows its title (EpicActions `bar`;
+   * (the board). An epic's status follows its title (EpicActions;
    * Gimenes #3975), and its menu pins the epic (the epic list has no menu).
    */
   let {
@@ -67,6 +67,6 @@
       class="min-w-0 shrink-[2] truncate text-xs text-muted-foreground"
       >✦ {t("sugestão do @vibe")}</span
     >{/if}
-  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" pinnable />{/if}
+  {#if epic}<EpicActions {epic} {owner} {t} />{/if}
   <MutationStatus {owner} {t} />
 </div>

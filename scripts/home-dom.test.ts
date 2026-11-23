@@ -289,56 +289,50 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
   }
   expect(h.documents).toEqual(["/login?out=1"]);
 });
-test("the phone thread sheet's tabs: This room shows the sidebar, All rooms lists every room", async () => {
-  const { default: RoomStrip } =
-    await import("../web/features/app-navigation/RoomStrip.svelte");
-  const { createRawSnippet } = await import("svelte");
-  const h = shellFixture();
-  h.canonical(
-    me({
-      books: [room("aaaaaa"), room("bbbbbb"), room("cccccc"), room("dddddd")],
-    }),
+test("a phone's Settings bar is only a back: it returns to the page you came from, or Home when Settings loaded first (Gimenes #4068)", async () => {
+  async function open(href?: string) {
+    const h = shellFixture({}, { href }),
+      target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(ApplicationShellHarness, {
+        target,
+        props: { services: h.services, effects: h.effects },
+      }),
+    );
+    cleanups.push(() =>
+      flushSync(() => {
+        void unmount(component);
+      }),
+    );
+    await flush();
+    return { h, target };
+  }
+  // From Home: the account row opens Settings; back is the browser's back.
+  const from = await open();
+  await waitForView(from.target, "a[data-account-row]");
+  from.h.navigate(
+    new MouseEvent("click", { button: 0, cancelable: true }),
+    from.target.querySelector<HTMLAnchorElement>("a[data-account-row]")!,
   );
-  h.services.start();
-  await h.services.personal.refresh();
-  cleanups.push(() => h.services.dispose());
-  const target = document.createElement("div");
-  document.body.append(target);
-  const component = flushSync(() =>
-    mount(RoomStrip, {
-      target,
-      props: {
-        controller: h.services.navigation,
-        lang: "en",
-        children: createRawSnippet(() => ({
-          render: () => "<p data-this-room>epics</p>",
-        })),
-      },
-    }),
-  );
-  cleanups.push(() => {
-    flushSync(() => {
-      void unmount(component);
-    });
-    target.remove();
-  });
+  await waitForView(document, "#account-name");
+  const nav = from.target.querySelector("[data-app-navigation]")!;
+  expect(nav.querySelector("[data-room-switcher]")).toBeNull();
+  const back = nav.querySelector<HTMLButtonElement>("[data-phone-back]")!;
+  expect(back.className.split(/\s+/)).toContain("md:hidden");
+  back.click();
+  expect(from.h.backs).toEqual(["https://vibebook.test/settings"]);
+  // Settings loaded first: nothing of this app to go back to, so back goes Home.
+  const direct = await open("https://vibebook.test/settings");
+  await waitForView(document, "#account-name");
+  direct.target
+    .querySelector<HTMLButtonElement>(
+      "[data-app-navigation] [data-phone-back]",
+    )!
+    .click();
   await flush();
-  // This room first: the sidebar's own content, no room list, no avatar.
-  expect(target.querySelector("[data-this-room]")).not.toBe(null);
-  expect(target.querySelector('[data-room-scope-panel="all"]')).toBe(null);
-  expect(target.querySelector("[data-user-menu-trigger]")).toBe(null);
-  const all = target.querySelector<HTMLElement>('[data-room-scope="all"]')!;
-  expect(all.textContent).toContain("All rooms");
-  all.click();
-  await flush();
-  // All rooms: Home + every room + "Você" (your own DM), and the room's own content steps aside.
-  const list = target.querySelector('[data-room-scope-panel="all"]')!;
-  expect(list.querySelectorAll("[data-room-avatar]").length).toBe(5);
-  expect(
-    target
-      .querySelector('[data-room-scope-panel="room"]')!
-      .className.includes("hidden"),
-  ).toBe(true);
+  expect(direct.h.backs).toEqual([]);
+  expect(new URL(direct.h.href()).pathname).toBe("/");
 });
 test("connected old creator controls cannot edit or submit a replacement opening before DOM flush", async () => {
   let creates = 0;

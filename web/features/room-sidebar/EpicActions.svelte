@@ -16,24 +16,19 @@
   /**
    * The epic's status: a pill that opens the list of statuses (A fazer …
    * Arquivado). "Feito" and "Arquivado" archive the epic, an open status
-   * reopens it (Book.setEpicStatus). `bar`: at the end of the desktop top
-   * bar's title, then a vertical line before the pane's tabs. `sheet`: under
-   * the title in the phone's thread sheet. `pinnable`: the menu also pins the
-   * epic, since the epic list has no actions menu (Gimenes #3924, #3933). It
-   * does not pick the owner (Gimenes #3975).
+   * reopens it (Book.setEpicStatus). It sits right after the desktop top
+   * bar's title. Phones have no status control (Gimenes #4065). The menu also
+   * pins the epic, since the epic list has no actions menu (Gimenes #3924,
+   * #3933). It does not pick the owner (Gimenes #3975).
    */
   let {
     epic,
     owner,
     t,
-    variant,
-    pinnable = false,
   }: {
     epic: Epic;
     owner: RoomMutations;
     t: (text: string, vars?: Record<string, string | number>) => string;
-    variant: "bar" | "sheet";
-    pinnable?: boolean;
   } = $props();
   const mutation = untrack(() => owner.state);
   const busy = $derived(
@@ -62,10 +57,7 @@
         class="size-3.5 opacity-70"
       /></DropdownMenuTrigger
     >
-    <DropdownMenuContent
-      align={variant === "bar" ? "end" : "start"}
-      class={cn(studioType, "w-52")}
-    >
+    <DropdownMenuContent align="end" class={cn(studioType, "w-52")}>
       <DropdownMenuLabel class="text-xs text-muted-foreground"
         >{t("Status")}</DropdownMenuLabel
       >
@@ -81,7 +73,7 @@
               class="ml-auto text-foreground"
             />{/if}</DropdownMenuItem
         >{/each}
-      {#if pinnable && !epic.archived}<DropdownMenuSeparator />
+      {#if !epic.archived}<DropdownMenuSeparator />
         <DropdownMenuItem
           data-epic-pin={epic.id}
           disabled={busy}
@@ -98,9 +90,7 @@
     </DropdownMenuContent>
   </DropdownMenu>{/snippet}
 
-{#if variant === "bar"}<!-- Right after the epic's title (Gimenes #3975). -->
-  <span data-epic-bar-actions class="flex shrink-0 items-center gap-1">
-    {@render pill()}
-  </span>{:else}<div data-epic-sheet-status class="flex px-2 pb-1">
-    {@render pill()}
-  </div>{/if}
+<!-- Right after the epic's title (Gimenes #3975). -->
+<span data-epic-bar-actions class="flex shrink-0 items-center gap-1">
+  {@render pill()}
+</span>

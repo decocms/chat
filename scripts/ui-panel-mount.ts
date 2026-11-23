@@ -13,7 +13,6 @@ import Composer from "../web/features/composer/Composer.svelte";
 import DocumentPanel from "../web/features/documents/DocumentPanel.svelte";
 import AppsPanel from "../web/features/apps/AppsPanel.svelte";
 import AgentSettings from "../web/features/agents/AgentSettings.svelte";
-import ThreadHeader from "../web/features/room-sidebar/ThreadHeader.svelte";
 import SuggestionPreview from "../web/features/room-sidebar/SuggestionPreview.svelte";
 import RoomBarTitle from "../web/features/room-shell/RoomBarTitle.svelte";
 export { dismissDialogs } from "../web/lib/studio/dialogController";
@@ -28,7 +27,6 @@ const fixtures = {
   document: DocumentPanel,
   apps: AppsPanel,
   agentSettings: AgentSettings,
-  threadHeader: ThreadHeader,
   suggestionPreview: SuggestionPreview,
   roomBarTitle: RoomBarTitle,
 };

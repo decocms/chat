@@ -146,6 +146,22 @@
   // Home and settings share one frame: the rail, a sidebar (your DMs, or the settings' sections) and the page.
   const settings = $derived($application.route.kind === "settings"),
     paged = $derived($application.route.kind === "home" || settings);
+  // Phones: Settings has only a back in its bar (Gimenes #4068). It returns to the page you came
+  // from in this app; a Settings page that was the first page loaded goes to Home instead.
+  let landing: string | undefined,
+    moved = $state(false);
+  $effect(() => {
+    const href = $application.href;
+    untrack(() => {
+      if (landing === undefined) landing = href;
+      else if (href !== landing) moved = true;
+    });
+  });
+  function settingsBack() {
+    if (!current()) return;
+    if (moved) effects.back();
+    else services.actions.home();
+  }
   const settingsRoom = $derived(
     $application.route.kind === "settings"
       ? new URL($application.href).searchParams.get("room")
@@ -273,6 +289,7 @@
         controller={services.navigation}
         inRoom={$application.route.kind === "room"}
         accountInSidebar={paged}
+        onback={settings ? settingsBack : undefined}
         lang={services.language}
         onreload={() => {
           if (current()) services.actions.reload();
