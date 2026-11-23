@@ -1298,6 +1298,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The status menu (top bar and the phone's sheet) has no "Dono do épico" group now. "Fixar no topo" / "Desafixar" stays, because the epic list has no other menu to pin an epic.
   - The server's `epic.owner` command stays. Only the UI changes.
 - Other options: Remove the pin item too, so that the menu has only the statuses.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-23 · feat/rail-hold-to-sort · Rooms on the rail move by press and hold, not by the browser's drag
+- Agent: claude-opus-5-5
+- Context: The human asked to rearrange the rooms in the sidebar by click and hold. They said that the gesture today shows a strange drop in the UI (#3978). The rail used the browser's drag and drop: a ghost of the link and a dashed box on the room under it.
+- Decision:
+  - New action `railSort` (`app-navigation/railSort.ts`) on the rail's room list, with pointer events. Hold a room for 250 ms (or, with a mouse, move it 6 px) and it lifts and follows the pointer. A line shows where it lands. Letting go saves the order with the existing `rooms.order`. Escape puts it back. A short press is still a click that opens the room.
+  - On a touch screen, a move before the hold scrolls the rail.
+  - The browser's drag of the tile, its link and its picture is off.
+  - The held room lifts in place (data attributes and Tailwind classes; the style policy does not let code set inline styles).
+  - I did not reuse the epic list's sorter (`navigation/sortable.ts`, @dnd-kit/dom): it sorts only among siblings of one parent, and the rail puts rooms of one tint in their own group box. A room must be able to move between those boxes.
+- Other options: Keep the browser's drag and only restyle the drop box. Move tiles live to open a gap, as some apps do; tint groups make that harder.
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open

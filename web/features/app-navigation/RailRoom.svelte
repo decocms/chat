@@ -23,15 +23,8 @@
     seen = 0,
     waits = [],
     selected = false,
-    dropping = false,
-    dragging = false,
     onnavigate,
     onsettings,
-    ondragstart,
-    ondragend,
-    ondragover,
-    ondragleave,
-    ondrop,
   }: {
     room: RoomSummary;
     lang: HomeLanguage;
@@ -39,17 +32,8 @@
     seen?: number;
     waits?: readonly WaitReference[];
     selected?: boolean;
-    /** Another room is being dragged over this one. */
-    dropping?: boolean;
-    /** This room is the one being dragged. */
-    dragging?: boolean;
     onnavigate: (target: RoomTarget) => void;
     onsettings?: (id: string, trigger: HTMLElement) => void;
-    ondragstart?: (event: DragEvent) => void;
-    ondragend?: (event: DragEvent) => void;
-    ondragover?: (event: DragEvent) => void;
-    ondragleave?: (event: DragEvent) => void;
-    ondrop?: (event: DragEvent) => void;
   } = $props();
   // New messages are the rail's edge mark (like Discord), not a number: the open room shows its bar instead.
   const news = $derived(unread(room, seen));
@@ -60,25 +44,11 @@
   const icon = $derived(roomIcon(room));
 </script>
 
+<!-- Held and moved (railSort.ts): the tile lifts in place; a line marks where it lands. -->
 <article
   data-room-id={room.id}
-  class="relative flex items-center justify-center"
-  draggable={!!ondragstart}
-  ondragstart={(event) => {
-    if (event.currentTarget.isConnected) ondragstart?.(event);
-  }}
-  ondragend={(event) => {
-    if (event.currentTarget.isConnected) ondragend?.(event);
-  }}
-  ondragover={(event) => {
-    if (event.currentTarget.isConnected) ondragover?.(event);
-  }}
-  ondragleave={(event) => {
-    if (event.currentTarget.isConnected) ondragleave?.(event);
-  }}
-  ondrop={(event) => {
-    if (event.currentTarget.isConnected) ondrop?.(event);
-  }}
+  class="relative flex touch-pan-y items-center justify-center select-none data-rail-moving:z-10 data-rail-moving:scale-105 data-rail-moving:opacity-90 data-rail-moving:drop-shadow-lg data-[rail-drop]:before:pointer-events-none data-[rail-drop]:before:absolute data-[rail-drop]:before:left-1/2 data-[rail-drop]:before:h-0.5 data-[rail-drop]:before:w-8 data-[rail-drop]:before:-translate-x-1/2 data-[rail-drop]:before:rounded-full data-[rail-drop]:before:bg-foreground data-[rail-drop=after]:before:-bottom-1.5 data-[rail-drop=before]:before:-top-1.5"
+  ondragstart={(event) => event.preventDefault()}
   oncontextmenu={(event) => {
     if (!event.currentTarget.isConnected || !onsettings) return;
     event.preventDefault();
@@ -94,13 +64,12 @@
         <a
           {...props}
           href={targetHref({ roomId: room.id })}
+          draggable="false"
           aria-label={[title, ...details].join(" · ")}
           aria-current={selected ? "page" : undefined}
           data-room-tint={room.tint ?? undefined}
           class={cn(
             "relative flex size-9 shrink-0 rounded-xl outline-offset-2 transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring motion-reduce:transition-none",
-            dropping && "outline-2 outline-dashed outline-ring",
-            dragging && "opacity-50",
           )}
           onclick={(event) => {
             if (

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { railSort } from "./railSort";
   import { onMount, onDestroy } from "svelte";
   import { isDmId } from "../../../shared/dm";
   import Count from "../../lib/components/Count.svelte";
@@ -145,8 +146,6 @@
   const waiting = $derived($personal.me?.waits.length ?? 0);
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
-  let dragging = $state<string | null>(null),
-    dropTo = $state<string | null>(null);
 </script>
 
 {#snippet roomTile(room: RoomSummary)}<div role="listitem">
@@ -157,41 +156,8 @@
       selected={$nav.roomId === room.id}
       seen={$personal.seen[room.id] ?? 0}
       waits={waitsIn.get(room.id) ?? []}
-      dropping={dropTo === room.id}
-      dragging={dragging === room.id}
       onnavigate={controller.callbacks.navigate}
       onsettings={(id, trigger) => controller.openSettings(id, trigger)}
-      ondragstart={(event) => {
-        event.dataTransfer?.setData("text/plain", room.id);
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-        dragging = room.id;
-      }}
-      ondragend={() => {
-        dragging = null;
-        dropTo = null;
-      }}
-      ondragover={(event) => {
-        event.preventDefault();
-        if (dragging && dragging !== room.id) dropTo = room.id;
-      }}
-      ondragleave={() => {
-        if (dropTo === room.id) dropTo = null;
-      }}
-      ondrop={(event) => {
-        event.preventDefault();
-        dropTo = null;
-        dragging = null;
-        const from = event.dataTransfer?.getData("text/plain");
-        if (!from) return;
-        const target = event.currentTarget;
-        if (!(target instanceof HTMLElement)) return;
-        const rect = target.getBoundingClientRect();
-        controller.drop(
-          from,
-          room.id,
-          event.clientY > rect.top + rect.height / 2,
-        );
-      }}
     />
   </div>{/snippet}
 <div
@@ -269,6 +235,9 @@
     class="flex min-h-0 min-w-0 flex-1 flex-row items-center gap-2.5 self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
     role="list"
     aria-label={text("home")}
+    use:railSort={{
+      onorder: (from, to, after) => controller.drop(from, to, after),
+    }}
   >
     {#each groups as group (group.rooms[0]?.id)}{#if group.tint}<div
           role="listitem"
