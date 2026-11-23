@@ -1200,3 +1200,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The composer is 12px taller.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-row-slot · The epic row: one slot at the end, and task progress as a bar
+- Agent: claude-opus-5-5
+- Context: The human asked for the epic's status at the end of its row, a number in its place when there is something new, and the x/y task count as a bar under the title (gray at 0 done, green after) (#3899, #3904). Then they said to change only the UI, not how the app tracks read messages (#3915).
+- Decision:
+  - The slot at the end shows the lime wait count (`WaitBadge`) when something waits on you, else the status icon. The app tracks reads only per room, so there is no per-epic count of new messages. The wait count is the number that already exists for an epic.
+  - The x/y text is gone. A 2px `Progress` bar sits at the foot of the row, under the title. Its aria-label keeps the count ("1 de 3 tarefas"). An epic with no tasks has no bar.
+  - `Progress` gets a new `success` tone (`text-success`) for the green fill. Its gray track is the existing `bg-muted`.
+- Other options: Add per-epic read tracking for a count of new messages (the human said no). Keep the x/y text beside the bar.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open

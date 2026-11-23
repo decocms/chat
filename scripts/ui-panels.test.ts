@@ -3646,6 +3646,46 @@ describe("stable sidebar integration", () => {
         ?.getAttribute("data-epic-status-icon"),
     ).toBe("done");
   });
+  test("epic row: the status sits last and task progress is a bar, gray at 0 and green after", () => {
+    const room = fixture();
+    room.epics = [
+      {
+        id: "p",
+        title: "Progress",
+        tasks: [
+          { id: "t1", title: "One", done: true },
+          { id: "t2", title: "Two" },
+          { id: "t3", title: "Three" },
+        ],
+      },
+      { id: "z", title: "Zero", tasks: [{ id: "t4", title: "Four" }] },
+      { id: "n", title: "None", tasks: [] },
+    ] as typeof room.epics;
+    const h = sidebar(room);
+    flushSync();
+    const row = (id: string) =>
+      h.target.querySelector(`[data-epic-thread="${id}"]`)!;
+    // The status icon is the last thing in the row's line.
+    const line = [...row("p").children].filter(
+      (el) => !el.matches("[data-epic-progress]"),
+    );
+    expect(line.at(-1)?.hasAttribute("data-epic-status-icon")).toBe(true);
+    // No "x/y" text: a bar with its count for screen readers.
+    expect(row("p").textContent).not.toContain("1/3");
+    const bar = row("p").querySelector("[data-epic-progress]");
+    expect(bar?.getAttribute("data-epic-progress")).toBe("1/3");
+    expect(bar?.getAttribute("aria-label")).toBe("1 de 3 tarefas");
+    expect(bar?.querySelector("progress")?.className).toContain("text-success");
+    expect(
+      bar?.querySelector<HTMLProgressElement>("progress")?.value,
+    ).toBeCloseTo(33.33, 1);
+    expect(
+      row("z").querySelector<HTMLProgressElement>(
+        "[data-epic-progress] progress",
+      )?.value,
+    ).toBe(0);
+    expect(row("n").querySelector("[data-epic-progress]")).toBeNull();
+  });
   test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
@@ -3758,6 +3798,8 @@ describe("stable sidebar integration", () => {
     // One colour: your Claude's ask (a2) does not turn the number red.
     expect(badge?.className.split(/\s+/)).toContain("bg-brand");
     expect(badge?.className).not.toContain("destructive");
+    // One slot at the end (Gimenes #3904): the count takes the status's place.
+    expect(epic.querySelector("[data-epic-status-icon]")).toBeNull();
     h.view.update({
       ...h.props,
       vb: {
