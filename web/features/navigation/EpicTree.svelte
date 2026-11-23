@@ -3,6 +3,7 @@
   import { onDestroy, tick, untrack } from "svelte";
   import type { Room, Epic } from "../../../shared/room";
   import type { RoomMutations } from "../room-sidebar/session";
+  import { epicStatus, epicStatusLook } from "../room-sidebar/model";
   import InlineAdd from "../../lib/components/InlineAdd.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
@@ -429,6 +430,7 @@
           {@const epic = row.epic}
           {@const working = vb.epicBusy(epic)}
           {@const current = !selectionDisabled && thread === epic.id}
+          {@const status = epicStatus(epic)}
           <li
             use:registerRow={epic.id}
             use:sorter.row={{
@@ -502,6 +504,17 @@
                       >({vb.t("Arquivado")})</span
                     >{/if}</span
                 >
+                <!-- The epic's status (shared/epicStatus.ts); an epic with a prod stage shows that icon below instead. -->
+                {#if !epic.prod}<span
+                    role="img"
+                    data-epic-status-icon={status}
+                    aria-label={vb.t(epicStatusLook(status).label)}
+                    class={cn("flex shrink-0", epicStatusLook(status).text)}
+                    ><Icon
+                      icon={epicStatusLook(status).icon}
+                      class="size-3.5"
+                    /></span
+                  >{/if}
                 {#if epic.pinned && value === "active"}<span
                     role="img"
                     data-epic-pinned

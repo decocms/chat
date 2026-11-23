@@ -1089,3 +1089,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person who used "Esta sala" now sees all rooms; each row says its room.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-status-pill · The epic bar shows a status pill
+
+- Agent: claude-opus-5-5
+- Context: The human selected proposal A: the Archive button becomes a status pill with a menu. They asked for an "Arquivado" status in place of the trash button, and no edit button. They did not select the details below.
+- Decision:
+  - The epic has a new `status` column in the `Book` SQLite (null by default). `epicStatus` (`shared/epicStatus.ts`, a new file because `shared/room.ts` holds only schemas) calculates the status when the column is null.
+  - A change of the archive removes a stored status that is not true any more. Auto-archive and a manual archive remove todo, doing and review. A reopen removes done and dismissed. "live" stays.
+  - On phones, the pill is under the title in `ThreadHeader`. The "⋯" menu is gone, because without rename and delete it holds only the same list as the pill.
+  - In the sidebar, each epic shows the icon of its status. An epic with a `prod` stage shows only the prod icon that it showed before, so that a row does not have two rocket icons.
+  - Icons: A fazer `circle`, Fazendo `clock`, Esperando OK `eye`, Feito `check-circle`, No ar `rocket-01`, Arquivado `archive`. I copied `archive` from `@untitledui/icons` 0.0.19 (the paths of the other icons are the same in 0.0.19 and 0.0.23).
+  - The Worker sends a `track()` event `epic_status` (with `via` app or agent), because the browser app has no `track()`.
+- Other options: Keep "⋯" with the status list on phones. Keep the stored status when the epic is archived or reopened. Show both icons in the sidebar.
+- Risk: low. Rename and delete have no button now. The commands `epic.rename` and `epic.del` and the agent tools stay.
+- Undo: Revert this commit. The `status` column stays and the old code ignores it.
+- Status: open

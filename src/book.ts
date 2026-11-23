@@ -7,9 +7,9 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { TASK_STATUSES, AttachmentSchema } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import type { PostMessageResponse } from "../shared/rpc";
-import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion } from "../shared/room";
+import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
 import { RoomEventSchemas } from "../shared/events";
 import { parseRoomCall } from "../shared/validation";
 import { encodeCall, encodeError, encodeResult, RpcErrorCode, type RpcId } from "../shared/jsonRpc";
@@ -138,7 +138,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -211,12 +211,14 @@ export class Book extends DurableObject<Env> {
     // The sidebar orders epics by their latest message (pinned ones first): when each thread last spoke.
     const last = new Map(this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' GROUP BY thread`).toArray().map((r) => [r.thread, r.ts]));
     return this.sql
-      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned FROM epics ORDER BY pos IS NULL, pos, ts`)
+      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
-      .map(({ ts, pinned, ...e }) => {
+      .map(({ ts, pinned, status: chosen, ...e }) => {
+        // The status a person or an agent chose (epic.status, update_epic status); null = the app works it out (epicStatus).
+        const status = (EPIC_STATUSES as readonly string[]).includes(chosen ?? "") ? (chosen as EpicStatus) : null;
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_epic prod).
-        return { ...e, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
@@ -259,7 +261,8 @@ export class Book extends DurableObject<Env> {
     const done = epics.filter((e) => picked.has(e.id));
     const closed: number[] = [];
     for (const e of done) {
-      this.sql.exec(`UPDATE epics SET archived = 1 WHERE id = ?`, e.id);
+      // All its tasks are done: a chosen open status (todo, doing, review) no longer applies, the app shows "done".
+      this.sql.exec(`UPDATE epics SET archived = 1, status = CASE WHEN status = 'live' THEN status ELSE NULL END WHERE id = ?`, e.id);
       // No @vibe line any more (Gui #3317); the last message id marks where a reopened round starts (unproven).
       this.set(`arch:${e.id}`, String(this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ?`, e.id).one().id ?? 0));
       // The request it came from: "fazendo isso" turns into "fez isso".
@@ -986,9 +989,26 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
   }
   // Done with it: leaves the sidebar list and the board, keeps its tasks and discussion. markDone closes every task.
-  archiveEpic(id: string, archived = true, markDone = false) {
+  // A chosen status that contradicts the archive goes away: an open one (todo, doing, review) when it is archived,
+  // a closed one (done, dismissed) when it is reopened. "live" stays either way.
+  archiveEpic(id: string, archived = true, markDone = false, changed = true) {
     if (markDone) this.sql.exec(`UPDATE tasks SET done = 1, status = 'done' WHERE epic_id = ?`, id);
-    this.sql.exec(`UPDATE epics SET archived = ? WHERE id = ?`, archived ? 1 : -1, id);
+    this.sql.exec(
+      `UPDATE epics SET archived = ?, status = CASE WHEN status IN (${archived ? "'todo', 'doing', 'review'" : "'done', 'dismissed'"}) THEN NULL ELSE status END WHERE id = ?`,
+      archived ? 1 : -1,
+      id,
+    );
+    if (changed) this.epicsChanged();
+  }
+  // The epic bar's status menu (epic.status) and update_epic status. "done" archives and closes the open tasks (the old
+  // Archive button), "dismissed" archives and leaves them, "live" only sets the status (the prod stage stays), and an
+  // open status reopens an archived epic (the old Unarchive).
+  setEpicStatus(id: string, status: EpicStatus) {
+    const row = this.sql.exec<{ archived: number | null }>(`SELECT archived FROM epics WHERE id = ?`, id).toArray()[0];
+    if (!row) return new Refused("unknown epic");
+    if (status === "done" || status === "dismissed") this.archiveEpic(id, true, status === "done", false);
+    else if (status !== "live" && row.archived === 1) this.archiveEpic(id, false, false, false);
+    this.sql.exec(`UPDATE epics SET status = ? WHERE id = ?`, status, id);
     this.epicsChanged();
   }
   // Humans only: removes the epic, its tasks and its discussion.
@@ -1085,7 +1105,7 @@ export class Book extends DurableObject<Env> {
   // archive again right away with its old tasks all done); the next task added to it re-arms auto-archive, so the
   // new round closes itself too.
   reopenIfArchived(thread: string) {
-    if (thread === "main" || !this.sql.exec(`UPDATE epics SET archived = -1 WHERE id = ? AND archived = 1`, thread).rowsWritten) return;
+    if (thread === "main" || !this.sql.exec(`UPDATE epics SET archived = -1, status = CASE WHEN status IN ('done', 'dismissed') THEN NULL ELSE status END WHERE id = ? AND archived = 1`, thread).rowsWritten) return;
     this.epicsChanged();
   }
   rearm(epicId: string) {
@@ -1924,6 +1944,12 @@ export class Book extends DurableObject<Env> {
           if (!e) return { ok: false, error: "epic not found" };
           if (s("title")) this.renameEpic(e, s("title")!);
           if (typeof a.archived === "boolean") this.archiveEpic(e, a.archived, a.archived && a.mark_done === true);
+          if (a.status !== undefined) {
+            const status = s("status");
+            if (!status || !(EPIC_STATUSES as readonly string[]).includes(status)) return { ok: false, error: `status must be one of ${EPIC_STATUSES.join(", ")}` };
+            this.setEpicStatus(e, status as EpicStatus);
+            this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status, via: "agent" } }));
+          }
           if (typeof a.owner === "string") {
             const r = await this.setEpicOwner(e, a.owner);
             if (!r.ok) return r;
@@ -2287,6 +2313,11 @@ export class Book extends DurableObject<Env> {
         return this.deleteEpic(String(m.id));
       case "epic.archive":
         return this.archiveEpic(String(m.id), m.archived !== false);
+      case "epic.status": {
+        const out = this.setEpicStatus(String(m.id), m.status);
+        if (!out) this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status: m.status, via: "app" } }));
+        return out;
+      }
       case "epic.pin": // the sidebar's pin: shared, like the order; pinned epics sit above the ones sorted by recency
         if (!this.epics().some((e) => e.id === String(m.id))) return;
         this.sql.exec(`UPDATE epics SET pinned = ? WHERE id = ?`, m.pinned === false ? null : Date.now(), String(m.id));

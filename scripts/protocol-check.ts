@@ -172,6 +172,7 @@ const commands: RoomCommand[] = [
   { t: "msg", thread: "main", text: "Hi", reply_to: null },
   { t: "epic.order", ids: ["epic"] },
   { t: "epic.pin", id: "epic", pinned: true },
+  { t: "epic.status", id: "epic", status: "dismissed" },
 ];
 for (const command of commands)
   assert.deepEqual(parseRoomCommand(encodeCall(command)), command);

@@ -1,208 +1,95 @@
 <script lang="ts">
-  import { onDestroy, untrack } from "svelte";
-  import type { Epic, Room } from "../../../shared/room";
-  import { epicIdentity } from "./model";
+  import { untrack } from "svelte";
+  import type { Epic, EpicStatus } from "../../../shared/room";
+  import { epicStatus, epicStatusChoices, epicStatusLook } from "./model";
   import type { RoomMutations } from "./session";
-  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
-  import TitledDialog from "../../lib/components/TitledDialog.svelte";
   import { studioType } from "../../lib/components/type";
-  import Button from "../../lib/studio/Button.svelte";
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
-  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
+  import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import IconButton from "../../lib/studio/IconButton.svelte";
   import { buttonVariants } from "../../lib/studio/button";
-  import Input from "../../lib/studio/Input.svelte";
-  import Label from "../../lib/studio/Label.svelte";
   import Separator from "../../lib/studio/Separator.svelte";
   import { cn } from "../../lib/studio/utils";
   /**
-   * An epic's rename, archive and delete, with their dialogs. `menu`: behind
-   * a "⋯" (the phone's thread sheet). `bar`: ✎, Archive and 🗑 together at
-   * the end of the desktop top bar's title, then a vertical line before the
-   * pane's tabs.
+   * The epic's status: a pill that opens the list of statuses (A fazer …
+   * Arquivado). "Feito" and "Arquivado" archive the epic, an open status
+   * reopens it (Book.setEpicStatus). `bar`: at the end of the desktop top
+   * bar's title, then a vertical line before the pane's tabs. `sheet`: under
+   * the title in the phone's thread sheet.
    */
   let {
     epic,
-    room,
     owner,
     t,
     variant,
   }: {
     epic: Epic;
-    room: Room;
     owner: RoomMutations;
     t: (text: string, vars?: Record<string, string | number>) => string;
-    variant: "menu" | "bar";
+    variant: "bar" | "sheet";
   } = $props();
-  const status = untrack(() => owner.state);
+  const mutation = untrack(() => owner.state);
   const busy = $derived(
-    $status.phase === "pending" || $status.phase === "unconfirmed",
+    $mutation.phase === "pending" || $mutation.phase === "unconfirmed",
   );
-  const archiveLabel = $derived(t(epic.archived ? "Desarquivar" : "Arquivar"));
-  let rename = $state(false),
-    remove = $state(false),
-    value = $state(""),
-    snapshot = $state(""),
-    target = $state("");
-  let active = true;
-  // The dialog acts on the epic it opened for: a rename, a delete or a new
-  // version of that epic from the server closes it.
-  const identity = (mode: "rename" | "delete", item: Epic) =>
-    mode === "rename"
-      ? JSON.stringify([item.id, item.title])
-      : epicIdentity(item);
-  $effect(() => {
-    if (
-      target &&
-      (epic.id !== target ||
-        identity(rename ? "rename" : "delete", epic) !== snapshot)
-    ) {
-      rename = false;
-      remove = false;
-      target = "";
-    }
-  });
-  function begin(mode: "rename" | "delete") {
-    if (!active || busy) return;
-    target = epic.id;
-    snapshot = identity(mode, epic);
-    value = epic.title;
-    rename = mode === "rename";
-    remove = mode === "delete";
+  const current = $derived(epicStatus(epic));
+  const look = $derived(epicStatusLook(current));
+  function choose(status: EpicStatus) {
+    if (busy || status === epic.status) return;
+    void owner.run({ t: "epic.status", id: epic.id, status });
   }
-  function current() {
-    return (
-      active &&
-      epic.id === target &&
-      identity(rename ? "rename" : "delete", epic) === snapshot &&
-      room.members.includes(room.me)
-    );
-  }
-  function archive() {
-    if (active && !busy)
-      void owner.run({
-        t: "epic.archive",
-        id: epic.id,
-        archived: !epic.archived,
-      });
-  }
-  async function save(event: SubmitEvent) {
-    event.preventDefault();
-    if (!rename || !current() || busy || !value.trim()) return;
-    const expected = target;
-    if (await owner.run({ t: "epic.rename", id: target, title: value }))
-      if (active && target === expected) rename = false;
-  }
-  async function erase() {
-    if (!remove || !current() || busy) return;
-    const expected = target;
-    if (await owner.run({ t: "epic.del", id: target }))
-      if (active && target === expected) remove = false;
-  }
-  onDestroy(() => {
-    active = false;
-  });
 </script>
+
+{#snippet pill()}<DropdownMenu>
+    <DropdownMenuTrigger
+      data-epic-status={current}
+      disabled={busy}
+      aria-label={`${t("Status")}: ${t(look.label)}`}
+      class={cn(
+        buttonVariants({ variant: "ghost", size: "xs" }),
+        "rounded-full font-semibold",
+        look.pill,
+      )}
+      ><Icon icon={look.icon} class="size-3.5" />{t(look.label)}<Icon
+        icon="chevron-down"
+        class="size-3.5 opacity-70"
+      /></DropdownMenuTrigger
+    >
+    <DropdownMenuContent
+      align={variant === "bar" ? "end" : "start"}
+      class={cn(studioType, "w-52")}
+    >
+      <DropdownMenuLabel class="text-xs text-muted-foreground"
+        >{t("Status")}</DropdownMenuLabel
+      >
+      {#each epicStatusChoices as choice (choice.value)}<DropdownMenuItem
+          data-epic-status-choice={choice.value}
+          disabled={busy}
+          class={cn(choice.value === current && "font-semibold")}
+          onSelect={() => choose(choice.value)}
+          ><Icon icon={choice.icon} class={choice.text} />{t(
+            choice.label,
+          )}{#if choice.value === current}<Icon
+              icon="check"
+              class="ml-auto text-foreground"
+            />{/if}</DropdownMenuItem
+        >{/each}
+    </DropdownMenuContent>
+  </DropdownMenu>{/snippet}
 
 {#if variant === "bar"}<span
     data-epic-bar-actions
     class="ml-auto flex shrink-0 items-center gap-1"
   >
-    <IconButton
-      data-epic-rename={epic.id}
-      label={t("Renomear")}
-      tooltipSide="bottom"
-      size="icon-sm"
-      disabled={busy}
-      class="text-muted-foreground hover:text-foreground"
-      onclick={() => begin("rename")}><Icon icon="pencil-01" /></IconButton
-    >
-    <!-- A short bar (a narrow window, the right pane open): the label folds into the icon. The bar's title is the @container. -->
-    <Button
-      data-epic-archive={epic.id}
-      variant="outline"
-      size="sm"
-      disabled={busy}
-      title={archiveLabel}
-      onclick={archive}
-      ><Icon icon={epic.archived ? "reverse-left" : "check"} /><span
-        class="@max-xl:sr-only">{archiveLabel}</span
-      ></Button
-    >
-    <IconButton
-      data-epic-delete={epic.id}
-      label={t("Apagar épico")}
-      tooltipSide="bottom"
-      size="icon-sm"
-      disabled={busy}
-      class="text-muted-foreground hover:text-destructive"
-      onclick={() => begin("delete")}><Icon icon="trash-01" /></IconButton
-    >
-    <!-- The epic's own buttons end here; the pane's tabs (Doc, Files…) follow. -->
+    {@render pill()}
+    <!-- The epic's own control ends here; the pane's tabs (Doc, Files…) follow. -->
     <Separator
       orientation="vertical"
       class="ml-1 data-[orientation=vertical]:h-5"
     />
-  </span>{:else}<DropdownMenu>
-    <DropdownMenuTrigger
-      data-thread-actions={epic.id}
-      disabled={busy}
-      aria-label={`${t("Ações do épico")}: ${epic.title}`}
-      class={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-      ><Icon icon="dots-horizontal" /></DropdownMenuTrigger
-    >
-    <DropdownMenuContent align="end" class={cn(studioType, "w-52")}>
-      <DropdownMenuItem disabled={busy} onSelect={() => begin("rename")}
-        ><Icon icon="pencil-01" />{t("Renomear")}</DropdownMenuItem
-      >
-      <DropdownMenuItem disabled={busy} onSelect={archive}
-        ><Icon icon={epic.archived ? "reverse-left" : "check"} />{t(
-          epic.archived ? "Desarquivar épico" : "Arquivar épico",
-        )}</DropdownMenuItem
-      >
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        variant="destructive"
-        disabled={busy}
-        onSelect={() => begin("delete")}
-        ><Icon icon="trash-01" />{t("Apagar épico")}</DropdownMenuItem
-      >
-    </DropdownMenuContent>
-  </DropdownMenu>{/if}
-<TitledDialog
-  bind:open={rename}
-  title={t("Nome do épico:")}
-  closeLabel={t("Cancelar")}
-  ><form onsubmit={save} class="space-y-3">
-    <Label class="flex-col items-stretch gap-1.5"
-      >{t("Nome do épico:")}<Input
-        bind:value
-        maxlength={200}
-        disabled={busy}
-        required
-      /></Label
-    >
-    <div class="flex justify-end">
-      <Button type="submit" disabled={busy || !value.trim()}
-        >{t("Salvar")}</Button
-      >
-    </div>
-  </form></TitledDialog
->
-<ConfirmDialog
-  bind:open={remove}
-  title={t("Apagar épico")}
-  description={t(
-    'Apagar o épico "{title}", as tasks e a discussão dele? Não dá pra desfazer.',
-    { title: epic.title },
-  )}
-  confirmLabel={t("Apagar")}
-  cancelLabel={t("Cancelar")}
-  busy={$status.phase === "pending"}
-  confirmDisabled={busy || !current()}
-  onconfirm={erase}
-/>
+  </span>{:else}<div data-epic-sheet-status class="flex px-2 pb-1">
+    {@render pill()}
+  </div>{/if}
