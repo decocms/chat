@@ -1249,6 +1249,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The skeleton's messages use the real row: a 40px avatar, the name and the time, the text.
   - `docs/design.md` says where the shared shapes are.
 - Other options: Keep the pane always open in the skeleton and only fix its width.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-23 · feat/home-waits-inline · The phone home opens the rest of what waits on you in place
+- Agent: claude-opus-5-5
+- Context: The human asked that "See all 5 in the Inbox" on the phone home show the rest inline, as WhatsApp does (#3942).
+- Decision: The button opens all the waits in the same list and reads "Ver todas as {n}" / "See all {n}". When open, it reads "Mostrar menos" / "Show less" and closes the list to 3 again. The list does not remember open or closed between visits. The Inbox stays one tap away through the icon in the top bar.
+- Other options: Remove the limit of 3 and show all the waits always. Remember the open state per browser.
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
