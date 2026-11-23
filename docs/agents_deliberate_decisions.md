@@ -1162,3 +1162,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person who used the Inbox in a room now uses the rail (desktop) or the Home bar (phone).
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · fix/loading-title-left · A phone's Home loads with the list's bar
+- Agent: claude-opus-5-5
+- Context: The human said that a loading state still does not show the title on the left (#3878). On a phone, Home loaded with the desk layout (the cube and a centred headline bar) and then jumped to the list with "deco.chat" on the left. The room loading bar was already on the left (#302).
+- Decision:
+  - On a phone, while the account loads, `HomeSkeleton` draws the list's bar ("deco.chat" on the left, the inbox, the avatar), the search field and five rows, as bars. Both loading steps use it (the shell's `page` and `HomePanel`), so nothing moves.
+  - The desktop loading state does not change.
+  - A person with no conversation yet sees the list's bars first and then the desk. This is rare, and the title stays on the left until the account answers.
+- Other options: Keep the desk skeleton and only add the title bar above it.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open

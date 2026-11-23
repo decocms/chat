@@ -1,10 +1,18 @@
 <script lang="ts">
+  import Icon from "../../lib/studio/Icon.svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   // The home's one loading state: the headline and the ask box as bars. The
   // shell draws it with `page` while the home's own module loads (an empty
   // square where the cube goes), and the home keeps the same bars until your
   // account answers, so nothing moves between the two.
-  let { label, page = false }: { label: string; page?: boolean } = $props();
+  // A phone gets the list's bar instead (`chats`, or `page` on a phone): the
+  // app's name on the left, the inbox and you, so the title does not start
+  // centred and then jump left (Gimenes #3878).
+  let {
+    label,
+    page = false,
+    chats = false,
+  }: { label: string; page?: boolean; chats?: boolean } = $props();
 </script>
 
 {#snippet bars()}<div role="status" aria-label={label}>
@@ -12,9 +20,54 @@
     <Skeleton class="mx-auto mt-7 h-12 w-[576px] max-w-[85vw] rounded-full" />
   </div>{/snippet}
 
-{#if page}<main
+<!-- HomePanel's phone list: the same bar, search field and rows, as bars. -->
+{#snippet list(only: string)}<main
     aria-busy="true"
-    class="relative min-h-full bg-background font-sans text-sm leading-6 text-foreground"
+    data-home-layout="chats"
+    data-home-skeleton
+    class={[
+      "min-h-full bg-background px-2 pb-28 font-sans text-sm leading-6 text-foreground",
+      only,
+    ]}
+  >
+    <div role="status" aria-label={label}>
+      <div class="-mx-2 flex h-14 items-center gap-1 pr-3 pl-4">
+        <span
+          class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight"
+          >deco.chat</span
+        >
+        <span
+          aria-hidden="true"
+          class="grid size-10 shrink-0 place-items-center text-muted-foreground"
+          ><Icon icon="inbox-01" class="size-5" /></span
+        >
+        <span
+          aria-hidden="true"
+          class="grid size-10 shrink-0 place-items-center"
+          ><Skeleton class="size-8 rounded-full" /></span
+        >
+      </div>
+      <div class="px-2 pt-1 pb-3">
+        <Skeleton class="h-11 w-full rounded-full" />
+      </div>
+      <div class="space-y-0.5">
+        {#each ["h-3.5 w-36", "h-3.5 w-28", "h-3.5 w-40", "h-3.5 w-24", "h-3.5 w-32"] as name (name)}<div
+            class="flex items-center gap-3 px-2 py-2"
+          >
+            <Skeleton class="size-10 shrink-0 rounded-xl" />
+            <div class="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton class={name} />
+              <Skeleton class="h-3 w-48 max-w-full" />
+            </div>
+          </div>{/each}
+      </div>
+    </div>
+  </main>{/snippet}
+
+{#if chats}{@render list("")}{:else if page}{@render list("md:hidden")}
+  <main
+    aria-busy="true"
+    class="relative min-h-full bg-background font-sans text-sm leading-6 text-foreground max-md:hidden"
   >
     <div class="flex flex-col items-center px-4 pt-4 md:px-8">
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
