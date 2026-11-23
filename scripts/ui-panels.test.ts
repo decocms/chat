@@ -375,6 +375,17 @@ describe("room panels", () => {
       { t: "task.rename", id: "t", title: "New title" },
     ]);
   }, 30_000);
+  test("an epic's task list shows its count and bar only once it has tasks (Gimenes #3957)", () => {
+    const empty = fixture();
+    empty.epics[0].tasks = [];
+    expect(
+      render("tasks", empty).target.querySelector("[data-task-progress]"),
+    ).toBe(null);
+    const one = render("tasks", fixture()).target;
+    expect(
+      one.querySelector("[data-task-progress]")?.getAttribute("aria-valuetext"),
+    ).toBe("0/1");
+  });
   test("task drafts and active edits stay in their room/thread scope", () => {
     const room = fixture();
     room.epics.push({
