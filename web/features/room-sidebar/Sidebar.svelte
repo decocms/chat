@@ -213,13 +213,13 @@
           lang={appNavigation.lang}
         />{:else}<!-- Its full height, like Pinned and People below: the sidebar scrolls whole (one scroll, never two). -->
         <div class="flex shrink-0 flex-col gap-3 max-md:min-h-0 max-md:shrink">
-          <!-- Desktop: the room's name on top is the main thread (Gimenes #3989): selected there, with what waits on you; ✎ on hover. Phones have the room's row below. -->
+          <!-- Desktop: the room's name on top is the main thread (Gimenes #3989), a ghost button (#4007) with what waits on you; ✎ on hover. Phones have the room's row below. -->
           <SidebarHeader class="group/name max-md:hidden"
-            ><button
-              type="button"
+            ><Button
+              variant="ghost"
               data-room-home
               aria-current={thread === "main" ? "page" : undefined}
-              class="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left font-sans text-sidebar-foreground outline-none transition-colors duration-150 hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-sidebar-accent motion-reduce:transition-none"
+              class="h-9 min-w-0 flex-1 justify-start px-2 text-left text-sidebar-foreground hover:bg-sidebar-accent"
               title={room.book.summary
                 ? `${room.book.title}\n${room.book.summary}`
                 : room.book.title}
@@ -235,7 +235,7 @@
                 waits={vb.waitsIn("main")}
                 label={(n) => vb.t("{n} coisas esperando você", { n })}
               />
-            </button>
+            </Button>
             <IconButton
               label={vb.t("Editar sala")}
               size="icon-xs"
