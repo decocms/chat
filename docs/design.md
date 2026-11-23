@@ -55,7 +55,7 @@ The top bar on phones has no space for the controls of a view. That is why the v
 
 | View | Controls of the view | Component |
 |---|---|---|
-| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions` (`bar`), in `RoomBarTitle`. On phones: `EpicActions` (`sheet`), under the title in `ThreadHeader` |
+| Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
 | Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
 | Main thread | None | |
 

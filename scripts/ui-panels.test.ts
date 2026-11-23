@@ -3608,6 +3608,24 @@ describe("stable sidebar integration", () => {
       "group-hover/room:opacity-100",
     );
   });
+  test("phone drawer: the room's row is the first item, and the open thread's title and status are gone (Gimenes #4065)", () => {
+    const room = fixture();
+    const h = sidebar(room, { thread: "e" });
+    const panel = h.target.querySelector("[data-room-sidebar-panel]")!;
+    const row = panel.querySelector("button[data-room-title]")!.parentElement!;
+    // Before the shortcuts, the tabs and the threads: nothing but the sheet's handle comes first.
+    const before = [...panel.children].slice(
+      0,
+      [...panel.children].indexOf(row),
+    );
+    expect(
+      before.every((node) =>
+        node.matches("button[use\\:sheetHandle], button[aria-label='Fechar']"),
+      ),
+    ).toBe(true);
+    expect(panel.querySelector("[data-thread-header]")).toBeNull();
+    expect(panel.querySelector("[data-epic-status]")).toBeNull();
+  });
   test("the room row shows no count when nothing waits in its main thread", () => {
     const room = fixture();
     const h = sidebar(room, { thread: "main" });
@@ -6092,74 +6110,6 @@ describe("room sidebar header and suggestion ownership", () => {
     flushSync();
     expect(document.querySelector(`[role="${role}"]`) === null).toBe(true);
   }
-  test("phone thread sheet: the status pill sits under the title and its menu sets the status, pins and picks the owner, no rename or delete", async () => {
-    const room = fixture(),
-      commands: RoomCommand[] = [],
-      owner = createRoomMutations(room.me, room.id),
-      request = async (command: RoomCommand): Promise<CommandOutcome> => {
-        commands.push(command);
-        return { ok: true };
-      };
-    peopleCleanups.push(() => owner.dispose());
-    owner.sync(room, request);
-    const target = document.createElement("div");
-    document.body.append(target);
-    const props: import("../web/features/room-sidebar/types").ThreadHeaderProps =
-      {
-        room,
-        thread: "e",
-        owner,
-        vb: bridge,
-        onopenside: () => {},
-        onrenameroom: () => {},
-      };
-    const view = mountView("threadHeader", target, props);
-    active.push(view);
-    // No ⋯ menu any more: the pill is the epic's only action.
-    expect(target.querySelector("[data-thread-actions]")).toBeNull();
-    const pill = target.querySelector<HTMLElement>("[data-epic-status]")!;
-    expect(pill.getAttribute("data-epic-status")).toBe("todo");
-    expect(pill.textContent?.trim()).toBe("A fazer");
-    menuItem(pill, "Fazendo").click();
-    await tick();
-    expect(commands).toEqual([{ t: "epic.status", id: "e", status: "doing" }]);
-    const next: Room = {
-      ...room,
-      epics: room.epics.map((epic) => ({ ...epic, status: "doing" as const })),
-    };
-    owner.sync(next, request);
-    view.update({ ...props, room: next });
-    await tick();
-    flushSync();
-    expect(
-      target.querySelector("[data-epic-status]")?.textContent?.trim(),
-    ).toBe("Fazendo");
-    // A touch screen has no ⋯ on the epic's row: the sheet's menu pins the epic (Gimenes #3924), with no owner picker (#3975).
-    menuItem(
-      target.querySelector("[data-epic-status]")!,
-      "Fixar no topo",
-    ).click();
-    await tick();
-    expect(commands.at(-1)).toEqual({ t: "epic.pin", id: "e", pinned: true });
-    const pinned: Room = {
-      ...next,
-      epics: next.epics.map((epic) => ({ ...epic, pinned: true })),
-    };
-    owner.sync(pinned, request);
-    view.update({ ...props, room: pinned });
-    await tick();
-    flushSync();
-    menuItem(target.querySelector("[data-epic-status]")!, "Desafixar");
-    expect(window.document.querySelector("[data-epic-owner-choice]")).toBe(
-      null,
-    );
-    const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
-    active.splice(active.indexOf(view), 1);
-    view.destroy();
-    stale.click();
-    await tick();
-    expect(commands).toHaveLength(2);
-  }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
     typeof import("../web/features/room-shell/RoomBarTitle.svelte").default
   >;
@@ -6186,6 +6136,61 @@ describe("room sidebar header and suggestion ownership", () => {
     active.push(view);
     return { target, view, props, owner };
   }
+  test("bar status menu: sets the status and pins the epic, with no owner picker; a detached pill cannot write", async () => {
+    const room = fixture(),
+      commands: RoomCommand[] = [],
+      request = async (command: RoomCommand): Promise<CommandOutcome> => {
+        commands.push(command);
+        return { ok: true };
+      };
+    const { target, view, props, owner } = barTitle(
+      room,
+      { thread: "e" },
+      request,
+    );
+    const pill = target.querySelector<HTMLElement>("[data-epic-status]")!;
+    expect(pill.getAttribute("data-epic-status")).toBe("todo");
+    expect(pill.textContent?.trim()).toBe("A fazer");
+    menuItem(pill, "Fazendo").click();
+    await tick();
+    expect(commands).toEqual([{ t: "epic.status", id: "e", status: "doing" }]);
+    const next: Room = {
+      ...room,
+      epics: room.epics.map((epic) => ({ ...epic, status: "doing" as const })),
+    };
+    owner.sync(next, request);
+    view.update({ ...props, room: next });
+    await tick();
+    flushSync();
+    expect(
+      target.querySelector("[data-epic-status]")?.textContent?.trim(),
+    ).toBe("Fazendo");
+    // The epic list has no ⋯: the status menu pins the epic (Gimenes #3924), with no owner picker (#3975).
+    menuItem(
+      target.querySelector("[data-epic-status]")!,
+      "Fixar no topo",
+    ).click();
+    await tick();
+    expect(commands.at(-1)).toEqual({ t: "epic.pin", id: "e", pinned: true });
+    const pinned: Room = {
+      ...next,
+      epics: next.epics.map((epic) => ({ ...epic, pinned: true })),
+    };
+    owner.sync(pinned, request);
+    view.update({ ...props, room: pinned });
+    await tick();
+    flushSync();
+    menuItem(target.querySelector("[data-epic-status]")!, "Desafixar");
+    expect(window.document.querySelector("[data-epic-owner-choice]")).toBe(
+      null,
+    );
+    const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
+    active.splice(active.indexOf(view), 1);
+    view.destroy();
+    stale.click();
+    await tick();
+    expect(commands).toHaveLength(2);
+  }, 30_000);
   test("desktop bar title names the view, never the room again; a DM names the person; only an epic has actions", () => {
     const room = fixture();
     for (const [r, extra, title, actions] of [
