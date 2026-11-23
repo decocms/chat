@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { COMPOSER_SLOT } from "../composer/shape";
   import Button from "../../lib/studio/Button.svelte";
   import type { RoomLayoutProps, RoomLayoutCells, RoomSheet } from "./types";
   let props: RoomLayoutProps = $props();
@@ -260,7 +261,10 @@
               : $view.mobile
                 ? "pb-[env(safe-area-inset-bottom)]"
                 : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                  "mr-2 mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface px-2",
+                  [
+                    "mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface",
+                    COMPOSER_SLOT,
+                  ],
           ]}
     >
       {@render props.composer()}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "../../lib/studio/Icon.svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import { COMPOSER_BOX, COMPOSER_ROW } from "../composer/shape";
   // The home's one loading state: the headline and the ask box as bars. The
   // shell draws it with `page` while the home's own module loads (an empty
   // square where the cube goes), and the home keeps the same bars until your
@@ -17,7 +18,14 @@
 
 {#snippet bars()}<div role="status" aria-label={label}>
     <Skeleton class="mt-3 h-9 w-80 max-w-[70vw]" />
-    <Skeleton class="mx-auto mt-7 h-12 w-[576px] max-w-[85vw] rounded-full" />
+    <!-- The ask box is a ChatField: its shape comes from composer/shape.ts. -->
+    <div
+      class={[
+        "mx-auto mt-7 w-[576px] max-w-[85vw]",
+        COMPOSER_BOX,
+        COMPOSER_ROW,
+      ]}
+    ></div>
   </div>{/snippet}
 
 <!-- HomePanel's phone list: the same bar, search field and rows, as bars. -->
