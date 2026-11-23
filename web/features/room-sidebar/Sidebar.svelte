@@ -236,11 +236,13 @@
                 label={(n) => vb.t("{n} coisas esperando você", { n })}
               />
             </Button>
+            <!-- The same hover and height as the room's name beside it (Gimenes #4035). -->
             <IconButton
               label={vb.t("Editar sala")}
-              size="icon-xs"
+              variant="sidebar"
+              size="icon"
               tooltipSide="bottom"
-              class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
+              class="size-9 shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/name:opacity-100 hover:text-sidebar-foreground focus-visible:opacity-100 motion-reduce:transition-none"
               onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
             ></SidebarHeader
           >{@render roomThreads()}
