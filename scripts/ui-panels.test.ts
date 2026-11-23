@@ -3579,7 +3579,7 @@ describe("stable sidebar integration", () => {
     flushSync();
     expect(name.getAttribute("aria-current")).toBe("page");
   });
-  test("the room row is the room's mark, title and what waits on you in its main thread, with rename behind hover", async () => {
+  test("the room row is the room's mark, title and what waits on you in its main thread, with ✎ right after the title (Gimenes #4108)", async () => {
     const room = fixture();
     const h = sidebar(room, {
       thread: "main",
@@ -3604,9 +3604,8 @@ describe("stable sidebar integration", () => {
       'button[aria-label="Editar sala"]',
     );
     expect(rename).not.toBeNull();
-    expect(rename!.className.split(/\s+/)).toContain(
-      "group-hover/room:opacity-100",
-    );
+    expect(title.nextElementSibling).toBe(rename);
+    expect(rename!.className.split(/\s+/)).not.toContain("opacity-0");
   });
   test("phone drawer: the room's row is the first item, and the open thread's title and status are gone (Gimenes #4065)", () => {
     const room = fixture();

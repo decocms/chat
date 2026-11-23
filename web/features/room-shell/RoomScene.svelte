@@ -269,6 +269,10 @@
                 }}
               />
             </div>{/if}{/snippet}
+        {#snippet phoneAccount()}{#if $personal.me}<AccountRow
+              me={$personal.me}
+              row={false}
+            />{/if}{/snippet}
         {#snippet footer(
           collapsed,
           rows,

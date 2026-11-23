@@ -39,6 +39,8 @@ export type SidebarProps = {
   hideSheetHandle?: boolean;
   /** Phones: the room's shortcuts (Doc, Board, Files, Agents, Search) at the top of the title menu. */
   phoneMenu?: import("svelte").Snippet;
+  /** Phones: your avatar (a link to Settings) at the end of the room's row in the drawer. */
+  phoneAccount?: import("svelte").Snippet;
   /** Desktop: pinned to the bottom of the sidebar (you and your Claude). */
   /** The foot: your agent, then (desktop) `rows` = your agents' rows, then you. */
   footer?: import("svelte").Snippet<
