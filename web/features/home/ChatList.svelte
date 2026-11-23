@@ -1,19 +1,35 @@
 <script lang="ts">
   import type { MeResult } from "../../../shared/schemas";
+  import Button from "../../lib/studio/Button.svelte";
   import RoomLink from "../app-navigation/RoomLink.svelte";
+  import RoomRow from "../app-navigation/RoomRow.svelte";
+  import SectionHeader from "../room-sidebar/SectionHeader.svelte";
+  import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { homeText, type HomeLanguage } from "./copy";
+  import { byImportance } from "./deskHand";
   import {
     chatList,
+    claudeWait,
+    dmEntry,
     lastLine,
+    plainWaitText,
+    roomIcon,
+    roomLabel,
+    targetHref,
     unread,
+    waitTarget,
     waitsByRoom,
     type RoomTarget,
+    type Wait,
   } from "./model";
   /**
-   * The phone's home, like a chat app's: every room and DM, the newest message
-   * first, each with its avatar (unread dot, ✻, waits), its name, who wrote
-   * last and what, and when. A tap opens it.
+   * The phone's home, like a chat app's: what waits on you pinned on top (the
+   * most pressing first, a few at most; the rest are one tap away in the
+   * inbox), then every room and DM, the newest message first, each with its
+   * avatar (unread dot, ✻, waits), its name, who wrote last and what, and
+   * when. A room where an agent works says so in place of its last line.
    */
+  const PINNED = 3;
   let {
     me,
     seen,
@@ -21,6 +37,7 @@
     lang,
     ago,
     onnavigate,
+    oninbox,
   }: {
     me: MeResult;
     seen: Record<string, number>;
@@ -28,12 +45,66 @@
     lang: HomeLanguage;
     ago: (time: number) => string;
     onnavigate: (target: RoomTarget) => void;
+    oninbox?: (trigger?: HTMLElement) => void;
   } = $props();
   const rows = $derived(chatList(me));
   const byRoom = $derived(waitsByRoom(me.waits));
+  const waits = $derived(byImportance(me.waits));
+  const pinned = $derived(waits.slice(0, PINNED));
+  const who = (wait: Wait) =>
+    claudeWait(wait)
+      ? homeText(lang, "yourClaude")
+      : wait.author === "ai"
+        ? "@vibe"
+        : (wait.author_name || wait.author.split("@")[0] || "").split(" ")[0];
+  const place = (wait: Wait) =>
+    roomLabel(me, wait.book_id, wait.room, lang) +
+    (wait.topic ? ` · ${wait.topic}` : "");
 </script>
 
 <nav data-home-chats aria-label={homeText(lang, "chats")} class="w-full">
+  {#if pinned.length}<section data-home-waiting class="mb-2">
+      <SectionHeader
+        level={4}
+        title={homeText(lang, "waiting", { n: waits.length })}
+      />
+      <ul class="m-0 list-none space-y-0.5 p-0">
+        {#each pinned as wait (wait.book_id + wait.ref)}{@const room =
+            me.books.find((book) => book.id === wait.book_id)}{@const dm =
+            dmEntry(me, wait.book_id)}
+          <li>
+            <RoomRow
+              href={targetHref(waitTarget(wait))}
+              label={place(wait)}
+              meta={`${who(wait)}: ${plainWaitText(wait.text)}`}
+              urgent
+              variant="list"
+              onopen={() => onnavigate(waitTarget(wait))}
+            >
+              {#snippet leading()}<RoomAvatar
+                  size="md"
+                  title={dm ? dm.name : wait.room}
+                  icon={room ? roomIcon(room) : undefined}
+                  person={dm}
+                  {lang}
+                  surface="background"
+                />{/snippet}
+              {#snippet trailing()}<span
+                  class="shrink-0 self-start pt-2 text-xs text-muted-foreground tabular-nums"
+                  >{ago(wait.ts)}</span
+                >{/snippet}
+            </RoomRow>
+          </li>{/each}
+      </ul>
+      {#if waits.length > pinned.length && oninbox}<Button
+          variant="ghost"
+          size="sm"
+          class="ml-1"
+          onclick={(event) => oninbox(event.currentTarget)}
+          >{homeText(lang, "seeAllWaiting", { n: waits.length })}</Button
+        >{/if}
+    </section>
+    <SectionHeader level={4} title={homeText(lang, "chats")} />{/if}
   <ul class="m-0 list-none space-y-0.5 p-0">
     {#each rows as { room, dm } (room.id)}{@const fresh = unread(
         room,
@@ -49,7 +120,9 @@
           {now}
           {lang}
           variant="list"
-          line={lastLine(room, me, lang, dm) || homeText(lang, "noMessages")}
+          line={(room.busy_until ?? 0) > now
+            ? homeText(lang, "agentWorking")
+            : lastLine(room, me, lang, dm) || homeText(lang, "noMessages")}
           {onnavigate}
         >
           {#snippet trailing()}{#if room.updated_at}<span

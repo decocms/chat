@@ -933,3 +933,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. D1 now holds a short copy of each room's newest message. The README already says that D1 holds messages. The desktop does not change.
 - Undo: Revert this commit. The columns can stay; nothing else reads them.
 - Status: open
+
+### 2026-11-23 · feat/mobile-chats-waits · What waits on you sits on top of the phone's list
+- Agent: claude-opus-5-5
+- Context: The human selected option C of the list mockups: what waits on you pinned on top, and "Claude está trabalhando…" while an agent works. They did not say how many waits show or what a tap opens.
+- Decision:
+  - The phone's list starts with "N esperando você": the 3 most pressing waits (your Claude's asks first, then asks from people, then your tasks in review, newest first). Each row has the room's avatar, the room (and the epic), who asks and what, in the warning tone, and when. A tap opens that message. With more than 3, a button opens the Caixa de entrada. Under them, "Conversas" titles the list.
+  - A room with a live agent ("doing" ack, `busy_until`) shows "Claude está trabalhando…" in place of its last line. Its place in the list does not change.
+- Other options: Show all waits. Group the waits by room. Move a busy room to the top.
+- Risk: low. Only the phone's home changes.
+- Undo: Revert this commit.
+- Status: open
