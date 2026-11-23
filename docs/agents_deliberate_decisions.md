@@ -1237,3 +1237,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Moving pinned epics is now only on the keyboard.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · fix/room-skeleton-pane · A loading room opens its pane as the room will, and its skeleton matches today's room
+- Agent: claude-opus-5-5
+- Context: The human said that the room's loading state shows the side pane open when it is closed. They asked to connect the loading state to the pane's real value, to make the code tell a developer to change both together, and to update the skeletons to match today's messages and bars (#3938).
+- Decision:
+  - `documentClosedBefore` and `DOCUMENT_CLOSED_KEY` (`vb.docClosed`) move to `room-layout/model.ts`. The room's controller and the skeleton (through `roomDocumentOpen` in `preview.ts`) read the pane through it. The skeleton draws no pane when it is closed.
+  - New `room-shell/shape.ts`: the message row and its 40px avatar column (`Message.svelte`), and the epic row's progress bar (`EpicTree.svelte`). The real components and the skeleton import them. I did not put this in an existing file, because no file held shapes for both the room and the skeleton.
+  - The skeleton's top bar shows the search field on the main thread ("Buscar em <sala>", as #318), then Doc and five tab icons. In an epic it shows the face and a name line.
+  - The skeleton's sidebar shows "Quadro de tarefas", the Épicos/Plano/Feitos tabs, epic rows with the status at the end and the progress bar, and "Novo épico". The empty "Fixados" and "Pessoas" blocks are gone.
+  - The skeleton's messages use the real row: a 40px avatar, the name and the time, the text.
+  - `docs/design.md` says where the shared shapes are.
+- Other options: Keep the pane always open in the skeleton and only fix its width.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open

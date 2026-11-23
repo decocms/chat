@@ -1733,6 +1733,46 @@ test("a DM still loading draws your real DM list beside the placeholder chat; a 
   expect(room.querySelector("[data-dm-nav]")).toBe(null);
 });
 
+test("a room still loading draws its pane open or closed as the room will open it (vb.docClosed)", async () => {
+  const { default: RoomSkeleton } =
+    await import("../web/features/room-shell/RoomSkeleton.svelte");
+  const h = shellFixture();
+  h.services.start();
+  await h.services.personal.refresh();
+  cleanups.push(() => h.services.dispose());
+  const draw = async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(RoomSkeleton, {
+        target,
+        props: { roomId: "aaaaaa", services: h.services, onhome: () => {} },
+      }),
+    );
+    cleanups.push(() => {
+      flushSync(() => {
+        void unmount(component);
+      });
+      target.remove();
+    });
+    await flush();
+    return target;
+  };
+  cleanups.push(() => localStorage.removeItem("vb.docClosed"));
+  localStorage.setItem("vb.docClosed", "1");
+  expect((await draw()).querySelector("[data-room-skeleton-document]")).toBe(
+    null,
+  );
+  localStorage.setItem("vb.docClosed", "0");
+  expect(
+    (await draw()).querySelector("[data-room-skeleton-document]"),
+  ).not.toBe(null);
+  // The main thread's bar holds the room's search, as RoomHeader draws it (#318).
+  expect((await draw()).textContent).toContain(
+    h.services.t("Buscar nesta sala").slice(0, 6),
+  );
+});
+
 test("a DM still loading is named after the other person and its main thread reads Conversation", async () => {
   const { default: RoomSkeleton } =
     await import("../web/features/room-shell/RoomSkeleton.svelte");

@@ -1,5 +1,9 @@
 import { createRoomLayoutBrowser } from "./browser";
-import { documentProgress, preferredDocumentWidth } from "./model";
+import {
+  documentClosedBefore,
+  documentProgress,
+  preferredDocumentWidth,
+} from "./model";
 import { createRoomPlayback } from "./playback";
 import { MOBILE_QUERY } from "../../lib/breakpoints";
 
@@ -8,6 +12,12 @@ import { MOBILE_QUERY } from "../../lib/breakpoints";
  * layout's document cell (sidebar expanded, as a room always opens), so the
  * panels don't jump when the state lands. The node carries
  * `animate-room-document-width` and sits right in its inline-size container. */
+/** Whether a loading room draws its pane: closed when you left it closed, the
+ * same stored choice the room's layout opens with (model.ts). */
+export function roomDocumentOpen(win: Window | null | undefined) {
+  if (!win) return true;
+  return !documentClosedBefore(createRoomLayoutBrowser(win).storage);
+}
 export function roomDocumentWidth(node: HTMLElement) {
   const win = node.ownerDocument.defaultView,
     root = node.parentElement;

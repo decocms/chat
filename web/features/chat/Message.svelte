@@ -1,5 +1,6 @@
 <script lang="ts">
   import { chatZone } from "./time";
+  import { MESSAGE_AVATAR, MESSAGE_ROW } from "../room-shell/shape";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { onDestroy, tick } from "svelte";
   import DeferredInteractiveBody from "../chat-interactive/DeferredInteractiveBody.svelte";
@@ -287,8 +288,9 @@
         >{:else}<span class="truncate italic">{vb.t("mensagem anterior")}</span
         >{/if}
     </button>{/if}
-  <div class="flex items-start gap-4">
-    <div class="w-10 shrink-0">
+  <!-- The row's shape is shared with the room's loading state (room-shell/shape.ts). -->
+  <div class={MESSAGE_ROW}>
+    <div class={MESSAGE_AVATAR}>
       {#if !continuous}{#if m.author === "ai"}<AgentMark
             mark="✦"
             size="base"

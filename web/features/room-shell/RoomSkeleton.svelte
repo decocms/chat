@@ -16,7 +16,8 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { roomIcon, switcherDms } from "../home/model";
   import { homeText } from "../home/copy";
-  import { roomDocumentWidth } from "../room-layout/preview";
+  import { roomDocumentOpen, roomDocumentWidth } from "../room-layout/preview";
+  import { EPIC_PROGRESS, MESSAGE_AVATAR, MESSAGE_ROW } from "./shape";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
@@ -59,6 +60,14 @@
   const en = $derived(services.language === "en");
   const t = (text: string, vars?: Record<string, string | number>) =>
     services.t(text, vars);
+  // The pane as the room will open it: closed if you left it closed (room-layout/model.ts, Gimenes #3938).
+  const documentOpen = roomDocumentOpen(
+    typeof window === "undefined" ? undefined : window,
+  );
+  // The main thread's top bar holds the room's search where the thread's name was (RoomHeader, #318).
+  const searchLabel = $derived(
+    title ? t("Buscar em {room}", { room: title }) : t("Buscar nesta sala"),
+  );
 </script>
 
 {#snippet mark(size: string, square = "")}
@@ -118,21 +127,47 @@
             />
             <span class="min-w-0 flex-1 truncate">{t("Sala principal")}</span>
           </div>
-          <Skeleton class="h-9 w-full rounded-lg opacity-60" />
-          {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
-            <div class="flex h-9 items-center gap-2 px-2">
-              <Skeleton class="size-5 shrink-0 rounded-full" />
-              {@render line(width, "h-2.5")}
-            </div>
-          {/each}
-        </div>
-        <div class="flex flex-col gap-3 px-2">
-          {@render line("w-14", "h-2.5")}
-          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
-        </div>
-        <div class="flex flex-col gap-3 px-2">
-          {@render line("w-24", "h-2.5")}
-          <Skeleton class="h-8 w-full rounded-lg opacity-60" />
+          <!-- The task board's row, then the epic list's tabs (EpicTree), as they will land. -->
+          <div
+            class="-mt-2 flex h-9 min-w-0 items-center gap-2 rounded-lg px-2"
+          >
+            <Icon
+              icon="layout-alt-01"
+              size={16}
+              class="shrink-0 text-muted-foreground"
+            />
+            <span class="min-w-0 flex-1 truncate">{t("Quadro de tarefas")}</span
+            >
+          </div>
+          <div
+            class="grid grid-cols-3 rounded-lg bg-sidebar-accent/60 p-0.5 text-center text-xs text-muted-foreground"
+          >
+            <span class="rounded-md bg-background py-1 text-foreground"
+              >{t("Épicos")}</span
+            ><span class="py-1">{t("Plano")}</span><span class="py-1"
+              >{t("Feitos")}</span
+            >
+          </div>
+          <!-- Epic rows (EpicTree): avatar, title, the status at the end, the task bar under. -->
+          <div class="-mt-1 flex flex-col gap-0.5">
+            {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
+              <div class="relative flex h-9 items-center gap-2 px-2">
+                <Skeleton class="size-5 shrink-0 rounded-full" />
+                <span class="flex min-w-0 flex-1"
+                  >{@render line(width, "h-2.5")}</span
+                >
+                <Skeleton class="size-3.5 shrink-0 rounded-full" />
+                <span class={[EPIC_PROGRESS, "rounded-full"]}></span>
+              </div>
+            {/each}
+          </div>
+          <div
+            class="flex h-9 items-center gap-2 rounded-lg border border-dashed border-border px-2 text-muted-foreground"
+          >
+            <span class="flex size-5 shrink-0 items-center justify-center"
+              ><Icon icon="plus" size={16} /></span
+            >{t("Novo épico")}
+          </div>
         </div>{/if}
       <div
         class="mt-auto flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
@@ -168,19 +203,27 @@
       aria-hidden="true"
       class="hidden min-w-0 items-center gap-1 border-b border-border pr-3 pl-5 md:col-span-2 md:flex"
     >
-      {@render mark("size-6")}
-      {#if title}<span class="min-w-0 flex-1 truncate px-2 text-sm font-medium"
-          >{title}</span
-        >{:else}<div class="flex min-w-0 flex-1 items-center px-2">
-          {@render line("w-40")}
-        </div>{/if}
-      {#each [0, 1] as slot (slot)}
-        <span class="grid size-8 shrink-0 place-items-center"
-          ><Skeleton class="size-4 rounded-full" /></span
-        >
-      {/each}
-      <Skeleton class="h-7 w-16 shrink-0 rounded-full" />
-      {#each [0, 1, 2, 3, 4, 5] as slot (slot)}
+      <!-- What RoomHeader puts there: on the main thread the room's search; in an epic, its face and name. -->
+      <div class="flex min-w-0 flex-1 items-center">
+        {#if thread === "main" && !dm}<span
+            class="flex h-8 w-full max-w-80 items-center gap-1.5 rounded-lg bg-muted px-2.5 text-muted-foreground"
+            ><Icon icon="search-md" size={14} /><span class="truncate"
+              >{searchLabel}</span
+            ></span
+          >{:else}{@render mark("size-6")}<span
+            class="flex min-w-0 flex-1 items-center px-2"
+            >{#if dm && title}<span class="truncate font-medium">{title}</span
+              >{:else}{@render line("w-40")}{/if}</span
+          >{/if}
+      </div>
+      <!-- The pane's tabs (DocumentToolbar): Doc with its name, then five icons. -->
+      {#if !dm}<span class="flex h-8 shrink-0 items-center gap-1.5 px-2"
+          ><Skeleton class="size-4 rounded-full" />{@render line(
+            "w-7",
+            "h-2.5",
+          )}</span
+        >{/if}
+      {#each [0, 1, 2, 3, 4] as slot (slot)}
         <span class="grid size-8 shrink-0 place-items-center"
           ><Skeleton class="size-4 rounded-full" /></span
         >
@@ -258,13 +301,24 @@
             {t("Carregando…")}
           </p>
         </div>
-        <div aria-hidden="true" class="flex flex-col gap-5 pb-4">
-          {#each [["w-24", "w-3/5"], ["w-32", "w-2/5"], ["w-20", "w-1/2"]] as [name, body] (name)}
-            <div class="flex items-start gap-3">
-              <Skeleton class="size-8 shrink-0 rounded-full" />
-              <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
-                {@render line(name, "h-2.5")}
-                {@render line(body)}
+        <!-- Messages as Message.svelte draws them: a 40px avatar, the name and time, the text (room-shell/shape.ts). -->
+        <div aria-hidden="true" class="flex flex-col gap-3 pb-4">
+          {#each [["w-24", "w-3/5", "w-2/5"], ["w-32", "w-4/5", ""], ["w-20", "w-1/2", ""]] as [name, body, more] (name)}
+            <div class="px-3 pt-1 pb-0.5">
+              <div class={MESSAGE_ROW}>
+                <div class={MESSAGE_AVATAR}>
+                  <Skeleton class="size-10 rounded-full" />
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+                  <span class="flex items-center gap-2"
+                    >{@render line(name, "h-3")}{@render line(
+                      "w-10",
+                      "h-2.5",
+                    )}</span
+                  >
+                  {@render line(body)}
+                  {#if more}{@render line(more)}{/if}
+                </div>
               </div>
             </div>
           {/each}
@@ -297,8 +351,10 @@
     </main>
 
     <!-- Doc: a few lines at the width the room opens with (vb.docW, the same
-       width animation the room's doc cell seeks); its tabs are in the top bar. -->
-    {#if !dm}<section
+       width animation the room's doc cell seeks); its tabs are in the top bar.
+       None when you left the pane closed, as the room will open (vb.docClosed). -->
+    {#if !dm && documentOpen}<section
+        data-room-skeleton-document
         aria-hidden="true"
         use:roomDocumentWidth
         class="hidden min-h-0 animate-room-document-width flex-col border-l border-border md:flex"
