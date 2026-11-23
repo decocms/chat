@@ -24,7 +24,8 @@
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
-  import type { WaitReference } from "../waits/model";
+  import { waitCount, type WaitReference } from "../waits/model";
+  import Progress from "../../lib/studio/Progress.svelte";
   import {
     archivedEpics,
     activeEpics,
@@ -456,7 +457,7 @@
               <Button
                 variant="ghost"
                 class={cn(
-                  "h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none [@media(hover:none)]:pr-9",
+                  "relative h-9 min-w-0 flex-1 justify-start gap-2 rounded-lg px-2 text-left font-normal transition-[padding] duration-150 ease-out hover:bg-transparent group-hover/row:pr-9 group-focus-within/row:pr-9 group-has-[[data-state=open]]/row:pr-9 motion-reduce:transition-none",
                   current && "font-medium",
                   // Done: finished work reads quieter, and comes back on hover or when open.
                   value === "archived" &&
@@ -502,17 +503,6 @@
                       >({vb.t("Arquivado")})</span
                     >{/if}</span
                 >
-                <!-- The epic's status (shared/epicStatus.ts); an epic in production shows Feito. -->
-                <span
-                  role="img"
-                  data-epic-status-icon={status}
-                  aria-label={vb.t(epicStatusLook(status).label)}
-                  class={cn("flex shrink-0", epicStatusLook(status).text)}
-                  ><Icon
-                    icon={epicStatusLook(status).icon}
-                    class="size-3.5"
-                  /></span
-                >
                 {#if epic.pinned && value === "active"}<span
                     role="img"
                     data-epic-pinned
@@ -527,22 +517,41 @@
                     })}
                     class="shrink-0 text-xs text-muted-foreground">✻</span
                   >{/if}
-                <WaitBadge
-                  waits={vb.waitsIn(epic.id)}
-                  label={(n) => vb.t("{n} coisas esperando você", { n })}
-                />
-                {#if epic.tasks.length}<span
-                    class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"
-                    >{epic.tasks.filter((task) => task.done).length}/{epic.tasks
-                      .length}</span
+                <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
+                {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
+                    waits={vb.waitsIn(epic.id)}
+                    label={(n) => vb.t("{n} coisas esperando você", { n })}
+                  />{:else}<span
+                    role="img"
+                    data-epic-status-icon={status}
+                    aria-label={vb.t(epicStatusLook(status).label)}
+                    class={cn("flex shrink-0", epicStatusLook(status).text)}
+                    ><Icon
+                      icon={epicStatusLook(status).icon}
+                      class="size-3.5"
+                    /></span
                   >{/if}
+                <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
+                {#if epic.tasks.length}<Progress
+                    data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
+                    aria-label={vb.t("{done} de {total} tarefas", {
+                      done: epic.tasks.filter((task) => task.done).length,
+                      total: epic.tasks.length,
+                    })}
+                    value={(100 *
+                      epic.tasks.filter((task) => task.done).length) /
+                      epic.tasks.length}
+                    tone="success"
+                    class="pointer-events-none absolute right-2 bottom-0.5 left-9 h-0.5 w-auto bg-foreground/10"
+                  />{/if}
               </Button>
             </div>
+            <!-- A touch screen has no hover: the epic's actions are only inside the epic (Gimenes #3924). -->
             <DropdownMenu>
               <DropdownMenuTrigger
                 data-epic-actions={epic.id}
                 aria-label={`${vb.t("Ações do épico")}: ${epic.title}`}
-                class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
+                class="absolute top-1.5 right-1.5 flex size-6 translate-x-1 scale-90 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring group-hover/row:translate-x-0 group-hover/row:scale-100 group-hover/row:opacity-100 data-[state=open]:translate-x-0 data-[state=open]:scale-100 data-[state=open]:opacity-100 motion-reduce:transition-none [@media(hover:none)]:hidden"
                 ><Icon
                   icon="dots-horizontal"
                   class="size-4"

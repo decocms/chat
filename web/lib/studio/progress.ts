@@ -9,6 +9,7 @@ export const progressIndicatorVariants = tv(
         default: "text-brand-purple",
         warning: "text-warning",
         dark: "text-primary",
+        success: "text-success",
       },
     },
     defaultVariants: { tone: "default" },

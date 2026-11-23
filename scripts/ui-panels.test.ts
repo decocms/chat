@@ -3646,6 +3646,46 @@ describe("stable sidebar integration", () => {
         ?.getAttribute("data-epic-status-icon"),
     ).toBe("done");
   });
+  test("epic row: the status sits last and task progress is a bar, gray at 0 and green after", () => {
+    const room = fixture();
+    room.epics = [
+      {
+        id: "p",
+        title: "Progress",
+        tasks: [
+          { id: "t1", title: "One", done: true },
+          { id: "t2", title: "Two" },
+          { id: "t3", title: "Three" },
+        ],
+      },
+      { id: "z", title: "Zero", tasks: [{ id: "t4", title: "Four" }] },
+      { id: "n", title: "None", tasks: [] },
+    ] as typeof room.epics;
+    const h = sidebar(room);
+    flushSync();
+    const row = (id: string) =>
+      h.target.querySelector(`[data-epic-thread="${id}"]`)!;
+    // The status icon is the last thing in the row's line.
+    const line = [...row("p").children].filter(
+      (el) => !el.matches("[data-epic-progress]"),
+    );
+    expect(line.at(-1)?.hasAttribute("data-epic-status-icon")).toBe(true);
+    // No "x/y" text: a bar with its count for screen readers.
+    expect(row("p").textContent).not.toContain("1/3");
+    const bar = row("p").querySelector("[data-epic-progress]");
+    expect(bar?.getAttribute("data-epic-progress")).toBe("1/3");
+    expect(bar?.getAttribute("aria-label")).toBe("1 de 3 tarefas");
+    expect(bar?.querySelector("progress")?.className).toContain("text-success");
+    expect(
+      bar?.querySelector<HTMLProgressElement>("progress")?.value,
+    ).toBeCloseTo(33.33, 1);
+    expect(
+      row("z").querySelector<HTMLProgressElement>(
+        "[data-epic-progress] progress",
+      )?.value,
+    ).toBe(0);
+    expect(row("n").querySelector("[data-epic-progress]")).toBeNull();
+  });
   test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
@@ -3758,6 +3798,8 @@ describe("stable sidebar integration", () => {
     // One colour: your Claude's ask (a2) does not turn the number red.
     expect(badge?.className.split(/\s+/)).toContain("bg-brand");
     expect(badge?.className).not.toContain("destructive");
+    // One slot at the end (Gimenes #3904): the count takes the status's place.
+    expect(epic.querySelector("[data-epic-status-icon]")).toBeNull();
     h.view.update({
       ...h.props,
       vb: {
@@ -6217,7 +6259,7 @@ describe("room sidebar header and suggestion ownership", () => {
     flushSync();
     expect(document.querySelector(`[role="${role}"]`) === null).toBe(true);
   }
-  test("phone thread sheet: the status pill sits under the title and its menu sets the status, no rename or delete", async () => {
+  test("phone thread sheet: the status pill sits under the title and its menu sets the status, pins and picks the owner, no rename or delete", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       owner = createRoomMutations(room.me, room.id),
@@ -6259,12 +6301,41 @@ describe("room sidebar header and suggestion ownership", () => {
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Fazendo");
+    // A touch screen has no ⋯ on the epic's row: the sheet's menu pins the epic and picks its owner (Gimenes #3924).
+    menuItem(
+      target.querySelector("[data-epic-status]")!,
+      "Fixar no topo",
+    ).click();
+    await tick();
+    expect(commands.at(-1)).toEqual({ t: "epic.pin", id: "e", pinned: true });
+    const pinned: Room = {
+      ...next,
+      epics: next.epics.map((epic) => ({ ...epic, pinned: true })),
+    };
+    owner.sync(pinned, request);
+    view.update({ ...props, room: pinned });
+    await tick();
+    flushSync();
+    menuItem(target.querySelector("[data-epic-status]")!, "Desafixar");
+    const ownerChoice = [
+      ...window.document.querySelectorAll<HTMLElement>(
+        "[data-epic-owner-choice]",
+      ),
+    ].find((el) => el.getAttribute("data-epic-owner-choice") === "you@test");
+    expect(ownerChoice?.textContent?.trim()).toBeTruthy();
+    ownerChoice!.click();
+    await tick();
+    expect(commands.at(-1)).toEqual({
+      t: "epic.owner",
+      id: "e",
+      owner: "you@test",
+    });
     const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
     active.splice(active.indexOf(view), 1);
     view.destroy();
     stale.click();
     await tick();
-    expect(commands).toHaveLength(1);
+    expect(commands).toHaveLength(3);
   }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
     typeof import("../web/features/room-shell/RoomBarTitle.svelte").default
