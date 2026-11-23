@@ -1148,3 +1148,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The "changes requested after deploy" cue is not in the list now. It is still in the thread.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/no-room-inbox · Remove the room Inbox, keep shared parts
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved one global Inbox (the rail button and `/?inbox`). I removed the Inbox entries in a room and the code that only they used. I selected what to delete and what to keep.
+- Decision:
+  - Deleted: the sidebar Inbox row and its collapsed icon, the phone room bar Inbox icon and its skeleton placeholder, the `RoomScene` Inbox overlay, `presentation.openInbox` and `presentation.inbox`, `RoomScope.setInboxVisible`, the `"inbox"` title of `RoomBarTitle`, and the Sidebar props `oninbox`, `inboxOpen`, `inboxCount` and `onthreadintent`.
+  - Kept: `RoomInbox` and `InboxControls`, because `HomeInbox` (`/?inbox`) draws them. Kept the `viewControls` slot of `RoomHeader` and the `overlay` slot of `RoomLayout`, because `docs/design.md` and the gallery use them for other views.
+  - Kept the room scope in `inbox.ts` (`InboxBinding.roomScope`). No app path opens the Inbox in a room now, but unit tests cover its ownership rules. Kept `EpicTree`'s `selectionDisabled` and `onBeforeOpen` props.
+  - Tests: three DOM tests of the room Inbox now mount `HomeInbox`. I deleted the test that the overlay keeps the composer and the draft, because the global Inbox has no equivalent. The browser tests open `/?inbox` (and the rail on desktop when something waits).
+- Other options: Delete the room scope in `inbox.ts` and its tests (a larger change to a tested owner). Delete the `viewControls` slot (then `docs/design.md` loses its procedure for view controls).
+- Risk: low. A person who used the Inbox in a room now uses the rail (desktop) or the Home bar (phone).
+- Undo: Revert this commit.
+- Status: open

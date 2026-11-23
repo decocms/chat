@@ -460,44 +460,36 @@ async function keyboardOverlays(
       "Escape closes the mobile side sheet with confirmed history departure",
     );
   }
-  const inbox = page.locator("[data-inbox-toggle]");
-  const composer = page.locator("[data-composer] textarea");
-  const originalDraft = await composer.inputValue();
-  const inboxDraft = "Inbox profile draft";
-  await composer.fill(inboxDraft);
+  // A room has no Inbox of its own: the Inbox is global (`/?inbox`). Desktop
+  // opens it from the rail (while something waits on you); phones by its URL.
+  await expect(page.locator("[data-inbox-toggle]")).toHaveCount(0);
   const roomUrl = page.url();
-  await inbox.focus();
-  await page.keyboard.press("Enter");
-  const roomInbox = page.locator("[data-room-inbox]");
-  await expect(roomInbox).toBeVisible();
+  const railInbox = page.locator("[data-rail-inbox] button");
+  const byRail = !phone && (await railInbox.count()) > 0;
+  if (byRail) {
+    await railInbox.focus();
+    await page.keyboard.press("Enter");
+  } else await page.goto(new URL("/?inbox", roomUrl).href);
+  await page.waitForURL((url) => url.searchParams.has("inbox"));
+  const homeInbox = page.locator("[data-home-inbox]");
+  await expect(homeInbox).toBeVisible();
+  await expect(homeInbox.locator("[data-room-inbox]")).toBeVisible();
   await expect(
     page.getByRole("dialog", {
       name: t("Caixa de entrada"),
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(composer).toBeHidden();
-  assert.equal(
-    page.url(),
-    roomUrl,
-    "In-room Inbox does not change the thread URL",
-  );
-  await expect(roomInbox.locator("[data-room-inbox-chat]")).toBeVisible();
-  // The Inbox's scope and "Resolve all": in the top bar (desktop) or atop the list (phones).
+  // "Resolve all": in the home Inbox's bar (desktop) or atop the list (phones).
   await expect(
     page.locator("[data-inbox-controls]:visible").first(),
   ).toBeVisible();
-  await axe(page, "in-place room Inbox open", evidence);
-  // The Inbox button closes it: in the top bar (phones, which stays while the Inbox is open) or in the sidebar (desktop).
-  await inbox.focus();
-  await page.keyboard.press("Enter");
-  await expect(roomInbox).toHaveCount(0);
-  await expect(composer).toBeVisible();
-  await expect(composer).toHaveValue(inboxDraft);
-  await expect(inbox).toBeFocused();
-  await composer.fill(originalDraft);
+  await axe(page, "global Inbox open", evidence);
+  await page.goBack();
+  await page.waitForURL(roomUrl);
+  await expect(page.locator("[data-composer] textarea")).toBeVisible();
   evidence.keyboard.push(
-    "Room Inbox opens in place with its list and controls, unchanged URL and hidden composer; keyboard close restores the draft and opening trigger",
+    `Global Inbox opens ${byRail ? "from the rail by keyboard" : "at /?inbox"} with its list and controls; Back returns to the room`,
   );
 }
 

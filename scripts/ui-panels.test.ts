@@ -3701,7 +3701,7 @@ describe("stable sidebar integration", () => {
     await tick();
     flushSync();
     expect(title!.getAttribute("aria-current")).toBe("page");
-    h.view.update({ ...h.props, thread: "main", inboxOpen: true });
+    h.view.update({ ...h.props, thread: "main", boardOpen: true });
     await tick();
     flushSync();
     expect(title!.getAttribute("aria-current")).toBeNull();
@@ -3710,7 +3710,6 @@ describe("stable sidebar integration", () => {
     const room = fixture();
     const h = sidebar(room, {
       thread: "main",
-      oninbox: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -3726,8 +3725,8 @@ describe("stable sidebar integration", () => {
     expect(
       title.querySelector("[data-wait-badge] [data-count]")?.textContent,
     ).toBe("3");
-    // The Inbox lives in the chat header; the sidebar has no second entry to it.
-    expect(h.target.querySelector("[data-room-inbox-button]")).toBeNull();
+    // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
+    expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
     const rename = title.parentElement!.querySelector(
       'button[aria-label="Editar sala"]',
     );
@@ -6299,7 +6298,6 @@ describe("room sidebar header and suggestion ownership", () => {
       [room, {}, "Sala principal", false],
       [room, { thread: "e" }, "Epic", true],
       [room, { thread: "e", view: "board" }, "Quadro de tarefas", false],
-      [room, { thread: "main", view: "inbox" }, "Caixa de entrada", false],
       [room, { thread: "gone" }, "Sala principal", false],
       [
         { ...room, book: { ...room.book, dm: true } },

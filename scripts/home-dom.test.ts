@@ -113,6 +113,8 @@ const { default: RoomTile } =
 const { default: ApplicationShellHarness } =
   await import("./application-shell-harness.svelte");
 const { shellFixture } = await import("./application-shell-fixtures");
+const { default: HomeInbox } =
+  await import("../web/features/application/HomeInbox.svelte");
 const { default: RoomShellHarness } =
   await import("./room-shell-harness.svelte");
 const { createRoomResources } =
@@ -585,7 +587,7 @@ test("Home waits and the Inbox share one avatar language: people circles, agents
   const dialog = document.querySelector('[role="dialog"]')!;
   expect(shapes(dialog)).toEqual([...expected, ["agent", "✦"]]);
 });
-test("global Inbox direct callbacks reject old connected account controls and close on identity replacement", async () => {
+test("global Inbox (/?inbox) rejects old connected account controls and closes on identity replacement", async () => {
   let resolves = 0;
   const wait = {
     book_id: "aaaaaa",
@@ -619,37 +621,32 @@ test("global Inbox direct callbacks reject old connected account controls and cl
     }),
   );
   await flush();
-  h.services.actions.navigate({ roomId: "aaaaaa" });
+  h.services.actions.navigate("https://vibebook.test/?inbox");
   await flush();
-  const open = [...target.querySelectorAll<HTMLButtonElement>("button")].find(
-    (button) => button.textContent?.trim() === "Open fixture inbox",
-  )!;
-  expect(open !== undefined).toBe(true);
-  open.click();
-  await flush();
-  await waitForView(document, '[role="dialog"] a');
-  const link = [
-    ...document.querySelectorAll<HTMLAnchorElement>('[role="dialog"] a'),
-  ].find((anchor) => anchor.textContent?.includes("Question"))!;
-  expect(link !== undefined).toBe(true);
-  const resolveLabel = h.services.t(
-    "Já resolvi (respondi em outro lugar, ou não é comigo)",
+  await waitForView(
+    target,
+    "[data-home-inbox] [data-room-inbox-message] button",
   );
-  const resolve = [
-    ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
-  ].find((button) => button.getAttribute("aria-label") === resolveLabel)!;
-  expect(resolve !== undefined).toBe(true);
+  const article = [
+    ...target.querySelectorAll<HTMLElement>("[data-room-inbox-message]"),
+  ].find((node) => node.textContent?.includes("Question"))!;
+  expect(article !== undefined).toBe(true);
+  const go = article.querySelector<HTMLButtonElement>("button")!,
+    resolve = article.querySelector<HTMLButtonElement>("[data-inbox-resolve]")!;
+  expect(!!go && !!resolve).toBe(true);
+  expect(h.services.personal.peek()?.email).toBe("me@test.com");
   h.canonical(me({ email: "other@test", waits: [wait] }));
   await h.services.personal.refresh();
   const before = h.href();
-  link.dispatchEvent(
-    new MouseEvent("click", { button: 0, bubbles: true, cancelable: true }),
-  );
+  go.click();
   resolve.click();
+  await new Promise((done) => setTimeout(done, 260));
+  await settle();
   expect(h.href()).toBe(before);
   expect(resolves).toBe(0);
   await flush();
-  expect(document.querySelector('[role="dialog"]')).toBe(null);
+  // The page reopens the Inbox for the new account: the old row is gone.
+  expect(go.isConnected).toBe(false);
 });
 async function actualRoomShell(overrides: Partial<HomeApi> = {}) {
   const h = shellFixture(overrides),
@@ -683,14 +680,13 @@ async function actualRoomShell(overrides: Partial<HomeApi> = {}) {
     cancel: h.timer.clock.cancel,
     enqueue: queueMicrotask,
   };
-  const inbox = createApplicationInbox(h.services, h.timer.clock);
   const target = document.createElement("div");
   document.body.append(target);
   const component = flushSync(() =>
     mount(RoomShellHarness, {
       target,
       props: {
-        presentation: { services: h.services, openInbox: inbox.open, inbox },
+        presentation: { services: h.services },
         resources,
         browser,
         layoutBrowser,
@@ -701,7 +697,6 @@ async function actualRoomShell(overrides: Partial<HomeApi> = {}) {
     flushSync(() => {
       void unmount(component);
     });
-    inbox.dispose();
     h.services.dispose();
     resources.dispose();
   });
@@ -746,7 +741,6 @@ async function actualRoomShell(overrides: Partial<HomeApi> = {}) {
   };
   return {
     ...h,
-    inbox,
     resources,
     target,
     canonicalPersonal: h.canonical,
@@ -1442,47 +1436,27 @@ test("old connected Settings controls cannot mutate a replacement room opening",
   expect(document.querySelector("#room-icon")).not.toBe(oldIcon);
 });
 
-// Actual RoomShell with typed synthetic HTTP/transport ports; no Worker claim.
-test("room Inbox is nonmodal and retains existing Composer, document and Board nodes and draft", async () => {
-  const h = await actualRoomShell({
-    inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
+// The home Inbox (/?inbox, HomeInbox) with typed synthetic HTTP ports; no Worker claim.
+async function homeInbox(overrides: Partial<HomeApi> = {}) {
+  const h = shellFixture(overrides);
+  h.services.start();
+  await settle();
+  const inbox = createApplicationInbox(h.services, h.timer.clock);
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(HomeInbox, { target, props: { owner: inbox, services: h.services } }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    inbox.dispose();
+    h.services.dispose();
   });
-  h.publish(h.canonical);
-  await flush();
-  // Mount the board (full width), then come back to the chat.
-  const toggle = h.target.querySelector<HTMLButtonElement>(
-    "[data-board-toggle]",
-  )!;
-  toggle.click();
-  await flush();
-  await waitForView(h.target, "[data-board-scope]");
-  toggle.click();
-  await flush();
-  const board = h.target.querySelector("[data-board-scope]"),
-    documentNode = h.target.querySelector("[data-document]"),
-    composer = h.target.querySelector("[data-composer]");
-  const input = h.target.querySelector<HTMLTextAreaElement>(
-    "[data-composer] textarea",
-  )!;
-  expect(!!input).toBe(true);
-  input.value = "Retained room draft";
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  await flush();
-  h.inbox.open();
-  await flush();
-  await waitForView(h.target, "[data-room-inbox]");
-  expect(document.querySelector('[role="dialog"]') === null).toBe(true);
-  expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
-  expect(h.target.querySelector("[data-document]") === documentNode).toBe(true);
-  expect(h.target.querySelector("[data-composer]") === composer).toBe(true);
-  expect(composer?.closest("[inert]") !== null).toBe(true);
-  h.inbox.close();
-  await flush();
-  expect(h.target.querySelector("[data-room-inbox]") === null).toBe(true);
-  expect(h.target.querySelector("[data-board-scope]") === board).toBe(true);
-  expect(input.value).toBe("Retained room draft");
-});
-test("room Inbox rejects connected old-opening and removed-room task controls before DOM flush", async () => {
+  return { ...h, inbox, target, canonicalPersonal: h.canonical };
+}
+test("home Inbox rejects connected old-opening task controls before DOM flush", async () => {
   const task: InboxTask = {
     book_id: "aaaaaa",
     room: "Room",
@@ -1493,11 +1467,9 @@ test("room Inbox rejects connected old-opening and removed-room task controls be
     status: "todo",
     due: null,
   };
-  const h = await actualRoomShell({
+  const h = await homeInbox({
     inbox: async () => ({ waits: [], mentions: [], tasks: [task] }),
   });
-  h.publish(h.canonical);
-  await flush();
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
@@ -1531,16 +1503,12 @@ test("room Inbox rejects connected old-opening and removed-room task controls be
   const fresh = find()!;
   expect(!!fresh).toBe(true);
   expect(fresh !== old).toBe(true);
-  h.connectionCallbacks.at(-1)!.onRemoved?.();
-  expect(fresh.isConnected).toBe(true);
   fresh.click();
-  expect(h.href()).toBe(before);
+  expect(h.href() !== before).toBe(true);
   expect(get(h.inbox.state).binding === null).toBe(true);
-  await flush();
-  expect(h.target.querySelector("[data-room-inbox]") === null).toBe(true);
 });
 
-test("room Inbox old connected question controls cannot act on a same-ID canonical edit before flush", async () => {
+test("home Inbox old connected question controls cannot act on a same-ID canonical edit before flush", async () => {
   let writes = 0;
   const original = {
     book_id: "aaaaaa",
@@ -1553,14 +1521,12 @@ test("room Inbox old connected question controls cannot act on a same-ID canonic
     text: "Original Inbox question",
     ts: 1,
   };
-  const h = await actualRoomShell({
+  const h = await homeInbox({
     resolve: async () => {
       writes++;
       return { ok: true };
     },
   });
-  h.publish(h.canonical);
-  await flush();
   h.canonicalPersonal(me({ waits: [original] }));
   await h.services.personal.refresh();
   h.inbox.open();

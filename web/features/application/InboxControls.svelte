@@ -8,7 +8,7 @@
 
   /**
    * The Inbox's own control: "Resolve all asks". The Inbox always shows all rooms.
-   * The room's top bar draws them (desktop); the Inbox draws them on phones.
+   * The home Inbox's bar draws it (desktop, HomeInbox); the Inbox draws it on phones.
    */
   let {
     owner,

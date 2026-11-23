@@ -14,7 +14,6 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { threadTitle } from "../room-sidebar/model";
   import Snapshot from "../../lib/components/Snapshot.svelte";
-  import Count from "../../lib/components/Count.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import type { SidebarProps } from "../../app/sidebar";
   import { dmPeer, roomAvatarVersion } from "../room-scope/model";
@@ -30,7 +29,6 @@
     back,
     tabs,
     onPane,
-    inboxOpen = false,
     tochat,
     viewControls,
   }: {
@@ -45,12 +43,10 @@
     /** Desktop: the pane tabs live in this bar (one top bar, the split below it). */
     tabs?: ComponentProps<typeof DocumentToolbar>;
     onPane?(pane: DocumentPane): void;
-    /** The room's inbox fills the middle (it replaces the chat, like the board). */
-    inboxOpen?: boolean;
-    /** Back to the chat: closes the inbox and the full board. */
+    /** Back to the chat: closes the full board. */
     tochat?(): void;
-    /** Desktop: the controls of the view in the middle (the inbox's scope and "Resolve all"),
-     * before the pane's tabs, after a vertical divider. See docs/design.md (Top bar). */
+    /** Desktop: the controls of the view in the middle, before the pane's tabs,
+     * after a vertical divider. See docs/design.md (Top bar). */
     viewControls?: Snippet;
   } = $props();
   const personal = untrack(() => presentation.services.personal.state),
@@ -94,14 +90,11 @@
   const mac =
     typeof navigator !== "undefined" &&
     /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  // Desktop, two slots: the middle is the chat, the full board or the inbox;
+  // Desktop, two slots: the middle is the chat or the full board;
   // the right pane (doc, files, apps, decisions, reminders) shows only beside
   // the chat. The pane open beside the chat: its tab shows selected.
   const split = $derived(
-    !$geometry.mobile &&
-      !inboxOpen &&
-      !$geometry.boardFull &&
-      $geometry.documentVisible,
+    !$geometry.mobile && !$geometry.boardFull && $geometry.documentVisible,
   );
   // A tab brings the chat back, then opens that pane, or closes it when it's
   // the one already open (this replaced the pane toggle button).
@@ -131,29 +124,21 @@
       onPane?.("search");
     }
   }
-  function toggleInbox(trigger: HTMLElement) {
-    if (inboxOpen) tochat?.();
-    else {
-      if (!layout.read().mobile && layout.read().boardFull)
-        layout.toggleBoard();
-      presentation.openInbox(trigger);
-    }
-  }
   const editable = (target: EventTarget | null) =>
     target instanceof HTMLElement &&
     !!target.closest("input, textarea, select, [contenteditable=true]");
   function onwindowkeydown(event: KeyboardEvent) {
     if (event.defaultPrevented || !current()) return;
-    // Esc leaves the inbox or the full board for the chat.
+    // Esc leaves the full board for the chat.
     if (
       event.key === "Escape" &&
-      (inboxOpen || (!layout.read().mobile && layout.read().boardFull)) &&
+      !layout.read().mobile &&
+      layout.read().boardFull &&
       !editable(event.target) &&
       !document.querySelector("[data-dialog-content], [role=dialog]")
     ) {
       event.preventDefault();
-      if (inboxOpen) tochat?.();
-      else layout.toggleBoard();
+      layout.toggleBoard();
       return;
     }
     if (!isPanelToggleKey(event, mac)) return;
@@ -241,26 +226,9 @@
         thread={header.thread}
         owner={header.owner}
         vb={header.vb}
-        view={inboxOpen ? "inbox" : $geometry.boardFull ? "board" : null}
+        view={$geometry.boardFull ? "board" : null}
       />
     </div>
-    <!-- Phones: the inbox in the bar (the search is in the title's menu). Desktop: it and the board are views in the sidebar, under the main thread. -->
-    {#if $geometry.mobile}<IconButton
-        data-inbox-toggle
-        label={t("Caixa de entrada")}
-        tooltipSide="bottom"
-        size="icon"
-        aria-pressed={inboxOpen}
-        class="relative size-10 rounded-full text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground"
-        onclick={(event) => {
-          if (live(event)) toggleInbox(event.currentTarget);
-        }}
-        ><Icon icon="inbox-01" size={20} />{#if waits.length}<Count
-            value={waits.length}
-            label={t("Esperando você: {n}", { n: waits.length })}
-            class="absolute -top-1 -right-1 shadow-[0_0_0_2px_var(--vb-background)]"
-          />{/if}</IconButton
-      >{/if}
   </div>
   <div class="contents md:flex md:min-w-0 md:shrink md:items-center md:gap-1">
     {#if viewControls}<div

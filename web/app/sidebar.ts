@@ -33,15 +33,11 @@ export type SidebarProps = {
   ontogglerail?: () => void;
   onrenameroom?: () => void;
   onopenside?: () => void;
-  oninbox?: (trigger?: HTMLElement) => void;
-  inboxOpen?: boolean;
-  /** Desktop: the room's views under the main thread (chat, inbox, board); toggles the full board. */
+  /** Desktop: the room's views under the main thread (chat, board); toggles the full board. */
   onboard?: () => void;
   boardOpen?: boolean;
-  /** Your open tasks here (the board row's count) and what waits on you (the inbox row's). */
+  /** Your open tasks here (the board row's count). */
   boardCount?: number | string;
-  inboxCount?: number;
-  onthreadintent?: () => boolean;
   /** Desktop: the room's name or icon at the top brings the chat back. */
   onroomhome?: () => void;
   /** Mounts the phone sheet's grab handle; returns its cleanup. */

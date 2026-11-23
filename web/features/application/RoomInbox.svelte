@@ -30,7 +30,7 @@
    * The Inbox, a triage list: what waits on you, newest first, two lines each.
    * A row opens its message; its actions reply in place, open or resolve.
    * "Resolve" waits INBOX_UNDO_MS before it reaches the server (Undo).
-   * The scope and "Resolve all" live in the room's top bar (InboxControls).
+   * "Resolve all" lives in the home Inbox's bar (HomeInbox, InboxControls).
    */
   let {
     owner,
@@ -40,15 +40,12 @@
     owner: ApplicationInbox;
     binding: InboxBinding;
     services: BrowserApplicationServices;
-    documentWidth?: (node: HTMLElement) => () => void;
-    sidebarCollapsed?: boolean;
   } = $props();
   const opening = untrack(() => binding),
     inbox = untrack(() => owner.state),
     root = untrack(() => services.rootRoom.state),
     personal = untrack(() => services.personal.state);
   const t = untrack(() => services.t);
-  // The room's phone layout (RoomLayoutFrame) hides its bar while the Inbox is open.
   type Kind = "ask" | "claude" | "mention" | "review" | "task";
   type Item = {
     key: string;
@@ -358,7 +355,7 @@
   onkeydown={keys}
 >
   <div data-room-inbox-chat class="flex min-h-0 min-w-0 flex-1 flex-col">
-    <!-- Phones: the scope and "Resolve all" (on desktop they live in the room's top bar). -->
+    <!-- Phones: "Resolve all" (on desktop it lives in the home Inbox's bar). -->
     <InboxControls
       {owner}
       binding={opening}

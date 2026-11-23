@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
-  import { get, readable } from "svelte/store";
+  import { get } from "svelte/store";
   import { provideRichFileIndex } from "../rich-text/fileContext";
-  import type { InboxSnapshot } from "../application/inbox";
   import type { ApplicationRoomPresentation } from "../application/shellTypes";
   import type { ApplicationRoomScope } from "../application/types";
   import type { RoomResources } from "../application/roomResources";
@@ -28,7 +27,6 @@
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
-  import InboxControls from "../application/InboxControls.svelte";
   import PhoneRoomMenu from "./PhoneRoomMenu.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
   import { phoneTabOf, phoneTabPanes } from "./panelViews";
@@ -95,11 +93,6 @@
     if (!current() || !value || value.header.thread !== expectedThread) return;
     // Phones have no bottom bar (#3738): Back first leaves the full board or the doc sheet, back to the chat.
     const state = layout.read();
-    // The Inbox opens under the top bar, so ← closes it first.
-    if (state.mobile && inboxOpen) {
-      toChat();
-      return;
-    }
     if (state.mobile && state.boardFull) {
       layout.toggleBoard();
       return;
@@ -124,76 +117,15 @@
       back,
     });
   }
-  const inbox = untrack(() => presentation.inbox),
-    inboxState = untrack(
-      () =>
-        inbox?.state ??
-        readable<InboxSnapshot>({
-          binding: null,
-          all: true,
-          data: { waits: [], mentions: [], tasks: [] },
-          phase: "idle",
-          error: null,
-          hidden: [],
-          undo: 0,
-        }),
-    );
-  const roomInboxModule = untrack(() =>
-      createDeferredModule(
-        () =>
-          import("../application/RoomInbox.svelte").then(
-            (module) => module.default,
-          ),
-        { current },
-      ),
-    ),
-    roomInboxView = roomInboxModule.state;
-  const RoomInbox = $derived($roomInboxView.component);
-  const inboxOpen = $derived(
-    !!inbox &&
-      !!$inboxState.binding?.roomScope &&
-      $inboxState.binding.roomId === captured.roomId &&
-      inbox.owns($inboxState.binding),
-  );
-  const stopInbox = inbox?.state.subscribe((value) => {
-    const shown =
-      !!value.binding?.roomScope &&
-      value.binding.roomId === captured.roomId &&
-      inbox.owns(value.binding);
-    owner.setInboxVisible(shown);
-    if (shown && layout.read().sheet === "side") layout.closeSheet();
-  });
-  function leaveInbox() {
-    const revision = get(services.state).navigationGeneration,
-      binding = inbox ? get(inbox.state).binding : null;
-    if (inbox && binding?.roomScope && binding.roomId === captured.roomId)
-      inbox.close(binding);
-    return current() && get(services.state).navigationGeneration === revision;
-  }
-  $effect(() => {
-    if (inboxOpen) void roomInboxModule.ensure();
-  });
-  // The chat back in the middle: the inbox and the full board give way.
+  // The chat back in the middle: the full board gives way.
   function toChat() {
     if (!current()) return;
-    if (inboxOpen) leaveInbox();
     if (layout.read().boardFull) layout.toggleBoard();
   }
-  // Desktop, the sidebar's views (chat, inbox, board): each takes the middle.
+  // Desktop, the sidebar's views (chat, board): each takes the middle.
   function toggleBoard() {
     if (!current()) return;
-    if (inboxOpen) {
-      leaveInbox();
-      if (!layout.read().boardFull) layout.toggleBoard();
-      return;
-    }
     layout.toggleBoard();
-  }
-  function toggleInbox(trigger?: HTMLElement) {
-    if (!current()) return;
-    if (inboxOpen) return toChat();
-    if (!layout.read().mobile && layout.read().boardFull) layout.toggleBoard();
-    presentation.openInbox(trigger);
   }
   // Desktop has no board pane any more (the board is always full width): a
   // remembered "board" pane falls back to the doc.
@@ -319,8 +251,6 @@
   });
   onDestroy(() => {
     active = false;
-    stopInbox?.();
-    roomInboxModule.dispose();
     boardModule.dispose();
     filesModule.dispose();
     decisionsModule.dispose();
@@ -358,50 +288,18 @@
   };
 </script>
 
-{#snippet inboxControls()}{#if inbox && $inboxState.binding}<InboxControls
-      owner={inbox}
-      binding={$inboxState.binding}
-      t={services.t}
-    />{/if}{/snippet}
-
 <RoomLayout
   controller={layout}
   {labels}
   onChatSurface={owner.attachChat}
   onCells={edgeBack}
-  overlayOpen={inboxOpen}
 >
-  {#snippet overlay()}{#if inbox && $inboxState.binding && inboxOpen}{#key $inboxState.binding}<Snapshot
-          value={$inboxState.binding}
-          >{#snippet children(binding)}{#if RoomInbox}<RoomInbox
-                owner={inbox}
-                {binding}
-                {services}
-                documentWidth={layout.bindDocumentWidth}
-                sidebarCollapsed={$geometry.sidebarCollapsed}
-              />{:else}<div data-room-inbox-loading class="p-6">
-                <DeferredViewStatus
-                  phase={$roomInboxView.phase}
-                  lang={services.language}
-                  current={() => current() && inbox.owns(binding)}
-                  label={services.t("Caixa de entrada")}
-                  retry={() => {
-                    if (current() && inbox.owns(binding))
-                      void roomInboxModule.retry();
-                  }}
-                />
-              </div>{/if}{/snippet}</Snapshot
-        >{/key}{/if}{/snippet}
   {#snippet sidebar()}{#if $view}<Sidebar
         {...$view.sidebar}
-        {inboxOpen}
-        onthreadintent={leaveInbox}
         onroomhome={toChat}
-        oninbox={toggleInbox}
         onboard={$geometry.mobile ? undefined : toggleBoard}
-        boardOpen={!$geometry.mobile && $geometry.boardFull && !inboxOpen}
+        boardOpen={!$geometry.mobile && $geometry.boardFull}
         boardCount={$view.toolbar.counts?.board}
-        inboxCount={$personal.me?.waits?.length ?? 0}
         hideSheetHandle
       >
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<PhoneRoomMenu
@@ -454,11 +352,7 @@
         {current}
         {back}
         tabs={$view.toolbar}
-        {inboxOpen}
         tochat={toChat}
-        viewControls={inbox && inboxOpen && $inboxState.binding
-          ? inboxControls
-          : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
