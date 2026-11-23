@@ -20,7 +20,7 @@ type RowHandle = {
 };
 
 /**
- * Sortable epic rows. The drag engine (@dnd-kit/dom, ~35 KB gzip) is loaded
+ * Sortable rows (the epic list, the rail's rooms). The drag engine (@dnd-kit/dom, ~35 KB gzip) is loaded
  * once the sidebar has had a moment to render, so it stays out of the entry
  * bundle; rows register with it as soon as it arrives. Until then (or if it
  * cannot load) rows simply do not sort.

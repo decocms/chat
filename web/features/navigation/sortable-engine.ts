@@ -14,7 +14,7 @@ import {
 } from "./sortable";
 
 /**
- * Pointer and touch sorting for the epic list (@dnd-kit/dom). This module is
+ * Pointer and touch sorting for the epic list and the rail's rooms (@dnd-kit/dom). This module is
  * only loaded after the sidebar has rendered (see ./sortable). Keyboard sorting
  * stays with the list's own Alt+Arrow shortcut so Enter and Space keep
  * activating the row, and rows only sort among siblings of the same parent.
