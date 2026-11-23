@@ -22,10 +22,6 @@
     "room" | "thread" | "owner" | "vb" | "onopenside" | "titleId"
   > = $props();
   const epic = $derived(room.epics.find((item) => item.id === thread));
-  const owners = $derived([
-    { value: "", label: vb.t("Sem dono") },
-    ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
-  ]);
 </script>
 
 {#if epic}<div
@@ -53,5 +49,5 @@
       >
       <MutationStatus {owner} t={vb.t} />
     </div>
-    <EpicActions {epic} {owner} t={vb.t} variant="sheet" {owners} />
+    <EpicActions {epic} {owner} t={vb.t} variant="sheet" pinnable />
   </div>{/if}

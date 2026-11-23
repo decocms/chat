@@ -8,35 +8,32 @@
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
   import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
-  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
-  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
   import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { buttonVariants } from "../../lib/studio/button";
-  import Separator from "../../lib/studio/Separator.svelte";
   import { cn } from "../../lib/studio/utils";
   /**
    * The epic's status: a pill that opens the list of statuses (A fazer …
    * Arquivado). "Feito" and "Arquivado" archive the epic, an open status
    * reopens it (Book.setEpicStatus). `bar`: at the end of the desktop top
    * bar's title, then a vertical line before the pane's tabs. `sheet`: under
-   * the title in the phone's thread sheet. `owners`: the menu also pins the
-   * epic and picks its owner, since the epic list has no actions menu
-   * (Gimenes #3924, #3933).
+   * the title in the phone's thread sheet. `pinnable`: the menu also pins the
+   * epic, since the epic list has no actions menu (Gimenes #3924, #3933). It
+   * does not pick the owner (Gimenes #3975).
    */
   let {
     epic,
     owner,
     t,
     variant,
-    owners,
+    pinnable = false,
   }: {
     epic: Epic;
     owner: RoomMutations;
     t: (text: string, vars?: Record<string, string | number>) => string;
     variant: "bar" | "sheet";
-    owners?: readonly { value: string; label: string }[];
+    pinnable?: boolean;
   } = $props();
   const mutation = untrack(() => owner.state);
   const busy = $derived(
@@ -84,53 +81,26 @@
               class="ml-auto text-foreground"
             />{/if}</DropdownMenuItem
         >{/each}
-      {#if owners}<DropdownMenuSeparator />
-        {#if !epic.archived}<DropdownMenuItem
-            data-epic-pin={epic.id}
-            disabled={busy}
-            onSelect={() =>
-              void owner.run({
-                t: "epic.pin",
-                id: epic.id,
-                pinned: !epic.pinned,
-              })}
-            ><Icon icon="pin-02" />{t(
-              epic.pinned ? "Desafixar" : "Fixar no topo",
-            )}</DropdownMenuItem
-          >{/if}
-        <DropdownMenuLabel class="text-xs text-muted-foreground"
-          >{t("Dono do épico")}</DropdownMenuLabel
-        >
-        <DropdownMenuRadioGroup
-          bind:value={
-            () => epic.owner ?? "",
-            (next) => {
-              if (!busy && next !== (epic.owner ?? ""))
-                void owner.run({ t: "epic.owner", id: epic.id, owner: next });
-            }
-          }
-        >
-          {#each owners as choice (choice.value)}<DropdownMenuRadioItem
-              data-epic-owner-choice={choice.value}
-              value={choice.value}
-              disabled={busy}
-              ><span class="min-w-0 truncate">{choice.label}</span
-              ></DropdownMenuRadioItem
-            >{/each}
-        </DropdownMenuRadioGroup>{/if}
+      {#if pinnable && !epic.archived}<DropdownMenuSeparator />
+        <DropdownMenuItem
+          data-epic-pin={epic.id}
+          disabled={busy}
+          onSelect={() =>
+            void owner.run({
+              t: "epic.pin",
+              id: epic.id,
+              pinned: !epic.pinned,
+            })}
+          ><Icon icon="pin-02" />{t(
+            epic.pinned ? "Desafixar" : "Fixar no topo",
+          )}</DropdownMenuItem
+        >{/if}
     </DropdownMenuContent>
   </DropdownMenu>{/snippet}
 
-{#if variant === "bar"}<span
-    data-epic-bar-actions
-    class="ml-auto flex shrink-0 items-center gap-1"
-  >
+{#if variant === "bar"}<!-- Right after the epic's title (Gimenes #3975). -->
+  <span data-epic-bar-actions class="flex shrink-0 items-center gap-1">
     {@render pill()}
-    <!-- The epic's own control ends here; the pane's tabs (Doc, Files…) follow. -->
-    <Separator
-      orientation="vertical"
-      class="ml-1 data-[orientation=vertical]:h-5"
-    />
   </span>{:else}<div data-epic-sheet-status class="flex px-2 pb-1">
     {@render pill()}
   </div>{/if}

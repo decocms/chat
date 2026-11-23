@@ -6353,7 +6353,7 @@ describe("room sidebar header and suggestion ownership", () => {
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Fazendo");
-    // A touch screen has no ⋯ on the epic's row: the sheet's menu pins the epic and picks its owner (Gimenes #3924).
+    // A touch screen has no ⋯ on the epic's row: the sheet's menu pins the epic (Gimenes #3924), with no owner picker (#3975).
     menuItem(
       target.querySelector("[data-epic-status]")!,
       "Fixar no topo",
@@ -6369,25 +6369,15 @@ describe("room sidebar header and suggestion ownership", () => {
     await tick();
     flushSync();
     menuItem(target.querySelector("[data-epic-status]")!, "Desafixar");
-    const ownerChoice = [
-      ...window.document.querySelectorAll<HTMLElement>(
-        "[data-epic-owner-choice]",
-      ),
-    ].find((el) => el.getAttribute("data-epic-owner-choice") === "you@test");
-    expect(ownerChoice?.textContent?.trim()).toBeTruthy();
-    ownerChoice!.click();
-    await tick();
-    expect(commands.at(-1)).toEqual({
-      t: "epic.owner",
-      id: "e",
-      owner: "you@test",
-    });
+    expect(window.document.querySelector("[data-epic-owner-choice]")).toBe(
+      null,
+    );
     const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
     active.splice(active.indexOf(view), 1);
     view.destroy();
     stale.click();
     await tick();
-    expect(commands).toHaveLength(3);
+    expect(commands).toHaveLength(2);
   }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
     typeof import("../web/features/room-shell/RoomBarTitle.svelte").default
@@ -6446,7 +6436,7 @@ describe("room sidebar header and suggestion ownership", () => {
         .target.querySelector("[data-thread-title]")
         ?.textContent?.trim(),
     ).toBe("Epic");
-    // In an epic: the status pill, then the line before the pane's tabs. No ✎ and no 🗑.
+    // In an epic: the status pill right after the title (Gimenes #3975). No ✎ and no 🗑.
     const { target } = barTitle(room, { thread: "e" });
     expect(
       [...target.querySelector("[data-epic-bar-actions]")!.children].map(
@@ -6455,7 +6445,10 @@ describe("room sidebar header and suggestion ownership", () => {
             ? "status"
             : node.getAttribute("data-orientation"),
       ),
-    ).toEqual(["status", "vertical"]);
+    ).toEqual(["status"]);
+    expect(
+      target.querySelector("[data-thread-title]")?.nextElementSibling,
+    ).toBe(target.querySelector("[data-epic-bar-actions]"));
   });
   test("desktop epic bar: the status menu lists the six statuses, Feito sends epic.status and the pill follows the server; detached pills cannot write", async () => {
     const room = fixture(),
@@ -6478,15 +6471,13 @@ describe("room sidebar header and suggestion ownership", () => {
         ...document.querySelectorAll<HTMLElement>("[data-epic-status-choice]"),
       ].map((item) => item.textContent?.trim()),
     ).toEqual(["A fazer", "Fazendo", "Esperando OK", "Feito", "Arquivado"]);
-    // The epic list has no actions menu: this menu pins the epic and picks its owner (Gimenes #3933).
+    // The epic list has no actions menu: this menu pins the epic (Gimenes #3933); it picks no owner (#3975).
     expect(
       [...document.querySelectorAll("[role=menuitem]")].some(
         (item) => item.textContent?.trim() === "Fixar no topo",
       ),
     ).toBe(true);
-    expect(
-      document.querySelector('[data-epic-owner-choice="you@test"]'),
-    ).not.toBeNull();
+    expect(document.querySelector("[data-epic-owner-choice]")).toBeNull();
     done.click();
     await tick();
     expect(commands.at(-1)).toEqual({

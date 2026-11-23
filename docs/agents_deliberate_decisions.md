@@ -1289,3 +1289,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. It changes the first screen on a desktop.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-status-after-title · The epic's status follows its title; its menu has no owner picker
+- Agent: claude-opus-5-5
+- Context: The human asked to put the epic's status right after the epic's title in the room, and to remove the owner selector from the status menu (#3975).
+- Decision:
+  - In the desktop top bar, the status pill comes right after the title. The vertical line that ended the epic's controls is gone, because the pill is no longer at the end.
+  - The status menu (top bar and the phone's sheet) has no "Dono do épico" group now. "Fixar no topo" / "Desafixar" stays, because the epic list has no other menu to pin an epic.
+  - The server's `epic.owner` command stays. Only the UI changes.
+- Other options: Remove the pin item too, so that the menu has only the statuses.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open
