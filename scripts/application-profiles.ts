@@ -531,6 +531,8 @@ async function applicationGeometry(page: Page) {
       height: innerHeight,
       documentWidth: document.documentElement.scrollWidth,
       navigation: read("[data-app-navigation]"),
+      // Phones: a Home with conversations draws its own bar (data-home-bar) instead.
+      homeBar: read("[data-home-bar]"),
       route: read("[data-application-route]"),
       room: read("[data-room-layout]"),
       chat: read("[data-room-chat]"),
@@ -586,17 +588,26 @@ export async function auditApplicationProfiles(
               timeout: 120_000,
             });
             await expect(page.locator('[data-view="home"]')).toBeVisible();
-            await expect(page.locator("[data-app-navigation]")).toBeVisible();
+            // Phones: a Home with conversations hides the global bar and draws its own.
+            const homeBar =
+              profile.width <= 900 &&
+              (await page.locator('[data-home-layout="chats"]').count()) > 0;
+            await expect(
+              page.locator(
+                homeBar ? "[data-home-bar]" : "[data-app-navigation]",
+              ),
+            ).toBeVisible();
             const homeGeometry = await applicationGeometry(page);
             assert(
               homeGeometry.documentWidth <= homeGeometry.width + 1,
               "Home must fit the phone, tablet and desktop viewport without page overflow",
             );
             if (profile.width <= 900) {
+              const bar = homeBar
+                ? homeGeometry.homeBar
+                : homeGeometry.navigation;
               assert(
-                homeGeometry.navigation &&
-                  homeGeometry.navigation.height > 0 &&
-                  homeGeometry.navigation.height <= 80,
+                bar && bar.height > 0 && bar.height <= 80,
                 "Mobile Home keeps reachable navigation controls in a compact horizontal header",
               );
             } else
