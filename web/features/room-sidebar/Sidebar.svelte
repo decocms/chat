@@ -47,6 +47,7 @@
     mountSheetHandle,
     hideSheetHandle = false,
     phoneMenu,
+    phoneAccount,
     footer,
   }: SidebarProps = $props();
   const external = untrack(() => !!mutations);
@@ -269,17 +270,18 @@
         />
       </div>{/snippet}
     <!-- Phones and DMs: the room's (or the conversation's) own row. On a desktop room the name in the header is the main thread. -->
+    <!-- The room's row: its name, ✎ right after it, and on phones your avatar at the end (Gimenes #4108). -->
     {#snippet roomRow()}<div
-        class={cn("group/room relative shrink-0", !dm && "md:hidden")}
+        class={cn(
+          "group/room flex shrink-0 items-center gap-1",
+          !dm && "md:hidden",
+        )}
       >
         <button
           type="button"
           data-room-title
           aria-current={thread === "main" ? "page" : undefined}
-          class={navRow({
-            class:
-              "transition-[background-color,padding] duration-150 ease-out group-hover/room:pr-9 group-focus-within/room:pr-9 md:group-hover/room:pr-2 md:group-focus-within/room:pr-2 motion-reduce:transition-none [@media(hover:none)]:pr-9",
-          })}
+          class={navRow({ class: "w-auto" })}
           onclick={(event) => {
             if (event.currentTarget.isConnected) openMain();
           }}
@@ -288,9 +290,9 @@
               icon="message-circle-01"
               size={16}
               class="shrink-0 text-muted-foreground"
-            /><span class="min-w-0 flex-1 truncate">{vb.t("Conversa")}</span
+            /><span class="min-w-0 truncate">{vb.t("Conversa")}</span
             >{:else}<RoomMark title={room.book.title} src={roomIcon} />
-            <span class="min-w-0 flex-1 truncate">{room.book.title}</span>{/if}
+            <span class="min-w-0 truncate">{room.book.title}</span>{/if}
           <WaitBadge
             waits={vb.waitsIn("main")}
             label={(n) => vb.t("{n} coisas esperando você", { n })}
@@ -300,9 +302,13 @@
           label={vb.t("Editar sala")}
           size="icon-xs"
           tooltipSide="bottom"
-          class="absolute top-1.5 right-1.5 md:hidden translate-x-1 scale-90 text-muted-foreground opacity-0 transition-[opacity,translate,scale] duration-150 ease-out hover:bg-background/60 hover:text-sidebar-foreground focus-visible:translate-x-0 focus-visible:scale-100 focus-visible:opacity-100 group-hover/room:translate-x-0 group-hover/room:scale-100 group-hover/room:opacity-100 motion-reduce:transition-none [@media(hover:none)]:translate-x-0 [@media(hover:none)]:scale-100 [@media(hover:none)]:opacity-100"
+          class="shrink-0 text-muted-foreground hover:text-sidebar-foreground md:hidden"
           onclick={onrenameroom}><Icon icon="pencil-01" /></IconButton
-        >
+        >{#if phoneAccount}<span
+            data-drawer-account
+            class="ml-auto flex shrink-0 md:hidden"
+            >{@render phoneAccount()}</span
+          >{/if}
       </div>{/snippet}
     <!-- On a phone Pinned lives in the Files tab. People & agents is a pane beside the chat (desktop) or the Claude tab (phone). A DM has neither. -->
     {#if !dm}<div class="contents max-md:hidden">
