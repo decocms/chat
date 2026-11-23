@@ -542,3 +542,22 @@ test("initially inactive reload owner only claims its unchanged captured entry o
   expect(f.browser.state()).not.toEqual(original);
   adopter.dispose();
 });
+
+test("a phone room's panes are the desktop bar's, in its order; a DM has no doc, people or agents; no search (Gimenes #4075, #4076)", async () => {
+  const { phonePanes } = await import("../web/features/room-shell/panelViews");
+  expect([...phonePanes(false)]).toEqual([
+    "doc",
+    "files",
+    "apps",
+    "decisions",
+    "reminders",
+    "people",
+    "agents",
+  ]);
+  expect([...phonePanes(true)]).toEqual([
+    "files",
+    "apps",
+    "decisions",
+    "reminders",
+  ]);
+});

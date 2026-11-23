@@ -369,9 +369,9 @@ async function keyboardOverlays(
   evidence: ApplicationProfileEvidence,
 ) {
   const t = createApplicationCopy(profile.lang);
-  // Phones carry Search in the title's menu (#3738): the title opens it, the
-  // shortcut opens Search, and focus comes back to the title. Desktop keeps it
-  // in the sidebar.
+  // Phones have no Search shortcut in the title's menu (#4075): with a
+  // keyboard, Ctrl+K opens Search from the title, and focus comes back to the
+  // title. Desktop keeps it in the sidebar.
   const phone = profile.width <= 900;
   if (!phone) await fixture.openSidebar(page);
   const search = phone
@@ -384,15 +384,7 @@ async function keyboardOverlays(
         .filter({ visible: true })
         .first();
   await search.focus();
-  await page.keyboard.press("Enter");
-  if (phone) {
-    const shortcut = page.locator(
-      '[data-phone-menu] [data-phone-tab="search"]',
-    );
-    await expect(shortcut).toBeVisible();
-    await shortcut.focus();
-    await page.keyboard.press("Enter");
-  }
+  await page.keyboard.press(phone ? "Control+K" : "Enter");
   const searchDialog = page.getByRole("dialog", {
     name: homeText(profile.lang, "search"),
     exact: true,

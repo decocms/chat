@@ -30,7 +30,7 @@
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomMenu from "./PhoneRoomMenu.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
-  import { phoneTabOf, phoneTabPanes } from "./panelViews";
+  import { phonePanes } from "./panelViews";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
   import Dialog from "../../lib/studio/Dialog.svelte";
@@ -257,7 +257,6 @@
 >
   {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<PhoneRoomMenu
-              {layout}
               {current}
               lang={services.language}
               dm={!!$view.header.room.book.dm}
@@ -266,13 +265,6 @@
               onPane={(pane) => {
                 if (current()) owner.actions.setPane(pane, { open: true });
               }}
-              onsearch={(trigger) =>
-                // The menu closes first, so focus comes back to its opener (the title), not to a hidden shortcut.
-                $view?.sidebar.appNavigation?.controller.openSearch(
-                  trigger.ownerDocument.querySelector<HTMLElement>(
-                    "[data-room-bar] [data-phone-title]",
-                  ) ?? trigger,
-                )}
             />{/if}{/snippet}
         {#snippet footer(
           collapsed,
@@ -315,9 +307,7 @@
       />{/if}{/snippet}
   {#snippet peek()}{#if $view}<DocumentToolbar
         {...$view.peek}
-        only={phoneTabPanes[
-          phoneTabOf($geometry.pane) as keyof typeof phoneTabPanes
-        ] ?? undefined}
+        only={[...phonePanes(!!$view.header.room.book.dm), "view"]}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
@@ -457,11 +447,7 @@
             }}
             {current}
           />{/if}{/if}
-      {#if $geometry.mobile && $geometry.pane === "agents"}<PhoneRoomSection
-          part="people"
-          sidebar={$view.sidebar}
-        />{/if}
-      <!-- Desktop: People & agents beside the chat, like Discord's member list (the sidebar no longer has it). -->
+      <!-- People beside the chat (desktop), or in the doc sheet (phone), like Discord's member list (the sidebar no longer has it). -->
       {#if $geometry.pane === "people"}<div data-pane-people class="min-h-0">
           <PhoneRoomSection part="people" sidebar={$view.sidebar} members />
         </div>{/if}
