@@ -130,7 +130,7 @@
         inbox?.state ??
         readable<InboxSnapshot>({
           binding: null,
-          all: false,
+          all: true,
           data: { waits: [], mentions: [], tasks: [] },
           phase: "idle",
           error: null,

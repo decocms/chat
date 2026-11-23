@@ -1073,5 +1073,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The floating `+` is a 56px `brand` button at the bottom right, above the safe area.
 - Other options: Keep "Início ▾" with the room switcher as the title. Use "Conversas"/"Chats" as the title. Give `AppNavigation` a prop for the layout (the shell does not know if the home shows the list or the desk). Keep the small `+` in the bar.
 - Risk: low. Only the phone's home with at least one conversation changes. Your own DM ("Você") shows in the list only after you wrote in it, as before.
+### 2026-11-23 · feat/global-inbox-rail · The Inbox is one global button under the logo
+- Agent: claude-opus-5-5
+- Context: The human approved the artifact "Inbox global" (#3837) and asked for four slots on the rail: the logo and the Inbox (only when something waits), a line, DMs, a line, rooms, then search and +. The artifact also said that the Inbox loses "Esta sala / Todas as salas", and that the Home and room sidebars lose their Inbox items.
+- Decision:
+  - The rail shows an Inbox button under the logo, with the number of waits, only while something waits on you (or while the Inbox is open). It opens `/?inbox`.
+  - The Inbox always shows all rooms: the scope buttons and the dialog's tabs are gone, and the state starts with `all: true`.
+  - The Home sidebar hides its Inbox row on a computer (the rail button does the same). Phones keep it.
+  - The room sidebar keeps its Inbox item for now. It now opens the all-rooms Inbox, so its number and its list agree. Two browser tests open the in-room Inbox through it; a follow-up removes it together with those tests.
+  - The DM slot shows only when a DM has something new, as before.
+- Other options: Show the Inbox button always. Remove the room sidebar item in this change.
+- Risk: low. A person who used "Esta sala" now sees all rooms; each row says its room.
 - Undo: Revert this commit.
 - Status: open
