@@ -56,7 +56,6 @@
     onnew,
     onroomsettings,
     onsearch,
-    oninbox,
     onjoin,
     onanswer,
   }: HomeBridge = $props();
@@ -383,11 +382,11 @@
   <Onboarding owner={onboarding} {lang} {onlanguage} />
 {:else if mobile.current && !$account.me && !$account.error}
   <!-- A phone while your account loads: the list's bar, title on the left (Gimenes #3878). -->
-  <HomeSkeleton label={text("loading")} chats />
+  <HomeSkeleton label={text("loading")} title={text("chatsTitle")} chats />
 {:else if mobile.current && $account.me && chatList($account.me).length}
   <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
        Someone with no conversation yet gets the desk below, with its way in.
-       Like WhatsApp's chats screen: its own bar (the app's name, the inbox, you),
+       Like WhatsApp's chats screen: its own bar ("Conversas" / "Chats" and you; no inbox, Gimenes #4144),
        a search field, the list, and a floating + for a new room or message.
        The shell hides the app's phone bar and the DM list under this layout. -->
   <main
@@ -400,17 +399,8 @@
       class="sticky top-0 z-40 -mx-2 flex h-14 items-center gap-1 bg-background pr-3 pl-4"
     >
       <h1 class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">
-        deco.chat
+        {text("chatsTitle")}
       </h1>
-      {#if oninbox}<IconButton
-          label={text("inbox")}
-          tooltipSide="bottom"
-          size="icon"
-          class="size-10 rounded-full text-foreground"
-          onclick={(event) => {
-            if (event.currentTarget.isConnected) oninbox(event.currentTarget);
-          }}><Icon icon="inbox-01" class="size-5" /></IconButton
-        >{/if}
       <AccountRow me={$account.me} row={false} />
     </header>
     <div class="px-2 pt-1 pb-3">
@@ -512,7 +502,10 @@
             >{#if $account.loading}<Spinner size="xs" />{/if}{text(
               "retry",
             )}</Button
-          >{:else}<HomeSkeleton label={text("loading")} />{/if}
+          >{:else}<HomeSkeleton
+            label={text("loading")}
+            title={text("chatsTitle")}
+          />{/if}
       </section>
       {#if $account.me}{@const me = $account.me}
         <div

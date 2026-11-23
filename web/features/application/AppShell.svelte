@@ -358,6 +358,7 @@
           />{:else if $homeModuleView.phase !== "error"}<HomeSkeleton
             page
             label={services.language === "en" ? "Loading…" : "Carregando…"}
+            title={services.language === "en" ? "Chats" : "Conversas"}
           />{:else}<DeferredRouteStatus
             phase={$homeModuleView.phase}
             lang={services.language}

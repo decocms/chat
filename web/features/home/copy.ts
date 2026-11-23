@@ -1,5 +1,6 @@
 const pt = {
   inbox: "Caixa de entrada",
+  chatsTitle: "Conversas",
   home: "Suas salas",
   greeting: "Oi, {name}",
   rooms: "{n} salas",
@@ -183,6 +184,7 @@ const pt = {
 } as const;
 const en: Record<keyof typeof pt, string> = {
   inbox: "Inbox",
+  chatsTitle: "Chats",
   home: "Your rooms",
   greeting: "Hi, {name}",
   rooms: "{n} rooms",
