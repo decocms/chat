@@ -19,6 +19,10 @@ import type { RoomCommand } from "../shared/commands";
 class Refused {
   constructor(readonly error: string) {}
 }
+/** A send's random id from the client (crypto.randomUUID()), the same on each retry of that send. */
+const CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
+/** A send without a client_id (an old client) that repeats the author's last line this soon is a retry, not a new message. */
+const REPEAT_WINDOW_MS = 10_000;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
@@ -138,11 +142,13 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
     }
+    // One send = one message: a retry with the same client_id finds the first one (repeatOf).
+    this.sql.exec(`CREATE UNIQUE INDEX IF NOT EXISTS messages_client_id ON messages (author, client_id) WHERE client_id IS NOT NULL`);
     // A room copied from another account keeps its reminders but not its alarm (alarms don't travel with the data):
     // the growth room's 8h report never fired on 19 Nov 2026. Whenever the room wakes, put the alarm back.
     const due = this.sql.exec<{ t: number | null }>(`SELECT min(next_at) AS t FROM reminders WHERE coalesce(enabled, 1) = 1`).one().t;
@@ -765,14 +771,14 @@ export class Book extends DurableObject<Env> {
   }
 
   // ---- mutations (shared by humans over WS and by AI tools) ----
-  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean } = {}): Msg {
+  addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
     const replyTo = extra.replyTo && this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, extra.replyTo).toArray().length ? extra.replyTo : null;
     const ts = Date.now();
     const files = extra.files ?? [];
     const id = this.sql
       .exec(
-        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         thread,
         author,
         text,
@@ -786,9 +792,10 @@ export class Book extends DurableObject<Env> {
         extra.choices ? JSON.stringify(extra.choices) : null,
         extra.forWho ?? null,
         extra.card ? JSON.stringify(extra.card) : null,
+        extra.clientId ?? null,
       )
       .one().id as number;
-    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null };
+    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
     // quiet: @vibe's routine lines (archived/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
@@ -808,6 +815,44 @@ export class Book extends DurableObject<Env> {
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     return m;
+  }
+
+  /** The message a send already made, when this send is a retry (docs/architecture.md, "One send, one message").
+   *  With a client_id: the author's message with that id; the same payload returns it, another payload is refused
+   *  (a client bug, not a retry). Without one (`fallback`, an old client of a person or an agent): the same author,
+   *  kind, thread, text and reply, no files, in the last REPEAT_WINDOW_MS. `thread` undefined = not compared (an agent
+   *  post that lets the room pick the thread). Only person and agent sends ask; the room's own posts never do. */
+  repeatOf(author: string, kind: "agent" | null, p: { thread?: string; text: string; fileIds: string[]; replyTo?: number; card?: Card; choices?: { options: string[]; multi: boolean }; clientId?: string; fallback: boolean }): Msg | Refused | null {
+    const replyTo = p.replyTo && this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, p.replyTo).toArray().length ? p.replyTo : null;
+    const card = p.card ? JSON.stringify(p.card) : null, choices = p.choices ? JSON.stringify(p.choices) : null;
+    if (p.clientId) {
+      const row = this.sql.exec(`SELECT * FROM messages WHERE author = ? AND client_id = ?`, author, p.clientId).toArray()[0];
+      if (!row) return null;
+      const m = this.messageRows([row])[0];
+      const files = (m?.files ?? []).map((f) => f.id).sort().join(",");
+      const same = !!m && (m.kind ?? null) === kind && (p.thread === undefined || m.thread === p.thread) && m.text === p.text && (m.reply_to ?? null) === replyTo && files === p.fileIds.slice().sort().join(",") && (row.card ?? null) === card && (row.choices ?? null) === choices;
+      return same ? m : new Refused("idempotency conflict");
+    }
+    if (!p.fallback || p.fileIds.length || card || choices || p.thread === undefined) return null;
+    const row = this.sql
+      .exec(
+        `SELECT * FROM messages WHERE author = ? AND coalesce(kind, '') = ? AND thread = ? AND text = ? AND coalesce(reply_to, 0) = ? AND coalesce(files, '[]') = '[]' AND poll IS NULL AND card IS NULL AND choices IS NULL AND ts > ? ORDER BY id DESC LIMIT 1`,
+        author, kind ?? "", p.thread, p.text, replyTo ?? 0, Date.now() - REPEAT_WINDOW_MS,
+      )
+      .toArray()[0];
+    return row ? (this.messageRows([row])[0] ?? null) : null;
+  }
+  /** The file ids of the author's message with this client_id, or null: an agent's retried html post reuses its embed
+   *  instead of storing (and checking) the HTML again. */
+  clientFiles(bookId: string, author: string, clientId: string): string[] | null {
+    this.bind(bookId);
+    if (!CLIENT_ID.test(clientId)) return null;
+    const row = this.sql.exec(`SELECT * FROM messages WHERE author = ? AND client_id = ?`, author, clientId).toArray()[0];
+    return row ? (this.messageRows([row])[0]?.files ?? []).map((f) => f.id) : null;
+  }
+  /** An old client sent without a client_id: counted, so we see when they are gone. */
+  noClientId(email: string, via: "ws" | "http" | "mcp") {
+    this.ctx.waitUntil(track(this.env, "message_no_client_id", { user: email, dims: { book: this.get("book_id") ?? undefined, via } }));
   }
 
   /** A person wrote in this thread: what was asked of them earlier in it counts as answered (Gui, 13/11: the count
@@ -1507,13 +1552,21 @@ export class Book extends DurableObject<Env> {
   }
 
   // via: the agent's own model name ("Claude Opus 5.5"), shown as "Claude Opus 5.5 de Gui" in the app.
-  async agentPost(bookId: string, email: string, raw: string, thread = "main", fileIds: string[] = [], via = "", done = false, embed = false, replyTo?: number, choices?: { options: string[]; multi: boolean }, card?: Card, agent?: string) {
+  async agentPost(bookId: string, email: string, raw: string, thread = "main", fileIds: string[] = [], via = "", done = false, embed = false, replyTo?: number, choices?: { options: string[]; multi: boolean }, card?: Card, agent?: string, clientId?: string) {
     this.bind(bookId);
-    this.unblock(email);
+    if (clientId !== undefined && !CLIENT_ID.test(clientId)) return { ok: false, error: "invalid client_id: 8 to 64 characters, only A-Z a-z 0-9 _ -" };
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
     // embed: the file is HTML the agent posted inline (checked by checkEmbed); the app draws it inside the message.
     const files = (fileIds.length ? this.files().filter((f) => fileIds.includes(f.id)) : []).map((f) => (embed ? { ...f, embed: true } : f));
     if (!text && !files.length && !card) return { ok: false, error: "empty message" };
+    // A retried post (the same client_id) answers with the first one and does nothing again. The room may pick the
+    // thread (thread ""), so a retry without one matches any thread.
+    if (clientId) {
+      const repeat = this.repeatOf(email, "agent", { thread: thread || undefined, text, fileIds: files.map((f) => f.id), replyTo, card, choices, clientId, fallback: false });
+      if (repeat instanceof Refused) return { ok: false, error: `${repeat.error}: this client_id was already used for another message; use a new client_id for a new message` };
+      if (repeat) return { ok: true, id: repeat.id };
+    } else this.noClientId(email, "mcp");
+    this.unblock(email);
     // A hook's question (⏸ permission, ❓ AskUserQuestion) comes with no thread: it belongs where this Claude is
     // working now. Two signals, the newer wins: the newest request it acked and still works on (by when that request
     // was written, not by the ack a later post touched: a ⏸ for "publica" landed in another epic, Nov 2026), and the
@@ -1531,9 +1584,12 @@ export class Book extends DurableObject<Env> {
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
     const secret = findSecret([text, ...(choices?.options ?? []), card ? cardText(card) : ""].join("\n"));
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret}). Never post secrets in a room; send them through a secure channel.` };
+    // An old client's retry (no client_id): its post of the last seconds, not a second one.
+    const recent = clientId ? null : this.repeatOf(email, "agent", { thread, text, fileIds: files.map((f) => f.id), replyTo, card, choices, fallback: true });
+    if (recent && !(recent instanceof Refused)) return { ok: true, id: recent.id };
     if (this.agentStreak(thread) >= AGENT_STREAK_MAX)
       return { ok: false, paused: true, error: `room paused: ${AGENT_STREAK_MAX} messages in a row between agents with no human in the last 10 minutes. Wait for a person to write in the room, and tell your human.` };
-    const m = this.addMessage(thread, email, text, { kind: "agent", files, via: via.replace(/\s+/g, " ").trim().slice(0, 40) || undefined, tag: done ? "done" : undefined, replyTo, choices, card });
+    const m = this.addMessage(thread, email, text, { kind: "agent", files, via: via.replace(/\s+/g, " ").trim().slice(0, 40) || undefined, tag: done ? "done" : undefined, replyTo, choices, card, clientId });
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
     if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
@@ -1808,15 +1864,23 @@ export class Book extends DurableObject<Env> {
     const m = this.addMessage(thread, email, text.slice(0, 500), { card, quiet: true });
     return { ok: true as const, id: m.id };
   }
-  /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast. */
-  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false): Promise<PostMessageResponse> {
+  /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast.
+   *  `send`: a person's own send over HTTP (POST /api/books/:id/post), which a retry can repeat; the server's own
+   *  posts in their name (a DM's first message, a started room) leave it out and are never matched. */
+  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false, send?: { clientId?: string }): Promise<PostMessageResponse> {
     this.bind(bookId);
+    const clientId = send?.clientId;
+    if (clientId !== undefined && !CLIENT_ID.test(clientId)) return { ok: false, error: "invalid command" };
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
     if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) thread = "main";
     const secret = findSecret(text);
     if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
-    const m = this.addMessage(thread, email, text);
+    if (send && !clientId) this.noClientId(email, "http");
+    const repeat = send ? this.repeatOf(email, null, { thread, text, fileIds: [], clientId, fallback: true }) : null;
+    if (repeat instanceof Refused) return { ok: false, error: repeat.error };
+    if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
+    const m = this.addMessage(thread, email, text, { clientId });
     this.reopenIfArchived(thread);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
@@ -2181,13 +2245,21 @@ export class Book extends DurableObject<Env> {
         const thread = m.thread === "main" || this.epics().some((e) => e.id === m.thread) ? m.thread : null;
         const ids = Array.isArray(m.files) ? m.files.map(String).slice(0, MESSAGE_FILE_LIMIT) : [];
         const files = ids.length ? this.files().filter((f) => ids.includes(f.id)) : [];
+        if (m.client_id !== undefined && !CLIENT_ID.test(m.client_id)) return new Refused("invalid command");
         if ((!text && !files.length) || !thread) return new Refused(thread ? "empty message" : "unknown thread");
         const secret = findSecret(text);
         if (secret) {
           this.sendTo([ws], { t: "blocked", text, reason: secret });
           return new Refused(`blocked: ${secret}`);
         }
-        const sent = this.addMessage(thread, email, text, { files, replyTo: Number(m.reply_to) || undefined });
+        const replyTo = Number(m.reply_to) || undefined;
+        // A retry of a send that is already in the room: the same answer, and the message again for this tab only
+        // (its first push may be what got lost). Nothing after the insert runs twice.
+        if (!m.client_id) this.noClientId(email, "ws");
+        const repeat = this.repeatOf(email, null, { thread, text, fileIds: files.map((f) => f.id), replyTo, clientId: m.client_id, fallback: true });
+        if (repeat instanceof Refused) return repeat;
+        if (repeat) return this.sendTo([ws], { t: "msg", m: repeat });
+        const sent = this.addMessage(thread, email, text, { files, replyTo, clientId: m.client_id });
         // The file open beside the chat when they wrote (Gui #2408): "isso aqui" means that page, so their Claude
         // gets it with the message (read_room viewing).
         const viewing = typeof m.viewing === "string" && this.files().some((f) => f.id === m.viewing) ? m.viewing : null;

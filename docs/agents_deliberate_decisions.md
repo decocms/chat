@@ -1368,3 +1368,23 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The main chunk is larger.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · fix/idempotent-send · One send makes one message (client_id)
+- Agent: claude-opus-5-5
+- Context: People saw the same message two times. A send that became "not confirmed" was sent again, and the server stored it again. The human approved the design and a new column in `messages`.
+- Decision:
+  - The ID is random (`crypto.randomUUID()`), not a hash of the content. Two real sends of "ok" stay two messages.
+  - The scope is `(author, client_id)`, with a unique index. An agent and its person have the same author. A random ID does not collide.
+  - The ID stays for all time, because it is a column. There is no cleanup.
+  - The same ID with a different payload is refused (`idempotency conflict`). It is not a retry, it is a client bug. The payload also compares the card and the choices of an agent post, not only the thread, text, reply and files.
+  - A send without an ID (an old client) gets a 10-second fallback: the same author, kind, thread, text and reply, with no files, card or choices. Trade-off: a person or an agent of an old client that sends the same text two times in 10 seconds on purpose gets one message. The event `message_no_client_id` shows when the old clients are gone, then we can remove the fallback.
+  - The lookup is in `Book.repeatOf`. The three entry points (WebSocket `msg`, `humanPost` over HTTP, `agentPost`) call it before the insert, so that no side effect runs again. `addMessage` only stores the ID. The server's own posts do not call it.
+  - An agent post without a thread lets the room select the thread. A retry of it with the same ID matches in any thread.
+  - A retry of an MCP `post` with `html` and the same ID uses the embed file of the first message. It does not store or check the HTML again.
+  - On a WebSocket repeat, the server sends the message again to the tab that sent it only, because the first push can be what got lost.
+  - Polls (`poll.create`) are not included. A poll makes a poll row and a message, and its settle logic is separate. That is a different change.
+  - The CLI adds a `client_id` to each `post`. This needs a CLI release, which I did not do.
+- Other options: A content hash (merges real repeats). A time-limited table of IDs (more code, and a late retry makes a duplicate). Accept a conflict as a new message (hides a client bug).
+- Risk: low. The column is nullable and old clients keep working.
+- Undo: Revert this commit. The column and the index can stay.
+- Status: open

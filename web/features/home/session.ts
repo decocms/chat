@@ -105,6 +105,7 @@ export function createHomeSession(
             destination.book_id,
             text,
             destination.epic_id ?? "main",
+            crypto.randomUUID(),
           );
           if (!posted.ok) throw Error(posted.error);
           return {

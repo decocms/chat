@@ -410,7 +410,12 @@ export function createApplicationInbox(
       const body = text.trim();
       if (!owns(binding) || !body) return false;
       try {
-        await services.personal.api.post(item.book, body, item.thread);
+        await services.personal.api.post(
+          item.book,
+          body,
+          item.thread,
+          crypto.randomUUID(),
+        );
       } catch (error) {
         if (error instanceof HomeFailure && error.status === 401)
           services.actions.sessionLost();

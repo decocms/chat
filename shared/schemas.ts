@@ -5,6 +5,8 @@ import * as z from "zod/mini";
 export const PostMessageBody = z.object({
   text: z.string(),
   thread: z.optional(z.string()),
+  // The send's random id, the same on each retry: the server answers a retry with the first message (Book.repeatOf).
+  client_id: z.optional(z.string()),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 

@@ -218,6 +218,7 @@ export function createRoomAppTools(options: {
           thread: target,
           text,
           files: [],
+          client_id: crypto.randomUUID(),
         });
         return current() && result.ok
           ? toolOutput("posted")

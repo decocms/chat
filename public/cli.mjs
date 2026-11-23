@@ -2,7 +2,7 @@
 
 // cli/vibebook.ts
 import { execFileSync, execSync, spawn } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync as existsSync2, fstatSync, mkdirSync, openSync, readdirSync as readdirSync2, readFileSync, readSync, renameSync, rmSync, statSync as statSync2, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
@@ -540,6 +540,8 @@ async function callTool(name, args, agent, tools) {
   const model = flag("model") ?? process.env.VIBEBOOK_MODEL;
   if (props.includes("model") && args.model === undefined && model)
     args.model = model;
+  if (name === "post" && props.includes("client_id") && args.client_id === undefined)
+    args.client_id = randomUUID();
   const host = hostApp();
   if (host && typeof args.model === "string" && !args.model.toLowerCase().includes(host.toLowerCase()))
     args.model = `${host} · ${args.model}`.slice(0, 40);

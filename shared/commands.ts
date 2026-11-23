@@ -13,6 +13,9 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     files: z.optional(z.array(z.string())),
     reply_to: z.optional(z.nullable(num)),
     viewing: z.optional(z.string()), // the file open beside the chat (#2408)
+    // The send's random id (crypto.randomUUID()), the same on each retry of that send: the room answers a retry with
+    // the first message instead of a second one. The server checks its format (Book.repeatOf).
+    client_id: z.optional(z.string()),
   }),
   z.object({ t: z.literal("files.get") }),
   z.object({

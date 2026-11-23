@@ -46,6 +46,23 @@ Rules:
 - A DM, a mention or an ask from an agent in a room that you do not have open sends `{ t: "alert", book }` to your `Person` (`Book.notify`, with the web push). The open app plays the chime.
 - Every send to room sockets goes through `Book.sendTo`. It sends a JSON-RPC notification and counts bytes for each event type.
 - `Book.webSocketMessage` answers each JSON-RPC request with exactly one response. It does not answer a notification.
+
+### One send, one message
+
+A send can become "not confirmed" (a timeout, a dropped socket, a server error) after the `Book` stored it. A second send of it must not make a second message.
+
+- Each send of a person or an agent has a `client_id`: a random ID (`crypto.randomUUID()`), not a hash of the text. Two sends of "ok" are two messages. The client makes the ID one time for each send, and uses the same ID on each retry of that send.
+  - The WebSocket `msg` command, `POST /api/books/:id/post` and the MCP `post` tool accept `client_id`.
+  - The composer (`web/features/composer/drafts.ts`) uses the same ID again when the person sends an unconfirmed draft again without a change. A changed draft gets a new ID.
+  - The CLI adds an ID to a `post` that has none.
+- The `Book` keeps it in `messages.client_id`, with a unique index on `(author, client_id)`. The column is permanent, thus a retry matches at any time.
+- `Book.repeatOf` finds the earlier message before the insert:
+  - Same `client_id` and same payload (thread, text, reply, file IDs, card, choices): the server returns that message. It does not insert, broadcast or run the side effects again (answer intent, reopen, `track`, stats, alarm). Over the WebSocket, only the tab that sent it gets the message again.
+  - Same `client_id` and a different payload: the server refuses the send (`idempotency conflict`).
+  - A `client_id` that is not 8 to 64 characters of `A-Z a-z 0-9 _ -`: the server refuses it as an invalid command.
+- A send without a `client_id` (an old client) gets a narrow fallback. If the same author and kind sent the same text, thread and reply, with no files, card or choices, in the last 10 seconds, the server returns that message. Each such send also sends the `message_no_client_id` event. Thus, we can see when the old clients are gone.
+- The posts that the server makes (reminders, @vibe, notices, the first message of a DM) do not go through `repeatOf`.
+- The `msg` event carries `client_id` when the message has one. The composer settles its send by that ID first, and by its content only for a message without an ID.
 - DM presence (the dots in the DM list) goes from `Person` to `Person`. The browser sends no request for it. The rules are in `src/presence.ts`.
   - A person is online when their `Person` has one or more open `/ws-me` sockets (the `app` tag).
   - The first socket sends `online` to the `Person` of each DM contact (`POST /presence`). Contacts are the people of the DMs that have a message (`dmContacts`, one D1 read).

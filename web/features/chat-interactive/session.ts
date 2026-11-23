@@ -189,6 +189,8 @@ export function createInteractiveSession(
           text: value,
           files: [],
           reply_to: messageId,
+          // One click = one answer: the room returns the first one if this send repeats.
+          client_id: crypto.randomUUID(),
         },
         { token: Symbol(), kind: "reply" },
         request,

@@ -251,15 +251,38 @@ export type MessageSnapshot = {
   replyId?: number;
   baseline: number;
   revision: number;
+  /** The send's random id (msg client_id): the same on a resend of the same draft. */
+  clientId?: string;
 };
+/** The same message: text, reply and files (a resend of it keeps its client_id). */
+export const samePayload = (
+  a: Pick<MessageSnapshot, "text" | "fileIds" | "replyId">,
+  b: Pick<MessageSnapshot, "text" | "fileIds" | "replyId">,
+) =>
+  a.text === b.text &&
+  a.replyId === b.replyId &&
+  a.fileIds.slice().sort().join(",") === b.fileIds.slice().sort().join(",");
+/** The room's copy of a send: by its client_id first (it holds even when the room answered a resend with the first
+ *  message, older than the baseline); else, for a message without one (an older server), by its content. */
 export function matchingMessage(
   room: Room,
   thread: string,
   snapshot: MessageSnapshot,
 ): Message | undefined {
+  const byId = snapshot.clientId
+    ? room.messages.find(
+        (message) =>
+          message.client_id === snapshot.clientId &&
+          message.author === room.me &&
+          message.kind !== "agent" &&
+          message.thread === thread,
+      )
+    : undefined;
+  if (byId) return byId;
   const files = snapshot.fileIds.slice().sort().join(",");
   return room.messages.find(
     (message) =>
+      !message.client_id &&
       message.id > snapshot.baseline &&
       message.author === room.me &&
       message.kind !== "agent" &&

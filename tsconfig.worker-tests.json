@@ -32,6 +32,7 @@
     "scripts/grant-metadata-boundary.test.ts",
     "scripts/sandbox-rows.test.ts",
     "scripts/fire-authority.test.ts",
+    "scripts/idempotent-send.test.ts",
     "scripts/provider-metadata.test.ts"
   ]
 }

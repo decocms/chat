@@ -437,6 +437,11 @@ const TOOLS = [
           description:
             "your model's name as you know it, e.g. \"Claude Opus 5.5\"; shown next to your human's name",
         },
+        client_id: {
+          type: "string",
+          description:
+            "optional: a new random id for this message (a UUID; 8-64 characters of A-Z a-z 0-9 _ -). When a post fails or you are not sure it went out, retry it with the SAME client_id: the room returns the first message instead of posting it twice. A new message needs a new client_id.",
+        },
       },
       required: ["room_id"],
     },
@@ -1992,7 +1997,11 @@ async function call(
           track(env, "terminal_ask", { user: me.email, dims: { book: id } }),
         );
       let fileIds: string[] = [];
-      if (a.html) {
+      const clientId = typeof a.client_id === "string" ? a.client_id : undefined;
+      // A retry of an html post that is already in the room keeps its embed: no second file, no second check.
+      const earlier = a.html && clientId ? await bookStub(env, id).clientFiles(id, me.email, clientId) : null;
+      if (earlier) fileIds = earlier;
+      else if (a.html) {
         const html = str(a.html);
         await checkEmbed(env, html, me.email);
         const meta = await storeFile(
@@ -2026,6 +2035,7 @@ async function call(
         choicesOf(a),
         a.card === undefined ? undefined : cardOf(a.card, id),
         me.agent,
+        clientId,
       );
       if (posted.ok && isLaunchCard(a.card)) ctx.waitUntil(bumpStat(db, me.email, "deploys"));
       // Your own post shouldn't wake you up: if you were caught up, stay caught up.

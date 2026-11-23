@@ -124,6 +124,8 @@ export const MessageSchema = z.object({
   cut: opt(bool),
   answers_ask: opt(bool),
   for_who: maybe(str),
+  // The sender's random id for this send (commands.ts msg): a tab settles its pending send by it. Absent = none.
+  client_id: maybe(str),
   files: opt(z.array(AttachmentSchema)),
   // Emoji reactions (Gui #2724): emoji → who reacted (emails; "<email>#agent" = that person's Claude). Absent = none.
   reactions: opt(z.record(str, z.array(str))),

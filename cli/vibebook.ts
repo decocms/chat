@@ -3,7 +3,7 @@
 // and `listen` for the room linked to this folder. Agents call it through Bash; the token never reaches them.
 // Built into public/cli.mjs (bun run build:cli); on npm as vibebook.dev (npm i -g vibebook.dev), or installed by https://chat.decocms.com/install.sh.
 import { execFileSync, execSync, spawn } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, hostname, tmpdir } from "node:os";
@@ -441,6 +441,9 @@ async function callTool(name: string, args: Record<string, unknown>, agent: stri
   if (props.includes("repo") && args.repo === undefined) args.repo = basename(root);
   const model = flag("model") ?? process.env.VIBEBOOK_MODEL;
   if (props.includes("model") && args.model === undefined && model) args.model = model;
+  // One post = one message (docs/architecture.md): a post without a client_id gets one here, so the plugin's hooks
+  // (which post through this CLI) send one too. An agent that retries a post passes its own, the same each time.
+  if (name === "post" && props.includes("client_id") && args.client_id === undefined) args.client_id = randomUUID();
   // Inside an agent app other than a terminal (Antigravity runs Gemini through this CLI), the room shows the app too:
   // "Antigravity · Gemini 3.8 Flash" instead of a bare model name that read as another product.
   const host = hostApp();

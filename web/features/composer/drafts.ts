@@ -18,6 +18,7 @@ import {
   matchingMessage,
   maxMessageId,
   normalizeFile,
+  samePayload,
   type MessageSnapshot,
   type PendingAttachment,
 } from "./model";
@@ -223,6 +224,9 @@ export function createComposerDrafts(clock = defaultClock) {
       focusToken: symbol | undefined;
     let operation: MessageOperation | undefined,
       pollOperation: PollOperation | undefined;
+    // The last send not known to be in the room: sending the same draft again reuses its client_id, so the room
+    // answers with that message if it got there (docs/architecture.md, "One send, one message").
+    let lastSend: MessageSnapshot | undefined;
     const uploadOwners = new Map<number, AbortController>();
     const valid = () =>
       storageAvailable &&
@@ -250,6 +254,7 @@ export function createComposerDrafts(clock = defaultClock) {
       if (!op.ack || !candidate) return;
       cancel(op);
       operation = undefined;
+      lastSend = undefined;
       state.update((s) =>
         s.revision === op.snapshot.revision || sameDraft(s, op.snapshot)
           ? {
@@ -549,18 +554,22 @@ export function createComposerDrafts(clock = defaultClock) {
           state.update((s) => ({ ...s, error: "reply-missing" }));
           return;
         }
+        const payload = { text, fileIds, replyId: reply?.id };
         const op: MessageOperation = {
           token: Symbol(),
           snapshot: {
-            text,
-            fileIds,
-            replyId: reply?.id,
+            ...payload,
             baseline: maxMessageId(room!),
             revision: draft.revision,
+            clientId:
+              lastSend?.clientId && samePayload(lastSend, payload)
+                ? lastSend.clientId
+                : crypto.randomUUID(),
           },
           ack: false,
         };
         operation = op;
+        lastSend = op.snapshot;
         state.update((s) => ({
           ...s,
           phase: "pending",
@@ -575,11 +584,13 @@ export function createComposerDrafts(clock = defaultClock) {
             text,
             files: fileIds,
             reply_to: reply?.id,
+            client_id: op.snapshot.clientId,
           });
           if (!ownMessage(op)) return;
           if (!result.ok) {
             if (definiteMessageFailure(result.error)) {
               operation = undefined;
+              lastSend = undefined;
               state.update((s) => ({
                 ...s,
                 phase: "error",
@@ -602,6 +613,7 @@ export function createComposerDrafts(clock = defaultClock) {
             error.message === "Invalid room command"
           ) {
             operation = undefined;
+            lastSend = undefined;
             state.update((s) => ({
               ...s,
               phase: "error",
@@ -616,6 +628,8 @@ export function createComposerDrafts(clock = defaultClock) {
         const snapshot = operation.snapshot;
         cancel(operation);
         operation = undefined;
+        // Discarded: typing the same text later is a new message.
+        if (!keep) lastSend = undefined;
         state.update((s) =>
           !keep && s.revision === snapshot.revision
             ? {
@@ -734,6 +748,7 @@ export function createComposerDrafts(clock = defaultClock) {
         cancel(pollOperation);
         operation = undefined;
         pollOperation = undefined;
+        lastSend = undefined;
         for (const controller of uploadOwners.values()) controller.abort();
         uploadOwners.clear();
         focus = undefined;
