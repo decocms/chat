@@ -3622,7 +3622,7 @@ describe("stable sidebar integration", () => {
     );
     rendered.destroy();
   });
-  test("epic tree changes cue follows the reader’s canonical post-deploy message and clears for archived epics", async () => {
+  test("epic tree shows no deploy icon: an epic in production is Feito", () => {
     const room = fixture();
     room.epics = [
       {
@@ -3637,20 +3637,14 @@ describe("stable sidebar integration", () => {
     ];
     const h = sidebar(room);
     flushSync();
-    const row = () => h.target.querySelector('[data-epic-thread="e"]');
-    const cue = () => row()?.querySelector("[data-epic-prod]");
-    expect(cue()?.getAttribute("data-epic-prod")).toBe("changes");
-    expect(cue()?.getAttribute("aria-label")).toBe(
-      "Uma versão está no ar; você pediu correções depois",
-    );
-    h.view.update({
-      ...h.props,
-      room: { ...room, epics: [{ ...room.epics[0]!, archived: true }] },
-    });
-    await tick();
-    flushSync();
-    expect(cue()?.getAttribute("data-epic-prod")).toBe("verified");
-    expect(cue()?.getAttribute("aria-label")).toBe("Verificado em prod");
+    const row = h.target.querySelector('[data-epic-thread="e"]');
+    expect(row).not.toBe(null);
+    expect(row?.querySelector("[data-epic-prod]")).toBe(null);
+    expect(
+      row
+        ?.querySelector("[data-epic-status-icon]")
+        ?.getAttribute("data-epic-status-icon"),
+    ).toBe("done");
   });
   test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
