@@ -44,11 +44,14 @@ export function mentionWho(tag: string, people: MentionPeople): string | null {
   return null;
 }
 
-/** What a picked mention inserts: the person's @handle, else the shortest tag that reaches only them. */
+/** What a picked mention inserts: the person's @handle, else their first name, else the email's local part or its
+ *  first token, the first of these that reaches only them. */
 export function mentionHandle(email: string, people: MentionPeople): string {
   const candidates = [
     people.handles?.[email] ?? "",
-    ...TIERS.slice(1).flatMap((tier) => tier(email, people)),
+    (people.names?.[email] ?? "").split(/\s+/)[0] ?? "",
+    local(email),
+    local(email).split(/[._+-]/)[0] ?? "",
   ]
     .map(foldHandle)
     .filter(Boolean);

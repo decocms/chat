@@ -21,7 +21,8 @@ const pt = {
   private: "Só quem divide uma sala com você vê este perfil.",
   publicOn: "Perfil público",
   handle: "Seu @",
-  handleHelp: "É como te chamam numa mensagem. Seu nome pode repetir; o @ é só seu.",
+  handleHelp:
+    "É como te chamam numa mensagem. Seu nome pode repetir; o @ é só seu.",
   handleTaken: "Alguém já usa esse @.",
   handleInvalid: "Use 2 a 24 letras, números, ponto, _ ou -.",
   handleSave: "Salvar",
@@ -52,7 +53,8 @@ const en: Record<keyof typeof pt, string> = {
   private: "Only people who share a room with you see this profile.",
   publicOn: "Public profile",
   handle: "Your @",
-  handleHelp: "How people call you in a message. Your name can repeat; your @ is yours alone.",
+  handleHelp:
+    "How people call you in a message. Your name can repeat; your @ is yours alone.",
   handleTaken: "Someone already uses that @.",
   handleInvalid: "Use 2 to 24 letters, numbers, dot, _ or -.",
   handleSave: "Save",
