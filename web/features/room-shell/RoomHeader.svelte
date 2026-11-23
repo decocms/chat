@@ -98,11 +98,9 @@
   );
   // A tab brings the chat back, then opens that pane, or closes it when it's
   // the one already open (this replaced the pane toggle button).
-  /** Closing the doc falls back to People & agents (a DM has no People): only then does the pane close. */
+  /** The open pane's tab is a toggle: a second click closes the pane, the Doc too (Gimenes #3900). */
   function closePane() {
-    if (layout.read().pane === "doc" && !header.room.book.dm)
-      onPane?.("people");
-    else layout.toggleDocument();
+    layout.toggleDocument();
   }
   function pickPane(pane: DocumentPane) {
     if (!current()) return;
