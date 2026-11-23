@@ -532,7 +532,6 @@
                 <WaitBadge
                   waits={vb.waitsIn(epic.id)}
                   label={(n) => vb.t("{n} coisas esperando você", { n })}
-                  taskLabel={vb.t("Tarefa sua pendente")}
                 />
                 {#if epic.prod}{@const changes =
                     production.get(epic.id) === "changes"}<span

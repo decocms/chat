@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Count from "../../lib/components/Count.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
@@ -7,7 +8,9 @@
   import { targetHref, type DmEntry, type RoomTarget } from "../home/model";
   /**
    * A DM with something new, under Home in the rail (like Discord): the
-   * person's picture with a red count at its corner. A click opens the DM.
+   * person's picture with the new messages as the one number at its top
+   * right, the same Count as a room's waits (a DM message is addressed to
+   * you). A click opens the DM.
    */
   let {
     entry,
@@ -49,11 +52,8 @@
           }}
         >
           <PersonAvatar size="md" email={entry.email} version={entry.version} />
-          <span
-            aria-hidden="true"
-            data-rail-dm-count
-            class="absolute -right-1 -bottom-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-none font-semibold tabular-nums text-destructive-foreground ring-[3px] ring-sidebar"
-            >{count > 99 ? "99+" : count}</span
+          <span data-rail-dm-count class="absolute -top-1.5 -right-1.5 flex"
+            ><Count value={count} {label} class="ring-2 ring-sidebar" /></span
           >
         </a>
       {/snippet}

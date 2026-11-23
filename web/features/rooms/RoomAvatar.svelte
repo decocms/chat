@@ -4,16 +4,19 @@
   import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import Avatar from "../../lib/studio/Avatar.svelte";
   import type { AvatarSize } from "../../lib/studio/avatar";
-  import Icon from "../../lib/studio/Icon.svelte";
   import { cn } from "../../lib/studio/utils";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import type { WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   /**
-   * A room's avatar: its icon (or the marble its title draws) and the state
-   * badges around it. Controlled: every state comes in as a prop, so the rail,
-   * the phone strip and the home grid draw the same thing from the same data.
-   * `surface` is the colour behind it, which the badges ring themselves with.
+   * A room's avatar: its icon (or the marble its title draws) and three signals
+   * around it, each with one meaning and one place. Top right, the only number:
+   * what waits on you (WaitBadge). Left edge, a dot without a number: new
+   * messages (strong when a person wrote, muted when only agents did). Bottom
+   * left, the ✻: an agent works here. Controlled: every state comes in as a
+   * prop, so the rail, the phone list and the home grid draw the same thing
+   * from the same data. `surface` is the colour behind it, which the badges
+   * ring themselves with.
    */
   let {
     title,
@@ -22,9 +25,7 @@
     size = "md",
     surface = "sidebar",
     unread = null,
-    count = 0,
     busy = false,
-    cloud = false,
     waits = [],
     person = null,
     presence = null,
@@ -36,14 +37,10 @@
     lang: HomeLanguage;
     size?: AvatarSize;
     surface?: "sidebar" | "background";
-    /** Who wrote since you last looked: a person or only agents. */
+    /** Who wrote since you last looked: a person or only agents. The rail passes null: its RailPill draws it. */
     unread?: "human" | "agent" | null;
-    /** How many messages are new (with unread "human"): drawn in the red badge, like an unread DM's. */
-    count?: number;
-    /** A Claude is working in the room. */
+    /** An agent is working in the room. */
     busy?: boolean;
-    /** A cloud sandbox is running for the room. */
-    cloud?: boolean;
     waits?: readonly WaitReference[];
     /** A DM: the other person (you in "Você") drawn as PersonAvatar, not a room's tile. */
     person?: { email: string; version?: number | null } | null;
@@ -81,24 +78,14 @@
     />{:else}<span data-room-cover="marble" class="contents"
       ><OrgAvatar name={title} {size} /></span
     >{/if}
-  <!-- Something new: red, like an unread DM in the rail. People wrote: the count (when known). Only agents wrote: a
-       small red dot, no number. Lime stays for what waits on you (the WaitBadge). -->
-  {#if unread === "human"}<span
+  <!-- New messages: a dot without a number on the left edge, where the rail draws its RailPill. -->
+  {#if unread}<span
       role="img"
-      aria-label={text("newHuman")}
-      data-room-badge="unread-human"
+      aria-label={text(unread === "human" ? "newHuman" : "newAgent")}
+      data-room-badge={`unread-${unread}`}
       class={cn(
-        "absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full bg-destructive font-semibold leading-none tabular-nums text-destructive-foreground ring-2",
-        count > 0 ? "h-4 min-w-4 px-1 text-[10px]" : "size-2.5",
-        ring,
-      )}
-      >{#if count > 0}{count > 99 ? "99+" : count}{/if}</span
-    >{:else if unread === "agent"}<span
-      role="img"
-      aria-label={text("newAgent")}
-      data-room-badge="unread-agent"
-      class={cn(
-        "absolute -top-1 -right-1 size-2.5 rounded-full bg-destructive ring-2",
+        "absolute top-1/2 -left-1.5 size-2 -translate-y-1/2 rounded-full ring-2",
+        unread === "human" ? "bg-foreground" : "bg-muted-foreground",
         ring,
       )}
     ></span>{/if}
@@ -111,15 +98,6 @@
         fill,
       )}>✻</span
     >{/if}
-  {#if cloud}<span
-      role="img"
-      aria-label={text("cloud")}
-      data-room-badge="cloud"
-      class={cn(
-        "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full text-warning",
-        fill,
-      )}><Icon icon="cloud-01" size={10} /></span
-    >{/if}
   {#if presence}<PresenceDot
       online={presence.online}
       label={presence.label}
@@ -130,7 +108,6 @@
     {surface}
     {waits}
     label={(n) => text("waiting", { n })}
-    taskLabel={text("taskPending")}
-    class="absolute -right-1.5 -bottom-1.5"
+    class="absolute -top-1.5 -right-1.5"
   />
 </span>

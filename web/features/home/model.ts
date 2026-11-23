@@ -5,7 +5,7 @@ import type {
   SearchResult,
 } from "../../../shared/schemas";
 import { appRouteHash, type AppRouteTarget } from "../apps/model";
-import { waitIndicator, type WaitReference } from "../waits/model";
+import { waitCount, type WaitReference } from "../waits/model";
 import { homeText, type HomeLanguage } from "./copy";
 export type RoomSummary = MeResult["books"][number];
 export type Wait = MeResult["waits"][number];
@@ -175,9 +175,10 @@ export function waitsByRoom<W extends { book_id: string }>(
   return map;
 }
 /**
- * A room's state in words, most pressing first: what waits on you, who wrote
- * since you looked, a Claude working, a cloud sandbox running. The rail's
- * tooltip lists them all; a DM row shows the first.
+ * A room's state in words, in the order of the avatar's three signals: what
+ * waits on you (the number), who wrote since you looked (the dot), an agent
+ * working (the ✻); then a cloud sandbox running, which has no mark on the
+ * avatar. The rail's tooltip lists them all; a DM row shows the first.
  */
 export function roomStatus(
   room: RoomSummary,
@@ -187,13 +188,9 @@ export function roomStatus(
   lang: HomeLanguage,
 ) {
   const news = unread(room, seen),
-    waiting = waitIndicator(waits);
+    waiting = waitCount(waits);
   return [
-    waiting.asks
-      ? homeText(lang, "waiting", { n: waiting.asks })
-      : waiting.tasks
-        ? homeText(lang, "taskPending")
-        : "",
+    waiting ? homeText(lang, "waiting", { n: waiting }) : "",
     news ? homeText(lang, news === "human" ? "newHuman" : "newAgent") : "",
     (room.busy_until ?? 0) > now ? homeText(lang, "busy") : "",
     room.sandboxes_running ? homeText(lang, "cloud") : "",

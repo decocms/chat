@@ -193,7 +193,6 @@
           solid
           waits={vb.waitsIn(epic.id)}
           label={(n) => vb.t("{n} coisas esperando você", { n })}
-          taskLabel={vb.t("Tarefa sua pendente")}
           class="absolute -top-1 -right-1"
         /></Button
       >
@@ -319,7 +318,6 @@
             <WaitBadge
               waits={vb.waitsIn("main")}
               label={(n) => vb.t("{n} coisas esperando você", { n })}
-              taskLabel={vb.t("Tarefa sua pendente")}
             />
             <span
               class="shrink-0 text-xs font-normal tabular-nums text-muted-foreground"

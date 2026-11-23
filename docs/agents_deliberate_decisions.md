@@ -1105,3 +1105,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Rename and delete have no button now. The commands `epic.rename` and `epic.del` and the agent tools stay.
 - Undo: Revert this commit. The `status` column stays and the old code ignores it.
 - Status: open
+
+### 2026-11-23 · feat/room-signals-three · A room avatar shows three signals
+
+- Agent: claude-opus-5-5
+- Context: The product owner approved three signals on a room avatar: "waits on you" (the only number), "new messages" (a dot without a number) and "agent working" (the ✻). The proposal left three questions open, and some details were not given.
+- Decision:
+  - The number stays lime (`Count`, `bg-brand`). `Count` does not change in the app. A question from your own Claude is no longer red: the number has one colour.
+  - The number counts all waits of the room: asks, AI-guessed asks without an @, questions and permissions of your Claude, and your tasks in review. The separate review dot is gone. `waitCount` replaces `waitIndicator`.
+  - The number also changes in the room sidebar and the epic list, because they use the same `WaitBadge`. Thus one number has one meaning on all surfaces.
+  - The ✻ shows when any agent of the room works, as before.
+  - In the rail, the new-messages dot is a `RailPill` state (`human` strong, `agent` muted) at the place of the selected bar. On the other surfaces (phone list, sidebar rows, home grid, switcher), `RoomAvatar` draws the dot on the left edge of the avatar.
+  - A DM in the rail keeps its number of new messages, at the top right, with `Count`. A DM row in the phone list uses the dot, as a room does.
+  - The cloud mark is gone from the avatar. The tooltip keeps "sandbox na nuvem rodando" as its last line. The tooltip lines follow the order of the signals.
+  - I did not add the "why a wait exists" field (for a Mentions filter in the Inbox). It needs a new column in the D1 `waits` table, and a human must approve a schema change.
+- Other options: Make the number red, as in Discord and Slack (this changes `Count` in all the app). Count only asks with an @. Show the ✻ only for your own Claude. Draw the rail dot on the avatar edge.
+- Risk: low. A person who looked for the red number of new messages now sees a dot. The number is higher when tasks wait in review.
+- Undo: Revert this commit.
+- Status: open

@@ -15,7 +15,7 @@
   } from "../home/model";
   import RailPill from "./RailPill.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
-  /** One room in the rail: its icon or marbled tile, the bar when current, and what waits there. */
+  /** One room in the rail: its icon or marbled tile, the edge mark (the bar when current, a dot when new), and what waits there. */
   let {
     room,
     lang,
@@ -51,17 +51,9 @@
     ondragleave?: (event: DragEvent) => void;
     ondrop?: (event: DragEvent) => void;
   } = $props();
+  // New messages are the rail's edge mark (like Discord), not a number: the open room shows its bar instead.
   const news = $derived(unread(room, seen));
-  // About how many are new (message ids are per room): the red badge's number, like an unread DM's.
-  const fresh = $derived(
-    news === "human"
-      ? Math.max(
-          1,
-          Math.max(room.last_human_id, room.last_agent_id) -
-            Math.max(room.read_id, seen),
-        )
-      : 0,
-  );
+  const pill = $derived(selected ? "selected" : (news ?? "idle"));
   const title = $derived(room.title ?? "deco.chat");
   const busy = $derived((room.busy_until ?? 0) > now);
   const details = $derived(roomStatus(room, seen, waits, now, lang));
@@ -124,17 +116,8 @@
             onnavigate({ roomId: room.id });
           }}
         >
-          <RailPill state={selected ? "selected" : "idle"} />
-          <RoomAvatar
-            {title}
-            {icon}
-            {lang}
-            unread={selected ? null : news}
-            count={fresh}
-            {busy}
-            cloud={!!room.sandboxes_running}
-            {waits}
-          />
+          <RailPill state={pill} />
+          <RoomAvatar {title} {icon} {lang} {busy} {waits} />
         </a>
       {/snippet}
     </TooltipTrigger>
