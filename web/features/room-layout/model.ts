@@ -61,6 +61,20 @@ export function preferredDocumentWidth(
     return DOCUMENT_DEFAULT;
   }
 }
+/** Whether you closed the side pane last time (per browser): a room opens it
+ * as you left it. Read by the room (controller.ts) and by its loading state
+ * (RoomSkeleton via preview.ts), so the skeleton draws the pane open or
+ * closed as the room will open (Gimenes #3938). Change both through here. */
+export const DOCUMENT_CLOSED_KEY = "vb.docClosed";
+export function documentClosedBefore(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+) {
+  try {
+    return storage?.getItem(DOCUMENT_CLOSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 export function sheetProgress(
   initial: 0 | 1,
   start: number,

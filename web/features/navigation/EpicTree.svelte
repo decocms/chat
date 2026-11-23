@@ -18,6 +18,7 @@
   import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitCount, type WaitReference } from "../waits/model";
   import Progress from "../../lib/studio/Progress.svelte";
+  import { EPIC_PROGRESS } from "../room-shell/shape";
   import {
     archivedEpics,
     activeEpics,
@@ -530,7 +531,7 @@
                       epic.tasks.filter((task) => task.done).length) /
                       epic.tasks.length}
                     tone="success"
-                    class="pointer-events-none absolute right-2 bottom-0.5 left-9 h-0.5 w-auto bg-foreground/10"
+                    class={EPIC_PROGRESS}
                   />{/if}
               </Button>
             </div>

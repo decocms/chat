@@ -81,6 +81,7 @@ A list of items to act on (the Inbox) follows these rules.
 ## Feedback
 
 1. While a list loads for the first time, show `Skeleton` rows with the shape of the real rows. Do not show only the word "Carregando…".
+   - A loading view takes its shapes from the same place as the real view: `composer/shape.ts` for the composer, `room-shell/shape.ts` for messages and epic rows. A loading room opens its pane as the room will (`documentClosedBefore` in `room-layout/model.ts`). If you change a shape, change it there.
 2. While an action runs, show a `Spinner` in its button and disable the button.
 3. When an item leaves a list, animate it out (`slide`, about 200 ms). Do not let it disappear in one frame.
 4. If the person set `prefers-reduced-motion`, set the duration of each animation to 0.

@@ -1,6 +1,7 @@
 import { rememberPane, restingPane } from "./restingPane";
 import { writable } from "svelte/store";
 import { createRoomLayoutBrowser } from "./browser";
+import { DOCUMENT_CLOSED_KEY, documentClosedBefore } from "./model";
 import { createRoomSheetHistory } from "./history";
 import { createRoomGeometry, type RoomGeometry } from "./geometry";
 import type {
@@ -69,15 +70,7 @@ export function createRoomLayoutIntents(options: {
   };
 }
 
-/** Whether you closed the side pane last time (per browser): opening a room keeps it closed until you open it. */
-const DOCUMENT_CLOSED_KEY = "vb.docClosed";
-function documentClosedBefore(browser: RoomLayoutBrowser) {
-  try {
-    return browser.storage?.getItem(DOCUMENT_CLOSED_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
+/** Remembers the pane open or closed (model.ts: documentClosedBefore reads it back, for the room and its loading state). */
 function rememberDocument(browser: RoomLayoutBrowser, visible: boolean) {
   try {
     browser.storage?.setItem(DOCUMENT_CLOSED_KEY, visible ? "0" : "1");
@@ -100,7 +93,8 @@ export function createRoomLayout(
     sheet: null,
     boardFull: false,
     // Desktop: the pane opens as you last left it (closed stays closed when you come back). A DM starts closed.
-    documentVisible: !options.documentHidden && !documentClosedBefore(browser),
+    documentVisible:
+      !options.documentHidden && !documentClosedBefore(browser.storage),
     sidebarCollapsed: options.sidebarCollapsed ?? false,
     mobile: false,
     closingUnconfirmed: false,
@@ -235,7 +229,7 @@ export function createRoomLayout(
         if (
           value.mobile ||
           value.documentVisible ||
-          documentClosedBefore(browser)
+          documentClosedBefore(browser.storage)
         )
           return;
         publish({ documentVisible: true });
