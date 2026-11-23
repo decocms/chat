@@ -944,3 +944,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the phone's home changes.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/composer-mic-send-swap · The mic and send share one button, and dictation is a recording bar
+- Agent: claude-opus-5-5
+- Context: The human asked that the composer show the mic while the box is empty and the send button once it has text, on phones and on a computer, and that dictation work like WhatsApp. They confirmed on an artifact that stop only stops (the text stays for review). They did not say how to start a dictation when the box already has text.
+- Decision:
+  - The mic and send share one cell at every width: the mic while the box is empty, send when there is something to send, stop (the red mic with a square) while you dictate. Before, a computer showed send beside the mic.
+  - While you dictate, the + and the emoji hide. A trash takes the + place, and a red dot with the time comes before the text, which fills in live. The red ring around the field is gone. The trash puts the text back as it was before the dictation. Stop keeps the text, and send comes back.
+  - With text in the box, the mic is not there (as in WhatsApp). To add dictation to text, hold Space in the box, as before.
+- Other options: Keep the mic visible beside send on a computer. Hide the text during dictation and show only a wave. Make stop send.
+- Risk: low. A person who dictated after typing on a computer now holds Space for that. The button keeps its "Ditar mensagem" name for tests and screen readers; its tooltip says "Parar de ditar" while you dictate.
+- Undo: Revert this commit.
+- Status: open
