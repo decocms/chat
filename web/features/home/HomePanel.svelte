@@ -381,6 +381,9 @@
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
 {#if $onboardingView.visible}
   <Onboarding owner={onboarding} {lang} {onlanguage} />
+{:else if mobile.current && !$account.me && !$account.error}
+  <!-- A phone while your account loads: the list's bar, title on the left (Gimenes #3878). -->
+  <HomeSkeleton label={text("loading")} chats />
 {:else if mobile.current && $account.me && chatList($account.me).length}
   <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
        Someone with no conversation yet gets the desk below, with its way in.
