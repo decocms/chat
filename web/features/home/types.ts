@@ -21,4 +21,8 @@ export type HomeBridge = {
   onroomsettings: (roomId: string, trigger?: HTMLElement) => void;
   onsearch: () => void;
   oninbox?: (trigger?: HTMLElement) => void;
+  /** Answers a room invite: the phone's home shows invites over its list. */
+  onjoin?: (room: string, yes: boolean) => Promise<void>;
+  /** Answers a message request: the phone's home shows them over its list. */
+  onanswer?: (email: string, accept: boolean) => Promise<void>;
 };
