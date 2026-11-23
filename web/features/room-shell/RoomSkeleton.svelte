@@ -1,6 +1,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import {
+    COMPOSER_BOX,
+    COMPOSER_FRAME,
+    COMPOSER_ROW,
+    COMPOSER_SLOT,
+  } from "../composer/shape";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import RoomMark from "../room-sidebar/RoomMark.svelte";
@@ -270,12 +276,21 @@
         aria-hidden="true"
         class="shrink-0 max-md:pb-[env(safe-area-inset-bottom)]"
       >
-        <div class="px-3 pt-1 pb-3 md:pb-2 md:px-4">
-          <div
-            class="mb-2 flex h-14 items-center gap-2 rounded-2xl bg-[var(--vb-studio-input-background)] pr-3 pl-4 text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--vb-foreground)_13%,transparent),0_4px_16px_0_#0000000d]"
-          >
-            <span class="min-w-0 flex-1 truncate">{t("Mensagem…")}</span>
-            <Skeleton class="h-8 w-16 rounded-full" />
+        <!-- The composer's own shape (composer/shape.ts), so nothing moves when it loads. -->
+        <div class={["max-md:contents", COMPOSER_SLOT]}>
+          <div class={COMPOSER_FRAME}>
+            <div
+              class={[
+                "flex items-center gap-2 text-muted-foreground",
+                COMPOSER_BOX,
+                COMPOSER_ROW,
+              ]}
+            >
+              <span class="min-w-0 flex-1 truncate pl-2.5"
+                >{t("Mensagem…")}</span
+              >
+              <Skeleton class="h-8 w-16 rounded-full" />
+            </div>
           </div>
         </div>
       </div>

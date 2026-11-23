@@ -1186,3 +1186,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · fix/composer-skeleton · The composer and its loading state share one shape
+- Agent: claude-opus-5-5
+- Context: The human said that the composer does not match its loading state. They asked for a taller composer, the composer's fill on the loading state, and code that tells a developer to change both together (#3905). The composer was 44px with `bg-muted`. The loading state was 56px with the input colour, other corners, a shadow, other margins and an extra 8px.
+- Decision:
+  - New file `web/features/composer/shape.ts` with four class constants: `COMPOSER_SLOT` (desktop cell), `COMPOSER_FRAME` (strip), `COMPOSER_BOX` (corners and fill), `COMPOSER_ROW` (56px row). No existing file held the composer's shape, and both `ChatField` and `RoomSkeleton` must import it. Its comment says to change the shape only there.
+  - `ChatField`, `ComposerForm`, `RoomLayoutFrame`, `RoomSkeleton` and `HomeSkeleton` use these constants. The composer is now 56px.
+  - Home's ask box is also a `ChatField`, so it is 56px too, and Home's loading bar uses the same box and row.
+  - `ComposerForm` uses `flex flex-col gap-2` in place of `space-y-2`: its hidden file input gave the box an 8px bottom margin.
+  - Home's loading bar keeps its old width (576px against 640px). That was different before and the human did not ask about it.
+- Other options: Make the loading state 44px like the old composer.
+- Risk: low. The composer is 12px taller.
+- Undo: Revert this commit.
+- Status: open

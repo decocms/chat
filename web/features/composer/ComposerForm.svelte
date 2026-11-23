@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
+  import { COMPOSER_FRAME } from "./shape";
   import { browserSpeech } from "./speech";
   import { browserFireCapture } from "./fireAudio";
   import { onDestroy, onMount, untrack } from "svelte";
@@ -366,7 +367,10 @@
   {hidden}
   class={hidden
     ? "hidden"
-    : "relative shrink-0 space-y-2 bg-background px-3 pt-1 pb-3 font-sans text-sm text-foreground md:px-2 md:pb-2"}
+    : [
+        "relative flex shrink-0 flex-col gap-2 bg-background font-sans text-sm text-foreground",
+        COMPOSER_FRAME,
+      ]}
 >
   {#if dragging}<div
       role="status"

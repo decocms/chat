@@ -7,7 +7,6 @@
   },
   "color": {
     "web/features/pins/LiveFrame.svelte": 1,
-    "web/features/room-shell/RoomSkeleton.svelte": 1,
     "web/lib/studio/composer.ts": 2,
     "web/lib/studio/SidebarTrigger.svelte": 3,
     "web/lib/studio/Slider.svelte": 1,

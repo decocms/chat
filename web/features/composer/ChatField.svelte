@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { onDestroy, onMount, tick, untrack } from "svelte";
+  import { COMPOSER_BOX, COMPOSER_ROW } from "./shape";
   import type { HTMLTextareaAttributes } from "svelte/elements";
   import Textarea from "../../lib/studio/Textarea.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
@@ -428,14 +429,17 @@
   data-ready={filled ? "true" : "false"}
   data-swap={swap ? "true" : "false"}
   aria-busy={busy || pending || undefined}
-  class="group flex flex-col rounded-3xl bg-muted font-sans text-sm text-foreground transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input)] md:rounded-xl"
+  class={[
+    COMPOSER_BOX,
+    "group flex flex-col font-sans text-sm text-foreground transition-shadow duration-150 ease-[var(--vb-ease-out-cubic)] focus-within:shadow-[inset_0_0_0_1px_var(--vb-input)]",
+  ]}
   onsubmit={(event) => {
     event.preventDefault();
     void submit();
   }}
 >
   {@render above?.()}
-  <div class="flex items-end gap-0.5 p-1.5">
+  <div class={["flex items-end gap-0.5", COMPOSER_ROW]}>
     {#if dictating}<IconButton
         label={t("Descartar ditado")}
         size="icon"
