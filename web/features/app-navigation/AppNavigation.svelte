@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { isDmId } from "../../../shared/dm";
+  import Count from "../../lib/components/Count.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import TitledDialog from "../../lib/components/TitledDialog.svelte";
   import { studioType } from "../../lib/components/type";
@@ -140,6 +141,9 @@
   const freshDms = $derived(
     unreadDms($personal.me, $personal.seen, $nav.roomId ?? null),
   );
+  // Desktop: your Inbox for all rooms sits under the logo while something waits on you (Gimenes #3837).
+  const waiting = $derived($personal.me?.waits.length ?? 0);
+  const inInbox = $derived(!$nav.roomId && $nav.inbox);
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
   let dragging = $state<string | null>(null),
@@ -221,6 +225,22 @@
       /></RailButton
     ></span
   >
+  {#if controller.callbacks.inbox && (waiting || inInbox)}<span
+      data-rail-inbox
+      class="relative flex shrink-0 max-md:hidden md:-mt-1 md:mb-3"
+      ><RailButton
+        icon="inbox-01"
+        label={text("inbox")}
+        current={inInbox}
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) controller.callbacks.inbox?.();
+        }}
+      />{#if waiting}<Count
+          value={waiting}
+          label={text("waiting", { n: waiting })}
+          class="pointer-events-none absolute -right-1.5 -bottom-1"
+        />{/if}</span
+    >{/if}
   <span
     aria-hidden="true"
     class="h-6 w-px shrink-0 bg-sidebar-border max-md:hidden md:-mt-2 md:h-px md:w-6"

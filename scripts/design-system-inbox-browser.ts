@@ -235,12 +235,13 @@ export async function auditDesignSystemInbox(
         .filter({ hasText: "Controlled review approval" }),
     ).toBeVisible();
     await expect(roomInbox.locator('[data-inbox-filter="task"]')).toBeVisible();
+    // One Inbox for all rooms: no "This room" scope, and other rooms' waits show here too.
     await expect(
       roomInbox.getByRole("button", { name: "This room", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    ).toHaveCount(0);
     await expect(
       roomInbox.getByText("Cross-room target message", { exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await settleAnimations(page);
     const axe = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -330,12 +331,6 @@ export async function auditDesignSystemInbox(
 
     result.phase = "all-room navigation preserves selected UI";
     await openRoomInbox();
-    await roomInbox
-      .getByRole("button", { name: "All rooms", exact: true })
-      .click();
-    await expect(
-      roomInbox.getByRole("button", { name: "All rooms", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
     const crossRoomOpen = roomInbox
       .locator("[data-room-inbox-message]")
       .filter({ hasText: "Cross-room target message" })

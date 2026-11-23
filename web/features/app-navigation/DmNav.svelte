@@ -117,7 +117,8 @@
         onhome={controller.callbacks.home}
       />
     </li>
-    {#if controller.callbacks.inbox}<li data-home-inbox-row>
+    <!-- Desktop: the rail's Inbox button, under the logo, replaces this row. -->
+    {#if controller.callbacks.inbox}<li data-home-inbox-row class="md:hidden">
         <InboxRow
           selected={!current && $nav.inbox}
           waits={$personal.me?.waits.length ?? 0}

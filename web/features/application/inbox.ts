@@ -60,7 +60,8 @@ export function createApplicationInbox(
   const empty = (): InboxResult => ({ waits: [], mentions: [], tasks: [] });
   const state = writable<InboxSnapshot>({
     binding: null,
-    all: false,
+    // One Inbox for all rooms: no "this room" scope (Gimenes #3814).
+    all: true,
     data: empty(),
     phase: "idle",
     error: null,

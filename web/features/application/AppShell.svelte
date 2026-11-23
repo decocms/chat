@@ -398,14 +398,11 @@
                 onretry={() => inbox.refresh(binding)}
                 onmention={(mention) => inbox.openMention(binding, mention)}
                 ontask={(task) => inbox.openTask(binding, task)}
-                roomId={binding.roomId}
-                all={$inboxView.all}
                 vb={{ t: services.t, ago }}
                 {displayName}
                 avatarVersion={avatar}
                 roomLabel={(roomId, title) =>
                   roomLabel($personal.me, roomId, title, services.language)}
-                ontab={(all) => inbox.tab(binding, all)}
                 onclose={() => inbox.close(binding)}
                 onresolve={(wait) => inbox.resolve(binding, wait)}
                 onopen={(wait, event) => {
