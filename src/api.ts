@@ -43,6 +43,8 @@ import {
   type AgentsResult,
   type ProfileResult,
   ProfileSettingsBody,
+  SetHandleBody,
+  type SetHandleResult,
   type ProfileSettingsResult,
   ClaudeTokenBody,
   type ConnectedResult,
@@ -209,6 +211,8 @@ export interface ApiServices {
   routerStats(roomId?: string): Promise<RouterStats>;
   /** Turn your public profile page (/u/<handle>) on or off (src/profile.ts). */
   setProfilePublic(on: boolean): Promise<ProfileSettingsResult>;
+  /** Change your @handle (unique); "taken" when someone has it. */
+  setHandle(handle: string): Promise<{ handle: string } | { error: "invalid" | "taken" }>;
   /** vibebook's model spend (src/reports.ts aiSpend), only for members of the report rooms (METRICS_ROOMS). */
   reportRoom(roomId: string): boolean;
   aiSpend(): Promise<AiSpend>;
@@ -810,6 +814,11 @@ export const meApi = connectionsApi
     const svc = c.get("svc"), on = c.req.valid("json").public;
     svc.track("profile_public", { on });
     return c.json((await svc.setProfilePublic(on)) satisfies ProfileSettingsResult, 200);
+  })
+  .post("/api/me/handle", body(SetHandleBody), async (c) => {
+    const r = await c.get("svc").setHandle(c.req.valid("json").handle);
+    if ("error" in r) return c.json({ error: r.error } satisfies ErrorBody, r.error === "taken" ? 409 : 400);
+    return c.json(r satisfies SetHandleResult, 200);
   });
 
 // The profile picture and the room icon, raw image bytes (the app resizes them first). Same-origin only.

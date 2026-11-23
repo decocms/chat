@@ -502,7 +502,7 @@
           )}
         >
           {#if tinted}{#each segments as segment, index (index)}{#if segment.mention}<mark
-                  class="rounded-sm bg-primary/15 text-transparent ring-2 ring-primary/15"
+                  class="rounded-sm bg-brand-purple/15 text-transparent ring-2 ring-brand-purple/15"
                   >{segment.text}</mark
                 >{:else}{segment.text}{/if}{/each}{/if}{"​"}
         </div>{/if}

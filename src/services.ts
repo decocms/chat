@@ -20,7 +20,7 @@ import { checkFreestyleKey, sandboxOps, saveKey } from "./sandbox";
 import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
-import { setProfilePublic } from "./profile";
+import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend } from "./reports";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
@@ -294,6 +294,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     consentContext: () => consentContext(env, req0, email),
     routerStats: (room) => routerStats(env.DB, email, room),
     setProfilePublic: (on) => setProfilePublic(env.DB, email, on),
+    setHandle: (handle) => setHandle(env.DB, email, handle),
     reportRoom: (room) => (env.METRICS_ROOMS ?? "").split(",").map((x) => x.trim()).includes(room),
     aiSpend: () => aiSpend(env),
   };

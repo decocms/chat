@@ -2,7 +2,7 @@
 // UTC day in D1 `user_stats`, shown as a profile with titles (shared/titles.ts). A profile never carries the email.
 // Who can see one: yourself, anyone who shares a room with you (the hover card), and anyone at all once you turn the
 // public page on (/u/<handle>).
-import type { ProfileResult, ProfileSettingsResult } from "../shared/schemas";
+import { HANDLE_RE, type ProfileResult, type ProfileSettingsResult } from "../shared/schemas";
 
 type Db = D1Database;
 export type StatField = "messages" | "deploys";
@@ -95,7 +95,7 @@ const slug = (s: string) =>
     .slice(0, 24) || "pessoa";
 
 /** The person's handle, made once from their name (else the email's local part), unique with a number. */
-async function ensureHandle(db: Db, email: string, name: string | null, handle: string | null) {
+export async function ensureHandle(db: Db, email: string, name: string | null, handle: string | null) {
   if (handle) return handle;
   const base = slug(name || email.split("@")[0] || "");
   for (let i = 0; i < 20; i++) {
@@ -163,6 +163,18 @@ export async function setProfilePublic(db: Db, email: string, on: boolean): Prom
   const handle = await ensureHandle(db, email, u?.name ?? null, u?.handle ?? null);
   await db.prepare(`UPDATE users SET profile_public = ? WHERE email = ?`).bind(on ? 1 : 0, email).run();
   return { handle, public: on };
+}
+
+/** Change your @handle: folded, checked, and only if no one else has it ("taken"). */
+export async function setHandle(db: Db, email: string, wanted: string): Promise<{ handle: string } | { error: "invalid" | "taken" }> {
+  const handle = wanted.trim().replace(/^@/, "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!HANDLE_RE.test(handle)) return { error: "invalid" };
+  const r = await db
+    .prepare(`UPDATE users SET handle = ?1 WHERE email = ?2 AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?1 AND email != ?2)`)
+    .bind(handle, email)
+    .run()
+    .catch(() => null);
+  return r?.meta.changes ? { handle } : { error: "taken" };
 }
 
 /** Whose avatar a public /u/<handle>/avatar serves: only a profile the viewer may see. */

@@ -1,3 +1,4 @@
+import { foldHandle, mentionWho } from "../../../shared/mention";
 import { decodeHTML } from "entities";
 import type { Attachment } from "../../../shared/room";
 import type { LinkTarget, RichContext } from "./types";
@@ -107,31 +108,16 @@ export function linkTarget(
   }
   return { kind: "url", href, external: true };
 }
-export const foldHandle = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9._-]/g, "");
+export { foldHandle };
 export function mentionTarget(
   handle: string,
   context: RichContext,
 ): string | null {
   const folded = foldHandle(handle);
   if (folded === "vibe" || folded === "ai") return "ai";
-  return (
-    context.room.members.find((email) => {
-      const local = email.split("@")[0];
-      return [
-        context.room.names?.[email]?.split(/\s+/)[0] ||
-          context.names?.[email]?.split(/\s+/)[0] ||
-          "",
-        local.split(/[._+-]/)[0],
-        local,
-      ]
-        .map(foldHandle)
-        .filter(Boolean)
-        .includes(folded);
-    }) || null
-  );
+  return mentionWho(handle, {
+    members: context.room.members,
+    names: { ...context.names, ...context.room.names },
+    handles: context.room.handles,
+  });
 }

@@ -29,6 +29,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, type LanguageModel, Output } from "ai";
 import { z } from "zod";
 import type { Env } from "./index";
+import { foldHandle, mentionWho } from "../shared/mention";
 import { MAIL_DAY_MAX, MAIL_DELAY_MS, MAIL_GAP_MS, type MailFacts, COPY_PROMPT, mailBody, mentioned, plainCopy, ROOM_TAGS, tagsOf, unsubscribeUrl } from "./mentionmail";
 import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret, secretName } from "./secrets";
@@ -37,7 +38,7 @@ import { decide, type Question } from "./jev";
 import { track } from "./track";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
-import { bumpStat } from "./profile";
+import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
 
 // OpenRouter reports each call's USD cost in usage.raw.cost; the admin sums it per model.
@@ -563,6 +564,17 @@ export class Book extends DurableObject<Env> {
       .all<{ email: string; name: string }>();
     return Object.fromEntries(r.results.map((x) => [x.email, x.name]));
   }
+  /** email → @handle for this room's members (made once from their name, unique app-wide; Settings › Profile). */
+  async handles(): Promise<Record<string, string>> {
+    const id = this.get("book_id");
+    if (!id) return {};
+    const r = await this.env.DB.prepare(`SELECT m.email, u.name, u.handle FROM members m JOIN users u ON u.email = m.email WHERE m.book_id = ?`)
+      .bind(id)
+      .all<{ email: string; name: string | null; handle: string | null }>();
+    const out: Record<string, string> = {};
+    for (const x of r.results) out[x.email] = x.handle ?? (await ensureHandle(this.env.DB, x.email, x.name, null));
+    return out;
+  }
   /** email → avatar version for this room's members who set a picture. */
   async avatars(): Promise<Record<string, number>> {
     const id = this.get("book_id");
@@ -807,7 +819,7 @@ export class Book extends DurableObject<Env> {
   /** Someone was @mentioned: email them in MAIL_DELAY_MS unless they read it first. */
   async queueMentions(m: Msg) {
     const members = await this.members(), human = !m.kind && m.author !== "ai";
-    const who = human && this.isDm ? members.filter((e) => e !== m.author) : mentioned(m.text, members, await this.names(), m.author, human);
+    const who = human && this.isDm ? members.filter((e) => e !== m.author) : mentioned(m.text, members, await this.names(), m.author, human, await this.handles());
     if (!who.length) return;
     const nm = (await this.names())[m.author] || m.author.split("@")[0];
     this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? (en) => (en ? `${nm}'s agent` : `agent de ${nm}`) : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
@@ -1299,9 +1311,8 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     const names = await this.names();
     const who = (e: string) => (e === "ai" ? "@vibe" : (names[e] ?? e.split("@")[0]).replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40));
-    const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]/g, "");
-    const local = email.split("@")[0];
-    const mine = new Set([fold((names[email] ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
+    const tagPeople = { members: await this.members(), names, handles: await this.handles() };
+    const mine = { has: (tag: string) => mentionWho(tag, tagPeople) === email };
     // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     const epics = this.epics().filter((e) => !(Number(e.archived) > 0));
@@ -1335,7 +1346,7 @@ export class Book extends DurableObject<Env> {
       };
     });
     return {
-      name: (names[email] ?? local).split(/\s+/)[0],
+      name: (names[email] ?? email.split("@")[0]).split(/\s+/)[0],
       memory: `Room doc (start):\n${(this.get("doc") ?? "").slice(0, 1500)}\n\nOpen epics: ${epics.slice(0, 25).map((e) => `${e.title} (${e.tasks.filter((t) => t.status !== "done").length} open tasks)`).join(" | ")}`,
       messages,
     };
@@ -1344,14 +1355,13 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
     const names = await this.names();
-    // Same handles the app accepts: first name (accents stripped), the email's local part and its first token.
-    const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]/g, "");
-    const local = email.split("@")[0];
-    const mine = new Set([fold((names[email] ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
+    // The same rule the app uses for @tags (shared/mention.ts): @handle, email, then first name, one person or none.
+    const tagPeople = { members: await this.members(), names, handles: await this.handles() };
+    const mine = { has: (tag: string) => mentionWho(tag, tagPeople) === email };
     // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     // @<sandbox name> in your human's message addresses that one agent; the others leave it alone.
-    const toAgents = (t: string) => [...new Set([...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1])).filter((h) => to.agents.includes(h)))];
+    const toAgents = (t: string) => [...new Set([...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => foldHandle(m[1])).filter((h) => to.agents.includes(h)))];
     const forOther = (t: string) => { const a = toAgents(t); return a.length > 0 && !a.includes(to.me ?? ""); };
     // Display names are typed by people: no brackets, quotes or line breaks, so a name can't pose as someone's address.
     const who = (e: string) => (e === "ai" ? "@vibe" : names[e] ? `${names[e].replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${e}>` : e);
@@ -2040,7 +2050,7 @@ export class Book extends DurableObject<Env> {
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
       const people = await this.people();
-      this.broadcast({ t: "members", members: people.members, invited: people.invited, pending: people.pending, declined: people.declined, requests: await this.requests(), names: await this.names(), avatars: await this.avatars() });
+      this.broadcast({ t: "members", members: people.members, invited: people.invited, pending: people.pending, declined: people.declined, requests: await this.requests(), names: await this.names(), handles: await this.handles(), avatars: await this.avatars() });
       this.broadcast({ t: "online", online: this.online() });
       return new Response("ok");
     }
@@ -2062,9 +2072,9 @@ export class Book extends DurableObject<Env> {
     if (this.autoArchive()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
-    const [book, people, requests, names, avatars] = await Promise.all([
+    const [book, people, requests, names, avatars, handles] = await Promise.all([
       this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
-      this.people(), this.requests(), this.names(), this.avatars(),
+      this.people(), this.requests(), this.names(), this.avatars(), this.handles(),
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const win = this.roomWindow(url.searchParams.get("t") || "main", email);
@@ -2097,6 +2107,7 @@ export class Book extends DurableObject<Env> {
         declined: people.declined,
         requests,
         names,
+        handles,
         avatars,
         online: this.online(),
         receipts: this.receiptsList(),
@@ -2463,7 +2474,7 @@ export class Book extends DurableObject<Env> {
         const yes = (k: string, at: number) => (r.answers[k]?.noul ?? 0) >= at;
         // Asked = Jev read it as an ask, or a person (not an agent) tagged them; minus whoever already wrote in this thread
         // after it (the pass runs ~30s late, and answeredHere already ran for them).
-        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author);
+        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author, false, await this.handles());
         const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, m.id).toArray().map((x) => x.author));
         const asked = others.filter((e, i) => (tagged.includes(e) || (i < 12 && yes(`p${i}`, 0.7))) && !later.has(e));
         if (asked.length) this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm(m.author)} is waiting for your answer` : `${nm(m.author)} espera sua resposta`), m.text.replace(/\s+/g, " "), m.id, m.thread));

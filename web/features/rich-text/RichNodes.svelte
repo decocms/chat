@@ -152,8 +152,9 @@
         data-rich-mention={node.who}
         title={node.who === "ai" ? "@vibe" : node.who}
         class={node.mine
-          ? "rounded-sm bg-primary/15 px-1 font-semibold text-foreground"
-          : "rounded-sm bg-primary/10 px-1 text-foreground"}>{node.text}</span
+          ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
+          : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
+        >{node.text}</span
       >
     {:else if node.kind === "link"}
       {#if node.namespace !== HTML_NS}<svelte:element

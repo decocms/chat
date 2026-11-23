@@ -3,26 +3,25 @@
 // Your email inbox is the deco.chat inbox. Queue + timing live in the Book (mail_q); this file is the pure parts.
 import type { Lang } from "./lang";
 import { emailHtml, escapeHtml, hmac, safeEqual } from "./auth";
+import { mentionWho } from "../shared/mention";
 
 export const MAIL_DELAY_MS = 5 * 60_000; // time to read it in the app before we email
 export const MAIL_GAP_MS = 20 * 60_000; // ≤1 email per person per room in this window (later mentions wait and group)
 export const MAIL_DAY_MAX = 20; // per person per day, across rooms (counted in D1 events)
 
 const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9._-]/g, "");
-/** Same handles as the app and read_room: first name (accents stripped), the email's local part and its first token. */
-export function handles(email: string, name?: string) {
-  const local = email.split("@")[0];
-  return new Set([fold((name ?? "").split(/\s+/)[0] ?? ""), fold(local.split(/[._+-]/)[0]), fold(local)].filter(Boolean));
-}
 /** @room (or @sala, @todos) in a person's message calls everyone in the room (Gimenes #2051: announcements). */
 export const ROOM_TAGS = new Set(["room", "sala", "todos"]);
 export const tagsOf = (text: string) => [...text.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => fold(m[1]));
-/** Members mentioned in a text (never the author's own person); `room` = @room counts (people's messages only). */
-export function mentioned(text: string, members: string[], names: Record<string, string>, author: string, room = false) {
+/** Members mentioned in a text (never the author's own person); `room` = @room counts (people's messages only).
+ *  Each tag names one person or no one (shared/mention.ts): two Rafaels typed as @rafael reach neither. */
+export function mentioned(text: string, members: string[], names: Record<string, string>, author: string, room = false, handles: Record<string, string> = {}) {
   const tags = tagsOf(text);
   if (!tags.length) return [];
   if (room && tags.some((t) => ROOM_TAGS.has(t))) return members.filter((e) => e !== author);
-  return members.filter((e) => e !== author && tags.some((t) => handles(e, names[e]).has(t)));
+  const people = { members, names, handles };
+  const hit = new Set(tags.map((t) => mentionWho(t, people)));
+  return members.filter((e) => e !== author && hit.has(e));
 }
 
 export type MailFacts = {

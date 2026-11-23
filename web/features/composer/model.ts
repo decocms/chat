@@ -1,3 +1,4 @@
+import { mentionHandle, mentionWho } from "../../../shared/mention";
 import {
   FILE_TYPES as UPLOAD_FILE_TYPES,
   maxBytes,
@@ -65,22 +66,20 @@ export function mentionPicks(
     match = /(^|\s)@([\p{L}\p{N}._-]*)$/u.exec(before);
   if (!match) return null;
   const query = fold(match[2]);
+  const tagPeople = {
+    members: room.members,
+    names: { ...names, ...room.names },
+    handles: room.handles,
+  };
+  // Each person by name with their @handle (two Rafaels are two rows): picking inserts the tag that reaches only them.
   const people = room.members
     .filter((email) => email !== room.me)
-    .map((email) => {
-      const local = email.split("@")[0],
-        name = room.names?.[email] || names[email] || local;
-      const handle =
-        fold((room.names?.[email] || names[email] || "").split(/\s+/)[0]) ||
-        fold(local.split(/[._+-]/)[0]) ||
-        fold(local);
-      return {
-        email,
-        handle,
-        label: name === handle ? email : name,
-        agent: false,
-      };
-    });
+    .map((email) => ({
+      email,
+      handle: mentionHandle(email, tagPeople),
+      label: room.names?.[email] || names[email] || email.split("@")[0],
+      agent: false,
+    }));
   for (const agent of agents)
     if (
       agent.email === room.me &&
@@ -107,7 +106,8 @@ export function mentionPicks(
         (person) =>
           !query ||
           person.handle.startsWith(query) ||
-          fold(person.label).includes(query),
+          fold(person.label).includes(query) ||
+          (!!person.email && fold(person.email).startsWith(query)),
       )
       .slice(0, 8),
   };
@@ -122,16 +122,13 @@ export function knownMention(
   const key = fold(handle);
   if (!key) return false;
   if (["vibe", "ai", "room", "sala", "todos"].includes(key)) return true;
-  return room.members.some((email) => {
-    const local = email.split("@")[0];
-    return [
-      (room.names?.[email] || names[email] || "").split(/\s+/)[0],
-      local.split(/[._+-]/)[0],
-      local,
-    ]
-      .map(fold)
-      .includes(key);
-  });
+  return (
+    mentionWho(key, {
+      members: room.members,
+      names: { ...names, ...room.names },
+      handles: room.handles,
+    }) !== null
+  );
 }
 /** Where the known @mentions sit in a draft: [start (the @), end) pairs, the same rule that
  *  highlights them in a sent message (`(^|[\s(])@handle`), kept only when `known` names someone. */

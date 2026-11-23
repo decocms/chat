@@ -105,6 +105,7 @@ export function reduceRoom(
         declined: event.declined,
         requests: event.requests ?? s.requests,
         names: event.names ?? s.names,
+        handles: event.handles ?? s.handles,
         avatars: event.avatars ?? s.avatars,
       };
     case "files":
