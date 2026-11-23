@@ -117,6 +117,8 @@ const EN: Readonly<Record<string, string>> = {
   "O ditado foi interrompido. Seu rascunho foi mantido.":
     "Dictation stopped. Your draft was kept.",
   "Ditar mensagem": "Dictate message",
+  "Parar de ditar": "Stop dictating",
+  "Descartar ditado": "Discard dictation",
   "Segure pra ditar (ou segure o espaço)": "Hold to dictate (or hold Space)",
   "O navegador não deixou usar o microfone.":
     "The browser did not allow microphone access.",

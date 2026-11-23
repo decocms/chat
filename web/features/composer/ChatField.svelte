@@ -384,8 +384,33 @@
     };
   });
   const off = $derived(waiting || disabled);
-  // Phones: send takes the mic's cell when there is something to send, but never while you dictate.
+  // One cell, like WhatsApp (Gimenes #3821): the mic while the box is empty, send once there is
+  // something to send, stop while you dictate. On phones and on a computer alike.
   const swap = $derived(filled && !dictating && !refining);
+  // While you dictate, the box is a recording bar: a red dot and the time, the text as it comes,
+  // a trash on the left that puts the text back as it was before the dictation.
+  let dictatedFrom = "",
+    elapsed = $state(0);
+  $effect(() => {
+    if (!dictating) return;
+    dictatedFrom = untrack(() => value);
+    elapsed = 0;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      elapsed = Math.floor((Date.now() - started) / 1000);
+    }, 250);
+    return () => clearInterval(timer);
+  });
+  const clock = $derived(
+    `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`,
+  );
+  function discard() {
+    if (!ok()) return;
+    const text = dictatedFrom;
+    speech.cancel();
+    onedit(text);
+    void focus(text.length);
+  }
   // Icons inside the field: ghost, with a hover one step darker than the field (muted = accent in light).
   const FIELD_ICON =
     "text-muted-foreground hover:bg-secondary-hover hover:text-foreground";
@@ -394,8 +419,8 @@
 </script>
 
 <!-- One filled field (#3692): the + on the left, emoji and the mic on the right, the reply and the
-     attachments inside it, on top. Send has its own slot, so the text never moves sideways: on phones
-     it takes the mic's place when there is something to send; on a computer it fades in beside the mic. -->
+     attachments inside it, on top. The mic and send share one cell, so the text never moves sideways:
+     send takes the mic's place when there is something to send (#3821). -->
 <form
   bind:this={root}
   data-chat-box
@@ -411,7 +436,17 @@
 >
   {@render above?.()}
   <div class="flex items-end gap-0.5 p-1.5">
-    <div class="relative">
+    {#if dictating}<IconButton
+        label={t("Descartar ditado")}
+        size="icon"
+        class="text-destructive hover:bg-secondary-hover hover:text-destructive"
+        data-composer-discard
+        onpointerdown={(event) => {
+          if (ok()) event.preventDefault();
+        }}
+        onclick={discard}><Icon icon="trash-01" size={16} /></IconButton
+      >{/if}
+    <div class={cn("relative", dictating && "hidden")}>
       <IconButton
         label={t("Mais opções")}
         size="icon"
@@ -450,6 +485,12 @@
         </div>{/if}
     </div>
     {#if label}<label for={id} class="sr-only">{label}</label>{/if}
+    {#if dictating}<span
+        data-composer-recording
+        class="flex h-9 shrink-0 items-center gap-1.5 pl-1.5 text-sm text-muted-foreground tabular-nums"
+        ><span class="size-2 animate-pulse rounded-full bg-destructive"
+        ></span>{clock}</span
+      >{/if}
     <div class="relative flex min-w-0 flex-1">
       {#if mention}<div
           bind:this={mirror}
@@ -477,7 +518,6 @@
         class={cn(
           "relative block max-h-40 min-h-8 min-w-0 flex-1 resize-none rounded-lg bg-transparent break-words shadow-none [field-sizing:content] hover:bg-transparent focus-visible:outline-none md:max-h-64",
           FIELD_TYPE,
-          dictating && "ring-2 ring-destructive",
         )}
         onscroll={() => {
           if (mirror && textarea) mirror.scrollTop = textarea.scrollTop;
@@ -515,7 +555,7 @@
     <IconButton
       label={t("Emoji")}
       size="icon"
-      class={FIELD_ICON}
+      class={cn(FIELD_ICON, dictating && "hidden")}
       disabled={off}
       onclick={() => {
         if (!ok()) return;
@@ -524,17 +564,19 @@
         emoji = true;
       }}><Icon icon="face-smile" size={16} /></IconButton
     >
-    <!-- The mic sits right before send, as in the classic app (Gui #2896). On phones both share one cell. -->
-    <div class="grid *:col-start-1 *:row-start-1 md:flex md:gap-0.5">
+    <!-- The mic and send share one cell (#3821); while you dictate the mic is the stop button. -->
+    <div class="grid *:col-start-1 *:row-start-1">
       {#if speech.supported}<IconButton
           size="icon"
           aria-busy={refining || undefined}
           label={t("Ditar mensagem")}
-          title={t("Toque pra ditar (ou segure espaço na caixa)")}
+          title={dictating
+            ? t("Parar de ditar")
+            : t("Toque pra ditar (ou segure espaço na caixa)")}
           aria-pressed={dictating}
           class={cn(
             SLOT,
-            "max-md:group-data-[swap=true]:invisible max-md:group-data-[swap=true]:scale-75 max-md:group-data-[swap=true]:opacity-0",
+            "group-data-[swap=true]:invisible group-data-[swap=true]:scale-75 group-data-[swap=true]:opacity-0",
             dictating
               ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
               : FIELD_ICON,
@@ -550,7 +592,7 @@
             else void speech.start();
           }}
           >{#if refining}<Spinner size="xs" />{:else}<Icon
-              icon="microphone-01"
+              icon={dictating ? "stop-square" : "microphone-01"}
               size={16}
             />{/if}</IconButton
         >{/if}
@@ -563,7 +605,7 @@
         aria-busy={pending || undefined}
         class={cn(
           SLOT,
-          "rounded-full max-md:group-data-[swap=false]:invisible max-md:group-data-[swap=false]:scale-75 max-md:group-data-[swap=false]:opacity-0 md:group-data-[ready=false]:invisible md:group-data-[ready=false]:scale-75 md:group-data-[ready=false]:opacity-0",
+          "rounded-full group-data-[swap=false]:invisible group-data-[swap=false]:scale-75 group-data-[swap=false]:opacity-0",
         )}
         disabled={off || busy || sendDisabled}
         onmousedown={(event) => event.preventDefault()}
