@@ -38,6 +38,7 @@ Only a human changes the `Status` line.
 
 ```markdown
 ### <YYYY-MM-DD> · <branch> · <title, 8 words or less>
+
 - Agent: <model>
 - Context: <the problem, 1 or 2 sentences>
 - Decision: <what you selected>
@@ -52,6 +53,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 ## Entries
 
 ### 2026-11-18 · docs/agents-consolidation · Keep the plugin Markdown files
+
 - Agent: claude-opus-5-5
 - Context: The human told me to remove all Markdown files except `README.md`.
 - Decision: I kept `claude-plugin/commands/*.md`, `claude-plugin/skills/vibebook/SKILL.md` and `herdr-plugin/README.md`.
@@ -61,6 +63,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Delete the non-Markdown migration evidence
+
 - Agent: claude-opus-5-5
 - Context: `docs/` contained about 480 JSON, PNG, log and gzip files. They were evidence for the deleted Svelte migration reports.
 - Decision: I deleted them with the reports. I moved the 6 data files that scripts read to `scripts/data/` and changed the script paths.
@@ -70,6 +73,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Move font and fixture provenance into docs
+
 - Agent: claude-opus-5-5
 - Context: `public/fonts/studio/README.md` and `scripts/fixtures/entities/README.md` recorded where third-party files came from and their licenses.
 - Decision: I deleted the two files and put their facts in [stack.md](stack.md).
@@ -79,6 +83,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Point the Cursor rule at AGENTS.md
+
 - Agent: claude-opus-5-5
 - Context: `.cursor/rules/use-bun-instead-of-node-vite-npm-pnpm.mdc` was a symbolic link to `CLAUDE.md`. That file does not exist.
 - Decision: I changed the link to `AGENTS.md`.
@@ -88,6 +93,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Remove the feature reference
+
 - Agent: claude-opus-5-5
 - Context: The old `AGENTS.md` (115 KB) described each feature with its function names. The human told me to keep only global rules and to remove the feature documents.
 - Decision: I kept the design of the system in [architecture.md](architecture.md). I removed the descriptions of single features. The code is now the reference for features.
@@ -97,6 +103,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Use 900px as the mobile/desktop breakpoint
+
 - Agent: claude-opus-5-5
 - Context: The human asked for two breakpoints, mobile and desktop, but gave no width. The Svelte app uses `min-[901px]` 151 times, `max-[720px]` 46 times, `sm:` 49 times and `max-[900px]` 11 times.
 - Decision: Mobile is 900px or less. Desktop is 901px or more. The other breakpoints are old code.
@@ -106,6 +113,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Squash merge for automerge
+
 - Agent: claude-opus-5-5
 - Context: The release procedure enables automerge. The human did not name a merge method.
 - Decision: `gh pr merge --auto --squash`. The history of `main` has one commit for each pull request (`… (#160)`).
@@ -115,6 +123,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Release the plugin prompts as 0.24.13
+
 - Agent: claude-opus-5-5
 - Context: The human told me to rewrite all Markdown files in STE, including `claude-plugin/commands/*.md` and `SKILL.md`. These files are the prompts that agents in other repositories follow.
 - Decision: I kept each command, tool name and rule, and changed only the sentences. I removed the "Gui #NNNN" references. I increased the plugin version to 0.24.13, so that the herdr runner restarts running Claudes with the new text.
@@ -124,6 +133,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · docs/agents-consolidation · Correct the off behavior in the herdr README
+
 - Agent: claude-opus-5-5
 - Context: `herdr-plugin/README.md` said that "Ligar Claude" off closes the workspace. Since Nov 2026, off only stops delivery, and the workspace stays open.
 - Decision: I wrote the current behavior.
@@ -133,6 +143,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · ci/main-red-and-pr-template · Mention the GitHub login of the commit author
+
 - Agent: claude-opus-5-5
 - Context: The human asked to mention the commit author, with only a real login. The `workflow_run` payload gives the commit author name and email, but no login.
 - Decision: The workflow asks the commits API for `author.login`. If GitHub cannot resolve it, the workflow uses `workflow_run.actor.login`. It mentions only a login that has letters, digits and `-` (no bots).
@@ -142,6 +153,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · ci/main-red-and-pr-template · One open main-red issue, retitled to the newest commit
+
 - Agent: claude-opus-5-5
 - Context: The human asked to comment on the open `main-red` issue if one exists. The issue title has a short sha.
 - Decision: The workflow comments on the open issue and changes its title to the newest red commit. It also ignores runs from forks with a branch called `main`, and it treats `timed_out` jobs as failed jobs.
@@ -151,6 +163,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · ci/main-red-and-pr-template · Write an allowed list of Markdown files
+
 - Agent: claude-opus-5-5
 - Context: The human asked to add the template path to the allowed list in `docs/writing.md`. That file had no list.
 - Decision: I added rule 6 with all the Markdown files in git now, plus the template. I added `herdr-plugin/README.md` because it is in git.
@@ -159,6 +172,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Remove rule 6 in `docs/writing.md`.
 
 ### 2026-11-18 · chore/remove-migration-tooling · Delete the migration-only tooling
+
 - Agent: claude-opus-5-5
 - Context: The task told me to delete the tooling that only the finished Svelte migration used, and to keep all that a live check uses. I selected each file.
 - Decision: I deleted the `performance` and `font-forensics` workflows, `scripts/ui-metrics*.ts` (a vanilla against Svelte benchmark), the migration inventory (`migration-inventory.ts`, `inventory-*.ts`, `reconcile-inventory.ts`, `scripts/data/baseline.json`, `scripts/data/inventory.json`), the font experiment (`font-forensics-browser.ts`, `font-css-range-browser.ts`, `scripts/font-forensics/`, `scripts/fixtures/font-forensics/`), their tests and package scripts (`measure:ui`, `capture:inventory`), and three root screenshots. I kept `app-hmr` and `chunk-diagnostics`, because `dev:app` and the chunk plugin in `svelte/vite.config.ts` are live. I kept `capture-studio.ts`, because it makes `studio-tokens.json`, which the browser-ui job reads.
@@ -167,6 +181,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: `git revert` the commit of this branch.
 
 ### 2026-11-18 · fix/client-boundary-worktree · Declared dependency roots for the client boundary
+
 - Agent: claude-opus-5-5
 - Context: `check:client-boundary` failed in a checkout under `.claude/worktrees/`. The fixture project is a temp directory, but it aliases `tailwindcss` from the checkout's `node_modules`, so the private-directory test read the whole checkout path.
 - Decision: `createClientBoundaryPolicy` and `clientBoundary` take an optional `dependencyRoots`. For a file under `<dependency root>/node_modules/`, only the part after the dependency root is tested. Other files outside the project still have their full path tested. The fixture declares the checkout as a dependency root.
@@ -176,6 +191,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · ci/main-red-skip-superseded · Ignore a cancelled CI run when main has a newer commit
+
 - Agent: claude-opus-5-5
 - Context: The human asked to open an issue when CI on `main` is cancelled. CI uses a concurrency group, so a newer push cancels a queued run. The first run of `main-red.yml` opened issue #167 for that reason only.
 - Decision: If the run is cancelled and `main` has a newer commit, the workflow does nothing. A failed run always opens the issue.
@@ -184,6 +200,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Remove the `cancelled` block in `.github/workflows/main-red.yml`.
 
 ### 2026-11-18 · refactor/agent-rules-source · One source for the agent rules
+
 - Agent: claude-opus-5-5
 - Context: The rules for agents in a room were written in `SKILL.md`, `listen.md`, `setup.md`, `public/llms.txt`, the MCP `INSTRUCTIONS`, `how_to_answer`, `brief_how` and the `create_room` `next` text. The copies were different.
 - Decision: The source is `shared/agentRules.ts` (19 named Markdown blocks, no imports). `src/agent.ts` and `src/book.ts` import it. `scripts/agent-prompts.ts` writes the static copies between `<!-- agent-rules:<name> -->` markers. `check:agent-prompts` is in `bun run check`. The blocks use "your human". In `listen.md`, one line says that "your human" is me.
@@ -201,6 +218,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/guidelines-check · A ratchet baseline for the guidelines check
+
 - Agent: claude-opus-5-5
 - Context: The human asked for `scripts/guidelines-check.ts` with a baseline for old violations. The human did not say what a lower count does.
 - Decision: The baseline has a count for each rule and file. A higher count fails. A lower count also fails and tells you to run `--update`, so that the baseline goes down with the code.
@@ -210,6 +228,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/guidelines-check · Scope and exemptions of the guidelines check
+
 - Agent: claude-opus-5-5
 - Context: The rules in `docs/stack.md` do not say exactly which text is a color, a breakpoint or a component level.
 - Decision:
@@ -224,6 +243,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/room-sidebar-search · The DM search box in the room sidebar
+
 - Agent: claude-opus-5-5
 - Context: The human asked to put the search box of the DM sidebar in the room sidebar too. The box was a button inside `DmNav.svelte`.
 - Decision: The box is now `svelte/features/app-navigation/SearchField.svelte`. `DmNav.svelte` and the room sidebar (`svelte/Sidebar.svelte`, under the room header) use it. Both open the same search dialog (⌘K), which searches all rooms. The label in a room is "Buscar" / "Search", because the long placeholder is cut in the sidebar and "Find or start a conversation" is about DMs.
@@ -233,6 +253,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/settings-page · Cloud agents on the settings page
+
 - Agent: claude-opus-5-5
 - Context: The human asked for one settings page (no menu, no dialog) that the account row opens. Sandboxes belong to one room, but the settings page is not in a room.
 - Decision: The Cloud agents section has a room picker. It starts on the room you came from (`/settings?room=<id>#cloud`), else the room you opened last. "Cloud agent" in a room's sidebar foot and the phone agents pane are links to that section. The room agent session no longer makes its own sandbox and terminal sessions. I added `CloudSettings.svelte` and `SettingsNav.svelte`, because no existing component shows sandboxes outside a room or lists page sections in the sidebar.
@@ -242,6 +263,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/two-breakpoints · Map the old breakpoints to mobile and desktop
+
 - Agent: claude-opus-5-5
 - Context: The human asked to move all old breakpoints (114) to the two breakpoints (mobile ≤900px, desktop ≥901px).
 - Decision: `max-[720px]` and `max-sm` became mobile (`max-[900px]`). `sm`, `md` and `min-[640px]` became desktop (`min-[901px]`). `SIDEBAR_MOBILE_QUERY` changed from 767px to 900px. Screens from 641px to 900px now get the mobile layout everywhere, as the room already did.
@@ -251,6 +273,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/two-breakpoints · Home cards use an automatic grid
+
 - Agent: claude-opus-5-5
 - Context: The home "waiting on you" grid had 4 columns, 3 below 1200px, 2 below 900px and 1 below 720px. The 1200px step is a breakpoint inside the desktop width.
 - Decision: Desktop uses `grid-cols-[repeat(auto-fill,minmax(250px,1fr))]`: 4 columns at the 1120px maximum width, fewer when the space is smaller. Mobile uses 1 column.
@@ -260,6 +283,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/two-breakpoints · Repair the duplicate key in the changelog
+
 - Agent: claude-opus-5-5
 - Context: `scripts/changelog.json` had two `"en"` keys in the fixes of 2026-11-18. The first held three Portuguese lines. JSON parsers keep only the last key, so the public changelog did not show those Portuguese fixes.
 - Decision: I moved the three Portuguese lines to `pt` and the English line to `en`.
@@ -269,6 +293,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/two-breakpoints · The md token is 901px, not 900px
+
 - Agent: claude-opus-5-5
 - Context: The human asked to make the built-in `md` token the breakpoint ("md become 900"), instead of pixel values in classes. Tailwind's `md:` means width ≥ md, and `max-md:` means width < md.
 - Decision: `--breakpoint-md: 901px`, and all other breakpoint tokens removed (`--breakpoint-*: initial`). Thus `max-md:` is 900px or less (mobile) and `md:` is 901px or more (desktop): the same split as before. TypeScript uses `MOBILE_QUERY` (`(max-width: 900px)`) from `svelte/lib/breakpoints.ts`.
@@ -278,6 +303,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · refactor/drop-tw-prefix · Remove the `tw:` prefix and the class namespace check
+
 - Agent: claude-opus-5-5
 - Context: The human asked to use Tailwind classes without the `tw:` prefix. The prefix kept Tailwind away from the vanilla CSS while both ran on one page. Now `ui.css` loads only on Svelte pages, and the vanilla Inbox bundle has no Tailwind classes.
 - Decision: I removed `prefix(tw)` from `svelte/styles/tailwind.css` and from `tailwind-merge`, and I removed `tw:` from all classes. The style policy check "First-party class outside the Tailwind namespace" has no meaning without a prefix, so I removed it. I also removed the `style-check.ts` rule against unprefixed `.grid`/`.flex`/`.hidden` rules: `ui.css` loads only on pages whose `<body>` is `data-vb-native`. The checks for `<style>`, CSS files, inline styles and runtime class concatenation stay. The preflight stays scoped to `[data-vb-native]`.
@@ -286,6 +312,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit.
 
 ### 2026-11-18 · feat/cf-migration · Do not copy the DocRoom and Person Durable Objects
+
 - Agent: claude-opus-5-5
 - Context: The account copy must keep all room data. `DocRoom` keeps the Yjs state of each document. `Person` keeps a cache of `/api/me`.
 - Decision: The script copies only the `Book` SQLite. A new `DocRoom` loads its text from the `Book` document when it opens. A new `Person` fills its cache on the next request.
@@ -295,6 +322,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/cf-migration · Put the migration runbook in the project room
+
 - Agent: claude-opus-5-5
 - Context: The runbook is a plan. `docs/writing.md` says that plans go in the project room or in the pull request.
 - Decision: I put the runbook in the doc of epic a256f2ae. `docs/architecture.md` tells only how the copy works.
@@ -304,6 +332,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/cf-migration · Copy all data again on each run
+
 - Agent: claude-opus-5-5
 - Context: The human said that the move has no maintenance mode. The old Worker keeps writes until the switch.
 - Decision: Each run of `scripts/migrate.ts` copies D1, the rooms and KV from the start. `--resume` continues only a run that stopped. R2 skips keys with the same size and etag on the target.
@@ -313,6 +342,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · chore/remove-migration · The migration code leaves after one copy
+
 - Agent: claude-opus-5-5
 - Context: The first copy from vibebook.dev to chat.decocms.com passed. The human said that vibebook.dev retires, so no final copy runs before a switch.
 - Decision: I removed `src/migrate.ts`, the `Book` migrate methods, the `/migrate/*` route, `MIGRATE_TOKEN` in `Env` and `scripts/migrate.ts`. The `migration-dump/` line stays in `.gitignore` while local dumps exist. Data written on vibebook.dev after the copy stays there.
@@ -321,6 +351,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 
 ### 2026-11-18 · feat/single-worker · Links to the removed public pages go to llms.txt
+
 - Agent: claude-opus-5-5
 - Context: The human removed all public pages except `llms.txt`. The invite email, the setup card and the README linked to `/connect`, `/docs`, `/how-it-works`, `/herdr` and `/mcp-identity`.
 - Decision: The setup links go to `/llms.txt`. The links about herdr and MCP identity go to the GitHub repository (`herdr-plugin/` and the Security model in `README.md`). The old page paths are not kept: the app moves to a new domain, so no link points to them (the human decided this).
@@ -330,6 +361,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/single-worker · The Svelte shell file is app.html
+
 - Agent: claude-opus-5-5
 - Context: The app moved from `/app` to `/`. With vanilla gone, the Svelte shell is the only shell. The human said that no link points to the old paths, because the domain changes too.
 - Decision: `public/app-svelte.html` is now `public/app.html`. `/app` has no route. The PWA `id` and `start_url` are `/`.
@@ -339,6 +371,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/single-worker · The vanilla-only HTML fallbacks are removed
+
 - Agent: claude-opus-5-5
 - Context: The human removed the vanilla app. Some routes had a vanilla answer: the access page, the file page, the consent page and the JSON or HTML errors of MCP sign-in.
 - Decision: Each route now gives only the Svelte page. A file link with a bad id gets the JSON error. The vendor scripts of vanilla (marked, DOMPurify) and `public/_headers` are removed. The Book still writes the `ws_bytes` app column as `s`.
@@ -348,6 +381,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/chat-previews · Worker Previews get their own storage, email and secret
+
 - Agent: claude-opus-5-5
 - Context: The human asked for working branch previews of `chat` and for `wrangler.jsonc` to be the `chat` configuration (the vibebook configuration is removed). Worker Previews inherit no bindings, so a preview build without a `previews` block fails or gives error 1101.
 - Decision: The `previews` block binds new resources in the deco account: D1 `chat-preview`, KV `chat-preview-oauth`, R2 `chat-preview-files`. Each Preview gets its own Durable Object storage. The Preview base config has its own random `SESSION_SECRET`. Previews also get `EMAIL`, because sign-in is by emailed code. Preview builds are on in Workers Builds.
@@ -357,6 +391,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/deco-brand-icon · The PNG app icons are full-bleed
+
 - Agent: claude-opus-5-5
 - Context: The human asked for the deco favicon and brand icon from `~/code/studio`. The deco `favicon.svg` has rounded corners. iOS and Android put their own mask on an app icon.
 - Decision: `public/favicon.svg` is the deco favicon, unchanged. `apple-touch-icon.png`, `icon-192.png` and `icon-512.png` have no rounded corners: `og/icon.html` fills the corners with the deco lime (`#d0ec1a`). The in-app brand icon stays `/favicon.svg`.
@@ -366,6 +401,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/ws-json-rpc · JSON-RPC on the room and person sockets
+
 - Agent: claude-opus-5-5
 - Context: The human asked for typed WebSocket messages in the JSON-RPC protocol, with no RPC library, for the Svelte app only.
 - Decision: Only the wire edges changed (`shared/jsonRpc.ts`, `parseRoomCall`, `parseRoomEvent`, `Book.sendTo`, `Book.webSocketMessage`, `svelte/transport.ts`). The code keeps the typed tagged messages. A successful response has `result: null`. The data still comes in the events, as before. A refused command is error code -32000 with the reason. I removed the shim that accepted decision ids as strings from old tabs.
@@ -375,6 +411,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/ws-json-rpc · The CLI hub moves to JSON-RPC, old CLIs keep tagged JSON
+
 - Agent: claude-opus-5-5
 - Context: The `vibebook listen` hub of the installed CLI holds a socket to the `Person` object (through `/mcp`) and reads `m.t`. The human said to move the CLI to the new format and keep the legacy one.
 - Decision: CLI 1.6.21 connects to `/mcp?wire=jsonrpc`. It reads JSON-RPC notifications, and also the tagged JSON of an older server. The `Person` object tags each socket when it accepts it (`socketWire`): `/ws-me` and `?wire=jsonrpc` get JSON-RPC, plain `/mcp` gets the tagged JSON. I selected a query parameter, not a new path or a WebSocket subprotocol: the OAuth provider already routes `/mcp`, and a subprotocol needs the server to echo it.
@@ -383,6 +420,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the CLI change and `socketWire`.
 
 ### 2026-11-18 · feat/studio-login · Sign-in is with deco Studio only
+
 - Agent: claude-opus-5-5
 - Context: The humans (the CTO and the owner) decided that chat signs people in with their deco Studio account, and that Google, GitHub and the emailed code go away. Studio is an OAuth 2.1 server with dynamic client registration (`/api/auth/mcp/*`).
 - Decision: `/auth/studio/start` and `/auth/studio/callback` use OAuth 2.1 with PKCE as a public client, so chat keeps no client secret. Each origin registers itself at Studio the first time and keeps the client id in `OAUTH_KV`, so production, branch previews and local dev work with no configuration. The callback accepts only `email_verified: true`, because an unverified Studio email must not take an account here. The Studio picture is not copied: the old avatar code accepted only Google and GitHub hosts and is removed.
@@ -392,6 +430,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · ci/cancel-superseded-main · A newer push to main cancels the running CI
+
 - Agent: claude-opus-5-5
 - Context: The human asked that a new commit on `main` cancels the other runs and that only the latest commit runs. Before, a newer push replaced only a queued run. A running run (browser jobs, about 15 minutes) always finished.
 - Decision: `cancel-in-progress: true` for every branch in `ci.yml`. `main-red.yml` already ignores a cancelled run when `main` moved on.
@@ -401,6 +440,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/rename-deco-chat · A room is a "sala" or "room", not a "deco.chat"
+
 - Agent: claude-opus-5-5
 - Context: The human asked to rename vibebook to deco.chat in the app. The UI used "vibebook" for the product and also as the noun for one room ("Seus vibebooks", "Novo vibebook").
 - Decision: The product name is "deco.chat". The noun for one room is "sala" (PT) or "room" (EN): "Suas salas", "Nova sala". The default room title is "Nova sala". A room titled "Novo vibebook" still gets an automatic title.
@@ -409,6 +449,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit.
 
 ### 2026-11-18 · fix/studio-verified · The Studio identity comes from the id_token
+
 - Agent: claude-opus-5-5
 - Context: Sign-in with deco failed for everyone. Studio (Better Auth `mcp()` plugin) lists `/api/auth/mcp/userinfo` in its metadata, but that path answers 404. Studio signs its `id_token` with a throwaway HS256 key, so no one can check the signature.
 - Decision: The callback reads `email`, `email_verified` and `name` from the `id_token` that the token endpoint returns. It checks that `aud` is our client id and that `email_verified` is true. It does not check the signature: the token comes directly from Studio's token endpoint over TLS for a PKCE-bound code (OIDC Core 3.1.3.7 permits this). The step that fails goes to the Worker log.
@@ -418,6 +459,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/domain-chat · The CLI and the plugin talk to chat.decocms.com
+
 - Agent: claude-opus-5-5
 - Context: The app moved to chat.decocms.com. The CLI, the Claude plugin, the herdr plugin, the install scripts and the docs still used vibebook.dev. The human decided to keep the names (npm package `vibebook.dev`, command `vibebook`, plugin `vibebook`) and change only the domain.
 - Decision: Every URL that a client or a person follows is now https://chat.decocms.com. The npm package name stays `vibebook.dev` in install commands. A login that the CLI saved for vibebook.dev stops with a message in English and Portuguese that asks for `vibebook login`, because a login token works only on the host that made it. `vibebook update` downloads from the new host. The CLI and the plugin hooks find a room from a `chat.decocms.com/b/<id>` link and also from an old `vibebook.dev/b/<id>` link. CLI 1.7.0, plugin 0.25.0.
@@ -427,6 +469,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/studio-avatar · Studio userinfo first, and the Studio picture as avatar
+
 - Agent: claude-opus-5-5
 - Context: Studio now has `GET /api/auth/mcp/userinfo` (decocms/studio#8567). Until it is deployed, that path answers 404. The removed avatar code copied the Google or GitHub picture at sign-in.
 - Decision: The callback asks userinfo with the access token. If userinfo answers, its identity is used (the email must be verified). On 404 the callback uses the id_token claims, as before. The picture (`picture` from userinfo, `profile` from the id_token) becomes the avatar when the person has not uploaded one, with source `studio`. The Worker fetches only Google and GitHub picture hosts.
@@ -436,6 +479,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · feat/digest-cron · Turn on the catch-up e-mail
+
 - Agent: claude-opus-5-5
 - Context: The 8h/18h digest cron was off until Email Sending worked on chat.decocms.com. It works now.
 - Decision: Set `triggers.crons` to `0 11,21 * * *` (8h and 18h São Paulo). Previews get no cron.
@@ -444,6 +488,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Set `triggers.crons` to `[]` and deploy.
 
 ### 2026-11-18 · feat/login-straight-to-studio · /login goes directly to Studio, and a sign-out stays on the login page
+
 - Agent: claude-opus-5-5
 - Context: The human asked that `/login` go directly to the Studio OAuth, because it has only one button, and that the page show only after an error, to stop a loop. After a sign-out, `/login` (and `/`) would go to Studio again, and a Studio that is still signed in would sign the same person in again at once.
 - Decision: `/login` without `error` or `out` redirects to `/auth/studio/start` (with `next`). Each sign-out goes to `/login?out=1`: the sign-out of this browser (it went to `/`), the sign-out of all browsers, and the "Not you?" form of the consent page.
@@ -453,6 +498,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-18 · fix/herdr-app-switch-now · Off closes the Claude even when it works
+
 - Agent: claude-opus-5-5
 - Context: The human asked that "Ligar Claude" off stop or close the Claude of the room on the desktop at once. This replaces the earlier behavior (off only stops delivery, and the workspace stays open).
 - Decision: Off closes the workspace (terminal mode) or the space (`--app`) at once, also when its Claude works. If the workspace or space has other terminals, the runner ends only the Claude of the room and keeps the rest. The runner keeps the session, and on again opens it with `--resume`.
@@ -462,6 +508,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/composer-focus-on-enter · The composer takes the focus when you enter a room or a DM
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the composer have the focus when a person enters a room or a DM.
 - Decision: The composer focuses its field when you enter a room, a DM or a thread (not when it mounts again in the same thread, for example after the Inbox closes: then the focus goes back to the Inbox button). It does not focus on a touch screen (`pointer: coarse`) or in the phone layout (`MOBILE_QUERY`), because the keyboard then covers the messages and the phone layout hides its tab bar while the composer has the focus. It does not take the focus from another field or from an open dialog.
@@ -471,6 +518,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/room-topbar-breadcrumb · Two new components for the top bar
+
 - Agent: claude-opus-5-5
 - Context: The human selected a breadcrumb in the desktop top bar (room › epic, board or inbox), the search at the top of the sidebar, and the epic actions as buttons in the bar (no "⋯"). `ThreadHeader` was the title of both the desktop bar and the phone sheet, so one component had two layouts.
 - Decision: `RoomBreadcrumb` (room-shell) is the desktop bar. It uses the studio `Breadcrumb` atoms. The room crumb opens the main thread (`toMain` in `RoomScene`), also from the board, the inbox or a thread that is gone. `EpicActions` (room-sidebar) holds rename, archive, delete and their dialogs once, as a `menu` (phone sheet, in `ThreadHeader`) or as a `bar` (desktop: ✎, a labelled Archive that folds to its icon when the breadcrumb, a container, is narrower than `@xl`, and 🗑). `SearchField` is the 52px header row of each sidebar: room, DM and home, with the `⌘K`/`Ctrl+K` hint (`searchShortcut`, shared with the search dialog). There is no `track()` in the Svelte app yet, so these controls send no event.
@@ -480,6 +528,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: partly replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2). `EpicActions` stays.
 
 ### 2026-11-19 · feat/room-topbar-breadcrumb · Rename the room from the top bar
+
 - Agent: claude-opus-5-5
 - Context: The sidebar header had the room name and its ✎. The human asked to remove that header, so on desktop the ✎ needed a new place.
 - Decision: On the main thread, a ✎ follows the room crumb in the top bar. A DM has no ✎. The phone keeps the ✎ on the room's row in the sheet.
@@ -489,6 +538,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: replaced by "The sidebar names the room, the bar names the view" (feat/room-topbar-take2)
 
 ### 2026-11-19 · feat/room-topbar-take2 · The sidebar names the room, the bar names the view
+
 - Agent: claude-opus-5-5
 - Context: After #216 the human asked for the opposite: no search box in the sidebars, the room's name back at the top of the room sidebar, Home at the top of the DM and home sidebar, and the epic's buttons grouped before the pane tabs with a vertical line. The human accepted the recommended answers in the take 2 mockup.
 - Decision: `SidebarHeader` (lib/components) is the 52px top row of each sidebar: the room's name (a click opens the main thread, ✎ on hover) or Home. Search stays on the rail and ⌘K. `RoomBarTitle` replaces `RoomBreadcrumb`: the bar names only the view ("Sala principal" in grey, the epic, the suggestion, "Quadro de tarefas", "Caixa de entrada"; a DM: the person), so the room's name is not shown twice. `EpicActions` `bar` puts ✎, Archive and 🗑 together, then a vertical `Separator`, before the tabs.
@@ -498,6 +548,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · chore/pencil-and-home · The DM sidebar is built like a room's
+
 - Agent: claude-opus-5-5
 - Context: The human picked option A in the DM sidebar mockup: "Mensagens diretas" names the sidebar, Home and "Você" sit where a room has its Main thread and Inbox. The mockup's two other questions (row size, requests) had no answer.
 - Decision: The header is `SidebarHeader` with "Mensagens diretas" and the `+` (new message) at its end. Home and DM rows in the sidebar variant are small, like a room's rows: a 16px icon for Home, an `xs` avatar for a DM, and no status line. The phone's room list (`list` variant) keeps the big rows. "Pedidos" stays a section with its buttons. A "Conversas" section title shows only when there is a conversation.
@@ -506,6 +557,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 
 ### 2026-11-19 · perf/immutable-chunks · Browser chunks are cached for one year
+
 - Agent: claude-opus-5-5
 - Context: The human asked to make navigation faster. Production served each `/svelte-preview/*` file with `max-age=0, must-revalidate`, so each page load sent about 80 revalidation requests (304).
 - Decision: `public/_headers` gives `/svelte-preview/*` `Cache-Control: public, max-age=31536000, immutable`. Each file there has a content hash in its name, or (`app.js`, `ui.css`) a `?v=` content hash in each reference. `app.html` keeps revalidation, so a deploy still reaches people.
@@ -514,6 +566,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Delete `public/_headers`.
 
 ### 2026-11-19 · perf/lazy-message-toolbar · The message hover toolbar mounts on demand
+
 - Agent: claude-opus-5-5
 - Context: The human asked to make navigation faster. A profile showed that the hover toolbar of each message (8 quick reactions, reply, copy, link, each with a tooltip) was about 200 of the 300 ms to show a room with 60 messages.
 - Decision: `svelte/Message.svelte` mounts `MessageActions` (floating) on the first `pointerenter` or `focusin` in the message. Until then, one visually hidden button ("Ações desta mensagem" / "Actions for this message") keeps the toolbar in the tab order. When it gets focus or a click (a screen reader in browse mode), the toolbar mounts and focus moves to its first button, or to its last button after Shift+Tab. The button is hidden on coarse pointers, like the toolbar. A swipe copy calls the mounted toolbar at once, inside the gesture (iOS allows the clipboard only there).
@@ -523,6 +576,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · fix/metrics-chat-worker · Drop the zone-wide daily totals in metrics
+
 - Agent: claude-opus-5-5
 - Context: The product report read the daily totals of the whole zone (`httpRequests1dGroups`). The zone is now `decocms.com`, which also holds the other deco sites, and that dataset cannot filter by host.
 - Decision: I removed the zone-wide block (requests, unique visitors, cache, threats). The report keeps the Worker numbers and the per-kind and per-route lines, now filtered to our own host.
@@ -532,6 +586,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · fix/sidebar-one-scroll · The sidebar scrolls as one, with Show more
+
 - Agent: claude-opus-5-5
 - Context: The human asked for one scroll for the whole sidebar, the epics cut at what fits with "Show more", and roomy people and agent rows.
 - Decision: No section scrolls inside (`sidebarSection.ts` is gone). EpicTree, PinnedItems, PeoplePanel and DmNav are `shrink-0` again inside the sidebar's single scroll; the foot stays sticky.
@@ -540,6 +595,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 
 ### 2026-11-19 · fix/snappier-room-switch · Shorter room-switch transition
+
 - Agent: claude-opus-5-5
 - Context: The human asked to make the room switch feel more snappy. The view transition froze the screen for up to 300 ms while it waited for the next room's state, then animated for about 260 ms.
 - Decision: The wait is at most 120 ms. The old conversation fades out in 90 ms; the new one rises in 150 ms after 30 ms. The browser's crossfade of the rest of the page is 150 ms, not 250 ms (set from `browser.ts` with `updateTiming`, so no new CSS). I kept the custom router and did not add a routing library.
@@ -549,6 +605,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · chore/drop-native-naming · New names for the "native" code
+
 - Agent: claude-opus-5-5
 - Context: The human asked that no name tell that a second UI once existed. "Native" meant the Svelte port. Most names only lose the word. Some new names would collide with a name that is already in use.
 - Decision: `NativeComposer` is now `ComposerForm` (`Composer` is its wrapper). `src/native-page.ts` is now `src/auth-page.ts`, and `shared/nativeAuth.ts` is now `shared/authPage.ts`. The colliding attributes are now `data-room-bar`, `data-room-sidebar-panel`, `data-setup-instructions`, `data-suggestion-preview` and `data-origin-id`. The app bridge is now `RoomAppBridge`. The `check:styles:native` subset is removed, because `check:styles` audits all of `web/`; its two policy tests now run in `check:styles`. "Native" stays where it means the browser, the OS (Web Push) or the product's chat cards.
@@ -558,6 +615,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · chore/vite-app-build · Wrangler builds the app; the shells are web/index.html and web/auth.html
+
 - Agent: claude-opus-5-5
 - Context: The human asked to stop committing the built app and to let Workers Builds build it, with the assets in `assets.directory`.
 - Decision: Vite builds `web/index.html` and `web/auth.html` into `dist/` with hashed file names; `wrangler.jsonc` serves `dist/` and runs `bun run build:ui` in `build.command`, so `wrangler deploy` in Workers Builds builds first and the dashboard settings stay as they are. The auth pages have their own shell, and `src/auth-page.ts` adds the page metadata with HTMLRewriter (no more regex parsing of the app shell). `/app` is now a Worker route that serves the bare shell, as the static `app.html` did. `uiVersion.ts` and `check:bundle`'s drift check are gone; `check:bundle` now only builds. `public/cli.mjs` stays committed (it is the published CLI, not the app).
@@ -567,6 +625,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · chore/final-vanilla-sweep · One socket byte count per event kind
+
 - Agent: claude-opus-5-5
 - Context: `Book.sendTo` counted socket bytes per UI (`c`). Only one UI is left, so `c` was always "s", and the product report printed "(svelte)" on each line.
 - Decision: Count sends per event kind only. New `ws_bytes` events have no `c` dimension, and the report groups by kind. The Durable Object table keeps its `c` column (existing rooms have it), always "". No data is deleted.
@@ -576,6 +635,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · chore/drop-app-route · Browser tests open a separate gallery build
+
 - Agent: claude-opus-5-5
 - Context: The human removed `/app` and the `?gallery=1` branch of `web/main.ts`, so the gallery is not in `dist/`. The room layout and design-system browser tests opened the gallery at `/app?gallery=1`.
 - Decision: `bun run build:gallery` (`vite build --mode gallery`) builds only `web/dev/gallery.html` into `dist-gallery/` (not in git, not deployed). `scripts/browser-static-gallery.ts` serves that build on a free loopback port. `room-layout-browser.ts` and the gallery part of `design-system-browser.ts` open `/dev/gallery.html` there. The Inbox part still uses the Worker. The CI `browser-ui` job runs `build:gallery` and gives `TEST_GALLERY_ROOT`.
@@ -585,6 +645,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · one-html-shell · One HTML shell for the app and the auth pages
+
 - Agent: claude-opus-5-5
 - Context: The human approved one shell. Vite built two: `web/index.html` (the app) and `web/auth.html` (sign-in, consent, access, file-access and connection pages).
 - Decision: `web/auth.html` is gone. `authPage()` reads `/` (the built `web/index.html`) and adds `robots: noindex` with the page meta tags. Auth pages do not get `vb-v`. The `<noscript>` text is now in `web/index.html`. The auth layout (`AuthFrame.svelte`) owns its background: it already has `min-h-dvh bg-background`, so the `md:bg-sidebar` of the app body does not show on desktop. No change to it was necessary. Auth pages now get the theme script of the shell before the first paint. A dark theme gives a dark sign-in page (`mount.ts` already did this after mount). The `antialiased` class of the app body makes the text of the auth pages a little thinner on macOS. That is the only visible difference in the screenshots.
@@ -594,6 +655,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · settings-sidebar-like-dms · Settings rows use the Home row icon
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the `/settings` sidebar look like the `/` sidebar: "Configurações" / "Settings" in the header, no `+`, the Home row, then the settings sections. A DM row shows a small avatar. A settings section has no avatar.
 - Decision: `SettingsNav.svelte` now uses the same pieces as `DmNav.svelte`: `SidebarHeader` with the same `h2`, the same `ul` and `HomeRow`, and `RoomRow` (sidebar variant) for each section. Each section row shows its icon at 16px in `text-muted-foreground`, the same as the Home row icon. The old 36px tile and the small "Settings" label above the sections are gone. I did not add a component.
@@ -603,6 +665,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · edit-room-dialog-icon · The room pencil opens "Edit room" with the icon field of Settings
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the pencil next to the room name open a dialog for the name and a new image, and that it reuse the existing room icon upload.
 - Decision: The rename dialog is now "Editar sala" / "Edit room". An `iconField` snippet in `AppNavigationDialogs.svelte` shows the icon (`RoomMark`, `lg`), "Trocar ícone" and "Tirar ícone". It uses `roomIconPng` and `rooms.icon`. The Settings dialog uses the same snippet, so its plain file input is replaced by the preview and the buttons. `RoomMark` takes an optional `size`. The pencil label is now "Editar sala". I did not add a component.
@@ -612,6 +675,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/device-notification-switches · New DeviceAlerts component for two switches
+
 - Agent: claude-opus-5-5
 - Context: The human asked for two switch rows (Notifications, Sound) under "This device" on `/settings`, in place of the bell and the dialog. No existing component draws a settings row with a description and an inline error.
 - Decision: I added `web/features/notifications/DeviceAlerts.svelte`. It uses `Switch`, `Button` and `Spinner` from `web/lib/studio/`. `AccountPanel` gives it its row and hint classes through the `notifications` snippet. The enable steps and the migration are pure functions in `web/features/notifications/device.ts`, so tests can run them.
@@ -621,6 +685,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/device-notification-switches · The test push goes only to this device
+
 - Agent: claude-opus-5-5
 - Context: Turning Notifications on sends a test notification. `/api/push/test` sent it to every device of the person.
 - Decision: `/api/push/test` accepts an optional `endpoint`. The app sends the endpoint of this device, so other devices do not get the test. The server reads the first name from `users.name`. If there is no name, the text has no name. The server tracks `push_test`. The Sound switch is local only and sends no event.
@@ -630,6 +695,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/device-notification-switches · Notifications switch stays on after a failure
+
 - Agent: claude-opus-5-5
 - Context: The turn-on steps can fail after the permission: subscription, server or test push. The human asked for an inline error and "Try again".
 - Decision: After the browser grants the permission, the switch stays on. The row shows the error and "Try again", which runs the same steps again. If the person closes or blocks the prompt, the switch goes back to off. If the push service accepts 0 test notifications, it counts as a failure. On iPhone Safari without the app installed, the device section also shows `InstallCard`, and the row has the install steps.
@@ -638,6 +704,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 
 ### 2026-11-19 · feat/dm-presence · DM presence: contacts, refresh and reply
+
 - Agent: claude-opus-5-5
 - Context: The human approved Person-to-Person presence for the DM list, with a grace period. The contact source, the staleness rule and the shared dot were open.
 - Decision: The contacts are the people of the DMs that have a message (one D1 read in `dmContacts`, only on a transition), the same people whose DM list shows you. While online, the alarm sends `online` again every 30 minutes; a stored `online` older than 75 minutes is offline. When a `Person` hears from a contact that it did not know, it answers one time with its own state (`reply`), so a new DM gets both dots. I made `web/lib/components/PresenceDot.svelte` from the dot of `PeoplePanel`, and both lists use it.
@@ -647,6 +714,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · image-picker · One picker for a person's photo and a room's icon
+
 - Agent: claude-opus-5-5
 - Context: The human chose direction B of the picker brainstorm: a badge on the picture that is always visible, a click opens the file picker, and an image dropped on the picture is taken. The human asked for one component for the photo and the room icon.
 - Decision: New molecule `web/lib/components/ImagePicker.svelte`. No existing component wraps a picture as a button with drop. The caller draws the picture, converts the file (`avatarImage` or `roomIconPng`) and saves it. It replaces the "Change photo" button in Account, the photo button in onboarding, and the icon button in Edit room and room settings. The badge uses the `camera-01` icon (added by the icon sprite change). A file over the picture shows a dashed outline and an upload icon. Busy shows a spinner. Account passes only `disabled`, because its profile phase is the same for a name change and a photo change.
@@ -656,6 +724,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/icon-sprite · The icon sprite is a Vite asset
+
 - Agent: claude-opus-5-5
 - Context: The human asked for one static, cacheable SVG sprite for all icons. The human did not say where it lives or how the Worker serves it.
 - Decision: The sprite is `web/lib/studio/icons.svg`. `Icon.svelte` imports it with `?no-inline`, so Vite writes `dist/assets/icons-<hash>.svg`. `public/_headers` already gives `/assets/*` one year `immutable`. A new icon makes a new hash. The service worker has no cache, so the sprite has the same offline behavior as the app shell.
@@ -665,6 +734,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/icon-sprite · icons.ts is the source, the sprite is committed
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the sprite and the `IconName` union come from one place.
 - Decision: `web/lib/studio/icons.ts` has the `d` of each path, by name. `IconName` is `keyof typeof icons`. `bun scripts/icon-sprite.ts` writes `icons.svg`, and I commit it. `bun run check:icons` fails if the sprite is different, or if a file in `web/` imports a value from `icons.ts`.
@@ -674,6 +744,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/icon-sprite · Two icons that are not Untitled UI
+
 - Agent: claude-opus-5-5
 - Context: `AgentFoot.svelte` drew a laptop and `paneIcons.ts` drew the ✻ of the agents with their own SVG data. Neither is in `@untitledui/icons`.
 - Decision: Both are in the sprite as `app-laptop` and `app-agents`, in a separate `appIcons` group. The ✻ was three `<line>` elements with `rotate`. It is now one path with the same end points, rounded to 0.001.
@@ -683,6 +754,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/inbox-triage · The Inbox is a triage list
+
 - Agent: claude-opus-5-5
 - Context: The human chose direction A of the Inbox brainstorm: compact rows, Reply, Open and Resolve on each row, and "Resolve all". The human asked for loading states and an animation when an item is resolved.
 - Decision: `RoomInbox` shows one list, newest first, two lines for each item, with the Markdown removed (`inboxPreview`). The "O que é seu" panel is gone. Its reviews are rows of the list, and your tasks are behind the "Suas tarefas" chip. Chips filter by kind. In "Todas as salas", the list has one group for each room. Asks have a checkbox and a bar to resolve the selected asks. Reply opens a composer under the row and posts in the item's thread (`inbox.reply`). Keys: j, k, o, r, e, x.
@@ -692,6 +764,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/inbox-triage · Resolve waits 5 seconds, with Undo
+
 - Agent: claude-opus-5-5
 - Context: "Resolve all" removes many asks at once. The human asked for Undo, not a confirmation.
 - Decision: `inbox.resolveLater` hides the asks at once and sends them after `INBOX_UNDO_MS` (5 s). "Desfazer" puts them back. If the Inbox closes first, the asks go at once. One new route, `POST /api/waits/resolve-many`, deletes up to 200 asks of the signed-in person in one batch. A row collapses for 200 ms before it leaves (Tailwind `grid-rows` transition, 0 with reduced motion).
@@ -701,6 +774,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/inbox-triage · The controls of a view go in the top bar
+
 - Agent: claude-opus-5-5
 - Context: The human asked that "Esta sala / Todas as salas" and "Resolver todos os pedidos (n)" go in the top bar, after a vertical divider, and that the docs make this a rule.
 - Decision: `RoomHeader` takes a `viewControls` snippet. It draws it before the pane tabs, then a vertical `Separator`. `InboxControls` is the Inbox's snippet. On phones, `RoomInbox` draws the same component at its top. The rule and the steps are in the new `docs/design.md`, with the list and feedback rules.
@@ -710,6 +784,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/profile-stats · The public profile is off by default
+
 - Agent: claude-opus-5-5
 - Context: The human asked for a public profile with the tokens, messages, deploys and limits of each person (#3526), to make it a badge to share.
 - Decision: `/u/<handle>` shows only to the person, and to people who share a room with them, until they turn on "Perfil público" in Settings. The hover card on a chat avatar works for people who share a room. A profile never shows the email. The avatar on the page comes from `/u/<handle>/avatar`.
@@ -719,6 +794,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/profile-stats · Tokens count input, cache and output
+
 - Agent: claude-opus-5-5
 - Context: The CLI reads the Claude Code transcript. Each model call has input, cache read, cache write and output tokens.
 - Decision: The CLI sends the sum of all four for the session (`x-vibebook-usage: <session>:<tokens>`). The server adds the growth to `user_stats` for the day. Cache reads are most of it, so the number is large (one long session: about 1.6 billion).
@@ -728,6 +804,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/profile-stats · The profile page is a public page, served like the login
+
 - Agent: claude-opus-5-5
 - Context: The page must open without a session. The typed routes in `api.ts` need a session.
 - Decision: `/u/:handle` serves the page shell with `vb-page=profile` (the same shell as the login and access pages). The data comes from `GET /auth/profile/:who` in `authApi`, which checks who may see it. The Settings switch is `POST /api/me/profile`.
@@ -735,7 +812,9 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low
 - Undo: Revert this commit.
 - Status: open
+
 ### 2026-11-19 · feat/people-remove-and-dm · The name opens the DM, not the row
+
 - Agent: claude-opus-5-5
 - Context: The human selected "any member removes any member, except the owner", and asked that a click on a person in "Pessoas e agents" opens the DM with that person.
 - Decision: Only the name is a button that opens the DM (the app's `connect`). The avatar keeps its online tooltip, and the ✕, "copiar" and "reenviar" stay as they are. A pending invite has no link. A member cannot remove himself or herself with the ✕ (there is no "leave the room" in this list).
@@ -745,13 +824,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · fix/pwa-splash-mark · The PWA splash shows the deco mark without the lime square
+
 - Agent: claude-opus-5-5
 - Context: The human said that the splash screen of the installed app shows a lime square with the `d`, and asked for only the `d` there. The human wants to keep the lime square on the app icon.
 - Decision: Android makes the splash from the manifest icons with `purpose: "any"`, and the launcher icon from the `maskable` icons. The `any` icons are now `icon-mark-192.png` and `icon-mark-512.png` (transparent, made from `og/icon-mark.html`). The `maskable` icons are the lime `icon-192.png` and `icon-512.png`. iOS uses `apple-touch-icon.png` (lime), unchanged. The install card and notifications use `icon-192.png`, unchanged.
 - Other options: Keep one lime `any` icon at 192 px for the desktop install icon (the desktop icon then mixes two images at different sizes).
 - Risk: low. A desktop install (Chrome on Windows or macOS) can show the mark without the lime square.
 - Undo: Revert this commit.
+
 ### 2026-11-19 · fix/composer-keeps-sent-text · Compare the sent text, do not lock the field
+
 - Agent: claude-opus-5-5
 - Context: A phone keyboard can send an input event with the same text after Enter. The composer counted it as an edit, kept the sent text in the box, and people sent the message again (two copies in a DM).
 - Decision: An input event with the same text is not an edit. When the message arrives, the box clears if it holds the same text, reply and files as the message that was sent.
@@ -761,6 +843,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/inbox-triage · The home's Inbox is a page at /?inbox
+
 - Agent: claude-opus-5-5
 - Context: The human asked for an Inbox row under Home in the direct messages sidebar, always for all rooms. The room Inbox close button (X) is gone too, so the sidebar Inbox button closes a room's Inbox.
 - Decision: The Inbox row (`InboxRow`) opens `/?inbox`. That is the home route with `inbox: true`. On that route, `HomeInbox` shows the same triage list as a room (`RoomInbox`), with a bar that holds "Resolve all". An Inbox without a room shows all rooms (`roomInboxModel`), and `InboxControls` hides "Esta sala / Todas as salas". The waiting count moves from the Home row to the Inbox row, like a room shows it on its Inbox and not on its Main thread. Two new components: `InboxRow`, because `HomeRow` is Home's row on the phone room list too, and `HomeInbox`, because `RoomInbox` has no top bar of its own.
@@ -770,6 +853,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · fix/pwa-splash-android · Android gets its own manifest, sized so that only the splash takes the transparent mark
+
 - Agent: claude-opus-5-5
 - Context: The entry "The PWA splash shows the deco mark without the lime square" is wrong. Chrome on Android makes the splash from a `maskable` icon first (`ShortcutInfo::UpdateBestSplashIcon`), not from an `any` icon. That change only made the desktop icon the bare mark. The human wants the lime icon on desktop and on the phone, and the transparent mark only on the splash.
 - Decision: `public/manifest.webmanifest` has the original lime icons again (desktop, iOS). On Android, a script in `web/index.html` changes the manifest link to `public/manifest-android.webmanifest`. Its `maskable` icons are a lime `icon-maskable-332.png` and a transparent `icon-splash-512.png` (made from `og/icon-splash.html`, the mark in the safe zone). Chrome takes the smallest icon that is not smaller than the ideal size: 83dp for the launcher and 128dp for the splash. For a screen density from 2.625 to 4, the launcher (218 to 332 px) takes the lime 332 px icon and the splash (336 to 512 px) takes the transparent 512 px icon. Desktop Chrome on macOS takes the largest `maskable` icon, so the desktop manifest must not have the transparent icon.
@@ -779,6 +863,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/cli-herdr-logs · The hub shows what it hears at a new loopback route
+
 - Agent: claude-opus-5-5
 - Context: The human asked that `vibebook herdr --verbose` show room activity and the room name, with no change on the server and no change in behavior. The hub hears the room events, but the runner is a different process.
 - Decision: The hub keeps its last 100 events in memory (kind, room ID, time; no message text) and serves them at `GET /events?since=<seq>`, a long-poll on its loopback port. Only `herdr --verbose` reads it. The runner gets the user email from the access token (`<email>:<grant>:<secret>`), with no request. The human chose English-only log lines for the runner. This is an exception to rule 6, because the logs are operator output and not app text.
@@ -788,6 +873,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · explore/pin-app-icons · A pinned app's tile is the marble its name draws
+
 - Agent: claude-opus-5-5
 - Context: The human selected option A (a marble tile, like a room) from a side-by-side test against B (the marble tile with an app glyph on it). These details were not given by the human.
 - Decision: The tile uses `OrgAvatar` with the app's label as its seed, like a room uses its title. It is 20 px with `rounded-md`, the rail's ratio (about 30% of the side). `pinAppTint` and `pinAppInitials` are removed. Links keep their line glyph: a glyph leaves deco.chat, a tile opens inside the room.
@@ -797,6 +883,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/room-members-search · People & agents beside the chat, and a search for the room's messages
+
 - Agent: claude-opus-5-5
 - Context: The human asked for People & agents like Discord's member list, beside the chat, and for a search of the room's messages. They reviewed it on a local build and asked to ship it.
 - Decision: Two new panes, `people` and `search` (`DocumentPane`). `people` reuses `PeoplePanel` with a `members` variant (Online / Offline / Invited with counts, 32px faces, offline dimmed, an "Invite people" button) and `AgentPresenceRows` with `large`. The sidebar no longer shows People. `search` is a new component, `web/features/chat/RoomSearch.svelte`: no existing one searched one room's messages. It matches the loaded messages, then the server's `/api/search` filtered to the room, and a click jumps to the message. The field is in the top bar (`roomSearchQuery`). Closing the Doc opens People; closing People closes the pane.
@@ -805,6 +892,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 
 ### 2026-11-19 · fix/stale-chunks · A chunk of an older deploy reloads the page once
+
 - Agent: claude-opus-5-5
 - Context: A person who opened the app before a deploy got "Não foi possível carregar esta tela" on Settings. Workers Static Assets serves only the newest build, so the old chunk name fell through to the Worker (401), and "Tentar de novo" asked for the same missing file. The human asked for a reload on a stale chunk and a 404 for a missing asset.
 - Decision: `createDeferredModule` and a `vite:preloadError` listener (mount.ts) call `reloadForNewBuild` when the import error is a browser's "module did not load" message (`isStaleChunk`). It reloads at most once in 60 seconds for each tab (`sessionStorage`), and never when storage is blocked, so it cannot loop. A second failure shows the error state. The Worker answers `/assets/*` with 404 and `no-store`, before the sign-in check.
@@ -814,6 +902,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/notifications-phase1 · One chime for what is for you, in any room, and the Inbox count in the tab's name
+
 - Agent: claude-opus-5-5
 - Context: The human asked for notifications like WhatsApp (a DM, an agent that needs them) and for the Inbox count in the tab's name. They said: first one uniform notification and sound, ship, then iterate (two and three notes later). The chime played only for messages in the open room. A DM or a mention in another room made a web push, but only for people who turned on Notifications.
 - Decision: `Book.notify` (DM, mention, an agent asks you) also pokes the recipients' `Person` with `{t: "alert", book}`. The open app plays the same chime as a message in the open room, if Sound is on. With two or more tabs, only the tab that gets the `vb-chime` Web Lock plays it. The same 20-second limit as the push applies. The tab's name starts with the Inbox count (`tabTitle`, "(3) Sala · deco.chat") on Home and in a room. I did not add the request for notification permission at the right time. It stays a task for the next epic.
@@ -823,6 +912,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · fix/copy-no-ui-marks · Copying messages takes only their text
+
 - Agent: claude-opus-5-5
 - Context: The human copied messages from one conversation to another, and the UI's marks came along. They asked that these marks are not selectable.
 - Decision: `select-none` on the bar under a message (reactions, acks, seen), the epic thread cards, the time zone, the quote's ✦, the "agent" and "entregue" badges, and every `Avatar` (initials and agent glyphs). The author's name, the time and the text stay selectable, so a pasted conversation still says who wrote what and when. Checked on the live room: a copied range had ✓ ⏳ ✻, "3/4 tasks · 3 replies" and "GMT-3" before, and only the author, the time and the text with the same rules.
@@ -832,6 +922,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-19 · feat/token-backfill · The profile counts a machine's older Claude Code tokens
+
 - Agent: claude-opus-5-5
 - Context: The human asked why the profile did not count the tokens they spent before CLI 1.7.6 (#3646). The live counter only sees sessions from 1.7.6 on, and the CLI did not update itself.
 - Decision: Once per machine, a detached `vibebook maintain` (started by `listen`) scans every transcript in `~/.claude/projects`, including the subagents' (`<session>/subagents/*.jsonl`), sums the same four token kinds by the entry's UTC day and sends them with the `usage_backfill` tool. It counts all Claude Code use on that machine, not only sessions in deco.chat rooms. Sessions the live counter already reported (`~/.vibebook/usage/<session>.json`) are skipped; the scanned ones get that file at the scanned offset with total 0, so the live counter adds only what comes after. The server keeps `usage_backfill (email, machine, day)` at the largest value sent, so a rerun (`vibebook backfill --force`) never counts twice; the profile adds it to the live total. Last 2 years only, ≤ 1e11 a day. The same child also updates an install.sh CLI every 6h when the server's is newer (the running listen exits with "a CLI foi atualizada"); an npm install gets one stderr line a day.
@@ -841,6 +932,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-20 · feat/pill-atom-b · Every badge is a white pill with an edge, and the tone is a dot
+
 - Agent: claude-opus-5-5
 - Context: The human said that the Inbox pills did not match the rest of the product, and then asked to change the pill atom itself, so that every pill changes. They compared 4 options in a playground and selected option B: a white pill with an edge, with the colour only in a dot.
 - Decision: `badgeVariants`: all variants are `bg-card shadow-edge`, with foreground text (`muted` keeps the muted text). A toned variant (success, warning, destructive, agent, lime, info, brand) sets `--badge-tone`. The tone colours a 6px dot before the text, or the leading icon when there is one. `BadgeDot` uses the same colour, so an explicit dot does not make a second dot. `sm` is 18px and `default` is 22px, so the edge does not touch the text. info uses `--color-notice`, because `--color-brand-blue` is too pale for a dot on white. The Inbox row kind is now a `Badge` (Claude is `agent`, purple; a task takes its status's tone), not a span with its own colours. The Inbox filters stay buttons (`aria-pressed`): the selected one is `outline` and the others are `ghost`, not black. "✓ entregue" lost the ✓, because the dot now says it.
@@ -850,6 +942,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-20 · feat/composer-single-field · The composer is one filled field, and send has its own slot
+
 - Agent: claude-opus-5-5
 - Context: The human asked for a composer like the Discord phone composer, then approved the artifact in epic c01ee455 (a ghost +, and a reply strip with a preview). They asked for no horizontal shift while you type, support and speed for long texts, and CSS transitions. They did not select between "Enter only" and "button while typing" for send on a computer.
 - Decision: `ChatField` is one `bg-muted` field (`rounded-3xl`, `md:rounded-xl`) with no edge, and a thin ring on focus. The order is + (ghost), the text, emoji, mic and send. The icons in the field hover with `bg-secondary-hover`, because `accent` is the same colour as `muted` in light mode. On a phone, send takes the mic's cell when there is something to send, but not while you dictate. On a computer, send keeps its slot and fades in when there is text. Thus the text never moves sideways. The reply strip (one line: "Respondendo a **who** · start of the message…", without "Respondendo a" on a phone) and the attachments are inside the field, on top, through the new `above` snippet. The text grows up to 160px (256px on a computer) and then scrolls. The line count and the "has text" test stop early, so a long text costs nothing per keystroke. The computer hint line ("Enter envia · Shift+Enter nova linha") is not added, because send stays visible.
@@ -859,6 +952,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-21 · feat/mobile-controls · The phone room has no bottom bar; the title's menu holds the room's shortcuts
+
 - Agent: claude-opus-5-5
 - Context: The human selected proposal C in epic 7f79a4ab: the bottom of a phone room is only for the composer, the title opens a menu from the top, the top bar keeps the most important information, and the thread's files strip stays. The mockup did not say where the shortcuts go in the existing menu, what Back does on the board, or how big the controls are.
 - Decision: The bottom bar (`PhoneTabBar`) becomes `PhoneRoomMenu`: five shortcuts (Doc, Board, Files, Agents, Search) at the top of the menu that the title already opens, above "Esta sala | Todas as salas". A DM shows only Files and Search. A shortcut closes the menu, then opens its panes. Search leaves the top bar for the menu. The top bar shows the thread's title in the middle and, under it, the room and the epic's progress ("Produto · 2 de 4 tarefas"). The room's avatar is not in the bar any more (a DM keeps the person's face). The back button, the inbox and your avatar have 40px targets, the icons are 20px, and your avatar is 32px (it was 16px); the home's bar uses the same avatar. On a phone, Back (and the edge swipe) first leaves the full board or closes the doc sheet, and only then goes to the main thread or to the rooms. The doc sheet uses the layout's existing top sheet with a handle.
@@ -868,6 +962,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-21 · fix/mobile-drawer · A phone sheet is only open or closed, and keeps one height while it slides
+
 - Agent: claude-opus-5-5
 - Context: The human said that the phone drawer shrinks when it opens, is not only open or closed, and does not slide with a good ease. Three adversarial reviews (state, CSS, and a frame-by-frame measurement at 390px) found the causes. The human did not select the fixes, the durations, or what to do with the full-height doc while you type.
 - Decision: The thread's files strip above the doc sheet stays until the slide out ends, so the sheet keeps one height (it changed from 560px to 606px at the start of each close). The doc sheet no longer becomes full height when a field in it has focus. A drag only previews: its release always settles to fully open or fully closed, also when the sheet stays open or a tap stops a slide. A menu shortcut changes the side sheet to the doc sheet in the same history entry: the side sheet slides out while the doc slides in (`leavingSheet`), and the backdrop stays on. An open takes 360 ms and a close takes 260 ms, with the existing `.32,.72,0,1` curve, in proportion to the distance that is left (at least 40%).
@@ -877,6 +972,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · feat/mobile-pane-in-place · On a phone, a pane takes the chat's place, and the Inbox keeps the top bar
+
 - Agent: claude-opus-5-5
 - Context: The human asked that Doc and the other panes that opened as a drawer on a phone appear in the place of the chat, and that the Inbox keep the top bar with its button pressed. They did not say if the composer stays under a pane, how a pane appears, or what ← does with the Inbox open.
 - Decision: On a phone, the doc and board panes fill the rows under the top bar and the thread's files strip, over the chat and the composer (as the old bottom-bar tabs did). They keep the `doc` sheet state and its history entry, so ← and the edge swipe go back to the chat. They fade in with a short rise (`vb-room-pane`, 12px) on the same scrubbed timeline, with no handle and no backdrop. Only the side sheet (the title's menu) is still a drawer. The Inbox opens under the top bar; the bar's Inbox button is pressed and closes it, so the Inbox's own ✕ on a phone is gone. ← closes the Inbox first.
@@ -886,6 +982,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · fix/mobile-menu-scroll · In the phone's title menu, only the epics scroll
+
 - Agent: claude-opus-5-5
 - Context: The human said that in the menu that the room's title opens on a phone, all of the menu scrolls, and that only the epics must scroll. They did not say if the epics' tabs (Épicos, Plano, Feitos) stay in place.
 - Decision: On a phone, the menu does not scroll. The shortcuts, the "Esta sala | Todas as salas" tabs, the room's row and the epics' tabs stay in place. Only the list under the epics' tabs scrolls. The DM list and the list of all rooms already scroll in their own area. The desktop sidebar still scrolls whole.
@@ -895,6 +992,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · fix/mobile-menu-dismiss · The room behind the phone's title menu is glass
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the part of the room outside the phone's title menu close the menu when you tap it, and that it use a glass effect. A tap on that part already closed the menu in the browser test at 390px. The human did not say how strong the glass is.
 - Decision: The backdrop under the title menu keeps its color and adds a small blur (`backdrop-blur-sm`). It fades in and out with the menu's slide. The browser test now taps the backdrop and expects the menu to close, so that this behavior stays.
@@ -904,6 +1002,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · fix/mobile-menu-swipe-glass · A swipe up on the glass under the title menu closes it
+
 - Agent: claude-opus-5-5
 - Context: The human said that a swipe on the glass under the phone's title menu does not slide the menu. Only the handle at the bottom of the menu started a drag, because a closing handle had to be inside its sheet.
 - Decision: The backdrop under the title menu is also a closing handle of the side sheet. A swipe up on it moves the menu with the finger, and the release settles fully open or fully closed, as with the handle. A tap on it still closes the menu. A swipe down on it does nothing. The backdrop has `touch-none`, so the browser does not scroll the page during the swipe.
@@ -913,6 +1012,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · feat/mobile-title-left · The phone's title is on the left, right after ←
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the room's title on a phone be aligned left, right after the back button, not in the center. They did not say where the second line (the room and the epic's progress) and the ▾ go.
 - Decision: The title button keeps all of the space between ← and the inbox, so the tap area does not change. Its text starts at its left: the thread's title with ▾ right after it, and the second line under it, also aligned left. A DM keeps the person's face before the name.
@@ -922,6 +1022,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-22 · feat/mobile-home-chat-list · The phone's home is a list of conversations
+
 - Agent: claude-opus-5-5
 - Context: The human asked for a phone home like WhatsApp: a list of the rooms with a preview of the last message, where a tap opens the room. They said the top bar stays as it is. They did not say what happens to the cube, the ask box, the wait cards and the grid of room icons, or how the preview reads.
 - Decision:
@@ -935,6 +1036,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/mobile-chats-waits · What waits on you sits on top of the phone's list
+
 - Agent: claude-opus-5-5
 - Context: The human selected option C of the list mockups: what waits on you pinned on top, and "Claude está trabalhando…" while an agent works. They did not say how many waits show or what a tap opens.
 - Decision:
@@ -946,6 +1048,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Status: open
 
 ### 2026-11-23 · feat/composer-mic-send-swap · The mic and send share one button, and dictation is a recording bar
+
 - Agent: claude-opus-5-5
 - Context: The human asked that the composer show the mic while the box is empty and the send button once it has text, on phones and on a computer, and that dictation work like WhatsApp. They confirmed on an artifact that stop only stops (the text stays for review). They did not say how to start a dictation when the box already has text.
 - Decision:
@@ -954,5 +1057,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - With text in the box, the mic is not there (as in WhatsApp). To add dictation to text, hold Space in the box, as before.
 - Other options: Keep the mic visible beside send on a computer. Hide the text during dictation and show only a wave. Make stop send.
 - Risk: low. A person who dictated after typing on a computer now holds Space for that. The button keeps its "Ditar mensagem" name for tests and screen readers; its tooltip says "Parar de ditar" while you dictate.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-23 · feat/mobile-home-whatsapp-chrome · The phone's home has a chat app's bar
+
+- Agent: claude-opus-5-5
+- Context: The human asked for the phone's home to look like WhatsApp: no DM list under the list, a top bar like WhatsApp's, a search field and a large `+`. They did not select the title, the actions in the bar or how the shell knows the layout.
+- Decision:
+  - The DM list under the list was the home's DM sidebar (`data-home-dms` in `AppShell`, row 3 on a phone). On a phone with the list (`data-home-layout="chats"`), the shell does not draw it. The shell also does not draw the app's phone bar (`AppNavigation`) there. Both use the Tailwind variant `max-md:group-has-[[data-home-layout=chats]]/shell:hidden`. Thus `HomePanel` stays the only place that selects the layout.
+  - The list draws its own bar: "deco.chat" in bold on the left, then the Inbox button and your avatar (a link to Settings) on the right. The title is the name of the app, as WhatsApp shows "WhatsApp". It is the same in the two languages.
+  - The bar has no room switcher ("Início ▾"), no search icon and no small `+`. The list already holds all rooms and DMs, the search field opens search, and the floating `+` opens "Nova sala".
+  - The Inbox button replaces the "Caixa de entrada" row of the DM sidebar. Without it, the Inbox opens on a phone only when more than 3 items wait.
+  - Invites and message requests ("Pedidos") were only in the DM sidebar. They now show on top of the list.
+  - The floating `+` is a 56px `brand` button at the bottom right, above the safe area.
+- Other options: Keep "Início ▾" with the room switcher as the title. Use "Conversas"/"Chats" as the title. Give `AppNavigation` a prop for the layout (the shell does not know if the home shows the list or the desk). Keep the small `+` in the bar.
+- Risk: low. Only the phone's home with at least one conversation changes. Your own DM ("Você") shows in the list only after you wrote in it, as before.
 - Undo: Revert this commit.
 - Status: open

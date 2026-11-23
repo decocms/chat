@@ -197,6 +197,8 @@
     onsearch: () => {
       if (current()) services.navigation.openSearch();
     },
+    onjoin: services.navigation.callbacks.answerInvite,
+    onanswer: services.navigation.callbacks.answerRequest,
     onlanguage: language,
   });
   onMount(() => {
@@ -251,7 +253,7 @@
             ? "md:grid-cols-[68px_273px_minmax(0,1fr)]"
             : "md:grid-cols-[68px_minmax(0,1fr)]",
         ],
-    "bg-background font-sans text-sm leading-6 text-foreground",
+    "group/shell bg-background font-sans text-sm leading-6 text-foreground",
     // Scrollbars stay invisible until you point at (or focus into) what scrolls, like the classic app: with a
     // mouse attached, macOS otherwise draws a full track on every scroller (Gui #2893).
     "[&_*]:[scrollbar-color:transparent_transparent] [&_*:hover]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent] [&_*:focus-within]:[scrollbar-color:color-mix(in_oklab,var(--vb-muted-foreground)_45%,transparent)_transparent]",
@@ -275,12 +277,13 @@
         class="hidden md:col-start-2 md:col-end-4 md:row-start-1 md:my-2 md:mr-2 md:ml-px md:block md:rounded-surface md:bg-background md:shadow-edge"
       ></div>
       <!-- Your DMs (or the settings' sections): beside the page on desktop (the sidebar of that surface); the DMs
-        go under the home on a phone, where the settings need no list. -->
+        go under the home on a phone, where the settings need no list. A phone's list of conversations
+        (data-home-layout="chats") already holds the DMs, so the list is not drawn under it. -->
       <aside
         data-home-dms
         class="{settings
           ? 'hidden md:flex'
-          : ''} col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
+          : ''} max-md:group-has-[[data-home-layout=chats]]/shell:hidden col-start-1 row-start-3 min-w-0 px-4 pt-2 pb-8 md:relative md:z-10 md:col-start-2 md:row-start-1 md:my-2 md:ml-px md:flex md:min-h-0 md:flex-col md:rounded-l-surface md:border-r md:border-border md:bg-sidebar md:px-2 md:py-2"
       >
         {#if settings}<SettingsNav
             lang={services.language}

@@ -198,6 +198,8 @@
     studioType,
     "col-start-1 row-start-1 min-h-0 min-w-0 w-full items-center gap-2 bg-sidebar px-3 py-2 text-sm text-sidebar-foreground sticky top-0 z-40 md:flex md:h-dvh md:flex-col md:px-2 md:pt-2 md:pb-3",
     inRoom ? "hidden" : "flex flex-row",
+    // A phone's list of conversations draws its own bar (HomePanel), like a chat app's.
+    "max-md:group-has-[[data-home-layout=chats]]/shell:hidden",
   )}
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->

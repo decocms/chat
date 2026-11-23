@@ -31,7 +31,9 @@
   } from "./model";
   import RoomTile from "./RoomTile.svelte";
   import ChatList from "./ChatList.svelte";
+  import AccountRow from "../app-navigation/AccountRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
@@ -55,6 +57,8 @@
     onroomsettings,
     onsearch,
     oninbox,
+    onjoin,
+    onanswer,
   }: HomeBridge = $props();
   const account = $derived(personal.state),
     draft = $derived(personal.draft);
@@ -379,12 +383,44 @@
   <Onboarding owner={onboarding} {lang} {onlanguage} />
 {:else if mobile.current && $account.me && chatList($account.me).length}
   <!-- A phone: the home is the list of conversations, like a chat app (Gimenes #3800).
-       Someone with no conversation yet gets the desk below, with its way in. -->
+       Someone with no conversation yet gets the desk below, with its way in.
+       Like WhatsApp's chats screen: its own bar (the app's name, the inbox, you),
+       a search field, the list, and a floating + for a new room or message.
+       The shell hides the app's phone bar and the DM list under this layout. -->
   <main
     data-view="home"
     data-home-layout="chats"
-    class="min-h-full bg-background px-2 pt-2 pb-16 font-sans text-sm leading-6 text-foreground"
+    class="min-h-full bg-background px-2 pb-28 font-sans text-sm leading-6 text-foreground"
   >
+    <header
+      data-home-bar
+      class="sticky top-0 z-40 -mx-2 flex h-14 items-center gap-1 bg-background pr-3 pl-4"
+    >
+      <h1 class="m-0 min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">
+        deco.chat
+      </h1>
+      {#if oninbox}<IconButton
+          label={text("inbox")}
+          tooltipSide="bottom"
+          size="icon"
+          class="size-10 rounded-full text-foreground"
+          onclick={(event) => {
+            if (event.currentTarget.isConnected) oninbox(event.currentTarget);
+          }}><Icon icon="inbox-01" class="size-5" /></IconButton
+        >{/if}
+      <AccountRow me={$account.me} row={false} />
+    </header>
+    <div class="px-2 pt-1 pb-3">
+      <button
+        type="button"
+        data-home-search
+        class="flex h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-muted px-4 text-left font-sans text-base text-muted-foreground outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+        onclick={() => onsearch()}
+        ><Icon icon="search-md" class="size-5 shrink-0" /><span
+          class="min-w-0 truncate">{text("searchPlaceholder")}</span
+        ></button
+      >
+    </div>
     <div class="mb-2 px-2">
       <InstallCard owner={pwa} {lang} compact />
     </div>
@@ -396,7 +432,18 @@
       {ago}
       {onnavigate}
       {oninbox}
+      {onjoin}
+      {onanswer}
     />
+    <Button
+      variant="brand"
+      data-home-new
+      aria-label={text("new")}
+      class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
+      onclick={(event) => {
+        if (event.currentTarget.isConnected) onnew(event.currentTarget);
+      }}><Icon icon="plus" class="size-6" /></Button
+    >
   </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the
