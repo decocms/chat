@@ -4,6 +4,7 @@ import { expect, test } from "bun:test";
 import { visibleChatMessages } from "../web/features/chat/privacy";
 import type { Room, Message } from "../shared/room";
 import {
+  canStartThread,
   continues,
   foldMessages,
   messageFooters,
@@ -28,6 +29,30 @@ const room = (messages: Message[]): Room => ({
   typing: {},
   suggestions: [],
   epics: [],
+});
+test("a message that already started a thread, itself or through its line in main, offers no second thread", () => {
+  const inner = message(5, "inside", "e1");
+  const line = { ...message(6, "Nova thread"), reply_to: 5 };
+  const fresh = message(7, "other", "e1");
+  const epic = (id: string, from_msg: number) =>
+    ({
+      id,
+      title: id,
+      from_msg,
+      tasks: [],
+    }) as unknown as Room["epics"][number];
+  // A thread view: main's line is not loaded, only the room's origins carry it.
+  const r: Room = {
+    ...room([inner, fresh]),
+    origins: [line],
+    epics: [epic("e1", 1), epic("e2", 6)],
+  };
+  expect(canStartThread(r, inner)).toBe(false);
+  expect(canStartThread(r, fresh)).toBe(true);
+  expect(canStartThread(r, message(1))).toBe(false);
+  expect(
+    canStartThread({ ...r, book: { ...r.book, dm: true } } as Room, fresh),
+  ).toBe(false);
 });
 test("chat folds only adjacent matching reminders/issues and never mutates canonical records", () => {
   const one = { ...message(1, "⏰ **daily** me\n\nbody"), tag: "reminder" },

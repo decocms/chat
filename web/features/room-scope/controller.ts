@@ -903,6 +903,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           reply: (id) => {
             if (owned()) reply(id);
           },
+          openThread: (id) => {
+            if (owned()) pickThread(id);
+          },
           draftReply: (draft) => {
             if (owned()) reply(draft.messageId, draft);
           },

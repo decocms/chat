@@ -33,6 +33,7 @@
     "scripts/sandbox-rows.test.ts",
     "scripts/fire-authority.test.ts",
     "scripts/idempotent-send.test.ts",
+    "scripts/thread-origin.test.ts",
     "scripts/provider-metadata.test.ts"
   ]
 }

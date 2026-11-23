@@ -2326,6 +2326,67 @@ describe("chat", () => {
     expect(target.querySelectorAll("[data-chat-origin]")).toHaveLength(1);
     expect(target.querySelectorAll("#m9")).toHaveLength(0);
   }, 30_000);
+  test("Criar thread on a message: a title line from its text, then the thread from that message, opened (Gimenes #4123)", async () => {
+    const room = {
+      ...fixture(),
+      messages: [
+        message(8, "**Vamos** refazer o onboarding do celular\nmais detalhes"),
+        message(10, "Already a thread"),
+      ],
+    };
+    room.epics = [
+      ...room.epics,
+      { id: "f", title: "From ten", tasks: [], from_msg: 10 },
+    ];
+    const sent: RoomCommand[] = [],
+      opened: string[] = [];
+    const { target } = renderChat(room, {
+      actions: {
+        request: async (command: RoomCommand): Promise<CommandOutcome> => {
+          sent.push(command);
+          return { ok: true };
+        },
+        draftReply: () => {},
+        reply: () => {},
+        navigate: () => {},
+        openFile: () => {},
+        openThread: (id) => opened.push(id),
+      },
+    });
+    hoverMessages(target);
+    // A message that already started a thread has its card, not a second Criar thread.
+    expect(target.querySelector("#m10 [data-start-thread]")).toBeNull();
+    target
+      .querySelector<HTMLButtonElement>('#m8 [data-start-thread="8"]')!
+      .click();
+    flushSync();
+    const input = target.querySelector<HTMLInputElement>(
+      '[data-thread-start="8"] input',
+    )!;
+    expect(input.value).toBe("Vamos refazer o onboarding do celular");
+    target
+      .querySelector<HTMLFormElement>('[data-thread-start="8"]')!
+      .requestSubmit();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushSync();
+    expect(sent).toHaveLength(1);
+    const command = sent[0] as Extract<RoomCommand, { t: "epic" }>;
+    expect(command).toMatchObject({
+      t: "epic",
+      title: "Vamos refazer o onboarding do celular",
+      from: 8,
+    });
+    expect(command.id).toMatch(/^[0-9a-f]{8}$/);
+    expect(opened).toEqual([command.id!]);
+    expect(target.querySelector("[data-thread-start]")).toBeNull();
+  }, 30_000);
+  test("a DM's messages have no Criar thread", () => {
+    const room = { ...fixture(), messages: [message(8, "oi")] };
+    room.book = { ...room.book, dm: true };
+    const { target } = renderChat(room);
+    hoverMessages(target);
+    expect(target.querySelector("#m8 [data-start-thread]")).toBeNull();
+  }, 30_000);
   test("special reminder origins omit self-linking cards without removing DOM", () => {
     const origin = { ...message(7, "Reminder origin"), tag: "reminder" };
     const normal = { ...message(8, "Reminder reply"), tag: "reminder" };

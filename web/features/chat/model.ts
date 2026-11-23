@@ -61,6 +61,33 @@ export function foldMessages(list: readonly ChatMessage[]) {
   }
   return out;
 }
+/** A new thread's title from its message (Gimenes #4123): the first line, no Markdown, at most 60 characters,
+ *  cut at a word. */
+export function threadTitle(text: string) {
+  const line = (text.split("\n").find((part) => part.trim()) ?? "")
+    .replace(/\*\*|`|^[#>]+ ?|\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (line.length <= 60) return line;
+  const cut = line.slice(0, 60);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 30 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+/** A thread id the client picks (8 hex, as the server's own): the app opens it, and a retry does not make two. */
+export const newThreadId = () =>
+  crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+/** A message can start a thread: not in a DM, not a status line, and not the start of a thread already, either
+ *  itself or through the line in main that replies to it (a thread from inside a thread). The room's `origins`
+ *  carry every live thread's origin, so a thread view knows main's lines without loading main. */
+export const canStartThread = (room: Room, m: ChatMessage) => {
+  if (room.book.dm || m.tag || m.author === "ai") return false;
+  const starts = new Set(room.epics.map((epic) => epic.from_msg));
+  if (starts.has(m.id)) return false;
+  return ![...room.messages, ...(room.origins ?? [])].some(
+    (line) =>
+      line.reply_to === m.id && line.thread === "main" && starts.has(line.id),
+  );
+};
 /** `poll` names a poll with no text, in the app's language. */
 export const messageSnippet = (m: ChatMessage, poll = "votação") =>
   (m.text || m.files?.map((f) => f.name).join(", ") || (m.poll ? poll : ""))

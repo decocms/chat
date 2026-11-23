@@ -559,6 +559,8 @@ const EN: Readonly<Record<string, string>> = {
     "It saw this in the conversation and thinks it's worth a thread, with the tasks below.",
   "Tarefas propostas": "Proposed tasks",
   "Criar thread": "Create thread",
+  "Título da thread": "Thread title",
+  "Não deu pra criar a thread.": "Couldn't create the thread.",
   "Pedir pro meu agent": "Ask my agent",
   "Vira um pedido seu na sala: seu agent confere se ainda faz sentido, ajusta o doc e as tarefas e cria a thread.":
     "It becomes your request in the room: your agent checks it still makes sense, adjusts the doc and tasks and creates the thread.",

@@ -22,6 +22,7 @@
     floating = false,
     canReact = false,
     me = "",
+    onthread,
   }: {
     message: ChatMessage;
     roomId: string;
@@ -35,6 +36,8 @@
     canReact?: boolean;
     /** Who is looking, to mark the quick reactions they already gave. */
     me?: string;
+    /** "Criar thread" (Gimenes #4123): opens its title line under the message. None: the message cannot start one. */
+    onthread?: () => void;
   } = $props();
   const mine = (emoji: string) =>
     !!me && (message.reactions?.[emoji] ?? []).includes(me);
@@ -131,6 +134,16 @@
           if (active) actions.reply(message.id);
         }}><Icon icon="reverse-left" size={16} /></IconButton
       >
+      {#if onthread}<IconButton
+          label={vb.t("Criar thread")}
+          data-start-thread={message.id}
+          class={floating
+            ? "rounded-full text-muted-foreground hover:text-foreground"
+            : ""}
+          onclick={() => {
+            if (active) onthread?.();
+          }}><Icon icon="git-branch-01" size={16} /></IconButton
+        >{/if}
       <IconButton
         label={copied === "text"
           ? vb.t("Copiado")

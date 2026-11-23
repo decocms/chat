@@ -45,7 +45,14 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("brief.ask"), thread: z.string() }),
   z.object({ t: z.literal("brief.dismiss"), id: num }),
   z.object({ t: z.literal("title"), title: z.string() }),
-  z.object({ t: z.literal("epic"), title: z.string() }),
+  // A new thread (Gimenes #4123): from a message (`from`), or from the sidebar. The client may pick its id, so it can
+  // open it and a retry with the same id does not make a second one.
+  z.object({
+    t: z.literal("epic"),
+    title: z.string(),
+    from: z.optional(num),
+    id: z.optional(z.string().check(z.regex(/^[0-9a-f]{8}$/))),
+  }),
   z.object({ t: z.literal("epic.owner"), id, owner: z.string() }),
   z.object({ t: z.literal("task.add"), epic: z.string(), title: z.string() }),
   z.object({
