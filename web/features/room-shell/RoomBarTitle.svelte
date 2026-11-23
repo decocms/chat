@@ -11,7 +11,8 @@
    * The desktop top bar's title: what fills the middle. The room's name is in
    * the sidebar's header, so the bar names only the view: "Sala principal"
    * (a DM: the other person), the open epic or suggestion, or a full view
-   * (the board). An epic's actions follow at the end (EpicActions `bar`).
+   * (the board). An epic's status follows its title (EpicActions `bar`;
+   * Gimenes #3975), and its menu pins the epic (the epic list has no menu).
    */
   let {
     room,
@@ -31,11 +32,6 @@
     quietLabel?: boolean;
   } = $props();
   const t = $derived(vb.t);
-  // The epic list has no actions menu: the epic's own menu pins it and picks its owner (Gimenes #3933).
-  const owners = $derived([
-    { value: "", label: vb.t("Sem dono") },
-    ...room.members.map((email) => ({ value: email, label: vb.name(email) })),
-  ]);
   const peer = $derived(dmPeer(room));
   const epic = $derived(
     view ? undefined : room.epics.find((item) => item.id === thread),
@@ -78,6 +74,6 @@
       class="min-w-0 shrink-[2] truncate text-xs text-muted-foreground"
       >✦ {t("sugestão do @vibe")}</span
     >{/if}
-  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" {owners} />{/if}
+  {#if epic}<EpicActions {epic} {owner} {t} variant="bar" pinnable />{/if}
   <MutationStatus {owner} {t} />
 </div>
