@@ -1212,3 +1212,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-row-slot · A touch screen has no actions menu on the epic's row
+- Agent: claude-opus-5-5
+- Context: On a phone, the `...` menu on each epic row was always visible, because a touch screen has no hover. The human said to remove it and to keep the actions only inside the epic (#3924). Inside the epic, the phone sheet had only the status menu. The row menu also pinned the epic, moved a pinned epic up or down, and picked its owner.
+- Decision:
+  - The row's `...` is hidden on `hover:none` screens (phones, tablets). On a computer it still shows on hover.
+  - The status menu in the phone's thread sheet (`EpicActions`, `owners` prop) also has "Fixar no topo"/"Desafixar" and the owner choice.
+  - "Mover para cima/baixo" for a pinned epic is not inside the epic. Thus a touch screen cannot change the order of pinned epics. The human can ask for it.
+  - The desktop top bar's status menu does not change: the row menu is still there on hover.
+- Other options: Open the row menu with a long press.
+- Risk: low. A touch laptop with no mouse loses the row menu, but it has the menu inside the epic.
+- Undo: Revert this commit.
+- Status: open

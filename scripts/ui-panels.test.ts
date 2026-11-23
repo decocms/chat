@@ -6259,7 +6259,7 @@ describe("room sidebar header and suggestion ownership", () => {
     flushSync();
     expect(document.querySelector(`[role="${role}"]`) === null).toBe(true);
   }
-  test("phone thread sheet: the status pill sits under the title and its menu sets the status, no rename or delete", async () => {
+  test("phone thread sheet: the status pill sits under the title and its menu sets the status, pins and picks the owner, no rename or delete", async () => {
     const room = fixture(),
       commands: RoomCommand[] = [],
       owner = createRoomMutations(room.me, room.id),
@@ -6301,12 +6301,41 @@ describe("room sidebar header and suggestion ownership", () => {
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Fazendo");
+    // A touch screen has no ⋯ on the epic's row: the sheet's menu pins the epic and picks its owner (Gimenes #3924).
+    menuItem(
+      target.querySelector("[data-epic-status]")!,
+      "Fixar no topo",
+    ).click();
+    await tick();
+    expect(commands.at(-1)).toEqual({ t: "epic.pin", id: "e", pinned: true });
+    const pinned: Room = {
+      ...next,
+      epics: next.epics.map((epic) => ({ ...epic, pinned: true })),
+    };
+    owner.sync(pinned, request);
+    view.update({ ...props, room: pinned });
+    await tick();
+    flushSync();
+    menuItem(target.querySelector("[data-epic-status]")!, "Desafixar");
+    const ownerChoice = [
+      ...window.document.querySelectorAll<HTMLElement>(
+        "[data-epic-owner-choice]",
+      ),
+    ].find((el) => el.getAttribute("data-epic-owner-choice") === "you@test");
+    expect(ownerChoice?.textContent?.trim()).toBeTruthy();
+    ownerChoice!.click();
+    await tick();
+    expect(commands.at(-1)).toEqual({
+      t: "epic.owner",
+      id: "e",
+      owner: "you@test",
+    });
     const stale = target.querySelector<HTMLElement>("[data-epic-status]")!;
     active.splice(active.indexOf(view), 1);
     view.destroy();
     stale.click();
     await tick();
-    expect(commands).toHaveLength(1);
+    expect(commands).toHaveLength(3);
   }, 30_000);
   type BarTitleProps = import("svelte").ComponentProps<
     typeof import("../web/features/room-shell/RoomBarTitle.svelte").default

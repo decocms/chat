@@ -8,6 +8,9 @@
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
   import DropdownMenuLabel from "../../lib/studio/DropdownMenuLabel.svelte";
+  import DropdownMenuRadioGroup from "../../lib/studio/DropdownMenuRadioGroup.svelte";
+  import DropdownMenuRadioItem from "../../lib/studio/DropdownMenuRadioItem.svelte";
+  import DropdownMenuSeparator from "../../lib/studio/DropdownMenuSeparator.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { buttonVariants } from "../../lib/studio/button";
@@ -18,18 +21,22 @@
    * Arquivado). "Feito" and "Arquivado" archive the epic, an open status
    * reopens it (Book.setEpicStatus). `bar`: at the end of the desktop top
    * bar's title, then a vertical line before the pane's tabs. `sheet`: under
-   * the title in the phone's thread sheet.
+   * the title in the phone's thread sheet. `owners`: the menu also pins the
+   * epic and picks its owner; the phone passes it, since a touch screen has no
+   * actions menu on the epic's row (Gimenes #3924).
    */
   let {
     epic,
     owner,
     t,
     variant,
+    owners,
   }: {
     epic: Epic;
     owner: RoomMutations;
     t: (text: string, vars?: Record<string, string | number>) => string;
     variant: "bar" | "sheet";
+    owners?: readonly { value: string; label: string }[];
   } = $props();
   const mutation = untrack(() => owner.state);
   const busy = $derived(
@@ -77,6 +84,40 @@
               class="ml-auto text-foreground"
             />{/if}</DropdownMenuItem
         >{/each}
+      {#if owners}<DropdownMenuSeparator />
+        {#if !epic.archived}<DropdownMenuItem
+            data-epic-pin={epic.id}
+            disabled={busy}
+            onSelect={() =>
+              void owner.run({
+                t: "epic.pin",
+                id: epic.id,
+                pinned: !epic.pinned,
+              })}
+            ><Icon icon="pin-02" />{t(
+              epic.pinned ? "Desafixar" : "Fixar no topo",
+            )}</DropdownMenuItem
+          >{/if}
+        <DropdownMenuLabel class="text-xs text-muted-foreground"
+          >{t("Dono do épico")}</DropdownMenuLabel
+        >
+        <DropdownMenuRadioGroup
+          bind:value={
+            () => epic.owner ?? "",
+            (next) => {
+              if (!busy && next !== (epic.owner ?? ""))
+                void owner.run({ t: "epic.owner", id: epic.id, owner: next });
+            }
+          }
+        >
+          {#each owners as choice (choice.value)}<DropdownMenuRadioItem
+              data-epic-owner-choice={choice.value}
+              value={choice.value}
+              disabled={busy}
+              ><span class="min-w-0 truncate">{choice.label}</span
+              ></DropdownMenuRadioItem
+            >{/each}
+        </DropdownMenuRadioGroup>{/if}
     </DropdownMenuContent>
   </DropdownMenu>{/snippet}
 
