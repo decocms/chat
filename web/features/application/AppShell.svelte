@@ -28,6 +28,8 @@
   import type { HomeBridge } from "../home/types";
   import { roomAvatarVersion } from "../room-scope/model";
   import { roomLabel } from "../home/model";
+  import { MediaQuery } from "svelte/reactivity";
+  import { MOBILE_QUERY } from "../../lib/breakpoints";
   let {
     services,
     roomSnippet,
@@ -99,9 +101,15 @@
     AccountSettings = $derived($accountModuleView.component),
     Inbox = $derived($inboxModuleView.component),
     HomeInbox = $derived($homeInboxModuleView.component);
-  // `/?inbox`: the home shows your Inbox for all rooms (HomeInbox).
+  // `/?inbox`, and `/` on a desktop: the home shows your Inbox for all rooms
+  // (HomeInbox; Gimenes #3967). On a desktop, only someone with no rooms yet
+  // keeps the Home, for its first-room and connect-agent steps. A phone keeps
+  // its list of conversations at `/`.
+  const phone = new MediaQuery(MOBILE_QUERY);
   const homeInbox = $derived(
-    $application.route.kind === "home" && !!$application.route.inbox,
+    $application.route.kind === "home" &&
+      (!!$application.route.inbox ||
+        (!phone.current && ($personal.me?.books.length ?? 1) > 0)),
   );
   const accountView = untrack(() => services.account.state);
   // The page owns the Inbox while it's open: a route change closes it (inbox.ts), this opens it again.

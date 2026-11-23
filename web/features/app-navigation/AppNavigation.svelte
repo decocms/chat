@@ -143,7 +143,6 @@
   );
   // Desktop: your Inbox for all rooms sits under the logo while something waits on you (Gimenes #3837).
   const waiting = $derived($personal.me?.waits.length ?? 0);
-  const inInbox = $derived(!$nav.roomId && $nav.inbox);
   // Phones: the bar is avatar · "Home ▾" · search · +; the ▾ opens every room.
   let switcher = $state(false);
   let dragging = $state<string | null>(null),
@@ -207,10 +206,12 @@
   )}
 >
   <!-- Desktop: the logo sits in a band as tall as a room's header, so the divider below it meets the header's line. -->
-  <span class="max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
+  <!-- The logo opens the Caixa de entrada (the desktop's Home) and carries what waits on you (Gimenes #3967). -->
+  <span
+    class="relative max-md:hidden md:flex md:h-[51px] md:shrink-0 md:items-center"
     ><RailButton
       bind:ref={homeButton}
-      label={text("home")}
+      label={text("inbox")}
       current={atHome}
       onclick={(event) => {
         if (event.currentTarget.isConnected) controller.callbacks.home();
@@ -223,24 +224,12 @@
         draggable="false"
         class="size-9 rounded-xl"
       /></RailButton
-    ></span
+    >{#if waiting}<Count
+        value={waiting}
+        label={text("waiting", { n: waiting })}
+        class="pointer-events-none absolute -right-1.5 bottom-1"
+      />{/if}</span
   >
-  {#if controller.callbacks.inbox && (waiting || inInbox)}<span
-      data-rail-inbox
-      class="relative flex shrink-0 max-md:hidden md:-mt-1 md:mb-3"
-      ><RailButton
-        icon="inbox-01"
-        label={text("inbox")}
-        current={inInbox}
-        onclick={(event) => {
-          if (event.currentTarget.isConnected) controller.callbacks.inbox?.();
-        }}
-      />{#if waiting}<Count
-          value={waiting}
-          label={text("waiting", { n: waiting })}
-          class="pointer-events-none absolute -right-1.5 -bottom-1"
-        />{/if}</span
-    >{/if}
   <span
     aria-hidden="true"
     class="h-6 w-px shrink-0 bg-sidebar-border max-md:hidden md:-mt-2 md:h-px md:w-6"
