@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack } from "svelte";
+  import { onDestroy, untrack, type Snippet } from "svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import Switch from "../../lib/studio/Switch.svelte";
   import Button from "../../lib/studio/Button.svelte";
@@ -14,9 +14,15 @@
     agentMark,
     agentPresence,
     agentStatus,
+    agentQueue,
     connectPrompt,
   } from "./model";
   import { runnerPath } from "./runner";
+  import {
+    AGENT_TILES,
+    agentMark as AGENT_MARK_OF,
+    agentProvider,
+  } from "../../lib/components/agent";
   import { roomAgentText, type RoomAgentCopyKey } from "./roomCopy";
   import type { AgentsResult, RoomMachine } from "../../../shared/schemas";
   /**
@@ -50,17 +56,16 @@
     roomAgentText(lang, key).replace(/\{(\w+)\}/g, (_, k) =>
       String(vars?.[k] ?? ""),
     );
-  const presence = $derived(
-    agentPresence($view.data, owner.account, $view.now),
-  );
+  const data = $derived($view.data);
+  const presence = $derived(agentPresence(data, owner.account, $view.now));
   const status = $derived(
     agentStatus(presence, $view.hasAgent, $view.askedAt, $view.now),
   );
   const mark = $derived(agentMark(status, queue));
   const path = $derived(runnerPath($runner.where));
-  const machines = $derived($view.data?.machines ?? []);
+  const machines = $derived(data?.machines ?? []);
   const mine = $derived(
-    ($view.data?.agents ?? []).filter((a) => a.email === owner.account),
+    (data?.agents ?? []).filter((a) => a.email === owner.account),
   );
   /** The Claudes of a machine that are listening now (the ones that stopped are not listed). */
   const liveOf = (m: RoomMachine) =>
@@ -140,7 +145,10 @@
     `${(prettyModel(a.who) || "Agent").replace(/^Claude\s+/i, "")}${a.room || a.repo ? ` · ${a.room || a.repo}` : ""}`;
   const install = $derived(`curl -fsSL ${origin}/setup.sh | sh`);
   const cloud = $derived(settingsHref("cloud", owner.roomId));
-  let open = $state(false),
+  const TILE =
+    "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-0 bg-muted px-1.5 py-3 text-center font-sans text-foreground no-underline transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97] motion-reduce:active:scale-100";
+  let more = $state(false),
+    open = $state(false),
     copied = $state(""),
     timer: ReturnType<typeof setTimeout> | undefined,
     active = true;
@@ -167,38 +175,50 @@
   ) => {
     if (owner.current()) void owner.delivery(target, on);
   };
+  /** Your agent's terminal, when this computer's herdr can show it (nothing to open otherwise). */
   function goTo() {
-    if (!owner.current()) return;
-    if (!$runner.available) onopen();
-    else void owner.runner.focus(owner.roomId);
+    if (owner.current() && $runner.available)
+      void owner.runner.focus(owner.roomId);
   }
+  /** What you asked in this room that no agent of yours closed (the old Agents pane's queue). */
+  const asks = $derived($view.room ? agentQueue($view.room, $view.now) : []);
+  let queueOpen = $state(false);
+  const L = (pt: string, en: string) => (lang === "en" ? en : pt);
+  /** The agent that answers here (the first one listening), for its mark and color. */
+  const lead = $derived(live[0] ?? mine.find((a) => a.listening) ?? null);
+  const provider = $derived(agentProvider(lead?.who ?? lead?.client));
+  const mark2 = $derived(AGENT_MARK_OF(provider));
+  /** The row reads like yours under it: "Agent" (or "Agents"), and how it is under that. */
+  const rowTitle = $derived(
+    live.length > 1
+      ? L("Seus agents", "Your agents")
+      : L("Seu agent", "Your agent"),
+  );
+  const rowSub = $derived.by(() => {
+    if (foot === "listening" && live.length > 1)
+      return L(`${live.length} ouvindo`, `${live.length} listening`);
+    if (foot === "listening") {
+      const p = live[0] ? percent(live[0]) : null;
+      return p === null
+        ? text("footListening")
+        : `${text("footListening")} · ${p}%`;
+    }
+    return summary;
+  });
+  $effect(() => {
+    if (!open) more = false;
+  });
   onDestroy(() => {
     active = false;
     clearTimeout(timer);
   });
 </script>
 
-{#snippet option(
-  title: RoomAgentCopyKey,
-  sub: RoomAgentCopyKey,
-  icon: "app-laptop" | "cloud-01" | "copy-01",
-)}<span class="flex min-w-0 flex-1 items-center gap-2.5"
-    ><span
-      aria-hidden="true"
-      class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground"
-      ><Icon {icon} class="size-3.5" /></span
-    ><span class="grid min-w-0"
-      ><span class="truncate text-sm font-medium">{text(title)}</span><span
-        class="truncate text-xs text-muted-foreground">{text(sub)}</span
-      ></span
-    ></span
-  >{/snippet}
-
-{#if $view.data}
+{#if data}
   <div
     data-agent-foot={empty ? "setup" : "here"}
     data-agent-status={foot}
-    class="flex min-h-11 min-w-0 items-center gap-1 pr-2.5"
+    class="flex min-w-0 items-center gap-1 px-1.5 pt-1.5 pb-1"
   >
     <Popover bind:open>
       <PopoverTrigger>
@@ -206,19 +226,19 @@
             {...props}
             type="button"
             data-agent-summary
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent py-1 pr-1 pl-2.5 text-left font-sans text-foreground hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-ring"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-2.5 py-2.5 text-left font-sans text-foreground hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-ring"
             ><span
               aria-hidden="true"
               class={cn(
-                "relative flex size-7 shrink-0 items-center justify-center rounded-lg text-[0.9375rem]",
+                "relative flex size-8 shrink-0 items-center justify-center rounded-lg text-base",
                 empty
                   ? "border-[1.5px] border-dashed border-muted-foreground text-muted-foreground"
-                  : "bg-muted text-agent-claude",
+                  : AGENT_TILES[provider],
               )}
               ><span
                 class={foot === "working"
                   ? "inline-block animate-[spin_3s_linear_infinite] motion-reduce:animate-none"
-                  : ""}>✻</span
+                  : ""}>{mark2}</span
               >{#if !empty}<span
                   class={cn(
                     "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-sidebar",
@@ -226,135 +246,208 @@
                   )}
                 ></span>{/if}</span
             ><span class="grid min-w-0 flex-1"
-              ><span class="truncate text-sm font-medium"
-                >{text("yourClaude")}</span
-              ><span
+              ><span class="truncate text-sm font-medium">{rowTitle}</span><span
                 class={cn(
                   "truncate text-xs",
                   foot === "down" ? "text-warning" : "text-muted-foreground",
-                )}>{summary}</span
+                )}>{rowSub}</span
               ></span
-            ></button
+            >{#if !empty}<Icon
+                icon="chevron-selector-vertical"
+                class="size-4 shrink-0 text-muted-foreground"
+              />{/if}</button
           >{/snippet}
       </PopoverTrigger>
       <PopoverContent
         side="top"
         align="start"
         sideOffset={8}
-        class="grid w-80 gap-3 p-3 font-sans text-sm text-foreground"
+        class="grid w-72 max-w-[calc(100vw-16px)] gap-1 p-1.5 font-sans text-sm text-foreground"
       >
-        {#if !empty}<!-- Your machines here and the Claudes listening on them. -->
-          <div data-agent-machines class="grid gap-1">
-            {#each machines as m (m.id)}
-              {@const kids = liveOf(m)}
-              <div
-                data-agent-machine={m.id}
-                class="flex min-h-9 min-w-0 items-center gap-2.5"
-              >
-                <button
-                  type="button"
-                  title={text("footGoTerminal", { name: machineName(m) })}
-                  class="relative flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-muted p-0 text-foreground hover:opacity-80"
-                  onclick={() => (m.kind === "sandbox" ? null : goTo())}
-                  ><Icon
-                    icon={m.kind === "sandbox" ? "cloud-01" : "app-laptop"}
-                    class="size-3.5"
-                  /><span
+        {#if !empty}{#if machines.length > 1}<p
+              class="m-0 px-2 pt-1.5 pb-0.5 text-xs font-medium text-muted-foreground"
+            >
+              {L("Ouvindo nesta sala", "Listening in this room")}
+            </p>{/if}
+          <!-- Your agents. With more than one, each is on or off in this room (any number can listen); with one, it opens its terminal. -->
+          {#each machines as m (m.id)}
+            {@const kids = liveOf(m)}
+            {@const a = kids[0]}
+            {@const tile = a ? agentProvider(a.who ?? a.client) : null}
+            <div
+              data-agent-machine={m.id}
+              class="flex min-w-0 items-center gap-1 rounded-lg pr-2 hover:bg-accent"
+            >
+              <button
+                type="button"
+                title={text("footGoTerminal", { name: machineName(m) })}
+                class={cn(
+                  "flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg border-0 bg-transparent px-2 py-1.5 text-left font-sans text-foreground",
+                  $runner.available && m.kind !== "sandbox"
+                    ? "cursor-pointer"
+                    : "cursor-default",
+                  !m.on && "text-muted-foreground",
+                )}
+                onclick={() => m.kind !== "sandbox" && goTo()}
+                ><span
+                  class={cn(
+                    "relative flex size-8 shrink-0 items-center justify-center rounded-lg text-sm",
+                    tile ? AGENT_TILES[tile] : "bg-muted text-foreground",
+                    !m.on && "opacity-50",
+                  )}
+                  >{#if tile}{AGENT_MARK_OF(tile)}{:else}<Icon
+                      icon={m.kind === "sandbox" ? "cloud-01" : "app-laptop"}
+                      class="size-4"
+                    />{/if}<span
                     class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-popover {m.online
                       ? 'bg-brand'
                       : 'bg-muted-foreground'}"
-                  ></span></button
+                  ></span></span
                 ><span class="grid min-w-0 flex-1"
                   ><span class="truncate text-sm font-medium"
-                    >{machineName(m)}</span
+                    >{a
+                      ? (prettyModel(a.who) || "Agent").replace(
+                          /^Claude\s+/i,
+                          "",
+                        )
+                      : machineName(m)}</span
                   ><span class="truncate text-xs text-muted-foreground"
-                    >{machineLine(m, kids.length)}</span
+                    >{a
+                      ? [
+                          machineName(m),
+                          percent(a) === null ? "" : `${percent(a)}%`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : machineLine(m, 0)}</span
                   ></span
-                >{#if machines.length > 1}<Switch
-                    checked={m.on}
-                    onCheckedChange={(on) => deliver({ machine: m.id }, on)}
-                    aria-label={text("footMachineSwitch", {
-                      name: machineName(m),
-                    })}
-                  />{/if}
-              </div>
-              {#each kids as a (a.id)}<div
-                  data-agent-row={a.id}
-                  class="flex min-w-0 items-center gap-2 pl-9.5 text-xs"
-                >
-                  <span class="min-w-0 flex-1 truncate">{who(a)}</span>
-                  {#if percent(a) !== null}<span
-                      class="shrink-0 text-muted-foreground tabular-nums"
-                      >{percent(a)}%</span
-                    >{/if}
-                </div>{/each}
-            {/each}
-          </div>
-          {#if foot === "down"}<div
-              data-agent-cli-down
-              class="grid gap-1.5 text-xs text-muted-foreground"
-            >
-              <span>{text("hereFix")}</span>
-              <button
+                ></button
+              ><Switch
+                checked={m.on}
+                onCheckedChange={(on) => deliver({ machine: m.id }, on)}
+                aria-label={text("footMachineSwitch", { name: machineName(m) })}
+              />
+            </div>
+            {#if !m.online && m.on && m.kind !== "sandbox"}<button
                 type="button"
-                class="flex h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-muted px-2.5 font-mono text-xs text-foreground hover:bg-accent"
+                data-agent-cli-down
+                title={text("offlineFix")}
+                class="mx-2 mb-1 flex h-8 cursor-pointer items-center justify-between gap-2 rounded-lg border-0 bg-muted px-2.5 font-mono text-xs text-foreground hover:bg-accent"
                 onclick={() => void copy("fix", "vibebook herdr")}
                 >vibebook herdr<span class="font-sans text-muted-foreground"
                   >{label("fix", text("copyCmd"))}</span
                 ></button
-              >
-            </div>{/if}
-          <hr class="m-0 border-0 border-t border-border" />{/if}
-        <!-- The ways to add an agent: this computer, the cloud, or one Claude Code just this once. -->
-        <div data-agent-add class="grid gap-2">
-          <span class="text-xs font-medium text-muted-foreground"
-            >{text(empty ? "footPick" : "addAgent")}</span
-          >
-          <div class="flex items-center gap-2" data-agent-setup="computer">
-            {@render option(
-              "footThisComputer",
-              "footThisComputerSub",
-              "app-laptop",
-            )}{#if $view.data.claude_on && $runner.where}<span
-                class="shrink-0 text-xs text-agent-claude-text"
-                >{text("footOpening")}</span
-              >{:else if $view.data.claude_on}<Button
-                size="xs"
-                variant="outline"
-                onclick={() => void copy("setup", install)}
-                >{label("setup", text("footCopySetup"))}</Button
-              >{:else}<Button
-                size="xs"
-                onclick={() => {
-                  if (owner.current()) void owner.toggle();
-                }}>{text("footTurnOn")}</Button
               >{/if}
-          </div>
-          <div class="flex items-center gap-2" data-agent-setup="sandbox">
-            {@render option("footSandbox", "footSandboxSub", "cloud-01")}<Button
-              size="xs"
-              variant="outline"
-              href={cloud}>{text("footSetUp")}</Button
+          {/each}
+          {#if asks.length}<!-- What you asked here that no agent of yours closed yet: count, then the list with ✕. -->
+            <button
+              type="button"
+              data-agent-queue
+              aria-expanded={queueOpen}
+              class="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2 text-left font-sans text-sm text-foreground hover:bg-accent"
+              onclick={() => (queueOpen = !queueOpen)}
+              ><span
+                class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold tabular-nums"
+                >{asks.length}</span
+              ><span class="min-w-0 flex-1 truncate"
+                >{L("na fila", "queued")}</span
+              ><Icon
+                icon={queueOpen ? "chevron-up" : "chevron-down"}
+                class="size-4 text-muted-foreground"
+              /></button
             >
-          </div>
-          <div class="flex items-center gap-2" data-agent-setup="once">
-            {@render option("footOnce", "footOnceSub", "copy-01")}<Button
-              size="xs"
-              variant="outline"
+            {#if queueOpen}<ul class="m-0 grid list-none gap-0.5 p-0 pl-10.5">
+                {#each asks.slice(0, 6) as item (item.message.id)}<li
+                    class="flex min-w-0 items-center gap-1"
+                  >
+                    <span class="min-w-0 flex-1 truncate text-xs"
+                      >{item.message.text.replace(/\s+/g, " ")}</span
+                    ><span
+                      class="shrink-0 text-[0.6875rem] text-muted-foreground"
+                      >{text(
+                        item.phase === "blocked"
+                          ? "blocked"
+                          : item.phase === "doing"
+                            ? "doing"
+                            : "queued",
+                      )}</span
+                    ><button
+                      type="button"
+                      title={text("dismiss")}
+                      aria-label={text("dismiss")}
+                      class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                      onclick={() => void owner.dismiss(item.message.id)}
+                      ><Icon icon="x" class="size-3.5" /></button
+                    >
+                  </li>{/each}
+                {#if asks.length > 6}<li class="text-xs text-muted-foreground">
+                    +{asks.length - 6}
+                  </li>{/if}
+              </ul>{/if}
+          {/if}
+          {#if !more}<button
+              type="button"
+              data-agent-more
+              class="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2 text-left font-sans text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              onclick={() => (more = true)}
+              ><span class="flex size-8 shrink-0 items-center justify-center"
+                ><Icon icon="plus" class="size-4" /></span
+              >{text("addAnother")}</button
+            >{/if}{/if}
+        {#if empty || more}<!-- Three ways in, side by side: each tile is its action. -->
+          <section
+            data-agent-add
+            class={cn("grid grid-cols-3 gap-1.5 p-0.5", !empty && "pt-1")}
+          >
+            {#snippet tileBody(
+              icon: "app-laptop" | "cloud-01" | "copy-01",
+              name: string,
+              hint: string,
+            )}<Icon {icon} class="size-5" /><span
+                class="text-xs leading-4 font-medium">{name}</span
+              ><span class="text-[0.6875rem] leading-3 text-muted-foreground"
+                >{hint}</span
+              >{/snippet}
+            <button
+              type="button"
+              data-agent-setup="computer"
+              class={TILE}
+              onclick={() =>
+                data?.claude_on
+                  ? void copy("setup", install)
+                  : owner.current() && void owner.toggle()}
+              >{@render tileBody(
+                "app-laptop",
+                L("Computador", "Computer"),
+                data?.claude_on && $runner.where
+                  ? text("footOpening")
+                  : data?.claude_on
+                    ? label("setup", L("copiar setup", "copy setup"))
+                    : L("ligar aqui", "turn on"),
+              )}</button
+            ><a href={cloud} data-agent-setup="sandbox" class={TILE}
+              >{@render tileBody(
+                "cloud-01",
+                L("Nuvem", "Cloud"),
+                L("configurar", "set up"),
+              )}</a
+            ><button
+              type="button"
+              data-agent-setup="once"
+              class={TILE}
               onclick={() =>
                 void copy("prompt", connectPrompt(origin, owner.roomId))}
-              >{label("prompt", text("footCopyPrompt"))}</Button
+              >{@render tileBody(
+                "copy-01",
+                L("Sessão", "Session"),
+                label("prompt", L("copiar prompt", "copy prompt")),
+              )}</button
             >
-          </div>
-        </div>
+          </section>{/if}
       </PopoverContent>
     </Popover>
     {#if empty}<Button size="xs" onclick={() => (open = true)}
         >{text("connectShort")}</Button
-      >{:else}<Switch
-        checked={anyOn}
-        onCheckedChange={(on) => deliver({ all: true }, on)}
-        aria-label={text("respondSwitch")}
-      />{/if}
+      >{/if}
   </div>
 {/if}
