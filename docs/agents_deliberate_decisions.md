@@ -1123,3 +1123,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person who looked for the red number of new messages now sees a dot. The number is higher when tasks wait in review.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/epic-status-no-live · An epic has no "No ar" status
+- Agent: claude-opus-5-5
+- Context: The human said that "live" can mean different things and asked for a single "done" state (#3877).
+- Decision:
+  - The status menu has A fazer, Fazendo, Esperando OK, Feito and Arquivado. "live" is not a status any more, in the app, the room command and `update_epic`.
+  - With no chosen status, an epic in production (`prod` deployed or verified) shows Feito.
+  - A stored "live" value reads as no status (the Book drops values it does not know), so those epics show the status from `prod` and the tasks: Feito.
+  - The sidebar's deploy-stage icon (rocket, verified, changes) stays. It shows the agents' `prod` stage, not a status. The human can ask to remove it too.
+- Other options: Map "live" to "done" in the database. Also remove the sidebar's deploy-stage icon.
+- Risk: low.
+- Undo: Revert this commit.
+- Status: open

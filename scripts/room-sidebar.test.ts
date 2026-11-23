@@ -321,10 +321,10 @@ test("epicStatus: the chosen status first, then prod, the archive and the tasks"
   expect(epicStatus(epic({ archived: true, tasks: [task("todo")] }))).toBe(
     "dismissed",
   );
-  expect(epicStatus(epic({ prod: { stage: "deployed" } }))).toBe("live");
+  expect(epicStatus(epic({ prod: { stage: "deployed" } }))).toBe("done");
   expect(
     epicStatus(epic({ archived: true, prod: { stage: "verified" } })),
-  ).toBe("live");
+  ).toBe("done");
   expect(epicStatus(epic({ prod: { stage: "other" } }))).toBe("todo");
   expect(
     epicStatus(
@@ -336,9 +336,14 @@ test("epicStatus: the chosen status first, then prod, the archive and the tasks"
   );
   // The status menu sends a typed room command.
   expect(
-    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "live" })
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "done" })
       .success,
   ).toBe(true);
+  // No "live" status (Gimenes #3877): in production is done.
+  expect(
+    RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "live" })
+      .success,
+  ).toBe(false);
   expect(
     RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "x" })
       .success,

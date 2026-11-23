@@ -7,7 +7,7 @@ deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. Peop
 A room has these parts:
 
 - Chat threads. The main thread is `main`. Each epic has its own thread.
-- Epics with tasks (a kanban board). Each epic shows a status: A fazer, Fazendo, Esperando OK, Feito, No ar or Arquivado. A person or an agent can set it (`epic.status`, `update_epic` `status`). If nobody set it, `epicStatus` (`shared/epicStatus.ts`) calculates it from `prod`, the archive and the tasks.
+- Epics with tasks (a kanban board). Each epic shows a status: A fazer, Fazendo, Esperando OK, Feito or Arquivado. An epic in production shows Feito. A person or an agent can set it (`epic.status`, `update_epic` `status`). If nobody set it, `epicStatus` (`shared/epicStatus.ts`) calculates it from `prod`, the archive and the tasks.
 - Documents. The room has one document, and each epic has one document.
 - Files, decisions, reminders, pins and polls.
 - AI-native formats: native cards, HTML embeds, room apps and MCP apps.
