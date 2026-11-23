@@ -1073,6 +1073,9 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The floating `+` is a 56px `brand` button at the bottom right, above the safe area.
 - Other options: Keep "Início ▾" with the room switcher as the title. Use "Conversas"/"Chats" as the title. Give `AppNavigation` a prop for the layout (the shell does not know if the home shows the list or the desk). Keep the small `+` in the bar.
 - Risk: low. Only the phone's home with at least one conversation changes. Your own DM ("Você") shows in the list only after you wrote in it, as before.
+- Undo: Revert this commit.
+- Status: open
+
 ### 2026-11-23 · feat/global-inbox-rail · The Inbox is one global button under the logo
 - Agent: claude-opus-5-5
 - Context: The human approved the artifact "Inbox global" (#3837) and asked for four slots on the rail: the logo and the Inbox (only when something waits), a line, DMs, a line, rooms, then search and +. The artifact also said that the Inbox loses "Esta sala / Todas as salas", and that the Home and room sidebars lose their Inbox items.
