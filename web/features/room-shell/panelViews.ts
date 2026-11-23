@@ -10,31 +10,26 @@ export function isPanelToggleKey(event: KeyboardEvent, mac: boolean) {
   );
 }
 
-/** The phone room's places: the chat and the shortcuts of the title menu (PhoneRoomMenu) over the room's panes. */
-export type PhoneTab = "chat" | "doc" | "files" | "claude";
+/** The panes a desktop room's top bar offers, in its order (DocumentToolbar). */
+const roomPanes = [
+  "doc",
+  "files",
+  "apps",
+  "decisions",
+  "reminders",
+  "people",
+  "agents",
+] as const satisfies readonly DocumentPane[];
 
-/** The panes each phone tab holds; the doc sheet's tab row shows only these. */
-export const phoneTabPanes: Record<
-  Exclude<PhoneTab, "chat">,
-  readonly DocumentPane[]
-> = {
-  doc: ["doc", "decisions"],
-  files: ["files", "apps", "view"],
-  claude: ["agents", "reminders"],
-};
-
-/** Which tab a pane belongs to. */
-export function phoneTabOf(pane: DocumentPane): PhoneTab {
-  for (const tab of ["doc", "files", "claude"] as const)
-    if (phoneTabPanes[tab].includes(pane)) return tab;
-  return "doc";
-}
-
-/** The tab shown as selected for a phone layout state. */
-export function phoneTab(state: {
-  sheet: "side" | "doc" | null;
-  pane: DocumentPane;
-}): PhoneTab {
-  if (state.sheet === "doc") return phoneTabOf(state.pane);
-  return "chat";
+/**
+ * A phone room's panes: the drawer's tab row and the doc sheet's, the same
+ * panes in the same order as the desktop (Gimenes #4076, #4088). A DM has no
+ * doc, people or agents.
+ */
+export function phonePanes(dm: boolean): readonly DocumentPane[] {
+  return dm
+    ? roomPanes.filter(
+        (pane) => pane !== "doc" && pane !== "people" && pane !== "agents",
+      )
+    : roomPanes;
 }

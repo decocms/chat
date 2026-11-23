@@ -81,26 +81,22 @@ export async function openRoomPane(
   };
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones: no bottom bar (#3738). The title opens a menu whose shortcuts
-    // (Doc, Files, Agents) open the doc sheet.
+    // Phones: no bottom bar (#3738). The title opens the drawer, whose tab row
+    // has the desktop's panes in its order (#4076, #4088); a tab opens the doc sheet.
     const shortcut = async (tab: string) => {
       if ((await layout.getAttribute("data-sheet")) !== "side")
         await page.locator("[data-room-bar] [data-phone-title]").click();
       await expect(layout).toHaveAttribute("data-sheet", "side");
-      await page.locator(`[data-phone-menu] [data-phone-tab="${tab}"]`).click();
+      await page
+        .locator(`[data-phone-menu] [data-document-pane="${tab}"]`)
+        .click();
     };
     const button = page.locator(
       `[data-room-peek] [data-document-pane="${pane}"]`,
     );
-    // The peek tabs show only while the doc sheet is open (#80), and only the
-    // panes of the shortcut it was opened from: Doc + Decisions, Files + Apps,
-    // Agents + Reminders. Use the shortcut first when the pane is elsewhere.
-    const tab =
-      pane === "doc" || pane === "decisions"
-        ? "doc"
-        : pane === "files" || pane === "apps"
-          ? "files"
-          : "claude";
+    // The peek tabs show only while the doc sheet is open (#80). Use the
+    // pane's shortcut first when the sheet is closed.
+    const tab = pane;
     if (
       (await layout.getAttribute("data-sheet")) !== "doc" ||
       !(await button.isVisible())
