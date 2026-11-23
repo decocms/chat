@@ -434,7 +434,6 @@
       {lang}
       {ago}
       {onnavigate}
-      {oninbox}
       {onjoin}
       {onanswer}
     />

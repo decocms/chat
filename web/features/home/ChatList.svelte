@@ -25,8 +25,8 @@
   } from "./model";
   /**
    * The phone's home, like a chat app's: what waits on you pinned on top (the
-   * most pressing first, a few at most; the rest are one tap away in the
-   * inbox), then every room and DM, the newest message first, each with its
+   * most pressing first, a few at most; "See all" opens the rest in place,
+   * as WhatsApp does, Gimenes #3942), then every room and DM, the newest message first, each with its
    * avatar (unread dot, ✻, waits), its name, who wrote last and what, and
    * when. A room where an agent works says so in place of its last line.
    * Invites and message requests ("Pedidos") come first: a phone does not
@@ -40,7 +40,6 @@
     lang,
     ago,
     onnavigate,
-    oninbox,
     onjoin,
     onanswer,
   }: {
@@ -50,14 +49,14 @@
     lang: HomeLanguage;
     ago: (time: number) => string;
     onnavigate: (target: RoomTarget) => void;
-    oninbox?: (trigger?: HTMLElement) => void;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
   } = $props();
   const rows = $derived(chatList(me));
   const byRoom = $derived(waitsByRoom(me.waits));
   const waits = $derived(byImportance(me.waits));
-  const pinned = $derived(waits.slice(0, PINNED));
+  let expanded = $state(false);
+  const pinned = $derived(expanded ? waits : waits.slice(0, PINNED));
   const who = (wait: Wait) =>
     claudeWait(wait)
       ? homeText(lang, "yourClaude")
@@ -112,12 +111,16 @@
             </RoomRow>
           </li>{/each}
       </ul>
-      {#if waits.length > pinned.length && oninbox}<Button
+      {#if waits.length > PINNED}<Button
           variant="ghost"
           size="sm"
           class="ml-1"
-          onclick={(event) => oninbox(event.currentTarget)}
-          >{homeText(lang, "seeAllWaiting", { n: waits.length })}</Button
+          data-home-waiting-more
+          aria-expanded={expanded}
+          onclick={() => (expanded = !expanded)}
+          >{expanded
+            ? homeText(lang, "showLess")
+            : homeText(lang, "seeAllWaiting", { n: waits.length })}</Button
         >{/if}
     </section>
     <SectionHeader level={4} title={homeText(lang, "chats")} />{/if}

@@ -1913,3 +1913,59 @@ test("DM list: each person's online dot follows the person socket's presence, an
   await flush();
   expect(row(caio).dataset.presence).toBe("offline");
 });
+
+test("the phone home's waiting list opens the rest in place, and closes it again (Gimenes #3942)", async () => {
+  const { default: ChatList } =
+    await import("../web/features/home/ChatList.svelte");
+  const wait = (
+    ref: string,
+    ts: number,
+  ): ReturnType<typeof me>["waits"][number] => ({
+    book_id: "aaaaaa",
+    room: "Room aaaaaa",
+    ref,
+    thread: "e",
+    topic: "Epic",
+    author: "other@test.com",
+    author_name: "Other",
+    text: `wait ${ref}`,
+    ts,
+  });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(ChatList, {
+      target,
+      props: {
+        me: me({
+          waits: ["m1", "m2", "m3", "m4", "m5"].map((ref, i) =>
+            wait(ref, i + 1),
+          ),
+        }),
+        seen: {},
+        now: 10,
+        lang: "en",
+        ago: () => "1m",
+        onnavigate: () => {},
+      },
+    }),
+  );
+  cleanups.push(() => {
+    flushSync(() => {
+      void unmount(component);
+    });
+    target.remove();
+  });
+  await flush();
+  const rows = () => target.querySelectorAll("[data-home-waiting] li").length;
+  const more = () =>
+    target.querySelector<HTMLButtonElement>("[data-home-waiting-more]")!;
+  expect(rows()).toBe(3);
+  expect(more().textContent).toContain("See all 5");
+  flushSync(() => more().click());
+  expect(rows()).toBe(5);
+  expect(more().getAttribute("aria-expanded")).toBe("true");
+  expect(more().textContent).toContain("Show less");
+  flushSync(() => more().click());
+  expect(rows()).toBe(3);
+});
