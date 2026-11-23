@@ -13,6 +13,7 @@
   import AppNavigation from "../app-navigation/AppNavigation.svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SettingsNav from "../app-navigation/SettingsNav.svelte";
+  import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import DeviceLockScreen from "../account/DeviceLockScreen.svelte";
@@ -145,6 +146,22 @@
   // Home and settings share one frame: the rail, a sidebar (your DMs, or the settings' sections) and the page.
   const settings = $derived($application.route.kind === "settings"),
     paged = $derived($application.route.kind === "home" || settings);
+  // Phones: Settings has only a back in its bar (Gimenes #4068). It returns to the page you came
+  // from in this app; a Settings page that was the first page loaded goes to Home instead.
+  let landing: string | undefined,
+    moved = $state(false);
+  $effect(() => {
+    const href = $application.href;
+    untrack(() => {
+      if (landing === undefined) landing = href;
+      else if (href !== landing) moved = true;
+    });
+  });
+  function settingsBack() {
+    if (!current()) return;
+    if (moved) effects.back();
+    else services.actions.home();
+  }
   const settingsRoom = $derived(
     $application.route.kind === "settings"
       ? new URL($application.href).searchParams.get("room")
@@ -272,6 +289,7 @@
         controller={services.navigation}
         inRoom={$application.route.kind === "room"}
         accountInSidebar={paged}
+        onback={settings ? settingsBack : undefined}
         lang={services.language}
         onreload={() => {
           if (current()) services.actions.reload();
@@ -303,7 +321,12 @@
             lang={services.language}
           />{/if}
         <SidebarFoot
-          ><AccountRow me={$personal.me} current={settings} /></SidebarFoot
+          >{#if $personal.updateAvailable}<div class="pb-1">
+              <UpdateRow lang={services.language === "en" ? "en" : "pt"} />
+            </div>{/if}<AccountRow
+            me={$personal.me}
+            current={settings}
+          /></SidebarFoot
         >
       </aside>{/if}
     <div

@@ -16,4 +16,6 @@ export type ApplicationShellEffects = {
   listenNavigation(
     callback: (event: MouseEvent, anchor: HTMLAnchorElement) => void,
   ): () => void;
+  /** The browser's back: the page this app showed before. */
+  back(): void;
 };

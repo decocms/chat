@@ -41,6 +41,7 @@
     onreload = () => location.reload(),
     inRoom = false,
     accountInSidebar = false,
+    onback,
     loadDialogs = () =>
       import("./AppNavigationDialogs.svelte").then((module) => module.default),
   }: {
@@ -50,6 +51,8 @@
     inRoom?: boolean;
     /** Desktop: you sit at the foot of the page's own sidebar (the home's DM list), so the rail leaves you out. */
     accountInSidebar?: boolean;
+    /** Phones: the bar is only this back (Settings, Gimenes #4068). */
+    onback?: () => void;
     /** Public-code transport seam; owners and canonical records are never supplied by the loader. */
     loadDialogs?: () => Promise<
       typeof import("./AppNavigationDialogs.svelte").default
@@ -247,18 +250,26 @@
       </div>
       <span aria-hidden="true" class="h-px w-6 bg-sidebar-border"></span>
     </div>{/if}
-  <Button
-    variant="ghost"
-    data-room-switcher
-    aria-haspopup="dialog"
-    aria-expanded={switcher}
-    class="min-w-0 flex-1 justify-start gap-1 px-2 text-base font-semibold md:hidden"
-    onclick={() => (switcher = true)}
-    ><span class="truncate">{text("startTitle")}</span><Icon
-      icon="chevron-down"
-      class="shrink-0 text-muted-foreground"
-    /></Button
-  >
+  {#if onback}<IconButton
+      label={text("back")}
+      data-phone-back
+      size="icon"
+      class="size-10 rounded-full md:hidden"
+      onclick={(event) => {
+        if (event.currentTarget.isConnected) onback();
+      }}><Icon icon="arrow-left" size={20} /></IconButton
+    >{:else}<Button
+      variant="ghost"
+      data-room-switcher
+      aria-haspopup="dialog"
+      aria-expanded={switcher}
+      class="min-w-0 flex-1 justify-start gap-1 px-2 text-base font-semibold md:hidden"
+      onclick={() => (switcher = true)}
+      ><span class="truncate">{text("startTitle")}</span><Icon
+        icon="chevron-down"
+        class="shrink-0 text-muted-foreground"
+      /></Button
+    >{/if}
   <div
     class="flex min-h-0 min-w-0 flex-1 flex-row items-center self-stretch overflow-x-auto max-md:hidden px-1 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:-mx-2 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:px-2"
     role="list"
@@ -292,7 +303,12 @@
         </SortableItem>{/each}
     </SortableList>
   </div>
-  <div class="flex shrink-0 flex-row items-center gap-1 md:flex-col">
+  <div
+    class={cn(
+      "flex shrink-0 flex-row items-center gap-1 md:flex-col",
+      onback && "max-md:hidden",
+    )}
+  >
     <RailButton
       icon="search-md"
       label={text("search")}
@@ -319,6 +335,7 @@
         class={cn(
           "flex shrink-0", // phones: after search and +, at the right
           accountInSidebar && "md:hidden",
+          onback && "max-md:hidden",
         )}
       >
         <AccountRow me={$personal.me} row={false} />
@@ -404,10 +421,4 @@
     >
   </aside>{/if}
 
-{#if $personal.updateAvailable}<Button
-    data-view="update"
-    class="fixed bottom-4 left-1/2 z-30 max-w-[calc(100vw-2rem)] -translate-x-1/2 whitespace-normal shadow-lg"
-    onclick={(event) => {
-      if (event.currentTarget.isConnected) onreload();
-    }}>{text("update")}</Button
-  >{/if}
+<!-- A new version waits at the sidebar's foot (UpdateRow), over your account, not over the chat box. -->
