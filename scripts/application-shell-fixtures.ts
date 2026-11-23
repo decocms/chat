@@ -15,10 +15,10 @@ import type { RoomCommand } from "../shared/commands";
 import { homeApi, me, manualClock } from "./home-fixtures";
 export function shellFixture(
   overrides: Partial<HomeApi> = {},
-  options: { pwa?: () => PwaService } = {},
+  options: { pwa?: () => PwaService; href?: string } = {},
 ) {
   const timer = manualClock();
-  let href = "https://vibebook.test/",
+  let href = options.href ?? "https://vibebook.test/",
     canonical = me(),
     theme: ApplicationTheme = "auto";
   let themeListener = () => {},
@@ -30,7 +30,8 @@ export function shellFixture(
     names: string[] = [],
     languages: string[] = [],
     connectionCallbacks: RoomConnectionOptions[] = [],
-    roomCommands: RoomCommand[] = [];
+    roomCommands: RoomCommand[] = [],
+    backs: string[] = [];
   const device = createDeviceLock({
     storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     credentials: null,
@@ -155,6 +156,7 @@ export function shellFixture(
       navListener = callback;
       return () => stopped.push("navigation");
     },
+    back: () => backs.push(href),
   };
   return {
     services,
@@ -166,6 +168,7 @@ export function shellFixture(
     languages,
     connectionCallbacks,
     roomCommands,
+    backs,
     canonical(value: typeof canonical) {
       canonical = value;
     },

@@ -289,6 +289,51 @@ test("you at the sidebar's foot open the settings page: every section on it, lea
   }
   expect(h.documents).toEqual(["/login?out=1"]);
 });
+test("a phone's Settings bar is only a back: it returns to the page you came from, or Home when Settings loaded first (Gimenes #4068)", async () => {
+  async function open(href?: string) {
+    const h = shellFixture({}, { href }),
+      target = document.createElement("div");
+    document.body.append(target);
+    const component = flushSync(() =>
+      mount(ApplicationShellHarness, {
+        target,
+        props: { services: h.services, effects: h.effects },
+      }),
+    );
+    cleanups.push(() =>
+      flushSync(() => {
+        void unmount(component);
+      }),
+    );
+    await flush();
+    return { h, target };
+  }
+  // From Home: the account row opens Settings; back is the browser's back.
+  const from = await open();
+  await waitForView(from.target, "a[data-account-row]");
+  from.h.navigate(
+    new MouseEvent("click", { button: 0, cancelable: true }),
+    from.target.querySelector<HTMLAnchorElement>("a[data-account-row]")!,
+  );
+  await waitForView(document, "#account-name");
+  const nav = from.target.querySelector("[data-app-navigation]")!;
+  expect(nav.querySelector("[data-room-switcher]")).toBeNull();
+  const back = nav.querySelector<HTMLButtonElement>("[data-phone-back]")!;
+  expect(back.className.split(/\s+/)).toContain("md:hidden");
+  back.click();
+  expect(from.h.backs).toEqual(["https://vibebook.test/settings"]);
+  // Settings loaded first: nothing of this app to go back to, so back goes Home.
+  const direct = await open("https://vibebook.test/settings");
+  await waitForView(document, "#account-name");
+  direct.target
+    .querySelector<HTMLButtonElement>(
+      "[data-app-navigation] [data-phone-back]",
+    )!
+    .click();
+  await flush();
+  expect(direct.h.backs).toEqual([]);
+  expect(new URL(direct.h.href()).pathname).toBe("/");
+});
 test("connected old creator controls cannot edit or submit a replacement opening before DOM flush", async () => {
   let creates = 0;
   const h = shellFixture({

@@ -51,6 +51,9 @@ export function createApplicationShellEffects(
         win.removeEventListener("storage", storage);
       };
     },
+    back() {
+      win.history.back();
+    },
     listenNavigation(callback) {
       const click = (event: MouseEvent) => {
         const target = event.target;
