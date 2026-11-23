@@ -54,6 +54,26 @@ Rules:
   - The receiving `Person` keeps each contact's state (`p:<email>`). It sends `{ t: "presence", people }` to its open app sockets. A new socket first gets the full list (`all: 1`).
   - Only people who share a DM with you get your presence.
 
+### One send, one message
+
+A send can become "not confirmed" (a timeout, a dropped socket, a server error) after the `Book` stored it. A second send of it must not make a second message.
+
+- Each send of a person or an agent has a `client_id`: a random ID (`crypto.randomUUID()`), not a hash of the text. Two sends of "ok" are two messages. The client makes the ID one time for each send, and uses the same ID on each retry of that send.
+  - The WebSocket `msg` command, `POST /api/books/:id/post` and the MCP `post` tool accept `client_id` (`CLIENT_ID_PATTERN` in `shared/commands.ts`: 8 to 64 characters of `A-Z a-z 0-9 _ -`).
+  - The composer (`web/features/composer/drafts.ts`) keeps the ID of an unconfirmed send that the person keeps. If the person sends that draft again without a change, the ID is the same. A changed draft gets a new ID.
+  - The inbox reply, the Home send and the `vibebook_post` app tool keep the ID of a failed send until the same send succeeds (`web/lib/client/sendIds.ts`). A card answer cannot be sent again while it is unconfirmed.
+  - The CLI does not make an ID. It sends the `client_id` that the agent gives.
+- The `Book` keeps the ID in `messages.client_id`, with a unique index on `(author, client_id)`. The column is permanent, thus a retry matches at any time. An agent ID is kept as `<agent>:<client_id>`, thus two agents of one person do not share IDs.
+- `Book.byClientId` finds the earlier message before the insert. Only the text decides, because the room can change the thread, the reply, the files and the choices after the insert (`move_message`, `closeAsk`):
+  - The same ID and the same text: the server returns that message. It does not insert, broadcast or run the side effects again (answer intent, reopen, `track`, stats, alarm, the agent read cursor). Over the WebSocket, only the tab that sent it gets the message again.
+  - The same ID and a different text: the server refuses the send (`idempotency conflict`). The composer shows it as a failure and keeps the draft.
+  - An ID with a bad format: the WebSocket and HTTP schemas refuse the command (`invalid command`, `invalid message payload`). The MCP `post` tool answers `invalid client_id: …`.
+  - An MCP `post` with `html` asks `Book.agentRepeat` first. A retry does not check or store the HTML again.
+- A send without a `client_id` (an old client) gets a narrow fallback (`Book.recentRepeat`). The server looks at the newest 50 messages of the thread. If the same author, kind and model (`via`) sent the same text and reply in the last 10 seconds, with no files, poll, card, choices or tag, the server returns that message. A `done` post, a card and choices never use the fallback. Each send without an ID sends the `message_no_client_id` event. Thus, we can see when the old clients are gone.
+- The posts that the server makes (reminders, @vibe, notices, the first message of a DM) do not use these checks.
+- Polls (`poll.create`) do not have a `client_id`.
+- The `msg` event and the room history carry `client_id` when the message has one. The composer settles its send by that ID first, and by its content only for a message without an ID.
+
 ## Agents
 
 - An agent is the Claude of one person. It acts for that person only.

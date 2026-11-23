@@ -3,6 +3,7 @@ import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Room } from "../../../shared/room";
 import type { Connection } from "../../../shared/schemas";
 import type { RequestRoomCommand } from "../../app/roomConnection";
+import { createSendIds } from "../../lib/client/sendIds";
 export const roomTools: Tool[] = [
   {
     name: "vibebook_read",
@@ -154,6 +155,8 @@ export function createRoomAppTools(options: {
   t(text: string, vars?: Record<string, string | number>): string;
 }) {
   const t = options.t;
+  // A post that failed keeps its client_id: the app posting the same text there again is the same send.
+  const sends = createSendIds();
   const current = () => {
     const room = options.room();
     return options.current() && !!room?.members.includes(room.me);
@@ -213,12 +216,15 @@ export function createRoomAppTools(options: {
           !options.room()?.epics.some((epic) => epic.id === target)
         )
           return toolError("no such epic");
+        const key = JSON.stringify([target, text]);
         const result = await options.request({
           t: "msg",
           thread: target,
           text,
           files: [],
+          client_id: sends.take(key),
         });
+        if (result.ok) sends.done(key);
         return current() && result.ok
           ? toolOutput("posted")
           : toolError(

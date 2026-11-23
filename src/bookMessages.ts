@@ -194,9 +194,12 @@ export function storedMessageRows(
       typeof row.card === "string" && row.card.length > 1_000_000
         ? row.card
         : wire(row.card, card);
+    // client_id only when set: a null on every message is bytes on every room open.
+    const { client_id, ...fields } = base.data;
     return [
       {
-        ...base.data,
+        ...fields,
+        ...(client_id ? { client_id } : {}),
         poll: base.data.poll ?? null,
         kind: base.data.kind ?? null,
         files: storedAttachments(row.files, resolve, issue),

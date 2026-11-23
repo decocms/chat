@@ -700,3 +700,133 @@ test("deleted-thread drafts remain reviewable only in their original account/roo
   expect(bag.orphans(removed)).toEqual([]);
   bag.dispose();
 });
+test("each send carries a client_id; a resend of the unchanged draft reuses it, an edited draft gets a new one", async () => {
+  const timer = clock(),
+    drafts = createComposerDrafts(timer.api),
+    entry = drafts.entry({
+      account: "me@test",
+      roomId: "abc123",
+      thread: "main",
+    }),
+    sent: Extract<RoomCommand, { t: "msg" }>[] = [],
+    replies: ReturnType<typeof deferred<CommandOutcome>>[] = [];
+  const request = (command: RoomCommand) => {
+    if (command.t === "msg") sent.push(command);
+    const reply = deferred<CommandOutcome>();
+    replies.push(reply);
+    return reply.promise;
+  };
+  const upload = async () => meta();
+  entry.sync(room(), request, upload);
+  const unconfirmed = async () => {
+    const pending = entry.submit();
+    replies.at(-1)?.resolve({ ok: false, error: "timeout" });
+    await pending;
+    expect(get(entry.state).phase).toBe("unconfirmed");
+    entry.review(true);
+  };
+  entry.edit("oi");
+  await unconfirmed();
+  expect(sent[0].client_id).toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+  // Sent again without a change: the same id, so the room answers with the first message if it got there.
+  await unconfirmed();
+  expect(sent[1].client_id).toBe(sent[0].client_id);
+  // A changed draft is another message.
+  entry.edit("oi!");
+  await unconfirmed();
+  expect(sent[2].client_id).not.toBe(sent[0].client_id);
+  // The room had the first "oi!" (older than this send's baseline): its client_id settles this resend.
+  const pending = entry.submit();
+  expect(sent[3].client_id).toBe(sent[2].client_id);
+  replies.at(-1)?.resolve({ ok: true });
+  await pending;
+  entry.sync(
+    {
+      ...room(),
+      messages: [message(10, "oi!", { client_id: sent[2].client_id })],
+    },
+    request,
+    upload,
+  );
+  expect(get(entry.state).text).toBe("");
+  expect(get(entry.state).notice).toBe("sent");
+  // After a send that is in the room, the same text again is a new message.
+  entry.edit("oi!");
+  void entry.submit();
+  expect(sent[4].client_id).not.toBe(sent[2].client_id);
+  drafts.dispose();
+});
+test("a resend refused as an idempotency conflict is a definite failure, and the next send gets a new id", async () => {
+  expect(definiteMessageFailure("idempotency conflict")).toBe(true);
+  const timer = clock(),
+    drafts = createComposerDrafts(timer.api),
+    entry = drafts.entry({
+      account: "me@test",
+      roomId: "abc123",
+      thread: "main",
+    }),
+    sent: Extract<RoomCommand, { t: "msg" }>[] = [],
+    outcomes: CommandOutcome[] = [
+      { ok: false, error: "timeout" },
+      { ok: false, error: "idempotency conflict" },
+      { ok: false, error: "timeout" },
+    ];
+  const request = async (command: RoomCommand) => {
+    if (command.t === "msg") sent.push(command);
+    return outcomes.shift() ?? { ok: true };
+  };
+  entry.sync(room(), request, async () => meta());
+  entry.edit("oi");
+  await entry.submit();
+  entry.review(true);
+  await entry.submit();
+  expect(sent[1].client_id).toBe(sent[0].client_id);
+  expect(get(entry.state).phase).toBe("error");
+  expect(get(entry.state).text).toBe("oi");
+  await entry.submit();
+  expect(sent[2].client_id).not.toBe(sent[0].client_id);
+  drafts.dispose();
+});
+test("a discarded unconfirmed draft does not lend its client_id to the same text typed again", async () => {
+  const h = harness();
+  h.entry.edit("de novo");
+  const pending = h.entry.submit();
+  h.reply.resolve({ ok: false, error: "timeout" });
+  await pending;
+  h.entry.review(false);
+  h.entry.edit("de novo");
+  await h.entry.submit();
+  const ids = h.commands.map((c) => (c.t === "msg" ? c.client_id : ""));
+  expect(ids).toHaveLength(2);
+  expect(ids[1]).not.toBe(ids[0]);
+  h.drafts.dispose();
+});
+test("matching by client_id: another tab's row with the same text is not this send", () => {
+  const r = room(),
+    snapshot = {
+      text: "ok",
+      fileIds: [],
+      baseline: 10,
+      revision: 1,
+      clientId: "mine-1234",
+    };
+  expect(
+    matchingMessage(
+      { ...r, messages: [message(11, "ok", { client_id: "other-1234" })] },
+      "main",
+      snapshot,
+    ),
+  ).toBeUndefined();
+  expect(
+    matchingMessage(
+      { ...r, messages: [message(9, "ok", { client_id: "mine-1234" })] },
+      "main",
+      snapshot,
+    )?.id,
+  ).toBe(9);
+  // A row without a client_id (an older server) still matches by content.
+  expect(
+    matchingMessage({ ...r, messages: [message(11, "ok")] }, "main", snapshot)
+      ?.id,
+  ).toBe(11);
+});

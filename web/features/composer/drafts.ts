@@ -18,6 +18,7 @@ import {
   matchingMessage,
   maxMessageId,
   normalizeFile,
+  payloadKey,
   type MessageSnapshot,
   type PendingAttachment,
 } from "./model";
@@ -76,17 +77,18 @@ export const MAX_COMPOSER_DRAFTS = 64;
 // These msg Refused paths all precede addMessage; other errors may follow a durable write.
 /** The draft still holds what was sent (the same text, reply and files), even if its revision moved. */
 const sameDraft = (s: ComposerState, sent: MessageSnapshot) =>
-  s.text.trim() === sent.text &&
-  s.replyId === sent.replyId &&
-  s.attachments
-    .flatMap((item) => (item.meta ? [item.meta.id] : []))
-    .sort()
-    .join(",") === sent.fileIds.slice().sort().join(",");
+  payloadKey({
+    text: s.text.trim(),
+    replyId: s.replyId,
+    fileIds: s.attachments.flatMap((item) => (item.meta ? [item.meta.id] : [])),
+  }) === payloadKey(sent);
 export const definiteMessageFailure = (error: string) =>
   error === "offline" ||
   error === "invalid command" ||
   error === "empty message" ||
   error === "unknown thread" ||
+  // The room refused this client_id for another text: nothing was stored. A resend gets a new id.
+  error === "idempotency conflict" ||
   error.startsWith("blocked:");
 type MessageOperation = {
   token: symbol;
@@ -223,6 +225,9 @@ export function createComposerDrafts(clock = defaultClock) {
       focusToken: symbol | undefined;
     let operation: MessageOperation | undefined,
       pollOperation: PollOperation | undefined;
+    // The unconfirmed send the person kept (review(true)): sending the same draft again reuses its client_id, so the
+    // room answers with that message if it got there (docs/architecture.md, "One send, one message").
+    let kept: MessageSnapshot | undefined;
     const uploadOwners = new Map<number, AbortController>();
     const valid = () =>
       storageAvailable &&
@@ -549,18 +554,22 @@ export function createComposerDrafts(clock = defaultClock) {
           state.update((s) => ({ ...s, error: "reply-missing" }));
           return;
         }
+        const payload = { text, fileIds, replyId: reply?.id };
         const op: MessageOperation = {
           token: Symbol(),
           snapshot: {
-            text,
-            fileIds,
-            replyId: reply?.id,
+            ...payload,
             baseline: maxMessageId(room!),
             revision: draft.revision,
+            clientId:
+              kept?.clientId && payloadKey(kept) === payloadKey(payload)
+                ? kept.clientId
+                : crypto.randomUUID(),
           },
           ack: false,
         };
         operation = op;
+        kept = undefined;
         state.update((s) => ({
           ...s,
           phase: "pending",
@@ -575,6 +584,7 @@ export function createComposerDrafts(clock = defaultClock) {
             text,
             files: fileIds,
             reply_to: reply?.id,
+            client_id: op.snapshot.clientId,
           });
           if (!ownMessage(op)) return;
           if (!result.ok) {
@@ -616,6 +626,8 @@ export function createComposerDrafts(clock = defaultClock) {
         const snapshot = operation.snapshot;
         cancel(operation);
         operation = undefined;
+        // Kept: a resend of it is the same send. Discarded: the same text typed later is a new message.
+        kept = keep ? snapshot : undefined;
         state.update((s) =>
           !keep && s.revision === snapshot.revision
             ? {
@@ -734,6 +746,7 @@ export function createComposerDrafts(clock = defaultClock) {
         cancel(pollOperation);
         operation = undefined;
         pollOperation = undefined;
+        kept = undefined;
         for (const controller of uploadOwners.values()) controller.abort();
         uploadOwners.clear();
         focus = undefined;

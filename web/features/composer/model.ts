@@ -251,26 +251,45 @@ export type MessageSnapshot = {
   replyId?: number;
   baseline: number;
   revision: number;
+  /** The send's random id (msg client_id): the same on a resend of the same draft. */
+  clientId?: string;
 };
+/** What a send says: its text, reply and files. Two sends with the same key are the same message. */
+export const payloadKey = (p: {
+  text: string;
+  replyId?: number;
+  fileIds: readonly string[];
+}) => JSON.stringify([p.text, p.replyId ?? null, p.fileIds.slice().sort()]);
+/** The room's copy of a send: by its client_id first (it holds even when the room answered a resend with the first
+ *  message, older than the baseline, or moved it); else, for a message without one (an older server), by content. */
 export function matchingMessage(
   room: Room,
   thread: string,
   snapshot: MessageSnapshot,
 ): Message | undefined {
-  const files = snapshot.fileIds.slice().sort().join(",");
+  const byId = snapshot.clientId
+    ? room.messages.find(
+        (message) =>
+          message.client_id === snapshot.clientId &&
+          message.author === room.me &&
+          message.kind !== "agent",
+      )
+    : undefined;
+  if (byId) return byId;
+  const key = payloadKey(snapshot);
   return room.messages.find(
     (message) =>
+      !message.client_id &&
       message.id > snapshot.baseline &&
       message.author === room.me &&
       message.kind !== "agent" &&
       message.tag !== "fire" &&
       message.thread === thread &&
-      message.text === snapshot.text &&
-      (message.reply_to || undefined) === snapshot.replyId &&
-      (message.files || [])
-        .map((file) => file.id)
-        .sort()
-        .join(",") === files,
+      payloadKey({
+        text: message.text,
+        replyId: message.reply_to || undefined,
+        fileIds: (message.files || []).map((file) => file.id),
+      }) === key,
   );
 }
 export const maxMessageId = (room: Room) =>

@@ -5,6 +5,9 @@ import { EPIC_STATUSES, TASK_STATUSES, SuggestionSchema } from "./room";
 // from them. On the wire each command is a JSON-RPC call, method = t (shared/jsonRpc.ts). Authentication and every business rule stay on the server. Browser-safe: zod/mini only.
 const id = z.string();
 const num = z.number();
+/** A send's client_id: a random id (crypto.randomUUID()) made once per send and sent again on each retry of it. */
+export const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+export const ClientIdSchema = z.string().check(z.regex(CLIENT_ID_PATTERN));
 export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({
     t: z.literal("msg"),
@@ -13,6 +16,8 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     files: z.optional(z.array(z.string())),
     reply_to: z.optional(z.nullable(num)),
     viewing: z.optional(z.string()), // the file open beside the chat (#2408)
+    // The same on each retry of this send: the room answers a retry with the first message (Book.byClientId).
+    client_id: z.optional(ClientIdSchema),
   }),
   z.object({ t: z.literal("files.get") }),
   z.object({

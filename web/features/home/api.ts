@@ -70,8 +70,12 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.books.start
         .$post({ json: { text } }, { init: { signal } })
         .then((response) => read(response, StartRoomResult)),
-    post: (id: string, text: string, thread: string) =>
-      createRoomApi(id, fetcher).postMessage({ text, thread }),
+    post: (id: string, text: string, thread: string, clientId?: string) =>
+      createRoomApi(id, fetcher).postMessage({
+        text,
+        thread,
+        client_id: clientId,
+      }),
     archive: (id: string, archived: boolean, signal?: AbortSignal) =>
       room.archive
         .$post({ param: param(id), json: { archived } }, { init: { signal } })

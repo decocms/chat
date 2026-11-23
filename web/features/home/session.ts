@@ -4,6 +4,7 @@ import type { PersonalSession } from "./personal";
 import { destinations, type RoomTarget } from "./model";
 import { createAccountPageOwner } from "./ownership";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
+import { createSendIds } from "../../lib/client/sendIds";
 const issue = (error: unknown) =>
   error instanceof Error ? error.message : "network";
 const roomId = (value: string) => {
@@ -23,6 +24,8 @@ export function createHomeSession(
     selected: 0,
     source: "",
   });
+  // A send that failed keeps its client_id: sending the same text there again is the same send.
+  const sends = createSendIds();
   const owner = createAccountPageOwner(personal, clock, () => {
     state.set({ busy: "", error: "", result: null, selected: 0, source: "" });
   });
@@ -101,12 +104,19 @@ export function createHomeSession(
               thread: undefined,
             };
           }
+          const key = JSON.stringify([
+            destination.book_id,
+            destination.epic_id ?? "main",
+            text,
+          ]);
           const posted = await personal.api.post(
             destination.book_id,
             text,
             destination.epic_id ?? "main",
+            sends.take(key),
           );
           if (!posted.ok) throw Error(posted.error);
+          sends.done(key);
           return {
             id: roomId(destination.book_id),
             unknown: [],
