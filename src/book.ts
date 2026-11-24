@@ -2629,7 +2629,14 @@ export class Book extends DurableObject<Env> {
     if (!msgs.length) return;
     const members = await this.members();
     const names = await this.names();
-    const nm = (e: string) => (names[e] ?? e.split("@")[0]).split(/\s+/)[0].replace(/[<>"@\p{Cc}]/gu, "");
+    const handles = await this.handles();
+    const clean = (x: string) => x.replace(/[<>"@\p{Cc}]/gu, "");
+    const first = (e: string) => clean((names[e] ?? e.split("@")[0]).split(/\s+/)[0] ?? "");
+    // Two people with the same first name (two Rafaels) are told apart by full name and @handle, or Jev reads an
+    // ask of one as an ask of both (Valls, 24/11: "@rafael-2" put the message in the other Rafael's inbox).
+    const same = (e: string) => members.filter((x) => x !== e && first(x) === first(e)).length > 0;
+    const nm = (e: string) =>
+      same(e) ? `${clean(names[e] ?? e.split("@")[0])}${handles[e] ? ` (@${handles[e]})` : ""}` : first(e);
     const epics = this.epics();
     const topic = (t: string) => (t === "main" ? "" : epics.find((e) => e.id === t)?.title ?? "");
     const DB = this.env.DB;
@@ -2652,7 +2659,7 @@ export class Book extends DurableObject<Env> {
         });
         const before = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, m.thread, m.id).toArray().reverse();
         const r = await decide(this.env, {
-          pessoas_na_sala: members.map(nm).join(", "),
+          pessoas_na_sala: members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", "),
           assunto: topic(m.thread) || "sala principal",
           conversa_antes: before.map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`).join("\n") || "(início)",
           autor: `${nm(m.author)}${m.kind === "agent" ? " (pelo agent dele ou dela)" : ""}`,
@@ -2663,9 +2670,11 @@ export class Book extends DurableObject<Env> {
         const yes = (k: string, at: number) => (r.answers[k]?.noul ?? 0) >= at;
         // Asked = Jev read it as an ask, or a person (not an agent) tagged them; minus whoever already wrote in this thread
         // after it (the pass runs ~30s late, and answeredHere already ran for them).
-        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author, false, await this.handles());
+        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author, false, handles);
         const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, m.id).toArray().map((x) => x.author));
-        const asked = others.filter((e, i) => (tagged.includes(e) || (i < 12 && yes(`p${i}`, 0.7))) && !later.has(e));
+        // A person who @mentions someone says who it is for: only the people tagged wait on it, not whoever Jev also
+        // reads into it.
+        const asked = others.filter((e, i) => (tagged.length ? tagged.includes(e) : i < 12 && yes(`p${i}`, 0.7)) && !later.has(e));
         if (asked.length) this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm(m.author)} is waiting for your answer` : `${nm(m.author)} espera sua resposta`), m.text.replace(/\s+/g, " "), m.id, m.thread));
         await DB.batch([
           ...asked.map((e) =>
