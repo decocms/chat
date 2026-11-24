@@ -224,7 +224,7 @@
     >{#if waiting}<Count
         value={waiting}
         label={text("waiting", { n: waiting })}
-        class="pointer-events-none absolute -right-1.5 bottom-1"
+        class="pointer-events-none absolute top-0.5 -right-1 ring-2 ring-sidebar"
       />{/if}</span
   >
   <span

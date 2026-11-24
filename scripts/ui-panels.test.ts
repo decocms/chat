@@ -3755,9 +3755,8 @@ describe("stable sidebar integration", () => {
     const epic = h.target.querySelector('[data-epic="e"]')!;
     const badge = epic.querySelector("[data-wait-badge] [data-count]");
     expect(badge?.textContent?.trim()).toBe("4");
-    // One colour: your Claude's ask (a2) does not turn the number red.
-    expect(badge?.className.split(/\s+/)).toContain("bg-brand");
-    expect(badge?.className).not.toContain("destructive");
+    // One colour for every kind of wait: red (Valls).
+    expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
     expect(epic.querySelector("[data-epic-status-icon]")).toBeNull();
     h.view.update({
