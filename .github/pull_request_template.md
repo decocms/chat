@@ -12,6 +12,10 @@
 
 - 
 
+## Router bench
+
+<!-- Required if the change touches the router (AGENTS.md, rule 14): src/router*.ts, src/routerActions.ts, src/jev.ts or the bench cases. Paste the scores of `bun scripts/router-bench.ts` before and after the change. Else write "not touched". -->
+
 ## Deliberate decisions
 
 <!-- Link the new entries in docs/agents_deliberate_decisions.md. If there are no new entries, write "none". -->

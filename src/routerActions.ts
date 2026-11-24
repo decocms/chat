@@ -1,3 +1,5 @@
+// HARD RULE (AGENTS.md, rule 14): a change here needs `bun scripts/router-bench.ts` before the pull request, with the
+// scores before and after in the pull request. A score must not go down. New behavior gets new bench cases.
 // Router actions (Gimenes #4369, #4379): things the server does by itself for a person's message, without waking
 // anyone's Claude ("system 1"; the Claude is "system 2"). Each action is one entry here with the same shape:
 //   when      cheap, synchronous checks: may this action apply to this message at all? (no model)
