@@ -1759,6 +1759,13 @@ export class Book extends DurableObject<Env> {
       id, agent, email, who.slice(0, 40), status, note, Date.now(),
     );
     this.pushAcks(`msg_id = ? AND agent = ?`, id, agent);
+    // An agent starts on a request in a thread: the thread is Fazendo (Gimenes #4368). The status is the one sign
+    // of work in the thread list; there is no separate "agent working" mark. Only a thread still to do moves.
+    if (status === "doing") {
+      const thread = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, id).toArray()[0]?.thread;
+      if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(archived, 0) != 1`, thread).rowsWritten)
+        this.epicsChanged();
+    }
     this.ctx.waitUntil(this.markBusy(false));
     this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
     // A question that became an answer epic: say where the answer goes, so it isn't written in main (Gui #4210).

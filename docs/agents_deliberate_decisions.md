@@ -52,6 +52,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/ack-doing-status · Which threads an agent's ack moves to Fazendo
+
+- Agent: claude-opus-5-5
+- Context: Gimenes (#4368) asked to remove the ✻ in the thread list and to move the thread to "doing" when an agent works on it. He did not say which statuses change.
+- Decision:
+  - Only an ack with `doing` on a message in a thread moves it, and only from A fazer. Review and done stay: a person set them. An archived thread stays archived.
+  - An ack on a message in main changes no thread.
+  - The ack does not move the thread back when the agent finishes. The thread stays Fazendo until a person or the tasks change it.
+  - The ✻ goes from the thread row only. The ✻ under a message in the chat ("X está trabalhando nisso") stays.
+- Other options: Move review back to doing too. Show Fazendo only while the ack is open (a computed status, not a stored one).
+- Risk: low. A thread can show Fazendo after the agent stopped, until somebody changes it.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/notify-offer · One notifications offer for each device
 
 - Agent: claude-opus-5-5
