@@ -175,20 +175,115 @@ test("a progress post in the epic does not count as the answer", async () => {
   expect(f.book.answerPending(epic)).toBe(true);
 });
 
-test("an answer epic is not archived as done while its doc waits for the answer", async () => {
+test("an answer epic does not go to review while its doc waits for the answer", async () => {
   const f = fixture();
   const { epic } = await question(f);
   f.db
     .query(`UPDATE tasks SET status = 'done', done = 1 WHERE epic_id = ?`)
     .run(epic);
-  f.book.autoArchive();
-  expect(
-    (
-      f.db.query(`SELECT archived FROM epics WHERE id = ?`).get(epic) as {
-        archived: number | null;
-      }
-    ).archived,
-  ).not.toBe(1);
+  f.book.autoReview();
+  expect(status(f, epic)).toEqual({ archived: 0, status: "todo" });
+});
+
+const status = (f: ReturnType<typeof fixture>, id: string) => {
+  const row = f.db
+    .query(`SELECT archived, status FROM epics WHERE id = ?`)
+    .get(id) as { archived: number | null; status: string | null };
+  return { archived: row.archived ?? 0, status: row.status ?? "todo" };
+};
+
+test("a thread goes todo → doing → review on its own, and never to done (Gimenes #4247)", () => {
+  const f = fixture();
+  const id = f.book.createEpic("Trabalho", ["Um", "Dois"]);
+  expect(status(f, id)).toEqual({ archived: 0, status: "todo" });
+  const [one, two] = (
+    f.db
+      .query(`SELECT id FROM tasks WHERE epic_id = ? ORDER BY ts`)
+      .all(id) as { id: string }[]
+  ).map((row) => row.id);
+  f.book.setStatus(one!, "doing");
+  expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
+  f.book.setStatus(one!, "done");
+  f.book.setStatus(two!, "done");
+  expect(status(f, id)).toEqual({ archived: 0, status: "review" });
+  // Someone asks for more: doing stays while the old round is still all done.
+  f.book.setEpicStatus(id, "doing");
+  expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
+  // A new task, then done again: review again.
+  const three = f.book.addTask(id, "Três")!;
+  f.book.setStatus(three, "done");
+  expect(status(f, id)).toEqual({ archived: 0, status: "review" });
+});
+
+test('a person sending "Mark as done" marks the thread done; writing in a done thread opens it again (Gimenes #4249)', () => {
+  const f = fixture();
+  const id = f.book.createEpic("Trabalho", ["Um"]);
+  f.book.addMessage(id, email, "Mark as done");
+  f.book.personWrote(id, "Mark as done");
+  expect(status(f, id)).toEqual({ archived: 1, status: "done" });
+  f.book.addMessage(id, email, "faltou uma coisa");
+  f.book.personWrote(id, "faltou uma coisa");
+  expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
+  // Another message is just a message: it does not mark done.
+  f.book.personWrote(id, "mark as done when the PR merges");
+  expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
+});
+
+test("the migration: archived or dismissed is done, open with nothing started is todo, the rest is review (Gimenes #4251)", () => {
+  const f = fixture();
+  const row = (
+    id: string,
+    archived: number | null,
+    chosen: string | null,
+    tasks: string[],
+  ) => {
+    f.db
+      .query(
+        `INSERT INTO epics (id, title, ts, archived, status) VALUES (?, ?, 1, ?, ?)`,
+      )
+      .run(id, id, archived, chosen);
+    tasks.forEach((task, i) =>
+      f.db
+        .query(
+          `INSERT INTO tasks (id, epic_id, title, ts, done, status) VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(`${id}${i}`, id, task, i, task === "done" ? 1 : 0, task),
+    );
+  };
+  row("arch", 1, null, ["done"]);
+  row("dism", 1, "dismissed", ["todo"]);
+  row("kept", -1, null, ["done"]);
+  row("fresh", 0, null, ["todo"]);
+  row("prod", 0, null, ["todo", "doing"]);
+  row("alldone", null, null, ["done", "done"]);
+  f.db.query(`DELETE FROM meta WHERE k = 'epic_status_v2'`).run();
+  f.book.migrateEpicStatus();
+  expect(status(f, "arch")).toEqual({ archived: 1, status: "done" });
+  expect(status(f, "dism")).toEqual({ archived: 1, status: "done" });
+  expect(status(f, "kept")).toEqual({ archived: 0, status: "review" });
+  expect(status(f, "fresh")).toEqual({ archived: 0, status: "todo" });
+  expect(status(f, "prod")).toEqual({ archived: 0, status: "review" });
+  expect(status(f, "alldone")).toEqual({ archived: 0, status: "review" });
+  // Once: a later change of status is not undone by the next start.
+  f.book.setEpicStatus("alldone", "doing");
+  f.book.migrateEpicStatus();
+  f.book.autoReview();
+  expect(status(f, "alldone")).toEqual({ archived: 0, status: "doing" });
+});
+
+test("an agent's delivery puts the thread in review, not done", async () => {
+  const f = fixture();
+  const id = f.book.createEpic("Trabalho", ["Um"]);
+  await f.book.agentPost(
+    "abcdef",
+    email,
+    "Pronto, testei.",
+    id,
+    [],
+    "Claude",
+    true,
+  );
+  expect(status(f, id)).toEqual({ archived: 0, status: "review" });
 });
 
 test("an answer epic still empty after 10 minutes gets one reminder for who asked", async () => {

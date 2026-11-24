@@ -1,19 +1,32 @@
-// The status an epic shows (the pill in the epic bar, the icon in the sidebar). Browser-safe, no backend imports.
+// The status a thread shows (the pill in the thread bar, the icon in the sidebar). Browser-safe, no backend imports.
 import type { Epic, EpicStatus } from "./room";
 
-/** The chosen status if there is one; else the deploy stage, the archive and the tasks decide. In production counts as done.
- *  An archived epic's done tasks are not sent to the app (Book.wireEpics), so "all done" there means "none left open". */
+/** A thread has one stored status (Gimenes #4247): todo, doing, review or done. done is the archive (the Done tab),
+ *  so the icon and the tab always agree. Tasks and production do not make it done; only a person does. */
 export function epicStatus(
-  epic: Pick<Epic, "status" | "prod" | "archived" | "tasks">,
+  epic: Pick<Epic, "status" | "archived">,
 ): EpicStatus {
-  if (epic.status) return epic.status;
-  const stage = epic.prod?.stage;
-  if (stage === "deployed" || stage === "verified") return "done";
-  const tasks = epic.tasks;
-  if (epic.archived)
-    return tasks.every((task) => task.status === "done") ? "done" : "dismissed";
-  if (tasks.some((task) => task.status === "review")) return "review";
-  if (tasks.some((task) => task.status === "doing" || task.status === "done"))
-    return "doing";
-  return "todo";
+  if (epic.archived || epic.status === "done" || epic.status === "dismissed")
+    return "done";
+  return epic.status === "doing" || epic.status === "review"
+    ? epic.status
+    : "todo";
 }
+
+/** What a person sends to mark a thread done (Gimenes #4249): the composer offers it once the tasks are all done. */
+export const MARK_DONE = {
+  pt: "Marcar como concluída",
+  en: "Mark as done",
+} as const;
+
+const fold = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .replace(/[.!]+$/, "")
+    .toLowerCase();
+
+/** The message is "Marcar como concluída" or "Mark as done" (any case, accents and a final period optional). */
+export const isMarkDone = (text: string) =>
+  [MARK_DONE.pt, MARK_DONE.en].some((phrase) => fold(phrase) === fold(text));

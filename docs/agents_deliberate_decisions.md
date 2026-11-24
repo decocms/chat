@@ -1479,3 +1479,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A reply the Claude meant for main about a question with an answer epic lands in the epic, where the person is looking.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · feat/thread-status · A thread has one stored status, and only a person marks it done
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#4245, #4247, #4249, #4251): threads showed "done" in Open threads. The icon came from `epicStatus()` (production counted as done) and the tab came from `archived` (auto-archive after all tasks done and a delivery). He asked for todo, doing, review and done only, the Done tab = done, no move to done when the tasks finish, and a "Mark as done" hint in the composer. He approved the migration and that the server marks done.
+- Decision:
+  - The `epics.status` column is always todo, doing, review or done. done = `archived = 1`, so the icon and the tab read one value. `epicStatus()` reads it; tasks and `prod` do not change it.
+  - `autoReview()` replaces `autoArchive()`: the first task started moves todo to doing; tasks that become all done move the thread to review once for each round (`alldone:<id>` in meta), so a status chosen after that (doing, to work more) stays. An agent post with `done: true` moves the thread to review.
+  - A person's message "Marcar como concluída" or "Mark as done" (case, accents and a final period ignored, nothing else in it) in an open thread marks it done. Any other message in a done thread opens it again as doing.
+  - done (menu, `update_thread status` or `archived: true`) still closes the open tasks, like the old Archive. "dismissed" from an old client is done.
+  - The composer of an open thread whose tasks are all done shows "Marcar como concluída (Tab)"; Tab writes the text, and the person sends it.
+  - Migration, once per room on the Book's start (`epic_status_v2`): archived, done or dismissed → done; open with no task started → todo; every other open thread → review.
+  - `read_room` epics show `status`. The agent rules and the `update_thread` text say: do not set done unless your human says so.
+- Other options: Keep the derived status and change only the tab (the two rules stay). Let only the agent mark done (needs a listening agent). Move to review on every task change (overrides a person's doing).
+- Risk: medium. The migration changes the status of every thread in every room, one time. Threads that used to close themselves now wait in review for a person.
+- Undo: Revert this commit. The migrated statuses stay; the old code derives its own status when `status` is null only, so a revert shows the stored ones.
+- Status: open

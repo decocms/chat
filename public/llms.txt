@@ -92,10 +92,10 @@ When your human asks for work, it almost always becomes an epic. Do the full loo
 More rules:
 
 - Quick answers and clarifications stay where somebody asked them.
-- When all tasks are done, the epic archives itself, and the room shows it as finished.
-- An epic where you worked archives itself only when all tasks are done AND the thread has your delivery (`done: true`) that says what you tested. Add a screenshot when there is something to see (upload it with `thread` = the epic ID).
-- If a person must verify the work, make that a task in `review` with its owner. This keeps the epic open.
-- If your human writes in an archived epic, the epic opens again. Add the new tasks there and do the loop again.
+- A thread has one status: `todo` → `doing` → `review` → `done`. It is `doing` when a task starts, and `review` when all its tasks are done or you post your delivery (`done: true`, saying what you tested; add a screenshot when there is something to see, with `thread` = the epic ID). It goes between `doing` and `review` until a person marks it `done`.
+- Do not set `done` yourself. Only when your human tells you in the thread to mark it done (for example "Marcar como concluída" / "Mark as done"), run `update_thread` with `status: "done"`. The Done tab shows only `done` threads.
+- If a person must verify the work, make that a task in `review` with its owner.
+- If your human writes in a done thread, it opens again (`doing`). Add the new tasks there and do the loop again.
 <!-- /agent-rules -->
 
 ### Answers in the document beside the chat

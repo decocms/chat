@@ -8,6 +8,7 @@ import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
 import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
+import { isMarkDone } from "../shared/epicStatus";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
 import { RoomEventSchemas } from "../shared/events";
@@ -149,6 +150,7 @@ export class Book extends DurableObject<Env> {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
     }
+    this.migrateEpicStatus();
     // One send = one message: a retry with the same client_id finds the first one (byClientId).
     this.sql.exec(`CREATE UNIQUE INDEX IF NOT EXISTS messages_client_id ON messages (author, client_id) WHERE client_id IS NOT NULL`);
     // A room copied from another account keeps its reminders but not its alarm (alarms don't travel with the data):
@@ -222,8 +224,8 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
       .map(({ ts, pinned, status: chosen, ...e }) => {
-        // The status a person or an agent chose (epic.status, update_thread status); null = the app works it out (epicStatus).
-        const status = (EPIC_STATUSES as readonly string[]).includes(chosen ?? "") ? (chosen as EpicStatus) : null;
+        // The thread's one status (Gimenes #4247): done is the archive (the Done tab); otherwise todo, doing or review.
+        const status: EpicStatus = e.archived === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_thread prod).
         return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
@@ -231,60 +233,58 @@ export class Book extends DurableObject<Env> {
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
   // room + epic with one query instead of calling every room's DO.
-  // Curation: an epic whose tasks are all done archives itself and says so in its thread. archived = -1 means
-  // someone reopened it by hand, so it stays open.
-  // An epic a Claude worked in closes only with proof: its delivery (done card) saying what it tested. A screenshot is
-  // asked for when there's something to see, not required (a doc or a script has no screen). Without the delivery it
-  // stays open and housekeep asks for it. Epics only people worked in close on their ticks alone.
-  unproven(id: string) {
-    // A reopened epic needs proof of the new round: only what came after @vibe's last archive note counts.
-    const since = Number(this.get(`arch:${id}`) ?? 0) || (this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ? AND author = 'ai' AND tag = 'done'`, id).one().id ?? 0);
-    const has = (where: string) => this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND id > ? AND ${where} LIMIT 1`, id, since).toArray().length > 0;
-    const agentEver = this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND kind = 'agent' LIMIT 1`, id).toArray().length > 0;
-    return agentEver && !has(`kind = 'agent' AND tag = 'done'`);
+  // Thread status, one stored value (Gimenes #4247 #4251), once per room: archived (or done, dismissed) is done; an open
+  // thread with no task started is todo; every other open thread is review, since no person marked it done.
+  migrateEpicStatus() {
+    if (this.get("epic_status_v2") === "1") return;
+    this.sql.exec(`UPDATE epics SET archived = 1, status = 'done' WHERE archived = 1 OR status IN ('done', 'dismissed')`);
+    this.sql.exec(
+      `UPDATE epics SET archived = 0, status = CASE WHEN EXISTS (SELECT 1 FROM tasks t WHERE t.epic_id = epics.id AND (t.done = 1 OR t.status IN ('doing', 'review', 'done'))) THEN 'review' ELSE 'todo' END WHERE COALESCE(archived, 0) != 1`,
+    );
+    // The tasks already all done made that move; they do not make it again.
+    this.sql.exec(`INSERT OR REPLACE INTO meta (k, v) SELECT 'alldone:' || id, '1' FROM epics WHERE COALESCE(archived, 0) != 1`);
+    this.set("epic_status_v2", "1");
   }
-  /** Parent epic id → how many sub-epics (epics whose request was written in its thread), and how many are open. */
-  kidsOf(skip: Set<string>) {
-    const r = this.sql.exec<{ id: string; p: string; archived: number | null }>(`SELECT c.id, m.thread AS p, c.archived FROM epics c JOIN messages m ON m.id = c.from_msg WHERE m.thread != 'main' AND m.thread != c.id`).toArray();
-    const all = new Map<string, number>(), open = new Map<string, number>(), closing = new Set<string>();
-    for (const k of r) { all.set(k.p, (all.get(k.p) ?? 0) + 1); if (skip.has(k.id)) closing.add(k.p); else if (k.archived !== 1) open.set(k.p, (open.get(k.p) ?? 0) + 1); }
-    return { all, open, closing };
-  }
-  autoArchive() {
-    // An epic with an open sub-epic stays open (Gui, Nov 2026). When its last sub-epic closes, it follows if its own tasks
-    // are done, even reopened by hand (the request that became the sub-epic reopened it) and with no delivery of its
-    // own (the sub-epics' deliveries are the proof). Repeats so a chain of parents closes in one pass.
-    const picked = new Set<string>(), epics = this.epics();
-    for (let more = true; more; ) {
-      more = false;
-      const { all, open, closing } = this.kidsOf(picked);
-      for (const e of epics) {
-        if (picked.has(e.id) || e.archived || open.get(e.id) || !e.tasks.length || !e.tasks.every((t) => t.status === "done")) continue;
-        // An answer epic is not done while its doc still waits for the answer (Gui #4210: "Done" over an empty doc).
-        if (this.answerPending(e.id)) continue;
-        const parent = (all.get(e.id) ?? 0) > 0;
-        // Reopened by hand: only closes together with its last sub-epic, never by itself.
-        if (e.kept ? !closing.has(e.id) : !parent && this.unproven(e.id)) continue;
-        picked.add(e.id); more = true;
-      }
-    }
-    const done = epics.filter((e) => picked.has(e.id));
+  // A thread's status follows its tasks forward, never to done (Gimenes #4247): todo until a task starts, then doing;
+  // review when its tasks become all done. It then goes between doing and review (a person or an agent with
+  // update_thread status) until a person marks it done. done is the only status that archives (the Done tab).
+  autoReview() {
     const closed: number[] = [];
-    for (const e of done) {
-      // All its tasks are done: a chosen open status (todo, doing, review) no longer applies, the app shows "done".
-      this.sql.exec(`UPDATE epics SET archived = 1, status = NULL WHERE id = ?`, e.id);
-      // No @vibe line any more (Gui #3317); the last message id marks where a reopened round starts (unproven).
-      this.set(`arch:${e.id}`, String(this.sql.exec<{ id: number | null }>(`SELECT max(id) AS id FROM messages WHERE thread = ?`, e.id).one().id ?? 0));
+    let changed = false;
+    for (const e of this.epics()) {
+      if (e.archived || !e.tasks.length) continue;
+      const mark = `alldone:${e.id}`;
+      const all = e.tasks.every((t) => t.status === "done");
+      if (!all) {
+        if (this.get(mark)) this.sql.exec(`DELETE FROM meta WHERE k = ?`, mark);
+        if (e.status === "todo" && e.tasks.some((t) => t.status !== "todo")) {
+          this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ?`, e.id);
+          changed = true;
+        }
+        continue;
+      }
+      // An answer epic is not ready while its doc still waits for the answer (Gui #4210). Each round moves it once:
+      // a status chosen after that (doing, to work more) stays until a task opens again.
+      if (this.get(mark) || this.answerPending(e.id)) continue;
+      this.set(mark, "1");
+      if (e.status !== "review") {
+        this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ?`, e.id);
+        changed = true;
+      }
       // The request it came from: "fazendo isso" turns into "fez isso".
       const from = this.sql.exec(`SELECT from_msg FROM epics WHERE id = ?`, e.id).toArray()[0]?.from_msg;
       if (from && this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE msg_id = ? AND status = 'doing'`, Date.now(), from).rowsWritten) closed.push(from as number);
     }
     // Only the acks that changed (the whole list was ~100 KB per tab on every archive, Nov 2026).
     if (closed.length) this.pushAcks(`msg_id IN (${closed.map(() => "?").join(",")})`, ...closed);
-    return done.length > 0;
+    return changed;
+  }
+  /** An agent's delivery (`done: true`) in an open thread: it waits on a person now. */
+  delivered(thread: string) {
+    return this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ? AND COALESCE(archived, 0) != 1 AND COALESCE(status, '') != 'review'`, thread).rowsWritten > 0;
   }
   epicsChanged() {
-    this.autoArchive();
+    this.autoReview();
     this.tasksToDocs();
     const epics = this.epics();
     const roomTasks = this.roomTasks();
@@ -1019,7 +1019,6 @@ export class Book extends DurableObject<Env> {
     if (epicId !== "main" && !this.sql.exec(`SELECT 1 FROM epics WHERE id = ?`, epicId).toArray().length) return null;
     const id = rid();
     this.sql.exec(`INSERT INTO tasks (id, epic_id, title, ts) VALUES (?, ?, ?, ?)`, id, epicId, title.slice(0, 300), Date.now());
-    this.rearm(epicId);
     this.epicsChanged();
     return id;
   }
@@ -1037,26 +1036,21 @@ export class Book extends DurableObject<Env> {
     this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, title.trim().slice(0, 200), id);
     this.epicsChanged();
   }
-  // Done with it: leaves the sidebar list and the board, keeps its tasks and discussion. markDone closes every task.
-  // A chosen status that contradicts the archive goes away: an open one (todo, doing, review) when it is archived,
-  // a closed one (done, dismissed) when it is reopened.
+  // Done (archived) or open again. Done leaves the Open tab and the board, keeps its tasks and discussion; markDone
+  // closes every task. Open again goes back to doing, and its old round of done tasks does not move it to review again.
   archiveEpic(id: string, archived = true, markDone = false, changed = true) {
     if (markDone) this.sql.exec(`UPDATE tasks SET done = 1, status = 'done' WHERE epic_id = ?`, id);
-    this.sql.exec(
-      `UPDATE epics SET archived = ?, status = CASE WHEN status IN (${archived ? "'todo', 'doing', 'review'" : "'done', 'dismissed'"}) THEN NULL ELSE status END WHERE id = ?`,
-      archived ? 1 : -1,
-      id,
-    );
+    this.sql.exec(`UPDATE epics SET archived = ?, status = ? WHERE id = ?`, archived ? 1 : 0, archived ? "done" : "doing", id);
+    if (!archived) this.set(`alldone:${id}`, "1");
     if (changed) this.epicsChanged();
   }
-  // The epic bar's status menu (epic.status) and update_thread status. "done" archives and closes the open tasks (the old
-  // Archive button), "dismissed" archives and leaves them, and an open status reopens an archived epic (the old
-  // Unarchive). There is no "live" status (Gimenes #3877): in production is done.
+  // The thread bar's status menu and update_thread status: todo, doing, review or done (Gimenes #4247). done archives
+  // and closes the open tasks. An old client's "dismissed" is done. Production is not a status (Gimenes #3877).
   setEpicStatus(id: string, status: EpicStatus) {
     const row = this.sql.exec<{ archived: number | null }>(`SELECT archived FROM epics WHERE id = ?`, id).toArray()[0];
     if (!row) return new Refused("unknown epic");
-    if (status === "done" || status === "dismissed") this.archiveEpic(id, true, status === "done", false);
-    else if (row.archived === 1) this.archiveEpic(id, false, false, false);
+    if (status === "done" || status === "dismissed") return this.archiveEpic(id, true, true);
+    if (row.archived === 1) this.archiveEpic(id, false, false, false);
     this.sql.exec(`UPDATE epics SET status = ? WHERE id = ?`, status, id);
     this.epicsChanged();
   }
@@ -1147,18 +1141,23 @@ export class Book extends DurableObject<Env> {
     const ts = Date.now();
     add.forEach((a, i) => this.sql.exec(`INSERT INTO tasks (id, epic_id, title, ts, done, status) VALUES (?, ?, ?, ?, ?, ?)`, rid(), epic, a.title.slice(0, 300), ts + i, a.done ? 1 : 0, a.done ? "done" : "todo"));
     for (const id of del) this.sql.exec(`DELETE FROM tasks WHERE id = ?`, id);
-    if (add.length && epic !== "main") this.rearm(epic);
     this.epicsChanged();
   }
-  // Continuing a finished epic: a person writing in an archived epic's thread reopens it (kept open, so it doesn't
-  // archive again right away with its old tasks all done); the next task added to it re-arms auto-archive, so the
-  // new round closes itself too.
+  // Continuing a finished thread: a person writing in a done thread opens it again (doing). Its old done tasks do not
+  // move it to review; the next round's tasks do.
   reopenIfArchived(thread: string) {
-    if (thread === "main" || !this.sql.exec(`UPDATE epics SET archived = -1, status = CASE WHEN status IN ('done', 'dismissed') THEN NULL ELSE status END WHERE id = ? AND archived = 1`, thread).rowsWritten) return;
-    this.epicsChanged();
+    if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND archived = 1`, thread).toArray().length) return;
+    this.archiveEpic(thread, false);
   }
-  rearm(epicId: string) {
-    this.sql.exec(`UPDATE epics SET archived = 0 WHERE id = ? AND archived = -1`, epicId);
+  /** A person's message in a thread (Gimenes #4249): "Marcar como concluída" / "Mark as done" marks it done; any
+   *  other message opens a done thread again. */
+  personWrote(thread: string, text: string) {
+    if (thread !== "main" && isMarkDone(text) && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length) {
+      this.setEpicStatus(thread, "done");
+      this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: "mark_done" } }));
+      return;
+    }
+    this.reopenIfArchived(thread);
   }
   // The room's doc, or an epic's own doc (a child of the room's) when epic is set.
   setDoc(text: string, by: string, except?: WebSocket, epic?: string) {
@@ -1510,6 +1509,7 @@ export class Book extends DurableObject<Env> {
         id: e.id,
         title: e.title,
         archived: e.archived || undefined,
+        status: e.status,
         from_message_id: e.from_msg ?? undefined,
         answer: this.get(`answer:${e.id}`) === "1" || undefined,
         // An answer epic whose doc is still empty: its question waits for an answer (Gui #4210).
@@ -1626,8 +1626,8 @@ export class Book extends DurableObject<Env> {
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
     if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
-    // The delivery or its screenshot may be the proof an epic with every task done was waiting for.
-    if (thread !== "main" && (done || files.some((f) => f.type.startsWith("image/"))) && this.autoArchive()) this.epicsChanged();
+    // The delivery puts the thread in review: it waits on a person, who marks it done (Gimenes #4249).
+    if (thread !== "main" && done && this.delivered(thread)) this.epicsChanged();
     // A done post closes the person's doing acks; any other post is activity that keeps them live (the app greys
     // out a "doing" with no activity for 20 min).
     const now = Date.now();
@@ -1917,7 +1917,7 @@ export class Book extends DurableObject<Env> {
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
     const m = this.addMessage(thread, email, text, { clientId });
-    this.reopenIfArchived(thread);
+    this.personWrote(thread, text);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
@@ -2235,7 +2235,7 @@ export class Book extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server, [email]);
-    if (this.autoArchive()) this.epicsChanged();
+    if (this.autoReview()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
     const [book, people, requests, names, avatars, handles] = await Promise.all([
@@ -2339,7 +2339,7 @@ export class Book extends DurableObject<Env> {
         if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
         // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
-        if (!answers) this.reopenIfArchived(thread);
+        if (!answers) this.personWrote(thread, text);
         if (!answers && thread === "main") this.ctx.waitUntil(this.answerIntent(sent.id, email, text).catch((e) => console.error("answer intent", String(e))));
         this.ctx.waitUntil(
           track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),

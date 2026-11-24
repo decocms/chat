@@ -6,6 +6,7 @@
 <script lang="ts">
   import { visibleMessage, messageById } from "../chat/privacy";
   import { COMPOSER_FRAME } from "./shape";
+  import { MARK_DONE } from "../../../shared/epicStatus";
   import { browserSpeech } from "./speech";
   import { browserFireCapture } from "./fireAudio";
   import { onDestroy, onMount, untrack } from "svelte";
@@ -201,7 +202,32 @@
     caret = mentions.start;
     field?.insert(`@${pick.handle} `);
   }
+  // A thread whose tasks are all done waits on a person to mark it done (Gimenes #4249): the empty composer offers
+  // "Marcar como concluída" and Tab writes it; the server marks the thread done when a person sends it.
+  const offersDone = $derived.by(() => {
+    if (thread === "main") return false;
+    const epic = room.epics.find((item) => item.id === thread);
+    return (
+      !!epic &&
+      !epic.archived &&
+      epic.tasks.length > 0 &&
+      epic.tasks.every((task) => task.status === "done")
+    );
+  });
   function keydown(event: KeyboardEvent) {
+    if (
+      offersDone &&
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !items.length &&
+      !/\S/.test($draft.text)
+    ) {
+      event.preventDefault();
+      caret = 0;
+      selectionEnd = $draft.text.length;
+      field?.insert(vb.t(MARK_DONE.pt));
+      return true;
+    }
     if (items.length) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
@@ -479,7 +505,9 @@
     locale={vb.locale || "pt-BR"}
     id="input"
     label={vb.t("Mensagem…")}
-    placeholder={vb.t("Mensagem…")}
+    placeholder={offersDone
+      ? vb.t("{action} (Tab)", { action: vb.t(MARK_DONE.pt) })
+      : vb.t("Mensagem…")}
     disabled={!allowed || hidden}
     enabled={() => canInteract()}
     {busy}
