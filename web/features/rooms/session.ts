@@ -3,7 +3,7 @@ import type { CommandOutcome } from "../../../shared/commands";
 import type { MeResult } from "../../../shared/schemas";
 import type { RoomTint } from "../home/api";
 import type { PersonalSession } from "../home/personal";
-import { orderedRooms } from "../home/model";
+import { orderedRooms, roomsOnly } from "../home/model";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
 export function createRoomsSession(
   personal: PersonalSession,
@@ -148,13 +148,15 @@ export function createRoomsSession(
         id,
       );
     },
+    /** The rail's rooms in a new order. Your DMs are not on the rail, so they are not in `ids` (Gimenes #4234). */
     order(ids: string[]) {
-      const current = get(personal.state).me;
+      const me = get(personal.state).me;
+      const rail = me ? roomsOnly(me.books) : [];
       if (
-        !current ||
-        ids.length !== current.books.length ||
+        !me ||
+        ids.length !== rail.length ||
         new Set(ids).size !== ids.length ||
-        ids.some((id) => !current.books.some((room) => room.id === id))
+        ids.some((id) => !rail.some((room) => room.id === id))
       )
         return;
       const submitted = ids.slice(0, 300);
