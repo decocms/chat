@@ -8,6 +8,8 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
+  import Progress from "../../lib/studio/Progress.svelte";
+  import { EPIC_PROGRESS } from "../room-shell/shape";
   import Icon from "../../lib/studio/Icon.svelte";
   import Label from "../../lib/studio/Label.svelte";
   import Tabs from "../../lib/studio/Tabs.svelte";
@@ -493,17 +495,7 @@
                             class="shrink-0 text-xs text-muted-foreground"
                             >✻</span
                           >{/if}
-                        {#if epic.tasks.length}<span
-                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
-                            aria-label={vb.t("{done} de {total} tarefas", {
-                              done: epic.tasks.filter((task) => task.done)
-                                .length,
-                              total: epic.tasks.length,
-                            })}
-                            class="shrink-0 text-xs text-muted-foreground tabular-nums"
-                            >{epic.tasks.filter((task) => task.done)
-                              .length}/{epic.tasks.length}</span
-                          >{/if}
+
                         <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
                         {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
                             waits={vb.waitsIn(epic.id)}
@@ -522,6 +514,20 @@
                               class="size-3.5"
                             /></span
                           >{/if}
+                        <!-- Task progress as a bar under the title: gray at 0 done, green fill from the first done task. -->
+                        {#if epic.tasks.length}<Progress
+                            data-epic-progress={`${epic.tasks.filter((task) => task.done).length}/${epic.tasks.length}`}
+                            aria-label={vb.t("{done} de {total} tarefas", {
+                              done: epic.tasks.filter((task) => task.done)
+                                .length,
+                              total: epic.tasks.length,
+                            })}
+                            value={(100 *
+                              epic.tasks.filter((task) => task.done).length) /
+                              epic.tasks.length}
+                            tone="success"
+                            class={EPIC_PROGRESS}
+                          />{/if}
                       </Button>
                     {/snippet}
                   </TooltipTrigger>

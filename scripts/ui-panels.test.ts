@@ -3508,7 +3508,7 @@ describe("stable sidebar integration", () => {
         ?.getAttribute("data-epic-status-icon"),
     ).toBe("done");
   });
-  test("epic row: the status sits last, task progress as done/total text before it", () => {
+  test("epic row: the status sits last and task progress is a bar, gray at 0 and green after", () => {
     const room = fixture();
     room.epics = [
       {
@@ -3527,17 +3527,25 @@ describe("stable sidebar integration", () => {
     flushSync();
     const row = (id: string) =>
       h.target.querySelector(`[data-epic-thread="${id}"]`)!;
-    // The status icon is the last thing in the row; the done/total text sits just before it (no bars).
-    const line = [...row("p").children];
+    // The status icon is the last thing in the row's line.
+    const line = [...row("p").children].filter(
+      (el) => !el.matches("[data-epic-progress]"),
+    );
     expect(line.at(-1)?.hasAttribute("data-epic-status-icon")).toBe(true);
-    expect(line.at(-2)?.getAttribute("data-epic-progress")).toBe("1/3");
-    const count = row("p").querySelector("[data-epic-progress]");
-    expect(count?.textContent?.trim()).toBe("1/3");
-    expect(count?.getAttribute("aria-label")).toBe("1 de 3 tarefas");
-    expect(row("p").querySelector("progress")).toBeNull();
+    // No "x/y" text: a bar with its count for screen readers.
+    expect(row("p").textContent).not.toContain("1/3");
+    const bar = row("p").querySelector("[data-epic-progress]");
+    expect(bar?.getAttribute("data-epic-progress")).toBe("1/3");
+    expect(bar?.getAttribute("aria-label")).toBe("1 de 3 tarefas");
+    expect(bar?.querySelector("progress")?.className).toContain("text-success");
     expect(
-      row("z").querySelector("[data-epic-progress]")?.textContent?.trim(),
-    ).toBe("0/1");
+      bar?.querySelector<HTMLProgressElement>("progress")?.value,
+    ).toBeCloseTo(33.33, 1);
+    expect(
+      row("z").querySelector<HTMLProgressElement>(
+        "[data-epic-progress] progress",
+      )?.value,
+    ).toBe(0);
     expect(row("n").querySelector("[data-epic-progress]")).toBeNull();
     // No ⋯ on any row, on desktop or phone: the actions are inside the epic (Gimenes #3933).
     expect(h.target.querySelector("[data-epic-actions]")).toBeNull();
