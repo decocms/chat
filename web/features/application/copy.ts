@@ -215,7 +215,8 @@ const EN: Readonly<Record<string, string>> = {
   "Não lidas": "Unread",
   "Marcar como lida": "Mark as read",
   "Marcada como lida": "Marked as read",
-  "Você pediu:": "You asked:",
+  "você pediu:": "you asked:",
+  "Tarefa aprovada": "Task approved",
   "Nada esperando você.": "Nothing waiting on you.",
   "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.":
     "Send something in the box above. When someone needs you, it shows up here.",

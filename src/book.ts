@@ -1724,7 +1724,7 @@ export class Book extends DurableObject<Env> {
     }
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
-    if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
+    if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text, m.choices));
     // The delivery puts the thread in review: it waits on a person, who marks it done (Gimenes #4249).
     if (thread !== "main" && done && this.delivered(thread)) this.epicsChanged();
     // A done post closes the person's doing acks; any other post is activity that keeps them live (the app greys
@@ -1815,8 +1815,9 @@ export class Book extends DurableObject<Env> {
       .run();
     await poke(this.env, [email], { t: "me" });
   }
-  /** The wait row for an open hook question (ref a<msg>), or its removal (text null). */
-  async askWait(email: string, msgId: number, thread: string, text: string | null) {
+  /** The wait row for an open hook question (ref a<msg>), or its removal (text null). `about` keeps its choices (the
+   *  message's JSON), so the Home answers it with a click. */
+  async askWait(email: string, msgId: number, thread: string, text: string | null, choices: string | null = null) {
     const bookId = this.get("book_id"); if (!bookId) return;
     if (text === null) {
       const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, `a${msgId}`, email).run();
@@ -1826,8 +1827,8 @@ export class Book extends DurableObject<Env> {
     const q = text.startsWith("❓");
     this.ctx.waitUntil(this.notify([email], (en) => (q ? (en ? "❓ Your agent asks" : "❓ Seu agent pergunta") : en ? "⏸ Your agent asks for permission" : "⏸ Seu agent pede permissão"), text.replace(/^\S+ Seu Claude [^:]*:\s*/, "").replace(/\s+/g, " "), msgId, thread));
     const topic = thread !== "main" ? this.epics().find((e) => e.id === thread)?.title ?? "" : "";
-    await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`)
-      .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now())
+    await this.env.DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts, about) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)`)
+      .bind(bookId, `a${msgId}`, email, thread, topic, text.split("\n").slice(0, 2).join(" ").slice(0, 300), Date.now(), choices)
       .run();
     await poke(this.env, [email], { t: "me" });
   }

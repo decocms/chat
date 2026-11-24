@@ -505,7 +505,8 @@ export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
   /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, r<msg> an answer to
-   *  what you sent from the Home's ask box (msg = your request; text = the answer, about = your request). */
+   *  what you sent from the Home's ask box (msg = your request; text = the answer, about = your request). An a<msg>
+   *  wait's about is the question's choices (the message's JSON: {options, multi}). */
   ref: z.string(),
   thread: z.string(),
   topic: str,

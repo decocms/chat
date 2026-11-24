@@ -10,6 +10,8 @@ import { createAgentLease } from "../agents/lease";
 import { clientClock } from "../../lib/client/clock";
 import { createSendIds } from "../../lib/client/sendIds";
 import { sendRoomCommandOnce } from "../../app/roomReact";
+import { choicesOf } from "../chat-interactive/eligibility";
+import type { RoomCommand } from "../../../shared/commands";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -200,6 +202,26 @@ export function createApplicationInbox(
           value.thread === wait.thread &&
           value.author === wait.author,
       );
+  /** One command to the wait's room over a short-lived socket; on success the wait leaves the list at once. */
+  async function command(
+    binding: InboxBinding,
+    wait: Wait,
+    message: RoomCommand,
+  ) {
+    const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}`;
+    const url = new URL(path, globalThis.location?.href ?? "http://localhost/");
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const ok = await sendRoomCommandOnce(url.href, message);
+    if (!ok || !owns(binding)) return ok;
+    state.update((value) => ({
+      ...value,
+      hidden: [...value.hidden, waitsKey(wait)],
+    }));
+    services.personal.invalidate();
+    void services.personal.refresh();
+    void refresh(binding);
+    return true;
+  }
   async function refresh(binding: InboxBinding) {
     if (!owns(binding)) return;
     const ticket = ++readRevision;
@@ -450,22 +472,44 @@ export function createApplicationInbox(
         !canonical(wait)
       )
         return false;
-      const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}`;
-      const url = new URL(
-        path,
-        globalThis.location?.href ?? "http://localhost/",
-      );
-      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-      const ok = await sendRoomCommandOnce(url.href, { t: "react", id, emoji });
-      if (!ok || !owns(binding)) return ok;
-      state.update((value) => ({
-        ...value,
-        hidden: [...value.hidden, waitsKey(wait)],
-      }));
-      services.personal.invalidate();
-      void services.personal.refresh();
-      void refresh(binding);
-      return true;
+      return command(binding, wait, { t: "react", id, emoji });
+    },
+    /** A choice of your Claude's question (a<msg>), from the Home: your answer in its thread, as the room's buttons
+     *  send it (reply_to the question); the room clears the wait (src/book.ts addMessage). */
+    async answer(binding: InboxBinding, wait: Wait, value: string) {
+      const id = /^a\d+$/.test(wait.ref) ? Number(wait.ref.slice(1)) : NaN;
+      if (
+        !owns(binding) ||
+        !Number.isSafeInteger(id) ||
+        !choicesOf(wait.about)?.options.includes(value) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "msg",
+        thread: wait.thread,
+        text: value,
+        files: [],
+        reply_to: id,
+        client_id: crypto.randomUUID(),
+      });
+    },
+    /** "Aprovar" on your task in review (t<task>): the task is done, as the board's status menu sets it; the room
+     *  drops the wait (src/book.ts epicsChanged). */
+    async approve(binding: InboxBinding, wait: Wait) {
+      if (
+        !owns(binding) ||
+        !/^t./.test(wait.ref) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "task.status",
+        id: wait.ref.slice(1),
+        status: "done",
+      });
     },
     async resolve(binding: InboxBinding, wait: Wait) {
       if (
