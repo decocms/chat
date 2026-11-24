@@ -168,3 +168,37 @@ test("concurrent Search retains the existing Settings opening and ownership unti
     h.dispose();
   }
 });
+
+test("a drop on the rail saves the new order when you also have DMs, which are not on the rail (Gimenes #4223)", async () => {
+  const timer = manualClock();
+  const personal = createPersonalSession(
+    homeApi({
+      me: async () =>
+        me({
+          books: [room("aaaaaa"), room("dm1", { dm: 1 }), room("bbbbbb")],
+        }),
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const saved: string[][] = [];
+  const rooms = { order: async (ids: string[]) => void saved.push(ids) };
+  const controller = createAppNavigationSession(
+    personal,
+    rooms as unknown as Parameters<typeof createAppNavigationSession>[1],
+    { navigate() {}, home() {}, archived() {} },
+    timer.clock,
+  );
+  try {
+    controller.order(["bbbbbb", "aaaaaa"]);
+    // The stub does not save positions, so the rail is still a, b: a moves down past b, and the DM stays out.
+    controller.move("aaaaaa", 1);
+    expect(saved).toEqual([
+      ["bbbbbb", "aaaaaa"],
+      ["bbbbbb", "aaaaaa"],
+    ]);
+  } finally {
+    controller.dispose();
+    personal.dispose();
+  }
+});

@@ -4,7 +4,7 @@ import type { CommandOutcome } from "../../../shared/commands";
 import type { PersonalSession } from "../home/personal";
 import type { RoomsSession } from "../rooms/session";
 import type { RoomTarget } from "../home/model";
-import { orderedRooms } from "../home/model";
+import { orderedRooms, roomsOnly } from "../home/model";
 import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
@@ -47,6 +47,9 @@ export function createAppNavigationSession(
   let trigger: HTMLElement | null = null,
     active = true,
     path = "";
+  /** The rooms on the rail, in its order: your DMs are listed apart, so they are not there. */
+  const railRooms = () =>
+    orderedRooms(roomsOnly(get(personal.state).me?.books ?? []));
   const close = () =>
     state.update((s) => ({
       ...s,
@@ -113,9 +116,7 @@ export function createAppNavigationSession(
       if (id) void rooms.archive(id);
     },
     move(id: string, delta: number) {
-      const ids = orderedRooms(get(personal.state).me?.books ?? []).map(
-          (room) => room.id,
-        ),
+      const ids = railRooms().map((room) => room.id),
         from = ids.indexOf(id),
         to = from + delta;
       if (from < 0 || to < 0 || to >= ids.length) return;
@@ -123,11 +124,9 @@ export function createAppNavigationSession(
       ids.splice(to, 0, id);
       void rooms.order(ids);
     },
-    /** The rail's rooms in a new order (a drop): only a reorder of the rooms there are now. */
+    /** The rail's rooms in a new order (a drop): only a reorder of the rooms there are now. Your DMs are not on the rail, so they are not in `ids`. */
     order(ids: readonly string[]) {
-      const known = orderedRooms(get(personal.state).me?.books ?? []).map(
-        (room) => room.id,
-      );
+      const known = railRooms().map((room) => room.id);
       if (
         ids.length !== known.length ||
         new Set(ids).size !== ids.length ||
