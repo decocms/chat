@@ -1,0 +1,25 @@
+{
+  // The call recorder of deco.chat: a Worker of its own, so that a problem here never stops a deploy of the chat.
+  // Same pattern as decocms/channels (apps/whatsapp): one container for each thing that runs, here one for each
+  // call that is on. The chat asks for it at POST /start (src/calls.ts, startRecorder).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chat-recorder",
+  "account_id": "c95fc4cec7fc52453228d9db170c372c",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "Recorder",
+      "image": "./container/Dockerfile",
+      "image_build_context": "./container",
+      // A browser that decodes the call and encodes a video: more than the "basic" of a chat bridge.
+      "instance_type": "standard-2",
+      // Calls recorded at one time. One more call than this is not recorded (the app shows no "recording" mark).
+      "max_instances": 5
+    }
+  ],
+  "durable_objects": { "bindings": [{ "name": "RECORDER", "class_name": "Recorder" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Recorder"] }]
+}

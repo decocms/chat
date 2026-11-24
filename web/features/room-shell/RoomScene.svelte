@@ -34,6 +34,7 @@
   import CallStage from "../call/CallStage.svelte";
   import { createCallApi } from "../call/callApi";
   import { createCallSession } from "../call/session";
+  import { isRecorder } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -137,7 +138,7 @@
   // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
   const callIdle = $derived(
     !!$view?.header.room.call &&
-      !$view.header.room.call.length &&
+      !$view.header.room.call.some((peer) => !isRecorder(peer.email)) &&
       $callView.phase === "idle",
   );
   provideRichFileIndex(owner.richFiles);

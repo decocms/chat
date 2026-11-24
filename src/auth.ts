@@ -83,7 +83,7 @@ async function sessionAfter(env: Env, email: string) {
   return row?.session_after ?? 0;
 }
 
-async function startSession<E extends { Bindings: Env }>(c: Context<E>, email: string) {
+export async function startSession<E extends { Bindings: Env }>(c: Context<E>, email: string) {
   const payload = b64url(enc.encode(JSON.stringify({ email: email.toLowerCase(), iat: Date.now() })));
   setCookie(c, COOKIE, `${payload}.${await hmac(c.env.SESSION_SECRET, payload)}`, {
     httpOnly: true,

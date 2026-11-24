@@ -802,6 +802,8 @@ const EN: Readonly<Record<string, string>> = {
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",
   "Call da sala": "The room's call",
+  Gravando: "Recording",
+  "Gravando: esta call vai para o Grain": "Recording: this call goes to Grain",
   "Microfone desligado": "Microphone off",
   "É assim que as outras pessoas vão ver você.":
     "This is how the other people will see you.",

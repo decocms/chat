@@ -7,6 +7,8 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
+  import Badge from "../../lib/studio/Badge.svelte";
+  import { isRecorder } from "../../../shared/call";
   import type { CallSession } from "./session";
   /** The room's call. In the call: the stage (the shared screen, or the people) and its controls. Out of it while
    * a call is on: one line with who is there and the way in. */
@@ -42,7 +44,13 @@
   const view = $derived(call.state);
   const name = (email: string) =>
     (room.names?.[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0];
-  const peers = $derived(room.call ?? []);
+  // The recorder is in the call's list and is not a person: it shows as the "recording" mark.
+  const peers = $derived(
+    (room.call ?? []).filter((peer) => !isRecorder(peer.email)),
+  );
+  const recording = $derived(
+    (room.call ?? []).some((peer) => isRecorder(peer.email)),
+  );
   const errors = $derived({
     "": "",
     mic: t("Não consegui usar o microfone. Libere o acesso no navegador."),
@@ -285,6 +293,17 @@
           >
         </div>
       </div>{/if}
+    {#if recording}<p
+        data-call-recording
+        role="status"
+        class="m-0 flex items-center justify-center"
+      >
+        <Badge variant="destructive"
+          ><Icon icon="circle" size={10} />{t(
+            "Gravando: esta call vai para o Grain",
+          )}</Badge
+        >
+      </p>{/if}
     <div
       data-call-controls
       class="flex flex-wrap items-center justify-center gap-2"
@@ -349,8 +368,9 @@
     data-call-bar
     class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 font-sans text-xs text-muted-foreground"
   >
-    {#if peers.length}<Icon icon="phone-01" size={14} /><span
-        class="min-w-0 flex-1 truncate"
+    {#if peers.length}<Icon icon="phone-01" size={14} />{#if recording}<Badge
+          variant="destructive">{t("Gravando")}</Badge
+        >{/if}<span class="min-w-0 flex-1 truncate"
         >{t("Na call: {people}", {
           people: peers.map((peer) => name(peer.email)).join(", "),
         })}</span

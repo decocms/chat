@@ -38,6 +38,7 @@ import type {
 } from "./types";
 import type { FetchLike } from "../../app/transport";
 import { browserDrafts } from "../composer/draftStore";
+import { isRoomMember } from "../../../shared/call";
 
 export type ApplicationPwa = Pick<
   PwaService,
@@ -367,7 +368,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       room &&
       value.connection &&
       room.id === currentRoomId() &&
-      room.members.includes(room.me)
+      isRoomMember(room)
       ? {
           roomId: room.id,
           account: room.me,

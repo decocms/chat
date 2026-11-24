@@ -5,6 +5,7 @@ import { get, writable } from "svelte/store";
 import type { CallPeer } from "../../../shared/room";
 import type { SendRoomCommand } from "../../../shared/commands";
 import type { CallApi } from "./callApi";
+import { isRecorder } from "../../../shared/call";
 
 export type CallView = {
   phase: "idle" | "joining" | "in";
@@ -406,13 +407,15 @@ export function createCallSession(
     /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
     /** `me`: with a call on in the room and me not in it, this tab joins by itself, microphone off. */
     setPeers(next: readonly CallPeer[] | undefined, me = "") {
-      peers = [...(next ?? [])];
+      // The recorder (shared/call.ts) is in the list, and is not a person: nobody receives its tracks, and it
+      // does not count as company.
+      const all = [...(next ?? [])];
+      peers = all.filter((peer) => !isRecorder(peer.email));
       self = me || self;
       if (!peers.length) stayOut = false;
       const phase = get(state).phase;
       if (phase === "in") {
-        if (!peers.some((peer) => peer.session === session))
-          teardown("dropped");
+        if (!all.some((peer) => peer.session === session)) teardown("dropped");
         else {
           // Nobody is left to see my screen.
           if (peers.length < 2) stopShare("alone");
@@ -423,7 +426,7 @@ export function createCallSession(
         me &&
         peers.length &&
         !stayOut &&
-        !peers.some((peer) => peer.email === me)
+        !all.some((peer) => peer.email === me)
       )
         this.join(true);
     },

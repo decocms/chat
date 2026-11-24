@@ -4,3 +4,9 @@ export const CALL_SCREEN_LIMIT_GB = 900;
 export const GB = 1024 ** 3;
 export const usageMonth = (now = Date.now()) => new Date(now).toISOString().slice(0, 7);
 export const overScreenLimit = (bytes: number, limitGb: number) => bytes >= limitGb * GB;
+
+/** Rooms whose calls are recorded: CALL_RECORD_ROOMS is a list of room ids, or "*" for every room. */
+export const recordsRoom = (rooms: string | undefined, bookId: string) => {
+  const list = (rooms ?? "").split(",").map((r) => r.trim()).filter(Boolean);
+  return list.includes("*") || list.includes(bookId);
+};

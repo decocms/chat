@@ -123,7 +123,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 - The call lives on the room's WebSocket. When the last socket of a person closes, `Book` removes that person from the call. A person who leaves the room's view leaves the call.
 - A person who opens a room with a call on joins that call, with the microphone off. A person who leaves the call stays out until the call ends.
 - Calls are off until `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` exist (Worker secrets). Then the room state has `call`, and the app shows the call.
-- deco.chat does not record or transcribe a call.
+- A call is recorded only in the rooms of `CALL_RECORD_ROOMS`, and only while the recorder is in it (see "The recorder").
 
 ### What a call costs
 
@@ -139,6 +139,20 @@ The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a mon
 | At 900 GB in a month, the Worker refuses a new screen share (409). The app then asks for a Google Meet link and posts it in the room, with a mention of each person in the call. Voice and cameras continue. | `CALL_SCREEN_LIMIT_GB`, `src/callBudget.ts` |
 
 The SFU has no API for the traffic used. Each browser in a call reports the bytes that it received (`call.usage`, each 30 seconds), and D1 keeps the sum for the month (`call_usage`). The sum is an estimate: it does not see TURN or other apps of the account.
+
+### The recorder
+
+The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each call that it records. It is apart from the chat so that a problem in it never stops a deploy of the chat.
+
+1. The first person joins a call. If the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+2. The request has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
+3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`).
+4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
+5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices.
+6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes, and the container sends it to Grain (`GRAIN_API_TOKEN`).
+7. The container tells the chat (`POST /api/calls/recorded`), and the room gets a message with the Grain link.
+
+If the recorder does not start, the call continues and shows no "Gravando". A call is recorded to 3 hours at most (Grain's limit for one file). Deploy the recorder from `recorder/` (see [workflow.md](workflow.md)).
 
 ### Background blur
 

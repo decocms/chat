@@ -6,6 +6,7 @@ import {
   type RoomConnectionOptions,
 } from "../../app/roomConnection";
 import { reduceRoom } from "../../app/roomStore";
+import { isRoomMember } from "../../../shared/call";
 
 export type RootConnection = ReturnType<typeof createRoomConnection>;
 export type RootRoomSnapshot = {
@@ -113,10 +114,7 @@ export function createRootRoomSession(options: {
     }
     // Membership is authority, not a presentation update. Do not publish a
     // nonmember snapshot or wait for a subsequent socket close to revoke it.
-    if (
-      (event.t === "state" || event.t === "members") &&
-      !room.members.includes(room.me)
-    ) {
+    if ((event.t === "state" || event.t === "members") && !isRoomMember(room)) {
       terminal(ticket, connection, "removed");
       return;
     }
@@ -137,10 +135,7 @@ export function createRootRoomSession(options: {
       typingNotes: notes,
     };
     if (event.t === "state") cache.delete(roomId);
-    if (
-      room.members.includes(room.me) &&
-      (options.cacheAllowed?.(room) ?? true)
-    )
+    if (isRoomMember(room) && (options.cacheAllowed?.(room) ?? true))
       cache.set(roomId, room);
     else cache.delete(roomId);
     while (cache.size > 12) {
@@ -169,7 +164,7 @@ export function createRootRoomSession(options: {
       const cached = cache.get(roomId);
       const room =
         cached &&
-        cached.members.includes(cached.me) &&
+        isRoomMember(cached) &&
         (account === null || cached.me === account)
           ? cached
           : null;

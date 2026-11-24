@@ -44,6 +44,7 @@ import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { addCallUsage, callsOn } from "./calls";
+import { isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
@@ -720,7 +721,8 @@ export class Book extends DurableObject<Env> {
     return isDmId(this.get("book_id") ?? "");
   }
   online() {
-    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))];
+    // The call's recorder has the room open, and is not a person.
+    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
   }
   // ---- calls (src/calls.ts): who is in the room's call, and the tracks each one publishes ----
   callPeers(): CallPeer[] {
@@ -732,9 +734,17 @@ export class Book extends DurableObject<Env> {
     this.broadcast({ t: "call", call: peers });
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one. */
-  callJoin(bookId: string, email: string, session: string) {
+  /** Answers true when no person was in the call before (the recorder is not a person). */
+  callJoin(bookId: string, email: string, session: string): boolean {
     this.bind(bookId);
-    this.setCall([...this.callPeers().filter((p) => p.email !== email), { email, session, tracks: [] }]);
+    const before = this.callPeers();
+    this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
+    return !before.some((p) => !isRecorder(p.email));
+  }
+  /** The recorder sent the call to Grain: the room gets the link. */
+  callRecorded(bookId: string, url: string) {
+    this.bind(bookId);
+    this.addMessage("main", "ai", `${this.en ? "Recording of the call" : "Gravação da call"}: ${url}`);
   }
   /** Is `session` this person's, and is every session in `pulls` in this room's call? */
   callCheck(email: string, session: string, pulls: string[]): boolean {
@@ -2461,7 +2471,8 @@ export class Book extends DurableObject<Env> {
       this.pokeMembers();
       const members = await this.members();
       // Kick sockets of anyone no longer a member.
-      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
+      // The call's recorder has no row in the members and stays.
+      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));

@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
-import { overScreenLimit, usageMonth } from "../src/callBudget";
+import { overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
+import { isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
 
 const peers = [
   { email: "me@x.test", session: "s-me", tracks: ["mic", "screen"] },
@@ -85,4 +86,19 @@ test("withDtx asks for silence suppression on Opus lines only, one time", () => 
   expect(out).toContain("a=fmtp:111 minptime=10;useinbandfec=1;usedtx=1\r\n");
   expect(out).toContain("a=fmtp:96 profile-id=0\r\n");
   expect(withDtx(out)).toBe(out);
+});
+
+test("the recorder is one room's, is not a person, and only listed rooms are recorded", () => {
+  const bot = recorderEmail("abc123def456");
+  expect(isRecorder(bot)).toBe(true);
+  expect(isRecorder("ana@x.test")).toBe(false);
+  expect(isRecorderOf(bot, "abc123def456")).toBe(true);
+  expect(isRecorderOf(bot, "zzz999zzz999")).toBe(false);
+  expect(isRoomMember({ me: bot, members: ["ana@x.test"] })).toBe(true);
+  expect(isRoomMember({ me: "eve@x.test", members: ["ana@x.test"] })).toBe(false);
+  expect(recordsRoom(undefined, "abc123def456")).toBe(false);
+  expect(recordsRoom("", "abc123def456")).toBe(false);
+  expect(recordsRoom("zzz999zzz999, abc123def456", "abc123def456")).toBe(true);
+  expect(recordsRoom("zzz999zzz999", "abc123def456")).toBe(false);
+  expect(recordsRoom("*", "abc123def456")).toBe(true);
 });

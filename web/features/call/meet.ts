@@ -1,4 +1,5 @@
 import type { Room } from "../../../shared/room";
+import { isRecorder } from "../../../shared/call";
 
 /** A Google Meet link, or "" when the text is not one. */
 export const meetLink = (text: string) =>
@@ -13,7 +14,7 @@ export function meetMessage(
   t: (text: string, vars?: Record<string, string | number>) => string,
 ) {
   const mentions = (room.call ?? [])
-    .filter((peer) => peer.email !== room.me)
+    .filter((peer) => peer.email !== room.me && !isRecorder(peer.email))
     .map(
       (peer) =>
         `@${(room.handles?.[peer.email] ?? peer.email.split("@")[0] ?? "").replace(/^@/, "")}`,

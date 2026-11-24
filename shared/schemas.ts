@@ -772,6 +772,11 @@ export const SttResult = z.object({
 export type SttResult = z.infer<typeof SttResult>;
 // The room's call (src/calls.ts): the browser's WebRTC negotiation with the SFU goes through these routes.
 export const CallJoinResult = z.object({ session: z.string() });
+/** POST /api/calls/recorded, from the recorder Worker: the call of this room is in Grain at this address. */
+export const RecordedBody = z.object({
+  room: z.string().check(z.regex(/^[a-z0-9]{6,40}$/)),
+  url: z.string().check(z.regex(/^https:\/\/grain\.com\/[\w\-/.?=&%]{1,400}$/)),
+});
 export type CallJoinResult = z.infer<typeof CallJoinResult>;
 export const CallDescription = z.object({
   type: z.enum(["offer", "answer"]),
