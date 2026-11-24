@@ -12,7 +12,12 @@ import { isMarkDone } from "../shared/epicStatus";
 import type { Question } from "./jev";
 
 /** A person's new message, as the actions see it. */
-export type ActionMessage = { id: number; thread: string; author: string; text: string };
+export type ActionMessage = {
+  id: number;
+  thread: string;
+  author: string;
+  text: string;
+};
 
 /** What an action may use from the room: the Book implements it. */
 export type ActionRoom = {
@@ -34,7 +39,11 @@ export type RouterAction = {
   exact?(text: string): boolean;
   question?: string;
   threshold: number;
-  run(m: ActionMessage, room: ActionRoom, via: "exact" | "jev"): void | Promise<void>;
+  run(
+    m: ActionMessage,
+    room: ActionRoom,
+    via: "exact" | "jev",
+  ): void | Promise<void>;
 };
 
 /** A message this long is not "pode fechar": mark_done asks Jev only about short messages (cost, and fewer false hits). */
@@ -44,7 +53,11 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
   {
     // A question in main becomes its own thread with a doc for the answer (Gui #2767). It was answerIntent.
     name: "answer_thread",
-    when: (m, room) => m.thread === "main" && !room.isDm && m.text.length >= 12 && !room.hasThreadFrom(m.id),
+    when: (m, room) =>
+      m.thread === "main" &&
+      !room.isDm &&
+      m.text.length >= 12 &&
+      !room.hasThreadFrom(m.id),
     ready: (m, room) => room.listening(m.author),
     question:
       "Is this message a question, or a request for an analysis, numbers, a summary, a report, a chart or a comparison: something to answer with information? Answer no for a request to build, change, fix, deploy or do something, for small talk, for an answer or OK to someone, and for a yes/no question to a person.",
@@ -57,7 +70,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     when: (m, room) => m.thread !== "main" && room.openThread(m.thread),
     exact: isMarkDone,
     question:
-      "The author wrote this in a thread (a topic with its own tasks). Is the author saying that the thread's work is finished and the thread can be closed or marked done (for example \"pode fechar\", \"feito, valeu\", \"done\", \"pode marcar como concluída\")? Answer no for a question (\"está feito?\"), for one step done while more remains, for a request to do something, and for \"done\" about something else.",
+      'The author wrote this in a thread (a topic with its own tasks). Is the author saying that the thread\'s work is finished and the thread can be closed or marked done (for example "pode fechar", "feito, valeu", "done", "pode marcar como concluída")? Answer no for a question ("está feito?"), for one step done while more remains, for a request to do something, and for "done" about something else.',
     threshold: 0.8,
     run: (m, room, via) => room.markDone(m.thread, via),
   },
@@ -68,10 +81,22 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
 export async function runRouterActions(
   m: ActionMessage,
   room: ActionRoom,
-  decide: (state: Record<string, string>, questions: Record<string, Question>) => Promise<{ answers: Record<string, { noul?: number | null }>; cost: number } | null>,
+  decide: (
+    state: Record<string, string>,
+    questions: Record<string, Question>,
+  ) => Promise<{
+    answers: Record<string, { noul?: number | null }>;
+    cost: number;
+  } | null>,
   context: { topic: string },
   actions: readonly RouterAction[] = ROUTER_ACTIONS,
-): Promise<{ action: string | null; via: "exact" | "jev" | null; p: number; cost: number; asked: string[] }> {
+): Promise<{
+  action: string | null;
+  via: "exact" | "jev" | null;
+  p: number;
+  cost: number;
+  asked: string[];
+}> {
   const open = actions.filter((action) => action.when(m, room));
   const exact = open.find((action) => action.exact?.(m.text));
   if (exact) {
@@ -86,20 +111,42 @@ export async function runRouterActions(
       (!action.ready || (await action.ready(m, room)))
     )
       asked.push(action);
-  if (!asked.length) return { action: null, via: null, p: 0, cost: 0, asked: [] };
+  if (!asked.length)
+    return { action: null, via: null, p: 0, cost: 0, asked: [] };
   const questions: Record<string, Question> = {};
-  for (const action of asked) questions[action.name] = { type: "noul", instructions: action.question! };
-  const r = await decide({ thread: context.topic, message: m.text.slice(0, 1500) }, questions).catch(() => null);
-  if (!r) return { action: null, via: null, p: 0, cost: 0, asked: asked.map((a) => a.name) };
+  for (const action of asked)
+    questions[action.name] = { type: "noul", instructions: action.question! };
+  const r = await decide(
+    { thread: context.topic, message: m.text.slice(0, 1500) },
+    questions,
+  ).catch(() => null);
+  if (!r)
+    return {
+      action: null,
+      via: null,
+      p: 0,
+      cost: 0,
+      asked: asked.map((a) => a.name),
+    };
+  // p is the acting action's probability, else the highest one asked (the bench and the log show near misses).
   let best: RouterAction | null = null,
-    p = 0;
+    p = 0,
+    top = 0;
   for (const action of asked) {
     const q = r.answers[action.name]?.noul ?? 0;
+    top = Math.max(top, q);
     if (q >= action.threshold && q > p) {
       best = action;
       p = q;
     }
   }
+  if (!best) p = top;
   if (best) await best.run(m, room, "jev");
-  return { action: best?.name ?? null, via: best ? "jev" : null, p, cost: r.cost, asked: asked.map((a) => a.name) };
+  return {
+    action: best?.name ?? null,
+    via: best ? "jev" : null,
+    p,
+    cost: r.cost,
+    asked: asked.map((a) => a.name),
+  };
 }
