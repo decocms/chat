@@ -99,7 +99,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
       !room.hasThreadFrom(m.id),
     ready: (m, room) => room.listening(m.author),
     question:
-      "Is this message a question, or a request for an analysis, numbers, a summary, a report, a chart or a comparison: something to answer with information? Answer no for a request to build, change, fix, deploy or do something, for small talk, for an answer or OK to someone, and for a yes/no question to a person.",
+      "The author posted this in the room's main chat, where the author's own AI assistant reads it. Can the assistant complete it only by replying with information (an explanation, a fact, numbers, a summary, a report, a chart or a comparison), without building, changing, fixing or deploying anything? Questions about how something works or how it is made count as yes. Answer no for greetings, thanks and jokes, and for anything said to another person (by name or @).",
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room) => room.makeAnswerThread(m),
   },
@@ -109,7 +109,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     when: (m, room) => m.thread !== "main" && room.openThread(m.thread),
     exact: isMarkDone,
     question:
-      'The author wrote this in a thread (a topic with its own tasks). Is the author saying that the thread\'s work is finished and the thread can be closed or marked done (for example "pode fechar", "feito, valeu", "done", "pode marcar como concluída")? Answer no for a question ("está feito?"), for one step done while more remains, for a request to do something, and for "done" about something else.',
+      'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room, via) => room.markDone(m.thread, via),
   },
