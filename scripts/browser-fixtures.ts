@@ -155,8 +155,8 @@ export async function startThreadFromMessage(page: Page, text: string) {
     .last();
   await expect(message).toBeVisible();
   await message.hover();
+  // One click makes the thread and opens it (Gimenes #4310): no title step.
   await message.locator("[data-start-thread]").click();
-  await message.locator("[data-thread-start] input").press("Enter");
   const row = page
     .locator("[data-epic-thread]")
     .filter({ hasText: text })

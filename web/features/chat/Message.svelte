@@ -19,7 +19,9 @@
     messageKind,
     messageAuthor,
     messageSnippet,
+    newThreadId,
     reminderParts,
+    threadTitle,
     type MessageFooter as Footer,
   } from "./model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
@@ -30,7 +32,7 @@
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
   import ThreadCards from "../room-sidebar/ThreadCards.svelte";
-  import ThreadStart from "./ThreadStart.svelte";
+  import { startedThread } from "./threadUndo";
   import { swipeMessage } from "./swipe";
   import PersonCard from "../profile/PersonCard.svelte";
   let {
@@ -59,9 +61,36 @@
   // about 200 of 300 ms for 60 messages. It mounts on the first pointer or focus in the message.
   let toolbar = $state(false),
     article = $state<HTMLElement>();
-  // "Criar thread" (Gimenes #4123): its title line under the message while open.
-  let threading = $state(false);
+  // "Criar thread" (Gimenes #4310): one click makes the thread and opens it. No title step: the title is the start
+  // of the message (rename it later). A thread from a message in main offers "Desfazer" for a few seconds.
+  let threadBusy = false,
+    threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  async function startThread() {
+    if (threadBusy) return;
+    threadBusy = true;
+    threadError = "";
+    // One id per click: a retry of the same create (a lost answer) does not make a second thread.
+    const id = newThreadId();
+    const title =
+      threadTitle(m.text ?? "") ||
+      threadTitle(messageSnippet(m, vb.t("votação"))) ||
+      vb.t("Thread");
+    const outcome = await actions.request({
+      t: "epic",
+      title,
+      from: m.id,
+      id,
+    });
+    threadBusy = false;
+    if (!outcome.ok) {
+      threadError = vb.t("Não deu pra criar a thread.");
+      return;
+    }
+    // From inside a thread the server also writes a line in main, and an undo would leave it there: no undo.
+    startedThread.set(m.thread === "main" ? { id, at: Date.now() } : null);
+    actions.openThread?.(id);
+  }
   function showToolbar() {
     toolbar = true;
   }
@@ -208,7 +237,7 @@
     },
     thread: threadable
       ? () => {
-          if (active) threading = true;
+          if (active) void startThread();
         }
       : undefined,
     copy: (link) => {
@@ -446,12 +475,13 @@
             )} · <time title={timestamp}>{day(m.ts)}</time></summary
           >{@render rich(m.text)}
         </details>{/if}
-      {#if threading && threadable}<ThreadStart
-          message={m}
-          {actions}
-          {vb}
-          onclose={() => (threading = false)}
-        />{/if}
+      {#if threadError}<p
+          role="alert"
+          data-thread-error={m.id}
+          class="m-0 mt-1 text-xs text-destructive"
+        >
+          {threadError}
+        </p>{/if}
       {#if !origin && kind !== "issue" && kind !== "notice"}{#each kind === "reminder" ? group : [m] as source (source.id)}<ThreadCards
             {room}
             messageId={source.id}
@@ -486,7 +516,7 @@
       me={room.me}
       message={m}
       roomId={room.id}
-      onthread={threadable ? () => (threading = true) : undefined}
+      onthread={threadable ? () => void startThread() : undefined}
       {actions}
       {vb}
     />{:else}<button

@@ -7,7 +7,7 @@ deco.chat is a chat app, similar to Discord. It runs on Cloudflare Workers. Peop
 A room has these parts:
 
 - Chat threads. The main thread is `main`. Each epic has its own thread. Each new thread starts from a message in `main` (`epics.from_msg`), as in Discord, so threads do not nest (`Book.threadOrigin`):
-  - From a message in `main` ("Criar thread" on the message): that message is the origin.
+  - From a message in `main` ("Criar thread" on the message): that message is the origin. One click makes the thread and opens it (Gimenes #4310). The title is the first line of the message (`threadTitle`). For 5 seconds, while the thread is empty, the thread shows "Thread criada · Desfazer", which sends `epic.del`.
   - From a message in another thread: the server writes a line in `main` that replies to that message ("Nova thread a partir desta mensagem de …"). The quote of the reply links the source. That line is the origin. `Book.epicsFrom` finds the thread of a request through that line.
   - The app has no "Nova thread" in the sidebar (Gimenes #4286). A person starts a thread only with "Criar thread" on a message. The server still accepts an `epic` command without `from`: then it writes the title in `main` as a message of the person, and that message is the origin.
   - From an agent (`start_thread`): the same rules. A line that the server writes for an agent is an agent message.

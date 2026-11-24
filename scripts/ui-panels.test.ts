@@ -2324,7 +2324,7 @@ describe("chat", () => {
     expect(target.querySelectorAll("[data-chat-origin]")).toHaveLength(1);
     expect(target.querySelectorAll("#m9")).toHaveLength(0);
   }, 30_000);
-  test("Criar thread on a message: a title line from its text, then the thread from that message, opened (Gimenes #4123)", async () => {
+  test("Criar thread on a message: one click makes the thread from that message and opens it, no title step (Gimenes #4310)", async () => {
     const room = {
       ...fixture(),
       messages: [
@@ -2357,16 +2357,10 @@ describe("chat", () => {
     target
       .querySelector<HTMLButtonElement>('#m8 [data-start-thread="8"]')!
       .click();
-    flushSync();
-    const input = target.querySelector<HTMLInputElement>(
-      '[data-thread-start="8"] input',
-    )!;
-    expect(input.value).toBe("Vamos refazer o onboarding do celular");
-    target
-      .querySelector<HTMLFormElement>('[data-thread-start="8"]')!
-      .requestSubmit();
     await new Promise((resolve) => setTimeout(resolve, 0));
     flushSync();
+    // No title line: the click itself creates the thread, titled from the message.
+    expect(target.querySelector("input")).toBeNull();
     expect(sent).toHaveLength(1);
     const command = sent[0] as Extract<RoomCommand, { t: "epic" }>;
     expect(command).toMatchObject({
@@ -2376,7 +2370,64 @@ describe("chat", () => {
     });
     expect(command.id).toMatch(/^[0-9a-f]{8}$/);
     expect(opened).toEqual([command.id!]);
-    expect(target.querySelector("[data-thread-start]")).toBeNull();
+  }, 30_000);
+  test("a thread just started from a message in main offers Desfazer until somebody writes in it (Gimenes #4310)", async () => {
+    const source = {
+      ...message(8, "Vamos refazer o onboarding"),
+      thread: "main",
+    };
+    const room = { ...fixture(), messages: [source] };
+    const sent: RoomCommand[] = [],
+      opened: string[] = [],
+      navigated: [number, string | undefined][] = [];
+    const actions = {
+      request: async (command: RoomCommand): Promise<CommandOutcome> => {
+        sent.push(command);
+        return { ok: true };
+      },
+      draftReply: () => {},
+      reply: () => {},
+      navigate: (id: number, thread?: string) => {
+        navigated.push([id, thread]);
+      },
+      openFile: () => {},
+      openThread: (id: string) => {
+        opened.push(id);
+      },
+    };
+    const main = renderChat(room, { thread: "main", actions });
+    hoverMessages(main.target);
+    main.target
+      .querySelector<HTMLButtonElement>('#m8 [data-start-thread="8"]')!
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushSync();
+    const id = opened[0]!;
+    const started = {
+      ...room,
+      messages: [],
+      epics: [
+        ...room.epics,
+        { id, title: "Vamos refazer o onboarding", tasks: [], from_msg: 8 },
+      ],
+    };
+    // A reply already in the thread: no undo, it would delete that reply.
+    const answered = renderChat(started, {
+      thread: id,
+      origin: source,
+      replyCount: 1,
+      actions,
+    });
+    expect(answered.target.querySelector("[data-thread-undo]")).toBeNull();
+    const view = renderChat(started, { thread: id, origin: source, actions });
+    const undo = view.target.querySelector("[data-thread-undo]")!;
+    expect(undo.textContent).toContain("Thread criada");
+    undo.querySelector<HTMLButtonElement>("button")!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushSync();
+    expect(sent.at(-1)).toEqual({ t: "epic.del", id });
+    expect(navigated).toEqual([[8, "main"]]);
+    expect(view.target.querySelector("[data-thread-undo]")).toBeNull();
   }, 30_000);
   test("a DM's messages have no Criar thread", () => {
     const room = { ...fixture(), messages: [message(8, "oi")] };
