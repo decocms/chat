@@ -1,18 +1,23 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
-  import type { ApplicationInbox } from "./inbox";
+  import type { ApplicationInbox, InboxBinding } from "./inbox";
   import type { BrowserApplicationServices } from "./browser";
   import InboxControls from "./InboxControls.svelte";
   import RoomInbox from "./RoomInbox.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import { homeText } from "../home/copy";
+  import { mountCube } from "../home/cube";
+  import HomeAsk from "../home/HomeAsk.svelte";
+  import { roomInboxModel } from "./roomInboxModel";
   /**
    * The home's page (`/` on a desktop, `/?inbox` on a phone): your Inbox for
    * all rooms, the same triage list as a room's (RoomInbox). It has no room, so
    * it has no scope. On a desktop its bar is a room's: the search on the left,
    * where a room has "Buscar em <sala>" (RoomHeader), then how many things wait
    * on you and "Resolve all" (phones: RoomInbox draws that itself).
+   * Inbox zero is the reward: the agent's cube, "All caught up" and the
+   * home's ask box, for what comes next.
    */
   let {
     owner,
@@ -26,6 +31,42 @@
     personal = untrack(() => services.personal.state);
   const lang = $derived(services.language === "en" ? "en" : "pt");
   const waiting = $derived($personal.me?.waits.length ?? 0);
+  // Zero: nothing at all in the Inbox (asks, mentions, reviews, your tasks)
+  // once this binding has read it (a later refresh keeps the cube up), nothing
+  // failed and no Undo is pending. Open tasks keep the list, so its "Suas
+  // tarefas" chip stays reachable.
+  let loaded = $state.raw<InboxBinding | null>(null);
+  $effect(() => {
+    if ($inbox.phase === "ready" && $inbox.binding) loaded = $inbox.binding;
+  });
+  const left = $derived.by(() => {
+    const model = roomInboxModel($inbox.data, "", true),
+      hidden = new Set($inbox.hidden);
+    const waits = [
+      ...model.messages.flatMap((message) =>
+        message.wait ? [message.wait] : [],
+      ),
+      ...model.oks,
+    ];
+    return (
+      model.messages.filter((message) => !message.wait).length +
+      waits.filter((wait) => !hidden.has(`${wait.book_id}/${wait.ref}`))
+        .length +
+      model.groups.reduce((sum, group) => sum + group.tasks.length, 0)
+    );
+  });
+  const zero = $derived(
+    !!$inbox.binding &&
+      loaded === $inbox.binding &&
+      !$inbox.error &&
+      !$inbox.undo &&
+      left === 0,
+  );
+  const first = $derived($personal.me?.name?.split(" ")[0] ?? "");
+  let cube = $state<HTMLCanvasElement | null>(null);
+  $effect(() => {
+    if (cube) return mountCube(cube);
+  });
 </script>
 
 <div
@@ -59,7 +100,39 @@
         {t}
       />{/if}
   </header>
-  {#if $inbox.binding}{#key $inbox.binding}<Snapshot value={$inbox.binding}
+  {#if zero}<section
+      data-home-inbox-zero
+      class="flex min-h-0 flex-1 animate-in flex-col items-center justify-center overflow-auto px-8 pt-8 pb-[12vh] duration-500 ease-out [--tw-enter-opacity:0] [--tw-enter-scale:0.97] motion-reduce:animate-none"
+    >
+      <canvas
+        bind:this={cube}
+        width="512"
+        height="512"
+        aria-hidden="true"
+        class="size-[200px] shrink-0"
+      ></canvas>
+      <h1
+        class="m-0 mt-1 text-center text-4xl font-medium tracking-tight text-balance"
+      >
+        {first ? t("Tudo em dia, {name}.", { name: first }) : t("Tudo em dia.")}
+        <span class="text-muted-foreground"
+          >{t("O que vamos fazer agora?")}</span
+        >
+      </h1>
+      <div
+        data-home-ask="inbox"
+        class="mt-7 flex w-full max-w-[640px] flex-col items-center gap-3"
+      >
+        <HomeAsk
+          personal={services.personal}
+          {lang}
+          onnavigate={(target) => services.actions.navigate(target)}
+          onnew={(trigger) => services.navigation.openCreate(trigger)}
+          onsearch={() => services.navigation.openSearch()}
+        />
+      </div>
+    </section>
+  {:else if $inbox.binding}{#key $inbox.binding}<Snapshot value={$inbox.binding}
         >{#snippet children(binding)}<RoomInbox
             {owner}
             {binding}
