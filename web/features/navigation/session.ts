@@ -3,12 +3,9 @@ import type { Room } from "../../../shared/room";
 import { epicAncestors, epicForest, type EpicForest } from "./model";
 
 export type NavigationState = {
-  draft: string;
   closed: ReadonlySet<string>;
   openedFor: string | null;
   archived: boolean;
-  /** The new-epic field under the Épicos header is open. */
-  creating: boolean;
   /** The Plan tab (@vibe's suggestions) is the one open. */
   suggestions: boolean;
 };
@@ -57,7 +54,7 @@ function persistClosed(
   }
 }
 
-/** The room host owns this session, so rail remounts do not discard navigation drafts. */
+/** The room host owns this session, so rail remounts keep the open tab and the folded threads. */
 export function createNavigationSession(
   roomId: string,
   archived = false,
@@ -67,11 +64,9 @@ export function createNavigationSession(
     roomId,
     storage,
     state: writable<NavigationState>({
-      draft: "",
       closed: readClosed(roomId, storage),
       openedFor: null,
       archived,
-      creating: false,
       suggestions: false,
     }),
   };

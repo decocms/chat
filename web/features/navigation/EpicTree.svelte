@@ -1,17 +1,14 @@
 <script lang="ts">
-  import { get } from "svelte/store";
   import { onDestroy, tick, untrack } from "svelte";
   import type { Room, Epic } from "../../../shared/room";
   import type { RoomMutations } from "../room-sidebar/session";
   import { epicStatus, epicStatusLook } from "../room-sidebar/model";
-  import InlineAdd from "../../lib/components/InlineAdd.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { studioType } from "../../lib/components/type";
   import Button from "../../lib/studio/Button.svelte";
   import Progress from "../../lib/studio/Progress.svelte";
   import { EPIC_PROGRESS } from "../room-shell/shape";
   import Icon from "../../lib/studio/Icon.svelte";
-  import Label from "../../lib/studio/Label.svelte";
   import Tabs from "../../lib/studio/Tabs.svelte";
   import TabsContent from "../../lib/studio/TabsContent.svelte";
   import TabsList from "../../lib/studio/TabsList.svelte";
@@ -77,8 +74,6 @@
   let localOrder = $state<string[] | null>(null);
   /** The order while a row is dragged: the others make room. */
   let dragOrder = $state<string[] | null>(null);
-  let input: HTMLInputElement | null = $state(null);
-  let newButton: HTMLButtonElement | null = $state(null);
   let disposed = false;
   const rowNodes = new Map<string, HTMLElement>();
   let generation = 0;
@@ -111,8 +106,8 @@
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
-  /** How many epics fit before the sidebar's foot with "Ver mais", "Nova thread" and the next section's title still
-   *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
+  /** How many epics fit before the sidebar's foot with "Ver mais" and the next section's title still above it, so the
+   *  rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
   function measure() {
@@ -129,7 +124,8 @@
       (list.firstElementChild?.getBoundingClientRect().height || 36) + 2;
     fit = Math.min(
       EPIC_PAGE,
-      Math.max(3, Math.floor((bottom - top - 132) / pitch)),
+      // 94: "Ver mais" and the next section's title (the "Nova thread" row, 38 more, is gone: Gimenes #4286).
+      Math.max(3, Math.floor((bottom - top - 94) / pitch)),
     );
   }
   $effect(() => {
@@ -228,25 +224,6 @@
     const success = await mutations.run(command);
     return success;
   }
-  async function add(event: SubmitEvent) {
-    event.preventDefault();
-    if (disposed) return;
-    const title = $navigation.draft.trim(),
-      original = $navigation.draft,
-      draftOwner = navigation;
-    if (!title) return input?.focus();
-    if (await submit({ t: "epic", title }))
-      if (get(draftOwner).draft === original)
-        draftOwner.update((value) => ({
-          ...value,
-          draft: "",
-          creating: false,
-        }));
-  }
-  /** The add row shows while asked for, and while a typed title is kept. */
-  const creating = $derived(
-    mode === "active" && ($navigation.creating || $navigation.draft !== ""),
-  );
   $effect(() => {
     // A suggestion opened from elsewhere (a link, Back) opens the open threads, with its row.
     if (thread.startsWith("pre:") && untrack(() => $navigation.archived))
@@ -338,8 +315,7 @@
         return;
       const row = rowNodes.get(request.from);
       if (row?.hidden) return;
-      const target =
-        row?.querySelector<HTMLElement>("[data-epic-thread]") ?? input;
+      const target = row?.querySelector<HTMLElement>("[data-epic-thread]");
       target?.focus({ preventScroll: true });
     });
   }
@@ -347,22 +323,6 @@
     const target = adjacent(id, direction);
     if (mode === "active" && target) reorder(id, target.id, direction === 1);
   }
-  async function openCreate() {
-    if (disposed) return;
-    navigation.update((state) => ({ ...state, creating: true }));
-    await tick();
-    if (!disposed) input?.focus();
-  }
-  function closeCreate(refocus: boolean) {
-    if (disposed) return;
-    navigation.update((state) => ({ ...state, creating: false, draft: "" }));
-    if (refocus)
-      void tick().then(() => {
-        if (!disposed) newButton?.focus();
-      });
-  }
-  const dashedRow =
-    "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
   const views = $derived([
     { value: "active", label: vb.t("Threads abertas"), disabled: false },
     {
@@ -604,55 +564,7 @@
               : vb.t("Ver mais ({n})", { n: hiddenCount })}</span
           >
         </button>{/if}
-      {#if value === "active"}
-        {#if creating}
-          <form
-            id="newEpic"
-            class="mt-0.5 shrink-0"
-            onsubmit={add}
-            onfocusout={(event) => {
-              const next = event.relatedTarget;
-              if (next instanceof Node && event.currentTarget.contains(next))
-                return;
-              if (!$navigation.draft.trim()) closeCreate(false);
-            }}
-          >
-            <Label for={`${uid}-new`} class="sr-only"
-              >{vb.t("Nova thread")}</Label
-            >
-            <InlineAdd
-              id={`${uid}-new`}
-              bind:ref={input}
-              bind:value={
-                () => (disposed ? "" : $navigation.draft),
-                (value) => {
-                  if (!disposed) $navigation.draft = value;
-                }
-              }
-              placeholder={vb.t("Nova thread: escreva o título…")}
-              enterkeyhint="done"
-              confirmDisabled={mutationBusy}
-              confirmLabel={vb.t("Criar thread")}
-              cancelLabel={vb.t("Cancelar")}
-              oncancel={() => closeCreate(true)}
-            />
-          </form>
-        {:else}
-          <button
-            type="button"
-            bind:this={newButton}
-            data-new-epic
-            aria-expanded="false"
-            onclick={openCreate}
-            class={dashedRow}
-          >
-            <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon="plus" size={16} /></span
-            >
-            <span class="min-w-0 truncate">{vb.t("Nova thread")}</span>
-          </button>
-        {/if}
-      {/if}
+      <!-- No "Nova thread" here (Gimenes #4286): one way to start a thread, "Criar thread" on a message. -->
     {/if}
   {/snippet}
   <Tabs

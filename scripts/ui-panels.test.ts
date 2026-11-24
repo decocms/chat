@@ -325,13 +325,11 @@ function menuItem(trigger: Element, name: string) {
 const shown = (trigger: Element) =>
   trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
 
-/** The new-thread field opens from the + in the threads list. */
-function newEpicInput(target: ParentNode) {
-  if (!target.querySelector("#newEpic input")) {
-    target.querySelector<HTMLButtonElement>("[data-new-epic]")!.click();
-    flushSync();
-  }
-  return target.querySelector<HTMLInputElement>("#newEpic input")!;
+/** A field the person moved to (outside the threads list): a focus restore must not take it away. */
+function otherField(target: HTMLElement) {
+  const field = document.createElement("input");
+  target.append(field);
+  return field;
 }
 
 /** The chat's hover toolbar mounts on the first pointer in a message (web/features/chat/Message.svelte). */
@@ -3764,10 +3762,6 @@ describe("stable sidebar integration", () => {
     expect(
       first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
     ).toBe(false);
-    const draft = newEpicInput(first.target);
-    draft.value = "Room-owned draft";
-    draft.dispatchEvent(new window.Event("input", { bubbles: true }));
-    flushSync();
     first.view.update({
       ...first.props,
       room: {
@@ -3783,83 +3777,19 @@ describe("stable sidebar integration", () => {
     first.destroy();
     const second = sidebar(room, { navigation: session, thread: "child" });
     expect(
-      second.target.querySelector<HTMLInputElement>("#newEpic input")?.value,
-    ).toBe("Room-owned draft");
-    expect(
       second.target.querySelector(
         "li[data-epic] [aria-expanded]:not([data-epic-actions])",
       ),
     ).toBeNull();
   }, 30_000);
-  test("epic drafts survive refused and uncertain requests", async () => {
-    const room = fixture();
-    let fail: "offline" | "throw" | null = "offline";
-    const commands: RoomCommand[] = [];
-    const rendered = sidebar(room, {
-      request: async (command) => {
-        if (fail === "throw") throw Error("lost ACK");
-        if (fail === "offline") return { ok: false, error: "offline" };
-        commands.push(command);
-        return { ok: true };
-      },
-    });
-    const draft = newEpicInput(rendered.target);
-    draft.value = "Retain title";
-    draft.dispatchEvent(new Event("input", { bubbles: true }));
-    flushSync();
-    const form = rendered.target.querySelector<HTMLFormElement>("#newEpic")!;
-    for (const failure of ["offline", "throw"] as const) {
-      fail = failure;
-      form.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-      );
-      await tick();
-      await tick();
-      flushSync();
-      expect(draft.value).toBe("Retain title");
-      if (failure === "offline")
-        expect(rendered.target.querySelector("[role=alert]") !== null).toBe(
-          true,
-        );
-      else {
-        expect(rendered.target.textContent).toContain("Ainda sem confirmação");
-        [...rendered.target.querySelectorAll("button")]
-          .find((button) => button.textContent?.trim() === "Conferi a sala")!
-          .click();
-        flushSync();
-      }
-    }
-    fail = null;
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
-    await tick();
-    await tick();
-    flushSync();
-    expect(draft.value).toBe("Retain title");
-    expect(commands).toEqual([{ t: "epic", title: "Retain title" }]);
-    const created: Room = {
-      ...room,
-      epics: [
-        ...room.epics,
-        { id: "created", title: "Retain title", tasks: [] },
-      ],
-    };
-    rendered.view.update({ ...rendered.props, room: created });
-    await tick();
-    await tick();
-    flushSync();
-    // Created: the draft is cleared and the field folds back under the +.
-    expect(draft.isConnected).toBe(false);
+  test("the threads list has no Nova thread and no title form: a thread starts from a message (Gimenes #4286)", () => {
+    const rendered = sidebar(fixture());
+    expect(rendered.target.querySelector("[data-new-epic]")).toBeNull();
     expect(rendered.target.querySelector("#newEpic")).toBeNull();
-    expect(newEpicInput(rendered.target).value).toBe("");
+    expect(rendered.target.textContent).not.toContain("Nova thread");
+    expect(rendered.events).toEqual([]);
     rendered.destroy();
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
-    await tick();
-    expect(commands).toHaveLength(1);
-  }, 30_000);
+  });
   const altDown = (element: Element) =>
     element.dispatchEvent(
       new window.KeyboardEvent("keydown", {
@@ -3923,7 +3853,7 @@ describe("stable sidebar integration", () => {
     altDown(down);
     await tick();
     flushSync();
-    const draft = newEpicInput(rendered.target);
+    const draft = otherField(rendered.target);
     draft.focus();
     rendered.view.update({
       ...rendered.props,
@@ -3953,13 +3883,13 @@ describe("stable sidebar integration", () => {
     });
     rendered.destroy();
     const next = sidebar({ ...room, id: "next" });
-    const draft = newEpicInput(next.target);
+    const draft = otherField(next.target);
     draft.focus();
     await tick();
     flushSync();
     await expectFocusedAfterUpdates(draft);
   }, 30_000);
-  test("repeated room updates preserve keyed navigation and form drafts", () => {
+  test("repeated room updates preserve keyed navigation rows", () => {
     let room = fixture();
     const target = window.document.createElement("div");
     window.document.body.append(target);
@@ -3985,8 +3915,6 @@ describe("stable sidebar integration", () => {
     const view = mountView("sidebar", target, props);
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
-    const create = newEpicInput(target);
-    create.value = "Draft epic title";
     for (let i = 0; i < 6; i++) {
       room = {
         ...room,
@@ -4004,8 +3932,6 @@ describe("stable sidebar integration", () => {
       };
       view.update({ ...props, room, vb: { ...sidebarBridge } });
       expect(target.querySelector("[data-epic-thread=e]")).toBe(row);
-      expect(target.querySelector("#newEpic input")).toBe(create);
-      expect(create.value).toBe("Draft epic title");
     }
     expect(
       target.querySelector("[data-epic-thread=e] [data-epic-title]")
@@ -6494,18 +6420,22 @@ describe("room sidebar header and suggestion ownership", () => {
 });
 
 describe("collapsed sidebar and typed presence", () => {
-  test("collapsed create expands and focuses retained draft; agent presence stays typed", async () => {
+  test("the collapsed rail has no + for a new thread (Gimenes #4286); agent presence stays typed", async () => {
     const room = fixture(),
       target = document.createElement("div");
     document.body.append(target);
     let expanded = 0;
+    const commands: RoomCommand[] = [];
     const props: SidebarProps = {
       room,
       thread: "main",
       collapsed: true,
       navigation: createNavigationSession(room.id),
       pins: syncPinsSession(null, room),
-      request: async () => ({ ok: false, error: "offline" }),
+      request: async (command) => {
+        commands.push(command);
+        return { ok: false, error: "offline" };
+      },
       send: () => false,
       onopen: () => {},
       onarchchange: () => {},
@@ -6549,22 +6479,15 @@ describe("collapsed sidebar and typed presence", () => {
         ],
       },
     };
-    props.navigation.state.update((value) => ({
-      ...value,
-      draft: "Retained draft",
-    }));
     const view = mountView("sidebar", target, props);
     active.push(view);
-    target
-      .querySelector<HTMLButtonElement>('[aria-label="Nova thread"]')!
-      .click();
-    expect(expanded).toBe(1);
+    expect(target.querySelector('[aria-label="Nova thread"]')).toBeNull();
+    expect(expanded).toBe(0);
+    expect(commands).toEqual([]);
     view.update({ ...props, collapsed: false });
     await tick();
     flushSync();
-    const input = target.querySelector<HTMLInputElement>("#newEpic input")!;
-    expect(input.value).toBe("Retained draft");
-    expect(document.activeElement === input).toBe(true);
+    expect(target.querySelector("#newEpic")).toBeNull();
     expect(
       target.querySelector("[data-agent-presence]")?.textContent,
     ).toContain("90%");

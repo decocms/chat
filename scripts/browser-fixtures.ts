@@ -144,6 +144,27 @@ export async function openTasksPanel(page: Page, name = "Tasks") {
   await expect(tasksRegion(page, name)).toBeVisible({ timeout: 60_000 });
 }
 
+/** The one way to start a thread (Gimenes #4286): write in the room, then "Criar thread" on that message. The
+ *  title field starts with the message's text; Enter creates it and opens it. */
+export async function startThreadFromMessage(page: Page, text: string) {
+  await page.locator("[data-composer] #input").fill(text);
+  await page.locator("[data-composer] [data-composer-send]").click();
+  const message = page
+    .locator("#msgs [data-chat-message]")
+    .filter({ hasText: text })
+    .last();
+  await expect(message).toBeVisible();
+  await message.hover();
+  await message.locator("[data-start-thread]").click();
+  await message.locator("[data-thread-start] input").press("Enter");
+  const row = page
+    .locator("[data-epic-thread]")
+    .filter({ hasText: text })
+    .first();
+  await expect(row).toBeAttached();
+  return row;
+}
+
 /** Header disclosure on phones; the actual rail disclosure on desktop. */
 export async function openRoomSidebar(page: Page) {
   const book = page.locator(".book:not(.skel)");

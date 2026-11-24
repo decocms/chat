@@ -184,26 +184,26 @@ describe("epic navigation model", () => {
 });
 
 describe("room-owned navigation session", () => {
-  test("rail-only thread entries reopen ancestors without discarding the room draft", () => {
+  test("rail-only thread entries reopen ancestors without discarding the room's open tab", () => {
     const room = {
       id: "room",
       epics: [epic("parent"), epic("child", "parent")],
     };
     const session = syncNavigationSession(null, room, "child");
-    session.state.update((state) => ({ ...state, draft: "Rail draft" }));
+    session.state.update((state) => ({ ...state, suggestions: true }));
     toggleNavigationBranch(session, "parent");
     expect([...get(session.state).closed]).toEqual(["parent"]);
     expect(syncNavigationSession(session, room, "main")).toBe(session);
     expect(syncNavigationSession(session, room, "child")).toBe(session);
     expect([...get(session.state).closed]).toEqual([]);
-    expect(get(session.state).draft).toBe("Rail draft");
+    expect(get(session.state).suggestions).toBe(true);
     const other = syncNavigationSession(
       session,
       { id: "other", epics: [] },
       "main",
     );
     expect(other).not.toBe(session);
-    expect(get(other.state).draft).toBe("");
+    expect(get(other.state).suggestions).toBe(false);
   });
   test("returning from an archived thread is a new entry even while the active tab stays selected", () => {
     const session = createNavigationSession("room", false, storage());
@@ -238,7 +238,7 @@ describe("room-owned navigation session", () => {
     enterNavigationThread(session, archived, "child");
     expect([...get(session.state).closed]).toEqual(["parent"]);
   });
-  test("ancestor auto-opening runs once per thread entry, preserving manual collapse and drafts", () => {
+  test("ancestor auto-opening runs once per thread entry, preserving manual collapse and the open tab", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["root","child"]');
     const session = createNavigationSession("room", false, local);
@@ -249,7 +249,7 @@ describe("room-owned navigation session", () => {
     ]);
     enterNavigationThread(session, forest, "leaf");
     expect([...get(session.state).closed]).toEqual([]);
-    session.state.update((state) => ({ ...state, draft: "Retained draft" }));
+    session.state.update((state) => ({ ...state, suggestions: true }));
     toggleNavigationBranch(session, "root");
     let notifications = 0;
     const stop = session.state.subscribe(() => notifications++);
@@ -260,24 +260,24 @@ describe("room-owned navigation session", () => {
     );
     expect(notifications).toBe(1);
     expect([...get(session.state).closed]).toEqual(["root"]);
-    expect(get(session.state).draft).toBe("Retained draft");
+    expect(get(session.state).suggestions).toBe(true);
     enterNavigationThread(session, forest, "main");
     enterNavigationThread(session, forest, "leaf");
     expect([...get(session.state).closed]).toEqual([]);
-    expect(get(session.state).draft).toBe("Retained draft");
+    expect(get(session.state).suggestions).toBe(true);
     stop();
   });
-  test("closed branches reload per room; another room never receives its draft", () => {
+  test("closed branches reload per room; another room never receives its open tab", () => {
     const local = storage();
     const a = createNavigationSession("a", false, local);
     toggleNavigationBranch(a, "root");
-    a.state.update((state) => ({ ...state, draft: "Only in a" }));
+    a.state.update((state) => ({ ...state, suggestions: true }));
     const reload = createNavigationSession("a", false, local);
     const b = createNavigationSession("b", false, local);
     expect([...get(reload.state).closed]).toEqual(["root"]);
-    expect(get(reload.state).draft).toBe("");
+    expect(get(reload.state).suggestions).toBe(false);
     expect([...get(b.state).closed]).toEqual([]);
-    expect(get(b.state).draft).toBe("");
+    expect(get(b.state).suggestions).toBe(false);
   });
   test("malformed and unavailable storage cannot break navigation", () => {
     for (const value of ["{bad", '"root"', "null", "{}", '["root",7]']) {

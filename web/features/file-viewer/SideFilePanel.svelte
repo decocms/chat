@@ -34,10 +34,11 @@
     class="flex h-full min-h-0 flex-col gap-3 p-3"
   >
     {#key $view}<Snapshot value={$view}
-        >{#snippet children(target)}<header class="flex items-center gap-2">
+        >{#snippet children(target)}<header class="flex items-center gap-1">
             <b class="min-w-0 flex-1 truncate">{target.name}</b>
             <Button
               variant="ghost"
+              size="sm"
               onclick={(event) => {
                 if (live(event) && owner.target() === target)
                   fullscreen(target.id);
@@ -48,6 +49,15 @@
             >
             <Button
               variant="ghost"
+              size="sm"
+              data-file-download
+              href={`/api/books/${encodeURIComponent(target.roomId)}/files/${encodeURIComponent(target.id)}`}
+              download={target.name}
+              >{lang === "en" ? "Download" : "Baixar"}</Button
+            >
+            <Button
+              variant="ghost"
+              size="sm"
               onclick={(event) => {
                 if (live(event) && owner.target() === target) close();
               }}>{lang === "en" ? "Close" : "Fechar"}</Button
