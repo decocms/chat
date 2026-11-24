@@ -60,7 +60,9 @@
   // The hover toolbar (8 reactions, reply, copy, link, each with a tooltip) was most of the time to show a room:
   // about 200 of 300 ms for 60 messages. It mounts on the first pointer or focus in the message.
   let toolbar = $state(false),
-    article = $state<HTMLElement>();
+    article = $state<HTMLElement>(),
+    // The phone's actions sheet (Gimenes #4402): a long press on the message opens it.
+    sheet = $state(false);
   // "Criar thread" (Gimenes #4310): one click makes the thread and opens it. No title step: the title is the start
   // of the message (rename it later). A thread from a message in main offers "Desfazer" for a few seconds.
   let threadBusy = false,
@@ -235,21 +237,12 @@
     reply: () => {
       if (active) actions.reply(m.id);
     },
-    thread: threadable
-      ? () => {
-          if (active) void startThread();
-        }
-      : undefined,
-    copy: (link) => {
-      // On a touch screen pointerenter comes before touchstart, so the toolbar is mounted: copy now, inside the
-      // gesture, because iOS Safari allows the clipboard only there.
-      if (actionController) void actionController.copy(link);
-      else {
-        showToolbar();
-        void tick().then(() => {
-          if (active) void actionController?.copy(link);
-        });
-      }
+    hold: () => {
+      if (!active) return;
+      showToolbar();
+      void tick().then(() => {
+        if (active) sheet = true;
+      });
     },
   }}
   bind:this={article}
@@ -259,36 +252,22 @@
     continuous
       ? "group relative rounded-control px-3 py-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55"
       : "group relative mt-3 rounded-control px-3 pt-1 pb-0.5 font-sans text-[0.875rem] text-foreground transition-colors duration-150 pointer-fine:hover:bg-accent/55",
+    // A long press opens the actions sheet, so on a touch screen it does not also select text (the sheet copies).
+    origin ? "" : "pointer-coarse:select-none [-webkit-touch-callout:none]",
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
-    flash ? "bg-accent" : "",
+    flash || sheet ? "bg-accent" : "",
     fireHot
       ? "after:pointer-events-none after:absolute after:inset-0 after:animate-pulse after:rounded-surface after:ring-2 after:ring-warning motion-reduce:after:animate-none"
       : "",
   ]}
 >
-  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's edges as it slides. Right: Reply →,
-       and further right Create thread → (Gimenes #4123). Left: Copy on top, Link below; the half under the finger
-       is outlined, and lit past the threshold. -->
+  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's left edge as it slides: Reply →. The
+       rest is in the sheet a long press opens (Gimenes #4440). -->
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground in-data-[swipe=thread]:hidden"
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground"
     >{vb.t("Responder")} →</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="thread"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-foreground in-data-[swipe=thread]:block"
-    >{vb.t("Criar thread")} →</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="copy"
-    class="pointer-events-none absolute bottom-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=copy]:border-brand in-data-[swipe-pick=copy]:text-foreground in-data-[swipe=copy]:bg-brand/15"
-    >{vb.t("Copiar")}</span
-  ><span
-    aria-hidden="true"
-    data-swipe-target="link"
-    class="pointer-events-none absolute top-[calc(50%+2px)] left-[calc(100%+8px)] hidden h-[max(calc(50%-2px),22px)] w-[68px] place-items-center rounded-lg border border-solid border-border bg-card text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=left]:grid in-data-[swipe-pick=link]:border-brand in-data-[swipe-pick=link]:text-foreground in-data-[swipe=link]:bg-brand/15"
-    >{vb.t("Link")}</span
   >
   {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
        curls up into a small picture, the author and the start of their message; a click jumps there. -->
@@ -518,6 +497,7 @@
   </div>
   {#if toolbar}<MessageActions
       bind:this={actionController}
+      bind:sheet
       floating
       canReact={!origin &&
         kind !== "issue" &&

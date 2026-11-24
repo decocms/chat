@@ -52,6 +52,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/phone-message-actions · Hold a message on the phone to open its actions
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for the message actions on the phone (#4402). He approved a long press that opens a sheet (#4437, #4440), and said to keep only the right swipe, for reply. He did not give the time, the order or the reactions in the sheet.
+- Decision:
+  - Holding a message for 500 ms without moving more than 8 px opens a sheet from the bottom. Android's own long press (a contextmenu event) opens the same sheet, only once.
+  - The sheet has, from the top: six quick reactions and "more reactions", then Reply, Create thread, Copy text, Copy link, Edit, History, and Delete (in red, last). Each row closes the sheet, then acts. A row shows only when the hover toolbar shows the same button.
+  - The sheet is in `MessageActions`, next to the toolbar, so it uses the same copy, edit, delete and history code.
+  - The left swipe (copy and link) and the long right swipe (thread) are gone. A right swipe of any length replies.
+  - On a touch screen, a message is not selectable (`select-none`, no iOS callout), because a long press opens the sheet. "Copy text" in the sheet copies it.
+- Other options: A bar of buttons that a tap shows. Keep the long right swipe for a thread.
+- Risk: low. People cannot select a part of a message on a phone. They copy all of it from the sheet.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/router-actions-waits · The router questions at the 0.8 floor
 
 - Agent: claude-opus-5-5

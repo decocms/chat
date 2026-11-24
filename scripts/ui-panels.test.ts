@@ -3104,7 +3104,6 @@ test("phone edge observes installed Back without consuming browser gestures or r
     reply: () => {
       replies++;
     },
-    copy: () => {},
   });
   function touch(
     type: string,
@@ -3143,14 +3142,15 @@ test("phone edge observes installed Back without consuming browser gestures or r
   }
 });
 
-test("a left swipe copies the text from the top half and the link from the bottom half", async () => {
-  const { swipeMessage } = await import("../web/features/chat/swipe");
+test("a message's touch: a right swipe replies, a left one does nothing, holding opens the sheet (Gimenes #4440)", async () => {
+  const { swipeMessage, HOLD_MS } = await import("../web/features/chat/swipe");
   const row = window.document.createElement("div");
   window.document.body.append(row);
-  const copies: boolean[] = [];
+  let replies = 0,
+    holds = 0;
   const swipe = swipeMessage(row, {
-    reply: () => {},
-    copy: (link) => copies.push(link),
+    reply: () => void replies++,
+    hold: () => void holds++,
   });
   const touch = (
     type: string,
@@ -3159,25 +3159,33 @@ test("a left swipe copies the text from the top half and the link from the botto
     const event = new window.Event(type, { bubbles: true, cancelable: true });
     Object.defineProperty(event, "touches", { value: points });
     row.dispatchEvent(event);
+    return event.defaultPrevented;
   };
+  const wait = (ms: number) => new Promise((done) => setTimeout(done, ms));
   try {
+    // Left: the message does not move and nothing happens (copy and link are in the sheet now).
     touch("touchstart", [{ clientX: 200, clientY: 0 }]);
     touch("touchmove", [{ clientX: 120, clientY: -1 }]);
-    expect(row.dataset.swipeDir).toBe("left");
-    expect(row.dataset.swipePick).toBe("copy");
-    expect(row.dataset.swipe).toBe("copy");
+    expect(row.hasAttribute("data-swipe")).toBe(false);
     touch("touchend", []);
-    expect(row.hasAttribute("data-swipe-dir")).toBe(false);
-    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
-    touch("touchmove", [{ clientX: 120, clientY: 5 }]);
-    expect(row.dataset.swipePick).toBe("link");
-    expect(row.dataset.swipe).toBe("link");
+    // Right, past the reply mark: one reply, and a long right swipe is still a reply (no thread).
+    touch("touchstart", [{ clientX: 20, clientY: 0 }]);
+    touch("touchmove", [{ clientX: 220, clientY: 1 }]);
+    expect(row.dataset.swipe).toBe("reply");
     touch("touchend", []);
-    touch("touchstart", [{ clientX: 200, clientY: 4 }]);
-    touch("touchmove", [{ clientX: 170, clientY: 5 }]);
-    expect(row.dataset.swipe).toBe("tracking");
+    expect(replies).toBe(1);
+    // Holding still opens the sheet once; lifting the finger after it is not a tap or a reply.
+    touch("touchstart", [{ clientX: 50, clientY: 10 }]);
+    await wait(HOLD_MS + 50);
+    expect(holds).toBe(1);
+    expect(touch("touchend", [])).toBe(true);
+    expect(replies).toBe(1);
+    // Moving the finger before the time is a scroll or a swipe, not a hold.
+    touch("touchstart", [{ clientX: 50, clientY: 10 }]);
+    touch("touchmove", [{ clientX: 50, clientY: 40 }]);
+    await wait(HOLD_MS + 50);
     touch("touchend", []);
-    expect(copies).toEqual([false, true]);
+    expect(holds).toBe(1);
   } finally {
     swipe.destroy();
     row.remove();

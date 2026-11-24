@@ -7,6 +7,7 @@
   } from "../../app/chatTypes";
   import Button from "../../lib/studio/Button.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import type { IconName } from "../../lib/studio/icons";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import TooltipProvider from "../../lib/studio/TooltipProvider.svelte";
   import { cn } from "../../lib/studio/utils";
@@ -18,6 +19,9 @@
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
   import DialogTitle from "../../lib/studio/DialogTitle.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
+  import Sheet from "../../lib/studio/Sheet.svelte";
+  import SheetContent from "../../lib/studio/SheetContent.svelte";
+  import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
   import { QUICK_REACTIONS, TOOLBAR_REACTIONS } from "./reactions";
   let {
@@ -33,6 +37,7 @@
     canEdit = false,
     canDelete = false,
     history,
+    sheet = $bindable(false),
   }: {
     message: ChatMessage;
     roomId: string;
@@ -55,7 +60,16 @@
     canDelete?: boolean;
     /** Room owner on an edited/deleted message: its earlier versions (null until asked for). */
     history?: MessageVersion[] | null;
+    /** The phone's actions sheet (Gimenes #4402): holding a message opens it, from the bottom, with every action the
+     *  hover toolbar has. */
+    sheet?: boolean;
   } = $props();
+  let sheetBox = $state<HTMLElement | null>(null);
+  /** A row of the sheet: it closes the sheet, then acts. */
+  function fromSheet(act: () => void) {
+    sheet = false;
+    act();
+  }
   let editing = $state(false),
     deleting = $state(false),
     showingHistory = $state(false),
@@ -280,6 +294,108 @@
           >{/if}{/if}
     </div>{/if}
 </div>
+{#snippet sheetRow(
+  icon: IconName,
+  label: string,
+  act: () => void,
+  data: Record<string, string | number>,
+)}<Button
+    variant="ghost"
+    class="h-12 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+    {...data}
+    onclick={() => fromSheet(act)}
+    ><Icon {icon} size={20} class="text-muted-foreground" />{label}</Button
+  >{/snippet}
+{#if floating}<Sheet bind:open={sheet}>
+    <SheetContent
+      side="bottom"
+      hideCloseButton
+      bind:ref={sheetBox}
+      tabindex={-1}
+      onOpenAutoFocus={(event) => {
+        // Focus the sheet, not the first reaction: no ring and no tooltip on open; Tab still walks the rows.
+        event.preventDefault();
+        sheetBox?.focus();
+      }}
+      data-message-sheet={message.id}
+      class="max-h-[85dvh] gap-1 overflow-y-auto rounded-t-2xl px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] font-sans text-sm outline-none"
+    >
+      <SheetTitle class="sr-only">{vb.t("Ações desta mensagem")}</SheetTitle>
+      <div
+        aria-hidden="true"
+        class="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-border"
+      ></div>
+      {#if canReact}<div
+          data-sheet-reactions
+          class="mb-2 flex items-center justify-between gap-1"
+        >
+          {#each QUICK_REACTIONS.slice(0, 6) as emoji (emoji)}<IconButton
+              label={vb.t("Reagir com {emoji}", { emoji })}
+              data-quick-react={emoji}
+              aria-pressed={mine(emoji)}
+              class={cn(
+                "size-11 rounded-full bg-muted text-xl leading-none",
+                mine(emoji) && "bg-accent ring-2 ring-ring",
+              )}
+              onclick={() => fromSheet(() => react(emoji))}>{emoji}</IconButton
+            >{/each}<IconButton
+            label={vb.t("Mais reações")}
+            data-more-reactions={message.id}
+            class="size-11 rounded-full bg-muted text-muted-foreground"
+            onclick={() => fromSheet(() => (picking = true))}
+            ><Icon icon="face-smile" size={20} /></IconButton
+          >
+        </div>{/if}
+      {@render sheetRow(
+        "reverse-left",
+        vb.t("Responder"),
+        () => actions.reply(message.id),
+        { "data-sheet-reply": message.id },
+      )}
+      {#if onthread}{@render sheetRow(
+          "git-branch-01",
+          vb.t("Criar thread"),
+          () => onthread?.(),
+          { "data-sheet-thread": message.id },
+        )}{/if}
+      {@render sheetRow("copy-01", vb.t("Copiar texto"), () => void copy(), {
+        "data-sheet-copy": message.id,
+      })}
+      {#if showLink}{@render sheetRow(
+          "link-01",
+          vb.t("Copiar link"),
+          () => void copy(true),
+          { "data-sheet-link": message.id },
+        )}{/if}
+      {#if canEdit}{@render sheetRow(
+          "pencil-01",
+          vb.t("Editar mensagem"),
+          () => {
+            draft = message.text;
+            error = "";
+            editing = true;
+          },
+          { "data-sheet-edit": message.id },
+        )}{/if}
+      {#if history !== undefined}{@render sheetRow(
+          "clock",
+          vb.t("Ver histórico da mensagem"),
+          openHistory,
+          { "data-sheet-history": message.id },
+        )}{/if}
+      {#if canDelete}<Button
+          variant="ghost"
+          data-sheet-delete={message.id}
+          class="h-12 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal text-destructive hover:text-destructive"
+          onclick={() =>
+            fromSheet(() => {
+              error = "";
+              deleting = true;
+            })}
+          ><Icon icon="trash-01" size={20} />{vb.t("Apagar mensagem")}</Button
+        >{/if}
+    </SheetContent>
+  </Sheet>{/if}
 {#if floating && canReact}<EmojiPicker
     t={vb.t}
     bind:open={picking}
