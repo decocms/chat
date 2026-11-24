@@ -357,7 +357,6 @@
         >
           {#each rows as row (row.epic.id)}
             {@const epic = row.epic}
-            {@const working = vb.epicBusy(epic)}
             {@const current = !selectionDisabled && thread === epic.id}
             {@const status = epicStatus(epic)}
             <SortableItem
@@ -447,15 +446,7 @@
                             class="flex shrink-0 text-muted-foreground"
                             ><Icon icon="pin-02" class="size-3.5" /></span
                           >{/if}
-                        {#if working}<span
-                            role="img"
-                            aria-label={vb.t("{who} está trabalhando", {
-                              who: working,
-                            })}
-                            class="shrink-0 text-xs text-muted-foreground"
-                            >✻</span
-                          >{/if}
-
+                        <!-- No ✻ for an agent at work (Gimenes #4368): its ack moves the thread to Fazendo, and the status icon says it. -->
                         <!-- One slot at the end (Gimenes #3904): the lime count when something waits on you, else the status (shared/epicStatus.ts; an epic in production shows Feito). -->
                         {#if waitCount(vb.waitsIn(epic.id))}<WaitBadge
                             waits={vb.waitsIn(epic.id)}

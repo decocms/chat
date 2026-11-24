@@ -325,3 +325,29 @@ test("an answer epic that became work, or a question older than a day, is not he
     f.db.query(`SELECT 1 FROM messages WHERE tag = 'reminder'`).all(),
   ).toEqual([]);
 });
+
+test("an agent that starts on a request in a thread moves the thread to doing (Gimenes #4368)", async () => {
+  const f = fixture();
+  const { epic } = await question(f);
+  const status = () =>
+    (
+      f.db.query(`SELECT status FROM epics WHERE id = ?`).get(epic) as {
+        status: string;
+      }
+    ).status;
+  f.db.query(`UPDATE epics SET status = 'todo' WHERE id = ?`).run(epic);
+  // An ack in main does not touch a thread.
+  const inMain = f.book.addMessage("main", email, "e o resto?");
+  f.book.agentAck("abcdef", "a1", email, "Claude", inMain.id);
+  expect(status()).toBe("todo");
+  // An ack that is not doing does not move it.
+  const ask = f.book.addMessage(epic, email, "faz o deploy");
+  f.book.agentAck("abcdef", "a1", email, "Claude", ask.id, "idle");
+  expect(status()).toBe("todo");
+  f.book.agentAck("abcdef", "a1", email, "Claude", ask.id, "doing");
+  expect(status()).toBe("doing");
+  // A thread a person moved on (review) keeps its status.
+  f.db.query(`UPDATE epics SET status = 'review' WHERE id = ?`).run(epic);
+  f.book.agentAck("abcdef", "a1", email, "Claude", ask.id, "doing");
+  expect(status()).toBe("review");
+});
