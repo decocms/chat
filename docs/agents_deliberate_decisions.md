@@ -52,6 +52,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-action-cases · One feedback table for all of the router, with suggested cases
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for reports and a self-improving loop for every part of the router, not only wake (#4481). He selected "1 + 2 + 3" and asked to move the old table into the new one (#4483), with the name `router_feedback` (#4485). He did not say which undo signals to use, how long "soon" is, or how the old table goes away.
+- Decision:
+  - One D1 table `router_feedback`, key (room, message, action, who). `action` is "wake" or the name of a router action or reading. The list comes from `ROUTER_ACTIONS` and `ROUTER_READINGS` (`FEEDBACK_ACTIONS`), so a new action gets reports and its own bench part ("<action> (D1)") with no other change.
+  - The old rows of `router_cases` are copied with `INSERT OR IGNORE` in the schema. The old table stays and nothing writes to it. The bench reads it only if `router_feedback` does not exist yet (before the deploy).
+  - Three undo signals write a `suggested` row: a thread opened again within 30 minutes after a Jev close, a reply thread the router made and a person deleted within 30 minutes, and a wait the router read that its person cleared with the Inbox's ✓. "Resolve all" does not count, because it is cleanup. A suggested row does not run in the bench. The person's agent asks them (`router_feedback_suggested`) and records the answer as a `case`. A suggestion never replaces a case.
+- Other options: One table for each action. Run suggested rows in the bench (a reopen is not always a router mistake). Drop `router_cases` (a destructive D1 change).
+- Risk: low. A wrong suggestion only makes an agent ask one question.
+- Undo: Revert the commit. The table and its rows stay, unused.
+- Status: open
+
 ### 2026-11-24 · feat/router-bench-all · Every router bench case must pass, with the D1 cases
 
 - Agent: claude-opus-5-5

@@ -183,6 +183,8 @@ Rules for the content of the document:
 <!-- /agent-rules -->
 <!-- agent-rules:router-feedback -->
 - If your human says that a message woke you but was not for you ("não era contigo", "não tô falando com você"), or that you missed a message for you, run `router_feedback` with that `message_id` and `expected` `ignore` or `wake`. It becomes a test case for the router, so that the router stops that mistake.
+- The router also acts by itself: it closes a thread ("pode fechar"), makes a reply thread for a question, and marks who must reply ("esperando você"). If your human says that one of these was wrong, or that the router should have done it, run `router_feedback` with `action` (`mark_done`, `answer_thread` or `waits`, with `who` for waits) and `expected` `acts` or `no`.
+- `router_feedback_suggested` lists the router's actions that your human undid soon after. At the start of a session, ask your human about each one in one short line ("o router fechou X e você reabriu: ele errou?"). Record the answer with `router_feedback`.
 <!-- /agent-rules -->
 
 **Board:**

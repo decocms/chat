@@ -33,7 +33,8 @@ export type ActionRoom = {
   listening(email: string): Promise<boolean>;
   /** A thread was already made from this message. */
   hasThreadFrom(msgId: number): boolean;
-  markDone(thread: string, via: "exact" | "jev"): void;
+  /** `m` is the message that closed it (a Jev close is remembered: opened again soon = a suggested case). */
+  markDone(thread: string, via: "exact" | "jev", m?: ActionMessage): void;
   makeAnswerThread(m: ActionMessage): Promise<void>;
   /** For the waits reading: the other people in the room and the talk before the message. Absent or null = no reading. */
   people?(m: ActionMessage): Promise<RoomPeople | null>;
@@ -120,7 +121,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     question:
       'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar", "arquiva essa")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
     threshold: ACTION_THRESHOLD_MIN,
-    run: (m, room, via) => room.markDone(m.thread, via),
+    run: (m, room, via) => room.markDone(m.thread, via, m),
   },
 ];
 
@@ -168,6 +169,13 @@ export const ROUTER_READINGS: readonly RouterReading[] = [
     },
   },
 ];
+
+/** What a person can report the router got wrong (MCP router_feedback, D1 router_feedback, the bench): waking an
+ *  agent, and every action and reading above. A new action or reading gets its reports and its bench part with no
+ *  other change (Gimenes #4481). */
+export const FEEDBACK_ACTIONS: readonly string[] = ["wake", ...ROUTER_ACTIONS.map((a) => a.name), ...ROUTER_READINGS.map((r) => r.name)];
+/** The readings among them: a case names the person (`who`) the reading is about. */
+export const FEEDBACK_READINGS: readonly string[] = ROUTER_READINGS.map((r) => r.name);
 
 /** One Jev call for every action that applies; the result says which action ran (or none) and what it cost.
  *  The exact path runs before the first await, so a caller that does not await still sees it done at once. */

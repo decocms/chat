@@ -2,7 +2,10 @@
 import { expect, test } from "bun:test";
 import {
   ACTION_THRESHOLD_MIN,
+  FEEDBACK_ACTIONS,
+  FEEDBACK_READINGS,
   ROUTER_ACTIONS,
+  ROUTER_READINGS,
   MARK_DONE_MAX,
   runRouterActions,
   type ActionMessage,
@@ -54,6 +57,25 @@ test("every action acts at 0.8 or more: the floor is never lowered (Gimenes #443
   expect(ACTION_THRESHOLD_MIN).toBe(0.8);
   for (const action of ROUTER_ACTIONS)
     expect(action.threshold).toBeGreaterThanOrEqual(ACTION_THRESHOLD_MIN);
+});
+
+test("every action and reading takes feedback, with no other change (Gimenes #4481)", () => {
+  expect(FEEDBACK_ACTIONS).toEqual([
+    "wake",
+    ...ROUTER_ACTIONS.map((a) => a.name),
+    ...ROUTER_READINGS.map((r) => r.name),
+  ]);
+  expect(FEEDBACK_ACTIONS).toContain("mark_done");
+  expect(FEEDBACK_ACTIONS).toContain("answer_thread");
+  expect(FEEDBACK_READINGS).toEqual(["waits"]);
+});
+
+test("a Jev close gives the room the message that closed it (opened again soon = a suggested case)", async () => {
+  const seen: (ActionMessage | undefined)[] = [];
+  const { r } = room({ markDone: (_t, _via, m) => void seen.push(m) });
+  const m = msg("t1", "pode fechar");
+  await runRouterActions(m, r, jev({ mark_done: 0.95 }).decide, { topic: "T" });
+  expect(seen).toEqual([m]);
 });
 
 test("the exact phrase closes the thread with no model call, before any await", () => {

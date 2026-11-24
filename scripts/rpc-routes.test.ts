@@ -93,6 +93,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     },
     track: () => {},
     pokeMe: () => {},
+    waitCleared: () => {},
     vapidKey: "public-key",
     pushToMe: async () => 1,
     sqlAll: async () => [],

@@ -155,6 +155,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     sqlBatch: async (query, rows) => { const st = env.DB.prepare(query); await env.DB.batch(rows.map((r) => st.bind(...r))); return; },
     track: (name, dims) => ctx.waitUntil(track(env, name, { user: email, ...(dims ? { dims } : {}) })),
     pokeMe: () => ctx.waitUntil(poke(env, [email], { t: "me" })),
+    waitCleared: (bookId, ref) => ctx.waitUntil(bookStub(env, bookId).waitCleared(ref, email).catch((e) => console.error("wait cleared", String(e)))),
     vapidKey: env.VAPID_PUBLIC_KEY ?? null,
     pushToMe: (p, endpoint) => pushTo(env, [email], p, endpoint),
     sqlAll: async (query, ...binds) => (await env.DB.prepare(query).bind(...binds).all()).results,

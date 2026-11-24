@@ -3,6 +3,7 @@ import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
 // whose props carry the person's email. Every room call re-checks membership in D1.
 import { gate, routerOn, routerStats } from "./router";
+import { FEEDBACK_ACTIONS, FEEDBACK_READINGS } from "./routerActions";
 import { ownSession } from "./ownSession";
 import { isDmId } from "./dm";
 import {
@@ -179,21 +180,40 @@ const TOOLS = [
   {
     name: "router_feedback",
     description:
-      'Teach your human\'s router (it decides which messages wake you): when your human says a message woke you but wasn\'t for you ("não era contigo", "não tô falando com você"), or that you should have answered one you never got, record it with what should have happened. It becomes a case in the router\'s bench, which every change to the router must pass. Only when your human said so.',
+      'Teach your human\'s router when your human says it got a message wrong. It becomes a case in the router\'s bench, which every change to the router must pass. Only when your human said so. action "wake" (default): a message woke you but wasn\'t for you ("não era contigo"), or you should have got one you never got; expected wake or ignore. Another action (the router did it by itself, or should have): mark_done (it closed a thread, or did not), answer_thread (it made a reply thread for a question in main, or did not), waits (it marked a person, `who`, as waited on, or did not; `who` defaults to your human); expected acts or no. router_feedback_suggested lists what the room saw undone, to ask your human about.',
     inputSchema: {
       type: "object",
       properties: {
         room_id: { type: "string" },
         message_id: { type: "number" },
+        action: {
+          type: "string",
+          enum: [...FEEDBACK_ACTIONS],
+          description: "what the router got wrong (default wake)",
+        },
         expected: {
           type: "string",
-          enum: ["wake", "ignore"],
+          enum: ["wake", "ignore", "acts", "no"],
           description:
-            "wake = it should have reached you; ignore = it shouldn't have",
+            "wake: wake = it should have reached you, ignore = it shouldn't have. Other actions: acts = the router should do it, no = it shouldn't",
+        },
+        who: {
+          type: "string",
+          description:
+            "waits only: the person (name or email) the wait is about; default your human",
         },
         note: { type: "string", description: "your human's words, short" },
       },
       required: ["room_id", "message_id", "expected"],
+    },
+  },
+  {
+    name: "router_feedback_suggested",
+    description:
+      "Router actions the room saw undone soon after, for your human: a thread opened again right after the router closed it, a reply thread the router made that they deleted, a wait the router read that they cleared. Ask your human in one short line each if the router was wrong, then record the answer with router_feedback (expected = what should have happened; the router's own choice dismisses it). Newest first.",
+    inputSchema: {
+      type: "object",
+      properties: { room_id: { type: "string" } },
     },
   },
   {
@@ -1527,7 +1547,35 @@ async function call(
     case "router_feedback": {
       const id = await room(),
         msgId = Number(a.message_id),
-        expected = str(a.expected);
+        action = str(a.action) || "wake",
+        expected = str(a.expected),
+        note = str(a.note).slice(0, 300);
+      if (!FEEDBACK_ACTIONS.includes(action))
+        throw new Error(`action is one of ${FEEDBACK_ACTIONS.join(", ")}`);
+      if (action !== "wake") {
+        if (expected !== "acts" && expected !== "no")
+          throw new Error(`expected is acts or no for ${action}`);
+        const who = FEEDBACK_READINGS.includes(action)
+          ? str(a.who) || me.email
+          : "";
+        const r = await bookStub(env, id).routerFeedback({
+          msgId,
+          action,
+          who,
+          status: "case",
+          expected,
+          reporter: me.email,
+          note,
+        });
+        if (!r.ok) throw new Error(r.error);
+        return {
+          ok: true,
+          action,
+          who: r.who,
+          expected,
+          note: "recorded: scripts/router-bench.ts runs it against every change to the router",
+        };
+      }
       if (expected !== "wake" && expected !== "ignore")
         throw new Error("expected is wake or ignore");
       const input = await bookStub(env, id).routerInput(
@@ -1548,11 +1596,12 @@ async function call(
         )?.decision ?? null;
       await db
         .prepare(
-          `INSERT OR REPLACE INTO router_cases (book_id, msg_id, email, own, name, sender, text, topic, recent, memory, decided, expected, note, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR REPLACE INTO router_feedback (book_id, msg_id, action, who, status, reporter, own, name, sender, text, topic, recent, memory, decided, expected, note, ts) VALUES (?, ?, 'wake', ?, 'case', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
           msgId,
+          me.email,
           me.email,
           m.author === me.email ? 1 : 0,
           input.name,
@@ -1563,14 +1612,14 @@ async function call(
           input.memory,
           decided,
           expected,
-          str(a.note).slice(0, 300),
+          note,
           Date.now(),
         )
         .run();
       ctx.waitUntil(
         track(env, "router_feedback", {
           user: me.email,
-          dims: { book: id, decided: decided ?? undefined, expected },
+          dims: { book: id, action, decided: decided ?? undefined, expected },
         }),
       );
       return {
@@ -1581,6 +1630,36 @@ async function call(
           decided === expected
             ? "the router already decides this way now; kept as a case anyway"
             : "recorded: scripts/router-bench.ts runs it against every change to the router",
+      };
+    }
+    case "router_feedback_suggested": {
+      const id = a.room_id ? await room() : null;
+      const rows = await db
+        .prepare(
+          `SELECT book_id, msg_id, action, who, text, topic, note, ts FROM router_feedback WHERE reporter = ? AND status = 'suggested' AND (?2 IS NULL OR book_id = ?2) ORDER BY ts DESC LIMIT 20`,
+        )
+        .bind(me.email, id)
+        .all<{
+          book_id: string;
+          msg_id: number;
+          action: string;
+          who: string;
+          text: string;
+          topic: string;
+          note: string;
+          ts: number;
+        }>();
+      return {
+        suggested: rows.results.map((r) => ({
+          room_id: r.book_id,
+          message_id: r.msg_id,
+          action: r.action,
+          who: r.who || undefined,
+          text: r.text.slice(0, 200),
+          topic: r.topic,
+          seen: r.note,
+          ts: r.ts,
+        })),
       };
     }
     case "router_stats": {
