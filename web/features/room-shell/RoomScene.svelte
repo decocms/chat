@@ -276,7 +276,9 @@
         {#snippet footer(
           collapsed,
           rows,
-        )}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
+        )}{#if $personal.updateAvailable && !collapsed}<UpdateRow
+              lang={services.language === "en" ? "en" : "pt"}
+            />{/if}{#if $view?.trigger}<!-- Your agents, at the foot of the sidebar: machines and one-off agents with their delivery switches, or the ways to get one (collapsed rail: the ✻ alone). -->
             <div
               data-document-pane="agents"
               data-agent-footer
@@ -292,11 +294,7 @@
                   queue={$view.trigger.queue}
                   ago={$view.sidebar.vb.ago}
                 />{/if}
-            </div>{:else}{@render rows?.()}{/if}{#if $personal.updateAvailable && !collapsed}<div
-              class="px-2 pb-1"
-            >
-              <UpdateRow lang={services.language === "en" ? "en" : "pt"} />
-            </div>{/if}{#if $personal.me && !collapsed}<AccountRow
+            </div>{:else}{@render rows?.()}{/if}{#if $personal.me && !collapsed}<AccountRow
               me={$personal.me}
             />{/if}{/snippet}
       </Sidebar>{/if}{/snippet}
