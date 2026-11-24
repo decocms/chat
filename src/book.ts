@@ -43,7 +43,7 @@ import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
-import { addCallUsage, callsOn } from "./calls";
+import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
 import { isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
@@ -733,18 +733,68 @@ export class Book extends DurableObject<Env> {
     this.set("call", JSON.stringify(peers));
     this.broadcast({ t: "call", call: peers });
   }
-  /** One session per person: joining again (another tab or device) replaces the earlier one. */
-  /** Answers true when no person was in the call before (the recorder is not a person). */
-  callJoin(bookId: string, email: string, session: string): boolean {
+  /** One session per person: joining again (another tab or device) replaces the earlier one.
+   *  Answers true when no person was in the call before (the recorder is not a person). */
+  callJoin(bookId: string, email: string, session: string, origin: string, thread = "main"): boolean {
     this.bind(bookId);
-    const before = this.callPeers();
+    const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
+    if (first && !isRecorder(email)) {
+      // A new call: where the recorder's link points, no restart of the recorder yet, and the thread that the
+      // person who starts it has open (the call is that thread's: its name is in the recording, its summary goes there).
+      this.set("call_origin", origin);
+      this.set("call_rec_n", "0");
+      this.set("call_thread", this.epics().some((e) => e.id === thread) ? thread : "main");
+    }
     this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
-    return !before.some((p) => !isRecorder(p.email));
+    return first;
   }
-  /** The recorder sent the call to Grain: the room gets the link. */
-  callRecorded(bookId: string, url: string) {
+  /** The thread of the call that is on (or of the last one), if it still exists. */
+  private callThread(): string {
+    const thread = this.get("call_thread") ?? "main";
+    return this.epics().some((e) => e.id === thread) ? thread : "main";
+  }
+  /** Where the call was, for the recording's title: the room, and the thread when it is not the main one. */
+  async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
-    this.addMessage("main", "ai", `${this.en ? "Recording of the call" : "Gravação da call"}: ${url}`);
+    const room = (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
+    const thread = this.callThread(), epic = thread === "main" ? "" : (this.epics().find((e) => e.id === thread)?.title ?? "");
+    return epic ? `${room} · ${epic}` : room;
+  }
+  /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
+  async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {
+    this.bind(bookId);
+    const en = this.en;
+    let summary = "", cost = 0;
+    if (call.transcript) {
+      try {
+        const { text, usage } = await generateText({
+          model: this.model(this.env.MODEL_FAST, true),
+          maxOutputTokens: 700,
+          prompt: `${en ? "Summarize this call for people who were not in it. Write in English." : "Resuma esta call para quem não participou. Escreva em português."}\n${en ? "Give: what was decided, what is still open, and who does what next (with the person's name). Use short bullets. Use only what the transcript says. No title, no closing line." : "Traga: o que foi decidido, o que ficou em aberto, e quem faz o quê em seguida (com o nome da pessoa). Use tópicos curtos. Use só o que a transcrição diz. Sem título e sem frase de fecho."}\n\n<transcript>\n${call.transcript.slice(0, 60_000)}\n</transcript>`,
+        });
+        summary = text.trim().slice(0, 2500);
+        cost = costOf(usage);
+      } catch (e) {
+        console.error("call summary failed", String(e));
+      }
+    }
+    const head = `**${en ? "Call recorded" : "Call gravada"}**${call.minutes ? ` · ${Math.max(1, Math.round(call.minutes))} min` : ""}${call.people.length ? ` · ${call.people.slice(0, 12).join(", ")}` : ""}`;
+    const note = call.withheld ? (en ? "The transcript did not enter the room: it seems to contain a secret." : "A transcrição não entrou na sala: parece conter um segredo.") : "";
+    this.addMessage(this.callThread(), "ai", [head, summary, note, `${en ? "Recording" : "Gravação"}: ${call.url}`].filter(Boolean).join("\n\n"), call.file ? { files: [call.file] } : {});
+    this.ctx.waitUntil(track(this.env, "call_recorded", { dims: { book: bookId, minutes: Math.round(call.minutes), people: call.people.length, transcript: !!call.transcript, cost: +cost.toFixed(6) } }));
+  }
+  /** The recording did not start, or failed: the room is told, so that nobody counts on it. */
+  callRecordFailed(bookId: string, reason: string) {
+    this.bind(bookId);
+    const en = this.en;
+    this.addMessage(
+      this.callThread(),
+      "ai",
+      reason === "start"
+        ? en ? "The recorder did not start: this call is not being recorded." : "O gravador não iniciou: esta call não está sendo gravada."
+        : en ? "The recording of the call failed. Nothing of it went to Grain." : "A gravação da call falhou. Nada dela foi para o Grain.",
+    );
+    this.ctx.waitUntil(track(this.env, "call_record_failed", { dims: { book: bookId, reason: reason.slice(0, 80) } }));
   }
   /** Is `session` this person's, and is every session in `pulls` in this room's call? */
   callCheck(email: string, session: string, pulls: string[]): boolean {
@@ -754,9 +804,19 @@ export class Book extends DurableObject<Env> {
   callTracks(email: string, add: string[], drop: string[]) {
     this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, tracks: [...new Set([...p.tracks, ...add])].filter((t) => !drop.includes(t)) } : p)));
   }
+  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back. */
   callLeave(email: string) {
     const peers = this.callPeers();
-    if (peers.some((p) => p.email === email)) this.setCall(peers.filter((p) => p.email !== email));
+    if (!peers.some((p) => p.email === email)) return;
+    const left = peers.filter((p) => p.email !== email);
+    this.setCall(left);
+    const bookId = this.get("book_id") ?? "";
+    if (!isRecorder(email) || !left.some((p) => !isRecorder(p.email)) || !recorderOn(this.env, bookId)) return;
+    const attempt = Number(this.get("call_rec_n") ?? 0) + 1;
+    this.set("call_rec_n", String(attempt));
+    // ponytail: 6 recorders for one call at most. A recorder that stops each time would start one more for ever.
+    if (attempt > 5) return this.callRecordFailed(bookId, "start");
+    this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId, attempt));
   }
   private pushedAt = new Map<string, number>();
   /** A native notification (web push) to these people's devices, unless they have this room open; ≤1 per person per
@@ -2538,7 +2598,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers() } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callRecorded: recorderOn(this.env, bookId) } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };

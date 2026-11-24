@@ -4,13 +4,17 @@
 // makes the mp4 that Grain takes, the file goes to Grain, and the chat gets the link for the room.
 // Plain Node 24 (it runs .ts by type stripping): only types that can be erased.
 import { spawn } from "node:child_process";
-import { appendFileSync, openAsBlob, rmSync, statSync } from "node:fs";
+import { appendFileSync, openAsBlob, readdirSync, rmSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { chromium, type Page } from "playwright-core";
+import { addMark, attribute, UNKNOWN, type Piece, type Turn } from "./attribute.ts";
 
-type Job = { room: string; joinUrl: string };
+/** `recorder`: the address of the recorder's Worker, which has the speech-to-text (POST /transcribe). */
+type Job = { room: string; joinUrl: string; recorder?: string; title?: string };
 const GRAIN = "https://api.grain.com/_/public-api/v2/";
 const RAW = "/tmp/call.webm", OUT = "/tmp/call.mp4";
+/** The audio goes to the speech-to-text in parts of this many seconds (about 1.2 MB each). */
+const PART_S = 300;
 /** Nobody but the recorder for this long: the call is over. */
 const ALONE_S = 15;
 /** Grain takes 3 hours in one file. */
@@ -19,7 +23,7 @@ const log = (...parts: unknown[]) => console.log(new Date().toISOString(), ...pa
 
 /** In the page: mixes the voices, draws the frame (the screen, or who speaks) and records the two. */
 function recordInPage() {
-  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderStop?: () => Promise<string[]> };
+  const w = window as unknown as { pcs: RTCPeerConnection[]; recorderChunk(data: string): Promise<void>; recorderStop?: () => Promise<{ names: string[]; marks: [string, number][] }> };
   const pc = w.pcs.at(-1);
   if (!pc) throw new Error("the call's connection was not found");
   const audio = new AudioContext(), mix = audio.createMediaStreamDestination(), heard = new Set<string>();
@@ -36,6 +40,9 @@ function recordInPage() {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("no canvas");
   const names = new Set<string>();
+  // Who speaks, each 200 ms, in milliseconds from the start of the recording: the transcript's names come from it.
+  const marks: [string, number][] = [];
+  let began = 0;
   type Person = { name: string; speaking: boolean; cam: HTMLVideoElement | null; face: HTMLImageElement | null };
   const people = (): Person[] =>
     [...document.querySelectorAll<HTMLElement>("[data-call-tile], [data-call-people] li")]
@@ -108,6 +115,7 @@ function recordInPage() {
       }
     const who = people();
     who.forEach((p) => names.add(p.name));
+    if (began) for (const p of who) if (p.speaking) marks.push([p.name, Math.round(performance.now() - began)]);
     // On the stage: who speaks now, else who spoke last.
     last = who.find((p) => p.speaking)?.name ?? (who.some((p) => p.name === last) ? last : (who[0]?.name ?? ""));
     const main = who.find((p) => p.name === last), rest = who.filter((p) => p !== main);
@@ -138,6 +146,7 @@ function recordInPage() {
     });
   };
   recorder.start(1000);
+  began = performance.now();
   w.recorderStop = async () => {
     clearInterval(timer);
     await new Promise<void>((done) => {
@@ -145,7 +154,7 @@ function recordInPage() {
       recorder.stop();
     });
     await sent;
-    return [...names];
+    return { names: [...names], marks };
   };
 }
 
@@ -170,10 +179,18 @@ async function grain(method: string, path: string, body?: unknown) {
 }
 
 /** The mp4 goes to Grain; answers the recording's address there. */
-async function toGrain(title: string, started: Date, names: string[]) {
+async function toGrain(title: string, started: Date, names: string[], lines: Line[], language: string) {
+  // With our transcript, Grain shows each person's name. Without it, Grain transcribes and names nobody.
+  const key = (name: string) => `p${[...new Set([...names, UNKNOWN])].indexOf(name)}`;
+  const spoke = lines.some((line) => line.name === UNKNOWN) ? [...names, UNKNOWN] : names;
   const made = (await grain("POST", "uploads/create", {
     media_type: "video",
-    attributes: { title, start_datetime: started.toISOString(), ...(names.length ? { participants: names.map((name) => ({ name })) } : {}) },
+    attributes: {
+      title,
+      start_datetime: started.toISOString(),
+      ...(spoke.length ? { participants: spoke.map((name) => ({ name: name === UNKNOWN ? "Desconhecido" : name, ...(lines.length ? { speaker_key: key(name) } : {}) })) } : {}),
+      ...(lines.length ? { transcript: { language, segments: lines.map((line) => ({ speaker_key: key(line.name), start: Math.round(line.start), end: Math.round(line.end), text: line.text })) } } : {}),
+    },
   })) as { id: string; media: { upload: { url: string; headers?: Record<string, string> } } };
   const file = await openAsBlob(OUT);
   const put = await fetch(made.media.upload.url, { method: "PUT", headers: made.media.upload.headers ?? {}, body: file });
@@ -186,6 +203,40 @@ async function toGrain(title: string, started: Date, names: string[]) {
   }
   throw new Error("grain did not finish in 20 minutes");
 }
+
+type Line = { name: string; start: number; end: number; text: string };
+
+/** The call's words with who said them: the audio in parts to the Worker's speech-to-text, then the names from
+ *  the page's marks. Any failure: no lines (Grain then transcribes by itself). */
+async function transcribe(job: Job, marks: [string, number][]): Promise<{ lines: Line[]; language: string }> {
+  if (!job.recorder) return { lines: [], language: "pt" };
+  try {
+    for (const old of readdirSync("/tmp").filter((file) => file.startsWith("part-"))) rmSync(`/tmp/${old}`);
+    await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", "-f", "segment", "-segment_time", String(PART_S), "/tmp/part-%04d.mp3"]);
+    const parts = readdirSync("/tmp").filter((file) => file.startsWith("part-")).sort();
+    const pieces: Piece[] = [];
+    let language = "";
+    for (const [index, part] of parts.entries()) {
+      const res = await fetch(`${job.recorder}/transcribe`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}` }, body: await openAsBlob(`/tmp/${part}`) });
+      if (!res.ok) throw new Error(`transcribe ${res.status}`);
+      const out = (await res.json()) as { language?: string; segments?: { start: number; end: number; text: string }[] };
+      language ||= out.language ?? "";
+      for (const piece of out.segments ?? []) pieces.push({ start: (index * PART_S + piece.start) * 1000, end: (index * PART_S + piece.end) * 1000, text: piece.text });
+    }
+    const turns: Turn[] = [];
+    for (const [name, at] of marks) addMark(turns, name, at);
+    return { lines: attribute(turns, pieces), language: language || "pt" };
+  } catch (error) {
+    log("no transcript of ours:", String(error));
+    return { lines: [], language: "pt" };
+  }
+}
+
+/** Tells the chat how the recording ended (POST /api/calls/recorded). */
+const tell = (origin: string, body: unknown) =>
+  fetch(`${origin}/api/calls/recorded`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}`, "content-type": "application/json" }, body: JSON.stringify(body) })
+    .then((res) => log("the room was told:", res.status))
+    .catch((error) => log("the room was not told:", String(error)));
 
 async function record(job: Job) {
   const origin = new URL(job.joinUrl).origin;
@@ -206,11 +257,13 @@ async function record(job: Job) {
     const context = await browser.newContext({ locale: "pt-BR", viewport: { width: 1280, height: 800 }, permissions: ["microphone"] });
     await context.addInitScript(() => {
       // Every connection the page makes, by its first negotiation.
-      const w = window as unknown as { pcs: RTCPeerConnection[] }, proto = RTCPeerConnection.prototype, original = proto.setLocalDescription;
+      // The method has two signatures (one is the old callback form): this wraps the one that the page uses.
+      type SetLocal = (this: RTCPeerConnection, description?: RTCLocalSessionDescriptionInit) => Promise<void>;
+      const w = window as unknown as { pcs: RTCPeerConnection[] }, proto = RTCPeerConnection.prototype as unknown as { setLocalDescription: SetLocal }, original = proto.setLocalDescription;
       w.pcs = [];
-      proto.setLocalDescription = function (this: RTCPeerConnection, ...args: Parameters<typeof original>) {
+      proto.setLocalDescription = function (description) {
         if (!w.pcs.includes(this)) w.pcs.push(this);
-        return original.apply(this, args);
+        return original.call(this, description);
       };
     });
     const page = await context.newPage();
@@ -227,11 +280,13 @@ async function record(job: Job) {
       await page.waitForFunction(() => (window as unknown as { pcs: RTCPeerConnection[] }).pcs.at(-1)?.connectionState === "connected", null, { timeout: 90_000 });
     } catch (error) {
       // What the page shows, to tell "no call any more" from a page that did not load or did not join.
-      const seen = await page.evaluate(() => ({ url: location.pathname, pcs: (window as unknown as { pcs: RTCPeerConnection[] }).pcs.map((pc) => pc.connectionState), stage: !!document.querySelector("[data-call-stage]"), text: document.body.innerText.replace(/\s+/g, " ").slice(0, 300) })).catch(() => null);
+      const seen = await page.evaluate(() => ({ url: location.pathname, pcs: (window as unknown as { pcs: RTCPeerConnection[] }).pcs.map((pc) => pc.connectionState), stage: !!document.querySelector("[data-call-stage]"), bar: !!document.querySelector("[data-call-bar]"), text: document.body.innerText.replace(/\s+/g, " ").slice(0, 300) })).catch(() => null);
       log("did not join the call:", JSON.stringify(seen));
-      throw error;
+      // People are still in the call (the page shows them) and the recorder is not: the room must know.
+      if (seen?.bar || seen?.stage) throw error;
+      return;
     }
-    const started = new Date(), title = (await page.title()).replace(/\s*·\s*deco\.chat$/, "") || job.room;
+    const started = new Date(), title = job.title || (await page.title()).replace(/\s*·\s*deco\.chat$/, "") || job.room;
     await page.evaluate(recordInPage);
     log("recording", job.room);
     let alone = 0, seconds = 0;
@@ -239,7 +294,7 @@ async function record(job: Job) {
       await page.waitForTimeout(1000);
       alone = (await humans(page)) ? 0 : alone + 1;
     }
-    const names = await page.evaluate(() => (window as unknown as { recorderStop(): Promise<string[]> }).recorderStop());
+    const { names, marks } = await page.evaluate(() => (window as unknown as { recorderStop(): Promise<{ names: string[]; marks: [string, number][] }> }).recorderStop());
     await browser.close();
     log("call over after", seconds, "s, people:", names.join(", "));
     // Grain takes 10 seconds or more.
@@ -248,14 +303,15 @@ async function record(job: Job) {
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", OUT]);
     log("mp4", statSync(OUT).size, "bytes");
     const when = started.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
-    const url = await toGrain(`${title} · call · ${when}`, started, names);
+    const { lines, language } = await transcribe(job, marks);
+    log("transcript lines:", lines.length);
+    const url = await toGrain(`${title} · call · ${when}`, started, names, lines, language);
     log("in Grain:", url);
-    const told = await fetch(`${origin}/api/calls/recorded`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}`, "content-type": "application/json" },
-      body: JSON.stringify({ room: job.room, url }),
-    });
-    log("the room was told:", told.status);
+    await tell(origin, { room: job.room, url, minutes: (seconds - alone) / 60, people: names, transcript: lines.map((line) => ({ name: line.name === UNKNOWN ? "Desconhecido" : line.name, start: line.start / 1000, text: line.text.slice(0, 4000) })) });
+  } catch (error) {
+    // The room is told only when people could count on the recording: the recorder was in the call, or they are.
+    log("failed:", String(error));
+    await tell(origin, { room: job.room, error: String(error).slice(0, 280) });
   } finally {
     await browser.close().catch(() => {});
   }

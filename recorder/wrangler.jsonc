@@ -17,9 +17,11 @@
       // A browser that decodes the call and encodes a video: more than the "basic" of a chat bridge.
       "instance_type": "standard-2",
       // Calls recorded at one time. One more call than this is not recorded (the app shows no "recording" mark).
-      "max_instances": 5
+      "max_instances": 10
     }
   ],
+  // Whisper: the transcript of each call, with who spoke (container/attribute.ts).
+  "ai": { "binding": "AI" },
   "durable_objects": { "bindings": [{ "name": "RECORDER", "class_name": "Recorder" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Recorder"] }]
 }

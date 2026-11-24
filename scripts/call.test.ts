@@ -3,6 +3,8 @@ import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
 import { isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
+import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
+import { transcriptMarkdown, transcriptName } from "../src/callText";
 
 const peers = [
   { email: "me@x.test", session: "s-me", tracks: ["mic", "screen"] },
@@ -110,4 +112,35 @@ test("the account's real egress is the SFU's plus TURN's, and a strange answer i
   expect(egressFrom({ errors: [{ message: "not authorized" }], data: null })).toBe(null);
   expect(monthDays(Date.UTC(2026, 10, 24))).toEqual(["2026-11-01", "2026-11-30"]);
   expect(monthDays(Date.UTC(2028, 1, 10))).toEqual(["2028-02-01", "2028-02-29"]);
+});
+
+test("each piece of the transcript goes to the person who spoke the most while it lasted", () => {
+  const turns: Turn[] = [];
+  // Ana speaks from 0 to 4 s, Bia from 4.4 to 9 s, with marks each 200 ms; Ana coughs at 6 s.
+  for (let t = 200; t <= 4000; t += 200) addMark(turns, "ana", t);
+  for (let t = 4600; t <= 9000; t += 200) addMark(turns, "bia", t);
+  addMark(turns, "ana", 6000);
+  expect(turns.map((turn) => turn.name)).toEqual(["ana", "bia", "ana"]);
+  expect(turns[0]).toEqual({ name: "ana", start: 0, end: 4000 });
+  expect(speakerOf(turns, 500, 3500)).toBe("ana");
+  expect(speakerOf(turns, 3800, 8000)).toBe("bia");
+  // Nobody was marked then: the nearest turn within 5 seconds, else nobody.
+  expect(speakerOf(turns, 9500, 10500)).toBe("bia");
+  expect(speakerOf(turns, 60_000, 61_000)).toBe("?");
+  expect(attribute(turns, [{ start: 5000, end: 8500, text: " Concordo. " }, { start: 0, end: 3900, text: "Bom dia." }, { start: 9000, end: 9100, text: "  " }])).toEqual([
+    { name: "ana", start: 0, end: 3900, text: "Bom dia." },
+    { name: "bia", start: 5000, end: 8500, text: "Concordo." },
+  ]);
+});
+
+test("the room's transcript file keeps one paragraph for each turn, with the time", () => {
+  expect(
+    transcriptMarkdown("Call · 2026-11-24", [
+      { name: "ana", start: 0, text: "Bom dia." },
+      { name: "ana", start: 4, text: "Vamos começar." },
+      { name: "bia", start: 65, text: "Concordo." },
+      { name: "bia", start: 70, text: "  " },
+    ]),
+  ).toBe("# Call · 2026-11-24\n\n**ana** (00:00): Bom dia. Vamos começar.\n\n**bia** (01:05): Concordo.\n");
+  expect(transcriptName(Date.UTC(2026, 10, 24, 23, 5))).toBe("call-2026-11-24-23-05.md");
 });

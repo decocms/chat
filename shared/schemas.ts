@@ -775,8 +775,29 @@ export const CallJoinResult = z.object({ session: z.string() });
 /** POST /api/calls/recorded, from the recorder Worker: the call of this room is in Grain at this address. */
 export const RecordedBody = z.object({
   room: z.string().check(z.regex(/^[a-z0-9]{6,40}$/)),
-  url: z.string().check(z.regex(/^https:\/\/grain\.com\/[\w\-/.?=&%]{1,400}$/)),
+  /** Missing, with `error`: the recording failed. */
+  url: z.optional(
+    z.string().check(z.regex(/^https:\/\/grain\.com\/[\w\-/.?=&%]{1,400}$/)),
+  ),
+  error: z.optional(z.string().check(z.maxLength(300))),
+  minutes: z.optional(z.number()),
+  people: z.optional(
+    z.array(z.string().check(z.maxLength(80))).check(z.maxLength(100)),
+  ),
+  /** Who said what: `start` is seconds from the start of the recording. */
+  transcript: z.optional(
+    z
+      .array(
+        z.object({
+          name: z.string().check(z.maxLength(80)),
+          start: z.number(),
+          text: z.string().check(z.maxLength(4000)),
+        }),
+      )
+      .check(z.maxLength(20000)),
+  ),
 });
+export type RecordedBody = z.infer<typeof RecordedBody>;
 export type CallJoinResult = z.infer<typeof CallJoinResult>;
 export const CallDescription = z.object({
   type: z.enum(["offer", "answer"]),

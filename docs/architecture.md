@@ -131,10 +131,10 @@ The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a mon
 
 | Rule | Where |
 |---|---|
-| The microphone sends at 24 kbps at most, and does not send silence (Opus DTX). The browser removes noise and echo first. | `MIC_MAX_BPS`, `withDtx`, `MIC_CLEANUP` |
-| The camera is taken at 720p and sent at 360p or less, 15 frames a second, 200 kbps at most. | `CAM_SEND` |
-| A screen is sent at 720p and 30 frames a second at most, 1.5 Mbps at most. | `SCREEN_LIMITS`, `SCREEN_MAX_BPS` |
-| A browser receives one screen at a time: the one that the person chose. It receives no camera while a screen is on show. A hidden tab receives voices only. | `sync` and `planTracks` |
+| The microphone sends at 32 kbps at most, and does not send silence (Opus DTX). The browser removes noise and echo first. | `MIC_MAX_BPS`, `withDtx`, `MIC_CLEANUP` |
+| The camera is taken at 720p and sent at 360p, 24 frames a second, 500 kbps at most. | `CAM_SEND` |
+| A screen is sent at 1080p and 30 frames a second at most, 2.5 Mbps at most. | `SCREEN_LIMITS`, `SCREEN_MAX_BPS` |
+| A browser receives one screen at a time: the one that the person chose. A hidden tab receives voices only. | `sync` and `planTracks` |
 | A person alone in the call cannot share a screen. A screen that did not change for 10 minutes stops. | `stopShare`, `SCREEN_IDLE_REPORTS` |
 | At 900 GB in a month, the Worker refuses a new screen share (409). The app then asks for a Google Meet link and posts it in the room, with a mention of each person in the call. Voice and cameras continue. | `CALL_SCREEN_LIMIT_GB`, `src/callBudget.ts` |
 
@@ -142,17 +142,28 @@ The limit uses the larger of two counts. The first is the account's real traffic
 
 ### The recorder
 
-The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each call that it records. It is apart from the chat so that a problem in it never stops a deploy of the chat.
+The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each start. It is apart from the chat so that a problem in it never stops a deploy of the chat.
 
-1. The first person joins a call. If the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
-2. The request has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
+1. The first person joins a call. The call is of the thread that this person has open (`call_thread`). If the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+2. The request has the recording's title (the room and the thread, `Book.callTitle`) and a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
 3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`).
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
-5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices.
-6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes, and the container sends it to Grain (`GRAIN_API_TOKEN`).
-7. The container tells the chat (`POST /api/calls/recorded`), and the room gets a message with the Grain link.
+5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices. It also keeps who speaks at each moment.
+6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes.
+7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`).
+8. The container sends the video and that transcript to Grain (`GRAIN_API_TOKEN`). With our transcript, Grain shows each person's name. Without it (the speech-to-text failed), Grain transcribes by itself and names nobody.
+9. The container tells the chat (`POST /api/calls/recorded`). The call's thread gets a message with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
 
-If the recorder does not start, the call continues and shows no "Gravando". A call is recorded to 3 hours at most (Grain's limit for one file). Deploy the recorder from `recorder/` (see [workflow.md](workflow.md)).
+What a person sees when the recording fails:
+
+| Failure | What happens |
+|---|---|
+| The recorder does not start (no answer, or all its containers are in use) | The thread gets "O gravador não iniciou: esta call não está sendo gravada." |
+| A recorded room's call has no recorder for 45 seconds | The call shows "Esta call não está sendo gravada". |
+| The recorder leaves a call that goes on (Grain's 3 hours for one file, or it stopped) | The chat asks for a new recorder, 5 times at most for one call. The 3 hours give one more recording. |
+| The conversion or the upload fails | The thread gets "A gravação da call falhou." |
+
+What the recorder had before it stopped is lost: the file goes to Grain only at the end. Grain's summary does not run by itself on an upload: a person clicks "Run Intelligence" there.
 
 ### Background blur
 

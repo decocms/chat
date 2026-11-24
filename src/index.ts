@@ -26,7 +26,7 @@ import { jwks } from "./mcpauth";
 import { avatarEmail, profileFor } from "./profile";
 import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
-import { recorderLinkValid } from "./calls";
+import { callRecorded, recorderLinkValid } from "./calls";
 import { recorderEmail } from "../shared/call";
 import { RecordedBody } from "../shared/schemas";
 import { pushTo } from "./webpush";
@@ -253,7 +253,7 @@ app.post("/api/calls/recorded", async (c) => {
   if (!secret || !safeEqual(c.req.header("authorization") ?? "", `Bearer ${secret}`)) return c.text("forbidden", 403);
   const body = RecordedBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.text("bad request", 400);
-  await bookStub(c.env, body.data.room).callRecorded(body.data.room, body.data.url);
+  await callRecorded(c.env, body.data);
   return c.text("ok");
 });
 

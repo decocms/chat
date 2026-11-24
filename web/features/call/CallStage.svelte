@@ -9,6 +9,8 @@
   import CameraDialog from "./CameraDialog.svelte";
   import Badge from "../../lib/studio/Badge.svelte";
   import { isRecorder } from "../../../shared/call";
+  /** How long a recorded room's call can be without its recorder before the warning shows. */
+  const RECORDER_GRACE_MS = 45_000;
   import type { CallSession } from "./session";
   /** The room's call. In the call: the stage (the shared screen, or the people) and its controls. Out of it while
    * a call is on: one line with who is there and the way in. */
@@ -76,6 +78,18 @@
   );
   const shown = $derived(shownBy ? screenOf(shownBy) : null);
   // The person I put on the stage (a click on a tile). Gone from the call: the grid again.
+  // In a room whose calls are recorded, a call without the recorder is a problem to see. The recorder takes
+  // some seconds to join, so the warning waits.
+  let waited = $state(false);
+  $effect(() => {
+    if ($view.phase !== "in" || recording) {
+      waited = false;
+      return;
+    }
+    const timer = setTimeout(() => (waited = true), RECORDER_GRACE_MS);
+    return () => clearTimeout(timer);
+  });
+  const unrecorded = $derived(!!room.callRecorded && !recording && waited);
   let pinned = $state("");
   let cameraOpen = $state(false);
   const pinnedPeer = $derived(peers.find((peer) => peer.email === pinned));
@@ -117,20 +131,26 @@
   />{/snippet}
 <!-- A person in the call: the camera, or the face. A click puts that person on the stage (and takes them off). -->
 {#snippet tile(
-  peer: { email: string; muted?: boolean },
+  peer: { email: string; muted?: boolean; tracks?: string[] },
   big: boolean,
 )}{@const cam = camOf(peer.email)}<button
     type="button"
     data-call-tile
     data-speaking={$view.speaking.includes(peer.email) || undefined}
-    aria-pressed={pinned === peer.email}
-    aria-label={t("Destacar {name}", { name: name(peer.email) })}
+    aria-pressed={shown ? shownBy === peer.email : pinned === peer.email}
+    aria-label={shown && peer.tracks?.includes("screen")
+      ? t("Ver a tela de {name}", { name: name(peer.email) })
+      : t("Destacar {name}", { name: name(peer.email) })}
     class={[
       "relative flex min-h-0 min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-0 bg-background p-0 ring-2 outline-none ring-inset focus-visible:ring-ring",
       $view.speaking.includes(peer.email) ? "ring-success" : "ring-transparent",
       big ? "size-full" : "aspect-video h-24 shrink-0",
     ]}
-    onclick={() => (pinned = pinned === peer.email ? "" : peer.email)}
+    onclick={() => {
+      // With a screen on the stage, a click chooses whose screen; else it puts the person on the stage.
+      if (!shown) pinned = pinned === peer.email ? "" : peer.email;
+      else if (peer.tracks?.includes("screen")) call.watch(peer.email);
+    }}
     >{#if cam}<!-- Muted: a camera's picture has no sound, the voices play apart. -->
       <video
         use:stream={cam}
@@ -145,7 +165,10 @@
         class="flex max-w-full items-center gap-1 rounded-md bg-background/80 px-1.5 py-0.5 text-xs"
         ><span class="truncate">{name(peer.email)}</span>{@render micOff(
           peer,
-        )}</span
+        )}{#if peer.tracks?.includes("screen")}<Icon
+            icon="monitor-01"
+            size={12}
+          />{/if}</span
       ></span
     ></button
   >{/snippet}
@@ -222,33 +245,14 @@
             false,
           )}{/each}
       </div>{/if}
-    {#if shown}<ul
+    <!-- A screen on the stage: the people in a row of small tiles (camera or face). A click on a person who
+         shares puts that screen on the stage. -->
+    {#if shown}<div
         data-call-people
-        class="m-0 flex list-none flex-wrap items-center justify-center gap-2 p-0"
+        class="flex shrink-0 justify-center gap-2 overflow-x-auto"
       >
-        {#each peers as peer (peer.email)}<li>
-            {#if peer.tracks.includes("screen")}<Button
-                size="sm"
-                variant="outline"
-                aria-pressed={shownBy === peer.email}
-                aria-label={t("Ver a tela de {name}", {
-                  name: name(peer.email),
-                })}
-                onclick={() => call.watch(peer.email)}
-                >{@render face(peer.email, "xs")}{name(
-                  peer.email,
-                )}{@render micOff(peer)}<Icon
-                  icon="monitor-01"
-                  size={14}
-                /></Button
-              >{:else}<span
-                class="flex h-7 items-center gap-1.5 px-2 text-xs text-muted-foreground"
-                >{@render face(peer.email, "xs")}{name(
-                  peer.email,
-                )}{@render micOff(peer)}</span
-              >{/if}
-          </li>{/each}
-      </ul>{/if}
+        {#each peers as peer (peer.email)}{@render tile(peer, false)}{/each}
+      </div>{/if}
     {#if $view.notice}<p
         data-call-notice
         role="status"
@@ -293,6 +297,17 @@
           >
         </div>
       </div>{/if}
+    {#if unrecorded}<p
+        data-call-unrecorded
+        role="alert"
+        class="m-0 flex items-center justify-center"
+      >
+        <Badge variant="warning"
+          ><Icon icon="alert-triangle" size={12} />{t(
+            "Esta call não está sendo gravada",
+          )}</Badge
+        >
+      </p>{/if}
     {#if recording}<p
         data-call-recording
         role="status"
