@@ -6,7 +6,7 @@
     PointerSensor,
     defaultPreset,
   } from "@dnd-kit/dom";
-  import { current } from "./sortOrder";
+  import { current, relift } from "./sortOrder";
 
   export const ROOT_GROUP = "root";
   export type SortMove = {
@@ -39,7 +39,7 @@
 </script>
 
 <script lang="ts">
-  import { onDestroy, type Snippet } from "svelte";
+  import { onDestroy, tick, type Snippet } from "svelte";
   import { DragDropProvider } from "@dnd-kit/svelte";
   import { isSortable } from "@dnd-kit/svelte/sortable";
 
@@ -82,6 +82,9 @@
     next.splice(from, 1);
     next.splice(to, 0, String(source.id));
     order = next;
+    // The parent draws the new order, which can move the dragged row's node: show it above the page again.
+    const lifted = source.element;
+    void tick().then(() => relift(lifted));
   }}
   onDragEnd={(event) => {
     const final = order && current(order, ids);

@@ -169,36 +169,73 @@ test("concurrent Search retains the existing Settings opening and ownership unti
   }
 });
 
-test("a drop on the rail saves the new order when you also have DMs, which are not on the rail (Gimenes #4223)", async () => {
+test("a drop on the rail reaches the server when you also have DMs, which are not on the rail (Gimenes #4223 #4234)", async () => {
   const timer = manualClock();
+  const sent: string[][] = [];
   const personal = createPersonalSession(
     homeApi({
       me: async () =>
         me({
           books: [room("aaaaaa"), room("dm1", { dm: 1 }), room("bbbbbb")],
         }),
+      order: async (ids) => {
+        sent.push(ids);
+        return { ok: true };
+      },
     }),
     { clock: timer.clock },
   );
   await personal.refresh();
-  const saved: string[][] = [];
-  const rooms = { order: async (ids: string[]) => void saved.push(ids) };
+  // The real rooms session: its own check also must leave the DMs out.
+  const rooms = createRoomsSession(personal, timer.clock);
   const controller = createAppNavigationSession(
     personal,
-    rooms as unknown as Parameters<typeof createAppNavigationSession>[1],
+    rooms,
     { navigate() {}, home() {}, archived() {} },
     timer.clock,
   );
   try {
     controller.order(["bbbbbb", "aaaaaa"]);
-    // The stub does not save positions, so the rail is still a, b: a moves down past b, and the DM stays out.
-    controller.move("aaaaaa", 1);
-    expect(saved).toEqual([
-      ["bbbbbb", "aaaaaa"],
-      ["bbbbbb", "aaaaaa"],
-    ]);
+    await settle();
+    expect(sent).toEqual([["bbbbbb", "aaaaaa"]]);
   } finally {
     controller.dispose();
+    rooms.dispose();
+    personal.dispose();
+  }
+});
+
+test("a room moved one place leaves the DMs out of the saved order", async () => {
+  const timer = manualClock();
+  const sent: string[][] = [];
+  const personal = createPersonalSession(
+    homeApi({
+      me: async () =>
+        me({
+          books: [room("aaaaaa"), room("dm1", { dm: 1 }), room("bbbbbb")],
+        }),
+      order: async (ids) => {
+        sent.push(ids);
+        return { ok: true };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const rooms = createRoomsSession(personal, timer.clock);
+  const controller = createAppNavigationSession(
+    personal,
+    rooms,
+    { navigate() {}, home() {}, archived() {} },
+    timer.clock,
+  );
+  try {
+    controller.move("aaaaaa", 1);
+    await settle();
+    expect(sent).toEqual([["bbbbbb", "aaaaaa"]]);
+  } finally {
+    controller.dispose();
+    rooms.dispose();
     personal.dispose();
   }
 });
