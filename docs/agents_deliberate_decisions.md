@@ -1724,7 +1724,7 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - The call is in the room's view and on the room's WebSocket. A person who opens a different room leaves the call. One person has one session.
   - A person who opens a room with a call on joins it with the microphone off (Jonas asked for the automatic join; the microphone off is my choice).
   - No SFU SDK and no TURN: the Worker calls the SFU's HTTPS API, and the browser uses `RTCPeerConnection` with STUN only.
-  - The SFU has no API for the traffic used. The browsers report the bytes that they received and D1 keeps the sum for the month. A screen share stops at 900 GB (`CALL_SCREEN_LIMIT_GB`), not at 1,000, because the sum is an estimate. The limit stops screens only, not cameras.
+  - The limit uses Cloudflare's real traffic for the account (the analytics API, with the token that the reports use) and, as a second count, the bytes that the browsers report. A screen share stops at 900 GB (`CALL_SCREEN_LIMIT_GB`), not at 1,000, to leave a margin. The limit stops screens only, not cameras.
   - To spare traffic, a browser receives no camera while a screen is on show, and one screen at a time.
   - A microphone that is off is a disabled track, not a sender without a track: the SFU refuses to give the others a track that never sent (`empty_track_error`).
   - The Google Meet path keeps no Google token (AGENTS.md, rule 1): the person opens `meet.new`, pastes the link, and the app posts it with a mention of each person in the call.

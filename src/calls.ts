@@ -6,7 +6,7 @@ import * as z from "zod/mini";
 import type { Env } from "./index";
 import { bookStub } from "./rooms";
 import { CallSfuResult, type CallDescription, type CallTracksBody } from "../shared/schemas";
-import { CALL_SCREEN_LIMIT_GB, GB, overScreenLimit, recordsRoom, usageMonth } from "./callBudget";
+import { CALL_SCREEN_LIMIT_GB, EGRESS_QUERY, GB, egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "./callBudget";
 import { hmac, safeEqual } from "./auth";
 import { isRecorder } from "../shared/call";
 
@@ -27,19 +27,39 @@ async function sfu(env: Env, method: "POST" | "PUT", path: string, body?: unknow
 }
 
 // ---- the month's screen-share budget ----
-// The SFU bills egress ($0.05 per GB) after 1,000 GB a month, and has no API that says how much was used. So each
-// browser in a call reports the bytes it received (the `call.usage` command) and D1 keeps the month's sum.
-// ponytail: the sum is what browsers say, and it does not see TURN or another app on the account. The bill is the
-// truth; if they drift apart, read the account's usage from Cloudflare instead.
+// The SFU bills egress ($0.05 per GB) after 1,000 GB a month, for the account (TURN and other SFU apps count).
+// Two counts: Cloudflare's analytics API has the real number (accountEgress), and each browser in a call reports
+// the bytes it received (the `call.usage` command), which D1 sums for the month.
 /** One report covers about 30 seconds: more than this is not a real number. */
 const REPORT_MAX = 2 * GB;
 export async function addCallUsage(env: Env, bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return;
   await env.DB.prepare(`INSERT INTO call_usage (month, bytes) VALUES (?, ?) ON CONFLICT(month) DO UPDATE SET bytes = bytes + excluded.bytes`).bind(usageMonth(), Math.min(Math.round(bytes), REPORT_MAX)).run();
 }
+/** The account's real egress this month, read at most each 10 minutes. null: no token, or the API did not answer. */
+let egress: { at: number; month: string; bytes: number } | undefined;
+async function accountEgress(env: Env): Promise<number | null> {
+  if (!env.CF_ANALYTICS_TOKEN || !env.CF_ACCOUNT_ID) return null;
+  if (egress && egress.month === usageMonth() && Date.now() - egress.at < 600_000) return egress.bytes;
+  const [from, to] = monthDays();
+  const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.CF_ANALYTICS_TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify({ query: EGRESS_QUERY, variables: { account: env.CF_ACCOUNT_ID, from, to } }),
+  });
+  const bytes = res.ok ? egressFrom(await res.json()) : null;
+  if (bytes === null) return null;
+  egress = { at: Date.now(), month: usageMonth(), bytes };
+  return bytes;
+}
+/** The larger of the two counts decides: Cloudflare's real number (the bill), and what the browsers reported
+ *  (it is there at once, and it stays when the API does not answer). */
 async function screenAllowed(env: Env) {
-  const row = await env.DB.prepare(`SELECT bytes FROM call_usage WHERE month = ?`).bind(usageMonth()).first<{ bytes: number }>();
-  return !overScreenLimit(row?.bytes ?? 0, Number(env.CALL_SCREEN_LIMIT_GB) || CALL_SCREEN_LIMIT_GB);
+  const [real, row] = await Promise.all([
+    accountEgress(env).catch(() => null),
+    env.DB.prepare(`SELECT bytes FROM call_usage WHERE month = ?`).bind(usageMonth()).first<{ bytes: number }>(),
+  ]);
+  return !overScreenLimit(Math.max(real ?? 0, row?.bytes ?? 0), Number(env.CALL_SCREEN_LIMIT_GB) || CALL_SCREEN_LIMIT_GB);
 }
 
 // ---- what a member in the call may ask the SFU ----

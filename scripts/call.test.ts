@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
-import { overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
+import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
 import { isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
 
 const peers = [
@@ -101,4 +101,13 @@ test("the recorder is one room's, is not a person, and only listed rooms are rec
   expect(recordsRoom("zzz999zzz999, abc123def456", "abc123def456")).toBe(true);
   expect(recordsRoom("zzz999zzz999", "abc123def456")).toBe(false);
   expect(recordsRoom("*", "abc123def456")).toBe(true);
+});
+
+test("the account's real egress is the SFU's plus TURN's, and a strange answer is no number", () => {
+  expect(egressFrom({ data: { viewer: { accounts: [{ sfu: [{ sum: { egressBytes: 52_800_000 } }], turn: [] }] } } })).toBe(52_800_000);
+  expect(egressFrom({ data: { viewer: { accounts: [{ sfu: [{ sum: { egressBytes: 10 } }], turn: [{ sum: { egressBytes: 5 } }] }] } } })).toBe(15);
+  expect(egressFrom({ data: { viewer: { accounts: [{ sfu: [], turn: [] }] } } })).toBe(0);
+  expect(egressFrom({ errors: [{ message: "not authorized" }], data: null })).toBe(null);
+  expect(monthDays(Date.UTC(2026, 10, 24))).toEqual(["2026-11-01", "2026-11-30"]);
+  expect(monthDays(Date.UTC(2028, 1, 10))).toEqual(["2028-02-01", "2028-02-29"]);
 });

@@ -138,7 +138,7 @@ The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a mon
 | A person alone in the call cannot share a screen. A screen that did not change for 10 minutes stops. | `stopShare`, `SCREEN_IDLE_REPORTS` |
 | At 900 GB in a month, the Worker refuses a new screen share (409). The app then asks for a Google Meet link and posts it in the room, with a mention of each person in the call. Voice and cameras continue. | `CALL_SCREEN_LIMIT_GB`, `src/callBudget.ts` |
 
-The SFU has no API for the traffic used. Each browser in a call reports the bytes that it received (`call.usage`, each 30 seconds), and D1 keeps the sum for the month (`call_usage`). The sum is an estimate: it does not see TURN or other apps of the account.
+The limit uses the larger of two counts. The first is the account's real traffic, from Cloudflare's analytics API (`accountEgress`, the datasets `callsUsageAdaptiveGroups` and `callsTurnUsageAdaptiveGroups`, with `CF_ANALYTICS_TOKEN`). The Worker reads it each 10 minutes at most. The second is what each browser in a call reports (`call.usage`, each 30 seconds), which D1 sums for the month (`call_usage`). It is there at once, and it stays when the API does not answer.
 
 ### The recorder
 
