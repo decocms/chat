@@ -802,6 +802,7 @@ const EN: Readonly<Record<string, string>> = {
     "Write here to keep going: it reopens.",
   votação: "poll",
   "Abrir em tela cheia": "Open full screen",
+  Baixar: "Download",
   Tabela: "Table",
   "Ver a mensagem respondida": "See the message being replied to",
   "mensagem anterior": "earlier message",
