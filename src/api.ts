@@ -126,6 +126,8 @@ export interface ApiServices {
   track(name: string, dims?: Record<string, string | number | boolean | undefined>): void;
   /** Tell the person's other tabs and devices to refetch /api/me (after the response). */
   pokeMe(): void;
+  /** You cleared one wait (the Inbox's ✓): the room checks if the router read it, for a suggested case (after the response). */
+  waitCleared(bookId: string, ref: string): void;
   vapidKey: string | null;
   /** Push to your devices; with `endpoint`, only to that one device. */
   pushToMe(p: { title: string; body: string; url: string; tag: string }, endpoint?: string): Promise<number>;
@@ -336,6 +338,7 @@ export const api = roomPosts
     const { book_id, ref } = c.req.valid("json"), svc = c.get("svc");
     await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
+    svc.waitCleared(book_id, ref);
     svc.track("wait_resolved", { book: book_id });
     return c.json(ok, 200);
   })

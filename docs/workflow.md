@@ -30,7 +30,7 @@ Rules:
    - If you removed old violations, the check also fails. Run `bun scripts/guidelines-check.ts --update`. Commit `scripts/data/guidelines-baseline.json`.
 3. If you changed the browser, run the browser tests for that area (`test:*:browser` scripts in `package.json`). They need Playwright Chromium (`bunx playwright install chromium`).
 4. If you changed the agent tools, run `bun scripts/agent-check.ts` against local development.
-5. If you changed the router, the "Router bench" workflow runs `bun scripts/router-bench.ts` on main and on your branch and comments the scores on the pull request. Put the scores before and after the change in the pull request. This is a hard rule (AGENTS.md, rule 14). Every case must pass, also the production cases in D1 (`router_feedback`), and a score must not go down. A case that fails runs two more times and passes if both pass. New behavior gets new cases in `scripts/router-cases.json` or `scripts/router-action-cases.json`.
+5. If you changed the router, the "Router bench" workflow runs `bun scripts/router-bench.ts` on main and on your branch and comments the scores on the pull request. Put the scores before and after the change in the pull request. This is a hard rule (AGENTS.md, rule 14). Every case must pass, also the production cases in D1 (table `router_feedback`: wake and every router action, each its own part), and a score must not go down. A case that fails runs two more times and passes if both pass. New behavior gets new cases in `scripts/router-cases.json` or `scripts/router-action-cases.json`.
 
 ## CI
 

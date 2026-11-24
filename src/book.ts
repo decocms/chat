@@ -72,6 +72,9 @@ const DEFAULT_TITLE = "Nova sala";
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
+/** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
+ *  made): the router was maybe wrong, so it becomes a suggested case in D1 router_feedback. */
+const UNDO_WINDOW_MS = 30 * 60_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
 const CLASSIFY_MIN_NEW_MSGS = 3; // after the first classification
@@ -1069,6 +1072,14 @@ export class Book extends DurableObject<Env> {
   deleteEpic(id: string) {
     if (id === "main" || !this.epics().some((epic) => epic.id === id)) return new Refused("unknown epic");
     const bookId = this.get("book_id");
+    // A reply thread the router made, deleted soon: maybe the question was not one (a suggested case).
+    const made = this.get(`router_made:${id}`);
+    if (made) {
+      this.sql.exec(`DELETE FROM meta WHERE k = ?`, `router_made:${id}`);
+      const c = JSON.parse(made) as { msg: number; author: string; ts: number };
+      if (Date.now() - c.ts < UNDO_WINDOW_MS)
+        this.ctx.waitUntil(this.routerFeedback({ msgId: c.msg, action: "answer_thread", who: "", status: "suggested", expected: "no", reporter: c.author, note: "thread de resposta apagada logo depois" }).catch((e) => console.error("router feedback", String(e))));
+    }
     this.sql.exec(`DELETE FROM tasks WHERE epic_id = ?`, id);
     this.sql.exec(`DELETE FROM messages WHERE thread = ?`, id);
     this.sql.exec(`DELETE FROM epics WHERE id = ?`, id);
@@ -1165,7 +1176,17 @@ export class Book extends DurableObject<Env> {
    *  thread at once, else one Jev call asks every action that applies (a question in main → an answer thread; "pode
    *  fechar" in a thread → done). */
   personWrote(thread: string, text: string, msg?: { id: number; author: string }) {
-    if (!(thread !== "main" && isMarkDone(text) && this.openThread(thread))) this.reopenIfArchived(thread);
+    if (!(thread !== "main" && isMarkDone(text) && this.openThread(thread))) {
+      // Opened again soon after the router closed it in Jev's words: maybe the router was wrong (a suggested case).
+      const closed = this.get(`jev_done:${thread}`);
+      if (closed && !this.openThread(thread)) {
+        this.sql.exec(`DELETE FROM meta WHERE k = ?`, `jev_done:${thread}`);
+        const c = JSON.parse(closed) as { msg: number; author: string; ts: number };
+        if (Date.now() - c.ts < UNDO_WINDOW_MS && c.author)
+          this.ctx.waitUntil(this.routerFeedback({ msgId: c.msg, action: "mark_done", who: "", status: "suggested", expected: "no", reporter: c.author, note: "reaberta logo depois" }).catch((e) => console.error("router feedback", String(e))));
+      }
+      this.reopenIfArchived(thread);
+    }
     this.ctx.waitUntil(this.routerActions({ id: msg?.id ?? 0, thread, author: msg?.author ?? "", text }).catch((e) => console.error("router actions", String(e))));
   }
   openThread(thread: string) {
@@ -1181,9 +1202,11 @@ export class Book extends DurableObject<Env> {
         return !!bookId && !!(await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first());
       },
       hasThreadFrom: (msgId) => this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length > 0,
-      markDone: (thread, via) => {
+      markDone: (thread, via, m) => {
         this.setEpicStatus(thread, "done");
         this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: via === "exact" ? "mark_done" : "mark_done_jev" } }));
+        // A Jev close that a person undoes soon is a suggested case (personWrote).
+        if (via === "jev" && m?.id) this.set(`jev_done:${thread}`, JSON.stringify({ msg: m.id, author: m.author, ts: Date.now() }));
         // Words, not the exact phrase: say what happened, so a wrong guess is one message away from undone.
         if (via === "jev")
           this.addMessage(thread, "ai", this.en
@@ -1245,6 +1268,43 @@ export class Book extends DurableObject<Env> {
     // findWaits skips a person's message that this pass read (the newest 200 ids).
     const live: number[] = JSON.parse(this.get("waits_live") ?? "[]");
     this.set("waits_live", JSON.stringify([...live, id].slice(-200)));
+  }
+  /** A case for the router's bench (D1 router_feedback) about a router action or reading on a person's message, with
+   *  what the bench needs to run it again: the text, the thread, the talk before it and the room's other people. A
+   *  suggestion never replaces a case a person gave. `who`: for a reading, the person it is about (email or name).
+   *  The wake cases are written by MCP router_feedback (src/agent.ts), from routerInput. */
+  async routerFeedback(c: { msgId: number; action: string; who: string; status: "case" | "suggested"; expected: string; reporter: string; note?: string }) {
+    const bookId = this.get("book_id");
+    const m = this.sql.exec<{ thread: string; author: string; text: string }>(`SELECT thread, author, text FROM messages WHERE id = ?`, c.msgId).toArray()[0];
+    if (!bookId || !m || m.author === "ai") return { ok: false as const, error: "no such message from a person in this room" };
+    const w = await this.waitNames();
+    const people = w.members.filter((e) => e !== m.author).map((email) => ({ email, name: w.nm(email) }));
+    let who = "";
+    if (c.who) {
+      const q = c.who.trim().toLowerCase();
+      const hit = people.find((p) => p.email === q || p.name.toLowerCase() === q || p.name.toLowerCase().split(/\s+/)[0] === q.replace(/^@/, ""));
+      if (!hit) return { ok: false as const, error: `${c.who} is not another person in this room` };
+      who = hit.email;
+    }
+    const topic = m.thread === "main" ? "main" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    await this.env.DB.prepare(
+      `INSERT INTO router_feedback (book_id, msg_id, action, who, status, reporter, own, name, sender, text, thread, topic, recent, people, expected, note, ts)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (book_id, msg_id, action, who) DO UPDATE SET status = excluded.status, reporter = excluded.reporter, expected = excluded.expected, note = excluded.note, ts = excluded.ts
+       WHERE excluded.status = 'case' OR router_feedback.status = 'suggested'`,
+    )
+      .bind(bookId, c.msgId, c.action, who, c.status, c.reporter, w.nm(m.author), w.nm(m.author), m.text.slice(0, 1500), m.thread, topic, w.before(m.thread, c.msgId), JSON.stringify(people), c.expected, (c.note ?? "").slice(0, 300), Date.now())
+      .run();
+    this.ctx.waitUntil(track(this.env, "router_feedback", { user: c.reporter, dims: { book: bookId, action: c.action, status: c.status, expected: c.expected } }));
+    return { ok: true as const, who: who || undefined };
+  }
+  /** A person cleared a wait (the Inbox's ✓) that the router read from a person's message without them writing in
+   *  that thread: maybe it was not for them (a suggested waits case). */
+  async waitCleared(ref: string, email: string) {
+    const id = /^m\d+$/.test(ref) ? Number(ref.slice(1)) : 0;
+    const live: number[] = JSON.parse(this.get("waits_live") ?? "[]");
+    if (!id || !live.includes(id)) return;
+    await this.routerFeedback({ msgId: id, action: "waits", who: email, status: "suggested", expected: "no", reporter: email, note: "espera dispensada no inbox" });
   }
   /** One pass of the router actions over a person's message. Without Jev (MODEL_JUDGE unset or off) only the exact
    *  phrases act. The exact path runs before any await (see runRouterActions). */
@@ -1416,6 +1476,8 @@ export class Book extends DurableObject<Env> {
     const line = text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
     const id = this.createEpic(cut, [{ title: this.en ? "Answer in the doc" : "Responder no doc" }], [email.toLowerCase()], line.slice(0, 300));
     this.set(`answer:${id}`, "1");
+    // The router made it: deleted soon by a person = a suggested case (deleteEpic).
+    this.set(`router_made:${id}`, JSON.stringify({ msg: msgId, author: email.toLowerCase(), ts: Date.now() }));
     this.setDoc(`# ${cut}\n`, "tasks", undefined, id); // an answer's doc starts empty: the answer goes here, not a plan template (pushed to open tabs)
     this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email.toLowerCase(), msgId, id);
     this.epicsChanged();
