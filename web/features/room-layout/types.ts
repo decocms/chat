@@ -74,6 +74,8 @@ export type RoomLayoutProps = {
   attention?: Snippet;
   chat: Snippet;
   composer: Snippet;
+  /** In Expand, one line over the floating composer (what came back after you wrote). */
+  focusPeek?: Snippet;
   /** The phone's bottom tab bar, a row under the composer on phones only. */
   tabbar?: Snippet;
   documentToolbar: Snippet;

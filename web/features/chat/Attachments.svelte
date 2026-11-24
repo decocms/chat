@@ -6,6 +6,7 @@
   import { kb } from "../../app/panels";
   import Icon from "../../lib/studio/Icon.svelte";
   import Button from "../../lib/studio/Button.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
   let {
     roomId,
     files = [],
@@ -86,37 +87,46 @@
           {actions}
           {vb}
         />
-      {:else if beside(file) && actions.openSideFile}<div
+      {:else if beside(file) && actions.openSideFile}<!-- One card that opens the file beside the chat; full screen and download are icons, so it holds at any width. -->
+        <div
           data-html-file-card
-          class="flex w-full items-center gap-2 rounded-control border border-border p-3"
+          class="flex w-full max-w-md min-w-0 items-center gap-1 rounded-control border border-border p-1.5 pr-2"
         >
-          <Icon
-            icon="file-02"
-            size={16}
-            class="shrink-0 text-muted-foreground"
-          />
-          <b class="min-w-0 flex-1 truncate">{file.name}</b>
-          {#if actions.sideFileName === file.name}<span
-              class="text-xs text-primary">{vb.t("aberto ao lado")}</span
-            >{:else}<Button
-              variant="ghost"
-              onclick={(event) => {
-                if (active && event.currentTarget.isConnected)
-                  actions.openSideFile?.(file);
-              }}>{vb.t("Abrir")}</Button
-            >{/if}
-          <a
+          <button
+            type="button"
+            data-file-open-beside
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[calc(var(--radius-control)-2px)] border-0 bg-transparent p-1.5 text-left text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+            onclick={(event) => {
+              if (active && event.currentTarget.isConnected)
+                actions.openSideFile?.(file);
+            }}
+            ><span
+              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+              ><Icon icon="file-02" size={18} /></span
+            ><span class="min-w-0 flex-1"
+              ><span class="block truncate text-sm font-semibold"
+                >{file.name}</span
+              ><span class="block truncate text-xs text-muted-foreground"
+                >{actions.sideFileName === file.name
+                  ? vb.t("aberto ao lado")
+                  : `${(file.name.split(".").pop() ?? "").toUpperCase()} · ${kb(file.size)}`}</span
+              ></span
+            ></button
+          ><IconButton
+            label={vb.t("Abrir em tela cheia")}
             href={url(file)}
+            size="icon"
+            class="text-muted-foreground hover:text-foreground"
             onclick={(event) => open(event, file)}
-            class="text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
-            >{vb.t("Abrir em tela cheia")}</a
-          >
-          <a
+            ><Icon icon="expand-01" size={18} /></IconButton
+          ><IconButton
+            label={vb.t("Baixar")}
             data-file-download
             href={url(file)}
             download={file.name}
-            class="text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
-            >{vb.t("Baixar")}</a
+            size="icon"
+            class="text-muted-foreground hover:text-foreground"
+            ><Icon icon="download-01" size={18} /></IconButton
           >
         </div>
       {:else if file.type.startsWith("audio/")}<div

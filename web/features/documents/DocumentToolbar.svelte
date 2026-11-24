@@ -62,7 +62,8 @@
       ] as const
     ).map((id) => ({ id, label: paneLabel(id, en) })),
     ...(sideFileName
-      ? [{ id: "view" as const, label: paneLabel("view", en) }]
+      ? // Like an editor tab: the open file's own name, not "Beside chat" (Valls).
+        [{ id: "view" as const, label: sideFileName }]
       : []),
   ]);
   const epic = $derived(

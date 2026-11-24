@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FocusPeek from "./FocusPeek.svelte";
   import { onDestroy, tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import { provideRichFileIndex } from "../rich-text/fileContext";
@@ -338,6 +339,13 @@
           {...$view.suggestion}
         />{:else if $view.chat}<Chat {...$view.chat} />{/if}
     {/if}{/snippet}
+  {#snippet focusPeek()}{#if $view?.chat && $personal.me}<FocusPeek
+        room={$view.chat.room}
+        thread={$view.chat.thread}
+        list={$view.chat.list}
+        me={$personal.me.email}
+        vb={$view.chat.vb}
+      />{/if}{/snippet}
   {#snippet composer()}{#if $view?.composer}<Composer
         {...$view.composer}
         hidden={$view.composer.hidden}
