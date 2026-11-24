@@ -394,11 +394,22 @@ try {
   await b.goto(`${app}/b/${room}?t=${epic}`);
   await edit(a);
   await edit(b);
-  const crumb = a.getByRole("navigation", { name: "Document scope" });
-  await expect(crumb).toBeVisible();
-  await crumb.getByRole("button").first().click();
+  // The header's … menu switches between the room's doc and the thread's.
+  const scope = async (name: "Room doc" | "Thread doc") => {
+    await a
+      .locator("[data-document-bar]")
+      .getByRole("button", { name: "More options" })
+      .click();
+    await a.getByRole("menuitemradio", { name }).click();
+  };
+  await expect(
+    a.locator("[data-document-bar]").getByRole("button", {
+      name: "More options",
+    }),
+  ).toBeVisible();
+  await scope("Room doc");
   await expect(documentEditor(a)).toContainText("AGENT_CANONICAL_UPDATE");
-  await crumb.getByRole("button").last().click();
+  await scope("Thread doc");
   await expect(documentEditor(a)).not.toContainText("AGENT_CANONICAL_UPDATE");
   const original = await documentEditor(a).elementHandle();
   assert(original);
@@ -455,7 +466,9 @@ try {
   const rootBeforeDelete = await readDoc();
   await agent("delete_thread", { room_id: room, epic_id: epic });
   await expect(
-    a.getByRole("navigation", { name: "Document scope" }),
+    a.locator("[data-document-bar]").getByRole("button", {
+      name: "More options",
+    }),
   ).toHaveCount(0);
   await expect.poll(() => readDoc()).toBe(rootBeforeDelete);
   assert.equal(

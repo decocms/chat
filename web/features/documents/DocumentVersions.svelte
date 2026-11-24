@@ -6,7 +6,11 @@
   import type { DocumentProps } from "./types";
   import Button from "../../lib/studio/Button.svelte";
   import DocumentPreview from "./DocumentPreview.svelte";
-  import Self from "./DocumentVersions.svelte";
+  import Select from "../../lib/studio/Select.svelte";
+  import SelectContent from "../../lib/studio/SelectContent.svelte";
+  import SelectItem from "../../lib/studio/SelectItem.svelte";
+  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
+  import SelectValue from "../../lib/studio/SelectValue.svelte";
   import type { DocumentSession } from "./session";
   import { docVersionList, docVersionOpen } from "./versions";
   let {
@@ -18,7 +22,7 @@
     owner: DocumentSession;
     props: DocumentProps;
     epic: string | null;
-    /** "picker" = the select, drawn on the title's line by DocumentPreview's aside; "open" = the old version's view
+    /** "picker" = the small select in the pane's header row; "open" = the old version's view
      *  (and the one instance that asks for the list). */
     part: "picker" | "open";
   } = $props();
@@ -64,10 +68,19 @@
   const number = $derived(
     open ? list.length - list.findIndex((v) => v.id === open.id) : 0,
   );
-  function pick(event: Event) {
-    const value = (event.currentTarget as HTMLSelectElement).value;
-    if (value) props.send({ t: "doc.version", id: Number(value) });
-    else docVersionOpen.set(null);
+  const LIVE = "live";
+  let trigger = $state<HTMLElement | null>(null);
+  const label = $derived(props.taskProps.vb.t("Versões do doc"));
+  const versions = $derived([
+    { value: LIVE, label: props.taskProps.vb.t("Atual (ao vivo)") },
+    ...list.map((v, i) => ({
+      value: String(v.id),
+      label: `v${list.length - i} · ${when(v.ts)} · ${who(v.by)}`,
+    })),
+  ]);
+  function pick(value: string) {
+    if (value === LIVE) docVersionOpen.set(null);
+    else props.send({ t: "doc.version", id: Number(value) });
   }
   function restore() {
     if (!open) return;
@@ -90,24 +103,38 @@
   }
 </script>
 
-{#if part === "picker" && list.length}<div
+{#if part === "picker" && list.length}<label
     data-doc-versions
-    class="flex items-center gap-2 text-xs text-muted-foreground"
-  >
-    <select
-      aria-label={en ? "Doc versions" : "Versões do doc"}
-      class="max-w-full rounded-control border border-border bg-background px-2 py-1 text-xs text-foreground"
-      onfocus={() => props.send({ t: "doc.versions", epic })}
-      onchange={pick}
-      ><option value="" selected={!open}
-        >{en ? "Current (live)" : "Atual (ao vivo)"}</option
-      >{#each list as v, i (v.id)}<option
-          value={v.id}
-          selected={open?.id === v.id}
-          >v{list.length - i} · {when(v.ts)} · {who(v.by)}</option
-        >{/each}</select
+    class="flex max-w-[55%] min-w-0 shrink items-center text-sm"
+    ><span class="sr-only">{label}</span>
+    <Select
+      items={versions}
+      bind:value={
+        () => (open ? String(open.id) : LIVE),
+        (value) => {
+          if (trigger?.isConnected) pick(value);
+        }
+      }
+      onOpenChange={(opened) => {
+        if (opened) props.send({ t: "doc.versions", epic });
+      }}
     >
-  </div>{/if}
+      <SelectTrigger
+        bind:ref={trigger}
+        aria-label={label}
+        size="sm"
+        class="w-auto max-w-full min-w-0"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent class="font-sans">
+        {#each versions as version (version.value)}<SelectItem
+            value={version.value}
+            label={version.label}>{version.label}</SelectItem
+          >{/each}
+      </SelectContent>
+    </Select>
+  </label>{/if}
 {#if part === "open" && open}<div
     data-doc-version-open
     class="flex min-h-0 flex-1 flex-col overflow-auto"
@@ -130,12 +157,10 @@
         >{en ? "Back to current" : "Voltar ao atual"}</Button
       >
     </div>
-    {#key open.id}<DocumentPreview {owner} text={open.text} {epic} {props}
-        >{#snippet aside()}<Self
-            {owner}
-            {props}
-            {epic}
-            part="picker"
-          />{/snippet}</DocumentPreview
-      >{/key}
+    {#key open.id}<DocumentPreview
+        {owner}
+        text={open.text}
+        {epic}
+        {props}
+      />{/key}
   </div>{/if}

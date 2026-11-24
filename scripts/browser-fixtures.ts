@@ -197,7 +197,7 @@ export async function openRoomSidebar(page: Page) {
 
 export async function documentMode(page: Page, mode: "preview" | "edit") {
   await openRoomPane(page, "doc");
-  const toggle = page.locator("[data-document] > footer").getByRole("button", {
+  const toggle = page.locator("[data-document-bar]").getByRole("button", {
     name: mode === "preview" ? /^(Done|Pronto)$/ : /^(Edit|Editar)$/,
   });
   if (await toggle.isVisible()) await toggle.click();
