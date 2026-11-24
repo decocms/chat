@@ -26,6 +26,7 @@
   import AgentFoot from "../agents/AgentFoot.svelte";
   import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
+  import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -319,6 +320,7 @@
       />{/if}{/snippet}
   {#snippet attention()}{#if $view}
       <div>
+        <NotifyOffer owner={services.pwa} lang={services.language} />
         <div>
           {#if $view.banners}<AgentBanners
               {...$view.banners}
@@ -339,6 +341,7 @@
   {#snippet composer()}{#if $view?.composer}<Composer
         {...$view.composer}
         hidden={$view.composer.hidden}
+        onsend={() => services.pwa.offerOnSend()}
       />{/if}{/snippet}
   <!-- Desktop pane tabs live in the room header now (one top bar). -->
   {#snippet documentToolbar()}{/snippet}

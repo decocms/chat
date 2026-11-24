@@ -8,7 +8,38 @@ type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem">;
 export const NOTIFY_KEY = "vb.notify",
   SOUND_KEY = "vb.sound",
   /** The old single switch for sound and notifications ("1" = muted). Read once by the migration. */
-  LEGACY_MUTE_KEY = "vb.mute";
+  LEGACY_MUTE_KEY = "vb.mute",
+  /** "1" after this device was offered notifications once (banner or first send). It is not offered again. */
+  ASKED_KEY = "vb.notifyAsked";
+
+export function readAsked(storage: Storage | null) {
+  try {
+    return storage?.getItem(ASKED_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Notifications are on by default in spirit: a device that never chose gets
+ * one offer (Gimenes #4354, #4363). The browser still needs its own prompt,
+ * which opens only from a click or a key, so the offer is a banner and the
+ * first send.
+ */
+export function notificationOffer(view: {
+  permission: Permission;
+  iosWeb: boolean;
+  pushSupported: boolean;
+  notifications: boolean;
+  asked: boolean;
+}) {
+  return (
+    notificationAvailability(view) === "ready" &&
+    view.permission === "default" &&
+    !view.notifications &&
+    !view.asked
+  );
+}
 
 export function deviceStorage(): Storage | null {
   try {

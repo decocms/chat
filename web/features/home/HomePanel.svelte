@@ -5,6 +5,7 @@
   import Button from "../../lib/studio/Button.svelte";
   import { tabTitle } from "../notifications/title";
   import InstallCard from "../pwa/InstallCard.svelte";
+  import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import ChatField from "../composer/ChatField.svelte";
@@ -415,6 +416,7 @@
       >
     </div>
     <div class="mb-2 px-2">
+      <NotifyOffer owner={pwa} {lang} card />
       <InstallCard owner={pwa} {lang} compact />
     </div>
     <ChatList
@@ -457,6 +459,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
+        <NotifyOffer owner={pwa} {lang} card />
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">

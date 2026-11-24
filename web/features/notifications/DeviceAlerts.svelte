@@ -8,7 +8,7 @@
   import Switch from "../../lib/studio/Switch.svelte";
   /**
    * The two alert rows of "This device" on /settings, in the card style of the
-   * other rows: Notifications (push to this device, off by default) and Sound
+   * other rows: Notifications (push to this device, off until the person turns it on; a device that never chose gets one offer, see NotifyOffer) and Sound
    * (the in-app chime, on by default). Each switch is independent.
    */
   let {

@@ -44,6 +44,7 @@
     speechFactory,
     mediaFactory,
     voice: voicePort,
+    onsend,
   }: ComposerProps = $props();
   const entry = untrack(() =>
     drafts.entry({ account: room.me, roomId: room.id, thread }),
@@ -497,7 +498,9 @@
       }, 100);
     }}
     onsubmit={() => {
-      if (canInteract()) void entry.submit();
+      if (!canInteract()) return;
+      if (/\S/.test($draft.text) || $draft.attachments.length) onsend?.();
+      void entry.submit();
     }}
     onkeydown={keydown}
     mention={(handle) => knownMention(handle, room, vb.knownNames)}

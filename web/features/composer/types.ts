@@ -27,6 +27,8 @@ export type ComposerProps = {
   speechFactory?: SpeechFactory | null;
   mediaFactory?: FireCaptureFactory | null;
   voice?: ComposerVoicePort;
+  /** Called in the send gesture, before the send. The room uses it to ask for notifications on the first send. */
+  onsend?: () => void;
 };
 export type ComposerScope = Readonly<{
   account: string;
