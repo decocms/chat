@@ -12,6 +12,8 @@
     type AppTarget,
   } from "./model";
   import AppFrame from "./AppFrame.svelte";
+  import { buttonVariants } from "../../lib/studio/button";
+  import { externalFileURL } from "../file-viewer/model";
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
   import Label from "../../lib/studio/Label.svelte";
@@ -162,7 +164,16 @@
                   )
                     owner.reload();
                 }}>{props.t("Recarregar")}</Button
-              >
+              >{#if app && "file" in app}<!-- A room app is an HTML file: it opens alone in a new tab like any HTML, so its link can be sent (Gui #4273). --><a
+                  class={buttonVariants({ variant: "ghost" })}
+                  href={externalFileURL(
+                    { roomId: props.room.id, id: app.file.id },
+                    location.origin,
+                    false,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer">{props.t("Abrir em outra aba")}</a
+                >{/if}
             </div>
           {/snippet}</Snapshot
         >{/key}
