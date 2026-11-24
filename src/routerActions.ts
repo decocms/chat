@@ -118,7 +118,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     when: (m, room) => m.thread !== "main" && room.openThread(m.thread),
     exact: isMarkDone,
     question:
-      'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
+      'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar", "arquiva essa")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room, via) => room.markDone(m.thread, via),
   },

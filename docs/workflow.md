@@ -30,7 +30,7 @@ Rules:
    - If you removed old violations, the check also fails. Run `bun scripts/guidelines-check.ts --update`. Commit `scripts/data/guidelines-baseline.json`.
 3. If you changed the browser, run the browser tests for that area (`test:*:browser` scripts in `package.json`). They need Playwright Chromium (`bunx playwright install chromium`).
 4. If you changed the agent tools, run `bun scripts/agent-check.ts` against local development.
-5. If you changed the router, the "Router bench" workflow runs `bun scripts/router-bench.ts` on main and on your branch and comments the scores on the pull request. Put the scores before and after the change in the pull request. This is a hard rule (AGENTS.md, rule 14). A score must not go down. New behavior gets new cases in `scripts/router-cases.json` or `scripts/router-action-cases.json`.
+5. If you changed the router, the "Router bench" workflow runs `bun scripts/router-bench.ts` on main and on your branch and comments the scores on the pull request. Put the scores before and after the change in the pull request. This is a hard rule (AGENTS.md, rule 14). Every case must pass, also the production cases in D1 (`router_feedback`), and a score must not go down. A case that fails runs two more times and passes if both pass. New behavior gets new cases in `scripts/router-cases.json` or `scripts/router-action-cases.json`.
 
 ## CI
 
@@ -47,7 +47,7 @@ The rule: quick CI on pull requests, long CI on `main`.
   - `app-hmr` (label `run-hmr`): hot reload of `bun run dev:app`.
   - `chunk-diagnostics` (label `run-chunk-diagnostics`): which modules go into each chunk of the browser build.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
-- `router-bench` (`.github/workflows/router-bench.yml`) runs only on a pull request that touches the router (AGENTS.md, rule 14), and by hand. It needs the `OPENROUTER_API_KEY` repository secret. It comments the scores on the pull request and fails when a score goes down. If it fails, do not merge: fix the change or ask a human.
+- `router-bench` (`.github/workflows/router-bench.yml`) runs only on a pull request that touches the router (AGENTS.md, rule 14), and by hand. It needs the `OPENROUTER_API_KEY` and `CLOUDFLARE_API_TOKEN` (D1 read only) repository secrets. It comments the scores on the pull request and fails when a case fails or a score goes down. It does not print the text of a D1 case, because the logs are public. If it fails, do not merge: fix the change or ask a human.
 - If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 
 ## Build output

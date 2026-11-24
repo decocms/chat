@@ -159,16 +159,26 @@ test("Jev down: no action", async () => {
   expect(did).toEqual([]);
 });
 
-test("the bench check fails when a score goes down or false yes goes up, and shows new parts", () => {
+test("the bench check fails when a case misses, a score goes down or false yes goes up, and shows new parts", () => {
   const base = { wake: { right: 18, n: 20 } };
-  const same = compareBench(base, {
-    wake: { right: 18, n: 20 },
-    actions: { mark_done: { right: 20, n: 24, falseYes: 1 } },
+  const all = compareBench(base, {
+    wake: { right: 20, n: 20 },
+    wake_d1: { right: 4, n: 4 },
+    actions: { mark_done: { right: 24, n: 24, falseYes: 0 } },
   });
-  expect(same.worse).toBe(false);
-  expect(same.markdown).toContain(
-    "| mark_done | — | 20/24 (83%) · falso sim 1 | novo |",
+  expect(all.worse).toBe(false);
+  expect(all.markdown).toContain(
+    "| mark_done | — | 24/24 (100%) · falso sim 0 | novo |",
   );
+  expect(all.markdown).toContain("| acordar (D1) | — | 4/4 (100%) | novo |");
+  // Every case must pass (Gimenes #4444): the same score as main is not enough, and a new part is held to it too.
+  expect(compareBench(base, { wake: { right: 18, n: 20 } }).worse).toBe(true);
+  expect(
+    compareBench(base, {
+      wake: { right: 20, n: 20 },
+      wake_d1: { right: 3, n: 4 },
+    }).worse,
+  ).toBe(true);
   expect(compareBench(base, { wake: { right: 17, n: 20 } }).worse).toBe(true);
   const a = { actions: { mark_done: { right: 20, n: 24, falseYes: 0 } } };
   expect(
