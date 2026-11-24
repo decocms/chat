@@ -826,8 +826,6 @@ const EN: Readonly<Record<string, string>> = {
   "{names} e {last}": "{names} and {last}",
   "{people} reagiu": "{people} reacted",
   "{people} reagiram": "{people} reacted",
-  "Escrito pelo agent dessa pessoa, em nome dela":
-    "Written by this person's agent, on their behalf",
   "Reporta algo entregue": "Reports something delivered",
   entregue: "delivered",
   aprovado: "approved",

@@ -350,12 +350,7 @@
                 ? AGENT_NAMES[agentProvider(m.via)]
                 : "text-foreground",
             ]}>{author(m)}</span
-          >{#if m.kind === "agent"}<Badge
-              size="sm"
-              class="select-none"
-              title={vb.t("Escrito pelo agent dessa pessoa, em nome dela")}
-              >agent</Badge
-            >{/if}{#if m.tag === "done"}<Badge
+          ><!-- No "agent" pill: the agent's name and color already say it (Gimenes #4264). -->{#if m.tag === "done"}<Badge
               size="sm"
               class="select-none"
               variant="success">{vb.t("entregue")}</Badge
