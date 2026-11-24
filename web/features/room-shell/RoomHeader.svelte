@@ -312,7 +312,8 @@
             icon="user-plus-01"
             size={20}
           />{/each}{#if phonePeople.more}<span
-            class="-ml-2 flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-background"
+            data-phone-people-more
+            class="relative z-10 -ml-2 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-background"
             >+{phonePeople.more}</span
           >{/if}</button
       >{:else if $personal.me}<span
