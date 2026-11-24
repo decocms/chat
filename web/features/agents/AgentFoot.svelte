@@ -214,7 +214,7 @@
   <div
     data-agent-foot={empty ? "setup" : "here"}
     data-agent-status={foot}
-    class="flex min-w-0 items-center gap-1 px-1.5 pt-1.5 pb-1"
+    class="flex min-w-0 items-center gap-1"
   >
     <Popover bind:open>
       <PopoverTrigger>
@@ -222,11 +222,11 @@
             {...props}
             type="button"
             data-agent-summary
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-2.5 py-2.5 text-left font-sans text-foreground hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-ring"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent min-h-12 px-2.5 py-2 text-left font-sans text-foreground hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-ring"
             ><span
               aria-hidden="true"
               class={cn(
-                "relative flex size-8 shrink-0 items-center justify-center rounded-lg text-base",
+                "relative flex size-7 shrink-0 items-center justify-center rounded-lg text-sm",
                 empty
                   ? "border-[1.5px] border-dashed border-muted-foreground text-muted-foreground"
                   : AGENT_TILES[provider],
