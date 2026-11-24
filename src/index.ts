@@ -80,6 +80,11 @@ export type Env = {
   FIRE_API?: string;
   DEV_EMAIL?: string;
   MCP_AUTH_TOKEN?: string;
+  /** Voice calls (src/calls.ts): the Realtime SFU app (var) and its secret. Missing: no calls. */
+  REALTIME_SFU_APP_ID?: string;
+  REALTIME_SFU_APP_SECRET?: string;
+  /** GB of call traffic in a month after which a screen share goes to Google Meet (default CALL_SCREEN_LIMIT_GB). */
+  CALL_SCREEN_LIMIT_GB?: string;
 };
 
 export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
@@ -177,6 +182,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS machine_rooms (machine_id TEXT, book_id TEXT, on_ INTEGER, PRIMARY KEY (machine_id, book_id))`,
   `CREATE TABLE IF NOT EXISTS agent_rooms (agent TEXT, book_id TEXT, delivery INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS push_subs_email ON push_subs (email)`,
+  // Calls (src/calls.ts): the bytes that browsers in calls received, per month ("2026-11").
+  `CREATE TABLE IF NOT EXISTS call_usage (month TEXT PRIMARY KEY, bytes INTEGER)`,
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.

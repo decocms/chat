@@ -66,7 +66,19 @@ The top bar on phones has no space for the controls of a view. That is why the v
 |---|---|---|
 | Epic thread | The status pill ("A fazer" … "Arquivado"), with a menu of the statuses | `EpicActions`, in `RoomBarTitle`. Phones have no status control (Gimenes #4065). |
 | Home Inbox (`/?inbox`, all rooms) | "Resolver todos os pedidos (n)" | `InboxControls`, in the bar of `HomeInbox` |
-| Main thread | None | |
+| Each thread of a room, when calls are on and the room has no call | "Iniciar call" | `CallControls`, from `RoomScene`. Phones draw it above the chat. |
+
+### The call
+
+While a person is in the room's call, the call takes the view (`CallStage`, the `stage` of `RoomLayout`):
+
+1. Desktop: the stage is at the left and the chat is a column at the right. The sidebar goes to its rail and the pane closes. When the person leaves the call, the sidebar and the pane come back as they were.
+2. The stage shows the shared screen, or a grid of the people (camera or face). A click on a person puts that person on the stage, with the others in a row of small tiles.
+3. The controls are under the stage, with their text: microphone, camera, screen, full screen, chat, leave. They are not in the top bar, because they are more than three.
+4. A green ring marks who speaks. An icon marks a microphone that is off and a screen that is shared.
+5. Full screen is the room's layout without the sidebar and the top bar, so that the chat can open beside the stage.
+6. Phones: the stage is above the chat.
+7. A person who is not in a call that is on gets one line above the chat: who is there, and "Entrar na call (n)".
 
 ### What does not go in the top bar
 

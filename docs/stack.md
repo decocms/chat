@@ -8,6 +8,7 @@
 | Durable Objects (SQLite) | `Book` (room), `DocRoom` (document), `Person` (person). |
 | D1, R2, KV | Shared index, files, OAuth. See [architecture.md](architecture.md). |
 | Workers AI | Speech-to-text (`@cf/openai/whisper-large-v3-turbo`). |
+| Realtime SFU | Voice, camera and screen share in a room's call (`src/calls.ts`). No SDK: the Worker calls its HTTPS API. |
 | Email Sending | Invites and mention emails. |
 | OpenRouter | Text models and Jev (`MODEL_*` variables). |
 
@@ -18,6 +19,7 @@
 | Server | TypeScript, Hono, zod, `@cloudflare/workers-oauth-provider`, `y-durableobjects`, Vercel AI SDK |
 | Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants, @dnd-kit/svelte (drag to sort) |
 | Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`web/features/documents/`) |
+| Call | `@mediapipe/tasks-vision` 1.2.3 (Apache 2.0): finds the person in the camera's picture for the background blur. It loads only when a person turns the blur on. |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
 
 ## Type safety and RPC
@@ -86,5 +88,7 @@
 | `public/fonts/studio/InterVariable*.woff2` | Inter, SIL Open Font License 1.1. Keep `Inter-LICENSE.txt`. |
 | `public/fonts/studio/CommitMono-*.woff2` | Commit Mono, SIL Open Font License 1.1. Keep `CommitMono-LICENSE.txt`. |
 | `web/lib/studio/icons.ts` | Untitled UI icons, MIT, from `@untitledui/icons` 0.0.23 (`d` of each path, copied, not a dependency). Names that start with `app-` are our own drawings. |
+| `public/vendor/mediapipe/selfie_segmenter.tflite` | MediaPipe selfie segmenter (float16), Apache 2.0, from https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite (2026-11-24, 249537 bytes, SHA-256 `191ac952…658b`). License in `public/licenses/`. |
+| `web/lib/studio/icons.ts`: `microphone-off-01`, `monitor-01`, `video-recorder`, `video-recorder-off` | Untitled UI icons 0.0.23, MIT, copied as the other icons. |
 | `scripts/data/font-assets.json` | Source URL, size and SHA-256 of each font. The file names contain a digest prefix. Do not change a font without a new name. |
 | `scripts/fixtures/entities/whatwg-entities.json` | WHATWG HTML named character references, from https://html.spec.whatwg.org/entities.json (2026-11-14, 145897 bytes, SHA-256 `d741d877…62e6`). Test data only. Do not reformat it. A test checks its digest. |

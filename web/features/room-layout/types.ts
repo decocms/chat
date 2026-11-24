@@ -72,6 +72,12 @@ export type RoomLayoutProps = {
   header: Snippet;
   peek: Snippet;
   attention?: Snippet;
+  /** Desktop: a stage at the left of the chat (the room's call). With it the chat is a narrow column at the right. */
+  stage?: Snippet;
+  /** With `stage`: the chat column is hidden and the stage takes its place. */
+  stageOnly?: boolean;
+  /** With `stage`, in full screen: no sidebar and no top bar, only the stage and the chat column. */
+  stageFull?: boolean;
   chat: Snippet;
   composer: Snippet;
   /** In Expand, one line over the floating composer (what came back after you wrote). */

@@ -789,6 +789,52 @@ const EN: Readonly<Record<string, string>> = {
     "Due (e.g. Fri, Wed 11pm, 11/06). Empty removes it:",
   "Abrir numa aba": "Open in a tab",
   Fechar: "Close",
+  // The room's call (web/features/call).
+  "Iniciar call": "Start call",
+  "Entrar na call ({n})": "Join call ({n})",
+  "Sair da call": "Leave call",
+  "Silenciar o microfone": "Mute the microphone",
+  "Ativar o microfone": "Unmute the microphone",
+  "Compartilhar a tela": "Share your screen",
+  "Parar de compartilhar a tela": "Stop sharing your screen",
+  "Na call: {people}": "In the call: {people}",
+  "Tela de {name}": "{name}'s screen",
+  "Ver a tela de {name}": "See {name}'s screen",
+  "Tela cheia": "Full screen",
+  "Call da sala": "The room's call",
+  "Microfone desligado": "Microphone off",
+  "É assim que as outras pessoas vão ver você.":
+    "This is how the other people will see you.",
+  "Prévia da sua câmera": "Preview of your camera",
+  "Não consegui usar a câmera. Libere o acesso no navegador.":
+    "I could not use the camera. Allow it in the browser.",
+  "O desfoque não funcionou neste navegador. A câmera vai sem ele.":
+    "The blur did not work in this browser. The camera goes without it.",
+  Fundo: "Background",
+  "Sem desfoque": "No blur",
+  Leve: "Light",
+  Forte: "Strong",
+  "Destacar {name}": "Put {name} on the stage",
+  "Ligar a câmera": "Turn the camera on",
+  "Desligar a câmera": "Turn the camera off",
+  "Só você está na call: não há ninguém para ver a sua tela.":
+    "Only you are in the call: there is nobody to see your screen.",
+  "Sua tela parou de ser compartilhada: ela ficou 10 minutos sem mudar.":
+    "Your screen share stopped: the screen did not change for 10 minutes.",
+  "Mostrar o chat": "Show the chat",
+  "Ocultar o chat": "Hide the chat",
+  "Sua tela, como os outros veem": "Your screen, as the others see it",
+  "Não consegui usar o microfone. Libere o acesso no navegador.":
+    "I could not use the microphone. Allow it in the browser.",
+  "A call falhou. Tente entrar de novo.": "The call failed. Try to join again.",
+  "Você saiu da call (a conexão caiu ou você entrou por outra aba).":
+    "You left the call (the connection dropped, or you joined from another tab).",
+  "O limite de tela deste mês acabou. Abra um Google Meet, cole o link aqui e todo mundo da call recebe.":
+    "This month's screen-share limit is spent. Open a Google Meet, paste the link here, and everyone in the call gets it.",
+  "Abrir Google Meet": "Open Google Meet",
+  "Link do Google Meet": "Google Meet link",
+  "Enviar link": "Send link",
+  "Tela no Google Meet: {link}": "Screen on Google Meet: {link}",
   "Seu agent está ouvindo esta sala.": "Your agent is listening to this room.",
   "Seu agent ainda não está ouvindo.": "Your agent isn't listening yet.",
   "Abrindo seu agent no seu computador…":

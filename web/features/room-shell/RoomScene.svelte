@@ -21,6 +21,7 @@
   import { threadTitle } from "../room-sidebar/model";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import { isDmId } from "../../../shared/dm";
+  import type { SendRoomCommand } from "../../../shared/commands";
   import AgentBanners from "../agents/AgentBanners.svelte";
   import AgentTrigger from "../agents/AgentTrigger.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
@@ -28,6 +29,11 @@
   import UpdateRow from "../app-navigation/UpdateRow.svelte";
   import ThreadFiles from "../file-viewer/ThreadFiles.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
+  import { roomAvatarVersion } from "../room-scope/model";
+  import CallControls from "../call/CallControls.svelte";
+  import CallStage from "../call/CallStage.svelte";
+  import { createCallApi } from "../call/callApi";
+  import { createCallSession } from "../call/session";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -90,6 +96,50 @@
     view = owner.state,
     geometry = layout.state;
   scoped = owner;
+  // The room's call (voice and screen). It lives with this view: leaving the room leaves the call.
+  const sendCommand: SendRoomCommand = (command) =>
+    get(owner.state)?.decisions.send(command) ?? false;
+  const call = createCallSession(
+    captured.roomId,
+    createCallApi(browser.fetcher),
+    sendCommand,
+  );
+  const callView = call.state;
+  $effect(() => call.setPeers($view?.header.room.call, $view?.header.room.me));
+  // Entering the call closes the pane beside the chat (the doc), so the stage has the room's width. One time
+  // for each entry: the person can open the pane again.
+  let staged = false;
+  // The chat column beside the stage: the person can hide it, so the call has all the width.
+  let chatHidden = $state(false);
+  // What entering the call changed in the layout, to put it back on leaving.
+  let closedPane = false,
+    collapsedSidebar = false;
+  $effect(() => {
+    const inCall = $callView.phase !== "idle";
+    if (inCall && !staged && !layout.read().mobile) {
+      closedPane = layout.read().documentVisible;
+      if (closedPane) layout.toggleDocument();
+      // The threads list goes to its narrow rail too.
+      collapsedSidebar = !layout.read().sidebarCollapsed;
+      if (collapsedSidebar) layout.toggleSidebar();
+    }
+    if (!inCall && staged) {
+      chatHidden = false;
+      if (callFull) void document.exitFullscreen();
+      // Out of the call: the room looks as it did before.
+      if (collapsedSidebar && layout.read().sidebarCollapsed)
+        layout.toggleSidebar();
+      if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
+      closedPane = collapsedSidebar = false;
+    }
+    staged = inCall;
+  });
+  // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
+  const callIdle = $derived(
+    !!$view?.header.room.call &&
+      !$view.header.room.call.length &&
+      $callView.phase === "idle",
+  );
   provideRichFileIndex(owner.richFiles);
   function back(expectedThread: string) {
     const value = get(owner.state);
@@ -103,7 +153,23 @@
     if (expectedThread !== "main") owner.actions.setThread("main");
     else services.actions.home();
   }
+  // Full screen of the call: the room's layout itself goes full screen, so the chat stays one click away.
+  let layoutRoot: HTMLElement | undefined;
+  let callFull = $state(false);
+  function toggleCallFull() {
+    const doc = layoutRoot?.ownerDocument;
+    if (!layoutRoot || !doc) return;
+    if (doc.fullscreenElement) void doc.exitFullscreen();
+    else {
+      chatHidden = true;
+      void layoutRoot.requestFullscreen();
+    }
+  }
+  function onfullscreenchange() {
+    callFull = !!layoutRoot && document.fullscreenElement === layoutRoot;
+  }
   function edgeBack(cells: RoomLayoutCells) {
+    layoutRoot = cells.root;
     const win = cells.root.ownerDocument.defaultView;
     return attachRoomEdgeBack(cells.root, {
       current,
@@ -215,6 +281,7 @@
   });
   onDestroy(() => {
     active = false;
+    call.leave();
     filesModule.dispose();
     decisionsModule.dispose();
     remindersModule.dispose();
@@ -251,8 +318,29 @@
   };
 </script>
 
+<svelte:document {onfullscreenchange} />
+<!-- Outside RoomLayout, so they are not taken for its snippets. -->
+{#snippet callControls()}<CallControls {call} t={services.t} />{/snippet}
+{#snippet callStage(fill: boolean)}{#if $view}<CallStage
+      room={$view.header.room}
+      {call}
+      send={sendCommand}
+      open={browser.openExternal}
+      avatar={(email) =>
+        roomAvatarVersion($view?.header.room, $personal.me, email)}
+      {fill}
+      chatHidden={fill ? chatHidden : undefined}
+      onchat={() => (chatHidden = !chatHidden)}
+      full={callFull}
+      onfull={fill ? toggleCallFull : undefined}
+      t={services.t}
+    />{/if}{/snippet}
+{#snippet callBeside()}{@render callStage(true)}{/snippet}
 <RoomLayout
   controller={layout}
+  stage={$callView.phase !== "idle" ? callBeside : undefined}
+  stageOnly={chatHidden}
+  stageFull={callFull}
   {labels}
   onChatSurface={owner.attachChat}
   onCells={edgeBack}
@@ -308,6 +396,7 @@
         {current}
         {back}
         tabs={$view.toolbar}
+        viewControls={callIdle ? callControls : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}
@@ -322,6 +411,14 @@
   {#snippet attention()}{#if $view}
       <div>
         <NotifyOffer owner={services.pwa} lang={services.language} />
+        <!-- Phones: the top bar has no space for the controls of the view (docs/design.md). -->
+        {#if callIdle}<div class="flex justify-end px-4 pt-2 md:hidden">
+            {@render callControls()}
+          </div>{/if}
+        <!-- Desktop, in the call: the stage is at the left of the chat (RoomLayout's `stage`), not here. -->
+        {#if $geometry.mobile || $callView.phase === "idle"}{@render callStage(
+            false,
+          )}{/if}
         <div>
           {#if $view.banners}<AgentBanners
               {...$view.banners}

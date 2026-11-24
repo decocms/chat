@@ -114,6 +114,36 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 | MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts` | The browser calls the MCP server. Each person signs in with their own account. |
 | Files | `src/rooms.ts` (`storeFile`), `src/fileHeaders.ts` | Members only. HTML is sandboxed. SVG is not permitted. |
 
+## Calls (voice, camera and screen)
+
+- A room has one call. The room is the channel: there is no table of channels.
+- The media goes through the Cloudflare Realtime SFU. Each browser in the call has one `RTCPeerConnection` to it (`web/features/call/session.ts`). It publishes the track `mic`, `cam` while the camera is on, and `screen` while the person shares a screen. It receives the tracks that the other people publish.
+- The browser does not call the SFU's API, because that API needs the app secret. The Worker passes the WebRTC negotiation on (`src/calls.ts`, routes `/api/books/:id/call/*`). Before each request, `Book.callCheck` makes sure that the session is that person's, and that each session to receive from is in the same room's call.
+- `Book` keeps who is in the call, the tracks of each person and whose microphone is off (`meta` key `call`). Each change sends `{ t: "call" }` to the room. One person has one session: a second join replaces the first.
+- The call lives on the room's WebSocket. When the last socket of a person closes, `Book` removes that person from the call. A person who leaves the room's view leaves the call.
+- A person who opens a room with a call on joins that call, with the microphone off. A person who leaves the call stays out until the call ends.
+- Calls are off until `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` exist (Worker secrets). Then the room state has `call`, and the app shows the call.
+- deco.chat does not record or transcribe a call.
+
+### What a call costs
+
+The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a month. These rules keep that traffic low:
+
+| Rule | Where |
+|---|---|
+| The microphone sends at 24 kbps at most, and does not send silence (Opus DTX). The browser removes noise and echo first. | `MIC_MAX_BPS`, `withDtx`, `MIC_CLEANUP` |
+| The camera is taken at 720p and sent at 360p or less, 15 frames a second, 200 kbps at most. | `CAM_SEND` |
+| A screen is sent at 720p and 30 frames a second at most, 1.5 Mbps at most. | `SCREEN_LIMITS`, `SCREEN_MAX_BPS` |
+| A browser receives one screen at a time: the one that the person chose. It receives no camera while a screen is on show. A hidden tab receives voices only. | `sync` and `planTracks` |
+| A person alone in the call cannot share a screen. A screen that did not change for 10 minutes stops. | `stopShare`, `SCREEN_IDLE_REPORTS` |
+| At 900 GB in a month, the Worker refuses a new screen share (409). The app then asks for a Google Meet link and posts it in the room, with a mention of each person in the call. Voice and cameras continue. | `CALL_SCREEN_LIMIT_GB`, `src/callBudget.ts` |
+
+The SFU has no API for the traffic used. Each browser in a call reports the bytes that it received (`call.usage`, each 30 seconds), and D1 keeps the sum for the month (`call_usage`). The sum is an estimate: it does not see TURN or other apps of the account.
+
+### Background blur
+
+The camera dialog (`CameraDialog`) shows the picture before it goes to the call. The person can put the background out of focus (`web/features/call/blur.ts`). A model finds the person in each frame, in the browser: no picture goes to a server for this. The runtime (`@mediapipe/tasks-vision`, 15 MB) loads only when the person turns the blur on.
+
 ## Security
 
 - The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC.

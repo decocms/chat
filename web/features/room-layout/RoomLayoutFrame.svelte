@@ -48,6 +48,14 @@
   const people = $derived($view.pane === "people");
   // Expand: the pane fills the room and the composer floats over its foot.
   const focus = $derived($paneFocus && split);
+  // The call's stage takes the left of the chat column; the chat cells keep a fixed column at its right.
+  const staged = $derived(!$view.mobile && !!props.stage);
+  const beside = $derived(
+    staged &&
+      (props.stageOnly
+        ? "hidden"
+        : "w-96 justify-self-end border-l border-border"),
+  );
   // Another pane (or none) ends Expand: it belongs to the pane that asked for it.
   let focusedPane = $view.pane;
   $effect(() => {
@@ -170,7 +178,7 @@
           : [
               "relative z-10 col-start-1 row-start-1 row-end-6 my-2 ml-px overflow-hidden rounded-l-surface border-r border-border",
               $view.sidebarCollapsed ? "w-room-sidebar-rail" : "w-room-sidebar",
-              focus && "hidden!",
+              (focus || (staged && props.stageFull)) && "hidden!",
             ],
       ]}
     >
@@ -210,7 +218,7 @@
           : [
               "mt-2 mr-2 flex h-[52px] items-center rounded-tr-surface border-b border-border pr-3 pl-5",
               (split || props.overlayOpen) && "col-end-4",
-              focus && "hidden!",
+              (focus || (staged && props.stageFull)) && "hidden!",
             ],
       ]}
     >
@@ -231,6 +239,17 @@
     >
       {@render props.peek()}
     </div>
+    {#if staged}<div
+        data-room-stage
+        inert={props.overlayOpen}
+        class={[
+          "col-start-2 row-start-3 row-end-6 mb-2 min-h-0 min-w-0",
+          props.stageOnly ? "mr-2" : "mr-96",
+          (props.overlayOpen || focus) && "hidden",
+        ]}
+      >
+        {@render props.stage?.()}
+      </div>{/if}
     <div
       bind:this={attention}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
@@ -243,6 +262,7 @@
             split
             ? "px-2"
             : "mr-2 px-2",
+        beside,
         (props.overlayOpen || focus) && "hidden",
       ]}
     >
@@ -259,7 +279,8 @@
             // Its own layer in a room switch, so the conversation lifts in (browser.viewTransition).
             "vt-room:[view-transition-name:room-chat]",
             // Full width as in Discord and Slack, with 24px gutters (16px on mobile) lined up with the composer and the cards above.
-            !$view.mobile && "mr-2 px-6",
+            !$view.mobile && (staged ? "mr-2 px-4" : "mr-2 px-6"),
+            beside,
           ]}
     >
       {@render props.chat()}
@@ -283,6 +304,7 @@
                     [
                       "mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface",
                       COMPOSER_SLOT,
+                      beside,
                     ],
             ]}
     >

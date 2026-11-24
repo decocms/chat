@@ -7,7 +7,7 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, type CallPeer } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
@@ -43,6 +43,7 @@ import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
+import { addCallUsage, callsOn } from "./calls";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
@@ -720,6 +721,32 @@ export class Book extends DurableObject<Env> {
   }
   online() {
     return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))];
+  }
+  // ---- calls (src/calls.ts): who is in the room's call, and the tracks each one publishes ----
+  callPeers(): CallPeer[] {
+    const parsed = z.array(CallPeerSchema).safeParse(JSON.parse(this.get("call") ?? "[]"));
+    return parsed.success ? parsed.data : [];
+  }
+  private setCall(peers: CallPeer[]) {
+    this.set("call", JSON.stringify(peers));
+    this.broadcast({ t: "call", call: peers });
+  }
+  /** One session per person: joining again (another tab or device) replaces the earlier one. */
+  callJoin(bookId: string, email: string, session: string) {
+    this.bind(bookId);
+    this.setCall([...this.callPeers().filter((p) => p.email !== email), { email, session, tracks: [] }]);
+  }
+  /** Is `session` this person's, and is every session in `pulls` in this room's call? */
+  callCheck(email: string, session: string, pulls: string[]): boolean {
+    const peers = this.callPeers();
+    return peers.some((p) => p.email === email && p.session === session) && pulls.every((s) => peers.some((p) => p.session === s));
+  }
+  callTracks(email: string, add: string[], drop: string[]) {
+    this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, tracks: [...new Set([...p.tracks, ...add])].filter((t) => !drop.includes(t)) } : p)));
+  }
+  callLeave(email: string) {
+    const peers = this.callPeers();
+    if (peers.some((p) => p.email === email)) this.setCall(peers.filter((p) => p.email !== email));
   }
   private pushedAt = new Map<string, number>();
   /** A native notification (web push) to these people's devices, unless they have this room open; ≤1 per person per
@@ -2499,6 +2526,8 @@ export class Book extends DurableObject<Env> {
         handles,
         avatars,
         online: this.online(),
+        // Present only where calls are set up: the app draws the call button from it.
+        ...(callsOn(this.env) ? { call: this.callPeers() } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -2699,6 +2728,14 @@ export class Book extends DurableObject<Env> {
         return this.deleteTask(String(m.id));
       case "task.assign":
         return void (await this.assignTask(String(m.id), m.owner === undefined ? undefined : String(m.owner), m.due === undefined ? undefined : String(m.due)));
+      case "call.leave":
+        return this.callLeave(email);
+      case "call.mute":
+        return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
+      case "call.usage":
+        // Only someone in the call reports what it cost (src/calls.ts, the month's screen-share budget).
+        if (this.callPeers().some((p) => p.email === email)) this.ctx.waitUntil(addCallUsage(this.env, m.bytes));
+        return;
       case "decision.del":
         this.sql.exec(`DELETE FROM decisions WHERE id = ?`, Number(m.id));
         return this.broadcast({ t: "decisions", decisions: this.decisions() });
@@ -2763,6 +2800,9 @@ export class Book extends DurableObject<Env> {
     try { ws.close(); } catch {}
     try {
       this.broadcast({ t: "online", online: this.online().filter((e) => this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === e)) }, ws);
+      // The call lives on the room's socket: with no tab of this room left, the person is out of it.
+      const gone = this.ctx.getTags(ws)[0];
+      if (!this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
     } catch (e) {
       console.error("book webSocketClose", String(e)); // see DocRoom.webSocketClose
     }
