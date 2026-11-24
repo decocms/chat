@@ -427,6 +427,7 @@ const EN: Readonly<Record<string, string>> = {
   "Mais reações": "More reactions",
   "Convidar pessoas": "Invite people",
   "Buscar nesta sala": "Search this room",
+  "Buscar na conversa": "Search this conversation",
   "Buscar em {room}": "Search in {room}",
   "Limpar busca": "Clear search",
   "{n} resultados": "{n} results",

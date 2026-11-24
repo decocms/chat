@@ -70,11 +70,13 @@
       threadTitle(header.room, header.thread) === undefined,
   );
   const searchLabel = $derived(
-    header.room.book.title
-      ? presentation.services.t("Buscar em {room}", {
-          room: header.room.book.title,
-        })
-      : presentation.services.t("Buscar nesta sala"),
+    header.room.book.dm
+      ? presentation.services.t("Buscar na conversa")
+      : header.room.book.title
+        ? presentation.services.t("Buscar em {room}", {
+            room: header.room.book.title,
+          })
+        : presentation.services.t("Buscar nesta sala"),
   );
   const phoneEpic = $derived(
     header.room.epics.find((epic) => epic.id === header.thread),
@@ -258,7 +260,8 @@
             class="mx-1.5 h-5 data-[orientation=vertical]:h-5"
           />{/if}
       </div>{/if}
-    {#if !header.room.book.dm && !searchInTitle}{@render search(
+    <!-- A DM has the search too (Gimenes #4326), at the bar's end: the person's name keeps the title's place. -->
+    {#if !searchInTitle}{@render search(
         "mr-1 h-8 w-44 px-2.5 transition-[width] duration-150 focus-within:w-60",
       )}{/if}
     {#if tabs}<div data-header-tabs class="hidden min-w-0 md:block">
