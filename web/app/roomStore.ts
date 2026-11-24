@@ -31,6 +31,27 @@ export function reduceRoom(
           message.id === event.id ? { ...message, card: event.card } : message,
         ),
       };
+    case "msgEdit": {
+      const patch: Partial<Message> = event.deleted
+        ? {
+            text: "",
+            deleted: event.deleted,
+            files: [],
+            card: null,
+            choices: null,
+            poll: null,
+          }
+        : { text: event.text, edited: event.edited };
+      return {
+        ...s,
+        messages: updateMessage(event.id, patch),
+        origins: s.origins?.map((message) =>
+          message.id === event.id ? { ...message, ...patch } : message,
+        ),
+      };
+    }
+    case "history":
+      return { ...s, history: { ...s.history, [event.id]: event.versions } };
     case "moved":
       return {
         ...s,

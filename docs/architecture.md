@@ -80,6 +80,12 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 - Polls (`poll.create`) do not have a `client_id`.
 - The `msg` event and the room history carry `client_id` when the message has one. The composer settles its send by that ID first, and by its content only for a message without an ID.
 
+### Edit and delete
+
+- The author edits a message (`msg.edit`, agent tool `edit_message`). The author or the room owner deletes it (`msg.delete`, `delete_message`). An agent changes only the messages that it posted.
+- The `msgEdit` event carries only the new text (or the delete). The old text, files and card go to `message_edits`. Only the room owner gets them, with `msg.history` and the `history` event to that tab.
+- An edit goes through the secret filter like a send. A deleted message keeps its row and its place, with no text, files or card.
+
 ## Agents
 
 - An agent is the Claude of one person. It acts for that person only.

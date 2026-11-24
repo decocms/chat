@@ -12,6 +12,13 @@
   import { cn } from "../../lib/studio/utils";
   import { copyChatText } from "./clipboard";
   import EmojiPicker from "../composer/EmojiPicker.svelte";
+  import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
+  import Dialog from "../../lib/studio/Dialog.svelte";
+  import DialogContent from "../../lib/studio/DialogContent.svelte";
+  import DialogHeader from "../../lib/studio/DialogHeader.svelte";
+  import DialogTitle from "../../lib/studio/DialogTitle.svelte";
+  import Textarea from "../../lib/studio/Textarea.svelte";
+  import type { MessageVersion } from "../../../shared/room";
   import { QUICK_REACTIONS, TOOLBAR_REACTIONS } from "./reactions";
   let {
     message,
@@ -23,6 +30,9 @@
     canReact = false,
     me = "",
     onthread,
+    canEdit = false,
+    canDelete = false,
+    history,
   }: {
     message: ChatMessage;
     roomId: string;
@@ -39,7 +49,41 @@
     /** "Criar thread" (Gimenes #4310): makes the thread from this message and opens it. None: the message cannot
      *  start one. */
     onthread?: () => void;
+    /** Your own message (Gui #4276): you can change its text. */
+    canEdit?: boolean;
+    /** Yours, or any message when you own the room. */
+    canDelete?: boolean;
+    /** Room owner on an edited/deleted message: its earlier versions (null until asked for). */
+    history?: MessageVersion[] | null;
   } = $props();
+  let editing = $state(false),
+    deleting = $state(false),
+    showingHistory = $state(false),
+    draft = $state(""),
+    busy = $state(false),
+    error = $state("");
+  async function change(command: "msg.edit" | "msg.delete") {
+    if (!active || busy) return;
+    busy = true;
+    error = "";
+    const r = await actions.request(
+      command === "msg.edit"
+        ? { t: "msg.edit", id: message.id, text: draft }
+        : { t: "msg.delete", id: message.id },
+    );
+    if (!active) return;
+    busy = false;
+    if (!r.ok) error = r.error;
+    else {
+      editing = false;
+      deleting = false;
+    }
+  }
+  function openHistory() {
+    if (!active) return;
+    showingHistory = true;
+    void actions.request({ t: "msg.history", id: message.id });
+  }
   const mine = (emoji: string) =>
     !!me && (message.reactions?.[emoji] ?? []).includes(me);
   // The full emoji picker, past the four quick ones (like Discord's and Slack's "add reaction").
@@ -161,6 +205,37 @@
           size={16}
         /></IconButton
       >
+      {#if canEdit}<IconButton
+          label={vb.t("Editar mensagem")}
+          data-edit-message={message.id}
+          class={floating
+            ? "rounded-full text-muted-foreground hover:text-foreground"
+            : ""}
+          onclick={() => {
+            draft = message.text;
+            error = "";
+            editing = true;
+          }}><Icon icon="pencil-01" size={16} /></IconButton
+        >{/if}
+      {#if canDelete}<IconButton
+          label={vb.t("Apagar mensagem")}
+          data-delete-message={message.id}
+          class={floating
+            ? "rounded-full text-muted-foreground hover:text-foreground"
+            : ""}
+          onclick={() => {
+            error = "";
+            deleting = true;
+          }}><Icon icon="trash-01" size={16} /></IconButton
+        >{/if}
+      {#if history !== undefined}<IconButton
+          label={vb.t("Ver histórico da mensagem")}
+          data-message-history={message.id}
+          class={floating
+            ? "rounded-full text-muted-foreground hover:text-foreground"
+            : ""}
+          onclick={openHistory}><Icon icon="clock" size={16} /></IconButton
+        >{/if}
       {#if showLink}<IconButton
           label={copied === "link"
             ? vb.t("Copiado")
@@ -210,3 +285,87 @@
     bind:open={picking}
     onpick={(emoji) => react(emoji)}
   />{/if}
+{#if canEdit}<Dialog bind:open={editing}>
+    <DialogContent
+      class="font-sans text-sm text-foreground"
+      closeLabel={vb.t("Fechar")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+    >
+      <DialogHeader>
+        <DialogTitle class="pr-8 font-sans"
+          >{vb.t("Editar mensagem")}</DialogTitle
+        >
+      </DialogHeader>
+      <Textarea
+        bind:value={draft}
+        aria-label={vb.t("Texto da mensagem")}
+        rows={6}
+      />
+      {#if error}<p role="alert" class="m-0 text-sm text-destructive">
+          {error}
+        </p>{/if}
+      <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (editing = false)}
+          >{vb.t("Cancelar")}</Button
+        >
+        <Button
+          disabled={busy || !draft.trim()}
+          onclick={() => void change("msg.edit")}>{vb.t("Salvar")}</Button
+        >
+      </div>
+    </DialogContent>
+  </Dialog>{/if}
+{#if canDelete}<ConfirmDialog
+    bind:open={deleting}
+    title={vb.t("Apagar mensagem?")}
+    description={vb.t(
+      'Ela some para todo mundo e fica "Mensagem apagada" no lugar. Só o dono da sala ainda vê o que ela dizia.',
+    )}
+    confirmLabel={vb.t("Apagar")}
+    cancelLabel={vb.t("Cancelar")}
+    {busy}
+    {error}
+    onconfirm={() => void change("msg.delete")}
+  />{/if}
+{#if history !== undefined}<Dialog bind:open={showingHistory}>
+    <DialogContent
+      class="font-sans text-sm text-foreground"
+      closeLabel={vb.t("Fechar")}
+      preventScroll={false}
+      preventBodyPointerEvents={false}
+      preventOverflowTextSelection={false}
+    >
+      <DialogHeader>
+        <DialogTitle class="pr-8 font-sans"
+          >{vb.t("Histórico da mensagem")}</DialogTitle
+        >
+      </DialogHeader>
+      {#if history === null}<p role="status" class="m-0 text-muted-foreground">
+          {vb.t("Carregando…")}
+        </p>{:else}<ol class="m-0 flex list-none flex-col gap-3 p-0">
+          {#each history as version (version.ts)}<li
+              class="flex flex-col gap-1"
+            >
+              <span class="text-xs text-muted-foreground"
+                >{version.kind === "delete"
+                  ? vb.t("Apagada por {who}", {
+                      who: vb.name(version.by.replace(/#agent$/, "")),
+                    })
+                  : vb.t("Antes da edição de {who}", {
+                      who: vb.name(version.by.replace(/#agent$/, "")),
+                    })} · {vb.ago(version.ts)}</span
+              >
+              <p class="m-0 break-words whitespace-pre-wrap">
+                {version.text || "—"}
+              </p>
+              {#if version.files.length}<p
+                  class="m-0 text-xs text-muted-foreground"
+                >
+                  {version.files.join(", ")}
+                </p>{/if}
+            </li>{/each}
+        </ol>{/if}
+    </DialogContent>
+  </Dialog>{/if}

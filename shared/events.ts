@@ -9,6 +9,7 @@ import {
   DecisionSchema,
   EpicSchema,
   MessageSchema,
+  MessageVersionSchema,
   PinSchema,
   PollSchema,
   ReceiptSchema,
@@ -125,6 +126,18 @@ export const RoomEventSchemas = {
   reactions: event("reactions", {
     id: num,
     reactions: z.record(str, strings),
+  }),
+  // A message was edited (its new text) or deleted (text "", its files and card gone): everyone gets only this.
+  msgEdit: event("msgEdit", {
+    id: num,
+    text: str,
+    edited: z.optional(num),
+    deleted: z.optional(num),
+  }),
+  // A message's earlier versions, sent only to the room owner's tab that asked (msg.history).
+  history: event("history", {
+    id: num,
+    versions: z.array(MessageVersionSchema),
   }),
   ackRows: event("ackRows", { acks: z.array(AckSchema) }),
   poll: event("poll", { poll: PollSchema }),

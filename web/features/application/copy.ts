@@ -441,6 +441,18 @@ const EN: Readonly<Record<string, string>> = {
   "Claude Code só com o conector:": "Claude Code with just the connector:",
   "Passo a passo completo →": "Full step-by-step →",
   Copiado: "Copied",
+  "Mensagem apagada": "Message deleted",
+  "(editada)": "(edited)",
+  "Editar mensagem": "Edit message",
+  "Apagar mensagem": "Delete message",
+  "Ver histórico da mensagem": "See the message's history",
+  "Texto da mensagem": "Message text",
+  "Apagar mensagem?": "Delete message?",
+  'Ela some para todo mundo e fica "Mensagem apagada" no lugar. Só o dono da sala ainda vê o que ela dizia.':
+    'It goes away for everyone and "Message deleted" shows in its place. Only the room owner can still see what it said.',
+  "Histórico da mensagem": "Message history",
+  "Apagada por {who}": "Deleted by {who}",
+  "Antes da edição de {who}": "Before {who}'s edit",
   "Como você entra": "How you sign in",
   "Seu perfil: email, como você entra, sair":
     "Your profile: email, how you sign in, sign out",

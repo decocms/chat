@@ -129,8 +129,20 @@ export const MessageSchema = z.object({
   files: opt(z.array(AttachmentSchema)),
   // Emoji reactions (Gui #2724): emoji → who reacted (emails; "<email>#agent" = that person's Claude). Absent = none.
   reactions: opt(z.record(str, z.array(str))),
+  // When it was last edited / deleted (Gui #4276). A deleted message keeps its place with no text, files or card.
+  edited: maybe(num),
+  deleted: maybe(num),
 });
 export type Message = z.infer<typeof MessageSchema>;
+/** An earlier version of a message (message_edits), which only the room owner gets. */
+export const MessageVersionSchema = z.object({
+  kind: z.enum(["edit", "delete"]),
+  text: str,
+  files: z.array(str),
+  by: str,
+  ts: num,
+});
+export type MessageVersion = z.infer<typeof MessageVersionSchema>;
 export const AckSchema = z.object({
   msg_id: num,
   agent: opt(str),
@@ -225,6 +237,8 @@ export const RoomSnapshotSchema = z.object({
 export type Room = z.infer<typeof RoomSnapshotSchema> & {
   id: string;
   typing: Record<string, string>;
+  /** Earlier versions of messages the room owner asked for (msg.history), by message id. */
+  history?: Record<number, MessageVersion[]>;
 };
 
 export type {
