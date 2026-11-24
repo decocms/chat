@@ -43,22 +43,22 @@
     type RoomInboxMessage,
   } from "./roomInboxModel";
   /**
-   * The desktop Home: the agent's cube and the ask box on top (what you type
-   * goes to the right room and thread; the line "Tudo em dia" only when
-   * nothing waits, the red count on "Pra você" says the rest); under them one
-   * Inbox in four tabs. "Pra você": everything that needs you (asks and
-   * @mentions, your tasks in review, your Claude's questions, answers to what
-   * you sent from the box), grouped by room, rooms ordered by their newest
-   * item. "Menções": every @ of you. "Não lidas": one row per room with news.
-   * "Tarefas": your open tasks, by room. Every item is a two-line row: who ·
-   * thread · when, then the message; ↩ reply, ✓ done and open show on hover
-   * or focus, and a click opens it. Your Claude's question answers with its
-   * own buttons, a task in review with "Aprovar". A dot marks what came after
-   * your last visit. Phones keep RoomInbox.
-   * A click selects an item and opens its thread beside the list (the
-   * reading pane, InboxThread: the room's own chat and composer), without
-   * leaving the Home; "Abrir na sala" there leaves for the room. A reply or a
-   * reaction in the pane clears the item and the next one opens.
+   * The desktop Home: the agent's cube, one line ("{n} coisas esperam você",
+   * or "Tudo em dia") and the ask box on top (what you type goes to the right
+   * room and thread); under them one Inbox in four tabs. "Pra você": one feed,
+   * newest first, of everything that needs you: asks and @mentions, your
+   * tasks in review, your Claude's questions, and answers to what you sent
+   * from the ask box. "Menções": every @ of you. "Não lidas": one card per
+   * room with news. "Tarefas": your open tasks. Every item is a card: "Room ›
+   * Thread" and the time on top, ↩ reply in place and ✓ done on the right,
+   * who wrote and what below. Your Claude's question answers with its own
+   * buttons, a task in review with "Aprovar". A dot by the time marks what
+   * came after your last visit. Phones keep RoomInbox.
+   * A click selects a card and opens its thread beside the list (the reading
+   * pane, InboxThread: the room's own chat and composer) without leaving the
+   * Home; the list narrows and the hero steps aside while it is open. "Abrir
+   * na sala" there leaves for the room. A reply or a reaction in the pane
+   * clears the item and the next one opens.
    * Keys: j/k move, Enter opens / types in the pane, Esc closes it, r reply,
    * o open in the room, e done, x select, ? shows them.
    */
@@ -102,13 +102,6 @@
     news?: number;
     /** claude: the question's buttons (a<msg> waits carry them in `about`). */
     choices?: Choices | null;
-  };
-  type Group = {
-    key: string;
-    book: string;
-    room: string;
-    summary?: RoomSummary;
-    items: Card[];
   };
 
   let tab = $state<Tab>("foryou");
@@ -237,28 +230,7 @@
     unread: rooms,
     tasks,
   } satisfies Record<Tab, Card[]>);
-  // A tab's items under their room: rooms ordered by their newest item, items newest first.
-  // "Não lidas" is one row per room already: no headers.
-  const groups = $derived.by(() => {
-    const byRoom = new Map<string, Group>();
-    for (const card of lists[tab]) {
-      const key = tab === "unread" ? card.key : card.book;
-      let group = byRoom.get(key);
-      if (!group) {
-        group = {
-          key,
-          book: card.book,
-          room: card.room,
-          summary: card.summary,
-          items: [],
-        };
-        byRoom.set(key, group);
-      }
-      group.items.push(card);
-    }
-    return [...byRoom.values()];
-  });
-  const order = $derived(groups.flatMap((group) => group.items));
+  const order = $derived(lists[tab]);
   const tabs: { id: Tab; label: string }[] = [
     { id: "foryou", label: "Pra você" },
     { id: "mentions", label: "Menções" },
@@ -674,51 +646,47 @@
         class={cn(
           "mx-auto flex w-full flex-col",
           paneCard
-            ? "gap-3 px-2 pt-2 pb-24"
-            : "max-w-[720px] gap-6 px-8 pt-10 pb-24",
+            ? "gap-4 px-3 pt-2 pb-24"
+            : "max-w-[720px] gap-10 px-8 pt-14 pb-24",
         )}
       >
-        <!-- The hero: the cube and the ask box. The line only at inbox zero. Hidden while a thread is open beside. -->
-        {#if paneCard}{:else if waiting || loading}<header
+        <!-- The hero: the cube, one line, the ask box. It steps aside while a thread is open beside the list. -->
+        {#if !paneCard}<header
             data-home-hero
-            class="flex items-start gap-4"
+            class="flex flex-col items-center gap-5"
           >
             <canvas
               bind:this={cube}
-              width="224"
-              height="224"
+              width="384"
+              height="384"
               aria-hidden="true"
-              class="mt-0.5 size-14 shrink-0"
-            ></canvas>
-            <div data-home-ask="inbox" class="min-w-0 flex-1">
-              {@render ask()}
-            </div>
-          </header>{:else}<header
-            data-home-hero
-            class="flex flex-col items-center gap-4 pt-4"
-          >
-            <canvas
-              bind:this={cube}
-              width="224"
-              height="224"
-              aria-hidden="true"
-              class="size-14 shrink-0"
+              class="size-24 shrink-0"
             ></canvas>
             <h1
               data-home-hero-line
-              class="m-0 text-center text-xl font-medium tracking-tight text-balance"
+              class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
             >
-              {first
-                ? t("Tudo em dia, {name}.", { name: first })
-                : t("Tudo em dia.")}
-              <span class="text-muted-foreground"
-                >{t("O que vamos fazer agora?")}</span
-              >
+              {#if waiting}{waiting === 1
+                  ? t("1 coisa espera você")
+                  : t("{n} coisas esperam você", { n: waiting })}{:else}{first
+                  ? t("Tudo em dia, {name}.", { name: first })
+                  : t("Tudo em dia.")}
+                <span class="text-muted-foreground"
+                  >{t("O que vamos fazer agora?")}</span
+                >{/if}
             </h1>
-            <div data-home-ask="inbox" class="w-full">{@render ask()}</div>
+            <div data-home-ask="inbox" class="w-full">
+              <HomeAsk
+                personal={services.personal}
+                {lang}
+                onnavigate={(target) => services.actions.navigate(target)}
+                onnew={(trigger) => services.navigation.openCreate(trigger)}
+                onsearch={() => services.navigation.openSearch()}
+              />
+            </div>
           </header>{/if}
 
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-4">
           <!-- The tabs: plain text, a solid line under the open one. -->
           <div class="flex items-center gap-1 border-b border-border">
             <div role="tablist" aria-label={t("Caixa de entrada")} class="flex">
@@ -729,7 +697,7 @@
                   data-home-tab={item.id}
                   aria-selected={tab === item.id}
                   class={cn(
-                    "-mb-px flex h-10 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent font-sans text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "-mb-px flex h-10 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent font-sans text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     paneCard ? "px-2" : "px-3",
                     tab === item.id
                       ? "border-foreground font-medium text-foreground"
@@ -765,7 +733,7 @@
                 aria-label={t("Mais ações")}
                 class={cn(
                   buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                  "size-8 text-muted-foreground",
+                  "size-8 shrink-0 text-muted-foreground",
                   !picked.length && "ml-auto",
                 )}
                 ><Icon icon="dots-horizontal" size={15} /></DropdownMenuTrigger
@@ -802,14 +770,14 @@
               data-inbox-loading
               role="status"
               aria-label={t("Carregando…")}
-              class="grid pt-2"
+              class="grid gap-3"
             >
-              {#each [0, 1, 2, 3] as index (index)}<div
-                  class="grid grid-cols-[32px_minmax(0,1fr)] gap-3 px-3 py-3"
+              {#each [0, 1, 2] as index (index)}<div
+                  class="grid gap-3 rounded-xl border border-border p-4"
                 >
-                  <Skeleton class="size-8 rounded-full" />
-                  <div class="grid gap-2">
-                    <Skeleton class="h-3 w-1/3" />
+                  <Skeleton class="h-3.5 w-2/5" />
+                  <div class="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
+                    <Skeleton class="size-8 rounded-full" />
                     <Skeleton
                       class={cn("h-3.5", index % 2 ? "w-3/4" : "w-11/12")}
                     />
@@ -820,35 +788,11 @@
               data-home-feed={tab}
               data-home-tasks={tab === "tasks" || undefined}
               role="tabpanel"
-              class="grid gap-4 pt-2"
+              class="grid gap-3"
             >
-              {#each groups as group (group.key)}<div
-                  data-home-group={group.book}
-                  class="grid"
-                >
-                  {#if tab !== "unread"}<button
-                      type="button"
-                      data-home-group-room
-                      class="flex w-fit max-w-full cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-3 py-1 font-sans text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                      onclick={(event) => {
-                        if (live(event) && current())
-                          owner.openRoom(opening, group.book);
-                      }}
-                      ><RoomAvatar
-                        title={group.room}
-                        icon={group.summary ? roomIcon(group.summary) : null}
-                        {lang}
-                        size="2xs"
-                        surface="background"
-                      /><span class="truncate font-medium">{group.room}</span
-                      ></button
-                    >{/if}
-                  <div class="grid divide-y divide-border">
-                    {#each group.items as item (item.wait ?? item.message?.mention ?? item.task ?? item.key)}{#if item.kind === "task"}{@render taskRow(
-                          item,
-                        )}{:else}{@render itemRow(item)}{/if}{/each}
-                  </div>
-                </div>{/each}
+              {#each order as item (item.wait ?? item.message?.mention ?? item.task ?? item.key)}{#if item.kind === "task"}{@render taskCard(
+                    item,
+                  )}{:else}{@render card(item)}{/if}{/each}
             </div>
           {:else if !$inbox.error}{@render empty(
               tab === "foryou"
@@ -879,14 +823,14 @@
     {#if !$inbox.undo && notice}<div
         data-inbox-notice
         role="status"
-        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
+        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
       >
         <Icon icon="check-circle" size={14} />{notice}
       </div>{/if}
     {#if $inbox.undo}<div
         data-inbox-undo
         role="status"
-        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-3 rounded-lg bg-foreground py-2 pr-2 pl-4 text-sm text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
+        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-3 rounded-lg bg-foreground py-2 pr-2 pl-4 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
       >
         <Icon icon="check-circle" size={14} />
         <span
@@ -927,14 +871,6 @@
       </div>{/key}{/if}
 </section>
 
-{#snippet ask()}<HomeAsk
-    personal={services.personal}
-    {lang}
-    onnavigate={(target) => services.actions.navigate(target)}
-    onnew={(trigger) => services.navigation.openCreate(trigger)}
-    onsearch={() => services.navigation.openSearch()}
-  />{/snippet}
-
 {#snippet empty(title: string, detail = "")}<div
     data-home-empty
     class="flex flex-col items-center gap-1 px-6 py-14 text-center"
@@ -956,32 +892,49 @@
         >{part.text}</span
       >{:else}{part.text}{/if}{/each}{/snippet}
 
-<!-- Who wrote it: a person, @vibe, your Claude's tile, a task, a room. -->
+<!-- Who wrote it: a person, @vibe, your Claude, a task in review, a room. -->
 {#snippet face(row: Card)}{#if yourClaude(row)}<AgentMark
-      tint
-      size="sm"
-    />{:else if row.kind === "review" || row.kind === "task"}<span
-      class="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+      class="mt-0.5 text-sm"
+    />{:else if row.kind === "review"}<span
+      class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
       ><Icon icon="check-circle" size={15} /></span
-    >{:else if row.kind === "room"}<RoomAvatar
-      title={row.room}
-      icon={row.summary ? roomIcon(row.summary) : null}
-      {lang}
-      size="sm"
-      surface="background"
-    />{:else if row.author === "ai"}<AgentMark
+    >{:else if row.author === "ai"}<AgentMark
       mark="✦"
-      size="sm"
-      class="text-foreground"
+      class="mt-0.5 text-sm text-foreground"
     />{:else if row.author}<PersonAvatar
       data-avatar="person"
       size="sm"
+      class="mt-0.5"
       email={row.author}
       version={avatar(row.author)}
-    />{:else}<span class="size-8 shrink-0"></span>{/if}{/snippet}
+    />{/if}{/snippet}
 
-<!-- One row: who · thread · when, then the message (2 lines). Click opens it; ↩ ✓ ↗ on hover or focus. -->
-{#snippet itemRow(item: Card)}<div
+<!-- "Room › Thread", then what's new and when; a dot when it came after your last visit. -->
+{#snippet place(row: Card)}<RoomAvatar
+    title={row.room}
+    icon={row.summary ? roomIcon(row.summary) : null}
+    {lang}
+    size="2xs"
+    surface="background"
+  />
+  <span class="min-w-0 truncate"
+    ><span class="font-medium text-foreground">{row.room}</span
+    >{#if row.where}<span class="px-1">›</span>{row.where}{/if}</span
+  >
+  {#if row.kind === "room" && row.news}<span
+      data-home-room-news
+      class="shrink-0 text-muted-foreground tabular-nums"
+      >· {row.news === 1 ? t("1 nova") : t("{n} novas", { n: row.news })}</span
+    >{/if}
+  {#if row.ts}<span class="shrink-0 tabular-nums">· {since(row.ts)}</span>{/if}
+  {#if fresh(row)}<span
+      data-home-fresh
+      aria-label={t("Novo")}
+      class="size-1.5 shrink-0 rounded-full bg-destructive"
+    ></span>{/if}{/snippet}
+
+<!-- One card: where and when on top, ↩ and ✓ on the right; who and what below, then the answer buttons. A click opens the thread beside. -->
+{#snippet card(item: Card)}<div
     data-inbox-row={item.key}
     data-leaving={leaving[item.key] || undefined}
     class={cn(
@@ -995,71 +948,108 @@
       <Snapshot value={item}
         >{#snippet children(row)}<article
             data-room-inbox-message
-            data-home-row
+            data-home-card
             data-kind={row.kind}
             data-fresh={fresh(row) || undefined}
             aria-current={cursor === row.key || undefined}
             class={cn(
-              "group relative my-0.5 rounded-lg transition-colors duration-150 hover:bg-muted",
-              cursor === row.key && "bg-muted",
+              "relative grid rounded-xl border bg-background transition-colors duration-150 hover:bg-muted",
+              cursor === row.key
+                ? "border-foreground bg-muted"
+                : "border-border",
             )}
           >
-            {#if fresh(row)}<span
-                data-home-fresh
-                aria-hidden="true"
-                class="pointer-events-none absolute top-[22px] left-1 size-1.5 rounded-full bg-foreground"
-              ></span>{/if}
-            {#if row.kind === "ask" && selected[row.key]}<span
-                class="pointer-events-none absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-foreground"
-              ></span>{/if}
+            <div class="flex min-w-0 items-center gap-2 pt-2 pr-2 pl-2">
+              <button
+                type="button"
+                data-inbox-open
+                class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                onclick={(event) => {
+                  if (live(event)) select(row);
+                }}
+              >
+                {@render place(row)}
+              </button>
+              <div
+                data-inbox-actions
+                class="flex shrink-0 items-center gap-0.5"
+              >
+                {#if canReply(row)}<IconButton
+                    data-inbox-reply-button
+                    label={t("Responder")}
+                    size="icon-sm"
+                    tooltipSide="bottom"
+                    onclick={(event) => {
+                      if (live(event)) void startReply(row);
+                    }}><Icon icon="reverse-left" size={15} /></IconButton
+                  >{/if}{#if canDone(row)}<IconButton
+                    data-inbox-resolve
+                    label={t(
+                      row.kind === "room" ? "Marcar como lida" : "Feito",
+                    )}
+                    size="icon-sm"
+                    tooltipSide="bottom"
+                    onclick={(event) => {
+                      if (live(event)) done([row]);
+                    }}><Icon icon="check" size={15} /></IconButton
+                  >{/if}{#if row.kind === "claude" || row.kind === "review"}<IconButton
+                    label={t(
+                      row.kind === "claude" ? "Ir pro agent" : "Abrir tarefa",
+                    )}
+                    size="icon-sm"
+                    tooltipSide="bottom"
+                    onclick={(event) => {
+                      if (live(event)) open(row);
+                    }}
+                    ><Icon
+                      icon={row.kind === "claude"
+                        ? "app-agents"
+                        : "link-external-01"}
+                      size={15}
+                    /></IconButton
+                  >{/if}
+              </div>
+            </div>
             <button
               type="button"
-              data-inbox-open
-              class="flex w-full min-w-0 cursor-pointer items-start gap-3 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              class={cn(
+                "grid min-w-0 cursor-pointer gap-2 rounded-b-xl border-0 bg-transparent pt-2 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                paneCard ? "px-3" : "px-4",
+                buttons(row).length || (row.kind === "review" && row.wait)
+                  ? "pb-3"
+                  : "pb-4",
+              )}
               onclick={(event) => {
                 if (live(event)) select(row);
               }}
             >
-              {@render face(row)}
-              <span class="grid min-w-0 flex-1 gap-0.5">
-                <span
-                  data-home-row-meta
-                  class="flex min-w-0 items-baseline gap-1 pr-24 text-[13px] leading-5 text-muted-foreground"
-                >
-                  <strong class="shrink-0 font-medium text-foreground"
-                    >{row.kind === "room" ? row.room : name(row)}</strong
+              {#if row.kind === "reply" && row.about}<span
+                  data-home-asked
+                  class="line-clamp-1 text-sm text-muted-foreground"
+                  >↪ {t("você pediu:")} {inboxPreview(row.about)}</span
+                >{/if}
+              <span class="flex min-w-0 items-start gap-3">
+                {@render face(row)}
+                <span class="grid min-w-0 flex-1 gap-0.5">
+                  <strong class="truncate text-sm font-medium"
+                    >{name(row)}</strong
                   >
-                  {#if row.kind === "room" && row.news}<span
-                      data-home-room-news
-                      class="shrink-0 tabular-nums"
-                      >· {row.news === 1
-                        ? t("1 nova")
-                        : t("{n} novas", { n: row.news })}</span
-                    >{:else if row.where}<span class="min-w-0 truncate"
-                      >· {row.where}</span
-                    >{/if}
-                  {#if row.ts}<span class="shrink-0 tabular-nums"
-                      >· {since(row.ts)}</span
-                    >{/if}
+                  <span
+                    data-home-card-text
+                    class={cn(
+                      "text-sm leading-6 break-words",
+                      paneCard ? "line-clamp-2" : "line-clamp-3",
+                    )}>{@render rich(said(row))}</span
+                  >
                 </span>
-                {#if row.kind === "reply" && row.about}<span
-                    data-home-asked
-                    class="line-clamp-1 text-[13px] leading-5 text-muted-foreground"
-                    >↪ {t("você pediu:")} {inboxPreview(row.about)}</span
-                  >{/if}
-                <span
-                  data-home-card-text
-                  class="line-clamp-2 text-sm leading-5 break-words"
-                  >{#if row.kind === "room" && row.authorName}<span
-                      class="text-muted-foreground">{row.authorName}:</span
-                    >
-                  {/if}{@render rich(said(row))}</span
-                >
               </span>
             </button>
             {#if buttons(row).length || (row.kind === "review" && row.wait)}<div
                 data-home-row-choices
-                class="flex flex-wrap gap-1.5 pr-3 pb-2.5 pl-[56px]"
+                class={cn(
+                  "flex flex-wrap gap-1.5 pb-4",
+                  paneCard ? "pr-3 pl-[56px]" : "pr-4 pl-[60px]",
+                )}
               >
                 {#if row.kind === "review"}<Button
                     data-home-approve
@@ -1081,42 +1071,12 @@
                       }}><span class="truncate">{option}</span></Button
                     >{/each}{/if}
               </div>{/if}
-            <div
-              data-inbox-actions
-              class={cn(
-                "absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-md bg-muted opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-                cursor === row.key && "opacity-100",
-              )}
-            >
-              {#if canReply(row)}<IconButton
-                  data-inbox-reply-button
-                  label={t("Responder")}
-                  size="icon-sm"
-                  tooltipSide="bottom"
-                  onclick={(event) => {
-                    if (live(event)) void startReply(row);
-                  }}><Icon icon="reverse-left" size={15} /></IconButton
-                >{/if}{#if canDone(row)}<IconButton
-                  data-inbox-resolve
-                  label={t(row.kind === "room" ? "Marcar como lida" : "Feito")}
-                  size="icon-sm"
-                  tooltipSide="bottom"
-                  onclick={(event) => {
-                    if (live(event)) done([row]);
-                  }}><Icon icon="check" size={15} /></IconButton
-                >{/if}<IconButton
-                data-inbox-go
-                label={t("Abrir")}
-                size="icon-sm"
-                tooltipSide="bottom"
-                onclick={(event) => {
-                  if (live(event)) select(row);
-                }}><Icon icon="layout-right" size={15} /></IconButton
-              >
-            </div>
+            {#if row.kind === "ask" && selected[row.key]}<span
+                class="pointer-events-none absolute top-3 left-0 h-[calc(100%-1.5rem)] w-0.5 rounded-full bg-foreground"
+              ></span>{/if}
             {#if replying === row.key}<form
                 data-inbox-reply={row.key}
-                class="grid animate-in gap-2 pr-3 pb-3 pl-[56px] duration-150 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:-0.25rem] motion-reduce:animate-none"
+                class="grid animate-in gap-2 border-t border-border px-4 pt-3 pb-4 duration-150 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:-0.25rem] motion-reduce:animate-none"
                 onsubmit={(event) => {
                   event.preventDefault();
                   if (live(event)) void send(row);
@@ -1178,46 +1138,58 @@
     </div>
   </div>{/snippet}
 
-<!-- One of your open tasks, in the same row: its title, then its thread and due date; its status on the right. -->
-{#snippet taskRow(item: Card)}<div data-inbox-row={item.key}>
+<!-- One of your open tasks, as a card: "Room › Thread" and its status on top; its title and due date below. -->
+{#snippet taskCard(item: Card)}<div data-inbox-row={item.key}>
     <Snapshot value={item}
       >{#snippet children(row)}<button
           type="button"
           data-room-inbox-message
-          data-home-row
+          data-home-card
           data-kind="task"
           aria-current={cursor === row.key || undefined}
           class={cn(
-            "my-0.5 flex w-full min-w-0 cursor-pointer items-start gap-3 rounded-lg border-0 bg-transparent px-3 py-2.5 text-left font-sans text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-            cursor === row.key && "bg-muted",
+            "grid w-full min-w-0 cursor-pointer gap-2 rounded-xl border bg-background pt-2 pb-4 text-left font-sans text-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+            cursor === row.key ? "border-foreground bg-muted" : "border-border",
           )}
           onclick={(event) => {
             if (live(event)) select(row);
           }}
         >
-          {@render face(row)}
-          <span class="grid min-w-0 flex-1 gap-0.5">
-            <span class="truncate text-sm leading-5 font-medium"
-              >{row.text}</span
-            >
+          <span
+            class="flex min-w-0 items-center gap-2 px-3.5 py-1 text-xs text-muted-foreground"
+          >
+            {@render place(row)}
             <span
-              class="flex min-w-0 gap-1 text-[13px] leading-5 text-muted-foreground"
-              ><span class="min-w-0 truncate"
-                >{row.where || t("sala principal")}</span
-              >{#if row.task?.due}<span class="shrink-0 tabular-nums"
-                  >· {row.task.due}</span
-                >{/if}</span
+              data-home-task-status={row.task?.status}
+              class={cn(
+                "ml-auto shrink-0 rounded-md px-2 text-[11px] leading-5 font-medium",
+                row.task?.status === "doing"
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground",
+              )}>{t(statusLabel(row.task?.status ?? ""))}</span
             >
           </span>
           <span
-            data-home-task-status={row.task?.status}
             class={cn(
-              "mt-0.5 shrink-0 rounded-md px-2 text-[11px] leading-5 font-medium",
-              row.task?.status === "doing"
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground",
-            )}>{t(statusLabel(row.task?.status ?? ""))}</span
+              "flex min-w-0 items-start gap-3",
+              paneCard ? "px-3" : "px-4",
+            )}
           >
+            <span
+              class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+              ><Icon icon="check-circle" size={15} /></span
+            >
+            <span class="grid min-w-0 flex-1 gap-0.5">
+              <span
+                class="line-clamp-2 text-sm leading-6 font-medium break-words"
+                >{row.text}</span
+              >
+              {#if row.task?.due}<span
+                  class="text-[13px] text-muted-foreground tabular-nums"
+                  >{row.task.due}</span
+                >{/if}
+            </span>
+          </span>
         </button>{/snippet}</Snapshot
     >
   </div>{/snippet}

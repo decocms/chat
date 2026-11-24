@@ -135,6 +135,7 @@ export function shellFixture(
   const services: BrowserApplicationServices = {
     ...core,
     device,
+    fetcher: async () => new Response(null, { status: 503 }),
     language: "en",
     locale: "en-US",
     t: createApplicationCopy("en"),

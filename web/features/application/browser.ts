@@ -1,6 +1,7 @@
 import { tick } from "svelte";
 import { createApplicationServices } from "./services";
 import type { ApplicationBrowser } from "./types";
+import type { FetchLike } from "../../app/transport";
 import { createPwaService } from "../pwa/service";
 import { browserDeviceLock } from "../account/device";
 import { createHomeApi } from "../home/api";
@@ -129,6 +130,7 @@ export function createBrowserApplicationServices(options: {
     storage,
   };
   const fetcher: typeof fetch = win.fetch.bind(win);
+  const upload: FetchLike = fetcher;
   const device = browserDeviceLock();
   const services = createApplicationServices({
     browser,
@@ -143,6 +145,8 @@ export function createBrowserApplicationServices(options: {
   return {
     ...services,
     device,
+    /** The window's fetch, for the few browser-only uploads (InboxThread's composer). */
+    fetcher: upload,
     language,
     locale: applicationLocale(language),
     t,

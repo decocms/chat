@@ -133,7 +133,7 @@
       : request(command);
   const upload: ComposerUpload = (input, signal) =>
     createRoomApi(roomId, (url, init) =>
-      fetch(url, { ...init, signal }),
+      services.fetcher(url, { ...init, signal }),
     ).uploadFile(input);
 
   const scope = () => ({
