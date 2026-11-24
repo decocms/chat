@@ -5,8 +5,11 @@ import { createPushReconciler } from "../notifications/reconcile";
 import { notificationPolicy } from "../notifications/policy";
 import { createChime } from "../notifications/audio";
 import {
+  ASKED_KEY,
   NOTIFY_KEY,
   SOUND_KEY,
+  notificationOffer,
+  readAsked,
   deviceStorage,
   enableDeviceNotifications,
   readDeviceAlerts,
@@ -40,6 +43,8 @@ export function createPwaService() {
     // This device's two switches (see notifications/device.ts).
     ...readDeviceAlerts(storage, currentPermission()),
     dismissed: stored("vb.pwaOff"),
+    /** This device had its one notifications offer (see notificationOffer). */
+    asked: readAsked(storage),
     canInstall: false,
     steps: false,
     installBusy: false,
@@ -47,6 +52,14 @@ export function createPwaService() {
     /** The Notifications switch is turning on: permission, subscription, test. */
     enabling: false,
   });
+  const markAsked = () => {
+    try {
+      storage?.setItem(ASKED_KEY, "1");
+    } catch {
+      // Private mode: the offer stays hidden for this page anyway.
+    }
+    state.update((value) => ({ ...value, asked: true }));
+  };
   const api = createPushApi();
   const endpointApi = withPushEndpointLock(api);
   const push = createPushReconciler(endpointApi, {
@@ -102,6 +115,7 @@ export function createPwaService() {
     if (
       event.key !== NOTIFY_KEY &&
       event.key !== SOUND_KEY &&
+      event.key !== ASKED_KEY &&
       event.key !== "vb.pwaOff"
     )
       return;
@@ -109,6 +123,7 @@ export function createPwaService() {
       ...value,
       ...readDeviceAlerts(storage, value.permission),
       dismissed: stored("vb.pwaOff"),
+      asked: readAsked(storage),
     }));
     void sync();
   };
@@ -160,6 +175,7 @@ export function createPwaService() {
     async setNotifications(on: boolean) {
       if (!active || leaving) return;
       if (!on) {
+        markAsked();
         const persisted = saveDeviceAlert(storage, NOTIFY_KEY, false);
         state.update((value) => ({
           ...value,
@@ -249,6 +265,22 @@ export function createPwaService() {
         sound.unlock();
         sound.play();
       }
+    },
+    /** The one notifications offer of this device: from the banner's button or the first send. Call it from the gesture. */
+    askNotifications() {
+      if (!active || leaving || !account) return;
+      markAsked();
+      void this.setNotifications(true);
+    },
+    /** The banner's ×: no offer on this device again. Settings still has the switch. */
+    skipNotifications() {
+      if (!active || leaving) return;
+      markAsked();
+    },
+    /** The composer's send gesture: ask once if this device never chose. */
+    offerOnSend() {
+      if (active && !leaving && account && notificationOffer(get(state)))
+        this.askNotifications();
     },
     dismissInstall() {
       if (!active || leaving) return;

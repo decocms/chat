@@ -52,6 +52,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/notify-offer · One notifications offer for each device
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for notifications on by default (#4354) and picked both ways to get there (#4363): a banner and the first send. A browser shows its permission prompt only from a click or a key, so the app cannot turn them on alone.
+- Decision:
+  - A device that never chose (permission "default", switch off, push supported, not iOS web) gets one offer. `vb.notifyAsked` in localStorage records that the offer happened. After that, only `/settings` turns notifications on.
+  - The banner is a row at the top of the room's attention area and a card at the top of Home. "Ativar" asks the browser. The × only records the offer.
+  - The composer's send asks the browser on the first send of a device, in the same gesture, before the message goes.
+  - Turning the switch off in `/settings` also records the offer.
+  - If localStorage throws, the offer does not show.
+- Other options: Ask on page load (browsers block or quiet a prompt without a gesture). Show the banner again after a × on another day.
+- Risk: low. A person who refuses the browser prompt is not asked again on that device.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/phone-a2 · Phone strip: where Apps, Agents and the sheet row go
 
 - Agent: claude-opus-5-5
