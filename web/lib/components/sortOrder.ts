@@ -30,3 +30,33 @@ export function landing(
       ? { to: previous, after: true }
       : null;
 }
+
+/** The part of an element that `relift` uses. `showPopover` is on an `HTMLElement`, not on every `Element`. */
+type Liftable = {
+  readonly isConnected: boolean;
+  hasAttribute(name: string): boolean;
+  matches(selectors: string): boolean;
+  showPopover?: () => void;
+};
+
+/**
+ * Shows the dragged row above the page again after the list moved its node. dnd-kit lifts the row into
+ * the top layer as a popover. A node that leaves the DOM (Svelte moves the row when the order changes)
+ * also leaves the top layer, with no "toggle" event, so dnd-kit does not show it again: the row
+ * disappeared on a drag down (Gimenes #4232).
+ */
+export function relift(element: Liftable | null | undefined) {
+  if (
+    !element?.isConnected ||
+    !element.showPopover ||
+    !element.hasAttribute("popover") ||
+    element.matches(":popover-open")
+  )
+    return false;
+  try {
+    element.showPopover();
+    return true;
+  } catch {
+    return false;
+  }
+}

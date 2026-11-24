@@ -344,3 +344,35 @@ test("a drag names its landing by id, and its order follows a list that changed 
   });
   expect(landing(["A"], "A", peer)).toBe(null);
 });
+
+test("a dragged row whose node moved shows above the page again (Gimenes #4232)", async () => {
+  const { relift } = await import("../web/lib/components/sortOrder");
+  const row = (o: {
+    open?: boolean;
+    popover?: boolean;
+    connected?: boolean;
+  }) => {
+    const shown: number[] = [];
+    return {
+      shown,
+      isConnected: o.connected ?? true,
+      hasAttribute: (name: string) => name === "popover" && (o.popover ?? true),
+      matches: () => o.open ?? false,
+      showPopover: () => void shown.push(1),
+    };
+  };
+  // Svelte moved the node: it left the top layer, so it shows again.
+  const moved = row({});
+  expect(relift(moved)).toBe(true);
+  expect(moved.shown).toHaveLength(1);
+  // Still shown, not lifted (a row without dnd-kit's popover), or gone: nothing to do.
+  for (const other of [
+    row({ open: true }),
+    row({ popover: false }),
+    row({ connected: false }),
+  ]) {
+    expect(relift(other)).toBe(false);
+    expect(other.shown).toHaveLength(0);
+  }
+  expect(relift(null)).toBe(false);
+});
