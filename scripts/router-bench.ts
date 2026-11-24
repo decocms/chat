@@ -45,15 +45,18 @@ for (const c of cases) {
   const fixed = rule({ author, agent: false, tag: null, for_who: null, mentions_you: /@\S/.test(c.text) && new RegExp(`@${c.name}`, "i").test(c.text), reply_author: null, epic_owner: null }, me);
   const m = { topic: c.topic ?? "sala principal", recent: c.recent ?? "", from: c.sender, text: c.text };
   const memory = c.memory ?? "Room: a product team. People and their agents: Ana (Claude), Bruno (Codex).";
-  let got = "";
+  let got = "", why = "";
   const { ok, runs } = await settle(async () => {
-    got = fixed === "skip" ? "ignore" : fixed ? fixed.decision : c.own ? (await own(env, c.name, memory, m)).decision : ((await jev(env, c.name, memory, m))?.decision ?? "wake");
+    const r = fixed === "skip" ? { decision: "ignore", why: "skip" } : fixed ? fixed : c.own ? await own(env, c.name, memory, m) : await jev(env, c.name, memory, m);
+    got = r?.decision ?? "wake";
+    why = r?.why ?? "Jev falhou";
     return (got === "answer" ? "wake" : got) === c.expected;
   });
   const t = wakeTally[c.d1 ? "wake_d1" : "wake"];
   t.n++;
   t.right += +ok;
-  const shown = c.d1 ? `d1 #${++d1n}` : c.text.slice(0, 70);
+  // A D1 case shows only the scores of its why (names and words in it come from a real room).
+  const shown = c.d1 ? `d1 #${++d1n} · ${why.match(/\d\.\d\d/g)?.join(" ") ?? ""}` : `${c.text.slice(0, 70)} · ${why}`;
   console.log(`${ok ? "ok " : "BAD"} ${got.padEnd(6)} (want ${c.expected}) ${c.own ? "own " : "other"}${runs > 1 ? " (3 runs)" : ""} | ${c.note ?? ""} | ${shown}`);
 }
 let failed = false;

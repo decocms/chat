@@ -18,5 +18,6 @@
   { "note": "own: @person and a task for own agent", "own": true, "name": "Ana", "sender": "Ana", "text": "@bruno dá uma olhada no PR; e Claude, corrige o lint enquanto isso", "expected": "wake" },
   { "note": "own: own agent asked to bring a person in", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, chama o @bruno pra revisar e abre o PR", "expected": "wake" },
   { "note": "own: answering the person who just asked", "own": true, "name": "Ana", "sender": "Ana", "text": "Gostei, vamos", "topic": "Sidebar", "recent": "Bruno (Codex): PR aberto com a proposta da sidebar.\nBruno: @ana dá uma olhada aqui", "expected": "ignore" },
-  { "note": "own: a task for own agent right after a person spoke", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, olha o log do deploy e corrige", "topic": "Deploy", "recent": "Bruno: o deploy quebrou de novo", "expected": "wake" }
+  { "note": "own: a task for own agent right after a person spoke", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, olha o log do deploy e corrige", "topic": "Deploy", "recent": "Bruno: o deploy quebrou de novo", "expected": "wake" },
+  { "note": "own: asked by @name, hands it to own agent", "own": true, "name": "Ana", "sender": "Ana", "text": "Claude, responde pro Bruno com o status do deploy", "topic": "Deploy", "recent": "Bruno: @ana como está o deploy?", "expected": "wake" }
 ]

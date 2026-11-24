@@ -59,10 +59,13 @@ export async function own(env: Env, name: string, memory: string, m: JevMsg): Pr
   const others = taggedOthers(name, m.text), lastAgent = lastAgentOwner(m.recent), before = lastSpeaker(m.recent);
   const otherAgent = !!lastAgent && first(lastAgent) !== first(name);
   const answering = !!before && !before.agent && first(before.who) !== first(name) && before.who !== "@vibe";
+  // Someone else asked the author by @name in the last lines (Gimenes #4191: "@gimenes da uma olhada aqui").
+  const askedBy = answering && m.recent.trim().split("\n").slice(-3).some((l) => l.startsWith(`${before!.who}:`) && new RegExp(`@${first(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(l));
   const signals = [
     others.length ? `The message @mentions other people: ${others.map((t) => `@${t}`).join(", ")}.` : "",
     otherAgent ? `The last agent that spoke in this thread is ${lastAgent}'s, not ${name}'s.` : "",
     answering ? `The line right before it is from ${before!.who}, another person: ${name} is likely answering them.` : "",
+    askedBy ? `${before!.who} asked ${name} directly (@${first(name)}) just before: a short reply is ${name}'s answer to ${before!.who}, not a request to ${name}'s agent.` : "",
   ].filter(Boolean);
   const r = await decide(env, { memory: memory.slice(0, 2000), thread: m.topic, recent: m.recent.slice(0, 1500), message: `${m.from}: ${m.text}`.slice(0, 1500), ...(signals.length ? { signals: signals.join(" ") } : {}) }, {
     to_claude: { type: "noul", instructions: `${name} wrote this message. Is ${name} asking or telling their own AI agent (their Claude, Codex or any agent of theirs, maybe called by its name) something, or saying something it should act on or answer? Answer no only when ${name} is clearly talking to other people (answering a person, asking a person's opinion, @mentioning someone to ask them or to bring them in, chatting), or addressing another person's agent. A message that @mentions another person is for that person, unless it also asks ${name}'s agent to do something ("Claude, …", "pede pro Claude…"). A short reaction ("gostei", "vamos", "ok", "boa") right after another person's agent spoke is for that agent.` },
