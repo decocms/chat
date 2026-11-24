@@ -34,7 +34,7 @@
 <!-- One provider for the whole app (as shadcn-svelte does): moving between
      tooltips swaps them at once instead of fading one out and the next in. -->
 <TooltipProvider>
-  <AppShell {services} drafts={resources.composer}>
+  <AppShell {services}>
     {#snippet roomSnippet(presentation)}
       <RoomShell {presentation} {resources} />
     {/snippet}

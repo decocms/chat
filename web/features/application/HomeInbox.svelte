@@ -5,7 +5,6 @@
   import Snapshot from "../../lib/components/Snapshot.svelte";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
   import type { BrowserApplicationServices } from "./browser";
-  import type { ComposerDrafts } from "../composer/drafts";
   import RoomInbox from "./RoomInbox.svelte";
   import HomeDesk from "./HomeDesk.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
@@ -27,11 +26,9 @@
   let {
     owner,
     services,
-    drafts,
   }: {
     owner: ApplicationInbox;
     services: BrowserApplicationServices;
-    drafts: ComposerDrafts;
   } = $props();
   const inbox = untrack(() => owner.state),
     t = untrack(() => services.t),
@@ -103,7 +100,6 @@
               {owner}
               {binding}
               {services}
-              {drafts}
             />{/snippet}</Snapshot
         >{/key}{/if}
   {:else if zero}<section

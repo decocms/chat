@@ -11,7 +11,6 @@
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import IconButton from "../../lib/studio/IconButton.svelte";
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
@@ -21,10 +20,8 @@
   import { mentionSegments } from "../composer/model";
   import { mountCube } from "../home/cube";
   import HomeAsk from "../home/HomeAsk.svelte";
-  import type { ComposerDrafts } from "../composer/drafts";
   import {
     fold,
-    messageIdentity,
     personVersion,
     roomIcon,
     roomLabel,
@@ -35,7 +32,6 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
-  import InboxThread from "./InboxThread.svelte";
   import {
     inboxAsks,
     inboxPreview,
@@ -49,29 +45,24 @@
    * newest first, of everything that needs you: asks and @mentions, your
    * tasks in review, your Claude's questions, and answers to what you sent
    * from the ask box. "Menções": every @ of you. "Não lidas": one card per
-   * room with news. "Tarefas": your open tasks. Every item is a card: "Room ›
-   * Thread" and the time on top, ↩ reply in place and ✓ done on the right,
-   * who wrote and what below. Your Claude's question answers with its own
-   * buttons, a task in review with "Aprovar". A dot by the time marks what
-   * came after your last visit. Phones keep RoomInbox.
-   * A click selects a card and opens its thread beside the list (the reading
-   * pane, InboxThread: the room's own chat and composer) without leaving the
-   * Home; the list narrows and the hero steps aside while it is open. "Abrir
-   * na sala" there leaves for the room. A reply or a reaction in the pane
-   * clears the item and the next one opens.
-   * Keys: j/k move, Enter opens / types in the pane, Esc closes it, r reply,
-   * o open in the room, e done, x select, ? shows them.
+   * room with news. "Tarefas": your open tasks. Every item is the same card,
+   * in three zones on one left edge: "Room › Thread" and the time on top
+   * (a dot when it came after your last visit), who wrote and what in the
+   * middle, the actions at the bottom (Responder opens a reply inside the
+   * card, Feito clears it; your Claude's question answers with its own
+   * buttons, a task in review with "Aprovar"). A click on the card leaves
+   * the Home for the message in its room. Phones keep RoomInbox.
+   * Keys: j/k move, Enter / o open in the room, r reply, e done, x select,
+   * ? shows them.
    */
   let {
     owner,
     binding,
     services,
-    drafts,
   }: {
     owner: ApplicationInbox;
     binding: InboxBinding;
     services: BrowserApplicationServices;
-    drafts: ComposerDrafts;
   } = $props();
   const opening = untrack(() => binding),
     inbox = untrack(() => owner.state),
@@ -313,7 +304,7 @@
     card.kind === "claude"
       ? card.text
           .replace(
-            /^(⏸|❓) (Seu Claude|Seu agent|Your agent)( (pede permissão|quer seguir com este plano|espera você no terminal|is waiting for you in the terminal):| pergunta( · \*\*[^*\n]*\*\*)?)\s*/,
+            /^(⏸|❓) (Seu Claude|Seu agent|Your agent)( (pede permissão|quer seguir com este plano|espera você no terminal|is waiting for you in the terminal):| pergunta( · \*\*[^*\n]*\*\*)?:?)\s*/,
             "",
           )
           .trim() || card.text
@@ -374,79 +365,6 @@
     tab = next;
     cursor = null;
     replying = null;
-    pane = null;
-  }
-  // The reading pane: the selected item's thread, beside the list.
-  let pane = $state<string | null>(null),
-    reader = $state<ReturnType<typeof InboxThread> | null>(null);
-  // Where the pane was in the list: when its item leaves (answered, done), the next one takes its place.
-  let paneIndex = 0;
-  const paneCard = $derived(
-    pane ? (order.find((card) => card.key === pane) ?? null) : null,
-  );
-  $effect(() => {
-    const key = pane,
-      list = order;
-    if (!key) return;
-    const index = list.findIndex((card) => card.key === key);
-    if (index >= 0) {
-      paneIndex = index;
-      return;
-    }
-    const next = list[Math.min(paneIndex, list.length - 1)];
-    untrack(() => {
-      pane = next?.key ?? null;
-      if (next) cursor = next.key;
-    });
-  });
-  /** The thread an item opens in the pane, and the message to show. */
-  function target(card: Card): {
-    book: string;
-    thread: string;
-    focus?: number;
-  } {
-    switch (card.kind) {
-      case "task":
-        return { book: card.book, thread: card.task?.epic_id ?? card.thread };
-      case "room":
-        return { book: card.book, thread: "main" };
-      case "ask":
-      case "claude":
-      case "review":
-      case "reply":
-      case "mention":
-        return {
-          book: card.book,
-          thread: card.thread,
-          focus:
-            card.wait && /^[mabr]/.test(card.wait.ref)
-              ? messageIdentity(card.wait.ref.slice(1))
-              : card.message?.mention?.msg_id,
-        };
-      default: {
-        const never: never = card.kind;
-        return never;
-      }
-    }
-  }
-  function select(card: Card) {
-    if (!current()) return;
-    cursor = card.key;
-    pane = card.key;
-    if (replying !== card.key) replying = null;
-  }
-  function closePane() {
-    pane = null;
-  }
-  /** A message or reaction sent in the pane: read the Inbox again (the server clears what it answered). */
-  function paneChanged(card: Card) {
-    if (!current()) return;
-    if (card.kind === "room" && card.summary)
-      services.personal.seen(
-        card.book,
-        Math.max(card.summary.last_human_id, card.summary.last_agent_id),
-      );
-    owner.changed(opening);
   }
   function open(card: Card) {
     if (!current()) return;
@@ -569,9 +487,15 @@
       event.metaKey ||
       event.ctrlKey ||
       event.altKey ||
-      editable(event.target) ||
-      (event.target instanceof Element &&
-        !!event.target.closest("[data-inbox-thread]"))
+      editable(event.target)
+    )
+      return;
+    // A focused action (Responder, a choice, the tabs) takes its own Enter.
+    if (
+      event.key === "Enter" &&
+      event.target instanceof Element &&
+      !!event.target.closest("button, a, [role='tab']") &&
+      !event.target.closest("[data-inbox-open]")
     )
       return;
     if (event.key === "?") {
@@ -583,33 +507,26 @@
       hints = false;
       return;
     }
-    if (event.key === "Escape" && pane) {
-      event.preventDefault();
-      closePane();
-      return;
-    }
     const index = order.findIndex((card) => card.key === cursor),
       card = order[index];
     const move = (to: number) => {
       const next = order[Math.max(0, Math.min(order.length - 1, to))];
       if (!next) return;
       cursor = next.key;
-      if (pane) pane = next.key;
       event.preventDefault();
+      // Focus moves with the cursor (the card's ring shows where you are).
       void tick().then(() =>
         document
-          .querySelector(`[data-inbox-row="${CSS.escape(next.key)}"]`)
-          ?.scrollIntoView({ block: "nearest" }),
+          .querySelector<HTMLElement>(
+            `[data-inbox-row="${CSS.escape(next.key)}"] [data-inbox-open]`,
+          )
+          ?.focus({ preventScroll: false }),
       );
     };
     if (event.key === "j" || event.key === "ArrowDown") move(index + 1);
     else if (event.key === "k" || event.key === "ArrowUp") move(index - 1);
     else if (!card) return;
-    else if (event.key === "Enter") {
-      event.preventDefault();
-      if (pane === card.key) reader?.focusComposer();
-      else select(card);
-    } else if (event.key === "o") {
+    else if (event.key === "Enter" || event.key === "o") {
       event.preventDefault();
       open(card);
     } else if (event.key === "r") {
@@ -631,244 +548,209 @@
   data-home-desk
   data-room-inbox
   aria-label={t("Caixa de entrada")}
-  data-home-split={paneCard ? "" : undefined}
-  class="relative flex min-h-0 min-w-0 flex-1 bg-background font-sans text-foreground"
+  class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-background font-sans text-foreground"
 >
-  <div
-    data-home-list
-    class={cn(
-      "relative flex min-h-0 flex-col",
-      paneCard ? "w-[420px] shrink-0 border-r border-border" : "min-w-0 flex-1",
-    )}
-  >
-    <div class="min-h-0 flex-1 overflow-auto">
-      <div
-        class={cn(
-          "mx-auto flex w-full flex-col",
-          paneCard
-            ? "gap-4 px-3 pt-2 pb-24"
-            : "max-w-[720px] gap-10 px-8 pt-14 pb-24",
-        )}
-      >
-        <!-- The hero: the cube, one line, the ask box. It steps aside while a thread is open beside the list. -->
-        {#if !paneCard}<header
-            data-home-hero
-            class="flex flex-col items-center gap-5"
-          >
-            <canvas
-              bind:this={cube}
-              width="384"
-              height="384"
-              aria-hidden="true"
-              class="size-24 shrink-0"
-            ></canvas>
-            <h1
-              data-home-hero-line
-              class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
-            >
-              {#if waiting}{waiting === 1
-                  ? t("1 coisa espera você")
-                  : t("{n} coisas esperam você", { n: waiting })}{:else}{first
-                  ? t("Tudo em dia, {name}.", { name: first })
-                  : t("Tudo em dia.")}
-                <span class="text-muted-foreground"
-                  >{t("O que vamos fazer agora?")}</span
-                >{/if}
-            </h1>
-            <div data-home-ask="inbox" class="w-full">
-              <HomeAsk
-                personal={services.personal}
-                {lang}
-                onnavigate={(target) => services.actions.navigate(target)}
-                onnew={(trigger) => services.navigation.openCreate(trigger)}
-                onsearch={() => services.navigation.openSearch()}
-              />
-            </div>
-          </header>{/if}
-
-        <div class="flex flex-col gap-4">
-          <!-- The tabs: plain text, a solid line under the open one. -->
-          <div class="flex items-center gap-1 border-b border-border">
-            <div role="tablist" aria-label={t("Caixa de entrada")} class="flex">
-              {#each tabs as item (item.id)}{@const count =
-                  lists[item.id].length}<button
-                  type="button"
-                  role="tab"
-                  data-home-tab={item.id}
-                  aria-selected={tab === item.id}
-                  class={cn(
-                    "-mb-px flex h-10 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent font-sans text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    paneCard ? "px-2" : "px-3",
-                    tab === item.id
-                      ? "border-foreground font-medium text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                  onclick={() => pick(item.id)}
-                  >{t(item.label)}{#if count}{#if item.id === "foryou"}<span
-                        data-home-tab-count
-                        class="min-w-5 rounded-full bg-destructive px-1.5 text-center text-[11px] leading-5 font-medium text-destructive-foreground tabular-nums"
-                        >{count}</span
-                      >{:else}<span
-                        data-home-tab-count
-                        class="text-xs font-normal text-muted-foreground tabular-nums"
-                        >{count}</span
-                      >{/if}{/if}</button
-                >{/each}
-            </div>
-            {#if picked.length}<span
-                data-inbox-selection
-                class="ml-auto flex items-center gap-1 text-xs text-muted-foreground"
-                >{t("{n} selecionados", { n: picked.length })}<Button
-                  size="sm"
-                  variant="ghost"
-                  class="h-7 px-2 text-xs"
-                  onclick={(event) => {
-                    if (live(event)) done(picked);
-                  }}>{t("Resolver selecionados")}</Button
-                ></span
-              >{/if}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                data-home-reply-menu
-                aria-label={t("Mais ações")}
-                class={cn(
-                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                  "size-8 shrink-0 text-muted-foreground",
-                  !picked.length && "ml-auto",
-                )}
-                ><Icon icon="dots-horizontal" size={15} /></DropdownMenuTrigger
-              >
-              <DropdownMenuContent align="end" class="w-56 font-sans">
-                <DropdownMenuItem
-                  data-inbox-resolve-all
-                  disabled={!asks.length}
-                  onSelect={() => {
-                    if (current()) owner.resolveLater(opening, asks);
-                  }}
-                  ><Icon icon="check-circle" />{asks.length
-                    ? t("Resolver todos os pedidos ({n})", { n: asks.length })
-                    : t("Resolver todos os pedidos")}</DropdownMenuItem
-                >
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {#if $inbox.error && $inbox.error !== "resolve"}<ErrorState
-              title={t("Não foi possível carregar a caixa de entrada.")}
-              compact
-              onretry={() => {
-                if (current()) void owner.refresh(opening);
-              }}
-              retryLabel={t("Tentar de novo")}
-            />{/if}
-          {#if $inbox.error === "resolve"}<ErrorState
-              title={t("Não deu pra resolver agora. Tente de novo.")}
-              compact
-            />{/if}
-
-          {#if loading}<div
-              data-inbox-loading
-              role="status"
-              aria-label={t("Carregando…")}
-              class="grid gap-3"
-            >
-              {#each [0, 1, 2] as index (index)}<div
-                  class="grid gap-3 rounded-xl border border-border p-4"
-                >
-                  <Skeleton class="h-3.5 w-2/5" />
-                  <div class="grid grid-cols-[32px_minmax(0,1fr)] gap-3">
-                    <Skeleton class="size-8 rounded-full" />
-                    <Skeleton
-                      class={cn("h-3.5", index % 2 ? "w-3/4" : "w-11/12")}
-                    />
-                  </div>
-                </div>{/each}
-            </div>
-          {:else if order.length}<div
-              data-home-feed={tab}
-              data-home-tasks={tab === "tasks" || undefined}
-              role="tabpanel"
-              class="grid gap-3"
-            >
-              {#each order as item (item.wait ?? item.message?.mention ?? item.task ?? item.key)}{#if item.kind === "task"}{@render taskCard(
-                    item,
-                  )}{:else}{@render card(item)}{/if}{/each}
-            </div>
-          {:else if !$inbox.error}{@render empty(
-              tab === "foryou"
-                ? t("Nada esperando você.")
-                : tab === "mentions"
-                  ? t("Nenhuma menção.")
-                  : tab === "tasks"
-                    ? t("Nenhuma tarefa aberta.")
-                    : t("Nada novo nas suas salas."),
-              tab === "foryou"
-                ? t(
-                    "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
-                  )
-                : "",
-            )}{/if}
+  <div class="min-h-0 flex-1 overflow-auto">
+    <div
+      class="mx-auto flex w-full max-w-[720px] flex-col gap-10 px-8 pt-14 pb-24"
+    >
+      <!-- The hero: the cube, one line, the ask box. -->
+      <header data-home-hero class="flex flex-col items-center gap-5">
+        <canvas
+          bind:this={cube}
+          width="384"
+          height="384"
+          aria-hidden="true"
+          class="size-24 shrink-0"
+        ></canvas>
+        <h1
+          data-home-hero-line
+          class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
+        >
+          {#if waiting}{waiting === 1
+              ? t("1 coisa espera você")
+              : t("{n} coisas esperam você", { n: waiting })}{:else}{first
+              ? t("Tudo em dia, {name}.", { name: first })
+              : t("Tudo em dia.")}
+            <span class="text-muted-foreground"
+              >{t("O que vamos fazer agora?")}</span
+            >{/if}
+        </h1>
+        <div data-home-ask="inbox" class="w-full">
+          <HomeAsk
+            personal={services.personal}
+            {lang}
+            onnavigate={(target) => services.actions.navigate(target)}
+            onnew={(trigger) => services.navigation.openCreate(trigger)}
+            onsearch={() => services.navigation.openSearch()}
+          />
         </div>
+      </header>
+
+      <div class="flex flex-col gap-4">
+        <!-- The tabs: plain text, a solid line under the open one. -->
+        <div class="flex items-center gap-1 border-b border-border">
+          <div role="tablist" aria-label={t("Caixa de entrada")} class="flex">
+            {#each tabs as item (item.id)}{@const count =
+                lists[item.id].length}<button
+                type="button"
+                role="tab"
+                data-home-tab={item.id}
+                aria-selected={tab === item.id}
+                class={cn(
+                  "-mb-px flex h-10 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 font-sans text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  tab === item.id
+                    ? "border-foreground font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+                onclick={() => pick(item.id)}
+                >{t(item.label)}{#if count}{#if item.id === "foryou"}<span
+                      data-home-tab-count
+                      class="min-w-5 rounded-full bg-destructive px-1.5 text-center text-[11px] leading-5 font-medium text-destructive-foreground tabular-nums"
+                      >{count}</span
+                    >{:else}<span
+                      data-home-tab-count
+                      class="text-xs font-normal text-muted-foreground tabular-nums"
+                      >{count}</span
+                    >{/if}{/if}</button
+              >{/each}
+          </div>
+          {#if picked.length}<span
+              data-inbox-selection
+              class="ml-auto flex items-center gap-1 text-xs text-muted-foreground"
+              >{t("{n} selecionados", { n: picked.length })}<Button
+                size="sm"
+                variant="ghost"
+                class="h-7 px-2 text-xs"
+                onclick={(event) => {
+                  if (live(event)) done(picked);
+                }}>{t("Resolver selecionados")}</Button
+              ></span
+            >{/if}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              data-home-reply-menu
+              aria-label={t("Mais ações")}
+              class={cn(
+                buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                "size-8 shrink-0 text-muted-foreground",
+                !picked.length && "ml-auto",
+              )}><Icon icon="dots-horizontal" size={15} /></DropdownMenuTrigger
+            >
+            <DropdownMenuContent align="end" class="w-56 font-sans">
+              <DropdownMenuItem
+                data-inbox-resolve-all
+                disabled={!asks.length}
+                onSelect={() => {
+                  if (current()) owner.resolveLater(opening, asks);
+                }}
+                ><Icon icon="check-circle" />{asks.length
+                  ? t("Resolver todos os pedidos ({n})", { n: asks.length })
+                  : t("Resolver todos os pedidos")}</DropdownMenuItem
+              >
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {#if $inbox.error && $inbox.error !== "resolve"}<ErrorState
+            title={t("Não foi possível carregar a caixa de entrada.")}
+            compact
+            onretry={() => {
+              if (current()) void owner.refresh(opening);
+            }}
+            retryLabel={t("Tentar de novo")}
+          />{/if}
+        {#if $inbox.error === "resolve"}<ErrorState
+            title={t("Não deu pra resolver agora. Tente de novo.")}
+            compact
+          />{/if}
+
+        {#if loading}<div
+            data-inbox-loading
+            role="status"
+            aria-label={t("Carregando…")}
+            class="grid gap-3"
+          >
+            {#each [0, 1, 2] as index (index)}<div
+                class="grid gap-3 rounded-xl border border-border bg-card px-5 py-4"
+              >
+                <Skeleton class="h-3 w-2/5" />
+                <div
+                  class="grid grid-cols-[32px_minmax(0,1fr)] gap-x-3 gap-y-1"
+                >
+                  <Skeleton class="size-8 rounded-full" />
+                  <Skeleton class="h-3.5 w-1/4 self-center" />
+                  <Skeleton
+                    class={cn(
+                      "col-start-2 h-3.5",
+                      index % 2 ? "w-3/4" : "w-11/12",
+                    )}
+                  />
+                </div>
+              </div>{/each}
+          </div>
+        {:else if order.length}<div
+            data-home-feed={tab}
+            data-home-tasks={tab === "tasks" || undefined}
+            role="tabpanel"
+            class="grid gap-2"
+          >
+            {#each order as item (item.wait ?? item.message?.mention ?? item.task ?? item.key)}{#if item.kind === "task"}{@render taskCard(
+                  item,
+                )}{:else}{@render card(item)}{/if}{/each}
+          </div>
+        {:else if !$inbox.error}{@render empty(
+            tab === "foryou"
+              ? t("Nada esperando você.")
+              : tab === "mentions"
+                ? t("Nenhuma menção.")
+                : tab === "tasks"
+                  ? t("Nenhuma tarefa aberta.")
+                  : t("Nada novo nas suas salas."),
+            tab === "foryou"
+              ? t(
+                  "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
+                )
+              : "",
+          )}{/if}
       </div>
     </div>
-
-    {#if hints}<p
-        data-home-hints
-        class="m-0 animate-in border-t border-border px-4 py-2 text-center text-xs text-muted-foreground duration-150 ease-out [--tw-enter-opacity:0] motion-reduce:animate-none"
-      >
-        {t(
-          "j/k mover · Enter abrir · Esc fechar · r responder · o abrir na sala · e resolver",
-        )}
-      </p>{/if}
-    {#if !$inbox.undo && notice}<div
-        data-inbox-notice
-        role="status"
-        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
-      >
-        <Icon icon="check-circle" size={14} />{notice}
-      </div>{/if}
-    {#if $inbox.undo}<div
-        data-inbox-undo
-        role="status"
-        class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-3 rounded-lg bg-foreground py-2 pr-2 pl-4 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
-      >
-        <Icon icon="check-circle" size={14} />
-        <span
-          >{$inbox.undo === 1
-            ? t("1 pedido resolvido")
-            : t("{n} pedidos resolvidos", { n: $inbox.undo })}</span
-        ><Button
-          size="sm"
-          variant="ghost"
-          class="h-7 text-background hover:bg-background/15 hover:text-background"
-          onclick={(event) => {
-            if (live(event)) owner.undo(opening);
-          }}>{t("Desfazer")}</Button
-        >
-      </div>{/if}
   </div>
-  {#if paneCard}{@const where =
-      target(paneCard)}{#key `${where.book}\n${where.thread}`}<div
-        data-home-pane
-        class="flex min-h-0 min-w-0 flex-1 flex-col"
+
+  {#if hints}<p
+      data-home-hints
+      class="m-0 animate-in border-t border-border px-4 py-2 text-center text-xs text-muted-foreground duration-150 ease-out [--tw-enter-opacity:0] motion-reduce:animate-none"
+    >
+      {t(
+        "j/k mover · Enter abrir na sala · r responder · e resolver · x selecionar",
+      )}
+    </p>{/if}
+  {#if !$inbox.undo && notice}<div
+      data-inbox-notice
+      role="status"
+      class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
+    >
+      <Icon icon="check-circle" size={14} />{notice}
+    </div>{/if}
+  {#if $inbox.undo}<div
+      data-inbox-undo
+      role="status"
+      class="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 animate-in items-center gap-3 rounded-lg bg-foreground py-2 pr-2 pl-4 text-sm whitespace-nowrap text-background shadow-lg duration-200 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:0.5rem] motion-reduce:animate-none"
+    >
+      <Icon icon="check-circle" size={14} />
+      <span
+        >{$inbox.undo === 1
+          ? t("1 pedido resolvido")
+          : t("{n} pedidos resolvidos", { n: $inbox.undo })}</span
+      ><Button
+        size="sm"
+        variant="ghost"
+        class="h-7 text-background hover:bg-background/15 hover:text-background"
+        onclick={(event) => {
+          if (live(event)) owner.undo(opening);
+        }}>{t("Desfazer")}</Button
       >
-        <InboxThread
-          bind:this={reader}
-          {services}
-          {drafts}
-          book={where.book}
-          thread={where.thread}
-          focus={where.focus}
-          title={paneCard.room}
-          onchanged={() => {
-            if (paneCard) paneChanged(paneCard);
-          }}
-          onopen={() => {
-            if (paneCard) open(paneCard);
-          }}
-          onclose={closePane}
-        />
-      </div>{/key}{/if}
+    </div>{/if}
 </section>
 
 {#snippet empty(title: string, detail = "")}<div
@@ -909,31 +791,49 @@
       version={avatar(row.author)}
     />{/if}{/snippet}
 
-<!-- "Room › Thread", then what's new and when; a dot when it came after your last visit. -->
-{#snippet place(row: Card)}<RoomAvatar
-    title={row.room}
-    icon={row.summary ? roomIcon(row.summary) : null}
-    {lang}
-    size="2xs"
-    surface="background"
-  />
-  <span class="min-w-0 truncate"
-    ><span class="font-medium text-foreground">{row.room}</span
-    >{#if row.where}<span class="px-1">›</span>{row.where}{/if}</span
+<!-- The card's top line, small and muted: the room's icon, "Room › Thread" on the left; on the right
+     what's new, a dot when it came after your last visit, and the time (a task: its status). -->
+{#snippet meta(row: Card)}<span
+    data-home-card-meta
+    class="flex h-5 min-w-0 items-center gap-2 text-xs text-muted-foreground"
   >
-  {#if row.kind === "room" && row.news}<span
-      data-home-room-news
-      class="shrink-0 text-muted-foreground tabular-nums"
-      >· {row.news === 1 ? t("1 nova") : t("{n} novas", { n: row.news })}</span
-    >{/if}
-  {#if row.ts}<span class="shrink-0 tabular-nums">· {since(row.ts)}</span>{/if}
-  {#if fresh(row)}<span
-      data-home-fresh
-      aria-label={t("Novo")}
-      class="size-1.5 shrink-0 rounded-full bg-destructive"
-    ></span>{/if}{/snippet}
+    <RoomAvatar
+      title={row.room}
+      icon={row.summary ? roomIcon(row.summary) : null}
+      {lang}
+      size="2xs"
+      surface="background"
+    />
+    <span class="min-w-0 truncate"
+      ><span class="font-medium">{row.room}</span>{#if row.where}<span
+          class="px-1 text-subtle-foreground">›</span
+        >{row.where}{/if}</span
+    >
+    <span class="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums">
+      {#if row.kind === "room" && row.news}<span data-home-room-news
+          >{row.news === 1
+            ? t("1 nova")
+            : t("{n} novas", { n: row.news })}</span
+        ><span aria-hidden="true" class="text-subtle-foreground">·</span>{/if}
+      {#if row.kind === "task"}<span
+          data-home-task-status={row.task?.status}
+          class={cn(
+            "rounded-md px-2 text-[11px] leading-5 font-medium",
+            row.task?.status === "doing"
+              ? "bg-foreground text-background"
+              : "bg-muted text-muted-foreground",
+          )}>{t(statusLabel(row.task?.status ?? ""))}</span
+        >{:else}{#if fresh(row)}<span
+            data-home-fresh
+            aria-label={t("Novo")}
+            class="size-1.5 rounded-full bg-destructive"
+          ></span>{/if}{#if row.ts}<span>{since(row.ts)}</span>{/if}{/if}
+    </span>
+  </span>{/snippet}
 
-<!-- One card: where and when on top, ↩ and ✓ on the right; who and what below, then the answer buttons. A click opens the thread beside. -->
+<!-- One card, in three zones on one left edge: the meta line; who (avatar and name) and what (the
+     message under the name, up to 3 lines); the actions under the message. A click anywhere on it
+     (the open button's layer covers the card) leaves for the message in its room. -->
 {#snippet card(item: Card)}<div
     data-inbox-row={item.key}
     data-leaving={leaving[item.key] || undefined}
@@ -944,123 +844,62 @@
         : "grid-rows-[1fr] opacity-100",
     )}
   >
-    <div class="min-h-0 overflow-hidden">
+    <div class="min-h-0 overflow-hidden p-0.5">
       <Snapshot value={item}
-        >{#snippet children(row)}<article
+        >{#snippet children(row)}{@const choices = buttons(row)}
+          <article
             data-room-inbox-message
             data-home-card
             data-kind={row.kind}
             data-fresh={fresh(row) || undefined}
             aria-current={cursor === row.key || undefined}
-            class={cn(
-              "relative grid rounded-xl border bg-background transition-colors duration-150 hover:bg-muted",
-              cursor === row.key
-                ? "border-foreground bg-muted"
-                : "border-border",
-            )}
+            class="relative grid gap-3 rounded-xl border border-border bg-card px-5 py-4 transition-colors duration-150 hover:border-input has-[[data-inbox-open]:focus-visible]:border-ring has-[[data-inbox-open]:focus-visible]:ring-1 has-[[data-inbox-open]:focus-visible]:ring-ring"
+            onfocusin={() => {
+              if (current()) cursor = row.key;
+            }}
           >
-            <div class="flex min-w-0 items-center gap-2 pt-2 pr-2 pl-2">
+            {@render meta(row)}
+            <div class="grid grid-cols-[32px_minmax(0,1fr)] gap-x-3">
+              <span class="flex h-8 items-center">{@render face(row)}</span>
               <button
                 type="button"
                 data-inbox-open
-                class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-1.5 py-1 text-left font-sans text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                class="grid min-w-0 cursor-pointer gap-1 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']"
                 onclick={(event) => {
-                  if (live(event)) select(row);
+                  if (live(event)) open(row);
                 }}
               >
-                {@render place(row)}
-              </button>
-              <div
-                data-inbox-actions
-                class="flex shrink-0 items-center gap-0.5"
-              >
-                {#if canReply(row)}<IconButton
-                    data-inbox-reply-button
-                    label={t("Responder")}
-                    size="icon-sm"
-                    tooltipSide="bottom"
-                    onclick={(event) => {
-                      if (live(event)) void startReply(row);
-                    }}><Icon icon="reverse-left" size={15} /></IconButton
-                  >{/if}{#if canDone(row)}<IconButton
-                    data-inbox-resolve
-                    label={t(
-                      row.kind === "room" ? "Marcar como lida" : "Feito",
-                    )}
-                    size="icon-sm"
-                    tooltipSide="bottom"
-                    onclick={(event) => {
-                      if (live(event)) done([row]);
-                    }}><Icon icon="check" size={15} /></IconButton
-                  >{/if}{#if row.kind === "claude" || row.kind === "review"}<IconButton
-                    label={t(
-                      row.kind === "claude" ? "Ir pro agent" : "Abrir tarefa",
-                    )}
-                    size="icon-sm"
-                    tooltipSide="bottom"
-                    onclick={(event) => {
-                      if (live(event)) open(row);
-                    }}
-                    ><Icon
-                      icon={row.kind === "claude"
-                        ? "app-agents"
-                        : "link-external-01"}
-                      size={15}
-                    /></IconButton
-                  >{/if}
-              </div>
-            </div>
-            <button
-              type="button"
-              class={cn(
-                "grid min-w-0 cursor-pointer gap-2 rounded-b-xl border-0 bg-transparent pt-2 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                paneCard ? "px-3" : "px-4",
-                buttons(row).length || (row.kind === "review" && row.wait)
-                  ? "pb-3"
-                  : "pb-4",
-              )}
-              onclick={(event) => {
-                if (live(event)) select(row);
-              }}
-            >
-              {#if row.kind === "reply" && row.about}<span
-                  data-home-asked
-                  class="line-clamp-1 text-sm text-muted-foreground"
-                  >↪ {t("você pediu:")} {inboxPreview(row.about)}</span
-                >{/if}
-              <span class="flex min-w-0 items-start gap-3">
-                {@render face(row)}
-                <span class="grid min-w-0 flex-1 gap-0.5">
-                  <strong class="truncate text-sm font-medium"
+                <span class="flex h-8 min-w-0 items-center"
+                  ><strong class="truncate text-sm font-medium"
                     >{name(row)}</strong
-                  >
-                  <span
-                    data-home-card-text
-                    class={cn(
-                      "text-sm leading-6 break-words",
-                      paneCard ? "line-clamp-2" : "line-clamp-3",
-                    )}>{@render rich(said(row))}</span
-                  >
-                </span>
-              </span>
-            </button>
-            {#if buttons(row).length || (row.kind === "review" && row.wait)}<div
-                data-home-row-choices
-                class={cn(
-                  "flex flex-wrap gap-1.5 pb-4",
-                  paneCard ? "pr-3 pl-[56px]" : "pr-4 pl-[60px]",
-                )}
-              >
-                {#if row.kind === "review"}<Button
-                    data-home-approve
-                    size="sm"
-                    variant="outline"
-                    class="h-7 px-3 text-xs"
-                    disabled={!!acting[row.key]}
-                    onclick={(event) => {
-                      if (live(event)) void approve(row);
-                    }}><Icon icon="check" size={13} />{t("Aprovar")}</Button
-                  >{:else}{#each buttons(row) as option (option)}<Button
+                  ></span
+                >
+                {#if row.kind === "reply" && row.about}<span
+                    data-home-asked
+                    class="-mt-1 line-clamp-1 border-l-2 border-border pl-2 text-xs leading-5 text-muted-foreground"
+                    >↪ {t("você pediu:")} {inboxPreview(row.about)}</span
+                  >{/if}
+                <span
+                  data-home-card-text
+                  class="line-clamp-3 text-sm leading-[22px] break-words"
+                  >{@render rich(said(row))}</span
+                >
+              </button>
+              {#if canReply(row) || canDone(row) || choices.length || (row.kind === "review" && row.wait)}<div
+                  data-inbox-actions
+                  class="relative z-10 col-start-2 mt-3 flex flex-wrap items-center gap-2"
+                >
+                  {#if row.kind === "review" && row.wait}<Button
+                      data-home-approve
+                      size="sm"
+                      variant="outline"
+                      class="h-7 px-3 text-xs"
+                      disabled={!!acting[row.key]}
+                      onclick={(event) => {
+                        if (live(event)) void approve(row);
+                      }}><Icon icon="check" size={13} />{t("Aprovar")}</Button
+                    >{/if}
+                  {#each choices as option (option)}<Button
                       data-home-choice={option}
                       size="sm"
                       variant="outline"
@@ -1069,123 +908,136 @@
                       onclick={(event) => {
                         if (live(event)) void choose(row, option);
                       }}><span class="truncate">{option}</span></Button
-                    >{/each}{/if}
-              </div>{/if}
-            {#if row.kind === "ask" && selected[row.key]}<span
-                class="pointer-events-none absolute top-3 left-0 h-[calc(100%-1.5rem)] w-0.5 rounded-full bg-foreground"
-              ></span>{/if}
-            {#if replying === row.key}<form
-                data-inbox-reply={row.key}
-                class="grid animate-in gap-2 border-t border-border px-4 pt-3 pb-4 duration-150 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:-0.25rem] motion-reduce:animate-none"
-                onsubmit={(event) => {
-                  event.preventDefault();
-                  if (live(event)) void send(row);
-                }}
-              >
-                <Textarea
-                  rows={2}
-                  value={draft}
-                  disabled={sending}
-                  placeholder={row.kind === "room"
-                    ? t("Responder em {topic}…", { topic: row.room })
-                    : t("Responder para {name}…", { name: name(row) })}
-                  aria-label={t("Responder")}
-                  class="bg-background"
-                  oninput={(event) => {
-                    if (current()) draft = event.currentTarget.value;
-                  }}
-                  onkeydown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      (event.metaKey || event.ctrlKey)
-                    ) {
-                      event.preventDefault();
-                      void send(row);
-                    } else if (event.key === "Escape") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      replying = null;
-                    }
-                  }}
-                />
-                <div class="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    class="h-7"
-                    disabled={sending || !draft.trim()}
-                    aria-busy={sending || undefined}
-                    >{#if sending}<Spinner size="xs" />{/if}{t(
-                      sending ? "Enviando…" : "Enviar",
-                    )}</Button
-                  ><Button
-                    size="sm"
-                    variant="ghost"
-                    class="h-7"
-                    disabled={sending}
-                    onclick={(event) => {
-                      if (live(event)) replying = null;
-                    }}>{t("Cancelar")}</Button
-                  >
-                  {#if replyError}<span
-                      role="alert"
-                      class="text-xs text-destructive">{replyError}</span
+                    >{/each}
+                  {#if canReply(row)}<Button
+                      data-inbox-reply-button
+                      size="sm"
+                      variant="outline"
+                      class="h-7 px-3 text-xs"
+                      aria-expanded={replying === row.key}
+                      onclick={(event) => {
+                        if (live(event)) void startReply(row);
+                      }}
+                      ><Icon icon="reverse-left" size={13} />{t(
+                        "Responder",
+                      )}</Button
                     >{/if}
-                </div>
-              </form>{/if}
+                  {#if canDone(row)}<Button
+                      data-inbox-resolve
+                      size="sm"
+                      variant="ghost"
+                      class="h-7 px-2.5 text-xs text-muted-foreground"
+                      onclick={(event) => {
+                        if (live(event)) done([row]);
+                      }}
+                      ><Icon icon="check" size={13} />{t(
+                        row.kind === "room" ? "Marcar como lida" : "Feito",
+                      )}</Button
+                    >{/if}
+                </div>{/if}
+              {#if replying === row.key}<form
+                  data-inbox-reply={row.key}
+                  class="relative z-10 col-start-2 mt-3 grid animate-in gap-2 duration-150 ease-out [--tw-enter-opacity:0] [--tw-enter-translate-y:-0.25rem] motion-reduce:animate-none"
+                  onsubmit={(event) => {
+                    event.preventDefault();
+                    if (live(event)) void send(row);
+                  }}
+                >
+                  <Textarea
+                    rows={2}
+                    value={draft}
+                    disabled={sending}
+                    placeholder={row.kind === "room"
+                      ? t("Responder em {topic}…", { topic: row.room })
+                      : t("Responder para {name}…", { name: name(row) })}
+                    aria-label={t("Responder")}
+                    class="bg-background"
+                    oninput={(event) => {
+                      if (current()) draft = event.currentTarget.value;
+                    }}
+                    onkeydown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.metaKey || event.ctrlKey)
+                      ) {
+                        event.preventDefault();
+                        void send(row);
+                      } else if (event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        replying = null;
+                      }
+                    }}
+                  />
+                  <div class="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      class="h-7"
+                      disabled={sending || !draft.trim()}
+                      aria-busy={sending || undefined}
+                      >{#if sending}<Spinner size="xs" />{/if}{t(
+                        sending ? "Enviando…" : "Enviar",
+                      )}</Button
+                    ><Button
+                      size="sm"
+                      variant="ghost"
+                      class="h-7"
+                      disabled={sending}
+                      onclick={(event) => {
+                        if (live(event)) replying = null;
+                      }}>{t("Cancelar")}</Button
+                    >
+                    {#if replyError}<span
+                        role="alert"
+                        class="text-xs text-destructive">{replyError}</span
+                      >{/if}
+                  </div>
+                </form>{/if}
+            </div>
+            {#if row.kind === "ask" && selected[row.key]}<span
+                data-inbox-selected
+                class="pointer-events-none absolute top-4 bottom-4 -left-px w-0.5 rounded-full bg-foreground"
+              ></span>{/if}
           </article>{/snippet}</Snapshot
       >
     </div>
   </div>{/snippet}
 
-<!-- One of your open tasks, as a card: "Room › Thread" and its status on top; its title and due date below. -->
-{#snippet taskCard(item: Card)}<div data-inbox-row={item.key}>
+<!-- One of your open tasks, the same card: "Room › Epic" and its status on top; its title as the
+     main text and the due date under it. The whole card opens the task's thread in its room. -->
+{#snippet taskCard(item: Card)}<div data-inbox-row={item.key} class="p-0.5">
     <Snapshot value={item}
       >{#snippet children(row)}<button
           type="button"
           data-room-inbox-message
           data-home-card
+          data-inbox-open
           data-kind="task"
           aria-current={cursor === row.key || undefined}
-          class={cn(
-            "grid w-full min-w-0 cursor-pointer gap-2 rounded-xl border bg-background pt-2 pb-4 text-left font-sans text-foreground outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-            cursor === row.key ? "border-foreground bg-muted" : "border-border",
-          )}
+          class="grid w-full min-w-0 cursor-pointer gap-3 rounded-xl border border-border bg-card px-5 py-4 text-left font-sans text-foreground outline-none transition-colors duration-150 hover:border-input focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+          onfocus={() => {
+            if (current()) cursor = row.key;
+          }}
           onclick={(event) => {
-            if (live(event)) select(row);
+            if (live(event)) open(row);
           }}
         >
-          <span
-            class="flex min-w-0 items-center gap-2 px-3.5 py-1 text-xs text-muted-foreground"
-          >
-            {@render place(row)}
+          {@render meta(row)}
+          <span class="grid grid-cols-[32px_minmax(0,1fr)] gap-x-3">
             <span
-              data-home-task-status={row.task?.status}
-              class={cn(
-                "ml-auto shrink-0 rounded-md px-2 text-[11px] leading-5 font-medium",
-                row.task?.status === "doing"
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground",
-              )}>{t(statusLabel(row.task?.status ?? ""))}</span
-            >
-          </span>
-          <span
-            class={cn(
-              "flex min-w-0 items-start gap-3",
-              paneCard ? "px-3" : "px-4",
-            )}
-          >
-            <span
-              class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+              class="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground"
               ><Icon icon="check-circle" size={15} /></span
             >
-            <span class="grid min-w-0 flex-1 gap-0.5">
+            <span class="grid min-w-0 content-center gap-0.5">
               <span
-                class="line-clamp-2 text-sm leading-6 font-medium break-words"
+                data-home-card-text
+                class="line-clamp-2 text-sm leading-[22px] font-medium break-words"
                 >{row.text}</span
               >
               {#if row.task?.due}<span
-                  class="text-[13px] text-muted-foreground tabular-nums"
+                  data-home-task-due
+                  class="text-xs text-muted-foreground tabular-nums"
                   >{row.task.due}</span
                 >{/if}
             </span>

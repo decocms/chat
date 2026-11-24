@@ -10,7 +10,6 @@ import { createRoomsSession } from "../web/features/rooms/session";
 import { createNewRoomSession } from "../web/features/home/session";
 import { createAccountSession } from "../web/features/account/session";
 import { createApplicationInbox } from "../web/features/application/inbox";
-import { createComposerDrafts } from "../web/features/composer/drafts";
 import type { HomeApi } from "../web/features/home/api";
 import type { AccountApi } from "../web/features/account/api";
 import type { RoomTarget } from "../web/features/home/model";
@@ -1418,14 +1417,7 @@ async function homeInbox(overrides: Partial<HomeApi> = {}) {
   const target = document.createElement("div");
   document.body.append(target);
   const component = flushSync(() =>
-    mount(HomeInbox, {
-      target,
-      props: {
-        owner: inbox,
-        services: h.services,
-        drafts: createComposerDrafts(),
-      },
-    }),
+    mount(HomeInbox, { target, props: { owner: inbox, services: h.services } }),
   );
   cleanups.push(() => {
     flushSync(() => {
@@ -1481,13 +1473,8 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   const fresh = find()!;
   expect(!!fresh).toBe(true);
   expect(fresh !== old).toBe(true);
-  // A click opens the task's thread beside the list; "Abrir na sala" leaves for the room.
+  // A click leaves the Home and opens the task's thread in its room.
   fresh.click();
-  await flush();
-  expect(h.href()).toBe(before);
-  h.target
-    .querySelector<HTMLButtonElement>("[data-inbox-thread-open]")!
-    .click();
   expect(h.href() !== before).toBe(true);
   expect(get(h.inbox.state).binding === null).toBe(true);
 });
@@ -1558,11 +1545,7 @@ test("home Inbox old connected question controls cannot act on a same-ID canonic
   h.target
     .querySelector<HTMLButtonElement>("[data-room-inbox-message] button")!
     .click();
-  await flush();
-  expect(h.href()).toBe(before);
-  h.target
-    .querySelector<HTMLButtonElement>("[data-inbox-thread-open]")!
-    .click();
+  // A click leaves the Home and opens the room on the message.
   expect(h.href() !== before).toBe(true);
 });
 
