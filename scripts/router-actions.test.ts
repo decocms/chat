@@ -1,6 +1,8 @@
 // Router actions (src/routerActions.ts, Gimenes #4369, #4379): the server acts on a person's message by itself.
 import { expect, test } from "bun:test";
 import {
+  ACTION_THRESHOLD_MIN,
+  ROUTER_ACTIONS,
   MARK_DONE_MAX,
   runRouterActions,
   type ActionMessage,
@@ -47,6 +49,12 @@ function jev(p: Record<string, number> | null) {
   };
   return { decide, calls };
 }
+
+test("every action acts at 0.8 or more: the floor is never lowered (Gimenes #4435)", () => {
+  expect(ACTION_THRESHOLD_MIN).toBe(0.8);
+  for (const action of ROUTER_ACTIONS)
+    expect(action.threshold).toBeGreaterThanOrEqual(ACTION_THRESHOLD_MIN);
+});
 
 test("the exact phrase closes the thread with no model call, before any await", () => {
   const { r, did } = room();

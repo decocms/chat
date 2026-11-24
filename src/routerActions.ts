@@ -84,6 +84,10 @@ export type RouterAction = {
 /** A message this long is not "pode fechar": mark_done asks Jev only about short messages (cost, and fewer false hits). */
 export const MARK_DONE_MAX = 60;
 
+/** The floor of every action's threshold (Gimenes #4435): never lower it. A miss goes to a better question, not to a
+ *  lower threshold. scripts/router-actions.test.ts fails on an action below it. */
+export const ACTION_THRESHOLD_MIN = 0.8;
+
 export const ROUTER_ACTIONS: readonly RouterAction[] = [
   {
     // A question in main becomes its own thread with a doc for the answer (Gui #2767). It was answerIntent.
@@ -96,7 +100,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     ready: (m, room) => room.listening(m.author),
     question:
       "Is this message a question, or a request for an analysis, numbers, a summary, a report, a chart or a comparison: something to answer with information? Answer no for a request to build, change, fix, deploy or do something, for small talk, for an answer or OK to someone, and for a yes/no question to a person.",
-    threshold: 0.7,
+    threshold: ACTION_THRESHOLD_MIN,
     run: (m, room) => room.makeAnswerThread(m),
   },
   {
@@ -106,7 +110,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     exact: isMarkDone,
     question:
       'The author wrote this in a thread (a topic with its own tasks). Is the author saying that the thread\'s work is finished and the thread can be closed or marked done (for example "pode fechar", "feito, valeu", "done", "pode marcar como concluída")? Answer no for a question ("está feito?"), for one step done while more remains, for a request to do something, and for "done" about something else.',
-    threshold: 0.8,
+    threshold: ACTION_THRESHOLD_MIN,
     run: (m, room, via) => room.markDone(m.thread, via),
   },
 ];
