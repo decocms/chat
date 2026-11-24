@@ -321,9 +321,9 @@
             lang={services.language}
           />{/if}
         <SidebarFoot
-          >{#if $personal.updateAvailable}<div class="pb-1">
-              <UpdateRow lang={services.language === "en" ? "en" : "pt"} />
-            </div>{/if}<AccountRow
+          >{#if $personal.updateAvailable}<UpdateRow
+              lang={services.language === "en" ? "en" : "pt"}
+            />{/if}<AccountRow
             me={$personal.me}
             current={settings}
           /></SidebarFoot
