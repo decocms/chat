@@ -41,14 +41,29 @@ export function lastAgentOwner(recent: string) {
   return owner;
 }
 
+/** In `recent`, who wrote the last line: a person, or a person's agent ("Name (Claude): …"). */
+export function lastSpeaker(recent: string) {
+  const line = recent.trim().split("\n").at(-1) ?? "";
+  const agent = line.match(/^(.+?) \((?:Claude|Codex|agent|Gemini|GPT)[^)]*\):/);
+  if (agent) return { who: agent[1]!.trim(), agent: true };
+  const person = line.match(/^([^:]{1,60}):/);
+  return person ? { who: person[1]!.trim(), agent: false } : null;
+}
+
 /** Your own message: are you talking to your agent, or only to other people? Wakes unless Jev is clearly sure it's
- * the latter (< 0.25); Jev down = wake. Two signals move that line to 0.5 (D1 router_feedback, Gimenes #4113, #4090,
- * #4191): the message @mentions another person, or the last agent that spoke in the thread is another person's. */
+ * the latter (< 0.25); Jev down = wake. Three signals move that line to 0.5 (D1 router_feedback, Gimenes #4113, #4090,
+ * #4191): the message @mentions another person, the last agent that spoke in the thread is another person's, or the
+ * line right before it is another person's (the author is likely answering them). */
 export async function own(env: Env, name: string, memory: string, m: JevMsg): Promise<{ decision: Decision; why: string; cost: number }> {
   const first = (s: string) => s.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
-  const others = taggedOthers(name, m.text), lastAgent = lastAgentOwner(m.recent);
+  const others = taggedOthers(name, m.text), lastAgent = lastAgentOwner(m.recent), before = lastSpeaker(m.recent);
   const otherAgent = !!lastAgent && first(lastAgent) !== first(name);
-  const signals = [others.length ? `The message @mentions other people: ${others.map((t) => `@${t}`).join(", ")}.` : "", otherAgent ? `The last agent that spoke in this thread is ${lastAgent}'s, not ${name}'s.` : ""].filter(Boolean);
+  const answering = !!before && !before.agent && first(before.who) !== first(name) && before.who !== "@vibe";
+  const signals = [
+    others.length ? `The message @mentions other people: ${others.map((t) => `@${t}`).join(", ")}.` : "",
+    otherAgent ? `The last agent that spoke in this thread is ${lastAgent}'s, not ${name}'s.` : "",
+    answering ? `The line right before it is from ${before!.who}, another person: ${name} is likely answering them.` : "",
+  ].filter(Boolean);
   const r = await decide(env, { memory: memory.slice(0, 2000), thread: m.topic, recent: m.recent.slice(0, 1500), message: `${m.from}: ${m.text}`.slice(0, 1500), ...(signals.length ? { signals: signals.join(" ") } : {}) }, {
     to_claude: { type: "noul", instructions: `${name} wrote this message. Is ${name} asking or telling their own AI agent (their Claude, Codex or any agent of theirs, maybe called by its name) something, or saying something it should act on or answer? Answer no only when ${name} is clearly talking to other people (answering a person, asking a person's opinion, @mentioning someone to ask them or to bring them in, chatting), or addressing another person's agent. A message that @mentions another person is for that person, unless it also asks ${name}'s agent to do something ("Claude, …", "pede pro Claude…"). A short reaction ("gostei", "vamos", "ok", "boa") right after another person's agent spoke is for that agent.` },
   }).catch(() => null);
