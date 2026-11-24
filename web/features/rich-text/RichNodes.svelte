@@ -185,7 +185,8 @@
           data-rich-link={node.target.kind}
           class={node.target.kind === "file" || node.target.kind === "github"
             ? "inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 align-middle text-xs font-medium text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-            : "rounded-sm text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current focus-visible:outline-2 focus-visible:outline-ring"}
+            : // Blue, no underline; a dashed one on hover (Valls).
+              "rounded-sm text-link no-underline decoration-dashed decoration-1 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"}
         >
           {#if node.target.kind === "github"}<svg
               aria-hidden="true"
