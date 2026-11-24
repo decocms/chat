@@ -862,6 +862,12 @@ export class Book extends DurableObject<Env> {
 
   /** A person wrote in this thread: what was asked of them earlier in it counts as answered (Gui, 13/11: the count
    * should go when you reply, not when Jev agrees you did). Only asks (m<id>); their tasks (t<id>) stay. */
+  /** A person reacted to a message: if it was an ask to them (m<id>), it counts as answered. */
+  async reactedHere(email: string, id: number) {
+    const bookId = this.get("book_id"); if (!bookId) return;
+    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref = ?`).bind(bookId, email, `m${id}`).run();
+    if (r.meta.changes) await poke(this.env, [email], { t: "me" });
+  }
   async answeredHere(email: string, thread: string, id: number) {
     const bookId = this.get("book_id"); if (!bookId) return;
     const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND thread = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) < ?`).bind(bookId, email, thread, id).run();
@@ -2441,8 +2447,12 @@ export class Book extends DurableObject<Env> {
       // The person takes one of their own requests out of their Claude's queue ("já resolvido"): an ack with status
       // dismissed, which the room doesn't draw and read_room's unacked doesn't list.
       case "react": {
-        const r = this.react(Number(m.id), email, String(m.emoji ?? ""));
-        return r.ok ? undefined : new Refused(r.error);
+        const emoji = String(m.emoji ?? "").trim();
+        const r = this.react(Number(m.id), email, emoji);
+        if (!r.ok) return new Refused(r.error);
+        // Reacting to an ask counts as seeing it through, like a reply (Valls): its count goes.
+        if (r.reactions[emoji]?.includes(email)) this.ctx.waitUntil(this.reactedHere(email, Number(m.id)));
+        return;
       }
       case "ack.dismiss": {
         const id = Number(m.id);
