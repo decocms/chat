@@ -9,6 +9,7 @@ import { AUTH_REQUEST_TIMEOUT, type AuthClock } from "../auth/owner";
 import { createAgentLease } from "../agents/lease";
 import { clientClock } from "../../lib/client/clock";
 import { createSendIds } from "../../lib/client/sendIds";
+import { sendRoomCommandOnce } from "../../app/roomReact";
 export type InboxBinding = {
   account: string;
   revision: number;
@@ -344,6 +345,14 @@ export function createApplicationInbox(
       if (owns(binding) && get(state).data.mentions.includes(mention))
         navigate(binding, mention.book_id, mention.thread, mention.msg_id);
     },
+    /** The desktop Home's "Nas suas salas": a room with unread messages opens on its main thread. */
+    openRoom(binding: InboxBinding, roomId: string) {
+      if (
+        owns(binding) &&
+        services.personal.peek()?.books.some((room) => room.id === roomId)
+      )
+        navigate(binding, roomId, "main");
+    },
     openTask(binding: InboxBinding, task: InboxTask) {
       if (owns(binding) && get(state).data.tasks.includes(task))
         navigate(binding, task.book_id, task.epic_id);
@@ -426,6 +435,33 @@ export function createApplicationInbox(
       }
       sends.done(JSON.stringify([item.book, item.thread, body]));
       if (!owns(binding)) return true;
+      services.personal.invalidate();
+      void services.personal.refresh();
+      void refresh(binding);
+      return true;
+    },
+    /** 👍 on an ask, from the Home: the room takes the reaction and clears the ask (src/book.ts reactedHere). */
+    async react(binding: InboxBinding, wait: Wait, emoji = "👍") {
+      const id = /^m\d+$/.test(wait.ref) ? Number(wait.ref.slice(1)) : NaN;
+      if (
+        !owns(binding) ||
+        !Number.isSafeInteger(id) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}`;
+      const url = new URL(
+        path,
+        globalThis.location?.href ?? "http://localhost/",
+      );
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const ok = await sendRoomCommandOnce(url.href, { t: "react", id, emoji });
+      if (!ok || !owns(binding)) return ok;
+      state.update((value) => ({
+        ...value,
+        hidden: [...value.hidden, waitsKey(wait)],
+      }));
       services.personal.invalidate();
       void services.personal.refresh();
       void refresh(binding);

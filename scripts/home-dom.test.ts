@@ -1445,11 +1445,11 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  // Your tasks are behind the Inbox's "Suas tarefas" chip; a row's first button opens it.
+  // Your tasks are folded under the desktop Home's "Suas tarefas"; a row's first button opens it.
   const find = () => {
     h.target
       .querySelector<HTMLButtonElement>(
-        '[data-inbox-filter="task"][aria-pressed="false"]',
+        '[data-home-tasks-toggle][aria-expanded="false"]',
       )
       ?.click();
     return [
