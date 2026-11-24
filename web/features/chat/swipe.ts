@@ -3,6 +3,54 @@ import { fromRoomEdge } from "../room-shell/edgeBack";
 import { MOBILE_QUERY } from "../../lib/breakpoints";
 /** How far right a swipe goes to reply. */
 const REPLY_DX = 60;
+/** The message follows the finger up to FREE_DX, then with resistance (like WhatsApp), up to the last step. */
+const FREE_DX = 64;
+const RESIST = 0.35;
+/** One class per 4 px (Tailwind's spacing), 0 to 96 px: the message follows the finger in small steps. Written in
+ *  full so Tailwind finds them. */
+const STEPS = [
+  "translate-x-0",
+  "translate-x-1",
+  "translate-x-2",
+  "translate-x-3",
+  "translate-x-4",
+  "translate-x-5",
+  "translate-x-6",
+  "translate-x-7",
+  "translate-x-8",
+  "translate-x-9",
+  "translate-x-10",
+  "translate-x-11",
+  "translate-x-12",
+  "translate-x-13",
+  "translate-x-14",
+  "translate-x-15",
+  "translate-x-16",
+  "translate-x-17",
+  "translate-x-18",
+  "translate-x-19",
+  "translate-x-20",
+  "translate-x-21",
+  "translate-x-22",
+  "translate-x-23",
+  "translate-x-24",
+];
+/** Letting go slides the message back (Gimenes #4533); while the finger moves, it follows with no delay. */
+const SETTLE = [
+  "transition-[translate,background-color]",
+  "duration-200",
+  "ease-out",
+];
+const SETTLE_MS = 220;
+/** While a message moves, the timeline clips sideways: no horizontal scroll bar (Gimenes #4533). Only then, so the
+ *  message toolbar and popovers are not cut at other times. */
+const CLIP = "overflow-x-clip";
+/** Where the finger is → where the message is, in px. */
+export const swipeOffset = (dx: number) =>
+  Math.min(
+    96,
+    dx <= FREE_DX ? Math.max(0, dx) : FREE_DX + (dx - FREE_DX) * RESIST,
+  );
 /** Holding a message this long, without moving more than HOLD_SLOP px, opens its actions (Gimenes #4402). */
 export const HOLD_MS = 500;
 const HOLD_SLOP = 8;
@@ -22,12 +70,35 @@ export function swipeMessage(
   let active = true,
     held = false,
     holdTimer: ReturnType<typeof setTimeout> | undefined,
-    start: { x: number; y: number; dx: number; locked: boolean } | null = null;
-  const classes = ["translate-x-5", "translate-x-10", "translate-x-20"];
+    settleTimer: ReturnType<typeof setTimeout> | undefined,
+    start: {
+      x: number;
+      y: number;
+      dx: number;
+      locked: boolean;
+      ready: boolean;
+    } | null = null;
+  const timeline = () => node.closest("[data-chat-timeline]");
   const reset = () => {
-    node.classList.remove(...classes);
+    node.classList.remove(...STEPS);
     node.removeAttribute("data-swipe");
     node.removeAttribute("data-swipe-dir");
+  };
+  /** Back to rest: with `animate`, the message slides back first. */
+  const release = (animate: boolean) => {
+    clearTimeout(settleTimer);
+    if (animate && STEPS.slice(1).some((c) => node.classList.contains(c))) {
+      node.classList.add(...SETTLE);
+      reset();
+      settleTimer = setTimeout(() => {
+        node.classList.remove(...SETTLE);
+        timeline()?.classList.remove(CLIP);
+      }, SETTLE_MS);
+      return;
+    }
+    node.classList.remove(...SETTLE);
+    reset();
+    timeline()?.classList.remove(CLIP);
   };
   const stopHold = () => {
     clearTimeout(holdTimer);
@@ -38,7 +109,7 @@ export function swipeMessage(
     if (!active || held || !callbacks.hold) return;
     held = true;
     start = null;
-    reset();
+    release(false);
     navigator.vibrate?.(10);
     callbacks.hold();
   };
@@ -46,7 +117,7 @@ export function swipeMessage(
     start = null;
     held = false;
     stopHold();
-    reset();
+    release(false);
     const target = event.target;
     if (
       callbacks.enabled === false ||
@@ -63,6 +134,7 @@ export function swipeMessage(
       y: event.touches[0].clientY,
       dx: 0,
       locked: false,
+      ready: false,
     };
     if (callbacks.hold) holdTimer = setTimeout(fireHold, HOLD_MS);
   };
@@ -71,7 +143,7 @@ export function swipeMessage(
     if (event.touches.length !== 1) {
       start = null;
       stopHold();
-      reset();
+      release(true);
       return;
     }
     const dx = event.touches[0].clientX - start.x,
@@ -85,22 +157,25 @@ export function swipeMessage(
       // Only a right swipe moves the message; a left one is left to the page (nothing to do there now).
       if (dx < 10 || dx <= Math.abs(dy)) return;
       start.locked = true;
+      timeline()?.classList.add(CLIP);
     }
     event.preventDefault();
     start.dx = Math.max(0, dx);
-    reset();
-    node.classList.add(
-      classes[start.dx > REPLY_DX ? 2 : start.dx > 30 ? 1 : 0],
-    );
-    // The swipe shows what letting go does (Gui #2668): "Reply →" past the left edge.
+    node.classList.remove(...STEPS);
+    node.classList.add(STEPS[Math.round(swipeOffset(start.dx) / 4)]);
+    // The swipe shows what letting go does (Gui #2668): the reply icon past the left edge grows, and fills at the
+    // point where letting go replies, with one short vibration when it gets there (like WhatsApp).
+    const ready = start.dx > REPLY_DX;
+    if (ready && !start.ready) navigator.vibrate?.(8);
+    start.ready = ready;
     node.dataset.swipeDir = "right";
-    node.dataset.swipe = start.dx > REPLY_DX ? "reply" : "tracking";
+    node.dataset.swipe = ready ? "reply" : "tracking";
   };
   const end = (event: TouchEvent) => {
     const gesture = start;
     start = null;
     stopHold();
-    reset();
+    release(true);
     // The hold opened the sheet: lifting the finger is not also a tap on what is under it.
     if (held) {
       if (event.cancelable) event.preventDefault();
@@ -111,7 +186,7 @@ export function swipeMessage(
   const cancel = () => {
     start = null;
     stopHold();
-    reset();
+    release(true);
   };
   // Android's own long press is a contextmenu event: the same sheet, not the browser's menu, and only one of them.
   const context = (event: MouseEvent) => {
@@ -130,7 +205,10 @@ export function swipeMessage(
     },
     destroy() {
       active = false;
-      cancel();
+      start = null;
+      stopHold();
+      clearTimeout(settleTimer);
+      release(false);
       node.removeEventListener("touchstart", begin);
       node.removeEventListener("touchmove", move);
       node.removeEventListener("touchend", end);

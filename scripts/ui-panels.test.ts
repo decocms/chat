@@ -3192,6 +3192,48 @@ test("a message's touch: a right swipe replies, a left one does nothing, holding
   }
 });
 
+test("a reply swipe clips the timeline only while it moves, resists past the mark and slides back (Gimenes #4533)", async () => {
+  const { swipeMessage, swipeOffset } =
+    await import("../web/features/chat/swipe");
+  // The message follows the finger, then with resistance, and never past 96 px.
+  expect(swipeOffset(40)).toBe(40);
+  expect(swipeOffset(400)).toBe(96);
+  expect(swipeOffset(100)).toBeLessThan(100);
+  expect(swipeOffset(-20)).toBe(0);
+  const timeline = window.document.createElement("section");
+  timeline.setAttribute("data-chat-timeline", "");
+  const row = window.document.createElement("div");
+  timeline.append(row);
+  window.document.body.append(timeline);
+  const swipe = swipeMessage(row, { reply: () => {} });
+  const touch = (
+    type: string,
+    points: { clientX: number; clientY: number }[],
+  ) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "touches", { value: points });
+    row.dispatchEvent(event);
+  };
+  try {
+    touch("touchstart", [{ clientX: 20, clientY: 0 }]);
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(false);
+    touch("touchmove", [{ clientX: 60, clientY: 0 }]);
+    // No horizontal scroll bar while the message is moved to the right.
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(true);
+    expect(row.classList.contains("translate-x-10")).toBe(true);
+    touch("touchend", []);
+    // It slides back with a transition, then the clip goes away.
+    expect(row.classList.contains("duration-200")).toBe(true);
+    expect(row.className).not.toContain("translate-x-10");
+    await new Promise((done) => setTimeout(done, 260));
+    expect(row.classList.contains("duration-200")).toBe(false);
+    expect(timeline.classList.contains("overflow-x-clip")).toBe(false);
+  } finally {
+    swipe.destroy();
+    timeline.remove();
+  }
+});
+
 test("fenced document cards reuse presentation read-only, including nested cards and malformed fallback", async () => {
   const card = {
     root: "c",
