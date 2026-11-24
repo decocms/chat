@@ -112,9 +112,19 @@ const SCHEMA = [
   // The hub's router (src/router.ts): one decision per message and person, for the A/B and its room app.
   `CREATE TABLE IF NOT EXISTS router_log (book_id TEXT, msg_id INTEGER, email TEXT, arm TEXT, decision TEXT, why TEXT, source TEXT, reply_id INTEGER, ms INTEGER, cost REAL, text TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, email))`,
   `CREATE INDEX IF NOT EXISTS router_log_email ON router_log (email, ts)`,
-  // The router's bench (scripts/router-bench.ts): messages the router got wrong for someone, with what it should have
-  // done, written by their agent when they say so (MCP router_feedback). Every change to the router runs against them.
+  // The first table of wake cases. Its rows are copied into router_feedback (below) and nothing writes to it now.
   `CREATE TABLE IF NOT EXISTS router_cases (book_id TEXT, msg_id INTEGER, email TEXT, own INTEGER, name TEXT, sender TEXT, text TEXT, topic TEXT, recent TEXT, memory TEXT, decided TEXT, expected TEXT, note TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, email))`,
+  // The router's bench (scripts/router-bench.ts, Gimenes #4481, #4483, #4485): messages the router got wrong, for every
+  // part of it. action: "wake" (did it wake the right agent), a router action (mark_done, answer_thread…) or a reading
+  // (waits). who: for wake, the person whose agent it is; for waits, the person who waits (or not); else "". expected:
+  // wake/ignore for wake, acts/no for the rest. status: "case" (a person said so, MCP router_feedback) runs in the
+  // bench; "suggested" (the room saw an undo: a thread opened again right after the router closed it, a reply thread
+  // the router made and a person deleted, a wait the router read and its person cleared) waits until the person's
+  // agent asks them. people: the room's other people as JSON [{email, name}], for the readings.
+  `CREATE TABLE IF NOT EXISTS router_feedback (book_id TEXT, msg_id INTEGER, action TEXT, who TEXT, status TEXT, reporter TEXT, own INTEGER, name TEXT, sender TEXT, text TEXT, thread TEXT, topic TEXT, recent TEXT, memory TEXT, people TEXT, decided TEXT, expected TEXT, note TEXT, ts INTEGER, PRIMARY KEY (book_id, msg_id, action, who))`,
+  `CREATE INDEX IF NOT EXISTS router_feedback_reporter ON router_feedback (reporter, status)`,
+  `INSERT OR IGNORE INTO router_feedback (book_id, msg_id, action, who, status, reporter, own, name, sender, text, topic, recent, memory, decided, expected, note, ts)
+     SELECT book_id, msg_id, 'wake', email, 'case', email, own, name, sender, text, topic, recent, memory, decided, expected, note, ts FROM router_cases`,
   `CREATE TABLE IF NOT EXISTS agent_reads (agent TEXT, book_id TEXT, email TEXT, last_id INTEGER, delivered_id INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS agent_reads_email ON agent_reads (email, book_id)`,
   `CREATE TABLE IF NOT EXISTS notify_agents (key TEXT PRIMARY KEY, email TEXT, agent TEXT, created_at INTEGER)`,
