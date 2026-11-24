@@ -52,6 +52,22 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-actions-waits · The router questions at the 0.8 floor
+
+- Agent: claude-opus-5-5
+- Context: Gimenes fixed every action threshold at 0.8 (#4435) and asked for adversarial review agents to find a better use of Jev. He did not choose the variant.
+- Decision:
+  - Three review agents (wording, call structure, new cases) gave 32 new bench cases and four variants. The bench ran each variant with the real Jev.
+  - `answer_thread`: one short positive question plus two vetoes (V3). It got 22/22, also the "llm or regex?" case.
+  - `mark_done`: the new wording without vetoes (V1). It got 35/35. The vetoes stopped true cases ("pode fechar" at 0.95).
+  - The waits question gets one sentence: a request to the author's Claude to ask a person ("pergunta pro Bruno…") does not wait on that person.
+  - The veto threshold is 0.5 (`VETO`).
+  - The waits threshold stays 0.7, as before in production. The 0.8 floor is for actions only.
+- Other options: Two calls (actions without the room context, V2: 34, 21). Vetoes on both actions (V3: mark_done 30). The old questions at 0.8 (V0: 33, 18, two false yes).
+- Risk: low. In two runs of V4, one true case missed once ("arquiva essa" at 0.78). No false yes in either run.
+- Undo: Revert the questions in `src/routerActions.ts`.
+- Status: open
+
 ### 2026-11-24 · feat/router-actions-waits · Router actions, stage 2: waits joins the router's Jev call
 
 - Agent: claude-opus-5-5

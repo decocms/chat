@@ -125,6 +125,28 @@ test("answer_thread: a question in main, only when the author's Claude listens a
   expect(l.calls).toEqual([]);
 });
 
+test("answer_thread: a veto at 0.5 or more stops it even when the question is sure", async () => {
+  const q = msg(
+    "main",
+    "você pode adicionar um gráfico de vendas no dashboard?",
+  );
+  const a = room(),
+    vetoed = jev({ answer_thread: 0.95, answer_thread_veto_do: 0.9 });
+  expect(
+    (await runRouterActions(q, a.r, vetoed.decide, { topic: "main" })).action,
+  ).toBeNull();
+  expect(vetoed.calls[0]).toEqual([
+    "answer_thread",
+    "answer_thread_veto_do",
+    "answer_thread_veto_person",
+  ]);
+  const b = room(),
+    clear = jev({ answer_thread: 0.95, answer_thread_veto_do: 0.1 });
+  expect(
+    (await runRouterActions(q, b.r, clear.decide, { topic: "main" })).action,
+  ).toBe("answer_thread");
+});
+
 test("Jev down: no action", async () => {
   const { r, did } = room();
   expect(

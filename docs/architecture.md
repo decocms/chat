@@ -139,12 +139,14 @@ The server can act on a message of a person without waking a Claude (`src/router
 
 `Book.personWrote` runs the actions on each message of a person. All the actions that apply share one Jev call. If Jev is not available, no action runs. The actions are:
 
-- `answer_thread`: a question in main becomes an answer thread (0.8). It runs only when the author has a Claude that listens to the room.
+- `answer_thread`: a question in main becomes an answer thread (0.8). It runs only when the author has a Claude that listens to the room. It has two vetoes: "asks to build, change or fix something" and "said to a person, or a greeting or an OK". A veto at 0.5 or more stops the action.
 - `mark_done`: the exact phrase "Mark as done" or "Marcar como concluída", or a short message (60 characters or less) that says the thread is finished (0.8). A Jev decision posts a line in the thread. Any message from a person opens the thread again.
 
 To add an action, add an entry to `ROUTER_ACTIONS` and a test to `scripts/router-actions.test.ts`.
 
 The threshold of each action is 0.8 or more (`ACTION_THRESHOLD_MIN`). Do not lower it. If an action misses cases, improve its question. A test fails if an action has a lower threshold.
+
+An action can also have vetoes (`vetoes`): short questions in the same call. A veto at 0.5 or more (`VETO`) stops the action. Write the main question as a short positive definition, and put each "no" case in a veto. A long list of "answer no for…" in one question lowers the score of the true cases.
 
 A reading (`ROUTER_READINGS`) also goes into the same Jev call. It does not select one action. The room keeps its answers. The readings are:
 
