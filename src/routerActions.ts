@@ -118,13 +118,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     when: (m, room) => m.thread !== "main" && room.openThread(m.thread),
     exact: isMarkDone,
     question:
-      "The author wrote this in the thread named in `thread`. Does the author say that thread's work is finished, or ask for that thread to be closed, ended, archived or marked done, in any words or language?",
-    vetoes: {
-      question:
-        'Is the message a question, a condition ("when the PR merges") or a "not yet"?',
-      other:
-        "Is the message about closing or finishing something other than this thread (a pull request, a modal, a deal, a meeting time), or about one step while more work remains?",
-    },
+      'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room, via) => room.markDone(m.thread, via),
   },
@@ -133,7 +127,7 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
 /** The waits question, the same for a person's message (here) and an agent's (Book.findWaits). `own` is the note an
  *  agent's message adds: its "você" is its own human. */
 export function waitQuestion(name: string, own = ""): string {
-  return `Esta mensagem pede algo a ${name}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${name}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${name} em especial. Nesta sala cada pessoa conversa com o próprio Claude: um pedido ou pergunta que não nomeia ninguém é pro Claude de quem escreveu, não pra ${name}; responda sim só se ela nomeia ${name} ou fala claramente com ${name}.${own}`;
+  return `Esta mensagem pede algo a ${name}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${name}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${name} em especial. Nesta sala cada pessoa conversa com o próprio Claude: um pedido ou pergunta que não nomeia ninguém é pro Claude de quem escreveu, não pra ${name}; responda sim só se ela nomeia ${name} ou fala claramente com ${name}. Um pedido pro Claude de quem escreveu falar com ${name} ("pergunta pro ${name}…", "avisa o ${name}…") também é pro Claude: responda não.${own}`;
 }
 /** A wait is at this probability or more. */
 export const WAIT_THRESHOLD = 0.7;
