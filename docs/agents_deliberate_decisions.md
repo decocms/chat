@@ -52,6 +52,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-bench-all · Every router bench case must pass, with the D1 cases
+
+- Agent: claude-opus-5-5
+- Context: Gimenes raised the bar (#4444, #4462): every case must pass, the repository cases and the production cases in D1, and the CI must read D1. He creates the Cloudflare token. He did not say how to handle Jev's noise or what CI can print.
+- Decision:
+  - A case that fails runs two more times. It passes only if both of those pass (2 of 3). A false yes is counted when the case still fails.
+  - The compare fails when a part of the pull request is under 100% or has a false yes, as well as when a score goes down. A part that main does not have must also pass all its cases.
+  - The D1 cases are their own part ("acordar (D1)"). The bench prints only their number and note, never their text, because the repository and its CI logs are public.
+  - The bench reads the database `chat` with `bunx wrangler` (it read `vibebook` with `npx`, which does not exist, so `--d1` never worked). CI needs only `CLOUDFLARE_API_TOKEN`; the account ID is in `wrangler.jsonc`.
+- Other options: Run each case 3 times always (3 times the cost). Fail on the first miss (Jev's noise fails good pull requests). Keep the D1 cases in the same part as the repository cases.
+- Risk: medium. A pull request that does not touch the router's behavior can fail on a case that Jev misses 2 of 3 times. Then fix the question or the case, or ask a human.
+- Undo: Revert the commit, and delete the `CLOUDFLARE_API_TOKEN` secret.
+- Status: open
+
 ### 2026-11-24 · fix/email-theme · The e-mails use the app's light theme
 
 - Agent: claude-opus-5-5
