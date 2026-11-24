@@ -100,6 +100,17 @@ The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys wit
 - Each push to another branch runs the same build, then `npx wrangler preview`. That makes a Worker Preview at `https://<branch>-chat.deco-cx.workers.dev`. The Preview uses the `previews` block of `wrangler.jsonc`: its own D1 (`chat-preview`), KV and R2 (`chat-preview-files`), its own Durable Object storage and its own `SESSION_SECRET`. It never touches production data. Preview URLs are public.
 - To make a Preview from a computer: `npx wrangler preview --name <name>`. To delete it: `npx wrangler preview delete --name <name>`.
 
+## The call recorder
+
+The recorder (`recorder/`) is a Worker of its own with a container. Workers Builds does not deploy it.
+
+1. Make sure that Docker runs on your computer.
+2. Run `cd recorder && bun install && npx wrangler deploy`.
+3. The first time, set its secrets: `npx wrangler secret put RECORDER_SECRET` and `npx wrangler secret put GRAIN_API_TOKEN`.
+4. In the `chat` Worker, set `RECORDER_URL` (the recorder's address), `RECORDER_SECRET` (the same value) and `CALL_RECORD_ROOMS` (room ids with commas, or `*`).
+
+Without these secrets in `chat`, no call is recorded.
+
 ## Roll back
 
 - Worker code: revert the commit on `main`. Workers Builds deploys the revert.

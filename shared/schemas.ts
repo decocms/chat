@@ -770,6 +770,68 @@ export const SttResult = z.object({
   text: z.string().check(z.maxLength(65536)),
 });
 export type SttResult = z.infer<typeof SttResult>;
+// The room's call (src/calls.ts): the browser's WebRTC negotiation with the SFU goes through these routes.
+export const CallJoinResult = z.object({ session: z.string() });
+/** POST /api/calls/recorded, from the recorder Worker: the call of this room is in Grain at this address. */
+export const RecordedBody = z.object({
+  room: z.string().check(z.regex(/^[a-z0-9]{6,40}$/)),
+  url: z.string().check(z.regex(/^https:\/\/grain\.com\/[\w\-/.?=&%]{1,400}$/)),
+});
+export type CallJoinResult = z.infer<typeof CallJoinResult>;
+export const CallDescription = z.object({
+  type: z.enum(["offer", "answer"]),
+  sdp: z.string().check(z.maxLength(200_000)),
+});
+export type CallDescription = z.infer<typeof CallDescription>;
+const callName = z.string().check(z.regex(/^[a-z]{1,16}$/));
+const callId = z.string().check(z.regex(/^[\w-]{1,128}$/));
+/** push: tracks of mine, by the transceiver's mid (needs `offer`). pull: tracks of others in the call. */
+export const CallTracksBody = z.object({
+  session: callId,
+  offer: z.optional(CallDescription),
+  push: z.optional(
+    z
+      .array(
+        z.object({ mid: z.string().check(z.maxLength(16)), name: callName }),
+      )
+      .check(z.maxLength(4)),
+  ),
+  pull: z.optional(
+    z
+      .array(z.object({ session: callId, name: callName }))
+      .check(z.maxLength(64)),
+  ),
+});
+export type CallTracksBody = z.infer<typeof CallTracksBody>;
+export const CallAnswerBody = z.object({
+  session: callId,
+  answer: CallDescription,
+});
+export const CallCloseBody = z.object({
+  session: callId,
+  mids: z.array(z.string().check(z.maxLength(16))).check(z.maxLength(64)),
+  names: z.optional(z.array(callName)),
+});
+/** What the SFU answers to a tracks request. A pull comes with an offer the browser must answer at once. */
+export const CallSfuResult = z.object({
+  sessionDescription: z.optional(z.nullable(CallDescription)),
+  requiresImmediateRenegotiation: z.optional(z.nullable(z.boolean())),
+  tracks: z.optional(
+    z.nullable(
+      z.array(
+        z.object({
+          mid: z.optional(z.nullable(z.string())),
+          trackName: z.optional(z.nullable(z.string())),
+          sessionId: z.optional(z.nullable(z.string())),
+          errorCode: z.optional(z.nullable(z.string())),
+        }),
+      ),
+    ),
+  ),
+});
+export type CallSfuResult = z.infer<typeof CallSfuResult>;
+/** A screen share refused because the month's traffic budget is spent (409). */
+export const CALL_LIMIT = "call screen limit";
 export const STT_AUDIO_MAX = 4_000_000;
 
 // A person's profile (Gui #3526): what they and their Claudes did, as stats and a title (shared/titles.ts). Never the

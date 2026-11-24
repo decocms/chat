@@ -190,6 +190,8 @@ export function reduceRoom(
       return { ...s, polls: { ...s.polls, [event.poll.id]: event.poll } };
     case "online":
       return { ...s, online: event.online };
+    case "call":
+      return { ...s, call: event.call };
     default:
       return s;
   }

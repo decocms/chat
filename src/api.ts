@@ -1,7 +1,7 @@
 import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
 import { DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
 import { requestBytes, RequestBytesError } from "./requestBytes";
-import { SttQuery, SttResult, type SttQuery as SttQueryType } from "../shared/schemas";
+import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
@@ -112,6 +112,13 @@ export interface ApiServices {
   isMember(roomId: string): Promise<boolean>;
   allowStt():Promise<boolean>;
   transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
+  /** The room's call (src/calls.ts). Each one checks that the session is the signed-in person's. */
+  callsOn: boolean;
+  allowCall(): Promise<boolean>;
+  callJoin(roomId: string): Promise<CallJoinResult>;
+  callTracks(roomId: string, body: CallTracksBodyType): Promise<CallSfuResult | "forbidden" | "limit">;
+  callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
+  callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
@@ -263,6 +270,7 @@ export function testPush(en: boolean, name: string | null) {
 }
 const ok = { ok: true as const } satisfies OkResult;
 const forbidden = { error: "forbidden" } satisfies ErrorBody;
+const sfuDown = (error: unknown) => ({ error: (error instanceof Error ? error.message : String(error)).slice(0, 200) }) satisfies ErrorBody;
 
 const roomPosts = new Hono<ApiCtx>()
   .post(
@@ -489,6 +497,56 @@ export const roomApi = accountApi
     if (on) svc.pokeListeners(id);
     svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : machine ? "machine" : "agent" });
     return c.json({ ok: true as const } satisfies DeliveryResult, 200);
+  })
+  // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these four routes.
+  .post("/api/books/:id/call/join", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (!svc.callsOn) return c.json({ error: "calls are off" } satisfies ErrorBody, 404);
+    if (!(await svc.allowCall())) return c.json({ error: "rate limited: wait a minute" } satisfies ErrorBody, 429);
+    try {
+      const out = await svc.callJoin(id);
+      svc.track("call_join", { book: id });
+      return c.json(out satisfies CallJoinResult, 200);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/tracks", body(CallTracksBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const body = c.req.valid("json"), out = await svc.callTracks(id, body);
+      if (out === "forbidden") return c.json(forbidden, 403);
+      if (out === "limit") {
+        svc.track("call_screen_limit", { book: id });
+        return c.json({ error: CALL_LIMIT } satisfies ErrorBody, 409);
+      }
+      if (body.push?.some((p) => p.name === "screen")) svc.track("call_screen", { book: id });
+      return c.json(out satisfies CallSfuResult, 200);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/answer", body(CallAnswerBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const { session, answer } = c.req.valid("json");
+      return (await svc.callAnswer(id, session, answer)) ? c.json(ok, 200) : c.json(forbidden, 403);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
+  })
+  .post("/api/books/:id/call/close", body(CallCloseBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    try {
+      const { session, mids, names } = c.req.valid("json");
+      return (await svc.callClose(id, session, mids, names ?? [])) ? c.json(ok, 200) : c.json(forbidden, 403);
+    } catch (error) {
+      return c.json(sfuDown(error), 502);
+    }
   })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{
     const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});

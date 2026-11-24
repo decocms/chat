@@ -44,6 +44,15 @@ export const DecisionSchema = z.object({
   ts: num,
 });
 export type Decision = z.infer<typeof DecisionSchema>;
+/** Someone in the room's call: their SFU session and the names of the tracks they publish ("mic", "screen"). */
+export const CallPeerSchema = z.object({
+  email: str,
+  session: str,
+  tracks: strings,
+  /** The person's microphone is off. */
+  muted: opt(bool),
+});
+export type CallPeer = z.infer<typeof CallPeerSchema>;
 export const PinSchema = z.object({
   id: str,
   kind: str,
@@ -203,6 +212,8 @@ export const RoomSnapshotSchema = z.object({
   roomTasks: opt(z.array(TaskSchema)),
   members: strings,
   online: strings,
+  /** Who is in the room's call. Missing = calls are not set up on this server (src/calls.ts). */
+  call: opt(z.array(CallPeerSchema)),
   names: opt(z.record(str, str)),
   /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
   handles: opt(z.record(str, str)),

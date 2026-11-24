@@ -114,6 +114,50 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 | MCP connection and MCP app | `src/mcpconn.ts`, `src/mcpauth.ts` | The browser calls the MCP server. Each person signs in with their own account. |
 | Files | `src/rooms.ts` (`storeFile`), `src/fileHeaders.ts` | Members only. HTML is sandboxed. SVG is not permitted. |
 
+## Calls (voice, camera and screen)
+
+- A room has one call. The room is the channel: there is no table of channels.
+- The media goes through the Cloudflare Realtime SFU. Each browser in the call has one `RTCPeerConnection` to it (`web/features/call/session.ts`). It publishes the track `mic`, `cam` while the camera is on, and `screen` while the person shares a screen. It receives the tracks that the other people publish.
+- The browser does not call the SFU's API, because that API needs the app secret. The Worker passes the WebRTC negotiation on (`src/calls.ts`, routes `/api/books/:id/call/*`). Before each request, `Book.callCheck` makes sure that the session is that person's, and that each session to receive from is in the same room's call.
+- `Book` keeps who is in the call, the tracks of each person and whose microphone is off (`meta` key `call`). Each change sends `{ t: "call" }` to the room. One person has one session: a second join replaces the first.
+- The call lives on the room's WebSocket. When the last socket of a person closes, `Book` removes that person from the call. A person who leaves the room's view leaves the call.
+- A person who opens a room with a call on joins that call, with the microphone off. A person who leaves the call stays out until the call ends.
+- Calls are off until `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` exist (Worker secrets). Then the room state has `call`, and the app shows the call.
+- A call is recorded only in the rooms of `CALL_RECORD_ROOMS`, and only while the recorder is in it (see "The recorder").
+
+### What a call costs
+
+The SFU bills the traffic that it sends to the browsers, after 1,000 GB in a month. These rules keep that traffic low:
+
+| Rule | Where |
+|---|---|
+| The microphone sends at 24 kbps at most, and does not send silence (Opus DTX). The browser removes noise and echo first. | `MIC_MAX_BPS`, `withDtx`, `MIC_CLEANUP` |
+| The camera is taken at 720p and sent at 360p or less, 15 frames a second, 200 kbps at most. | `CAM_SEND` |
+| A screen is sent at 720p and 30 frames a second at most, 1.5 Mbps at most. | `SCREEN_LIMITS`, `SCREEN_MAX_BPS` |
+| A browser receives one screen at a time: the one that the person chose. It receives no camera while a screen is on show. A hidden tab receives voices only. | `sync` and `planTracks` |
+| A person alone in the call cannot share a screen. A screen that did not change for 10 minutes stops. | `stopShare`, `SCREEN_IDLE_REPORTS` |
+| At 900 GB in a month, the Worker refuses a new screen share (409). The app then asks for a Google Meet link and posts it in the room, with a mention of each person in the call. Voice and cameras continue. | `CALL_SCREEN_LIMIT_GB`, `src/callBudget.ts` |
+
+The limit uses the larger of two counts. The first is the account's real traffic, from Cloudflare's analytics API (`accountEgress`, the datasets `callsUsageAdaptiveGroups` and `callsTurnUsageAdaptiveGroups`, with `CF_ANALYTICS_TOKEN`). The Worker reads it each 10 minutes at most. The second is what each browser in a call reports (`call.usage`, each 30 seconds), which D1 sums for the month (`call_usage`). It is there at once, and it stays when the API does not answer.
+
+### The recorder
+
+The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each call that it records. It is apart from the chat so that a problem in it never stops a deploy of the chat.
+
+1. The first person joins a call. If the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+2. The request has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
+3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`).
+4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
+5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices.
+6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes, and the container sends it to Grain (`GRAIN_API_TOKEN`).
+7. The container tells the chat (`POST /api/calls/recorded`), and the room gets a message with the Grain link.
+
+If the recorder does not start, the call continues and shows no "Gravando". A call is recorded to 3 hours at most (Grain's limit for one file). Deploy the recorder from `recorder/` (see [workflow.md](workflow.md)).
+
+### Background blur
+
+The camera dialog (`CameraDialog`) shows the picture before it goes to the call. The person can put the background out of focus (`web/features/call/blur.ts`). A model finds the person in each frame, in the browser: no picture goes to a server for this. The runtime (`@mediapipe/tasks-vision`, 15 MB) loads only when the person turns the blur on.
+
 ## Security
 
 - The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC.

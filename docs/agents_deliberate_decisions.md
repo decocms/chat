@@ -1714,3 +1714,59 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. A new command can change old messages. The worker test `scripts/message-edit.test.ts` covers who can do what, and that no one but the owner gets the old text.
 - Undo: Revert this commit. The new columns and table stay and are not read.
 - Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · Calls: the room is the channel
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked for voice channels, cameras and screen share on the Cloudflare Realtime SFU, at the lowest cost, with a move to Google Meet for the screen when the 1,000 GB free in a month are used.
+- Decision:
+  - One call for each room. No table of channels.
+  - The call is in the room's view and on the room's WebSocket. A person who opens a different room leaves the call. One person has one session.
+  - A person who opens a room with a call on joins it with the microphone off (Jonas asked for the automatic join; the microphone off is my choice).
+  - No SFU SDK and no TURN: the Worker calls the SFU's HTTPS API, and the browser uses `RTCPeerConnection` with STUN only.
+  - The limit uses Cloudflare's real traffic for the account (the analytics API, with the token that the reports use) and, as a second count, the bytes that the browsers report. A screen share stops at 900 GB (`CALL_SCREEN_LIMIT_GB`), not at 1,000, to leave a margin. The limit stops screens only, not cameras.
+  - To spare traffic, a browser receives no camera while a screen is on show, and one screen at a time.
+  - A microphone that is off is a disabled track, not a sender without a track: the SFU refuses to give the others a track that never sent (`empty_track_error`).
+  - The Google Meet path keeps no Google token (AGENTS.md, rule 1): the person opens `meet.new`, pastes the link, and the app posts it with a mention of each person in the call.
+  - The call's controls are under the stage with their text, not in the top bar (docs/design.md allows three controls there).
+  - Entering the call closes the pane and sends the sidebar to its rail. Leaving puts them back.
+  - The feature is off until the SFU app's two secrets exist.
+- Other options:
+  - RealtimeKit (ready UI, recording): Jonas refused it for its cost for each minute of each person.
+  - A call that stays when you open a different room, like Discord: it needs the call above the room's view and a second room socket. Add it if people ask.
+  - The Meet REST API to make the link: it needs a Google token on the server.
+- Risk: medium. The pure parts have unit tests. The WebRTC path was tested by hand and with two automatic browsers against a real SFU app on a local Worker, not on a deployed Worker and not with more than three people.
+- Undo: Revert this commit. The `call_usage` table in D1 and the `call` key in each room's `meta` stay and are not read.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · A dependency for the camera's background blur
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked for a camera dialog with a preview and a background out of focus, with levels, as Meet and Discord have.
+- Decision:
+  - Add `@mediapipe/tasks-vision` 1.2.3 (Apache 2.0, exact version) and keep its selfie segmenter model in `public/vendor/mediapipe/`. The browser has no feature that does this on all platforms.
+  - The runtime is 15 MB. It is in its own chunk and loads only when a person turns the blur on.
+  - The frames are drawn on a timer in the page. In a tab that is not on show the browser slows that timer, and the others see the camera almost still.
+  - Four more Untitled UI icons in the sprite, for the microphone off, the screen and the camera.
+- Other options: The `backgroundBlur` camera constraint (few platforms have it, and it has no levels). A worker with `MediaStreamTrackProcessor` (no slow timer, more code, Chrome only).
+- Risk: low. Without the blur the camera works as before. If the model does not load, the dialog says so and the camera goes without it.
+- Undo: Remove the dependency, `web/features/call/blur.ts`, the levels in `CameraDialog.svelte` and `public/vendor/mediapipe/`.
+- Status: open
+
+### 2026-11-24 · JonasJesus42/voice/screen-share-recording · The call recorder is a second Worker with a container
+
+- Agent: Claude Fable 5.2
+- Context: Jonas asked that calls go to Grain (the team pays for it) and approved a container, a Grain token on the server and a Worker apart from the chat.
+- Decision:
+  - The recorder is the room's own page in a Chromium, in a container, as one more participant. It records what a person sees and hears. This is the pattern of `decocms/channels` (one container for each thing that runs).
+  - A second Worker, `chat-recorder`, so that a failed image build never stops a deploy of the chat. The chat calls it with `fetch` and a shared secret, not with a service binding: `wrangler.jsonc` of the chat does not change.
+  - The recorder has an identity that is not a person (`gravador-<room>@call-recorder.invalid`). A link signed with `SESSION_SECRET`, good for 5 minutes, is the only way to a session for it. `isMember` accepts it for its one room.
+  - Each person sees "Gravando" while the recorder is in the call. No recorder, no mark.
+  - Grain refuses the browser's file, so ffmpeg converts it. Grain transcribes the audio and names all the voices "Speaker 1". Its summary does not run by itself on an upload: a person clicks "Run Intelligence" there.
+  - `GRAIN_API_TOKEN` is a new server credential (AGENTS.md, rule 1 has a list of exceptions). Jonas approved it. It is in the recorder Worker, not in the chat.
+  - Rooms are recorded only if `CALL_RECORD_ROOMS` lists them, because the Grain account is the operator's.
+- Other options: The SFU's WebSocket adapter with audio only (no video of the screen). RealtimeKit's recording (cost). A recorder in a participant's browser (it stops when that person leaves).
+- Risk: medium. A recorder container, a local chat and the real SFU and Grain ran together one time. The deployed Worker and its container were not tested with a real call.
+- Undo: Remove `RECORDER_URL` from the chat's secrets (recording stops at once). Then delete the `chat-recorder` Worker and `recorder/`.
+- Status: open
+

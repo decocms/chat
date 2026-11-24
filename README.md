@@ -53,6 +53,8 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Online status.** A room shows who has it open. The people who share a DM with you see when you have the app open. Other people do not see it.
 
+**Calls.** A room can have a call with voice, camera and screen share. Only members can join. Your voice and your pictures go through the Cloudflare Realtime SFU to the other people in the call. If you open a room that has a call on, you join it with your microphone and your camera off, and the others see that you are there. The camera and the screen go out only after you confirm them. The background blur runs in your browser. The operator chooses the rooms whose calls are recorded. In those rooms a recorder joins the call, and every person in it sees "Gravando" for as long as it is there. The recording (the voices, and the screen or the cameras) goes to the operator's Grain account, and the room gets its link. In a call without that mark, deco.chat records nothing. If you share a screen through a Google Meet link, Google's terms apply to that part.
+
 **Room links.** A person with the link can see the title of the room. They cannot see more. They can ask for access, and a member approves or refuses.
 
 **Room members.** Each member can invite people and remove a member. Nobody can remove the person who made the room.

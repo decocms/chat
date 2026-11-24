@@ -11,7 +11,7 @@ import { ensureAgent, markDelivered, openMade, unreadRooms } from "./agent";
 import { roomAccess, roomMeta } from "./access";
 import { openDm } from "./dm";
 import { authPage, connectionSignedOutPage } from "./auth-page";
-import { auth, authServices, EMAIL_RE, identify } from "./auth";
+import { auth, authServices, EMAIL_RE, identify, startSession, safeEqual } from "./auth";
 import type { Book } from "./book";
 import { connect, providerFor } from "./connect";
 import { handleMcp, isAdminMcp } from "./mcp";
@@ -26,6 +26,9 @@ import { jwks } from "./mcpauth";
 import { avatarEmail, profileFor } from "./profile";
 import { bookStub, createBook, setRoomIcon, docRoomName, docRoomStub, FILE_TYPES, fileHeaders, inviteMember, isMember, maxBytes, searchRooms, sizeError, TYPES_ERROR, storeFile, waitsFor } from "./rooms";
 import { requestContext, track } from "./track";
+import { recorderLinkValid } from "./calls";
+import { recorderEmail } from "../shared/call";
+import { RecordedBody } from "../shared/schemas";
 import { pushTo } from "./webpush";
 export { Book } from "./book";
 export { Person } from "./person";
@@ -80,6 +83,16 @@ export type Env = {
   FIRE_API?: string;
   DEV_EMAIL?: string;
   MCP_AUTH_TOKEN?: string;
+  /** Voice calls (src/calls.ts): the Realtime SFU app (var) and its secret. Missing: no calls. */
+  REALTIME_SFU_APP_ID?: string;
+  REALTIME_SFU_APP_SECRET?: string;
+  /** The call recorder (recorder/, src/calls.ts): its Worker's address, the secret the two share, and the rooms
+   *  whose calls are recorded (ids with commas, or "*"). Missing: no call is recorded. */
+  RECORDER_URL?: string;
+  RECORDER_SECRET?: string;
+  CALL_RECORD_ROOMS?: string;
+  /** GB of call traffic in a month after which a screen share goes to Google Meet (default CALL_SCREEN_LIMIT_GB). */
+  CALL_SCREEN_LIMIT_GB?: string;
 };
 
 export type Ctx = { Bindings: Env; Variables: { email: string; svc: ApiServices; auth: AuthServices } };
@@ -177,6 +190,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS machine_rooms (machine_id TEXT, book_id TEXT, on_ INTEGER, PRIMARY KEY (machine_id, book_id))`,
   `CREATE TABLE IF NOT EXISTS agent_rooms (agent TEXT, book_id TEXT, delivery INTEGER, PRIMARY KEY (agent, book_id))`,
   `CREATE INDEX IF NOT EXISTS push_subs_email ON push_subs (email)`,
+  // Calls (src/calls.ts): the bytes that browsers in calls received, per month ("2026-11").
+  `CREATE TABLE IF NOT EXISTS call_usage (month TEXT PRIMARY KEY, bytes INTEGER)`,
 ];
 let schemaReady: Promise<unknown> | undefined;
 // Columns added after launch; ALTER fails harmlessly once they exist.
@@ -225,6 +240,22 @@ app.use("/auth/*", async (c, next) => { c.set("auth", authServices(c, { roomAcce
 app.route("/", authApi);
 app.route("/auth", auth);
 app.route("/", connect);
+// The call's recorder (src/calls.ts). No person's session on these two: the first is trusted by its signed link,
+// the second by the secret that the chat and the recorder Worker share.
+app.get("/api/calls/recorder/enter", async (c) => {
+  const room = c.req.query("room") ?? "";
+  if (!(await recorderLinkValid(c.env, room, Number(c.req.query("exp")), c.req.query("sig") ?? ""))) return c.text("forbidden", 403);
+  await startSession(c, recorderEmail(room));
+  return c.redirect(`/b/${room}`);
+});
+app.post("/api/calls/recorded", async (c) => {
+  const secret = c.env.RECORDER_SECRET;
+  if (!secret || !safeEqual(c.req.header("authorization") ?? "", `Bearer ${secret}`)) return c.text("forbidden", 403);
+  const body = RecordedBody.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.text("bad request", 400);
+  await bookStub(c.env, body.data.room).callRecorded(body.data.room, body.data.url);
+  return c.text("ok");
+});
 
 // Page views are counted server-side (no client script, no cookie), off the response path.
 const pageview = async (c: Context<Ctx>, res: Response, user?: string | null) => {

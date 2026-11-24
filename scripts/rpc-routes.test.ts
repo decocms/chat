@@ -60,6 +60,12 @@ function fixture(overrides: Partial<ApiServices> = {}) {
   const svc: ApiServices = {
     en: false,
     isMember: async () => true,
+    callsOn: true,
+    allowCall: async () => true,
+    callJoin: async () => ({ session: "s1" }),
+    callTracks: async () => ({}),
+    callAnswer: async () => true,
+    callClose: async () => true,
     allowStt: async () => true,
     transcribe: async () => ({ ok: true, text: "spoken" }),
     pokeFocus: () => {},
@@ -1944,4 +1950,57 @@ test("writing to someone opens the DM, sends a request, or is rate-limited; invi
   expect((await f.json("/api/books/aaaaaa/invite", { yes: "y" })).status).toBe(
     400,
   );
+});
+
+test("the call routes are members-only, off without an SFU app, and say when the screen budget is spent", async () => {
+  const json = (body: unknown) => ({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const on = fixture();
+  const joined = await on.app.request("/api/books/room/call/join", {
+    method: "POST",
+  });
+  expect([joined.status, await joined.json()]).toEqual([
+    200,
+    { session: "s1" },
+  ]);
+  const off = await fixture({ callsOn: false }).app.request(
+    "/api/books/room/call/join",
+    { method: "POST" },
+  );
+  expect(off.status).toBe(404);
+  const outsider = fixture({ isMember: async () => false });
+  for (const path of ["join", "tracks", "answer", "close"]) {
+    const refused = await outsider.app.request(
+      `/api/books/room/call/${path}`,
+      json({ session: "s1", mids: [], answer: { type: "answer", sdp: "v=0" } }),
+    );
+    expect([path, refused.status]).toEqual([path, 403]);
+  }
+  const spent = fixture({ callTracks: async () => "limit" });
+  const screen = await spent.app.request(
+    "/api/books/room/call/tracks",
+    json({
+      session: "s1",
+      offer: { type: "offer", sdp: "v=0" },
+      push: [{ mid: "1", name: "screen" }],
+    }),
+  );
+  expect([screen.status, await screen.json()]).toEqual([
+    409,
+    { error: "call screen limit" },
+  ]);
+  // A session of someone else: the room refuses it (Book.callCheck).
+  const stolen = await fixture({ callAnswer: async () => false }).app.request(
+    "/api/books/room/call/answer",
+    json({ session: "s2", answer: { type: "answer", sdp: "v=0" } }),
+  );
+  expect(stolen.status).toBe(403);
+  const malformed = await on.app.request(
+    "/api/books/room/call/tracks",
+    json({ session: "bad session!" }),
+  );
+  expect(malformed.status).toBe(400);
 });

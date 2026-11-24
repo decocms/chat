@@ -1,0 +1,553 @@
+// The room's call in this tab: one RTCPeerConnection to the Cloudflare Realtime SFU. It publishes the microphone
+// (and the screen), and receives every track that the others in the call publish. The room says who is in the call
+// (room.call, src/calls.ts); the Worker passes the WebRTC negotiation on to the SFU (callApi.ts).
+import { get, writable } from "svelte/store";
+import type { CallPeer } from "../../../shared/room";
+import type { SendRoomCommand } from "../../../shared/commands";
+import type { CallApi } from "./callApi";
+import { isRecorder } from "../../../shared/call";
+
+export type CallView = {
+  phase: "idle" | "joining" | "in";
+  muted: boolean;
+  sharing: boolean;
+  /** The screens that other people share, by email. More than one person can share at a time. */
+  screens: Record<string, MediaStream>;
+  /** The cameras of other people, by email. Not received while a screen is on show (to spare traffic). */
+  cams: Record<string, MediaStream>;
+  /** My camera is on, and its picture as my machine has it (the others get a smaller one). */
+  camera: boolean;
+  ownCam: MediaStream | null;
+  /** Whose screen I chose to see (an email, mine too). "" = the first one. */
+  watching: string;
+  /** Who is speaking now (emails, mine too). */
+  speaking: string[];
+  /** My own screen while I share it, so I see what the others see. */
+  own: MediaStream | null;
+  error: "" | "mic" | "failed" | "dropped";
+  /** A screen share was refused: the month's traffic budget is spent (the app offers Google Meet). */
+  limit: boolean;
+  /** Why my screen share stopped or did not start: nobody else is in the call, or the screen did not change. */
+  notice: "" | "alone" | "idle";
+};
+const IDLE: CallView = {
+  phase: "idle",
+  muted: false,
+  sharing: false,
+  screens: {},
+  cams: {},
+  camera: false,
+  ownCam: null,
+  watching: "",
+  speaking: [],
+  own: null,
+  error: "",
+  limit: false,
+  notice: "",
+};
+const USAGE_MS = 30_000;
+/** A track that the SFU did not give is asked for again after this long. */
+const PULL_RETRY_MS = 3_000;
+// A shared screen that does not change sends almost nothing. Under SCREEN_IDLE_BYTES in each report (30 seconds),
+// SCREEN_IDLE_REPORTS times in a row (10 minutes), the share stops by itself. Tune these two with real screens.
+const SCREEN_IDLE_BYTES = 50_000,
+  SCREEN_IDLE_REPORTS = 20;
+/** A shared screen goes out at 720p and 30 frames a second at most: enough to read, and it spares traffic. */
+const SCREEN_LIMITS = {
+  width: { max: 1280 },
+  height: { max: 720 },
+  frameRate: { max: 30 },
+};
+/** Speaking: the level (RMS, 0 to 1) that counts as a voice, how often it is read, and how long the mark stays. */
+const SPEAK_LEVEL = 0.02,
+  SPEAK_MS = 200,
+  SPEAK_HOLD_MS = 700;
+type Wanted = { session: string; name: string };
+const trackKey = (track: Wanted) => `${track.session}/${track.name}`;
+
+// The browser cleans the microphone before it is sent: no room noise, no echo, an even level. Less noise is also
+// more silence, and silence is not sent (withDtx).
+const MIC_CLEANUP = {
+  noiseSuppression: true,
+  echoCancellation: true,
+  autoGainControl: true,
+};
+// The most that each kind of track sends. A voice is clear at 24 kbps; a 720p screen at 1.5 Mbps.
+const MIC_MAX_BPS = 24_000,
+  SCREEN_MAX_BPS = 1_500_000;
+// The camera is taken at 720p for my own view and sent at half of that (360p), 15 frames a second, 200 kbps at
+// most: each person in the call receives one copy of each camera, so this number is the cost of a camera.
+export const CAM_CAPTURE = {
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 30 },
+};
+const CAM_SEND = {
+  maxBitrate: 200_000,
+  scaleResolutionDownBy: 2,
+  maxFramerate: 15,
+};
+/** Opus stops sending in silence (DTX) when the description of the other side asks for it: this adds the ask to
+ * each Opus line that does not have it. */
+export const withDtx = (sdp: string) =>
+  sdp.replace(
+    /^a=fmtp:(\d+) (.*useinbandfec=1.*)$/gm,
+    (line: string, type: string, params: string) =>
+      params.includes("usedtx") ? line : `a=fmtp:${type} ${params};usedtx=1`,
+  );
+
+/** Which tracks to start receiving and which to stop, from who is in the call and what this tab receives now. */
+export function planTracks(
+  peers: readonly CallPeer[],
+  mySession: string,
+  pulled: Iterable<string>,
+  /** The one session whose screen is received (null: none). Not given: every screen. */
+  screenFrom?: string | null,
+  cams = true,
+) {
+  const wanted = new Map<string, Wanted>();
+  for (const peer of peers)
+    if (peer.session !== mySession)
+      for (const name of peer.tracks) {
+        if (
+          name === "screen" &&
+          screenFrom !== undefined &&
+          peer.session !== screenFrom
+        )
+          continue;
+        if (name === "cam" && !cams) continue;
+        const track = { session: peer.session, name };
+        wanted.set(trackKey(track), track);
+      }
+  const have = new Set(pulled);
+  return {
+    pull: [...wanted].filter(([key]) => !have.has(key)).map(([, t]) => t),
+    drop: [...have].filter((key) => !wanted.has(key)),
+  };
+}
+
+export function createCallSession(
+  roomId: string,
+  api: CallApi,
+  send: SendRoomCommand,
+) {
+  const state = writable<CallView>(IDLE);
+  let pc: RTCPeerConnection | null = null,
+    session = "",
+    mic: MediaStream | null = null,
+    screen: MediaStream | null = null,
+    screenMid = "",
+    cam: MediaStream | null = null,
+    camMid = "",
+    camStop: (() => void) | undefined,
+    peers: CallPeer[] = [],
+    usageTimer: ReturnType<typeof setInterval> | undefined,
+    reported = 0,
+    self = "",
+    retryTimer: ReturnType<typeof setTimeout> | undefined,
+    screenSent = 0,
+    idleReports = 0,
+    sound: AudioContext | null = null,
+    speakTimer: ReturnType<typeof setInterval> | undefined,
+    // Left on purpose, or the microphone or the call failed: no automatic join until the call ends.
+    stayOut = false,
+    queue: Promise<unknown> = Promise.resolve();
+  /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
+  const pulled = new Map<string, string>(),
+    owners = new Map<string, { email: string; key: string }>(),
+    players = new Map<string, HTMLAudioElement>();
+  /** One meter for each voice (a received track's mid, or "mic" for mine), and when each person was last heard. */
+  const meters = new Map<
+      string,
+      { email: string; node: AnalyserNode; source: MediaStreamAudioSourceNode }
+    >(),
+    heard = new Map<string, number>();
+  function listen(key: string, email: string, stream: MediaStream) {
+    try {
+      sound ??= new AudioContext();
+      void sound.resume();
+      const source = sound.createMediaStreamSource(stream),
+        node = sound.createAnalyser();
+      node.fftSize = 512;
+      source.connect(node);
+      meters.set(key, { email, node, source });
+    } catch {
+      // No meter: the call works, the speaking mark does not.
+    }
+  }
+  function unlisten(key: string) {
+    meters.get(key)?.source.disconnect();
+    meters.delete(key);
+  }
+  function measure() {
+    const samples = new Uint8Array(512),
+      now = Date.now();
+    for (const meter of meters.values()) {
+      meter.node.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const sample of samples) sum += ((sample - 128) / 128) ** 2;
+      if (Math.sqrt(sum / samples.length) > SPEAK_LEVEL)
+        heard.set(meter.email, now);
+    }
+    const speaking = [...heard]
+      .filter(([, at]) => now - at < SPEAK_HOLD_MS)
+      .map(([email]) => email);
+    const before = get(state).speaking;
+    if (
+      speaking.length !== before.length ||
+      speaking.some((email) => !before.includes(email))
+    )
+      patch({ speaking });
+  }
+  const patch = (next: Partial<CallView>) =>
+    state.update((value) => ({ ...value, ...next }));
+  // The SFU takes one change to a session at a time: every negotiation waits for the one before it.
+  const enqueue = (job: () => Promise<void>) =>
+    (queue = queue.then(job).catch((error) => {
+      console.error("call", error);
+      if (pc) patch({ error: "failed" });
+    }));
+  const wire = (type: "offer" | "answer") => ({
+    type,
+    sdp: pc?.localDescription?.sdp ?? "",
+  });
+
+  function teardown(error: CallView["error"] = "") {
+    if (error === "mic" || error === "failed") stayOut = true;
+    clearInterval(usageTimer);
+    clearInterval(speakTimer);
+    clearTimeout(retryTimer);
+    document.removeEventListener("visibilitychange", onVisibility);
+    screenSent = idleReports = 0;
+    for (const key of [...meters.keys()]) unlisten(key);
+    heard.clear();
+    void sound?.close().catch(() => {});
+    sound = null;
+    for (const player of players.values()) player.srcObject = null;
+    for (const stream of [mic, screen])
+      stream?.getTracks().forEach((track) => track.stop());
+    pc?.close();
+    pc = null;
+    camStop?.();
+    camStop = undefined;
+    mic = screen = cam = null;
+    camMid = "";
+    session = screenMid = "";
+    reported = 0;
+    pulled.clear();
+    owners.clear();
+    players.clear();
+    state.set({ ...IDLE, error });
+  }
+  async function push(track: MediaStreamTrack, name: string) {
+    if (!pc) return "";
+    const transceiver = pc.addTransceiver(track, { direction: "sendonly" });
+    await pc.setLocalDescription(await pc.createOffer());
+    const mid = transceiver.mid ?? "";
+    const out = await api.tracks(roomId, {
+      session,
+      offer: wire("offer"),
+      push: [{ mid, name }],
+    });
+    if (out === "limit" || !out.sessionDescription) {
+      await pc.setLocalDescription({ type: "rollback" });
+      return out === "limit" ? ("limit" as const) : "";
+    }
+    await pc.setRemoteDescription({
+      type: out.sessionDescription.type,
+      sdp: withDtx(out.sessionDescription.sdp),
+    });
+    // A ceiling for what this track sends. A browser that refuses it sends at its own rate.
+    const sender = transceiver.sender,
+      params = sender.getParameters();
+    if (params.encodings[0]) {
+      if (name === "cam") Object.assign(params.encodings[0], CAM_SEND);
+      else
+        params.encodings[0].maxBitrate =
+          name === "mic" ? MIC_MAX_BPS : SCREEN_MAX_BPS;
+      await sender.setParameters(params).catch(() => {});
+    }
+    return mid;
+  }
+  async function sync() {
+    if (!pc) return;
+    // To spare traffic, one screen is received at a time: the one chosen, else the first. None while this tab is
+    // hidden, or while I look at my own screen.
+    const sharers = peers.filter(
+        (peer) => peer.session !== session && peer.tracks.includes("screen"),
+      ),
+      watching = get(state).watching,
+      none =
+        document.visibilityState === "hidden" ||
+        (watching === self && !!screen),
+      chosen = none
+        ? null
+        : ((sharers.find((peer) => peer.email === watching) ?? sharers[0])
+            ?.session ?? null);
+    // Cameras are received only while they are on show: this tab is visible and no screen takes the stage.
+    const cams = document.visibilityState !== "hidden" && !chosen && !screen;
+    const plan = planTracks(peers, session, pulled.keys(), chosen, cams);
+    if (plan.drop.length) {
+      const mids = plan.drop.flatMap((key) => pulled.get(key) ?? []);
+      for (const key of plan.drop) pulled.delete(key);
+      for (const mid of mids) {
+        const player = players.get(mid);
+        if (player) player.srcObject = null;
+        players.delete(mid);
+        unlisten(mid);
+        const owner = owners.get(mid);
+        if (owner?.key.endsWith("/screen"))
+          state.update((value) => {
+            const { [owner.email]: _gone, ...screens } = value.screens;
+            return {
+              ...value,
+              screens,
+              watching: value.watching === owner.email ? "" : value.watching,
+            };
+          });
+        if (owner?.key.endsWith("/cam"))
+          state.update((value) => {
+            const { [owner.email]: _gone, ...cams } = value.cams;
+            return { ...value, cams };
+          });
+        owners.delete(mid);
+      }
+      // The SFU refuses to close a track that its publisher already stopped: nothing is left to do.
+      await api.close(roomId, session, mids).catch(() => {});
+    }
+    if (!plan.pull.length || !pc) return;
+    const out = await api.tracks(roomId, { session, pull: plan.pull });
+    if (out === "limit" || !pc) return;
+    // A track with an error is not kept, so the next change in the call asks for it again.
+    let failed = false;
+    (out.tracks ?? []).forEach((track, index) => {
+      const want = plan.pull[index];
+      if (!want || !track.mid || track.errorCode) {
+        failed = true;
+        return;
+      }
+      const key = trackKey(want);
+      pulled.set(key, track.mid);
+      owners.set(track.mid, {
+        key,
+        email: peers.find((p) => p.session === want.session)?.email ?? "",
+      });
+    });
+    if (out.requiresImmediateRenegotiation && out.sessionDescription) {
+      await pc.setRemoteDescription(out.sessionDescription);
+      await pc.setLocalDescription(await pc.createAnswer());
+      await api.answer(roomId, session, wire("answer"));
+    }
+    if (failed) {
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => void enqueue(sync), PULL_RETRY_MS);
+    }
+  }
+  function received(event: RTCTrackEvent) {
+    const mid = event.transceiver.mid ?? "",
+      stream = new MediaStream([event.track]);
+    const email = owners.get(mid)?.email ?? "";
+    if (event.track.kind === "video") {
+      const kind = owners.get(mid)?.key.endsWith("/cam") ? "cams" : "screens";
+      state.update((value) => ({
+        ...value,
+        [kind]: { ...value[kind], [email]: stream },
+      }));
+      return;
+    }
+    const player = new Audio();
+    player.srcObject = stream;
+    void player.play().catch(() => {});
+    players.set(mid, player);
+    listen(mid, email, stream);
+  }
+  /** The bytes this tab received since its last report, for the month's traffic budget (src/calls.ts). */
+  async function reportUsage() {
+    if (!pc) return;
+    let total = 0,
+      sent = 0;
+    (await pc.getStats()).forEach(
+      (stat: {
+        type?: string;
+        mid?: string;
+        bytesReceived?: number;
+        bytesSent?: number;
+      }) => {
+        if (stat.type === "inbound-rtp") total += stat.bytesReceived ?? 0;
+        // Only the screen's own track: a camera that is on must not hide a screen that stands still.
+        if (stat.type === "outbound-rtp" && screenMid && stat.mid === screenMid)
+          sent += stat.bytesSent ?? 0;
+      },
+    );
+    if (total > reported) send({ t: "call.usage", bytes: total - reported });
+    reported = total;
+    // My screen did not change for a long time: stop it, the others see a still picture for nothing.
+    idleReports =
+      get(state).sharing && sent - screenSent < SCREEN_IDLE_BYTES
+        ? idleReports + 1
+        : 0;
+    screenSent = sent;
+    if (idleReports >= SCREEN_IDLE_REPORTS) stopShare("idle");
+  }
+  function stopShare(notice: CallView["notice"] = "") {
+    if (!get(state).sharing) return;
+    const mid = screenMid;
+    screen?.getTracks().forEach((track) => track.stop());
+    screen = null;
+    screenMid = "";
+    idleReports = 0;
+    patch({ sharing: false, own: null, notice });
+    void enqueue(() => api.close(roomId, session, [mid], ["screen"]));
+    void enqueue(sync);
+  }
+  const onVisibility = () => void enqueue(sync);
+
+  return {
+    state: { subscribe: state.subscribe },
+    /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
+    /** `me`: with a call on in the room and me not in it, this tab joins by itself, microphone off. */
+    setPeers(next: readonly CallPeer[] | undefined, me = "") {
+      // The recorder (shared/call.ts) is in the list, and is not a person: nobody receives its tracks, and it
+      // does not count as company.
+      const all = [...(next ?? [])];
+      peers = all.filter((peer) => !isRecorder(peer.email));
+      self = me || self;
+      if (!peers.length) stayOut = false;
+      const phase = get(state).phase;
+      if (phase === "in") {
+        if (!all.some((peer) => peer.session === session)) teardown("dropped");
+        else {
+          // Nobody is left to see my screen.
+          if (peers.length < 2) stopShare("alone");
+          void enqueue(sync);
+        }
+      } else if (
+        phase === "idle" &&
+        me &&
+        peers.length &&
+        !stayOut &&
+        !all.some((peer) => peer.email === me)
+      )
+        this.join(true);
+    },
+    join(muted = false) {
+      if (get(state).phase !== "idle") return;
+      state.set({ ...IDLE, phase: "joining", muted });
+      // Asked for inside the click, before any await: browsers want the gesture.
+      const media = navigator.mediaDevices.getUserMedia({
+        audio: MIC_CLEANUP,
+      });
+      void (async () => {
+        try {
+          mic = await media;
+        } catch {
+          return teardown("mic");
+        }
+        try {
+          session = await api.join(roomId);
+          // ponytail: STUN only. A network that blocks UDP needs Cloudflare TURN credentials here.
+          pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }],
+            bundlePolicy: "max-bundle",
+          });
+          pc.ontrack = received;
+          const [track] = mic.getAudioTracks();
+          if (track) track.enabled = !muted;
+          if (!track || !(await push(track, "mic"))) return teardown("failed");
+          usageTimer = setInterval(() => void reportUsage(), USAGE_MS);
+          listen("mic", self, mic);
+          speakTimer = setInterval(measure, SPEAK_MS);
+          document.addEventListener("visibilitychange", onVisibility);
+          patch({ phase: "in" });
+          send({ t: "call.mute", muted });
+          void enqueue(sync);
+        } catch (error) {
+          console.error("call", error);
+          teardown("failed");
+        }
+      })();
+    },
+    leave() {
+      if (get(state).phase === "idle") return;
+      if (session) send({ t: "call.leave" });
+      stayOut = true;
+      teardown();
+    },
+    toggleMute() {
+      const muted = !get(state).muted;
+      const [track] = mic?.getAudioTracks() ?? [];
+      if (track) track.enabled = !muted;
+      // Off = a track that is disabled. It gives silence, and silence is not sent (withDtx). The sender keeps its
+      // track: the SFU refuses to give the others a track that never sent anything (empty_track_error).
+      patch({ muted });
+      send({ t: "call.mute", muted });
+    },
+    share() {
+      if (get(state).phase !== "in" || get(state).sharing) return;
+      // A screen is for someone to see: alone in the call, there is no share.
+      if (peers.length < 2) return patch({ notice: "alone" });
+      patch({ notice: "" });
+      const media = navigator.mediaDevices.getDisplayMedia({
+        video: SCREEN_LIMITS,
+      });
+      void enqueue(async () => {
+        let stream: MediaStream;
+        try {
+          stream = await media;
+        } catch {
+          return; // the person closed the picker
+        }
+        const [track] = stream.getVideoTracks();
+        const mid = track ? await push(track, "screen") : "";
+        if (!track || !mid || mid === "limit") {
+          stream.getTracks().forEach((t) => t.stop());
+          if (mid === "limit") patch({ limit: true });
+          return;
+        }
+        screen = stream;
+        screenMid = mid;
+        // The browser's own "stop sharing" button.
+        track.onended = () => stopShare();
+        // Text first: the browser keeps the picture sharp and sends fewer frames.
+        track.contentHint = "detail";
+        patch({ sharing: true, own: stream });
+        await sync();
+      });
+    },
+    stopShare() {
+      stopShare();
+    },
+    /** My camera, as the person confirmed it (CameraDialog): the stream to send, and what stops it. */
+    startCamera(stream: MediaStream, stop: () => void) {
+      if (get(state).phase !== "in" || get(state).camera) return stop();
+      void enqueue(async () => {
+        const [track] = stream.getVideoTracks();
+        const mid = track ? await push(track, "cam") : "";
+        if (!track || !mid || mid === "limit") return stop();
+        cam = stream;
+        camStop = stop;
+        camMid = mid;
+        patch({ camera: true, ownCam: stream });
+      });
+    },
+    stopCamera() {
+      if (!get(state).camera) return;
+      const mid = camMid;
+      camStop?.();
+      cam = null;
+      camStop = undefined;
+      camMid = "";
+      patch({ camera: false, ownCam: null });
+      void enqueue(() => api.close(roomId, session, [mid], ["cam"]));
+    },
+    /** Choose whose screen to see. Only that one is received. */
+    watch(email: string) {
+      patch({ watching: email });
+      void enqueue(sync);
+    },
+    dismissLimit() {
+      patch({ limit: false });
+    },
+  };
+}
+export type CallSession = ReturnType<typeof createCallSession>;
