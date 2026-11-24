@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack, tick } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
   import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
@@ -59,29 +59,6 @@
   );
   let active = true;
   let root = $state<HTMLElement | null>(null);
-  function expandForCreate(trigger: HTMLElement) {
-    if (!active) return;
-    const account = room.me,
-      id = room.id;
-    navigation.state.update((value) => ({
-      ...value,
-      archived: false,
-      creating: true,
-    }));
-    onarchchange(false);
-    ontogglerail();
-    void tick().then(() => {
-      if (
-        active &&
-        room.me === account &&
-        room.id === id &&
-        !collapsed &&
-        (document.activeElement === document.body ||
-          document.activeElement === trigger)
-      )
-        root?.querySelector<HTMLInputElement>("#newEpic input")?.focus();
-    });
-  }
   $effect(() => owner.sync(room, request));
   onDestroy(() => {
     active = false;
@@ -162,13 +139,7 @@
         /></Button
       >
     {/each}
-    <IconButton
-      label={vb.t("Nova thread")}
-      tooltipSide="right"
-      size="icon"
-      onclick={(event) => expandForCreate(event.currentTarget)}
-      ><Icon icon="plus" /></IconButton
-    >
+    <!-- No + for a new thread (Gimenes #4286): a thread starts from a message. -->
     {#if room.requests?.length}<Button
         variant="outline"
         size="sm"

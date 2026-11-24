@@ -12,6 +12,7 @@ import {
   tasksRegion,
   openTasksPanel,
   documentMode,
+  startThreadFromMessage,
 } from "./browser-fixtures";
 const expect = baseExpect.configure({ timeout: 60_000 });
 const base = process.env.TEST_BASE_URL || "http://127.0.0.1:8797";
@@ -87,11 +88,10 @@ try {
   });
   await expect(a.locator("#composer")).toBeVisible({ timeout: 120_000 });
   await openRoomSidebar(a);
-  await expect(a.locator("#side [data-new-epic]")).toBeAttached();
+  // No "Nova thread" in the sidebar (Gimenes #4286): a thread starts from a message.
+  await expect(a.locator("#side [data-new-epic]")).toHaveCount(0);
   const readyMs = Date.now() - opened;
-  await a.locator("#side [data-new-epic]").click();
-  await a.locator("#newEpic input").fill("Verify live Svelte");
-  await a.locator("#newEpic input").press("Enter");
+  await startThreadFromMessage(a, "Verify live Svelte");
   const epic = a
     .locator("#side [data-epic-thread]")
     .filter({ hasText: "Verify live Svelte" });

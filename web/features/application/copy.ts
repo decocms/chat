@@ -549,7 +549,6 @@ const EN: Readonly<Record<string, string>> = {
     "Turn it on in this room with ✻ Turn on agent, at the top.",
   "Não consegui ler essa imagem.": "Couldn't read that image.",
   "Abrir menu": "Open menu",
-  "Nova thread": "New thread",
   "{n} pedindo pra entrar": "{n} asking to join",
   "O @vibe sugere uma thread": "@vibe suggests a thread",
   "Ele viu isso na conversa e acha que vale virar uma thread, com as tarefas abaixo.":
@@ -604,7 +603,6 @@ const EN: Readonly<Record<string, string>> = {
   Todos: "All",
   "Essa thread não existe mais nesta sala.":
     "That thread is no longer in this room.",
-  "Nova thread: escreva o título…": "New thread: type its title…",
   Threads: "Threads",
   "Threads abertas": "Open threads",
   Feitas: "Done",

@@ -1510,3 +1510,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the title text changes.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · feat/new-thread-direct · No "Nova thread" in the sidebar
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#4286) asked for one way to start a thread: write in the room, then "Criar thread" on the message. He asked to remove "Nova thread" from the sidebar.
+- Decision:
+  - Remove the "Nova thread" row in the threads list, its title form and its draft state, the + on the collapsed rail, and the row in the loading skeleton.
+  - Keep the server's `epic` command without `from` (agents and old tabs can still send it). Only the app's button goes.
+  - The threads list keeps the 38 px that the row used: one more thread can show before "Ver mais".
+- Other options: Keep the + on the collapsed rail: Gimenes asked for one way only.
+- Risk: low. A person who used the sidebar row now writes a message first.
+- Undo: Revert this commit.
+- Status: open
