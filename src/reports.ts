@@ -6,11 +6,11 @@
 //   other sites too, so the zone-wide daily totals are not used. Needs CF_ANALYTICS_TOKEN (Account Analytics: Read,
 //   Zone Analytics: Read, Zone: Read); without it the report says so instead of showing numbers.
 // Test people (@test.vibebook.dev) are left out. Check: bun scripts/reports-check.ts (formatting only).
-import { AiSpend } from "../shared/schemas";
+import { AiSpend, type InfraMonitor, type InfraWindow } from "../shared/schemas";
 import type { Env } from "./index";
 import { publicHost } from "./host";
 import * as z from "zod/mini";
-import { WorkerAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
+import { WorkerAnalytics, WorkerDailyAnalytics, KindAnalytics, BytesAnalytics, readAnalyticsResponse, readZoneResponse, parseSpendKey, parseIssueDimensions, reportError } from "./report-analytics";
 
 const DAY = 86_400_000;
 const BRT = 3 * 3600_000; // São Paulo, no DST since 2019
@@ -317,4 +317,54 @@ export async function aiSpend(env: Env, now = Date.now()): Promise<AiSpend> {
     openrouter_key: key,
     note: "recorded = the calls that log their cost in vibebook's events; openrouter_key = OpenRouter's own total for the key (everything billed on it, including calls that don't log a cost).",
   });
+}
+
+// The infra monitor (room app apps/infra-monitor.html, Gui #4208): the Worker per UTC day from Cloudflare (1 GraphQL
+// call) and the site's visitors from D1 (1 query), for this window and the one before. Shared and costly-ish, so it is
+// cached for 10 minutes per window; a Cloudflare failure is cached too (briefly, same key) and says so in worker_error.
+const DAILY_Q = `query($acc: string!, $script: string!, $from: Date!, $to: Date!) { viewer { accounts(filter: { accountTag: $acc }) {
+  workersInvocationsAdaptive(limit: 100, orderBy: [date_ASC], filter: { scriptName: $script, date_geq: $from, date_leq: $to }) {
+    dimensions { date } sum { requests errors responseBodySize } quantiles { cpuTimeP50 wallTimeP50 } } } } }`;
+export async function infraMonitor(env: Env, window: InfraWindow, now = Date.now()): Promise<InfraMonitor> {
+  const key = new Request(`https://infra-monitor.internal/${window}`);
+  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+  const hit = await cache?.match(key);
+  if (hit) return (await hit.json()) as InfraMonitor;
+  const today = Math.floor(now / DAY) * DAY;
+  const from = today - (2 * window - 1) * DAY;
+  const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const visits = await env.DB.prepare(
+    `SELECT CAST(ts / ${DAY} AS INTEGER) AS d, count(DISTINCT visitor) AS v FROM events WHERE name = 'pageview' AND ts >= ? AND ${NOT_TEST} GROUP BY d`,
+  )
+    .bind(from)
+    .all<{ d: number; v: number }>();
+  const visitors = new Map(visits.results.map((r) => [dayOf(r.d * DAY), r.v]));
+  let worker_error: string | null = null;
+  const worker = new Map<string, { requests: number; errors: number; bytes: number; cpu: number | null; wall: number | null }>();
+  if (!env.CF_ANALYTICS_TOKEN) worker_error = "CF_ANALYTICS_TOKEN is not set";
+  else {
+    try {
+      const rows = (await cfQuery(env, DAILY_Q, { acc: env.CF_ACCOUNT_ID, script: WORKER, from: dayOf(from), to: dayOf(today) }, WorkerDailyAnalytics)).viewer.accounts[0]?.workersInvocationsAdaptive ?? [];
+      // Quantiles come in microseconds.
+      for (const r of rows)
+        worker.set(r.dimensions.date, {
+          requests: r.sum.requests ?? 0,
+          errors: r.sum.errors ?? 0,
+          bytes: r.sum.responseBodySize ?? 0,
+          cpu: r.quantiles?.cpuTimeP50 == null ? null : r.quantiles.cpuTimeP50 / 1000,
+          wall: r.quantiles?.wallTimeP50 == null ? null : r.quantiles.wallTimeP50 / 1000,
+        });
+    } catch (e) {
+      worker_error = reportError(e).slice(0, 300);
+    }
+  }
+  const days = Array.from({ length: 2 * window }, (_, i) => {
+    const day = dayOf(from + i * DAY), w = worker.get(day);
+    // A day Cloudflare returned no row for had no requests; when Cloudflare failed, the numbers are unknown (null).
+    const n = (v: number | undefined) => (worker_error ? null : (v ?? 0));
+    return { day, requests: n(w?.requests), errors: n(w?.errors), bytes: n(w?.bytes), cpu_p50_ms: w?.cpu ?? null, wall_p50_ms: w?.wall ?? null, visitors: visitors.get(day) ?? 0 };
+  });
+  const result: InfraMonitor = { window, days, worker_error, generated_at: new Date(now).toISOString() };
+  await cache?.put(key, new Response(JSON.stringify(result), { headers: { "cache-control": `max-age=${worker_error ? 60 : 600}` } }));
+  return result;
 }

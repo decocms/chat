@@ -109,9 +109,9 @@ export function mountChatApp(options: {
           throw Error("App is no longer active");
         return protocol.remoteToolResult(result.value.result);
       },
-      metric: (kind, roomOnly) =>
+      metric: (kind, roomOnly, days) =>
         requests
-          .run((signal) => metrics(kind, roomId, roomOnly, signal))
+          .run((signal) => metrics(kind, roomId, roomOnly, signal, days))
           .catch((error) => appSessionFailure(authority, error)),
       t: options.t,
     });

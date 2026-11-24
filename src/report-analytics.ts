@@ -42,6 +42,33 @@ export const WorkerAnalytics = z.object({
     ),
   }),
 });
+/** workersInvocationsAdaptive grouped by day (the infra monitor). */
+export const WorkerDailyAnalytics = z.object({
+  viewer: z.object({
+    accounts: z.array(
+      z.object({
+        workersInvocationsAdaptive: z.array(
+          z.object({
+            dimensions: z.object({ date: z.string() }),
+            sum: z.object({
+              requests: optionalNumber,
+              errors: optionalNumber,
+              responseBodySize: optionalNumber,
+            }),
+            quantiles: z.optional(
+              z.nullable(
+                z.object({
+                  cpuTimeP50: optionalNumber,
+                  wallTimeP50: optionalNumber,
+                }),
+              ),
+            ),
+          }),
+        ),
+      }),
+    ),
+  }),
+});
 export const ZoneAnalytics = z.object({
   viewer: z.object({
     zones: z.array(
