@@ -1288,7 +1288,8 @@ export class Book extends DurableObject<Env> {
   nudgeUnanswered(now = Date.now()) {
     let next = 0;
     for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.archived, 0) <= 0`).toArray()) {
-      if (!e.owner || e.owner === "ai" || !this.answerPending(e.id) || this.get(`answer_nudge:${e.id}`)) continue;
+      // Only questions of the last day: an old one is stale context, not a question someone still waits on.
+      if (!e.owner || e.owner === "ai" || e.ts < now - 864e5 || !this.answerPending(e.id) || this.get(`answer_nudge:${e.id}`)) continue;
       const due = e.ts + ANSWER_NUDGE_MS;
       if (due > now) { next = next ? Math.min(next, due) : due; continue; }
       this.set(`answer_nudge:${e.id}`, String(now));
@@ -1955,6 +1956,8 @@ export class Book extends DurableObject<Env> {
    *  app's "Claude está escrevendo" placeholder (DocumentPreview.svelte). */
   answerPending(epicId: string) {
     if (this.get(`answer:${epicId}`) !== "1") return false;
+    // An answer epic that got more tasks became work (Gimenes #4145): its delivery is the work, not the doc.
+    if ((this.sql.exec(`SELECT count(*) AS n FROM tasks WHERE epic_id = ?`, epicId).one().n as number) > 1) return false;
     return !(this.get(`doc:${epicId}`) ?? "").replace(/^#\s.*$/m, "").replace(/##\s*Tarefas[\s\S]*$/, "").trim();
   }
   /** The answer epic a question became, if any. */
