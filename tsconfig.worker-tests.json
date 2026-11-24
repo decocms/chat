@@ -35,6 +35,7 @@
     "scripts/fire-authority.test.ts",
     "scripts/idempotent-send.test.ts",
     "scripts/thread-origin.test.ts",
+    "scripts/answer-epic.test.ts",
     "scripts/provider-metadata.test.ts"
   ]
 }

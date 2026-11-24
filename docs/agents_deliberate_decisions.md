@@ -1464,3 +1464,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Members of the report rooms only, at most 2 upstream reads in 10 minutes for each window.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · fix/answer-epic-always-answered · The server makes sure an answer epic gets its answer
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#4210): a question becomes an answer epic, but the Claude answers in main (reply_to) or not at all, and the epic stays on "Claude está escrevendo" forever, even marked done. The agent rules told agents to look for `answer: true` in `read_room`, which never sent it.
+- Decision:
+  - An agent `post` with `reply_to` = a question that has an answer epic goes into that epic when no other thread is given (or main).
+  - In an answer epic whose doc is still empty, an agent post with `reply_to` or `done: true` is also written into the doc. A plain progress post is not.
+  - An answer epic does not archive itself while its doc is empty.
+  - `ack` of such a question returns `answer_thread` and how to answer. `read_room` epics show `answer` and `unanswered`.
+  - 10 minutes after an answer epic is made with its doc still empty, one reminder (tag `reminder`, for the person who asked) goes into the epic. It is in their Claudes' `unacked` and wakes a listen.
+- Other options: Only change the agent rules (they already said it, and agents still missed it). Let @vibe answer with Haiku (adds cost and a second answer source).
+- Risk: low. A reply the Claude meant for main about a question with an answer epic lands in the epic, where the person is looking.
+- Undo: Revert this commit.
+- Status: open

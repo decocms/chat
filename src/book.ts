@@ -67,6 +67,8 @@ const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300
 const DEFAULT_TITLE = "Nova sala";
 
 const CLASSIFY_DELAY_MS = 30_000;
+// An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
+const ANSWER_NUDGE_MS = 10 * 60_000;
 // Doc versions (docDirty): quiet window 10s doubling to 5 min, cut anyway after 15 min dirty; a tenth of that with DEV_EMAIL.
 const DOC_QUIET_MS = 10_000, DOC_QUIET_MAX_MS = 300_000, DOC_FORCE_MS = 900_000, DOC_VERSIONS_MAX = 200;
 const CLASSIFY_MIN_NEW_MSGS = 3; // after the first classification
@@ -258,6 +260,8 @@ export class Book extends DurableObject<Env> {
       const { all, open, closing } = this.kidsOf(picked);
       for (const e of epics) {
         if (picked.has(e.id) || e.archived || open.get(e.id) || !e.tasks.length || !e.tasks.every((t) => t.status === "done")) continue;
+        // An answer epic is not done while its doc still waits for the answer (Gui #4210: "Done" over an empty doc).
+        if (this.answerPending(e.id)) continue;
         const parent = (all.get(e.id) ?? 0) > 0;
         // Reopened by hand: only closes together with its last sub-epic, never by itself.
         if (e.kept ? !closing.has(e.id) : !parent && this.unproven(e.id)) continue;
@@ -1276,7 +1280,23 @@ export class Book extends DurableObject<Env> {
     this.setDoc(`# ${cut}\n`, "tasks", undefined, id); // an answer's doc starts empty: the answer goes here, not a plan template (pushed to open tabs)
     this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email.toLowerCase(), msgId, id);
     this.epicsChanged();
+    await this.wakeAt(Date.now() + ANSWER_NUDGE_MS);
     await this.agentOpenDoc(bookId, email, id);
+  }
+  /** Answer epics still empty ANSWER_NUDGE_MS after the question (Gui #4210): once each, a reminder for the person who
+   *  asked, in the epic. It is in their Claudes' unacked and due_reminders until one acks it, and it wakes a listen. */
+  nudgeUnanswered(now = Date.now()) {
+    let next = 0;
+    for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.archived, 0) <= 0`).toArray()) {
+      if (!e.owner || e.owner === "ai" || !this.answerPending(e.id) || this.get(`answer_nudge:${e.id}`)) continue;
+      const due = e.ts + ANSWER_NUDGE_MS;
+      if (due > now) { next = next ? Math.min(next, due) : due; continue; }
+      this.set(`answer_nudge:${e.id}`, String(now));
+      this.addMessage(e.id, "ai", this.en
+        ? "⏰ This question has no answer yet. A Claude of the person who asked: write the answer in this thread's doc (update_doc) and post 1-2 lines here."
+        : "⏰ Esta pergunta ainda não tem resposta. Um Claude de quem perguntou: escreva a resposta no doc desta thread (update_doc) e poste 1-2 linhas aqui.", { tag: "reminder", forWho: e.owner! });
+    }
+    return next;
   }
   /** "O que precisa de mim aqui" (Gui #3011): asked by a person, answered by their own Claude (brief_reply). Never a
    *  room message: only that person's sockets and their Claudes' read_room ever see it. Last 48h, ≤20. */
@@ -1490,6 +1510,9 @@ export class Book extends DurableObject<Env> {
         title: e.title,
         archived: e.archived || undefined,
         from_message_id: e.from_msg ?? undefined,
+        answer: this.get(`answer:${e.id}`) === "1" || undefined,
+        // An answer epic whose doc is still empty: its question waits for an answer (Gui #4210).
+        unanswered: this.answerPending(e.id) || undefined,
         prod: e.prod ?? undefined,
         owner: e.owner ? who(e.owner) : undefined,
         doc: cutDoc(this.get(`doc:${e.id}`) ?? "", e.id === to.docOf ? 200_000 : 8_000) || undefined,
@@ -1578,6 +1601,10 @@ export class Book extends DurableObject<Env> {
       const acked = ep || r?.thread;
       thread = askThread(acked && r ? { thread: acked, ts: r.ts } : undefined, last, (t) => t === "main" || this.epics().some((e) => e.id === t));
     }
+    // A reply to a question that became an answer epic goes into that epic, never main (Gui #4210): the Claude that
+    // answered with reply_to in main left the epic on "Claude está escrevendo" forever.
+    const answerOf = replyTo ? this.answerEpicOf(replyTo) : undefined;
+    if (answerOf && (!thread || thread === "main")) thread = answerOf;
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
     if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
@@ -1589,6 +1616,12 @@ export class Book extends DurableObject<Env> {
     if (this.agentStreak(thread) >= AGENT_STREAK_MAX)
       return { ok: false, paused: true, error: `room paused: ${AGENT_STREAK_MAX} messages in a row between agents with no human in the last 10 minutes. Wait for a person to write in the room, and tell your human.` };
     const m = this.addMessage(thread, email, text, { kind: "agent", files, via: model, tag: done ? "done" : undefined, replyTo, choices, card, clientId: clientKey });
+    // The answer posted in an answer epic whose doc is still empty is the answer (Gui #4210): it goes into the doc too,
+    // so the placeholder never stays. Only a reply or a done post: "pesquisando…" is not an answer.
+    if (thread !== "main" && text && (done || replyTo) && this.answerPending(thread)) {
+      const head = (this.get(`doc:${thread}`) ?? "").match(/^#\s.*$/m)?.[0] ?? `# ${this.epics().find((e) => e.id === thread)?.title ?? ""}`;
+      this.setDoc(`${head}\n\n${text}\n`, email, undefined, thread);
+    }
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
     if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
@@ -1656,6 +1689,10 @@ export class Book extends DurableObject<Env> {
     this.pushAcks(`msg_id = ? AND agent = ?`, id, agent);
     this.ctx.waitUntil(this.markBusy(false));
     this.ctx.waitUntil(this.blockedWait(email, id as number, status === "blocked" ? note ?? "" : null));
+    // A question that became an answer epic: say where the answer goes, so it isn't written in main (Gui #4210).
+    const answer = this.answerEpicOf(id as number);
+    if (answer && this.answerPending(answer))
+      return { ok: true, message_id: id, answer_thread: answer, how: `This question has an answer thread (${answer}). Write the answer with update_doc epic_id=${answer}, then post 1-2 lines with thread=${answer}. Never answer it in main.` };
     return { ok: true, message_id: id };
   }
   /** The "esperando você" row for a blocked agent (ref b<msg>), or its removal (text null; "" = no note). */
@@ -1913,6 +1950,16 @@ export class Book extends DurableObject<Env> {
         : `Nova thread a partir desta mensagem${where ? ` de “${where}”` : ""}`;
     // The line replies to its source, so the room shows the quote and epicsFrom() finds the request's thread.
     return this.addMessage("main", by.author, line.slice(0, MESSAGE_TEXT_LIMIT), { kind: by.kind, via: by.via, replyTo: row?.id }).id;
+  }
+  /** An answer epic (Gui #2767) whose doc is still only its title: nobody answered yet (Gui #4210). Same test as the
+   *  app's "Claude está escrevendo" placeholder (DocumentPreview.svelte). */
+  answerPending(epicId: string) {
+    if (this.get(`answer:${epicId}`) !== "1") return false;
+    return !(this.get(`doc:${epicId}`) ?? "").replace(/^#\s.*$/m, "").replace(/##\s*Tarefas[\s\S]*$/, "").trim();
+  }
+  /** The answer epic a question became, if any. */
+  answerEpicOf(msgId: number) {
+    return this.epicsFrom(msgId).find((e) => this.get(`answer:${e.id}`) === "1")?.id;
   }
   /** The threads a request became, newest first: started from it, or from the line in main that links it (a request
    *  inside a thread, threadOrigin). `open`: not archived. */
@@ -2639,6 +2686,7 @@ export class Book extends DurableObject<Env> {
     await this.findWaits().catch((e) => console.error("waits", String(e)));
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
     await this.grade().catch((e) => console.error("grade", String(e)));
+    try { const next = this.nudgeUnanswered(); if (next) await this.wakeAt(next); } catch (e) { console.error("answer nudge", String(e)); }
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
     const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;
