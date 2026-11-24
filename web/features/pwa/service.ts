@@ -287,7 +287,8 @@ export function createPwaService() {
       room: Room,
       thread: string,
       target: (handle: string) => string | null | undefined,
-      label: (message: Message) => string,
+      /** The notification's whole title (shared/notificationTitle.ts): "Ana · Produto", "Agente · Produto", "Ana" in a DM. */
+      title: (message: Message) => string,
     ) {
       if (
         !active ||
@@ -309,14 +310,11 @@ export function createPwaService() {
       if (policy.chime) sound.play();
       if (policy.browser && get(state).permission === "granted") {
         try {
-          const notification = new Notification(
-            `${policy.mentioned ? "@ · " : ""}${label(message)} · ${room.book.title}`,
-            {
-              body: (message.text || "📎").slice(0, 180),
-              tag: `vb-${room.id}`,
-              icon: "/apple-touch-icon.png",
-            },
-          );
+          const notification = new Notification(title(message), {
+            body: (message.text || "📎").slice(0, 180),
+            tag: `vb-${room.id}`,
+            icon: "/apple-touch-icon.png",
+          });
           notification.onclick = () => {
             if (active) window.focus();
             notification.close();
@@ -327,17 +325,14 @@ export function createPwaService() {
           void pushRegistration()
             .then(async (reg) => {
               if (!active || leaving || epoch !== accountRevision) return;
-              await reg.showNotification(
-                `${policy.mentioned ? "@ · " : ""}${label(message)} · ${room.book.title}`,
-                {
-                  body: (message.text || "📎").slice(0, 180),
-                  tag: `vb-${room.id}`,
-                  icon: "/apple-touch-icon.png",
-                  data: {
-                    url: `/b/${room.id}${message.thread && message.thread !== "main" ? `?t=${encodeURIComponent(message.thread)}` : ""}#m${message.id}`,
-                  },
+              await reg.showNotification(title(message), {
+                body: (message.text || "📎").slice(0, 180),
+                tag: `vb-${room.id}`,
+                icon: "/apple-touch-icon.png",
+                data: {
+                  url: `/b/${room.id}${message.thread && message.thread !== "main" ? `?t=${encodeURIComponent(message.thread)}` : ""}#m${message.id}`,
                 },
-              );
+              });
             })
             .catch(() => {
               if (active && !leaving && epoch === accountRevision)

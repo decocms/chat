@@ -8,6 +8,10 @@ import type { PushApi } from "../web/features/notifications/api";
 import { createPushApi } from "../web/features/notifications/api";
 import { notificationPolicy } from "../web/features/notifications/policy";
 import {
+  notificationFrom,
+  notificationTitle,
+} from "../shared/notificationTitle";
+import {
   LEGACY_MUTE_KEY,
   NOTIFY_KEY,
   SOUND_KEY,
@@ -486,4 +490,27 @@ test("the notifications switch says why it cannot turn on", () => {
   expect(notificationAvailability({ ...view, permission: "unsupported" })).toBe(
     "unsupported",
   );
+});
+
+test("a notification's title is who wrote, then the room; an agent is just Agente, a DM has no room (Gimenes #4253)", () => {
+  const title = (
+    message: { author: string; kind?: string | null },
+    room: string | null,
+    en = false,
+  ) =>
+    notificationTitle({
+      from: notificationFrom(message),
+      name: "Ana",
+      room,
+      en,
+    });
+  expect(title({ author: "ana@x.test" }, "Produto")).toBe("Ana · Produto");
+  expect(title({ author: "ana@x.test", kind: "agent" }, "Produto")).toBe(
+    "Agente · Produto",
+  );
+  expect(title({ author: "ana@x.test", kind: "agent" }, "Produto", true)).toBe(
+    "Agent · Produto",
+  );
+  expect(title({ author: "ai" }, "Produto")).toBe("@vibe · Produto");
+  expect(title({ author: "ana@x.test" }, null)).toBe("Ana");
 });
