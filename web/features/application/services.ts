@@ -37,6 +37,7 @@ import type {
   ApplicationRoomIntent,
 } from "./types";
 import type { FetchLike } from "../../app/transport";
+import { browserDrafts } from "../composer/draftStore";
 
 export type ApplicationPwa = Pick<
   PwaService,
@@ -331,7 +332,11 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     failure: browser.logoutFailure,
     reload: browser.reload,
     // Signed out: the login page (out=1), not "/", which goes on to Studio and can sign the same person in again.
-    success: () => browser.navigateDocument("/login?out=1"),
+    // Drafts kept in the browser (composer/draftStore.ts) leave with the session, so a shared device keeps none.
+    success: () => {
+      browserDrafts().clear();
+      browser.navigateDocument("/login?out=1");
+    },
   });
   const stopPersonal = personal.state.subscribe((value) => {
     if (!active) return;

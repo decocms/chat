@@ -12,6 +12,7 @@ import type { Room, Message, Attachment, Poll } from "../../../shared/room";
 import type { CommandOutcome } from "../../../shared/commands";
 import type { RequestRoomCommand } from "../../app/roomConnection";
 import type { ComposerScope, ComposerUpload } from "./types";
+import type { DraftStore } from "./draftStore";
 import {
   mediaType,
   fileIssue,
@@ -130,8 +131,20 @@ export interface ComposerEntry {
   reviewPoll(): void;
   dispose(): void;
 }
-/** Account-owned in-memory drafts. A component attaches only a focus callback; it does not own canonical room data. */
-export function createComposerDrafts(clock = defaultClock) {
+/** No persistence: the drafts live in memory only (tests, and a browser without storage). */
+const memoryOnly: DraftStore = {
+  read: () => undefined,
+  write: () => {},
+  remove: () => {},
+  clear: () => {},
+};
+/** Account-owned drafts. A component attaches only a focus callback; it does not own canonical room data. The text
+ *  and the reply of each draft are also kept in `store` (localStorage in the app), so they come back after the person
+ *  leaves the room or the thread, reloads, or closes the app (Gimenes #4172). */
+export function createComposerDrafts(
+  clock = defaultClock,
+  store: DraftStore = memoryOnly,
+) {
   let active = true,
     epoch = 0,
     nextAttachment = 0,
@@ -857,7 +870,24 @@ export function createComposerDrafts(clock = defaultClock) {
         }
         entry = makeEntry(scope);
         entries.set(id, entry);
-        subscriptions.set(id, entry.state.subscribe(changed));
+        const saved = store.read(id);
+        if (saved && (saved.text || saved.replyId !== undefined))
+          entry.state.update((s) => ({
+            ...s,
+            text: saved.text,
+            replyId: saved.replyId,
+          }));
+        let last = JSON.stringify([saved?.text ?? "", saved?.replyId]);
+        const unsubscribe = entry.state.subscribe((s) => {
+          changed();
+          const now = JSON.stringify([s.text, s.replyId]);
+          if (now === last) return;
+          last = now;
+          if (s.text || s.replyId !== undefined)
+            store.write(id, { text: s.text, replyId: s.replyId });
+          else store.remove(id);
+        });
+        subscriptions.set(id, unsubscribe);
       }
       return entry;
     },
