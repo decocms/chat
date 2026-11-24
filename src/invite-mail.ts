@@ -44,12 +44,12 @@ function roomMail(en: boolean, origin: string, inviter: string, name: string, ti
         en
           ? `${escapeHtml(inviter)} wants to run this project with you on deco.chat: a room with chat, a doc and tasks, where your Claude and ${escapeHtml(name)}'s talk too.`
           : `${escapeHtml(inviter)} quer tocar esse projeto com você no deco.chat: uma sala com chat, documento e tarefas, onde o seu Claude e o de ${escapeHtml(name)} também conversam.`
-      }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${room.joined ? (en ? "Open the room" : "Abrir a sala") : en ? "See the invite" : "Ver o convite"}</a></p><p style="font-size:13px;color:#6b7383">${
+      }</p><p style="margin:24px 0"><a href="${url}" style="background:#0a0a09;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${room.joined ? (en ? "Open the room" : "Abrir a sala") : en ? "See the invite" : "Ver o convite"}</a></p><p style="font-size:13px;color:#676664">${
         en ? "The button signs you in and works for 24h. After that, just sign in with your email." : "O botão já te deixa logado e vale por 24h. Depois disso é só entrar com seu email."
       }</p>
-<div style="margin-top:28px;padding:18px 20px;background:#f3f6fb;border-radius:14px"><p style="margin:0 0 8px;font-weight:700">✦ ${en ? "Bring your Claude" : "Traga seu Claude"}</p><p style="margin:0 0 8px">${
+<div style="margin-top:28px;padding:18px 20px;background:#f5f4f2;border-radius:14px"><p style="margin:0 0 8px;font-weight:700">✦ ${en ? "Bring your Claude" : "Traga seu Claude"}</p><p style="margin:0 0 8px">${
         en ? "Paste this in <b>Claude Code</b>, inside the project folder:" : "Cole isto no <b>Claude Code</b>, dentro da pasta do projeto:"
-      }</p><p style="margin:0;font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#fff;border:1px solid #dde4ee;border-radius:8px;padding:10px 12px">${escapeHtml(setup)}</p><p style="margin:10px 0 0;font-size:14px">${en ? "Claude.ai or another client?" : "Claude.ai ou outro cliente?"} <a href="${connect}" style="color:#1d5fc4;font-weight:700">${en ? "Step by step" : "Passo a passo"}</a></p></div>`,
+      }</p><p style="margin:0;font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#fff;border:1px solid #edecea;border-radius:8px;padding:10px 12px">${escapeHtml(setup)}</p><p style="margin:10px 0 0;font-size:14px">${en ? "Claude.ai or another client?" : "Claude.ai ou outro cliente?"} <a href="${connect}" style="color:#216bf2;font-weight:700">${en ? "Step by step" : "Passo a passo"}</a></p></div>`,
       origin,
     ),
   };
@@ -69,7 +69,7 @@ function chatMail(en: boolean, origin: string, inviter: string, name: string) {
         en
           ? `${escapeHtml(inviter)} sent you a message on deco.chat, where people and their Claudes work together in rooms.`
           : `${escapeHtml(inviter)} te mandou uma mensagem no deco.chat, onde pessoas e seus Claudes trabalham juntos em salas.`
-      }</p><p style="margin:24px 0"><a href="${url}" style="background:#1d5fc4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${en ? "Read the message" : "Ler a mensagem"}</a></p><p style="font-size:13px;color:#6b7383">${
+      }</p><p style="margin:24px 0"><a href="${url}" style="background:#0a0a09;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${en ? "Read the message" : "Ler a mensagem"}</a></p><p style="font-size:13px;color:#676664">${
         en ? "Sign in with this email. The message waits under Requests until you accept or decline it." : "Entre com este email. A mensagem espera em Pedidos até você aceitar ou recusar."
       }</p>`,
       origin,
