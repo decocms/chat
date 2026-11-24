@@ -7,6 +7,7 @@ import {
   type ActionRoom,
 } from "../src/routerActions";
 import type { Question } from "../src/jev";
+import { compareBench } from "./router-bench-compare";
 
 function room(over: Partial<ActionRoom> = {}) {
   const did: string[] = [];
@@ -126,4 +127,24 @@ test("Jev down: no action", async () => {
     ).action,
   ).toBeNull();
   expect(did).toEqual([]);
+});
+
+test("the bench check fails when a score goes down or false yes goes up, and shows new parts", () => {
+  const base = { wake: { right: 18, n: 20 } };
+  const same = compareBench(base, {
+    wake: { right: 18, n: 20 },
+    actions: { mark_done: { right: 20, n: 24, falseYes: 1 } },
+  });
+  expect(same.worse).toBe(false);
+  expect(same.markdown).toContain(
+    "| mark_done | — | 20/24 (83%) · falso sim 1 | novo |",
+  );
+  expect(compareBench(base, { wake: { right: 17, n: 20 } }).worse).toBe(true);
+  const a = { actions: { mark_done: { right: 20, n: 24, falseYes: 0 } } };
+  expect(
+    compareBench(a, {
+      actions: { mark_done: { right: 21, n: 24, falseYes: 1 } },
+    }).worse,
+  ).toBe(true);
+  expect(compareBench(a, { actions: {} }).worse).toBe(true);
 });

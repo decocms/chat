@@ -36,8 +36,8 @@ This file contains only the global rules. Read the specific document before you 
 12. Keep the public security text true: `README.md` (Security model) and `public/llms.txt`.
 13. Take every icon from the design system: the `Icon` component (`web/lib/studio/Icon.svelte`) with an Untitled UI name from its sprite. Do not use an emoji, a text character (`×`, `✓`, `→`) or a control that the browser draws as an icon. For example, a search field is `type="text"` with an `x` icon button that clears it, not `type="search"`. Emoji reactions and the agent marks drawn by `AgentMark` (`✻`, `✦`) are content, not icons. `bun run check:guidelines` fails on a new `type="search"`.
 14. If you change the router, run the router bench and report its result. The router is `src/router.ts`, `src/router-rule.ts`, `src/router-jev.ts`, `src/routerActions.ts`, `src/jev.ts` and the bench cases (`scripts/router-cases.json`, `scripts/router-action-cases.json`).
-    - Run `bun scripts/router-bench.ts` before you open the pull request. It needs `OPENROUTER_API_KEY`.
-    - Put the scores before and after your change in the "Router bench" part of the pull request.
+    - The "Router bench" workflow (`.github/workflows/router-bench.yml`) runs it on each pull request that touches these files. It runs the bench on main and on the branch, comments the scores on the pull request, and fails when a score goes down. You can also run `bun scripts/router-bench.ts` locally with `OPENROUTER_API_KEY`.
+    - Put the scores before and after your change in the "Router bench" part of the pull request (copy the workflow's comment).
     - A score must not go down. If a score goes down, stop and ask a human.
     - A new router action or a new rule gets new bench cases, both cases that it must catch and cases that it must not catch.
 

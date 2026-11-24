@@ -52,6 +52,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-actions · How the router bench check compares
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved a GitHub Actions check for the router bench (#4412, #4414). He did not say what "worse" means or which version of the cases the base runs.
+- Decision:
+  - The check runs the branch's bench script and cases on main too, so both sides answer the same questions. A part that main does not have (for example the router actions before they merge) is "new": it is shown, not compared.
+  - It fails when a part's score goes down, when an action has more false "yes" answers, or when a part is gone.
+  - It is not a required check. Gimenes can make it required in the branch protection.
+- Other options: Compare with stored scores in the repository (they go stale). Allow a small drop (Jev can move by a case between runs).
+- Risk: low. Jev can answer a case near the threshold differently between runs, and then the check fails without a real change. Run it again, or move the case's threshold.
+- Undo: Delete `.github/workflows/router-bench.yml`.
+- Status: open
+
 ### 2026-11-24 · feat/router-actions · Router actions, stage 1: the registry, answer_thread and mark_done
 
 - Agent: claude-opus-5-5

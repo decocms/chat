@@ -5,14 +5,15 @@
 // - actions: scripts/router-action-cases.json, each router action on messages it must and must not act on, through
 //   runRouterActions with the real Jev (Gimenes #4382). A false "yes" (closing a thread nobody closed) is the costly
 //   miss, so the report shows false positives apart.
-//   bun scripts/router-bench.ts [--d1] [--min 0.85] [--only wake|actions]
+//   bun scripts/router-bench.ts [--d1] [--min 0.85] [--only wake|actions] [--json scores.json]
+// CI: .github/workflows/router-bench.yml runs it on main and on the PR and compares (scripts/router-bench-compare.ts).
 // Needs OPENROUTER_API_KEY in .dev.vars (real Jev calls, ~US$0.00002 each).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { rule } from "../src/router-rule";
 import { jev, own } from "../src/router-jev";
 import { decide } from "../src/jev";
-import { ROUTER_ACTIONS, runRouterActions, type ActionRoom } from "../src/routerActions";
+import { existsSync as has, writeFileSync } from "node:fs";
 
 type Case = { note?: string; own: boolean; name: string; sender: string; text: string; topic?: string; recent?: string; memory?: string; expected: "wake" | "ignore" };
 const args = process.argv.slice(2), min = Number(args[args.indexOf("--min") + 1]) || 0;
@@ -37,6 +38,9 @@ for (const c of cases) {
   console.log(`${verdict ? "ok " : "BAD"} ${got.padEnd(6)} (want ${c.expected}) ${c.own ? "own " : "other"} | ${c.note ?? ""} | ${c.text.slice(0, 70)}`);
 }
 let failed = false;
+// The scores, for --json: right/n per part; false yes per action.
+const scores: { wake?: { right: number; n: number }; actions: Record<string, { right: number; n: number; falseYes: number }> } = { actions: {} };
+if (cases.length) scores.wake = { right, n: cases.length };
 if (cases.length) {
   const score = right / cases.length;
   console.log(`\nwake: ${right}/${cases.length} = ${(score * 100).toFixed(0)}%`);
@@ -44,7 +48,10 @@ if (cases.length) {
 }
 
 type ActionCase = { action: string; note?: string; topic?: string; text: string; expected: boolean };
-if (only !== "wake") {
+// A base without router actions (main before them) has only the wake part.
+if (only !== "wake" && has("src/routerActions.ts")) {
+  const { ROUTER_ACTIONS, runRouterActions } = await import("../src/routerActions");
+  type ActionRoom = import("../src/routerActions").ActionRoom;
   const actionCases: ActionCase[] = JSON.parse(readFileSync("scripts/router-action-cases.json", "utf8"));
   const tally: Record<string, { right: number; n: number; falseYes: number }> = {};
   for (const c of actionCases) {
@@ -67,10 +74,12 @@ if (only !== "wake") {
     t.falseYes += +(got && !c.expected);
     console.log(`${got === c.expected ? "ok " : "BAD"} ${c.action.padEnd(13)} ${got ? "acts" : "no  "} (want ${c.expected ? "acts" : "no"}) p=${r.p.toFixed(2)} ${r.via ?? ""} | ${c.note ?? ""} | ${c.text.slice(0, 60)}`);
   }
+  scores.actions = tally;
   for (const [name, t] of Object.entries(tally)) {
     const score = t.right / t.n;
     console.log(`${name}: ${t.right}/${t.n} = ${(score * 100).toFixed(0)}% · false yes: ${t.falseYes}`);
     if (score < min) { console.log(`${name} below --min ${min}`); failed = true; }
   }
 }
+if (args.includes("--json")) writeFileSync(args[args.indexOf("--json") + 1], JSON.stringify(scores));
 if (failed) process.exit(1);
