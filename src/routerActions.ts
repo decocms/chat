@@ -218,13 +218,35 @@ export async function runRouterActions(
   }
   if (!asked.length && !reads.length)
     return { action: null, via: null, p: 0, cost: 0, asked: [], read: {} };
-  const questions: Record<string, Question> = {};
+  // The actions see only the thread and the message; the readings get the room context, in a second call at the same
+  // time (variant v2: the room context lowered the actions' p).
+  const actionQuestions: Record<string, Question> = {};
   for (const action of asked)
-    questions[action.name] = { type: "noul", instructions: action.question! };
+    actionQuestions[action.name] = {
+      type: "noul",
+      instructions: action.question!,
+    };
+  const readQuestions: Record<string, Question> = {};
   for (const reading of reads)
     for (const [k, q] of Object.entries(reading.questions))
-      questions[`${reading.name}_${k}`] = { type: "noul", instructions: q };
-  const r = await decide(state, questions).catch(() => null);
+      readQuestions[`${reading.name}_${k}`] = { type: "noul", instructions: q };
+  const [ra, rr] = await Promise.all([
+    asked.length
+      ? decide(
+          { thread: context.topic, message: m.text.slice(0, 1500) },
+          actionQuestions,
+        ).catch(() => null)
+      : null,
+    reads.length ? decide(state, readQuestions).catch(() => null) : null,
+  ]);
+  if (!rr) reads.length = 0; // findWaits reads it later
+  const r =
+    ra || rr
+      ? {
+          answers: { ...(ra?.answers ?? {}), ...(rr?.answers ?? {}) },
+          cost: (ra?.cost ?? 0) + (rr?.cost ?? 0),
+        }
+      : null;
   if (!r)
     return {
       action: null,
