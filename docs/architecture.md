@@ -143,3 +143,9 @@ The server can act on a message of a person without waking a Claude (`src/router
 - `mark_done`: the exact phrase "Mark as done" or "Marcar como concluída", or a short message (60 characters or less) that says the thread is finished (0.8). A Jev decision posts a line in the thread. Any message from a person opens the thread again.
 
 To add an action, add an entry to `ROUTER_ACTIONS` and a test to `scripts/router-actions.test.ts`.
+
+A reading (`ROUTER_READINGS`) also goes into the same Jev call. It does not select one action. The room keeps its answers. The readings are:
+
+- `waits`: who the message asks for something ("esperando você"). Each other person in the room is one question (0.7). If the author @mentions people, only those people wait. The room stores the waits in D1 `waits` and sends a push.
+
+`Book.findWaits` (on the alarm) reads the messages of agents. It also reads a message of a person that the router pass did not read (Jev not available, or the exact phrase), 2 minutes after the message.

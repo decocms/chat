@@ -47,15 +47,25 @@ if (cases.length) {
   if (score < min) { console.log(`wake below --min ${min}`); failed = true; }
 }
 
-type ActionCase = { action: string; note?: string; topic?: string; text: string; expected: boolean };
+// An action case: expected = the action acts. A waits case (action "waits"): waits = the first names the message
+// waits on ([] = nobody); thread "main" unless topic is set; before = the talk before it.
+type ActionCase = { action: string; note?: string; topic?: string; text: string; expected?: boolean; waits?: string[]; before?: string };
+// The room of every case, as in production: the author (Leo) and three other people, so the waits reading joins the
+// same Jev call as the actions.
+const PEOPLE = ["Ana", "Bruno", "Carla"];
 // A base without router actions (main before them) has only the wake part.
 if (only !== "wake" && has("src/routerActions.ts")) {
-  const { ROUTER_ACTIONS, runRouterActions } = await import("../src/routerActions");
+  const mod = await import("../src/routerActions");
+  const { runRouterActions } = mod;
   type ActionRoom = import("../src/routerActions").ActionRoom;
+  // A base from before the waits reading (stage 1) skips the waits cases: they are "new" there.
+  const hasWaits = !!(mod as { ROUTER_READINGS?: { name: string }[] }).ROUTER_READINGS?.some((r) => r.name === "waits");
   const actionCases: ActionCase[] = JSON.parse(readFileSync("scripts/router-action-cases.json", "utf8"));
   const tally: Record<string, { right: number; n: number; falseYes: number }> = {};
   for (const c of actionCases) {
-    const thread = c.action === "answer_thread" ? "main" : "t1";
+    if (c.action === "waits" && !hasWaits) continue;
+    const thread = c.action === "mark_done" || (c.action === "waits" && c.topic) ? "t1" : "main";
+    const email = (n: string) => `${n.toLowerCase()}@x`;
     const room: ActionRoom = {
       isDm: false,
       openThread: (t) => t === "t1",
@@ -63,13 +73,29 @@ if (only !== "wake" && has("src/routerActions.ts")) {
       hasThreadFrom: () => false,
       markDone: () => {},
       makeAnswerThread: async () => {},
+      people: async () => ({
+        others: PEOPLE.map((n) => ({ email: email(n), name: n })),
+        roster: ["Leo", ...PEOPLE].join(", "),
+        before: c.before ?? "",
+        author: "Leo",
+        tagged: PEOPLE.filter((n) => new RegExp(`@${n}\\b`, "i").test(c.text)).map(email),
+      }),
+      saveWaits: async () => {},
     };
-    // Only the action under test, so each case measures one question.
-    const actions = ROUTER_ACTIONS.filter((a) => a.name === c.action);
-    const r = await runRouterActions({ id: 1, thread, author: "me@x", text: c.text }, room, (state, q) => decide(env, state, q), { topic: c.topic ?? "main" }, actions);
-    const got = r.action === c.action;
+    // Every action and reading, as in production: one Jev call per message.
+    const r = await runRouterActions({ id: 1, thread, author: "leo@x", text: c.text }, room, (state, q) => decide(env, state, q), { topic: c.topic ?? "main" });
     const t = (tally[c.action] ??= { right: 0, n: 0, falseYes: 0 });
     t.n++;
+    if (c.action === "waits") {
+      const got = ((r as { read?: Record<string, string[]> }).read?.waits ?? []).map((e) => PEOPLE.find((n) => email(n) === e)!).sort();
+      const want = [...(c.waits ?? [])].sort();
+      const ok = got.join() === want.join();
+      t.right += +ok;
+      t.falseYes += +got.some((n) => !want.includes(n));
+      console.log(`${ok ? "ok " : "BAD"} waits         [${got.join(",")}] (want [${want.join(",")}]) | ${c.note ?? ""} | ${c.text.slice(0, 60)}`);
+      continue;
+    }
+    const got = r.action === c.action;
     t.right += +(got === c.expected);
     t.falseYes += +(got && !c.expected);
     console.log(`${got === c.expected ? "ok " : "BAD"} ${c.action.padEnd(13)} ${got ? "acts" : "no  "} (want ${c.expected ? "acts" : "no"}) p=${r.p.toFixed(2)} ${r.via ?? ""} | ${c.note ?? ""} | ${c.text.slice(0, 60)}`);

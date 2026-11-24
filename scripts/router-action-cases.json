@@ -33,5 +33,21 @@
   { "action": "answer_thread", "note": "deploy", "text": "sobe isso pra produção", "expected": false },
   { "action": "answer_thread", "note": "ok to someone", "text": "boa, pode seguir assim", "expected": false },
   { "action": "answer_thread", "note": "yes/no to a person", "text": "@leandro você vem amanhã?", "expected": false },
-  { "action": "answer_thread", "note": "small talk", "text": "bom dia pessoal, tudo certo?", "expected": false }
+  { "action": "answer_thread", "note": "small talk", "text": "bom dia pessoal, tudo certo?", "expected": false },
+  { "action": "waits", "note": "question by name", "text": "Ana, conseguiu ver o PR do upload?", "waits": ["Ana"] },
+  { "action": "waits", "note": "approval by name", "text": "preciso do OK do Bruno pra subir isso hoje", "waits": ["Bruno"] },
+  { "action": "waits", "note": "two people asked", "text": "Ana e Carla, o que vocês acham dessa tela nova?", "waits": ["Ana", "Carla"] },
+  { "action": "waits", "note": "@mention decides", "text": "@carla revisa o texto da landing quando puder?", "waits": ["Carla"] },
+  { "action": "waits", "note": "go-ahead to a person", "text": "Bruno, pode subir quando o CI passar", "waits": ["Bruno"] },
+  { "action": "waits", "note": "in a thread, decision", "topic": "Preço do plano anual", "text": "Carla, fechamos em 10% ou 15% de desconto?", "waits": ["Carla"] },
+  { "action": "waits", "note": "reply to a question before", "before": "Ana: Leo, você consegue olhar o bug do login hoje?", "text": "Ana, consigo sim, mas você me manda o print do erro?", "waits": ["Ana"] },
+  { "action": "waits", "note": "bare ask: for the author's own Claude", "text": "faz um gráfico das vendas da semana", "waits": [] },
+  { "action": "waits", "note": "bare question: for the author's own Claude", "text": "quantas pessoas entraram essa semana?", "waits": [] },
+  { "action": "waits", "note": "names a person, asks nothing", "text": "a Ana já resolveu isso ontem, tá no ar", "waits": [] },
+  { "action": "waits", "note": "thanks", "text": "valeu Bruno, ficou ótimo", "waits": [] },
+  { "action": "waits", "note": "status to everyone", "text": "subi a versão nova do app, tá em produção", "waits": [] },
+  { "action": "waits", "note": "small talk", "text": "bom dia pessoal!", "waits": [] },
+  { "action": "waits", "note": "to the room, nobody in particular", "text": "fica a dica pra todo mundo: rodem o check antes do PR", "waits": [] },
+  { "action": "waits", "note": "answer to a person, nothing back", "before": "Carla: Leo, o deploy de hoje já foi?", "text": "já foi sim, às 15h", "waits": [] },
+  { "action": "waits", "note": "own Claude by name", "text": "Claude, abre uma thread pra gente ver o onboarding", "waits": [] }
 ]

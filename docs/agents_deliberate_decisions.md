@@ -52,6 +52,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-actions-waits · Router actions, stage 2: waits joins the router's Jev call
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved the 3 stages (#4379) and asked to start the follow-ups (#4425, #4426). Stage 2 moves "who waits on whom" (`findWaits`) into the one Jev call of the router actions. He did not say how.
+- Decision:
+  - A new kind of registry entry, a reading (`ROUTER_READINGS`): questions that join the same call, whose answers the room keeps. `waits` is the first one.
+  - For a message of a person, only the question "does this ask something of Ana?" moves. The question "does this answer an earlier ask?" is not needed there: `answeredHere` already deletes the author's earlier waits in that thread.
+  - Waits now appear at once, not about 30 seconds later.
+  - `findWaits` keeps the messages of agents (the router actions do not see them) and the messages of people that the router pass did not read, 2 minutes after the message.
+  - The bench runs each case as production does: all actions and readings in one call, in a room with three other people.
+- Other options: Keep `findWaits` on the alarm and only share the prompt. Move the messages of agents into the router pass too.
+- Risk: medium. With more questions and more context in one call, Jev can score `mark_done` or `answer_thread` differently. The bench shows it.
+- Undo: Remove `waits` from `ROUTER_READINGS` and the skip in `findWaits`.
+- Status: open
+
 ### 2026-11-24 · feat/router-actions · How the router bench check compares
 
 - Agent: claude-opus-5-5

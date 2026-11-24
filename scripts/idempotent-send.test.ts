@@ -86,7 +86,7 @@ function fixture() {
   book.reopenIfArchived = () => void effects.reopen++;
   book.routerActions = async () => {
     effects.intent++;
-    return { action: null, via: null, p: 0, cost: 0, asked: [] };
+    return { action: null, via: null, p: 0, cost: 0, asked: [], read: {} };
   };
   book.wakeAt = async () => void effects.wake++;
   let rpc = 0;
