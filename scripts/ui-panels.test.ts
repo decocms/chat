@@ -7232,10 +7232,12 @@ describe("Apps catalog", () => {
     await tick();
     const button = (label: string) =>
       [...h.target.querySelectorAll<HTMLButtonElement>("button")].find(
-        (value) => value.textContent?.trim() === label,
+        (value) =>
+          (value.textContent?.trim() || value.getAttribute("aria-label")) ===
+          label,
       );
     const oldReload = button("Recarregar")!,
-      oldBack = button("← Apps")!;
+      oldBack = button("Voltar para os apps")!;
     expect(!!oldReload && !!oldBack).toBe(true);
     h.owner.open({ connection: "room", tool: "missing-b" });
     const before = get(h.owner.state);
@@ -7250,7 +7252,7 @@ describe("Apps catalog", () => {
     expect(get(h.owner.state).frameRevision).toBe(before.frameRevision + 1);
     flushSync();
     await tick();
-    button("← Apps")!.click();
+    button("Voltar para os apps")!.click();
     expect(get(h.owner.state).target).toBeNull();
   }, 30_000);
   test("known membership loss immediately fences still-connected forms and removes private catalog on DOM update", async () => {
@@ -7469,7 +7471,9 @@ test("document inline Apps keep independent consent and stable frames, and revok
   };
   const button = (root: ParentNode, label: string) =>
     [...root.querySelectorAll<HTMLButtonElement>("button")].find(
-      (value) => value.textContent?.trim() === label,
+      (value) =>
+        (value.textContent?.trim() || value.getAttribute("aria-label")) ===
+        label,
     )!;
   await settled();
   const cards = [...target.querySelectorAll("[data-document-app]")];

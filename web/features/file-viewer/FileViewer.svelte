@@ -8,16 +8,13 @@
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
   import DialogTitle from "../../lib/studio/DialogTitle.svelte";
   import Button from "../../lib/studio/Button.svelte";
-  import Select from "../../lib/studio/Select.svelte";
-  import SelectContent from "../../lib/studio/SelectContent.svelte";
-  import SelectItem from "../../lib/studio/SelectItem.svelte";
-  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
-  import SelectValue from "../../lib/studio/SelectValue.svelte";
   import { buttonVariants } from "../../lib/studio/button";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
   import ViewerMedia from "./ViewerMedia.svelte";
+  import VersionPicker from "./VersionPicker.svelte";
   import { csvData, externalFileURL, fileURL } from "./model";
   import { viewerText } from "./copy";
-  let versionTrigger = $state<HTMLElement | null>(null);
   let {
     controller,
     lang = "pt",
@@ -87,6 +84,35 @@
   onDestroy(() => controller.closeNavigation());
 </script>
 
+<!-- The version picker and the file's actions: one compact row, in the full-screen title bar or (only the picker) beside the chat, whose panel header has the rest. -->
+{#snippet tools()}
+  {#if $view.target}
+    <VersionPicker {controller} {lang} {onselect} />
+    {#if !inline && $view.file}<IconButton
+        label={pinned ? text("unpin") : text("pin")}
+        tooltipSide="bottom"
+        size="icon"
+        aria-pressed={pinned}
+        class={pinned
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:text-foreground"}
+        disabled={$view.pinPending}
+        onclick={(event) => {
+          if (event.currentTarget.isConnected) controller.togglePin();
+        }}><Icon icon="pin-02" size={18} /></IconButton
+      >{/if}
+    {#if !inline}<IconButton
+        label={text("external")}
+        tooltipSide="bottom"
+        size="icon"
+        class="text-muted-foreground hover:text-foreground"
+        href={externalFileURL($view.target, location.origin, iosStandalone)}
+        target="_blank"
+        rel="noopener noreferrer"
+        ><Icon icon="link-external-01" size={18} /></IconButton
+      >{/if}
+  {/if}
+{/snippet}
 {#snippet preview()}
   {#if $view.target}
     <div
@@ -94,59 +120,6 @@
       data-file-id={$view.target.id}
       class="flex min-h-0 flex-1 flex-col gap-4"
     >
-      <div class="flex flex-wrap items-center gap-2">
-        {#if $view.versions.length > 1}
-          {@const versions = $view.versions.map((file, index) => ({
-            value: file.id,
-            label: `v${$view.versions.length - index} · ${new Date(file.ts).toLocaleString(lang === "en" ? "en" : "pt-BR")}`,
-          }))}
-          <label class="flex min-w-0 flex-1 items-center gap-2 text-sm"
-            >{text("version")}
-            <Select
-              items={versions}
-              bind:value={
-                () => $view.target?.id ?? "",
-                (id) => {
-                  if (
-                    versionTrigger?.isConnected &&
-                    versionTrigger.dataset.fileVersionTarget ===
-                      $view.target?.id
-                  )
-                    onselect ? onselect(id) : controller.select(id);
-                }
-              }
-            >
-              <SelectTrigger
-                bind:ref={versionTrigger}
-                aria-label={text("version")}
-                data-file-version-target={$view.target.id}
-                class="min-w-0 flex-1"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent class="font-sans">
-                {#each versions as version (version.value)}<SelectItem
-                    value={version.value}
-                    label={version.label}>{version.label}</SelectItem
-                  >{/each}
-              </SelectContent>
-            </Select>
-          </label>
-        {/if}
-        {#if !inline && $view.file}<Button
-            variant="outline"
-            disabled={$view.pinPending}
-            onclick={(event) => {
-              if (event.currentTarget.isConnected) controller.togglePin();
-            }}>{pinned ? text("unpin") : text("pin")}</Button
-          >{/if}
-        <a
-          class={buttonVariants({ variant: "outline" })}
-          href={externalFileURL($view.target, location.origin, iosStandalone)}
-          target="_blank"
-          rel="noopener noreferrer">{text("external")}</a
-        >
-      </div>
       {#if $view.indexPending}<p
           role="status"
           class="m-0 text-sm text-muted-foreground"
@@ -311,8 +284,11 @@
         }
       }}
     >
-      <DialogHeader>
-        <DialogTitle class="pr-8 font-sans">{$view.name || "File"}</DialogTitle>
+      <DialogHeader class="flex-row items-center gap-1 space-y-0 pr-8">
+        <DialogTitle class="min-w-0 flex-1 truncate font-sans"
+          >{$view.name || "File"}</DialogTitle
+        >
+        {@render tools()}
       </DialogHeader>
       {@render preview()}
     </DialogContent>

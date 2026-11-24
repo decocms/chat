@@ -263,11 +263,12 @@ test("CSV pagination bounds active cells and reports omitted parsed columns with
       .length,
   ).toBe(1000);
   expect(
-    document.querySelector('[data-file-viewer] a[target="_blank"]'),
+    // "Open in a new tab" sits in the title bar now, next to the version picker.
+    document.querySelector('[role="dialog"] a[target="_blank"]'),
   ).not.toBeNull();
 });
 
-test("beside-chat pane follows versions, rejects old connected controls and preserves fullscreen as a separate intent", async () => {
+test("beside-chat pane follows versions and keeps a picked version; Expand replaces the fullscreen dialog", async () => {
   const owner = createFileViewer({
     href: () => location.href,
     state: () => window.history.state,
@@ -313,19 +314,12 @@ test("beside-chat pane follows versions, rejects old connected controls and pres
   await settle();
   expect(target.textContent).toContain("version aa");
   expect(target.querySelector("[role=dialog]")).toBeNull();
-  const oldFull = [...target.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Open fullscreen",
-  )!;
+  // Beside the chat, Expand (the pane takes the room) replaces the fullscreen dialog.
+  expect(target.querySelector("[data-file-expand]") !== null).toBe(true);
   side.sync(room([file("bb", 2), file("aa")]), request);
-  oldFull.click();
-  expect(full).toEqual([]);
   await settle();
   expect(target.textContent).toContain("version bb");
-  const fullButton = [...target.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Open fullscreen",
-  )!;
-  fullButton.click();
-  expect(full).toEqual(["bb"]);
+  expect(full).toEqual([]);
   choose(target.querySelector("[data-file-version-target]")!, "aa");
   await settle();
   side.sync(room([file("cc", 3), file("bb", 2), file("aa")]), request);
@@ -334,7 +328,7 @@ test("beside-chat pane follows versions, rejects old connected controls and pres
   expect(side.target()?.follow).toBe(false);
   expect(window.history.length).toBe(before);
   const close = [...target.querySelectorAll("button")].find(
-    (button) => button.textContent?.trim() === "Close",
+    (button) => button.getAttribute("aria-label") === "Close",
   )!;
   close.click();
   await settle();

@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { COMPOSER_SLOT } from "../composer/shape";
   import Button from "../../lib/studio/Button.svelte";
+  import { paneFocus } from "./focus";
   import type { RoomLayoutProps, RoomLayoutCells, RoomSheet } from "./types";
   let props: RoomLayoutProps = $props();
   const owner = untrack(() => props.controller),
@@ -45,6 +46,17 @@
   // between them); with the pane open the top bar runs across chat and pane.
   const split = $derived(!$view.mobile && rightVisible && !props.overlayOpen);
   const people = $derived($view.pane === "people");
+  // Expand: the pane fills the room and the composer floats over its foot.
+  const focus = $derived($paneFocus && split);
+  // Another pane (or none) ends Expand: it belongs to the pane that asked for it.
+  let focusedPane = $view.pane;
+  $effect(() => {
+    const pane = $view.pane;
+    if (pane !== focusedPane) {
+      focusedPane = pane;
+      paneFocus.set(false);
+    }
+  });
   const paneClass = $derived(
     tabs
       ? // A tab, not a floor: it fills the space between the header and the bar.
@@ -52,12 +64,18 @@
       : $view.mobile
         ? // Phones: the pane takes the chat's place (under the top bar and the files strip), not a drawer.
           "col-start-2 row-start-3 row-end-6 z-20 h-full w-full animate-room-pane pb-[env(safe-area-inset-bottom)]"
-        : [
-            "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
-            widthClass,
-            // A member list is a column of names: it never needs more than this, whatever width the pane was dragged to (Valls).
-            people && "max-w-[400px]!",
-          ],
+        : focus
+          ? // The width animation stays (a new one would start unseeked and come back narrow); the !important width wins over it.
+            [
+              "col-start-1 col-end-4 row-start-1 row-end-6 m-2 ml-px w-auto! rounded-surface",
+              widthClass,
+            ]
+          : [
+              "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
+              widthClass,
+              // A member list is a column of names: it never needs more than this, whatever width the pane was dragged to (Valls).
+              people && "max-w-[400px]!",
+            ],
   );
   function handle(
     node: HTMLElement,
@@ -152,6 +170,7 @@
           : [
               "relative z-10 col-start-1 row-start-1 row-end-6 my-2 ml-px overflow-hidden rounded-l-surface border-r border-border",
               $view.sidebarCollapsed ? "w-room-sidebar-rail" : "w-room-sidebar",
+              focus && "hidden!",
             ],
       ]}
     >
@@ -191,6 +210,7 @@
           : [
               "mt-2 mr-2 flex h-[52px] items-center rounded-tr-surface border-b border-border pr-3 pl-5",
               (split || props.overlayOpen) && "col-end-4",
+              focus && "hidden!",
             ],
       ]}
     >
@@ -223,7 +243,7 @@
             split
             ? "px-2"
             : "mr-2 px-2",
-        props.overlayOpen && "hidden",
+        (props.overlayOpen || focus) && "hidden",
       ]}
     >
       {@render props.attention?.()}
@@ -232,7 +252,7 @@
       bind:this={chat}
       inert={props.overlayOpen || ($view.mobile && !!$view.sheet)}
       data-room-chat
-      class={props.overlayOpen
+      class={props.overlayOpen || focus
         ? "hidden"
         : [
             "col-start-2 row-start-4 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4",
@@ -250,19 +270,23 @@
       data-room-composer
       class={props.overlayOpen
         ? "hidden"
-        : [
-            "col-start-2 row-start-5 min-w-0",
-            tabs
-              ? "" // The bar under it carries the home-bar inset.
-              : $view.mobile
-                ? "pb-[env(safe-area-inset-bottom)]"
-                : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
-                  [
-                    "mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface",
-                    COMPOSER_SLOT,
-                  ],
-          ]}
+        : focus
+          ? // Floating over the pane's foot, as a card: you keep prompting while you look.
+            "pointer-events-none absolute inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-6 [&>[data-composer]]:pointer-events-auto [&>[data-composer]]:w-full [&>[data-composer]]:max-w-[720px] [&>[data-composer]]:bg-transparent [&>[data-composer]]:p-0 [&_[data-composer-field]]:shadow-[0_4px_16px_-6px_rgb(0_0_0/0.14)] [&_[data-composer-field]:focus-within]:shadow-[inset_0_0_0_1px_var(--vb-input),0_4px_16px_-6px_rgb(0_0_0/0.14)]"
+          : [
+              "col-start-2 row-start-5 min-w-0",
+              tabs
+                ? "" // The bar under it carries the home-bar inset.
+                : $view.mobile
+                  ? "pb-[env(safe-area-inset-bottom)]"
+                  : // No overflow-hidden: it clipped the @ mention list, which opens above the composer. The composer itself takes the rounded corners.
+                    [
+                      "mb-2 rounded-br-surface [&>[data-composer]]:rounded-br-surface",
+                      COMPOSER_SLOT,
+                    ],
+            ]}
     >
+      {#if focus}{@render props.focusPeek?.()}{/if}
       {@render props.composer()}
     </div>
     <div
@@ -332,7 +356,11 @@
       disabled={!$view.active || props.overlayOpen}
       aria-label={props.labels.documentWidth}
       data-room-width
-      class={!props.overlayOpen && !people && !$view.mobile && rightVisible
+      class={!props.overlayOpen &&
+      !people &&
+      !focus &&
+      !$view.mobile &&
+      rightVisible
         ? "z-30 col-start-3 row-start-2 row-end-6 mb-2 -ml-1 h-auto w-2 cursor-col-resize touch-none appearance-none rounded-full border-0 bg-transparent bg-clip-content px-[3px] py-0 outline-none transition-colors duration-150 hover:bg-ring/50 focus-visible:bg-ring [&::-moz-range-thumb]:size-0 [&::-moz-range-thumb]:border-0 [&::-webkit-slider-thumb]:size-0 [&::-webkit-slider-thumb]:appearance-none"
         : "hidden"}
     />
