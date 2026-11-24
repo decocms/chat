@@ -1,7 +1,7 @@
 import { visibleChatMessages } from "../chat/privacy";
 import type { Tool, CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Room } from "../../../shared/room";
-import type { Connection } from "../../../shared/schemas";
+import type { Connection, InfraWindow } from "../../../shared/schemas";
 import type { RequestRoomCommand } from "../../app/roomConnection";
 import { createSendIds } from "../../lib/client/sendIds";
 export const roomTools: Tool[] = [
@@ -74,6 +74,16 @@ export const roomTools: Tool[] = [
     description:
       "vibebook's model spend: Jev and the LLMs by event and model, the hub router, the last 30 days and OpenRouter's total for the key. Only in vibebook's report rooms.",
     inputSchema: { type: "object", properties: {} },
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: "vibebook_infra",
+    description:
+      "vibebook's Worker and site per UTC day (requests, errors, response bytes, CPU and wall time p50, visitors) for the last `days` days and the `days` before them, oldest first. days: 7, 14 or 30. Only in vibebook's report rooms.",
+    inputSchema: {
+      type: "object",
+      properties: { days: { type: "number", enum: [7, 14, 30] } },
+    },
     annotations: { readOnlyHint: true },
   },
   {
@@ -151,7 +161,11 @@ export function createRoomAppTools(options: {
   ask: AppAsk;
   connections(): Promise<Connection[]>;
   call(cid: string, tool: string, args: unknown): Promise<CallToolResult>;
-  metric(kind: "spend" | "router", roomOnly: boolean): Promise<unknown>;
+  metric(
+    kind: "spend" | "router" | "infra",
+    roomOnly: boolean,
+    days?: InfraWindow,
+  ): Promise<unknown>;
   t(text: string, vars?: Record<string, string | number>): string;
 }) {
   const t = options.t;
@@ -183,6 +197,13 @@ export function createRoomAppTools(options: {
           name === "vibebook_ai_spend" ? "spend" : "router",
           !!args.room,
         );
+        return current()
+          ? toolOutput(value)
+          : toolError("App is no longer active");
+      }
+      case "vibebook_infra": {
+        const days = args.days === 14 || args.days === 30 ? args.days : 7;
+        const value = await options.metric("infra", false, days);
         return current()
           ? toolOutput(value)
           : toolError("App is no longer active");

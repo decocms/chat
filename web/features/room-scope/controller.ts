@@ -821,9 +821,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           t,
           lang,
           openLink: browser.openExternal,
-          metric: (kind, roomOnly) =>
+          metric: (kind, roomOnly, days) =>
             appRequests.run((signal) =>
-              guardApp(metrics(kind, scope.roomId, roomOnly, signal)),
+              guardApp(metrics(kind, scope.roomId, roomOnly, signal, days)),
             ),
           putInDocument: (target) => {
             if (!owned()) return;

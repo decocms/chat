@@ -99,6 +99,8 @@ import {
   type ConsentError,
   type RouterStats,
   type AiSpend,
+  type InfraMonitor,
+  InfraWindow,
 } from "../shared/schemas";
 
 export type Bind = string | number | null;
@@ -216,6 +218,8 @@ export interface ApiServices {
   /** vibebook's model spend (src/reports.ts aiSpend), only for members of the report rooms (METRICS_ROOMS). */
   reportRoom(roomId: string): boolean;
   aiSpend(): Promise<AiSpend>;
+  /** The Worker and the site per day (src/reports.ts infraMonitor), same rooms and people as aiSpend. */
+  infraMonitor(window: InfraWindow): Promise<InfraMonitor>;
   consentContext(): Promise<{ context: ConsentContext; headers: [string, string][] } | (ConsentError & { status: 400 })>;
 }
 /** A failed connection call and its status; sign_in = sign in on that server first (401). */
@@ -901,6 +905,14 @@ export const uploadsApi = meApi
     const svc = c.get("svc"), room = c.req.query("room") ?? "";
     if (!svc.reportRoom(room) || !(await svc.isMember(room))) return c.json(forbidden, 403);
     return c.json((await svc.aiSpend()) satisfies AiSpend, 200);
+  })
+  // The Worker and the site per day, for the report rooms' app apps/infra-monitor.html (vibebook_infra).
+  .get("/api/metrics/infra", async (c) => {
+    const svc = c.get("svc"), room = c.req.query("room") ?? "";
+    if (!svc.reportRoom(room) || !(await svc.isMember(room))) return c.json(forbidden, 403);
+    const days = InfraWindow.safeParse(Number(c.req.query("days") ?? 7));
+    if (!days.success) return c.json({ error: "days must be 7, 14 or 30" } satisfies ErrorBody, 400);
+    return c.json((await svc.infraMonitor(days.data)) satisfies InfraMonitor, 200);
   });
 
 export type AppType = typeof uploadsApi;

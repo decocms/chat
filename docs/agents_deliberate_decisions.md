@@ -1449,3 +1449,18 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A sender can cause at most 5 emails a minute, and only one for each address.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · feat/infra-monitor · The infra monitor reads the Worker per day, cached for 10 minutes
+
+- Agent: Claude Opus 5.5
+- Context: Gui asked for an infra monitor with the last 7 and 30 days instead of the fixed `infra-ontem` app (#4208). The `metrics` tool gives only yesterday against the week before.
+- Decision:
+  - A new route `GET /api/metrics/infra?room=&days=` and the room app tool `vibebook_infra`, the same path and the same access check as `vibebook_ai_spend` (report rooms, members only).
+  - The windows are 7, 14 and 30 days. The answer has two windows (this one and the one before), so 30 days reads 60 days. The Worker analytics can keep less than that; then the older days show as missing, not as zero.
+  - Days are UTC days, because Cloudflare groups `workersInvocationsAdaptive` by UTC date. The visitors from D1 use the same days.
+  - One Cloudflare GraphQL call and one D1 query for each call. The result is cached for 10 minutes for each window (the Cache API); a Cloudflare failure is cached for 1 minute and returned as `worker_error`, with the Worker numbers as null.
+  - Only the Worker `chat` and the visitors. The zone numbers (requests by kind, bandwidth by route) stay in the daily `metrics` report.
+- Other options: A `days` argument on the agent `metrics` tool (markdown only, no app). A cron snapshot in KV (more moving parts for one internal page).
+- Risk: low. Members of the report rooms only, at most 2 upstream reads in 10 minutes for each window.
+- Undo: Revert this commit.
+- Status: open

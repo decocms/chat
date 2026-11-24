@@ -733,6 +733,33 @@ export const AiSpend = z.object({
 });
 export type AiSpend = z.infer<typeof AiSpend>;
 
+/** The infra monitor's windows (days). */
+export const InfraWindow = z.union([
+  z.literal(7),
+  z.literal(14),
+  z.literal(30),
+]);
+export type InfraWindow = z.infer<typeof InfraWindow>;
+/** The Worker and the site, per UTC day, for 2 × window days (this window and the one before), oldest first
+ *  (src/reports.ts infraMonitor). worker_error: Cloudflare failed, so the Worker numbers are missing, not zero. */
+export const InfraMonitor = z.object({
+  window: InfraWindow,
+  days: z.array(
+    z.object({
+      day: z.string(),
+      requests: z.nullable(z.number()),
+      errors: z.nullable(z.number()),
+      bytes: z.nullable(z.number()),
+      cpu_p50_ms: z.nullable(z.number()),
+      wall_p50_ms: z.nullable(z.number()),
+      visitors: z.number(),
+    }),
+  ),
+  worker_error: z.nullable(z.string()),
+  generated_at: z.string(),
+});
+export type InfraMonitor = z.infer<typeof InfraMonitor>;
+
 export const SttQuery = z.object({
   lang: z.optional(z.string()),
   prompt: z.optional(z.string()),

@@ -22,7 +22,7 @@ import { connOps } from "./mcpconn";
 import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
-import { aiSpend } from "./reports";
+import { aiSpend, infraMonitor } from "./reports";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -303,5 +303,6 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     setHandle: (handle) => setHandle(env.DB, email, handle),
     reportRoom: (room) => (env.METRICS_ROOMS ?? "").split(",").map((x) => x.trim()).includes(room),
     aiSpend: () => aiSpend(env),
+    infraMonitor: (window) => infraMonitor(env, window),
   };
 }

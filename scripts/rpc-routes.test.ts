@@ -216,6 +216,22 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       },
     },
     reportRoom: (room) => room === "report",
+    infraMonitor: async (window) => ({
+      window,
+      days: [
+        {
+          day: "2026-11-23",
+          requests: 100,
+          errors: 1,
+          bytes: 2048,
+          cpu_p50_ms: 3,
+          wall_p50_ms: 9,
+          visitors: 5,
+        },
+      ],
+      worker_error: null,
+      generated_at: "2026-11-24T00:00:00.000Z",
+    }),
     aiSpend: async () => ({
       recorded: {
         jev: 0.01,
@@ -1069,6 +1085,24 @@ test("model spend: only in the report rooms, for their members", async () => {
   const outsider = fixture({ isMember: async () => false });
   expect(
     (await outsider.app.request("/api/metrics/ai-spend?room=report")).status,
+  ).toBe(403);
+});
+
+test("infra monitor: only in the report rooms, for their members, 7/14/30 days", async () => {
+  const { app } = fixture();
+  const r = await app.request("/api/metrics/infra?room=report&days=30");
+  expect(r.status).toBe(200);
+  expect((await r.json()).window).toBe(30);
+  expect(
+    (await (await app.request("/api/metrics/infra?room=report")).json()).window,
+  ).toBe(7);
+  expect(
+    (await app.request("/api/metrics/infra?room=report&days=90")).status,
+  ).toBe(400);
+  expect((await app.request("/api/metrics/infra?room=other")).status).toBe(403);
+  const outsider = fixture({ isMember: async () => false });
+  expect(
+    (await outsider.app.request("/api/metrics/infra?room=report")).status,
   ).toBe(403);
 });
 

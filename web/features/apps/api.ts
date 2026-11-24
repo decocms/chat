@@ -3,6 +3,8 @@ import type { FetchLike } from "../../app/transport";
 import {
   UNAUTHENTICATED,
   AiSpend,
+  InfraMonitor,
+  type InfraWindow,
   RouterStats,
   ConnectionsResult,
   CreateConnectionResult,
@@ -112,24 +114,33 @@ export type AppsApi = ReturnType<typeof createAppsApi>;
 export function createAppMetrics(fetcher?: FetchLike) {
   const api = client("/", fetcher).api;
   return async (
-    kind: "spend" | "router",
+    kind: "spend" | "router" | "infra",
     roomId: string,
     roomOnly: boolean,
     signal: AbortSignal,
+    days: InfraWindow = 7,
   ) =>
-    kind === "spend"
+    kind === "infra"
       ? read(
-          await api.metrics["ai-spend"].$get(
-            { query: { room: roomId } },
+          await api.metrics.infra.$get(
+            { query: { room: roomId, days: String(days) } },
             { init: { signal, cache: "no-store" } },
           ),
-          AiSpend,
+          InfraMonitor,
         )
-      : read(
-          await api.router.stats.$get(
-            { query: roomOnly ? { room: roomId } : {} },
-            { init: { signal, cache: "no-store" } },
-          ),
-          RouterStats,
-        );
+      : kind === "spend"
+        ? read(
+            await api.metrics["ai-spend"].$get(
+              { query: { room: roomId } },
+              { init: { signal, cache: "no-store" } },
+            ),
+            AiSpend,
+          )
+        : read(
+            await api.router.stats.$get(
+              { query: roomOnly ? { room: roomId } : {} },
+              { init: { signal, cache: "no-store" } },
+            ),
+            RouterStats,
+          );
 }

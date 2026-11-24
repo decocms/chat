@@ -1,3 +1,4 @@
+import type { InfraWindow } from "../../../shared/schemas";
 import type { Room } from "../../../shared/room";
 import type { RequestRoomCommand } from "../../app/roomConnection";
 import type { AppsApi } from "./api";
@@ -24,7 +25,11 @@ export type AppsProps = {
   lang: string;
   thread: string;
   openLink(url: string): void;
-  metric(kind: "spend" | "router", roomOnly: boolean): Promise<unknown>;
+  metric(
+    kind: "spend" | "router" | "infra",
+    roomOnly: boolean,
+    days?: InfraWindow,
+  ): Promise<unknown>;
   putInDocument?(target: { connection: string; tool: string }): void;
   /** Explicit browser dependency seam; production keeps its existing lazy SDK import. */
   loadBridge?(): Promise<AppBridgeModule>;
