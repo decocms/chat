@@ -25,6 +25,12 @@
   });
   const url = (file: Attachment) =>
     `/api/books/${encodeURIComponent(roomId)}/files/${encodeURIComponent(file.id)}`;
+  /** Read beside the chat (HTML, Markdown, text): open there by default, so you can keep chatting while you read. */
+  const beside = (file: Attachment) =>
+    file.type === "text/html" ||
+    file.type === "text/markdown" ||
+    file.type === "text/plain" ||
+    /\.(md|markdown|txt)$/i.test(file.name);
   function open(event: MouseEvent, file: Attachment) {
     if (
       !active ||
@@ -80,10 +86,15 @@
           {actions}
           {vb}
         />
-      {:else if file.type === "text/html" && actions.openSideFile}<div
+      {:else if beside(file) && actions.openSideFile}<div
           data-html-file-card
           class="flex w-full items-center gap-2 rounded-control border border-border p-3"
         >
+          <Icon
+            icon="file-02"
+            size={16}
+            class="shrink-0 text-muted-foreground"
+          />
           <b class="min-w-0 flex-1 truncate">{file.name}</b>
           {#if actions.sideFileName === file.name}<span
               class="text-xs text-primary">{vb.t("aberto ao lado")}</span
@@ -99,6 +110,13 @@
             onclick={(event) => open(event, file)}
             class="text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
             >{vb.t("Abrir em tela cheia")}</a
+          >
+          <a
+            data-file-download
+            href={url(file)}
+            download={file.name}
+            class="text-xs text-foreground underline decoration-current/35 underline-offset-4 hover:decoration-current"
+            >{vb.t("Baixar")}</a
           >
         </div>
       {:else if file.type.startsWith("audio/")}<div
