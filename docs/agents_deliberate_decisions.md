@@ -52,6 +52,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-actions · Router actions, stage 1: the registry, answer_thread and mark_done
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for router actions (#4369): actions that the server does without the person's agent, in one shape, so that future actions follow a template. He approved 3 stages (#4379). He did not give the thresholds, the message length, or how a person sees a wrong guess.
+- Decision:
+  - `src/routerActions.ts` holds the registry. Each action has `when` (synchronous), `ready` (asynchronous, optional), `exact`, `question`, `threshold` and `run`. All the actions that apply to a message share one Jev call.
+  - `answer_thread` is the old `answerIntent`, with the same question and the same threshold (0.7).
+  - `mark_done` keeps the exact phrase, without a model. Jev is asked only for a message of 60 characters or less in an open thread, with a threshold of 0.8. A short message is usually a closing word, so the cost and the false hits stay low.
+  - When Jev closes a thread, the server posts "✓ Marquei esta thread como feita. Escreva qualquer coisa aqui para reabrir." Any message from a person already opens a done thread again, so no new undo control is necessary.
+  - Without `MODEL_JUDGE` (tests) or with it set to `off`, only the exact phrases act.
+- Other options: Ask Jev about every message in a thread. Add an undo button that calls a server command.
+- Risk: medium. A wrong guess closes a thread. The line in the thread says so, and one message opens the thread again.
+- Undo: Remove the `mark_done` question (keep `exact`), or revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/ack-doing-status · Which threads an agent's ack moves to Fazendo
 
 - Agent: claude-opus-5-5
