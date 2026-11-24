@@ -102,7 +102,7 @@
     "build:pwa": "bun scripts/build-service-worker.ts",
     "check:pwa": "node node_modules/@typescript/native/bin/tsc -p tsconfig.service-worker.json",
     "test:pwa": "bun test scripts/pwa.test.ts",
-    "test:auth": "bun test scripts/auth.test.ts scripts/session-boundary.test.ts scripts/studio-invite-auth.test.ts && bun test scripts/auth-post.test.ts && bun test --conditions=browser scripts/auth-dom.test.ts",
+    "test:auth": "bun test scripts/auth.test.ts scripts/session-boundary.test.ts scripts/studio-invite-auth.test.ts scripts/invite-mail.test.ts && bun test scripts/auth-post.test.ts && bun test --conditions=browser scripts/auth-dom.test.ts",
     "test:home": "bun test scripts/home.test.ts scripts/onboarding.test.ts && bun test --conditions=browser scripts/home-dom.test.ts",
     "test:onboarding:browser": "bun scripts/onboarding-browser.ts",
     "format:onboarding:check": "prettier --check scripts/onboarding.test.ts scripts/onboarding-browser.ts web/features/onboarding",

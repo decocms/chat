@@ -1433,3 +1433,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A draft can stay on a device until it is sent, erased, pushed out by newer drafts, or the person signs out.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-23 · feat/invite-email · An invite email for a message request to someone not on deco.chat
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes wrote to an email in "Nova mensagem" and expected an invite email when that person is not on deco.chat (#4195). Two agents checked every place where a person types another person's email. Room invites (People, the agent `invite` and `create_room` tools, the home's "start a room", an approved access request) already sent an email through `inviteMember`. A message request (`connect`) sent none.
+- Decision:
+  - One function sends every invite email: `sendInviteEmail` in `src/invite-mail.ts`. A room invite uses it with the room; a message request uses it without a room.
+  - A message request sends the email only when the target has no `users` row and it is the first request from that sender to that email. A repeat or a declined request sends nothing.
+  - The email does not contain the message. A stranger's text does not go out in a deco.chat email. The button goes to `/login`, not to a magic link, because no room exists yet.
+  - The answer to the sender is the same in every case, so it does not show whether the email has an account. The "Nova mensagem" note says that a person who is not on deco.chat gets an email.
+  - Room invites and message requests share one email budget for each sender (`invite:<sender>`, 5 a minute).
+  - The agent `invite` tool sends the email again to a member who never signed in, as "reenviar" in People does.
+- Other options: A magic link in the message-request email (it needs a new kind of link that signs in without a room). Include the message (spam risk).
+- Risk: low. A sender can cause at most 5 emails a minute, and only one for each address.
+- Undo: Revert this commit.
+- Status: open

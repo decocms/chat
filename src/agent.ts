@@ -1774,7 +1774,8 @@ async function call(
       const already: string[] = [],
         invited: string[] = [];
       for (const who of emails) {
-        if (await isMember(db, id, who)) {
+        // A member who never signed in (added before invites waited for a yes) gets the email again, as the People tab's "reenviar".
+        if ((await isMember(db, id, who)) && (await db.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first())) {
           already.push(who);
           continue;
         }
