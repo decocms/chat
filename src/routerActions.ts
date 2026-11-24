@@ -73,6 +73,8 @@ export type RouterAction = {
   ready?(m: ActionMessage, room: ActionRoom): Promise<boolean>;
   exact?(text: string): boolean;
   question?: string;
+  /** Vetoes: short questions in the same call; the action does not act when any is at VETO or more. */
+  vetoes?: Record<string, string>;
   threshold: number;
   run(
     m: ActionMessage,
@@ -87,6 +89,8 @@ export const MARK_DONE_MAX = 60;
 /** The floor of every action's threshold (Gimenes #4435): never lower it. A miss goes to a better question, not to a
  *  lower threshold. scripts/router-actions.test.ts fails on an action below it. */
 export const ACTION_THRESHOLD_MIN = 0.8;
+/** A veto at this probability or more stops the action. */
+export const VETO = 0.5;
 
 export const ROUTER_ACTIONS: readonly RouterAction[] = [
   {
@@ -99,7 +103,12 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
       !room.hasThreadFrom(m.id),
     ready: (m, room) => room.listening(m.author),
     question:
-      "The author posted this in the room's main chat, where the author's own AI assistant reads it. Can the assistant complete it only by replying with information (an explanation, a fact, numbers, a summary, a report, a chart or a comparison), without building, changing, fixing or deploying anything? Questions about how something works or how it is made count as yes. Answer no for greetings, thanks and jokes, and for anything said to another person (by name or @).",
+      "Is this message a question or a request for information: an explanation, a fact, numbers, a summary, a report, a chart or a comparison (what, how, why, which, how many, is it X or Y)?",
+    vetoes: {
+      do: "Does the author ask for something to be built, changed, added, fixed or deployed?",
+      person:
+        "Is the message said to a specific person (by name or @), or is it a greeting, thanks, a joke or an OK?",
+    },
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room) => room.makeAnswerThread(m),
   },
@@ -109,7 +118,13 @@ export const ROUTER_ACTIONS: readonly RouterAction[] = [
     when: (m, room) => m.thread !== "main" && room.openThread(m.thread),
     exact: isMarkDone,
     question:
-      'The author wrote this in the thread named in `thread`. Is the author closing that thread now: saying its work is finished, or asking for it to be closed, ended, archived or marked done (for example "pode fechar", "fecha aí, por favor", "encerra", "feito, valeu", "done", "resolvido, pode arquivar")? Answer no if the message asks whether it is done, says only one step is done, sets a condition or says not yet, asks for other work, asks another person, or is about something other than this thread.',
+      "The author wrote this in the thread named in `thread`. Does the author say that thread's work is finished, or ask for that thread to be closed, ended, archived or marked done, in any words or language?",
+    vetoes: {
+      question:
+        'Is the message a question, a condition ("when the PR merges") or a "not yet"?',
+      other:
+        "Is the message about closing or finishing something other than this thread (a pull request, a modal, a deal, a meeting time), or about one step while more work remains?",
+    },
     threshold: ACTION_THRESHOLD_MIN,
     run: (m, room, via) => room.markDone(m.thread, via),
   },
@@ -219,8 +234,11 @@ export async function runRouterActions(
   if (!asked.length && !reads.length)
     return { action: null, via: null, p: 0, cost: 0, asked: [], read: {} };
   const questions: Record<string, Question> = {};
-  for (const action of asked)
+  for (const action of asked) {
     questions[action.name] = { type: "noul", instructions: action.question! };
+    for (const [k, v] of Object.entries(action.vetoes ?? {}))
+      questions[`${action.name}_veto_${k}`] = { type: "noul", instructions: v };
+  }
   for (const reading of reads)
     for (const [k, q] of Object.entries(reading.questions))
       questions[`${reading.name}_${k}`] = { type: "noul", instructions: q };
@@ -241,7 +259,10 @@ export async function runRouterActions(
   for (const action of asked) {
     const q = r.answers[action.name]?.noul ?? 0;
     top = Math.max(top, q);
-    if (q >= action.threshold && q > p) {
+    const vetoed = Object.keys(action.vetoes ?? {}).some(
+      (k) => (r.answers[`${action.name}_veto_${k}`]?.noul ?? 0) >= VETO,
+    );
+    if (!vetoed && q >= action.threshold && q > p) {
       best = action;
       p = q;
     }
