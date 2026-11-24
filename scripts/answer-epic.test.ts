@@ -209,3 +209,24 @@ test("an answer epic still empty after 10 minutes gets one reminder for who aske
     { thread: epic, author: "ai", tag: "reminder", for_who: email },
   ]);
 });
+
+test("an answer epic that became work, or a question older than a day, is not held or nudged", async () => {
+  const f = fixture();
+  const { epic } = await question(f);
+  f.db
+    .query(
+      `INSERT INTO tasks (id, epic_id, title, done, ts) VALUES ('t-extra', ?, 'Remover o botão', 0, 0)`,
+    )
+    .run(epic);
+  expect(f.book.answerPending(epic)).toBe(false);
+  const old = await question(f, "uma pergunta antiga sobre o perfil");
+  const created = (
+    f.db.query(`SELECT ts FROM epics WHERE id = ?`).get(old.epic) as {
+      ts: number;
+    }
+  ).ts;
+  f.book.nudgeUnanswered(created + 2 * 864e5);
+  expect(
+    f.db.query(`SELECT 1 FROM messages WHERE tag = 'reminder'`).all(),
+  ).toEqual([]);
+});
