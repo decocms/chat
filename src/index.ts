@@ -503,6 +503,7 @@ app.get("/api/books/:id/files/:fid", async (c) => {
     if (fileLink(c) && /^[a-z0-9]{6,40}$/.test(id) && /^[0-9a-f]{1,64}$/.test(c.req.param("fid"))) return authPage(c.env, c.req.raw, "file-access", { status: 403 });
     return c.json({ error: "forbidden" }, 403);
   }
+  if (await bookStub(c.env, id).fileHidden(id, c.req.param("fid"), c.get("email"))) return c.notFound();
   // Range: iOS Safari's <audio> plays only what answers 206 to a byte range (also lets any player seek).
   const ranged = !!c.req.header("range");
   const obj = await c.env.FILES.get(`${id}/${c.req.param("fid")}`, ranged ? { range: c.req.raw.headers } : undefined);

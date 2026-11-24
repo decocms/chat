@@ -148,7 +148,7 @@ export class Book extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -506,7 +506,7 @@ export class Book extends DurableObject<Env> {
     if (next) await this.wakeAt(next);
   }
   files(limit = -1): FileMeta[] {
-    return storedFileRows(this.sql.exec(`SELECT * FROM files ORDER BY ts DESC LIMIT ?`, limit).toArray(), (kind) => console.warn("book stored projection", kind));
+    return storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT ?`, limit).toArray(), (kind) => console.warn("book stored projection", kind));
   }
   polls(ids?: string[]): Record<string, Poll> {
     const rows = this.sql.exec(`SELECT * FROM polls`).toArray();
@@ -1279,6 +1279,8 @@ export class Book extends DurableObject<Env> {
       if (!author && (by.agent || !(await this.isOwner(by.email)))) return { ok: false, error: "only its author or the room owner can delete a message" };
       this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, files, card, by, ts) VALUES (?, 'delete', ?, ?, ?, ?, ?)`, id, row.text, row.files, row.card, by.agent ? `${by.email}#agent` : by.email, now);
       this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
+      // Its files leave the room too (Files tab, links, get_file): only the owner still opens them, from the history.
+      for (const f of storedFileRefs(row.files)) this.sql.exec(`UPDATE files SET deleted = ? WHERE id = ?`, now, f.id);
       this.broadcast({ t: "msgEdit", id, text: "", deleted: now });
       return { ok: true };
     }
@@ -1292,6 +1294,12 @@ export class Book extends DurableObject<Env> {
     this.sql.exec(`UPDATE messages SET text = ?, edited = ? WHERE id = ?`, text, now, id);
     this.broadcast({ t: "msgEdit", id, text, edited: now });
     return { ok: true };
+  }
+  /** A file of a deleted message opens only for the room owner (the /files route and get_file ask). */
+  async fileHidden(bookId: string, fileId: string, email: string) {
+    this.bind(bookId);
+    if (!this.sql.exec(`SELECT 1 FROM files WHERE id = ? AND deleted IS NOT NULL`, fileId).toArray().length) return false;
+    return !(await this.isOwner(email));
   }
   async isOwner(email: string) {
     const owner = (await this.env.DB.prepare(`SELECT owner FROM books WHERE id = ?`).bind(this.get("book_id") ?? "").first<{ owner: string }>())?.owner;
@@ -1860,9 +1868,9 @@ export class Book extends DurableObject<Env> {
       if (!t?._meta?.ui?.resourceUri) return { ok: false, error: `no app ${tool} on connection ${cid} in this room (see connections)` };
       title ||= (t.title ?? tool).slice(0, 80);
     } else if (kind === "app") { // a room app: the file apps/<ref>.html
-      if (!this.sql.exec(`SELECT 1 FROM files WHERE name = ?`, `apps/${ref}.html`).toArray().length) return { ok: false, error: `no room app apps/${ref}.html in this room` };
+      if (!this.sql.exec(`SELECT 1 FROM files WHERE name = ? AND deleted IS NULL`, `apps/${ref}.html`).toArray().length) return { ok: false, error: `no room app apps/${ref}.html in this room` };
     } else if (kind === "file") {
-      if (!this.sql.exec(`SELECT 1 FROM files WHERE id = ?`, ref).toArray().length) return { ok: false, error: `no file ${ref} in this room` };
+      if (!this.sql.exec(`SELECT 1 FROM files WHERE id = ? AND deleted IS NULL`, ref).toArray().length) return { ok: false, error: `no file ${ref} in this room` };
     } else return { ok: false, error: "kind must be link, live, app or file" };
     const secret = findSecret(`${ref} ${title}`);
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret})` };
@@ -1891,7 +1899,7 @@ export class Book extends DurableObject<Env> {
    * open; it follows newer versions of the same name, so a Claude can open its first draft and keep uploading. */
   agentOpenFile(bookId: string, email: string, fileId: string) {
     this.bind(bookId);
-    const raw = this.sql.exec(`SELECT id, name, type, size, author, ts FROM files WHERE id = ?`, fileId).toArray()[0];
+    const raw = this.sql.exec(`SELECT id, name, type, size, author, ts FROM files WHERE id = ? AND deleted IS NULL`, fileId).toArray()[0];
     if (!raw) return { ok: false, error: "no such file in this room (file_id from upload_file / read_room files)" };
     const parsed = AttachmentSchema.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "file metadata unavailable" };
@@ -2322,8 +2330,8 @@ export class Book extends DurableObject<Env> {
         ...win,
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
-        files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE id IN (SELECT id FROM files ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file') ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
-        filesN: this.sql.exec<{ n: number }>(`SELECT count(*) AS n FROM files`).one().n,
+        files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
+        filesN: this.sql.exec<{ n: number }>(`SELECT count(*) AS n FROM files WHERE deleted IS NULL`).one().n,
         reminders: this.reminders(),
         polls: this.polls(),
         decisions: this.decisions(),

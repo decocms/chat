@@ -1016,7 +1016,7 @@ const TOOLS = [
   {
     name: "delete_message",
     description:
-      'Delete a message you posted yourself (its text, files and card). The room shows "message deleted" in its place; replies and threads from it stay. Only the room owner can still see what it said. Use it to take back something that should not be in the room.',
+      'Delete a message you posted yourself (its text, files and card). The room shows "message deleted" in its place; replies and threads from it stay. Its files leave the Files tab and stop opening for everyone but the room owner, who still sees what it said and its files in the history. Use it to take back something that should not be in the room.',
     inputSchema: {
       type: "object",
       properties: {
@@ -2385,6 +2385,7 @@ async function call(
         throw new Error(
           "file_id is the id from read_room's files[].url (the last part)",
         );
+      if (await bookStub(env, id).fileHidden(id, fid, me.email)) throw new Error(`file ${fid} belonged to a deleted message`);
       const obj = await env.FILES.get(`${id}/${fid}`);
       if (!obj) throw new Error(`no file ${fid} in room ${id}`);
       const type = obj.httpMetadata?.contentType ?? "application/octet-stream";

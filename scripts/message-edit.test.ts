@@ -191,3 +191,24 @@ test("the author or the room owner deletes; the content goes to the owner only",
   expect(read).not.toContain("secret client data");
   expect(read).toContain("[message deleted]");
 });
+
+test("a deleted message's files leave the room for everyone but the owner (#4383)", async () => {
+  const { book, db } = fixture();
+  const fid = "0abc1234";
+  db.query(
+    `INSERT INTO files (id, name, type, size, author, ts) VALUES (?, 'leak.txt', 'text/plain', 5, ?, 1)`,
+  ).run(fid, email);
+  const id = book.addMessage("main", email, "see file").id;
+  db.query(`UPDATE messages SET files = ? WHERE id = ?`).run(
+    JSON.stringify([{ id: fid, name: "leak.txt" }]),
+    id,
+  );
+  expect(await book.fileHidden("abcdef", fid, other)).toBe(false);
+  expect(await book.changeMessage(id, { email, agent: false }, null)).toEqual({
+    ok: true,
+  });
+  expect(await book.fileHidden("abcdef", fid, other)).toBe(true);
+  expect(await book.fileHidden("abcdef", fid, email)).toBe(true);
+  expect(await book.fileHidden("abcdef", fid, owner)).toBe(false);
+  expect(book.files().map((f) => f.id)).not.toContain(fid);
+});
