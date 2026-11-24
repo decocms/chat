@@ -51,7 +51,7 @@ export type SidebarProps = {
   send: SendRoomCommand;
   request: RequestRoomCommand;
   onopen: (id: string) => void;
-  onarchchange: (archived: boolean) => void;
+  ondonechange: (done: boolean) => void;
   navigation: NavigationSession;
   pins: PinsSession;
   onopenpinfile: (file: Attachment) => void;

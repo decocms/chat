@@ -142,7 +142,7 @@ export function messageFooters(
     const owners = [
       ...new Set(
         room.epics
-          .filter((e) => e.from_msg === ack.msg_id && !e.archived)
+          .filter((e) => e.from_msg === ack.msg_id && !e.done)
           .flatMap((e) =>
             e.tasks
               .filter((t) => t.status !== "done" && t.owner)
@@ -217,7 +217,7 @@ function ackEpic(
       m.thread === "main"
     )
       continue;
-    const epic = room.epics.find((e) => e.id === m.thread && !e.archived);
+    const epic = room.epics.find((e) => e.id === m.thread && !e.done);
     if (epic) return { id: epic.id, title: epic.title };
   }
   return undefined;
@@ -270,7 +270,7 @@ export function threadWorkers(
 ): Worker[] {
   if (thread.startsWith("pre:")) return [];
   const epic = room.epics.find((e) => e.id === thread);
-  if (epic?.archived) return [];
+  if (epic?.done) return [];
   const messages = [
     ...room.messages,
     ...(room.origins || []).filter(

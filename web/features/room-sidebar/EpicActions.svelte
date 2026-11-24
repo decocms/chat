@@ -15,7 +15,7 @@
   import { cn } from "../../lib/studio/utils";
   /**
    * The epic's status: a pill that opens the list of statuses (A fazer …
-   * Arquivado). "Feito" and "Arquivado" archive the epic, an open status
+   * Feito). "Feito" marks the epic done, an open status
    * reopens it (Book.setEpicStatus). It sits right after the desktop top
    * bar's title. Phones have no status control (Gimenes #4065). The menu also
    * pins the epic, since the epic list has no actions menu (Gimenes #3924,
@@ -73,7 +73,7 @@
               class="ml-auto text-foreground"
             />{/if}</DropdownMenuItem
         >{/each}
-      {#if !epic.archived}<DropdownMenuSeparator />
+      {#if !epic.done}<DropdownMenuSeparator />
         <DropdownMenuItem
           data-epic-pin={epic.id}
           disabled={busy}

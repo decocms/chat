@@ -210,7 +210,7 @@
     const epic = room.epics.find((item) => item.id === thread);
     return (
       !!epic &&
-      !epic.archived &&
+      !epic.done &&
       epic.tasks.length > 0 &&
       epic.tasks.every((task) => task.status === "done")
     );

@@ -126,7 +126,7 @@ export function roomRead(
     members: room.members.map((email) => ({ email, name: name(email) })),
     doc: room.doc || "",
     epics: room.epics
-      .filter((epic) => !epic.archived)
+      .filter((epic) => !epic.done)
       .map((epic) => ({
         id: epic.id,
         title: epic.title,

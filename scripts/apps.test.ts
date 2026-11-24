@@ -47,7 +47,7 @@ const room = (): Room => ({
     {
       id: "epic",
       title: "Epic",
-      archived: false,
+      done: false,
       tasks: [{ id: "task", title: "Task", done: false, status: "todo" }],
     },
   ],

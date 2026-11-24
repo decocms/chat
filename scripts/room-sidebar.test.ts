@@ -157,14 +157,14 @@ test("epic mutations reconcile canonical before ACK and preserve uncertain opera
 });
 test("lost ACK and explicit local review release operation without retrying or synthesizing canonical state", async () => {
   const h = harness(),
-    result = h.owner.run({ t: "epic.archive", id: "e", archived: true });
+    result = h.owner.run({ t: "epic.done", id: "e", done: true });
   await Promise.resolve();
   h.pending.resolve({ ok: false, error: "disconnected" });
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
   expect(get(h.owner.state).phase).toBe("unconfirmed");
-  expect(h.r.epics[0]?.archived).toBeUndefined();
+  expect(h.r.epics[0]?.done).toBeUndefined();
   h.owner.review();
   expect(await result).toBe(false);
   expect(h.sent).toHaveLength(1);
@@ -315,9 +315,9 @@ test("epicStatus: one stored status, and done is the Done tab (Gimenes #4247)", 
   expect(
     epicStatus(epic({ status: "review", prod: { stage: "deployed" } })),
   ).toBe("review");
-  // done is the archive, so the icon and the tab agree.
-  expect(epicStatus(epic({ archived: true }))).toBe("done");
-  expect(epicStatus(epic({ archived: true, status: "review" }))).toBe("done");
+  // done is the Done tab, so the icon and the tab agree.
+  expect(epicStatus(epic({ done: true }))).toBe("done");
+  expect(epicStatus(epic({ done: true, status: "review" }))).toBe("done");
   expect(epicStatus(epic({ status: "done" }))).toBe("done");
   expect(epicStatus(epic({ status: "dismissed" }))).toBe("done");
   expect(isMarkDone("Marcar como concluída")).toBe(true);

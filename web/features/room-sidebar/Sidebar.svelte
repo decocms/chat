@@ -30,7 +30,7 @@
     send,
     request,
     onopen,
-    onarchchange,
+    ondonechange,
     navigation,
     pins,
     onopenpinfile,
@@ -105,7 +105,7 @@
       tooltipSide="right"
       size="icon"><Icon icon="arrow-left" /></IconButton
     >
-    {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.archived || epic.id === thread)] as epic (epic.id)}
+    {#each [{ id: "main", title: room.book.title, tasks: [], owner: undefined }, ...room.epics.filter((epic) => !epic.done || epic.id === thread)] as epic (epic.id)}
       {@const done = epic.tasks.filter((task) => task.done).length}
       <Button
         variant={thread === epic.id ? "secondary" : "ghost"}
@@ -229,7 +229,7 @@
           {thread}
           session={navigation}
           mutations={owner}
-          {onarchchange}
+          {ondonechange}
           onopen={open}
           vb={{
             t: vb.t,

@@ -688,7 +688,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         navigation,
         value,
         snapshot.thread,
-        get(navigation.state).archived,
+        get(navigation.state).done,
       );
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
@@ -1065,9 +1065,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             onopen: (target) => {
               if (current()) pickThread(target);
             },
-            onarchchange: (archived) => {
+            ondonechange: (done) => {
               if (current()) {
-                navigation.state.update((before) => ({ ...before, archived }));
+                navigation.state.update((before) => ({ ...before, done }));
                 project("stay");
               }
             },
@@ -1133,7 +1133,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     if (!latest) throw new VoiceFailure(0);
                     const prompt =
                       `Conversa no deco.chat, sala ${latest.book.title}. Pessoas: ${latest.members.map((email) => email.split("@")[0]).join(", ")}. Threads: ${latest.epics
-                        .filter((epic) => !epic.archived)
+                        .filter((epic) => !epic.done)
                         .slice(0, 15)
                         .map((epic) => epic.title)
                         .join("; ")}.`.slice(0, 600);

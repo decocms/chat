@@ -256,7 +256,7 @@
           >✻</span
         >
       </div>{/if}
-    {#if epic?.archived}<div
+    {#if epic?.done}<div
         data-chat-end
         class="mx-3 mt-4 space-y-1 rounded-surface border border-border p-4"
       >
