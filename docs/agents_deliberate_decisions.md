@@ -1496,3 +1496,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The migration changes the status of every thread in every room, one time. Threads that used to close themselves now wait in review for a person.
 - Undo: Revert this commit. The migrated statuses stay; the old code derives its own status when `status` is null only, so a revert shows the stored ones.
 - Status: open
+
+### 2026-11-24 · feat/notification-title · Notification titles: who wrote, then the room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#4253) asked for titles like Discord's: "Agente · sala" from an agent, "pessoa · sala" from a person, only "pessoa" in a DM. The app's own notification said "Claude Opus 5.5 de Gimenes · sala" and the web push said "agent de Gimenes · sala".
+- Decision:
+  - One function, `shared/notificationTitle.ts`, for both the app's notification and the web push.
+  - An agent is "Agente" / "Agent" in the reader's language, without its owner or model. @vibe stays "@vibe".
+  - The app's notification no longer starts with "@ · " for a mention, so both kinds of notification have the same title.
+  - The titles that are not a message from someone ("⏸ Seu agent pede permissão", "❓ Seu agent pergunta", "X espera sua resposta") do not change.
+- Other options: Keep the owner ("Agente de Ana · sala"): Gimenes said the agent's name is too long.
+- Risk: low. Only the title text changes.
+- Undo: Revert this commit.
+- Status: open

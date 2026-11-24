@@ -9,6 +9,7 @@ import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTIO
 import { reorderEpics } from "./epic-order";
 import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
+import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
 import { RoomEventSchemas } from "../shared/events";
@@ -874,7 +875,8 @@ export class Book extends DurableObject<Env> {
     const who = human && this.isDm ? members.filter((e) => e !== m.author) : mentioned(m.text, members, await this.names(), m.author, human, await this.handles());
     if (!who.length) return;
     const nm = (await this.names())[m.author] || m.author.split("@")[0];
-    this.ctx.waitUntil(this.notify(who, m.author === "ai" ? "@vibe" : m.kind === "agent" ? (en) => (en ? `${nm}'s agent` : `agent de ${nm}`) : nm, m.text.replace(/\s+/g, " "), m.id, m.thread));
+    // notify adds the room (not in a DM): "Ana · Produto", "Agente · Produto" (Gimenes #4253).
+    this.ctx.waitUntil(this.notify(who, (en) => notificationTitle({ from: notificationFrom(m), name: nm, room: null, en }), m.text.replace(/\s+/g, " "), m.id, m.thread));
     const delay = this.env.DEV_EMAIL ? 5_000 : MAIL_DELAY_MS; // local dev: see it in seconds
     for (const e of who) this.sql.exec(`INSERT OR IGNORE INTO mail_q (email, msg_id, due) VALUES (?, ?, ?)`, e, m.id, m.ts + delay);
     await this.wakeAt(m.ts + delay);

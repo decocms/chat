@@ -78,6 +78,10 @@ import type { ComposerEntry } from "../composer/drafts";
 import type { DocumentPane } from "../documents/types";
 import { createRoomApi } from "../../app/transport";
 import {
+  notificationFrom,
+  notificationTitle,
+} from "../../../shared/notificationTitle";
+import {
   roomMessages,
   roomName,
   roomAvatarVersion,
@@ -1350,14 +1354,12 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
         selected(),
         (handle) => roomMention(canonical, me(), handle),
         (message) =>
-          message.author === "ai"
-            ? "@vibe"
-            : message.kind === "agent"
-              ? t("{via} de {who}", {
-                  via: message.via || "agent",
-                  who: name(message.author),
-                })
-              : name(message.author),
+          notificationTitle({
+            from: notificationFrom(message),
+            name: name(message.author),
+            room: canonical.book.dm ? null : canonical.book.title,
+            en: lang === "en",
+          }),
       );
       project(
         viewport.pinned() ||
