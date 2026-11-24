@@ -81,9 +81,21 @@ export async function openRoomPane(
   };
   await expect(layout).toBeVisible();
   if ((page.viewportSize()?.width ?? 1440) <= 900) {
-    // Phones: no bottom bar (#3738). The title opens the drawer, whose tab row
-    // has the desktop's panes in its order (#4076, #4088); a tab opens the doc sheet.
+    // Phones (A2, #4331): the strip under the top bar has Doc, Arquivos,
+    // Decisões and Lembretes; the avatars at the bar's end open Pessoas; the
+    // drawer (the title) keeps Apps and Agents. Each opens the doc sheet.
     const shortcut = async (tab: string) => {
+      const strip = page.locator(
+        `[data-phone-strip] [data-document-pane="${tab}"]`,
+      );
+      if (tab === "people") {
+        await page.locator("[data-room-bar] [data-phone-people]").click();
+        return;
+      }
+      if (await strip.isVisible()) {
+        await strip.click();
+        return;
+      }
       if ((await layout.getAttribute("data-sheet")) !== "side")
         await page.locator("[data-room-bar] [data-phone-title]").click();
       await expect(layout).toHaveAttribute("data-sheet", "side");

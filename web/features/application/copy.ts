@@ -660,6 +660,7 @@ const EN: Readonly<Record<string, string>> = {
   "Recusar {email}": "Decline {email}",
   Recusar: "Decline",
   Pessoas: "People",
+  "Pessoas na sala": "People in the room",
   pendente: "pending",
   "Copiar a mensagem de convite (link da sala + setup do agent) para mandar no WhatsApp":
     "Copy the invite message (room link + agent setup) to send on WhatsApp",
