@@ -367,30 +367,43 @@
           }}>{props.t("Revisar e tentar de novo")}</Button
         >{/if}
       {#if apps.length}
-        <section class="space-y-2 rounded-control border border-border p-3">
-          <div class="flex items-center gap-2">
-            <h3 class="m-0 font-sans font-semibold tracking-normal text-base">
-              {props.t("Esta sala")}
-            </h3>
-          </div>
-          <div class="grid gap-2">
-            {#each apps as app (app.file.id)}<Button
-                variant="outline"
-                class="h-auto justify-start whitespace-normal text-left"
-                onclick={(event) => {
-                  if (live(event))
-                    owner.open({ connection: "room", tool: app.tool });
-                }}
-                ><span
-                  ><strong class="block">{app.title}</strong><small
-                    class="block text-muted-foreground"
-                    >{props.name(app.file.author)} · {props.ago(
-                      app.file.ts,
-                    )}</small
-                  ></span
-                ></Button
-              >{/each}
-          </div>
+        <!-- A plain list, not a box of pills: a label, then one row per app (tile, name, who and when, ›). -->
+        <section data-room-apps class="space-y-2.5">
+          <h3
+            class="m-0 px-2 font-sans text-xs font-medium tracking-normal text-muted-foreground"
+          >
+            {props.t("Esta sala")}
+          </h3>
+          <ul class="m-0 grid list-none gap-0.5 p-0">
+            {#each apps as app (app.file.id)}<li>
+                <button
+                  type="button"
+                  data-room-app={app.tool}
+                  class="group flex w-full cursor-pointer items-center gap-3 rounded-lg border-0 bg-transparent px-2 py-2 text-left font-sans text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+                  onclick={(event) => {
+                    if (live(event))
+                      owner.open({ connection: "room", tool: app.tool });
+                  }}
+                  ><span
+                    aria-hidden="true"
+                    class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors duration-150 group-hover:bg-background"
+                    ><Icon icon="bar-chart-square-02" size={18} /></span
+                  ><span class="min-w-0 flex-1"
+                    ><span class="block truncate text-sm font-medium"
+                      >{app.title}</span
+                    ><span class="block truncate text-xs text-muted-foreground"
+                      >{props.name(app.file.author)} · {props.ago(
+                        app.file.ts,
+                      )}</span
+                    ></span
+                  ><Icon
+                    icon="chevron-right"
+                    size={16}
+                    class="shrink-0 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                  /></button
+                >
+              </li>{/each}
+          </ul>
         </section>{/if}
       {#each $view.connections || [] as item (item.id)}{@const all =
           connectionApps(item)}{@const screens = all.filter(
@@ -399,13 +412,13 @@
           screens.length && !$view.more.has(item.id) ? screens : all}
         <section
           data-connection-card={item.id}
-          class="space-y-3 rounded-control border border-border p-3"
+          class="space-y-2.5 border-t border-border pt-3"
         >
-          <header class="flex items-start gap-2">
+          <header class="flex items-start gap-2 px-2">
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-1.5">
                 <h3
-                  class="m-0 truncate font-sans text-base font-semibold tracking-normal"
+                  class="m-0 truncate font-sans text-xs font-medium tracking-normal text-muted-foreground"
                 >
                   {item.title}
                 </h3>
