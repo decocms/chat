@@ -3,6 +3,7 @@
   import { get } from "svelte/store";
   import type { Snippet } from "svelte";
   import type { BrowserApplicationServices } from "./browser";
+  import type { ComposerDrafts } from "../composer/drafts";
   import type {
     ApplicationRoomPresentation,
     ApplicationShellEffects,
@@ -33,10 +34,13 @@
   import { MOBILE_QUERY } from "../../lib/breakpoints";
   let {
     services,
+    drafts,
     roomSnippet,
     effects = createApplicationShellEffects(window, document),
   }: {
     services: BrowserApplicationServices;
+    /** The rooms' composer drafts: the Home's reading pane writes in the same ones. */
+    drafts: ComposerDrafts;
     roomSnippet: Snippet<[ApplicationRoomPresentation]>;
     effects?: ApplicationShellEffects;
   } = $props();
@@ -344,6 +348,7 @@
       {#if homeInbox}{#if HomeInbox}<HomeInbox
             owner={inbox}
             {services}
+            {drafts}
           />{:else}<DeferredRouteStatus
             phase={$homeInboxModuleView.phase}
             lang={services.language}

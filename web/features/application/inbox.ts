@@ -462,6 +462,13 @@ export function createApplicationInbox(
       void refresh(binding);
       return true;
     },
+    /** The Home's reading pane sent a message or a reaction in a room: the server may have cleared items. */
+    changed(binding: InboxBinding) {
+      if (!owns(binding)) return;
+      services.personal.invalidate();
+      void services.personal.refresh();
+      void refresh(binding);
+    },
     /** 👍 on an ask, from the Home: the room takes the reaction and clears the ask (src/book.ts reactedHere). */
     async react(binding: InboxBinding, wait: Wait, emoji = "👍") {
       const id = /^m\d+$/.test(wait.ref) ? Number(wait.ref.slice(1)) : NaN;

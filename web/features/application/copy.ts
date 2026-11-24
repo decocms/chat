@@ -69,8 +69,12 @@ const EN: Readonly<Record<string, string>> = {
   "1 pedido resolvido": "1 ask resolved",
   "{n} pedidos resolvidos": "{n} asks resolved",
   Desfazer: "Undo",
+  "j/k mover · Enter abrir · Esc fechar · r responder · o abrir na sala · e resolver":
+    "j/k move · Enter open · Esc close · r reply · o open in room · e resolve",
   "j/k mover · r responder · o abrir · e resolver · x selecionar":
     "j/k move · r reply · o open · e resolve · x select",
+  "Abrir na sala": "Open in room",
+  "Não foi possível abrir esta conversa.": "Couldn't open this conversation.",
   "esperando você": "waiting on you",
   "Feito / não é comigo": "Done / not for me",
   "seu Claude espera você": "your Claude is waiting on you",
