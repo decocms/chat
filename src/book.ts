@@ -151,8 +151,12 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS message_edits (msg_id INTEGER, kind TEXT, text TEXT, files TEXT, card TEXT, by TEXT, ts INTEGER);
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
+    // A thread's done state was the column `archived` (Gimenes #4466, #4505: there is no archive, only done). It is
+    // renamed before the loop below, which would else add an empty `done` and open every done thread again.
+    const epicCols = this.sql.exec<{ name: string }>(`PRAGMA table_info(epics)`).toArray().map((c) => c.name);
+    if (epicCols.includes("archived") && !epicCols.includes("done")) this.sql.exec(`ALTER TABLE epics RENAME COLUMN archived TO done`);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -185,7 +189,7 @@ export class Book extends DurableObject<Env> {
       .toArray()
       .map((t) => ({ ...t, done: !!t.done, epic_id: "main", status: (t.done ? "done" : t.status && t.status !== "done" ? t.status : "todo") as Status }));
   }
-  /** Only the epics that changed since the last push, plus the order. The whole list (every archived epic with its
+  /** Only the epics that changed since the last push, plus the order. The whole list (every done epic with its
    * tasks) went out on each task move, ~64 KB per open tab in the product room: the biggest share of /ws bandwidth.
    * What the sockets last got is a hash per epic in meta `epics_sent` (the DO hibernates between pushes; the sockets
    * don't). No record yet = the whole list. */
@@ -199,11 +203,11 @@ export class Book extends DurableObject<Env> {
     const prev = storedHashes(raw, (kind) => console.warn("book stored projection", kind));
     this.broadcast({ t: "epicsPatch", changed: epics.filter((e) => prev[e.id] !== now[e.id]), order: epics.map((e) => e.id), roomTasks });
   }
-  /** What the sockets get: an archived epic carries only its open tasks (18/11: 207 of 231 epics in the product room
-   *  were archived and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
+  /** What the sockets get: a done epic carries only its open tasks (18/11: 207 of 231 epics in the product room
+   *  were done and their done tasks were ~150 KB of every room open). Opening one sends it whole (`full`, ?t= on
    *  open, doc.get after). */
   wireEpics(epics: ReturnType<Book["epics"]>, full = "") {
-    return epics.map((e) => (e.archived && e.id !== full ? { ...e, tasks: e.tasks.filter((t) => t.status !== "done") } : e));
+    return epics.map((e) => (e.done && e.id !== full ? { ...e, tasks: e.tasks.filter((t) => t.status !== "done") } : e));
   }
   epics() {
     // @vibe's grading (grade()): per epic, id → short notes on the epic itself and its tasks.
@@ -228,38 +232,38 @@ export class Book extends DurableObject<Env> {
     // The sidebar orders epics by their latest message (pinned ones first): when each thread last spoke.
     const last = new Map(this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' GROUP BY thread`).toArray().map((r) => [r.thread, r.ts]));
     return this.sql
-      .exec<{ id: string; title: string; archived: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, archived, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
+      .exec<{ id: string; title: string; done: number | null; from_msg: number | null; prod: string | null; owner: string | null; ts: number | null; pinned: number | null; status: string | null }>(`SELECT id, title, done, from_msg, prod, owner, ts, pinned, status FROM epics ORDER BY pos IS NULL, pos, ts`)
       .toArray()
       .map(({ ts, pinned, status: chosen, ...e }) => {
-        // The thread's one status (Gimenes #4247): done is the archive (the Done tab); otherwise todo, doing or review.
-        const status: EpicStatus = e.archived === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
+        // The thread's one status (Gimenes #4247): done is the Done tab; otherwise todo, doing or review.
+        const status: EpicStatus = e.done === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_thread prod).
-        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), archived: e.archived === 1, kept: e.archived === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), done: e.done === 1, kept: e.done === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
   // room + epic with one query instead of calling every room's DO.
-  // Thread status, one stored value (Gimenes #4247 #4251), once per room: archived (or done, dismissed) is done; an open
+  // Thread status, one stored value (Gimenes #4247 #4251), once per room: done (or dismissed) is done; an open
   // thread with no task started is todo; every other open thread is review, since no person marked it done.
   migrateEpicStatus() {
     if (this.get("epic_status_v2") === "1") return;
-    this.sql.exec(`UPDATE epics SET archived = 1, status = 'done' WHERE archived = 1 OR status IN ('done', 'dismissed')`);
+    this.sql.exec(`UPDATE epics SET done = 1, status = 'done' WHERE done = 1 OR status IN ('done', 'dismissed')`);
     this.sql.exec(
-      `UPDATE epics SET archived = 0, status = CASE WHEN EXISTS (SELECT 1 FROM tasks t WHERE t.epic_id = epics.id AND (t.done = 1 OR t.status IN ('doing', 'review', 'done'))) THEN 'review' ELSE 'todo' END WHERE COALESCE(archived, 0) != 1`,
+      `UPDATE epics SET done = 0, status = CASE WHEN EXISTS (SELECT 1 FROM tasks t WHERE t.epic_id = epics.id AND (t.done = 1 OR t.status IN ('doing', 'review', 'done'))) THEN 'review' ELSE 'todo' END WHERE COALESCE(done, 0) != 1`,
     );
     // The tasks already all done made that move; they do not make it again.
-    this.sql.exec(`INSERT OR REPLACE INTO meta (k, v) SELECT 'alldone:' || id, '1' FROM epics WHERE COALESCE(archived, 0) != 1`);
+    this.sql.exec(`INSERT OR REPLACE INTO meta (k, v) SELECT 'alldone:' || id, '1' FROM epics WHERE COALESCE(done, 0) != 1`);
     this.set("epic_status_v2", "1");
   }
   // A thread's status follows its tasks forward, never to done (Gimenes #4247): todo until a task starts, then doing;
   // review when its tasks become all done. It then goes between doing and review (a person or an agent with
-  // update_thread status) until a person marks it done. done is the only status that archives (the Done tab).
+  // update_thread status) until a person marks it done. done is the only status that leaves the Open tab.
   autoReview() {
     const closed: number[] = [];
     let changed = false;
     for (const e of this.epics()) {
-      if (e.archived || !e.tasks.length) continue;
+      if (e.done || !e.tasks.length) continue;
       const mark = `alldone:${e.id}`;
       const all = e.tasks.every((t) => t.status === "done");
       if (!all) {
@@ -282,13 +286,13 @@ export class Book extends DurableObject<Env> {
       const from = this.sql.exec(`SELECT from_msg FROM epics WHERE id = ?`, e.id).toArray()[0]?.from_msg;
       if (from && this.sql.exec(`UPDATE acks SET status = 'done', ts = ? WHERE msg_id = ? AND status = 'doing'`, Date.now(), from).rowsWritten) closed.push(from as number);
     }
-    // Only the acks that changed (the whole list was ~100 KB per tab on every archive, Nov 2026).
+    // Only the acks that changed (the whole list was ~100 KB per tab on every done, Nov 2026).
     if (closed.length) this.pushAcks(`msg_id IN (${closed.map(() => "?").join(",")})`, ...closed);
     return changed;
   }
   /** An agent's delivery (`done: true`) in an open thread: it waits on a person now. */
   delivered(thread: string) {
-    return this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ? AND COALESCE(archived, 0) != 1 AND COALESCE(status, '') != 'review'`, thread).rowsWritten > 0;
+    return this.sql.exec(`UPDATE epics SET status = 'review' WHERE id = ? AND COALESCE(done, 0) != 1 AND COALESCE(status, '') != 'review'`, thread).rowsWritten > 0;
   }
   epicsChanged() {
     this.autoReview();
@@ -299,14 +303,14 @@ export class Book extends DurableObject<Env> {
     const id = this.get("book_id");
     if (!id) return;
     // "Esperando você": a task in review waits on its owner. Rows of tasks that left review, and every wait in an
-    // archived epic's thread, go away.
-    const review = [...epics.filter((e) => !e.archived), { id: "main", title: "sala principal", tasks: roomTasks }].flatMap((e) => e.tasks.filter((t) => t.status === "review" && t.owner).map((t) => ({ t, e })));
+    // done epic's thread, go away.
+    const review = [...epics.filter((e) => !e.done), { id: "main", title: "sala principal", tasks: roomTasks }].flatMap((e) => e.tasks.filter((t) => t.status === "review" && t.owner).map((t) => ({ t, e })));
     const keep = review.map(({ t }) => `t${t.id}`);
-    const gone = epics.filter((e) => e.archived).map((e) => e.id);
+    const gone = epics.filter((e) => e.done).map((e) => e.id);
     const DB = this.env.DB;
     this.ctx.waitUntil(
       DB.batch([
-        DB.prepare(`UPDATE books SET epics = ? WHERE id = ?`).bind(JSON.stringify(epics.filter((e) => !e.archived).map((e) => ({ id: e.id, title: e.title, open: e.tasks.filter((t) => t.status !== "done").length }))), id),
+        DB.prepare(`UPDATE books SET epics = ? WHERE id = ?`).bind(JSON.stringify(epics.filter((e) => !e.done).map((e) => ({ id: e.id, title: e.title, open: e.tasks.filter((t) => t.status !== "done").length }))), id),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 't%' AND ref NOT IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(keep)),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND thread IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(gone)),
         ...review.map(({ t, e }) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`).bind(id, `t${t.id}`, t.owner, e.id, e.title, t.title, Date.now())),
@@ -333,13 +337,13 @@ export class Book extends DurableObject<Env> {
   roomWindow(open = "main", me = "") {
     const rows = this.messageRows(this.sql
       .exec(
-        // Archived epics are left out (the open one aside): in the product room 126 of 133 epics were archived and
+        // Done epics are left out (the open one aside): in the product room 126 of 133 epics were done and
         // their 5 messages each were most of a 655 KB room open (Nov 2026). Opening one fetches it (fillOf / older).
         // answers_ask: a reply to your Claude's ⏸/❓ (Aprovar/Negar…), which the Fila leaves out even when the question
         // itself isn't loaded.
         `SELECT * FROM (SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.thread ORDER BY m.id DESC) AS rn,
            (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND q.kind = 'agent' AND q.choices IS NOT NULL AND (q.text LIKE '⏸%' OR q.text LIKE '❓%')) AS answers_ask FROM messages m
-           WHERE m.thread = ? OR m.thread = 'main' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(archived, 0) <= 0))
+           WHERE m.thread = ? OR m.thread = 'main' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0))
          WHERE rn <= (CASE WHEN thread = ? THEN 60 ELSE 5 END)
          ORDER BY id`,
         open, open,
@@ -348,7 +352,7 @@ export class Book extends DurableObject<Env> {
     const have = new Set(rows.map((m) => m.id));
     const origins = this.messageRows(this.sql
       .exec(
-        `SELECT * FROM messages WHERE id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(archived, 0) <= 0 OR id = ?))
+        `SELECT * FROM messages WHERE id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(done, 0) <= 0 OR id = ?))
            OR (author = ? AND kind IS NULL AND ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = messages.id AND a.email = ? AND a.status IN ('done', 'idle', 'dismissed'))
                -- your answer to your Claude's ⏸/❓ (Aprovar/Negar) is not a request: the hook already took it. The app
                -- only skipped it when the question was loaded too, so "Aprovar" rows filled the Fila (Gui, 14/11).
@@ -527,13 +531,13 @@ export class Book extends DurableObject<Env> {
     return storedSuggestions(this.get("suggestions"), (kind) => console.warn("book stored projection", kind)).filter((x) => x.title.trim() && !have.has(epicKey(x.title)) && !covered(x.title));
   }
   /** The one gate for epic suggestions (@vibe's classify and agents' suggest_thread): one Jev call asks, for each,
-   * whether an epic of this room, open or archived, already does it (by goal, not by name), and drops those.
+   * whether an epic of this room, open or done, already does it (by goal, not by name), and drops those.
    * Re-run over the stored ones on each pass, so a suggestion that became an epic since goes away. Jev down = kept
    * (it's only a suggestion; the word filter in suggestions() still applies). */
   async keepNewSuggestions(list: Suggestion[]): Promise<Suggestion[]> {
     if (!list.length) return list;
     const goal = (id: string) => (this.get(`doc:${id}`) ?? "").match(/\*\*Objetivo:\*\*\s*([^\n]*)/)?.[1]?.slice(0, 160) ?? "";
-    const epics = this.epics().map((e) => `- ${e.archived ? "[feito/arquivado] " : "[aberto] "}${e.title}${goal(e.id) ? `: ${goal(e.id)}` : ""}`).join("\n").slice(0, 9000);
+    const epics = this.epics().map((e) => `- ${e.done ? "[feito] " : "[aberto] "}${e.title}${goal(e.id) ? `: ${goal(e.id)}` : ""}`).join("\n").slice(0, 9000);
     const q: Record<string, Question> = {};
     list.forEach((s, i) => (q[`s${i}`] = { type: "noul", instructions: `O épico proposto "${s.title.slice(0, 200)}" (${(s.why ?? "").slice(0, 300)}) já foi feito ou está sendo feito por algum dos épicos desta sala? Responda sim se um deles já cobre o mesmo objetivo, mesmo com outro nome ou escopo um pouco diferente.` }));
     const r = await decide(this.env, { epicos_da_sala: epics || "(nenhum)" }, q);
@@ -676,7 +680,7 @@ export class Book extends DurableObject<Env> {
     if (Number(this.get(key) ?? 0) > Date.now() - 3600_000) return [];
     const quiet = Date.now() - 30 * 60e3;
     const out = this.epics()
-      .filter((e) => !e.archived)
+      .filter((e) => !e.done)
       .flatMap((e) => {
         const act = this.sql.exec<{ last: number | null; mine: number }>(`SELECT max(ts) AS last, sum(kind = 'agent' AND author = ?) AS mine FROM messages WHERE thread = ?`, email, e.id).one();
         if (!act.mine || (act.last ?? 0) > quiet) return [];
@@ -692,7 +696,7 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     const open = (t: { status: string }) => t.status !== "done";
     const fromEpics = this.epics()
-      .filter((e) => !e.archived)
+      .filter((e) => !e.done)
       .flatMap((e) => e.tasks.filter((t) => t.owner === email && open(t)).map((t) => ({ epic_id: e.id, epic: e.title as string | null, task_id: t.id, title: t.title, status: t.status, due: t.due })));
     const fromRoom = this.roomTasks()
       .filter((t) => t.owner === email && open(t))
@@ -807,7 +811,7 @@ export class Book extends DurableObject<Env> {
       )
       .one().id as number;
     const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
-    // quiet: @vibe's routine lines (archived/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
+    // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
     // The D1 index keeps the newest id so the agent inbox is one query, not one DO call per room, and which kind
@@ -1050,21 +1054,21 @@ export class Book extends DurableObject<Env> {
     this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, title.trim().slice(0, 200), id);
     this.epicsChanged();
   }
-  // Done (archived) or open again. Done leaves the Open tab and the board, keeps its tasks and discussion; markDone
+  // Done or open again. Done leaves the Open tab and the board, keeps its tasks and discussion; markDone
   // closes every task. Open again goes back to doing, and its old round of done tasks does not move it to review again.
-  archiveEpic(id: string, archived = true, markDone = false, changed = true) {
+  setDone(id: string, done = true, markDone = false, changed = true) {
     if (markDone) this.sql.exec(`UPDATE tasks SET done = 1, status = 'done' WHERE epic_id = ?`, id);
-    this.sql.exec(`UPDATE epics SET archived = ?, status = ? WHERE id = ?`, archived ? 1 : 0, archived ? "done" : "doing", id);
-    if (!archived) this.set(`alldone:${id}`, "1");
+    this.sql.exec(`UPDATE epics SET done = ?, status = ? WHERE id = ?`, done ? 1 : 0, done ? "done" : "doing", id);
+    if (!done) this.set(`alldone:${id}`, "1");
     if (changed) this.epicsChanged();
   }
-  // The thread bar's status menu and update_thread status: todo, doing, review or done (Gimenes #4247). done archives
-  // and closes the open tasks. An old client's "dismissed" is done. Production is not a status (Gimenes #3877).
+  // The thread bar's status menu and update_thread status: todo, doing, review or done (Gimenes #4247). done closes the thread
+  // and its open tasks. An old client's "dismissed" is done. Production is not a status (Gimenes #3877).
   setEpicStatus(id: string, status: EpicStatus) {
-    const row = this.sql.exec<{ archived: number | null }>(`SELECT archived FROM epics WHERE id = ?`, id).toArray()[0];
+    const row = this.sql.exec<{ done: number | null }>(`SELECT done FROM epics WHERE id = ?`, id).toArray()[0];
     if (!row) return new Refused("unknown epic");
-    if (status === "done" || status === "dismissed") return this.archiveEpic(id, true, true);
-    if (row.archived === 1) this.archiveEpic(id, false, false, false);
+    if (status === "done" || status === "dismissed") return this.setDone(id, true, true);
+    if (row.done === 1) this.setDone(id, false, false, false);
     this.sql.exec(`UPDATE epics SET status = ? WHERE id = ?`, status, id);
     this.epicsChanged();
   }
@@ -1167,9 +1171,9 @@ export class Book extends DurableObject<Env> {
   }
   // Continuing a finished thread: a person writing in a done thread opens it again (doing). Its old done tasks do not
   // move it to review; the next round's tasks do.
-  reopenIfArchived(thread: string) {
-    if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND archived = 1`, thread).toArray().length) return;
-    this.archiveEpic(thread, false);
+  reopenIfDone(thread: string) {
+    if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND done = 1`, thread).toArray().length) return;
+    this.setDone(thread, false);
   }
   /** A person's message (Gimenes #4249, #4369): any message opens a done thread again, except the exact "Marcar como
    *  concluída" / "Mark as done". Then the router actions (src/routerActions.ts) run on it: the exact phrase closes the
@@ -1185,12 +1189,12 @@ export class Book extends DurableObject<Env> {
         if (Date.now() - c.ts < UNDO_WINDOW_MS && c.author)
           this.ctx.waitUntil(this.routerFeedback({ msgId: c.msg, action: "mark_done", who: "", status: "suggested", expected: "no", reporter: c.author, note: "reaberta logo depois" }).catch((e) => console.error("router feedback", String(e))));
       }
-      this.reopenIfArchived(thread);
+      this.reopenIfDone(thread);
     }
     this.ctx.waitUntil(this.routerActions({ id: msg?.id ?? 0, thread, author: msg?.author ?? "", text }).catch((e) => console.error("router actions", String(e))));
   }
   openThread(thread: string) {
-    return thread !== "main" && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length > 0;
+    return thread !== "main" && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(done, 0) != 1`, thread).toArray().length > 0;
   }
   /** The room as the router actions see it. */
   actionRoom(): ActionRoom {
@@ -1488,7 +1492,7 @@ export class Book extends DurableObject<Env> {
    *  asked, in the epic. It is in their Claudes' unacked and due_reminders until one acks it, and it wakes a listen. */
   nudgeUnanswered(now = Date.now()) {
     let next = 0;
-    for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.archived, 0) <= 0`).toArray()) {
+    for (const e of this.sql.exec<{ id: string; owner: string | null; ts: number }>(`SELECT e.id, COALESCE(e.owner, m.author) AS owner, e.ts FROM epics e LEFT JOIN messages m ON m.id = e.from_msg WHERE COALESCE(e.done, 0) <= 0`).toArray()) {
       // Only questions of the last day: an old one is stale context, not a question someone still waits on.
       if (!e.owner || e.owner === "ai" || e.ts < now - 864e5 || !this.answerPending(e.id) || this.get(`answer_nudge:${e.id}`)) continue;
       const due = e.ts + ANSWER_NUDGE_MS;
@@ -1602,7 +1606,7 @@ export class Book extends DurableObject<Env> {
     const mine = { has: (tag: string) => mentionWho(tag, tagPeople) === email };
     // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
-    const epics = this.epics().filter((e) => !(Number(e.archived) > 0));
+    const epics = this.epics().filter((e) => !(Number(e.done) > 0));
     const rows = this.sql.exec(`SELECT id, thread, author, kind, tag, for_who, text, reply_to FROM messages WHERE id > ? ORDER BY id LIMIT 30`, since).toArray();
     const messages = rows.map((m) => {
       const thread = m.thread as string;
@@ -1719,7 +1723,7 @@ export class Book extends DurableObject<Env> {
       epics: epics.map((e) => ({
         id: e.id,
         title: e.title,
-        archived: e.archived || undefined,
+        done: e.done || undefined,
         status: e.status,
         from_message_id: e.from_msg ?? undefined,
         answer: this.get(`answer:${e.id}`) === "1" || undefined,
@@ -1903,7 +1907,7 @@ export class Book extends DurableObject<Env> {
     // of work in the thread list; there is no separate "agent working" mark. Only a thread still to do moves.
     if (status === "doing") {
       const thread = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, id).toArray()[0]?.thread;
-      if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(archived, 0) != 1`, thread).rowsWritten)
+      if (thread && thread !== "main" && this.sql.exec(`UPDATE epics SET status = 'doing' WHERE id = ? AND status = 'todo' AND COALESCE(done, 0) != 1`, thread).rowsWritten)
         this.epicsChanged();
     }
     this.ctx.waitUntil(this.markBusy(false));
@@ -2182,10 +2186,10 @@ export class Book extends DurableObject<Env> {
     return this.epicsFrom(msgId).find((e) => this.get(`answer:${e.id}`) === "1")?.id;
   }
   /** The threads a request became, newest first: started from it, or from the line in main that links it (a request
-   *  inside a thread, threadOrigin). `open`: not archived. */
+   *  inside a thread, threadOrigin). `open`: not done. */
   epicsFrom(msgId: number, open = false) {
     return this.sql
-      .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.archived, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
+      .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.done, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
       .toArray();
   }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
@@ -2206,7 +2210,7 @@ export class Book extends DurableObject<Env> {
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
       (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
     // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
-    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
+    const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
     if (made) {
       if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
       if (t && t !== this.epics().find((e) => e.id === made.id)?.title) this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, t, made.id), this.epicsChanged();
@@ -2234,7 +2238,7 @@ export class Book extends DurableObject<Env> {
     const opened = answer ? await this.agentOpenDoc(bookId, email, id) : null;
     return { ok: true, epic_id: id, thread: id, tasks: epic?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], ...(opened ? { doc_opened_in_tabs: "opened_in_tabs" in opened ? opened.opened_in_tabs : 0 } : {}) };
   }
-  /** An agent organizing the room itself (same powers as @vibe's tools): add/update/delete tasks, rename/archive
+  /** An agent organizing the room itself (same powers as @vibe's tools): add/update/delete tasks, rename/mark done
    * epics, rewrite a doc. Ids are checked, so a wrong one is an error instead of a silent no-op. */
   async agentEdit(bookId: string, email: string, op: string, a: Record<string, unknown>) {
     this.bind(bookId);
@@ -2273,7 +2277,7 @@ export class Book extends DurableObject<Env> {
           if (!title) return { ok: false, error: "title is required" };
           const tasks = (Array.isArray(a.tasks) ? a.tasks : []).map((t) => String(t).trim().slice(0, 300)).filter(Boolean).slice(0, 8);
           const mine = { title, tasks, why: s("why")?.trim().slice(0, 300) || undefined };
-          if (!(await this.keepNewSuggestions([mine])).length) return { ok: false, error: "an epic of this room (open or archived) already covers this; look at read_room epics and continue that one instead" };
+          if (!(await this.keepNewSuggestions([mine])).length) return { ok: false, error: "an epic of this room (open or done) already covers this; look at read_room epics and continue that one instead" };
           const list = [...this.suggestions().filter((x) => epicKey(x.title) !== epicKey(title)), mine].slice(-8);
           this.set("suggestions", JSON.stringify(list));
           this.broadcast({ t: "suggestions", suggestions: this.suggestions() });
@@ -2283,7 +2287,7 @@ export class Book extends DurableObject<Env> {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (this.sql.exec(`SELECT 1 FROM messages WHERE thread = ? AND author != 'ai' LIMIT 1`, e).toArray().length)
-            return { ok: false, error: "people or agents wrote in this epic's thread: archive it instead (update_thread archived: true)" };
+            return { ok: false, error: "people or agents wrote in this epic's thread: mark it done instead (update_thread status: \"done\")" };
           this.deleteEpic(e);
           return { ok: true };
         }
@@ -2300,7 +2304,9 @@ export class Book extends DurableObject<Env> {
           const e = epic();
           if (!e) return { ok: false, error: "epic not found" };
           if (s("title")) this.renameEpic(e, s("title")!);
-          if (typeof a.archived === "boolean") this.archiveEpic(e, a.archived, a.archived && a.mark_done === true);
+          // `archived` is the old name of `done`: agents with an older plugin still send it.
+          const done = typeof a.done === "boolean" ? a.done : typeof a.archived === "boolean" ? a.archived : undefined;
+          if (done !== undefined) this.setDone(e, done, done && a.mark_done === true);
           if (a.status !== undefined) {
             const status = s("status");
             if (!status || !(EPIC_STATUSES as readonly string[]).includes(status)) return { ok: false, error: `status must be one of ${EPIC_STATUSES.join(", ")}` };
@@ -2349,7 +2355,7 @@ export class Book extends DurableObject<Env> {
     this.broadcast({ t: "meta", title });
     return { ok: true, title };
   }
-  // Search this room (Nov 2026, "memória do vibebook"): messages by text or attached file name, epics (archived too)
+  // Search this room (Nov 2026, "memória do vibebook"): messages by text or attached file name, epics (done too)
   // by title or doc. Each term must appear (AND), case-insensitive for ASCII. The caller (/api/search, MCP search)
   // fans out over the person's rooms.
   // ponytail: LIKE scan over the room's messages; FTS5 if a room's history makes it slow.
@@ -2375,11 +2381,11 @@ export class Book extends DurableObject<Env> {
           snippet: (at ? "…" : "") + text.slice(at, at + 200).replace(/\s+/g, " ") + (text.length > at + 200 ? "…" : "") };
       });
     const epics = this.sql
-      .exec<{ id: string; title: string; archived: number | null; ts: number }>(`SELECT id, title, archived, ts FROM epics ORDER BY ts DESC`)
+      .exec<{ id: string; title: string; done: number | null; ts: number }>(`SELECT id, title, done, ts FROM epics ORDER BY ts DESC`)
       .toArray()
       .filter((e) => { const hay = `${e.title}\n${this.get(`doc:${e.id}`) ?? ""}`.toLowerCase(); return terms.every((w) => hay.includes(w)); })
       .slice(0, limit)
-      .map((e) => ({ id: e.id, title: e.title, archived: (e.archived ?? 0) > 0, ts: e.ts }));
+      .map((e) => ({ id: e.id, title: e.title, done: (e.done ?? 0) > 0, ts: e.ts }));
     return { messages, epics };
   }
   agentTask(bookId: string, taskId: string, status: string, email: string) {
@@ -2554,7 +2560,7 @@ export class Book extends DurableObject<Env> {
         // gets it with the message (read_room viewing).
         const viewing = typeof m.viewing === "string" && this.files().some((f) => f.id === m.viewing) ? m.viewing : null;
         if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
-        // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
+        // Picking a button (choices or a card's) answers a question; it isn't new work: a done epic stays done.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
         if (!answers) this.personWrote(thread, text, { id: sent.id, author: email });
         this.ctx.waitUntil(
@@ -2570,8 +2576,8 @@ export class Book extends DurableObject<Env> {
         const epic = String(m.epic ?? "");
         const all = this.epics(), e = epic ? all.find((item) => item.id === epic) : undefined;
         if (epic && !e) return new Refused("unknown epic");
-        // An archived epic went out with its open tasks only (wireEpics): opening it brings the rest.
-        if (e?.archived) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
+        // A done epic went out with its open tasks only (wireEpics): opening it brings the rest.
+        if (e?.done) this.sendTo([ws], { t: "epicsPatch", changed: [e], order: all.map((x) => x.id) });
         return this.sendTo([ws], { t: "doc", epic, text: this.get(epic ? `doc:${epic}` : "doc") ?? "", fetched: true });
       }
       // The automatic card is gone (Gui #3011); old tabs may still ask: ignored.
@@ -2700,8 +2706,8 @@ export class Book extends DurableObject<Env> {
         return this.renameEpic(String(m.id), String(m.title ?? ""));
       case "epic.del":
         return this.deleteEpic(String(m.id));
-      case "epic.archive":
-        return this.archiveEpic(String(m.id), m.archived !== false);
+      case "epic.done":
+        return this.setDone(String(m.id), m.done !== false);
       case "epic.status": {
         const out = this.setEpicStatus(String(m.id), m.status);
         if (!out) this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: this.get("book_id") ?? "", status: m.status, via: "app" } }));
@@ -2778,7 +2784,7 @@ export class Book extends DurableObject<Env> {
     const seen = new Map(this.sql.exec<{ id: string; sig: string }>(`SELECT id, sig FROM grades`).toArray().map((r) => [r.id, r.sig]));
     const goal = (id: string) => (this.get(`doc:${id}`) ?? "").replace(/## Tarefas[\s\S]*?(?=\n## |$)/, "").trim();
     const todo = this.epics()
-      .filter((e) => !e.archived && this.get(`answer:${e.id}`) !== "1" && e.tasks.some((t) => t.status !== "done")) // an answer has no plan to grade
+      .filter((e) => !e.done && this.get(`answer:${e.id}`) !== "1" && e.tasks.some((t) => t.status !== "done")) // an answer has no plan to grade
       .map((e) => ({ e, sig: hash([e.title, goal(e.id).slice(0, 1500), ...e.tasks.map((t) => `${t.title}:${t.status}`)].join("\n")) }))
       .filter((x) => seen.get(x.e.id) !== x.sig);
     let cost = 0;

@@ -109,7 +109,7 @@ export const SearchResult = z.object({
     z.object({
       id: z.string(),
       title: z.string(),
-      archived: z.boolean(),
+      done: z.boolean(),
       ts: z.number(),
       room_id: z.string(),
       room: z.string(),

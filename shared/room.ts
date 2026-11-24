@@ -11,7 +11,7 @@ const strings = z.array(str);
 
 export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
-/** An epic's status, in the order of its menu. `dismissed` = archived without being done. */
+/** An epic's status, in the order of its menu. `dismissed` is an old client's done. */
 export const EPIC_STATUSES = [
   "todo",
   "doing",
@@ -78,7 +78,7 @@ export const EpicSchema = z.object({
   id: str,
   title: str,
   tasks: z.array(TaskSchema),
-  archived: opt(bool),
+  done: opt(bool),
   owner: maybe(str),
   from_msg: maybe(num),
   parent: maybe(str),

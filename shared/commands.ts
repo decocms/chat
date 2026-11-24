@@ -91,11 +91,11 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("epic.rename"), id, title: z.string() }),
   z.object({ t: z.literal("epic.del"), id }),
   z.object({
-    t: z.literal("epic.archive"),
+    t: z.literal("epic.done"),
     id,
-    archived: z.optional(z.boolean()),
+    done: z.optional(z.boolean()),
   }),
-  // The epic bar's status menu: "done" and "dismissed" archive it, the open ones reopen it (Book.setEpicStatus).
+  // The epic bar's status menu: "done" and "dismissed" mark it done, the open ones reopen it (Book.setEpicStatus).
   z.object({ t: z.literal("epic.status"), id, status: z.enum(EPIC_STATUSES) }),
   z.object({ t: z.literal("epic.order"), ids: z.array(z.string()) }),
   z.object({ t: z.literal("epic.pin"), id: z.string(), pinned: z.boolean() }),

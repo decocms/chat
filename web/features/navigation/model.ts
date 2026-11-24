@@ -1,7 +1,7 @@
 import type { Epic, Message } from "../../../shared/room";
-/** Keep a directly opened archived epic in its original tree position. */
+/** Keep a directly opened done epic in its original tree position. */
 export const activeEpics = (epics: readonly Epic[], thread: string) =>
-  epics.filter((epic) => !epic.archived || epic.id === thread);
+  epics.filter((epic) => !epic.done || epic.id === thread);
 
 export type EpicForest = {
   roots: Epic[];
@@ -107,7 +107,7 @@ export function visibleEpics(
   return rows;
 }
 
-export function archivedEpics(
+export function doneEpics(
   epics: readonly Epic[],
   messages: readonly Message[],
 ) {
@@ -118,7 +118,7 @@ export function archivedEpics(
       Math.max(last.get(message.thread) ?? 0, message.id),
     );
   return epics
-    .filter((epic) => epic.archived)
+    .filter((epic) => epic.done)
     .map((epic, index) => ({ epic, index }))
     .sort(
       (a, b) =>
@@ -137,7 +137,7 @@ export function reorderEpics(
 ): string[] | null {
   if (from === to) return null;
   if (new Set(epics.map((epic) => epic.id)).size !== epics.length) return null;
-  const active = epics.filter((epic) => !epic.archived);
+  const active = epics.filter((epic) => !epic.done);
   const forest = epicForest(active);
   if (
     !forest.byId.has(from) ||

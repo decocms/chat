@@ -251,7 +251,7 @@ test("actual epic and suggestion projections retain older metadata, latest file 
             {
               id: "epic-one",
               title: "Epic",
-              archived: 0,
+              done: 0,
               from_msg: null,
               owner: null,
               prod: '{"stage":"verified","at":null}',

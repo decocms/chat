@@ -27,7 +27,7 @@ export type ActionMessage = {
 /** What an action may use from the room: the Book implements it. */
 export type ActionRoom = {
   isDm: boolean;
-  /** The thread exists, is not archived, and is not the room's main thread. */
+  /** The thread exists, is not done, and is not the room's main thread. */
   openThread(thread: string): boolean;
   /** The author's Claude listens to this room now (answer threads are only for someone whose Claude can answer). */
   listening(email: string): Promise<boolean>;

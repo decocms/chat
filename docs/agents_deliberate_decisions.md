@@ -52,6 +52,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · refactor/thread-done · A thread is done, never archived
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked to purge "archived" for threads from the code base (#4466) and selected "everything, also the column (migration)" (#4505). He did not say how to migrate each room, what to do with agents that still send `archived`, or if the room archive changes (he did not select that option).
+- Decision:
+  - In each room, the Book renames `epics.archived` to `epics.done` (`ALTER TABLE … RENAME COLUMN`) when it starts, before the loop that adds missing columns. Otherwise that loop adds an empty `done` and every done thread opens again. The values stay: 1 = done, -1 = a person opened it again, 0 = open.
+  - The wire field `Epic.archived` becomes `done`. The socket command `epic.archive` becomes `epic.done`, the Done tab state is `done`, and `archiveEpic` becomes `setDone`.
+  - MCP: `update_thread` documents only `status`. It still accepts `archived` and `mark_done` without documentation, because agents with an older plugin send them. `read_room` and `search` send `done`.
+  - The thread texts that were not used ("Desarquivar thread", "Arquivar thread", "Arquivado") are removed. The old `dismissed` status shows as Feito.
+  - Unchanged: the room archive ("Arquivar sala", `members.archived_at`, `/archived`), the old entries in this file, and the words in the mark_done question ("pode arquivar", "arquiva essa"), because people still type them.
+- Other options: Keep the column and rename only the code (the column was part of the request). Drop the column and read only `status` (-1 has no place in `status`). Refuse `archived` from old agents (their `update_thread` calls fail).
+- Risk: medium. After the deploy, a plain revert reopens every done thread, because the old code adds an empty `archived` column.
+- Undo: Revert the commit and also add a reverse rename (`RENAME COLUMN done TO archived`) before the add-columns loop.
+- Status: open
+
 ### 2026-11-24 · feat/router-action-cases · One feedback table for all of the router, with suggested cases
 
 - Agent: claude-opus-5-5

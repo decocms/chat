@@ -83,7 +83,7 @@ function fixture() {
   book.set("book_id", room);
   // What runs after an insert: counted, so a repeat can show that none of it ran again.
   const effects = { reopen: 0, intent: 0, wake: 0 };
-  book.reopenIfArchived = () => void effects.reopen++;
+  book.reopenIfDone = () => void effects.reopen++;
   book.routerActions = async () => {
     effects.intent++;
     return { action: null, via: null, p: 0, cost: 0, asked: [], read: {} };

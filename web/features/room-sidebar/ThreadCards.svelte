@@ -54,7 +54,7 @@
     <span class="min-w-0 flex-1"
       ><strong class="block font-medium">{epic.title}</strong><small
         class="block text-xs text-muted-foreground"
-        >{epic.archived ? `✓ ${vb.t("concluído")} · ` : ""}{epic.tasks.length
+        >{epic.done ? `✓ ${vb.t("concluído")} · ` : ""}{epic.tasks.length
           ? `${vb.t("{d}/{n} tarefas", { d: epic.tasks.filter((task) => task.status === "done").length, n: epic.tasks.length })} · `
           : ""}{count === 1
           ? vb.t("1 resposta")

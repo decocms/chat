@@ -13,7 +13,7 @@ A room has these parts:
   - From an agent (`start_thread`): the same rules. A line that the server writes for an agent is an agent message.
   - The client can pick the ID of the new thread (8 hex characters). Then it opens the thread, and a retry with the same ID makes nothing.
   - Older threads that started inside another thread stay as they are.
-- Epics with tasks. There is no task board: the tasks show in their epic. Each epic shows a status: A fazer, Fazendo, Esperando OK, Feito or Arquivado. An epic in production shows Feito. A person or an agent can set it (`epic.status`, `update_thread` `status`). If nobody set it, `epicStatus` (`shared/epicStatus.ts`) calculates it from `prod`, the archive and the tasks. When an agent acknowledges a message in an epic with `doing`, an epic that is A fazer changes to Fazendo (`Book.agentAck`). The thread list shows no other mark for an agent at work.
+- Epics with tasks. There is no task board: the tasks show in their epic. Each epic has one status: A fazer, Fazendo, Requer ação (stored as `review`) or Feito. There is no archive. Feito is the column `epics.done = 1` and the Done tab (-1 = a person opened it again). A person or an agent sets it (`epic.status`, `update_thread` `status`). Only a person makes it Feito: tasks and production do not. `epicStatus` (`shared/epicStatus.ts`) reads it. When an agent acknowledges a message in an epic with `doing`, an epic that is A fazer changes to Fazendo (`Book.agentAck`). The thread list shows no other mark for an agent at work.
 - Documents. The room has one document, and each epic has one document.
 - Files, decisions, reminders, pins and polls.
 - AI-native formats: native cards, HTML embeds, room apps and MCP apps.

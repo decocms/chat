@@ -1494,7 +1494,7 @@ describe("chat", () => {
       },
     };
   }
-  test("production endcard shows requested corrections without rewriting verified or archived state", async () => {
+  test("production endcard shows requested corrections without rewriting verified or done state", async () => {
     const room = fixture();
     room.epics = [
       {
@@ -1518,11 +1518,11 @@ describe("chat", () => {
     expect(
       h.target.querySelector("[data-chat-production]")?.textContent,
     ).not.toContain("Verified deployment");
-    const archived = {
+    const done = {
       ...room,
-      epics: [{ ...room.epics[0]!, archived: true }],
+      epics: [{ ...room.epics[0]!, done: true }],
     };
-    h.update(archived);
+    h.update(done);
     await tick();
     flushSync();
     expect(h.target.querySelector("[data-chat-end]")?.textContent).toContain(
@@ -2289,7 +2289,7 @@ describe("chat", () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
     const notice = {
-      ...message(9, "Archived safely"),
+      ...message(9, "Done safely"),
       author: "ai",
       tag: "notice",
     };
@@ -3414,7 +3414,7 @@ describe("stable sidebar integration", () => {
       onopen: (id) => {
         opened.push(id);
       },
-      onarchchange: () => {},
+      ondonechange: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -3607,14 +3607,14 @@ describe("stable sidebar integration", () => {
     // No ⋯ on any row, on desktop or phone: the actions are inside the epic (Gimenes #3933).
     expect(h.target.querySelector("[data-epic-actions]")).toBeNull();
   });
-  test("selected archived epic remains in normal order, marked by its background, with a readable cue", async () => {
+  test("selected done epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
       { id: "a", title: "First", tasks: [] },
       {
         id: "b",
-        title: "Archived target",
-        archived: true,
+        title: "Done target",
+        done: true,
         tasks: [],
       },
       { id: "c", title: "Last", tasks: [] },
@@ -3628,7 +3628,7 @@ describe("stable sidebar integration", () => {
     ).toEqual(["a", "b", "c"]);
     const row = h.target.querySelector<HTMLElement>('[data-epic-thread="b"]');
     expect(row !== null).toBe(true);
-    expect(row!.textContent).toContain("Arquivado");
+    expect(row!.textContent).toContain("(Feito)");
     // Selection is only a background change: no accent bar on the left.
     expect(row!.parentElement!.classList.contains("bg-sidebar-accent")).toBe(
       true,
@@ -3797,13 +3797,13 @@ describe("stable sidebar integration", () => {
     const room = fixture();
     room.epics.push({ id: "child", title: "Child", parent: "e", tasks: [] });
     room.epics.push(
-      { id: "old-parent", title: "Old parent", tasks: [], archived: true },
+      { id: "old-parent", title: "Old parent", tasks: [], done: true },
       {
         id: "old-child",
         parent: "old-parent",
         title: "Old child",
         tasks: [],
-        archived: true,
+        done: true,
       },
     );
     const session = createNavigationSession(room.id);
@@ -3968,7 +3968,7 @@ describe("stable sidebar integration", () => {
       onopenpinapp: () => {},
       send: () => true,
       onopen: () => {},
-      onarchchange: () => {},
+      ondonechange: () => {},
       friends: ["friend@test"],
       vb: sidebarBridge,
     };
@@ -6318,25 +6318,25 @@ describe("room sidebar header and suggestion ownership", () => {
       id: "e",
       status: "done",
     });
-    const archived: Room = {
+    const doneRoom: Room = {
       ...room,
       epics: room.epics.map((epic) => ({
         ...epic,
-        archived: true,
+        done: true,
         status: "done" as const,
       })),
     };
-    owner.sync(archived, request);
-    view.update({ ...props, room: archived });
+    owner.sync(doneRoom, request);
+    view.update({ ...props, room: doneRoom });
     await tick();
     flushSync();
     expect(
       target.querySelector("[data-epic-status]")?.textContent?.trim(),
     ).toBe("Feito");
-    // Without a chosen status an archived thread with open tasks shows done too: there is no separate archive state.
+    // Without a chosen status a done thread with open tasks shows done too: there is no other closed state.
     const dropped: Room = {
-      ...archived,
-      epics: archived.epics.map((epic) => ({
+      ...doneRoom,
+      epics: doneRoom.epics.map((epic) => ({
         ...epic,
         status: null,
         tasks: [{ id: "t", title: "T", done: false, status: "todo" as const }],
@@ -6498,7 +6498,7 @@ describe("collapsed sidebar and typed presence", () => {
       },
       send: () => false,
       onopen: () => {},
-      onarchchange: () => {},
+      ondonechange: () => {},
       onopenpinfile: () => {},
       onopenpinapp: () => {},
       ontogglerail: () => {

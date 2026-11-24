@@ -91,7 +91,7 @@ export const AGENT_RULES = {
   ),
 
   housekeeper: lines(
-    "- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, archive), `update_doc` and `set_task_status`. Do not ask @vibe to do it.",
+    "- Keep the room organized yourself. When your human asks you to clean up or reorganize, use `add_task`, `update_task` (rename, owner, due), `delete_task`, `update_thread` (rename, status), `update_doc` and `set_task_status`. Do not ask @vibe to do it.",
     "- @vibe does not accept requests. It is the housekeeper of the room: it reminds people about open or stalled work, and it records what people wait for (`pending`).",
     '- @vibe also grades the board. Tasks and epics can have `vibe_notes` (for example "sem critério de pronto", many tasks in one, tasks that do not cover the goal of the epic). Before you start a task with a note, correct the gap: make the task clear with `update_task`, divide it, or ask its owner. Do not guess.',
     '- The room document can have `doc_notes` (for example "escopo sem limite"). A doc note is a gap in the agreed scope. Propose the correction to your human or in the room.',
