@@ -405,7 +405,7 @@ async function documentEdit(page: Page) {
   const editor = page.locator("[data-document-editor] .cm-content");
   if (!(await editor.isVisible()))
     await page
-      .locator("[data-document] > footer")
+      .locator("[data-document-bar]")
       .getByRole("button", { name: /^(Edit|Editar)$/ })
       .click();
   await expect(editor).toBeVisible();
@@ -1109,7 +1109,7 @@ try {
       },
       async closeEditor() {
         await a
-          .locator("[data-document] > footer")
+          .locator("[data-document-bar]")
           .getByRole("button", { name: "Done", exact: true })
           .click();
         await expect(
