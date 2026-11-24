@@ -292,7 +292,7 @@
           onPane={pickPane}
         />
       </div>{/if}
-    {#if !header.room.book.dm}<!-- Phone, a room (A2, Gimenes #4309): the people at the bar's end, online first; a tap opens Pessoas. Your own account is at the drawer's top. --><button
+    {#if !header.room.book.dm && $geometry.mobile}<!-- Phone, a room (A2, Gimenes #4309): the people at the bar's end, online first; a tap opens Pessoas. Your own account is at the drawer's top. --><button
         type="button"
         data-phone-people
         aria-label={t("Pessoas na sala")}
@@ -322,8 +322,9 @@
       >{/if}
   </div>
   <!-- Phone (A2, Gimenes #4309, #4331): Doc · Arquivos · Decisões · Lembretes under the bar. A tap opens that pane in
-       the sheet; while the sheet is open its own tab row (the one you drag to close it) takes this row's place. -->
-  {#if tabs && $geometry.sheet !== "doc"}<div
+       the sheet; while the sheet is open its own tab row (the one you drag to close it) takes this row's place.
+       Drawn only on a phone, not hidden with CSS: the desktop bar must have one set of pane tabs. -->
+  {#if tabs && $geometry.mobile && $geometry.sheet !== "doc"}<div
       data-phone-strip
       class="basis-full md:hidden [&_button]:justify-center [&_button]:gap-1 [&_button]:px-1.5 [&>div]:border-b-0 [&>div]:px-0 [&>div]:pt-0"
     >
