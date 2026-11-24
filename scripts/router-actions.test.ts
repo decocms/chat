@@ -1,6 +1,8 @@
 // Router actions (src/routerActions.ts, Gimenes #4369, #4379): the server acts on a person's message by itself.
 import { expect, test } from "bun:test";
 import {
+  ACTION_THRESHOLD_MIN,
+  ROUTER_ACTIONS,
   MARK_DONE_MAX,
   runRouterActions,
   type ActionMessage,
@@ -47,6 +49,12 @@ function jev(p: Record<string, number> | null) {
   };
   return { decide, calls };
 }
+
+test("every action acts at 0.8 or more: the floor is never lowered (Gimenes #4435)", () => {
+  expect(ACTION_THRESHOLD_MIN).toBe(0.8);
+  for (const action of ROUTER_ACTIONS)
+    expect(action.threshold).toBeGreaterThanOrEqual(ACTION_THRESHOLD_MIN);
+});
 
 test("the exact phrase closes the thread with no model call, before any await", () => {
   const { r, did } = room();
@@ -117,6 +125,28 @@ test("answer_thread: a question in main, only when the author's Claude listens a
   expect(l.calls).toEqual([]);
 });
 
+test("answer_thread: a veto at 0.5 or more stops it even when the question is sure", async () => {
+  const q = msg(
+    "main",
+    "você pode adicionar um gráfico de vendas no dashboard?",
+  );
+  const a = room(),
+    vetoed = jev({ answer_thread: 0.95, answer_thread_veto_do: 0.9 });
+  expect(
+    (await runRouterActions(q, a.r, vetoed.decide, { topic: "main" })).action,
+  ).toBeNull();
+  expect(vetoed.calls[0]).toEqual([
+    "answer_thread",
+    "answer_thread_veto_do",
+    "answer_thread_veto_person",
+  ]);
+  const b = room(),
+    clear = jev({ answer_thread: 0.95, answer_thread_veto_do: 0.1 });
+  expect(
+    (await runRouterActions(q, b.r, clear.decide, { topic: "main" })).action,
+  ).toBe("answer_thread");
+});
+
 test("Jev down: no action", async () => {
   const { r, did } = room();
   expect(
@@ -147,4 +177,61 @@ test("the bench check fails when a score goes down or false yes goes up, and sho
     }).worse,
   ).toBe(true);
   expect(compareBench(a, { actions: {} }).worse).toBe(true);
+});
+
+/** A room with people, for the waits reading. */
+function peopleRoom(tagged: string[] = []) {
+  const saved: string[][] = [];
+  const { r, did } = room({
+    people: async () => ({
+      others: [
+        { email: "ana@x.test", name: "Ana" },
+        { email: "bruno@x.test", name: "Bruno" },
+      ],
+      roster: "Eu, Ana, Bruno",
+      before: "",
+      author: "Eu",
+      tagged,
+    }),
+    saveWaits: async (_m, emails) => void saved.push(emails),
+  });
+  return { r, did, saved };
+}
+
+test("waits rides in the same Jev call as the actions, and stores who the message waits on", async () => {
+  const a = peopleRoom();
+  const j = jev({ mark_done: 0.1, waits_p0: 0.9, waits_p1: 0.2 });
+  const r = await runRouterActions(msg("t1", "Ana, revisa?"), a.r, j.decide, {
+    topic: "T",
+  });
+  expect(j.calls).toEqual([["mark_done", "waits_p0", "waits_p1"]]);
+  expect(r.read.waits).toEqual(["ana@x.test"]);
+  expect(a.saved).toEqual([["ana@x.test"]]);
+  expect(r.action).toBeNull();
+});
+
+test("waits alone still makes the call (a long message in a thread), and @mentions decide over Jev", async () => {
+  const a = peopleRoom(["bruno@x.test"]);
+  const j = jev({ waits_p0: 0.95, waits_p1: 0.1 });
+  const r = await runRouterActions(
+    msg("t1", "x".repeat(MARK_DONE_MAX + 1)),
+    a.r,
+    j.decide,
+    { topic: "T" },
+  );
+  expect(j.calls).toEqual([["waits_p0", "waits_p1"]]);
+  expect(r.read.waits).toEqual(["bruno@x.test"]);
+});
+
+test("waits: Jev down or the exact phrase saves nothing (findWaits reads it later)", async () => {
+  const a = peopleRoom();
+  await runRouterActions(msg("t1", "pode fechar"), a.r, jev(null).decide, {
+    topic: "T",
+  });
+  const b = peopleRoom();
+  await runRouterActions(msg("t1", "Mark as done"), b.r, jev({}).decide, {
+    topic: "T",
+  });
+  expect(a.saved).toEqual([]);
+  expect(b.saved).toEqual([]);
 });

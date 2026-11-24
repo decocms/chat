@@ -41,7 +41,7 @@ import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
-import { runRouterActions, type ActionMessage, type ActionRoom } from "./routerActions";
+import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
@@ -915,7 +915,7 @@ export class Book extends DurableObject<Env> {
       if (!unread.length || !user || user.mention_mail === 0) { drop(); continue; }
       if ((sentToday?.n ?? 0) >= MAIL_DAY_MAX) { drop(); this.ctx.waitUntil(track(this.env, "mention_mail_skipped", { user: to, dims: { book: bookId, why: "day_cap" } })); continue; }
       // Only what needs them now goes out at once: a person (not a Claude, not @vibe) asking them something, which
-      // Jev already marked as a wait (findWaits ran on the 30s alarm, well before this 5 min). The rest is held for
+      // Jev already marked as a wait (the router pass at once, or findWaits within 2 min, well before this 5 min). The rest is held for
       // the 8h/18h catch-up (src/digest.ts).
       const asks = new Set(
         (await db.prepare(`SELECT ref FROM waits WHERE book_id = ? AND email = ? AND ref IN (${unread.map(() => "?").join(",")})`).bind(bookId, to, ...unread.map((i) => `m${i}`)).all<{ ref: string }>()).results.map((r) => r.ref),
@@ -1191,7 +1191,60 @@ export class Book extends DurableObject<Env> {
             : "✓ Marquei esta thread como feita. Escreva qualquer coisa aqui para reabrir.");
       },
       makeAnswerThread: (m) => this.makeAnswerThread(m.id, m.author, m.text),
+      people: async (m) => {
+        if (!m.id || !m.author) return null;
+        const w = await this.waitNames();
+        return {
+          others: w.members.filter((e) => e !== m.author).map((email) => ({ email, name: w.nm(email) })),
+          roster: w.roster,
+          before: w.before(m.thread, m.id),
+          author: w.nm(m.author),
+          tagged: mentioned(m.text, w.members, w.names, m.author, false, w.handles),
+        };
+      },
+      saveWaits: (m, emails) => this.saveWaits(m.id, emails),
     };
+  }
+  /** Names as the waits question reads them (shared by the router pass and findWaits). Two people with the same first
+   *  name (two Rafaels) are told apart by full name and @handle, or Jev reads an ask of one as an ask of both (Valls,
+   *  24/11: "@rafael-2" put the message in the other Rafael's inbox). */
+  async waitNames() {
+    const members = await this.members();
+    const names = await this.names();
+    const handles = await this.handles();
+    const clean = (x: string) => x.replace(/[<>"@\p{Cc}]/gu, "");
+    const first = (e: string) => clean((names[e] ?? e.split("@")[0]).split(/\s+/)[0] ?? "");
+    const same = (e: string) => members.filter((x) => x !== e && first(x) === first(e)).length > 0;
+    const nm = (e: string) => (same(e) ? `${clean(names[e] ?? e.split("@")[0])}${handles[e] ? ` (@${handles[e]})` : ""}` : first(e));
+    const roster = members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", ");
+    const before = (thread: string, id: number) =>
+      this.sql
+        .exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, thread, id)
+        .toArray()
+        .reverse()
+        .map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`)
+        .join("\n");
+    return { members, names, handles, nm, roster, before };
+  }
+  /** The people a message waits on become D1 `waits` rows (home, rail, MCP `pending`) and get a push. Whoever already
+   *  wrote in the thread after it is left out (answeredHere already ran for them). */
+  async saveWaits(id: number, emails: string[]) {
+    const bookId = this.get("book_id");
+    const m = this.sql.exec<{ thread: string; author: string; text: string; ts: number }>(`SELECT thread, author, text, ts FROM messages WHERE id = ?`, id).toArray()[0];
+    if (!bookId || !m) return;
+    const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, id).toArray().map((x) => x.author));
+    const asked = emails.filter((e) => !later.has(e));
+    const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    if (asked.length) {
+      const nm = (await this.waitNames()).nm(m.author);
+      this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm} is waiting for your answer` : `${nm} espera sua resposta`), m.text.replace(/\s+/g, " "), id, m.thread));
+      const DB = this.env.DB;
+      await DB.batch(asked.map((e) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(bookId, `m${id}`, e, m.thread, topic, m.author, m.text.slice(0, 280), m.ts)));
+      this.pokeMembers();
+    }
+    // findWaits skips a person's message that this pass read (the newest 200 ids).
+    const live: number[] = JSON.parse(this.get("waits_live") ?? "[]");
+    this.set("waits_live", JSON.stringify([...live, id].slice(-200)));
   }
   /** One pass of the router actions over a person's message. Without Jev (MODEL_JUDGE unset or off) only the exact
    *  phrases act. The exact path runs before any await (see runRouterActions). */
@@ -1200,8 +1253,8 @@ export class Book extends DurableObject<Env> {
     return runRouterActions(m, this.actionRoom(), (state, questions) => (jev ? decide(this.env, state, questions) : Promise.resolve(null)), {
       topic: m.thread === "main" ? "main" : (this.epics().find((e) => e.id === m.thread)?.title ?? ""),
     }).then((r) => {
-      if (r.asked.length || r.action)
-        this.ctx.waitUntil(track(this.env, "router_action", { user: m.author || undefined, dims: { book: this.get("book_id") ?? "", action: r.action ?? "none", via: r.via ?? "", asked: r.asked.join(","), p: Math.round(r.p * 100) / 100, cost: r.cost } }));
+      if (r.asked.length || r.action || r.read.waits)
+        this.ctx.waitUntil(track(this.env, "router_action", { user: m.author || undefined, dims: { book: this.get("book_id") ?? "", action: r.action ?? "none", via: r.via ?? "", asked: r.asked.join(","), p: Math.round(r.p * 100) / 100, cost: r.cost, waits: r.read.waits?.length ?? -1 } }));
       return r;
     });
   }
@@ -2743,22 +2796,23 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: number; thread: string; author: string; text: string; kind: string | null; ts: number }>(`SELECT id, thread, author, text, kind, ts FROM messages WHERE id > ? AND (tag IS NULL OR tag <> 'fire') ORDER BY id LIMIT 20`, since)
       .toArray();
     if (!msgs.length) return;
-    const members = await this.members();
-    const names = await this.names();
-    const handles = await this.handles();
-    const clean = (x: string) => x.replace(/[<>"@\p{Cc}]/gu, "");
-    const first = (e: string) => clean((names[e] ?? e.split("@")[0]).split(/\s+/)[0] ?? "");
-    // Two people with the same first name (two Rafaels) are told apart by full name and @handle, or Jev reads an
-    // ask of one as an ask of both (Valls, 24/11: "@rafael-2" put the message in the other Rafael's inbox).
-    const same = (e: string) => members.filter((x) => x !== e && first(x) === first(e)).length > 0;
-    const nm = (e: string) =>
-      same(e) ? `${clean(names[e] ?? e.split("@")[0])}${handles[e] ? ` (@${handles[e]})` : ""}` : first(e);
-    const epics = this.epics();
-    const topic = (t: string) => (t === "main" ? "" : epics.find((e) => e.id === t)?.title ?? "");
+    const w = await this.waitNames();
+    const live = new Set<number>(JSON.parse(this.get("waits_live") ?? "[]"));
     const DB = this.env.DB;
     let cost = 0;
     for (const m of msgs) {
-      const others = members.filter((e) => e !== m.author);
+      const others = w.members.filter((e) => e !== m.author);
+      const person = !m.kind && m.author !== "ai";
+      // A person's message is read live, in the router actions' Jev call (src/routerActions.ts, "waits"). Here only
+      // what that pass could not do (Jev down, the exact "Mark as done"), after 2 minutes so it is not read twice.
+      if (person && live.has(m.id)) {
+        this.set("waits_at_id", String(m.id));
+        continue;
+      }
+      if (person && Date.now() - m.ts < 2 * 60e3) {
+        await this.wakeAt(m.ts + 2 * 60e3);
+        break;
+      }
       if (m.author !== "ai" && m.text.trim() && Date.now() - m.ts < 7 * 864e5 && others.length) {
         const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author).all<{ ref: string; text: string }>()).results;
         const q: Record<string, Question> = {};
@@ -2766,40 +2820,34 @@ export class Book extends DurableObject<Env> {
         // for the author's Claude, and an agent's "você" is its own human. Read as asks of everyone else, those filled
         // other members' inbox with someone else's requests and daily reports (Valls, 18/11: 25 of 29 were Guilherme's).
         const own = (e: string) =>
-          m.kind === "agent" ? ` Ela foi escrita pelo agent de ${nm(m.author)}: "você", "seu" e "suas" nela são ${nm(m.author)}, não ${nm(e)}.` : "";
-        others.slice(0, 12).forEach((e, i) => {
-          q[`p${i}`] = { type: "noul", instructions: `Esta mensagem pede algo a ${nm(e)}: uma resposta, decisão, aprovação, revisão ou ação que fica esperando por ${nm(e)}? Responda não se só informa, agradece, ou fala com todo mundo sem esperar nada de ${nm(e)} em especial. Nesta sala cada pessoa conversa com o próprio Claude: um pedido ou pergunta que não nomeia ninguém é pro Claude de quem escreveu, não pra ${nm(e)}; responda sim só se ela nomeia ${nm(e)} ou fala claramente com ${nm(e)}.${own(e)}` };
+          m.kind === "agent" ? ` Ela foi escrita pelo agent de ${w.nm(m.author)}: "você", "seu" e "suas" nela são ${w.nm(m.author)}, não ${w.nm(e)}.` : "";
+        others.slice(0, WAIT_PEOPLE_MAX).forEach((e, i) => {
+          q[`p${i}`] = { type: "noul", instructions: waitQuestion(w.nm(e), own(e)) };
         });
-        open.forEach((w, i) => {
-          q[`r${i}`] = { type: "noul", instructions: `Esta mensagem responde ou resolve este pedido feito antes a ${nm(m.author)}: "${w.text.slice(0, 300)}"?` };
+        open.forEach((x, i) => {
+          q[`r${i}`] = { type: "noul", instructions: `Esta mensagem responde ou resolve este pedido feito antes a ${w.nm(m.author)}: "${x.text.slice(0, 300)}"?` };
         });
-        const before = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, m.thread, m.id).toArray().reverse();
+        const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
         const r = await decide(this.env, {
-          pessoas_na_sala: members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", "),
-          assunto: topic(m.thread) || "sala principal",
-          conversa_antes: before.map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`).join("\n") || "(início)",
-          autor: `${nm(m.author)}${m.kind === "agent" ? " (pelo agent dele ou dela)" : ""}`,
+          pessoas_na_sala: w.roster,
+          assunto: topic || "sala principal",
+          conversa_antes: w.before(m.thread, m.id) || "(início)",
+          autor: `${w.nm(m.author)}${m.kind === "agent" ? " (pelo agent dele ou dela)" : ""}`,
           mensagem: m.text.slice(0, 1500),
         }, q);
         if (!r) break; // the next pass starts from this message again
         cost += r.cost;
         const yes = (k: string, at: number) => (r.answers[k]?.noul ?? 0) >= at;
-        // Asked = Jev read it as an ask, or a person (not an agent) tagged them; minus whoever already wrote in this thread
-        // after it (the pass runs ~30s late, and answeredHere already ran for them).
-        const tagged = m.kind ? [] : mentioned(m.text, members, names, m.author, false, handles);
-        const later = new Set(this.sql.exec<{ author: string }>(`SELECT DISTINCT author FROM messages WHERE thread = ? AND id > ? AND kind IS NULL`, m.thread, m.id).toArray().map((x) => x.author));
         // A person who @mentions someone says who it is for: only the people tagged wait on it, not whoever Jev also
-        // reads into it.
-        const asked = others.filter((e, i) => (tagged.length ? tagged.includes(e) : i < 12 && yes(`p${i}`, 0.7)) && !later.has(e));
-        if (asked.length) this.ctx.waitUntil(this.notify(asked, (en) => (en ? `${nm(m.author)} is waiting for your answer` : `${nm(m.author)} espera sua resposta`), m.text.replace(/\s+/g, " "), m.id, m.thread));
-        await DB.batch([
-          ...asked.map((e) =>
-            DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(bookId, `m${m.id}`, e, m.thread, topic(m.thread), m.author, m.text.slice(0, 280), m.ts),
-          ),
-          ...open.filter((_, i) => yes(`r${i}`, 0.6)).map((w) => DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, w.ref, m.author)),
-          DB.prepare(`SELECT 1`),
-        ]);
-        this.pokeMembers();
+        // reads into it. An agent's message has no tags of its own.
+        const tagged = person ? mentioned(m.text, w.members, w.names, m.author, false, w.handles) : [];
+        const asked = others.filter((e, i) => (tagged.length ? tagged.includes(e) : i < WAIT_PEOPLE_MAX && yes(`p${i}`, WAIT_THRESHOLD)));
+        await this.saveWaits(m.id, asked);
+        const resolved = open.filter((_, i) => yes(`r${i}`, 0.6));
+        if (resolved.length) {
+          await DB.batch(resolved.map((x) => DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`).bind(bookId, x.ref, m.author)));
+          this.pokeMembers();
+        }
       }
       this.set("waits_at_id", String(m.id));
     }

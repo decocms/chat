@@ -52,6 +52,37 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/router-actions-waits · The router questions at the 0.8 floor
+
+- Agent: claude-opus-5-5
+- Context: Gimenes fixed every action threshold at 0.8 (#4435) and asked for adversarial review agents to find a better use of Jev. He did not choose the variant.
+- Decision:
+  - Three review agents (wording, call structure, new cases) gave 32 new bench cases and four variants. The bench ran each variant with the real Jev.
+  - `answer_thread`: one short positive question plus two vetoes (V3). It got 22/22, also the "llm or regex?" case.
+  - `mark_done`: the new wording without vetoes (V1). It got 35/35. The vetoes stopped true cases ("pode fechar" at 0.95).
+  - The waits question gets one sentence: a request to the author's Claude to ask a person ("pergunta pro Bruno…") does not wait on that person.
+  - The veto threshold is 0.5 (`VETO`).
+  - The waits threshold stays 0.7, as before in production. The 0.8 floor is for actions only.
+- Other options: Two calls (actions without the room context, V2: 34, 21). Vetoes on both actions (V3: mark_done 30). The old questions at 0.8 (V0: 33, 18, two false yes).
+- Risk: low. In two runs of V4, one true case missed once ("arquiva essa" at 0.78). No false yes in either run.
+- Undo: Revert the questions in `src/routerActions.ts`.
+- Status: open
+
+### 2026-11-24 · feat/router-actions-waits · Router actions, stage 2: waits joins the router's Jev call
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved the 3 stages (#4379) and asked to start the follow-ups (#4425, #4426). Stage 2 moves "who waits on whom" (`findWaits`) into the one Jev call of the router actions. He did not say how.
+- Decision:
+  - A new kind of registry entry, a reading (`ROUTER_READINGS`): questions that join the same call, whose answers the room keeps. `waits` is the first one.
+  - For a message of a person, only the question "does this ask something of Ana?" moves. The question "does this answer an earlier ask?" is not needed there: `answeredHere` already deletes the author's earlier waits in that thread.
+  - Waits now appear at once, not about 30 seconds later.
+  - `findWaits` keeps the messages of agents (the router actions do not see them) and the messages of people that the router pass did not read, 2 minutes after the message.
+  - The bench runs each case as production does: all actions and readings in one call, in a room with three other people.
+- Other options: Keep `findWaits` on the alarm and only share the prompt. Move the messages of agents into the router pass too.
+- Risk: medium. With more questions and more context in one call, Jev can score `mark_done` or `answer_thread` differently. The bench shows it.
+- Undo: Remove `waits` from `ROUTER_READINGS` and the skip in `findWaits`.
+- Status: open
+
 ### 2026-11-24 · feat/router-actions · How the router bench check compares
 
 - Agent: claude-opus-5-5
