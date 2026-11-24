@@ -604,7 +604,6 @@ const EN: Readonly<Record<string, string>> = {
   Todos: "All",
   "Essa thread não existe mais nesta sala.":
     "That thread is no longer in this room.",
-  "Nova thread: escreva o título…": "New thread: type its title…",
   Threads: "Threads",
   "Threads abertas": "Open threads",
   Feitas: "Done",

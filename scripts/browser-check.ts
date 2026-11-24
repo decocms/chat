@@ -89,9 +89,14 @@ try {
   await openRoomSidebar(a);
   await expect(a.locator("#side [data-new-epic]")).toBeAttached();
   const readyMs = Date.now() - opened;
+  // "Nova thread" opens the new thread at once; its first message is its title (Gimenes #4267).
   await a.locator("#side [data-new-epic]").click();
-  await a.locator("#newEpic input").fill("Verify live Svelte");
-  await a.locator("#newEpic input").press("Enter");
+  await expect(a.locator("#side [data-epic-thread][aria-current]")).toHaveCount(
+    1,
+    { timeout: 90_000 },
+  );
+  await a.locator("[data-composer] #input").fill("Verify live Svelte");
+  await a.locator("[data-composer] [data-composer-send]").click();
   const epic = a
     .locator("#side [data-epic-thread]")
     .filter({ hasText: "Verify live Svelte" });

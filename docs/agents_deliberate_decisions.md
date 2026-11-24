@@ -1510,3 +1510,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. Only the title text changes.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · feat/new-thread-direct · "Nova thread" opens the thread at once; the first message names it
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#4267) asked that "Nova thread" create the thread at once and open it with the composer, with no title step. He did not say what the title is.
+- Decision:
+  - The thread starts with the title "Nova thread" ("New thread" for a person who reads English). The first message with text in it gives the title, with the same rule as "Criar thread" on a message (first line, no Markdown, 60 characters). The doc heading changes too, if it is still the stand-in title.
+  - The line in `main` that points to the thread comes with that first message, not at creation. Thus an empty thread does not put a line in `main`.
+  - The + on the collapsed rail does the same and does not open the rail.
+  - A thread that nobody writes in stays "Nova thread". The person can rename or delete it.
+- Other options: Ask an agent to write a title from the conversation: it adds cost, and it takes time. Remove an empty thread automatically: it can delete a thread that a person wants to keep.
+- Risk: low. Some threads can stay with the title "Nova thread".
+- Undo: Revert this commit. Old blank threads keep their title; their `untitled:` meta key does nothing.
+- Status: open

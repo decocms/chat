@@ -187,7 +187,7 @@ try {
   await nav.getByRole("tab", { name: /^Archived/ }).click();
   await expect(row(oldParent)).toBeVisible();
   await expect(row(oldChild)).toBeVisible();
-  await expect(nav.locator("#newEpic")).toHaveCount(0);
+  await expect(nav.locator("[data-new-epic]")).toHaveCount(0);
   await nav.getByRole("tab", { name: /^Epics/ }).click();
   const roots = () =>
     nav

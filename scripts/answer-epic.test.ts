@@ -16,7 +16,7 @@ mock.module("cloudflare:workers", () => ({
   WorkerEntrypoint: class {},
   env: {},
 }));
-const { Book } = await import("../src/book");
+const { Book, epicDocSeed } = await import("../src/book");
 const email = "member@example.test";
 
 function cursor(rows: Record<string, unknown>[], written: number) {
@@ -219,13 +219,13 @@ test('a person sending "Mark as done" marks the thread done; writing in a done t
   const f = fixture();
   const id = f.book.createEpic("Trabalho", ["Um"]);
   f.book.addMessage(id, email, "Mark as done");
-  f.book.personWrote(id, "Mark as done");
+  f.book.personWrote(id, "Mark as done", email);
   expect(status(f, id)).toEqual({ archived: 1, status: "done" });
   f.book.addMessage(id, email, "faltou uma coisa");
-  f.book.personWrote(id, "faltou uma coisa");
+  f.book.personWrote(id, "faltou uma coisa", email);
   expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
   // Another message is just a message: it does not mark done.
-  f.book.personWrote(id, "mark as done when the PR merges");
+  f.book.personWrote(id, "mark as done when the PR merges", email);
   expect(status(f, id)).toEqual({ archived: 0, status: "doing" });
 });
 
@@ -324,4 +324,43 @@ test("an answer epic that became work, or a question older than a day, is not he
   expect(
     f.db.query(`SELECT 1 FROM messages WHERE tag = 'reminder'`).all(),
   ).toEqual([]);
+});
+
+test("a blank thread from Nova thread is named by its first message, and only then gets its line in main (Gimenes #4267)", async () => {
+  const f = fixture();
+  const id = "abcd1234";
+  expect(
+    await f.run({ t: "epic", title: "Nova thread", blank: true, id }),
+  ).toEqual({ ok: true });
+  expect(f.epic(id)).toMatchObject({
+    title: "Nova thread",
+    owner: email,
+    from_msg: null,
+  });
+  expect(f.messages()).toEqual([]);
+  // A message with only files has no text: the stand-in title stays.
+  f.book.personWrote(id, "", email);
+  expect(f.epic(id)?.title).toBe("Nova thread");
+  await f.run({
+    t: "msg",
+    thread: id,
+    text: "**Corrigir** o login no Safari\nmais detalhes aqui",
+  });
+  expect(f.epic(id)?.title).toBe("Corrigir o login no Safari");
+  // The doc's heading takes the title; the rest of the doc stays.
+  expect(f.book.get(`doc:${id}`)).toStartWith(
+    epicDocSeed("Corrigir o login no Safari").split("\n\n")[0]! + "\n",
+  );
+  expect(f.book.get(`doc:${id}`)).not.toContain("Nova thread");
+  const main = f.messages().filter((m) => m.thread === "main");
+  expect(main).toHaveLength(1);
+  expect(main[0]).toMatchObject({
+    author: email,
+    text: "Corrigir o login no Safari",
+  });
+  expect(f.epic(id)?.from_msg).toBe(main[0]!.id);
+  // The second message is just a message: no new title, no second line in main.
+  await f.run({ t: "msg", thread: id, text: "outra coisa" });
+  expect(f.epic(id)?.title).toBe("Corrigir o login no Safari");
+  expect(f.messages().filter((m) => m.thread === "main")).toHaveLength(1);
 });

@@ -52,6 +52,8 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
     title: z.string(),
     from: z.optional(num),
     id: z.optional(z.string().check(z.regex(/^[0-9a-f]{8}$/))),
+    /** "Nova thread" in the sidebar (Gimenes #4267): made at once with a stand-in title; the first message names it. */
+    blank: z.optional(z.boolean()),
   }),
   z.object({ t: z.literal("epic.owner"), id, owner: z.string() }),
   z.object({ t: z.literal("task.add"), epic: z.string(), title: z.string() }),

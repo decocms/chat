@@ -3,6 +3,7 @@ import type { Room, Suggestion } from "../../../shared/room";
 import type { RoomCommand } from "../../../shared/commands";
 import type { RequestRoomCommand } from "../../app/roomConnection";
 import { suggestionIdentity } from "./model";
+import { newThreadId } from "../chat/model";
 type Command = Extract<
   RoomCommand,
   {
@@ -63,12 +64,15 @@ export function createRoomMutations(
             suggestionIdentity(value) === suggestionIdentity(op.suggestion!),
         )
       );
+    // A create with the client's own id (a blank thread, Gimenes #4267) is done when that id is in the room.
     if (command.t === "epic")
-      return room.epics.some(
-        (epic) =>
-          !op.baseline.has(epic.id) &&
-          epic.title === command.title.trim().slice(0, 200),
-      );
+      return command.id
+        ? room.epics.some((epic) => epic.id === command.id)
+        : room.epics.some(
+            (epic) =>
+              !op.baseline.has(epic.id) &&
+              epic.title === command.title.trim().slice(0, 200),
+          );
     if (command.t === "epic.order") {
       const ids = new Set(command.ids),
         actual = room.epics
@@ -128,6 +132,7 @@ export function createRoomMutations(
         current &&
         "id" in current &&
         current.t !== "epic.del" &&
+        current.t !== "epic" &&
         !next.epics.some((epic) => epic.id === current.id)
       ) {
         cancel();
@@ -157,7 +162,11 @@ export function createRoomMutations(
               suggestionIdentity(room.suggestions[command.i]!)))
       )
         return Promise.resolve(false);
-      if ("id" in command && !room.epics.some((epic) => epic.id === command.id))
+      if (
+        "id" in command &&
+        command.t !== "epic" &&
+        !room.epics.some((epic) => epic.id === command.id)
+      )
         return Promise.resolve(false);
       const send = request;
       return new Promise<boolean>((resolve) => {
@@ -232,6 +241,14 @@ export function createRoomMutations(
       room = undefined;
       request = undefined;
       state.set({ phase: "idle", error: "" });
+    },
+    /** "Nova thread" (Gimenes #4267): a blank thread made at once, with the client's own id so the app opens it.
+     *  Its first message names it (Book.nameBlankThread). The id, or null when the room refused or did not confirm. */
+    async newThread(title: string): Promise<string | null> {
+      const id = newThreadId();
+      return (await this.run({ t: "epic", title, blank: true, id }))
+        ? id
+        : null;
     },
   };
 }

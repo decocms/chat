@@ -76,11 +76,11 @@ try {
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto(`${base}/b/${id}`);
+  // "New thread" opens the thread at once; its first message names it (Gimenes #4267).
   await page.locator("[data-new-epic]").click();
-  await page
-    .getByRole("textbox", { name: "New thread", exact: true })
-    .fill("Task workflow");
-  await page.locator("#newEpic").getByRole("button").click();
+  await expect(page.locator("[data-epic-thread][aria-current]")).toHaveCount(1);
+  await page.locator("[data-composer] #input").fill("Task workflow");
+  await page.locator("[data-composer] [data-composer-send]").click();
   const epic = page
     .locator("button[data-epic-thread]")
     .filter({ hasText: "Task workflow" });

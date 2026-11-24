@@ -325,13 +325,15 @@ function menuItem(trigger: Element, name: string) {
 const shown = (trigger: Element) =>
   trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
 
-/** The new-thread field opens from the + in the threads list. */
-function newEpicInput(target: ParentNode) {
-  if (!target.querySelector("#newEpic input")) {
-    target.querySelector<HTMLButtonElement>("[data-new-epic]")!.click();
-    flushSync();
-  }
-  return target.querySelector<HTMLInputElement>("#newEpic input")!;
+/** "Nova thread" at the foot of the threads list: it makes the thread at once (Gimenes #4267). */
+function newThreadButton(target: ParentNode) {
+  return target.querySelector<HTMLButtonElement>("[data-new-epic]")!;
+}
+/** A field the person moved to (outside the threads list): a focus restore must not take it away. */
+function otherField(target: HTMLElement) {
+  const field = document.createElement("input");
+  target.append(field);
+  return field;
 }
 
 /** The chat's hover toolbar mounts on the first pointer in a message (web/features/chat/Message.svelte). */
@@ -3764,10 +3766,6 @@ describe("stable sidebar integration", () => {
     expect(
       first.target.querySelector<HTMLElement>("[data-epic=child]")?.hidden,
     ).toBe(false);
-    const draft = newEpicInput(first.target);
-    draft.value = "Room-owned draft";
-    draft.dispatchEvent(new window.Event("input", { bubbles: true }));
-    flushSync();
     first.view.update({
       ...first.props,
       room: {
@@ -3783,15 +3781,12 @@ describe("stable sidebar integration", () => {
     first.destroy();
     const second = sidebar(room, { navigation: session, thread: "child" });
     expect(
-      second.target.querySelector<HTMLInputElement>("#newEpic input")?.value,
-    ).toBe("Room-owned draft");
-    expect(
       second.target.querySelector(
         "li[data-epic] [aria-expanded]:not([data-epic-actions])",
       ),
     ).toBeNull();
   }, 30_000);
-  test("epic drafts survive refused and uncertain requests", async () => {
+  test("Nova thread makes a blank thread and opens it, with no title step; a refused one opens nothing (Gimenes #4267)", async () => {
     const room = fixture();
     let fail: "offline" | "throw" | null = "offline";
     const commands: RoomCommand[] = [];
@@ -3803,20 +3798,15 @@ describe("stable sidebar integration", () => {
         return { ok: true };
       },
     });
-    const draft = newEpicInput(rendered.target);
-    draft.value = "Retain title";
-    draft.dispatchEvent(new Event("input", { bubbles: true }));
-    flushSync();
-    const form = rendered.target.querySelector<HTMLFormElement>("#newEpic")!;
+    const button = newThreadButton(rendered.target);
+    expect(rendered.target.querySelector("#newEpic")).toBeNull();
     for (const failure of ["offline", "throw"] as const) {
       fail = failure;
-      form.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
-      );
+      button.click();
       await tick();
       await tick();
       flushSync();
-      expect(draft.value).toBe("Retain title");
+      expect(rendered.opened).toEqual([]);
       if (failure === "offline")
         expect(rendered.target.querySelector("[role=alert]") !== null).toBe(
           true,
@@ -3830,33 +3820,34 @@ describe("stable sidebar integration", () => {
       }
     }
     fail = null;
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    button.click();
     await tick();
     await tick();
     flushSync();
-    expect(draft.value).toBe("Retain title");
-    expect(commands).toEqual([{ t: "epic", title: "Retain title" }]);
+    expect(commands).toHaveLength(1);
+    const command = commands[0] as Extract<RoomCommand, { t: "epic" }>;
+    expect(command).toMatchObject({
+      t: "epic",
+      title: "Nova thread",
+      blank: true,
+    });
+    expect(command.id).toMatch(/^[0-9a-f]{8}$/);
+    // Opened only when the room shows the new thread.
+    expect(rendered.opened).toEqual([]);
     const created: Room = {
       ...room,
       epics: [
         ...room.epics,
-        { id: "created", title: "Retain title", tasks: [] },
+        { id: command.id!, title: "Nova thread", tasks: [] },
       ],
     };
     rendered.view.update({ ...rendered.props, room: created });
     await tick();
     await tick();
     flushSync();
-    // Created: the draft is cleared and the field folds back under the +.
-    expect(draft.isConnected).toBe(false);
-    expect(rendered.target.querySelector("#newEpic")).toBeNull();
-    expect(newEpicInput(rendered.target).value).toBe("");
+    expect(rendered.opened).toEqual([command.id!]);
     rendered.destroy();
-    form.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    button.click();
     await tick();
     expect(commands).toHaveLength(1);
   }, 30_000);
@@ -3923,7 +3914,7 @@ describe("stable sidebar integration", () => {
     altDown(down);
     await tick();
     flushSync();
-    const draft = newEpicInput(rendered.target);
+    const draft = otherField(rendered.target);
     draft.focus();
     rendered.view.update({
       ...rendered.props,
@@ -3953,13 +3944,13 @@ describe("stable sidebar integration", () => {
     });
     rendered.destroy();
     const next = sidebar({ ...room, id: "next" });
-    const draft = newEpicInput(next.target);
+    const draft = otherField(next.target);
     draft.focus();
     await tick();
     flushSync();
     await expectFocusedAfterUpdates(draft);
   }, 30_000);
-  test("repeated room updates preserve keyed navigation and form drafts", () => {
+  test("repeated room updates preserve keyed navigation rows and the new-thread button", () => {
     let room = fixture();
     const target = window.document.createElement("div");
     window.document.body.append(target);
@@ -3985,8 +3976,7 @@ describe("stable sidebar integration", () => {
     const view = mountView("sidebar", target, props);
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
-    const create = newEpicInput(target);
-    create.value = "Draft epic title";
+    const create = newThreadButton(target);
     for (let i = 0; i < 6; i++) {
       room = {
         ...room,
@@ -4004,8 +3994,7 @@ describe("stable sidebar integration", () => {
       };
       view.update({ ...props, room, vb: { ...sidebarBridge } });
       expect(target.querySelector("[data-epic-thread=e]")).toBe(row);
-      expect(target.querySelector("#newEpic input")).toBe(create);
-      expect(create.value).toBe("Draft epic title");
+      expect(target.querySelector("[data-new-epic]")).toBe(create);
     }
     expect(
       target.querySelector("[data-epic-thread=e] [data-epic-title]")
@@ -6494,18 +6483,22 @@ describe("room sidebar header and suggestion ownership", () => {
 });
 
 describe("collapsed sidebar and typed presence", () => {
-  test("collapsed create expands and focuses retained draft; agent presence stays typed", async () => {
+  test("the collapsed rail's + makes a blank thread without opening the rail (Gimenes #4267); agent presence stays typed", async () => {
     const room = fixture(),
       target = document.createElement("div");
     document.body.append(target);
     let expanded = 0;
+    const commands: RoomCommand[] = [];
     const props: SidebarProps = {
       room,
       thread: "main",
       collapsed: true,
       navigation: createNavigationSession(room.id),
       pins: syncPinsSession(null, room),
-      request: async () => ({ ok: false, error: "offline" }),
+      request: async (command) => {
+        commands.push(command);
+        return { ok: false, error: "offline" };
+      },
       send: () => false,
       onopen: () => {},
       onarchchange: () => {},
@@ -6549,22 +6542,25 @@ describe("collapsed sidebar and typed presence", () => {
         ],
       },
     };
-    props.navigation.state.update((value) => ({
-      ...value,
-      draft: "Retained draft",
-    }));
     const view = mountView("sidebar", target, props);
     active.push(view);
     target
       .querySelector<HTMLButtonElement>('[aria-label="Nova thread"]')!
       .click();
-    expect(expanded).toBe(1);
+    await tick();
+    await tick();
+    expect(expanded).toBe(0);
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({
+      t: "epic",
+      title: "Nova thread",
+      blank: true,
+    });
+    expect((commands[0] as { id?: string }).id).toMatch(/^[0-9a-f]{8}$/);
     view.update({ ...props, collapsed: false });
     await tick();
     flushSync();
-    const input = target.querySelector<HTMLInputElement>("#newEpic input")!;
-    expect(input.value).toBe("Retained draft");
-    expect(document.activeElement === input).toBe(true);
+    expect(target.querySelector("#newEpic")).toBeNull();
     expect(
       target.querySelector("[data-agent-presence]")?.textContent,
     ).toContain("90%");
