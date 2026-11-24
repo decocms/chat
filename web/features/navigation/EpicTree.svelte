@@ -74,7 +74,6 @@
   let localOrder = $state<string[] | null>(null);
   /** The order while a row is dragged: the others make room. */
   let dragOrder = $state<string[] | null>(null);
-  let newButton: HTMLButtonElement | null = $state(null);
   let disposed = false;
   const rowNodes = new Map<string, HTMLElement>();
   let generation = 0;
@@ -107,8 +106,8 @@
   );
   /** Past EPIC_PAGE unpinned epics the list stops at "Ver mais" (the open one always shows). */
   let showAll = $state(false);
-  /** How many epics fit before the sidebar's foot with "Ver mais", "Nova thread" and the next section's title still
-   *  above it, so the rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
+  /** How many epics fit before the sidebar's foot with "Ver mais" and the next section's title still above it, so the
+   *  rest of the sidebar starts in view (3 to EPIC_PAGE; EPIC_PAGE without a foot, on phones). */
   let fit = $state(EPIC_PAGE);
   let list = $state<HTMLElement | null>(null);
   function measure() {
@@ -125,7 +124,8 @@
       (list.firstElementChild?.getBoundingClientRect().height || 36) + 2;
     fit = Math.min(
       EPIC_PAGE,
-      Math.max(3, Math.floor((bottom - top - 132) / pitch)),
+      // 94: "Ver mais" and the next section's title (the "Nova thread" row, 38 more, is gone: Gimenes #4286).
+      Math.max(3, Math.floor((bottom - top - 94) / pitch)),
     );
   }
   $effect(() => {
@@ -224,14 +224,6 @@
     const success = await mutations.run(command);
     return success;
   }
-  /** "Nova thread" (Gimenes #4267): no title step. The thread is made at once and opens with its composer; the first
-   *  message names it. */
-  async function createThread() {
-    if (disposed || mutationBusy || session.roomId !== room.id) return;
-    error = "";
-    const id = await mutations.newThread(vb.t("Nova thread"));
-    if (id && !disposed) onopen(id);
-  }
   $effect(() => {
     // A suggestion opened from elsewhere (a link, Back) opens the open threads, with its row.
     if (thread.startsWith("pre:") && untrack(() => $navigation.archived))
@@ -323,8 +315,7 @@
         return;
       const row = rowNodes.get(request.from);
       if (row?.hidden) return;
-      const target =
-        row?.querySelector<HTMLElement>("[data-epic-thread]") ?? newButton;
+      const target = row?.querySelector<HTMLElement>("[data-epic-thread]");
       target?.focus({ preventScroll: true });
     });
   }
@@ -332,8 +323,6 @@
     const target = adjacent(id, direction);
     if (mode === "active" && target) reorder(id, target.id, direction === 1);
   }
-  const dashedRow =
-    "mt-0.5 flex h-9 w-full shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-transparent px-2 text-left font-sans text-sm leading-5 text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid";
   const views = $derived([
     { value: "active", label: vb.t("Threads abertas"), disabled: false },
     {
@@ -575,21 +564,7 @@
               : vb.t("Ver mais ({n})", { n: hiddenCount })}</span
           >
         </button>{/if}
-      {#if value === "active"}
-        <button
-          type="button"
-          bind:this={newButton}
-          data-new-epic
-          disabled={mutationBusy}
-          onclick={createThread}
-          class={cn(dashedRow, "disabled:cursor-default disabled:opacity-60")}
-        >
-          <span class="flex size-5 shrink-0 items-center justify-center"
-            ><Icon icon="plus" size={16} /></span
-          >
-          <span class="min-w-0 truncate">{vb.t("Nova thread")}</span>
-        </button>
-      {/if}
+      <!-- No "Nova thread" here (Gimenes #4286): one way to start a thread, "Criar thread" on a message. -->
     {/if}
   {/snippet}
   <Tabs

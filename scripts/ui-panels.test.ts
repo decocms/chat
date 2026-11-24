@@ -325,10 +325,6 @@ function menuItem(trigger: Element, name: string) {
 const shown = (trigger: Element) =>
   trigger.querySelector("[data-slot=select-value]")?.textContent?.trim();
 
-/** "Nova thread" at the foot of the threads list: it makes the thread at once (Gimenes #4267). */
-function newThreadButton(target: ParentNode) {
-  return target.querySelector<HTMLButtonElement>("[data-new-epic]")!;
-}
 /** A field the person moved to (outside the threads list): a focus restore must not take it away. */
 function otherField(target: HTMLElement) {
   const field = document.createElement("input");
@@ -3786,71 +3782,14 @@ describe("stable sidebar integration", () => {
       ),
     ).toBeNull();
   }, 30_000);
-  test("Nova thread makes a blank thread and opens it, with no title step; a refused one opens nothing (Gimenes #4267)", async () => {
-    const room = fixture();
-    let fail: "offline" | "throw" | null = "offline";
-    const commands: RoomCommand[] = [];
-    const rendered = sidebar(room, {
-      request: async (command) => {
-        if (fail === "throw") throw Error("lost ACK");
-        if (fail === "offline") return { ok: false, error: "offline" };
-        commands.push(command);
-        return { ok: true };
-      },
-    });
-    const button = newThreadButton(rendered.target);
+  test("the threads list has no Nova thread and no title form: a thread starts from a message (Gimenes #4286)", () => {
+    const rendered = sidebar(fixture());
+    expect(rendered.target.querySelector("[data-new-epic]")).toBeNull();
     expect(rendered.target.querySelector("#newEpic")).toBeNull();
-    for (const failure of ["offline", "throw"] as const) {
-      fail = failure;
-      button.click();
-      await tick();
-      await tick();
-      flushSync();
-      expect(rendered.opened).toEqual([]);
-      if (failure === "offline")
-        expect(rendered.target.querySelector("[role=alert]") !== null).toBe(
-          true,
-        );
-      else {
-        expect(rendered.target.textContent).toContain("Ainda sem confirmação");
-        [...rendered.target.querySelectorAll("button")]
-          .find((button) => button.textContent?.trim() === "Conferi a sala")!
-          .click();
-        flushSync();
-      }
-    }
-    fail = null;
-    button.click();
-    await tick();
-    await tick();
-    flushSync();
-    expect(commands).toHaveLength(1);
-    const command = commands[0] as Extract<RoomCommand, { t: "epic" }>;
-    expect(command).toMatchObject({
-      t: "epic",
-      title: "Nova thread",
-      blank: true,
-    });
-    expect(command.id).toMatch(/^[0-9a-f]{8}$/);
-    // Opened only when the room shows the new thread.
-    expect(rendered.opened).toEqual([]);
-    const created: Room = {
-      ...room,
-      epics: [
-        ...room.epics,
-        { id: command.id!, title: "Nova thread", tasks: [] },
-      ],
-    };
-    rendered.view.update({ ...rendered.props, room: created });
-    await tick();
-    await tick();
-    flushSync();
-    expect(rendered.opened).toEqual([command.id!]);
+    expect(rendered.target.textContent).not.toContain("Nova thread");
+    expect(rendered.events).toEqual([]);
     rendered.destroy();
-    button.click();
-    await tick();
-    expect(commands).toHaveLength(1);
-  }, 30_000);
+  });
   const altDown = (element: Element) =>
     element.dispatchEvent(
       new window.KeyboardEvent("keydown", {
@@ -3950,7 +3889,7 @@ describe("stable sidebar integration", () => {
     flushSync();
     await expectFocusedAfterUpdates(draft);
   }, 30_000);
-  test("repeated room updates preserve keyed navigation rows and the new-thread button", () => {
+  test("repeated room updates preserve keyed navigation rows", () => {
     let room = fixture();
     const target = window.document.createElement("div");
     window.document.body.append(target);
@@ -3976,7 +3915,6 @@ describe("stable sidebar integration", () => {
     const view = mountView("sidebar", target, props);
     active.push(view);
     const row = target.querySelector("[data-epic-thread=e]");
-    const create = newThreadButton(target);
     for (let i = 0; i < 6; i++) {
       room = {
         ...room,
@@ -3994,7 +3932,6 @@ describe("stable sidebar integration", () => {
       };
       view.update({ ...props, room, vb: { ...sidebarBridge } });
       expect(target.querySelector("[data-epic-thread=e]")).toBe(row);
-      expect(target.querySelector("[data-new-epic]")).toBe(create);
     }
     expect(
       target.querySelector("[data-epic-thread=e] [data-epic-title]")
@@ -6483,7 +6420,7 @@ describe("room sidebar header and suggestion ownership", () => {
 });
 
 describe("collapsed sidebar and typed presence", () => {
-  test("the collapsed rail's + makes a blank thread without opening the rail (Gimenes #4267); agent presence stays typed", async () => {
+  test("the collapsed rail has no + for a new thread (Gimenes #4286); agent presence stays typed", async () => {
     const room = fixture(),
       target = document.createElement("div");
     document.body.append(target);
@@ -6544,19 +6481,9 @@ describe("collapsed sidebar and typed presence", () => {
     };
     const view = mountView("sidebar", target, props);
     active.push(view);
-    target
-      .querySelector<HTMLButtonElement>('[aria-label="Nova thread"]')!
-      .click();
-    await tick();
-    await tick();
+    expect(target.querySelector('[aria-label="Nova thread"]')).toBeNull();
     expect(expanded).toBe(0);
-    expect(commands).toHaveLength(1);
-    expect(commands[0]).toMatchObject({
-      t: "epic",
-      title: "Nova thread",
-      blank: true,
-    });
-    expect((commands[0] as { id?: string }).id).toMatch(/^[0-9a-f]{8}$/);
+    expect(commands).toEqual([]);
     view.update({ ...props, collapsed: false });
     await tick();
     flushSync();

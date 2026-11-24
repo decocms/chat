@@ -9,7 +9,6 @@ import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTIO
 import { reorderEpics } from "./epic-order";
 import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
-import { threadTitle } from "../shared/threadTitle";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
@@ -1154,29 +1153,13 @@ export class Book extends DurableObject<Env> {
   }
   /** A person's message in a thread (Gimenes #4249): "Marcar como concluída" / "Mark as done" marks it done; any
    *  other message opens a done thread again. */
-  personWrote(thread: string, text: string, email: string) {
-    if (thread !== "main" && this.get(`untitled:${thread}`)) this.nameBlankThread(thread, text, email);
+  personWrote(thread: string, text: string) {
     if (thread !== "main" && isMarkDone(text) && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length) {
       this.setEpicStatus(thread, "done");
       this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: "mark_done" } }));
       return;
     }
     this.reopenIfArchived(thread);
-  }
-  /** A blank thread's first message (Gimenes #4267) names it, with the same rule as a thread started from a message
-   *  (threadTitle). The doc that still has only the stand-in title takes the new one, and main gets the line that
-   *  points to the thread. A message with no text (only files) leaves the stand-in title for the next one. */
-  nameBlankThread(id: string, text: string, email: string) {
-    const title = threadTitle(text);
-    if (!title) return;
-    this.sql.exec(`DELETE FROM meta WHERE k = ?`, `untitled:${id}`);
-    const old = this.sql.exec<{ title: string }>(`SELECT title FROM epics WHERE id = ?`, id).toArray()[0]?.title;
-    if (old === undefined) return;
-    this.sql.exec(`UPDATE epics SET title = ? WHERE id = ?`, title, id);
-    const doc = this.get(`doc:${id}`);
-    if (doc?.startsWith(`# ${old}\n`)) this.set(`doc:${id}`, `# ${title}\n${doc.slice(`# ${old}\n`.length)}`);
-    this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email }, undefined, title), id);
-    this.epicsChanged();
   }
   // The room's doc, or an epic's own doc (a child of the room's) when epic is set.
   setDoc(text: string, by: string, except?: WebSocket, epic?: string) {
@@ -1936,7 +1919,7 @@ export class Book extends DurableObject<Env> {
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
     const m = this.addMessage(thread, email, text, { clientId });
-    this.personWrote(thread, text, email);
+    this.personWrote(thread, text);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
@@ -2358,7 +2341,7 @@ export class Book extends DurableObject<Env> {
         if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
         // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
-        if (!answers) this.personWrote(thread, text, email);
+        if (!answers) this.personWrote(thread, text);
         if (!answers && thread === "main") this.ctx.waitUntil(this.answerIntent(sent.id, email, text).catch((e) => console.error("answer intent", String(e))));
         this.ctx.waitUntil(
           track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
@@ -2420,10 +2403,7 @@ export class Book extends DurableObject<Env> {
         const from = m.from === undefined ? undefined : Number(m.from);
         if (from !== undefined && !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, from).toArray().length) return new Refused("unknown message");
         const id = this.createEpic(title, [], [], "", m.id);
-        // A blank thread (Gimenes #4267) has no line in main yet: its first message names it and posts the line (personWrote).
-        const blank = m.blank === true && from === undefined;
-        if (blank) this.set(`untitled:${id}`, "1");
-        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, blank ? null : this.threadOrigin({ author: email }, from, title), id);
+        this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
         this.ctx.waitUntil(track(this.env, "thread_create", { user: email, dims: { book: this.get("book_id") ?? "", from: from === undefined ? "sidebar" : "message" } }));
         return;

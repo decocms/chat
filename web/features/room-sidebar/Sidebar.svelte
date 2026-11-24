@@ -59,12 +59,6 @@
   );
   let active = true;
   let root = $state<HTMLElement | null>(null);
-  /** The collapsed rail's +: the same as "Nova thread" in the list (Gimenes #4267), the thread opens at once. */
-  async function createThread() {
-    if (!active) return;
-    const id = await owner.newThread(vb.t("Nova thread"));
-    if (id) open(id);
-  }
   $effect(() => owner.sync(room, request));
   onDestroy(() => {
     active = false;
@@ -145,12 +139,7 @@
         /></Button
       >
     {/each}
-    <IconButton
-      label={vb.t("Nova thread")}
-      tooltipSide="right"
-      size="icon"
-      onclick={createThread}><Icon icon="plus" /></IconButton
-    >
+    <!-- No + for a new thread (Gimenes #4286): a thread starts from a message. -->
     {#if room.requests?.length}<Button
         variant="outline"
         size="sm"

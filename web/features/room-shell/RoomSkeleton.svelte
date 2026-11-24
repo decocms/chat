@@ -134,13 +134,6 @@
               </div>
             {/each}
           </div>
-          <div
-            class="flex h-9 items-center gap-2 rounded-lg border border-dashed border-border px-2 text-muted-foreground"
-          >
-            <span class="flex size-5 shrink-0 items-center justify-center"
-              ><Icon icon="plus" size={16} /></span
-            >{t("Nova thread")}
-          </div>
         </div>{/if}
       <div
         class="mt-auto flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"

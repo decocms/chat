@@ -12,6 +12,7 @@ import {
   browserFixtures,
   tasksRegion,
   openTasksPanel,
+  startThreadFromMessage,
 } from "./browser-fixtures";
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -76,11 +77,8 @@ try {
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto(`${base}/b/${id}`);
-  // "New thread" opens the thread at once; its first message names it (Gimenes #4267).
-  await page.locator("[data-new-epic]").click();
-  await expect(page.locator("[data-epic-thread][aria-current]")).toHaveCount(1);
-  await page.locator("[data-composer] #input").fill("Task workflow");
-  await page.locator("[data-composer] [data-composer-send]").click();
+  // A thread starts from a message (Gimenes #4286).
+  await startThreadFromMessage(page, "Task workflow");
   const epic = page
     .locator("button[data-epic-thread]")
     .filter({ hasText: "Task workflow" });

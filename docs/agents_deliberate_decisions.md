@@ -1511,16 +1511,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 - Status: open
 
-### 2026-11-24 · feat/new-thread-direct · "Nova thread" opens the thread at once; the first message names it
+### 2026-11-24 · feat/new-thread-direct · No "Nova thread" in the sidebar
 
 - Agent: Claude Opus 5.5
-- Context: Gimenes (#4267) asked that "Nova thread" create the thread at once and open it with the composer, with no title step. He did not say what the title is.
+- Context: Gimenes (#4286) asked for one way to start a thread: write in the room, then "Criar thread" on the message. He asked to remove "Nova thread" from the sidebar.
 - Decision:
-  - The thread starts with the title "Nova thread" ("New thread" for a person who reads English). The first message with text in it gives the title, with the same rule as "Criar thread" on a message (first line, no Markdown, 60 characters). The doc heading changes too, if it is still the stand-in title.
-  - The line in `main` that points to the thread comes with that first message, not at creation. Thus an empty thread does not put a line in `main`.
-  - The + on the collapsed rail does the same and does not open the rail.
-  - A thread that nobody writes in stays "Nova thread". The person can rename or delete it.
-- Other options: Ask an agent to write a title from the conversation: it adds cost, and it takes time. Remove an empty thread automatically: it can delete a thread that a person wants to keep.
-- Risk: low. Some threads can stay with the title "Nova thread".
-- Undo: Revert this commit. Old blank threads keep their title; their `untitled:` meta key does nothing.
+  - Remove the "Nova thread" row in the threads list, its title form and its draft state, the + on the collapsed rail, and the row in the loading skeleton.
+  - Keep the server's `epic` command without `from` (agents and old tabs can still send it). Only the app's button goes.
+  - The threads list keeps the 38 px that the row used: one more thread can show before "Ver mais".
+- Other options: Keep the + on the collapsed rail: Gimenes asked for one way only.
+- Risk: low. A person who used the sidebar row now writes a message first.
+- Undo: Revert this commit.
 - Status: open
