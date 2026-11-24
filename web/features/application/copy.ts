@@ -880,6 +880,7 @@ const EN: Readonly<Record<string, string>> = {
   "Esse app não está nas conexões que você pode usar nesta sala.":
     "That app isn't in the connections you can use in this room.",
   Recarregar: "Reload",
+  "Abrir em outra aba": "Open in a new tab",
   "próximo {when}": "next {when}",
   "de {who}": "by {who}",
   "Apagar lembrete": "Delete reminder",
