@@ -17,7 +17,9 @@
   import AccountRow from "../app-navigation/AccountRow.svelte";
   import type { SidebarProps } from "../../app/sidebar";
   import { dmPeer, roomAvatarVersion } from "../room-scope/model";
-  import { isPanelToggleKey } from "./panelViews";
+  import { isPanelToggleKey, phoneStripPanes } from "./panelViews";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import { roomSearchQuery } from "../chat/roomSearch";
   let {
     presentation,
@@ -53,6 +55,21 @@
   const waits = $derived($personal.me?.waits ?? []);
   // A DM's face stands for it, the same as in your DM list.
   const peer = $derived(dmPeer(header.room));
+  // Phone, a room: the other people, online first; two faces, then "+N".
+  const phonePeople = $derived.by(() => {
+    const room = header.room;
+    const others = room.members.filter((email) => email !== room.me);
+    const online = others.filter((email) => room.online.includes(email));
+    const order = [
+      ...online,
+      ...others.filter((email) => !online.includes(email)),
+    ];
+    return {
+      faces: order.slice(0, 2),
+      online,
+      more: Math.max(0, order.length - 2),
+    };
+  });
   const en = $derived(presentation.services.language === "en");
   // Phone title: the most important line first (the open thread, or a DM's
   // person), and under it the room with the epic's progress (Gimenes #3739).
@@ -275,8 +292,47 @@
           onPane={pickPane}
         />
       </div>{/if}
-    {#if $personal.me}<span data-phone-account class="contents md:hidden"
+    {#if !header.room.book.dm}<!-- Phone, a room (A2, Gimenes #4309): the people at the bar's end, online first; a tap opens Pessoas. Your own account is at the drawer's top. --><button
+        type="button"
+        data-phone-people
+        aria-label={t("Pessoas na sala")}
+        class="flex h-10 shrink-0 cursor-pointer items-center rounded-full border-0 bg-transparent px-1 focus-visible:outline-2 focus-visible:outline-ring md:hidden"
+        onclick={() => onPane?.("people")}
+        >{#each phonePeople.faces as email, i (email)}<span
+            class={["relative flex", i > 0 && "-ml-2"]}
+            ><PersonAvatar
+              {email}
+              version={roomAvatarVersion(header.room, $personal.me, email)}
+              class="size-7 ring-2 ring-background"
+            />{#if phonePeople.online.includes(email)}<PresenceDot
+                online
+                class="size-2.5 ring-background"
+              />{/if}</span
+          >{:else}<Icon
+            icon="user-plus-01"
+            size={20}
+          />{/each}{#if phonePeople.more}<span
+            class="-ml-2 flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-background"
+            >+{phonePeople.more}</span
+          >{/if}</button
+      >{:else if $personal.me}<span
+        data-phone-account
+        class="contents md:hidden"
         ><AccountRow me={$personal.me} row={false} /></span
       >{/if}
   </div>
+  <!-- Phone (A2, Gimenes #4309, #4331): Doc · Arquivos · Decisões · Lembretes under the bar. A tap opens that pane in
+       the sheet; while the sheet is open its own tab row (the one you drag to close it) takes this row's place. -->
+  {#if tabs && $geometry.sheet !== "doc"}<div
+      data-phone-strip
+      class="basis-full md:hidden [&_button]:justify-center [&_button]:gap-1 [&_button]:px-1.5 [&>div]:border-b-0 [&>div]:px-0 [&>div]:pt-0"
+    >
+      <DocumentToolbar
+        {...tabs}
+        compact
+        pane={"" as DocumentPane}
+        only={phoneStripPanes(!!header.room.book.dm)}
+        onPane={(pane) => onPane?.(pane)}
+      />
+    </div>{/if}
 </header>
