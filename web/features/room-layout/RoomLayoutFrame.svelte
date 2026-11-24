@@ -74,7 +74,7 @@
               "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
               widthClass,
               // A member list is a column of names: it never needs more than this, whatever width the pane was dragged to (Valls).
-              people && "max-w-[400px]!",
+              people && "max-w-[330px]!",
             ],
   );
   function handle(
