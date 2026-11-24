@@ -74,6 +74,7 @@
         invites={me.invites ?? []}
         requests={me.requests}
         {lang}
+        variant="list"
         {onjoin}
         {onanswer}
       />

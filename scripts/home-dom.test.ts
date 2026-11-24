@@ -1658,7 +1658,7 @@ test("Pedidos: an invite's Entrar joins, a message request shows its first messa
   const invite = target.querySelector<HTMLElement>(
     '[data-request="room:aaaaaa"]',
   )!;
-  expect(invite.textContent).toContain("Ana invited you · 3 people");
+  expect(invite.textContent).toContain("Ana invited you");
   [...invite.querySelectorAll("button")]
     .find((button) => button.textContent?.trim() === "Join")!
     .click();

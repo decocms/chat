@@ -3,30 +3,43 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import type { NavRowVariant } from "../../lib/components/navRow";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
+  import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
   import type { MeFriendRequest, MeInvite } from "../../../shared/schemas";
   /**
-   * "Pedidos": what waits for your yes. A room invite (Entrar joins and opens
-   * it) and a message from someone outside your rooms (Aceitar opens the DM
-   * with their first message in it). × declines either; nothing from them
-   * reaches you before a yes.
+   * "Pedidos": what waits for your yes, one row each, built like the rows
+   * around it. A room invite: the room's avatar with the inviter's face on
+   * its corner, "{who} te convidou" and Entrar (joins and opens it). A message
+   * from someone outside your rooms: their face, their first message and
+   * Aceitar (opens the DM with it). × declines either; nothing from them
+   * reaches you before a yes. `variant` follows the rows around it: the
+   * sidebar's small rows or the phone list's bigger ones.
    */
   let {
     invites,
     requests,
     lang,
+    variant = "sidebar",
     onjoin,
     onanswer,
   }: {
     invites: readonly MeInvite[];
     requests: readonly MeFriendRequest[];
     lang: HomeLanguage;
+    variant?: NavRowVariant;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
   } = $props();
+  type Face = { email: string; version: number | null | undefined };
+  /** What stands for a request: a room (with who invited you) or a person. */
+  type Cover =
+    { kind: "room"; title: string; by: Face } | ({ kind: "person" } & Face);
   let busy = $state<string | null>(null),
     failed = $state<string | null>(null);
+  const small = $derived(variant === "sidebar");
+  const count = $derived(invites.length + requests.length);
   async function run(key: string, task: (() => Promise<void>) | undefined) {
     if (busy || !task) return;
     busy = key;
@@ -41,79 +54,111 @@
   }
 </script>
 
+{#snippet cover(of: Cover)}
+  {#if of.kind === "room"}<span class="relative inline-flex shrink-0"
+      ><RoomAvatar
+        size={small ? "xs" : "md"}
+        title={of.title}
+        {lang}
+        surface={small ? "sidebar" : "background"}
+      /><PersonAvatar
+        email={of.by.email}
+        version={of.by.version}
+        size={small ? "3xs" : "2xs"}
+        aria-hidden="true"
+        class={[
+          "absolute -right-1 -bottom-1 rounded-full ring-2",
+          small ? "ring-sidebar" : "ring-background",
+        ].join(" ")}
+      /></span
+    >{:else}<PersonAvatar
+      email={of.email}
+      version={of.version}
+      size={small ? "xs" : "md"}
+      aria-hidden="true"
+    />{/if}
+{/snippet}
+
 {#snippet row(
   key: string,
-  email: string,
-  version: number | null | undefined,
+  of: Cover,
   title: string,
   meta: string,
-  preview: string | null | undefined,
+  full: string | undefined,
   yesLabel: string,
   answer: ((yes: boolean) => Promise<void>) | undefined,
 )}<li data-request={key}>
-    <div class="flex items-start gap-2 rounded-lg px-2 py-1.5">
-      <PersonAvatar size="sm" {email} {version} />
-      <div class="min-w-0 flex-1">
-        <p class="m-0 truncate text-sm font-medium">{title}</p>
-        <p class="m-0 truncate text-xs text-muted-foreground">
-          {meta}
-        </p>
-        {#if preview}<p
-            class="m-0 mt-0.5 line-clamp-2 text-xs break-words text-foreground"
-          >
-            “{preview}”
-          </p>{/if}
-        <div class="mt-1.5 flex items-center gap-1">
-          <Button
-            size="xs"
-            disabled={!!busy || !answer}
-            aria-busy={busy === key || undefined}
-            onclick={() => run(key, answer && (() => answer(true)))}
-            >{yesLabel}</Button
-          ><IconButton
-            size="icon-xs"
-            label={homeText(lang, "decline")}
-            disabled={!!busy || !answer}
-            onclick={() => run(key, answer && (() => answer(false)))}
-            ><Icon icon="x" size={14} /></IconButton
-          >
-        </div>
-        {#if failed === key}<p
-            role="alert"
-            class="m-0 mt-1 text-xs text-destructive"
-          >
-            {homeText(lang, "requestFailed")}
-          </p>{/if}
-      </div>
+    <div
+      class={[
+        "flex min-w-0 items-center px-2 font-sans",
+        small ? "min-h-9 gap-2 py-1 text-sm" : "min-h-12 gap-3 py-1.5",
+      ]}
+    >
+      {@render cover(of)}
+      <span class="flex min-w-0 flex-1 flex-col">
+        <span class="truncate">{title}</span>
+        <span
+          class="truncate text-xs leading-4 text-muted-foreground"
+          title={full}>{meta}</span
+        >
+      </span>
+      <span class="flex shrink-0 items-center gap-0.5">
+        <Button
+          size="xs"
+          disabled={!!busy || !answer}
+          aria-busy={busy === key || undefined}
+          onclick={() => run(key, answer && (() => answer(true)))}
+          >{yesLabel}</Button
+        ><IconButton
+          size="icon-xs"
+          label={homeText(lang, "decline")}
+          class="text-muted-foreground hover:text-foreground"
+          disabled={!!busy || !answer}
+          onclick={() => run(key, answer && (() => answer(false)))}
+          ><Icon icon="x" size={14} /></IconButton
+        >
+      </span>
     </div>
+    {#if failed === key}<p
+        role="alert"
+        class={[
+          "m-0 pb-1 text-xs text-destructive",
+          small ? "pr-2 pl-10" : "pr-2 pl-14",
+        ]}
+      >
+        {homeText(lang, "requestFailed")}
+      </p>{/if}
   </li>{/snippet}
 
-{#if invites.length || requests.length}<section data-requests>
-    <SectionHeader level={4} title={homeText(lang, "requests")} />
+{#if count}<section data-requests>
+    <SectionHeader level={4} title={homeText(lang, "requests")}>
+      {#snippet action()}<span
+          class="px-1.5 text-xs leading-4 text-muted-foreground tabular-nums"
+          >{count}</span
+        >{/snippet}
+    </SectionHeader>
     <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
       {#each invites as invite (invite.book_id)}{@render row(
           `room:${invite.book_id}`,
-          invite.inviter,
-          invite.inviter_avatar,
+          {
+            kind: "room",
+            title: invite.title,
+            by: { email: invite.inviter, version: invite.inviter_avatar },
+          },
           invite.title,
           homeText(lang, "inviteFrom", {
             who: invite.inviter_name || invite.inviter,
-            people:
-              invite.people === 1
-                ? homeText(lang, "onePerson")
-                : homeText(lang, "nPeople", { n: invite.people }),
           }),
-          null,
+          undefined,
           homeText(lang, "join"),
           onjoin && ((yes) => onjoin(invite.book_id, yes)),
         )}{/each}
       {#each requests as request (request.email)}{@render row(
           `dm:${request.email}`,
-          request.email,
-          request.avatar,
+          { kind: "person", email: request.email, version: request.avatar },
           request.name || request.email,
-          homeText(lang, "wantsToTalk"),
-          request.msg,
+          request.msg ? `“${request.msg}”` : homeText(lang, "wantsToTalk"),
+          request.msg ?? undefined,
           homeText(lang, "accept"),
           onanswer && ((yes) => onanswer(request.email, yes)),
         )}{/each}
