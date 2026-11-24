@@ -126,3 +126,20 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 ## AI models
 
 The models are Worker variables in `wrangler.jsonc`: `MODEL_ROUTE`, `MODEL_CLASSIFY`, `MODEL_FAST`, `MODEL_JUDGE`. The calls go through OpenRouter. Speech-to-text uses Workers AI. Each model call records its cost in an event. Ask a human before you change a model.
+
+### Router actions
+
+The server can act on a message of a person without waking a Claude (`src/routerActions.ts`). Each action has the same parts:
+
+- `when`: synchronous checks. They do not call a model.
+- `ready`: optional asynchronous checks, for example a D1 query.
+- `exact`: a fixed phrase. It acts without a model.
+- `question` and `threshold`: one Jev question. The action runs when the probability is at the threshold or more.
+- `run`: the action.
+
+`Book.personWrote` runs the actions on each message of a person. All the actions that apply share one Jev call. If Jev is not available, no action runs. The actions are:
+
+- `answer_thread`: a question in main becomes an answer thread (0.7). It runs only when the author has a Claude that listens to the room.
+- `mark_done`: the exact phrase "Mark as done" or "Marcar como concluída", or a short message (60 characters or less) that says the thread is finished (0.8). A Jev decision posts a line in the thread. Any message from a person opens the thread again.
+
+To add an action, add an entry to `ROUTER_ACTIONS` and a test to `scripts/router-actions.test.ts`.

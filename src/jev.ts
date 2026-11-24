@@ -1,3 +1,5 @@
+// HARD RULE (AGENTS.md, rule 14): the router asks Jev through this file. A change here needs `bun scripts/router-bench.ts`
+// before the pull request, with the scores before and after in the pull request. A score must not go down.
 import type { Env } from "./index";
 import * as z from "zod/mini";
 import { decisionProvider } from "./decision-provider";

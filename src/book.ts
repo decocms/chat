@@ -41,6 +41,7 @@ import { DECLINE_HOLD_MS, docRoomStub } from "./rooms";
 import { findSecret, secretName } from "./secrets";
 import { cronWords, nextRun, parseCron } from "./cron";
 import { decide, type Question } from "./jev";
+import { runRouterActions, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
@@ -1159,15 +1160,50 @@ export class Book extends DurableObject<Env> {
     if (thread === "main" || !this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND archived = 1`, thread).toArray().length) return;
     this.archiveEpic(thread, false);
   }
-  /** A person's message in a thread (Gimenes #4249): "Marcar como concluída" / "Mark as done" marks it done; any
-   *  other message opens a done thread again. */
-  personWrote(thread: string, text: string) {
-    if (thread !== "main" && isMarkDone(text) && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length) {
-      this.setEpicStatus(thread, "done");
-      this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: "mark_done" } }));
-      return;
-    }
-    this.reopenIfArchived(thread);
+  /** A person's message (Gimenes #4249, #4369): any message opens a done thread again, except the exact "Marcar como
+   *  concluída" / "Mark as done". Then the router actions (src/routerActions.ts) run on it: the exact phrase closes the
+   *  thread at once, else one Jev call asks every action that applies (a question in main → an answer thread; "pode
+   *  fechar" in a thread → done). */
+  personWrote(thread: string, text: string, msg?: { id: number; author: string }) {
+    if (!(thread !== "main" && isMarkDone(text) && this.openThread(thread))) this.reopenIfArchived(thread);
+    this.ctx.waitUntil(this.routerActions({ id: msg?.id ?? 0, thread, author: msg?.author ?? "", text }).catch((e) => console.error("router actions", String(e))));
+  }
+  openThread(thread: string) {
+    return thread !== "main" && this.sql.exec(`SELECT 1 FROM epics WHERE id = ? AND COALESCE(archived, 0) != 1`, thread).toArray().length > 0;
+  }
+  /** The room as the router actions see it. */
+  actionRoom(): ActionRoom {
+    return {
+      isDm: this.isDm,
+      openThread: (thread) => this.openThread(thread),
+      listening: async (email) => {
+        const bookId = this.get("book_id");
+        return !!bookId && !!(await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first());
+      },
+      hasThreadFrom: (msgId) => this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length > 0,
+      markDone: (thread, via) => {
+        this.setEpicStatus(thread, "done");
+        this.ctx.waitUntil(track(this.env, "epic_status", { dims: { book: this.get("book_id") ?? "", status: "done", via: via === "exact" ? "mark_done" : "mark_done_jev" } }));
+        // Words, not the exact phrase: say what happened, so a wrong guess is one message away from undone.
+        if (via === "jev")
+          this.addMessage(thread, "ai", this.en
+            ? "✓ I marked this thread as done. Write anything here to open it again."
+            : "✓ Marquei esta thread como feita. Escreva qualquer coisa aqui para reabrir.");
+      },
+      makeAnswerThread: (m) => this.makeAnswerThread(m.id, m.author, m.text),
+    };
+  }
+  /** One pass of the router actions over a person's message. Without Jev (MODEL_JUDGE unset or off) only the exact
+   *  phrases act. The exact path runs before any await (see runRouterActions). */
+  routerActions(m: ActionMessage) {
+    const jev = !!this.env.MODEL_JUDGE && this.env.MODEL_JUDGE !== "off";
+    return runRouterActions(m, this.actionRoom(), (state, questions) => (jev ? decide(this.env, state, questions) : Promise.resolve(null)), {
+      topic: m.thread === "main" ? "main" : (this.epics().find((e) => e.id === m.thread)?.title ?? ""),
+    }).then((r) => {
+      if (r.asked.length || r.action)
+        this.ctx.waitUntil(track(this.env, "router_action", { user: m.author || undefined, dims: { book: this.get("book_id") ?? "", action: r.action ?? "none", via: r.via ?? "", asked: r.asked.join(","), p: Math.round(r.p * 100) / 100, cost: r.cost } }));
+      return r;
+    });
   }
   // The room's doc, or an epic's own doc (a child of the room's) when epic is set.
   setDoc(text: string, by: string, except?: WebSocket, epic?: string) {
@@ -1317,24 +1353,13 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.changeMessage(id, { email, agent: true }, text);
   }
-  /** A question or analysis asked in the main thread becomes an answer epic right away (Gui #2767): one Jev call (~1s)
-   *  asks whether it's to be answered with information; ≥0.7 and the author has a Claude listening here makes the epic
-   *  (title = the question, the doc's task list last), links it under the message and opens its doc in the author's
-   *  tabs, where "Claude está escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for
-   *  that message returns this epic instead of a new one. Jev down = nothing happens (the Claude still answers). */
-  async answerIntent(msgId: number, email: string, text: string) {
+  /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
+   *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está
+   *  escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for that message returns
+   *  this epic instead of a new one. */
+  async makeAnswerThread(msgId: number, email: string, text: string) {
     const bookId = this.get("book_id");
-    if (!bookId || text.length < 12 || this.env.MODEL_JUDGE === "off") return;
-    // A DM is only a conversation (no epics, Nov 2026): not even your own ("Você").
-    if (this.isDm) return;
-    const listening = await this.env.DB.prepare(`SELECT 1 FROM agents WHERE email = ? AND listening_at > ? AND (listen_room = ? OR listen_room IS NULL) LIMIT 1`).bind(email, Date.now() - 12 * 60e3, bookId).first();
-    if (!listening) return;
-    const r = await decide(this.env, { message: text.slice(0, 1500) }, {
-      asks: { type: "noul", instructions: "Is this message a question, or a request for an analysis, numbers, a summary, a report, a chart or a comparison: something to answer with information? Answer no for a request to build, change, fix, deploy or do something, for small talk, for an answer or OK to someone, and for a yes/no question to a person." },
-    }).catch(() => null);
-    const p = r?.answers.asks?.noul ?? 0;
-    this.ctx.waitUntil(track(this.env, "answer_intent", { user: email, dims: { book: bookId, p: Math.round(p * 100) / 100, cost: r?.cost ?? 0 } }));
-    if (p < 0.7 || this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length) return;
+    if (!bookId || this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, msgId).toArray().length) return;
     const line = text.replace(/\s+/g, " ").trim(), cut = line.length > 70 ? `${line.slice(0, 70).replace(/\s+\S*$/, "")}…` : line;
     const id = this.createEpic(cut, [{ title: this.en ? "Answer in the doc" : "Responder no doc" }], [email.toLowerCase()], line.slice(0, 300));
     this.set(`answer:${id}`, "1");
@@ -1995,8 +2020,7 @@ export class Book extends DurableObject<Env> {
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
     const m = this.addMessage(thread, email, text, { clientId });
-    this.personWrote(thread, text);
-    if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
+    this.personWrote(thread, text, { id: m.id, author: email });
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
@@ -2066,7 +2090,7 @@ export class Book extends DurableObject<Env> {
     const src =
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
       (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
-    // The server already turned this question into an answer epic (answerIntent, Gui #2767): the agent takes that one.
+    // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
     const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(archived, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1") : undefined;
     if (made) {
       if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
@@ -2417,8 +2441,7 @@ export class Book extends DurableObject<Env> {
         if (viewing) this.sql.exec(`UPDATE messages SET viewing = ? WHERE id = ?`, viewing, sent.id);
         // Picking a button (choices or a card's) answers a question; it isn't new work: an archived epic stays archived.
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
-        if (!answers) this.personWrote(thread, text);
-        if (!answers && thread === "main") this.ctx.waitUntil(this.answerIntent(sent.id, email, text).catch((e) => console.error("answer intent", String(e))));
+        if (!answers) this.personWrote(thread, text, { id: sent.id, author: email });
         this.ctx.waitUntil(
           track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
         );

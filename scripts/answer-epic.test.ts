@@ -73,7 +73,6 @@ function fixture() {
     } as unknown as ConstructorParameters<typeof Book>[1],
   );
   book.set("book_id", "abcdef");
-  book.answerIntent = async () => {};
   book.wakeAt = async () => {};
   book.members = async () => [email];
   let rpc = 0;
