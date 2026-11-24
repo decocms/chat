@@ -144,9 +144,11 @@ export class Book extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS messages_thread ON messages (thread, id);
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
+      CREATE TABLE IF NOT EXISTS message_edits (msg_id INTEGER, kind TEXT, text TEXT, files TEXT, card TEXT, by TEXT, ts INTEGER);
+      CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "archived INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -1263,6 +1265,50 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.react(id, `${email}#agent`, emoji);
   }
+  /** Edit or delete a message (Gui #4276, #4312). Only its author edits it: a person their own messages, an agent the
+   *  ones it posted (kind 'agent'). The author deletes; the room owner (the only admin) deletes any. The old text, files
+   *  and card go to message_edits, which only the owner reads (messageHistory): everyone else sees "(edited)" or the
+   *  "message deleted" tombstone, and the room, read_room and search see only the current text. */
+  async changeMessage(id: number, by: { email: string; agent: boolean }, text: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
+    const row = this.sql.exec<{ author: string; kind: string | null; text: string | null; files: string | null; card: string | null; deleted: number | null }>(`SELECT author, kind, text, files, card, deleted FROM messages WHERE id = ?`, id).toArray()[0];
+    if (!row) return { ok: false, error: "no such message in this room" };
+    if (row.deleted) return { ok: false, error: "this message was deleted" };
+    const author = row.author === by.email && (row.kind === "agent") === by.agent;
+    const now = Date.now();
+    if (text === null) {
+      if (!author && (by.agent || !(await this.isOwner(by.email)))) return { ok: false, error: "only its author or the room owner can delete a message" };
+      this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, files, card, by, ts) VALUES (?, 'delete', ?, ?, ?, ?, ?)`, id, row.text, row.files, row.card, by.agent ? `${by.email}#agent` : by.email, now);
+      this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
+      this.broadcast({ t: "msgEdit", id, text: "", deleted: now });
+      return { ok: true };
+    }
+    if (!author) return { ok: false, error: "only its author can edit a message" };
+    text = text.trim().slice(0, MESSAGE_TEXT_LIMIT);
+    if (!text) return { ok: false, error: "empty message: to remove it, delete it" };
+    const secret = findSecret(text);
+    if (secret) return { ok: false, error: `blocked: looks like a secret (${secret}). Never post secrets in a room; send them through a secure channel.` };
+    if (text === row.text) return { ok: true };
+    this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, by, ts) VALUES (?, 'edit', ?, ?, ?)`, id, row.text, by.agent ? `${by.email}#agent` : by.email, now);
+    this.sql.exec(`UPDATE messages SET text = ?, edited = ? WHERE id = ?`, text, now, id);
+    this.broadcast({ t: "msgEdit", id, text, edited: now });
+    return { ok: true };
+  }
+  async isOwner(email: string) {
+    const owner = (await this.env.DB.prepare(`SELECT owner FROM books WHERE id = ?`).bind(this.get("book_id") ?? "").first<{ owner: string }>())?.owner;
+    return !!owner && owner === email;
+  }
+  /** A message's earlier versions, oldest first, for the room owner only (null for anyone else). */
+  async messageHistory(id: number, email: string) {
+    if (!(await this.isOwner(email))) return null;
+    return this.sql
+      .exec<{ kind: string; text: string | null; files: string | null; by: string; ts: number }>(`SELECT kind, text, files, by, ts FROM message_edits WHERE msg_id = ? ORDER BY ts`, id)
+      .toArray()
+      .map((v) => ({ kind: v.kind === "delete" ? ("delete" as const) : ("edit" as const), text: v.text ?? "", files: v.files ? (JSON.parse(v.files) as (string | { name?: string })[]).map((f) => (typeof f === "string" ? f : f.name ?? "")) : [], by: v.by, ts: v.ts }));
+  }
+  agentChangeMessage(bookId: string, email: string, id: number, text: string | null) {
+    this.bind(bookId);
+    return this.changeMessage(id, { email, agent: true }, text);
+  }
   /** A question or analysis asked in the main thread becomes an answer epic right away (Gui #2767): one Jev call (~1s)
    *  asks whether it's to be answered with information; ≥0.7 and the author has a Claude listening here makes the epic
    *  (title = the question, the doc's task list last), links it under the message and opens its doc in the author's
@@ -1460,14 +1506,20 @@ export class Book extends DurableObject<Env> {
     const who = (e: string) => (e === "ai" ? "@vibe" : names[e] ? `${names[e].replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${e}>` : e);
     const epics = this.epics();
     const threadName = (t: string) => (t === "main" ? "main" : `epic: ${epics.find((e) => e.id === t)?.title ?? t}`);
+    // Messages edited since this agent's last read come again, with edited: true (Gui #4312: "vai estar no unread").
+    // ponytail: one cursor per human + agent name in meta; a per-agent receipt column if it ever needs to be exact.
+    const editKey = `edit_seen:${email}:${to.me ?? ""}`;
+    const editSeen = Number(this.get(editKey) ?? 0);
+    if (email) this.set(editKey, String(Date.now()));
+    const edited = since && editSeen ? this.sql.exec(`SELECT * FROM messages WHERE id <= ? AND edited > ? AND deleted IS NULL ORDER BY id LIMIT 20`, since, editSeen).toArray() : [];
     const rows = this.messageRows((since
-      ? this.sql.exec(`SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?`, since, AGENT_READ_MAX).toArray()
-      : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT 40`).toArray().reverse()).filter((m) => m.text || m.poll || m.files));
+      ? [...edited, ...this.sql.exec(`SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?`, since, AGENT_READ_MAX).toArray()]
+      : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT 40`).toArray().reverse()).filter((m) => m.text || m.poll || m.files || m.deleted));
     // A reply carries what it answers (author + the start of its text): "@guilherme" alone, replying to a question,
     // read as an empty mention to the Claude (Nov 2026).
     const quoted = this.quotes(rows.map((m) => m.reply_to), who);
     const messages = rows
-      .filter((m) => m.text || m.poll || m.files)
+      .filter((m) => m.text || m.poll || m.files || m.deleted)
       .map((m) => ({ m, mine: !!email && ((m.author === email && m.kind !== "agent") || (m.tag === "reminder" && m.for_who === email)) }))
       .map(({ m, mine }) => ({
         id: m.id,
@@ -1480,6 +1532,9 @@ export class Book extends DurableObject<Env> {
         from_your_human: mine,
         reminder: m.tag === "reminder" || undefined,
         realtime: m.tag === "fire" || undefined,
+        // Only the current text: an edit's earlier versions and a deleted message's content are the room owner's.
+        edited: (m.edited && !m.deleted) || undefined,
+        deleted: m.deleted ? true : undefined,
         to_agent: m.author === email && m.kind !== "agent" ? toAgents(m.text).join(", ") || undefined : undefined,
         not_for_you: (m.author === email && m.kind !== "agent" && forOther(m.text)) || undefined,
         reply_to: m.reply_to ?? undefined,
@@ -1489,7 +1544,7 @@ export class Book extends DurableObject<Env> {
         viewing: m.viewing ? ((f) => (f ? { id: f.id, name: f.name, type: f.type, url: `/api/books/${bookId}/files/${f.id}`, note: "the file open beside the chat when this was written: \"this\"/\"isso\" means it (get_file reads it)" } : undefined))(this.files().find((f) => f.id === m.viewing)) : undefined,
         // The replied message rides inside the text too, not only in reply_quote: a Sonnet read a bare "vc fez isso?"
         // (a reply to "Pode revisar o ledger?") and asked which "isso" (Nov 2026).
-        text: ((t: string) => (mine ? t : untrusted(who(m.author), t)))(withQuote(m.reply_to ? quoted.get(m.reply_to) : undefined, m.text || (m.poll ? `[poll ${m.poll}]` : ""))),
+        text: ((t: string) => (mine ? t : untrusted(who(m.author), t)))(withQuote(m.reply_to ? quoted.get(m.reply_to) : undefined, m.deleted ? "[message deleted]" : m.text || (m.poll ? `[poll ${m.poll}]` : ""))),
         files: m.files?.length ? m.files.map((f) => ({ id: f.id, name: f.name, type: f.type, size: f.size, url: `/api/books/${bookId}/files/${f.id}` })) : undefined,
         // Emoji reactions (Gui #2724): emoji → who (names; "<name>'s Claude" for agents).
         reactions: m.reactions ? Object.fromEntries(Object.entries(m.reactions).map(([e, list]) => [e, list.map((w) => (w.endsWith("#agent") ? `${who(w.slice(0, -6))}'s Claude` : who(w)))])) : undefined,
@@ -2452,6 +2507,19 @@ export class Book extends DurableObject<Env> {
         if (!r.ok) return new Refused(r.error);
         // Reacting to an ask counts as seeing it through, like a reply (Valls): its count goes.
         if (r.reactions[emoji]?.includes(email)) this.ctx.waitUntil(this.reactedHere(email, Number(m.id)));
+        return;
+      }
+      case "msg.edit":
+      case "msg.delete": {
+        const r = await this.changeMessage(Number(m.id), { email, agent: false }, m.t === "msg.edit" ? m.text : null);
+        if (!r.ok) return new Refused(r.error);
+        this.ctx.waitUntil(track(this.env, "message_change", { user: email, dims: { book: this.get("book_id") ?? "", kind: m.t === "msg.edit" ? "edit" : "delete" } }));
+        return;
+      }
+      case "msg.history": {
+        const versions = await this.messageHistory(Number(m.id), email);
+        if (!versions) return new Refused("only the room owner sees a message's history");
+        this.sendTo([ws], { t: "history", id: Number(m.id), versions } satisfies RoomEvent);
         return;
       }
       case "ack.dismiss": {

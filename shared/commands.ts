@@ -71,6 +71,11 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("ack.dismiss"), id: num }),
   // Toggle your emoji reaction on a message (Gui #2724).
   z.object({ t: z.literal("react"), id: num, emoji: z.string() }),
+  // Edit or delete a message (Gui #4276): the author edits, the author or the room owner deletes; the owner reads
+  // the earlier versions with msg.history (answered with the "history" event to that tab only).
+  z.object({ t: z.literal("msg.edit"), id: num, text: z.string() }),
+  z.object({ t: z.literal("msg.delete"), id: num }),
+  z.object({ t: z.literal("msg.history"), id: num }),
   z.object({ t: z.literal("reminder.enable"), id, on: z.boolean() }),
   z.object({ t: z.literal("task.toggle"), id }),
   z.object({ t: z.literal("task.status"), id, status: z.enum(TASK_STATUSES) }),

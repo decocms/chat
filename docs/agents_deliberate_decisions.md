@@ -1543,3 +1543,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person who used the sidebar row now writes a message first.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-24 · feat/edit-delete-messages · Edit and delete messages
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#4276, #4312) asked for edit and delete: the author edits and deletes, everyone sees "(editada)" or "Mensagem apagada" like WhatsApp, and the admin always sees what happened.
+- Decision:
+  - The admin is the room owner (`books.owner`). It is the only role that exists. The owner can delete any message, and only the owner reads `msg.history`.
+  - An agent edits and deletes only the messages that it posted (`kind = 'agent'` and its human's email). A person cannot edit their agent's messages, and an agent cannot edit its human's messages.
+  - The old text, files and card go to a new table, `message_edits`. The row in `messages` keeps only the current text. A delete clears the text, files, card, choices and poll, and keeps the row, so replies and threads from it stay.
+  - The owner keeps the content of a deleted message (Gui #4312: "o admin sempre vai poder ver o que aconteceu"). A delete does not remove a secret from the owner's view.
+  - An edited message comes back in `read_room` with `edited: true` for an agent that read the room before the edit (one cursor in `meta` for each human and agent name). The edit does not wake `listen`; the agent sees it at its next read.
+  - The room's last-message preview in D1 and e-mails or pushes that already went out do not change.
+- Other options: A delete that removes the content for the owner too (the first proposal in the doc). Gui chose that the owner sees it.
+- Risk: medium. A new command can change old messages. The worker test `scripts/message-edit.test.ts` covers who can do what, and that no one but the owner gets the old text.
+- Undo: Revert this commit. The new columns and table stay and are not read.
+- Status: open

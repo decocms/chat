@@ -1000,6 +1000,33 @@ const TOOLS = [
     },
   },
   {
+    name: "edit_message",
+    description:
+      "Replace the text of a message you posted yourself (only yours, never your human's or anyone else's). The room shows it as \"(edited)\"; only the room owner sees the earlier text. The secret filter applies as when posting.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        room_id: { type: "string" },
+        message_id: { type: "number" },
+        text: { type: "string" },
+      },
+      required: ["room_id", "message_id", "text"],
+    },
+  },
+  {
+    name: "delete_message",
+    description:
+      'Delete a message you posted yourself (its text, files and card). The room shows "message deleted" in its place; replies and threads from it stay. Only the room owner can still see what it said. Use it to take back something that should not be in the room.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        room_id: { type: "string" },
+        message_id: { type: "number" },
+      },
+      required: ["room_id", "message_id"],
+    },
+  },
+  {
     name: "doc_versions",
     description:
       "List a doc's saved versions, newest first: the room's (no epic_id) or an epic's. A version is cut by itself once edits go quiet; each has who edited (emails, agent, yjs = live editor, tasks = task list sync), when, and msg_id = the room's newest message at that moment (what the chat was saying). Read one with get_doc_version.",
@@ -1775,7 +1802,13 @@ async function call(
         invited: string[] = [];
       for (const who of emails) {
         // A member who never signed in (added before invites waited for a yes) gets the email again, as the People tab's "reenviar".
-        if ((await isMember(db, id, who)) && (await db.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(who).first())) {
+        if (
+          (await isMember(db, id, who)) &&
+          (await db
+            .prepare(`SELECT 1 FROM users WHERE email = ?`)
+            .bind(who)
+            .first())
+        ) {
           already.push(who);
           continue;
         }
@@ -2715,6 +2748,16 @@ async function call(
         me.email,
         Number(a.message_id),
         str(a.emoji),
+      );
+    }
+    case "edit_message":
+    case "delete_message": {
+      const id = await room();
+      return bookStub(env, id).agentChangeMessage(
+        id,
+        me.email,
+        Number(a.message_id),
+        name === "edit_message" ? str(a.text) : null,
       );
     }
     case "doc_versions": {

@@ -392,7 +392,13 @@
           >
         </div>{/if}
       {#if kind === "regular"}
-        {#if !m.text && (typing || (m.author === "ai" && !m.poll))}<p
+        {#if m.deleted}<p
+            data-message-deleted
+            class="m-0 text-muted-foreground italic"
+          >
+            {vb.t("Mensagem apagada")}
+          </p>
+        {:else if !m.text && (typing || (m.author === "ai" && !m.poll))}<p
             data-message-typing
             role="status"
             class="m-0 text-muted-foreground"
@@ -407,7 +413,11 @@
         {:else if m.text && !echoesCard}{@render rich(
             m.text,
             m.author === "ai" || m.kind === "agent" ? "markdown" : "human",
-          )}{/if}
+          )}{/if}{#if m.edited && !m.deleted}<span
+            data-message-edited
+            class="text-xs text-muted-foreground select-none"
+            >{vb.t("(editada)")}</span
+          >{/if}
         <Attachments
           roomId={room.id}
           messageThread={m.thread}
@@ -517,6 +527,16 @@
       message={m}
       roomId={room.id}
       onthread={threadable ? () => void startThread() : undefined}
+      canEdit={m.author === room.me &&
+        m.kind !== "agent" &&
+        !m.deleted &&
+        !!m.text}
+      canDelete={!m.deleted &&
+        ((m.author === room.me && m.kind !== "agent") ||
+          room.book.owner === room.me)}
+      history={room.book.owner === room.me && (m.edited || m.deleted)
+        ? (room.history?.[m.id] ?? null)
+        : undefined}
       {actions}
       {vb}
     />{:else}<button
