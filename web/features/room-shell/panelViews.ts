@@ -33,25 +33,3 @@ export function phonePanes(dm: boolean): readonly DocumentPane[] {
       )
     : roomPanes;
 }
-
-/**
- * A phone room's strip under the top bar, always there (A2, Gimenes #4309, #4331): Doc, Arquivos, Decisões and
- * Lembretes ("Notas"). People are the avatars at the bar's end, not a tab. A DM has no doc.
- */
-export function phoneStripPanes(dm: boolean): readonly DocumentPane[] {
-  return phonePanes(dm).filter(
-    (pane) =>
-      pane === "doc" ||
-      pane === "files" ||
-      pane === "decisions" ||
-      pane === "reminders",
-  );
-}
-
-/** The phone drawer's tab row keeps only what the strip and the avatars do not show: Apps and Agents. */
-export function phoneDrawerPanes(dm: boolean): readonly DocumentPane[] {
-  const strip = phoneStripPanes(dm);
-  return phonePanes(dm).filter(
-    (pane) => pane !== "people" && !strip.includes(pane),
-  );
-}

@@ -29,7 +29,7 @@
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
-  import { phoneDrawerPanes, phonePanes } from "./panelViews";
+  import { phonePanes } from "./panelViews";
   import type { DocumentPane } from "../documents/types";
   import { attachRoomEdgeBack } from "./edgeBack";
   import type { RoomLayoutCells } from "../room-layout/types";
@@ -256,14 +256,14 @@
   onCells={edgeBack}
 >
   {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
-        <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
+        <!-- Phones: the drawer's shortcuts are the same tab row as the doc sheet's, with no tab selected (Gimenes #4088). -->
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
               data-phone-menu
             >
               <DocumentToolbar
                 {...$view.peek}
                 pane={"" as DocumentPane}
-                only={phoneDrawerPanes(!!$view.header.room.book.dm)}
+                only={phonePanes(!!$view.header.room.book.dm)}
                 onPane={(pane) => {
                   if (current()) owner.actions.setPane(pane, { open: true });
                 }}

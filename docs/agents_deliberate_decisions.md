@@ -52,16 +52,6 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
-### 2026-11-24 · feat/phone-a2 · Phone strip: where Apps, Agents and the sheet row go
-
-- Agent: claude-opus-5-5
-- Context: Gimenes approved A2 for phones (#4331): a strip with Doc, Arquivos, Decisões and Notas (= Lembretes) under the top bar, people as avatars at the bar's end, and "Apps fora". He did not say where Apps and Agents go, or what to do with the doc sheet's tab row.
-- Decision: Apps and Agents stay in the drawer's tab row, so the phone does not lose them. While the doc sheet is open, the strip hides and the sheet's tab row (which is also the handle that closes the sheet) takes its place, so there is one row of tabs at a time. Your account stays at the drawer's top; a DM keeps it in the bar.
-- Other options: Remove Apps from the phone. Keep both rows while the sheet is open. Put Apps in the strip.
-- Risk: low
-- Undo: Revert the commit; `phonePanes` again feeds the drawer row.
-- Status: open
-
 ### 2026-11-24 · feat/thread-one-click · Desfazer only for threads from main
 
 - Agent: claude-opus-5-5
