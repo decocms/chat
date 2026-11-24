@@ -2,7 +2,7 @@
   import Count from "../../lib/components/Count.svelte";
   import { cn } from "../../lib/studio/utils";
   import { waitCount, type WaitReference } from "./model";
-  /** What waits on you here, as one lime number: asks, your Claude's questions and your tasks in review. */
+  /** What waits on you here, as one red number: asks, your Claude's questions and your tasks in review. */
   let {
     waits,
     label,
