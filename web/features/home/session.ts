@@ -114,6 +114,7 @@ export function createHomeSession(
             text,
             destination.epic_id ?? "main",
             sends.take(key),
+            true,
           );
           if (!posted.ok) throw Error(posted.error);
           sends.done(key);

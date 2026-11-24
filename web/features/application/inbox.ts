@@ -371,7 +371,7 @@ export function createApplicationInbox(
         binding,
         wait.book_id,
         wait.thread,
-        /^[mab]/.test(wait.ref)
+        /^[mabr]/.test(wait.ref)
           ? messageIdentity(wait.ref.slice(1))
           : undefined,
       );
@@ -383,7 +383,7 @@ export function createApplicationInbox(
         hidden = new Set(get(state).hidden);
       const picked = waits.filter(
         (wait) =>
-          wait.ref.startsWith("m") &&
+          /^[mr]/.test(wait.ref) &&
           data.includes(wait) &&
           canonical(wait) &&
           !hidden.has(waitsKey(wait)),
@@ -473,7 +473,7 @@ export function createApplicationInbox(
         pending ||
         !get(state).data.waits.includes(wait) ||
         !canonical(wait) ||
-        !wait.ref.startsWith("m")
+        !/^[mr]/.test(wait.ref)
       )
         return;
       pending = true;

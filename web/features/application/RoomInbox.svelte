@@ -73,7 +73,7 @@
     const rows: Item[] = [
       ...model.messages.map((message) => ({
         key: message.key,
-        kind: message.kind as Kind,
+        kind: (message.kind === "reply" ? "ask" : message.kind) as Kind,
         book: message.book,
         room: message.room,
         thread: message.thread,

@@ -145,6 +145,7 @@ export class Book extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS doc_dirty (doc TEXT PRIMARY KEY, first INTEGER, last INTEGER, gap INTEGER, by TEXT);
       CREATE TABLE IF NOT EXISTS briefs (id INTEGER PRIMARY KEY AUTOINCREMENT, thread TEXT, email TEXT, ts INTEGER, text TEXT, answered_at INTEGER, model TEXT);
       CREATE TABLE IF NOT EXISTS message_edits (msg_id INTEGER, kind TEXT, text TEXT, files TEXT, card TEXT, by TEXT, ts INTEGER);
+      CREATE TABLE IF NOT EXISTS routed (msg_id INTEGER PRIMARY KEY, thread TEXT, author TEXT, text TEXT);
       CREATE INDEX IF NOT EXISTS message_edits_msg ON message_edits (msg_id, ts);
     `);
     // Columns added after launch; ALTER fails harmlessly once they exist.
@@ -819,6 +820,7 @@ export class Book extends DurableObject<Env> {
       if (q && q.author === author && ASK_OPENER.test(q.text)) { this.ctx.waitUntil(this.askWait(author, replyTo, "", null)); this.unblock(author); }
     }
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
+    if (!extra.quiet && !extra.forWho) this.ctx.waitUntil(this.routedReply(m).catch((e) => console.error("routed reply", String(e))));
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     return m;
@@ -865,15 +867,41 @@ export class Book extends DurableObject<Env> {
   /** A person wrote in this thread: what was asked of them earlier in it counts as answered (Gui, 13/11: the count
    * should go when you reply, not when Jev agrees you did). Only asks (m<id>); their tasks (t<id>) stay. */
   /** A person reacted to a message: if it was an ask to them (m<id>), it counts as answered. */
+  /** It also answers the answers to that person's Home requests in the same thread (r<msg>). */
   async reactedHere(email: string, id: number) {
     const bookId = this.get("book_id"); if (!bookId) return;
-    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref = ?`).bind(bookId, email, `m${id}`).run();
+    const thread = this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, id).toArray()[0]?.thread ?? null;
+    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND (ref = ? OR (ref LIKE 'r%' AND thread = ?))`).bind(bookId, email, `m${id}`, thread).run();
     if (r.meta.changes) await poke(this.env, [email], { t: "me" });
   }
   async answeredHere(email: string, thread: string, id: number) {
     const bookId = this.get("book_id"); if (!bookId) return;
-    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND thread = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) < ?`).bind(bookId, email, thread, id).run();
+    const r = await this.env.DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND thread = ? AND (ref LIKE 'm%' OR ref LIKE 'r%') AND CAST(substr(ref, 2) AS INTEGER) < ?`).bind(bookId, email, thread, id).run();
     if (r.meta.changes) await poke(this.env, [email], { t: "me" });
+  }
+  /** Someone (a person, an agent, @vibe) wrote in a thread where a person's Home request (routed) is still their last
+   *  word: the answer goes to that person's Home as a wait r<request> (the newest answer wins). Their own reply,
+   *  reaction or ✓ clears it (answeredHere, reactedHere, /api/waits/resolve). Their own agent's answer counts. */
+  async routedReply(m: Msg) {
+    const bookId = this.get("book_id"); if (!bookId) return;
+    const asks = this.sql
+      .exec<{ msg_id: number; author: string; text: string }>(
+        `SELECT r.msg_id, r.author, r.text FROM routed r WHERE r.thread = ? AND r.msg_id < ?
+           AND r.msg_id = (SELECT max(id) FROM messages WHERE thread = r.thread AND author = r.author AND kind IS NULL AND id < ?)
+           AND (r.author != ? OR ? = 'agent')`,
+        m.thread, m.id, m.id, m.author, m.kind ?? "",
+      )
+      .toArray();
+    if (!asks.length) return;
+    const topic = m.thread !== "main" ? this.epics().find((e) => e.id === m.thread)?.title ?? "" : "";
+    const DB = this.env.DB;
+    await DB.batch(
+      asks.map((a) =>
+        DB.prepare(`INSERT OR REPLACE INTO waits (book_id, ref, email, thread, topic, author, text, ts, about) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .bind(bookId, `r${a.msg_id}`, a.author, m.thread, topic, m.author, m.text.slice(0, 280), m.ts, a.text),
+      ),
+    );
+    await poke(this.env, [...new Set(asks.map((a) => a.author))], { t: "me" });
   }
 
   // ---- mention emails (src/mentionmail.ts) ----
@@ -1975,7 +2003,7 @@ export class Book extends DurableObject<Env> {
   /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast.
    *  `send`: a person's own send over HTTP (POST /api/books/:id/post), which a retry can repeat; the server's own
    *  posts in their name (a DM's first message, a started room) leave it out and are never matched. */
-  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false, send?: { clientId?: string }): Promise<PostMessageResponse> {
+  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false, send?: { clientId?: string; routed?: boolean }): Promise<PostMessageResponse> {
     this.bind(bookId);
     const clientId = send?.clientId;
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
@@ -1988,6 +2016,8 @@ export class Book extends DurableObject<Env> {
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
     const m = this.addMessage(thread, email, text, { clientId });
+    // Sent from the Home's ask box: an answer here by someone else comes back to the sender's Home (routedReply).
+    if (send?.routed) this.sql.exec(`INSERT OR REPLACE INTO routed (msg_id, thread, author, text) VALUES (?, ?, ?, ?)`, m.id, m.thread, email, text.slice(0, 280));
     this.personWrote(thread, text);
     if (thread === "main") this.ctx.waitUntil(this.answerIntent(m.id, email, text).catch((e) => console.error("answer intent", String(e))));
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));

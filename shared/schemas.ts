@@ -8,6 +8,8 @@ export const PostMessageBody = z.object({
   thread: z.optional(z.string()),
   // The send's random id, the same on each retry: the server answers a retry with the first message (Book.byClientId).
   client_id: z.optional(ClientIdSchema),
+  /** Sent from the Home's ask box (the router): a later answer by someone else comes back to the Home (r<msg> waits). */
+  routed: z.optional(z.boolean()),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 
@@ -68,7 +70,7 @@ export const PushUnsubscribeBody = z.object({
 });
 export const ResolveWaitBody = z.object({
   book_id: z.string().check(z.minLength(1)),
-  ref: z.string().check(z.startsWith("m")),
+  ref: z.string().check(z.regex(/^[mr]\d+$/)),
 });
 /** Many asks at once (the Inbox's "Resolve all"): asks only, at most 200. */
 export const ResolveWaitsBody = z.object({
@@ -502,7 +504,8 @@ export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
-  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you. */
+  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, r<msg> an answer to
+   *  what you sent from the Home's ask box (msg = your request; text = the answer, about = your request). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -510,6 +513,7 @@ export const MeWait = z.object({
   author_name: str,
   text: z.string(),
   ts: z.number(),
+  about: z.optional(str),
 });
 export const MeData = z.object({
   email: z.string(),

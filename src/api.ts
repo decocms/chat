@@ -112,7 +112,7 @@ export interface ApiServices {
   isMember(roomId: string): Promise<boolean>;
   allowStt():Promise<boolean>;
   transcribe(audio:Uint8Array,query:SttQueryType):Promise<unknown>;
-  humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
+  humanPost(roomId: string, text: string, thread: string, clientId?: string, routed?: boolean): Promise<PostMessageResult>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
   fileTypes: readonly string[];
@@ -272,8 +272,8 @@ const roomPosts = new Hono<ApiCtx>()
     async (c) => {
       const svc = c.get("svc"), id = c.req.param("id");
       if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" } satisfies PostMessageResult, 403);
-      const { text, thread, client_id } = c.req.valid("json");
-      const out = await svc.humanPost(id, text, thread || "main", client_id);
+      const { text, thread, client_id, routed } = c.req.valid("json");
+      const out = await svc.humanPost(id, text, thread || "main", client_id, routed);
       if (!out.ok) return c.json({ ok: false as const, error: out.error } satisfies PostMessageResult, 400);
       svc.track("home_route_sent", { book: id, epic: out.thread !== "main" });
       return c.json({ ok: true as const, id: out.id, thread: out.thread } satisfies PostMessageResult, 200);

@@ -1445,20 +1445,18 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  // Your tasks are folded under the desktop Home's "Suas tarefas"; a row's first button opens it.
+  // Your tasks are in the desktop Home's "Tarefas" tab; a task row is the button that opens it.
   const find = () => {
     h.target
       .querySelector<HTMLButtonElement>(
-        '[data-home-tasks-toggle][aria-expanded="false"]',
+        '[data-home-tab="tasks"][aria-selected="false"]',
       )
       ?.click();
     return [
-      ...h.target.querySelectorAll<HTMLElement>(
-        '[data-room-inbox-message][data-kind="task"]',
+      ...h.target.querySelectorAll<HTMLButtonElement>(
+        'button[data-room-inbox-message][data-kind="task"]',
       ),
-    ]
-      .find((node) => node.textContent?.includes(task.title))
-      ?.querySelector<HTMLButtonElement>("button");
+    ].find((node) => node.textContent?.includes(task.title));
   };
   for (let i = 0; i < 20 && !find(); i++) await flush();
   const old = find()!;

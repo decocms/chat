@@ -2,7 +2,8 @@ import type { Room } from "../../../shared/room";
 import type { InboxResult } from "../../../shared/schemas";
 import type { Wait, InboxMention, InboxTask } from "../../app/types";
 export type RoomInboxMessage = {
-  kind: "ask" | "claude" | "mention";
+  /** reply = an answer to what you sent from the Home's ask box (wait r<msg>). */
+  kind: "ask" | "claude" | "mention" | "reply";
   key: string;
   book: string;
   room: string;
@@ -17,7 +18,7 @@ export type RoomInboxMessage = {
   mention?: InboxMention;
 };
 const messageId = (ref: string) => {
-  const id = /^[mab]\d+$/.test(ref) ? Number(ref.slice(1)) : NaN;
+  const id = /^[mabr]\d+$/.test(ref) ? Number(ref.slice(1)) : NaN;
   return Number.isSafeInteger(id) && id > 0 ? id : undefined;
 };
 export function roomInboxModel(
@@ -38,7 +39,11 @@ export function roomInboxModel(
   );
   const messages: RoomInboxMessage[] = [
     ...asks.map((wait) => ({
-      kind: wait.ref.startsWith("m") ? ("ask" as const) : ("claude" as const),
+      kind: wait.ref.startsWith("m")
+        ? ("ask" as const)
+        : wait.ref.startsWith("r")
+          ? ("reply" as const)
+          : ("claude" as const),
       key: `w:${wait.book_id}:${wait.ref}`,
       book: wait.book_id,
       room: wait.room,
