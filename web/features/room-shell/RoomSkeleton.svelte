@@ -17,7 +17,7 @@
   import { roomIcon, switcherDms } from "../home/model";
   import { homeText } from "../home/copy";
   import { roomDocumentOpen, roomDocumentWidth } from "../room-layout/preview";
-  import { MESSAGE_AVATAR, MESSAGE_ROW } from "./shape";
+  import { EPIC_PROGRESS, MESSAGE_AVATAR, MESSAGE_ROW } from "./shape";
   import type { BrowserApplicationServices } from "../application/browser";
   /** A room that is still connecting, drawn in the room's own frame (the cells of
    * RoomLayoutFrame: sidebar, chat with its header and composer, the doc on the
@@ -121,7 +121,7 @@
               >{t("Threads abertas")}</span
             ><span class="py-1">{t("Feitas")}</span>
           </div>
-          <!-- Epic rows (EpicTree): avatar, title, the status at the end. -->
+          <!-- Epic rows (EpicTree): avatar, title, the status at the end, the task bar under. -->
           <div class="-mt-1 flex flex-col gap-1">
             {#each ["w-3/5", "w-2/5", "w-1/2"] as width (width)}
               <div class="relative flex h-10 items-center gap-2.5 px-2.5">
@@ -130,6 +130,7 @@
                   >{@render line(width, "h-2.5")}</span
                 >
                 <Skeleton class="size-3.5 shrink-0 rounded-full" />
+                <span class={EPIC_PROGRESS}></span>
               </div>
             {/each}
           </div>
