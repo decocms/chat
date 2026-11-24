@@ -70,7 +70,7 @@ async function scanTranscripts(root, skip) {
 }
 
 // cli/vibebook.ts
-var VERSION = "1.7.7";
+var VERSION = "1.7.8";
 var HOME = process.env.VIBEBOOK_HOME || join2(homedir(), ".vibebook");
 var SESSION = join2(HOME, "session.json");
 var AGENTS = join2(HOME, "agents.json");
@@ -833,7 +833,7 @@ function machineId() {
   writePrivate(MACHINE, { id });
   return id;
 }
-var sessionAgent = (session) => `s_${createHash("sha256").update(`claude-code:${session}`).digest("hex").slice(0, 32)}`;
+var sessionAgent = (session2) => `s_${createHash("sha256").update(`claude-code:${session2}`).digest("hex").slice(0, 32)}`;
 var roomsCache = null;
 async function claudeRooms(agent, tools, kind = "herdr", managed = []) {
   const port = await ensureHub().catch(() => null);
@@ -946,7 +946,7 @@ async function herdrSync(agent, tools) {
   for (const [room, title] of on) {
     const e = map[room] ??= {};
     if (e.workspace && live.has(e.workspace)) {
-      const label = wsList.find((w) => w.workspace_id === e.workspace)?.label;
+      const label = wsList.find((w2) => w2.workspace_id === e.workspace)?.label;
       if (label !== undefined && label !== title.slice(0, 40))
         try {
           herdr("workspace", "rename", e.workspace, title.slice(0, 40));
@@ -1049,7 +1049,7 @@ async function herdrSync(agent, tools) {
         } catch {}
       continue;
     }
-    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus");
+    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id;
     const args = ["agent", "start", `vb-${room}`, "--kind", "claude", "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session)
@@ -1625,7 +1625,7 @@ async function main() {
                 if (await check(0))
                   return;
               } catch {
-                await new Promise((r) => setTimeout(r, 15000));
+                await new Promise((r2) => setTimeout(r2, 15000));
               }
               last = Date.now();
             }
@@ -1660,13 +1660,13 @@ async function main() {
       const lock = join2(HOME, "herdr.pid");
       const other = Number(existsSync2(lock) ? readFileSync(lock, "utf8") : 0);
       if (other && other !== process.pid) {
-        let alive = true;
+        let alive2 = true;
         try {
           process.kill(other, 0);
         } catch {
-          alive = false;
+          alive2 = false;
         }
-        if (alive)
+        if (alive2)
           return die(`vibebook herdr is already running (pid ${other}); one per machine is enough`);
       }
       writeFileSync(lock, String(process.pid));

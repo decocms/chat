@@ -10,7 +10,7 @@ import { homedir, hostname, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.7";
+const VERSION = "1.7.8";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -923,7 +923,9 @@ async function herdrSync(agent: string, tools: Tool[]) {
         } catch {}
       continue;
     }
-    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus");
+    // A new zsh can stop at oh-my-zsh's "Would you like to update? [Y/n]": the claude command typed by agent start
+    // answered it and the room stayed "abrindo" (#4259). No auto-update prompt in the shells we open.
+    const w = herdr("workspace", "create", "--cwd", e.folder, "--label", title.slice(0, 40), "--no-focus", "--env", "DISABLE_AUTO_UPDATE=true");
     e.workspace = w.workspace.workspace_id as string;
     const args = ["agent", "start", `vb-${room}`, "--kind", "claude", "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session) args.push("--resume", e.session);
