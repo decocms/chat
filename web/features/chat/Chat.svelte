@@ -20,6 +20,8 @@
     agentProvider,
   } from "../../lib/components/agent";
   import { productionStatuses } from "./production";
+  import { startedThread, THREAD_UNDO_MS } from "./threadUndo";
+  import Icon from "../../lib/studio/Icon.svelte";
   let {
     room,
     thread,
@@ -50,6 +52,29 @@
       : undefined,
   );
   const production = $derived(productionStatuses(room).get(thread));
+  // "Thread criada · Desfazer" (Gimenes #4310): only in the thread that you just started from a message in main,
+  // for THREAD_UNDO_MS, and only while nobody wrote in it.
+  const undoable = $derived(
+    !!origin &&
+      replyCount === 0 &&
+      $startedThread?.id === thread &&
+      Date.now() - $startedThread.at < THREAD_UNDO_MS,
+  );
+  $effect(() => {
+    const started = $startedThread;
+    if (!started || started.id !== thread) return;
+    const timer = setTimeout(
+      () => startedThread.update((s) => (s?.id === started.id ? null : s)),
+      Math.max(0, started.at + THREAD_UNDO_MS - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  });
+  async function undoThread() {
+    const from = origin;
+    startedThread.set(null);
+    const outcome = await actions.request({ t: "epic.del", id: thread });
+    if (outcome.ok && from) actions.navigate(from.id, from.thread);
+  }
   // A copy that takes in more than one message's text (names, avatars, marks,
   // reactions) becomes "[time, date] name: text" lines, as WhatsApp copies
   // (Gimenes #3955). Inside one message's text, the browser copies as usual.
@@ -112,11 +137,23 @@
         <div
           class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground"
         >
-          <span
-            >{replyCount === 1
-              ? vb.t("1 resposta")
-              : vb.t("{n} respostas", { n: replyCount })}</span
-          ><Button
+          {#if undoable}<span
+              data-thread-undo
+              role="status"
+              class="flex items-center gap-1 text-foreground"
+              ><Icon icon="check-circle" size={14} />{vb.t(
+                "Thread criada",
+              )}<Button
+                variant="link"
+                size="sm"
+                class="h-auto px-1"
+                onclick={undoThread}>{vb.t("Desfazer")}</Button
+              ></span
+            >{:else}<span
+              >{replyCount === 1
+                ? vb.t("1 resposta")
+                : vb.t("{n} respostas", { n: replyCount })}</span
+            >{/if}<Button
             variant="ghost"
             size="sm"
             data-origin-id={origin.id}

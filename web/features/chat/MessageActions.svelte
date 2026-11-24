@@ -36,7 +36,8 @@
     canReact?: boolean;
     /** Who is looking, to mark the quick reactions they already gave. */
     me?: string;
-    /** "Criar thread" (Gimenes #4123): opens its title line under the message. None: the message cannot start one. */
+    /** "Criar thread" (Gimenes #4310): makes the thread from this message and opens it. None: the message cannot
+     *  start one. */
     onthread?: () => void;
   } = $props();
   const mine = (emoji: string) =>

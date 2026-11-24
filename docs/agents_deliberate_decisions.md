@@ -52,6 +52,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · feat/thread-one-click · Desfazer only for threads from main
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved one click for "Criar thread", with a 5 second "Desfazer" (#4310). A thread from a message in another thread also gets a line in `main` that the server writes. The app has no command that deletes that line.
+- Decision: The thread shows "Desfazer" only when its source message is in `main`, and only while the thread is empty. The notice is in the footer of the source card at the top of the new thread, not a floating toast, because the click opens the thread and the message view unmounts. A small store (`web/features/chat/threadUndo.ts`) carries the new thread ID from the message view to the thread view.
+- Other options: Undo everywhere, and leave the orphan line in `main`. Add a server command that deletes the epic and its origin line: that changes the server for a rare case.
+- Risk: low
+- Undo: Remove the `startedThread` check in `Chat.svelte`, or set `startedThread` for all sources in `Message.svelte`.
+- Status: open
+
 ### 2026-11-18 · docs/agents-consolidation · Keep the plugin Markdown files
 
 - Agent: claude-opus-5-5
