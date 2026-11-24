@@ -115,7 +115,7 @@ export interface ApiServices {
   /** The room's call (src/calls.ts). Each one checks that the session is the signed-in person's. */
   callsOn: boolean;
   allowCall(): Promise<boolean>;
-  callJoin(roomId: string): Promise<CallJoinResult>;
+  callJoin(roomId: string, thread: string): Promise<CallJoinResult>;
   callTracks(roomId: string, body: CallTracksBodyType): Promise<CallSfuResult | "forbidden" | "limit">;
   callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
   callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
@@ -499,13 +499,13 @@ export const roomApi = accountApi
     return c.json({ ok: true as const } satisfies DeliveryResult, 200);
   })
   // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these four routes.
-  .post("/api/books/:id/call/join", async (c) => {
+  .post("/api/books/:id/call/join", validator("query", (value) => ({ thread: (Array.isArray(value.thread) ? value.thread[0] : value.thread) ?? "main" })), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
     if (!svc.callsOn) return c.json({ error: "calls are off" } satisfies ErrorBody, 404);
     if (!(await svc.allowCall())) return c.json({ error: "rate limited: wait a minute" } satisfies ErrorBody, 429);
     try {
-      const out = await svc.callJoin(id);
+      const out = await svc.callJoin(id, c.req.valid("query").thread.slice(0, 80));
       svc.track("call_join", { book: id });
       return c.json(out satisfies CallJoinResult, 200);
     } catch (error) {

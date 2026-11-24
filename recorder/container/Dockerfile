@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends chromium ffmpeg
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev && npm cache clean --force
-COPY main.ts ./
+COPY main.ts attribute.ts ./
 ENV NODE_ENV=production CHROMIUM=/usr/bin/chromium
 EXPOSE 8080
 # Node 24 runs .ts directly (type stripping).

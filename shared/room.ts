@@ -214,6 +214,8 @@ export const RoomSnapshotSchema = z.object({
   online: strings,
   /** Who is in the room's call. Missing = calls are not set up on this server (src/calls.ts). */
   call: opt(z.array(CallPeerSchema)),
+  /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
+  callRecorded: opt(bool),
   names: opt(z.record(str, str)),
   /** email → @handle: what a mention picked from the list inserts (shared/mention.ts). */
   handles: opt(z.record(str, str)),

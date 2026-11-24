@@ -13,7 +13,7 @@ export type CallView = {
   sharing: boolean;
   /** The screens that other people share, by email. More than one person can share at a time. */
   screens: Record<string, MediaStream>;
-  /** The cameras of other people, by email. Not received while a screen is on show (to spare traffic). */
+  /** The cameras of other people, by email. */
   cams: Record<string, MediaStream>;
   /** My camera is on, and its picture as my machine has it (the others get a smaller one). */
   camera: boolean;
@@ -52,10 +52,10 @@ const PULL_RETRY_MS = 3_000;
 // SCREEN_IDLE_REPORTS times in a row (10 minutes), the share stops by itself. Tune these two with real screens.
 const SCREEN_IDLE_BYTES = 50_000,
   SCREEN_IDLE_REPORTS = 20;
-/** A shared screen goes out at 720p and 30 frames a second at most: enough to read, and it spares traffic. */
+/** A shared screen goes out at 1080p and 30 frames a second at most (720p was hard to read, 2026-11-24). */
 const SCREEN_LIMITS = {
-  width: { max: 1280 },
-  height: { max: 720 },
+  width: { max: 1920 },
+  height: { max: 1080 },
   frameRate: { max: 30 },
 };
 /** Speaking: the level (RMS, 0 to 1) that counts as a voice, how often it is read, and how long the mark stays. */
@@ -73,19 +73,20 @@ const MIC_CLEANUP = {
   autoGainControl: true,
 };
 // The most that each kind of track sends. A voice is clear at 24 kbps; a 720p screen at 1.5 Mbps.
-const MIC_MAX_BPS = 24_000,
-  SCREEN_MAX_BPS = 1_500_000;
-// The camera is taken at 720p for my own view and sent at half of that (360p), 15 frames a second, 200 kbps at
+const MIC_MAX_BPS = 32_000,
+  SCREEN_MAX_BPS = 2_500_000;
+// The camera is taken at 720p for my own view and sent at half of that (360p), 24 frames a second, 500 kbps at
 // most: each person in the call receives one copy of each camera, so this number is the cost of a camera.
+// (The first numbers, 15 frames and 200 kbps, gave 180p in practice: people asked for more, 2026-11-24.)
 export const CAM_CAPTURE = {
   width: { ideal: 1280 },
   height: { ideal: 720 },
   frameRate: { ideal: 30 },
 };
 const CAM_SEND = {
-  maxBitrate: 200_000,
+  maxBitrate: 500_000,
   scaleResolutionDownBy: 2,
-  maxFramerate: 15,
+  maxFramerate: 24,
 };
 /** Opus stops sending in silence (DTX) when the description of the other side asks for it: this adds the ask to
  * each Opus line that does not have it. */
@@ -130,6 +131,8 @@ export function createCallSession(
   roomId: string,
   api: CallApi,
   send: SendRoomCommand,
+  /** The thread that the person has open now. */
+  thread: () => string,
 ) {
   const state = writable<CallView>(IDLE);
   let pc: RTCPeerConnection | null = null,
@@ -265,6 +268,9 @@ export function createCallSession(
       else
         params.encodings[0].maxBitrate =
           name === "mic" ? MIC_MAX_BPS : SCREEN_MAX_BPS;
+      // With little bandwidth, a screen keeps its sharpness (text) and a camera keeps its motion.
+      params.degradationPreference =
+        name === "screen" ? "maintain-resolution" : "balanced";
       await sender.setParameters(params).catch(() => {});
     }
     return mid;
@@ -284,8 +290,9 @@ export function createCallSession(
         ? null
         : ((sharers.find((peer) => peer.email === watching) ?? sharers[0])
             ?.session ?? null);
-    // Cameras are received only while they are on show: this tab is visible and no screen takes the stage.
-    const cams = document.visibilityState !== "hidden" && !chosen && !screen;
+    // Cameras are received while this tab is on show, with a screen on the stage too (people asked to see the
+    // faces while someone shares, 2026-11-24).
+    const cams = document.visibilityState !== "hidden";
     const plan = planTracks(peers, session, pulled.keys(), chosen, cams);
     if (plan.drop.length) {
       const mids = plan.drop.flatMap((key) => pulled.get(key) ?? []);
@@ -444,7 +451,7 @@ export function createCallSession(
           return teardown("mic");
         }
         try {
-          session = await api.join(roomId);
+          session = await api.join(roomId, thread());
           // ponytail: STUN only. A network that blocks UDP needs Cloudflare TURN credentials here.
           pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }],

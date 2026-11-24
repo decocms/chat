@@ -104,6 +104,7 @@
     captured.roomId,
     createCallApi(browser.fetcher),
     sendCommand,
+    () => get(owner.state)?.header.thread ?? "main",
   );
   const callView = call.state;
   $effect(() => call.setPeers($view?.header.room.call, $view?.header.room.me));

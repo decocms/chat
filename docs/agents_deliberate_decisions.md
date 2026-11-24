@@ -1770,3 +1770,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Remove `RECORDER_URL` from the chat's secrets (recording stops at once). Then delete the `chat-recorder` Worker and `recorder/`.
 - Status: open
 
+### 2026-11-24 · JonasJesus42/call-recording-safety · A recorded call says who spoke, and a failed recording shows
+
+- Agent: Claude Fable 5.2
+- Context: After the first calls in production, Jonas asked for each call to be recorded, with the thread's name, a transcript with names, a summary in the room, better picture quality, and the cameras on show while a screen is shared. He also asked for the failures that nobody would see.
+- Decision:
+  - A call is of the thread that the first person had open. The recording's title has the room and the thread, and the summary goes to that thread.
+  - Our own transcript: Whisper (Workers AI, in the recorder Worker) on parts of 5 minutes, with each piece given to the person whose "speaking" mark covered it the most. The marks come from the recorder's page, each 200 ms. Two people who speak at one time get one name.
+  - The summary uses `MODEL_FAST`, the model that the mention e-mails use. This is a new cost for each recorded call.
+  - A recorder that leaves a call that goes on is started again, 5 times at most.
+  - Quality: camera 360p at 24 frames and 500 kbps (it was 200 kbps, which gave 180p), screen 1080p and 2.5 Mbps, voice 32 kbps. Cameras are received while a screen is on show. Both cost more traffic.
+  - `CALL_RECORD_ROOMS` is `*` in production (Jonas: "gravar qualquer call"). Every room's calls go to the operator's Grain.
+  - A workflow deploys the recorder. It does nothing until a human makes the `RECORDER_DEPLOY_TOKEN` secret.
+- Other options: Grain's own transcript only (all voices are "Speaker 1"). The speech-to-text for each person's own track (exact names with two voices at one time, and much more code in the recorder). Parts sent to Grain during the call (nothing is lost when the recorder stops, and one call is many recordings).
+- Risk: medium. The parts ran together on a local machine with the real SFU, Workers AI and Grain. The deployed recorder with these changes was not tested with a real call.
+- Undo: Revert this commit and deploy the recorder again. To stop recording at once, remove `CALL_RECORD_ROOMS` from the chat's secrets.
+- Status: open
+

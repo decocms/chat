@@ -9,8 +9,14 @@ type Env = {
   RECORDER_SECRET: string;
   /** A Grain access token (the uploads go to that account). */
   GRAIN_API_TOKEN: string;
+  /** Workers AI: the speech-to-text of the call's audio (Whisper). */
+  AI: Ai;
 };
-type Job = { room: string; joinUrl: string };
+/** `attempt`: 0 at the start of a call, more when the chat asks again in the same call (a new container each time). */
+type Job = { room: string; joinUrl: string; attempt?: number; recorder?: string; title?: string };
+const WHISPER = "@cf/openai/whisper-large-v3-turbo";
+/** One part of the audio: 5 minutes of mono mp3 at 32 kbps is about 1.2 MB. */
+const AUDIO_MAX = 6_000_000;
 
 export class Recorder extends Container<Env> {
   defaultPort = 8080;
@@ -43,14 +49,32 @@ const same = (a: string, b: string) => {
   return diff === 0;
 };
 
+function base64(bytes: Uint8Array) {
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(text);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (request.method !== "POST" || url.pathname !== "/start") return new Response("not found", { status: 404 });
+    if (request.method !== "POST" || !["/start", "/transcribe"].includes(url.pathname)) return new Response("not found", { status: 404 });
     if (!env.RECORDER_SECRET || !same(request.headers.get("authorization") ?? "", `Bearer ${env.RECORDER_SECRET}`)) return new Response("forbidden", { status: 403 });
+    if (url.pathname === "/transcribe") {
+      // From the container: one part of the call's audio. The answer: its pieces of text, with their times.
+      const audio = new Uint8Array(await request.arrayBuffer());
+      if (!audio.byteLength || audio.byteLength > AUDIO_MAX) return new Response("audio empty or too large", { status: 413 });
+      const out = (await env.AI.run(WHISPER, { audio: base64(audio) })) as { transcription_info?: { language?: string }; segments?: { start?: number; end?: number; text?: string }[] };
+      return Response.json({
+        language: out.transcription_info?.language ?? "",
+        segments: (out.segments ?? []).map((piece) => ({ start: Number(piece.start) || 0, end: Number(piece.end) || 0, text: String(piece.text ?? "") })),
+      });
+    }
     const job = (await request.json().catch(() => null)) as Partial<Job> | null;
     if (!job || typeof job.room !== "string" || !/^[a-z0-9]{6,40}$/.test(job.room) || typeof job.joinUrl !== "string" || !/^https?:\/\//.test(job.joinUrl)) return new Response("bad request", { status: 400 });
-    const status = await env.RECORDER.get(env.RECORDER.idFromName(job.room)).record({ room: job.room, joinUrl: job.joinUrl });
-    return Response.json({ status }, { status: status === 202 || status === 409 ? 200 : 502 });
+    const attempt = Number.isInteger(job.attempt) ? Number(job.attempt) : 0;
+    // One container for each start: a recorder that still sends its file to Grain does not hold the next one.
+    const status = await env.RECORDER.get(env.RECORDER.idFromName(`${job.room}:${attempt}`)).record({ room: job.room, joinUrl: job.joinUrl, recorder: url.origin, ...(typeof job.title === "string" ? { title: job.title.slice(0, 200) } : {}) });
+    return Response.json({ status }, { status: status === 202 ? 200 : 502 });
   },
 } satisfies ExportedHandler<Env>;

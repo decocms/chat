@@ -148,8 +148,8 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     transcribe:(audio,query)=>transcribeSpeech(audio,query,input=>env.AI.run(WHISPER_MODEL,input)),
     callsOn: callsOn(env),
     allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
-    callJoin: async (roomId) => {
-      const { session, first } = await callJoin(env, roomId, email);
+    callJoin: async (roomId, thread) => {
+      const { session, first } = await callJoin(env, roomId, email, new URL(req0.url).origin, thread);
       // The first person in starts the call: the recorder joins it, after the response.
       if (first) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
       return { session };

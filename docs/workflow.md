@@ -102,14 +102,13 @@ The Worker `chat` (chat.decocms.com, in the deco Cloudflare account) deploys wit
 
 ## The call recorder
 
-The recorder (`recorder/`) is a Worker of its own with a container. Workers Builds does not deploy it.
+The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a container. Workers Builds does not deploy it.
 
-1. Make sure that Docker runs on your computer.
-2. Run `cd recorder && bun install && npx wrangler deploy`.
-3. The first time, set its secrets: `npx wrangler secret put RECORDER_SECRET` and `npx wrangler secret put GRAIN_API_TOKEN`.
-4. In the `chat` Worker, set `RECORDER_URL` (the recorder's address), `RECORDER_SECRET` (the same value) and `CALL_RECORD_ROOMS` (room ids with commas, or `*`).
-
-Without these secrets in `chat`, no call is recorded.
+- `.github/workflows/deploy-recorder.yml` deploys it when `recorder/` changes on `main`. It needs the `RECORDER_DEPLOY_TOKEN` repository secret: a Cloudflare API token that can edit Workers scripts and Containers. Without that secret the workflow does nothing.
+- To deploy from a computer, start Docker. Then run `cd recorder && bun install && npx wrangler deploy`.
+- Its secrets: `RECORDER_SECRET` and `GRAIN_API_TOKEN` (`npx wrangler secret put`, in `recorder/`).
+- In the `chat` Worker: `RECORDER_URL` (the recorder's address), `RECORDER_SECRET` (the same value) and `CALL_RECORD_ROOMS` (room ids with commas, or `*`). Without them, no call is recorded.
+- Deploy the recorder before the chat when the two change together. A recorder that is newer than the chat is safe.
 
 ## Roll back
 
