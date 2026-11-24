@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Epic, Room, Task, TaskStatus } from "../shared/room";
-import { epicStatus } from "../shared/epicStatus";
+import { epicStatus, isMarkDone } from "../shared/epicStatus";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import { RoomCommandSchema } from "../shared/commands";
 import { matchesSuggestion, suggestionIdentity } from "../shared/suggestions";
@@ -294,7 +294,7 @@ test("duplicate room listeners exclude dedicated Fire Haiku and all-room workers
   ).toBe(1);
   expect(agentRows(presence, agent.email).slice(0, 2)).toEqual([agent, agent]);
 });
-test("epicStatus: the chosen status first, then prod, the archive and the tasks", () => {
+test("epicStatus: one stored status, and done is the Done tab (Gimenes #4247)", () => {
   const task = (status: TaskStatus): Task => ({
     id: status,
     title: status,
@@ -308,32 +308,22 @@ test("epicStatus: the chosen status first, then prod, the archive and the tasks"
     ...over,
   });
   expect(epicStatus(epic())).toBe("todo");
-  expect(epicStatus(epic({ tasks: [task("todo")] }))).toBe("todo");
-  expect(epicStatus(epic({ tasks: [task("todo"), task("done")] }))).toBe(
-    "doing",
-  );
-  expect(epicStatus(epic({ tasks: [task("doing")] }))).toBe("doing");
-  expect(epicStatus(epic({ tasks: [task("doing"), task("review")] }))).toBe(
-    "review",
-  );
-  // Archived: the app gets only the open tasks of an archived epic.
-  expect(epicStatus(epic({ archived: true }))).toBe("done");
-  expect(epicStatus(epic({ archived: true, tasks: [task("todo")] }))).toBe(
-    "dismissed",
-  );
-  expect(epicStatus(epic({ prod: { stage: "deployed" } }))).toBe("done");
+  expect(epicStatus(epic({ status: "doing" }))).toBe("doing");
+  expect(epicStatus(epic({ status: "review" }))).toBe("review");
+  // The tasks and production do not decide it: a thread with every task done, or in production, stays open.
+  expect(epicStatus(epic({ tasks: [task("done")] }))).toBe("todo");
   expect(
-    epicStatus(epic({ archived: true, prod: { stage: "verified" } })),
-  ).toBe("done");
-  expect(epicStatus(epic({ prod: { stage: "other" } }))).toBe("todo");
-  expect(
-    epicStatus(
-      epic({ status: "review", archived: true, prod: { stage: "deployed" } }),
-    ),
+    epicStatus(epic({ status: "review", prod: { stage: "deployed" } })),
   ).toBe("review");
-  expect(epicStatus(epic({ status: null, tasks: [task("review")] }))).toBe(
-    "review",
-  );
+  // done is the archive, so the icon and the tab agree.
+  expect(epicStatus(epic({ archived: true }))).toBe("done");
+  expect(epicStatus(epic({ archived: true, status: "review" }))).toBe("done");
+  expect(epicStatus(epic({ status: "done" }))).toBe("done");
+  expect(epicStatus(epic({ status: "dismissed" }))).toBe("done");
+  expect(isMarkDone("Marcar como concluída")).toBe(true);
+  expect(isMarkDone(" mark as done. ")).toBe(true);
+  expect(isMarkDone("marcar como concluida")).toBe(true);
+  expect(isMarkDone("mark as done, and ship it")).toBe(false);
   // The status menu sends a typed room command.
   expect(
     RoomCommandSchema.safeParse({ t: "epic.status", id: "e", status: "done" })

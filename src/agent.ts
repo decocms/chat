@@ -945,7 +945,7 @@ const TOOLS = [
   {
     name: "update_thread",
     description:
-      'Rename an epic, set its owner (owner: a member\'s email, "" clears) and/or archive it (archived: true; mark_done: true also closes its open tasks, for when it\'s all delivered) or bring it back (archived: false). An epic whose tasks are all done archives itself (one an agent worked in also needs a done delivery saying what was tested in its thread). prod = its deploy stage after the work is done: "deployed" once it\'s shipped, "verified" once you opened it in production and checked it works (prod_note: what you checked, e.g. the URL and what you saw); "" clears it. The room shows the stage on the epic.',
+      'Rename an epic, set its owner (owner: a member\'s email, "" clears) and/or set its status. A thread is todo, doing, review or done; done is what the Done tab shows. All tasks done or your done delivery move it to review, never to done: set status done only when your human tells you to (archived: true is the same as status done; archived: false opens it again as doing). prod = its deploy stage after the work is done: "deployed" once it\'s shipped, "verified" once you opened it in production and checked it works (prod_note: what you checked, e.g. the URL and what you saw); "" clears it. The room shows the stage on the epic.',
     inputSchema: {
       type: "object",
       properties: {
@@ -958,9 +958,9 @@ const TOOLS = [
         prod_note: { type: "string" },
         status: {
           type: "string",
-          enum: ["todo", "doing", "review", "done", "dismissed"],
+          enum: ["todo", "doing", "review", "done"],
           description:
-            "the status the room shows on the epic. done archives it and closes its open tasks; dismissed archives it without closing them (dropped); todo/doing/review reopen it. In production is done (use prod for the deploy stage). Leave it out and the room works it out from the tasks",
+            "the thread's status. doing while you work, review when it waits on a person. done (only when your human says so) moves it to the Done tab and closes its open tasks; todo/doing/review open a done thread again. Production is not a status (use prod for the deploy stage)",
         },
         owner: {
           type: "string",

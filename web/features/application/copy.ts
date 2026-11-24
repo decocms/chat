@@ -505,6 +505,8 @@ const EN: Readonly<Record<string, string>> = {
   "Mencionar alguém": "Mention someone",
   "Criar votação": "Create poll",
   "Mensagem…": "Message…",
+  "Marcar como concluída": "Mark as done",
+  "{action} (Tab)": "{action} (Tab)",
   "Redimensionar documento": "Resize doc",
   Arquivos: "Files",
   Decisões: "Decisions",

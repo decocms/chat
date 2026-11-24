@@ -3484,7 +3484,7 @@ describe("stable sidebar integration", () => {
     );
     rendered.destroy();
   });
-  test("epic tree shows no deploy icon: an epic in production is Feito", () => {
+  test("epic tree shows no deploy icon, and production does not make an epic Feito (Gimenes #4247)", () => {
     const room = fixture();
     room.epics = [
       {
@@ -3506,7 +3506,7 @@ describe("stable sidebar integration", () => {
       row
         ?.querySelector("[data-epic-status-icon]")
         ?.getAttribute("data-epic-status-icon"),
-    ).toBe("done");
+    ).toBe("todo");
   });
   test("epic row: the status sits last and task progress is a bar, gray at 0 and green after", () => {
     const room = fixture();

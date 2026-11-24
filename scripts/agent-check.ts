@@ -186,14 +186,17 @@ check(rr?.messages?.some((x: { thread: string; text: string }) => x.thread === "
 check((await g.tool("post", { room_id: room, thread: ep.epic_id, text: "terminei o import" })).out?.ok, "the agent reports inside the epic");
 await g.tool("set_task_status", { room_id: room, task_id: ep.tasks[0].id, status: "done" });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
-check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived !== true, "an epic a Claude worked in doesn't close on its ticks alone (no proof yet)");
+check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.status === "review", "all tasks done moves the thread to review, not done (Gimenes #4247)");
 // A screenshot alone is not proof; the delivery card (what was tested) is.
 await g.tool("upload_file", { room_id: room, thread: ep.epic_id, filename: "prova.png", content_type: "image/png", base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
 check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived !== true, "a screenshot without a delivery doesn't close the epic");
 await g.tool("post", { room_id: room, thread: ep.epic_id, text: "entregue, testado", done: true });
 rr = (await g.tool("read_room", { room_id: room, all: true })).out;
-check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived === true, "with a delivery saying what was tested, the epic archives itself");
+check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.archived !== true, "a delivery does not mark the thread done: only a person does");
+await fetch(`${BASE}/api/books/${room}/post`, { method: "POST", headers: { "content-type": "application/json", cookie: `dev_as=${encodeURIComponent(gui)}` }, body: JSON.stringify({ text: "Mark as done", thread: ep.epic_id }) });
+rr = (await g.tool("read_room", { room_id: room, all: true })).out;
+check(rr?.epics?.find((e: { id: string }) => e.id === ep.epic_id)?.status === "done", "a person sending \"Mark as done\" in the thread marks it done (Gimenes #4249)");
 
 // upload_link: a one-time URL the agent PUTs a file to (bytes never go through the model), posted with its message.
 const ul = (await g.tool("upload_link", { room_id: room, filename: "antes.png", content_type: "image/png", message: "antes" })).out;
