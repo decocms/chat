@@ -609,7 +609,6 @@ const EN: Readonly<Record<string, string>> = {
   "{n} coisas esperando você aqui": "{n} things waiting on you here",
   arquivado: "archived",
   "{who} está trabalhando aqui": "{who} is working here",
-  "{who} está trabalhando": "{who} is working",
   "Recolher menu": "Collapse menu",
   "nova thread": "new thread",
   Outro: "Other",

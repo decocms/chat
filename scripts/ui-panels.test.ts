@@ -3759,6 +3759,8 @@ describe("stable sidebar integration", () => {
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
     expect(epic.querySelector("[data-epic-status-icon]")).toBeNull();
+    // An agent at work is the Fazendo status, not a ✻ mark (Gimenes #4368).
+    expect(epic.textContent).not.toContain("✻");
     h.view.update({
       ...h.props,
       vb: {
