@@ -52,6 +52,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 
 ## Entries
 
+### 2026-11-24 · fix/email-theme · The e-mails use the app's light theme
+
+- Agent: claude-opus-5-5
+- Context: Gimenes said that the digest e-mail has the wrong background color and fonts (#4457). All e-mails use one layout (`emailHtml` in `src/auth.ts`), which still had the old blue theme and a Caprasimo title. He did not give the new colors.
+- Decision: The layout and the inline colors of the digest, mention and invite e-mails take the app's light tokens from `web/styles/tailwind.css`: the page is `--vb-muted`, the card is white with `--vb-border`, the text is `--vb-foreground`, the secondary text is `--vb-muted-foreground`, links are `--vb-link`, and buttons are `--vb-primary` (near black) with white text, as in the app. The font is Inter (from Google Fonts) with system fallbacks, and the title is Inter 600. The e-mail stays light only (`color-scheme: light`).
+- Other options: Lime brand buttons (`--vb-brand`). A dark version for mail apps in dark mode.
+- Risk: low. Only the look of the e-mails changes. A mail app that blocks web fonts shows the system font.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-24 · feat/phone-message-actions · Hold a message on the phone to open its actions
 
 - Agent: claude-opus-5-5

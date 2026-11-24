@@ -75,7 +75,7 @@ async function digestMail(env: Env, to: string, lang: "pt" | "en", morning: bool
   const origin = publicOrigin(env);
   const link = (book: string, thread: string, msg?: number) => `${origin}/b/${book}${thread && thread !== "main" ? `?t=${thread}` : ""}${msg ? `#m${msg}` : ""}`;
   const row = (where: string, text: string, url: string) =>
-    `<li style="margin:0 0 10px"><span style="color:#6b7383;font-size:13px">${escapeHtml(where)}</span><br>${escapeHtml(text.slice(0, 240))} <a href="${url}" style="color:#1d5fc4">${t.open}</a></li>`;
+    `<li style="margin:0 0 10px"><span style="color:#676664;font-size:13px">${escapeHtml(where)}</span><br>${escapeHtml(text.slice(0, 240))} <a href="${url}" style="color:#216bf2">${t.open}</a></li>`;
   // A wait in the main thread is stored with the topic "sala principal" (src/book.ts): named in the reader's language.
   const topic = (w: Wait) => (w.thread === "main" && w.topic ? t.main : w.topic);
   const wl = waits.slice(0, 15).map((w) => row(`${w.room}${topic(w) ? ` › ${topic(w)}` : ""}`, w.text, link(w.book_id, w.thread, /^m\d/.test(w.ref) ? Number(w.ref.slice(1)) : undefined)));
@@ -85,7 +85,7 @@ async function digestMail(env: Env, to: string, lang: "pt" | "en", morning: bool
     t.title(morning),
     `${wl.length ? `<p style="margin:0 0 8px;font-weight:700">${t.waits}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${wl.join("")}</ul>` : ""}
 ${il.length ? `<p style="margin:0 0 8px;font-weight:700">${t.mentions}</p><ul style="margin:0 0 18px;padding-left:20px;line-height:1.5">${il.join("")}</ul>` : ""}
-<p style="font-size:12px;color:#8a93a3;margin:20px 0 0;padding-top:16px;border-top:1px solid #eef1f6">${t.why} <a href="${unsub}" style="color:#8a93a3">${t.off}</a></p>`,
+<p style="font-size:12px;color:#676664;margin:20px 0 0;padding-top:16px;border-top:1px solid #edecea">${t.why} <a href="${unsub}" style="color:#676664">${t.off}</a></p>`,
     origin,
   );
   const text = [
