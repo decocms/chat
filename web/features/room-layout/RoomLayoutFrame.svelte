@@ -44,6 +44,7 @@
   // Desktop: one frame (sidebar, chat and the open pane on one surface, hairlines
   // between them); with the pane open the top bar runs across chat and pane.
   const split = $derived(!$view.mobile && rightVisible && !props.overlayOpen);
+  const people = $derived($view.pane === "people");
   const paneClass = $derived(
     tabs
       ? // A tab, not a floor: it fills the space between the header and the bar.
@@ -54,6 +55,8 @@
         : [
             "col-start-3 row-start-2 row-end-6 mr-2 mb-2 rounded-br-surface border-l border-border",
             widthClass,
+            // A member list is a column of names: it never needs more than this, whatever width the pane was dragged to (Valls).
+            people && "max-w-[400px]!",
           ],
   );
   function handle(
@@ -329,7 +332,7 @@
       disabled={!$view.active || props.overlayOpen}
       aria-label={props.labels.documentWidth}
       data-room-width
-      class={!props.overlayOpen && !$view.mobile && rightVisible
+      class={!props.overlayOpen && !people && !$view.mobile && rightVisible
         ? "z-30 col-start-3 row-start-2 row-end-6 mb-2 -ml-1 h-auto w-2 cursor-col-resize touch-none appearance-none rounded-full border-0 bg-transparent bg-clip-content px-[3px] py-0 outline-none transition-colors duration-150 hover:bg-ring/50 focus-visible:bg-ring [&::-moz-range-thumb]:size-0 [&::-moz-range-thumb]:border-0 [&::-webkit-slider-thumb]:size-0 [&::-webkit-slider-thumb]:appearance-none"
         : "hidden"}
     />
