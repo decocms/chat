@@ -159,6 +159,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
+    callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
     humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
     roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),

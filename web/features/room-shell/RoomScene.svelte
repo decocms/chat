@@ -36,6 +36,7 @@
   import CallPanel from "../call/CallPanel.svelte";
   import { createCallApi } from "../call/callApi";
   import { createCallSession } from "../call/session";
+  import { callIntent } from "../call/ring";
   import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -104,14 +105,34 @@
   // Book.webSocketClose).
   const sendCommand: SendRoomCommand = (command) =>
     get(owner.state)?.decisions.send(command) ?? false;
+  const callApi = createCallApi(browser.fetcher);
   const call = createCallSession(
     captured.roomId,
-    createCallApi(browser.fetcher),
+    callApi,
     sendCommand,
     () => get(owner.state)?.header.thread ?? "main",
   );
   const callView = call.state;
-  $effect(() => call.setPeers($view?.header.room.call, $view?.header.room.me));
+  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room.
+  $effect(() =>
+    call.setPeers(
+      $view?.header.room.call,
+      $view?.header.room.me,
+      !$view?.header.room.book.dm,
+    ),
+  );
+  // A click on a call's button elsewhere (the ring's card, a call line in the chat) for this room: done here, where
+  // the room's call lives.
+  $effect(() => {
+    const intent = $callIntent,
+      ready = !!$view?.header.room;
+    if (!intent || !ready || intent.room !== captured.roomId) return;
+    untrack(() => {
+      callIntent.set(null);
+      if (intent.action === "join") call.join();
+      else void callApi.decline(captured.roomId).catch(() => {});
+    });
+  });
   const inCall = $derived($callView.phase !== "idle");
   // In the call, the stage is on show until a click elsewhere (a thread, a pane, a pin) closes it: the call goes on
   // (the voices keep playing) and the sidebar's call panel or the top bar's green phone open it again.

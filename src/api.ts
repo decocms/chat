@@ -123,6 +123,8 @@ export interface ApiServices {
   callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
   /** Hang up: this session leaves the room's call at once (the socket's call.leave can be lost on a reconnect). */
   callLeave(roomId: string, session: string): Promise<void>;
+  /** A DM's call rings me: I say no (the ring stops; the caller stays in the call). */
+  callDecline(roomId: string): Promise<void>;
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
@@ -558,6 +560,12 @@ export const roomApi = accountApi
     const svc = c.get("svc"), id = c.req.param("id");
     if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
     await svc.callLeave(id, c.req.valid("json").session);
+    return c.json(ok, 200);
+  })
+  .post("/api/books/:id/call/decline", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.callDecline(id);
     return c.json(ok, 200);
   })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{

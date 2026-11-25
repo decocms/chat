@@ -53,6 +53,9 @@ export const CallPeerSchema = z.object({
   muted: opt(bool),
 });
 export type CallPeer = z.infer<typeof CallPeerSchema>;
+/** A DM's call ringing the other person (`to`) until `until` (shared/call.ts RING_MS). */
+export const RingSchema = z.object({ from: str, to: str, until: num });
+export type Ring = z.infer<typeof RingSchema>;
 export const PinSchema = z.object({
   id: str,
   kind: str,
@@ -216,6 +219,8 @@ export const RoomSnapshotSchema = z.object({
   call: opt(z.array(CallPeerSchema)),
   /** The thread of the call that is on (its own thread, made when the call starts): the chat beside the stage. */
   callThread: opt(str),
+  /** A DM's call that rings someone now. */
+  ring: opt(RingSchema),
   /** This room's calls are recorded (CALL_RECORD_ROOMS): a call here without the recorder shows a warning. */
   callRecorded: opt(bool),
   names: opt(z.record(str, str)),

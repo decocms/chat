@@ -214,7 +214,12 @@ export function reduceRoom(
     case "online":
       return { ...s, online: event.online };
     case "call":
-      return { ...s, call: event.call, callThread: event.thread };
+      return {
+        ...s,
+        call: event.call,
+        callThread: event.thread,
+        ring: event.ring,
+      };
     default:
       return s;
   }

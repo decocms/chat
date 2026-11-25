@@ -25,3 +25,39 @@ export const roomHasThread = (
   thread === "main" ||
   (thread === CALL_THREAD && !room.book.dm) ||
   room.epics.some((epic) => epic.id === thread);
+
+// ---- ringing (a DM's call rings the other person) and the call's line in the chat ----
+/** How long a DM's call rings the other person, like a phone. */
+export const RING_MS = 30_000;
+/** The call's line in main (a message with tag "call", by who started it). Its text is what agents read; the app
+ *  draws it from what parseCallLine finds. "on": the call goes on. "ended": it had more than its starter. "missed":
+ *  a DM's call that nobody answered. */
+export type CallLine =
+  { state: "on" } | { state: "ended"; minutes: number } | { state: "missed" };
+export function callLineText(line: CallLine, en: boolean): string {
+  switch (line.state) {
+    case "on":
+      return en ? "📞 started a call." : "📞 iniciou uma call.";
+    case "ended":
+      return en
+        ? `📞 Call, ${line.minutes} min.`
+        : `📞 Call de ${line.minutes} min.`;
+    case "missed":
+      return en ? "📞 Missed call." : "📞 Call não atendida.";
+    default: {
+      const never: never = line;
+      return never;
+    }
+  }
+}
+export function parseCallLine(text: string): CallLine | null {
+  if (/^📞 (started a call|iniciou uma call)\.$/.test(text))
+    return { state: "on" };
+  if (/^📞 (Missed call|Call não atendida)\.$/.test(text))
+    return { state: "missed" };
+  const ended = /^📞 Call(?:,| de) (\d+) min\.$/.exec(text);
+  return ended ? { state: "ended", minutes: Number(ended[1]) } : null;
+}
+/** A call's minutes for its line: at least 1. */
+export const callMinutes = (from: number, to: number) =>
+  Math.max(1, Math.round((to - from) / 60_000));

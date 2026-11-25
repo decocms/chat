@@ -3,7 +3,7 @@ import { expect, mock, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
-import { CALL_THREAD, isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
+import { CALL_THREAD, RING_MS, callLineText, isRecorder, isRecorderOf, isRoomMember, parseCallLine, recorderEmail } from "../shared/call";
 import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
@@ -235,9 +235,15 @@ function callRoom(bookId = "abcdef") {
     getTags: () => ["ana@x.test"],
     blockConcurrencyWhile: (fn: () => unknown) => fn(),
   };
+  // What the Person DOs get (src/person.ts poke): who, and the notice.
+  const pokes: { to: string; t: string; book?: string; from?: string; until?: number }[] = [];
+  const PEOPLE = {
+    idFromName: (name: string) => name,
+    get: (to: string) => ({ fetch: async (_url: string, init: { body: string }) => void pokes.push({ to, ...(JSON.parse(init.body) as { t: string }) }) }),
+  };
   const book = new Book(
     ctx as unknown as ConstructorParameters<typeof Book>[0],
-    { DB: { prepare: statement, batch: async () => [] }, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
+    { DB: { prepare: statement, batch: async () => [] }, PEOPLE, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
   );
   book.set("book_id", bookId);
   book.wakeAt = async () => {};
@@ -253,7 +259,8 @@ function callRoom(bookId = "abcdef") {
     if (!reply) throw Error("no reply");
     return reply.error ? { ok: false as const, error: reply.error.message } : { ok: true as const };
   };
-  return { book, frames, epics, main, thread, send };
+  const lines = () => db.query(`SELECT id, author, text FROM messages WHERE tag = 'call' ORDER BY id`).all() as { id: number; author: string; text: string }[];
+  return { book, frames, epics, main, thread, send, pokes, lines };
 }
 
 test("one call chat per room, the same for every call, and the room says which while a call is on", () => {
@@ -261,9 +268,9 @@ test("one call chat per room, the same for every call, and the room says which w
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
   expect(r.book.liveCallThread()).toBe(CALL_THREAD);
   expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: CALL_THREAD });
-  // No thread, no line in main: the call chat is not a thread.
+  // No thread: the call chat is not a thread. Main has the call's line only.
   expect(r.epics()).toHaveLength(0);
-  expect(r.main()).toHaveLength(0);
+  expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
   r.book.callLeave("ana@x.test");
   expect(r.book.liveCallThread()).toBeUndefined();
   expect(r.frames.filter((f) => f.t === "call").at(-1)?.thread).toBeUndefined();
@@ -278,7 +285,7 @@ test("a message sent to the call chat lands in it, and the room's listings never
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
   expect(await r.send({ t: "msg", thread: CALL_THREAD, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
   expect(r.thread(CALL_THREAD).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
-  expect(r.main()).toHaveLength(0);
+  expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
   // The room's threads (what the app and the sidebar list) and an agent's read: no "call" among the epics; the
   // message is readable, named as the call chat.
   expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).not.toContain(CALL_THREAD);
@@ -463,4 +470,99 @@ test("hanging up while the SFU answers a step: the step's failure is no error of
   } finally {
     restore();
   }
+});
+
+// ---- ringing a DM, and the call's line in main ----
+const DM = "dm0123456789abcdef0123";
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+function dmCall() {
+  const r = callRoom(DM);
+  r.book.members = async () => ["ana@x.test", "bia@x.test"];
+  return r;
+}
+const rings = (r: ReturnType<typeof callRoom>) => r.pokes.filter((p) => p.t === "ring");
+
+test("the call's line text reads both ways, in both languages", () => {
+  for (const en of [false, true])
+    for (const line of [{ state: "on" as const }, { state: "missed" as const }, { state: "ended" as const, minutes: 12 }])
+      expect(parseCallLine(callLineText(line, en))).toEqual(line);
+  expect(parseCallLine("📞 qualquer coisa")).toBeNull();
+});
+
+test("a DM's call rings the other person only, and answering stops it; the line becomes the call's minutes", async () => {
+  const r = dmCall();
+  r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
+  await settle();
+  expect(rings(r)).toEqual([{ to: "bia@x.test", t: "ring", book: DM, from: "ana@x.test", until: expect.any(Number), name: "ana", avatar: null }]);
+  expect(r.book.ringState()).toMatchObject({ from: "ana@x.test", to: "bia@x.test" });
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ ring: { to: "bia@x.test" } });
+  // The start line, in main, by who called.
+  expect(r.lines()).toEqual([{ id: expect.any(Number), author: "ana@x.test", text: "📞 iniciou uma call." }]);
+  r.book.callJoin(DM, "bia@x.test", "s-bia", "https://x.test");
+  expect(r.book.ringState()).toBeUndefined();
+  expect(rings(r).at(-1)).toEqual({ to: "bia@x.test", t: "ring", book: DM });
+  r.book.callLeave("bia@x.test");
+  expect(r.lines()[0]!.text).toBe("📞 iniciou uma call.");
+  r.book.callLeave("ana@x.test");
+  // The same message, edited: no second line.
+  expect(r.lines()).toEqual([{ id: expect.any(Number), author: "ana@x.test", text: "📞 Call de 1 min." }]);
+  expect(r.frames.filter((f) => f.t === "msgEdit").at(-1)).toMatchObject({ text: "📞 Call de 1 min." });
+});
+
+test("declining stops the ring; the caller hanging up makes it a missed call", async () => {
+  const r = dmCall();
+  r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
+  await settle();
+  // Only the person rung can decline.
+  r.book.callDecline(DM, "ana@x.test");
+  expect(r.book.ringState()).toBeDefined();
+  r.book.callDecline(DM, "bia@x.test");
+  expect(r.book.ringState()).toBeUndefined();
+  expect(rings(r).at(-1)).toEqual({ to: "bia@x.test", t: "ring", book: DM });
+  expect(r.frames.filter((f) => f.t === "call").at(-1)?.ring).toBeUndefined();
+  // The caller is still in the call; hanging up: missed.
+  expect(r.book.callPeers().map((p) => p.email)).toEqual(["ana@x.test"]);
+  r.book.callLeave("ana@x.test", "s-ana");
+  expect(r.lines().map((l) => l.text)).toEqual(["📞 Call não atendida."]);
+});
+
+test("the caller hanging up while it rings stops the ring, and the call is missed", async () => {
+  const r = dmCall();
+  r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
+  await settle();
+  r.book.callLeave("ana@x.test");
+  expect(r.book.ringState()).toBeUndefined();
+  expect(rings(r).map((p) => p.from)).toEqual(["ana@x.test", undefined]);
+  expect(r.lines().map((l) => l.text)).toEqual(["📞 Call não atendida."]);
+});
+
+test("the ring stops by itself when its time runs out", async () => {
+  const r = dmCall();
+  r.book.callJoin(DM, "ana@x.test", "s-ana", "https://x.test");
+  await settle();
+  const real = Date.now;
+  try {
+    Date.now = () => real() + RING_MS + 1;
+    expect(r.book.ringState()).toBeUndefined();
+    r.book.ringTimeout();
+  } finally {
+    Date.now = real;
+  }
+  expect(rings(r).at(-1)).toEqual({ to: "bia@x.test", t: "ring", book: DM });
+  expect(r.frames.filter((f) => f.t === "call").at(-1)?.ring).toBeUndefined();
+  // Ran out once: nothing more to stop.
+  r.book.ringTimeout();
+  expect(rings(r)).toHaveLength(2);
+});
+
+test("a room's call rings nobody, and its line says the call's minutes when it ends", async () => {
+  const r = callRoom();
+  r.book.members = async () => ["ana@x.test", "bia@x.test", "caio@x.test"];
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  await settle();
+  expect(rings(r)).toHaveLength(0);
+  expect(r.book.ringState()).toBeUndefined();
+  expect(r.lines()).toEqual([{ id: expect.any(Number), author: "ana@x.test", text: "📞 iniciou uma call." }]);
+  r.book.callLeave("ana@x.test");
+  expect(r.lines().map((l) => l.text)).toEqual(["📞 Call de 1 min."]);
 });

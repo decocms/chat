@@ -31,6 +31,7 @@
   import { roomLabel } from "../home/model";
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
+  import IncomingCall from "../call/IncomingCall.svelte";
   let {
     services,
     roomSnippet,
@@ -488,5 +489,11 @@
           {/snippet}
         </Snapshot>{/key}{/if}
   {/if}
+  <IncomingCall
+    current={$room.roomId ?? null}
+    navigate={(path) => services.actions.navigate(path)}
+    chime={() => services.pwa.alert()}
+    t={services.t}
+  />
   <DeviceLockScreen owner={services.device} lang={services.language} />
 </div>
