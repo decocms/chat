@@ -254,8 +254,8 @@ app.post("/api/calls/recorded", async (c) => {
   if (!secret || !safeEqual(c.req.header("authorization") ?? "", `Bearer ${secret}`)) return c.text("forbidden", 403);
   const body = RecordedBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.text("bad request", 400);
-  await callRecorded(c.env, body.data);
-  return c.text("ok");
+  // The people of the call: the recorder shares the recording in Grain with them.
+  return c.json({ emails: await callRecorded(c.env, body.data) });
 });
 
 // Page views are counted server-side (no client script, no cookie), off the response path.
@@ -588,7 +588,8 @@ app.get("/ws/:id", async (c) => {
   if (!(await isMember(c.env.DB, id, c.get("email"))) && !(await openDm(c.env, id, c.get("email")))) return c.json({ error: "forbidden" }, 403);
   // When you last opened the room: the phone home lists rooms by it.
   // When you last opened the room (the phone home's order) and what you've read: your cached /api/me is stale now.
-  c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
+  // The call's own socket (Book.isCallSocket) is not the person opening the room.
+  if (c.req.query("call") !== "1") c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE members SET opened_at = ? WHERE book_id = ? AND email = ?`).bind(Date.now(), id, c.get("email")).run().then(() => poke(c.env, [c.get("email")], { t: "me" })));
   // t = the thread the app opens on: only it comes with its 60 newest messages and its doc (Book.roomWindow).
   const req = new Request(bookSocketUrl(id, (name) => c.req.query(name)), c.req.raw);
   req.headers.set("x-email", c.get("email"));

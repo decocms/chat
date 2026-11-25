@@ -8,6 +8,10 @@
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import ContextMenu from "../../lib/studio/ContextMenu.svelte";
+  import ContextMenuContent from "../../lib/studio/ContextMenuContent.svelte";
+  import ContextMenuItem from "../../lib/studio/ContextMenuItem.svelte";
+  import { ContextMenu as ContextMenuPrimitive } from "bits-ui";
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
@@ -18,7 +22,7 @@
   import CameraDialog from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
   import { denoiseOn, type CallSession } from "./session";
-  import { callColors, callGrid } from "./layout";
+  import { callColors, callGrid, FITTED_ONE } from "./layout";
   import { cn } from "../../lib/studio/utils";
   /** How long a recorded room's call can be without its recorder before the warning shows. */
   const RECORDER_GRACE_MS = 45_000;
@@ -35,6 +39,7 @@
     fill = false,
     chatHidden,
     onchat,
+    onclose,
     staged = true,
     cameraOpen = $bindable(false),
     t,
@@ -52,6 +57,8 @@
     /** Desktop: is the chat column beside the stage hidden? Missing = there is no column to hide (phones). */
     chatHidden?: boolean;
     onchat?(): void;
+    /** Desktop: closes the stage, back to the room's chat; the call goes on. */
+    onclose?(): void;
     /** In the call with the stage closed (the person reads the room): only the toasts and the camera's dialog. */
     staged?: boolean;
     /** The camera's dialog is open (the sidebar's call panel opens it too). */
@@ -124,8 +131,29 @@
     return () => clearTimeout(timer);
   });
   // A person alone in a call is not recorded, and gets no warning.
+  // A DM's call is recorded only when both say yes (Book.callConsent): the stage asks, and says who is waited for.
+  const consent = $derived(
+    room.book.dm && room.callRecorded
+      ? (room.consent ?? { yes: [], no: [] })
+      : null,
+  );
+  const ask = $derived(
+    !!consent &&
+      !recording &&
+      !consent.no.length &&
+      !consent.yes.includes(room.me),
+  );
+  const consented = $derived(
+    !consent ||
+      (!consent.no.length &&
+        peers.every((peer) => consent.yes.includes(peer.email))),
+  );
   const unrecorded = $derived(
-    !!room.callRecorded && !recording && waited && peers.length > 1,
+    !!room.callRecorded &&
+      !recording &&
+      waited &&
+      peers.length > 1 &&
+      consented,
   );
   // The person I put on the stage (a click on a tile). Gone from the call: the grid again.
   let pinned = $state("");
@@ -185,10 +213,44 @@
 <svelte:document {onfullscreenchange} />
 <!-- A person in the call: the camera, or the face on the person's color. The green ring: speaking now. A click
      puts that person on the stage (and takes them off); with a screen on the stage, it picks whose screen. -->
+<!-- A right-click on another person's tile: "Silenciar pra mim" (only this tab stops playing their voice), in the
+     stage's dark colors. -->
 {#snippet tile(
   peer: { email: string; muted?: boolean; tracks?: string[] },
   size: "grid" | "big" | "small",
+)}{#if peer.email === room.me || $view.phase !== "in"}{@render tileButton(
+      peer,
+      size,
+      {},
+    )}{:else}{@const silenced = $view.silenced.includes(peer.email)}<ContextMenu
+    >
+      <ContextMenuPrimitive.Trigger>
+        {#snippet child({ props })}{@render tileButton(
+            peer,
+            size,
+            props,
+          )}{/snippet}
+      </ContextMenuPrimitive.Trigger>
+      <ContextMenuContent
+        data-call-tile-menu
+        class="dark w-52 border-call-button bg-call-stage font-sans text-call-foreground"
+      >
+        <ContextMenuItem
+          data-call-silence
+          class="text-call-foreground focus:bg-call-button focus:text-call-foreground [&_svg:not([class*='text-'])]:text-call-muted-foreground"
+          onSelect={() => call.toggleSilence(peer.email)}
+          ><Icon icon={silenced ? "volume-max" : "volume-x"} />{silenced
+            ? t("Ouvir de novo")
+            : t("Silenciar pra mim")}</ContextMenuItem
+        >
+      </ContextMenuContent>
+    </ContextMenu>{/if}{/snippet}
+{#snippet tileButton(
+  peer: { email: string; muted?: boolean; tracks?: string[] },
+  size: "grid" | "big" | "small",
+  menu: Record<string, unknown>,
 )}{@const cam = camOf(peer.email)}<button
+    {...menu}
     type="button"
     data-call-tile
     data-speaking={speaking(peer.email) || undefined}
@@ -199,10 +261,11 @@
     class={[
       "relative flex min-h-0 min-w-0 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-0 p-0 text-call-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
       colors[peer.email] ?? "bg-call-1",
+      // Every tile is 16:9 (in a box that is a size container: the grid, the stage of one person).
+      "aspect-video",
       size === "grid" && grid.width,
-      size === "grid" && grid.height,
-      size === "big" && "size-full",
-      size === "small" && "aspect-video h-20 md:h-24",
+      size === "big" && FITTED_ONE,
+      size === "small" && "h-20 md:h-24",
     ]}
     onclick={() => {
       if (!shown) pinned = pinned === peer.email ? "" : peer.email;
@@ -245,6 +308,12 @@
           class="flex shrink-0 text-destructive"
           ><Icon icon="microphone-off-01" size={12} /><span class="sr-only"
             >{t("Microfone desligado")}</span
+          ></span
+        >{/if}{#if $view.silenced.includes(peer.email)}<span
+          data-call-silenced
+          class="flex shrink-0 text-call-muted-foreground"
+          ><Icon icon="volume-x" size={12} /><span class="sr-only"
+            >{t("Silenciado pra você")}</span
           ></span
         >{/if}{#if peer.tracks?.includes("screen")}<Icon
           icon="monitor-01"
@@ -293,7 +362,34 @@
             <TooltipContent side="bottom"
               >{t("Gravando: esta call vai para o Grain")}</TooltipContent
             >
-          </Tooltip>{:else if unrecorded}<span
+          </Tooltip>{:else if ask}<span
+            data-call-consent
+            role="status"
+            class="flex shrink-0 items-center gap-1.5 font-medium text-call-foreground"
+            >{t(
+              "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.",
+            )}<Button
+              size="sm"
+              variant="secondary"
+              data-call-consent-yes
+              onclick={() => send({ t: "call.consent", yes: true })}
+              >{t("Gravar")}</Button
+            ><Button
+              size="sm"
+              variant="outline"
+              data-call-consent-no
+              onclick={() => send({ t: "call.consent", yes: false })}
+              >{t("Não gravar")}</Button
+            ></span
+          >{:else if consent && !recording && consent.no.length}<span
+            data-call-consent-declined
+            class="shrink-0 rounded-full bg-call-chip px-2 py-1 font-medium text-call-foreground"
+            >{t("Esta call não vai ser gravada")}</span
+          >{:else if consent && !recording && !consented}<span
+            data-call-consent-waiting
+            class="shrink-0 rounded-full bg-call-chip px-2 py-1 font-medium text-call-foreground"
+            >{t("Gravação: esperando a outra pessoa aceitar")}</span
+          >{:else if unrecorded}<span
             data-call-unrecorded
             role="alert"
             class="flex shrink-0 items-center gap-1.5 rounded-full bg-warning px-2 py-1 font-medium text-warning-foreground"
@@ -316,6 +412,16 @@
               icon={full ? "minimize-01" : "expand-01"}
               size={16}
             /></IconButton
+          >{/if}
+        {#if onclose && !full}<IconButton
+            data-call-close
+            label={t("Voltar pro chat (a call continua)")}
+            tooltipSide="bottom"
+            class={cn(
+              !canFull && "ml-auto",
+              "size-8 rounded-full text-call-muted-foreground hover:bg-call-button hover:text-call-foreground",
+            )}
+            onclick={() => onclose?.()}><Icon icon="x" size={16} /></IconButton
           >{/if}
       </div>
       <div
@@ -353,7 +459,9 @@
                 "small",
               )}{/each}
           </div>{:else if pinnedPeer}<!-- One person on the stage: the others in a row under it. -->
-          <div class="flex min-h-0 flex-1">
+          <div
+            class="flex min-h-0 flex-1 items-center justify-center [container-type:size]"
+          >
             {@render tile(pinnedPeer, "big")}
           </div>
           {#if peers.length > 1}<div
@@ -369,8 +477,10 @@
             bind:clientWidth={gridWidth}
             bind:clientHeight={gridHeight}
             class={[
-              "flex min-h-0 flex-1 flex-wrap justify-center gap-2",
-              grid.scroll ? "content-start overflow-y-auto" : "content-center",
+              "flex min-h-0 flex-1 flex-wrap justify-center gap-2 [container-type:size]",
+              grid.scroll
+                ? "content-start overflow-y-auto"
+                : "content-center items-center",
             ]}
           >
             {#each peers as peer (peer.email)}{@render tile(

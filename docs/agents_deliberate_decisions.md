@@ -1971,3 +1971,221 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. RNNoise can cut a quiet voice. Each person can turn it off. It uses one more AudioContext and some CPU on each device in a call.
 - Undo: Revert this commit. The `vb-call-denoise` key in `localStorage` stays and is not read.
 - Status: open
+
+### 2026-11-25 · JonasJesus42/call-nav-blur · The blur uses the multiclass model and blurs only the background
+
+- Agent: Claude Opus 5.5
+- Context: In the call of Gimenes and Leandro the blur was "meio bugado". Jonas: the model does not find the person well, and the type of blur is different from Meet.
+- Decision:
+  - Use MediaPipe's `selfie_multiclass_256x256` model in place of `selfie_segmenter`. On a test portrait the old model kept part of the flag behind the shoulder as the person; the new one does not.
+  - Blur only the background: the frame with the person cut out, at a quarter of the size, drawn three times so its edge is opaque. The person's colors do not make a halo.
+  - A firm edge (a short ramp between 0.3 and 0.7 of the model's confidence), mixed with the mask of the frame before.
+  - Stronger levels: light 10 px, strong 32 px (was 6 and 18).
+- Measure (`scripts/call-blur-test.ts`, with the GPU of a MacBook): 18 frames a second with the old model, 15 with the new one.
+- Other options: Keep the old model with the new drawing (faster, but it does not fix the cut). A WebGL pipeline with a joint bilateral filter, as Meet has (much more code).
+- Risk: medium. The model is 16 MB (was 250 KB): the first blur takes longer to start, then the browser keeps it in its cache. On a slow computer or phone the frame rate can go down.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · feat/dm-same-domain · Colleagues by company email domain in "Nova mensagem"
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that people with the same company email find each other when they start a DM, with no change to the UI (Gimenes #5006, after the corporate rooms mockup). The details below were not specified.
+- Decision:
+  - A company domain is the domain of the email, except a list of free providers (gmail.com, hotmail.com, outlook.com, icloud.com, uol.com.br and others, `shared/dm.ts`).
+  - A colleague is a person with an account (a `users` row) on your company domain. The picker shows up to 200 of them after the people from your rooms, with "pelo seu e-mail @domínio".
+  - You can DM a colleague without a message request (`canDm`), the same as a person from your rooms.
+  - Nothing changes for rooms. A colleague does not see your rooms.
+- Other options: Let a company turn this on (a list of domains). Show colleagues only after you type. Keep the message request for colleagues.
+- Risk: medium. On a shared domain that is not in the list (a university, an ISP), strangers see each other's email, name and picture and can DM without a request.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/dm-record-consent · How a DM asks for the recording
+
+- Agent: Claude Opus 5.5
+- Context: Jonas: "DM tem que ter o aviso e só grava se aceitar". A room's call stays recorded always, with the notice.
+- Decision:
+  - Each new DM call asks both people on the stage ("Gravar esta call no Grain?", Gravar / Não gravar). The recorder starts only after both said yes.
+  - One "Não gravar" ends the question for that call: a later yes does not record it. The next call asks again.
+  - The answer is stored in the Book's meta for the current call only (`call_consent`), and it counts from a stage that shows before the room has the person in the call.
+- Other options: Only the person who starts the call asks, and the other sees a notice. A setting per DM that stays between calls. Never record a DM.
+- Risk: low. A room's call does not change. A DM call where nobody answers is not recorded.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/grain-share-participants · A recording is shared with the people of the call
+
+- Agent: Claude Opus 5.5
+- Context: The recordings that the recorder sends to Grain stay in the account of the token (deco@deco.cx), with `workspace_shared` off: they are not in the teammates' meeting lists. Jonas chose to share each recording with the people who were in the call. He will look for a Grain setting that shares every recording with the workspace.
+- Decision:
+  - The chat keeps the emails of everyone who joined the call (`call_people`). `POST /api/calls/recorded` answers them.
+  - The recorder matches them with the Grain users (`POST /users`, by email) and shares the recording with each match (`PUT /recordings/:id/users`).
+  - A person without a Grain account with the same email is skipped. A failure to share leaves the recording where it was.
+- Other options: Share with the whole workspace (the Grain API has no field for `workspace_shared`). A Grain team for the recordings (the workspace has no teams).
+- Risk: low. It adds readers to a recording; it removes nothing.
+- Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
+- Status: open
+
+
+### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
+
+- Agent: Claude Opus 5.5
+- Context: Jonas turned on every Grain setting to share recordings with the workspace, and the calls still did not show there. Those settings apply to Grain's bot and desktop recordings, not to uploads. The API reads `workspace_shared` and cannot write it. Jonas: "bora fazer o que tiver no nosso alcance para aparecer no workspace".
+- Decision: The recorder puts each recording in the playlist "Calls do deco.chat", with `share_state` "workspace". It finds the playlist by title, and makes it the first time. No new variable: the title is the key.
+- Other options: A Grain team with everyone, and each recording shared with that team (a team to keep up to date). A `GRAIN_PLAYLIST_ID` variable (a Cloudflare change for each environment).
+- Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
+- Undo: Revert this commit. The playlist stays in Grain.
+- Status: open
+
+
+### 2026-11-25 · fix/answer-opens-call · The call keeps a socket of its own to its room
+
+- Agent: Claude Opus 5.5
+- Context: Valls asked for the call to follow the person across the app (another room, a DM, Home) and end only with a hang-up. The server took a person out of the call when their last socket to the room closed, and the room's socket closes when its view does.
+- Decision: While in a call, the app keeps a second, light socket to the call's room (`/ws/:id?call=1`, tag `call`). The Book sends it only `{ t: "call" }` and takes only `call.*` commands from it, and it does not count as "online". The server keeps the rule "no socket left = out of the call", now with the call's socket counted. The call session moved from the room's view to an app-level hub (`web/features/call/hub.ts`).
+- Other options: Keep the whole room's socket open (the full room state and every message on the wire for a room nobody looks at). Drop the socket rule and rely on an SFU or HTTP heartbeat (a dead tab stays in the call until a timeout, and the call still needs the room's word on who is in it).
+- Risk: medium. One more socket per person in a call. A stale view of the room no longer feeds the live call: only the call's socket does.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · viktor/thread-tabs-mine · Thread tabs Mine, Open and Done
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked to change the sidebar's tabs "Threads abertas | Feitas" to "Mine / Open / Done", with screens of all states. He did not say what Mine contains for sub-threads, which tab opens first, what an empty tab shows, or how the tab is kept.
+- Decision:
+  - Mine is the Open list filtered to the threads whose `owner` is you (`mineEpics`, case-insensitive; the server stores owners in lower case). It has the same order as Open (pinned first, then the newest activity), so it follows any change to the order of Open.
+  - The list stays flat, as Open and Done already are: a sub-thread that you own is a plain row. Its parent does not show as context.
+  - Only Open lets you drag or move a row (Alt+Arrow). Mine and Done do not, because a move in a filtered list changes the order of rows that you cannot see. Mine shows the pin icon, because pinned rows are at its top. "Ver mais" works in all tabs.
+  - The labels are the English words "Mine", "Open", "Done" in both languages, as Viktor wrote them. The i18n check needs a Portuguese key, so the keys are the same English words.
+  - All tabs are always enabled. Done is no longer disabled when it is empty. Each empty tab shows the existing `EmptyState` (icon, title, one line), also Open in a room without threads (before, the list was blank).
+  - The tab is kept per room on the device (`localStorage` key `vb.threads.<room>`). Before, the Done flag was kept only in memory for the open room, so there is no old stored value to read. A missing or unknown value opens Open, the tab that showed first before.
+  - The loading skeleton draws the three tabs, with the stored tab selected.
+  - No `track()` event: the browser app has no event path (the same as the earlier entries), and a tab switch makes no server call.
+- Other options: Mine as a tree with the parent row as context (the list was made flat before). Mine as the first tab that opens (an empty Mine in most rooms). Mine also with the threads where you own a task (Viktor said owner). Disable an empty tab (an empty state says why it is empty). A new API route for a browser `track()` event (a server change for one tab).
+- Risk: low. Only the sidebar's tabs change.
+- Undo: Revert this commit. The stored `vb.threads.*` values are then not read.
+- Status: open
+
+### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
+- Agent: claude-opus-5-5
+- Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
+- Decision:
+  - Each message in a copy gives only the part of its text that is selected. The full text (the Markdown source) is used only when the selection takes in all of the message's text.
+  - A selection in one message's text, also one that ends past the text, copies only the selected text, without the name and the time. The `[time, date] name:` line stays when the selection takes in two or more messages, or the name line or avatar of one message.
+  - A message that the selection touches only outside its text is left out.
+  - A copy in a field (the edit box) is the browser's copy.
+  - This changes the line "A message that the selection only touches gives its full text" of the 2026-11-23 entry.
+- Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
+- Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
+- Undo: Revert this commit.
+
+### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked that a room you come back to opens the thread you left, and that the sidebar lists your last 3 opened threads first. He did not say what happens when you open a thread that is already among the 3, where the pinned threads go, which kinds of navigation restore the thread, or where the visits are kept.
+- Decision:
+  - When you open a thread that is already among the 3 recent ones, the list does not change order. The row under the cursor does not move. Only a thread outside the 3 goes to the top and pushes out the oldest.
+  - The pinned threads stay above the recent ones. Their order is shared by the room and set by drag.
+  - The thread is restored only when a room opens without a target (a `RoomTarget` with only `roomId`: the rail, the home, search). A link to a thread, a message, a file or a pane goes where it says. A click on the room that is already open goes to main.
+  - The visits are kept in device storage (`localStorage`, key `vb.visits.<account>`), one entry per room. They are not synced to other devices. Without storage they last until the tab closes.
+- Other options: Move a thread to the top each time it opens (the rows jump under the cursor). Put the recent threads above the pinned ones. Restore the thread on each navigation to the room, also from links. Keep the visits on the server, so they follow you to other devices (a new write on each thread change, and more data per person).
+- Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
+- Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
+- Status: open
+
+### 2026-11-25 · feat/composer-markdown-shortcuts · Shortcuts write marks, and person messages show them
+
+- Agent: Claude Opus 5.5
+- Context: Pedro asked for shortcuts that put Markdown marks on the selected text, and the message must show the result (bold after "command + *"). A person's message was plain text: only agent messages rendered Markdown.
+- Decision:
+  - ⌘B / Ctrl+B is bold (`**`), ⌘I italic (`_`), ⌘E code (`` ` ``), ⌘⇧X strikethrough (`~~`), as in Slack, Discord and Notion. A second press removes the marks. On a Mac only ⌘ counts, because Ctrl+B and Ctrl+E move the caret. No link shortcut: ⌘K opens the search.
+  - The edit goes through `document.execCommand("insertText")`, so ⌘Z undoes it. This API is deprecated, but it is the only one that keeps the undo history of a textarea. A fallback uses `setRangeText`.
+  - Pedro found the bold too thin. `strong` is now `font-bold` (600 in this theme), not `font-semibold` (500). This also changes the bold in agent messages, so the two stay the same.
+  - The `human` mode renders only these four marks, on one line. `_` and `*` count only between words, so `snake_case` and `2*3*4` stay text. Headings, lists and tables stay text, so "1. Preview" does not become a list.
+  - Pedro then selected four more: ⌘U underline, a URL pasted over selected text makes `[text](url)`, ⌘⇧E code block and ⌘⇧9 quote. Underline is `__x__`, as in Discord: Markdown has no underline. In agent messages (full Markdown), `__x__` stays bold. An underline has the text's color, because a link is blue with no underline. ⌘⇧9 uses the physical key (`Digit9`), because ⇧9 writes "(" on most layouts.
+  - Pedro asked for ⌘⇧K: a selected URL becomes `[name](url)`. The name comes from the URL only (GitHub "org/repo #42", else the last word-like path part and the host, else the host). The app does not open the page to read its title: that is a server call to a third party (rule 1), and the browser cannot read another site (CORS). In a field, ⌘⇧K stops the event, because the ⌘K search does not look at ⇧.
+  - The `message` event gets `marks: true` when the text has a mark or a code block (`shared/inlineMarks.ts`), so we can see if people use them.
+- Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
+- Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
+- Undo: Revert this commit.
+
+### 2026-11-25 · feat/lite-socket · How the light socket gets the room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved "socket leve": the room's `state` goes over HTTP (`GET /api/books/:id/room`), and the socket sends `hello`. He did not say what happens around the edges.
+- Decision:
+  - The HTTP read is a new method (`room`) on the existing root-room API (`createMessagesApi`), not a new API object. Thus `browser.ts` and the services need no new option.
+  - The route does not do the side effects of a room open (mark read, `online`, the epic index, the classify alarm). The socket still does them, because it always opens first.
+  - When the HTTP read fails, that room open uses a socket without `lite` until you open the room again. It does not try `lite` again on each reconnect. The events in the queue are dropped, because the `state` of the new socket has them.
+  - When a second `hello` comes before the first answer (a reconnect), the first answer is dropped and only the new read applies.
+  - `hello` counts as "let in" in `web/app/roomConnection.ts`: a drop after it reconnects, as after a `state`.
+  - `room_state.bytes` is the JSON length before compression (the Worker cannot see the compressed size). The route serializes the state one more time to count it.
+  - The product report (`src/reports.ts`) leaves the `hello` frames out of the average of `ws_state`, and adds one line for `room_state`.
+- Other options: A separate `RoomApi`. Try `lite` again on each reconnect. Count bytes in the Book. Leave the report as it was (its average then falls to the size of `hello`).
+- Risk: low. A socket without `lite` works as before, and each failure goes back to it.
+- Undo: Revert this commit. Old apps and the CLI never send `lite`.
+- Status: open
+
+### 2026-11-25 · fix/reaction-row-gap · The reaction row keeps a gap under a thread card; 🙂 only on hover
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5477) and Valls (#5478): the reactions sat glued to a thread card, and the 🙂 (more emoji) button stayed visible whenever a message had a reaction, at the end of the hidden quick reactions.
+- Decision: Right after a thread card the row gets `mt-1.5` instead of pulling up 4px. The 🙂 button is hover-only like the quick reactions, also with chips, and is hidden on touch screens, which react from the long press.
+- Other options: Show 🙂 with chips only on phones (no hover there); the long press already offers every emoji.
+- Risk: low. A mouse user reaches more emoji by hovering the message, as with a message without chips.
+- Undo: Revert this commit.
+
+### 2026-11-25 · feat/tray-app · Menu bar app release: runners, pins and tools
+
+- Agent: claude-opus-5-5
+- Context: Gimenes approved a release workflow for the menu bar app (`tray/`) on macos-14, macos-13, windows-latest and ubuntu-22.04, with a herdr SHA-256 in the workflow. GitHub retired macos-13 and macos-14 (November 2026).
+- Decision:
+  - The workflow runs on `macos-15` (arm64) and `macos-15-intel` (x64). Windows and Linux are as requested.
+  - The herdr version and the SHA-256 of each file are in `scripts/tray-bins.ts`, not in the YAML. The workflow and a local build run the same script, so there is one pin.
+  - The workflow runs the Tauri CLI with `bunx @tauri-apps/cli@2.12.6`. It is not a dev dependency, because only the release and a local bundle need it.
+  - Windows ships herdr: herdr 0.9.5 has a Windows build (`herdr-windows-x86_64.zip`). Its `conpty/` folder and its notices go into the bundle (`tray/tauri.windows.conf.json`).
+  - Release files have fixed names (`deco.chat-<os>-<arch>.<ext>`) and a `SHA256SUMS.txt`. The release notes are in Portuguese and English.
+  - The `.app` also gets the Tauri ad-hoc signature (`signingIdentity: "-"`), so the `.dmg` contains a signed app. `tray/Info.plist` sets `LSUIElement` (no Dock icon).
+- Other options: The runners in the request (they do not start). Pins in the YAML (a second copy for local builds). `@tauri-apps/cli` in `package.json` (each `bun install` gets it). Windows without herdr (herdr exists for Windows).
+- Risk: low. Nobody ran the workflow yet.
+- Undo: Change the matrix, or move the pins into the YAML.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · setup.sh installs the app, and opens it instead of herdr
+
+- Agent: claude-opus-5-5
+- Context: Gimenes asked for `public/setup.sh` to install the app from the newest `tray-v*` release, with a LaunchAgent on macOS and a systemd user service on Linux. He did not say how to find the release, what to do before the first release, or what the script opens at the end.
+- Decision:
+  - The script finds the newest `tray-v*` tag with the GitHub API (no token). If there is no release, or no file for the CPU, it prints "skipped" and continues. `VIBEBOOK_NO_TRAY=1` skips the step.
+  - It is step 6/6, after the login, so the app starts signed in.
+  - On macOS, before it replaces the app, it stops the LaunchAgent and the old app, its core and its runner (`pkill -f …/Contents/MacOS/vibebook`). It does not stop herdr, because the Claudes run in it.
+  - On Linux, the service has `KillMode=process`, so a restart does not stop herdr. Without FUSE 2 it sets `APPIMAGE_EXTRACT_AND_RUN=1`. The tray test is a `org.kde.StatusNotifierWatcher` name on the user D-Bus and a display. The service without a tray runs the CLI from step 1 (`vibebook watch`).
+  - When the app (or the service) is installed, the script does not open herdr at the end. It says that the app keeps herdr running and that `herdr` shows the Claudes.
+- Other options: `releases/latest` (another release type in the repo can become "latest"). Fail when there is no release (the script breaks until the first tag). Open herdr also (its tab starts a second runner, which stops at once).
+- Risk: medium. The macOS and Linux paths were tested only in parts (see the pull request).
+- Undo: Revert the step in `public/setup.sh`.
+- Status: open
+
+### 2026-11-25 · feat/tray-app · vibebook watch: menu words and runner restart
+
+- Agent: claude-opus-5-5
+- Context: The spike's `vibebook watch` and `vibebook tray` had Portuguese menu words only, and the runner ran once. AGENTS.md rule 6 asks for Portuguese and English.
+- Decision:
+  - The menu words are in Portuguese or English, from `VIBEBOOK_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the macOS `AppleLocale`, then `Intl`. The first label in the app before the core answers is "deco.chat…" (no words to translate).
+  - With `--menu`, when the runner stops, `watch` starts it again after 15 seconds. Without this, a runner that lost the lock to the herdr tab never ran again after the tab closed.
+  - `watch` passes `--agent` to the runner, uses the PATH separator of the system, hides console windows on Windows (`windowsHide`, and `CREATE_NO_WINDOW` in `tray/src/main.rs`), and knows the Windows path of a compiled Bun program (`B:\~BUN\`).
+  - The CLI version is 1.7.10 (no tag pushed).
+- Other options: Portuguese only (against rule 6). Run the runner once, as in the spike.
+- Risk: low. A runner that always fails starts again each 15 seconds and logs each time.
+- Undo: Revert the `watch` and `tray` cases in `cli/vibebook.ts`.
+- Status: open
+
+### 2026-11-25 · feat/stop-hook-listen · A Claude cannot end its turn with its listen stopped
+
+- Agent: Claude Opus 5.5
+- Context: Gui (#5522): agents, his too, stopped listening after a wake (the listen is one-shot) and ignored his messages until he asked in the terminal (missed_message #5520, #5521).
+- Decision: the plugin gets a Stop hook (`claude-plugin/hooks/stop-listen.mjs`). When the newest `vibebook listen` of this Claude Code session (its pid file in `~/.vibebook`, the CLI's agent id for the session) is no longer running, the hook blocks the stop once and tells the Claude to read the room and start the listen again. A session that never listened, a listen that still runs, a pid file older than a day and a second stop in a row (`stop_hook_active`) are left alone.
+- Other options: a listen that never exits (the background task's end is what wakes Claude Code, so it would wake nobody); a stronger rule in the skill (agents already had it and skipped it); a CLI change (needs a CLI release).
+- Risk: low. A Claude that was told to stop listening gets the reminder once per turn until its pid file is a day old.
+- Undo: Revert this commit and publish the plugin.
+- Status: open

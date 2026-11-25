@@ -3,7 +3,8 @@
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { callIntent, incomingRing, RING_REPEAT_MS } from "./ring";
+  import { incomingRing, RING_REPEAT_MS } from "./ring";
+  import { callHub, type CallHub } from "./hub";
   import { createCallApi } from "./callApi";
   /** A DM's call ringing me while I am elsewhere in the app (another room, Home): a small card in the corner, like a
    *  phone's. The DM itself shows the ring in its chat (CallLine), so the card is not there. */
@@ -12,6 +13,7 @@
     navigate,
     chime,
     t,
+    hub = callHub(),
   }: {
     /** The room open now. */
     current: string | null;
@@ -19,6 +21,8 @@
     /** The app's chime (respects the Sound switch). */
     chime(): void;
     t(text: string, vars?: Record<string, string | number>): string;
+    /** The app's calls (a test gives its own). */
+    hub?: CallHub;
   } = $props();
   const ring = $derived(
     $incomingRing && $incomingRing.book !== current ? $incomingRing : null,
@@ -48,16 +52,23 @@
     clearTimeout(timer);
     clearInterval(sound);
   });
+  // `ring` follows the store: once the ring is cleared it is null, so each click reads it first (Atender used to
+  // read it after clearing it, threw, and went nowhere, 2026-11-25).
   function answer() {
-    if (!ring) return;
-    callIntent.set({ room: ring.book, action: "join" });
+    const value = ring;
+    if (!value) return;
     incomingRing.set(null);
-    navigate(`/b/${ring.book}`);
+    // Joined inside the click (the microphone wants the gesture), wherever I am; the DM's view, when it opens, shows
+    // the call's stage.
+    hub.session(value.book, { title: () => value.name }).join();
+    hub.openStage(value.book);
+    navigate(`/b/${value.book}`);
   }
   function decline() {
-    if (!ring) return;
-    void api.decline(ring.book).catch(() => {});
+    const value = ring;
+    if (!value) return;
     incomingRing.set(null);
+    void api.decline(value.book).catch(() => {});
   }
 </script>
 

@@ -29,6 +29,8 @@
     type RoomSummary,
   } from "../home/model";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import { threadWait, type ThreadWait } from "../../../shared/threadWait";
+  import { threadWaitLabel } from "../waits/model";
   import TaskWorkspace from "./TaskWorkspace.svelte";
   import { paneFocus } from "../room-layout/focus";
   import type { ComposerDrafts } from "../composer/drafts";
@@ -78,7 +80,14 @@
 
   type Tab = "foryou" | "mentions" | "unread" | "tasks";
   type Kind =
-    "ask" | "mention" | "claude" | "review" | "reply" | "room" | "task";
+    | "ask"
+    | "mention"
+    | "claude"
+    | "review"
+    | "reply"
+    | "room"
+    | "task"
+    | "thread";
   type Card = {
     key: string;
     kind: Kind;
@@ -99,6 +108,8 @@
     news?: number;
     /** claude: the question's buttons (a<msg> waits carry them in `about`). */
     choices?: Choices | null;
+    /** thread: an open thread you own (e<epic>): its state and how far its tasks went. */
+    open?: ThreadWait;
   };
 
   let tab = $state<Tab>("foryou");
@@ -137,6 +148,38 @@
         : null,
   });
   const newest = (left: Card, right: Card) => right.ts - left.ts;
+  // Your open threads (e<epic>): all of them in Tarefas; in Pra você only the ones ready to close or that @vibe
+  // called you about, so many open threads don't bury the asks.
+  const threads = $derived(
+    model.threads.filter(visible).flatMap((wait): Card[] => {
+      const open = threadWait(wait);
+      return open
+        ? [
+            {
+              key: `e:${wait.book_id}:${wait.ref}`,
+              kind: "thread",
+              book: wait.book_id,
+              room: roomName(wait.book_id, wait.room),
+              thread: wait.thread,
+              where: open.total
+                ? t("{done}/{total} tarefas", {
+                    done: open.done,
+                    total: open.total,
+                  })
+                : t("Sem tarefas"),
+              author: wait.author,
+              authorName: null,
+              text: wait.topic || "",
+              about: "",
+              ts: wait.ts,
+              wait,
+              summary: summaries.get(wait.book_id),
+              open,
+            },
+          ]
+        : [];
+    }),
+  );
   // Pra você: asks and mentions, answers to your Home requests, your Claude's
   // questions and your tasks in review, in one feed.
   const feed = $derived(
@@ -157,6 +200,7 @@
         wait,
         summary: summaries.get(wait.book_id),
       })),
+      ...threads.filter((card) => card.open?.ready || card.open?.stale),
     ].sort(newest),
   );
   // Menções: the held @mentions, and asks whose text @s you by name.
@@ -204,9 +248,10 @@
       }))
       .sort(newest),
   );
-  // Tarefas: your open tasks (the ones in review are in Pra você).
-  const tasks = $derived(
-    model.groups.flatMap((group) =>
+  // Tarefas: your open threads, then your open tasks (the ones in review are in Pra você).
+  const tasks = $derived([
+    ...threads,
+    ...model.groups.flatMap((group) =>
       group.tasks
         .filter((task) => !hidden.has(`${task.book_id}/t${task.task_id}`))
         .map((task): Card => ({
@@ -225,7 +270,7 @@
           summary: summaries.get(task.book_id),
         })),
     ),
-  );
+  ]);
   const lists = $derived({
     foryou: feed,
     mentions,
@@ -326,7 +371,7 @@
   const doneLabel = (card: Card) =>
     card.kind === "room"
       ? t("Marcar como lida")
-      : card.kind === "task"
+      : card.kind === "task" || card.kind === "thread"
         ? t("Concluir")
         : t("Ciente");
 
@@ -475,6 +520,9 @@
       case "task":
         if (card.task) owner.openTask(opening, card.task);
         return;
+      case "thread":
+        services.actions.navigate({ roomId: card.book, thread: card.thread });
+        return;
       case "room":
         owner.openRoom(opening, card.book);
         return;
@@ -525,9 +573,27 @@
             );
         });
       }
+    // An open thread of yours: ✓ is Concluir (the thread is done in its room).
+    for (const card of cards)
+      if (card.kind === "thread" && card.wait) {
+        const wait = card.wait;
+        leaving[card.key] = true;
+        void owner.completeThread(opening, wait).then((ok) => {
+          delete leaving[card.key];
+          if (current())
+            say(
+              ok
+                ? t("Thread concluída")
+                : t("Não deu pra enviar. Tente de novo."),
+            );
+        });
+      }
     // Everything else that waits on you leaves with Undo: a wait, or a held @mention.
     const waits = cards.flatMap((card) =>
-      card.kind !== "room" && card.kind !== "task" && card.wait
+      card.kind !== "room" &&
+      card.kind !== "task" &&
+      card.kind !== "thread" &&
+      card.wait
         ? [card.wait]
         : [],
     );
@@ -536,7 +602,8 @@
     );
     if (!waits.length && !mentions.length) return;
     const leave = cards.filter(
-      (card) => card.kind !== "room" && card.kind !== "task",
+      (card) =>
+        card.kind !== "room" && card.kind !== "task" && card.kind !== "thread",
     );
     for (const card of leave) leaving[card.key] = true;
     setTimeout(() => {
@@ -898,7 +965,10 @@
       >{:else}{part.text}{/if}{/each}{/snippet}
 
 <!-- Who wrote it: a person, @vibe, your Claude, a task (in review or open), a room. -->
-{#snippet face(row: Card)}{#if yourClaude(row)}<AgentMark
+{#snippet face(row: Card)}{#if row.kind === "thread"}<span
+      class="grid size-7 shrink-0 place-items-center text-muted-foreground"
+      ><Icon icon="message-circle-01" size={16} /></span
+    >{:else if yourClaude(row)}<AgentMark
       class="text-xs"
     />{:else if row.kind === "task"}<IconButton
       data-inbox-resolve
@@ -972,10 +1042,14 @@
                 <strong
                   class={cn(
                     "shrink-0 truncate font-medium",
-                    row.kind === "task" && "min-w-0 shrink",
-                  )}>{row.kind === "task" ? row.text : name(row)}</strong
+                    (row.kind === "task" || row.kind === "thread") &&
+                      "min-w-0 shrink",
+                  )}
+                  >{row.kind === "task" || row.kind === "thread"
+                    ? row.text
+                    : name(row)}</strong
                 >
-                {#if row.kind !== "task"}<span
+                {#if row.kind !== "task" && row.kind !== "thread"}<span
                     class="min-w-0 truncate text-xs text-muted-foreground"
                     >{row.kind === "room" && row.news
                       ? row.news === 1
@@ -993,16 +1067,20 @@
 
                     ></span>{/if}{#if row.kind === "task"}{#if row.task?.status && row.task.status !== "todo"}{t(
                         statusLabel(row.task.status),
-                      )}{/if}{:else if row.ts}{since(row.ts)}{/if}
+                      )}{/if}{:else if row.kind === "thread" && row.open}{t(
+                      threadWaitLabel(row.open),
+                    )}{:else if row.ts}{since(row.ts)}{/if}
                 </span>
               </span>
               <span
                 data-home-card-text
                 class={cn(
                   "line-clamp-1 leading-5 break-words text-muted-foreground",
-                  row.kind === "task" ? "text-xs" : "text-sm",
+                  row.kind === "task" || row.kind === "thread"
+                    ? "text-xs"
+                    : "text-sm",
                 )}
-                >{#if row.kind === "task"}{row.room}{#if row.where}<span
+                >{#if row.kind === "thread"}{row.room} · {row.where}{:else if row.kind === "task"}{row.room}{#if row.where}<span
                       class="px-1 text-subtle-foreground">›</span
                     >{row.where}{/if}{#if row.task?.due}
                     · {row.task.due}{/if}{:else}{@render rich(

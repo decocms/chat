@@ -92,7 +92,8 @@
   const me = () => services.personal.peek();
   const socketUrl = (code: string) => {
     const url = new URL(
-      `/ws/${encodeURIComponent(roomId)}?t=${encodeURIComponent(selected)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
+      // peek=1: looking at an item from the Inbox is not reading the room (Book.isPeekSocket).
+      `/ws/${encodeURIComponent(roomId)}?t=${encodeURIComponent(selected)}&peek=1${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
       location.href,
     );
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";

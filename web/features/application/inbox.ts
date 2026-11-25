@@ -65,7 +65,12 @@ export function createApplicationInbox(
   /** What a ✓ clears: a wait, or a held @mention as d<message id> (the server's /api/waits/resolve). */
   type Cleared = Pick<Wait, "book_id" | "ref">;
   const waitsKey = (wait: Cleared) => `${wait.book_id}/${wait.ref}`;
-  const empty = (): InboxResult => ({ waits: [], mentions: [], tasks: [] });
+  const empty = (): InboxResult => ({
+    waits: [],
+    mentions: [],
+    tasks: [],
+    threads: [],
+  });
   const state = writable<InboxSnapshot>({
     binding: null,
     // One Inbox for all rooms: no "this room" scope (Gimenes #3814).
@@ -210,7 +215,7 @@ export function createApplicationInbox(
     wait: Pick<Wait, "book_id" | "ref" | "thread">,
     message: RoomCommand,
   ) {
-    const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}`;
+    const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}&peek=1`;
     const url = new URL(path, globalThis.location?.href ?? "http://localhost/");
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const ok = await sendRoomCommandOnce(url.href, message);
@@ -224,6 +229,13 @@ export function createApplicationInbox(
     void refresh(binding);
     return true;
   }
+  const listedThread = (wait: Wait) => {
+    const data = get(state).data;
+    return (
+      wait.ref.startsWith("e") &&
+      (data.waits.includes(wait) || (data.threads ?? []).includes(wait))
+    );
+  };
   async function refresh(binding: InboxBinding) {
     if (!owns(binding)) return;
     const ticket = ++readRevision;
@@ -254,6 +266,11 @@ export function createApplicationInbox(
               value.data.tasks,
               data.tasks,
               (row) => `${row.book_id}/${row.task_id}`,
+            ),
+            threads: reuse(
+              value.data.threads ?? [],
+              data.threads ?? [],
+              waitsKey,
             ),
           },
           phase: "ready",
@@ -347,6 +364,7 @@ export function createApplicationInbox(
               : person.waits,
           mentions: [],
           tasks: [],
+          threads: [],
         },
         phase: "idle",
         error: null,
@@ -399,6 +417,49 @@ export function createApplicationInbox(
           ? messageIdentity(wait.ref.slice(1))
           : undefined,
       );
+    },
+    /** An open thread of yours (a wait e<epic>, from "Suas threads" or "Tudo"): opens its thread. */
+    openThread(binding: InboxBinding, wait: Wait) {
+      if (owns(binding) && listedThread(wait))
+        navigate(binding, wait.book_id, wait.thread);
+    },
+    /** "Marcar como feita": the thread leaves the list now; it comes back if the server says no. */
+    async markThreadDone(binding: InboxBinding, wait: Wait) {
+      const key = waitsKey(wait);
+      if (
+        !owns(binding) ||
+        !listedThread(wait) ||
+        get(state).hidden.includes(key)
+      )
+        return false;
+      state.update((value) => ({
+        ...value,
+        hidden: [...value.hidden, key],
+        error: null,
+      }));
+      try {
+        await writer.run(
+          (signal) =>
+            services.personal.api.threadDone(wait.book_id, wait.thread, signal),
+          AUTH_REQUEST_TIMEOUT,
+        );
+      } catch (error) {
+        if (error instanceof HomeFailure && error.status === 401)
+          services.actions.sessionLost();
+        state.update((value) => ({
+          ...value,
+          hidden: value.hidden.filter((row) => row !== key),
+        }));
+        return false;
+      }
+      if (!owns(binding)) return true;
+      services.personal.invalidate();
+      await Promise.all([services.personal.refresh(), refresh(binding)]);
+      state.update((value) => ({
+        ...value,
+        hidden: value.hidden.filter((row) => row !== key),
+      }));
+      return true;
     },
     /** "Resolve" with Undo: the asks leave the list now and go to the server after INBOX_UNDO_MS. */
     resolveLater(
@@ -543,6 +604,21 @@ export function createApplicationInbox(
         },
         { t: "task.status", id: task.task_id, status: "done" },
       );
+    },
+    /** ✓ on an open thread of yours (e<epic>): it is done, as the thread's status menu sets it. */
+    async completeThread(binding: InboxBinding, wait: Wait) {
+      const data = get(state).data;
+      if (
+        !owns(binding) ||
+        !wait.ref.startsWith("e") ||
+        !(data.waits.includes(wait) || (data.threads ?? []).includes(wait))
+      )
+        return false;
+      return command(binding, wait, {
+        t: "epic.done",
+        id: wait.ref.slice(1),
+        done: true,
+      });
     },
     /** "Reprovar" on your task in review: back to doing, as the board's status menu sets it; the wait goes too. */
     async reject(binding: InboxBinding, wait: Wait) {

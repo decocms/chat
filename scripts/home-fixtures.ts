@@ -53,6 +53,7 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
   return {
     me: async () => me(),
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
+    threadDone: async () => ({ ok: true as const }),
     agents: async () => ({ agents: [], last_used: null }),
     archived: async () => ({ books: [] }),
     search: async () => ({ rooms: 1, epics: [], messages: [] }),

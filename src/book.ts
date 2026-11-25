@@ -7,12 +7,13 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, type CallPeer, type Ring } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, CallConsentSchema, type CallConsent, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
+import { STALE_THREAD_MS, threadWaitText } from "../shared/threadWait";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
-import { RoomEventSchemas } from "../shared/events";
+import { RoomEventSchemas, type RoomStateEvent } from "../shared/events";
 import { parseRoomCall } from "../shared/validation";
 import { encodeCall, encodeError, encodeResult, RpcErrorCode, type RpcId } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
@@ -25,6 +26,8 @@ class Refused {
 const REPEAT_WINDOW_MS = 10_000;
 /** How many of the thread's newest rows that fallback looks at: a bounded scan, not the whole thread. */
 const REPEAT_SCAN_ROWS = 50;
+/** How recent an agent's "doing" ack must be to count as the request of a thread it opens without from_message_id. */
+const ACK_REQUEST_MS = 10 * 60_000;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
@@ -50,6 +53,7 @@ import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
+import { hasInlineMark } from "../shared/inlineMarks";
 
 // OpenRouter reports each call's USD cost in usage.raw.cost; the admin sums it per model.
 const costOf = (usage: unknown) => Number((usage as { raw?: { cost?: number } } | undefined)?.raw?.cost) || 0;
@@ -71,6 +75,10 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
+/** The tag of a socket that only carries the call (Book.isCallSocket). */
+const CALL_SOCKET = "call";
+/** A socket from the Home Inbox's open item (/ws/:id?peek=1): the whole room, live, but looking is not reading. */
+const PEEK_SOCKET = "peek";
 /** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
 const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
 /** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
@@ -81,6 +89,8 @@ const CLASSIFY_DELAY_MS = 30_000;
 const pollOptions = (options: string[]) => options.map((o) => o.trim().slice(0, POLL_OPTION_LIMIT)).filter(Boolean).slice(0, POLL_MAX_OPTIONS);
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
+// nudgeStale: how many stalled threads @vibe calls about per pass, and how long until the next pass.
+const STALE_PER_PASS = 3, STALE_PASS_GAP_MS = 3600_000;
 /** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
  *  made): the router was maybe wrong, so it becomes a suggested case in D1 router_feedback. */
 const UNDO_WINDOW_MS = 30 * 60_000;
@@ -323,10 +333,63 @@ export class Book extends DurableObject<Env> {
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 't%' AND ref NOT IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(keep)),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND thread IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(gone)),
         ...review.map(({ t, e }) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`).bind(id, `t${t.id}`, t.owner, e.id, e.title, t.title, Date.now())),
-      ]).then(() => this.pokeMembers()).catch((e) => console.error("waits sync", String(e))),
+        ...this.threadWaitStatements(id, epics),
+      ]).then(() => this.pokeMembers()).catch((e) => { this.forgetThreadWaits(); console.error("waits sync", String(e)); }),
     );
     // Something changed on the board: @vibe grades it again (debounced, on the alarm).
     this.ctx.waitUntil(this.wakeAt(Date.now() + CLASSIFY_DELAY_MS));
+  }
+  /** When each thread last moved: made, or a message there from a person or an agent (@vibe's own lines don't count). */
+  threadActivity() {
+    const last = new Map(this.sql.exec<{ id: string; ts: number | null }>(`SELECT id, ts FROM epics`).toArray().map((r) => [r.id, r.ts ?? 0]));
+    for (const r of this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' AND author != 'ai' GROUP BY thread`).toArray())
+      last.set(r.thread, Math.max(last.get(r.thread) ?? 0, r.ts));
+    return last;
+  }
+  /** The threads that wait on their owner (Gimenes #5242, PO #5257): every open thread with an owner, except an answer. */
+  ownedThreads(epics: ReturnType<Book["epics"]>) {
+    return epics.filter((e): e is typeof e & { owner: string } => !e.done && !e.answer && !!e.owner && e.owner !== "ai");
+  }
+  /** Every open thread you own is a wait in your Inbox (ref e<epicId>, shared/threadWait.ts): status|done/total, from
+   *  "ai" once @vibe called you about it (nudgeStale). A done, deleted or answer thread, or one whose owner changed,
+   *  loses its row. Only rows that changed since the last sync are written (meta thread_waits). */
+  threadWaitStatements(bookId: string, epics: ReturnType<Book["epics"]>) {
+    const DB = this.env.DB;
+    const act = this.threadActivity();
+    const rows = this.ownedThreads(epics).map((e) => {
+      const nudged = Number(this.get(`stale_nudge:${e.id}`) ?? 0);
+      const text = threadWaitText(e.status === "done" ? "review" : e.status, e.tasks.filter((t) => t.status === "done").length, e.tasks.length);
+      return { ref: `e${e.id}`, email: e.owner, thread: e.id, topic: e.title, author: nudged ? "ai" : "", text, ts: nudged || act.get(e.id) || Date.now() };
+    });
+    let before: Record<string, string> = {};
+    try { before = JSON.parse(this.get("thread_waits") ?? "{}") as Record<string, string>; } catch {}
+    const now: Record<string, string> = {};
+    const changed = rows.filter((r) => {
+      const key = `${r.ref}|${r.email}`, sig = `${r.topic}\u0000${r.author}\u0000${r.text}`;
+      now[key] = sig;
+      return before[key] !== sig;
+    });
+    this.set("thread_waits", JSON.stringify(now));
+    return [
+      DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 'e%' AND (ref || '|' || email) NOT IN (SELECT value FROM json_each(?))`).bind(bookId, JSON.stringify(Object.keys(now))),
+      ...changed.map((r) =>
+        DB.prepare(
+          `INSERT INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (book_id, ref, email) DO UPDATE SET thread = excluded.thread, topic = excluded.topic, author = excluded.author, text = excluded.text, ts = excluded.ts`,
+        ).bind(bookId, r.ref, r.email, r.thread, r.topic, r.author, r.text, r.ts),
+      ),
+    ];
+  }
+  /** The thread waits alone (a nudge, or new activity after one): written now, and the owners' apps refetch. */
+  async syncThreadWaits() {
+    const id = this.get("book_id");
+    if (!id) return;
+    await this.env.DB.batch(this.threadWaitStatements(id, this.epics())).catch((e) => { this.forgetThreadWaits(); throw e; });
+    this.pokeMembers();
+  }
+  /** A sync that failed: the next one writes every row again. */
+  forgetThreadWaits() {
+    this.sql.exec(`DELETE FROM meta WHERE k = 'thread_waits'`);
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
@@ -359,14 +422,15 @@ export class Book extends DurableObject<Env> {
    * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
    * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
    * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
-  resumeOf(url: URL, open: string, window: Msg[], eh: string) {
-    const since = Number(url.searchParams.get("since")), at = Number(url.searchParams.get("at")), now = Date.now();
+  resumeOf(params: URL | URLSearchParams, open: string, window: Msg[], eh: string) {
+    const q = params instanceof URL ? params.searchParams : params;
+    const since = Number(q.get("since")), at = Number(q.get("at")), now = Date.now();
     if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
     const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
     if (rows.length > RESUME_MAX_ROWS) return null;
     const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
     for (const m of this.messageRows(rows)) messages.set(m.id, m);
-    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: url.searchParams.get("eh") === eh };
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: q.get("eh") === eh };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -745,6 +809,16 @@ export class Book extends DurableObject<Env> {
       .map((t) => ({ epic_id: "main", epic: null, task_id: t.id, title: t.title, status: t.status, due: t.due }));
     return [...fromEpics, ...fromRoom];
   }
+  /** "Marcar como feita" on an open thread in the Inbox (outside the room): a person's own action, like the thread
+   *  bar's status menu. false = no such open thread. */
+  inboxDone(bookId: string, epicId: string, email: string) {
+    this.bind(bookId);
+    const e = this.epics().find((x) => x.id === epicId);
+    if (!e || e.done) return false;
+    this.setEpicStatus(epicId, "done");
+    this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: bookId, status: "done", via: "inbox" } }));
+    return true;
+  }
   /** The members' open apps refetch what they see outside this room (rail, waits): src/person.ts. */
   // msg: only a new message or rename (touch): a tab with this room open already has it and skips the /api/me refetch.
   pokeMembers(msg = false) {
@@ -762,7 +836,8 @@ export class Book extends DurableObject<Env> {
   }
   online() {
     // The call's recorder has the room open, and is not a person.
-    return [...new Set(this.sockets().map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
+    // Nor is the Home Inbox's look at an item (isPeekSocket): it does not read what arrives.
+    return [...new Set(this.sockets().filter((ws) => !this.isPeekSocket(ws)).map((ws) => this.ctx.getTags(ws)[0]))].filter((email) => !isRecorder(email));
   }
   // ---- calls (src/calls.ts): who is in the room's call, and the tracks each one publishes ----
   callPeers(): CallPeer[] {
@@ -773,8 +848,38 @@ export class Book extends DurableObject<Env> {
     this.set("call", JSON.stringify(peers));
     this.broadcastCall();
   }
+  private callEvent(): Extract<RoomEvent, { t: "call" }> {
+    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };
+  }
+  /** Every socket of the room hears it, the call's own sockets too (isCallSocket). */
   private broadcastCall() {
-    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState() });
+    this.sendTo(this.sockets(undefined, true), this.callEvent());
+  }
+  /** A DM's call: who said yes or no to the recording, for this call only (Jonas, 2026-11-25: a DM has the notice,
+   *  and is recorded only if both accept). A room's call is always recorded, with the notice on the stage. */
+  callConsent(): CallConsent {
+    const parsed = CallConsentSchema.safeParse(JSON.parse(this.get("call_consent") || "{}"));
+    return parsed.success ? parsed.data : { yes: [], no: [] };
+  }
+  /** May these people's call be recorded? A room's: yes. A DM's: everyone in it said yes, and nobody said no. */
+  private recordAllowed(peers: CallPeer[]) {
+    if (!this.isDm) return true;
+    const { yes, no } = this.callConsent();
+    return !no.length && peers.filter((p) => !isRecorder(p.email)).every((p) => yes.includes(p.email));
+  }
+  /** Someone in a DM's call says yes or no to the recording. Answers true when this yes makes the call one to
+   *  record (the last yes of two people in the call, no recorder yet): the caller asks the recorder to come. */
+  callConsentAnswer(email: string, yes: boolean): boolean {
+    const peers = this.callPeers();
+    // Only the DM's two people reach this (the room's socket). The answer counts while a call is on, also from a
+    // stage that shows before the room has its person in the call.
+    if (!this.isDm || !peers.some((p) => !isRecorder(p.email))) return false;
+    const now = this.callConsent();
+    // Once the call is recorded, or someone said no, the answer stays for this call.
+    if (now.no.length || peers.some((p) => isRecorder(p.email))) return false;
+    this.set("call_consent", JSON.stringify(yes ? { yes: [...new Set([...now.yes, email])], no: [] } : { yes: now.yes, no: [email] }));
+    this.broadcastCall();
+    return yes && peers.filter((p) => !isRecorder(p.email)).length >= 2 && this.recordAllowed(peers);
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
    *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
@@ -787,6 +892,7 @@ export class Book extends DurableObject<Env> {
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
       this.callStarted(email);
+      this.set("call_people", "[]");
     } else if (!isRecorder(email) && !before.some((p) => p.email === email)) {
       // Someone besides its starter came: the call was answered.
       this.set("call_many", "1");
@@ -794,18 +900,31 @@ export class Book extends DurableObject<Env> {
     }
     const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
     this.setCall(after);
-    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email));
+    // Everyone who was in this call, for the recording: Grain shares it with them (recorder/container/main.ts).
+    if (!isRecorder(email)) this.set("call_people", JSON.stringify([...new Set([...this.callPeople(), email])].slice(0, 200)));
+    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email)) && this.recordAllowed(after);
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {
     return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
   }
-  /** The room's call chat: one for every call of the room (CALL_THREAD, never listed as a thread). A DM's call
-   *  is the conversation's. */
+  /** The thread of the call that is on (or of the last one): a room's call has its own thread (newCallThread), a
+   *  DM's call is the conversation's. A thread deleted since, or a call from before threads per call: main. */
   private callThread(): string {
-    return this.isDm ? "main" : CALL_THREAD;
+    const thread = this.isDm ? "main" : (this.get("call_thread") ?? "main");
+    return this.epics().some((e) => e.id === thread) ? thread : "main";
   }
-  /** A thread a message can go to: main, the room's call chat, an epic. */
+  /** A new call's own thread, started from its line in main: "Call · 25/11 14:30". The chat beside the stage while
+   *  the call is on, then a normal thread in the sidebar where the recording's summary lands. */
+  private newCallThread(email: string, line: number, at: number): string {
+    const when = new Intl.DateTimeFormat(this.en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at).replace(",", "");
+    const id = this.createEpic(`Call · ${when}`);
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, line, id);
+    this.epicsChanged();
+    return id;
+  }
+  /** A thread a message can go to: main, an epic (a call's thread is one), and the room's old call chat
+   *  (CALL_THREAD: every call's chat before each call had its own thread). */
   knownThread(thread: string): boolean {
     return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
   }
@@ -814,6 +933,11 @@ export class Book extends DurableObject<Env> {
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
     return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
+  }
+  /** The emails of everyone who was in the call that is on (or in the last one). */
+  callPeople(): string[] {
+    const parsed = z.array(z.string()).safeParse(JSON.parse(this.get("call_people") ?? "[]"));
+    return parsed.success ? parsed.data : [];
   }
   /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
   async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {
@@ -855,15 +979,18 @@ export class Book extends DurableObject<Env> {
   /** A call starts: its line in main ("📞 iniciou uma call.", by who started it), and a DM rings the other person.
    *  quiet: the line is no unread message, wakes no listener and plays no chime (the ring is what calls). */
   private callStarted(email: string) {
+    this.set("call_consent", "");
     const m = this.addMessage("main", email, callLineText({ state: "on" }, this.en), { tag: "call", quiet: true });
     this.set("call_line", String(m.id));
     this.set("call_at", String(m.ts));
     this.set("call_many", "");
+    this.set("call_thread", this.isDm ? "" : this.newCallThread(email, m.id, m.ts));
     if (this.isDm) this.ctx.waitUntil(this.ringStart(email).catch((e) => console.error("call ring", String(e))));
   }
   /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */
   private callEnded() {
     this.stopRing();
+    this.set("call_consent", "");
     const id = Number(this.get("call_line") ?? 0);
     if (!id) return;
     this.set("call_line", "");
@@ -976,8 +1103,21 @@ export class Book extends DurableObject<Env> {
     const r = await this.env.DB.prepare(`SELECT email, lang FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; lang: string | null }>();
     return Object.fromEntries(r.results.map((u) => [u.email, u.lang]));
   }
-  sockets(except?: WebSocket) {
-    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
+  /** The room's open sockets. `withCall`: the call's own sockets too (isCallSocket), which hear only the call. */
+  sockets(except?: WebSocket, withCall = false) {
+    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN && (withCall || !this.isCallSocket(ws)));
+  }
+  /** A socket that only carries the call (/ws/:id?call=1): the app keeps it open while the person is in this room's
+   *  call and is elsewhere in the app (another room, Home), so leaving the room's view does not leave the call. It
+   *  hears the call's events and sends the call's commands, and does not make the person "here" (online). */
+  isCallSocket(ws: WebSocket) {
+    return this.ctx.getTags(ws)[1] === CALL_SOCKET;
+  }
+  /** The Home Inbox's look at one item (/ws/:id?peek=1): it gets the room and sends commands like a room's tab, but
+   *  opening it is not reading the room (markRead, readWaits) and it does not make the person online: what waits on
+   *  you there stays until you answer it or clear it (Ciente). */
+  isPeekSocket(ws: WebSocket) {
+    return this.ctx.getTags(ws)[1] === PEEK_SOCKET;
   }
   /** Every send to the room's sockets goes through here, so the bytes are counted by event kind per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
@@ -1052,6 +1192,11 @@ export class Book extends DurableObject<Env> {
     }
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
     if (!extra.quiet && !extra.forWho) this.ctx.waitUntil(this.routedReply(m).catch((e) => console.error("routed reply", String(e))));
+    // A thread @vibe called its owner about moved again: the call is over, and the owner's wait leaves "Para você".
+    if (author !== "ai" && thread !== "main" && this.get(`stale_nudge:${thread}`)) {
+      this.sql.exec(`DELETE FROM meta WHERE k = ?`, `stale_nudge:${thread}`);
+      this.ctx.waitUntil(this.syncThreadWaits().catch((e) => console.error("thread waits", String(e))));
+    }
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     return m;
@@ -1788,6 +1933,37 @@ export class Book extends DurableObject<Env> {
     }
     return next;
   }
+  /** Open threads of an owner that stood still STALE_THREAD_MS (Gimenes #5242, PO #5257): @vibe calls the owner once,
+   *  in the thread, and their Inbox wait moves to "Para você" (author "ai"). Once per quiet period: a message there
+   *  from a person or an agent clears the mark (addMessage), so the next quiet period calls again. Answer and done
+   *  threads are skipped. At most STALE_PER_PASS a pass, so a room with many old threads is not flooded at once.
+   *  Returns when the next one is due (0 = none). */
+  async nudgeStale(now = Date.now()) {
+    const due: { id: string; owner: string; title: string }[] = [];
+    let next = 0;
+    const act = this.threadActivity();
+    for (const e of this.ownedThreads(this.epics())) {
+      if (this.get(`stale_nudge:${e.id}`)) continue;
+      const at = (act.get(e.id) ?? 0) + STALE_THREAD_MS;
+      if (at > now) { next = next ? Math.min(next, at) : at; continue; }
+      due.push({ id: e.id, owner: e.owner, title: e.title });
+    }
+    if (!due.length) return next;
+    // The alarm runs for many reasons (a message, a board change): the pass gap holds however often it fires.
+    const passed = Number(this.get("stale_pass_at") ?? 0);
+    if (now - passed < STALE_PASS_GAP_MS) return passed + STALE_PASS_GAP_MS;
+    this.set("stale_pass_at", String(now));
+    const names = await this.names(), handles = await this.handles();
+    for (const e of due.slice(0, STALE_PER_PASS)) {
+      this.set(`stale_nudge:${e.id}`, String(now));
+      const who = handles[e.owner] ?? (names[e.owner] ?? e.owner.split("@")[0]).split(/\s+/)[0];
+      this.addMessage(e.id, "ai", this.en
+        ? `@${who} this thread has been stalled for 3 days: mark it done, cancel it, or keep going?`
+        : `@${who} essa thread está parada há 3 dias: marcar como feita, cancelar ou continuar?`);
+    }
+    await this.syncThreadWaits().catch((e) => console.error("thread waits", String(e)));
+    return due.length > STALE_PER_PASS ? now + STALE_PASS_GAP_MS : next;
+  }
   /** "O que precisa de mim aqui" (Gui #3011): asked by a person, answered by their own Claude (brief_reply). Never a
    *  room message: only that person's sockets and their Claudes' read_room ever see it. Last 48h, ≤20. */
   briefsFor(email: string) {
@@ -1862,6 +2038,23 @@ export class Book extends DurableObject<Env> {
         ).bind(e, id, upto),
       ),
     );
+    await this.readWaits(emails, upto);
+  }
+  /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
+   *  asked of you (waits m<id>, a mention or your own agent's message) and the mention held back for the Inbox and the digest (digest_items). Work stays until
+   *  done: tasks in review (t), your Claude's questions (a/b). */
+  async readWaits(emails: string[], upto: number) {
+    const id = this.get("book_id");
+    if (!id || !emails.length) return;
+    const DB = this.env.DB;
+    const r = await DB.batch(
+      emails.flatMap((e) => [
+        DB.prepare(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref LIKE 'm%' AND CAST(substr(ref, 2) AS INTEGER) <= ?`).bind(id, e, upto),
+        DB.prepare(`DELETE FROM digest_items WHERE book_id = ? AND email = ? AND msg_id <= ?`).bind(id, e, upto),
+      ]),
+    );
+    const cleared = emails.filter((_, i) => r[2 * i]?.meta.changes || r[2 * i + 1]?.meta.changes);
+    if (cleared.length) await poke(this.env, cleared, { t: "me" });
   }
 
   // ---- agents (MCP, called over RPC by the Worker after it checked membership) ----
@@ -2132,6 +2325,8 @@ export class Book extends DurableObject<Env> {
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
     if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text, m.choices));
+    // Anything else it says is for its human, like a mention (Gimenes #5427): a number on the room until they read it.
+    else this.ctx.waitUntil(this.ownAgentWait(email, m));
     // The delivery puts the thread in review: it waits on a person, who marks it done (Gimenes #4249).
     if (thread !== "main" && done && this.delivered(thread)) this.epicsChanged();
     // A done post closes the person's doing acks; any other post is activity that keeps them live (the app greys
@@ -2246,6 +2441,23 @@ export class Book extends DurableObject<Env> {
       .bind(bookId, `b${msgId}`, email, m?.thread ?? "main", topic, `${blocked(en)}: ${text}`, Date.now())
       .run();
     await poke(this.env, [email], { t: "me" });
+  }
+  /** A message your own agent posted (its reply, answer, report) waits on you like a message that mentions you
+   *  (Gimenes #5427): an m<id> wait, the room's red number, gone once you read it (readWaits) or write in the thread
+   *  (answeredHere). Nothing when you have the room open or already read past it: you are looking at it. Its question
+   *  with buttons is an a<id> instead (askWait). Other people's agents never make one for you: their "você" is their
+   *  human (findWaits). */
+  async ownAgentWait(email: string, m: Pick<Msg, "id" | "thread" | "text" | "ts">) {
+    const bookId = this.get("book_id");
+    if (!bookId || !m.text.trim() || this.online().includes(email)) return;
+    const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    const r = await this.env.DB.prepare(
+      `INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) SELECT ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (SELECT 1 FROM human_reads WHERE email = ? AND book_id = ? AND last_id >= ?)`,
+    )
+      .bind(bookId, `m${m.id}`, email, m.thread, topic, email, m.text.slice(0, 280), m.ts, email, bookId, m.id)
+      .run();
+    if (r.meta.changes) await poke(this.env, [email], { t: "me" });
   }
   /** The wait row for an open hook question (ref a<msg>), or its removal (text null). `about` keeps its choices (the
    *  message's JSON), so the Home answers it with a click. */
@@ -2527,6 +2739,13 @@ export class Book extends DurableObject<Env> {
       .exec<{ id: string }>(`SELECT e.id FROM epics e LEFT JOIN messages o ON o.id = e.from_msg WHERE (e.from_msg = ? OR (o.thread = 'main' AND o.reply_to = ?))${open ? " AND COALESCE(e.done, 0) <= 0" : ""} ORDER BY e.ts DESC`, msgId, msgId)
       .toArray();
   }
+  /** The request `agent` took a moment ago: its latest "doing" ack within ACK_REQUEST_MS, while that message has no
+   *  thread but the one its ack opened (workThread). Anything older or already threaded is not this thread's request. */
+  takenRequest(agent: string): number | undefined {
+    const id = this.sql.exec<{ msg_id: number }>(`SELECT msg_id FROM acks WHERE agent = ? AND status = 'doing' AND ts > ? ORDER BY ts DESC LIMIT 1`, agent, Date.now() - ACK_REQUEST_MS).toArray()[0]?.msg_id;
+    if (id === undefined || !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, id).toArray().length) return;
+    return this.epicsFrom(id).every((e) => this.get(`auto:${e.id}`) === "1") ? id : undefined;
+  }
   async agentEpic(bookId: string, email: string, title: string, why = "", tasks: string[] = [], via = "", fromMsg?: number, agent = "", owner = "", backlog = false, answer = false) {
     this.bind(bookId);
     // A DM is only a conversation: an epic asked for here goes to the room it belongs to.
@@ -2538,12 +2757,13 @@ export class Book extends DurableObject<Env> {
     if (owner && own !== owner.trim().toLowerCase()) return { ok: false, error: `owner must be a member email: ${members.join(", ")}` };
     const t = title.trim().slice(0, 200);
     if (!t) return { ok: false, error: "title is required" };
-    // The request it came from: the one given, else the person's latest own message, in any thread (an epic can
-    // branch out of another epic's thread). The app draws the epic as a thread card under that message.
-    // A backlog epic only links a request it was given (not the latest message: 36 of them would all hang there).
+    // The request it came from: the one given, else the request this agent just took (its "doing" ack of the last
+    // few minutes, on a message with no thread of its own yet besides the one that ack opened): ack, then
+    // start_thread, in one turn. Never the person's latest message by itself: it is often about something else, and
+    // the thread would quote it as its origin. A backlog epic only links a request it was given.
     const src =
       (fromMsg && this.sql.exec(`SELECT id FROM messages WHERE id = ?`, fromMsg).toArray()[0]?.id) ??
-      (backlog ? undefined : this.sql.exec(`SELECT id FROM messages WHERE author = ? AND kind IS NULL ORDER BY id DESC LIMIT 1`, email).toArray()[0]?.id);
+      (backlog || !agent ? undefined : this.takenRequest(agent));
     // The server already turned this question into an answer epic (the answer_thread router action, Gui #2767): the agent takes that one.
     const made = src && !backlog ? this.sql.exec<{ id: string }>(`SELECT id FROM epics WHERE from_msg = ? AND COALESCE(done, 0) <= 0`, src).toArray().find((e) => this.get(`answer:${e.id}`) === "1" || this.get(`auto:${e.id}`) === "1") : undefined;
     if (made && this.get(`auto:${made.id}`) === "1") {
@@ -2566,6 +2786,22 @@ export class Book extends DurableObject<Env> {
       const e = this.epics().find((x) => x.id === made.id);
       return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: "this question was already an answer epic, opened in your human's tabs: write the answer into its doc (update_doc with this epic_id)" };
     }
+    // One thread per message (Gimenes #5068): a message that already has a thread gets that one back, with the new
+    // tasks (a done one opens again), and the agent writes there instead of starting a second.
+    const had = src && !backlog ? this.epicsFrom(Number(src))[0] : undefined;
+    if (had) {
+      this.reopenIfDone(had.id);
+      const have = new Set(this.sql.exec<{ title: string }>(`SELECT title FROM tasks WHERE epic_id = ?`, had.id).toArray().map((x) => x.title));
+      for (const title of tasks.slice(0, 12)) {
+        if (have.has(title.trim())) continue;
+        const task = this.addTask(had.id, title);
+        if (task && !answer) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === had.id);
+      return { ok: true, epic_id: had.id, thread: had.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: `message ${src} already has this thread ("${e?.title ?? ""}"): write there (thread = ${had.id}); a message never gets a second thread.` };
+    }
     // The agent took the work, so its human owns the tasks (self-assign).
     const id = this.createEpic(t, (tasks.length ? tasks : [t]).slice(0, 12).map((title) => ({ title, owner: backlog || answer ? undefined : email })), [email.toLowerCase()], why); // an answer's task is unowned: nothing waits on the person who asked
     // An answer (Gui #2735): its doc's task list goes last, and the doc opens in its human's tabs right now (below).
@@ -2579,7 +2815,9 @@ export class Book extends DurableObject<Env> {
       // Opening an epic for a request is taking it: the request itself shows "X está fazendo isso".
       if (agent && !backlog) this.agentAck(bookId, agent, email, via || "agent", Number(src));
     } else if (!backlog) {
-      const line = this.en ? `↳ became the epic **${t}**: the conversation and progress continue there.` : `↳ virou o épico **${t}**: a conversa e o andamento seguem lá.`;
+      // No request: the thread starts from its own line in main, the agent's title and goal (not anyone's message).
+      const goal = why.trim().slice(0, 500);
+      const line = `**${t}**${goal ? `\n\n${goal}` : ""}`;
       this.sql.exec(`UPDATE epics SET from_msg = ? WHERE id = ?`, this.threadOrigin({ author: email, kind: "agent", via: via || undefined }, undefined, line), id);
       this.epicsChanged();
     } else this.epicsChanged();
@@ -2785,7 +3023,7 @@ export class Book extends DurableObject<Env> {
       const members = await this.members();
       // Kick sockets of anyone no longer a member.
       // The call's recorder has no row in the members and stays.
-      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
+      for (const ws of this.sockets(undefined, true)) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
@@ -2798,6 +3036,12 @@ export class Book extends DurableObject<Env> {
     const bookId = url.searchParams.get("book");
     if (!email || !bookId) return new Response("bad request", { status: 400 });
     if (!this.get("book_id")) this.set("book_id", bookId);
+    if (url.searchParams.get("call") === "1") {
+      const { 0: client, 1: server } = new WebSocketPair();
+      this.ctx.acceptWebSocket(server, [email, CALL_SOCKET]);
+      this.sendTo([server], this.callEvent());
+      return new Response(null, { status: 101, webSocket: client });
+    }
     // Rooms from before the D1 epic index fill it the first time someone opens them.
     if (!this.get("epics_indexed")) {
       this.set("epics_indexed", "1");
@@ -2808,19 +3052,46 @@ export class Book extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + 5_000);
 
     const { 0: client, 1: server } = new WebSocketPair();
-    this.ctx.acceptWebSocket(server, [email]);
+    const peek = url.searchParams.get("peek") === "1";
+    this.ctx.acceptWebSocket(server, peek ? [email, PEEK_SOCKET] : [email]);
+    // A light socket (lite=1) gets only hello, before anything else, and reads the room over HTTP (roomState): every
+    // event after hello is newer than that read, so the app can apply it after the snapshot.
+    const lite = url.searchParams.get("lite") === "1";
+    if (lite) {
+      const body = this.sendTo([server], { t: "hello", at: Date.now() } satisfies RoomEvent);
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, lite: true, rc: url.searchParams.get("rc") ?? undefined } }));
+    }
     if (this.autoReview()) this.epicsChanged();
-    this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
+    if (!peek) this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
+    if (!lite) {
+      const { state, resume, win } = await this.roomSnapshot(email, bookId, url.searchParams);
+      const body = this.sendTo([server], state);
+      // What opening a room costs on the wire (the biggest share of the zone's bandwidth in Nov 2026): total + the 3
+      // fattest fields, read by the product report.
+      const top = Object.entries(state).map(([k, v]) => [k, JSON.stringify(v)?.length ?? 0] as const).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
+      const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
+      const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    }
+    this.broadcast({ t: "online", online: this.online() });
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** The room as one person opens it: the `state` event. The socket sends it (without lite) and GET
+   *  /api/books/:id/room answers it (roomState). q = the socket's params: t = the open thread; since, at, eh = resume. */
+  async roomSnapshot(email: string, bookId: string, q: URLSearchParams) {
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
     const [book, people, requests, names, avatars, handles] = await Promise.all([
       this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
       this.people(), this.requests(), this.names(), this.avatars(), this.handles(),
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
-    const win = this.roomWindow(url.searchParams.get("t") || "main", email);
-    const epics = this.wireEpics(this.epics(), url.searchParams.get("t") || ""), eh = wireHash(JSON.stringify(epics));
-    const resume = this.resumeOf(url, url.searchParams.get("t") || "main", win.messages, eh);
-    const state: Extract<RoomEvent, {t:"state"}> = {
+    const open = q.get("t") || "main";
+    const win = this.roomWindow(open, email);
+    const epics = this.wireEpics(this.epics(), q.get("t") || ""), eh = wireHash(JSON.stringify(epics));
+    const resume = this.resumeOf(q, open, win.messages, eh);
+    const state: RoomStateEvent = {
         t: "state",
         me: email,
         // A DM is named for each side: the other person, or "You" in your own.
@@ -2828,7 +3099,7 @@ export class Book extends DurableObject<Env> {
         doc: this.get("doc") ?? "",
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
-        docs: this.epicDocs(url.searchParams.get("t") || ""),
+        docs: this.epicDocs(q.get("t") || ""),
         epics: resume?.epicsSame ? [] : epics,
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
@@ -2857,20 +3128,22 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState() } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
-    const body = this.sendTo([server], state);
-    // What opening a room costs on the wire (the biggest share of the zone's bandwidth in Nov 2026): total + the 3
-    // fattest fields, read by the product report.
-    const top = Object.entries(state).map(([k, v]) => [k, JSON.stringify(v)?.length ?? 0] as const).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
-    const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
-    const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
-    this.broadcast({ t: "online", online: this.online() });
-    return new Response(null, { status: 101, webSocket: client });
+    return { state, resume, win };
+  }
+  /** GET /api/books/:id/room (a light socket's first read). The route checks membership first. */
+  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string }): Promise<RoomStateEvent> {
+    this.bind(bookId);
+    const q = new URLSearchParams({ t: query.t });
+    if (query.since && query.at) {
+      q.set("since", String(query.since));
+      q.set("at", String(query.at));
+      if (query.eh) q.set("eh", query.eh);
+    }
+    return (await this.roomSnapshot(email, bookId, q)).state;
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
@@ -2882,6 +3155,9 @@ export class Book extends DurableObject<Env> {
       try { ws.send(frame(call.id)); } catch {} // socket already gone
     };
     if (!call.command) return reply((id) => encodeError(id, call.error));
+    // The call's socket carries the call's commands only.
+    if (this.ctx.getTags(ws)[1] === CALL_SOCKET && !call.command.t.startsWith("call."))
+      return reply((id) => encodeError(id, { code: RpcErrorCode.REFUSED, message: "call socket" }));
     let out: unknown;
     try {
       out = await this.runCommand(ws, email, call.command);
@@ -2923,7 +3199,7 @@ export class Book extends DurableObject<Env> {
         const answers = Number(m.reply_to) && this.sql.exec(`SELECT 1 FROM messages WHERE id = ? AND (choices IS NOT NULL OR card IS NOT NULL)`, Number(m.reply_to)).toArray().length;
         if (!answers) this.personWrote(thread, text, { id: sent.id, author: email });
         this.ctx.waitUntil(
-          track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined } }),
+          track(this.env, "message", { user: email, dims: { book: this.get("book_id") ?? undefined, thread: thread === "main" ? "main" : "epic", files: files.length || undefined, marks: hasInlineMark(text) || undefined } }),
         );
         this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
         await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);
@@ -2986,6 +3262,8 @@ export class Book extends DurableObject<Env> {
           const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
           return same ? undefined : new Refused("epic id in use");
         }
+        // One thread per message (Gimenes #5068): the app offers "Abrir thread" then; this is a race with someone else.
+        if (from !== undefined && this.epicsFrom(from).length) return new Refused("this message already has a thread");
         const id = this.createEpic(title, [], [], "", m.id);
         this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
@@ -3058,6 +3336,12 @@ export class Book extends DurableObject<Env> {
         return void (await this.assignTask(String(m.id), m.owner === undefined ? undefined : String(m.owner), m.due === undefined ? undefined : String(m.due)));
       case "call.leave":
         return this.callLeave(email);
+      case "call.consent": {
+        const bookId = this.get("book_id") ?? "";
+        if (this.callConsentAnswer(email, m.yes) && recorderOn(this.env, bookId))
+          this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId));
+        return;
+      }
       case "call.mute":
         return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
       case "call.usage":
@@ -3128,9 +3412,10 @@ export class Book extends DurableObject<Env> {
     try { ws.close(); } catch {}
     try {
       this.broadcast({ t: "online", online: this.online().filter((e) => this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === e)) }, ws);
-      // The call lives on the room's socket: with no tab of this room left, the person is out of it.
+      // The call lives on the room's sockets and the call's own (isCallSocket): with none of them left, the person
+      // is out of it. Leaving the room's view keeps the call's socket, so the call goes on.
       const gone = this.ctx.getTags(ws)[0];
-      if (!this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
+      if (!this.sockets(ws, true).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
     } catch (e) {
       console.error("book webSocketClose", String(e)); // see DocRoom.webSocketClose
     }
@@ -3250,7 +3535,7 @@ export class Book extends DurableObject<Env> {
         break;
       }
       if (m.author !== "ai" && m.text.trim() && Date.now() - m.ts < 7 * 864e5 && others.length) {
-        const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author).all<{ ref: string; text: string }>()).results;
+        const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND author <> ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author, m.author).all<{ ref: string; text: string }>()).results;
         const q: Record<string, Question> = {};
         // Each person here talks to their own Claude in the room: a bare ask ("faz um gráfico", "quantas pessoas…") is
         // for the author's Claude, and an agent's "você" is its own human. Read as asks of everyone else, those filled
@@ -3302,6 +3587,7 @@ export class Book extends DurableObject<Env> {
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
     await this.grade().catch((e) => console.error("grade", String(e)));
     try { const next = this.nudgeUnanswered(); if (next) await this.wakeAt(next); } catch (e) { console.error("answer nudge", String(e)); }
+    try { const next = await this.nudgeStale(); if (next) await this.wakeAt(next); } catch (e) { console.error("stale nudge", String(e)); }
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
     const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;

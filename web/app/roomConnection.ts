@@ -16,6 +16,9 @@ export interface RoomConnectionOptions {
   onRemoved: () => void;
   onUnavailable: () => void;
   createSocket?: (url: string) => Socket;
+  /** The event that says the socket reached the room (a close before it: the room is unavailable). The room's
+   *  socket: its "state"; the call's own socket (web/features/call/hub.ts): its first "call". */
+  snapshot?: RoomEvent["t"];
   schedule?: (callback: () => void, delay: number) => Timer;
   cancel?: (timer: Timer) => void;
 }
@@ -88,7 +91,12 @@ export function createRoomConnection(options: RoomConnectionOptions) {
         settle(received.id, received.outcome);
         return;
       }
-      if (received.event.t === "state") hasSnapshot = true;
+      // hello: a light socket was let in; its state comes over HTTP (root-room/session.ts).
+      if (
+        received.event.t === (options.snapshot ?? "state") ||
+        received.event.t === "hello"
+      )
+        hasSnapshot = true;
       options.onEvent(received.event);
     };
     current.onclose = (event) => {

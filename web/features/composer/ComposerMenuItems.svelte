@@ -14,6 +14,7 @@
     allowed = () => true,
     onattach,
     onmention,
+    onroom,
     onpoll,
     before,
   }: {
@@ -22,6 +23,8 @@
     allowed?: (event: Event) => boolean;
     onattach: () => void;
     onmention: () => void;
+    /** "Mencionar sala" (#): the room's composer has it; the Home's ask doesn't. */
+    onroom?: () => void;
     onpoll: () => void;
     before?: Snippet;
   } = $props();
@@ -43,6 +46,14 @@
   role="menuitem"
   onclick={(event) => run(event, onmention)}
   ><Icon icon="at-sign" />{t("Mencionar alguém")}</Button
-><Button variant="menu" role="menuitem" onclick={(event) => run(event, onpoll)}
+>{#if onroom}<Button
+    variant="menu"
+    role="menuitem"
+    onclick={(event) => run(event, onroom)}
+    ><Icon icon="hash-02" />{t("Mencionar sala")}</Button
+  >{/if}<Button
+  variant="menu"
+  role="menuitem"
+  onclick={(event) => run(event, onpoll)}
   ><Icon icon="bar-chart-square-02" />{t("Criar votação")}</Button
 >

@@ -5,7 +5,11 @@ import {
 } from "../../../shared/composition";
 import { EMOJI } from "../../../shared/emoji";
 import type { Attachment, Message, Room } from "../../../shared/room";
-import type { ComposerAgent, ComposerQuote } from "./types";
+import type { ComposerAgent, ComposerQuote, ComposerRoom } from "./types";
+import type { FieldLink } from "./fieldTokens";
+import { appLink, type AppLink } from "../rich-text/appLinks";
+import type { LinkResolution } from "../../../shared/schemas";
+import { CALL_THREAD } from "../../../shared/call";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
   mp3: "audio/mpeg",
@@ -358,3 +362,203 @@ export const composedText = (s: {
   [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
     .filter(Boolean)
     .join("\n\n");
+/** `#par` in the draft suggests rooms you are in (not DMs), then this room's open threads (`room › thread`), like
+ *  Discord's channels. Picking writes the room's link (roomReference). */
+export function roomPicks(
+  text: string,
+  caret: number,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  origin: string,
+) {
+  const match = /(^|[\s(])#([\p{L}\p{N}._-]*)$/u.exec(text.slice(0, caret));
+  if (!match) return null;
+  const query = fold(match[2]);
+  const matches = (title: string) => !query || fold(title).includes(query);
+  const here = rooms.find((item) => item.id === room.id);
+  const roomTitle = here?.title || room.book.title;
+  const items: RoomPick[] = rooms
+    .filter((item) => matches(item.title))
+    .slice(0, 8)
+    .map((item) => ({
+      kind: "room",
+      id: item.id,
+      title: item.title,
+      icon: item.icon,
+      url: `${origin}/b/${item.id}`,
+    }));
+  for (const epic of room.epics) {
+    if (items.length >= 12) break;
+    if (epic.done || !epic.title.trim() || !matches(epic.title)) continue;
+    items.push({
+      kind: "thread",
+      id: epic.id,
+      title: epic.title,
+      room: roomTitle,
+      icon: here?.icon ?? 0,
+      url: `${origin}/b/${room.id}?t=${encodeURIComponent(epic.id)}`,
+    });
+  }
+  return items.length ? { start: caret - match[2].length - 1, items } : null;
+}
+export type RoomPick =
+  | {
+      kind: "room";
+      id: string;
+      title: string;
+      icon: number;
+      url: string;
+    }
+  | {
+      kind: "thread";
+      id: string;
+      title: string;
+      /** The room the thread is in (this one), shown before it. */
+      room: string;
+      icon: number;
+      url: string;
+    };
+/** The text a picked room or thread writes into the draft: its plain link. The chat already draws a link to this app
+ *  as its chip (rich-text/AppLinkChip: the room's mark and name, or "Sala privada" for someone who can't see it), and
+ *  an agent reading the plain text gets the room id (and the thread id). */
+export function roomReference(pick: RoomPick) {
+  switch (pick.kind) {
+    case "room":
+    case "thread":
+      return pick.url;
+    default: {
+      const unreachable: never = pick;
+      return unreachable;
+    }
+  }
+}
+/** The app links in a text (a room, a DM, a thread, a message, on this origin or the app's), where they are. */
+export function appLinksIn(text: string, page: string) {
+  const out: { start: number; end: number; link: AppLink }[] = [];
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"']+/g)) {
+    const link = appLink(match[0], page);
+    if (link)
+      out.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        link,
+      });
+  }
+  return out;
+}
+
+const firstName = (name: string) => name.split(/\s+/)[0] || name;
+
+/** The chip the field draws for a link the chat's resolver answered: the same words and mark as AppLinkChip. */
+export function resolvedFieldLink(
+  start: number,
+  end: number,
+  value: LinkResolution,
+  t: (text: string) => string,
+): FieldLink {
+  switch (value.kind) {
+    case "message":
+      return {
+        start,
+        end,
+        kind: "message",
+        label: `${value.name} ${t("em")} ${
+          value.threadTitle ??
+          (value.thread === CALL_THREAD
+            ? t("Chat da call")
+            : value.roomTitle || t("Você"))
+        }`,
+        mark: { kind: "person", email: value.author, avatar: value.avatar },
+      };
+    case "thread":
+      return {
+        start,
+        end,
+        kind: "thread",
+        label:
+          (value.thread === CALL_THREAD ? t("Chat da call") : value.title) +
+          (value.ownerName ? ` · ${firstName(value.ownerName)}` : ""),
+        mark: { kind: "thread" },
+      };
+    case "room":
+      return {
+        start,
+        end,
+        kind: "room",
+        label: value.title,
+        mark: {
+          kind: "room",
+          id: value.room,
+          title: value.title,
+          icon: value.icon ?? 0,
+        },
+      };
+    case "dm":
+      return {
+        start,
+        end,
+        kind: "dm",
+        label: value.name || t("Você"),
+        mark: { kind: "person", email: value.email, avatar: value.avatar },
+      };
+    case "private":
+      return {
+        start,
+        end,
+        kind: "private",
+        label: t("Sala privada"),
+        mark: { kind: "lock" },
+      };
+    default: {
+      const unreachable: never = value;
+      return unreachable;
+    }
+  }
+}
+
+/** The app links in the draft that the field draws as chips. One of your rooms, or a thread of this one, is its chip
+ *  at once (what # writes); any other link to this app (a thread of another room, a message, a DM, a room you can't
+ *  see) is the chip the chat draws for it once `resolve` has the answer, and its plain link until then. */
+export function roomLinks(
+  text: string,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  page: string,
+  resolve?: Readonly<{
+    read: (link: AppLink) => LinkResolution | null;
+    t: (text: string) => string;
+  }>,
+): FieldLink[] {
+  const out: FieldLink[] = [];
+  for (const { start, end, link } of appLinksIn(text, page)) {
+    const mine = rooms.find((item) => item.id === link.room);
+    if (link.message === undefined && link.thread === undefined && mine) {
+      out.push({
+        start,
+        end,
+        kind: "room",
+        label: mine.title,
+        mark: { kind: "room", id: mine.id, title: mine.title, icon: mine.icon },
+      });
+      continue;
+    }
+    const epic =
+      link.message === undefined && link.room === room.id
+        ? room.epics.find((item) => item.id === link.thread)
+        : undefined;
+    if (epic?.title.trim()) {
+      out.push({
+        start,
+        end,
+        kind: "thread",
+        label: `${mine?.title || room.book.title} › ${epic.title}`,
+        mark: { kind: "thread" },
+      });
+      continue;
+    }
+    const value = resolve?.read(link);
+    if (resolve && value)
+      out.push(resolvedFieldLink(start, end, value, resolve.t));
+  }
+  return out;
+}

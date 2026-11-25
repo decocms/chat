@@ -4,6 +4,7 @@
   import { MediaQuery } from "svelte/reactivity";
   import Button from "../../lib/studio/Button.svelte";
   import { tabTitle } from "../notifications/title";
+  import { setFaviconBadge } from "../notifications/favicon";
   import InstallCard from "../pwa/InstallCard.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
@@ -15,7 +16,7 @@
     roomIcon,
     targetHref,
     waitTarget,
-    plainWaitText,
+    homeWaitText,
     claudeWait,
     personVersion,
     dmEntry,
@@ -30,7 +31,7 @@
   import HomeAsk from "./HomeAsk.svelte";
   import ChatList from "./ChatList.svelte";
   import AccountRow from "../app-navigation/AccountRow.svelte";
-  import UpdateRow from "../app-navigation/UpdateRow.svelte";
+  import UpdateRow from "../user-center/UpdateRow.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import HomeSkeleton from "./HomeSkeleton.svelte";
@@ -47,7 +48,6 @@
     rooms,
     profile,
     creator,
-    onlanguage,
     lang,
     ago,
     onnavigate,
@@ -79,6 +79,9 @@
   ) => homeText(lang, key, vars);
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
+  // The tab's icon carries a red dot while the title shows "(n)".
+  $effect(() => setFaviconBadge(waits.length > 0));
+  onDestroy(() => setFaviconBadge(false));
   // Triage filters over the cards; a filter with nothing in it hides. Picking
   // one scrolls down to the cards, so they deal out already filtered.
   let filter = $state<"all" | WaitKind>("all");
@@ -303,9 +306,9 @@
   </div>{/snippet}
 
 <svelte:head><title>{tabTitle("deco.chat", waits.length)}</title></svelte:head>
-{#if $onboardingView.visible}
-  <Onboarding owner={onboarding} {lang} {onlanguage} />
-{:else if mobile.current && !$account.me && !$account.error}
+<!-- The first run is a dialog over this Home, not a page of its own (Valls). -->
+<Onboarding owner={onboarding} {lang} />
+{#if mobile.current && !$account.me && !$account.error}
   <!-- A phone while your account loads: the list's bar, title on the left (Gimenes #3878). -->
   <HomeSkeleton label={text("loading")} title={text("chatsTitle")} chats />
 {:else if mobile.current && $account.me && chatList($account.me).length}
@@ -329,7 +332,7 @@
       <AccountRow me={$account.me} row={false} />
     </header>
     <!-- A new version: the desktop sidebar's green row (Valls, #334), first in the phone's list, never in a room
-      (Gimenes #4613, #4630). The sidebar's foot is desktop only, so a phone had no way to update. -->
+      (Gimenes #4613, #4630). The user center is desktop only, so a phone had no way to update. -->
     {#if $account.updateAvailable}<div class="px-2 pt-1 md:hidden">
         <UpdateRow {lang} />
       </div>{/if}
@@ -345,7 +348,7 @@
       >
     </div>
     <div class="mb-2 px-2">
-      <NotifyOffer owner={pwa} {lang} card />
+      <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
       <InstallCard owner={pwa} {lang} compact />
     </div>
     <ChatList
@@ -400,7 +403,7 @@
       ]}
     >
       <div class="w-full max-w-xl">
-        <NotifyOffer owner={pwa} {lang} card />
+        <div class="md:hidden"><NotifyOffer owner={pwa} {lang} card /></div>
         <InstallCard owner={pwa} {lang} compact />
       </div>
       <section class="mt-[10vh] flex flex-col items-center max-md:mt-4">
@@ -640,7 +643,7 @@
                     ></span
                   ><b
                     class="line-clamp-4 text-[17px] leading-[1.3] font-medium tracking-[-0.01em] break-words"
-                    >{plainWaitText(wait.text)}</b
+                    >{homeWaitText(wait, lang)}</b
                   ></span
                 ></a
               >{/each}

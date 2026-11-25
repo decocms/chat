@@ -208,6 +208,49 @@ test("human mode shows lines that start with > as a quote block, and keeps the r
   expect(middle.map((n) => n.kind)).toEqual(["text", "element", "text"]);
   expect(text(middle)).toBe("antescitaçãodepois");
 });
+test("human mode shows bold, italic, strikethrough and code marks, and nothing else of Markdown", () => {
+  const ast = richText(
+    "1. Preview **Status** _ok_ *sim* ~~não~~ `x_y` **@José https://example.org**",
+    "human",
+    context,
+  );
+  expect(tags(ast)).toEqual(["strong", "em", "em", "del", "code", "strong"]);
+  expect(text(ast)).toBe(
+    "1. Preview Status ok sim não x_y @José https://example.org",
+  );
+  const last = ast.at(-1)!;
+  const inside = last.kind === "element" ? last.children : [];
+  expect(walk(inside).map((n) => n.kind)).toContain("mention");
+  expect(walk(inside).map((n) => n.kind)).toContain("link");
+  // Marks inside words, across lines, or with a space after the opener stay text.
+  for (const literal of [
+    "snake_case_name",
+    "2*3*4",
+    "** not bold **",
+    "**a\nb**",
+    "# 42\n- item",
+    "https://example.org/a_b_c",
+  ])
+    expect(tags(richText(literal, "human", context))).toEqual([]);
+});
+test("human mode shows __underline__, [text](url) links and ``` code blocks", () => {
+  const ast = richText(
+    "veja __isto__ e [o doc](https://example.org/doc)\n\n```\nlet **x** = 1\n```\n\ndepois",
+    "human",
+    context,
+  );
+  expect(tags(ast)).toEqual(["u", "pre", "code"]);
+  const link = walk(ast).find((n) => n.kind === "link");
+  expect(link?.target.href).toBe("https://example.org/doc");
+  expect(text(link ? [link] : [])).toBe("o doc");
+  // The code block keeps its marks as text, and the blank lines around it go.
+  expect(text(ast)).toBe("veja isto e o doclet **x** = 1depois");
+  // With no closing fence, the text stays as written.
+  expect(tags(richText("```\nsem fim", "human", context))).toEqual([]);
+  expect(tags(richText("[x](javascript:alert(1))", "human", context))).toEqual(
+    [],
+  );
+});
 test("GitHub chip classification preserves custom labels and reserved paths", () => {
   const ast = richText(
     "[https://github.com/org/repo/pull/42](https://github.com/org/repo/pull/42?x=1#top) [**Custom**](https://github.com/org/repo/commit/123456789) [reserved](https://github.com/settings/profile)",

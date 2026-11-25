@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "../../lib/studio/Icon.svelte";
   /**
-   * A new version of the app, first in the sidebar's foot (over your agent and your account): one row you click when you want it, instead
+   * A new version of the app, first in the user center (over your agent and your account): one row you click when you want it, instead
    * of a pill over the chat box (a new version ships every few minutes).
    */
   let {

@@ -141,17 +141,6 @@
         />
       </li>{/if}
     {#if dms}{@render dm(dms.self)}
-      {#if $personal.me && ($personal.me.requests.length || $personal.me.invites?.length)}<li
-          class="mt-3"
-        >
-          <Requests
-            invites={$personal.me.invites ?? []}
-            requests={$personal.me.requests}
-            {lang}
-            onjoin={controller.callbacks.answerInvite}
-            onanswer={controller.callbacks.answerRequest}
-          />
-        </li>{/if}
       {#if dms.talked.length}<li class="mt-3">
           <SectionHeader title={homeText(lang, "dmConversations")} />
         </li>{/if}

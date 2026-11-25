@@ -200,6 +200,15 @@ export const MessagesPage = z.object({
   more: z.boolean(),
 });
 export type MessagesPage = z.infer<typeof MessagesPage>;
+/** GET /api/books/:id/room: the room's snapshot over HTTP (a light socket's first read). The same params as the room
+ *  socket's: t = the open thread; since, at, eh = the room the app already has (Book.resumeOf, which checks them). */
+export const RoomStateQuery = z.object({
+  t: z._default(z.string().check(z.minLength(1), z.maxLength(64)), "main"),
+  since: z.optional(z.coerce.number().check(z.positive())),
+  at: z.optional(z.coerce.number().check(z.positive())),
+  eh: z.optional(z.string().check(z.maxLength(64), z.regex(/^[\w-]*$/))),
+});
+export type RoomStateQuery = z.infer<typeof RoomStateQuery>;
 /** GET /api/books/:id/link: where a link to this app goes (a chip in the chat, web/features/rich-text/AppLinkChip).
  *  m = a message (#m), t = a thread (?t=, #e, #doc:); neither = the room. */
 export const LinkQuery = z.object({
@@ -572,6 +581,8 @@ export const MePerson = z.object({
   avatar: num,
   /** The rooms you share, newest first (≤2 titles). */
   rooms: z.array(z.string()),
+  /** A colleague: your company email domain, with no room shared (Gimenes #5006). */
+  domain: z.optional(z.boolean()),
 });
 export type MePerson = z.infer<typeof MePerson>;
 /** Writing to someone: `id` = the DM, open now; no id = it went as a message request. */
@@ -589,9 +600,10 @@ export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
-  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, r<msg> an answer to
-   *  what you sent from the Home's ask box (msg = your request; text = the answer, about = your request). An a<msg>
-   *  wait's about is the question's choices (the message's JSON: {options, multi}). */
+  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts), r<msg> an
+   *  answer to what you sent from the Home's ask box (msg = your request; text = the answer, about = your request).
+   *  An a<msg> wait's about is the question's choices (the message's JSON: {options, multi}). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -653,6 +665,8 @@ export const InboxResult = z.object({
   waits: z.array(MeWait),
   mentions: z.array(InboxMention),
   tasks: z.array(InboxTask),
+  /** Every open thread you own (waits e<epic>), quiet ones too: the Inbox's "Suas threads". */
+  threads: z.optional(z.array(MeWait)),
 });
 export type InboxResult = z.infer<typeof InboxResult>;
 

@@ -1157,13 +1157,13 @@ test("navigation account reset releases private rename draft and return-focus re
   personal.dispose();
 });
 
-test("the one number counts every wait: asks, your Claude's questions and your tasks in review", () => {
-  expect(waitCount([{ ref: "t1" }, { ref: "t2" }])).toBe(2);
+test("a room's number counts the messages that ask you, not work: tasks and Claude's questions stay in the Inbox", () => {
+  expect(waitCount([{ ref: "t1" }, { ref: "t2" }])).toBe(0);
   expect(
     waitCount([{ ref: "m1" }, { ref: "a2" }, { ref: "b3" }, { ref: "t4" }]),
-  ).toBe(4);
-  // A refreshed server list after a human reply removes the ask, not their task.
-  expect(waitCount([{ ref: "t4" }])).toBe(1);
+  ).toBe(1);
+  // Reading the message (or replying) removes the ask; the task stays, without a number on the room.
+  expect(waitCount([{ ref: "t4" }])).toBe(0);
   expect(waitCount([])).toBe(0);
 });
 
@@ -1185,7 +1185,7 @@ test("a room's tooltip lists the three signals in their order, then the cloud sa
       "en",
     ),
   ).toEqual([
-    "3 waiting for you",
+    "2 waiting for you",
     "new messages from people",
     "an agent is working here",
     "cloud sandbox running",

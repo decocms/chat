@@ -50,7 +50,7 @@ export type ComposerState = {
 };
 export const blankPoll = (): PollDraft => ({
   question: "",
-  options: ["", "", ""],
+  options: ["", ""],
   multi: false,
   revision: 0,
 });

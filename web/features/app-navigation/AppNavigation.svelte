@@ -331,7 +331,7 @@
       }}
     />
   </div>
-  {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits at the sidebar's foot. -->{#if !inRoom}{#if !accountInSidebar}<span
+  {#if $personal.me}<!-- In a room, and on the home's desktop, your account row (a link to Settings) sits in the user center. -->{#if !inRoom}{#if !accountInSidebar}<span
           aria-hidden="true"
           class="h-6 w-px shrink-0 bg-sidebar-border max-md:hidden md:h-px md:w-6"
         ></span>{/if}
@@ -414,4 +414,4 @@
     >
   </aside>{/if}
 
-<!-- A new version waits at the sidebar's foot (UpdateRow), over your account, not over the chat box. -->
+<!-- A new version waits in the user center (UpdateRow), over your account, not over the chat box. -->

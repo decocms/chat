@@ -45,9 +45,7 @@
           selected.state.poll.question
             ? `Poll: ${selected.state.poll.question}`
             : "",
-          selected.state.poll.multi
-            ? vb.t("cada pessoa pode escolher várias")
-            : "",
+          selected.state.poll.multi ? vb.t("Permitir várias respostas") : "",
           ...selected.state.poll.options.filter(Boolean),
         ]
           .filter(Boolean)

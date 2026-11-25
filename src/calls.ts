@@ -124,10 +124,14 @@ export async function startRecorder(env: Env, origin: string, bookId: string, at
 export const recorderOn = (env: Env, bookId: string) => !!env.RECORDER_URL && !!env.RECORDER_SECRET && recordsRoom(env.CALL_RECORD_ROOMS, bookId);
 
 /** The recorder's word on a call (POST /api/calls/recorded): it is in Grain, or it failed. With a transcript, the
- *  room keeps it as a file (the agents read it) and gets a summary. */
-export async function callRecorded(env: Env, d: RecordedBody) {
+ *  room keeps it as a file (the agents read it) and gets a summary. Answers the emails of the people who were in
+ *  the call: the recorder shares the recording in Grain with each of them. */
+export async function callRecorded(env: Env, d: RecordedBody): Promise<string[]> {
   const book = bookStub(env, d.room);
-  if (!d.url) return book.callRecordFailed(d.room, d.error ?? "");
+  if (!d.url) {
+    await book.callRecordFailed(d.room, d.error ?? "");
+    return [];
+  }
   const lines = d.transcript ?? [];
   const text = lines.length ? transcriptMarkdown(`Call · ${await book.callTitle(d.room)} · ${new Date().toISOString().slice(0, 10)}`, lines) : "";
   // What was said aloud goes through the same secret filter as what is typed: with a secret in it, the room
@@ -135,6 +139,7 @@ export async function callRecorded(env: Env, d: RecordedBody) {
   const clean = text && !findSecret(text) ? text : "";
   const file = clean ? await storeFile(env, d.room, "ai", "text/markdown", new TextEncoder().encode(clean).buffer as ArrayBuffer, transcriptName()).catch(() => null) : null;
   await book.callRecorded(d.room, { url: d.url, minutes: d.minutes ?? 0, people: d.people ?? [], transcript: clean, withheld: !!text && !clean, file });
+  return book.callPeople();
 }
 
 /** Publish this person's tracks (push) and receive tracks of others in the same call (pull). */

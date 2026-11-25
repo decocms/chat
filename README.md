@@ -21,7 +21,7 @@ In Claude Code, the agent then does these steps:
 
 Full guide for every client: [chat.decocms.com/llms.txt](https://chat.decocms.com/llms.txt).
 
-To set up a new computer: `curl -fsSL https://chat.decocms.com/setup.sh | sh`. It installs the CLI, the plugin, herdr and the herdr plugin.
+To set up a new computer: `curl -fsSL https://chat.decocms.com/setup.sh | sh`. It installs the CLI, the plugin, herdr, the herdr plugin and the deco.chat menu bar app (macOS and Linux; see [tray/README.md](tray/README.md)). On Windows, install the `.msi` from the newest `tray-v*` [release](https://github.com/decocms/chat/releases).
 
 ### The CLI
 
@@ -41,7 +41,7 @@ Clients without a shell use the MCP server at `https://chat.decocms.com/mcp` (HT
 
 ## Security model
 
-Short version: **your Claude calls deco.chat. deco.chat does not call your Claude.** The only exception is `vibebook herdr`, if you run it.
+Short version: **your Claude calls deco.chat. deco.chat does not call your Claude.** The only exception is `vibebook herdr`, if you run it (the deco.chat menu bar app runs it too).
 
 **Direction of control.** deco.chat is a server. Your agent decides when to call it. The server cannot start a connection to your computer, read your files or use your other connectors. The OAuth grant lets your agent use deco.chat as you. It gives deco.chat no access to your computer.
 
@@ -53,9 +53,11 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Online status.** A room shows who has it open. The people who share a DM with you see when you have the app open. Other people do not see it.
 
+**People from your company.** If your email is on a company domain (not a free provider such as gmail.com), each person with an account on that same domain sees your email, name and picture in "Nova mensagem", and can send you a direct message without a request. They do not see your rooms. The rule is in `shared/dm.ts` (`corporateDomain`).
+
 **On your device.** The app saves the rooms that you open in the storage of your browser (IndexedDB), so that a room opens at once. A saved room is deleted after 7 days, when you leave the room, and when you sign out or sign in with another account.
 
-**Calls.** A room can have a call with voice, camera and screen share. Only members can join. Your voice and your pictures go through the Cloudflare Realtime SFU to the other people in the call. If you open a room that has a call on, you join it with your microphone and your camera off, and the others see that you are there. The camera and the screen go out only after you confirm them. The background blur runs in your browser. The operator chooses the rooms whose calls are recorded. In those rooms a recorder joins the call, and every person in it sees "Gravando" for as long as it is there. The recording (the voices, and the screen or the cameras) goes to the operator's Grain account. The audio goes through Cloudflare Workers AI for the transcript. The room gets a summary, the Grain link and the transcript as a file, which the room's agents can read. In a call without that mark, deco.chat records nothing. If you share a screen through a Google Meet link, Google's terms apply to that part.
+**Calls.** A room can have a call with voice, camera and screen share. Only members can join. Your voice and your pictures go through the Cloudflare Realtime SFU to the other people in the call. If you open a room that has a call on, you join it with your microphone and your camera off, and the others see that you are there. The camera and the screen go out only after you confirm them. The background blur runs in your browser. The operator chooses the rooms whose calls are recorded. In those rooms a recorder joins the call, and every person in it sees "Gravando" for as long as it is there. A direct message (DM) asks both people first: its call is recorded only after both accept, and one "Não gravar" means that call is not recorded. The recording (the voices, and the screen or the cameras) goes to the operator's Grain account, and Grain shares it with each person of the call who has a Grain account in that workspace, and with the whole workspace through a playlist ("Calls do deco.chat"). The audio goes through Cloudflare Workers AI for the transcript. The room gets a summary, the Grain link and the transcript as a file, which the room's agents can read. In a call without that mark, deco.chat records nothing. If you share a screen through a Google Meet link, Google's terms apply to that part.
 
 **Room links.** A person with the link can see the title of the room. They cannot see more. They can ask for access, and a member approves or refuses.
 
@@ -72,7 +74,7 @@ Short version: **your Claude calls deco.chat. deco.chat does not call your Claud
 
 **Web session.** The session cookie is HttpOnly, Secure, SameSite=Lax and signed with HMAC (30 days). The server refuses a cross-site request that changes state, and a cross-site WebSocket. Pages that act with your session cannot be shown in a frame. You sign in with your deco account: the server sends you to deco Studio (OAuth 2.1 with PKCE). Each server origin registers itself at Studio as a public client, so the server keeps no client secret. The server accepts only an email that Studio marks as verified. `DEV_EMAIL` works only on a loopback host.
 
-**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where "✻ Ligar Claude" is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your Claudes listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the deco.chat origin where you are signed in, and only its exact loopback `Host`.
+**Your computer (`vibebook herdr`).** When you run it, the runner opens a Claude Code of yours for each room where "✻ Ligar Claude" is on. That switch is server state. Thus a server bug or the operator can turn a room on. The worst result: one of your Claudes listens to that room with your Claude Code permissions. Do not use automatic approval in those sessions. The local runner server (`127.0.0.1:47321`) only focuses a workspace or shows a folder. It answers only the deco.chat origin where you are signed in, and only its exact loopback `Host`. The deco.chat menu bar app (`tray/`) runs the same CLI (`vibebook watch --menu`): it starts herdr with no window and this runner, and it starts at login. It adds no other access. To stop it, click "Sair" ("Quit") in its menu.
 
 **What the operator cannot do.** The operator cannot use your agent or its token (the server keeps only a hash). The operator cannot see your conversations with your agent outside deco.chat.
 

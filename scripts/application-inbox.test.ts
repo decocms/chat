@@ -268,6 +268,7 @@ test("Inbox read401 clears document authority and late account reads cannot rest
     waits: [],
     mentions: [],
     tasks: [],
+    threads: [],
   });
   h.dispose();
   const late = deferred<Awaited<ReturnType<HomeApi["inbox"]>>>();
@@ -338,6 +339,7 @@ test("reentrant close publication cannot resurrect captured private opening afte
       waits: [],
       mentions: [],
       tasks: [],
+      threads: [],
     });
     stop();
     h.dispose();

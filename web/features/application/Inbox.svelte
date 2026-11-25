@@ -11,6 +11,7 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import EmptyState from "../../lib/components/EmptyState.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
+  import { waitText } from "../waits/model";
 
   let {
     waits,
@@ -63,11 +64,7 @@
   );
   const key = (wait: Wait) => `${wait.book_id}:${wait.ref}`;
   const kind = (wait: Wait) =>
-    wait.ref.startsWith("t")
-      ? "task"
-      : /^[ab]/.test(wait.ref)
-        ? "agent"
-        : "ask";
+    /^[te]/.test(wait.ref) ? "task" : /^[ab]/.test(wait.ref) ? "agent" : "ask";
   const author = (a: string, name: string | null) =>
     name || displayName?.(a) || a.split("@")[0];
   const statusLabel = (s: string) =>
@@ -203,7 +200,7 @@
                             ? vb.t("Seu agent espera você:")
                             : `${author(wait.author, wait.author_name).split(" ")[0]}:`}</strong
                       >
-                      {wait.text}
+                      {waitText(wait, vb.t)}
                     </span>
                     <span class="text-xs leading-4 text-muted-foreground"
                       >{showAll

@@ -19,6 +19,7 @@ import {
   BriefSchema,
   CallPeerSchema,
   RingSchema,
+  CallConsentSchema,
   TaskSchema,
 } from "./room";
 
@@ -52,6 +53,9 @@ export type DocumentInvalidationEvent = z.infer<
 
 export const RoomEventSchemas = {
   state: z.extend(RoomSnapshotSchema, { t: z.literal("state") }),
+  // A light socket (`lite=1`) gets this instead of `state`: the app then reads the room over HTTP
+  // (GET /api/books/:id/room, the same state, compressed). at = when the Book sent it.
+  hello: event("hello", { at: num }),
   msg: event("msg", { m: MessageSchema }),
   moved: event("moved", { id: num, thread: str }),
   // A message's card replaced (Modo Fire updates its live card): the app redraws that message.
@@ -149,6 +153,7 @@ export const RoomEventSchemas = {
     call: z.array(CallPeerSchema),
     thread: z.optional(str),
     ring: z.optional(RingSchema),
+    consent: z.optional(CallConsentSchema),
   }),
   conns: event("conns", {}),
   error: event("error", { error: z.optional(str) }),
@@ -158,6 +163,9 @@ type Schemas = typeof RoomEventSchemas;
 export type RoomEvent = {
   [K in keyof Schemas]: z.infer<Schemas[K]>;
 }[keyof Schemas];
+
+/** The room's snapshot: the socket's first frame, or the answer of GET /api/books/:id/room. */
+export type RoomStateEvent = Extract<RoomEvent, { t: "state" }>;
 
 export function isRoomEventValue(value: unknown): value is RoomEvent {
   if (typeof value !== "object" || value === null || Array.isArray(value))

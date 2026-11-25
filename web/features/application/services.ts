@@ -41,6 +41,7 @@ import type {
 } from "./types";
 import type { FetchLike } from "../../app/transport";
 import { browserDrafts } from "../composer/draftStore";
+import { createRoomVisits, type RoomVisits } from "../navigation/recent";
 import { isRoomMember, roomHasThread } from "../../../shared/call";
 
 export type ApplicationPwa = Pick<
@@ -53,7 +54,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   homeApi?: HomeApi;
   accountApi?: AccountApi;
   agentsApi?: AgentsApi;
-  /** Scroll-back over HTTP; without it, "older" goes on the socket. */
+  /** Scroll-back and the room's snapshot over HTTP; without it, "older" and the state go on the socket. */
   messagesApi?: MessagesApi;
   /** Rooms saved in IndexedDB (cache plan PR 3); without it, rooms live in memory only. */
   roomCache?: RoomCache;
@@ -65,8 +66,11 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   ) => ReturnType<typeof createPersonalConnection>;
   /** Account-owned document drafts outside these services reset here, once. */
   onIdentityReset?: () => void;
+  /** Where you were in each room (the thread to reopen, your last threads); without it, kept in memory only. */
+  visits?: RoomVisits;
 }) {
   const browser = options.browser;
+  const visits = options.visits ?? createRoomVisits(null);
   const state = writable<ApplicationState>({
     route: applicationRoute(browser.href()),
     href: browser.href(),
@@ -150,9 +154,9 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       })
     : () => {};
   const root = createRootRoomSession({
-    url: (id, thread, code, resume) =>
+    url: (id, thread, code, resume, lite) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
+        `/ws/${id}?t=${encodeURIComponent(thread)}${lite ? "&lite=1" : ""}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
           resume
             ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
             : ""
@@ -172,6 +176,12 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       ? {
           older: (roomId: string, thread: string, before?: number) =>
             options.messagesApi!.page(roomId, { thread, before, limit: 100 }),
+          // The room's snapshot over HTTP: the socket opens light (lite=1) and carries live events only.
+          room: (
+            roomId: string,
+            thread: string,
+            resume?: { since: number; at: number; eh?: string },
+          ) => options.messagesApi!.room(roomId, { thread, resume }),
         }
       : {}),
     present: (room) => titleOwnDm(room, browser.language ?? "pt"),
@@ -494,6 +504,7 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         return;
     }
     root.selectThread(thread);
+    visits.enter(scope.account, scope.roomId, thread);
     if (
       !owns(scope) ||
       currentLease() !== current ||
@@ -563,11 +574,29 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       };
       return;
     }
+    value = resumeRoom(value);
     const to =
       typeof value === "string"
         ? applicationRoute(new URL(value, browser.href()).href)
         : ({ kind: "room", target: value } as const);
     animated(to, () => router.go(value, replace, presentationThread));
+  }
+  /** Opening another room by itself (the rail, the home, search) goes back to the thread you left there. A link to
+   *  a thread, a message, a file or a pane goes where it says. */
+  function resumeRoom(value: string | RoomTarget) {
+    if (
+      typeof value === "string" ||
+      value.thread !== undefined ||
+      value.messageId !== undefined ||
+      value.fileId !== undefined ||
+      value.document ||
+      value.app ||
+      value.roomId === currentRoomId()
+    )
+      return value;
+    const me = get(personal.state).me?.email,
+      thread = me ? visits.last(me, value.roomId) : null;
+    return thread && thread !== "main" ? { ...value, thread } : value;
   }
   function resetIdentity() {
     const revision = get(personal.state).identityRevision;
@@ -711,6 +740,10 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
       openAccount,
       logout,
       sessionLost: denySession,
+      /** An @mention clicked in a room: the DM with that person (a room member, so it opens at once). */
+      openPerson(email: string) {
+        void navigation.callbacks.connect?.(email).catch(() => {});
+      },
       selectThread(
         thread: string,
         options: { replace?: boolean; transient?: boolean } = {},

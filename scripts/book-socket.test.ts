@@ -32,6 +32,15 @@ test("a first open has no resume, and a resume needs both since and at", () => {
   );
 });
 
+test("a light socket (lite=1) keeps its flag; any other value is dropped", () => {
+  expect(bookSocketUrl("abcdef", query("lite=1&t=e1"))).toBe(
+    "https://book/ws?book=abcdef&t=e1&lite=1",
+  );
+  expect(bookSocketUrl("abcdef", query("lite=true"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
+});
+
 test("only numbers and a short hash pass", () => {
   const url = new URL(
     bookSocketUrl("abcdef", query("since=12x&at=34&eh=a%26b=c&rc=99999")),
@@ -39,4 +48,22 @@ test("only numbers and a short hash pass", () => {
   expect(url.searchParams.get("since")).toBe("12");
   expect(url.searchParams.get("eh")).toBe("abc");
   expect(url.searchParams.get("rc")).toBe("9999");
+});
+
+test("the call's own socket (call=1) reaches the Book as such; any other value is no call socket", () => {
+  expect(bookSocketUrl("abcdef", query("call=1"))).toBe(
+    "https://book/ws?book=abcdef&t=main&call=1",
+  );
+  expect(bookSocketUrl("abcdef", query("call=yes"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
+});
+
+test("the Home Inbox's look (peek=1) reaches the Book as such; any other value is a plain open", () => {
+  expect(bookSocketUrl("abcdef", query("peek=1&t=e1"))).toBe(
+    "https://book/ws?book=abcdef&t=e1&peek=1",
+  );
+  expect(bookSocketUrl("abcdef", query("peek=yes"))).toBe(
+    "https://book/ws?book=abcdef&t=main",
+  );
 });

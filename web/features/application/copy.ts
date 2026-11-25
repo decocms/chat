@@ -212,7 +212,8 @@ const EN: Readonly<Record<string, string>> = {
   "Sem dono": "No owner",
   "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
     "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
-  "app da sala": "room app",
+  "App · {who}": "App · {who}",
+  "Abrir ao lado": "Open beside",
   arquivo: "file",
   "Não deu pra abrir agora. Tente de novo.": "Couldn't open it now. Try again.",
   "Buscando a mensagem…": "Finding the message…",
@@ -548,6 +549,18 @@ const EN: Readonly<Record<string, string>> = {
     "Notifications are blocked for this site in this browser. Click the lock next to the address → Notifications → Allow, and reload the page.",
   "Te mencionaram": "You were mentioned",
   "Suas tarefas": "Your tasks",
+  "Suas threads": "Your threads",
+  "Pronta pra fechar": "Ready to close",
+  "Parada há 3 dias": "Stalled for 3 days",
+  "Em andamento": "In progress",
+  "{done}/{total} tarefas": "{done}/{total} tasks",
+  "Sem tarefas": "No tasks",
+  "Marcar como feita": "Mark as done",
+  "Thread marcada como feita": "Thread marked as done",
+  "Não deu pra marcar como feita. Tente de novo.":
+    "Couldn't mark it as done. Try again.",
+  "pronta pra fechar": "ready to close",
+  parada: "stalled",
   revisar: "review",
   "Não foi possível carregar a caixa de entrada.": "Could not load your inbox.",
   "respondendo…": "replying…",
@@ -571,6 +584,7 @@ const EN: Readonly<Record<string, string>> = {
   Concluir: "Complete",
   "Abrir {name}": "Open {name}",
   "Tarefa concluída": "Task completed",
+  "Thread concluída": "Thread completed",
   "Ver a conversa inteira na sala": "See the whole conversation in the room",
   "{n} mensagens antes": "{n} earlier messages",
   "{n} mensagens depois": "{n} later messages",
@@ -579,6 +593,7 @@ const EN: Readonly<Record<string, string>> = {
   "Anexar arquivo": "Attach file",
   "ou Cmd+V": "or Cmd+V",
   "Mencionar alguém": "Mention someone",
+  "Mencionar sala": "Mention a room",
   "Criar votação": "Create poll",
   "Mensagem…": "Message…",
   "Marcar como concluída": "Mark as done",
@@ -595,8 +610,10 @@ const EN: Readonly<Record<string, string>> = {
     "The room's doc. Everyone edits it; @vibe keeps it up to date with the decisions.",
   "Nova votação": "New poll",
   "Pergunta (ex.: Qual cruzeiro?)": "Question (e.g. Which cruise?)",
-  opção: "option",
-  "cada pessoa pode escolher várias": "each person can pick several",
+  Opções: "Options",
+  "Adicionar opção": "Add option",
+  "Remover opção": "Remove option",
+  "Permitir várias respostas": "Allow multiple answers",
   "Remover anexo": "Remove attachment",
   "maior que 10MB.": "larger than 10MB.",
   falhou: "failed",
@@ -631,6 +648,7 @@ const EN: Readonly<Record<string, string>> = {
     "It saw this in the conversation and thinks it's worth a thread, with the tasks below.",
   "Tarefas propostas": "Proposed tasks",
   "Criar thread": "Create thread",
+  "Abrir thread": "Open thread",
   "Thread criada": "Thread created",
   "Não deu pra criar a thread.": "Couldn't create the thread.",
   "Pedir pro meu agent": "Ask my agent",
@@ -678,8 +696,19 @@ const EN: Readonly<Record<string, string>> = {
   "Essa thread não existe mais nesta sala.":
     "That thread is no longer in this room.",
   Threads: "Threads",
-  "Threads abertas": "Open threads",
-  Feitas: "Done",
+  // The threads tabs: the same English words in both languages (Viktor).
+  Mine: "Mine",
+  Open: "Open",
+  Done: "Done",
+  "Nenhuma thread aberta é sua": "None of the open threads is yours",
+  "As threads que você cria ou que passam para você aparecem aqui.":
+    "Threads that you start or that are handed to you show up here.",
+  "Nenhuma thread aberta": "No open threads",
+  "Para abrir uma, use Criar thread numa mensagem.":
+    "To start one, use Create thread on a message.",
+  "Nenhuma thread feita ainda": "No done threads yet",
+  "Uma thread marcada como feita vem para cá.":
+    "A thread marked done moves here.",
   "Ver menos": "Show less",
   "Ver mais ({n})": "Show more ({n})",
   "Fixar no topo": "Pin to top",
@@ -875,6 +904,13 @@ const EN: Readonly<Record<string, string>> = {
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
+  "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.":
+    "Record this call to Grain? It records only if both of you accept.",
+  Gravar: "Record",
+  "Não gravar": "Don't record",
+  "Esta call não vai ser gravada": "This call will not be recorded",
+  "Gravação: esperando a outra pessoa aceitar":
+    "Recording: waiting for the other person to accept",
   "Tela de {name}": "{name}'s screen",
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",
@@ -903,6 +939,10 @@ const EN: Readonly<Record<string, string>> = {
     "Your screen share stopped: the screen did not change for 10 minutes.",
   "Mostrar o chat": "Show the chat",
   "Ocultar o chat": "Hide the chat",
+  "Voltar pro chat (a call continua)": "Back to the chat (the call goes on)",
+  "Silenciar pra mim": "Mute for me",
+  "Ouvir de novo": "Hear again",
+  "Silenciado pra você": "Muted for you",
   "Sua tela, como os outros veem": "Your screen, as the others see it",
   "Não consegui usar o microfone. Libere o acesso no navegador.":
     "I could not use the microphone. Allow it in the browser.",
@@ -924,12 +964,11 @@ const EN: Readonly<Record<string, string>> = {
   "O vibebook herdr abre o Claude Code na pasta da sala; leva uns segundos.":
     "vibebook herdr opens Claude Code in the room's folder; it takes a few seconds.",
   "Seu agent não está nesta sala.": "Your agent isn't in this room.",
-  "1 pessoa votou": "1 person voted",
-  "{n} pessoas votaram": "{n} people voted",
-  "pode escolher várias": "pick several",
-  "escolha uma": "pick one",
-  encerrada: "closed",
-  encerrar: "close",
+  "1 voto": "1 vote",
+  "{n} votos": "{n} votes",
+  "Encerrar votação": "Close poll",
+  "Quem votou em {label}": "Who voted for {label}",
+  "Votação encerrada": "Poll closed",
   concluído: "done",
   "{d}/{n} tarefas": "{d}/{n} tasks",
   "1 resposta": "1 reply",
@@ -1195,6 +1234,24 @@ const EN: Readonly<Record<string, string>> = {
     "Empty doc. Click <b>Edit</b> or ask your agent to summarize the decisions here.",
   "@vibe avaliou este doc. O agent de cada um também recebe isso (doc_notes).":
     "@vibe reviewed this doc. Everyone's agent gets this too (doc_notes).",
+  // The first-run dialog over the home (web/features/onboarding).
+  "Passo {n} de 3": "Step {n} of 3",
+  Continuar: "Continue",
+  "Trocar foto": "Change photo",
+  "Adicionar foto (opcional)": "Add a photo (optional)",
+  "Solte a imagem aqui": "Drop the image here",
+  "No deco.chat cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:":
+    "In deco.chat everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
+  "Sua primeira sala": "Your first room",
+  "Uma sala por projeto: conversa, doc e tarefas. Diga o que é e com quem; quem você citar é convidado.":
+    "One room per project: chat, doc and tasks. Say what it is and with whom; anyone you name gets invited.",
+  "Criar a sala": "Create the room",
+  "Não foi possível salvar. Confira os dados e tente novamente.":
+    "Could not save. Check the details and try again.",
+  "Ainda sem confirmação. Confira o estado atual antes de tentar novamente.":
+    "Not confirmed yet. Review the current state before trying again.",
+  "Conferi o estado atual": "I reviewed the current state",
+  "Fechar e ver a home": "Close and see the home",
 };
 export function createApplicationCopy(language: ApplicationLanguage) {
   return (pt: string, vars?: CopyVars): string => {

@@ -12,7 +12,7 @@ import { routeMessage } from "./route-home";
 import { startRoom } from "./start-room";
 import { canDm, dmIds, openDmWith } from "./dm";
 import { findSecret } from "./secrets";
-import { isDmId, MUTUAL } from "../shared/dm";
+import { corporateDomain, isDmId, MUTUAL } from "../shared/dm";
 import { answerInvite, befriend, bookStub, invitesFor, joinRoom, createBook, FILE_TYPES, inbox, inviteMember, isMember, maxBytes, searchRooms, sizeError, setRoomIcon, storeFile, typesError, waitsFor } from "./rooms";
 import { sendInviteEmail } from "./invite-mail";
 import { track } from "./track";
@@ -57,8 +57,11 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     const hit = MeData.safeParse(await cached.json().catch(() => null));
     if (hit.success) return { ...hit.data, v: await currentVersion(env, req.url), cached: true };
   }
-  // One round trip's worth: the four reads run together.
-  const [books, friends, requests, sent, invites, people, me, waits] = await Promise.all([
+  // Colleagues for "Nova mensagem": everyone with an account and your company email domain (shared/dm.ts), after the
+  // people from your rooms. Free providers (gmail.com…) have none (Gimenes #5006).
+  const domain = corporateDomain(email);
+  // One round trip's worth: the reads run together.
+  const [books, friends, requests, sent, invites, people, me, waits, colleagues] = await Promise.all([
     db.prepare(
       `SELECT b.id, b.title, b.folder, b.summary, b.dm IS NOT NULL AS dm, b.updated_at, b.created_at, b.icon, b.busy_until, m.position, m.tint, m.opened_at, coalesce(b.last_human_id, 0) AS last_human_id, coalesce(b.last_agent_id, 0) AS last_agent_id,
          coalesce(r.last_id, 0) AS read_id, b.last_by, b.last_text, b.last_agent,
@@ -98,7 +101,12 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     ).bind(email).all<{ email: string; name: string | null; avatar: number | null; rooms: string }>(),
     db.prepare(`SELECT name, avatar, lang FROM users WHERE email = ?`).bind(email).first<Record<string, unknown>>(),
     waitsFor(db, email),
+    domain
+      ? db.prepare(`SELECT email, name, avatar FROM users WHERE email LIKE '%@' || ?2 AND email != ?1 ORDER BY coalesce(name, email) LIMIT 200`)
+          .bind(email, domain).all<{ email: string; name: string | null; avatar: number | null }>().then((r) => r.results)
+      : Promise.resolve([]),
   ]);
+  const inRooms = new Set(people.results.map((r) => r.email));
   // Remember the language for emails sent later (mentions, invites): an explicit choice wins, else the browser's, once.
   // Your DM with each friend and your own ("Você"): src/dm.ts. An empty DM is left out of `books` above.
   const dms = await dmIds(env, email, friends.results.map((f) => String(f.email)));
@@ -131,7 +139,10 @@ export async function meFor(env: Env, ctx: { waitUntil(p: Promise<unknown>): voi
     requests: keep("requests", MeFriendRequest, requests.results),
     sent: keep("sent", MeSentRequest, sent.results.map((r) => ({ ...r, declined: Number(r.declined ?? 0) }))),
     invites: keep("invites", MeInvite, invites),
-    people: keep("people", MePerson, people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) }))),
+    people: keep("people", MePerson, [
+      ...people.results.map((r) => ({ ...r, rooms: roomTitles(r.rooms) })),
+      ...colleagues.filter((r) => !inRooms.has(r.email)).map((r) => ({ ...r, rooms: [], domain: true })),
+    ]),
     waits: keep("waits", MeWait, waits.map((w) => ({ ...w, room: w.room ?? "", thread: w.thread ?? "main", author: w.author ?? "", text: w.text ?? "", ts: w.ts ?? 0 }))),
   });
   if (dropped.length) console.error("/api/me dropped rows off schema", dropped);
@@ -163,6 +174,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
     humanPost: (roomId, text, thread, clientId, extra) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId, ...extra }),
     roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
+    roomState: (roomId, query) => bookStub(env, roomId).roomState(roomId, email, query),
     linkTarget: (roomId, query) =>
       resolveLink(
         {
@@ -198,6 +210,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
       return out;
     },
     inbox: () => inbox(env, email),
+    threadDone: (roomId, epicId) => bookStub(env, roomId).inboxDone(roomId, epicId, email),
     isEmail: (s) => EMAIL_RE.test(s),
     // Writing to someone (the + "Nova mensagem"): their request to you → accept it (their first message lands in the DM);
     // someone you can DM (a room in common, a connection, yourself) → the DM opens now; anyone else → a message request

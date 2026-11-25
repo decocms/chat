@@ -17,7 +17,7 @@
     claudeWait,
     dmEntry,
     lastLine,
-    plainWaitText,
+    homeWaitText,
     roomIcon,
     roomLabel,
     targetHref,
@@ -99,7 +99,7 @@
             <RoomRow
               href={targetHref(waitTarget(wait))}
               label={place(wait)}
-              meta={`${who(wait)}: ${plainWaitText(wait.text)}`}
+              meta={`${who(wait)}: ${homeWaitText(wait, lang)}`}
               urgent
               variant="list"
               onopen={() => onnavigate(waitTarget(wait))}

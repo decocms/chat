@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
   import DmNav from "../app-navigation/DmNav.svelte";
-  import SidebarFoot from "../app-navigation/SidebarFoot.svelte";
+  import UserCenter from "../user-center/UserCenter.svelte";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   import { navRow } from "../../lib/components/navRow";
   import EpicTree from "../navigation/EpicTree.svelte";
@@ -30,7 +30,7 @@
     send,
     request,
     onopen,
-    ondonechange,
+    onviewchange,
     navigation,
     pins,
     onopenpinfile,
@@ -237,7 +237,7 @@
           {thread}
           session={navigation}
           mutations={owner}
-          {ondonechange}
+          {onviewchange}
           onopen={open}
           vb={{
             t: vb.t,
@@ -317,11 +317,11 @@
         />
       </div>{/snippet}
     {#snippet panelAbove()}{@render callPanel?.(false)}{/snippet}
-    <SidebarFoot above={callPanel ? panelAbove : undefined}>
+    <UserCenter above={callPanel ? panelAbove : undefined}>
       {#if footer}{@render footer(
           false,
           selfRows,
         )}{:else}{@render selfRows()}{/if}
-    </SidebarFoot>
+    </UserCenter>
   {/if}
 </section>

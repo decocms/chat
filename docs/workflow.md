@@ -31,7 +31,7 @@ Each change that a person can see gets screens from local development before its
 2. Run `bun run dev`. Wait until http://127.0.0.1:8797/api/me answers with the test email.
 3. Run `bun run screens -- --hover`. It makes a new room "Sala de teste" with three test messages and saves the room at 1440 px (still and with the mouse over a message), the room at 390 px and the home at 390 px in `.screens/<branch>/`.
    - If your change needs another state (a thread, a reaction, a dialog), add the steps to `scripts/screens.ts` in the same pull request.
-   - `--react` adds a reaction. `--link` opens a copied link to an old message in a new tab.
+   - `--react` adds a reaction. `--link` opens a copied link to an old message in a new tab. `--dm` opens "Nova mensagem" with a colleague (an account on the test email's domain). `--resume` makes six threads (one pinned) and a second room, then at 1440 px and 390 px (with a video of each) leaves a thread and comes back, opens threads to fill and change the three recent ones, follows a link to a thread and to a message, and clicks the open room. Each screen is checked: the run fails if the app shows something else. `--marks` uses the Markdown shortcuts of the composer and shows the marks in the messages.
 4. Look at each screen. If it does not show the change working, fix the change. Do not continue.
 5. Run `bun run screens -- --hover --publish`. It pushes the screens to the branch `pr-screens` (no workflow runs there; the repository is public, so test data only) and prints the Markdown. Put it in the "Screens" section of the pull request.
 
@@ -61,6 +61,7 @@ The rule: quick CI on pull requests, long CI on `main`.
   - `chunk-diagnostics` (label `run-chunk-diagnostics`): which modules go into each chunk of the browser build.
 - The "Workers Builds" checks on a pull request are not required. Do not wait for them.
 - `router-bench` (`.github/workflows/router-bench.yml`) runs only on a pull request that touches the router (AGENTS.md, rule 14), and by hand. It needs the `OPENROUTER_API_KEY` and `CLOUDFLARE_API_TOKEN` (D1 read only) repository secrets. It comments the scores on the pull request and fails when a case fails or a score goes down. It does not print the text of a D1 case, because the logs are public. If it fails, do not merge: fix the change or ask a human.
+- `release-tray` (`.github/workflows/release-tray.yml`) runs only on a tag `tray-v*` and by hand. It builds the menu bar app (see "Release the menu bar app").
 - If CI on `main` fails, `.github/workflows/main-red.yml` opens an issue with the label `main-red` and mentions the commit author. When CI on `main` passes, it closes the issue.
 
 ## Build output
@@ -120,6 +121,7 @@ Each change to the call (`web/features/call/`, `src/calls.ts`, `recorder/`) gets
 1. In `.dev.vars`, set `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` (the SFU app; the media goes through it) and `DEV_EMAIL`.
 2. Run `bun run build:ui`, then `bun run dev`.
 3. Run `bun scripts/call-browser.ts`. Two people (fake microphone, camera and screen) join a call, share a screen and leave. The screenshots go to `/tmp/vibebook-call-browser` (`TEST_OUTPUT_DIR`).
+4. Run `bun scripts/call-answer-browser.ts`. A DM's call is answered from another room, the call follows the person to another room and Home, and the stage's tiles are 16:9 with 2 and 4 people. The screenshots go to `/tmp/vibebook-call-answer`.
 
 To test the recorder too:
 
@@ -138,8 +140,21 @@ To test the recorder too:
    ```
 
 4. Run `RECORDER_SECRET=<same> CF_TOKEN=<token that can run Workers AI> bun scripts/call-recorder-local.ts`. It stands in for the recorder Worker.
-5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
+5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. For a DM, run `bun scripts/call-dm-consent-browser.ts`: the two people answer the recording question, and the screens go to `/tmp/vibebook-call-dm-consent`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
 6. Remove the container: `docker rm -f rec`.
+
+## Test the camera's blur
+
+Each change to the blur (`web/features/call/blur.ts`) gets this test. Put the screens of before and after in the pull request.
+
+1. Do steps 1 and 2 of "Test the call locally".
+2. Make a camera file from a photo of a person (public domain or your own, because the screens go to a public branch):
+
+   ```
+   ffmpeg -loop 1 -i person.jpg -vf "scale=-2:720,pad=1280:720:(ow-iw)/2:0,format=yuv420p" -t 3 -r 24 /tmp/person.y4m
+   ```
+
+3. Run `TEST_GPU=1 TEST_CAMERA=/tmp/person.y4m bun scripts/call-blur-test.ts`. It opens "Câmera e desfoque" in a call and saves the preview at each level in `/tmp/vibebook-call-blur` (`TEST_LABEL` names the files). It prints the frames a second with the strong blur (`strong_fps`). Without `TEST_GPU=1`, Chrome draws on the CPU and the number is much lower than a person sees.
 
 ## Test the call's audio
 
@@ -173,3 +188,14 @@ The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a conta
 3. Push the tag `cli-v<version>`.
 4. `.github/workflows/publish-cli.yml` publishes to npm (Trusted Publishing, no token).
 5. Run `npm view vibebook.dev version`. Say that the release is out only when it shows the new version.
+
+## Release the menu bar app
+
+The menu bar app (`tray/`) has its own release. A merge into `main` does not release it.
+
+1. Increase `version` in `tray/tauri.conf.json` and `tray/Cargo.toml`. Commit.
+2. Push the tag `tray-v<version>`.
+3. `.github/workflows/release-tray.yml` builds the app for macOS (arm64, x64), Windows (x64) and Linux (x64). It makes a GitHub Release with the name of the tag.
+4. Look at the release. It must have the seven files in `tray/README.md` and `SHA256SUMS.txt`. `public/setup.sh` installs the newest `tray-v*` release.
+
+To build without a release, run the workflow by hand (`workflow_dispatch`). The files are then in the artifacts of the run. The app ships the CLI of the commit that it builds, so a change to `cli/` gets to the app only with a new app release.

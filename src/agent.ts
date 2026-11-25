@@ -1,4 +1,5 @@
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
+import { threadWait, threadWaitLine } from "../shared/threadWait";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
 // whose props carry the person's email. Every room call re-checks membership in D1.
@@ -1093,7 +1094,7 @@ const TOOLS = [
   {
     name: "start_thread",
     description:
-      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (your human's latest one, or from_message_id). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
+      "Turn a request into its own thread: creates an epic (the request as its first task, or the tasks you pass, plus a doc that starts with the goal) and shows it as a thread under the request's message in the main thread (from_message_id, or the request you just acked as doing; with neither, the thread starts from its own title and why in main, never from someone's unrelated message). Threads do not nest: for a request inside another thread, the room writes one line in the main thread that links it, and the new thread starts from that line. Then talk, report progress and say it's done inside that epic (post with thread = epic_id) and move its tasks with set_task_status; when every task is done the epic moves to review, and it is done when your human says so. A DM has no epics: asked for one in a DM, pick the room it belongs to (inbox lists your human's rooms; ask if it's unclear), start_thread there with its room_id, and answer in the DM with the link.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1120,7 +1121,7 @@ const TOOLS = [
         from_message_id: {
           type: "number",
           description:
-            "the main-thread message this request came from; default: your human's latest message there",
+            "the message this request came from; pass it whenever the thread comes from a message. Default: the request you acked as doing in the last few minutes, else none",
         },
         owner: {
           type: "string",
@@ -1737,14 +1738,14 @@ async function call(
           room_id: w.book_id,
           room: w.room,
           ref: w.ref,
-          kind: w.ref.startsWith("t") ? "task_in_review" : "asked",
+          kind: w.ref.startsWith("t") ? "task_in_review" : w.ref.startsWith("e") ? "thread_to_close" : "asked",
           topic: w.topic || "main",
           from: w.author
             ? w.author_name
               ? `${w.author_name.replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${w.author}>`
               : w.author
             : undefined,
-          text: w.text,
+          text: ((tw) => (tw ? threadWaitLine(tw, true) : w.text))(threadWait(w)),
           since: new Date(w.ts).toISOString(),
           url: `${origin}/b/${w.book_id}${w.thread === "main" ? "" : `?t=${w.thread}`}`,
         })),

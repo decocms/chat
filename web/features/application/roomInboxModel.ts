@@ -29,8 +29,21 @@ export function roomInboxModel(
   const mine = <T extends { book_id: string }>(rows: readonly T[]) =>
     rows.filter((row) => all || !roomId || row.book_id === roomId);
   const waits = mine(data.waits),
-    asks = waits.filter((wait) => !wait.ref.startsWith("t")),
+    asks = waits.filter((wait) => !/^[te]/.test(wait.ref)),
     oks = waits.filter((wait) => wait.ref.startsWith("t"));
+  // Your open threads: the full list (Suas threads), with the fresher copy from your waits where there is one (a
+  // thread ready to close or called about by @vibe is in both).
+  const fresh = new Map(
+    waits
+      .filter((wait) => wait.ref.startsWith("e"))
+      .map((wait) => [`${wait.book_id}/${wait.ref}`, wait]),
+  );
+  const threads = [
+    ...fresh.values(),
+    ...mine(data.threads ?? []).filter(
+      (wait) => !fresh.has(`${wait.book_id}/${wait.ref}`),
+    ),
+  ];
   const seen = new Set(
     asks.flatMap((wait) => {
       const id = messageId(wait.ref);
@@ -104,7 +117,7 @@ export function roomInboxModel(
     }
     group.tasks.push(task);
   }
-  return { messages, oks, groups: [...groups.values()] };
+  return { messages, oks, threads, groups: [...groups.values()] };
 }
 export function inboxTopic(
   item: RoomInboxMessage,

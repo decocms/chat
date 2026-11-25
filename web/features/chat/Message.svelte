@@ -15,6 +15,7 @@
   import {
     canEditMessage,
     canStartThread,
+    threadFrom,
     startsThread,
     continues,
     issueParts,
@@ -73,6 +74,8 @@
   let threadBusy = false,
     threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  // A message with a thread offers "Abrir thread" instead (Gimenes #5068).
+  const hasThread = $derived(origin ? undefined : threadFrom(room, m));
   const editable = $derived(!origin && canEditMessage(room, m));
   // Edited in place (like Discord): the text is a box until Enter or Esc; no toolbar meanwhile.
   const editing = $derived(
@@ -254,6 +257,7 @@
   data-continuous={continuous || undefined}
   data-fire-hot={fireHot}
   data-waiting={waiting}
+  data-editing={editing || undefined}
   use:highlight
   use:swipeMessage={{
     enabled: !origin && !editing,
@@ -282,6 +286,8 @@
     waiting ? "border-l-2 border-warning bg-warning/10" : "",
     attention ? "animate-pulse motion-reduce:animate-none" : "",
     flash || sheet ? "bg-accent" : "",
+    // While its text is a box, the message looks selected exactly like on hover, even with the mouse elsewhere.
+    editing ? "bg-accent/55" : "",
     fireHot
       ? "after:pointer-events-none after:absolute after:inset-0 after:animate-pulse after:rounded-surface after:ring-2 after:ring-warning motion-reduce:after:animate-none"
       : "",
@@ -505,9 +511,9 @@
             {actions}
             {vb}
           />{/each}{/if}
-      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. A message people
-           can react to always keeps it, 24px high, so the quick reactions that show there on hover (Gui #4726) move
-           nothing; the message's own padding is tight to make up for it. It pulls up over the body's 4px gap, inside
+      <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. With chips or
+           acks it is always there; with nothing yet it opens on hover with the quick reactions (Gui #4726, #5347), so
+           a run of messages stays together. It pulls up over the body's 4px gap, inside
            the message. Not selectable: copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips
            (Gimenes #3622). Not while the
            text is a box: its "esc / enter" line sits there. -->
@@ -515,7 +521,12 @@
           data-reaction-row={m.id}
           class={[
             "-mt-1 flex min-h-6 flex-wrap items-center justify-between gap-x-3 select-none",
-            bare && "pointer-coarse:hidden",
+            // Right under a thread card it keeps a gap instead of pulling up into it (Gimenes #5477).
+            "[[data-thread-card]+&]:mt-1.5",
+            // Nothing in the row yet: it opens only on hover (or focus, or while the picker is open), so adjacent
+            // messages stay together and the hover makes the room (Gui #5347). Phones react from the long press.
+            bare &&
+              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex has-[[data-picking]]:flex",
           ]}
         >
           {#if reactable}<MessageReactions
@@ -541,7 +552,12 @@
       me={room.me}
       message={m}
       roomId={room.id}
-      onthread={threadable ? () => void startThread() : undefined}
+      onthread={threadable
+        ? () => void startThread()
+        : hasThread
+          ? () => actions.openThread?.(hasThread)
+          : undefined}
+      threadOpen={!threadable && !!hasThread}
       canEdit={editable}
       canDelete={!m.deleted &&
         !startsThread(room, m) &&
