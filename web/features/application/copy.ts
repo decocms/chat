@@ -958,6 +958,7 @@ const EN: Readonly<Record<string, string>> = {
     "@vibe write this thread's doc: the goal, what was decided and the next steps.",
   "Nenhum arquivo nesta tarefa.": "No files in this task.",
   Despachar: "Dispatch",
+  "Escolha um item da lista.": "Pick an item from the list.",
   "Pedir pro @vibe": "Ask @vibe",
   Resumir: "Summarize",
   "@vibe resume onde isto está e o que falta pra fechar.":

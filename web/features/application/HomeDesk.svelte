@@ -18,7 +18,6 @@
   import type { InboxTask, Wait } from "../../app/types";
   import { choicesOf, type Choices } from "../chat-interactive/eligibility";
   import { mentionSegments } from "../composer/model";
-  import { mountCube } from "../home/cube";
   import HomeAsk from "../home/HomeAsk.svelte";
   import {
     fold,
@@ -41,24 +40,23 @@
     type RoomInboxMessage,
   } from "./roomInboxModel";
   /**
-   * The desktop Home: the agent's cube, one line (a greeting by the time of day,
-   * plus "O que vamos fazer agora?" when nothing waits) and the ask box on top (what you type goes to the right
-   * room and thread); under them one Inbox in four tabs. "Pra você": one feed,
-   * newest first, of everything that needs you: asks and @mentions, your
-   * tasks in review, your Claude's questions, and answers to what you sent
-   * from the ask box. "Menções": every @ of you. "Não lidas": one card per
-   * room with news. "Tarefas": your open tasks. Every item is the same card,
-   * in three zones on one left edge: "Room › Thread" and the time on top
-   * (a dot when it came after your last visit), who wrote and what in the
-   * middle, the actions at the bottom (Responder opens a reply inside the
-   * card, Feito clears it; your Claude's question answers with its own
-   * buttons, a task in review with "Aprovar"). A click on the card leaves
-   * the task's workspace beside the list (TaskWorkspace: its conversation,
-   * doc, tasks and files, and the composer to dispatch from), so the Home is
-   * where you work; "Abrir na sala" in it leaves for the room. Phones keep
-   * RoomInbox.
-   * Keys: j/k move, Enter / o open the task, Esc close it, r reply, e done,
-   * x select, ? shows them.
+   * The desktop Home is where you work, always split: on the left the ask box
+   * (what you type goes to the right room and thread) and the Inbox in four
+   * tabs; on the right one item open in its workspace (TaskWorkspace: its
+   * conversation, doc, tasks and files, and the composer to dispatch from).
+   * The Home lands on the current tab's first item (or the one you had open,
+   * kept in this browser); a tab opens its first item; when the open item
+   * leaves the list, the one under it opens; ✕ / Esc close it until you choose.
+   * "Pra você": everything that needs you, newest first (asks and @mentions,
+   * your tasks in review, your Claude's questions, answers to what you sent
+   * from the ask box). "Menções": every @ of you. "Não lidas": one card per
+   * room with news. "Tarefas": your open tasks. Every item is the same card:
+   * "Room › Thread" and the time on top, who wrote and what in the middle,
+   * the actions at the bottom (Responder, Feito, your Claude's choices,
+   * Aprovar). "Abrir na sala" in the workspace leaves for the room. Phones
+   * keep RoomInbox.
+   * Keys: j/k move, Enter / o open, Esc close, r reply, e done, x select,
+   * ? shows them.
    */
   let {
     owner,
@@ -235,7 +233,6 @@
     { id: "unread", label: "Não lidas" },
     { id: "tasks", label: "Tarefas" },
   ];
-  const waiting = $derived(feed.length);
   // New since your last visit: the visit before this one, kept in this browser only.
   const VISIT_KEY = "vb:home-visit";
   let lastVisit = $state(Infinity);
@@ -257,24 +254,11 @@
   });
   const fresh = (card: Card) => card.kind !== "task" && card.ts > lastVisit;
   const asks = $derived(inboxAsks(model.messages, $inbox.hidden));
-  const first = $derived($personal.me?.name?.split(" ")[0] ?? "");
-  // A greeting by the time of day: the list under it already says what waits on you.
-  const greeting = $derived.by(() => {
-    const hour = new Date().getHours();
-    const part =
-      hour < 12 ? t("Bom dia") : hour < 18 ? t("Boa tarde") : t("Boa noite");
-    return first ? `${part}, ${first}.` : `${part}.`;
-  });
   const loading = $derived(
     !feed.length &&
       !tasks.length &&
       ($inbox.phase === "loading" || $inbox.phase === "idle"),
   );
-
-  let cube = $state<HTMLCanvasElement | null>(null);
-  $effect(() => {
-    if (cube) return mountCube(cube);
-  });
 
   // Relative time: "agora", "5 min", "2h", "3d", then the date.
   let now = $state(Date.now());
@@ -379,6 +363,11 @@
     tab = next;
     cursor = null;
     replying = null;
+    // A tab opens its first item.
+    chosen = null;
+    at = 0;
+    closed = false;
+    sent = null;
   }
   /** The task open beside the list: one thread of one room, and the card it came from. */
   type Working = {
@@ -390,47 +379,94 @@
     summary?: RoomSummary;
     card: Card;
   };
-  let working = $state.raw<Working | null>(null);
+  const workingOf = (card: Card, thread = card.thread || "main"): Working => ({
+    key: card.key,
+    book: card.book,
+    thread,
+    focus: card.message?.messageId ?? card.message?.mention?.msg_id,
+    title: card.room,
+    summary: card.summary,
+    card,
+  });
+  // The split is the Home: the list on the left, one item open on the right. With nothing chosen, the tab's
+  // first item is open; when the open item leaves the list (answered, resolved), the one under it opens.
+  // ✕ / Esc closes it until you choose again (the workspace says so).
+  const OPEN_KEY = "vb:home-open";
+  let chosen = $state<string | null>(null),
+    at = $state(0),
+    closed = $state(false),
+    // What the ask box sent: its destination, which is no item of the list.
+    sent = $state.raw<Working | null>(null),
+    restored = $state(false);
+  onMount(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "null");
+      if (saved && tabs.some((item) => item.id === saved.tab)) {
+        tab = saved.tab;
+        chosen = typeof saved.key === "string" ? saved.key : null;
+      }
+    } catch {
+      /* No storage, or an old value: the first item of Pra você opens. */
+    }
+    restored = true;
+  });
+  const openCard = $derived.by(() => {
+    if (closed) return undefined;
+    const found = chosen
+      ? order.find((card) => card.key === chosen)
+      : undefined;
+    return found ?? order[Math.min(at, order.length - 1)] ?? order[0];
+  });
+  const working = $derived<Working | null>(
+    sent ?? (openCard ? workingOf(openCard) : null),
+  );
+  $effect(() => {
+    const key = openCard?.key ?? null,
+      shown = tab;
+    if (!restored) return;
+    try {
+      localStorage.setItem(OPEN_KEY, JSON.stringify({ tab: shown, key }));
+    } catch {
+      /* No storage: nothing is remembered. */
+    }
+  });
   function open(card: Card) {
     if (!current()) return;
     cursor = card.key;
-    working = {
-      key: card.key,
-      book: card.book,
-      thread: card.thread || "main",
-      focus: card.message?.messageId ?? card.message?.mention?.msg_id,
-      title: card.room,
-      summary: card.summary,
-      card,
-    };
+    chosen = card.key;
+    at = Math.max(
+      0,
+      order.findIndex((item) => item.key === card.key),
+    );
+    closed = false;
+    sent = null;
+  }
+  function close() {
+    closed = true;
+    sent = null;
   }
   /** What the ask box sent: its destination opens beside the list, you stay on the Home. */
   function work(target: { roomId: string; thread?: string }) {
     if (!current()) return;
     const summary = summaries.get(target.roomId);
     const thread = target.thread ?? "main";
-    const card: Card = {
-      key: `x:${target.roomId}:${thread}`,
-      kind: "room",
-      book: target.roomId,
-      room: roomName(target.roomId, summary?.title ?? ""),
+    sent = workingOf(
+      {
+        key: `x:${target.roomId}:${thread}`,
+        kind: "room",
+        book: target.roomId,
+        room: roomName(target.roomId, summary?.title ?? ""),
+        thread,
+        where: "",
+        author: "",
+        authorName: null,
+        text: "",
+        about: "",
+        ts: 0,
+        summary,
+      },
       thread,
-      where: "",
-      author: "",
-      authorName: null,
-      text: "",
-      about: "",
-      ts: 0,
-      summary,
-    };
-    working = {
-      key: card.key,
-      book: card.book,
-      thread,
-      title: card.room,
-      summary,
-      card,
-    };
+    );
   }
   /** "Abrir na sala": leave the Home for the item in its room. */
   function leaveFor(card: Card) {
@@ -576,7 +612,7 @@
     }
     if (event.key === "Escape" && working) {
       event.preventDefault();
-      working = null;
+      close();
       return;
     }
     const index = order.findIndex((card) => card.key === cursor),
@@ -620,41 +656,12 @@
   data-home-desk
   data-room-inbox
   aria-label={t("Caixa de entrada")}
-  data-working={working ? "" : undefined}
   class="relative flex min-h-0 min-w-0 flex-1 flex-row bg-background font-sans text-foreground"
 >
-  <div
-    class={cn(
-      "min-h-0 overflow-auto",
-      working ? "w-[440px] shrink-0 border-r border-border" : "flex-1",
-    )}
-  >
-    <div
-      class={cn(
-        "mx-auto flex w-full flex-col",
-        working
-          ? "gap-5 px-5 pt-5 pb-16"
-          : "max-w-[720px] gap-10 px-8 pt-14 pb-24",
-      )}
-    >
-      <!-- The hero: the cube, one line, the ask box. With a task open, only the ask box stays. -->
-      <header data-home-hero class="flex flex-col items-center gap-5">
-        {#if !working}<canvas
-            bind:this={cube}
-            width="384"
-            height="384"
-            aria-hidden="true"
-            class="size-24 shrink-0"
-          ></canvas>
-          <h1
-            data-home-hero-line
-            class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
-          >
-            {greeting}{#if !waiting}
-              <span class="text-muted-foreground"
-                >{t("O que vamos fazer agora?")}</span
-              >{/if}
-          </h1>{/if}
+  <div class="min-h-0 w-[440px] shrink-0 overflow-auto border-r border-border">
+    <div class="flex w-full flex-col gap-5 px-5 pt-5 pb-16">
+      <!-- The ask box on top of the list: what you send opens beside it. -->
+      <header data-home-hero class="flex flex-col">
         <div data-home-ask="inbox" class="w-full">
           <HomeAsk
             personal={services.personal}
@@ -778,24 +785,12 @@
                   item,
                 )}{:else}{@render card(item)}{/if}{/each}
           </div>
-        {:else if !$inbox.error}{@render empty(
-            tab === "foryou"
-              ? t("Nada esperando você.")
-              : tab === "mentions"
-                ? t("Nenhuma menção.")
-                : tab === "tasks"
-                  ? t("Nenhuma tarefa aberta.")
-                  : t("Nada novo nas suas salas."),
-            tab === "foryou"
-              ? t(
-                  "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
-                )
-              : "",
-          )}{/if}
+        {/if}
       </div>
     </div>
   </div>
-  {#if working}<div data-home-workspace class="min-h-0 min-w-0 flex-1">
+  <div data-home-workspace class="min-h-0 min-w-0 flex-1">
+    {#if working}
       {#key working.key}<TaskWorkspace
           {services}
           {drafts}
@@ -817,13 +812,29 @@
               });
             else leaveFor(working.card);
           }}
-          onclose={() => (working = null)}
+          onclose={close}
         />{/key}
-    </div>{/if}
+    {:else if !loading && !($inbox.error && !order.length)}{@render empty(
+        order.length
+          ? t("Escolha um item da lista.")
+          : tab === "foryou"
+            ? t("Nada esperando você.")
+            : tab === "mentions"
+              ? t("Nenhuma menção.")
+              : tab === "tasks"
+                ? t("Nenhuma tarefa aberta.")
+                : t("Nada novo nas suas salas."),
+        !order.length && tab === "foryou"
+          ? t(
+              "Mande algo na caixa acima. Quando alguém precisar de você, aparece aqui.",
+            )
+          : "",
+      )}{/if}
+  </div>
 
   {#if hints}<p
       data-home-hints
-      class="m-0 animate-in border-t border-border px-4 py-2 text-center text-xs text-muted-foreground duration-150 ease-out [--tw-enter-opacity:0] motion-reduce:animate-none"
+      class="absolute inset-x-0 bottom-0 m-0 animate-in border-t bg-background border-border px-4 py-2 text-center text-xs text-muted-foreground duration-150 ease-out [--tw-enter-opacity:0] motion-reduce:animate-none"
     >
       {t(
         "j/k mover · Enter abrir a tarefa · Esc fechar · r responder · e resolver · x selecionar",
@@ -859,7 +870,7 @@
 
 {#snippet empty(title: string, detail = "")}<div
     data-home-empty
-    class="flex flex-col items-center gap-1 px-6 py-14 text-center"
+    class="flex h-full flex-col items-center justify-center gap-1 px-6 py-14 text-center"
   >
     <p class="m-0 text-sm font-medium">{title}</p>
     {#if detail}<p class="m-0 max-w-80 text-sm text-muted-foreground">
