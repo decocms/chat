@@ -120,7 +120,10 @@ export async function gate(env: Env, me: { email: string; agent: string }, bookI
       const posted = await stub.agentPost(bookId, me.email, `${out.reply}\n\n*${label} · fonte: ${out.source}*`, m.thread, [], label, false, false, m.id, undefined, undefined, me.agent);
       if (posted.ok && posted.id) await db.prepare(`UPDATE router_log SET reply_id = ? WHERE book_id = ? AND msg_id = ? AND email = ?`).bind(posted.id, bookId, m.id, me.email).run();
     }
-    // Only messages someone could expect an ack on: your own, and ones that mention you.
+    // Only messages someone could expect an ack on: your own, and ones that mention you. Your own message that the
+    // router ignored gets no ack (Gimenes #5373): it stays in read_room's unacked, so your agent sees it at its next
+    // wake and closes it itself; a wrong ignore is no longer lost (Viktor's #5192).
+    if (m.author === me.email && out.decision === "ignore") continue;
     if (m.author === me.email || m.mentions_you) await stub.agentAck(bookId, me.agent, me.email, label, m.id, out.decision === "answer" ? "done" : "idle");
   }
   return wake;

@@ -3,6 +3,7 @@
 // Who can see one: yourself, anyone who shares a room with you (the hover card), and anyone at all once you turn the
 // public page on (/u/<handle>).
 import { HANDLE_RE, type ProfileResult, type ProfileSettingsResult } from "../shared/schemas";
+import { AGENT_TAG } from "../shared/mention";
 
 type Db = D1Database;
 export type StatField = "messages" | "deploys";
@@ -169,6 +170,8 @@ export async function setProfilePublic(db: Db, email: string, on: boolean): Prom
 export async function setHandle(db: Db, email: string, wanted: string): Promise<{ handle: string } | { error: "invalid" | "taken" }> {
   const handle = wanted.trim().replace(/^@/, "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!HANDLE_RE.test(handle)) return { error: "invalid" };
+  // @agent calls your own agent (shared/mention.ts), so no person can hold it.
+  if (handle === AGENT_TAG) return { error: "taken" };
   const r = await db
     .prepare(`UPDATE users SET handle = ?1 WHERE email = ?2 AND NOT EXISTS (SELECT 1 FROM users WHERE handle = ?1 AND email != ?2)`)
     .bind(handle, email)

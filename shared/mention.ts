@@ -60,3 +60,9 @@ export function mentionHandle(email: string, people: MentionPeople): string {
     foldHandle(local(email))
   );
 }
+
+/** `@agent` in your own message: "this one is for my agent" (Gimenes #5325). It wakes the author's own agents, never
+ *  another person's, and no one can take it as an @handle (src/profile.ts setHandle). */
+export const AGENT_TAG = "agent";
+export const callsOwnAgent = (text: string) =>
+  /(^|[\s(])@agent(?![\p{L}\p{N}._-])/iu.test(text);
