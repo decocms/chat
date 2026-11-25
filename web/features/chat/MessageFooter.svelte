@@ -4,6 +4,7 @@
   import type { MessageFooter } from "./model";
   import { prettyModel } from "./model";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import AvatarStack from "../../lib/components/AvatarStack.svelte";
   import Button from "../../lib/studio/Button.svelte";
   let { footer, vb }: { footer: MessageFooter; vb: ChatBridge } = $props();
   let opened = $state(false),
@@ -34,6 +35,9 @@
         read: undefined as boolean | undefined,
       })),
   ]);
+  const STACK = 3;
+  const stack = $derived(faces.slice(0, STACK));
+  const more = $derived(Math.max(0, faces.length - STACK));
   const label = $derived(
     !footer.readers.length
       ? vb.t("Agents que olharam")
@@ -44,6 +48,13 @@
   const who = (model: string, email: string) =>
     vb.t("{via} de {who}", { via: prettyModel(model), who: vb.name(email) });
 </script>
+
+{#snippet check()}<span
+    aria-hidden="true"
+    data-readers-check
+    class="inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[4px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground ring-2 ring-background"
+    >{read ? "✓✓" : "✓"}</span
+  >{/snippet}
 
 <div
   data-message-footer
@@ -122,30 +133,33 @@
           }
         }}
       >
-        {#each faces.slice(0, 5) as face (`${face.who}|${face.email}`)}
-          <span
-            data-reader-read={face.read}
-            class="relative inline-flex not-first:ml-1"
-          >
-            <PersonAvatar
-              data-avatar="person"
-              size="xs"
-              class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-              email={face.email}
-              version={vb.avatarVersion(face.email)}
-            /><AgentMark
-              size="3xs"
-              tint
-              via={face.who}
-              class="absolute -right-1 -bottom-1 rounded-full text-[7px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-            />
-          </span>
-        {/each}
-        {#if faces.length > 5}<span>+{faces.length - 5}</span
-          >{/if}{#if footer.readers.length}<span
-            aria-hidden="true"
-            class="ml-0.5 text-[11px]">{read ? "✓✓" : "✓"}</span
-          >{/if}
+        <!-- The same stack as the phone's room bar: at most three faces, each on
+             top of the one to its left, then +X, then the ✓✓ on top, tucked into
+             the last one's bottom-right. Each face's agent badge sits at its
+             bottom-left, so the face to its right never covers it. -->
+        <AvatarStack
+          size="sm"
+          items={stack}
+          key={(face) => `${face.who}|${face.email}`}
+          {more}
+          after={footer.readers.length ? check : undefined}
+          >{#snippet face(face)}<span
+              data-reader-read={face.read}
+              class="relative inline-flex"
+              ><PersonAvatar
+                data-avatar="person"
+                size="xs"
+                class="size-5 ring-2 ring-background"
+                email={face.email}
+                version={vb.avatarVersion(face.email)}
+              /><AgentMark
+                size="3xs"
+                tint
+                via={face.who}
+                class="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full text-[6px] ring-[1.5px] ring-background"
+              /></span
+            >{/snippet}</AvatarStack
+        >
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
