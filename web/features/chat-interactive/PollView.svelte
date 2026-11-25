@@ -163,14 +163,14 @@
                           {email}
                           version={vb.avatarVersion(email)}
                           class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-                        />{/each}</span
-                    >{#if row.voters.length > 3}<span
-                        data-vote-more
-                        class="ml-1 text-xs tabular-nums text-muted-foreground"
-                        >+{row.voters.length - 3}</span
-                      >{/if}</button
+                        />{/each}{#if row.voters.length > 3}<span
+                          data-vote-more
+                          class="relative flex size-[18px] items-center justify-center rounded-full bg-muted text-[0.5625rem] font-medium tabular-nums text-muted-foreground shadow-[0_0_0_1.5px_var(--vb-card)]"
+                          >+{row.voters.length - 3}</span
+                        >{/if}</span
+                    ></button
                   >{/snippet}
-                <p class="m-0 font-medium">{row.label} · {count}</p>
+                <p class="m-0 mb-4 font-medium">{row.label} · {count}</p>
                 {#each row.voters as email (email)}<div
                     data-vote-voter
                     class="flex items-center gap-2"

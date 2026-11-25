@@ -2173,6 +2173,13 @@ describe("chat", () => {
     expect(card.querySelector("[data-poll-close]") === null).toBe(true);
     expect(card.textContent).toContain("Votação encerrada");
     expect(votes.every((vote) => vote.disabled)).toBe(true);
+    // A closed poll still shows who voted.
+    expect(
+      Array.from(card.querySelectorAll("[data-vote-row]")).map(
+        (row) =>
+          row.querySelectorAll("[data-vote-voters] [data-avatar]").length,
+      ),
+    ).toEqual([3, 1, 0]);
   }, 30_000);
   test("same-ID permission replacement invalidates old confirmation before any request", async () => {
     const q = {
