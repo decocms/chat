@@ -1066,6 +1066,8 @@ const EN: Readonly<Record<string, string>> = {
   pausando: "pausing",
   pausado: "paused",
   parado: "stopped",
+  parou: "stopped",
+  "Agents que olharam": "Agents that looked",
   "apagado no freestyle": "deleted on freestyle",
   "Seus agents nesta sala": "Your agents in this room",
   "Claude Code no seu computador": "Claude Code on your computer",
