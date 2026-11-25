@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window as HappyDOMWindow } from "happy-dom";
 import type { Room } from "../web/app/roomStore";
+import type { CallApi } from "../web/features/call/callApi";
 import type { ChatProps } from "../web/app/chatTypes";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import type { PanelBridge, PanelProps } from "../web/app/panels";
@@ -628,7 +629,7 @@ describe("room panels", () => {
       }
     }
   }, 30_000);
-  test("account row: you at a sidebar's foot (or a phone's top bar) is a link to your settings page", async () => {
+  test("account row: you in the user center (or a phone's top bar) is a link to your settings page", async () => {
     const { default: AccountRow } =
       await import("../web/features/app-navigation/AccountRow.svelte");
     const me = {
@@ -904,9 +905,10 @@ describe("room panels", () => {
       }),
     );
     try {
-      // Three signals: the one number (asks and reviews together), the new-messages dot, the ✻. The cloud is words only.
+      // Three signals: the one number (the messages that ask you; a task in review lives in the Inbox), the
+      // new-messages dot, the ✻. The cloud is words only.
       expect(target.querySelector("[data-room-badge=cloud]")).toBeNull();
-      expect(target.querySelector("[data-count]")?.textContent).toBe("2");
+      expect(target.querySelector("[data-count]")?.textContent).toBe("1");
       expect(
         target.querySelector('[data-room-badge="unread-human"]'),
       ).not.toBeNull();
@@ -4176,7 +4178,9 @@ describe("stable sidebar integration", () => {
         ...vb,
         epicBusy: () => null,
         waitsIn: (id: string) =>
-          id === "main" ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }] : [],
+          id === "main"
+            ? [{ ref: "m1" }, { ref: "m4" }, { ref: "a2" }, { ref: "t3" }]
+            : [],
         waitsInRoom: () => [{ ref: "m9" }],
       },
     });
@@ -4184,9 +4188,10 @@ describe("stable sidebar integration", () => {
       "button[data-room-title]",
     )!;
     expect(title.querySelector("[data-room-mark]")).not.toBeNull();
+    // Only the unread messages that ask you: the task and Claude's question are in the Inbox.
     expect(
       title.querySelector("[data-wait-badge] [data-count]")?.textContent,
-    ).toBe("3");
+    ).toBe("2");
     // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
     expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
     const rename = title.parentElement!.querySelector(
@@ -4220,20 +4225,26 @@ describe("stable sidebar integration", () => {
     const title = h.target.querySelector("button[data-room-title]")!;
     expect(title.querySelector("[data-wait-badge]")).toBeNull();
   });
-  test("epic and rail indicators count asks and task reviews in one lime number", async () => {
+  test("epic and rail indicators count the unread asks in one red number; task reviews stay in the Inbox", async () => {
     const room = fixture();
     const base = {
       ...vb,
       epicBusy: () => "Claude",
       waitsIn: (id: string) =>
         id === "e"
-          ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }, { ref: "t4" }]
+          ? [
+              { ref: "m1" },
+              { ref: "m5" },
+              { ref: "a2" },
+              { ref: "t3" },
+              { ref: "t4" },
+            ]
           : [],
     };
     const h = sidebar(room, { vb: base });
     const epic = h.target.querySelector('[data-epic="e"]')!;
     const badge = epic.querySelector("[data-wait-badge] [data-count]");
-    expect(badge?.textContent?.trim()).toBe("4");
+    expect(badge?.textContent?.trim()).toBe("2");
     // One colour for every kind of wait: red (Valls).
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
@@ -4244,7 +4255,8 @@ describe("stable sidebar integration", () => {
       ...h.props,
       vb: {
         ...base,
-        waitsIn: (id: string) => (id === "e" ? [{ ref: "t3" }] : []),
+        waitsIn: (id: string) =>
+          id === "e" ? [{ ref: "m3" }, { ref: "t4" }] : [],
       },
     });
     await tick();
@@ -4256,7 +4268,7 @@ describe("stable sidebar integration", () => {
     h.view.update({
       ...h.props,
       collapsed: true,
-      vb: { ...base, waitsIn: () => [{ ref: "t3" }] },
+      vb: { ...base, waitsIn: () => [{ ref: "m3" }, { ref: "t4" }] },
     });
     await tick();
     flushSync();
@@ -8885,5 +8897,142 @@ describe("People & agents presence", () => {
     expect(document.body.querySelector("[data-tooltip-content]") === null).toBe(
       true,
     );
+  });
+});
+
+// Imported after the DOM above is in place, like the components at the top.
+const { default: IncomingCall } =
+  await import("../web/features/call/IncomingCall.svelte");
+const { default: CallPanel } =
+  await import("../web/features/call/CallPanel.svelte");
+const { createCallHub } = await import("../web/features/call/hub");
+const { incomingRing } = await import("../web/features/call/ring");
+describe("the call is the app's (web/features/call/hub.ts)", () => {
+  // The microphone never answers here: the call stays "joining", which is enough to be the live call.
+  function fakeHub() {
+    const opened: string[] = [],
+      closed: string[] = [];
+    const api = {
+      join: async () => "s-1",
+      leave: async () => {},
+      decline: async () => {},
+    } as unknown as CallApi;
+    const hub = createCallHub({
+      api,
+      connect: (room) => ({
+        start: () => opened.push(room),
+        dispose: () => closed.push(room),
+        send: () => true,
+      }),
+    });
+    return { hub, opened, closed };
+  }
+  const media = window.navigator.mediaDevices;
+  afterEach(() => {
+    Object.defineProperty(window.navigator, "mediaDevices", {
+      value: media,
+      configurable: true,
+    });
+    incomingRing.set(null);
+  });
+  function noMicrophoneYet() {
+    Object.defineProperty(window.navigator, "mediaDevices", {
+      value: { getUserMedia: () => new Promise(() => {}) },
+      configurable: true,
+    });
+  }
+
+  test("Atender from another room joins the DM's call, goes to the DM and clears the ring, in one click", async () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    const went: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(IncomingCall, {
+        target,
+        props: {
+          current: "otherroom1",
+          navigate: (path: string) => went.push(path),
+          chime: () => {},
+          t: (text: string) => text,
+          hub,
+        },
+      }),
+    );
+    try {
+      flushSync(() =>
+        incomingRing.set({
+          book: "dm-ana-bia",
+          from: "ana@x.test",
+          name: "Ana",
+          avatar: null,
+          until: Date.now() + 30_000,
+        }),
+      );
+      target.querySelector<HTMLElement>("[data-ring-answer]")!.click();
+      flushSync();
+      expect(went).toEqual(["/b/dm-ana-bia"]);
+      expect(get(incomingRing)).toBeNull();
+      expect(target.querySelector("[data-incoming-call]")).toBeNull();
+      // The DM's view, when it mounts, gets the call that is on: it opens the stage (RoomScene: in the call).
+      const live = get(hub.live);
+      expect(live?.room).toBe("dm-ana-bia");
+      expect(live?.title).toBe("Ana");
+      expect(hub.session("dm-ana-bia")).toBe(live!.session);
+      expect(get(live!.session.state).phase).toBe("joining");
+      expect(opened).toEqual(["dm-ana-bia"]);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
+
+  test("the call goes on when its room's view closes, its panel shows elsewhere, and only the hang-up ends it", async () => {
+    noMicrophoneYet();
+    const { hub, closed } = fakeHub();
+    const call = hub.session("room-a", { title: () => "Sala A" });
+    call.join();
+    // Going to another room: the room's view lets go of its session, the call stays.
+    hub.release("room-a", call);
+    expect(get(hub.live)?.session).toBe(call);
+    expect(hub.busyElsewhere("room-b")).toBe(true);
+    // A room I only open (not in its call) is forgotten when its view closes.
+    const other = hub.session("room-b");
+    hub.release("room-b", other);
+    expect(hub.session("room-b")).not.toBe(other);
+    // The panel on another screen: the call's room and its controls.
+    const target = document.createElement("div");
+    document.body.append(target);
+    let opened = 0;
+    const instance = flushSync(() =>
+      mount(CallPanel, {
+        target,
+        props: {
+          call,
+          title: get(hub.live)!.title,
+          onopen: () => opened++,
+          oncamera: () => {},
+          t: (text: string) => text,
+        },
+      }),
+    );
+    try {
+      expect(target.querySelector("[data-call-panel]")?.textContent).toContain(
+        "Sala A",
+      );
+      target.querySelector<HTMLElement>("[data-call-panel-open]")!.click();
+      expect(opened).toBe(1);
+      target.querySelector<HTMLElement>("[data-call-panel-leave]")!.click();
+      flushSync();
+      expect(get(hub.live)).toBeNull();
+      expect(closed).toEqual(["room-a"]);
+      expect(target.querySelector("[data-call-panel]")).toBeNull();
+      // Released and idle: the next view of the room gets a fresh session.
+      expect(hub.session("room-a")).not.toBe(call);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
   });
 });
