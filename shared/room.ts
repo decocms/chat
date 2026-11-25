@@ -129,6 +129,9 @@ export const MessageSchema = z.object({
   tag: maybe(str),
   via: maybe(str),
   reply_to: maybe(num),
+  // The thread of the message it answers, only when that is another thread: a click on the quote opens it there
+  // even when the quoted message isn't loaded (it may be weeks back, or in a thread the room open didn't send).
+  reply_thread: opt(str),
   choices: maybe(str),
   poll: maybe(str),
   card: maybe(str),

@@ -76,6 +76,10 @@ function fixture(overrides: Partial<ApiServices> = {}) {
       pages.push({ room, ...query });
       return { thread: query.thread, messages: [], acks: [], more: false };
     },
+    linkTarget: async (room, query) => {
+      pages.push({ link: room, ...query });
+      return { kind: "private" };
+    },
     humanPost: async (room, text, thread) => {
       posted.push({ room, text, thread });
       return text.trim()
@@ -366,6 +370,20 @@ test("post validates HTTP input and preserves success and business-error respons
   ]);
 });
 
+test("GET link: the query validated, the answer the resolver's, never a 403", async () => {
+  const f = fixture({ isMember: async () => false });
+  const ok = await f.app.request("/api/books/room/link?t=e1&m=42");
+  expect(ok.status).toBe(200);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(await ok.json()).toEqual({ kind: "private" });
+  expect((await f.app.request("/api/books/room/link")).status).toBe(200);
+  expect(f.pages).toEqual([{ link: "room", t: "e1", m: 42 }, { link: "room" }]);
+  for (const query of ["m=0", "m=x", "t=", `t=${"x".repeat(65)}`])
+    expect((await f.app.request(`/api/books/room/link?${query}`)).status).toBe(
+      400,
+    );
+});
+
 test("GET messages: a page by id cursor, members only, the query validated (cache plan, PR 1)", async () => {
   const f = fixture();
   const ok = await f.app.request(
@@ -411,6 +429,7 @@ test("room operations reject nonmembers before any write", async () => {
     ["post", { text: "forbidden" }],
     ["archive", { archived: true }],
     ["tint", { tint: "blue" }],
+    ["read", {}],
   ] as const) {
     expect((await f.json(`/api/books/room/${path}`, body)).status).toBe(403);
   }
@@ -545,6 +564,7 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
   for (const [path, value] of [
     ["/api/books/room/archive", { archived: false }],
     ["/api/books/room/tint", { tint: "blue" }],
+    ["/api/books/room/read", {}],
     ["/api/rooms/order", { ids: ["room", "other"] }],
     ["/api/waits/resolve", { book_id: "room", ref: "m1" }],
     [
@@ -558,7 +578,7 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ],
   ] as const)
     expect((await f.json(path, value)).status).toBe(200);
-  expect(f.writes).toHaveLength(7);
+  expect(f.writes).toHaveLength(8);
   expect(
     f.writes.every((write) => write.values.includes("test@example.com")),
   ).toBe(true);

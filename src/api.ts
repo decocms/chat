@@ -60,6 +60,8 @@ import {
   type AccessResult,
   MessagesQuery,
   type MessagesPage,
+  LinkQuery,
+  type LinkResolution,
   ClaudeToggleBody,
   DeliveryBody,
   type DeliveryResult,
@@ -128,6 +130,8 @@ export interface ApiServices {
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
+  /** Where a link to this app goes (GET /api/books/:id/link): `private` unless you are a member (src/linkTarget.ts). */
+  linkTarget(roomId: string, query: LinkQuery): Promise<LinkResolution>;
   /** Validates type/size/secrets and stores the file; throws an Error whose message is user-facing. */
   storeFile(roomId: string, type: string, body: ArrayBuffer, name: string): Promise<UploadFileResult>;
   fileTypes: readonly string[];
@@ -391,6 +395,19 @@ export const api = roomPosts
     await svc.sql(`UPDATE members SET archived_at = ? WHERE book_id = ? AND email = ?`, archived === false ? null : Date.now(), id, c.get("email"));
     svc.track(archived === false ? "book_restored" : "book_archived", { book: id });
     return c.json(ok, 200);
+  })
+  // "Mark as read" in a room's menu: everything in the room up to now, for you only.
+  .post("/api/books/:id/read", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.sql(
+      `INSERT INTO human_reads (email, book_id, last_id) SELECT ?, id, coalesce(last_msg_id, 0) FROM books WHERE id = ? ON CONFLICT(email, book_id) DO UPDATE SET last_id = max(last_id, excluded.last_id)`,
+      c.get("email"),
+      id,
+    );
+    svc.pokeMe(); // your other tabs and devices
+    svc.track("book_marked_read", { book: id });
+    return c.json(ok, 200);
   });
 
 // Account and room lists.
@@ -623,6 +640,18 @@ export const roomApi = accountApi
       if (!(await svc.isMember(id))) return c.json(forbidden, 403);
       c.header("Cache-Control", "private, no-store");
       return c.json((await svc.roomMessages(id, c.req.valid("query"))) satisfies MessagesPage, 200);
+    },
+  )
+  .get(
+    "/api/books/:id/link",
+    validator("query", (value, c) => {
+      const r = LinkQuery.safeParse(value);
+      return r.success ? r.data : c.json({ error: "invalid query" } satisfies ErrorBody, 400);
+    }),
+    async (c) => {
+      // No 403 for a non-member: the answer is the same `private` as for a room that doesn't exist.
+      c.header("Cache-Control", "private, no-store");
+      return c.json((await c.get("svc").linkTarget(c.req.param("id"), c.req.valid("query"))) satisfies LinkResolution, 200);
     },
   )
   .get("/api/books/:id/access", async (c) => c.json({ member: await c.get("svc").isMember(c.req.param("id")) } satisfies AccessResult, 200));

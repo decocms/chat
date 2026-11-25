@@ -268,7 +268,8 @@
           <!-- Your agents. With more than one, each is on or off in this room (any number can listen); with one, it opens its terminal. -->
           {#each machines as m (m.id)}
             {@const kids = liveOf(m)}
-            {@const a = kids[0]}
+            <!-- One agent: its row is the machine's row. Two or more (a Claude and a Codex on one computer): the machine's row, then one line for each agent. -->
+            {@const a = kids.length === 1 ? kids[0] : undefined}
             {@const tile = a ? agentProvider(a.who ?? a.client) : null}
             <div
               data-agent-machine={m.id}
@@ -315,7 +316,12 @@
                         ]
                           .filter(Boolean)
                           .join(" · ")
-                      : machineLine(m, 0)}</span
+                      : kids.length > 1
+                        ? L(
+                            `${kids.length} ouvindo`,
+                            `${kids.length} listening`,
+                          )
+                        : machineLine(m, 0)}</span
                   ></span
                 ></button
               ><Switch
@@ -324,6 +330,30 @@
                 aria-label={text("footMachineSwitch", { name: machineName(m) })}
               />
             </div>
+            {#if kids.length > 1}{#each kids as k (k.id ?? k.who)}
+                {@const kt = agentProvider(k.who ?? k.client)}
+                <div
+                  data-agent-row={k.id}
+                  class={cn(
+                    "flex min-h-9 min-w-0 items-center gap-2.5 rounded-lg py-1 pr-2 pl-6",
+                    !m.on && "text-muted-foreground",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    class={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-md text-xs",
+                      AGENT_TILES[kt],
+                      !m.on && "opacity-50",
+                    )}>{AGENT_MARK_OF(kt)}</span
+                  ><span class="grid min-w-0 flex-1"
+                    ><span class="truncate text-sm">{who(k)}</span></span
+                  >{#if percent(k) !== null}<span
+                      class="shrink-0 text-xs text-muted-foreground"
+                      >{percent(k)}%</span
+                    >{/if}
+                </div>
+              {/each}{/if}
             {#if !m.online && m.on && m.kind !== "sandbox"}<button
                 type="button"
                 data-agent-cli-down

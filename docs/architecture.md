@@ -76,8 +76,9 @@ Rules:
 
 - The app saves each room that you open in IndexedDB (`web/features/room-cache/store.ts`): the newest 400 messages and the rest of the room, without typing and edit history. It writes one time for each quiet second, and only on durable events.
 - A room that is not in memory (after a reload, or a 13th room) draws from IndexedDB first. Then its socket resumes from it (see "A reconnect resumes"). The read waits at most 300 ms. Then the socket starts anyway.
-- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are not saved. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
+- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are saved too. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
 - If the browser blocks IndexedDB (a private window), rooms stay in memory only.
+- Memory keeps only the open room. Another room that you open again comes from IndexedDB. Without IndexedDB, memory keeps the 12 newest rooms.
 
 ### One send, one message
 
@@ -163,15 +164,15 @@ The limit uses the larger of two counts. The first is the account's real traffic
 
 The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each start. It is apart from the chat so that a problem in it never stops a deploy of the chat.
 
-1. The first person joins a call. The call is of the thread that this person has open (`call_thread`). A person alone in a call is not recorded. When a second person joins, if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
-2. The request has the recording's title: the room and the thread, "Sala principal" for the main one (`Book.callTitle`). The title has no date: Grain shows it. The request also has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
-3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`).
+1. The first person joins a call. The call is the room's, not a thread's. A person alone in a call is not recorded. When a second person joins, if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+2. The request has the recording's title: the room's name (`Book.callTitle`). The title has no date: Grain shows it. The request also has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
+3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`) The recorder needs the call's screen open, because it records that screen and counts the people on it. The page can close it by itself, so the recorder opens it again. If it cannot see the call for 15 seconds, or saw nobody, it tells the room that the recording failed.
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
 5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices. It also keeps who speaks at each moment.
 6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes.
 7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`). The model's own filter for parts with no voice is on (`vad_filter`): without it, the model writes words for silence.
 8. The container sends the video and that transcript to Grain (`GRAIN_API_TOKEN`). With our transcript, Grain shows each person's name. Without it (the speech-to-text failed), Grain transcribes by itself and names nobody.
-9. The container tells the chat (`POST /api/calls/recorded`). The call's thread gets a message with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
+9. The container tells the chat (`POST /api/calls/recorded`). The room's call chat gets a message (`CALL_THREAD`, `call`: one chat for every call of the room, seen beside the call and never listed as a thread; a DM uses its own conversation) with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
 
 What a person sees when the recording fails:
 

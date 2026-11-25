@@ -15,6 +15,7 @@
   } from "../home/model";
   import RailPill from "./RailPill.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
+  import { roomMenuTrigger, type MenuPoint } from "./roomMenuTrigger";
   /** One room in the rail: its icon or marbled tile, the edge mark (the bar when current, a dot when new), and what waits there. */
   let {
     room,
@@ -24,7 +25,7 @@
     waits = [],
     selected = false,
     onnavigate,
-    onsettings,
+    onmenu,
   }: {
     room: RoomSummary;
     lang: HomeLanguage;
@@ -33,7 +34,8 @@
     waits?: readonly WaitReference[];
     selected?: boolean;
     onnavigate: (target: RoomTarget) => void;
-    onsettings?: (id: string, trigger: HTMLElement) => void;
+    /** Opens the room's menu (a right-click, a long press, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
   } = $props();
   // New messages are the rail's edge mark (like Discord), not a number: the open room shows its bar instead.
   const news = $derived(unread(room, seen));
@@ -49,14 +51,9 @@
   data-room-id={room.id}
   class="relative flex touch-pan-y items-center justify-center select-none"
   ondragstart={(event) => event.preventDefault()}
-  oncontextmenu={(event) => {
-    if (!event.currentTarget.isConnected || !onsettings) return;
-    event.preventDefault();
-    onsettings(
-      room.id,
-      event.currentTarget.querySelector("a") ?? event.currentTarget,
-    );
-  }}
+  use:roomMenuTrigger={onmenu
+    ? (trigger, point) => onmenu(room.id, trigger, point)
+    : undefined}
 >
   <Tooltip>
     <TooltipTrigger>
@@ -67,6 +64,7 @@
           draggable="false"
           aria-label={[title, ...details].join(" · ")}
           aria-current={selected ? "page" : undefined}
+          aria-keyshortcuts={onmenu ? "Shift+F10" : undefined}
           data-room-tint={room.tint ?? undefined}
           class={cn(
             "relative flex size-9 shrink-0 rounded-xl outline-offset-2 transition-opacity duration-150 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring motion-reduce:transition-none",

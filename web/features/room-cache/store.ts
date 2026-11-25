@@ -2,7 +2,7 @@ import type { Room } from "../../../shared/room";
 
 /** Rooms kept in IndexedDB (cache plan PR 3, Gimenes #4553): a room opened after a reload draws at once from here,
  *  and its socket resumes from it (since/at/eh, PR 2). It is a cache, never the truth: the server's answer replaces
- *  it. Only the signed-in person's rooms are kept; their DMs are not (plan: no DMs at first). A sign-out, another
+ *  it. Only the signed-in person's rooms are kept, DMs too (a DM is a room like any other). A sign-out, another
  *  account or a room you left deletes them. */
 export interface RoomCache {
   /** The saved room, or null (none, another account's, older than 7 days, or IndexedDB is not there). */
@@ -99,7 +99,7 @@ export function createRoomCache(
       return row.room;
     },
     save(account, room) {
-      if (room.book.dm || room.me !== account) return;
+      if (room.me !== account) return;
       pending.set(room.id, {
         id: room.id,
         account,

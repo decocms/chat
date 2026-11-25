@@ -5,6 +5,10 @@
   import type { RichActions, RichMode, RichPolicy } from "./types";
   import RichNodes from "./RichNodes.svelte";
   import { scopedRichFileIndex } from "./fileContext";
+  import {
+    createApplicationCopy,
+    resolveApplicationLanguage,
+  } from "../application/copy";
   let {
     text,
     mode = "markdown",
@@ -14,6 +18,9 @@
     pageUrl,
     policy,
     fileLabel,
+    t = createApplicationCopy(
+      resolveApplicationLanguage(document.cookie, navigator.language),
+    ),
   }: {
     text: string;
     mode?: RichMode;
@@ -23,6 +30,8 @@
     pageUrl?: string;
     policy?: RichPolicy;
     fileLabel?: string;
+    /** The app's copy, for the chips of links to this app. */
+    t?: (text: string) => string;
   } = $props();
   const idPrefix = $props.id();
   const fileIndex = scopedRichFileIndex();
@@ -44,7 +53,7 @@
 {#if mode === "inline"}<span
     data-rich-content
     class="min-w-0 break-words font-sans leading-6 text-foreground"
-    ><RichNodes {nodes} {actions} /></span
+    ><RichNodes {nodes} {actions} {room} {t} /></span
   >
 {:else}<div
     data-rich-content
@@ -53,5 +62,5 @@
       : // The block margins stay between blocks: a lone paragraph sits as close to the name above it as plain text does.
         "min-w-0 max-w-full overflow-x-auto break-words font-sans leading-6 text-foreground [&>:first-child]:mt-0 [&>:last-child]:mb-0"}
   >
-    <RichNodes {nodes} {actions} />
+    <RichNodes {nodes} {actions} {room} {t} />
   </div>{/if}

@@ -900,7 +900,7 @@ test("Home renders untrusted room metadata as text and passes exact room identit
         onarchived: () => {},
         onnew: () => {},
         onsettings: () => {},
-        onroomsettings: () => {},
+        onroommenu: () => {},
         onsearch: () => {},
       },
     }),
@@ -966,7 +966,7 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
         onarchived: () => {},
         onnew: (trigger?: HTMLElement) => opened.push(trigger),
         onsettings: () => {},
-        onroomsettings: () => {},
+        onroommenu: () => {},
         onsearch: () => {},
       },
     }),
@@ -1017,7 +1017,7 @@ test("detached tile link/settings actions cannot navigate after canonical row re
         lang: "en",
         now: 0,
         onnavigate: (value: RoomTarget) => navigation.push(value),
-        onsettings: (id: string, trigger: HTMLElement) =>
+        onmenu: (id: string, trigger: HTMLElement) =>
           settings.push([id, trigger]),
       },
     }),
@@ -1064,7 +1064,7 @@ test("room refresh keeps Home draft/focus, then unmount owns late routing result
           onarchived: () => {},
           onnew: () => {},
           onsettings: () => {},
-          onroomsettings: () => {},
+          onroommenu: () => {},
           onsearch: () => {},
         },
       }),
@@ -1129,7 +1129,7 @@ test("canonical ask clearance takes the ask card away without hiding the task", 
         onarchived: () => {},
         onnew: () => {},
         onsettings: () => {},
-        onroomsettings: () => {},
+        onroommenu: () => {},
         onsearch: () => {},
       },
     }),
@@ -1179,7 +1179,7 @@ test("actual Home mounts three onboarding steps, preserves drafts across Back an
         onarchived: () => {},
         onnew: () => {},
         onsettings: () => {},
-        onroomsettings: () => {},
+        onroommenu: () => {},
         onsearch: () => {},
       },
     }),
@@ -1341,71 +1341,89 @@ test("account switch while navigation code loads drops private intent and cannot
   );
 });
 
-test("direct Search stacks over Settings without replacing its fields, while CtrlK keeps its explicit close behavior", async () => {
-  const { controller, trigger, code } = await pendingNavigation();
-  controller.openSettings("aaaaaa", trigger);
-  await flush();
-  code.resolve(NavigationDialogs);
-  await flush();
-  await waitForView(document, "#room-icon");
-  const icon = document.querySelector<HTMLInputElement>("#room-icon")!;
-  const settings = icon.closest('[role="dialog"]')!;
-  icon.focus();
-  controller.openSearch(icon);
-  await flush();
-  await waitForView(document, '[role="combobox"]');
-  expect(document.querySelector("#room-icon")).toBe(icon);
-  expect(settings.isConnected).toBe(true);
-  expect(get(controller.state).settingsId).toBe("aaaaaa");
-  expect(document.activeElement).toBe(
-    document.querySelector('[role="combobox"]'),
-  );
-  controller.search.close();
-  await flush();
-  expect(document.querySelector("#room-icon")).toBe(icon);
-  expect(document.activeElement).toBe(icon);
-  document.dispatchEvent(
-    new KeyboardEvent("keydown", {
-      key: "k",
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-    }),
-  );
-  expect(get(controller.state).settingsId).toBeNull();
-  await flush();
-  await waitForView(document, '[role="combobox"]');
-  expect(document.querySelector("#room-icon")).toBeNull();
-});
-
-test("old connected Settings controls cannot mutate a replacement room opening", async () => {
-  let writes = 0;
-  const { h, controller, trigger, code } = await pendingNavigation({
-    tint: async () => {
-      writes++;
+test("a right-click on a rail room opens its menu at the pointer; a tint and Archive go through it", async () => {
+  const tints: unknown[] = [];
+  const { h, controller, code } = await pendingNavigation({
+    tint: async (id, tint) => {
+      tints.push([id, tint]);
       return { ok: true };
     },
   });
   h.canonical(me({ books: [room("aaaaaa"), room("bbbbbb")] }));
   await h.services.personal.refresh();
-  controller.openSettings("aaaaaa", trigger);
   await flush();
+  const tile = document.querySelector<HTMLElement>('[data-room-id="aaaaaa"]')!;
+  tile.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 60,
+    }),
+  );
+  expect(get(controller.state).menu).toEqual({ id: "aaaaaa", x: 30, y: 60 });
+  await flush();
+  await waitForView(document, '[data-room-menu="aaaaaa"]');
+  const menu = document.querySelector('[data-room-menu="aaaaaa"]')!;
+  const items = [...menu.querySelectorAll('[role="menuitem"]')].map((item) =>
+    item.textContent?.trim(),
+  );
+  expect(items).toEqual([
+    "Mark as read",
+    "Color",
+    "Icon",
+    "Move",
+    "Copy room link",
+    "Archive",
+  ]);
+  // Nothing unread: "Mark as read" is off.
+  expect(
+    menu.querySelector('[role="menuitem"]')!.hasAttribute("data-disabled"),
+  ).toBe(true);
+  // The old settings dialog is gone: the menu is not a dialog.
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await controller.rooms.tint("aaaaaa", "blue");
+  expect(tints).toEqual([["aaaaaa", "blue"]]);
+  const archive = [
+    ...menu.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((item) => item.textContent?.trim() === "Archive")!;
+  archive.click();
+  await flush();
+  expect(get(controller.state).menu).toBeNull();
+  expect(get(controller.state).archiveId).toBe("aaaaaa");
   code.resolve(NavigationDialogs);
   await flush();
-  await waitForView(document, "#room-icon");
-  const oldIcon = document.querySelector<HTMLInputElement>("#room-icon")!;
-  const oldTint = oldIcon
-    .closest('[role="dialog"]')!
-    .querySelector<HTMLButtonElement>("fieldset button")!;
-  controller.closeSettings();
-  controller.openSettings("bbbbbb", trigger);
-  expect(oldTint.isConnected).toBe(true);
-  oldTint.click();
-  expect(writes).toBe(0);
-  expect(get(controller.state).settingsId).toBe("bbbbbb");
+  await waitForView(document, '[role="dialog"]');
+});
+
+test("Shift+F10 on a rail room opens the menu under it; a newer opening replaces the old one", async () => {
+  const { h, controller } = await pendingNavigation();
+  h.canonical(me({ books: [room("aaaaaa"), room("bbbbbb")] }));
+  await h.services.personal.refresh();
   await flush();
-  await waitForView(document, "#room-icon");
-  expect(document.querySelector("#room-icon")).not.toBe(oldIcon);
+  const link = document.querySelector<HTMLElement>(
+    '[data-room-id="aaaaaa"] a',
+  )!;
+  link.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "F10",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+  expect(get(controller.state).menu?.id).toBe("aaaaaa");
+  expect(controller.returnFocus(null)).toBe(link);
+  await flush();
+  await waitForView(document, '[data-room-menu="aaaaaa"]');
+  const old = document.querySelector('[data-room-menu="aaaaaa"]')!;
+  controller.openMenu("bbbbbb", undefined, { x: 0, y: 0 });
+  await flush();
+  await waitForView(document, '[data-room-menu="bbbbbb"]');
+  expect(old.isConnected).toBe(false);
+  controller.closeMenu();
+  await flush();
+  expect(document.querySelector("[data-room-menu]")).toBeNull();
 });
 
 // The home Inbox (/?inbox, HomeInbox) with typed synthetic HTTP ports; no Worker claim.
@@ -1969,7 +1987,7 @@ test("a phone's list of conversations puts a new version first, as the desktop s
         onarchived: () => {},
         onnew: () => {},
         onsettings: () => {},
-        onroomsettings: () => {},
+        onroommenu: () => {},
         onsearch: () => {},
       },
     }),

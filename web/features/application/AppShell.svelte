@@ -214,8 +214,8 @@
     onnew: (trigger) => {
       if (current()) services.navigation.openCreate(trigger);
     },
-    onroomsettings: (id, trigger) => {
-      if (current()) services.navigation.openSettings(id, trigger);
+    onroommenu: (id, trigger, point) => {
+      if (current()) services.navigation.openMenu(id, trigger, point);
     },
     oninbox: (trigger) => {
       if (current()) openInbox(trigger);

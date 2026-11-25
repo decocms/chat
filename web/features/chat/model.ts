@@ -119,7 +119,12 @@ export type MessageStatus = {
   owners: string[];
 };
 export type Reader = { receipt: Receipt; read: boolean };
-export type MessageFooter = { statuses: MessageStatus[]; readers: Reader[] };
+export type MessageFooter = {
+  statuses: MessageStatus[];
+  readers: Reader[];
+  /** Agents that looked and did nothing: a face beside the read receipts, "stopped" only on hover. */
+  passed: MessageStatus[];
+};
 export function messageFooters(
   room: Room,
   thread: string,
@@ -130,7 +135,7 @@ export function messageFooters(
   const at = (id: number) => {
     let value = footers.get(id);
     if (!value) {
-      value = { statuses: [], readers: [] };
+      value = { statuses: [], readers: [], passed: [] };
       footers.set(id, value);
     }
     return value;
@@ -141,7 +146,6 @@ export function messageFooters(
     if (latest.has(key)) continue;
     latest.add(key);
     if (ack.status === "dismissed") continue;
-    seen.add(key);
     const owners = [
       ...new Set(
         room.epics
@@ -163,7 +167,11 @@ export function messageFooters(
             : owners.length
               ? "waiting"
               : "idle";
-    at(ack.msg_id).statuses.push({ ack, kind, owners });
+    seen.add(key);
+    // An agent that looked and did nothing (a router passing, or work that went quiet) is not a line under the
+    // message: it is a face beside the read receipts, and "stopped" shows on hover. No gaps between messages.
+    if (kind === "idle") at(ack.msg_id).passed.push({ ack, kind, owners });
+    else at(ack.msg_id).statuses.push({ ack, kind, owners });
   }
   const list = room.messages.filter(
     (m) => m.thread === thread && m.tag !== "fire",

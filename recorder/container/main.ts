@@ -158,7 +158,17 @@ function recordInPage() {
   };
 }
 
-const humans = (page: Page) => page.evaluate(() => document.querySelectorAll("[data-call-tile], [data-call-people] li").length);
+/** The people the recorder sees in the call, or null when the call's screen is closed. The page can close it by
+ *  itself (since #427 a person who joins while the room loads gets it closed). Closed: the recorder opens it again,
+ *  because it records that screen. */
+const humans = (page: Page) =>
+  page.evaluate(() => {
+    if (!document.querySelector("[data-call-stage]")) {
+      document.querySelector<HTMLElement>("[data-call-panel-open], [data-call-on]")?.click();
+      return null;
+    }
+    return document.querySelectorAll("[data-call-tile], [data-call-people] li").length;
+  });
 
 function run(command: string, args: string[]) {
   return new Promise<void>((done, fail) => {
@@ -290,14 +300,22 @@ async function record(job: Job) {
     await page.evaluate(recordInPage);
     log("recording", job.room);
     let alone = 0, seconds = 0;
-    for (; seconds < MAX_S && alone < ALONE_S; seconds++) {
+    // A closed call screen is not "alone": the recorder opens it and counts again. If it stays closed for
+    // ALONE_S, the recorder cannot record the call and says so.
+    let blind = 0;
+    for (; seconds < MAX_S && alone < ALONE_S && blind < ALONE_S; seconds++) {
       await page.waitForTimeout(1000);
-      alone = (await humans(page)) ? 0 : alone + 1;
+      const seen = await humans(page);
+      blind = seen === null ? blind + 1 : 0;
+      alone = seen === null ? alone : seen ? 0 : alone + 1;
     }
+    if (blind >= ALONE_S) throw new Error("the call's screen stayed closed: the recorder could not see the call");
     const { names, marks } = await page.evaluate(() => (window as unknown as { recorderStop(): Promise<{ names: string[]; marks: [string, number][] }> }).recorderStop());
     await browser.close();
     log("call over after", seconds, "s, people:", names.join(", "));
-    // Grain takes 10 seconds or more.
+    // Grain takes 10 seconds or more. The recorder comes when two people are in the call: if it saw nobody, it
+    // did not see the call, and the room must know.
+    if (!names.length) throw new Error("the recorder saw nobody in the call");
     if (seconds - alone < 12) return log("too short to send");
     // Grain refuses the browser's file as it is (tested 2026-11-24): H.264 main, yuv420p, 30 frames, stereo AAC.
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", OUT]);
