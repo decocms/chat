@@ -905,9 +905,10 @@ describe("room panels", () => {
       }),
     );
     try {
-      // Three signals: the one number (asks and reviews together), the new-messages dot, the ✻. The cloud is words only.
+      // Three signals: the one number (the messages that ask you; a task in review lives in the Inbox), the
+      // new-messages dot, the ✻. The cloud is words only.
       expect(target.querySelector("[data-room-badge=cloud]")).toBeNull();
-      expect(target.querySelector("[data-count]")?.textContent).toBe("2");
+      expect(target.querySelector("[data-count]")?.textContent).toBe("1");
       expect(
         target.querySelector('[data-room-badge="unread-human"]'),
       ).not.toBeNull();
@@ -4189,7 +4190,9 @@ describe("stable sidebar integration", () => {
         ...vb,
         epicBusy: () => null,
         waitsIn: (id: string) =>
-          id === "main" ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }] : [],
+          id === "main"
+            ? [{ ref: "m1" }, { ref: "m4" }, { ref: "a2" }, { ref: "t3" }]
+            : [],
         waitsInRoom: () => [{ ref: "m9" }],
       },
     });
@@ -4197,9 +4200,10 @@ describe("stable sidebar integration", () => {
       "button[data-room-title]",
     )!;
     expect(title.querySelector("[data-room-mark]")).not.toBeNull();
+    // Only the unread messages that ask you: the task and Claude's question are in the Inbox.
     expect(
       title.querySelector("[data-wait-badge] [data-count]")?.textContent,
-    ).toBe("3");
+    ).toBe("2");
     // The Inbox is global (the rail, or the phone Home's bar): a room has no entry to it.
     expect(h.target.querySelector("[data-inbox-toggle]")).toBeNull();
     const rename = title.parentElement!.querySelector(
@@ -4233,20 +4237,26 @@ describe("stable sidebar integration", () => {
     const title = h.target.querySelector("button[data-room-title]")!;
     expect(title.querySelector("[data-wait-badge]")).toBeNull();
   });
-  test("epic and rail indicators count asks and task reviews in one lime number", async () => {
+  test("epic and rail indicators count the unread asks in one red number; task reviews stay in the Inbox", async () => {
     const room = fixture();
     const base = {
       ...vb,
       epicBusy: () => "Claude",
       waitsIn: (id: string) =>
         id === "e"
-          ? [{ ref: "m1" }, { ref: "a2" }, { ref: "t3" }, { ref: "t4" }]
+          ? [
+              { ref: "m1" },
+              { ref: "m5" },
+              { ref: "a2" },
+              { ref: "t3" },
+              { ref: "t4" },
+            ]
           : [],
     };
     const h = sidebar(room, { vb: base });
     const epic = h.target.querySelector('[data-epic="e"]')!;
     const badge = epic.querySelector("[data-wait-badge] [data-count]");
-    expect(badge?.textContent?.trim()).toBe("4");
+    expect(badge?.textContent?.trim()).toBe("2");
     // One colour for every kind of wait: red (Valls).
     expect(badge?.className.split(/\s+/)).toContain("bg-destructive");
     // One slot at the end (Gimenes #3904): the count takes the status's place.
@@ -4257,7 +4267,8 @@ describe("stable sidebar integration", () => {
       ...h.props,
       vb: {
         ...base,
-        waitsIn: (id: string) => (id === "e" ? [{ ref: "t3" }] : []),
+        waitsIn: (id: string) =>
+          id === "e" ? [{ ref: "m3" }, { ref: "t4" }] : [],
       },
     });
     await tick();
@@ -4269,7 +4280,7 @@ describe("stable sidebar integration", () => {
     h.view.update({
       ...h.props,
       collapsed: true,
-      vb: { ...base, waitsIn: () => [{ ref: "t3" }] },
+      vb: { ...base, waitsIn: () => [{ ref: "m3" }, { ref: "t4" }] },
     });
     await tick();
     flushSync();
