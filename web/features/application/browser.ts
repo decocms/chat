@@ -8,12 +8,22 @@ import { createAccountApi } from "../account/api";
 import { createAuthLogoutApi } from "../auth/api";
 import { createAgentsApi } from "../agents/api";
 import { createMessagesApi } from "../root-room/api";
+import { createRoomCache } from "../room-cache/store";
 import { pwaLogoutWarning, pwaLogoutFailure } from "../pwa/copy";
 import {
   resolveApplicationLanguage,
   applicationLocale,
   createApplicationCopy,
 } from "./copy";
+
+/** IndexedDB, or undefined where reading it throws (a private window, blocked site data): rooms then stay in memory. */
+function readIndexedDb(win: Window): IDBFactory | undefined {
+  try {
+    return win.indexedDB ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The production document binds browser effects once. Core services have no
  * globals, selectors, HTML strings, mount registry or framework lifecycle. */
@@ -139,6 +149,7 @@ export function createBrowserApplicationServices(options: {
     accountApi: createAccountApi(fetcher),
     agentsApi: createAgentsApi(fetcher),
     messagesApi: createMessagesApi(fetcher),
+    roomCache: createRoomCache(readIndexedDb(win)),
     runnerFetch: fetcher,
     onIdentityReset: options.onIdentityReset,
   });
