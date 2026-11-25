@@ -903,6 +903,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           request: threadRequest,
           waits,
           onopen: pickThread,
+          onjump: (id: number) => {
+            if (owned()) navigateMessage(id);
+          },
           ...(thread.startsWith("pre:")
             ? {}
             : {

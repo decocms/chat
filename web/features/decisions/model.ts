@@ -19,6 +19,49 @@ export const DECISION_CONFIRMATION_TIMEOUT = 10_000;
 export const decisionRows = (decisions: readonly Decision[]) =>
   decisions.slice().reverse();
 
+/** What a log entry is; the server keeps `kind` as text, anything unknown reads as a decision. */
+export type DecisionKind = "decision" | "approval";
+export const decisionKind = (kind: string): DecisionKind =>
+  kind === "approval" ? "approval" : "decision";
+
+/** "today" and "yesterday" get their own words; older days show their date. */
+export type DecisionDay = {
+  key: string;
+  when: "today" | "yesterday" | "date";
+  /** Midnight of that day, local time. */
+  start: number;
+  items: Decision[];
+};
+const dayStart = (ts: number) => {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+/** Newest first, grouped by local calendar day (the timeline's date separators). */
+export function decisionDays(
+  decisions: readonly Decision[],
+  now = Date.now(),
+): DecisionDay[] {
+  const today = dayStart(now);
+  const yesterday = dayStart(today - 1);
+  const days: DecisionDay[] = [];
+  for (const decision of decisionRows(decisions)) {
+    const start = dayStart(decision.ts);
+    const last = days.at(-1);
+    if (last?.start === start) {
+      last.items.push(decision);
+      continue;
+    }
+    days.push({
+      key: String(start),
+      when:
+        start === today ? "today" : start === yesterday ? "yesterday" : "date",
+      start,
+      items: [decision],
+    });
+  }
+  return days;
+}
+
 /** One mounted room owns pending commands; late replies never mutate another mount. */
 export function createDecisionsSession(roomId: string, clock = defaultClock) {
   const state = writable<DecisionsState>({ pending: {}, issues: {} });

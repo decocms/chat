@@ -32,6 +32,8 @@ export type PanelProps = {
   request: RequestRoomCommand;
   waits?: Wait[];
   onopen?: (epic: string) => void;
+  /** Go to a message of this room in its thread (a decision's source). */
+  onjump?: (id: number) => void;
   /** Put a prompt for your Claude in this thread's composer (an empty tab's "Ask your Claude"). */
   ask?: (prompt: string) => void;
   /** Add files to this thread's composer, as the clip does. */

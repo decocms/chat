@@ -4,6 +4,8 @@ import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import type { Decision } from "../shared/room";
 import {
   createDecisionsSession,
+  decisionDays,
+  decisionKind,
   decisionRows,
   type DecisionsClock,
 } from "../web/features/decisions/model";
@@ -48,6 +50,33 @@ describe("decisions", () => {
     const list = [decision, { ...decision, id: 8 }];
     expect(decisionRows(list).map((d) => d.id)).toEqual([8, 7]);
     expect(list.map((d) => d.id)).toEqual([7, 8]);
+  });
+  test("timeline groups newest first by local day: today, yesterday, then dates", () => {
+    const now = new Date(2026, 10, 25, 15, 0).getTime();
+    const at = (day: number, hour: number) =>
+      new Date(2026, 10, day, hour).getTime();
+    const list: Decision[] = [
+      { ...decision, id: 1, ts: at(20, 9) },
+      { ...decision, id: 2, ts: at(20, 18) },
+      { ...decision, id: 3, ts: at(24, 0) },
+      { ...decision, id: 4, ts: at(24, 23) },
+      { ...decision, id: 5, ts: at(25, 0) },
+      { ...decision, id: 6, ts: at(25, 14) },
+    ];
+    const days = decisionDays(list, now);
+    expect(days.map((d) => d.when)).toEqual(["today", "yesterday", "date"]);
+    expect(days.map((d) => d.items.map((i) => i.id))).toEqual([
+      [6, 5],
+      [4, 3],
+      [2, 1],
+    ]);
+    expect(days[2]!.start).toBe(new Date(2026, 10, 20).getTime());
+    expect(decisionDays([], now)).toEqual([]);
+  });
+  test("unknown kinds read as decisions", () => {
+    expect(decisionKind("approval")).toBe("approval");
+    expect(decisionKind("decision")).toBe("decision");
+    expect(decisionKind("pr")).toBe("decision");
   });
   test("numeric delete is room scoped, rejects duplicates and waits for canonical removal after ACK", async () => {
     const time = clock(),

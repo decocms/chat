@@ -962,11 +962,78 @@ describe("room panels", () => {
     expect(target.querySelector("script")).toBeNull();
     expect(target.textContent).toContain("<script>bad()</script>");
     expect(target.textContent).toContain("<who>");
-    expect(target.textContent).toContain("✓ aprovado");
+    expect(target.textContent).toContain("aprovado");
     expect(target.textContent).toContain("decidido");
+    expect(
+      target.querySelectorAll("[data-decisions-timeline] [data-decision-day]"),
+    ).toHaveLength(1);
+    expect(target.querySelector("[data-decision-jump]")).toBeNull();
     update({ ...room, decisions: [] });
     expect(target.querySelector("[data-ddel]")).toBeNull();
     expect(target.textContent).toContain("Nenhuma decisão ainda");
+  });
+  test("a decision with its source message jumps to it", () => {
+    const room = fixture();
+    const now = Date.now();
+    room.decisions = [
+      {
+        id: 7,
+        kind: "decision",
+        text: "old",
+        who: "me@test",
+        ts: now - 3 * 864e5,
+      },
+      {
+        id: 8,
+        kind: "approval",
+        text: "new",
+        who: "me@test",
+        ts: now,
+        msg: 42,
+      },
+    ];
+    const jumps: number[] = [];
+    const { target } = render("decisions", room, {
+      onjump: (id) => jumps.push(id),
+    });
+    expect(
+      Array.from(target.querySelectorAll("[data-decision-day]"), (el) =>
+        el.getAttribute("data-decision-day"),
+      ),
+    ).toEqual(["today", "date"]);
+    expect(target.textContent).toContain("Hoje");
+    expect(target.querySelectorAll("[data-decision-jump]")).toHaveLength(1);
+    target
+      .querySelector<HTMLButtonElement>('[data-decision-jump="42"]')!
+      .click();
+    expect(jumps).toEqual([42]);
+  });
+  test("a decision with its person shows their avatar, the agent's mark and their name", () => {
+    const room = fixture();
+    room.decisions = [
+      {
+        id: 7,
+        kind: "decision",
+        text: "a",
+        who: "me · via agent",
+        ts: 1,
+        email: "ana@test",
+        via: "claude-opus-5-5",
+      },
+      { id: 8, kind: "decision", text: "b", who: "Old text", ts: 2 },
+    ];
+    const { target } = render("decisions", room);
+    const withPerson = target.querySelector('[data-decision-id="7"]')!;
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-avatar]"),
+    ).not.toBeNull();
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-agent-tile]"),
+    ).not.toBeNull();
+    expect(withPerson.textContent).toContain("ana@test · via agent");
+    const legacy = target.querySelector('[data-decision-id="8"]')!;
+    expect(legacy.querySelector("[data-decision-avatar]")).toBeNull();
+    expect(legacy.textContent).toContain("Old text");
   });
   test("decision deletion requires confirmation, restores cancellation focus and waits for canonical removal", async () => {
     const room = fixture();
