@@ -4015,7 +4015,7 @@ describe("stable sidebar integration", () => {
       onopen: (id) => {
         opened.push(id);
       },
-      ondonechange: () => {},
+      onviewchange: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -4453,6 +4453,53 @@ describe("stable sidebar integration", () => {
       ),
     ).toBeNull();
   }, 30_000);
+  test("the threads tabs are Mine, Open and Done; Mine lists your open threads and each empty tab says so", () => {
+    const room = fixture();
+    room.epics = [
+      { id: "e", title: "Epic", tasks: [], owner: "me@test" },
+      { id: "theirs", title: "Theirs", tasks: [], owner: "you@test" },
+      { id: "old", title: "Old", tasks: [], owner: "me@test", done: true },
+    ];
+    const listed = (rendered: ReturnType<typeof sidebar>) =>
+      [...rendered.target.querySelectorAll<HTMLElement>("li[data-epic]")].map(
+        (row) => row.dataset.epic,
+      );
+    const open = sidebar(room);
+    expect(
+      [...open.target.querySelectorAll<HTMLElement>("[data-threads-tab]")].map(
+        (tab) => tab.textContent?.trim(),
+      ),
+    ).toEqual(["Mine", "Open", "Done"]);
+    expect(listed(open)).toEqual(["e", "theirs"]);
+    expect(open.target.querySelector("[data-epics-empty]")).toBeNull();
+    open.destroy();
+    const mine = sidebar(room, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(mine)).toEqual(["e"]);
+    mine.destroy();
+    const done = sidebar(room, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(listed(done)).toEqual(["old"]);
+    done.destroy();
+    const empty = { ...room, epics: [room.epics[1]!] };
+    const nothingMine = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(nothingMine)).toEqual([]);
+    expect(
+      nothingMine.target.querySelector("[data-epics-empty=mine]")?.textContent,
+    ).toContain("Nenhuma thread aberta é sua");
+    nothingMine.destroy();
+    const nothingDone = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(
+      nothingDone.target.querySelector("[data-epics-empty=done]")?.textContent,
+    ).toContain("Nenhuma thread feita ainda");
+    nothingDone.destroy();
+  });
   test("the threads list has no Nova thread and no title form: a thread starts from a message (Gimenes #4286)", () => {
     const rendered = sidebar(fixture());
     expect(rendered.target.querySelector("[data-new-epic]")).toBeNull();
@@ -4579,7 +4626,7 @@ describe("stable sidebar integration", () => {
       onopenpinapp: () => {},
       send: () => true,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       friends: ["friend@test"],
       vb: sidebarBridge,
     };
@@ -7547,7 +7594,7 @@ describe("collapsed sidebar and typed presence", () => {
       },
       send: () => false,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       onopenpinfile: () => {},
       onopenpinapp: () => {},
       ontogglerail: () => {
