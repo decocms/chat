@@ -15,6 +15,7 @@
   import {
     canEditMessage,
     canStartThread,
+    threadFrom,
     startsThread,
     continues,
     issueParts,
@@ -73,6 +74,8 @@
   let threadBusy = false,
     threadError = $state("");
   const threadable = $derived(!origin && canStartThread(room, m));
+  // A message with a thread offers "Abrir thread" instead (Gimenes #5068).
+  const hasThread = $derived(origin ? undefined : threadFrom(room, m));
   const editable = $derived(!origin && canEditMessage(room, m));
   // Edited in place (like Discord): the text is a box until Enter or Esc; no toolbar meanwhile.
   const editing = $derived(
@@ -541,7 +544,12 @@
       me={room.me}
       message={m}
       roomId={room.id}
-      onthread={threadable ? () => void startThread() : undefined}
+      onthread={threadable
+        ? () => void startThread()
+        : hasThread
+          ? () => actions.openThread?.(hasThread)
+          : undefined}
+      threadOpen={!threadable && !!hasThread}
       canEdit={editable}
       canDelete={!m.deleted &&
         !startsThread(room, m) &&
