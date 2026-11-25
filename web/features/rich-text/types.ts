@@ -26,6 +26,8 @@ export type RichActions = Pick<
 > & {
   navigateRich?: (target: RichNavigation) => void;
   openFileReference?: (file: RichFileReference) => void;
+  /** A click on an @mention: the DM with that person (Gimenes #5298). */
+  openPerson?: (email: string) => void;
 };
 export type LinkTarget =
   | { kind: "url"; href: string; external: boolean }
