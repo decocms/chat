@@ -18,7 +18,7 @@
   import CameraDialog from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
   import { denoiseOn, type CallSession } from "./session";
-  import { callColors, callGrid, FITTED_ONE } from "./layout";
+  import { callColors, callGrid } from "./layout";
   import { cn } from "../../lib/studio/utils";
   /** How long a recorded room's call can be without its recorder before the warning shows. */
   const RECORDER_GRACE_MS = 45_000;
@@ -220,11 +220,10 @@
     class={[
       "relative flex min-h-0 min-w-0 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-0 p-0 text-call-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
       colors[peer.email] ?? "bg-call-1",
-      // Every tile is 16:9 (in a box that is a size container: the grid, the stage of one person).
-      "aspect-video",
       size === "grid" && grid.width,
-      size === "big" && FITTED_ONE,
-      size === "small" && "h-20 md:h-24",
+      size === "grid" && grid.height,
+      size === "big" && "size-full",
+      size === "small" && "aspect-video h-20 md:h-24",
     ]}
     onclick={() => {
       if (!shown) pinned = pinned === peer.email ? "" : peer.email;
@@ -402,9 +401,7 @@
                 "small",
               )}{/each}
           </div>{:else if pinnedPeer}<!-- One person on the stage: the others in a row under it. -->
-          <div
-            class="flex min-h-0 flex-1 items-center justify-center [container-type:size]"
-          >
+          <div class="flex min-h-0 flex-1">
             {@render tile(pinnedPeer, "big")}
           </div>
           {#if peers.length > 1}<div
@@ -420,10 +417,8 @@
             bind:clientWidth={gridWidth}
             bind:clientHeight={gridHeight}
             class={[
-              "flex min-h-0 flex-1 flex-wrap justify-center gap-2 [container-type:size]",
-              grid.scroll
-                ? "content-start overflow-y-auto"
-                : "content-center items-center",
+              "flex min-h-0 flex-1 flex-wrap justify-center gap-2",
+              grid.scroll ? "content-start overflow-y-auto" : "content-center",
             ]}
           >
             {#each peers as peer (peer.email)}{@render tile(
