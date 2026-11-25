@@ -105,11 +105,11 @@ test("an app message is a draft for the composer only when every text block asks
   const draft = { [APP_COMPOSE]: true };
   expect(
     appDraft([
-      { type: "text", text: "> «a quote»", _meta: draft },
+      { type: "text", text: "\nArquivo: post.json", _meta: draft },
       { type: "image" },
-      { type: "text", text: "Arquivo: post.json\n", _meta: draft },
+      { type: "text", text: "> «a quote»\n\n", _meta: draft },
     ]),
-  ).toBe("> «a quote»\nArquivo: post.json");
+  ).toBe("Arquivo: post.json\n> «a quote»\n\n");
   expect(appDraft([{ type: "text", text: "post this" }])).toBeNull();
   expect(
     appDraft([

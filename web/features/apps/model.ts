@@ -97,7 +97,8 @@ type AppMessageBlock = {
   text?: string;
   _meta?: Record<string, unknown>;
 };
-/** The draft text when every text block asks for a draft, else null (the message is a post). */
+/** The draft text when every text block asks for a draft, else null (the message is a post). The end of the text
+ *  stays as the app wrote it: a blank line after a quote puts the caret in a new paragraph, not in the quote. */
 export function appDraft(content: readonly AppMessageBlock[]): string | null {
   const blocks = content.filter((block) => block.type === "text");
   if (
@@ -105,11 +106,12 @@ export function appDraft(content: readonly AppMessageBlock[]): string | null {
     !blocks.every((block) => block._meta?.[APP_COMPOSE] === true)
   )
     return null;
-  return blocks
+  const text = blocks
     .map((block) => block.text ?? "")
     .join("\n")
-    .trim()
+    .replace(/^\s+/, "")
     .slice(0, 4000);
+  return text.trim() ? text : "";
 }
 
 export function connectionApps(connection: Connection) {
