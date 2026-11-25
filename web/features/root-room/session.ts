@@ -168,12 +168,10 @@ export function createRootRoomSession(options: {
       cache.delete(roomId);
       options.persist?.drop(roomId);
     }
-    // Cache plan PR 4: with IndexedDB, memory keeps the open room and no other saved room; a switch reads the saved
-    // one. DMs are not saved, so they stay in memory. Without IndexedDB (a private window), memory keeps all rooms.
-    // Either way, at most the 12 newest.
+    // Cache plan PR 4: with IndexedDB, memory keeps only the open room; a switch reads the saved one. Without it
+    // (a private window), memory keeps the 12 newest rooms, as before.
     if (options.persist)
-      for (const [id, kept] of cache)
-        if (id !== roomId && !kept.book.dm) cache.delete(id);
+      for (const id of cache.keys()) if (id !== roomId) cache.delete(id);
     while (cache.size > 12) {
       const oldest = cache.keys().next();
       if (oldest.done) break;

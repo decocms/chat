@@ -112,7 +112,7 @@ const tick = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
 
-test("the store saves in batches, reads back only this account's rooms, expires, skips DMs, prunes and clears", async () => {
+test("the store saves in batches (DMs too), reads back only this account's rooms, expires, prunes and clears", async () => {
   const { idb, rows } = fakeIndexedDb();
   let now = 1_000_000_000;
   const timers: (() => void)[] = [];
@@ -130,7 +130,8 @@ test("the store saves in batches, reads back only this account's rooms, expires,
   expect(timers).toHaveLength(1);
   timers.shift()!();
   await tick();
-  expect([...rows.keys()].sort()).toEqual(["r1", "r2"]);
+  // A DM is a room like any other: it is saved too.
+  expect([...rows.keys()].sort()).toEqual(["dm", "r1", "r2"]);
   const saved = await cache.load("a@test", "r1");
   expect(saved?.at).toBe(200);
   expect(saved?.typing).toEqual({});
@@ -286,10 +287,11 @@ test("with IndexedDB, memory keeps only the open room: going back to a room read
   sockets.at(-1)!.onEvent({ t: "state", ...room("aaaaaa") } as never);
   session.open("bbbbbb");
   sockets.at(-1)!.onEvent({ t: "state", ...room("bbbbbb") } as never);
-  // A DM is not saved, so it stays in memory.
+  // A DM is a room like any other: it is not kept in memory either, and comes back from IndexedDB.
   session.open("dmdmdm");
-  expect(session.read().phase).toBe("cached");
-  expect(loads).toEqual([]);
+  expect(session.read().room).toBeNull();
+  await tick();
+  expect(loads.at(-1)).toBe("a@test/dmdmdm");
   session.open("aaaaaa");
   expect(session.read().room).toBeNull();
   await tick();
