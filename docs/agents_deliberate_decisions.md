@@ -2049,6 +2049,24 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert this commit.
 - Status: open
 
+### 2026-11-25 · viktor/thread-tabs-mine · Thread tabs Mine, Open and Done
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked to change the sidebar's tabs "Threads abertas | Feitas" to "Mine / Open / Done", with screens of all states. He did not say what Mine contains for sub-threads, which tab opens first, what an empty tab shows, or how the tab is kept.
+- Decision:
+  - Mine is the Open list filtered to the threads whose `owner` is you (`mineEpics`, case-insensitive; the server stores owners in lower case). It has the same order as Open (pinned first, then the newest activity), so it follows any change to the order of Open.
+  - The list stays flat, as Open and Done already are: a sub-thread that you own is a plain row. Its parent does not show as context.
+  - Only Open lets you drag or move a row (Alt+Arrow). Mine and Done do not, because a move in a filtered list changes the order of rows that you cannot see. Mine shows the pin icon, because pinned rows are at its top. "Ver mais" works in all tabs.
+  - The labels are the English words "Mine", "Open", "Done" in both languages, as Viktor wrote them. The i18n check needs a Portuguese key, so the keys are the same English words.
+  - All tabs are always enabled. Done is no longer disabled when it is empty. Each empty tab shows the existing `EmptyState` (icon, title, one line), also Open in a room without threads (before, the list was blank).
+  - The tab is kept per room on the device (`localStorage` key `vb.threads.<room>`). Before, the Done flag was kept only in memory for the open room, so there is no old stored value to read. A missing or unknown value opens Open, the tab that showed first before.
+  - The loading skeleton draws the three tabs, with the stored tab selected.
+  - No `track()` event: the browser app has no event path (the same as the earlier entries), and a tab switch makes no server call.
+- Other options: Mine as a tree with the parent row as context (the list was made flat before). Mine as the first tab that opens (an empty Mine in most rooms). Mine also with the threads where you own a task (Viktor said owner). Disable an empty tab (an empty state says why it is empty). A new API route for a browser `track()` event (a server change for one tab).
+- Risk: low. Only the sidebar's tabs change.
+- Undo: Revert this commit. The stored `vb.threads.*` values are then not read.
+- Status: open
+
 ### 2026-11-25 · viktor/copy-selection · A copy takes only the selected text
 - Agent: claude-opus-5-5
 - Context: The human said that when they select a part of a message and copy it, the full message is copied. The cause: a selection that ends past a message's text (in its footer or body, which is easy with the mouse) went to the transcript copy of 2026-11-23, which writes each full message.
@@ -2074,4 +2092,21 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Move a thread to the top each time it opens (the rows jump under the cursor). Put the recent threads above the pinned ones. Restore the thread on each navigation to the room, also from links. Keep the visits on the server, so they follow you to other devices (a new write on each thread change, and more data per person).
 - Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
 - Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
+- Status: open
+
+### 2026-11-25 · feat/composer-markdown-shortcuts · Shortcuts write marks, and person messages show them
+
+- Agent: Claude Opus 5.5
+- Context: Pedro asked for shortcuts that put Markdown marks on the selected text, and the message must show the result (bold after "command + *"). A person's message was plain text: only agent messages rendered Markdown.
+- Decision:
+  - ⌘B / Ctrl+B is bold (`**`), ⌘I italic (`_`), ⌘E code (`` ` ``), ⌘⇧X strikethrough (`~~`), as in Slack, Discord and Notion. A second press removes the marks. On a Mac only ⌘ counts, because Ctrl+B and Ctrl+E move the caret. No link shortcut: ⌘K opens the search.
+  - The edit goes through `document.execCommand("insertText")`, so ⌘Z undoes it. This API is deprecated, but it is the only one that keeps the undo history of a textarea. A fallback uses `setRangeText`.
+  - Pedro found the bold too thin. `strong` is now `font-bold` (600 in this theme), not `font-semibold` (500). This also changes the bold in agent messages, so the two stay the same.
+  - The `human` mode renders only these four marks, on one line. `_` and `*` count only between words, so `snake_case` and `2*3*4` stay text. Headings, lists and tables stay text, so "1. Preview" does not become a list.
+  - Pedro then selected four more: ⌘U underline, a URL pasted over selected text makes `[text](url)`, ⌘⇧E code block and ⌘⇧9 quote. Underline is `__x__`, as in Discord: Markdown has no underline. In agent messages (full Markdown), `__x__` stays bold. An underline has the text's color, because a link is blue with no underline. ⌘⇧9 uses the physical key (`Digit9`), because ⇧9 writes "(" on most layouts.
+  - Pedro asked for ⌘⇧K: a selected URL becomes `[name](url)`. The name comes from the URL only (GitHub "org/repo #42", else the last word-like path part and the host, else the host). The app does not open the page to read its title: that is a server call to a third party (rule 1), and the browser cannot read another site (CORS). In a field, ⌘⇧K stops the event, because the ⌘K search does not look at ⇧.
+  - The `message` event gets `marks: true` when the text has a mark or a code block (`shared/inlineMarks.ts`), so we can see if people use them.
+- Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
+- Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
+- Undo: Revert this commit.
 - Status: open

@@ -55,7 +55,10 @@ export type SidebarProps = {
   send: SendRoomCommand;
   request: RequestRoomCommand;
   onopen: (id: string) => void;
-  ondonechange: (done: boolean) => void;
+  /** The person picked a threads tab (Mine, Open, Done). */
+  onviewchange: (
+    view: import("../features/navigation/model").ThreadView,
+  ) => void;
   navigation: NavigationSession;
   pins: PinsSession;
   onopenpinfile: (file: Attachment) => void;
