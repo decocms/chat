@@ -170,7 +170,7 @@
                         >{/if}</span
                     ></button
                   >{/snippet}
-                <p class="m-0 mb-4 font-medium">{row.label} · {count}</p>
+                <p class="m-0 mb-3 font-medium">{row.label} · {count}</p>
                 {#each row.voters as email (email)}<div
                     data-vote-voter
                     class="flex items-center gap-2"
