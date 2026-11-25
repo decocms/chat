@@ -1,6 +1,8 @@
 import { Database } from "bun:sqlite";
 import { expect, mock, test } from "bun:test";
-import { planTracks, withDtx } from "../web/features/call/session";
+import { get } from "svelte/store";
+import { joinsByItself, planTracks, withDtx } from "../web/features/call/session";
+import { createStageNav } from "../web/features/call/stageNav";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
 import { CALL_THREAD, RING_MS, callLineText, isRecorder, isRecorderOf, isRoomMember, parseCallLine, recorderEmail } from "../shared/call";
@@ -8,7 +10,7 @@ import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
-import { callColors, callGrid } from "../web/features/call/layout";
+import { callColors, callGrid, callTileSize } from "../web/features/call/layout";
 import { shareWith } from "../recorder/container/share";
 
 const peers = [
@@ -169,7 +171,26 @@ test("the call's grid: one person fills the stage, two side by side or stacked b
   expect(callGrid(2, 1200, 700).columns).toBe(2);
   expect(callGrid(2, 360, 500).columns).toBe(1);
   expect(callGrid(4, 1200, 700)).toMatchObject({ columns: 2, rows: 2, scroll: false });
-  expect(callGrid(20, 1200, 700)).toMatchObject({ columns: 4, scroll: true, height: "h-40" });
+  expect(callGrid(20, 1200, 700)).toMatchObject({ columns: 4, scroll: true, width: "w-[calc((100cqw-1.5rem)/4)]" });
+});
+
+test("every person's tile is 16:9 for 1 to 9 people, in a landscape and a portrait stage, and fits the stage", () => {
+  for (const [width, height] of [
+    [1200, 700],
+    [390, 640],
+  ] as const)
+    for (let people = 1; people <= 9; people++) {
+      const grid = callGrid(people, width, height);
+      expect(grid.scroll).toBe(false);
+      // The class keeps the tile's width inside a column and inside a row's height at 16:9.
+      expect(grid.width).toStartWith("w-[min(");
+      const tile = callTileSize(grid.columns, grid.rows, width, height);
+      expect(tile.width / tile.height).toBeCloseTo(16 / 9, 6);
+      expect(tile.width * grid.columns + 8 * (grid.columns - 1)).toBeLessThanOrEqual(width + 0.001);
+      expect(tile.height * grid.rows + 8 * (grid.rows - 1)).toBeLessThanOrEqual(height + 0.001);
+    }
+  // Two in a wide stage: side by side, each 16:9, letterboxed above and below.
+  expect(callTileSize(2, 1, 1200, 700)).toEqual({ width: 596, height: 596 / (16 / 9) });
 });
 
 test("each person in a call has a color of their own while there are colors left", () => {
@@ -225,6 +246,25 @@ function callRoom(bookId = "abcdef") {
       frames.push({ t: method, ...params });
     },
   };
+  // More sockets (another person's tab, the call's own socket: tags [email, "call"]), each with what it heard.
+  const sockets: { readyState: number; send(frame: string): void; tags?: string[]; close?(): void }[] = [ws];
+  const socket = (tags: string[]) => {
+    const heard: { t: string; call?: unknown }[] = [];
+    const added = {
+      readyState: 1,
+      tags,
+      heard,
+      send(frame: string) {
+        const { method, params } = JSON.parse(frame) as { method: string; params: object };
+        heard.push({ t: method, ...params });
+      },
+      close() {
+        added.readyState = 3;
+      },
+    };
+    sockets.push(added);
+    return added;
+  };
   const statement = () => {
     const bound = () => ({ run: async () => ({ meta: { changes: 0 } }), first: async () => null, all: async () => ({ results: [] }) });
     return { bind: bound, ...bound() };
@@ -232,8 +272,8 @@ function callRoom(bookId = "abcdef") {
   const ctx = {
     storage: { sql, getAlarm: async () => null, setAlarm: async () => {} },
     waitUntil: (p: unknown) => void Promise.resolve(p).catch(() => {}),
-    getWebSockets: () => [ws],
-    getTags: () => ["ana@x.test"],
+    getWebSockets: () => sockets,
+    getTags: (socket: { tags?: string[] }) => socket.tags ?? ["ana@x.test"],
     blockConcurrencyWhile: (fn: () => unknown) => fn(),
   };
   // What the Person DOs get (src/person.ts poke): who, and the notice.
@@ -244,7 +284,7 @@ function callRoom(bookId = "abcdef") {
   };
   const book = new Book(
     ctx as unknown as ConstructorParameters<typeof Book>[0],
-    { DB: { prepare: statement, batch: async () => [] }, PEOPLE, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
+    { DB: { prepare: statement, batch: async () => [] }, PEOPLE, DOC_ROOMS: { idFromName: () => "doc", get: () => ({ setText: async () => {}, kickAll: async () => {} }) } } as unknown as ConstructorParameters<typeof Book>[1],
   );
   book.set("book_id", bookId);
   book.wakeAt = async () => {};
@@ -261,32 +301,58 @@ function callRoom(bookId = "abcdef") {
     return reply.error ? { ok: false as const, error: reply.error.message } : { ok: true as const };
   };
   const lines = () => db.query(`SELECT id, author, text FROM messages WHERE tag = 'call' ORDER BY id`).all() as { id: number; author: string; text: string }[];
-  return { book, frames, epics, main, thread, send, pokes, lines };
+  return { book, frames, epics, main, thread, send, pokes, lines, socket, ws };
 }
 
-test("one call chat per room, the same for every call, and the room says which while a call is on", () => {
+test("each call of a room gets its own thread from its line in main, the room says which, and it stays after", () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
-  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: CALL_THREAD });
-  // No thread: the call chat is not a thread. Main has the call's line only.
-  expect(r.epics()).toHaveLength(0);
+  const [first] = r.epics();
+  expect(first?.title).toMatch(/^Call · \d{2}\/\d{2} \d{2}:\d{2}$/);
+  // The thread starts from the call's line in main, and is the person's who started the call.
   expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
+  expect(first).toMatchObject({ owner: "ana@x.test", from_msg: r.main()[0]!.id });
+  expect(r.book.liveCallThread()).toBe(first!.id);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: first!.id });
+  // It is a normal thread: the sidebar lists it.
+  expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).toContain(first!.id);
+  // Bia joining the call that is on makes no thread.
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(r.epics()).toHaveLength(1);
   r.book.callLeave("ana@x.test");
+  r.book.callLeave("bia@x.test");
   expect(r.book.liveCallThread()).toBeUndefined();
   expect(r.frames.filter((f) => f.t === "call").at(-1)?.thread).toBeUndefined();
-  // The next call: the same chat.
-  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
-  expect(r.epics()).toHaveLength(0);
+  // After the call it stays; the next call gets a thread of its own.
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia2", "https://x.test");
+  expect(r.epics()).toHaveLength(2);
+  const second = r.book.liveCallThread();
+  expect(second).not.toBe(first!.id);
+  expect(r.epics().map((e) => e.id)).toContain(second!);
 });
 
-test("a message sent to the call chat lands in it, and the room's listings never show it as a thread", async () => {
+test("what is sent beside the stage goes to the call's thread, and the recording's summary lands there", async () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  const thread = r.book.liveCallThread()!;
+  expect(await r.send({ t: "msg", thread, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
+  expect(r.thread(thread).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
+  r.book.callLeave("ana@x.test");
+  await r.book.callRecorded("abcdef", { url: "https://grain.test/r/1", minutes: 3, people: ["ana@x.test"], transcript: "", withheld: false, file: null });
+  expect(r.thread(thread).at(-1)?.text).toContain("https://grain.test/r/1");
+});
+
+test("a call's thread deleted during the call: the call goes on, its chat is main", () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  r.book.deleteEpic(r.book.liveCallThread()!);
+  expect(r.book.liveCallThread()).toBe("main");
+});
+
+test("the room's old call chat (before each call had a thread) still takes messages, and is never listed as a thread", async () => {
+  const r = callRoom();
   expect(await r.send({ t: "msg", thread: CALL_THREAD, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
   expect(r.thread(CALL_THREAD).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
-  expect(r.main().map((m) => m.text)).toEqual(["📞 iniciou uma call."]);
   // The room's threads (what the app and the sidebar list) and an agent's read: no "call" among the epics; the
   // message is readable, named as the call chat.
   expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).not.toContain(CALL_THREAD);
@@ -305,18 +371,18 @@ test("the recorder alone starts no call", () => {
   expect(r.book.liveCallThread()).toBeUndefined();
 });
 
-test("a DM's call keeps the DM's own chat beside the stage; the call chat is refused there", async () => {
+test("a DM's call keeps the DM's own chat beside the stage: no thread; the call chat is refused there", async () => {
   const dm = callRoom("dm0123456789abcdef0123");
   dm.book.callJoin("dm0123456789abcdef0123", "ana@x.test", "s-ana", "https://x.test");
   expect(dm.book.liveCallThread()).toBe("main");
+  expect(dm.epics()).toHaveLength(0);
   expect(dm.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: "main" });
   expect(await dm.send({ t: "msg", thread: CALL_THREAD, text: "oi" })).toMatchObject({ ok: false });
   expect(dm.thread(CALL_THREAD)).toHaveLength(0);
 });
 
-test("the call chat comes back on a reconnect that resumes, pages like any thread, and takes a post", async () => {
+test("the old call chat comes back on a reconnect that resumes, pages like any thread, and takes a post", async () => {
   const r = callRoom();
-  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
   await r.send({ t: "msg", thread: CALL_THREAD, text: "antes" });
   const at = Date.now() - 1000;
   const since = r.book.roomWindow("main").countsAt;
@@ -348,7 +414,7 @@ test("a person alone is not recorded; the second person makes it a call to recor
   const r = callRoom();
   expect(r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test")).toBe(false);
   expect(r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test")).toBe(true);
-  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
+  expect(r.book.liveCallThread()).toBe(r.epics()[0]!.id);
 });
 
 test("a hang-up takes only that session out of the call; a newer session of the person stays", () => {
@@ -364,11 +430,16 @@ test("a hang-up takes only that session out of the call; a newer session of the 
 });
 
 // ---- the tab's call session (web/features/call/session.ts) with a fake browser and a fake SFU route ----
+const pcs: { ontrack: unknown }[] = [];
+const players: { muted: boolean; srcObject: unknown }[] = [];
 function fakeBrowser() {
-  const saved = { navigator: globalThis.navigator, document: globalThis.document, RTCPeerConnection: globalThis.RTCPeerConnection, MediaStream: globalThis.MediaStream };
+  const saved = { navigator: globalThis.navigator, document: globalThis.document, RTCPeerConnection: globalThis.RTCPeerConnection, MediaStream: globalThis.MediaStream, Audio: globalThis.Audio };
   const track = { enabled: true, kind: "audio", stop() {} };
   const stream = { getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [] };
   class FakePc {
+    constructor() {
+      pcs.push(this);
+    }
     closed = false;
     localDescription: { sdp: string } | null = null;
     ontrack: unknown = null;
@@ -400,6 +471,16 @@ function fakeBrowser() {
     document: { visibilityState: "visible", addEventListener() {}, removeEventListener() {} },
     RTCPeerConnection: FakePc,
     MediaStream: class {},
+    Audio: class {
+      muted = false;
+      srcObject: unknown = null;
+      constructor() {
+        players.push(this);
+      }
+      play() {
+        return Promise.resolve();
+      }
+    },
   });
   return () => Object.assign(globalThis, saved);
 }
@@ -642,4 +723,133 @@ test("a recording is shared with the people of the call who have a Grain account
   ];
   expect(shareWith(users, ["ana@deco.cx", " BIA@deco.cx", "ana@deco.cx", "eve@outside.test", ""])).toEqual(["u1", "u2"]);
   expect(shareWith(users, [])).toEqual([]);
+});
+
+test("the call's own socket keeps the person in the call after the room's socket closes, and hears only the call", async () => {
+  const r = callRoom("abcdef");
+  // Bia: the room open (a room socket) and the call's socket of the app.
+  const room = r.socket(["bia@x.test"]),
+    call = r.socket(["bia@x.test", "call"]);
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(call.heard.at(-1)).toMatchObject({ t: "call" });
+  // Bia goes to another room: the room's socket closes, the call's stays, so she is still in the call.
+  room.close();
+  r.book.webSocketClose(room as unknown as WebSocket);
+  expect(r.book.callPeers().map((p) => p.email)).toEqual(["bia@x.test"]);
+  // The call's socket is not "here", and hears no chat.
+  expect(r.book.online()).toEqual(["ana@x.test"]);
+  r.book.addMessage("main", "ana@x.test", "oi");
+  expect(call.heard.some((event) => event.t === "msg")).toBe(false);
+  // It carries the call's commands only.
+  await r.book.webSocketMessage(call as unknown as WebSocket, encodeCall({ t: "msg", thread: "main", text: "oi" } as RoomCommand, "c-1"));
+  expect(r.main().some((m) => m.author === "bia@x.test" && m.text === "oi")).toBe(false);
+  // Closing the call's socket too (the tab closed): she is out.
+  call.close();
+  r.book.webSocketClose(call as unknown as WebSocket);
+  expect(r.book.callPeers()).toEqual([]);
+});
+
+// ---- the stage and the room's thread (RoomScene through stageNav.ts): Gimenes, 2026-11-25, stuck in the call chat ----
+test("opening the stage goes once to the call's thread; another thread closes the stage and stays", () => {
+  const nav = createStageNav();
+  const has = () => true;
+  // In a thread, a call starts: the room has not said its thread yet.
+  expect(nav.see("t-1", undefined, false, has)).toBeNull();
+  nav.opened();
+  expect(nav.see("t-1", undefined, true, has)).toBeNull();
+  // The room says the call's thread: the stage goes there, once.
+  expect(nav.see("t-1", "call-1", true, has)).toEqual({ go: "call-1" });
+  expect(nav.see("t-1", "call-1", true, has)).toBeNull();
+  expect(nav.see("call-1", "call-1", true, has)).toBeNull();
+  // A click on another thread (the sidebar), on main (the room's name) or Back: the stage closes.
+  expect(nav.see("t-2", "call-1", true, has)).toEqual({ close: true });
+  nav.closed();
+  // Closed, nothing sends the person back to the call's thread, whatever the room says next.
+  for (let i = 0; i < 3; i++) expect(nav.see("t-2", "call-1", false, has)).toBeNull();
+  expect(nav.see("main", "call-1", false, has)).toBeNull();
+  // The call's thread with the stage closed is a thread like any other: it stays.
+  expect(nav.see("call-1", "call-1", false, has)).toBeNull();
+  // Opened again from the call's thread, a move to main closes it.
+  nav.opened();
+  expect(nav.see("call-1", "call-1", true, has)).toBeNull();
+  expect(nav.see("main", "call-1", true, has)).toEqual({ close: true });
+});
+
+test("the stage waits for the call's thread to be in the room, and a move before that closes it", () => {
+  const nav = createStageNav();
+  let listed = false;
+  const has = () => listed;
+  nav.see("main", undefined, false, has);
+  nav.opened();
+  expect(nav.see("main", "call-1", true, has)).toBeNull();
+  listed = true;
+  expect(nav.see("main", "call-1", true, has)).toEqual({ go: "call-1" });
+  const other = createStageNav();
+  other.see("main", undefined, false, has);
+  other.opened();
+  expect(other.see("t-9", undefined, true, has)).toEqual({ close: true });
+  other.closed();
+  expect(other.see("t-9", "call-1", false, has)).toBeNull();
+});
+
+test("Silenciar pra mim: only this tab stops playing that person's voice, and hears them again", async () => {
+  const restore = fakeBrowser();
+  try {
+    pcs.length = players.length = 0;
+    const sent: string[] = [];
+    let pulls = 0;
+    const api = {
+      join: async () => "s-me",
+      tracks: async (_room: string, body: { pull?: { session: string; name: string }[] }) =>
+        body.pull
+          ? { sessionDescription: { type: "offer" as const, sdp: "v=0" }, tracks: body.pull.map(() => ({ mid: String(++pulls) })) }
+          : { sessionDescription: { type: "answer" as const, sdp: "v=0" }, tracks: [] },
+      answer: async () => {},
+      close: async () => {},
+      leave: async () => {},
+    };
+    const { createCallSession } = await import("../web/features/call/session");
+    const call = createCallSession("abcdef", api as never, (c) => (sent.push(c.t), true), () => "main");
+    call.join();
+    await later();
+    call.setPeers([
+      { email: "me@x.test", session: "s-me", tracks: ["mic"] },
+      { email: "ana@x.test", session: "s-ana", tracks: ["mic"] },
+      { email: "bia@x.test", session: "s-bia", tracks: ["mic"] },
+    ], "me@x.test");
+    await later();
+    const pc = pcs.at(-1) as { ontrack: (event: unknown) => void };
+    // Ana's voice and Bia's voice come in.
+    for (const mid of ["1", "2"]) pc.ontrack({ transceiver: { mid }, track: { kind: "audio" } });
+    const [ana, bia] = players;
+    call.toggleSilence("ana@x.test");
+    expect(get(call.state).silenced).toEqual(["ana@x.test"]);
+    expect([ana?.muted, bia?.muted]).toEqual([true, false]);
+    // Nobody else is told: no command goes to the room.
+    expect(sent.filter((t) => t !== "call.mute")).toEqual([]);
+    call.toggleSilence("ana@x.test");
+    expect(get(call.state).silenced).toEqual([]);
+    expect(ana?.muted).toBe(false);
+    // Silenced, a voice that comes again (a new track) stays silent.
+    call.toggleSilence("bia@x.test");
+    call.leave();
+    expect(get(call.state).silenced).toEqual([]);
+  } finally {
+    restore();
+  }
+});
+
+test("nobody joins a call by opening its room: only the room's recorder joins by itself, to record", () => {
+  const on = [{ email: "ana@x.test", session: "s-ana", tracks: ["mic"] }];
+  const idle = { phase: "idle" as const, error: "" as const };
+  // A person (a room or a DM, any number of times): never.
+  expect(joinsByItself("bia@x.test", on, idle)).toBe(false);
+  // The recorder: while a person is in the call, and not again after a failed try.
+  const rec = recorderEmail("abcdef");
+  expect(joinsByItself(rec, on, idle)).toBe(true);
+  expect(joinsByItself(rec, [], idle)).toBe(false);
+  expect(joinsByItself(rec, [{ email: rec, session: "s-rec", tracks: [] }], idle)).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "joining", error: "" })).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "idle", error: "failed" })).toBe(false);
+  expect(joinsByItself(rec, on, { phase: "idle", error: "dropped" })).toBe(true);
 });

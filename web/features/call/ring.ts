@@ -1,5 +1,5 @@
-// A DM's call ringing me, wherever I am in the app (the personal channel's {t:"ring"}, src/book.ts ringStart), and
-// what a click on a call's button asks of the room's call (the room's scene does it: RoomScene).
+// A DM's call ringing me, wherever I am in the app (the personal channel's {t:"ring"}, src/book.ts ringStart). The
+// call itself is the app's (hub.ts): answering joins it from wherever I am.
 import { writable } from "svelte/store";
 
 export type IncomingRing = {
@@ -30,9 +30,5 @@ export function ringNotice(notice: {
   else
     incomingRing.update((ring) => (ring?.book === notice.book ? null : ring));
 }
-/** Answer or decline a room's call from anywhere (the ring's card, a call line in the chat). The room's scene
- *  takes it once it has that room open. */
-export type CallIntent = { room: string; action: "join" | "decline" };
-export const callIntent = writable<CallIntent | null>(null);
 /** The ring's sound: the app's chime, again every few seconds while it rings. */
 export const RING_REPEAT_MS = 3_000;

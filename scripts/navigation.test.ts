@@ -504,6 +504,17 @@ test("room visits: the room reopens the thread you left, and the recent three ke
   expect(again.last("me@x.com", "room1")).toBe("e1");
   expect(again.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
   expect(again.last("other@x.com", "room1")).toBeNull();
+  // The room's old call chat ("call") is never where a room reopens, nor a recent thread; a visit saved in it
+  // before reads as none (Gimenes, 2026-11-25: stuck in the call chat).
+  visits.enter("me@x.com", "room1", "call");
+  expect(visits.last("me@x.com", "room1")).toBe("e1");
+  expect(recordRecent(["a"], "call")).toEqual(["a"]);
+  const old = createRoomVisits({
+    getItem: () =>
+      JSON.stringify({ room1: { last: "call", recent: [], at: 1 } }),
+    setItem: () => {},
+  });
+  expect(old.last("me@x.com", "room1")).toBeNull();
   const broken = createRoomVisits({
     getItem: () => "{not json",
     setItem: () => {
