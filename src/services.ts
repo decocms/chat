@@ -149,9 +149,9 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callsOn: callsOn(env),
     allowCall: async () => (await env.AGENT_LIMIT.limit({ key: `call:${email}` })).success,
     callJoin: async (roomId, thread) => {
-      const { session, first } = await callJoin(env, roomId, email, new URL(req0.url).origin, thread);
-      // The first person in starts the call: the recorder joins it, after the response.
-      if (first) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
+      const { session, record } = await callJoin(env, roomId, email, new URL(req0.url).origin, thread);
+      // The second person makes it a call to record: the recorder joins it, after the response.
+      if (record) ctx.waitUntil(startRecorder(env, new URL(req0.url).origin, roomId));
       return { session };
     },
     callTracks: (roomId, body) => callTracks(env, roomId, email, body),

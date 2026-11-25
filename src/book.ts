@@ -734,7 +734,8 @@ export class Book extends DurableObject<Env> {
     this.broadcast({ t: "call", call: peers });
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
-   *  Answers true when no person was in the call before (the recorder is not a person). */
+   *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
+   *  (a person alone in a call is not recorded: the first production recording was one person, 2026-11-24). */
   callJoin(bookId: string, email: string, session: string, origin: string, thread = "main"): boolean {
     this.bind(bookId);
     const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
@@ -745,8 +746,9 @@ export class Book extends DurableObject<Env> {
       this.set("call_rec_n", "0");
       this.set("call_thread", this.epics().some((e) => e.id === thread) ? thread : "main");
     }
-    this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
-    return first;
+    const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
+    this.setCall(after);
+    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email));
   }
   /** The thread of the call that is on (or of the last one), if it still exists. */
   private callThread(): string {
@@ -811,7 +813,8 @@ export class Book extends DurableObject<Env> {
     const left = peers.filter((p) => p.email !== email);
     this.setCall(left);
     const bookId = this.get("book_id") ?? "";
-    if (!isRecorder(email) || !left.some((p) => !isRecorder(p.email)) || !recorderOn(this.env, bookId)) return;
+    // Two people or more are still there: with one person left, the recorder is not called back.
+    if (!isRecorder(email) || left.filter((p) => !isRecorder(p.email)).length < 2 || !recorderOn(this.env, bookId)) return;
     const attempt = Number(this.get("call_rec_n") ?? 0) + 1;
     this.set("call_rec_n", String(attempt));
     // ponytail: 6 recorders for one call at most. A recorder that stops each time would start one more for ever.

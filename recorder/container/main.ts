@@ -208,7 +208,7 @@ type Line = { name: string; start: number; end: number; text: string };
 
 /** The call's words with who said them: the audio in parts to the Worker's speech-to-text, then the names from
  *  the page's marks. Any failure: no lines (Grain then transcribes by itself). */
-async function transcribe(job: Job, marks: [string, number][]): Promise<{ lines: Line[]; language: string }> {
+async function transcribe(job: Job, marks: [string, number][], names: string[]): Promise<{ lines: Line[]; language: string }> {
   if (!job.recorder) return { lines: [], language: "pt" };
   try {
     for (const old of readdirSync("/tmp").filter((file) => file.startsWith("part-"))) rmSync(`/tmp/${old}`);
@@ -219,13 +219,13 @@ async function transcribe(job: Job, marks: [string, number][]): Promise<{ lines:
     for (const [index, part] of parts.entries()) {
       const res = await fetch(`${job.recorder}/transcribe`, { method: "POST", headers: { authorization: `Bearer ${process.env.RECORDER_SECRET}` }, body: await openAsBlob(`/tmp/${part}`) });
       if (!res.ok) throw new Error(`transcribe ${res.status}`);
-      const out = (await res.json()) as { language?: string; segments?: { start: number; end: number; text: string }[] };
+      const out = (await res.json()) as { language?: string; segments?: { start: number; end: number; text: string; quiet?: number }[] };
       language ||= out.language ?? "";
-      for (const piece of out.segments ?? []) pieces.push({ start: (index * PART_S + piece.start) * 1000, end: (index * PART_S + piece.end) * 1000, text: piece.text });
+      for (const piece of out.segments ?? []) pieces.push({ start: (index * PART_S + piece.start) * 1000, end: (index * PART_S + piece.end) * 1000, text: piece.text, quiet: piece.quiet ?? 0 });
     }
     const turns: Turn[] = [];
     for (const [name, at] of marks) addMark(turns, name, at);
-    return { lines: attribute(turns, pieces), language: language || "pt" };
+    return { lines: attribute(turns, pieces, names), language: language || "pt" };
   } catch (error) {
     log("no transcript of ours:", String(error));
     return { lines: [], language: "pt" };
@@ -303,7 +303,7 @@ async function record(job: Job) {
     await run("ffmpeg", ["-v", "error", "-y", "-i", RAW, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", OUT]);
     log("mp4", statSync(OUT).size, "bytes");
     const when = started.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
-    const { lines, language } = await transcribe(job, marks);
+    const { lines, language } = await transcribe(job, marks, names);
     log("transcript lines:", lines.length);
     const url = await toGrain(`${title} · call · ${when}`, started, names, lines, language);
     log("in Grain:", url);

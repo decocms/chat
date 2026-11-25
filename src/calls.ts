@@ -10,7 +10,6 @@ import { transcriptMarkdown, transcriptName } from "./callText";
 import { CallSfuResult, type CallDescription, type CallTracksBody, type RecordedBody } from "../shared/schemas";
 import { CALL_SCREEN_LIMIT_GB, EGRESS_QUERY, GB, egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "./callBudget";
 import { hmac, safeEqual } from "./auth";
-import { isRecorder } from "../shared/call";
 
 /** Calls are off until the SFU app (var) and its secret exist. */
 export const callsOn = (env: Env) => !!(env.REALTIME_SFU_APP_ID && env.REALTIME_SFU_APP_SECRET);
@@ -69,11 +68,11 @@ async function screenAllowed(env: Env) {
 export const SCREEN_TRACK = "screen";
 
 /** A new SFU session (one RTCPeerConnection) for this person, entered in the room's call.
- *  `first`: no person was in the call before, so this join starts it (and its recorder: startRecorder). */
+ *  `record`: with this join the call has two people and no recorder, so the recorder is asked to come (startRecorder). */
 export async function callJoin(env: Env, bookId: string, email: string, origin: string, thread = "main") {
   const session = z.object({ sessionId: z.string() }).parse(await sfu(env, "POST", "/sessions/new")).sessionId;
-  const first = await bookStub(env, bookId).callJoin(bookId, email, session, origin, thread);
-  return { session, first: first && !isRecorder(email) };
+  const record = await bookStub(env, bookId).callJoin(bookId, email, session, origin, thread);
+  return { session, record };
 }
 
 // ---- the recorder (recorder/): a Worker with a container that joins the call and sends it to Grain ----
