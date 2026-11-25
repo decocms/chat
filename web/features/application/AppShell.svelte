@@ -4,6 +4,7 @@
   import type { Snippet } from "svelte";
   import type { BrowserApplicationServices } from "./browser";
   import type { ComposerDrafts } from "../composer/drafts";
+  import { homeArtifactOpen } from "./homeLayout";
   import type {
     ApplicationRoomPresentation,
     ApplicationShellEffects,
@@ -150,7 +151,10 @@
   });
   // Home and settings share one frame: the rail, a sidebar (your DMs, or the settings' sections) and the page.
   const settings = $derived($application.route.kind === "settings"),
-    paged = $derived($application.route.kind === "home" || settings);
+    // A thing open beside an Inbox item folds the DM list away (homeArtifactOpen): the Home gets its width.
+    paged = $derived(
+      ($application.route.kind === "home" && !$homeArtifactOpen) || settings,
+    );
   // Phones: Settings has only a back in its bar (Gimenes #4068). It returns to the page you came
   // from in this app; a Settings page that was the first page loaded goes to Home instead.
   let landing: string | undefined,

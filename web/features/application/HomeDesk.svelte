@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick, untrack } from "svelte";
+  import { onDestroy, onMount, tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -31,6 +31,7 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import TaskWorkspace from "./TaskWorkspace.svelte";
   import { paneFocus } from "../room-layout/focus";
+  import { homeArtifactOpen } from "./homeLayout";
   import type { ComposerDrafts } from "../composer/drafts";
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
@@ -441,11 +442,13 @@
     closed = false;
     sent = null;
   }
-  // A thing open beside the thread (an app, a file, the doc) takes the room: the list goes slim (avatars only)
-  // until you open it again; Expandir hides it.
-  let wide = $state(false),
-    listOpen = $state(false);
-  const slim = $derived(wide && !listOpen);
+  // A thing open beside the thread (an app, a file, the doc): the shell folds the DM list away for it
+  // (homeArtifactOpen); Expandir hides the Inbox list too.
+  let wide = $state(false);
+  $effect(() => {
+    homeArtifactOpen.set(wide);
+  });
+  onDestroy(() => homeArtifactOpen.set(false));
   function close() {
     closed = true;
     sent = null;
@@ -677,10 +680,8 @@
 >
   <div
     data-home-list
-    data-slim={slim || undefined}
     class={cn(
       "flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border",
-      slim && "hidden",
       $paneFocus && "hidden",
     )}
   >
@@ -737,15 +738,6 @@
               if (live(event)) done(picked);
             }}>{t("Resolver selecionados")}</Button
           ></span
-        >{/if}
-      {#if wide}<IconButton
-          data-home-list-collapse
-          label={t("Recolher a lista")}
-          size="icon-sm"
-          tooltipSide="bottom"
-          class="size-8 shrink-0 self-center text-muted-foreground"
-          onclick={() => (listOpen = false)}
-          ><Icon icon="layout-left" size={15} /></IconButton
         >{/if}
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -814,44 +806,6 @@
       {/if}
     </div>
   </div>
-  {#if slim && !$paneFocus}<nav
-      data-home-list-slim
-      aria-label={t("Caixa de entrada")}
-      class="flex min-h-0 w-16 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-border py-3"
-    >
-      <IconButton
-        data-home-list-expand
-        label={t("Mostrar a lista")}
-        size="icon-sm"
-        tooltipSide="right"
-        class="mb-2 size-9 text-muted-foreground"
-        onclick={() => (listOpen = true)}
-        ><Icon icon="layout-left" size={16} /></IconButton
-      >
-      {#each order as item (item.key)}<button
-          type="button"
-          data-home-slim-row={item.key}
-          aria-current={working?.key === item.key || undefined}
-          title={item.kind === "task"
-            ? item.text
-            : `${name(item)} · ${item.where || item.room}`}
-          class={cn(
-            "relative grid size-11 shrink-0 cursor-pointer place-items-center rounded-lg border-0 bg-transparent hover:bg-muted",
-            working?.key === item.key &&
-              "bg-secondary-hover hover:bg-secondary-hover",
-          )}
-          onclick={(event) => {
-            if (live(event)) open(item);
-          }}
-          >{#if item.kind === "task"}<Icon
-              icon="circle"
-              size={18}
-              class="text-muted-foreground"
-            />{:else}{@render face(item)}{/if}{#if fresh(item)}<span
-              class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive"
-            ></span>{/if}</button
-        >{/each}
-    </nav>{/if}
   <div data-home-workspace class="min-h-0 min-w-0 flex-1">
     {#if working}
       {#key working.key}<TaskWorkspace
