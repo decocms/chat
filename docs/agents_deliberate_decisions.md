@@ -1854,3 +1854,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A person who types `> ` at the start of a line now sees a quote, as in Slack and Discord.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/room-cache · Rooms are saved in IndexedDB, without DMs, for 7 days
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 3 (Gimenes #4653: "o indexeddb é pra evitar pegar um range grande de mensagens", "o room deveria ser stale-while-revalidate, entao deveria ser instantaneo mudar de sala"). PR 2 (#418) made a socket resume from a room that the app has. Before this change, the app had rooms only in memory (12 rooms), so a reload got each whole state again.
+- Decision:
+  - The app saves each room that you open in IndexedDB, with the newest 400 messages, and draws it before the socket answers. The socket then resumes from it.
+  - It does not save DMs (the plan said "no DMs at first"). A saved room expires after 7 days. A sign-out, a refused session or another account deletes all saved rooms. A room that `/api/me` does not list is deleted.
+  - After a reload, the app waits for `/api/me` (at most 300 ms) to know whose rooms to read. It never draws a saved room for an account that it does not know.
+  - The open waits at most 300 ms for IndexedDB, then the socket starts.
+- Other options: localStorage (5 MB, synchronous). A Service Worker cache of `GET /room` (no `GET /room` yet). Save DMs too.
+- Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
+- Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
+- Status: open

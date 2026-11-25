@@ -72,6 +72,13 @@ Rules:
 - The Book then sends a `state` with `resume: true`. It has the open thread's window and each message that is newer than `since`, or edited or deleted since `at`. When the threads have the same hash, it leaves them out (`epicsSame`). The app merges the messages and acks into the room that it has (`web/app/roomStore.ts`).
 - The Book sends the whole state when there are no params, the state is older than 6 hours, or more than 200 rows changed.
 
+### Rooms saved in the browser
+
+- The app saves each room that you open in IndexedDB (`web/features/room-cache/store.ts`): the newest 400 messages and the rest of the room, without typing and edit history. It writes one time for each quiet second, and only on durable events.
+- A room that is not in memory (after a reload, or a 13th room) draws from IndexedDB first. Then its socket resumes from it (see "A reconnect resumes"). The read waits at most 300 ms. Then the socket starts anyway.
+- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are not saved. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
+- If the browser blocks IndexedDB (a private window), rooms stay in memory only.
+
 ### One send, one message
 
 A send can become "not confirmed" (a timeout, a dropped socket, a server error) after the `Book` stored it. A second send of it must not make a second message.
