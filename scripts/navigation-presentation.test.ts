@@ -141,29 +141,53 @@ test("disposal ignores a late module and releases the loader ownership predicate
   h.dispose();
 });
 
-test("concurrent Search retains the existing Settings opening and ownership until Settings itself closes", async () => {
+test("concurrent Search retains the existing Archive opening and ownership until Archive itself closes", async () => {
   const h = await fixture();
   try {
-    h.controller.openSettings("aaaaaa");
-    const settings = get(h.presentation.bindings).settings!;
+    h.controller.askArchive("aaaaaa");
+    const archive = get(h.presentation.bindings).archive!;
     h.controller.openSearch();
     const search = get(h.presentation.bindings).search!;
-    expect(get(h.presentation.bindings).settings).toBe(settings);
-    expect(h.presentation.owns(settings)).toBe(true);
+    expect(get(h.presentation.bindings).archive).toBe(archive);
+    expect(h.presentation.owns(archive)).toBe(true);
     expect(h.presentation.owns(search)).toBe(true);
     h.controller.search.edit("query update");
-    expect(get(h.presentation.bindings).settings).toBe(settings);
+    expect(get(h.presentation.bindings).archive).toBe(archive);
     h.presentation.close(search);
-    expect(get(h.controller.state).settingsId).toBe("aaaaaa");
-    expect(get(h.presentation.bindings).settings).toBe(settings);
-    expect(get(h.presentation.state)).toBe(settings);
+    expect(get(h.controller.state).archiveId).toBe("aaaaaa");
+    expect(get(h.presentation.bindings).archive).toBe(archive);
+    expect(get(h.presentation.state)).toBe(archive);
     h.controller.closeSettings();
-    h.controller.openSettings("bbbbbb");
-    const replacement = get(h.presentation.bindings).settings!;
-    h.presentation.close(settings);
-    expect(get(h.controller.state).settingsId).toBe("bbbbbb");
-    expect(h.presentation.owns(settings)).toBe(false);
+    h.controller.askArchive("bbbbbb");
+    const replacement = get(h.presentation.bindings).archive!;
+    h.presentation.close(archive);
+    expect(get(h.controller.state).archiveId).toBe("bbbbbb");
+    expect(h.presentation.owns(archive)).toBe(false);
     expect(h.presentation.owns(replacement)).toBe(true);
+  } finally {
+    h.dispose();
+  }
+});
+
+test("a room's menu is not a dialog: it opens at the pointer, and Archive from it replaces it", async () => {
+  const h = await fixture();
+  try {
+    h.controller.openMenu("aaaaaa", undefined, { x: 40, y: 80 });
+    expect(get(h.controller.state).menu).toEqual({
+      id: "aaaaaa",
+      x: 40,
+      y: 80,
+    });
+    expect(get(h.presentation.state)).toBeNull();
+    h.controller.openMenu("nope", undefined, { x: 1, y: 1 });
+    expect(get(h.controller.state).menu?.id).toBe("aaaaaa");
+    h.controller.askArchive("aaaaaa");
+    expect(get(h.controller.state).menu).toBeNull();
+    expect(get(h.presentation.bindings).archive?.roomId).toBe("aaaaaa");
+    h.controller.closeSettings();
+    h.controller.openMenu("bbbbbb", undefined, { x: 0, y: 0 });
+    h.controller.closeMenu();
+    expect(get(h.controller.state).menu).toBeNull();
   } finally {
     h.dispose();
   }

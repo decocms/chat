@@ -1896,5 +1896,19 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
   - Without IndexedDB (a private window), memory keeps the 12 newest rooms, as before.
 - Other options: Keep DMs out of IndexedDB and in memory (the first version of this PR).
 - Risk: low. DM content now also stays on the device until a sign-out or 7 days, as room content does. A switch back to a room waits for IndexedDB (usually a few milliseconds) instead of memory.
+
+### 2026-11-25 · feat/room-context-menu · Room settings dialog becomes one context menu
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked for a Discord-like context menu on a room in place of the "Settings for <room>" dialog, with Mark as read, Invite people, Notifications, Color, Icon, Rename, Move, Copy link and Archive.
+- Decision:
+  - One menu for the whole app (`RoomMenu.svelte`, mounted by `AppNavigation`). It is the studio `DropdownMenu` anchored at the pointer (`customAnchor`), not one bits-ui `ContextMenu` per row. The rail, the phone's grid and list, and the DM rows only call `controller.openMenu(id, trigger, point)` through one action (`roomMenuTrigger.ts`): a right-click, a 500 ms touch long press, or Shift+F10 / the ContextMenu key.
+  - "Mark as read" got a small new path: `POST /api/books/:id/read` writes `human_reads` up to the room's last message. The dot goes at once in the client.
+  - Left out: "Invite people" (the invite form lives in the room's People panel; no route opens it from outside the room) and "Notifications" (the app has no per-room mute).
+  - "Rename room" shows only for the room that is open, as before: the rename goes through that room's socket.
+  - A DM gets "Mark as read" and "Copy conversation link" only. Archive is left out for a DM, because an archived DM would hide new messages from that person.
+  - Errors of a change and "Copied" show for 2.5 s in a small notice at the foot of the screen.
+- Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
+- Risk: low. The same mutations as the dialog, from a different surface.
 - Undo: Revert this commit.
 - Status: open

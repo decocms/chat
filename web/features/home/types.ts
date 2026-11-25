@@ -18,7 +18,12 @@ export type HomeBridge = {
   onhome: () => void;
   onarchived: () => void;
   onnew: (trigger?: HTMLElement) => void;
-  onroomsettings: (roomId: string, trigger?: HTMLElement) => void;
+  /** Opens a room's menu (a right-click, a long press, Shift+F10) at `point`, else under `trigger`. */
+  onroommenu: (
+    roomId: string,
+    trigger?: HTMLElement,
+    point?: { x: number; y: number },
+  ) => void;
   onsearch: () => void;
   oninbox?: (trigger?: HTMLElement) => void;
   /** Answers a room invite: the phone's home shows invites over its list. */

@@ -14,6 +14,10 @@
     type RoomTarget,
   } from "./model";
   import type { HomeLanguage } from "./copy";
+  import {
+    roomMenuTrigger,
+    type MenuPoint,
+  } from "../app-navigation/roomMenuTrigger";
   /** A room in the home grid: the same RoomAvatar as the rail, with its name under it. */
   let {
     room,
@@ -23,7 +27,7 @@
     waits = [],
     size = "md",
     onnavigate,
-    onsettings,
+    onmenu,
   }: {
     room: RoomSummary;
     lang: HomeLanguage;
@@ -32,7 +36,8 @@
     waits?: readonly WaitReference[];
     size?: AvatarSize;
     onnavigate: (target: RoomTarget) => void;
-    onsettings?: (id: string, trigger: HTMLElement) => void;
+    /** Opens the room's menu (a right-click, a long press, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
   } = $props();
   const news = $derived(unread(room, seen));
   const title = $derived(room.title ?? "deco.chat");
@@ -46,14 +51,9 @@
 <article
   data-room-id={room.id}
   class="min-w-0"
-  oncontextmenu={(event) => {
-    if (!event.currentTarget.isConnected || !onsettings) return;
-    event.preventDefault();
-    onsettings(
-      room.id,
-      event.currentTarget.querySelector("a") ?? event.currentTarget,
-    );
-  }}
+  use:roomMenuTrigger={onmenu
+    ? (trigger, point) => onmenu(room.id, trigger, point)
+    : undefined}
 >
   <Tooltip
     ><TooltipTrigger

@@ -428,6 +428,7 @@ test("room operations reject nonmembers before any write", async () => {
     ["post", { text: "forbidden" }],
     ["archive", { archived: true }],
     ["tint", { tint: "blue" }],
+    ["read", {}],
   ] as const) {
     expect((await f.json(`/api/books/room/${path}`, body)).status).toBe(403);
   }
@@ -562,6 +563,7 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
   for (const [path, value] of [
     ["/api/books/room/archive", { archived: false }],
     ["/api/books/room/tint", { tint: "blue" }],
+    ["/api/books/room/read", {}],
     ["/api/rooms/order", { ids: ["room", "other"] }],
     ["/api/waits/resolve", { book_id: "room", ref: "m1" }],
     [
@@ -575,7 +577,7 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ],
   ] as const)
     expect((await f.json(path, value)).status).toBe(200);
-  expect(f.writes).toHaveLength(7);
+  expect(f.writes).toHaveLength(8);
   expect(
     f.writes.every((write) => write.values.includes("test@example.com")),
   ).toBe(true);

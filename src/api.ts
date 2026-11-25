@@ -393,6 +393,19 @@ export const api = roomPosts
     await svc.sql(`UPDATE members SET archived_at = ? WHERE book_id = ? AND email = ?`, archived === false ? null : Date.now(), id, c.get("email"));
     svc.track(archived === false ? "book_restored" : "book_archived", { book: id });
     return c.json(ok, 200);
+  })
+  // "Mark as read" in a room's menu: everything in the room up to now, for you only.
+  .post("/api/books/:id/read", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.sql(
+      `INSERT INTO human_reads (email, book_id, last_id) SELECT ?, id, coalesce(last_msg_id, 0) FROM books WHERE id = ? ON CONFLICT(email, book_id) DO UPDATE SET last_id = max(last_id, excluded.last_id)`,
+      c.get("email"),
+      id,
+    );
+    svc.pokeMe(); // your other tabs and devices
+    svc.track("book_marked_read", { book: id });
+    return c.json(ok, 200);
   });
 
 // Account and room lists.
