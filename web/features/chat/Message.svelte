@@ -285,7 +285,8 @@
       title={vb.t("Ver a mensagem respondida")}
       class="group/quote relative mb-1 flex h-[22px] w-full min-w-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 pl-14 text-left font-sans text-sm leading-[18px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onclick={() => {
-        if (active) actions.navigate(m.reply_to!, quote?.thread);
+        if (active)
+          actions.navigate(m.reply_to!, quote?.thread ?? m.reply_thread);
       }}
     >
       <span

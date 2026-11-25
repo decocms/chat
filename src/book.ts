@@ -326,7 +326,22 @@ export class Book extends DurableObject<Env> {
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
-    return storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind));
+    return this.withReplyThreads(storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind)));
+  }
+  /** reply_thread on replies to a message of another thread: the quote's click goes there even when the quoted message
+   *  isn't loaded (one indexed lookup per page; same-thread replies, the common case, carry nothing). */
+  private withReplyThreads(messages: Msg[]): Msg[] {
+    const ids = [...new Set(messages.flatMap((m) => (m.reply_to ? [m.reply_to] : [])))];
+    if (!ids.length) return messages;
+    const threads = new Map<number, string>();
+    for (let i = 0; i < ids.length; i += 90) {
+      const chunk = ids.slice(i, i + 90);
+      for (const r of this.sql.exec<{ id: number; thread: string }>(`SELECT id, thread FROM messages WHERE id IN (${chunk.map(() => "?").join(",")})`, ...chunk).toArray()) threads.set(r.id, r.thread);
+    }
+    return messages.map((m) => {
+      const thread = m.reply_to ? threads.get(m.reply_to) : undefined;
+      return thread && thread !== m.thread ? { ...m, reply_thread: thread } : m;
+    });
   }
   messages(thread?: string, limit = 500): Msg[] {
     const rows = thread
@@ -911,7 +926,8 @@ export class Book extends DurableObject<Env> {
   // ---- mutations (shared by humans over WS and by AI tools) ----
   addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
-    const replyTo = extra.replyTo && this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, extra.replyTo).toArray().length ? extra.replyTo : null;
+    const replied = extra.replyTo ? this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
+    const replyTo = replied ? extra.replyTo! : null;
     const ts = Date.now();
     const files = extra.files ?? [];
     const id = this.sql
@@ -933,7 +949,7 @@ export class Book extends DurableObject<Env> {
         extra.clientId ?? null,
       )
       .one().id as number;
-    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
+    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
     // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
