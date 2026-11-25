@@ -252,3 +252,45 @@ test("an ask you reacted to before the router read it does not wait on you (Gime
   );
   expect(waits.map((x) => x.values[2])).toEqual([other]);
 });
+
+test("a page of a thread: newest, before an id, after an id, with more and in time order (cache plan, PR 1)", async () => {
+  const { book, run, frames } = fixture();
+  const ids = Array.from(
+    { length: 7 },
+    (_, i) => book.addMessage("e1", email, `m${i}`).id,
+  );
+  book.addMessage("main", email, "elsewhere");
+  const page = (q: { before?: number; after?: number; limit: number }) =>
+    book.roomMessages("abcdef", { thread: "e1", ...q });
+  const texts = (p: { messages: { text: string }[] }) =>
+    p.messages.map((m) => m.text);
+  expect(texts(page({ limit: 3 }))).toEqual(["m4", "m5", "m6"]);
+  expect(page({ limit: 3 }).more).toBe(true);
+  expect(texts(page({ before: ids[4], limit: 3 }))).toEqual(["m1", "m2", "m3"]);
+  expect(texts(page({ before: ids[2], limit: 3 }))).toEqual(["m0", "m1"]);
+  expect(page({ before: ids[2], limit: 3 }).more).toBe(false);
+  // after: the oldest ones since that id, for catching up.
+  expect(texts(page({ after: ids[1], limit: 3 }))).toEqual(["m2", "m3", "m4"]);
+  expect(page({ after: ids[1], limit: 3 }).more).toBe(true);
+  expect(page({ after: ids[6], limit: 3 })).toMatchObject({
+    messages: [],
+    more: false,
+  });
+  // The socket's "older" is the same page (100), for apps from before the GET.
+  frames.length = 0;
+  await run({ t: "older", thread: "e1", before: ids[3] });
+  const older = frames
+    .map(
+      (f) =>
+        JSON.parse(f) as {
+          method?: string;
+          params?: { messages: { text: string }[] };
+        },
+    )
+    .find((f) => f.method === "older");
+  expect(older?.params?.messages.map((m) => m.text)).toEqual([
+    "m0",
+    "m1",
+    "m2",
+  ]);
+});

@@ -1577,6 +1577,21 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.changeMessage(id, { email, agent: true }, text);
   }
+  /** One page of a thread for GET /api/books/:id/messages and the socket's "older" (cache plan, PR 1). The route checks
+   *  membership. after = the oldest `limit` after that id (catch up); else the newest `limit` before `before`. */
+  messagesPage(q: { thread: string; before?: number; after?: number; limit: number }) {
+    const limit = Math.min(Math.max(1, Math.trunc(q.limit)), 100);
+    const rows = q.after !== undefined
+      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id > ? ORDER BY id LIMIT ?`, q.thread, Math.trunc(q.after), limit + 1).toArray()
+      : this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT ?`, q.thread, Math.trunc(q.before ?? 0) || Number.MAX_SAFE_INTEGER, limit + 1).toArray();
+    const page = this.messageRows(rows.slice(0, limit));
+    const messages = q.after !== undefined ? page : page.reverse();
+    return { thread: q.thread, messages, acks: this.acksList(messages.map((r) => r.id)), more: rows.length > limit };
+  }
+  roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
+    this.bind(bookId);
+    return this.messagesPage(q);
+  }
   /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
    *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está
    *  escrevendo a resposta…" shows until their Claude writes. Their Claude's start_thread for that message returns
@@ -2787,17 +2802,10 @@ export class Book extends DurableObject<Env> {
         if (String(m.title ?? "").trim()) this.addTask(String(m.epic), String(m.title).trim());
         return;
       case "older": {
-        // Scroll-back: 100 messages of a thread before an id.
-        // No id = the newest (a thread opened with nothing of it in the state yet).
-        const before = Number(m.before) || Number.MAX_SAFE_INTEGER;
-        const rows = this.sql
-          .exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 101`, String(m.thread ?? "main"), before)
-          .toArray();
-        const page = this.messageRows(rows.slice(0, 100)).reverse();
-        // The page's acks (the room's state carries only the loaded messages' ones).
-        const acks = this.acksList(page.map((r) => r.id));
-        if (acks.length) this.sendTo([ws], { t: "ackRows", acks });
-        return this.sendTo([ws], { t: "older", thread: String(m.thread ?? "main"), messages: page, more: rows.length > 100 });
+        // Scroll-back over the socket, for apps from before GET /messages (the same page).
+        const page = this.messagesPage({ thread: String(m.thread ?? "main"), before: Number(m.before) || undefined, limit: 100 });
+        if (page.acks.length) this.sendTo([ws], { t: "ackRows", acks: page.acks });
+        return this.sendTo([ws], { t: "older", thread: page.thread, messages: page.messages, more: page.more });
       }
       case "pin.add": {
         const r = await this.pinAdd(email, String(m.kind ?? ""), String(m.ref ?? ""), String(m.title ?? ""));

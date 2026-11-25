@@ -1,6 +1,7 @@
 import { get, writable } from "svelte/store";
 import type { Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
+import type { MessagesPage } from "../../../shared/schemas";
 import {
   createRoomConnection,
   type RoomConnectionOptions,
@@ -36,6 +37,13 @@ export function createRootRoomSession(options: {
   onTransition(transition: RootRoomTransition): void;
   onTerminal(snapshot: RootRoomSnapshot): void;
   connection?: (options: RoomConnectionOptions) => RootConnection;
+  /** Scroll-back over HTTP (GET /messages, cache plan PR 1): "older" goes here instead of the socket; null = send it
+   *  on the socket as before. */
+  older?: (
+    roomId: string,
+    thread: string,
+    before: number | undefined,
+  ) => Promise<MessagesPage | null>;
 }) {
   const blank = (generation: number): RootRoomSnapshot => ({
     roomId: null,
@@ -204,7 +212,37 @@ export function createRootRoomSession(options: {
       if (active) state.update((current) => ({ ...current, thread }));
     },
     send(command: RoomCommand): boolean {
-      return active ? (read().connection?.send(command) ?? false) : false;
+      if (!active) return false;
+      const { connection, roomId } = read();
+      if (command.t !== "older" || !options.older || !connection || !roomId)
+        return connection?.send(command) ?? false;
+      // The page comes back as the socket's events would (ackRows, then older), so nothing above changes.
+      const ticket = generation;
+      void options
+        .older(roomId, command.thread, command.before)
+        .then((page) => {
+          if (!owns(ticket, connection)) return;
+          if (!page) return void connection.send(command);
+          if (page.acks.length)
+            receive(
+              { t: "ackRows", acks: page.acks },
+              roomId,
+              ticket,
+              connection,
+            );
+          receive(
+            {
+              t: "older",
+              thread: page.thread,
+              messages: page.messages,
+              more: page.more,
+            },
+            roomId,
+            ticket,
+            connection,
+          );
+        });
+      return true;
     },
     request(command: RoomCommand, timeout?: number): Promise<CommandOutcome> {
       const connection = read().connection,

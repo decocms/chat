@@ -9,6 +9,7 @@ import { createAccountLogout, personalLogoutIdentity } from "../account/logout";
 import type { DeviceLock } from "../account/device";
 import { createAgentsService } from "../agents/service";
 import type { AgentsApi } from "../agents/api";
+import type { MessagesApi } from "../root-room/api";
 import type { PwaService } from "../pwa/service";
 import { createAppNavigationSession } from "../app-navigation/controller";
 import {
@@ -50,6 +51,8 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
   homeApi?: HomeApi;
   accountApi?: AccountApi;
   agentsApi?: AgentsApi;
+  /** Scroll-back over HTTP; without it, "older" goes on the socket. */
+  messagesApi?: MessagesApi;
   runnerFetch?: FetchLike;
   device?: Pick<DeviceLock, "cancel" | "dispose" | "visibility">;
   roomConnection?: Parameters<typeof createRootRoomSession>[0]["connection"];
@@ -136,6 +139,12 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
         `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
       ),
     connection: options.roomConnection,
+    ...(options.messagesApi
+      ? {
+          older: (roomId: string, thread: string, before?: number) =>
+            options.messagesApi!.page(roomId, { thread, before, limit: 100 }),
+        }
+      : {}),
     present: (room) => titleOwnDm(room, browser.language ?? "pt"),
     acceptIdentity: (value) => personal.acceptIdentity(value),
     // This executes before RootRoomSession cache insertion AND state publication.
