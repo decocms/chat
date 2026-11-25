@@ -119,10 +119,7 @@ const { default: RoomShellHarness } =
   await import("./room-shell-harness.svelte");
 const { createRoomResources } =
   await import("../web/features/application/roomResources");
-const { createCallHub, setCallHub } = await import("../web/features/call/hub");
 import type { Room, RoomEvent } from "../shared/room";
-import type { CallApi } from "../web/features/call/callApi";
-import { CALL_THREAD } from "../shared/call";
 import type { RoomScopeBrowser } from "../web/features/room-scope/types";
 import type { RoomLayoutBrowser } from "../web/features/room-layout/types";
 const cleanups: (() => void)[] = [];
@@ -2017,51 +2014,4 @@ test("a phone's list of conversations puts a new version first, as the desktop s
   personal.updateAvailable(false);
   await flush();
   expect(update()).toBeNull();
-});
-
-test("the call's panel in another room goes back to the call's room with the stage open (Jonas, 2026-11-25)", async () => {
-  // I am in room cccccc's call (the microphone never answers here: the call stays "joining").
-  const media = Reflect.get(window.navigator, "mediaDevices");
-  Object.defineProperty(window.navigator, "mediaDevices", {
-    value: { getUserMedia: () => new Promise(() => {}) },
-    configurable: true,
-  });
-  const hub = createCallHub({
-    api: {
-      join: async () => "s-me",
-      leave: async () => {},
-    } as unknown as CallApi,
-    connect: () => ({ start() {}, dispose() {}, send: () => true }),
-  });
-  setCallHub(hub);
-  cleanups.push(() => {
-    setCallHub(null);
-    Object.defineProperty(window.navigator, "mediaDevices", {
-      value: media,
-      configurable: true,
-    });
-  });
-  hub.session("cccccc", { title: () => "Sala da call" }).join();
-  // In another room: its sidebar has the call's panel, and no stage.
-  const h = await actualRoomShell();
-  h.publish(h.canonical);
-  await flush();
-  expect(h.target.querySelector("[data-call-stage]")).toBe(null);
-  const panel = h.target.querySelector<HTMLElement>("[data-call-panel-open]");
-  expect(panel?.textContent).toContain("Sala da call");
-  panel!.click();
-  await flush();
-  expect(h.href()).toContain("/b/cccccc");
-  // The call's room comes up: the stage is open on it, not the chat.
-  const callRoom: Room = {
-    ...h.canonical,
-    id: "cccccc",
-    book: { title: "Sala da call", owner: "me@test.com" },
-    call: [{ email: "me@test.com", session: "s-me", tracks: [] }],
-    callThread: CALL_THREAD,
-  };
-  h.publish(callRoom);
-  await flush();
-  await flush();
-  expect(h.target.querySelector("[data-call-stage]") !== null).toBe(true);
 });

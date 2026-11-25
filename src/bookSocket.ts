@@ -15,7 +15,5 @@ export function bookSocketUrl(
   let url = `https://book/ws?book=${id}&t=${encodeURIComponent(query("t") ?? "main")}`;
   if (rc) url += `&rc=${rc}`;
   if (since && at) url += `&since=${since}&at=${at}${eh ? `&eh=${eh}` : ""}`;
-  // The call's own socket (Book.isCallSocket): it opens no room, only the call.
-  if (query("call") === "1") url += "&call=1";
   return url;
 }
