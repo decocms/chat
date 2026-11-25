@@ -1814,4 +1814,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: open a thread for every message of a person in main (also small talk and yes/no answers would become threads); only a stronger rule for agents (agents already had the rule and skipped it).
 - Risk: low. A short request that an agent acks with `doing` gets a thread with no tasks. Another person's message, an `idle` or `done` ack and DMs open nothing.
 - Undo: Revert this commit. Agents then open threads only with `start_thread`.
+
+### 2026-11-25 · danielfurt/composer-reference · An app's quote is a chip in the composer, and the mic stays on a computer
+
+- Agent: Claude Opus 5.5
+- Context: After the composer draft (#404), Daniel said that the quoted passage in the field looked bad. He asked for a reference like Notion's: a chip with the passage above the field, and an empty field for the comment. He also said that the mic goes away when the field has text, so he cannot dictate after the quote.
+- Decision:
+  - A draft block with `_meta["vibebook/reference"] = { label }` is a quote. The composer shows the label in a chip (the `Chip` atom, with an `x` to remove it). When the person sends, the text of each quote goes before the typed text, with a blank line between them. The message is the same text that the field had before, so agents and the thread read it as before.
+  - A quote alone can be sent. The quotes are part of the draft: they are kept in storage with the text and the reply, they come back when a send fails, and they clear when it is sent. At most 8 quotes; the same text once.
+  - A block without a usable label is text for the field. A host before this change does the same, so an app can send the reference mark at all times.
+  - On a computer (from `md`), the mic and send are two buttons, side by side. Send is off until there is something to send. On a phone they still share one cell (#3821), because the field is narrow. This changes #3821 on a computer.
+- Other options: Keep one cell and let a person hold Space to dictate (it works with text, but nobody finds it). A rich quote block inside the field (a larger change to the field). A structured quote in the message (a change to the room's message format and to every reader of it).
+- Risk: low. The composer looks different on a computer: an extra button. The send path changes only by the text that it joins.
+- Undo: Revert this commit. An app's reference then goes in the field as text, and the mic and send share one cell again.
 - Status: open

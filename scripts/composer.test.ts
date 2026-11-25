@@ -872,6 +872,62 @@ test("a draft's text and reply come back from storage after the drafts are gone 
   expect(storage.length).toBe(0);
 });
 
+test("an app's quotes are chips: sent before the typed text, put back on a failure, kept in storage", async () => {
+  const h = harness();
+  const quote = {
+    label: "«o medo mais comum»",
+    text: "Revisão · Post · §3\n> «o medo mais comum»",
+  };
+  h.entry.quote(quote);
+  h.entry.quote(quote);
+  h.entry.quote({ label: "«outro»", text: "> «outro»" });
+  h.entry.removeQuote(1);
+  expect(get(h.entry.state).quotes).toEqual([quote]);
+  h.entry.edit("  trocaria por outra frase ");
+  const failing = h.entry.submit();
+  expect(get(h.entry.state).quotes).toEqual([]);
+  h.reply.resolve({ ok: false, error: "offline" });
+  await failing;
+  expect(get(h.entry.state).quotes).toEqual([quote]);
+  expect(get(h.entry.state).text).toBe("  trocaria por outra frase ");
+  expect(h.commands[0]).toMatchObject({
+    t: "msg",
+    text: "Revisão · Post · §3\n> «o medo mais comum»\n\ntrocaria por outra frase",
+  });
+  // A quote alone is a message too.
+  const alone = harness();
+  alone.entry.quote(quote);
+  const sent = alone.entry.submit();
+  alone.reply.resolve({ ok: true });
+  await sent;
+  expect(alone.commands[0]).toMatchObject({ text: quote.text });
+  alone.entry.sync(
+    { ...room(), messages: [message(11, quote.text)] },
+    alone.request,
+    alone.upload,
+  );
+  expect(get(alone.entry.state).notice).toBe("sent");
+  expect(get(alone.entry.state).quotes).toEqual([]);
+  const storage = memoryStorage();
+  const r = room();
+  const scope = { account: r.me, roomId: r.id, thread: "main" };
+  const first = createComposerDrafts(undefined, storageDrafts(storage));
+  first.entry(scope).quote(quote);
+  first.dispose();
+  const again = createComposerDrafts(undefined, storageDrafts(storage));
+  expect(get(again.entry(scope).state).quotes).toEqual([quote]);
+  again.entry(scope).removeQuote(0);
+  expect(storage.length).toBe(0);
+  const store = storageDrafts(storage);
+  storage.setItem(
+    "vb:draft:bad",
+    JSON.stringify({ text: "x", quotes: [quote, { label: 1 }, null, "no"] }),
+  );
+  expect(store.read("bad")?.quotes).toEqual([quote]);
+  h.drafts.dispose();
+  alone.drafts.dispose();
+  again.dispose();
+});
 test("the drafts' storage keeps the newest MAX_STORED drafts and survives a storage that throws", () => {
   const storage = memoryStorage();
   let clock = 0;

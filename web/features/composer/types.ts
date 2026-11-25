@@ -30,6 +30,9 @@ export type ComposerProps = {
   /** Called in the send gesture, before the send. The room uses it to ask for notifications on the first send. */
   onsend?: () => void;
 };
+/** A passage that an app put next to the draft (the content-os reader, for example). It shows as a chip above
+ *  the field, and its `text` goes before the typed text when the message is sent. */
+export type ComposerQuote = Readonly<{ label: string; text: string }>;
 export type ComposerScope = Readonly<{
   account: string;
   roomId: string;
