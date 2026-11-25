@@ -39,8 +39,8 @@
     type RoomInboxMessage,
   } from "./roomInboxModel";
   /**
-   * The desktop Home: the agent's cube, one line ("{n} coisas esperam você",
-   * or "Tudo em dia") and the ask box on top (what you type goes to the right
+   * The desktop Home: the agent's cube, one line (a greeting by the time of day,
+   * plus "O que vamos fazer agora?" when nothing waits) and the ask box on top (what you type goes to the right
    * room and thread); under them one Inbox in four tabs. "Pra você": one feed,
    * newest first, of everything that needs you: asks and @mentions, your
    * tasks in review, your Claude's questions, and answers to what you sent
@@ -251,6 +251,13 @@
   const fresh = (card: Card) => card.kind !== "task" && card.ts > lastVisit;
   const asks = $derived(inboxAsks(model.messages, $inbox.hidden));
   const first = $derived($personal.me?.name?.split(" ")[0] ?? "");
+  // A greeting by the time of day: the list under it already says what waits on you.
+  const greeting = $derived.by(() => {
+    const hour = new Date().getHours();
+    const part =
+      hour < 12 ? t("Bom dia") : hour < 18 ? t("Boa tarde") : t("Boa noite");
+    return first ? `${part}, ${first}.` : `${part}.`;
+  });
   const loading = $derived(
     !feed.length &&
       !tasks.length &&
@@ -567,11 +574,7 @@
           data-home-hero-line
           class="m-0 text-center text-2xl font-medium tracking-tight text-balance"
         >
-          {#if waiting}{waiting === 1
-              ? t("1 coisa espera você")
-              : t("{n} coisas esperam você", { n: waiting })}{:else}{first
-              ? t("Tudo em dia, {name}.", { name: first })
-              : t("Tudo em dia.")}
+          {greeting}{#if !waiting}
             <span class="text-muted-foreground"
               >{t("O que vamos fazer agora?")}</span
             >{/if}

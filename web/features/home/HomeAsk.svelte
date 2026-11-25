@@ -4,6 +4,7 @@
   import { MOBILE_QUERY } from "../../lib/breakpoints";
   import Button from "../../lib/studio/Button.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
   import ChatField from "../composer/ChatField.svelte";
   import { createApplicationCopy } from "../application/copy";
   import type { PersonalSession } from "./personal";
@@ -74,14 +75,15 @@
         onclick={() => {
           close();
           onnew(trigger ?? undefined);
-        }}>{text("new")}</Button
+        }}><Icon icon="plus" />{text("new")}</Button
       ><Button
         variant="menu"
         role="menuitem"
         onclick={() => {
           close();
-          onsearch();
-        }}>{text("search")} <small>⌘K</small></Button
+          const ask = $draft.ask;
+          session.edit(ask && !/\s$/.test(ask) ? `${ask} @` : `${ask}@`);
+        }}><Icon icon="at-sign" />{t("Mencionar alguém")}</Button
       >{/snippet}
   </ChatField>
 </div>
