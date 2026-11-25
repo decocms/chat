@@ -10,10 +10,12 @@ export type ComposerUpload = (
   input: { name: string; type: string; body: File },
   signal: AbortSignal,
 ) => Promise<UploadFileResult>;
+/** One of your agents you can call with `@name`: a cloud sandbox, or a Claude/Codex listening here
+ *  (its @name from src/agentNames.ts). */
 export type ComposerAgent = Pick<
   AgentsResult["sandboxes"][number],
   "name" | "email"
->;
+> & { sandbox?: boolean };
 /** A room you can mention with `#` (your rooms from /api/me, not DMs). */
 export type ComposerRoom = Readonly<{
   id: string;

@@ -613,7 +613,9 @@
       void entry.submit();
     }}
     onkeydown={keydown}
-    mention={(handle) => knownMention(handle, room, vb.knownNames)}
+    mention={(handle) =>
+      knownMention(handle, room, vb.knownNames) ||
+      agents.some((agent) => agent.email === room.me && agent.name === handle)}
     links={(text) =>
       roomLinks(text, rooms, room, window.location.href, {
         read: (link) => {

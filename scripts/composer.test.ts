@@ -1200,3 +1200,16 @@ test("⌘⇧K takes an address with no https://, and a paste needs https:// or w
   // A selected address is the URL, not the name: pasting over it is a normal paste.
   expect(linkEdit("www.decocms.com", 0, 15, "https://x.org")).toBeNull();
 });
+test("your Claudes in the room are picked by their @name, once each", () => {
+  const r = room();
+  const picks = mentionPicks("@cla", 4, r, {}, [
+    { email: r.me, name: "claude", sandbox: false },
+    { email: r.me, name: "claude-2", sandbox: false },
+    { email: r.me, name: "claude-2", sandbox: false },
+    { email: "you@test", name: "claude-3", sandbox: false },
+  ]);
+  expect(picks?.items.map((item) => [item.handle, item.label])).toEqual([
+    ["claude", "seu agent nesta sala"],
+    ["claude-2", "seu agent nesta sala"],
+  ]);
+});
