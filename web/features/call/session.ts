@@ -22,6 +22,23 @@ export const denoiseOn = writable(
   typeof localStorage === "undefined" ? true : denoiseStored(),
 );
 
+/** Does this tab join the room's call by itself? Only the room's recorder (a browser the chat sends to record the
+ *  call, recorder/container/main.ts) does, and only while a person is in the call and its last try did not fail. A
+ *  person never does: only a click joins (Entrar na call, Iniciar call, Atender). */
+export function joinsByItself(
+  me: string,
+  peers: readonly CallPeer[] | undefined,
+  view: Pick<CallView, "phase" | "error">,
+) {
+  return (
+    isRecorder(me) &&
+    view.phase === "idle" &&
+    view.error !== "mic" &&
+    view.error !== "failed" &&
+    !!peers?.some((peer) => !isRecorder(peer.email))
+  );
+}
+
 export type CallView = {
   phase: "idle" | "joining" | "in";
   muted: boolean;
@@ -44,6 +61,8 @@ export type CallView = {
   limit: boolean;
   /** Why my screen share stopped or did not start: nobody else is in the call, or the screen did not change. */
   notice: "" | "alone" | "idle";
+  /** The people I silenced for me only (emails): this tab does not play their voice; nobody else is told. */
+  silenced: string[];
 };
 const IDLE: CallView = {
   phase: "idle",
@@ -58,6 +77,7 @@ const IDLE: CallView = {
   own: null,
   error: "",
   limit: false,
+  silenced: [],
   notice: "",
 };
 const USAGE_MS = 30_000;
@@ -410,6 +430,7 @@ export function createCallSession(
     }
     const player = new Audio();
     player.srcObject = stream;
+    player.muted = get(state).silenced.includes(email);
     void player.play().catch(() => {});
     players.set(mid, player);
     listen(mid, email, stream);
@@ -458,21 +479,21 @@ export function createCallSession(
   return {
     state: { subscribe: state.subscribe },
     /** The room's word on who is in the call. Missing from it while in the call = this tab was dropped. */
-    /** Never joins: having the room open is no choice to be in its call; only a click joins (join). */
+    /** `me`: who I am (my own mark in the list). Hearing that a call is on never joins this tab: only a click
+     *  (Entrar na call, Iniciar call, Atender) does. A room that joined by itself kept every visitor in its call once
+     *  the call outlived the room's view (hub.ts): Viktor, 2026-11-25, "everybody joined every call". */
     setPeers(next: readonly CallPeer[] | undefined, me = "") {
       // The recorder (shared/call.ts) is in the list, and is not a person: nobody receives its tracks, and it
       // does not count as company.
       const all = [...(next ?? [])];
       peers = all.filter((peer) => !isRecorder(peer.email));
       self = me || self;
-      const phase = get(state).phase;
-      if (phase === "in") {
-        if (!all.some((peer) => peer.session === session)) teardown("dropped");
-        else {
-          // Nobody is left to see my screen.
-          if (peers.length < 2) stopShare("alone");
-          void enqueue(sync);
-        }
+      if (get(state).phase !== "in") return;
+      if (!all.some((peer) => peer.session === session)) teardown("dropped");
+      else {
+        // Nobody is left to see my screen.
+        if (peers.length < 2) stopShare("alone");
+        void enqueue(sync);
       }
     },
     join(muted = false) {
@@ -557,6 +578,18 @@ export function createCallSession(
         denoiser?.stop();
         denoiser = null;
       }
+    },
+    /** Silence a person for me only ("Silenciar pra mim"), or hear them again. Their microphone stays on for the
+     *  others: only this tab stops playing their voice. */
+    toggleSilence(email: string) {
+      if (get(state).phase === "idle") return;
+      const now = get(state).silenced,
+        on = !now.includes(email);
+      for (const [mid, player] of players)
+        if (owners.get(mid)?.email === email) player.muted = on;
+      patch({
+        silenced: on ? [...now, email] : now.filter((one) => one !== email),
+      });
     },
     toggleMute() {
       const muted = !get(state).muted;
