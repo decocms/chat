@@ -34,9 +34,7 @@
   import CallStage from "../call/CallStage.svelte";
   import CallSidebarRow from "../call/CallSidebarRow.svelte";
   import CallPanel from "../call/CallPanel.svelte";
-  import { createCallApi } from "../call/callApi";
-  import { createCallSession } from "../call/session";
-  import { callIntent } from "../call/ring";
+  import { callHub } from "../call/hub";
   import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
@@ -105,32 +103,25 @@
   // Book.webSocketClose).
   const sendCommand: SendRoomCommand = (command) =>
     get(owner.state)?.decisions.send(command) ?? false;
-  const callApi = createCallApi(browser.fetcher);
-  const call = createCallSession(
-    captured.roomId,
-    callApi,
-    sendCommand,
-    () => get(owner.state)?.header.thread ?? "main",
-  );
+  // The room's call session is the app's (callHub): in the call, it goes on when this view closes (another room,
+  // Home), and the sidebar's call panel shows it everywhere. Leaving is a hang-up.
+  const hub = callHub(),
+    liveCall = hub.live;
+  const call = hub.session(captured.roomId, {
+    thread: () => get(owner.state)?.header.thread ?? "main",
+    title: () => get(owner.state)?.header.room.book.title ?? "",
+  });
   const callView = call.state;
-  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room.
-  $effect(() =>
-    call.setPeers(
-      $view?.header.room.call,
-      $view?.header.room.me,
-      !$view?.header.room.book.dm,
-    ),
-  );
-  // A click on a call's button elsewhere (the ring's card, a call line in the chat) for this room: done here, where
-  // the room's call lives.
+  // A DM's call rings the other person (Atender joins); a room's call is joined by opening the room, unless I am in
+  // another room's call. The call I am in hears the room from its own socket (hub.ts): the room's view, which may
+  // show a saved room for a moment, does not tell it who is in it.
   $effect(() => {
-    const intent = $callIntent,
-      ready = !!$view?.header.room;
-    if (!intent || !ready || intent.room !== captured.roomId) return;
+    const peers = $view?.header.room.call,
+      me = $view?.header.room.me,
+      dm = !!$view?.header.room.book.dm,
+      busy = !!$liveCall && $liveCall.room !== captured.roomId;
     untrack(() => {
-      callIntent.set(null);
-      if (intent.action === "join") call.join();
-      else void callApi.decline(captured.roomId).catch(() => {});
+      if (!hub.isLive(call)) call.setPeers(peers, me, !dm && !busy);
     });
   });
   const inCall = $derived($callView.phase !== "idle");
@@ -228,6 +219,16 @@
   });
   // Where the call is: the room (a DM: the person).
   const callTitle = $derived($view?.header.room.book.title ?? "");
+  $effect(() => hub.retitle(captured.roomId, callTitle));
+  // The call I am in, in this room or another one: the sidebar's panel shows it. In another room, opening it goes
+  // back to the call's room, whose view opens the stage.
+  const elsewhere = $derived(
+    $liveCall && $liveCall.room !== captured.roomId ? $liveCall : null,
+  );
+  function openLiveCall() {
+    if (!elsewhere) return openStage();
+    services.actions.navigate(`/b/${elsewhere.room}`);
+  }
   // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
   const callIdle = $derived(
     !!$view?.header.room.call &&
@@ -366,7 +367,7 @@
   });
   onDestroy(() => {
     active = false;
-    call.leave();
+    hub.release(captured.roomId, call);
     filesModule.dispose();
     decisionsModule.dispose();
     remindersModule.dispose();
@@ -412,11 +413,11 @@
     t={services.t}
   />{/snippet}
 {#snippet callPanel(collapsed: boolean)}<CallPanel
-    {call}
-    title={callTitle}
+    call={elsewhere?.session ?? call}
+    title={elsewhere?.title ?? callTitle}
     {collapsed}
-    onopen={openStage}
-    oncamera={() => (cameraOpen = true)}
+    onopen={openLiveCall}
+    oncamera={() => (elsewhere ? openLiveCall() : (cameraOpen = true))}
     t={services.t}
   />{/snippet}
 {#snippet callRow(collapsed: boolean)}{#if $view}<CallSidebarRow
@@ -456,7 +457,7 @@
         {...$view.sidebar}
         hideSheetHandle
         call={$view.header.room.call?.length ? callRow : undefined}
-        callPanel={inCall ? callPanel : undefined}
+        callPanel={inCall || elsewhere ? callPanel : undefined}
       >
         <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
