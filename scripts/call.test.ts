@@ -8,7 +8,7 @@ import { encodeCall } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
-import { callColors, callGrid } from "../web/features/call/layout";
+import { callColors, callGrid, callTileSize } from "../web/features/call/layout";
 import { shareWith } from "../recorder/container/share";
 
 const peers = [
@@ -169,7 +169,26 @@ test("the call's grid: one person fills the stage, two side by side or stacked b
   expect(callGrid(2, 1200, 700).columns).toBe(2);
   expect(callGrid(2, 360, 500).columns).toBe(1);
   expect(callGrid(4, 1200, 700)).toMatchObject({ columns: 2, rows: 2, scroll: false });
-  expect(callGrid(20, 1200, 700)).toMatchObject({ columns: 4, scroll: true, height: "h-40" });
+  expect(callGrid(20, 1200, 700)).toMatchObject({ columns: 4, scroll: true, width: "w-[calc((100cqw-1.5rem)/4)]" });
+});
+
+test("every person's tile is 16:9 for 1 to 9 people, in a landscape and a portrait stage, and fits the stage", () => {
+  for (const [width, height] of [
+    [1200, 700],
+    [390, 640],
+  ] as const)
+    for (let people = 1; people <= 9; people++) {
+      const grid = callGrid(people, width, height);
+      expect(grid.scroll).toBe(false);
+      // The class keeps the tile's width inside a column and inside a row's height at 16:9.
+      expect(grid.width).toStartWith("w-[min(");
+      const tile = callTileSize(grid.columns, grid.rows, width, height);
+      expect(tile.width / tile.height).toBeCloseTo(16 / 9, 6);
+      expect(tile.width * grid.columns + 8 * (grid.columns - 1)).toBeLessThanOrEqual(width + 0.001);
+      expect(tile.height * grid.rows + 8 * (grid.rows - 1)).toBeLessThanOrEqual(height + 0.001);
+    }
+  // Two in a wide stage: side by side, each 16:9, letterboxed above and below.
+  expect(callTileSize(2, 1, 1200, 700)).toEqual({ width: 596, height: 596 / (16 / 9) });
 });
 
 test("each person in a call has a color of their own while there are colors left", () => {
@@ -225,6 +244,25 @@ function callRoom(bookId = "abcdef") {
       frames.push({ t: method, ...params });
     },
   };
+  // More sockets (another person's tab, the call's own socket: tags [email, "call"]), each with what it heard.
+  const sockets: { readyState: number; send(frame: string): void; tags?: string[]; close?(): void }[] = [ws];
+  const socket = (tags: string[]) => {
+    const heard: { t: string; call?: unknown }[] = [];
+    const added = {
+      readyState: 1,
+      tags,
+      heard,
+      send(frame: string) {
+        const { method, params } = JSON.parse(frame) as { method: string; params: object };
+        heard.push({ t: method, ...params });
+      },
+      close() {
+        added.readyState = 3;
+      },
+    };
+    sockets.push(added);
+    return added;
+  };
   const statement = () => {
     const bound = () => ({ run: async () => ({ meta: { changes: 0 } }), first: async () => null, all: async () => ({ results: [] }) });
     return { bind: bound, ...bound() };
@@ -232,8 +270,8 @@ function callRoom(bookId = "abcdef") {
   const ctx = {
     storage: { sql, getAlarm: async () => null, setAlarm: async () => {} },
     waitUntil: (p: unknown) => void Promise.resolve(p).catch(() => {}),
-    getWebSockets: () => [ws],
-    getTags: () => ["ana@x.test"],
+    getWebSockets: () => sockets,
+    getTags: (socket: { tags?: string[] }) => socket.tags ?? ["ana@x.test"],
     blockConcurrencyWhile: (fn: () => unknown) => fn(),
   };
   // What the Person DOs get (src/person.ts poke): who, and the notice.
@@ -261,7 +299,7 @@ function callRoom(bookId = "abcdef") {
     return reply.error ? { ok: false as const, error: reply.error.message } : { ok: true as const };
   };
   const lines = () => db.query(`SELECT id, author, text FROM messages WHERE tag = 'call' ORDER BY id`).all() as { id: number; author: string; text: string }[];
-  return { book, frames, epics, main, thread, send, pokes, lines };
+  return { book, frames, epics, main, thread, send, pokes, lines, socket, ws };
 }
 
 test("one call chat per room, the same for every call, and the room says which while a call is on", () => {
@@ -608,4 +646,28 @@ test("a recording is shared with the people of the call who have a Grain account
   ];
   expect(shareWith(users, ["ana@deco.cx", " BIA@deco.cx", "ana@deco.cx", "eve@outside.test", ""])).toEqual(["u1", "u2"]);
   expect(shareWith(users, [])).toEqual([]);
+});
+
+test("the call's own socket keeps the person in the call after the room's socket closes, and hears only the call", async () => {
+  const r = callRoom("abcdef");
+  // Bia: the room open (a room socket) and the call's socket of the app.
+  const room = r.socket(["bia@x.test"]),
+    call = r.socket(["bia@x.test", "call"]);
+  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
+  expect(call.heard.at(-1)).toMatchObject({ t: "call" });
+  // Bia goes to another room: the room's socket closes, the call's stays, so she is still in the call.
+  room.close();
+  r.book.webSocketClose(room as unknown as WebSocket);
+  expect(r.book.callPeers().map((p) => p.email)).toEqual(["bia@x.test"]);
+  // The call's socket is not "here", and hears no chat.
+  expect(r.book.online()).toEqual(["ana@x.test"]);
+  r.book.addMessage("main", "ana@x.test", "oi");
+  expect(call.heard.some((event) => event.t === "msg")).toBe(false);
+  // It carries the call's commands only.
+  await r.book.webSocketMessage(call as unknown as WebSocket, encodeCall({ t: "msg", thread: "main", text: "oi" } as RoomCommand, "c-1"));
+  expect(r.main().some((m) => m.author === "bia@x.test" && m.text === "oi")).toBe(false);
+  // Closing the call's socket too (the tab closed): she is out.
+  call.close();
+  r.book.webSocketClose(call as unknown as WebSocket);
+  expect(r.book.callPeers()).toEqual([]);
 });

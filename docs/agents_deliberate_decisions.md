@@ -2037,3 +2037,14 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
 - Undo: Revert this commit. The playlist stays in Grain.
 - Status: open
+
+
+### 2026-11-25 · fix/answer-opens-call · The call keeps a socket of its own to its room
+
+- Agent: Claude Opus 5.5
+- Context: Valls asked for the call to follow the person across the app (another room, a DM, Home) and end only with a hang-up. The server took a person out of the call when their last socket to the room closed, and the room's socket closes when its view does.
+- Decision: While in a call, the app keeps a second, light socket to the call's room (`/ws/:id?call=1`, tag `call`). The Book sends it only `{ t: "call" }` and takes only `call.*` commands from it, and it does not count as "online". The server keeps the rule "no socket left = out of the call", now with the call's socket counted. The call session moved from the room's view to an app-level hub (`web/features/call/hub.ts`).
+- Other options: Keep the whole room's socket open (the full room state and every message on the wire for a room nobody looks at). Drop the socket rule and rely on an SFU or HTTP heartbeat (a dead tab stays in the call until a timeout, and the call still needs the room's word on who is in it).
+- Risk: medium. One more socket per person in a call. A stale view of the room no longer feeds the live call: only the call's socket does.
+- Undo: Revert this commit.
+- Status: open
