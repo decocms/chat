@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -86,6 +86,22 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "react-1440.png") });
     shots.push("react-1440.png");
+  }
+  if (flag("link")) {
+    // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens
+    // in a new tab. The view must show that message, not the bottom of the room.
+    const id = await desk
+      .locator("[data-chat-message]", { hasText: "Primeira mensagem curta" })
+      .first()
+      .evaluate((node) => node.closest("[id^=m]")?.id ?? node.id);
+    for (let i = 1; i <= 80; i++) await send(desk, `Mensagem de teste ${i}.`);
+    const tab = await browser.newPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    await tab.goto(`${base}/b/${room}#${id}`, { waitUntil: "networkidle" });
+    await tab.waitForTimeout(1500);
+    await tab.screenshot({ path: join(out, "link-1440.png") });
+    shots.push("link-1440.png");
   }
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],

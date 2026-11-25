@@ -256,6 +256,16 @@ export function createChatViewport(options: {
       const changedMessages =
         room?.messages !== next.messages || room?.origins !== next.origins;
       const changed = newConnection || selected !== thread;
+      // A message link still searching when the room is replaced (the copy from IndexedDB by the live one, a
+      // reconnect): the page asked on the old connection is dropped, so ask again on the new one (Gimenes #4843).
+      const searching =
+        pending &&
+        (changed || fresh) &&
+        room?.id === next.id &&
+        room.me === next.me &&
+        selected === thread
+          ? pending.id
+          : null;
       if (changed || fresh) {
         scope++;
         detach();
@@ -281,6 +291,8 @@ export function createChatViewport(options: {
         windowEnd = null;
       connectionGeneration = generation;
       live = authoritative;
+      // detach() above dropped the search; later() runs only while this scope still owns the viewport.
+      if (searching !== null) later(() => go(searching), 0);
       return changed;
     },
     selection(): {
@@ -410,14 +422,16 @@ export function createChatViewport(options: {
         return;
       const ticket = scope,
         ownedSurface = surface;
-      // A jump in flight owns the position: holding it here would cancel its smooth scroll.
+      // A jump in flight owns the position: holding it here would cancel its smooth scroll. A bottom intent measured
+      // before the jump waits too: on a cold #m link it sent the reader back to the bottom (Gimenes #4843). A real
+      // bottom intent (own send, "latest") ends the jump first (followLatest).
       if (keep === "stay") {
         if (!jump) ownedSurface.top(before.top);
       } else if (keep)
         ownedSurface.top(
           before.top + ownedSurface.metrics().height - before.height,
         );
-      else {
+      else if (!jump) {
         windowEnd = null;
         pinned = true;
         bottom();

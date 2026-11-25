@@ -1928,3 +1928,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. A queued turn starts while the person types in Codex. The process check can miss a Codex started in an unusual way; then the child stops after 15 minutes and the person runs listen again.
 - Undo: Revert this commit. Codex then reads and posts but is not woken, and the runner opens Claude with `/vibebook:listen` again.
 - Status: open
+
+### 2026-11-25 · fix/link-reveal · A message link survives the live room and an old bottom intent
+
+- Agent: Claude Opus 5.5
+- Context: A copied link to a message (`#m<id>`) still opened the room at the bottom after #434 (Gimenes #4843). Two causes:
+  - The room opens from IndexedDB, and the link search asks for an older page. Then the live room replaces the saved one (a new connection), the page of the old connection is dropped, and the search stopped.
+  - A render measured with bottom intent before the jump applied it during the jump.
+- Decision:
+  - When the same room and thread are replaced while a link search runs, the search starts again on the new connection.
+  - During a jump, a bottom intent of a render does not move the chat. A real bottom intent (own send, "latest") ends the jump first.
+- Other options: Keep the page of the old connection. Start the link search only when the room is live.
+- Risk: low. A search that starts again sends up to 15 more page requests.
+- Undo: Revert this commit.
+- Status: open

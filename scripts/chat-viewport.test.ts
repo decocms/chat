@@ -301,6 +301,48 @@ test("loaded off-window message expands only as needed then reveals/highlights a
   expect(h.commands).toHaveLength(0);
   h.view.dispose();
 });
+test("a render captured with bottom intent before a message link reveal does not pull the reader back down", () => {
+  // A copied #m link (Gimenes #4843): the room opened pinned at the bottom, a render was queued with bottom intent,
+  // the link revealed the message, then that render flushed and scrolled to the bottom again.
+  const h = harness(),
+    presentation = createChatPresentation(h.view);
+  h.draw(true);
+  h.view.go(110);
+  presentation.capture(undefined, true);
+  h.view.go(1);
+  h.metrics.top = 0; // where the reveal scrolled to
+  expect(presentation.rendered(true)).toBe(true);
+  expect(h.revealed.at(-1)).toBe(1);
+  expect(h.view.pinned()).toBe(false);
+  expect(h.metrics.top).toBe(0);
+  h.view.dispose();
+});
+test("a link search keeps going when the cached room is replaced by the live one", () => {
+  // A #m link opens the room from IndexedDB, the search asks for an older page, then the socket's snapshot replaces
+  // the room (a new connection): the page of the old connection is dropped, so the search must ask again (#4843).
+  const h = harness(5);
+  h.view.go(5000);
+  expect(h.commands).toHaveLength(1);
+  h.sync(room(5), false, "main", 2);
+  h.time.flush();
+  expect(h.commands).toHaveLength(2);
+  expect(h.commands.at(-1)).toMatchObject({ t: "older", thread: "main" });
+  h.view.dispose();
+});
+test("a late scroll event at the bottom right after a message link reveal does not pin the reader again", () => {
+  const h = harness();
+  h.draw(true);
+  h.view.go(1);
+  expect(h.view.pinned()).toBe(false);
+  // The scroll event of the room's first bottom scroll arrives while the smooth scroll is still at the bottom.
+  h.metrics.top = h.metrics.height - h.metrics.client;
+  h.scroll();
+  expect(h.view.pinned()).toBe(false);
+  h.time.flush(); // the reveal settled: at the bottom pins again, as before
+  h.scroll();
+  expect(h.view.pinned()).toBe(true);
+  h.view.dispose();
+});
 test("old render captures and canonical nonmember data cannot affect a replacement viewport", () => {
   const h = harness();
   const old = h.view.capture();
