@@ -224,6 +224,8 @@
     },
     onjoin: services.navigation.callbacks.answerInvite,
     onanswer: services.navigation.callbacks.answerRequest,
+    onconnect: services.navigation.callbacks.connect,
+    ondismiss: services.navigation.callbacks.dismiss,
     onlanguage: language,
   });
   onMount(() => {

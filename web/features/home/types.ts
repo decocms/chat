@@ -25,4 +25,7 @@ export type HomeBridge = {
   onjoin?: (room: string, yes: boolean) => Promise<void>;
   /** Answers a message request: the phone's home shows them over its list. */
   onanswer?: (email: string, accept: boolean) => Promise<void>;
+  /** The phone's `+` opens a DM: resolves with its id, or nothing when it went as a message request. */
+  onconnect?: (email: string, text?: string) => Promise<string | undefined>;
+  ondismiss?: (email: string) => Promise<void>;
 };
