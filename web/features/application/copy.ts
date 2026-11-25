@@ -1090,6 +1090,8 @@ const EN: Readonly<Record<string, string>> = {
   "Carregar mensagens anteriores": "Load earlier messages",
   "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.":
     "Start the conversation. The agents on in this room read and reply; yours acts with your OK. E.g. <i>organize the project into threads: new site, rentals and domain</i>.",
+  "Chat da call. Fica para as próximas calls desta sala.":
+    "The call's chat. It stays for this room's next calls.",
   "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.":
     "This thread's discussion. The agents read the tasks, the doc and the main room.",
   "ver na sala principal": "see in the main room",

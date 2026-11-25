@@ -1,5 +1,6 @@
 <script lang="ts">
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
+  import { CALL_THREAD } from "../../../shared/call";
   import { onMount } from "svelte";
   import Message from "./Message.svelte";
   import type { ChatProps } from "../../app/chatTypes";
@@ -189,9 +190,11 @@
                 "Comece a conversa. Os agents ligados nesta sala leem e respondem; o seu age com o seu OK. Ex.: <i>organiza o projeto em threads: site novo, aluguéis e domínio</i>.",
               )
               .replace(/<\/?i>/g, "")
-          : vb.t(
-              "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
-            )}
+          : thread === CALL_THREAD
+            ? vb.t("Chat da call. Fica para as próximas calls desta sala.")
+            : vb.t(
+                "Discussão desta thread. Os agents leem as tarefas, o doc e a sala principal.",
+              )}
       </p>{/if}
     {#if workers.length}<!-- Who is working here, in the agent's own color (a full block, like its tile): the agent is the
          squircle, the person it works for the small round picture on its corner. -->
