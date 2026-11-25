@@ -145,23 +145,13 @@
           if (live(event)) owner.continueName();
         }}
       >
-        <Input
-          bind:ref={nameInput}
-          value={$view.name}
-          oninput={(event) => {
-            if (live(event)) owner.editName(event.currentTarget.value);
-          }}
-          placeholder={t("Seu nome")}
-          aria-label={t("Seu nome")}
-          required
-          maxlength={60}
-          autocomplete="given-name"
-          disabled={busyProfile || !$view.profileBinding}
-        />
+        <!-- The photo first, then the name: you, as people will see you. -->
         <div class="flex items-center gap-3">
           <ImagePicker
             id="onboarding-photo"
-            label={t($account.me?.avatar ? "Trocar foto" : "Foto do perfil")}
+            label={t(
+              $account.me?.avatar ? "Trocar foto" : "Adicionar foto (opcional)",
+            )}
             dropLabel={t("Solte a imagem aqui")}
             disabled={busyProfile || !$view.profileBinding}
             onfile={(file, event) => {
@@ -173,13 +163,21 @@
               email={$account.me?.email}
               version={$account.me?.avatar}
             /></ImagePicker
-          ><label
-            for="onboarding-photo"
-            class="cursor-pointer text-sm text-muted-foreground hover:text-foreground"
-            >{t(
-              $account.me?.avatar ? "Trocar foto" : "Adicionar foto (opcional)",
-            )}</label
           >
+          <Input
+            bind:ref={nameInput}
+            value={$view.name}
+            oninput={(event) => {
+              if (live(event)) owner.editName(event.currentTarget.value);
+            }}
+            placeholder={t("Seu nome")}
+            aria-label={t("Seu nome")}
+            required
+            maxlength={60}
+            autocomplete="given-name"
+            disabled={busyProfile || !$view.profileBinding}
+            class="min-w-0 flex-1"
+          />
         </div>
         {#if $profile.phase === "pending" || $profile.phase === "confirming"}<p
             role="status"

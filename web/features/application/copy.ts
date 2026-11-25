@@ -1183,7 +1183,6 @@ const EN: Readonly<Record<string, string>> = {
   Continuar: "Continue",
   "Trocar foto": "Change photo",
   "Adicionar foto (opcional)": "Add a photo (optional)",
-  "Foto do perfil": "Profile photo",
   "Solte a imagem aqui": "Drop the image here",
   "No deco.chat cada pessoa traz o próprio Claude: ele lê a sala, trabalha nas tarefas e te pergunta antes de agir. Cole isto no Claude Code, dentro da pasta do projeto:":
     "In deco.chat everyone brings their own Claude: it reads the room, works on the tasks and asks you before acting. Paste this into Claude Code, inside the project folder:",
