@@ -1,4 +1,5 @@
 import { parseMcpRequest, mcpArguments, recordValue } from "./mcpRequest";
+import { threadWait, threadWaitLine } from "../shared/threadWait";
 // The agents' MCP: a person's own agent (Claude Code, Claude.ai…) acting for them in their rooms.
 // JSON-RPC over POST like the admin MCP. Auth is the OAuth token checked by workers-oauth-provider,
 // whose props carry the person's email. Every room call re-checks membership in D1.
@@ -1737,14 +1738,14 @@ async function call(
           room_id: w.book_id,
           room: w.room,
           ref: w.ref,
-          kind: w.ref.startsWith("t") ? "task_in_review" : "asked",
+          kind: w.ref.startsWith("t") ? "task_in_review" : w.ref.startsWith("e") ? "thread_to_close" : "asked",
           topic: w.topic || "main",
           from: w.author
             ? w.author_name
               ? `${w.author_name.replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${w.author}>`
               : w.author
             : undefined,
-          text: w.text,
+          text: ((tw) => (tw ? threadWaitLine(tw, true) : w.text))(threadWait(w)),
           since: new Date(w.ts).toISOString(),
           url: `${origin}/b/${w.book_id}${w.thread === "main" ? "" : `?t=${w.thread}`}`,
         })),

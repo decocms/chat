@@ -8,7 +8,7 @@
   import type { RoomsSession } from "../rooms/session";
   import {
     claudeWait,
-    plainWaitText,
+    homeWaitText,
     targetHref,
     waitTarget,
     personVersion,
@@ -97,7 +97,7 @@
             >{/if}<span class="shrink-0">· {ago(wait.ts)}</span></span
         >
         <span class="line-clamp-2 break-words text-sm leading-5"
-          >{plainWaitText(wait.text)}</span
+          >{homeWaitText(wait, lang)}</span
         >
         <span
           class="mt-0.5 block truncate text-xs leading-4 text-muted-foreground"

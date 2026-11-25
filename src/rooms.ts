@@ -167,6 +167,21 @@ export { fileHeaders } from "./fileHeaders";
 
 /** "Esperando você": what people are waiting on this person for, newest first, in rooms they haven't archived.
  * ref m<id> = a message Jev read as an ask to them; t<id> = a task of theirs in review. */
+// An open thread of yours that is neither ready to close nor called about by @vibe (shared/threadWait.ts): only the
+// Inbox's "Suas threads" lists it (threadWaitsFor), not the waits of the home, the rail, the digest or MCP pending.
+const QUIET_THREAD_SQL = `w.ref LIKE 'e%' AND w.author != 'ai' AND w.text NOT LIKE 'review|%'`;
+/** Every open thread you own (waits e<epic>): the Inbox's "Suas threads". */
+export const threadWaitsFor = async (db: D1Database, email: string) =>
+  (
+    await db
+      .prepare(
+        `SELECT w.book_id, b.title AS room, w.ref, w.thread, w.topic, w.author, NULL AS author_name, w.text, w.ts
+         FROM waits w JOIN members m ON m.book_id = w.book_id AND m.email = w.email JOIN books b ON b.id = w.book_id
+         WHERE w.email = ? AND m.archived_at IS NULL AND w.ref LIKE 'e%' ORDER BY w.ts DESC LIMIT 200`,
+      )
+      .bind(email)
+      .all<{ book_id: string; room: string; ref: string; thread: string; topic: string | null; author: string; author_name: string | null; text: string; ts: number }>()
+  ).results;
 export const waitsFor = async (db: D1Database, email: string, bookId?: string) =>
   (
     await db
@@ -175,7 +190,7 @@ export const waitsFor = async (db: D1Database, email: string, bookId?: string) =
          FROM waits w JOIN members m ON m.book_id = w.book_id AND m.email = w.email JOIN books b ON b.id = w.book_id
          LEFT JOIN users u ON u.email = w.author
          WHERE w.email = ? AND m.archived_at IS NULL AND (?2 IS NULL OR w.book_id = ?2)
-           AND NOT (w.ref LIKE 'a%' AND w.ts < ?3) ORDER BY w.ts DESC LIMIT 60`,
+           AND NOT (w.ref LIKE 'a%' AND w.ts < ?3) AND NOT (${QUIET_THREAD_SQL}) ORDER BY w.ts DESC LIMIT 60`,
       )
       .bind(email, bookId ?? null, Date.now() - 15 * 60e3) // a hook question lives ≤630s; a row it left behind (killed) expires
       .all<{ book_id: string; room: string; ref: string; thread: string; topic: string | null; author: string; author_name: string | null; text: string; ts: number }>()
@@ -210,11 +225,12 @@ export async function searchRooms(env: Env, email: string, q: string, room?: str
 }
 
 // The Inbox (GET /api/inbox): everything across the person's rooms that needs them, in one call.
-// waits + mentions are D1 only; tasks fan out to the newest-opened 30 rooms' Book DOs (like searchRooms). No model call.
+// waits, your open threads (threads) and mentions are D1 only; tasks fan out to the newest-opened 30 rooms' Book DOs (like searchRooms). No model call.
 export async function inbox(env: Env, email: string) {
   const db = env.DB;
-  const [waits, mentions, rooms] = await Promise.all([
+  const [waits, threads, mentions, rooms] = await Promise.all([
     waitsFor(db, email),
+    threadWaitsFor(db, email),
     db
       .prepare(
         INBOX_MENTIONS_SQL,
@@ -240,5 +256,5 @@ export async function inbox(env: Env, email: string) {
       }
     }),
   );
-  return { waits, mentions, tasks: per.flat() };
+  return { waits, mentions, tasks: per.flat(), threads };
 }
