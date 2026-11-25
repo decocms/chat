@@ -1866,6 +1866,40 @@ describe("chat", () => {
     expect(external.target).toBe("_blank");
     expect(external.rel).toContain("noopener");
   }, 30_000);
+  test("a click on someone's @mention opens the DM with them; yours and @vibe stay plain", () => {
+    const base = fixture();
+    const other = base.members.find((email) => email !== base.me)!;
+    const handle = other.split("@")[0];
+    const room = {
+      ...base,
+      messages: [
+        message(1, `oi @${handle}, @vibe e @${base.me.split("@")[0]}`),
+      ],
+    };
+    const opened: string[] = [];
+    const { target } = renderChat(room, {
+      actions: {
+        request: async (): Promise<CommandOutcome> => ({ ok: true }),
+        draftReply: () => {},
+        reply: () => {},
+        navigate: () => {},
+        openFile: () => {},
+        openPerson: (email) => opened.push(email),
+      },
+    });
+    const body = target.querySelector("#m1 [data-rich-content]")!;
+    const person = body.querySelector<HTMLElement>(
+      `[data-rich-mention="${other}"]`,
+    )!;
+    expect(person.tagName).toBe("BUTTON");
+    person.click();
+    expect(opened).toEqual([other]);
+    expect(body.querySelector('[data-rich-mention="ai"]')?.tagName).toBe(
+      "SPAN",
+    );
+    const mine = body.querySelector(`[data-rich-mention="${base.me}"]`);
+    expect(mine?.tagName).toBe("SPAN");
+  }, 30_000);
   test("live cards expose four-series legend/axis/tooltips, Field delta and primary links", async () => {
     const card = {
       root: "c",

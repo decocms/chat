@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--mention] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -109,6 +109,49 @@ try {
     await tab.waitForTimeout(1500);
     await tab.screenshot({ path: join(out, "link-1440.png") });
     shots.push("link-1440.png");
+  }
+  if (flag("mention")) {
+    // A click on a colleague's @mention opens the DM with them (Gimenes #5298). The colleague joins the test room
+    // first: invited by you, then accepting as themselves (the local dev_as cookie).
+    const domain =
+      ((await me.clone().json()) as { email: string }).email.split("@")[1] ??
+      "";
+    const colleague = `colega@${domain}`;
+    const post = (path: string, body: unknown, as?: string) =>
+      fetch(`${base}${path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: base,
+          ...(as ? { cookie: `dev_as=${as}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+    const invited = await post(`/api/books/${room}/members`, {
+      email: colleague,
+    });
+    if (!invited.ok) throw new Error(`invite: ${invited.status}`);
+    const joined = await post(
+      `/api/books/${room}/invite`,
+      { yes: true },
+      colleague,
+    );
+    if (!joined.ok) throw new Error(`join: ${joined.status}`);
+    await desk.reload({ waitUntil: "networkidle" });
+    await send(desk, "@colega dá uma olhada nisso quando puder.");
+    const mention = desk
+      .locator(`button[data-rich-mention="${colleague}"]`)
+      .last();
+    await mention.hover();
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "mention-1440.png") });
+    shots.push("mention-1440.png");
+    await mention.click();
+    await desk.waitForURL(/\/b\/dm[0-9a-f]{20}/);
+    await desk.waitForTimeout(800);
+    await desk.screenshot({ path: join(out, "mention-dm-1440.png") });
+    shots.push("mention-dm-1440.png");
+    await desk.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
   }
   if (flag("dm")) {
     // A colleague (Gimenes #5006): an account on the test email's domain, with no room shared, shows in "Nova

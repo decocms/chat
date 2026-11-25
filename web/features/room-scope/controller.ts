@@ -1,5 +1,6 @@
 import { chatTime, chatDateTime } from "../chat/time";
 import { CALL_THREAD, roomHasThread } from "../../../shared/call";
+import { isDmId } from "../../../shared/dm";
 import { derived, get, readonly, writable } from "svelte/store";
 import type { Attachment, Room, RoomEvent } from "../../../shared/room";
 import type { RoomCommand, CommandOutcome } from "../../../shared/commands";
@@ -522,9 +523,19 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       richNavigate({ kind: "thread", id: captured.thread });
     else if (selected() !== "main") pickThread("main");
   }
+  /** A click on an @mention (Gimenes #5298): the DM with that person. A mention is someone in this room, so the DM
+   *  opens at once (no message request); in a DM the other person's DM is this one, so it is not a link there. */
+  function openPerson(email: string) {
+    const connect = services.navigation.callbacks.connect;
+    if (!current() || !connect) return;
+    connect(email).catch(() =>
+      showNotice(t("Não deu pra abrir a conversa. Tente de novo.")),
+    );
+  }
   const rich: RichActions = {
     navigate: navigateMessage,
     openAppLink,
+    ...(isDmId(scope.roomId) ? {} : { openPerson }),
     openFile,
     navigateRich: richNavigate,
     openFileReference: (file) => {

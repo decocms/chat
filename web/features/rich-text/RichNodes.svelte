@@ -161,14 +161,26 @@
   {#each items as node, index (key(node, index))}
     {@const documentCard = cardSource?.(node) ?? null}
     {#if node.kind === "text"}{node.text}
-    {:else if node.kind === "mention"}<span
-        data-rich-mention={node.who}
-        title={node.who === "ai" ? "@vibe" : node.who}
-        class={node.mine
-          ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
-          : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
-        >{node.text}</span
-      >
+    {:else if node.kind === "mention"}{#if actions.openPerson && node.who !== "ai" && !node.mine}{@const who =
+          node.who}<button
+          type="button"
+          data-rich-mention={who}
+          title={who}
+          onclick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            actions.openPerson?.(who);
+          }}
+          class="cursor-pointer rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text hover:bg-brand-purple/25 focus-visible:outline-2 focus-visible:outline-ring"
+          >{node.text}</button
+        >{:else}<span
+          data-rich-mention={node.who}
+          title={node.who === "ai" ? "@vibe" : node.who}
+          class={node.mine
+            ? "rounded-sm bg-brand-purple/25 px-1 font-semibold text-brand-purple-text"
+            : "rounded-sm bg-brand-purple/12 px-1 font-medium text-brand-purple-text"}
+          >{node.text}</span
+        >{/if}
     {:else if node.kind === "link"}
       {#if node.namespace !== HTML_NS}<svelte:element
           this={"a"}

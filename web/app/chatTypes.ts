@@ -50,6 +50,8 @@ export type ChatActions = {
   openFileReference?: (file: RichFileReference) => void;
   /** A link to this app (a room, thread or message) in a message: go there in this tab. */
   openAppLink?: (link: AppLink) => void;
+  /** A click on someone's @mention: opens your DM with them (Gimenes #5298). */
+  openPerson?: (email: string) => void;
   ensureFileIndex?: () => void;
   reply: (id: number) => void;
   /** Opens a thread of this room (a new one made from a message, Gimenes #4123). */

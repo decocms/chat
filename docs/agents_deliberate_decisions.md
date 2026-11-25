@@ -2062,3 +2062,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/mention-opens-dm · A click on an @mention opens the DM with that person
+- Agent: Claude Opus 5.5
+- Context: Gimenes (#5298) asked that a click on someone's @mention go to the DM with them, like a `#` room chip opens the room, and that a missing DM go through the normal new-DM flow.
+- Decision:
+  - The mention becomes a button that calls the existing `connect(email)` (the "Nova mensagem" flow). A mention resolves only to a member of the room, so you share a room with them and the DM opens at once (made if it did not exist). No message request and no first message.
+  - Your own mention, `@vibe` and every mention inside a DM stay plain text (in a DM the other person's DM is the one you are in).
+  - There is no `track()` event: the browser app has none.
+- Other options: Open the "Nova mensagem" popover with the person chosen (one more click for the same result). A person card on click, with "Mensagem" in it (a new component).
+- Risk: low. A click makes the DM room if it did not exist yet, as the `+` does.
+- Undo: Revert this commit.
+- Status: open
