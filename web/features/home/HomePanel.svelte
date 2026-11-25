@@ -64,6 +64,8 @@
     onanswer,
     onconnect,
     ondismiss,
+    company,
+    oncompany,
   }: HomeBridge = $props();
   const account = $derived(personal.state);
   const pwaView = $derived(pwa.state);
@@ -367,7 +369,7 @@
     </div>
     <!-- The phone's user center (Gimenes, step 4): the desktop sidebar's rows, in its order, under the search. Each row
       goes when it is done; inside a room only their count shows, on ← (RoomHeader). This list draws only on a phone. -->
-    {#if centerCount}<div class="mb-3 px-2">
+    {#if centerCount || $company?.length}<div class="mb-3 px-2">
         <UserCenter phone
           >{#if $account.updateAvailable}<UpdateRow {lang} />{/if}<InstallCard
             owner={pwa}
@@ -380,6 +382,8 @@
             {lang}
             {onjoin}
             {onanswer}
+            company={$company ?? []}
+            {oncompany}
           /></UserCenter
         >
       </div>{/if}

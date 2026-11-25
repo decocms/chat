@@ -7,7 +7,11 @@
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
-  import type { MeFriendRequest, MeInvite } from "../../../shared/schemas";
+  import type {
+    MeFriendRequest,
+    MeInvite,
+    OrgRoom,
+  } from "../../../shared/schemas";
   /**
    * "Pedidos": what waits for your yes, one row each, built like the rows
    * around it. A room invite: the room's avatar with the inviter's face on
@@ -19,23 +23,32 @@
    * the user center (the sidebar's on desktop, the Chats list's on a phone),
    * like "Your agent", with no section title and the × on hover or always on
    * a touch screen (docs/design.md, "The user center"; Gimenes #5064).
+   * Then "Da sua empresa": rooms open to your company email domain
+   * that you did not join, the same rows with only Entrar (nothing to
+   * decline: no one asked you). In the user center they have no title.
    */
   let {
     invites,
     requests,
+    company = [],
     lang,
     variant = "sidebar",
     center = false,
     onjoin,
     onanswer,
+    oncompany,
   }: {
     invites: readonly MeInvite[];
     requests: readonly MeFriendRequest[];
+    /** Rooms open to your company domain (GET /api/org/rooms): only their cover. */
+    company?: readonly OrgRoom[];
     lang: HomeLanguage;
     variant?: NavRowVariant;
     center?: boolean;
     onjoin?: (room: string, yes: boolean) => Promise<void>;
     onanswer?: (email: string, accept: boolean) => Promise<void>;
+    /** Joins a room open to your company and opens it. */
+    oncompany?: (room: string) => Promise<void>;
   } = $props();
   type Face = { email: string; version: number | null | undefined };
   /** What stands for a request: a room (with who invited you) or a person. */
@@ -92,6 +105,7 @@
   full: string | undefined,
   yesLabel: string,
   answer: ((yes: boolean) => Promise<void>) | undefined,
+  declinable: boolean = true,
 )}<li data-request={key}>
     <div
       class={[
@@ -123,16 +137,16 @@
           aria-busy={busy === key || undefined}
           onclick={() => run(key, answer && (() => answer(true)))}
           >{yesLabel}</Button
-        ><IconButton
-          size="icon-xs"
-          label={homeText(lang, "decline")}
-          class={center
-            ? "hidden text-muted-foreground group-focus-within:inline-flex group-hover:inline-flex hover:text-foreground [@media(hover:none)]:inline-flex"
-            : "text-muted-foreground hover:text-foreground"}
-          disabled={!!busy || !answer}
-          onclick={() => run(key, answer && (() => answer(false)))}
-          ><Icon icon="x" size={14} /></IconButton
-        >
+        >{#if declinable}<IconButton
+            size="icon-xs"
+            label={homeText(lang, "decline")}
+            class={center
+              ? "hidden text-muted-foreground group-focus-within:inline-flex group-hover:inline-flex hover:text-foreground [@media(hover:none)]:inline-flex"
+              : "text-muted-foreground hover:text-foreground"}
+            disabled={!!busy || !answer}
+            onclick={() => run(key, answer && (() => answer(false)))}
+            ><Icon icon="x" size={14} /></IconButton
+          >{/if}
       </span>
     </div>
     {#if failed === key}<p
@@ -177,6 +191,35 @@
           request.msg ?? undefined,
           homeText(lang, "accept"),
           onanswer && ((yes) => onanswer(request.email, yes)),
+        )}{/each}
+    </ul>
+  </section>{/if}
+{#if company.length}<section
+    data-company-rooms
+    class={count && !center ? "mt-3" : ""}
+  >
+    {#if !center}<SectionHeader
+        level={4}
+        title={homeText(lang, "fromCompany")}
+      />{/if}
+    <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
+      {#each company as room (room.id)}{@const who =
+          room.opened_by_name || room.opened_by || ""}{@render row(
+          `org:${room.id}`,
+          {
+            kind: "room",
+            title: room.title,
+            by: { email: room.opened_by ?? room.id, version: null },
+          },
+          room.title,
+          homeText(lang, room.people === 1 ? "openedByOne" : "openedBy", {
+            who,
+            n: room.people,
+          }),
+          undefined,
+          homeText(lang, "join"),
+          oncompany && (async (yes) => (yes ? oncompany(room.id) : undefined)),
+          false,
         )}{/each}
     </ul>
   </section>{/if}

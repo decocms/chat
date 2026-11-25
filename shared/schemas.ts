@@ -176,6 +176,29 @@ export const AccessRequestResult = z.object({
   member: z.optional(z.literal(true)),
 });
 export type AccessRequestResult = z.infer<typeof AccessRequestResult>;
+/** A room open to your company (src/orgRooms.ts): `domain` is yours (null for a free provider), `org` the room's
+ *  (null = private). */
+export const RoomOrgResult = z.object({
+  domain: z.nullable(z.string()),
+  org: z.nullable(z.string()),
+});
+export type RoomOrgResult = z.infer<typeof RoomOrgResult>;
+export const RoomOrgBody = z.object({ open: z.boolean() });
+/** The cover of a room open to your company that you did not join: never its content. */
+export const OrgRoom = z.object({
+  id: z.string(),
+  title: z.string(),
+  icon: z.nullable(z.number()),
+  people: z.number(),
+  opened_by: z.nullable(z.string()),
+  opened_by_name: z.nullable(z.string()),
+});
+export type OrgRoom = z.infer<typeof OrgRoom>;
+export const OrgRoomsResult = z.object({
+  domain: z.nullable(z.string()),
+  rooms: z.array(OrgRoom),
+});
+export type OrgRoomsResult = z.infer<typeof OrgRoomsResult>;
 export const DecideRequestBody = z.object({
   email: z.string(),
   ok: z.boolean(),

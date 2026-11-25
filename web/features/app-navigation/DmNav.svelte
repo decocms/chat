@@ -63,7 +63,8 @@
     lang: HomeLanguage;
   } = $props();
   const personal = $derived(controller.personal.state),
-    nav = $derived(controller.state);
+    nav = $derived(controller.state),
+    company = $derived(controller.company);
   const dms = $derived(dmEntries($personal.me));
   const waits = $derived(waitsByRoom($personal.me?.waits ?? []));
   const current = $derived($nav.roomId ?? null);

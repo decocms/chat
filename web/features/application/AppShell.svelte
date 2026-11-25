@@ -52,6 +52,7 @@
   } = $props();
   const application = untrack(() => services.state),
     personal = untrack(() => services.personal.state),
+    company = untrack(() => services.navigation.company),
     room = untrack(() => services.rootRoom.state);
   // The call I am in is the app's (callHub): off a room (Home, the archive, the settings), the DM list's foot shows
   // its panel; opening it goes back to the call's room, whose view opens the stage.
@@ -248,6 +249,8 @@
     onanswer: services.navigation.callbacks.answerRequest,
     onconnect: services.navigation.callbacks.connect,
     ondismiss: services.navigation.callbacks.dismiss,
+    company: services.navigation.company,
+    oncompany: services.navigation.joinCompany,
   });
   onMount(() => {
     effects.documentLanguage(services.language);
@@ -367,6 +370,8 @@
               lang={services.language === "en" ? "en" : "pt"}
               onjoin={services.navigation.callbacks.answerInvite}
               onanswer={services.navigation.callbacks.answerRequest}
+              company={$company}
+              oncompany={services.navigation.joinCompany}
             />{/if}<AccountRow
             me={$personal.me}
             current={settings}
