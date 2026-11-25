@@ -135,11 +135,17 @@
       (!!$application.route.inbox ||
         (!phone.current && ($personal.me?.books.length ?? 1) > 0)),
   );
+  // A phone's `/`: the list of conversations with the Inbox's tabs as chips over it (HomePanel). The page holds
+  // the Inbox open for their counts, as the desktop Home does; no Inbox sheet opens over it.
+  const phoneHome = $derived(
+    $application.route.kind === "home" && phone.current && !homeInbox,
+  );
+  const pageInbox = $derived(homeInbox || phoneHome);
   const accountView = untrack(() => services.account.state);
   // The page owns the Inbox while it's open: a route change closes it (inbox.ts), this opens it again.
   $effect(() => {
     if (
-      homeInbox &&
+      pageInbox &&
       !$application.sessionDenied &&
       $personal.me &&
       !$inboxView.binding
@@ -153,7 +159,7 @@
       else if ($application.route.kind === "home") void homeModule.ensure();
       if ($application.route.kind === "archived") void archivedModule.ensure();
       if ($application.route.kind === "settings") void accountModule.ensure();
-      if ($inboxView.binding && !$inboxView.binding.roomScope && !homeInbox)
+      if ($inboxView.binding && !$inboxView.binding.roomScope && !pageInbox)
         void inboxModule.ensure();
     }
   });
@@ -242,6 +248,7 @@
     oninbox: (trigger) => {
       if (current()) openInbox(trigger);
     },
+    inbox,
     onsearch: () => {
       if (current()) services.navigation.openSearch();
     },
@@ -466,7 +473,7 @@
           {@render roomSnippet({ services })}
         </div>{/if}
     </div>
-    {#if $inboxView.binding && !$inboxView.binding.roomScope && !homeInbox}{#key $inboxView.binding}<Snapshot
+    {#if $inboxView.binding && !$inboxView.binding.roomScope && !pageInbox}{#key $inboxView.binding}<Snapshot
           value={$inboxView.binding}
         >
           {#snippet children(binding)}

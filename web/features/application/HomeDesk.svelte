@@ -16,8 +16,6 @@
   import Skeleton from "../../lib/studio/Skeleton.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import { cn } from "../../lib/studio/utils";
-  import type { InboxTask, Wait } from "../../app/types";
-  import { choicesOf, type Choices } from "../chat-interactive/eligibility";
   import { mentionSegments } from "../composer/model";
   import HomeAsk from "../home/HomeAsk.svelte";
   import {
@@ -28,7 +26,6 @@
     type RoomSummary,
   } from "../home/model";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
-  import { threadWait, type ThreadWait } from "../../../shared/threadWait";
   import { threadWaitLabel } from "../waits/model";
   import TaskWorkspace from "./TaskWorkspace.svelte";
   import { paneFocus } from "../room-layout/focus";
@@ -36,11 +33,17 @@
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
   import {
-    inboxAsks,
-    inboxPreview,
-    roomInboxModel,
-    type RoomInboxMessage,
-  } from "./roomInboxModel";
+    HOME_INBOX_TABS,
+    homeInboxHandles,
+    homeInboxLeave,
+    homeInboxLists,
+    homeInboxSaid,
+    homeInboxWho,
+    homeInboxYourClaude,
+    type HomeInboxCard,
+    type HomeInboxTab,
+  } from "./homeInboxLists";
+  import { inboxAsks, inboxPreview, roomInboxModel } from "./roomInboxModel";
   /**
    * The desktop Home is where you work, always split: on the left the ask box
    * (what you type goes to the right room and thread) and the Inbox in four
@@ -77,185 +80,32 @@
     t = untrack(() => services.t);
   const lang = $derived(services.language === "en" ? "en" : "pt");
 
-  type Tab = "foryou" | "mentions" | "tasks";
-  type Kind =
-    | "ask"
-    | "mention"
-    | "claude"
-    | "review"
-    | "reply"
-    | "room"
-    | "task"
-    | "thread";
-  type Card = {
-    key: string;
-    kind: Kind;
-    book: string;
-    room: string;
-    thread: string;
-    where: string;
-    author: string;
-    authorName: string | null;
-    text: string;
-    /** reply: what you asked from the Home's box. */
-    about: string;
-    ts: number;
-    wait?: Wait;
-    message?: RoomInboxMessage;
-    task?: InboxTask;
-    summary?: RoomSummary;
-    news?: number;
-    /** claude: the question's buttons (a<msg> waits carry them in `about`). */
-    choices?: Choices | null;
-    /** thread: an open thread you own (e<epic>): its state and how far its tasks went. */
-    open?: ThreadWait;
-  };
+  type Tab = HomeInboxTab;
+  type Card = HomeInboxCard;
 
   let tab = $state<Tab>("foryou");
   const model = $derived(roomInboxModel($inbox.data, "", true));
-  const hidden = $derived(new Set($inbox.hidden));
-  const visible = (wait?: Wait) =>
-    !wait || !hidden.has(`${wait.book_id}/${wait.ref}`);
-  /** A held @mention (no wait) and an open task leave the list the same way, by their own key. */
-  const shownMessage = (message: RoomInboxMessage) =>
-    visible(message.wait) &&
-    (!message.mention ||
-      !hidden.has(`${message.mention.book_id}/d${message.mention.msg_id}`));
   const summaries = $derived(
     new Map(($personal.me?.books ?? []).map((room) => [room.id, room])),
   );
   const roomName = (book: string, room: string) =>
     roomLabel($personal.me, book, room, lang);
-  const fromMessage = (message: RoomInboxMessage): Card => ({
-    key: message.key,
-    kind: message.kind,
-    book: message.book,
-    room: roomName(message.book, message.room),
-    thread: message.thread,
-    where: message.topic || "",
-    author: message.author,
-    authorName: message.authorName,
-    text: message.text,
-    about: message.kind === "reply" ? (message.wait?.about ?? "") : "",
-    ts: message.ts,
-    wait: message.wait,
-    message,
-    summary: summaries.get(message.book),
-    choices:
-      message.kind === "claude" && message.wait?.ref.startsWith("a")
-        ? choicesOf(message.wait.about)
-        : null,
-  });
-  const newest = (left: Card, right: Card) => right.ts - left.ts;
-  // Your open threads (e<epic>): all of them in Tarefas; in Pra você only the ones ready to close or that @vibe
-  // called you about, so many open threads don't bury the asks.
-  const threads = $derived(
-    model.threads.filter(visible).flatMap((wait): Card[] => {
-      const open = threadWait(wait);
-      return open
-        ? [
-            {
-              key: `e:${wait.book_id}:${wait.ref}`,
-              kind: "thread",
-              book: wait.book_id,
-              room: roomName(wait.book_id, wait.room),
-              thread: wait.thread,
-              where: open.total
-                ? t("{done}/{total} tarefas", {
-                    done: open.done,
-                    total: open.total,
-                  })
-                : t("Sem tarefas"),
-              author: wait.author,
-              authorName: null,
-              text: wait.topic || "",
-              about: "",
-              ts: wait.ts,
-              wait,
-              summary: summaries.get(wait.book_id),
-              open,
-            },
-          ]
-        : [];
+  // The tabs' lists: the same model a phone's home draws as chips (homeInboxLists).
+  const lists = $derived(
+    homeInboxLists({
+      data: $inbox.data,
+      hidden: $inbox.hidden,
+      me: $personal.me,
+      lang,
+      t,
     }),
   );
-  // Pra você: asks and mentions, answers to your Home requests, your Claude's
-  // questions and your tasks in review, in one feed.
-  const feed = $derived(
-    [
-      ...model.messages.filter(shownMessage).map(fromMessage),
-      ...model.oks.filter(visible).map((wait): Card => ({
-        key: `w:${wait.book_id}:${wait.ref}`,
-        kind: "review",
-        book: wait.book_id,
-        room: roomName(wait.book_id, wait.room),
-        thread: wait.thread,
-        where: wait.topic || "",
-        author: wait.author,
-        authorName: wait.author_name,
-        text: wait.text,
-        about: "",
-        ts: wait.ts,
-        wait,
-        summary: summaries.get(wait.book_id),
-      })),
-      ...threads.filter((card) => card.open?.ready || card.open?.stale),
-    ].sort(newest),
-  );
-  // Menções: the held @mentions, and asks whose text @s you by name.
-  const handles = $derived(
-    [
-      $personal.me?.name?.split(" ")[0] ?? "",
-      $personal.me?.email.split("@")[0] ?? "",
-    ]
-      .map(fold)
-      .filter(Boolean),
-  );
+  const feed = $derived(lists.foryou),
+    tasks = $derived(lists.tasks);
+  const handles = $derived(homeInboxHandles($personal.me));
   const mine = (handle: string) => handles.includes(fold(handle));
-  const atsMe = (text: string) =>
-    mentionSegments(text, () => true).some(
-      (part) => part.mention && mine(part.text.slice(1)),
-    );
-  const mentions = $derived(
-    feed.filter(
-      (card) =>
-        card.kind === "mention" || (card.kind === "ask" && atsMe(card.text)),
-    ),
-  );
-  // Tarefas: your open threads, then your open tasks (the ones in review are in Pra você).
-  const tasks = $derived([
-    ...threads,
-    ...model.groups.flatMap((group) =>
-      group.tasks
-        .filter((task) => !hidden.has(`${task.book_id}/t${task.task_id}`))
-        .map((task): Card => ({
-          key: `t:${task.book_id}:${task.task_id}`,
-          kind: "task",
-          book: task.book_id,
-          room: roomName(task.book_id, task.room),
-          thread: task.epic_id,
-          where: group.epic || "",
-          author: "",
-          authorName: null,
-          text: task.title,
-          about: "",
-          ts: 0,
-          task,
-          summary: summaries.get(task.book_id),
-        })),
-    ),
-  ]);
-  const lists = $derived({
-    foryou: feed,
-    mentions,
-    tasks,
-  } satisfies Record<Tab, Card[]>);
   const order = $derived(lists[tab]);
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "foryou", label: "Pra você" },
-    { id: "mentions", label: "Menções" },
-    { id: "tasks", label: "Tarefas" },
-  ];
+  const tabs = HOME_INBOX_TABS;
   // New since your last visit: the visit before this one, kept in this browser only.
   const VISIT_KEY = "vb:home-visit";
   let lastVisit = $state(Infinity);
@@ -301,35 +151,10 @@
     }).format(ts);
   };
   // Your own Claude: a/b waits, and an answer posted by your agent (its author is you).
-  const yourClaude = (card: Card) =>
-    card.kind === "claude" ||
-    (card.kind === "reply" && card.author === $personal.me?.email);
-  const name = (card: Card) =>
-    yourClaude(card)
-      ? t("Seu Claude")
-      : card.kind === "review"
-        ? t("Sua tarefa")
-        : card.author === "ai"
-          ? "@vibe"
-          : card.authorName ||
-            ($personal.me?.email === card.author
-              ? $personal.me.name
-              : $personal.me?.friends.find(
-                  (friend) => friend.email === card.author,
-                )?.name) ||
-            card.author.split("@")[0] ||
-            "";
+  const yourClaude = (card: Card) => homeInboxYourClaude(card, $personal.me);
+  const name = (card: Card) => homeInboxWho(card, $personal.me, t);
   const avatar = (email: string) => personVersion($personal.me, email);
-  /** Your Claude's wait without its opener ("⏸ Seu Claude pede permissão: …"): the row's name says who. */
-  const said = (card: Card) =>
-    card.kind === "claude"
-      ? card.text
-          .replace(
-            /^(⏸|❓) (Seu Claude|Seu agent|Your agent)( (pede permissão|quer seguir com este plano|espera você no terminal|is waiting for you in the terminal):| pergunta( · \*\*[^*\n]*\*\*)?:?)\s*/,
-            "",
-          )
-          .trim() || card.text
-      : card.text;
+  const said = homeInboxSaid;
   const statusLabel = (status: string) =>
     status === "review"
       ? "revisar"
@@ -506,30 +331,9 @@
   /** "Abrir na sala": leave the Home for the item in its room. */
   function leaveFor(card: Card) {
     if (!current()) return;
-    switch (card.kind) {
-      case "task":
-        if (card.task) owner.openTask(opening, card.task);
-        return;
-      case "thread":
-        services.actions.navigate({ roomId: card.book, thread: card.thread });
-        return;
-      case "room":
-        owner.openRoom(opening, card.book);
-        return;
-      case "ask":
-      case "claude":
-      case "review":
-      case "reply":
-      case "mention":
-        if (card.wait) owner.openWait(opening, card.wait);
-        else if (card.message?.mention)
-          owner.openMention(opening, card.message.mention);
-        return;
-      default: {
-        const never: never = card.kind;
-        return never;
-      }
-    }
+    homeInboxLeave(owner, opening, card, (target) =>
+      services.actions.navigate(target),
+    );
   }
   /** ✓ on anything: what waits on you leaves with Undo (resolveLater), a room is marked read, a task is done. */
   function done(cards: Card[]) {

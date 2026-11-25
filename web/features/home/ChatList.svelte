@@ -11,6 +11,7 @@
   } from "../app-navigation/roomMenuTrigger";
   import { homeText, type HomeLanguage } from "./copy";
   import { byImportance } from "./deskHand";
+  import ChatRowEnd from "./ChatRowEnd.svelte";
   import {
     chatList,
     claudeWait,
@@ -20,7 +21,8 @@
     roomIcon,
     roomLabel,
     targetHref,
-    unread,
+    asksYou,
+    unreadCount,
     waitTarget,
     waitsByRoom,
     type RoomTarget,
@@ -30,10 +32,11 @@
    * The phone's home, like a chat app's: what waits on you pinned on top (the
    * most pressing first, a few at most; "See all" opens the rest in place,
    * as WhatsApp does, Gimenes #3942), then every room and DM, the newest message first, each with its
-   * avatar (unread dot, ✻, waits), its name, who wrote last and what, and
-   * when. A room where an agent works says so in place of its last line.
-   * Invites and message requests ("Pedidos") are not here: they are rows of
-   * the phone's user center, over this list (HomePanel).
+   * avatar (✻, waits), its name, who wrote last and what, and when with the
+   * unread count and an @ when it mentions you (ChatRowEnd). A room where an
+   * agent works says so in place of its last line. Invites and message
+   * requests ("Pedidos") are not here: they are rows of the phone's user
+   * center, over this list (HomePanel).
    */
   const PINNED = 3;
   let {
@@ -44,6 +47,7 @@
     ago,
     onnavigate,
     onmenu,
+    mentioned,
   }: {
     me: MeResult;
     seen: Record<string, number>;
@@ -53,7 +57,12 @@
     onnavigate: (target: RoomTarget) => void;
     /** Opens a room's or DM's menu (a long press, a right-click, Shift+F10). */
     onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
+    /** Rooms with an @ of you not yet seen (the Inbox's mentions); asks waiting on you count without it. */
+    mentioned?: ReadonlySet<string>;
   } = $props();
+  const mentionsYou = (roomId: string) =>
+    !!mentioned?.has(roomId) ||
+    (byRoom.get(roomId) ?? []).some((wait) => asksYou(wait));
   const rows = $derived(chatList(me));
   const byRoom = $derived(waitsByRoom(me.waits));
   const waits = $derived(byImportance(me.waits));
@@ -86,21 +95,22 @@
               label={place(wait)}
               meta={`${who(wait)}: ${homeWaitText(wait, lang)}`}
               urgent
-              variant="list"
+              variant="chats"
               onopen={() => onnavigate(waitTarget(wait))}
             >
               {#snippet leading()}<RoomAvatar
-                  size="md"
+                  size="chat"
                   title={dm ? dm.name : wait.room}
                   icon={room ? roomIcon(room) : undefined}
                   person={dm}
                   {lang}
                   surface="background"
                 />{/snippet}
-              {#snippet trailing()}<span
-                  class="shrink-0 self-start pt-2 text-xs text-muted-foreground tabular-nums"
-                  >{ago(wait.ts)}</span
-                >{/snippet}
+              {#snippet trailing()}<ChatRowEnd
+                  time={ago(wait.ts)}
+                  mention={asksYou(wait)}
+                  {lang}
+                />{/snippet}
             </RoomRow>
           </li>{/each}
       </ul>
@@ -118,10 +128,7 @@
     </section>
     <SectionHeader level={4} title={homeText(lang, "chats")} />{/if}
   <ul class="m-0 list-none space-y-0.5 p-0">
-    {#each rows as { room, dm } (room.id)}{@const fresh = unread(
-        room,
-        seen[room.id] ?? 0,
-      )}
+    {#each rows as { room, dm } (room.id)}
       <li
         use:roomMenuTrigger={onmenu
           ? (trigger, point) => onmenu(room.id, trigger, point)
@@ -135,20 +142,18 @@
           waits={byRoom.get(room.id) ?? []}
           {now}
           {lang}
-          variant="list"
+          variant="chats"
           line={(room.busy_until ?? 0) > now
             ? homeText(lang, "agentWorking")
             : lastLine(room, me, lang, dm) || homeText(lang, "noMessages")}
           {onnavigate}
         >
-          {#snippet trailing()}{#if room.updated_at}<span
-                class={[
-                  "shrink-0 self-start pt-2 text-xs tabular-nums",
-                  fresh
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground",
-                ]}>{ago(room.updated_at)}</span
-              >{/if}{/snippet}
+          {#snippet trailing()}<ChatRowEnd
+              time={room.updated_at ? ago(room.updated_at) : null}
+              unread={unreadCount(room, seen[room.id] ?? 0)}
+              mention={mentionsYou(room.id)}
+              {lang}
+            />{/snippet}
         </RoomLink>
       </li>{/each}
   </ul>

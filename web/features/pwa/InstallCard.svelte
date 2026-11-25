@@ -83,12 +83,14 @@
     data-compact
     class="space-y-2 rounded-surface border border-border bg-card py-2 pr-2 pl-3 font-sans text-sm text-foreground"
   >
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 max-md:gap-2">
       <img src="/icon-192.png" alt="" class="size-8 rounded-lg" /><span
-        class="min-w-0 flex-1 font-medium leading-5">{text("install")}</span
+        class="min-w-0 flex-1 leading-5 font-medium max-md:text-[15px]"
+        >{text("install")}</span
       >{#if !$view.ios || $view.safari}<Button
           size="sm"
           variant="outline"
+          class="max-md:px-2.5 max-md:text-sm"
           disabled={$view.installBusy}
           aria-busy={$view.installBusy || undefined}
           onclick={(event) => {
@@ -98,6 +100,7 @@
             ? text("installNow")
             : text("how")}</Button
         >{/if}<IconButton
+        size="icon-sm"
         label={text("close")}
         onclick={(event) => {
           if (current(event)) owner.dismissInstall();

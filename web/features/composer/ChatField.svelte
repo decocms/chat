@@ -56,6 +56,7 @@
     inside,
     above,
     ready = undefined,
+    dock = false,
     speechFactory,
     captureFactory,
     transcribe,
@@ -110,6 +111,9 @@
     above?: Snippet;
     /** There is something to send: the send button shows (on phones it takes the mic's place). Defaults to text in the field. */
     ready?: boolean;
+    /** The phone home's docked ask (HomePanel): 40px controls with 22px glyphs, a 48px row, and no empty mic
+     *  slot when this browser cannot dictate. */
+    dock?: boolean;
     speechFactory?: SpeechFactory | null;
     captureFactory?: FireCaptureFactory | null;
     transcribe?: (audio: Blob, signal: AbortSignal) => Promise<string>;
@@ -211,7 +215,7 @@
   // The highlight layer and the textarea share these classes (type, padding), so the mirror's
   // text wraps exactly where the field's does.
   const FIELD_TYPE =
-    "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 [scrollbar-gutter:stable]";
+    "px-1.5 py-1.5 text-[15px] pointer-coarse:text-[16px] leading-5 max-md:text-[17px] max-md:pointer-coarse:text-[17px] max-md:leading-6 [scrollbar-gutter:stable]";
   function mentionKeydown(event: KeyboardEvent) {
     if (
       (!mention && !view.tokens.length) ||
@@ -530,6 +534,8 @@
     "text-muted-foreground hover:bg-secondary-hover hover:text-foreground";
   const SLOT =
     "transition-[opacity,scale,visibility] duration-150 ease-[var(--vb-ease-out-cubic)]";
+  const GLYPH = $derived(dock ? 22 : 16);
+  const CONTROL = $derived(dock ? "size-10" : "");
 </script>
 
 <!-- One filled field (#3692): the + on the left, emoji and the mic on the right, the reply and the
@@ -553,7 +559,12 @@
   }}
 >
   {@render above?.()}
-  <div class={["flex items-end gap-0.5", COMPOSER_ROW]}>
+  <div
+    class={[
+      "flex items-end gap-0.5",
+      dock ? "min-h-12 px-1 py-1" : COMPOSER_ROW,
+    ]}
+  >
     {#if dictating}<IconButton
         label={t("Descartar ditado")}
         size="icon"
@@ -570,6 +581,7 @@
         size="icon"
         class={cn(
           FIELD_ICON,
+          CONTROL,
           "aria-expanded:bg-secondary-hover aria-expanded:text-foreground",
         )}
         bind:ref={more}
@@ -590,7 +602,7 @@
           if (!ok()) return;
           if (menuOpen) menuOpen = false;
           else void openMenu(event.detail === 0);
-        }}><Icon icon="plus" size={16} /></IconButton
+        }}><Icon icon="plus" size={GLYPH} /></IconButton
       >
       {#if menuOpen && menu}<div
           bind:this={menuNode}
@@ -725,14 +737,14 @@
     <IconButton
       label={t("Emoji")}
       size="icon"
-      class={cn(FIELD_ICON, dictating && "hidden")}
+      class={cn(FIELD_ICON, CONTROL, dictating && "hidden")}
       disabled={off}
       onclick={() => {
         if (!ok()) return;
         speech.cancel();
         readCaret();
         emoji = true;
-      }}><Icon icon="face-smile" size={16} /></IconButton
+      }}><Icon icon="face-smile" size={GLYPH} /></IconButton
     >
     <!-- Phones: the mic and send share one cell (#3821). While you dictate the mic is the stop button. -->
     <div
@@ -748,6 +760,7 @@
           aria-pressed={dictating}
           class={cn(
             SLOT,
+            CONTROL,
             "max-md:group-data-[swap=true]:invisible max-md:group-data-[swap=true]:scale-75 max-md:group-data-[swap=true]:opacity-0",
             dictating
               ? "bg-destructive text-destructive-foreground hover:bg-destructive/85 hover:text-destructive-foreground"
@@ -765,7 +778,7 @@
           }}
           >{#if refining}<Spinner size="xs" />{:else}<Icon
               icon={dictating ? "stop-square" : "microphone-01"}
-              size={16}
+              size={GLYPH}
             />{/if}</IconButton
         >{/if}
       <IconButton
@@ -777,7 +790,10 @@
         aria-busy={pending || undefined}
         class={cn(
           SLOT,
+          CONTROL,
           "rounded-full max-md:group-data-[swap=false]:invisible max-md:group-data-[swap=false]:scale-75 max-md:group-data-[swap=false]:opacity-0",
+          // No mic to share the cell with: an empty field has no send either, and no gap where it was.
+          dock && !speech.supported && "max-md:group-data-[swap=false]:hidden",
         )}
         disabled={off || busy || sendDisabled}
         onmousedown={(event) => event.preventDefault()}
@@ -789,7 +805,7 @@
         }}
         >{#if pending}<Spinner size="xs" />{:else}<Icon
             icon="arrow-up"
-            size={16}
+            size={GLYPH}
           />{/if}</IconButton
       >
     </div>

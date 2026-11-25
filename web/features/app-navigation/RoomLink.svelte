@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import type { NavRowVariant } from "../../lib/components/navRow";
+  import type { AvatarSize } from "../../lib/studio/avatar";
   import { waitCount, type WaitReference } from "../waits/model";
   import { homeText, type HomeLanguage } from "../home/copy";
   import {
@@ -72,6 +73,13 @@
           label: `${title} · ${homeText(lang, online ? "online" : "offline")}`,
         },
   );
+  // The phone's chat list draws unread as WhatsApp does, at the row's end (ChatRowEnd), not on the avatar.
+  // The sidebar's rows are small (like a room's epics); the phone's lists keep the big avatar, its home's the biggest.
+  const AVATAR = {
+    sidebar: "xs",
+    list: "md",
+    chats: "chat",
+  } as const satisfies Record<NavRowVariant, AvatarSize>;
   const meta = $derived(
     line ??
       (status
@@ -92,16 +100,15 @@
   {trailing}
   onopen={() => onnavigate({ roomId: room.id })}
 >
-  <!-- The sidebar's rows are small (like a room's epics); the phone's list keeps the big avatar. -->
   {#snippet leading()}<RoomAvatar
-      size={variant === "sidebar" ? "xs" : "md"}
+      size={AVATAR[variant]}
       {title}
       icon={roomIcon(room)}
       person={dm}
       {presence}
       {lang}
       surface={variant === "sidebar" ? "sidebar" : "background"}
-      unread={selected ? null : unread(room, seen)}
+      unread={selected || variant === "chats" ? null : unread(room, seen)}
       busy={(room.busy_until ?? 0) > now}
       {waits}
     />{/snippet}
