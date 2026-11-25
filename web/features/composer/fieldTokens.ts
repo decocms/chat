@@ -3,20 +3,22 @@
 // short token (two figure spaces and a narrow no-break space where the chip's mark goes, then the name with no-break spaces, so it never wraps),
 // and the field's mirror draws the chip over it. These helpers map the text, the caret and edits between the two.
 
-/** A link in the text that the field draws as a chip. */
+/** What goes in the chip's mark: a room's mark, the thread icon, a person's avatar, or the lock of a place you can't see. */
+export type FieldMark =
+  | Readonly<{ kind: "room"; id: string; title: string; icon: number }>
+  | Readonly<{ kind: "thread" }>
+  | Readonly<{ kind: "person"; email: string; avatar: number | null }>
+  | Readonly<{ kind: "lock" }>;
+
+/** A link in the text that the field draws as a chip: the same places the chat's app link chip names. */
 export type FieldLink = Readonly<{
   /** Where the link is in the stored text. */
   start: number;
   end: number;
-  kind: "room" | "thread";
-  /** The room's id (a thread's room). */
-  id: string;
-  /** The room's name, or the thread's title. */
-  title: string;
-  /** A thread's room name, shown before it. */
-  room?: string;
-  /** The room's icon version (0 = none). */
-  icon: number;
+  kind: "room" | "thread" | "message" | "dm" | "private";
+  /** The chip's words (a thread's room before it, a message's author and where it is, "Sala privada"). */
+  label: string;
+  mark: FieldMark;
 }>;
 
 export type FieldToken = FieldLink &
@@ -35,13 +37,8 @@ export type FieldView = Readonly<{ text: string; tokens: FieldToken[] }>;
 /** Where the chip's mark goes: two figure spaces (the mark's width) and a narrow space (the gap), none breaking. */
 export const TOKEN_MARK = "\u2007\u2007\u202f";
 
-const label = (link: FieldLink) =>
-  link.kind === "thread" && link.room
-    ? `${link.room} › ${link.title}`
-    : link.title;
-
 export function tokenText(link: FieldLink) {
-  return TOKEN_MARK + label(link).replace(/\s/g, " ");
+  return TOKEN_MARK + link.label.replace(/\s/g, "\u00a0");
 }
 
 /** The view of `text` with `links` (sorted, not overlapping) drawn as tokens. */
@@ -133,27 +130,79 @@ export function tokenKey(
   return null;
 }
 
-/** The stored text for an edited view: every token still whole goes back to its link; a view caret maps with it. */
-export function fromView(view: FieldView, edited: string) {
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** The stored text for an edited view: every token the edit didn't touch goes back to its own link (two chips with
+ *  the same words, like two "Sala privada", keep their own links); a token's text inside the edited span (undo puts a
+ *  deleted one back) goes back to the link it stood for, from this view or from `known`. A view caret maps with it. */
+export function fromView(
+  view: FieldView,
+  edited: string,
+  known?: ReadonlyMap<string, string>,
+) {
+  const before = view.text;
+  if (!view.tokens.length && !known?.size)
+    return { text: edited, at: (caret: number) => caret };
+  const max = Math.min(before.length, edited.length);
+  let head = 0;
+  while (head < max && before[head] === edited[head]) head++;
+  let tail = 0;
+  while (
+    tail < max - head &&
+    before[before.length - 1 - tail] === edited[edited.length - 1 - tail]
+  )
+    tail++;
+  const delta = edited.length - before.length;
+  let from = head,
+    to = edited.length - tail;
+  const found: { from: number; to: number; url: string }[] = [];
+  for (const token of view.tokens) {
+    if (token.to <= head) found.push(token);
+    else if (token.from >= before.length - tail)
+      found.push({
+        from: token.from + delta,
+        to: token.to + delta,
+        url: token.url,
+      });
+    else {
+      // Cut by the edit, or around it: look for it again in the edited span.
+      from = Math.min(from, token.from);
+      to = Math.max(to, Math.min(edited.length, token.to + delta));
+    }
+  }
   const urls = new Map<string, string>();
   for (const token of view.tokens)
     if (!urls.has(token.text)) urls.set(token.text, token.url);
-  if (!urls.size) return { text: edited, at: (caret: number) => caret };
-  const pattern = new RegExp(
-    [...urls.keys()]
-      .sort((a, b) => b.length - a.length)
-      .map((text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-      .join("|"),
-    "g",
-  );
+  for (const [text, url] of known ?? [])
+    if (!urls.has(text)) urls.set(text, url);
+  if (urls.size && to > from) {
+    const pattern = new RegExp(
+      [...urls.keys()]
+        .sort((a, b) => b.length - a.length)
+        .map(escape)
+        .join("|"),
+      "g",
+    );
+    for (const match of edited.slice(from, to).matchAll(pattern))
+      found.push({
+        from: from + match.index,
+        to: from + match.index + match[0].length,
+        url: urls.get(match[0]) ?? match[0],
+      });
+  }
+  found.sort((a, b) => a.from - b.from);
   const swaps: { from: number; to: number; shift: number }[] = [];
-  let shift = 0;
-  const text = edited.replace(pattern, (token: string, offset: number) => {
-    const url = urls.get(token) ?? token;
-    shift += url.length - token.length;
-    swaps.push({ from: offset, to: offset + token.length, shift });
-    return url;
-  });
+  let text = "",
+    at = 0,
+    shift = 0;
+  for (const swap of found) {
+    if (swap.from < at) continue;
+    text += edited.slice(at, swap.from) + swap.url;
+    shift += swap.url.length - (swap.to - swap.from);
+    swaps.push({ from: swap.from, to: swap.to, shift });
+    at = swap.to;
+  }
+  text += edited.slice(at);
   return {
     text,
     at: (caret: number) => {

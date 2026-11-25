@@ -24,6 +24,7 @@
     roomPicks,
     roomReference,
     roomLinks,
+    appLinksIn,
     quoteSnippet,
     composerError,
   } from "./model";
@@ -38,6 +39,7 @@
   import RoomMark from "../room-sidebar/RoomMark.svelte";
   import OrphanDrafts from "./OrphanDrafts.svelte";
   import ChatField from "./ChatField.svelte";
+  import { linkResolver } from "../rich-text/linkResolver";
   import PollCreateDialog from "./PollCreateDialog.svelte";
   let {
     room,
@@ -120,6 +122,19 @@
       ? mentionPicks($draft.text, caret, room, vb.knownNames, agents)
       : null,
   );
+  // Any link to this app in the draft asks the chat's resolver where it goes, so the field draws its chip (the plain
+  // link shows until the answer comes). A link still being typed at the end of the text waits for what comes after
+  // it; a paste or a drop asks at once.
+  let linkText = "";
+  $effect(() => {
+    const text = $draft.text,
+      grew = text.length - linkText.length > 1;
+    linkText = text;
+    untrack(() => {
+      for (const { end, link } of appLinksIn(text, window.location.href))
+        if (end < text.length || grew) linkResolver.request(link, room);
+    });
+  });
   // `#sal` suggests rooms and this room's threads, `:sho` emoji, the same way `@par` suggests people (same list,
   // keys and close rules).
   const places = $derived(
@@ -597,7 +612,14 @@
     }}
     onkeydown={keydown}
     mention={(handle) => knownMention(handle, room, vb.knownNames)}
-    links={(text) => roomLinks(text, rooms, room, window.location.href)}
+    links={(text) =>
+      roomLinks(text, rooms, room, window.location.href, {
+        read: (link) => {
+          const state = linkResolver.read(link, room);
+          return state.status === "ready" ? state.value : null;
+        },
+        t: vb.t,
+      })}
     t={vb.t}
     locale={vb.locale || "pt-BR"}
     id="input"
