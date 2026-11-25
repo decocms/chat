@@ -54,6 +54,7 @@ import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
 import { AGENT_RULES } from "../shared/agentRules";
 import { hasInlineMark } from "../shared/inlineMarks";
+import { ASK_OPENER, BACKFILL_SQL, PUBLIC_SQL, VISIBLE_SQL, privateOwner, recipients } from "./privateAsk";
 
 // OpenRouter reports each call's USD cost in usage.raw.cost; the admin sums it per model.
 const costOf = (usage: unknown) => Number((usage as { raw?: { cost?: number } } | undefined)?.raw?.cost) || 0;
@@ -131,8 +132,6 @@ const cutDoc = (d: string, max: number) => (d.length > max ? `${d.slice(0, max)}
 const hash = (t: string) => { let h = 5381; for (let i = 0; i < t.length; i++) h = (h * 33) ^ t.charCodeAt(i); return (h >>> 0).toString(36); };
 
 // One Durable Object per vibebook: doc, chat threads (main + one per epic), epics/tasks, live sockets.
-/** What the plugin's hooks post when a Claude stops at a question (permission.sh, question.sh). */
-export const ASK_OPENER = /^(⏸ Seu Claude (pede permissão|quer seguir)|❓ Seu Claude pergunta)/;
 
 export class Book extends DurableObject<Env> {
   sql: SqlStorage;
@@ -171,12 +170,14 @@ export class Book extends DurableObject<Env> {
     const epicCols = this.sql.exec<{ name: string }>(`PRAGMA table_info(epics)`).toArray().map((c) => c.name);
     if (epicCols.includes("archived") && !epicCols.includes("done")) this.sql.exec(`ALTER TABLE epics RENAME COLUMN archived TO done`);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"], ["messages", "private_to TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
     }
     this.migrateEpicStatus();
+    // Hook questions and their answers from before private_to: their human's alone too (src/privateAsk.ts).
+    if (this.get("private_asks_v1") !== "1") { for (const q of BACKFILL_SQL) this.sql.exec(q); this.set("private_asks_v1", "1"); }
     // One send = one message: a retry with the same client_id finds the first one (byClientId).
     this.sql.exec(`CREATE UNIQUE INDEX IF NOT EXISTS messages_client_id ON messages (author, client_id) WHERE client_id IS NOT NULL`);
     // A room copied from another account keeps its reminders but not its alarm (alarms don't travel with the data):
@@ -405,10 +406,11 @@ export class Book extends DurableObject<Env> {
       return thread && thread !== m.thread ? { ...m, reply_thread: thread } : m;
     });
   }
-  messages(thread?: string, limit = 500): Msg[] {
+  /** viewer: whose private rows come too (src/privateAsk.ts); "" = the room's own only. */
+  messages(thread?: string, limit = 500, viewer = ""): Msg[] {
     const rows = thread
-      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? ORDER BY id DESC LIMIT ?`, thread, limit)
-      : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT ?`, limit);
+      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND ${VISIBLE_SQL()} ORDER BY id DESC LIMIT ?`, thread, viewer, limit)
+      : this.sql.exec(`SELECT * FROM messages WHERE ${VISIBLE_SQL()} ORDER BY id DESC LIMIT ?`, viewer, limit);
     return this.messageRows(rows.toArray()).reverse();
   }
   /** A reconnect resumes (cache plan PR 2, Gimenes #4638): 51% of room opens were reconnects (code 1006) that got the
@@ -417,11 +419,11 @@ export class Book extends DurableObject<Env> {
    * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
    * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
    * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
-  resumeOf(params: URL | URLSearchParams, open: string, window: Msg[], eh: string) {
+  resumeOf(params: URL | URLSearchParams, open: string, window: Msg[], eh: string, viewer: string) {
     const q = params instanceof URL ? params.searchParams : params;
     const since = Number(q.get("since")), at = Number(q.get("at")), now = Date.now();
     if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
-    const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
+    const rows = this.sql.exec(`SELECT * FROM messages WHERE (id > ? OR edited >= ? OR deleted >= ?) AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, since, at, at, viewer, RESUME_MAX_ROWS + 1).toArray();
     if (rows.length > RESUME_MAX_ROWS) return null;
     const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
     for (const m of this.messageRows(rows)) messages.set(m.id, m);
@@ -441,24 +443,24 @@ export class Book extends DurableObject<Env> {
         // itself isn't loaded.
         `SELECT * FROM (SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.thread ORDER BY m.id DESC) AS rn,
            (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND q.kind = 'agent' AND q.choices IS NOT NULL AND (q.text LIKE '⏸%' OR q.text LIKE '❓%')) AS answers_ask FROM messages m
-           WHERE m.thread = ? OR m.thread = 'main' OR m.thread = '${CALL_THREAD}' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0))
+           WHERE (m.thread = ? OR m.thread = 'main' OR m.thread = '${CALL_THREAD}' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0)) AND ${VISIBLE_SQL("m")})
          WHERE rn <= (CASE WHEN thread = ? THEN 60 ELSE 5 END)
          ORDER BY id`,
-        open, open,
+        open, me, open,
       )
       .toArray());
     const have = new Set(rows.map((m) => m.id));
     const origins = this.messageRows(this.sql
       .exec(
-        `SELECT * FROM messages WHERE id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(done, 0) <= 0 OR id = ?))
+        `SELECT * FROM messages WHERE ${VISIBLE_SQL()} AND (id IN (SELECT from_msg FROM epics WHERE from_msg IS NOT NULL AND (COALESCE(done, 0) <= 0 OR id = ?))
            OR (author = ? AND kind IS NULL AND ts > ? AND NOT EXISTS (SELECT 1 FROM acks a WHERE a.msg_id = messages.id AND a.email = ? AND a.status IN ('done', 'idle', 'dismissed'))
                -- your answer to your Claude's ⏸/❓ (Aprovar/Negar) is not a request: the hook already took it. The app
                -- only skipped it when the question was loaded too, so "Aprovar" rows filled the Fila (Gui, 14/11).
                AND NOT EXISTS (SELECT 1 FROM messages q WHERE q.id = messages.reply_to AND q.kind = 'agent' AND q.choices IS NOT NULL AND (q.text LIKE '⏸%' OR q.text LIKE '❓%')))
-           OR id IN (SELECT msg_id FROM acks WHERE status IN ('doing', 'blocked'))`,
+           OR id IN (SELECT msg_id FROM acks WHERE status IN ('doing', 'blocked')))`,
         // Your own messages only while a Claude of yours hasn't closed them: the same rule as the app's myQueue (Fila do
         // seu Claude). Every own message of 48h was most of origins' 162 KB in a 561 KB room open (14/11).
-        open, me, Date.now() - 48 * 3600e3, me,
+        me, open, me, Date.now() - 48 * 3600e3, me,
       )
       .toArray().map((row) => ({ ...row, card: null })))
       .filter((r) => !have.has(r.id))
@@ -469,7 +471,7 @@ export class Book extends DurableObject<Env> {
         return { ...r, text: cut ? `${text.slice(0, ORIGIN_TEXT_MAX)}…` : text, cut: cut || undefined, card: null };
       });
     const counts: Record<string, number> = {};
-    for (const r of this.sql.exec(`SELECT thread, count(*) AS n FROM messages GROUP BY thread`).toArray()) counts[r.thread as string] = r.n as number;
+    for (const r of this.sql.exec(`SELECT thread, count(*) AS n FROM messages WHERE ${VISIBLE_SQL()} GROUP BY thread`, me).toArray()) counts[r.thread as string] = r.n as number;
     const sent: Record<string, number> = {};
     for (const m of rows) sent[m.thread] = (sent[m.thread] ?? 0) + 1;
     return { messages: rows, origins, counts, countsAt: rows.at(-1)?.id ?? 0, full: Object.keys(counts).filter((t) => (sent[t] ?? 0) >= counts[t]) };
@@ -732,16 +734,17 @@ export class Book extends DurableObject<Env> {
     if (c.closed) return { ok: true };
     const choices = JSON.stringify({ ...c, closed: "terminal" });
     this.sql.exec(`UPDATE messages SET choices = ? WHERE id = ?`, choices, msgId);
-    this.broadcast({ t: "closed", id: msgId, choices });
+    this.broadcastAbout(msgId, { t: "closed", id: msgId, choices });
     this.ctx.waitUntil(this.askWait(email, msgId, "", null));
     return { ok: true };
   }
   /** id → { from, text ≤400, files } of the messages these replies answer (one query). */
-  quotes(ids: (number | null | undefined)[], who: (e: string) => string) {
+  /** viewer: a private message (src/privateAsk.ts) is quoted only to its owner. */
+  quotes(ids: (number | null | undefined)[], who: (e: string) => string, viewer = "") {
     const want = [...new Set(ids.filter((x): x is number => !!x))].slice(0, 100);
     const out = new Map<number, { id: number; from: string; text: string; files?: string[] }>();
     if (!want.length) return out;
-    for (const row of this.sql.exec(`SELECT id, author, substr(coalesce(text, ''), 1, 400) AS text, files FROM messages WHERE id IN (${want.map(() => "?").join(",")})`, ...want).toArray()) {
+    for (const row of this.sql.exec(`SELECT id, author, substr(coalesce(text, ''), 1, 400) AS text, files FROM messages WHERE id IN (${want.map(() => "?").join(",")}) AND ${VISIBLE_SQL()}`, ...want, viewer).toArray()) {
       const q = storedQuote(row, (kind) => console.warn("book stored projection", kind));
       if (q) out.set(q.id, { id: q.id, from: who(q.author), text: q.text, files: q.files });
     }
@@ -762,7 +765,7 @@ export class Book extends DurableObject<Env> {
       .toArray()
       .map((m) => {
         const { reply_to, ...rest } = m as typeof m & { reply_to: number | null };
-        const q = reply_to ? this.quotes([reply_to], (e) => (e === "ai" ? "@vibe" : e)).get(reply_to) : undefined;
+        const q = reply_to ? this.quotes([reply_to], (e) => (e === "ai" ? "@vibe" : e), email).get(reply_to) : undefined;
         return { ...rest, text: withQuote(q, rest.text), from_your_human: true, ...(q ? { reply_to, reply_quote: q } : {}) };
       });
   }
@@ -991,7 +994,7 @@ export class Book extends DurableObject<Env> {
     const missed = this.isDm && !this.get("call_many");
     const text = callLineText(missed ? { state: "missed" } : { state: "ended", minutes: callMinutes(Number(this.get("call_at") ?? Date.now()), Date.now()) }, this.en);
     this.sql.exec(`UPDATE messages SET text = ? WHERE id = ? AND tag = 'call'`, text, id);
-    this.broadcast({ t: "msgEdit", id, text });
+    this.broadcastAbout(id, { t: "msgEdit", id, text });
   }
   /** The ring that is on: none once its time ran out. */
   ringState(): Ring | undefined {
@@ -1101,6 +1104,10 @@ export class Book extends DurableObject<Env> {
   sockets(except?: WebSocket, withCall = false) {
     return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN && (withCall || !this.isCallSocket(ws)));
   }
+  /** One person's open tabs in this room (a private message, their briefs). */
+  socketsOf(email: string) {
+    return recipients(this.sockets(), (ws) => this.ctx.getTags(ws)[0], email);
+  }
   /** A socket that only carries the call (/ws/:id?call=1): the app keeps it open while the person is in this room's
    *  call and is elsewhere in the app (another room, Home), so leaving the room's view does not leave the call. It
    *  hears the call's events and sends the call's commands, and does not make the person "here" (online). */
@@ -1136,16 +1143,25 @@ export class Book extends DurableObject<Env> {
     if (s.length * to.length >= 20_000) this.ctx.waitUntil(track(this.env, "ws_push", { dims: { book: this.get("book_id") ?? "", t: data.t, bytes: s.length * to.length } }));
   }
 
+  /** An event about one message: to everyone, or to its owner alone when it is private (src/privateAsk.ts). */
+  broadcastAbout(id: number, data: RoomEvent) {
+    const to = this.sql.exec<{ p: string | null }>(`SELECT private_to AS p FROM messages WHERE id = ?`, id).toArray()[0]?.p;
+    if (to) this.sendTo(this.socketsOf(to), data);
+    else this.broadcast(data);
+  }
+
   // ---- mutations (shared by humans over WS and by AI tools) ----
   addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire" | "call"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
-    const replied = extra.replyTo ? this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
+    const replied = extra.replyTo ? this.sql.exec<{ thread: string; author: string; kind: string | null; text: string | null; choices: string | null }>(`SELECT thread, author, kind, text, choices FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
     const replyTo = replied ? extra.replyTo! : null;
+    // A hook's question, or its human's answer to it: theirs alone (src/privateAsk.ts).
+    const privateTo = privateOwner({ kind: extra.kind ?? null, author, text, choices: extra.choices }, replied);
     const ts = Date.now();
     const files = extra.files ?? [];
     const id = this.sql
       .exec(
-        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card, client_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        `INSERT INTO messages (thread, author, text, ts, files, poll, kind, via, tag, reply_to, choices, for_who, card, client_id, private_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         thread,
         author,
         text,
@@ -1160,24 +1176,30 @@ export class Book extends DurableObject<Env> {
         extra.forWho ?? null,
         extra.card ? JSON.stringify(extra.card) : null,
         extra.clientId ?? null,
+        privateTo,
       )
       .one().id as number;
     const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
     // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
-    this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
+    const event = { t: "msg", m: extra.quiet ? { ...m, quiet: true } : m } satisfies RoomEvent;
+    // A private one goes to its owner's tabs only and is no room activity: no unread, no listener wake, no mention
+    // mail, no "answered here" (src/privateAsk.ts).
+    if (privateTo) this.sendTo(this.socketsOf(privateTo), event);
+    else this.broadcast(event);
     // The D1 index keeps the newest id so the agent inbox is one query, not one DO call per room, and which kind
     // spoke last (people vs agents/@vibe) for the switcher's dots. People here now have seen it.
     const byPerson = !extra.kind && author !== "ai";
     // A message for one person (a reminder) is not the room's last line for everyone else.
     const last = extra.forWho ? undefined : { by: author, text: previewText(text, extra.card, files), agent: extra.kind === "agent" };
-    if (!extra.quiet) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.markRead([...new Set([...this.online(), ...(byPerson ? [author] : [])])], id)));
+    if (!extra.quiet && !privateTo) this.ctx.waitUntil(this.touch({ lastId: id, human: byPerson ? id : undefined, agent: byPerson ? undefined : id, last }).then(() => this.markRead([...new Set([...this.online(), ...(byPerson ? [author] : [])])], id)));
     if (byPerson && replyTo) {
       const q = this.sql.exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE id = ? AND kind = 'agent' AND choices IS NOT NULL`, replyTo).toArray()[0];
       // Answered in the room: its wait goes, and so does the "⏸ espera você no terminal" the Notification hook put up
       // for the same prompt (it stayed red until the Claude's next post, which can be minutes away).
       if (q && q.author === author && ASK_OPENER.test(q.text)) { this.ctx.waitUntil(this.askWait(author, replyTo, "", null)); this.unblock(author); }
     }
+    if (privateTo) return m;
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
     // A thread @vibe called its owner about moved again: the call is over, and the owner's wait leaves "Para você".
     if (author !== "ai" && thread !== "main" && this.get(`stale_nudge:${thread}`)) {
@@ -1305,7 +1327,7 @@ export class Book extends DurableObject<Env> {
   /** preview_mention_email: the email for one message, sent now to the asking agent's own human (no delay/read checks). */
   async previewMentionMail(bookId: string, to: string, msgId?: number) {
     this.bind(bookId);
-    const id = msgId ?? (this.sql.exec(`SELECT id FROM messages WHERE NOT (author = ? AND kind IS NULL) AND text != '' ORDER BY id DESC LIMIT 1`, to).toArray()[0]?.id as number | undefined);
+    const id = msgId ?? (this.sql.exec(`SELECT id FROM messages WHERE NOT (author = ? AND kind IS NULL) AND text != '' AND ${VISIBLE_SQL()} ORDER BY id DESC LIMIT 1`, to, to).toArray()[0]?.id as number | undefined);
     if (!id || !this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, id).toArray().length) return { ok: false, error: "no such message; pass message_id from read_room" };
     const u = await this.env.DB.prepare(`SELECT name, lang FROM users WHERE email = ?`).bind(to).first<{ name: string | null; lang: string | null }>();
     await this.mentionMail(bookId, to, u?.name ?? to.split("@")[0], [id], true, asLang(u?.lang));
@@ -1322,7 +1344,7 @@ export class Book extends DurableObject<Env> {
     const book = await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>();
     // Who wrote each mention, in the recipient's language ("Ana's Claude" / "Claude de Ana").
     const label = (r: Record<string, unknown>) => (r.kind === "agent" ? (lang === "en" ? `${nm(r.author as string)}'s ${r.via || "Claude"}` : `${r.via || "Claude"} de ${nm(r.author as string)}`) : nm(r.author as string));
-    const recent = this.messages(thread, 14).filter((x) => x.text);
+    const recent = this.messages(thread, 14, to).filter((x) => x.text);
     const facts: MailFacts = {
       to,
       toName,
@@ -1603,7 +1625,7 @@ export class Book extends DurableObject<Env> {
     const roster = members.map((e) => (handles[e] ? `${nm(e)}${same(e) ? "" : ` (@${handles[e]})`}` : nm(e))).join(", ");
     const before = (thread: string, id: number) =>
       this.sql
-        .exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT 4`, thread, id)
+        .exec<{ author: string; text: string }>(`SELECT author, text FROM messages WHERE thread = ? AND id < ? AND ${PUBLIC_SQL()} ORDER BY id DESC LIMIT 4`, thread, id)
         .toArray()
         .reverse()
         .map((b) => `${b.author === "ai" ? "@vibe" : nm(b.author)}: ${b.text.slice(0, 240)}`)
@@ -1772,7 +1794,7 @@ export class Book extends DurableObject<Env> {
     else all[emoji] = [...list, who];
     if (!all[emoji].length) delete all[emoji];
     this.sql.exec(`UPDATE messages SET reactions = ? WHERE id = ?`, Object.keys(all).length ? JSON.stringify(all) : null, id);
-    this.broadcast({ t: "reactions", id, reactions: all });
+    this.broadcastAbout(id, { t: "reactions", id, reactions: all });
     return { ok: true, reactions: all };
   }
   agentReact(bookId: string, email: string, id: number, emoji: string) {
@@ -1797,7 +1819,7 @@ export class Book extends DurableObject<Env> {
       this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
       // Its files leave the room too (Files tab, links, get_file): only the owner still opens them, from the history.
       for (const f of storedFileRefs(row.files)) this.sql.exec(`UPDATE files SET deleted = ? WHERE id = ?`, now, f.id);
-      this.broadcast({ t: "msgEdit", id, text: "", deleted: now });
+      this.broadcastAbout(id, { t: "msgEdit", id, text: "", deleted: now });
       return { ok: true };
     }
     if (!author) return { ok: false, error: "only its author can edit a message" };
@@ -1808,7 +1830,7 @@ export class Book extends DurableObject<Env> {
     if (text === row.text) return { ok: true };
     this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, by, ts) VALUES (?, 'edit', ?, ?, ?)`, id, row.text, by.agent ? `${by.email}#agent` : by.email, now);
     this.sql.exec(`UPDATE messages SET text = ?, edited = ? WHERE id = ?`, text, now, id);
-    this.broadcast({ t: "msgEdit", id, text, edited: now });
+    this.broadcastAbout(id, { t: "msgEdit", id, text, edited: now });
     return { ok: true };
   }
   /** A file of a deleted message opens only for the room owner (the /files route and get_file ask). */
@@ -1835,18 +1857,18 @@ export class Book extends DurableObject<Env> {
   }
   /** One page of a thread for GET /api/books/:id/messages and the socket's "older" (cache plan, PR 1). The route checks
    *  membership. after = the oldest `limit` after that id (catch up); else the newest `limit` before `before`. */
-  messagesPage(q: { thread: string; before?: number; after?: number; limit: number }) {
+  messagesPage(q: { thread: string; before?: number; after?: number; limit: number }, viewer: string) {
     const limit = Math.min(Math.max(1, Math.trunc(q.limit)), 100);
     const rows = q.after !== undefined
-      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id > ? ORDER BY id LIMIT ?`, q.thread, Math.trunc(q.after), limit + 1).toArray()
-      : this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id < ? ORDER BY id DESC LIMIT ?`, q.thread, Math.trunc(q.before ?? 0) || Number.MAX_SAFE_INTEGER, limit + 1).toArray();
+      ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id > ? AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, q.thread, Math.trunc(q.after), viewer, limit + 1).toArray()
+      : this.sql.exec(`SELECT * FROM messages WHERE thread = ? AND id < ? AND ${VISIBLE_SQL()} ORDER BY id DESC LIMIT ?`, q.thread, Math.trunc(q.before ?? 0) || Number.MAX_SAFE_INTEGER, viewer, limit + 1).toArray();
     const page = this.messageRows(rows.slice(0, limit));
     const messages = q.after !== undefined ? page : page.reverse();
     return { thread: q.thread, messages, acks: this.acksList(messages.map((r) => r.id)), more: rows.length > limit };
   }
-  roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
+  roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }, viewer: string) {
     this.bind(bookId);
-    return this.messagesPage(q);
+    return this.messagesPage(q, viewer);
   }
   /** What a link to this room names (src/linkTarget.ts decides what the viewer may see). The route checks membership. */
   linkPeek(bookId: string, q: { message?: number; thread?: string }): LinkPeek {
@@ -2045,11 +2067,11 @@ export class Book extends DurableObject<Env> {
     // @room in a person's message (not an agent's or @vibe's) mentions everyone but its author.
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     const epics = this.epics().filter((e) => !(Number(e.done) > 0));
-    const rows = this.sql.exec(`SELECT id, thread, author, kind, tag, for_who, text, reply_to FROM messages WHERE id > ? ORDER BY id LIMIT 30`, since).toArray();
+    const rows = this.sql.exec(`SELECT id, thread, author, kind, tag, for_who, text, reply_to FROM messages WHERE id > ? AND ${PUBLIC_SQL()} ORDER BY id LIMIT 30`, since).toArray();
     const messages = rows.map((m) => {
       const thread = m.thread as string;
       const recent = this.sql
-        .exec<{ author: string; kind: string | null; text: string }>(`SELECT author, kind, substr(text, 1, 300) AS text FROM messages WHERE thread = ? AND id < ? AND coalesce(text, '') != '' ORDER BY id DESC LIMIT 6`, thread, m.id)
+        .exec<{ author: string; kind: string | null; text: string }>(`SELECT author, kind, substr(text, 1, 300) AS text FROM messages WHERE thread = ? AND id < ? AND coalesce(text, '') != '' AND ${PUBLIC_SQL()} ORDER BY id DESC LIMIT 6`, thread, m.id)
         .toArray()
         .reverse()
         .map((x) => `${who(x.author)}${x.kind === "agent" ? " (Claude)" : ""}: ${x.text}`)
@@ -2102,13 +2124,13 @@ export class Book extends DurableObject<Env> {
     const editKey = `edit_seen:${email}:${to.me ?? ""}`;
     const editSeen = Number(this.get(editKey) ?? 0);
     if (email) this.set(editKey, String(Date.now()));
-    const edited = since && editSeen ? this.sql.exec(`SELECT * FROM messages WHERE id <= ? AND edited > ? AND deleted IS NULL ORDER BY id LIMIT 20`, since, editSeen).toArray() : [];
+    const edited = since && editSeen ? this.sql.exec(`SELECT * FROM messages WHERE id <= ? AND edited > ? AND deleted IS NULL AND ${VISIBLE_SQL()} ORDER BY id LIMIT 20`, since, editSeen, email).toArray() : [];
     const rows = this.messageRows((since
-      ? [...edited, ...this.sql.exec(`SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?`, since, AGENT_READ_MAX).toArray()]
-      : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT 40`).toArray().reverse()).filter((m) => m.text || m.poll || m.files || m.deleted));
+      ? [...edited, ...this.sql.exec(`SELECT * FROM messages WHERE id > ? AND ${VISIBLE_SQL()} ORDER BY id LIMIT ?`, since, email, AGENT_READ_MAX).toArray()]
+      : this.sql.exec(`SELECT * FROM messages WHERE ${VISIBLE_SQL()} ORDER BY id DESC LIMIT 40`, email).toArray().reverse()).filter((m) => m.text || m.poll || m.files || m.deleted));
     // A reply carries what it answers (author + the start of its text): "@guilherme" alone, replying to a question,
     // read as an empty mention to the Claude (Nov 2026).
-    const quoted = this.quotes(rows.map((m) => m.reply_to), who);
+    const quoted = this.quotes(rows.map((m) => m.reply_to), who, email);
     const messages = rows
       .filter((m) => m.text || m.poll || m.files || m.deleted)
       .map((m) => ({ m, mine: !!email && ((m.author === email && m.kind !== "agent") || (m.tag === "reminder" && m.for_who === email)) }))
@@ -2223,7 +2245,7 @@ export class Book extends DurableObject<Env> {
     const authors = new Set<string>();
     let n = 0;
     for (const m of this.sql
-      .exec(`SELECT author, kind, ts FROM messages WHERE thread = ? AND (text != '' OR poll IS NOT NULL) ORDER BY id DESC LIMIT ?`, thread, AGENT_STREAK_MAX)
+      .exec(`SELECT author, kind, ts FROM messages WHERE thread = ? AND (text != '' OR poll IS NOT NULL) AND ${PUBLIC_SQL()} ORDER BY id DESC LIMIT ?`, thread, AGENT_STREAK_MAX)
       .toArray()) {
       if ((m.kind !== "agent" && m.author !== "ai") || (m.ts as number) < Date.now() - 10 * 60_000) break;
       if (m.kind === "agent") authors.add(m.author as string);
@@ -2824,7 +2846,7 @@ export class Book extends DurableObject<Env> {
           const to = s("thread") === "main" ? "main" : epic(s("thread"));
           if (!to) return { ok: false, error: "thread must be \"main\" or an epic id" };
           if (!this.sql.exec(`UPDATE messages SET thread = ? WHERE id = ? AND author = ?`, to, id, email).rowsWritten) return { ok: false, error: "message not found, or not your human's" };
-          this.broadcast({ t: "moved", id, thread: to });
+          this.broadcastAbout(id, { t: "moved", id, thread: to });
           return { ok: true };
         }
         case "update_thread": {
@@ -2887,7 +2909,7 @@ export class Book extends DurableObject<Env> {
   // fans out over the person's rooms.
   // ponytail: LIKE scan over the room's messages; FTS5 if a room's history makes it slow.
   // The call chat is only seen beside the call's stage: its messages are not search results.
-  search(bookId: string, q: string, limit = 8) {
+  search(bookId: string, q: string, limit = 8, viewer = "") {
     this.bind(bookId);
     const terms = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 6);
     if (!terms.length) return { messages: [], epics: [] };
@@ -2897,9 +2919,9 @@ export class Book extends DurableObject<Env> {
     const messages = this.sql
       .exec<{ id: number; thread: string; author: string; kind: string | null; via: string | null; text: string | null; files: string | null; ts: number }>(
         `SELECT id, thread, author, kind, via, text, files, ts FROM messages
-         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
+         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ${VISIBLE_SQL()} AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
          ORDER BY id DESC LIMIT ?`,
-        ...args, ...args, limit,
+        viewer, ...args, ...args, limit,
       )
       .toArray()
       .map((m) => {
@@ -3029,7 +3051,7 @@ export class Book extends DurableObject<Env> {
     const open = q.get("t") || "main";
     const win = this.roomWindow(open, email);
     const epics = this.wireEpics(this.epics(), q.get("t") || ""), eh = wireHash(JSON.stringify(epics));
-    const resume = this.resumeOf(q, open, win.messages, eh);
+    const resume = this.resumeOf(q, open, win.messages, eh, email);
     const state: RoomStateEvent = {
         t: "state",
         me: email,
@@ -3216,7 +3238,7 @@ export class Book extends DurableObject<Env> {
         return;
       case "older": {
         // Scroll-back over the socket, for apps from before GET /messages (the same page).
-        const page = this.messagesPage({ thread: String(m.thread ?? "main"), before: Number(m.before) || undefined, limit: 100 });
+        const page = this.messagesPage({ thread: String(m.thread ?? "main"), before: Number(m.before) || undefined, limit: 100 }, email);
         if (page.acks.length) this.sendTo([ws], { t: "ackRows", acks: page.acks });
         return this.sendTo([ws], { t: "older", thread: page.thread, messages: page.messages, more: page.more });
       }
@@ -3453,7 +3475,7 @@ export class Book extends DurableObject<Env> {
     let since = Number(this.get("waits_at_id") ?? -1);
     if (since < 0) since = Math.max(0, last - 20); // a room from before this: only its latest messages
     const msgs = this.sql
-      .exec<{ id: number; thread: string; author: string; text: string; kind: string | null; ts: number }>(`SELECT id, thread, author, text, kind, ts FROM messages WHERE id > ? AND (tag IS NULL OR tag <> 'fire') ORDER BY id LIMIT 20`, since)
+      .exec<{ id: number; thread: string; author: string; text: string; kind: string | null; ts: number }>(`SELECT id, thread, author, text, kind, ts FROM messages WHERE id > ? AND (tag IS NULL OR tag <> 'fire') AND ${PUBLIC_SQL()} ORDER BY id LIMIT 20`, since)
       .toArray();
     if (!msgs.length) return;
     const w = await this.waitNames();
@@ -3529,7 +3551,7 @@ export class Book extends DurableObject<Env> {
     try { const next = await this.nudgeStale(); if (next) await this.wakeAt(next); } catch (e) { console.error("stale nudge", String(e)); }
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
-    const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;
+    const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL AND ${PUBLIC_SQL()}`, since).one().n as number;
     // A DM has no title, folder or epic ideas to guess: it's named after the people in it.
     if (this.isDm || fresh < (since ? CLASSIFY_MIN_NEW_MSGS : CLASSIFY_FIRST_MSGS)) return;
     const bookId = this.get("book_id");
