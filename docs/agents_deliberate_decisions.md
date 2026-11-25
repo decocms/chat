@@ -1868,3 +1868,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
 - Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
 - Status: open
+
+### 2026-11-25 · viktor/read-room-lean · read_room shows a done epic as one line
+
+- Agent: Claude Opus 5.5
+- Context: A person set up deco.chat for a new agent in the product room. The agent seemed to read "everything" and missed their requests. That room's first `read_room` was 760 KB: 301 of its 376 epics were done, and each one came with its whole doc (up to 8000 characters) and its task list.
+- Decision:
+  - In `read_room`, a done epic has only `id`, `title`, `done`, `status`, `from_message_id` and `answer`. No owner, doc, notes or tasks.
+  - An open epic's doc is cut at 2500 characters (it was 8000), with the same cut mark.
+  - `read_room` with `epic_id` still returns that epic's doc and tasks in full, done or not.
+  - With the product room's data, the response goes from about 790 KB to about 240 KB.
+- Other options: Leave done epics out completely (an agent then can't find the thread of an old message by `from_message_id`). Page the epics (a change to the tool's arguments for every client). Cut only the docs (the done epics' task lists are another 260 KB).
+- Risk: low. An agent that needs an old epic's doc must ask for it with `epic_id`, which the tool description now says.
+- Undo: Revert this commit.
+- Status: open

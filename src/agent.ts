@@ -412,7 +412,7 @@ const TOOLS = [
         epic_id: {
           type: "string",
           description:
-            "return this epic's doc in full, or main for the room doc (other docs are cut at 8000 characters, marked [doc cortado …]); read it this way before rewriting a long doc with update_doc",
+            "return this epic's doc and tasks in full (also a done epic, which otherwise shows only id, title and status), or main for the room doc (open epics' docs are cut at 2500 characters, marked [doc cortado …]); read it this way before rewriting a long doc with update_doc",
         },
       },
       required: ["room_id"],

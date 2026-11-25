@@ -1863,21 +1863,24 @@ export class Book extends DurableObject<Env> {
       how_to_mention: "To mention a person, write their @handle from members (e.g. @valls), not their first name: first names can repeat and then reach no one.",
       doc: cutDoc(this.get("doc") ?? "", to.docOf === "main" ? 200_000 : 20_000),
       doc_notes: this.docNotes(),
-      epics: epics.map((e) => ({
-        id: e.id,
-        title: e.title,
-        done: e.done || undefined,
-        status: e.status,
-        from_message_id: e.from_msg ?? undefined,
-        answer: this.get(`answer:${e.id}`) === "1" || undefined,
-        // An answer epic whose doc is still empty: its question waits for an answer (Gui #4210).
-        unanswered: this.answerPending(e.id) || undefined,
-        prod: e.prod ?? undefined,
-        owner: e.owner ? who(e.owner) : undefined,
-        doc: cutDoc(this.get(`doc:${e.id}`) ?? "", e.id === to.docOf ? 200_000 : 8_000) || undefined,
-        vibe_notes: e.flags,
-        tasks: e.tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, done: !!t.done, owner: t.owner ? who(t.owner) : null, due: t.due, vibe_notes: t.flags })),
-      })),
+      // A done epic is one line (id, title, status, origin): with each doc and task list, the product room's first
+      // read was 760 KB (301 done epics of 376, Nov 2026), and agents spent their turn reading it. An open epic's doc is
+      // cut at 2500 characters. read_room with epic_id returns any epic in full, done or not.
+      epics: epics.map((e) => {
+        const full = e.id === to.docOf;
+        const head = { id: e.id, title: e.title, done: e.done || undefined, status: e.status, from_message_id: e.from_msg ?? undefined, answer: this.get(`answer:${e.id}`) === "1" || undefined };
+        if (e.done && !full) return head;
+        return {
+          ...head,
+          // An answer epic whose doc is still empty: its question waits for an answer (Gui #4210).
+          unanswered: this.answerPending(e.id) || undefined,
+          prod: e.prod ?? undefined,
+          owner: e.owner ? who(e.owner) : undefined,
+          doc: cutDoc(this.get(`doc:${e.id}`) ?? "", full ? 200_000 : 2_500) || undefined,
+          vibe_notes: e.flags,
+          tasks: e.tasks.map((t) => ({ id: t.id, title: t.title, status: t.status, done: !!t.done, owner: t.owner ? who(t.owner) : null, due: t.due, vibe_notes: t.flags })),
+        };
+      }),
       // The room's own tasks ("## Tarefas" in the room doc): add_task with epic_id "main".
       room_tasks: this.roomTasks().map((t) => ({ id: t.id, title: t.title, status: t.status, done: !!t.done, owner: t.owner ? who(t.owner) : null, due: t.due })),
       decisions: this.decisions().map((d) => ({ text: d.text, who: d.who, kind: d.kind, at: new Date(d.ts).toISOString() })),
