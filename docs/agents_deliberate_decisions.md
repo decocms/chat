@@ -1941,4 +1941,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Keep the page of the old connection. Start the link search only when the room is live.
 - Risk: low. A search that starts again sends up to 15 more page requests.
 - Undo: Revert this commit.
+
+### 2026-11-25 · fix/ws-resume-params · The worker passes the resume to the Book, from a new small module
+
+- Agent: Claude Opus 5.5
+- Context: The worker's `/ws/:id` route built the Book's URL with only `book`, `t` and `rc`. It dropped `since`, `at` and `eh`, so no room open resumed (cache plan PR 2) and each open sent the whole room. In production, 0 of 166 opens in one hour resumed.
+- Decision:
+  - A new module `src/bookSocket.ts` builds the URL. `src/rooms.ts` (beside `bookStub`) imports Worker-only modules, so a test cannot import it.
+  - The worker passes only numbers for `since`, `at` and `rc`, and only letters, digits, `_` and `-` for `eh`. A resume needs both `since` and `at`.
+- Other options: Pass the whole query string to the Book. Keep the code in `src/index.ts` with no test.
+- Risk: medium. The resume path now runs in production for the first time. A bug in it shows wrong messages until the next full open.
+- Undo: Revert this commit. Opens then send the whole room again.
 - Status: open
