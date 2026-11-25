@@ -14,3 +14,14 @@ export const isRoomMember = (room: {
   me: string;
   members: readonly string[];
 }) => room.members.includes(room.me) || isRecorder(room.me);
+/** The room's call chat: the thread id of the chat beside the call's stage, one per room for every call. It is not
+ *  an epic: no listing of threads shows it (the sidebar, Open/Done, read_room's epics). A DM's call uses "main". */
+export const CALL_THREAD = "call";
+/** A thread of this room that a person can open and write in: main, the call chat (not in a DM), an epic. */
+export const roomHasThread = (
+  room: { book: { dm?: boolean | null }; epics: readonly { id: string }[] },
+  thread: string,
+) =>
+  thread === "main" ||
+  (thread === CALL_THREAD && !room.book.dm) ||
+  room.epics.some((epic) => epic.id === thread);

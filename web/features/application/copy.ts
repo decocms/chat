@@ -800,6 +800,7 @@ const EN: Readonly<Record<string, string>> = {
   "Na call: {people}": "In the call: {people}",
   "Na call · {n}": "In the call · {n}",
   "Na call": "In the call",
+  "Chat da call": "Call chat",
   "Voltar para a call": "Back to the call",
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",

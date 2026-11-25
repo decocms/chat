@@ -44,7 +44,7 @@ import { decide, type Question } from "./jev";
 import { runRouterActions, waitQuestion, WAIT_PEOPLE_MAX, WAIT_THRESHOLD, type ActionMessage, type ActionRoom } from "./routerActions";
 import { track } from "./track";
 import { addCallUsage, callsOn, recorderOn, startRecorder } from "./calls";
-import { isRecorder } from "../shared/call";
+import { CALL_THREAD, isRecorder } from "../shared/call";
 import { mailFrom, publicOrigin } from "./host";
 import { pushTo } from "./webpush";
 import { bumpStat, ensureHandle } from "./profile";
@@ -345,7 +345,7 @@ export class Book extends DurableObject<Env> {
         // itself isn't loaded.
         `SELECT * FROM (SELECT m.*, ROW_NUMBER() OVER (PARTITION BY m.thread ORDER BY m.id DESC) AS rn,
            (SELECT 1 FROM messages q WHERE q.id = m.reply_to AND q.kind = 'agent' AND q.choices IS NOT NULL AND (q.text LIKE '⏸%' OR q.text LIKE '❓%')) AS answers_ask FROM messages m
-           WHERE m.thread = ? OR m.thread = 'main' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0))
+           WHERE m.thread = ? OR m.thread = 'main' OR m.thread = '${CALL_THREAD}' OR m.thread IN (SELECT id FROM epics WHERE COALESCE(done, 0) <= 0))
          WHERE rn <= (CASE WHEN thread = ? THEN 60 ELSE 5 END)
          ORDER BY id`,
         open, open,
@@ -501,7 +501,7 @@ export class Book extends DurableObject<Env> {
     if (due.length) {
       const names = await this.names();
       for (const r of due) {
-        const thread = r.thread === "main" || this.epics().some((e) => e.id === r.thread) ? r.thread : "main";
+        const thread = this.knownThread(r.thread) ? r.thread : "main";
         // Old set_reminder rows (no file) posted as the person; file reminders are @vibe speaking for them.
         if (r.name) this.addMessage(thread, "ai", `⏰ **${r.name}** · ${this.en ? "reminder from" : "lembrete de"} ${(names[r.owner] ?? r.owner.split("@")[0]).split(" ")[0]}\n\n${r.text}`, { tag: "reminder", forWho: r.owner });
         else this.addMessage(thread, r.owner, `⏰ ${this.en ? "Reminder" : "Lembrete"}: ${r.text}`, { tag: "reminder" });
@@ -735,43 +735,34 @@ export class Book extends DurableObject<Env> {
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
    *  Answers true when no person was in the call before (the recorder is not a person). */
-  callJoin(bookId: string, email: string, session: string, origin: string, now = Date.now()): boolean {
+  callJoin(bookId: string, email: string, session: string, origin: string): boolean {
     this.bind(bookId);
     const before = this.callPeers(), first = !before.some((p) => !isRecorder(p.email));
     if (first && !isRecorder(email)) {
-      // A new call: where the recorder's link points, no restart of the recorder yet, and its own thread (like a
-      // meeting's chat): the chat beside the stage, then a normal thread where the recording's summary lands. A DM
-      // has no threads: its call is the conversation's.
+      // A new call: where the recorder's link points, and no restart of the recorder yet.
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
-      this.set("call_thread", this.isDm ? "main" : this.newCallThread(email, now));
     }
     this.setCall([...before.filter((p) => p.email !== email), { email, session, tracks: [] }]);
     return first;
   }
-  /** The thread a new call gets: "Call · 25/11 14:30", started by a line in main from who started the call. */
-  private newCallThread(email: string, now: number): string {
-    const title = `Call · ${new Intl.DateTimeFormat(this.en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now).replace(",", "")}`;
-    const id = this.createEpic(title);
-    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, this.threadOrigin({ author: email }, undefined, title), id);
-    this.epicsChanged();
-    return id;
-  }
-  /** The thread of the call that is on; none while nobody is in a call. */
+  /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {
     return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
   }
-  /** The thread of the call that is on (or of the last one), if it still exists. */
+  /** The room's call chat: one for every call of the room (CALL_THREAD, never listed as a thread). A DM's call
+   *  is the conversation's. */
   private callThread(): string {
-    const thread = this.get("call_thread") ?? "main";
-    return this.epics().some((e) => e.id === thread) ? thread : "main";
+    return this.isDm ? "main" : CALL_THREAD;
   }
-  /** Where the call was, for the recording's title: the room, and the thread when it is not the main one. */
+  /** A thread a message can go to: main, the room's call chat, an epic. */
+  knownThread(thread: string): boolean {
+    return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
+  }
+  /** Where the call was, for the recording's title: the room. */
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
-    const room = (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
-    const thread = this.callThread(), epic = thread === "main" ? "" : (this.epics().find((e) => e.id === thread)?.title ?? "");
-    return epic ? `${room} · ${epic}` : room;
+    return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
   }
   /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
   async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {
@@ -1767,7 +1758,8 @@ export class Book extends DurableObject<Env> {
     // Display names are typed by people: no brackets, quotes or line breaks, so a name can't pose as someone's address.
     const who = (e: string) => (e === "ai" ? "@vibe" : names[e] ? `${names[e].replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${e}>` : e);
     const epics = this.epics();
-    const threadName = (t: string) => (t === "main" ? "main" : `epic: ${epics.find((e) => e.id === t)?.title ?? t}`);
+    // The call chat is readable here (its thread id: "call"), and is not an epic: never in the epics list.
+    const threadName = (t: string) => (t === "main" ? "main" : t === CALL_THREAD ? "call chat" : `epic: ${epics.find((e) => e.id === t)?.title ?? t}`);
     // Messages edited since this agent's last read come again, with edited: true (Gui #4312: "vai estar no unread").
     // ponytail: one cursor per human + agent name in meta; a per-agent receipt column if it ever needs to be exact.
     const editKey = `edit_seen:${email}:${to.me ?? ""}`;
@@ -1933,7 +1925,7 @@ export class Book extends DurableObject<Env> {
     if (answerOf && (!thread || thread === "main")) thread = answerOf;
     // No thread given: a reply goes where the message it answers is (an epic's thread), anything else to main.
     if (!thread) thread = (replyTo && (this.sql.exec(`SELECT thread FROM messages WHERE id = ?`, replyTo).toArray()[0]?.thread as string)) || "main";
-    if (thread !== "main" && !this.epics().some((e) => e.id === thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
+    if (!this.knownThread(thread)) return { ok: false, error: `unknown thread ${thread}; use "main" or an epic id from read_room` };
     const secret = findSecret([text, ...(choices?.options ?? []), card ? cardText(card) : ""].join("\n"));
     if (secret) return { ok: false, error: `blocked: looks like a secret (${secret}). Never post secrets in a room; send them through a secure channel.` };
     // An old client's retry (no client_id): its post of the last seconds, not a second one.
@@ -2469,6 +2461,7 @@ export class Book extends DurableObject<Env> {
   // by title or doc. Each term must appear (AND), case-insensitive for ASCII. The caller (/api/search, MCP search)
   // fans out over the person's rooms.
   // ponytail: LIKE scan over the room's messages; FTS5 if a room's history makes it slow.
+  // The call chat is only seen beside the call's stage: its messages are not search results.
   search(bookId: string, q: string, limit = 8) {
     this.bind(bookId);
     const terms = q.toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 6);
@@ -2479,7 +2472,7 @@ export class Book extends DurableObject<Env> {
     const messages = this.sql
       .exec<{ id: number; thread: string; author: string; kind: string | null; via: string | null; text: string | null; files: string | null; ts: number }>(
         `SELECT id, thread, author, kind, via, text, files, ts FROM messages
-         WHERE author != 'ai' AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
+         WHERE author != 'ai' AND thread != '${CALL_THREAD}' AND ((${like("coalesce(text, '')")}) OR (${like("coalesce(files, '')")}))
          ORDER BY id DESC LIMIT ?`,
         ...args, ...args, limit,
       )
@@ -2652,7 +2645,7 @@ export class Book extends DurableObject<Env> {
     switch (m.t) {
       case "msg": {
         const text = String(m.text ?? "").trim().slice(0, MESSAGE_TEXT_LIMIT);
-        const thread = m.thread === "main" || this.epics().some((e) => e.id === m.thread) ? m.thread : null;
+        const thread = this.knownThread(String(m.thread)) ? m.thread : null;
         const ids = Array.isArray(m.files) ? m.files.map(String).slice(0, MESSAGE_FILE_LIMIT) : [];
         const files = ids.length ? this.files().filter((f) => ids.includes(f.id)) : [];
         if ((!text && !files.length) || !thread) return new Refused(thread ? "empty message" : "unknown thread");
@@ -2848,7 +2841,7 @@ export class Book extends DurableObject<Env> {
         }
         return this.epicsChanged();
       case "poll.create": {
-        const thread = m.thread === "main" || this.epics().some((e) => e.id === m.thread) ? m.thread : null;
+        const thread = this.knownThread(String(m.thread)) ? m.thread : null;
         if (thread && Array.isArray(m.options)) this.createPoll(thread, email, String(m.question ?? ""), m.options.map(String), !!m.multi);
         return;
       }

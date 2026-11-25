@@ -36,7 +36,7 @@
   import CallPanel from "../call/CallPanel.svelte";
   import { createCallApi } from "../call/callApi";
   import { createCallSession } from "../call/session";
-  import { isRecorder } from "../../../shared/call";
+  import { CALL_THREAD, isRecorder, roomHasThread } from "../../../shared/call";
   import SuggestionPreview from "../room-sidebar/SuggestionPreview.svelte";
   import RoomHeader from "./RoomHeader.svelte";
   import PhoneRoomSection from "./PhoneRoomSection.svelte";
@@ -139,7 +139,8 @@
     stageOpen = false;
     toCallThread = false;
     chatHidden = false;
-    if (callFull) void document.exitFullscreen();
+    // The stage in full screen (CallStage) leaves it with the stage.
+    if (document.fullscreenElement) void document.exitFullscreen();
     if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
     closedPane = false;
   }
@@ -153,24 +154,36 @@
       wasInCall = now;
     });
   });
-  // Another thread (the sidebar, a link, Back) closes the stage; the call's thread keeps it.
-  let lastThread = "";
+  // Another thread (the sidebar, a link, Back) closes the stage; the call's chat keeps it. The call chat is only
+  // seen beside the stage: with the stage closed (hung up, or a link to it), the person goes back to where they were.
+  let lastThread = "",
+    returnTo = "main",
+    sentBack = "";
   $effect(() => {
-    const thread = $view?.header.thread ?? "",
-      target = $view?.header.room.callThread,
-      epics = $view?.header.room.epics,
+    const room = $view?.header.room,
+      thread = $view?.header.thread ?? "",
+      target = room?.callThread,
       open = staged;
     untrack(() => {
       const moved = thread !== lastThread;
       lastThread = thread;
-      if (!open) return;
+      if (moved && thread !== CALL_THREAD) returnTo = thread || "main";
+      if (!open) {
+        if (thread === CALL_THREAD && sentBack !== thread) {
+          sentBack = thread;
+          owner.actions.setThread(
+            returnTo !== CALL_THREAD && room && roomHasThread(room, returnTo)
+              ? returnTo
+              : "main",
+          );
+        }
+        if (thread !== CALL_THREAD) sentBack = "";
+        return;
+      }
       if (moved && thread !== target) return closeStage();
-      if (!toCallThread || !target) return;
+      if (!toCallThread || !target || !room) return;
       if (thread === target) toCallThread = false;
-      else if (
-        asked !== target &&
-        (target === "main" || epics?.some((epic) => epic.id === target))
-      ) {
+      else if (asked !== target && roomHasThread(room, target)) {
         asked = target;
         owner.actions.setThread(target);
       }
@@ -192,12 +205,8 @@
       if (open && opened) closeStage();
     });
   });
-  // The call's name: its thread's title, else the room's.
-  const callTitle = $derived(
-    ($view?.header.room.callThread &&
-      threadTitle($view.header.room, $view.header.room.callThread)) ||
-      ($view?.header.room.book.title ?? ""),
-  );
+  // Where the call is: the room (a DM: the person).
+  const callTitle = $derived($view?.header.room.book.title ?? "");
   // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
   const callIdle = $derived(
     !!$view?.header.room.call &&
@@ -224,23 +233,7 @@
     if (expectedThread !== "main") owner.actions.setThread("main");
     else services.actions.home();
   }
-  // Full screen of the call: the room's layout itself goes full screen, so the chat stays one click away.
-  let layoutRoot: HTMLElement | undefined;
-  let callFull = $state(false);
-  function toggleCallFull() {
-    const doc = layoutRoot?.ownerDocument;
-    if (!layoutRoot || !doc) return;
-    if (doc.fullscreenElement) void doc.exitFullscreen();
-    else {
-      chatHidden = true;
-      void layoutRoot.requestFullscreen();
-    }
-  }
-  function onfullscreenchange() {
-    callFull = !!layoutRoot && document.fullscreenElement === layoutRoot;
-  }
   function edgeBack(cells: RoomLayoutCells) {
-    layoutRoot = cells.root;
     const win = cells.root.ownerDocument.defaultView;
     return attachRoomEdgeBack(cells.root, {
       current,
@@ -389,7 +382,6 @@
   };
 </script>
 
-<svelte:document {onfullscreenchange} />
 <!-- Outside RoomLayout, so they are not taken for its snippets. -->
 {#snippet callControls()}<CallControls
     {call}
@@ -428,8 +420,6 @@
       bind:cameraOpen
       chatHidden={fill ? chatHidden : undefined}
       onchat={() => (chatHidden = !chatHidden)}
-      full={callFull}
-      onfull={fill ? toggleCallFull : undefined}
       t={services.t}
     />{/if}{/snippet}
 {#snippet callBeside()}{@render callStage(true)}{/snippet}
@@ -437,7 +427,6 @@
   controller={layout}
   stage={staged ? callBeside : undefined}
   stageOnly={chatHidden}
-  stageFull={callFull}
   {labels}
   onChatSurface={owner.attachChat}
   onCells={edgeBack}

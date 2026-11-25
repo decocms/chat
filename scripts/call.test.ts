@@ -3,7 +3,9 @@ import { expect, mock, test } from "bun:test";
 import { planTracks, withDtx } from "../web/features/call/session";
 import { meetLink, meetMessage } from "../web/features/call/meet";
 import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from "../src/callBudget";
-import { isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
+import { CALL_THREAD, isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
+import { encodeCall } from "../shared/jsonRpc";
+import type { RoomCommand } from "../shared/commands";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
 import { callColors, callGrid } from "../web/features/call/layout";
@@ -199,9 +201,11 @@ function callRoom(bookId = "abcdef") {
   };
   // Each push is a JSON-RPC notification (shared/jsonRpc.ts): its method is the event's `t`.
   const frames: { t: string; call?: unknown; thread?: string }[] = [];
+  const rawFrames: string[] = [];
   const ws = {
     readyState: 1,
     send: (frame: string) => {
+      rawFrames.push(frame);
       const { method, params } = JSON.parse(frame) as { method: string; params: object };
       frames.push({ t: method, ...params });
     },
@@ -223,57 +227,67 @@ function callRoom(bookId = "abcdef") {
   );
   book.set("book_id", bookId);
   book.wakeAt = async () => {};
+  book.members = async () => ["ana@x.test"];
   const epics = () => db.query(`SELECT id, title, owner, from_msg FROM epics`).all() as { id: string; title: string; owner: string; from_msg: number }[];
   const main = () => db.query(`SELECT id, author, text FROM messages WHERE thread = 'main' ORDER BY id`).all() as { id: number; author: string; text: string }[];
-  return { book, frames, epics, main };
+  const thread = (id: string) => db.query(`SELECT id, author, text FROM messages WHERE thread = ? ORDER BY id`).all(id) as { id: number; author: string; text: string }[];
+  let rpc = 0;
+  const send = async (command: RoomCommand) => {
+    const id = `r-${++rpc}`;
+    await book.webSocketMessage(ws as unknown as WebSocket, encodeCall(command, id));
+    const reply = rawFrames.map((frame) => JSON.parse(frame) as { id?: string; error?: { message: string } }).find((frame) => frame.id === id);
+    if (!reply) throw Error("no reply");
+    return reply.error ? { ok: false as const, error: reply.error.message } : { ok: true as const };
+  };
+  return { book, frames, epics, main, thread, send };
 }
 
-test("a new call gets its own thread, started from a line in main, and the room says which", () => {
-  const r = callRoom();
-  // 25/11/2026 14:30 in São Paulo.
-  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test", Date.UTC(2026, 10, 25, 17, 30));
-  const [epic] = r.epics();
-  expect(epic).toMatchObject({ title: "Call · 25/11 14:30", owner: "ana@x.test" });
-  expect(r.main()).toEqual([{ id: epic!.from_msg, author: "ana@x.test", text: "Call · 25/11 14:30" }]);
-  expect(r.book.liveCallThread()).toBe(epic!.id);
-  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: epic!.id });
-  // The second person joins the same call: no second thread.
-  r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
-  expect(r.epics()).toHaveLength(1);
-  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: epic!.id });
-});
-
-test("the call's thread stays a normal thread after the call; the next call gets a new one", () => {
+test("one call chat per room, the same for every call, and the room says which while a call is on", () => {
   const r = callRoom();
   r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
-  const first = r.book.liveCallThread();
+  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
+  expect(r.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: CALL_THREAD });
+  // No thread, no line in main: the call chat is not a thread.
+  expect(r.epics()).toHaveLength(0);
+  expect(r.main()).toHaveLength(0);
   r.book.callLeave("ana@x.test");
   expect(r.book.liveCallThread()).toBeUndefined();
   expect(r.frames.filter((f) => f.t === "call").at(-1)?.thread).toBeUndefined();
-  expect(r.epics().map((e) => e.id)).toEqual([first!]);
+  // The next call: the same chat.
   r.book.callJoin("abcdef", "bia@x.test", "s-bia", "https://x.test");
-  expect(r.epics()).toHaveLength(2);
-  expect(r.book.liveCallThread()).not.toBe(first);
+  expect(r.book.liveCallThread()).toBe(CALL_THREAD);
+  expect(r.epics()).toHaveLength(0);
 });
 
-test("the recorder alone starts no thread", () => {
+test("a message sent to the call chat lands in it, and the room's listings never show it as a thread", async () => {
+  const r = callRoom();
+  r.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
+  expect(await r.send({ t: "msg", thread: CALL_THREAD, text: "Alguém compartilha a tela?" })).toEqual({ ok: true });
+  expect(r.thread(CALL_THREAD).map((m) => m.text)).toEqual(["Alguém compartilha a tela?"]);
+  expect(r.main()).toHaveLength(0);
+  // The room's threads (what the app and the sidebar list) and an agent's read: no "call" among the epics; the
+  // message is readable, named as the call chat.
+  expect(r.book.wireEpics(r.book.epics()).map((e) => e.id)).not.toContain(CALL_THREAD);
+  const read = await r.book.agentRead("abcdef");
+  expect(read.epics.map((e) => e.id)).not.toContain(CALL_THREAD);
+  expect(read.messages.find((m) => m.text.includes("compartilha"))?.thread).toBe("call chat");
+  // Search finds nothing there (the call chat is only seen beside the stage).
+  expect(r.book.search("abcdef", "compartilha").messages).toHaveLength(0);
+  // The next room open carries the call chat's newest messages.
+  expect(r.book.roomWindow("main").messages.map((m) => m.thread)).toContain(CALL_THREAD);
+});
+
+test("the recorder alone starts no call", () => {
   const r = callRoom();
   r.book.callJoin("abcdef", recorderEmail("abcdef"), "s-rec", "https://x.test");
-  expect(r.epics()).toHaveLength(0);
   expect(r.book.liveCallThread()).toBeUndefined();
 });
 
-test("rooms get a call thread; a DM's call keeps the DM's own chat beside the stage", () => {
-  const room = callRoom();
-  room.book.callJoin("abcdef", "ana@x.test", "s-ana", "https://x.test");
-  expect(room.epics()).toHaveLength(1);
-  expect(room.book.liveCallThread()).toBe(room.epics()[0]!.id);
+test("a DM's call keeps the DM's own chat beside the stage; the call chat is refused there", async () => {
   const dm = callRoom("dm0123456789abcdef0123");
   dm.book.callJoin("dm0123456789abcdef0123", "ana@x.test", "s-ana", "https://x.test");
-  dm.book.callJoin("dm0123456789abcdef0123", "bia@x.test", "s-bia", "https://x.test");
-  // No thread and no line in the conversation: the call's chat is the DM itself ("main").
-  expect(dm.epics()).toHaveLength(0);
-  expect(dm.main()).toHaveLength(0);
   expect(dm.book.liveCallThread()).toBe("main");
   expect(dm.frames.filter((f) => f.t === "call").at(-1)).toMatchObject({ thread: "main" });
+  expect(await dm.send({ t: "msg", thread: CALL_THREAD, text: "oi" })).toMatchObject({ ok: false });
+  expect(dm.thread(CALL_THREAD)).toHaveLength(0);
 });

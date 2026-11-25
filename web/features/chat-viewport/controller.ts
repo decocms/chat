@@ -1,4 +1,5 @@
 import type { Room, RoomEvent, Message } from "../../../shared/room";
+import { roomHasThread } from "../../../shared/call";
 import type { RoomCommand } from "../../../shared/commands";
 import { visibleChatMessages } from "../chat/privacy";
 
@@ -155,11 +156,7 @@ export function createChatViewport(options: {
         ? loaded
         : undefined;
     const wanted = message?.thread || requested;
-    if (
-      wanted &&
-      wanted !== thread &&
-      (wanted === "main" || room.epics.some((epic) => epic.id === wanted))
-    ) {
+    if (wanted && wanted !== thread && roomHasThread(room, wanted)) {
       options.selectThread(wanted);
       if (
         !current() ||
