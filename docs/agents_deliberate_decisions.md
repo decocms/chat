@@ -1841,4 +1841,16 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: `GET /room` with `?lite=1` first, as in the plan (the same bytes until IndexedDB and ETag come). A change log in the Book (rejected before, #4553).
 - Risk: medium. A reaction or a card that changed on an older message during the gap shows only after the next full state or live event. Any bug in the merge shows old or missing messages until a reload.
 - Undo: Revert this commit. The app then does not send `since`, and the Book sends the whole state.
+
+### 2026-11-25 · danielfurt/human-quotes · Lines that start with "> " are a quote in a person's message
+
+- Agent: Claude Opus 5.5
+- Context: The content-os reader puts a passage in the composer as a reference (#409). After the send, the message showed the raw `>` and the reference and the comment looked the same. Daniel asked for a different look for the reference, so that a thread with many comments stays easy to read.
+- Decision:
+  - In a person's message (the `human` mode, plain text), a run of lines that start with `> ` (or a lone `>`) is a quote block. It uses the same style as a quote in an agent's markdown (`border-l-2`, muted text). Mentions and links inside it still work.
+  - Only this one markdown rule applies. The rest of a person's message stays literal: `**`, `#`, backticks and HTML show as typed.
+  - The empty lines just before and after the block are removed, because the block has its own margins.
+- Other options: A structured quote in the message (a change to the message format, the server and every reader). Full markdown for people's messages (a large change to what people see when they type symbols).
+- Risk: low. A person who types `> ` at the start of a line now sees a quote, as in Slack and Discord.
+- Undo: Revert this commit.
 - Status: open

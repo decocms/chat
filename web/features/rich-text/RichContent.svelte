@@ -49,7 +49,7 @@
 {:else}<div
     data-rich-content
     class={mode === "human" || (nodes.length === 1 && nodes[0].kind === "text")
-      ? "min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap break-words font-sans leading-6 text-foreground"
+      ? "min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap break-words font-sans leading-6 text-foreground [&>blockquote:first-child]:mt-1 [&>blockquote:last-child]:mb-0"
       : // The block margins stay between blocks: a lone paragraph sits as close to the name above it as plain text does.
         "min-w-0 max-w-full overflow-x-auto break-words font-sans leading-6 text-foreground [&>:first-child]:mt-0 [&>:last-child]:mb-0"}
   >
