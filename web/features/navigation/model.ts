@@ -1,4 +1,4 @@
-import type { Epic, Message } from "../../../shared/room";
+import type { Epic } from "../../../shared/room";
 /** Keep a directly opened done epic in its original tree position. */
 export const activeEpics = (epics: readonly Epic[], thread: string) =>
   epics.filter((epic) => !epic.done || epic.id === thread);
@@ -121,23 +121,18 @@ export function visibleEpics(
   return rows;
 }
 
-export function doneEpics(
-  epics: readonly Epic[],
-  messages: readonly Message[],
-) {
-  const last = new Map<string, number>();
-  for (const message of messages)
-    last.set(
-      message.thread,
-      Math.max(last.get(message.thread) ?? 0, message.id),
-    );
+/** The Done tab: newest made first, as the other tabs (Gimenes #5603). */
+export function doneEpics(epics: readonly Epic[]) {
+  return byCreated(epics.filter((epic) => epic.done));
+}
+
+/** Newest made first; without `created` (an older server), the reverse of the server's order (oldest first). */
+function byCreated(epics: readonly Epic[]) {
   return epics
-    .filter((epic) => epic.done)
     .map((epic, index) => ({ epic, index }))
     .sort(
       (a, b) =>
-        (last.get(b.epic.id) ?? 0) - (last.get(a.epic.id) ?? 0) ||
-        b.index - a.index,
+        (b.epic.created ?? 0) - (a.epic.created ?? 0) || b.index - a.index,
     )
     .map(({ epic }) => epic);
 }
@@ -169,36 +164,13 @@ export const EPIC_PAGE = 10;
 
 /**
  * The sidebar's order: pinned epics first (in the room's shared order, which
- * their drag sets), then the threads you opened last on this device (`recent`,
- * newest first), then the rest by when their thread last spoke, newest first.
- * The server's `last` is when the room loaded; the messages that arrived since
- * (the ones this client holds) move an epic up live.
+ * their drag sets), then the rest by when they were made, newest first. The
+ * order never changes when you open a thread or a message arrives
+ * (Gimenes #5603): Mine, Open and Done all keep it.
  */
-export function sidebarEpics(
-  epics: readonly Epic[],
-  messages: readonly Message[],
-  recent: readonly string[] = [],
-) {
-  const seen = new Map<string, number>();
-  for (const message of messages)
-    seen.set(
-      message.thread,
-      Math.max(seen.get(message.thread) ?? 0, message.ts),
-    );
-  const when = (epic: Epic) => Math.max(epic.last ?? 0, seen.get(epic.id) ?? 0);
-  const rank = (epic: Epic) => {
-    const index = recent.indexOf(epic.id);
-    return index < 0 ? recent.length : index;
-  };
+export function sidebarEpics(epics: readonly Epic[]) {
   return [
     ...epics.filter((epic) => epic.pinned),
-    ...epics
-      .filter((epic) => !epic.pinned)
-      .map((epic, index) => ({ epic, index, at: when(epic) }))
-      .sort(
-        (a, b) =>
-          rank(a.epic) - rank(b.epic) || b.at - a.at || a.index - b.index,
-      )
-      .map(({ epic }) => epic),
+    ...byCreated(epics.filter((epic) => !epic.pinned)),
   ];
 }

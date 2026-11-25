@@ -4212,14 +4212,15 @@ describe("stable sidebar integration", () => {
   test("selected done epic remains in normal order, marked by its background, with a readable cue", async () => {
     const room = fixture();
     room.epics = [
-      { id: "a", title: "First", tasks: [] },
+      { id: "a", title: "First", tasks: [], created: 3 },
       {
         id: "b",
         title: "Done target",
         done: true,
         tasks: [],
+        created: 2,
       },
-      { id: "c", title: "Last", tasks: [] },
+      { id: "c", title: "Last", tasks: [], created: 1 },
     ];
     const h = sidebar(room, { thread: "b" });
     flushSync();
@@ -4457,8 +4458,14 @@ describe("stable sidebar integration", () => {
   test("the threads tabs are Mine, Open and Done; Mine lists your open threads and each empty tab says so", () => {
     const room = fixture();
     room.epics = [
-      { id: "e", title: "Epic", tasks: [], owner: "me@test" },
-      { id: "theirs", title: "Theirs", tasks: [], owner: "you@test" },
+      { id: "e", title: "Epic", tasks: [], owner: "me@test", created: 2 },
+      {
+        id: "theirs",
+        title: "Theirs",
+        tasks: [],
+        owner: "you@test",
+        created: 1,
+      },
       { id: "old", title: "Old", tasks: [], owner: "me@test", done: true },
     ];
     const listed = (rendered: ReturnType<typeof sidebar>) =>

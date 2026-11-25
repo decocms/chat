@@ -634,10 +634,10 @@ try {
     // Coming back to a room, and your last threads (Viktor), at 1440 and 390 px, with a video of each. Six threads
     // (A to F) from six messages, E pinned. Thread A holds a link to "Outra sala de teste" (a phone leaves a thread
     // only to the room's main or by a link), and that room holds a link to thread B and one to that message in A.
-    // Then, in a new tab: open A, leave, come back (A opens again); open B and C (C, B, A sit under the pinned E); open
-    // A again (no row moves); open D (it pushes A out of the three); follow the two links (they go where they say,
-    // not to the thread you left); click the room you are in (main). Each step fails the run when the app does
-    // something else.
+    // Then, in a new tab: open A, leave, come back (A opens again); open B and C, A again, then D. The sidebar keeps
+    // one order through all of it: the pinned E, then newest made first, F D C B A (Gimenes #5603). Follow the two
+    // links (they go where they say, not to the thread you left); click the room you are in (main). Each step fails
+    // the run when the app does something else.
     const other = await fetch(`${base}/api/books`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: base },
@@ -805,15 +805,15 @@ try {
       await openThread(b);
       await openThread(c);
       await drawer();
-      await expectOrder([e, c, b, a, f, d], "recent threads");
+      await expectOrder([e, f, d, c, b, a], "after opening B and C");
       await shot("4-recent");
       await openThread(a);
       await drawer();
-      await expectOrder([e, c, b, a, f, d], "a recent thread opened again");
+      await expectOrder([e, f, d, c, b, a], "after opening A again");
       await shot("5-no-reorder");
       await openThread(d);
       await drawer();
-      await expectOrder([e, d, c, b, f, a], "a fourth thread");
+      await expectOrder([e, f, d, c, b, a], "after opening D");
       await shot("6-fourth");
       if (phone) await page.keyboard.press("Escape");
       await goRoom(second);

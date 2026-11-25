@@ -264,7 +264,7 @@ export class Book extends DurableObject<Env> {
         const status: EpicStatus = e.done === 1 ? "done" : chosen === "doing" || chosen === "review" ? chosen : "todo";
         const f = flags[e.id] ?? {};
         // Deploy stage after "Claude fez": { stage: "deployed" | "verified", at, note } set by agents (update_thread prod).
-        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), done: e.done === 1, kept: e.done === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
+        return { ...e, status, parent: parent.get(e.id) ?? null, files: files.get(e.id) ?? [], prod: storedProd(e.prod, (kind) => console.warn("book stored projection", kind)), done: e.done === 1, kept: e.done === -1, ...(this.get(`answer:${e.id}`) === "1" ? { answer: true } : {}), last: Math.max(last.get(e.id) ?? 0, ts ?? 0), ...(ts ? { created: ts } : {}), ...(pinned ? { pinned: true } : {}), flags: f[e.id], tasks: tasks.filter((t) => t.epic_id === e.id).map(({ epic_id: _e, ...t }) => ({ ...t, flags: t.status === "done" ? undefined : f[t.id] })) };
       });
   }
   // Every epic/task change: tell the sockets, and keep the epic titles in D1 so the home router can pick a
