@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
+  import { derived, get } from "svelte/store";
   import type { FileViewer } from "./session";
   import type { RichActions } from "../rich-text/types";
   import RichContent from "../rich-text/RichContent.svelte";
@@ -32,7 +33,15 @@
     onselect?(id: string): void;
     onclose?(): void;
   } = $props();
-  const view = untrack(() => controller.state);
+  const live = untrack(() => controller.state);
+  /** While the dialog animates out, it keeps the file it showed: closing resets the session at once, and the
+   *  dialog would empty and take the large viewer's place (top left) as it goes (Gimenes #5629). Inline, the live state. */
+  let last = untrack(() => get(live));
+  const view = derived(live, (value) =>
+    value.open || untrack(() => inline)
+      ? (last = value)
+      : { ...last, open: false, closingUnconfirmed: value.closingUnconfirmed },
+  );
   const close = () => (onclose ? onclose() : controller.closeUser());
   const text = (key: Parameters<typeof viewerText>[1]) => viewerText(lang, key);
   let csvPage = $state(0);
@@ -85,6 +94,47 @@
     }).format(bytes / (mega ? 1_000_000 : 1_000));
   });
   let content = $state<HTMLElement | null>(null);
+  /** A file opens once its kind is known, and an image once it has loaded (or after 700 ms), so the dialog grows in at
+   *  its own size, not from a loading line (Gimenes #5629). The browser's cache then draws the viewer's own <img> at once. */
+  let decoded = $state("");
+  let waited = $state(false);
+  const opening = $derived(
+    !inline && $view.open ? ($view.target?.id ?? "") : "",
+  );
+  $effect(() => {
+    if (!opening) return;
+    waited = false;
+    const timer = setTimeout(() => (waited = true), 700);
+    return () => clearTimeout(timer);
+  });
+  const imageURL = $derived(
+    $view.content?.kind === "image" ? $view.content.url : "",
+  );
+  $effect(() => {
+    const url = imageURL;
+    if (!url || untrack(() => decoded) === url) return;
+    let current = true;
+    const probe = new Image();
+    probe.onload = probe.onerror = () => {
+      if (current) decoded = url;
+    };
+    probe.src = url;
+    return () => {
+      current = false;
+    };
+  });
+  /** Until the file's kind is known, the dialog would open as the large viewer for a frame. */
+  const known = $derived(
+    !!$view.file || !!$view.content || $view.phase === "error",
+  );
+  const shown = $derived(
+    $view.open &&
+      (waited ||
+        (known &&
+          (!image ||
+            $view.phase === "error" ||
+            (!!imageURL && decoded === imageURL)))),
+  );
   const pinned = $derived(
     $view.room?.pins?.some(
       (pin) => pin.kind === "file" && pin.ref === $view.target?.id,
@@ -294,7 +344,7 @@
 {/snippet}
 {#if inline}{@render preview()}{:else}
   <Dialog
-    open={$view.open}
+    open={shown}
     onOpenChange={(open) => {
       if (!open) close();
     }}
