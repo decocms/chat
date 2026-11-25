@@ -6007,7 +6007,7 @@ describe("composer ownership and interactions", () => {
       { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
       { id: "yyyyyy77", title: "Vendas", icon: 0 },
     ];
-    const { target } = renderComposer(room, { rooms });
+    const { target, entry } = renderComposer(room, { rooms });
     const key = (input: HTMLTextAreaElement, name: string) => {
       input.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -6043,13 +6043,13 @@ describe("composer ownership and interactions", () => {
     key(input, "Enter");
     await tick();
     flushSync();
-    expect(input.value).toBe(`veja ${location.origin}/b/zzzzzz99 `);
+    expect(get(entry.state).text).toBe(`veja ${location.origin}/b/zzzzzz99 `);
     // A thread of this room links with ?t=.
     input = edit(target, "#epi");
     key(input, "Tab");
     await tick();
     flushSync();
-    expect(input.value).toBe(`${location.origin}/b/abcdef12?t=e `);
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e `);
     // Sent, the links are the app link chips that a pasted URL already makes: the room's mark and name, the
     // thread, and "Sala privada" for a room you can't see.
     globalThis.fetch = (async (request: RequestInfo | URL) => {
@@ -6106,6 +6106,91 @@ describe("composer ownership and interactions", () => {
       chatTarget.querySelector('[data-app-link="private"]')?.textContent,
     ).toContain("Sala privada");
   }, 30_000);
+  test("a picked room shows in the field as its chip, one unit: Backspace deletes it whole, copy keeps the link", async () => {
+    const room: Room = { ...fixture(), id: "abcdef12" };
+    const rooms = [
+      { id: "abcdef12", title: "Room", icon: 0 },
+      { id: "zzzzzz99", title: "Projeto Ágil", icon: 0 },
+    ];
+    const { target, entry } = renderComposer(room, { rooms });
+    const key = (input: HTMLTextAreaElement, name: string) => {
+      const event = new KeyboardEvent("keydown", {
+        key: name,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      flushSync();
+      return event;
+    };
+    let input = edit(target, "veja #proj");
+    key(input, "Enter");
+    await tick();
+    flushSync();
+    const url = `${location.origin}/b/zzzzzz99`;
+    // The draft keeps the link; the field shows the chip (the room's mark and name), not the URL.
+    expect(get(entry.state).text).toBe(`veja ${url} `);
+    expect(input.value).not.toContain("http");
+    expect(input.value).toContain("Projeto\u00a0Ágil");
+    const chip = target.querySelector<HTMLElement>('[data-field-chip="room"]')!;
+    expect(chip.getAttribute("data-field-link")).toBe(url);
+    expect(chip.textContent).toContain("Projeto\u00a0Ágil");
+    expect(chip.querySelector("[data-room-mark]")).not.toBeNull();
+    expect(chip.className).toContain("bg-brand-purple/15");
+    expect(chip.className).toContain("text-brand-purple-text");
+    // The textarea's own text is transparent: the mirror draws it, chip included.
+    expect(input.className).toContain("text-transparent");
+    // The caret can't sit inside the chip: a click in it goes to its end.
+    const from = "veja ".length,
+      to = input.value.length - 1;
+    input.setSelectionRange(from + 3, from + 3);
+    input.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flushSync();
+    expect(input.selectionStart).toBe(to);
+    // Copy keeps the link.
+    input.setSelectionRange(0, input.value.length);
+    const copied = new Event("copy", {
+      bubbles: true,
+      cancelable: true,
+    }) as ClipboardEvent;
+    let clipboard = "";
+    Object.defineProperty(copied, "clipboardData", {
+      value: { setData: (_: string, text: string) => (clipboard = text) },
+    });
+    input.dispatchEvent(copied);
+    expect(clipboard).toBe(`veja ${url} `);
+    // Backspace right after the chip selects all of it, so the browser's delete removes it in one go.
+    input.setSelectionRange(to, to);
+    const back = key(input, "Backspace");
+    expect(back.defaultPrevented).toBe(false);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([from, to]);
+    input.value = input.value.slice(0, from) + input.value.slice(to);
+    input.setSelectionRange(from, from);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    flushSync();
+    expect(get(entry.state).text).toBe("veja  ");
+    expect(target.querySelector("[data-field-chip]")).toBeNull();
+    // A pasted link to one of your rooms (or a thread of this one) becomes its chip too.
+    input = edit(target, `${location.origin}/b/abcdef12?t=e`);
+    expect(get(entry.state).text).toBe(`${location.origin}/b/abcdef12?t=e`);
+    expect(
+      target.querySelector('[data-field-chip="thread"]')?.textContent,
+    ).toContain("Room\u00a0›\u00a0Epic");
+    expect(input.selectionStart).toBe(input.value.length);
+  }, 30_000);
+  test("an @mention in the field is drawn in the chat's mention purple", () => {
+    const room = fixture();
+    const { target } = renderComposer(room);
+    const input = edit(target, "oi @you");
+    const mark = target.querySelector<HTMLElement>("[data-field-mention]");
+    expect(mark?.textContent).toBe("@you");
+    expect(mark?.className).toContain("text-brand-purple-text");
+    expect(input.className).toContain("text-transparent");
+    // Plain text keeps the field's own color.
+    edit(target, "oi");
+    expect(target.querySelector("[data-field-mention]")).toBeNull();
+    expect(input.className).not.toContain("text-transparent");
+  });
   test("more menu keyboard focus and thread drafts stay scoped across remounts", async () => {
     const room = fixture();
     const { target, update } = renderComposer(room);
