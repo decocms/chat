@@ -667,7 +667,9 @@
           if (!canInteract(event)) return;
           close();
           fileInput?.click();
-        }}>{vb.t("Anexar arquivo")} <small>{vb.t("ou Cmd+V")}</small></Button
+        }}
+        ><Icon icon="paperclip" />{vb.t("Anexar arquivo")}
+        <small>{vb.t("ou Cmd+V")}</small></Button
       ><Button
         variant="menu"
         role="menuitem"
@@ -677,7 +679,7 @@
           const before = $draft.text.slice(0, caret);
           field?.insert(before && !/\s$/.test(before) ? " @" : "@");
           mentionClosed = false;
-        }}>{vb.t("Mencionar alguém")} @</Button
+        }}><Icon icon="at-sign" />{vb.t("Mencionar alguém")}</Button
       ><Button
         variant="menu"
         role="menuitem"
@@ -685,7 +687,7 @@
           if (!canInteract(event)) return;
           close();
           poll = true;
-        }}>{vb.t("Criar votação")}</Button
+        }}><Icon icon="bar-chart-square-02" />{vb.t("Criar votação")}</Button
       >{/snippet}
   </ChatField>
   <input

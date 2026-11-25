@@ -19,6 +19,7 @@
 | Server | TypeScript, Hono, zod, `@cloudflare/workers-oauth-provider`, `y-durableobjects`, Vercel AI SDK |
 | Browser | Svelte 5, TypeScript, Vite, Tailwind CSS 4, bits-ui, tailwind-variants, @dnd-kit/svelte (drag to sort) |
 | Document editor | CodeMirror 6, Yjs, y-codemirror.next, y-websocket (`web/features/documents/`) |
+| Call | `@sapphi-red/web-noise-suppressor` 0.4.2 (MIT): RNNoise in an AudioWorklet, takes the noise around the person out of the microphone before it goes to the call. It loads when a person joins a call with the noise suppression on (300 KB of WebAssembly). |
 | Call | `@mediapipe/tasks-vision` 1.2.3 (Apache 2.0): finds the person in the camera's picture for the background blur. It loads only when a person turns the blur on. |
 | Terminal | xterm.js 5.5.0 and addon-fit 0.10.0 (licenses in `public/licenses/`) |
 
