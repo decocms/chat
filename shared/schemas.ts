@@ -305,6 +305,8 @@ export const RoomAgent = z.object({
   room: z.optional(str),
   /** Its role in the room (vibebook listen --role, shared/roles.ts); null = the Primary. */
   role: z.optional(str),
+  /** Its @name in the room (src/agentNames.ts): claude, claude-2, codex or its role. */
+  name: z.optional(str),
 });
 /** Your machines (src/delivery.ts): computers running `vibebook herdr` and your sandboxes in this room. */
 export const RoomMachine = z.object({

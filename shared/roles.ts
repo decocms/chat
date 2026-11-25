@@ -88,16 +88,23 @@ export function forRole(text: string, role: Role): boolean {
 
 /** Does this new message wake this agent? `mine` = written by the agent's own human (or a reminder for them);
  *  `ownAgent` = written by another agent of the same human (a planner sending commands to an executor, Gui #3672),
- *  never another person's agents. A role agent wakes only for those messages when they are for its role. The Primary
- *  (no role) wakes as before, except for its own side's messages that @address one of the room's roles. */
+ *  never another person's agents. A role agent wakes only for those messages when they are for its role. With
+ *  `self` (src/agentNames.ts), a message of its side that says its @name wakes it, and only the Primary gets the rest;
+ *  the Primary leaves its side's messages that @address one of the room's roles or another of its human's agents. */
 export function wakes(
   msg: { mine: boolean; ownAgent?: boolean; text: string },
   myRole: Role | null,
   roles: Role[],
+  self?: { name: string; primary: boolean; others: string[] },
 ): boolean {
   const own = msg.mine || !!msg.ownAgent;
   if (myRole) return own && forRole(msg.text, myRole);
-  if (!own) return true;
   const at = handlesOf(msg.text);
-  return !roles.some((r) => at.includes(r.name));
+  if (self && own && at.includes(self.name)) return true;
+  if (self && !self.primary) return false;
+  if (!own) return true;
+  return (
+    !roles.some((r) => at.includes(r.name)) &&
+    !(self?.others ?? []).some((n) => at.includes(n))
+  );
 }

@@ -8,6 +8,7 @@ import { FEEDBACK_ACTIONS, FEEDBACK_READINGS } from "./routerActions";
 import { ownSession } from "./ownSession";
 import { isDmId } from "./dm";
 import { ROLE_NAME } from "../shared/roles";
+import { selfIn } from "./agentNames";
 import {
   bumpStat,
   isLaunchCard,
@@ -1505,11 +1506,14 @@ async function call(
         }
         // Roles (shared/roles.ts): a role agent wakes only for what is for its role, the Primary skips its side's @role
         // messages. Only rooms with roles (books.roles) or a role agent ask the room's DO; the rest stay one D1 query.
-        if (r.results.length && (me.role || r.results.some((b) => b.roles))) {
+        // Agent names (src/agentNames.ts): with two agents of one person in a room, only the Primary wakes for what
+        // calls no one, and @claude-2 wakes only claude-2.
+        if (r.results.length) {
           const keep = [];
           for (const b of r.results) {
-            if (!me.role && !b.roles) keep.push(b);
-            else if (b.last_id === 0 || (await bookStub(env, b.id).roleWake(b.id, b.last_id, me.email, me.role ?? null))) keep.push(b);
+            const self = me.sandbox ? undefined : await selfIn(db, me, b.id);
+            if (!me.role && !b.roles && (!self || (self.primary && !self.others.length))) keep.push(b);
+            else if (b.last_id === 0 || (await bookStub(env, b.id).roleWake(b.id, b.last_id, me.email, me.role ?? null, self))) keep.push(b);
             else
               await db
                 .prepare(
@@ -2189,11 +2193,14 @@ async function call(
           .bind(me.email, id)
           .all<{ name: string }>()
       ).results.map((r) => r.name);
+      // Its @name here and whether it is its human's Primary (src/agentNames.ts); a sandbox is named by its sandbox.
+      const self = me.sandbox ? null : await selfIn(db, me, id);
       const out = await bookStub(env, id).agentRead(id, seen, me.email, {
-        agents: sbx,
-        me: me.sandbox,
+        agents: [...sbx, ...(self ? [self.name, ...self.others] : [])],
+        me: me.sandbox ?? self?.name,
         docOf: str(a.epic_id) || undefined,
         role: me.role ?? null,
+        primary: self ? self.primary : undefined,
       });
       // all: true is a look back (state, ids, the doc): it doesn't mark anything read. Otherwise a lookup made while
       // working swallowed messages that had just arrived: they were never "new" and listen didn't wake for them.
@@ -2208,6 +2215,17 @@ async function call(
       return {
         room_id: id,
         url: `${origin}/b/${id}`,
+        ...(self
+          ? {
+              you_are: {
+                name: `@${self.name}`,
+                primary: self.primary,
+                note: self.primary
+                  ? "Your human's messages that call no agent by @name are for you."
+                  : `Your human has another agent here that gets their messages; you act only on the ones that say @${self.name}.`,
+              },
+            }
+          : {}),
         ...out,
         messages: out.messages.map(agentMessageFromWire),
       };

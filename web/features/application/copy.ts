@@ -208,8 +208,8 @@ const EN: Readonly<Record<string, string>> = {
   "Copiar link da conversa": "Copy conversation link",
   "Mover para baixo": "Move down",
   "Sem dono": "No owner",
-  "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
-    "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
+  "{n} Claudes seus nesta sala: o primeiro pega o que você escreve; chame os outros pelo @nome.":
+    "{n} of your Claudes are here: the first gets what you write; call the others by their @name.",
   "App · {who}": "App · {who}",
   "Abrir ao lado": "Open beside",
   arquivo: "file",

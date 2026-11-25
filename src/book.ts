@@ -2085,7 +2085,7 @@ export class Book extends DurableObject<Env> {
    *  or another agent of the same human's (planner → executor, Gui #3672), that are for it. Agent → role deliveries
    *  are capped at ROLE_AGENT_CAP per hour per owner here, so two of one person's agents can't ping-pong forever
    *  (the room's anti-loop pause only counts 2+ people's agents). A role whose file is gone acts like before (wakes). */
-  roleWake(bookId: string, since: number, email: string, role: string | null): boolean {
+  roleWake(bookId: string, since: number, email: string, role: string | null, self?: { name: string; primary: boolean; others: string[] }): boolean {
     this.bind(bookId);
     const roles = this.roles();
     const mine = role ? (roles.find((r) => r.name === role) ?? null) : null;
@@ -2097,7 +2097,7 @@ export class Book extends DurableObject<Env> {
     for (const m of rows) {
       const ownAgent = m.author === email && m.kind === "agent";
       const msg = { mine: (m.author === email && m.kind !== "agent") || (m.tag === "reminder" && m.for_who === email), ownAgent, text: m.text ?? "" };
-      if (!wakes(msg, mine, roles)) continue;
+      if (!wakes(msg, mine, roles, self)) continue;
       if (mine && ownAgent && !msg.mine) fromAgent = true;
       else human = true;
     }
@@ -2153,7 +2153,7 @@ export class Book extends DurableObject<Env> {
       messages,
     };
   }
-  async agentRead(bookId: string, since = 0, email = "", to: { agents: string[]; me?: string; docOf?: string; role?: string | null } = { agents: [] }) {
+  async agentRead(bookId: string, since = 0, email = "", to: { agents: string[]; me?: string; docOf?: string; role?: string | null; primary?: boolean } = { agents: [] }) {
     this.bind(bookId);
     // Roles are @handles like sandboxes: your human's message that names one is for that role. A role agent reads
     // its human's (and their other agents') messages for its role as instructions, everything else as not for it.
@@ -2169,7 +2169,8 @@ export class Book extends DurableObject<Env> {
     const mentionsMe = (t: string, human = false) => tagsOf(t).some((h) => mine.has(h) || (human && ROOM_TAGS.has(h)));
     // @<sandbox name> in your human's message addresses that one agent; the others leave it alone.
     const toAgents = (t: string) => [...new Set([...t.matchAll(/(?:^|[\s(])@([\p{L}\p{N}._-]+)/gu)].map((m) => foldHandle(m[1])).filter((h) => to.agents.includes(h)))];
-    const forOther = (t: string) => { const a = toAgents(t); return a.length > 0 && !a.includes(to.me ?? ""); };
+    // Not the Primary (src/agentNames.ts): only what says its @name is for it.
+    const forOther = (t: string) => { const a = toAgents(t); return to.primary === false ? !a.includes(to.me ?? "") : a.length > 0 && !a.includes(to.me ?? ""); };
     // Display names are typed by people: no brackets, quotes or line breaks, so a name can't pose as someone's address.
     const who = (e: string) => (e === "ai" ? "@vibe" : names[e] ? `${names[e].replace(/[<>"@\p{Cc}]/gu, "").slice(0, 40)} <${e}>` : e);
     const epics = this.epics();
