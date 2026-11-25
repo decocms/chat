@@ -92,26 +92,47 @@ export function safeOpenLink(raw: string): string | null {
 /** The `_meta` key on the text blocks of a `ui/message` that asks for a draft: the text goes in the composer of the
  *  thread, not in the room. The host context has the same key (`true`) when this host can do it. */
 export const APP_COMPOSE = "vibebook/compose";
+/** The `_meta` key that makes a draft block a reference: `{ label }`. The block shows as a chip with the label above
+ *  the field, and its text goes before what the person types. A host without it puts the text in the field. */
+export const APP_REFERENCE = "vibebook/reference";
 type AppMessageBlock = {
   type: string;
   text?: string;
   _meta?: Record<string, unknown>;
 };
-/** The draft text when every text block asks for a draft, else null (the message is a post). The end of the text
- *  stays as the app wrote it: a blank line after a quote puts the caret in a new paragraph, not in the quote. */
-export function appDraft(content: readonly AppMessageBlock[]): string | null {
+export type AppDraft = {
+  text: string;
+  quotes: { label: string; text: string }[];
+};
+const referenceLabel = (meta: unknown) => {
+  if (!meta || typeof meta !== "object" || !("label" in meta)) return null;
+  const label =
+    typeof meta.label === "string"
+      ? meta.label.replace(/\s+/g, " ").trim()
+      : "";
+  return label ? label.slice(0, 120) : null;
+};
+/** The draft when every text block asks for one, else null (the message is a post). A block with a reference label
+ *  is a quote; the others are the text for the field. The end of the text stays as the app wrote it. */
+export function appDraft(content: readonly AppMessageBlock[]): AppDraft | null {
   const blocks = content.filter((block) => block.type === "text");
   if (
     !blocks.length ||
     !blocks.every((block) => block._meta?.[APP_COMPOSE] === true)
   )
     return null;
-  const text = blocks
-    .map((block) => block.text ?? "")
-    .join("\n")
-    .replace(/^\s+/, "")
-    .slice(0, 4000);
-  return text.trim() ? text : "";
+  let room = 4000;
+  const quotes: AppDraft["quotes"] = [],
+    lines: string[] = [];
+  for (const block of blocks) {
+    const label = referenceLabel(block._meta?.[APP_REFERENCE]),
+      text = (block.text ?? "").slice(0, room);
+    room -= text.length;
+    if (label && text.trim()) quotes.push({ label, text: text.trim() });
+    else if (!label) lines.push(text);
+  }
+  const text = lines.join("\n").replace(/^\s+/, "");
+  return { text: text.trim() ? text : "", quotes };
 }
 
 export function connectionApps(connection: Connection) {

@@ -10,7 +10,7 @@ import {
   type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import { OpaqueAppTransport } from "./transport";
-import { APP_COMPOSE, appDraft, safeOpenLink } from "./model";
+import { APP_COMPOSE, appDraft, safeOpenLink, type AppDraft } from "./model";
 import { toolError, type AppAsk } from "./tools";
 export type RoomAppBridgeOptions = {
   frame: HTMLIFrameElement;
@@ -20,7 +20,7 @@ export type RoomAppBridgeOptions = {
   call(name: string, args: Record<string, unknown>): Promise<CallToolResult>;
   message(text: string): Promise<CallToolResult>;
   /** Put text in the composer of the thread. It does not post: the person reads it, adds to it and sends it. */
-  compose?(text: string): void;
+  compose?(draft: AppDraft): void;
   ask: AppAsk;
   open(url: string): void;
   first?: Promise<CallToolResult>;
@@ -110,7 +110,8 @@ export function createRoomAppBridge(options: RoomAppBridgeOptions) {
       draft = compose ? appDraft(params.content) : null;
     if (compose && draft !== null) {
       // No question: nothing is posted until the person sends it from the composer.
-      if (!draft || !(await attest())) return { isError: true };
+      if ((!draft.text && !draft.quotes.length) || !(await attest()))
+        return { isError: true };
       compose(draft);
       return {};
     }

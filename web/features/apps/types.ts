@@ -5,6 +5,7 @@ import type { AppsApi } from "./api";
 import type { AppsSession } from "./session";
 import type { Readable } from "svelte/store";
 import type { ConnectionMode } from "./directTypes";
+import type { AppDraft } from "./model";
 export type AppBridgeModule = Pick<
   typeof import("./bridge"),
   "createRoomAppBridge" | "appToolInfo" | "remoteToolResult"
@@ -12,8 +13,9 @@ export type AppBridgeModule = Pick<
 export type AppsProps = {
   /** Put a prompt for your Claude in the composer (the empty tab's "Ask your Claude"). */
   ask?: (prompt: string) => void;
-  /** Add an app's draft to the composer of the thread (after the text already there) and focus it. It does not send. */
-  compose?: (text: string) => void;
+  /** Add an app's draft to the composer of the thread (quotes as chips, text after the text already there) and
+   *  focus it. It does not send. */
+  compose?: (draft: AppDraft) => void;
   owner: AppsSession;
   api: AppsApi;
   connectionModes?: Readable<ReadonlyMap<string, ConnectionMode>>;

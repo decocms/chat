@@ -812,11 +812,13 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
           ask: (prompt) => {
             if (owned()) composeIn(thread, (entry) => entry.edit(prompt));
           },
-          compose: (text) => {
+          compose: (draft) => {
             if (!owned()) return;
             composeIn(thread, (entry) => {
+              for (const quote of draft.quotes) entry.quote(quote);
+              if (!draft.text) return;
               const before = get(entry.state).text.trimEnd();
-              entry.edit(before ? `${before}\n\n${text}` : text);
+              entry.edit(before ? `${before}\n\n${draft.text}` : draft.text);
             });
           },
           connectionModes: direct.state,

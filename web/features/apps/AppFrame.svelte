@@ -234,8 +234,8 @@
         message: (text) =>
           tools("vibebook_post", { text, thread: props.thread }),
         compose: props.compose
-          ? (text) => {
-              if (current()) props.compose?.(text);
+          ? (draft) => {
+              if (current()) props.compose?.(draft);
             }
           : undefined,
         ask,
