@@ -491,21 +491,22 @@
               choose(index);
             }}
             onclick={() => choose(index)}
-            >{#if item.kind === "room"}<RoomMark
-                title={item.title}
-                src={item.icon
-                  ? `/api/books/${encodeURIComponent(item.id)}/icon?v=${item.icon}`
-                  : undefined}
-                size="xs"
-              /><b class="min-w-0 truncate font-medium">{item.title}</b
-              >{:else}<Icon
-                icon="message-circle-01"
-                size={16}
-                class="shrink-0 text-muted-foreground"
-              /><small class="shrink-0 text-muted-foreground"
-                >{item.room} ›</small
-              ><b class="min-w-0 truncate font-medium">{item.title}</b
-              >{/if}</button
+            ><span
+              aria-hidden="true"
+              class="flex size-4 shrink-0 items-center justify-center"
+              >{#if item.kind === "room"}<RoomMark
+                  title={item.title}
+                  src={item.icon
+                    ? `/api/books/${encodeURIComponent(item.id)}/icon?v=${item.icon}`
+                    : undefined}
+                  size="2xs"
+                />{:else}<Icon
+                  icon="message-circle-01"
+                  size={16}
+                  class="text-muted-foreground"
+                />{/if}</span
+            ><span class="min-w-0 truncate font-medium">{item.title}</span
+            ></button
           >{/each}{:else}
         {#each mentions?.items || [] as item, index}<button
             id={`${uid}-mention-${index}`}
