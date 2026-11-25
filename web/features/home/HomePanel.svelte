@@ -4,6 +4,7 @@
   import { MediaQuery } from "svelte/reactivity";
   import Button from "../../lib/studio/Button.svelte";
   import { tabTitle } from "../notifications/title";
+  import { setFaviconBadge } from "../notifications/favicon";
   import InstallCard from "../pwa/InstallCard.svelte";
   import NotifyOffer from "../notifications/NotifyOffer.svelte";
   import Heading from "../../lib/ui/Heading.svelte";
@@ -87,6 +88,9 @@
   const suggestion = $derived($view.result);
   // The desk home: what waits on you as a hand of cards, most important in the middle.
   const waits = $derived(byImportance($account.me?.waits ?? []));
+  // The tab's icon carries a red dot while the title shows "(n)".
+  $effect(() => setFaviconBadge(waits.length > 0));
+  onDestroy(() => setFaviconBadge(false));
   // Triage filters over the cards; a filter with nothing in it hides. Picking
   // one scrolls down to the cards, so they deal out already filtered.
   let filter = $state<"all" | WaitKind>("all");
