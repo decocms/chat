@@ -2,6 +2,8 @@ const en = {
   close: "Close",
   ios: "On iPhone or iPad, open this site in Safari, share it, choose Add to Home Screen, then open the installed app to enable notifications.",
   install: "Install deco.chat on your phone",
+  installRow: "Install on your phone",
+  installRowHint: "Alerts and an icon on your home screen",
   how: "How to install",
   installNow: "Install app",
   android:
@@ -37,6 +39,8 @@ const pt: Record<keyof typeof en, string> = {
   close: "Fechar",
   ios: "No iPhone ou iPad, abra este site no Safari, toque em Compartilhar, escolha Adicionar à Tela de Início e abra o app instalado para ativar notificações.",
   install: "Instale o deco.chat no celular",
+  installRow: "Instalar no celular",
+  installRowHint: "Avisos e um ícone na tela de início",
   how: "Como instalar",
   installNow: "Instalar o app",
   android:

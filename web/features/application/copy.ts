@@ -314,6 +314,8 @@ const EN: Readonly<Record<string, string>> = {
   Ontem: "Yesterday",
   Conversa: "Conversation",
   "Suas salas": "Your rooms",
+  "1 aviso pra você": "1 notice for you",
+  "{n} avisos pra você": "{n} notices for you",
   "{theme} (clique pra trocar)": "{theme} (click to change)",
   "Tema: {theme}": "Theme: {theme}",
   "Ir para uma sala (⌘K)": "Go to a room (⌘K)",

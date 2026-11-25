@@ -23,6 +23,8 @@
   import PresenceDot from "../../lib/components/PresenceDot.svelte";
   import AvatarStack from "../../lib/components/AvatarStack.svelte";
   import { roomSearchQuery } from "../chat/roomSearch";
+  import Count from "../../lib/components/Count.svelte";
+  import { userCenterCount } from "../user-center/count";
   let {
     presentation,
     header,
@@ -55,6 +57,23 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected;
   const waits = $derived($personal.me?.waits ?? []);
+  // Phone: the user center's rows wait on the Chats list, not over the chat; ← shows how many (Gimenes, step 4).
+  const pwaView = untrack(() => presentation.services.pwa.state);
+  const centerCount = $derived(
+    $geometry.mobile
+      ? userCenterCount({
+          update: $personal.updateAvailable,
+          pwa: $pwaView,
+          me: $personal.me,
+        })
+      : 0,
+  );
+  const centerText = $derived(
+    centerCount === 1
+      ? presentation.services.t("1 aviso pra você")
+      : presentation.services.t("{n} avisos pra você", { n: centerCount }),
+  );
+  const centerLabel = $derived(centerCount ? ` · ${centerText}` : "");
   // The tab's icon carries a red dot while the title shows "(n)".
   $effect(() => setFaviconBadge(waits.length > 0));
   onDestroy(() => setFaviconBadge(false));
@@ -213,14 +232,22 @@
             expectedThread === "main"
               ? "Suas salas"
               : "Voltar pra sala principal",
-          )}
+          ) + centerLabel}
           tooltipSide="bottom"
           data-phone-back
           size="icon"
           class="size-10 rounded-full md:hidden"
           onclick={(event) => {
             if (live(event)) back(expectedThread);
-          }}><Icon icon="arrow-left" size={20} /></IconButton
+          }}
+          ><Icon
+            icon="arrow-left"
+            size={20}
+          />{#if $geometry.mobile && centerCount}<Count
+              value={centerCount}
+              label={centerText}
+              class="pointer-events-none absolute -top-0.5 -right-1 ring-2 ring-background"
+            />{/if}</IconButton
         >{/snippet}</Snapshot
     >{/key}
   <button

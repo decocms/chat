@@ -3,7 +3,6 @@
   import Button from "../../lib/studio/Button.svelte";
   import RoomLink from "../app-navigation/RoomLink.svelte";
   import RoomRow from "../app-navigation/RoomRow.svelte";
-  import Requests from "../app-navigation/Requests.svelte";
   import SectionHeader from "../room-sidebar/SectionHeader.svelte";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import {
@@ -33,8 +32,8 @@
    * as WhatsApp does, Gimenes #3942), then every room and DM, the newest message first, each with its
    * avatar (unread dot, ✻, waits), its name, who wrote last and what, and
    * when. A room where an agent works says so in place of its last line.
-   * Invites and message requests ("Pedidos") come first: a phone does not
-   * draw the home's DM list, so they wait for your yes here.
+   * Invites and message requests ("Pedidos") are not here: they are rows of
+   * the phone's user center, over this list (HomePanel).
    */
   const PINNED = 3;
   let {
@@ -45,8 +44,6 @@
     ago,
     onnavigate,
     onmenu,
-    onjoin,
-    onanswer,
   }: {
     me: MeResult;
     seen: Record<string, number>;
@@ -56,8 +53,6 @@
     onnavigate: (target: RoomTarget) => void;
     /** Opens a room's or DM's menu (a long press, a right-click, Shift+F10). */
     onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
-    onjoin?: (room: string, yes: boolean) => Promise<void>;
-    onanswer?: (email: string, accept: boolean) => Promise<void>;
   } = $props();
   const rows = $derived(chatList(me));
   const byRoom = $derived(waitsByRoom(me.waits));
@@ -76,16 +71,6 @@
 </script>
 
 <nav data-home-chats aria-label={homeText(lang, "chats")} class="w-full">
-  {#if me.requests.length || me.invites?.length}<div class="mb-2">
-      <Requests
-        invites={me.invites ?? []}
-        requests={me.requests}
-        {lang}
-        variant="list"
-        {onjoin}
-        {onanswer}
-      />
-    </div>{/if}
   {#if pinned.length}<section data-home-waiting class="mb-2">
       <SectionHeader
         level={4}
