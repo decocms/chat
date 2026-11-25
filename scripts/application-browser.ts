@@ -638,7 +638,8 @@ try {
       await expect(composer).toHaveValue(`Root draft ${token}`);
       await a
         .locator('[data-view="room-navigation"]')
-        .getByRole("button", { name: "Inbox", exact: true })
+        // The rail's cube: "Inbox", or "Inbox · an agent is working" while a room's agent is busy (#502).
+        .getByRole("button", { name: /^Inbox(?: · an agent is working)?$/ })
         .click();
       await expect(a.locator('[data-view="home"]')).toBeVisible();
       await a
