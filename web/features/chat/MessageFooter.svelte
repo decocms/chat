@@ -34,6 +34,11 @@
         read: undefined as boolean | undefined,
       })),
   ]);
+  const STACK = 3;
+  // The first face on top, so each face's agent badge sits over the next one.
+  const LAYERS = ["z-[4]", "z-[3]", "z-[2]"] as const;
+  const stack = $derived(faces.slice(0, STACK));
+  const more = $derived(Math.max(0, faces.length - STACK));
   const label = $derived(
     !footer.readers.length
       ? vb.t("Agents que olharam")
@@ -122,30 +127,41 @@
           }
         }}
       >
-        {#each faces.slice(0, 5) as face (`${face.who}|${face.email}`)}
-          <span
-            data-reader-read={face.read}
-            class="relative inline-flex not-first:ml-1"
-          >
-            <PersonAvatar
-              data-avatar="person"
-              size="xs"
-              class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-              email={face.email}
-              version={vb.avatarVersion(face.email)}
-            /><AgentMark
-              size="3xs"
-              tint
-              via={face.who}
-              class="absolute -right-1 -bottom-1 rounded-full text-[7px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-            />
-          </span>
-        {/each}
-        {#if faces.length > 5}<span>+{faces.length - 5}</span
-          >{/if}{#if footer.readers.length}<span
-            aria-hidden="true"
-            class="ml-0.5 text-[11px]">{read ? "✓✓" : "✓"}</span
-          >{/if}
+        <!-- At most three faces, each tucked under the one before it with a ring
+             in the page's color, then +X in a circle of the same size, then the
+             ✓✓ in a small circle tucked in at the bottom, like each face's
+             agent badge. -->
+        <span class="flex items-end">
+          {#each stack as face, i (`${face.who}|${face.email}`)}<span
+              data-reader-read={face.read}
+              class={["relative inline-flex not-first:-ml-1", LAYERS[i]]}
+            >
+              <PersonAvatar
+                data-avatar="person"
+                size="xs"
+                class="size-5 shadow-[0_0_0_2px_var(--vb-background)]"
+                email={face.email}
+                version={vb.avatarVersion(face.email)}
+              /><AgentMark
+                size="3xs"
+                tint
+                via={face.who}
+                class="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full text-[6px] shadow-[0_0_0_1.5px_var(--vb-background)]"
+              />
+            </span>{/each}{#if more}<span
+              data-readers-more
+              class="relative z-[1] -ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-input text-[9px] font-semibold tabular-nums leading-none text-foreground shadow-[0_0_0_2px_var(--vb-background)]"
+              >+{more}</span
+            >{/if}{#if footer.readers.length}<span
+              aria-hidden="true"
+              data-readers-check
+              class={[
+                "relative z-0 -mb-1 inline-flex h-3.5 min-w-3.5 shrink-0 items-center justify-center rounded-full bg-muted pr-[3px] pl-[4px] text-[8px] font-bold leading-none tracking-[-0.25em] text-muted-foreground shadow-[0_0_0_1.5px_var(--vb-background)]",
+                // Under the +X circle's corner, or just under the last face's agent badge.
+                more ? "-ml-1.5" : "ml-0",
+              ]}>{read ? "✓✓" : "✓"}</span
+            >{/if}
+        </span>
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
