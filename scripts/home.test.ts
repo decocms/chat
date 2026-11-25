@@ -15,6 +15,10 @@ type PersonalSocketFixture = {
 };
 import { createHomeApi } from "../web/features/home/api";
 import {
+  AROUND_BEFORE,
+  itemArtifacts,
+} from "../web/features/application/itemArtifact";
+import {
   byImportance,
   fanClasses,
   fanSize,
@@ -1508,4 +1512,87 @@ test("the phone's chat list: newest first, and who wrote last before the line", 
       self: false,
     }),
   ).toBe("Pronto");
+});
+
+const artifactFile = (id: string, name: string, ts = 1) => ({
+  id,
+  name,
+  type: name.endsWith(".html") ? "text/html" : "application/pdf",
+  size: 10,
+  author: "a@test.com",
+  ts,
+});
+const artifactMessage = (
+  id: number,
+  text: string,
+  files?: ReturnType<typeof artifactFile>[],
+) => ({ id, thread: "e", author: "b@test.com", ts: id, text, files });
+
+test("an Inbox item opens on the thing it is about: the asked message's file or room app first", () => {
+  const deck = artifactFile("f2", "apps/apresentacao.html", 2),
+    old = artifactFile("f1", "apps/apresentacao.html", 1),
+    plan = artifactFile("f3", "plano.pdf");
+  const messages = [
+    artifactMessage(1, "o plano", [plan]),
+    artifactMessage(
+      2,
+      "@leo olha a apresentação nova [[app:room/apresentacao]]",
+    ),
+  ];
+  const result = itemArtifacts({
+    messages,
+    known: [old, deck, plan],
+    focus: 2,
+    doc: "",
+    docName: "Doc",
+  });
+  // The name in the text opens the newest version of the app; the thread's other file is in the switcher.
+  expect(result.primary).toEqual({
+    kind: "file",
+    key: "file:apps/apresentacao.html",
+    name: "apresentacao",
+    file: deck,
+  });
+  expect(result.all.map((item) => item.key)).toEqual([
+    "file:apps/apresentacao.html",
+    "file:plano.pdf",
+  ]);
+});
+
+test("an Inbox item with nothing of its own takes the newest artifact around the ask, else the doc it names, else none", () => {
+  const plan = artifactFile("f3", "plano.pdf");
+  const around = itemArtifacts({
+    messages: [
+      artifactMessage(1, "segue", [plan]),
+      artifactMessage(2, "@leo o que acha?"),
+    ],
+    known: [plan],
+    focus: 2,
+    docName: "Doc",
+  });
+  expect(around.primary?.key).toBe("file:plano.pdf");
+  // Far from the ask (more than AROUND_BEFORE messages back), a file is in the switcher but is not the item's.
+  const far = itemArtifacts({
+    messages: [
+      artifactMessage(1, "segue", [plan]),
+      ...Array.from({ length: AROUND_BEFORE + 1 }, (_, index) =>
+        artifactMessage(index + 2, "conversa"),
+      ),
+      artifactMessage(20, "@leo revisa o doc?"),
+    ],
+    known: [plan],
+    focus: 20,
+    doc: "# Plano",
+    docName: "Doc",
+  });
+  expect(far.primary?.key).toBe("doc");
+  expect(far.all.map((item) => item.key)).toEqual(["doc", "file:plano.pdf"]);
+  const none = itemArtifacts({
+    messages: [artifactMessage(1, "@leo agrupa por thread ou por tipo?")],
+    known: [],
+    focus: 1,
+    doc: "# Plano",
+    docName: "Doc",
+  });
+  expect(none.primary).toBe(null);
 });
