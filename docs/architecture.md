@@ -150,7 +150,7 @@ The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one con
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
 5. The page records what a person sees and hears: the shared screen, or who speaks, and all the voices. It also keeps who speaks at each moment.
 6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes.
-7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`). A piece with no person near it and no clear speech is noise that the model wrote as words: it is dropped.
+7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`). The model's own filter for parts with no voice is on (`vad_filter`): without it, the model writes words for silence.
 8. The container sends the video and that transcript to Grain (`GRAIN_API_TOKEN`). With our transcript, Grain shows each person's name. Without it (the speech-to-text failed), Grain transcribes by itself and names nobody.
 9. The container tells the chat (`POST /api/calls/recorded`). The call's thread gets a message with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
 
