@@ -23,6 +23,7 @@
     emojiTyped,
     roomPicks,
     roomReference,
+    roomLinks,
     quoteSnippet,
     composerError,
   } from "./model";
@@ -596,6 +597,7 @@
     }}
     onkeydown={keydown}
     mention={(handle) => knownMention(handle, room, vb.knownNames)}
+    links={(text) => roomLinks(text, rooms, room, window.location.href)}
     t={vb.t}
     locale={vb.locale || "pt-BR"}
     id="input"
