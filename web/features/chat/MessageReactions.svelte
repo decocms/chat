@@ -11,6 +11,7 @@
   import Tooltip from "../../lib/studio/Tooltip.svelte";
   import TooltipContent from "../../lib/studio/TooltipContent.svelte";
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
+  import { TOOLBAR_REACTIONS } from "./reactions";
   let {
     message,
     me,
@@ -25,6 +26,11 @@
   let open = $state(false);
   const all = $derived(
     Object.entries(message.reactions ?? {}).filter(([, who]) => who.length),
+  );
+  // On hover, the common reactions not given yet wait in the row, where the chips show up (Gui #4726): a click
+  // turns one into a chip right there, so you see that it registered.
+  const offered = $derived(
+    TOOLBAR_REACTIONS.filter((emoji) => !all.some(([e]) => e === emoji)),
   );
   const nameOf = (w: string) =>
     w === me
@@ -56,11 +62,13 @@
   }
 </script>
 
-<!-- The chips (yours highlighted, who reacted on hover), then a button that opens the emoji picker. The row shows
-     once there's a reaction; before that, the quick ones live in the message's floating toolbar. -->
+<!-- The chips (yours highlighted, who reacted on hover), the common ones on hover, then a button that opens the emoji
+     picker. With no reaction yet, the row shows only while the mouse is on the message. -->
 <div
   data-message-reactions
-  class="flex flex-wrap items-center gap-1 {all.length || open ? '' : 'hidden'}"
+  class="flex flex-wrap items-center gap-1 {all.length || open
+    ? ''
+    : 'hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex'}"
 >
   {#each all as [emoji, list] (emoji)}<Tooltip>
       <TooltipTrigger>
@@ -94,6 +102,13 @@
         ></TooltipContent
       >
     </Tooltip>{/each}
+  {#each offered as emoji (emoji)}<button
+      type="button"
+      aria-label={vb.t("Reagir com {emoji}", { emoji })}
+      data-offer-react={emoji}
+      class="hidden h-7 cursor-pointer items-center rounded-full border border-dashed border-border bg-transparent px-2 text-base leading-none opacity-70 transition-[opacity,border-color] hover:border-solid hover:opacity-100 pointer-fine:group-hover:inline-flex pointer-fine:group-has-focus-visible:inline-flex"
+      onclick={() => react(emoji)}>{emoji}</button
+    >{/each}
   <!-- Add another reaction, right next to the ones there (like Discord): the full emoji picker. -->
   <button
     type="button"
