@@ -179,7 +179,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
   };
   const navigation = createNavigationSession(
     scope.roomId,
-    false,
+    null,
     browser.storage,
   );
   const pins = createPinsSession(scope.roomId),
@@ -816,12 +816,7 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       syncPinsSession(pins, value);
       if (fresh) pins.filesRequested = false;
       if (snapshot.phase === "live") requestPinnedFiles(pins, value, send);
-      syncNavigationSession(
-        navigation,
-        value,
-        snapshot.thread,
-        get(navigation.state).done,
-      );
+      syncNavigationSession(navigation, value, snapshot.thread);
       mutations.sync(value, request);
       viewer.sync(value, request, fresh);
       side.sync(value, request, fresh);
@@ -844,8 +839,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
       if (
         changed &&
         snapshot.thread !== "main" &&
-        // The call chat has no doc (it sits beside the call's stage).
+        // The call's chat opens no doc: it sits beside the call's stage, and a doc that opens closes the stage.
         snapshot.thread !== CALL_THREAD &&
+        snapshot.thread !== value.callThread &&
         !snapshot.thread.startsWith("pre:") &&
         !layout.read().documentVisible
       ) {
@@ -1213,9 +1209,9 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
             onopen: (target) => {
               if (current()) pickThread(target);
             },
-            ondonechange: (done) => {
+            onviewchange: (view) => {
               if (current()) {
-                navigation.state.update((before) => ({ ...before, done }));
+                navigation.state.update((before) => ({ ...before, view }));
                 project("stay");
               }
             },

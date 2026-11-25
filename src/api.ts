@@ -155,8 +155,10 @@ export interface ApiServices {
   sqlAll(query: string, ...binds: Bind[]): Promise<unknown[]>;
   /** Search the person's rooms (rate-limited per person: false = over the limit). */
   search(q: string): Promise<SearchResult | false>;
-  /** The cross-room Inbox: waits, held-back mentions, and the person's open tasks. */
+  /** The cross-room Inbox: waits, held-back mentions, the person's open tasks and open threads. */
   inbox(): Promise<InboxResult>;
+  /** Mark an open thread done from the Inbox; false = no such open thread. */
+  threadDone(roomId: string, epicId: string): Promise<boolean>;
   isEmail(s: string): boolean;
   /** Write to someone: `id` = the DM is open (a room in common, a connection, or their request accepted); `{}` = it
    *  went as a message request. Never says whether the email has an account. */
@@ -371,6 +373,14 @@ export const api = roomPosts
     svc.track("wait_resolved", { n: items.length, many: 1 });
     return c.json(ok, 200);
   })
+  // "Marcar como feita" on an open thread in the Inbox: the thread is done, as from its own bar (src/book.ts inboxDone).
+  .post("/api/books/:id/threads/:epic/done", async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!(await svc.isMember(id))) return c.json(forbidden, 403);
+    if (!(await svc.threadDone(id, c.req.param("epic")))) return c.json({ error: "no open thread" } satisfies ErrorBody, 404);
+    svc.pokeMe();
+    return c.json(ok, 200);
+  })
   // The rail's order, per person (drag a tile).
   .post("/api/rooms/order", body(RoomOrderBody), async (c) => {
     const list = c.req.valid("json").ids.filter((x): x is string => typeof x === "string").slice(0, 300);
@@ -415,7 +425,8 @@ export const api = roomPosts
       id,
     );
     // Like Discord's: marking the room read also clears what waited on you there (asks, reviews), so its number goes.
-    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND email = ?`, id, c.get("email"));
+    // Your open threads (e<epic>) stay: reading is not closing them.
+    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND email = ? AND ref NOT LIKE 'e%'`, id, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
     svc.track("book_marked_read", { book: id });
     return c.json(ok, 200);

@@ -2,9 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { get } from "svelte/store";
 import type { Epic, Message } from "../shared/room";
 import {
+  activeEpics,
   doneEpics,
   epicAncestors,
   epicForest,
+  isThreadView,
+  mineEpics,
   reorderEpics,
   sidebarEpics,
   visibleEpics,
@@ -12,6 +15,8 @@ import {
 import {
   createNavigationSession,
   enterNavigationThread,
+  setNavigationView,
+  storedThreadView,
   toggleNavigationBranch,
   syncNavigationSession,
 } from "../web/features/navigation/session";
@@ -206,7 +211,7 @@ describe("room-owned navigation session", () => {
     expect(get(other.state).suggestions).toBe(false);
   });
   test("returning from an done thread is a new entry even while the active tab stays selected", () => {
-    const session = createNavigationSession("room", false, storage());
+    const session = createNavigationSession("room", null, storage());
     const forest = epicForest([
       epic("a"),
       epic("a-leaf", "a"),
@@ -225,7 +230,7 @@ describe("room-owned navigation session", () => {
   test("entering a filtered done child reveals its branch when its tab opens", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["parent"]');
-    const session = createNavigationSession("room", false, local);
+    const session = createNavigationSession("room", null, local);
     enterNavigationThread(session, epicForest([epic("open")]), "child");
     expect(get(session.state).openedFor).toBeNull();
     const done = epicForest([
@@ -241,7 +246,7 @@ describe("room-owned navigation session", () => {
   test("ancestor auto-opening runs once per thread entry, preserving manual collapse and the open tab", () => {
     const local = storage();
     local.setItem("vb.tree.room", '["root","child"]');
-    const session = createNavigationSession("room", false, local);
+    const session = createNavigationSession("room", null, local);
     const forest = epicForest([
       epic("root"),
       epic("child", "root"),
@@ -269,11 +274,11 @@ describe("room-owned navigation session", () => {
   });
   test("closed branches reload per room; another room never receives its open tab", () => {
     const local = storage();
-    const a = createNavigationSession("a", false, local);
+    const a = createNavigationSession("a", null, local);
     toggleNavigationBranch(a, "root");
     a.state.update((state) => ({ ...state, suggestions: true }));
-    const reload = createNavigationSession("a", false, local);
-    const b = createNavigationSession("b", false, local);
+    const reload = createNavigationSession("a", null, local);
+    const b = createNavigationSession("b", null, local);
     expect([...get(reload.state).closed]).toEqual(["root"]);
     expect(get(reload.state).suggestions).toBe(false);
     expect([...get(b.state).closed]).toEqual([]);
@@ -284,7 +289,7 @@ describe("room-owned navigation session", () => {
       const local = storage();
       local.setItem("vb.tree.a", value);
       expect([
-        ...get(createNavigationSession("a", false, local).state).closed,
+        ...get(createNavigationSession("a", null, local).state).closed,
       ]).toEqual([]);
     }
     const unavailable = {
@@ -295,7 +300,7 @@ describe("room-owned navigation session", () => {
         throw Error("denied");
       },
     };
-    const session = createNavigationSession("a", false, unavailable);
+    const session = createNavigationSession("a", null, unavailable);
     toggleNavigationBranch(session, "root");
     expect([...get(session.state).closed]).toEqual(["root"]);
   });
@@ -377,6 +382,86 @@ test("a dragged row whose node moved shows above the page again (Gimenes #4232)"
   expect(relift(null)).toBe(false);
 });
 
+describe("thread tabs: Mine, Open, Done", () => {
+  const owned = (id: string, owner?: string, extra: Partial<Epic> = {}) => ({
+    ...epic(id),
+    owner,
+    ...extra,
+  });
+  test("Mine keeps the threads you own, in the order of the list it filters", () => {
+    const list = [
+      owned("b", "ana@example.test"),
+      owned("a", "bia@example.test"),
+      owned("c", "Ana@Example.test"),
+      owned("d"),
+      owned("e", "ai"),
+    ];
+    expect(mineEpics(list, "ana@example.test").map((row) => row.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(mineEpics(list, "ANA@example.test ").map((row) => row.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(mineEpics(list, "")).toEqual([]);
+  });
+  test("Mine has no done thread except the one you have open, as Open does", () => {
+    const epics = [
+      owned("open", "ana@example.test"),
+      owned("done", "ana@example.test", { done: true }),
+      owned("seen", "ana@example.test", { done: true }),
+      owned("child", "ana@example.test", { parent: "other" }),
+      owned("other", "bia@example.test"),
+    ];
+    const open = sidebarEpics(activeEpics(epics, "seen"), []);
+    expect(mineEpics(open, "ana@example.test").map((row) => row.id)).toEqual([
+      "open",
+      "seen",
+      "child",
+    ]);
+  });
+  test("the tab stays per room on the device; Open when nothing or something unknown is stored", () => {
+    const local = storage();
+    expect(storedThreadView("a", local)).toBe("open");
+    const a = createNavigationSession("a", null, local);
+    expect(get(a.state).view).toBe("open");
+    a.state.update((state) => ({ ...state, suggestions: true }));
+    setNavigationView(a, "mine");
+    expect(get(a.state).view).toBe("mine");
+    expect(get(a.state).suggestions).toBe(false);
+    expect(get(createNavigationSession("a", null, local).state).view).toBe(
+      "mine",
+    );
+    expect(get(createNavigationSession("b", null, local).state).view).toBe(
+      "open",
+    );
+    expect(get(createNavigationSession("a", "done", local).state).view).toBe(
+      "done",
+    );
+    for (const value of ["active", "true", "", "MINE"]) {
+      local.setItem("vb.threads.a", value);
+      expect(storedThreadView("a", local)).toBe("open");
+    }
+    expect(isThreadView("done")).toBe(true);
+    expect(isThreadView("active")).toBe(false);
+  });
+  test("unavailable storage keeps the tab in memory", () => {
+    const unavailable = {
+      getItem(): string | null {
+        throw Error("denied");
+      },
+      setItem() {
+        throw Error("denied");
+      },
+    };
+    const session = createNavigationSession("a", null, unavailable);
+    expect(get(session.state).view).toBe("open");
+    setNavigationView(session, "done");
+    expect(get(session.state).view).toBe("done");
+  });
+});
+
 test("sidebar epics: your last threads go first after the pinned ones", () => {
   const epic = (id: string, extra: Partial<Epic> = {}): Epic => ({
     id,
@@ -419,6 +504,17 @@ test("room visits: the room reopens the thread you left, and the recent three ke
   expect(again.last("me@x.com", "room1")).toBe("e1");
   expect(again.recent("me@x.com", "room1")).toEqual(["e2", "e1"]);
   expect(again.last("other@x.com", "room1")).toBeNull();
+  // The room's old call chat ("call") is never where a room reopens, nor a recent thread; a visit saved in it
+  // before reads as none (Gimenes, 2026-11-25: stuck in the call chat).
+  visits.enter("me@x.com", "room1", "call");
+  expect(visits.last("me@x.com", "room1")).toBe("e1");
+  expect(recordRecent(["a"], "call")).toEqual(["a"]);
+  const old = createRoomVisits({
+    getItem: () =>
+      JSON.stringify({ room1: { last: "call", recent: [], at: 1 } }),
+    setItem: () => {},
+  });
+  expect(old.last("me@x.com", "room1")).toBeNull();
   const broken = createRoomVisits({
     getItem: () => "{not json",
     setItem: () => {

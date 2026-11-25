@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { compile, compileModule } from "svelte/compiler";
 import { Window as HappyDOMWindow } from "happy-dom";
 import type { Room } from "../web/app/roomStore";
+import type { CallApi } from "../web/features/call/callApi";
 import type { ChatProps } from "../web/app/chatTypes";
 import type { CommandOutcome, RoomCommand } from "../shared/commands";
 import type { PanelBridge, PanelProps } from "../web/app/panels";
@@ -4007,7 +4008,7 @@ describe("stable sidebar integration", () => {
       onopen: (id) => {
         opened.push(id);
       },
-      ondonechange: () => {},
+      onviewchange: () => {},
       vb: {
         ...vb,
         epicBusy: () => null,
@@ -4445,6 +4446,53 @@ describe("stable sidebar integration", () => {
       ),
     ).toBeNull();
   }, 30_000);
+  test("the threads tabs are Mine, Open and Done; Mine lists your open threads and each empty tab says so", () => {
+    const room = fixture();
+    room.epics = [
+      { id: "e", title: "Epic", tasks: [], owner: "me@test" },
+      { id: "theirs", title: "Theirs", tasks: [], owner: "you@test" },
+      { id: "old", title: "Old", tasks: [], owner: "me@test", done: true },
+    ];
+    const listed = (rendered: ReturnType<typeof sidebar>) =>
+      [...rendered.target.querySelectorAll<HTMLElement>("li[data-epic]")].map(
+        (row) => row.dataset.epic,
+      );
+    const open = sidebar(room);
+    expect(
+      [...open.target.querySelectorAll<HTMLElement>("[data-threads-tab]")].map(
+        (tab) => tab.textContent?.trim(),
+      ),
+    ).toEqual(["Mine", "Open", "Done"]);
+    expect(listed(open)).toEqual(["e", "theirs"]);
+    expect(open.target.querySelector("[data-epics-empty]")).toBeNull();
+    open.destroy();
+    const mine = sidebar(room, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(mine)).toEqual(["e"]);
+    mine.destroy();
+    const done = sidebar(room, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(listed(done)).toEqual(["old"]);
+    done.destroy();
+    const empty = { ...room, epics: [room.epics[1]!] };
+    const nothingMine = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "mine"),
+    });
+    expect(listed(nothingMine)).toEqual([]);
+    expect(
+      nothingMine.target.querySelector("[data-epics-empty=mine]")?.textContent,
+    ).toContain("Nenhuma thread aberta é sua");
+    nothingMine.destroy();
+    const nothingDone = sidebar(empty, {
+      navigation: createNavigationSession(room.id, "done"),
+    });
+    expect(
+      nothingDone.target.querySelector("[data-epics-empty=done]")?.textContent,
+    ).toContain("Nenhuma thread feita ainda");
+    nothingDone.destroy();
+  });
   test("the threads list has no Nova thread and no title form: a thread starts from a message (Gimenes #4286)", () => {
     const rendered = sidebar(fixture());
     expect(rendered.target.querySelector("[data-new-epic]")).toBeNull();
@@ -4571,7 +4619,7 @@ describe("stable sidebar integration", () => {
       onopenpinapp: () => {},
       send: () => true,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       friends: ["friend@test"],
       vb: sidebarBridge,
     };
@@ -7539,7 +7587,7 @@ describe("collapsed sidebar and typed presence", () => {
       },
       send: () => false,
       onopen: () => {},
-      ondonechange: () => {},
+      onviewchange: () => {},
       onopenpinfile: () => {},
       onopenpinapp: () => {},
       ontogglerail: () => {
@@ -9108,5 +9156,320 @@ describe("People & agents presence", () => {
     expect(document.body.querySelector("[data-tooltip-content]") === null).toBe(
       true,
     );
+  });
+});
+
+// Imported after the DOM above is in place, like the components at the top.
+const { default: IncomingCall } =
+  await import("../web/features/call/IncomingCall.svelte");
+const { default: CallPanel } =
+  await import("../web/features/call/CallPanel.svelte");
+const { default: CallControls } =
+  await import("../web/features/call/CallControls.svelte");
+const { default: CallStage } =
+  await import("../web/features/call/CallStage.svelte");
+const { createCallHub } = await import("../web/features/call/hub");
+const { incomingRing } = await import("../web/features/call/ring");
+describe("the call is the app's (web/features/call/hub.ts)", () => {
+  // The microphone never answers here: the call stays "joining", which is enough to be the live call.
+  function fakeHub() {
+    const opened: string[] = [],
+      closed: string[] = [];
+    const api = {
+      join: async () => "s-1",
+      leave: async () => {},
+      decline: async () => {},
+    } as unknown as CallApi;
+    const hub = createCallHub({
+      api,
+      connect: (room) => ({
+        start: () => opened.push(room),
+        dispose: () => closed.push(room),
+        send: () => true,
+      }),
+    });
+    return { hub, opened, closed };
+  }
+  const media = window.navigator.mediaDevices;
+  afterEach(() => {
+    Object.defineProperty(window.navigator, "mediaDevices", {
+      value: media,
+      configurable: true,
+    });
+    incomingRing.set(null);
+  });
+  function noMicrophoneYet() {
+    Object.defineProperty(window.navigator, "mediaDevices", {
+      value: { getUserMedia: () => new Promise(() => {}) },
+      configurable: true,
+    });
+  }
+
+  // Viktor, 2026-11-25: "everybody joined every call and is stuck in calls". A room that hears its call is on
+  // never joins: only a click does.
+  const inTheCall = [
+    { email: "ana@x.test", session: "s-ana", tracks: ["mic"] },
+    { email: "bia@x.test", session: "s-bia", tracks: ["mic"] },
+  ];
+  test("opening a room with a call on does not join it, nor does visiting several rooms with calls", () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    for (const room of ["room-a", "room-b", "room-c", "dm-ana-me"]) {
+      // What RoomScene does when the room opens and on every word of the room after.
+      const call = hub.session(room, { title: () => room });
+      for (let i = 0; i < 3; i++) call.setPeers(inTheCall, "me@x.test");
+      expect(get(call.state).phase).toBe("idle");
+      expect(get(hub.live)).toBeNull();
+      hub.release(room, call);
+    }
+    expect(opened).toEqual([]);
+  });
+
+  test("only a click joins: the top bar's green phone joins the room's call that is on", async () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    const call = hub.session("room-a", { title: () => "Sala A" });
+    call.setPeers(inTheCall, "me@x.test");
+    const target = document.createElement("div");
+    document.body.append(target);
+    let stage = 0;
+    const instance = flushSync(() =>
+      mount(CallControls, {
+        target,
+        props: {
+          call,
+          peers: inTheCall,
+          name: (email: string) => email.split("@")[0]!,
+          onopen: () => stage++,
+          t: (text: string) => text,
+        },
+      }),
+    );
+    try {
+      expect(get(call.state).phase).toBe("idle");
+      target.querySelector<HTMLElement>("[data-call-start]")!.click();
+      flushSync();
+      expect(get(call.state).phase).toBe("joining");
+      expect(get(hub.live)?.room).toBe("room-a");
+      expect(opened).toEqual(["room-a"]);
+      // In the call, the same phone opens the stage: no second join.
+      target.querySelector<HTMLElement>("[data-call-start]")!.click();
+      expect(stage).toBe(1);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
+
+  test("right-click on a person's tile: Silenciar pra mim, in the stage's dark colors, marks the tile, and toggles back", async () => {
+    const view = writable({
+      phase: "in" as const,
+      muted: false,
+      sharing: false,
+      screens: {},
+      cams: {},
+      camera: false,
+      ownCam: null,
+      watching: "",
+      speaking: [] as string[],
+      own: null,
+      error: "" as const,
+      limit: false,
+      notice: "" as const,
+      silenced: [] as string[],
+    });
+    const toggled: string[] = [];
+    const call = {
+      state: { subscribe: view.subscribe },
+      toggleSilence(email: string) {
+        toggled.push(email);
+        view.update((v) => ({
+          ...v,
+          silenced: v.silenced.includes(email)
+            ? v.silenced.filter((one) => one !== email)
+            : [...v.silenced, email],
+        }));
+      },
+    } as unknown as ComponentProps<typeof CallStage>["call"];
+    const room = {
+      me: "me@x.test",
+      names: { "me@x.test": "Eu", "ana@x.test": "Ana" },
+      call: [
+        { email: "me@x.test", session: "s-me", tracks: ["mic"] },
+        inTheCall[0]!,
+      ],
+      handles: {},
+      book: { title: "Sala" },
+    } as unknown as Room;
+    let closed = 0;
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(CallStage, {
+        target,
+        props: {
+          room,
+          call,
+          send: () => true,
+          open: () => {},
+          avatar: () => null,
+          fill: true,
+          staged: true,
+          chatHidden: false,
+          onchat: () => {},
+          onclose: () => closed++,
+          t: (text: string, vars?: Record<string, string | number>) =>
+            text.replace(/\{(\w+)\}/g, (_, key) => String(vars?.[key] ?? "")),
+        },
+      }),
+    );
+    const menuOf = async (label: string) => {
+      const tile = [
+        ...target.querySelectorAll<HTMLElement>("[data-call-tile]"),
+      ].find((one) => one.getAttribute("aria-label")?.includes(label))!;
+      tile.dispatchEvent(
+        new window.MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+        }),
+      );
+      flushSync();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      flushSync();
+      return tile;
+    };
+    try {
+      // My own tile has no menu: there is nothing to silence for me.
+      await menuOf("Eu");
+      expect(document.body.querySelector("[data-call-tile-menu]")).toBeNull();
+      const ana = await menuOf("Ana");
+      const menu = document.body.querySelector<HTMLElement>(
+        "[data-call-tile-menu]",
+      )!;
+      expect(menu).not.toBeNull();
+      // The stage's dark surface, not the app's light menu.
+      expect(menu.className).toContain("dark");
+      expect(menu.className).toContain("bg-call-stage");
+      const item = menu.querySelector<HTMLElement>("[data-call-silence]")!;
+      expect(item.textContent).toContain("Silenciar pra mim");
+      // A speaker that goes quiet, not the microphone (which would mean muting her for everyone).
+      expect(item.querySelector("use")?.getAttribute("href")).toContain(
+        "volume-x",
+      );
+      item.click();
+      flushSync();
+      expect(toggled).toEqual(["ana@x.test"]);
+      expect(ana.querySelector("[data-call-silenced]")).not.toBeNull();
+      await menuOf("Ana");
+      const again = document.body.querySelector<HTMLElement>(
+        "[data-call-silence]",
+      )!;
+      expect(again.textContent).toContain("Ouvir de novo");
+      again.click();
+      flushSync();
+      expect(ana.querySelector("[data-call-silenced]")).toBeNull();
+      // The stage's way back to the chat: the call goes on.
+      target.querySelector<HTMLElement>("[data-call-close]")!.click();
+      expect(closed).toBe(1);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
+
+  test("Atender from another room joins the DM's call, goes to the DM and clears the ring, in one click", async () => {
+    noMicrophoneYet();
+    const { hub, opened } = fakeHub();
+    const went: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const instance = flushSync(() =>
+      mount(IncomingCall, {
+        target,
+        props: {
+          current: "otherroom1",
+          navigate: (path: string) => went.push(path),
+          chime: () => {},
+          t: (text: string) => text,
+          hub,
+        },
+      }),
+    );
+    try {
+      flushSync(() =>
+        incomingRing.set({
+          book: "dm-ana-bia",
+          from: "ana@x.test",
+          name: "Ana",
+          avatar: null,
+          until: Date.now() + 30_000,
+        }),
+      );
+      target.querySelector<HTMLElement>("[data-ring-answer]")!.click();
+      flushSync();
+      expect(went).toEqual(["/b/dm-ana-bia"]);
+      expect(get(incomingRing)).toBeNull();
+      expect(target.querySelector("[data-incoming-call]")).toBeNull();
+      // The DM's view, when it mounts, gets the call that is on: it opens the stage (RoomScene: in the call).
+      const live = get(hub.live);
+      expect(live?.room).toBe("dm-ana-bia");
+      expect(live?.title).toBe("Ana");
+      expect(hub.session("dm-ana-bia")).toBe(live!.session);
+      expect(get(live!.session.state).phase).toBe("joining");
+      expect(opened).toEqual(["dm-ana-bia"]);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
+  });
+
+  test("the call goes on when its room's view closes, its panel shows elsewhere, and only the hang-up ends it", async () => {
+    noMicrophoneYet();
+    const { hub, closed } = fakeHub();
+    const call = hub.session("room-a", { title: () => "Sala A" });
+    call.join();
+    // Going to another room: the room's view lets go of its session, the call stays.
+    hub.release("room-a", call);
+    expect(get(hub.live)?.session).toBe(call);
+    expect(hub.busyElsewhere("room-b")).toBe(true);
+    // A room I only open (not in its call) is forgotten when its view closes.
+    const other = hub.session("room-b");
+    hub.release("room-b", other);
+    expect(hub.session("room-b")).not.toBe(other);
+    // The panel on another screen: the call's room and its controls.
+    const target = document.createElement("div");
+    document.body.append(target);
+    let opened = 0;
+    const instance = flushSync(() =>
+      mount(CallPanel, {
+        target,
+        props: {
+          call,
+          title: get(hub.live)!.title,
+          onopen: () => opened++,
+          oncamera: () => {},
+          t: (text: string) => text,
+        },
+      }),
+    );
+    try {
+      expect(target.querySelector("[data-call-panel]")?.textContent).toContain(
+        "Sala A",
+      );
+      target.querySelector<HTMLElement>("[data-call-panel-open]")!.click();
+      expect(opened).toBe(1);
+      target.querySelector<HTMLElement>("[data-call-panel-leave]")!.click();
+      flushSync();
+      expect(get(hub.live)).toBeNull();
+      expect(closed).toEqual(["room-a"]);
+      expect(target.querySelector("[data-call-panel]")).toBeNull();
+      // Released and idle: the next view of the room gets a fresh session.
+      expect(hub.session("room-a")).not.toBe(call);
+    } finally {
+      await unmount(instance);
+      target.remove();
+    }
   });
 });

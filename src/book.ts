@@ -9,6 +9,7 @@ import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTIO
 import { reorderEpics } from "./epic-order";
 import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, CallConsentSchema, type CallConsent, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
+import { STALE_THREAD_MS, threadWaitText } from "../shared/threadWait";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
@@ -74,6 +75,8 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
+/** The tag of a socket that only carries the call (Book.isCallSocket). */
+const CALL_SOCKET = "call";
 /** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
 const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
 /** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
@@ -82,6 +85,8 @@ const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
+// nudgeStale: how many stalled threads @vibe calls about per pass, and how long until the next pass.
+const STALE_PER_PASS = 3, STALE_PASS_GAP_MS = 3600_000;
 /** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
  *  made): the router was maybe wrong, so it becomes a suggested case in D1 router_feedback. */
 const UNDO_WINDOW_MS = 30 * 60_000;
@@ -323,10 +328,63 @@ export class Book extends DurableObject<Env> {
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 't%' AND ref NOT IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(keep)),
         DB.prepare(`DELETE FROM waits WHERE book_id = ? AND thread IN (SELECT value FROM json_each(?))`).bind(id, JSON.stringify(gone)),
         ...review.map(({ t, e }) => DB.prepare(`INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, '', ?, ?)`).bind(id, `t${t.id}`, t.owner, e.id, e.title, t.title, Date.now())),
-      ]).then(() => this.pokeMembers()).catch((e) => console.error("waits sync", String(e))),
+        ...this.threadWaitStatements(id, epics),
+      ]).then(() => this.pokeMembers()).catch((e) => { this.forgetThreadWaits(); console.error("waits sync", String(e)); }),
     );
     // Something changed on the board: @vibe grades it again (debounced, on the alarm).
     this.ctx.waitUntil(this.wakeAt(Date.now() + CLASSIFY_DELAY_MS));
+  }
+  /** When each thread last moved: made, or a message there from a person or an agent (@vibe's own lines don't count). */
+  threadActivity() {
+    const last = new Map(this.sql.exec<{ id: string; ts: number | null }>(`SELECT id, ts FROM epics`).toArray().map((r) => [r.id, r.ts ?? 0]));
+    for (const r of this.sql.exec<{ thread: string; ts: number }>(`SELECT thread, max(ts) AS ts FROM messages WHERE thread != 'main' AND author != 'ai' GROUP BY thread`).toArray())
+      last.set(r.thread, Math.max(last.get(r.thread) ?? 0, r.ts));
+    return last;
+  }
+  /** The threads that wait on their owner (Gimenes #5242, PO #5257): every open thread with an owner, except an answer. */
+  ownedThreads(epics: ReturnType<Book["epics"]>) {
+    return epics.filter((e): e is typeof e & { owner: string } => !e.done && !e.answer && !!e.owner && e.owner !== "ai");
+  }
+  /** Every open thread you own is a wait in your Inbox (ref e<epicId>, shared/threadWait.ts): status|done/total, from
+   *  "ai" once @vibe called you about it (nudgeStale). A done, deleted or answer thread, or one whose owner changed,
+   *  loses its row. Only rows that changed since the last sync are written (meta thread_waits). */
+  threadWaitStatements(bookId: string, epics: ReturnType<Book["epics"]>) {
+    const DB = this.env.DB;
+    const act = this.threadActivity();
+    const rows = this.ownedThreads(epics).map((e) => {
+      const nudged = Number(this.get(`stale_nudge:${e.id}`) ?? 0);
+      const text = threadWaitText(e.status === "done" ? "review" : e.status, e.tasks.filter((t) => t.status === "done").length, e.tasks.length);
+      return { ref: `e${e.id}`, email: e.owner, thread: e.id, topic: e.title, author: nudged ? "ai" : "", text, ts: nudged || act.get(e.id) || Date.now() };
+    });
+    let before: Record<string, string> = {};
+    try { before = JSON.parse(this.get("thread_waits") ?? "{}") as Record<string, string>; } catch {}
+    const now: Record<string, string> = {};
+    const changed = rows.filter((r) => {
+      const key = `${r.ref}|${r.email}`, sig = `${r.topic}\u0000${r.author}\u0000${r.text}`;
+      now[key] = sig;
+      return before[key] !== sig;
+    });
+    this.set("thread_waits", JSON.stringify(now));
+    return [
+      DB.prepare(`DELETE FROM waits WHERE book_id = ? AND ref LIKE 'e%' AND (ref || '|' || email) NOT IN (SELECT value FROM json_each(?))`).bind(bookId, JSON.stringify(Object.keys(now))),
+      ...changed.map((r) =>
+        DB.prepare(
+          `INSERT INTO waits (book_id, ref, email, thread, topic, author, text, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (book_id, ref, email) DO UPDATE SET thread = excluded.thread, topic = excluded.topic, author = excluded.author, text = excluded.text, ts = excluded.ts`,
+        ).bind(bookId, r.ref, r.email, r.thread, r.topic, r.author, r.text, r.ts),
+      ),
+    ];
+  }
+  /** The thread waits alone (a nudge, or new activity after one): written now, and the owners' apps refetch. */
+  async syncThreadWaits() {
+    const id = this.get("book_id");
+    if (!id) return;
+    await this.env.DB.batch(this.threadWaitStatements(id, this.epics())).catch((e) => { this.forgetThreadWaits(); throw e; });
+    this.pokeMembers();
+  }
+  /** A sync that failed: the next one writes every row again. */
+  forgetThreadWaits() {
+    this.sql.exec(`DELETE FROM meta WHERE k = 'thread_waits'`);
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
@@ -745,6 +803,16 @@ export class Book extends DurableObject<Env> {
       .map((t) => ({ epic_id: "main", epic: null, task_id: t.id, title: t.title, status: t.status, due: t.due }));
     return [...fromEpics, ...fromRoom];
   }
+  /** "Marcar como feita" on an open thread in the Inbox (outside the room): a person's own action, like the thread
+   *  bar's status menu. false = no such open thread. */
+  inboxDone(bookId: string, epicId: string, email: string) {
+    this.bind(bookId);
+    const e = this.epics().find((x) => x.id === epicId);
+    if (!e || e.done) return false;
+    this.setEpicStatus(epicId, "done");
+    this.ctx.waitUntil(track(this.env, "epic_status", { user: email, dims: { book: bookId, status: "done", via: "inbox" } }));
+    return true;
+  }
   /** The members' open apps refetch what they see outside this room (rail, waits): src/person.ts. */
   // msg: only a new message or rename (touch): a tab with this room open already has it and skips the /api/me refetch.
   pokeMembers(msg = false) {
@@ -773,8 +841,12 @@ export class Book extends DurableObject<Env> {
     this.set("call", JSON.stringify(peers));
     this.broadcastCall();
   }
+  private callEvent(): Extract<RoomEvent, { t: "call" }> {
+    return { t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) };
+  }
+  /** Every socket of the room hears it, the call's own sockets too (isCallSocket). */
   private broadcastCall() {
-    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) });
+    this.sendTo(this.sockets(undefined, true), this.callEvent());
   }
   /** A DM's call: who said yes or no to the recording, for this call only (Jonas, 2026-11-25: a DM has the notice,
    *  and is recorded only if both accept). A room's call is always recorded, with the notice on the stage. */
@@ -829,12 +901,23 @@ export class Book extends DurableObject<Env> {
   liveCallThread(): string | undefined {
     return this.callPeers().some((p) => !isRecorder(p.email)) ? this.callThread() : undefined;
   }
-  /** The room's call chat: one for every call of the room (CALL_THREAD, never listed as a thread). A DM's call
-   *  is the conversation's. */
+  /** The thread of the call that is on (or of the last one): a room's call has its own thread (newCallThread), a
+   *  DM's call is the conversation's. A thread deleted since, or a call from before threads per call: main. */
   private callThread(): string {
-    return this.isDm ? "main" : CALL_THREAD;
+    const thread = this.isDm ? "main" : (this.get("call_thread") ?? "main");
+    return this.epics().some((e) => e.id === thread) ? thread : "main";
   }
-  /** A thread a message can go to: main, the room's call chat, an epic. */
+  /** A new call's own thread, started from its line in main: "Call · 25/11 14:30". The chat beside the stage while
+   *  the call is on, then a normal thread in the sidebar where the recording's summary lands. */
+  private newCallThread(email: string, line: number, at: number): string {
+    const when = new Intl.DateTimeFormat(this.en ? "en-US" : "pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at).replace(",", "");
+    const id = this.createEpic(`Call · ${when}`);
+    this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, email, line, id);
+    this.epicsChanged();
+    return id;
+  }
+  /** A thread a message can go to: main, an epic (a call's thread is one), and the room's old call chat
+   *  (CALL_THREAD: every call's chat before each call had its own thread). */
   knownThread(thread: string): boolean {
     return thread === "main" || (thread === CALL_THREAD && !this.isDm) || this.epics().some((e) => e.id === thread);
   }
@@ -894,6 +977,7 @@ export class Book extends DurableObject<Env> {
     this.set("call_line", String(m.id));
     this.set("call_at", String(m.ts));
     this.set("call_many", "");
+    this.set("call_thread", this.isDm ? "" : this.newCallThread(email, m.id, m.ts));
     if (this.isDm) this.ctx.waitUntil(this.ringStart(email).catch((e) => console.error("call ring", String(e))));
   }
   /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */
@@ -1012,8 +1096,15 @@ export class Book extends DurableObject<Env> {
     const r = await this.env.DB.prepare(`SELECT email, lang FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; lang: string | null }>();
     return Object.fromEntries(r.results.map((u) => [u.email, u.lang]));
   }
-  sockets(except?: WebSocket) {
-    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN);
+  /** The room's open sockets. `withCall`: the call's own sockets too (isCallSocket), which hear only the call. */
+  sockets(except?: WebSocket, withCall = false) {
+    return this.ctx.getWebSockets().filter((ws) => ws !== except && ws.readyState === WebSocket.OPEN && (withCall || !this.isCallSocket(ws)));
+  }
+  /** A socket that only carries the call (/ws/:id?call=1): the app keeps it open while the person is in this room's
+   *  call and is elsewhere in the app (another room, Home), so leaving the room's view does not leave the call. It
+   *  hears the call's events and sends the call's commands, and does not make the person "here" (online). */
+  isCallSocket(ws: WebSocket) {
+    return this.ctx.getTags(ws)[1] === CALL_SOCKET;
   }
   /** Every send to the room's sockets goes through here, so the bytes are counted by event kind per hour in DO `ws_bytes`; the alarm flushes finished hours to D1 events `ws_bytes` for the product
    *  report. 15/11: /ws/:id carried 3.1 MB per connection and nothing said what it was (ws_push saw only ≥20 KB broadcasts). */
@@ -1087,6 +1178,11 @@ export class Book extends DurableObject<Env> {
       if (q && q.author === author && ASK_OPENER.test(q.text)) { this.ctx.waitUntil(this.askWait(author, replyTo, "", null)); this.unblock(author); }
     }
     if (byPerson && !extra.quiet) this.ctx.waitUntil(this.answeredHere(author, thread, id));
+    // A thread @vibe called its owner about moved again: the call is over, and the owner's wait leaves "Para você".
+    if (author !== "ai" && thread !== "main" && this.get(`stale_nudge:${thread}`)) {
+      this.sql.exec(`DELETE FROM meta WHERE k = ?`, `stale_nudge:${thread}`);
+      this.ctx.waitUntil(this.syncThreadWaits().catch((e) => console.error("thread waits", String(e))));
+    }
     // In a DM every message from a person is for the other one, @ or not (push now, catch-up mail later).
     if ((text.includes("@") || (byPerson && this.isDm)) && !extra.quiet) this.ctx.waitUntil(this.queueMentions(m));
     return m;
@@ -1796,6 +1892,37 @@ export class Book extends DurableObject<Env> {
         : "⏰ Esta pergunta ainda não tem resposta. Um Claude de quem perguntou: escreva a resposta no doc desta thread (update_doc) e poste 1-2 linhas aqui.", { tag: "reminder", forWho: e.owner! });
     }
     return next;
+  }
+  /** Open threads of an owner that stood still STALE_THREAD_MS (Gimenes #5242, PO #5257): @vibe calls the owner once,
+   *  in the thread, and their Inbox wait moves to "Para você" (author "ai"). Once per quiet period: a message there
+   *  from a person or an agent clears the mark (addMessage), so the next quiet period calls again. Answer and done
+   *  threads are skipped. At most STALE_PER_PASS a pass, so a room with many old threads is not flooded at once.
+   *  Returns when the next one is due (0 = none). */
+  async nudgeStale(now = Date.now()) {
+    const due: { id: string; owner: string; title: string }[] = [];
+    let next = 0;
+    const act = this.threadActivity();
+    for (const e of this.ownedThreads(this.epics())) {
+      if (this.get(`stale_nudge:${e.id}`)) continue;
+      const at = (act.get(e.id) ?? 0) + STALE_THREAD_MS;
+      if (at > now) { next = next ? Math.min(next, at) : at; continue; }
+      due.push({ id: e.id, owner: e.owner, title: e.title });
+    }
+    if (!due.length) return next;
+    // The alarm runs for many reasons (a message, a board change): the pass gap holds however often it fires.
+    const passed = Number(this.get("stale_pass_at") ?? 0);
+    if (now - passed < STALE_PASS_GAP_MS) return passed + STALE_PASS_GAP_MS;
+    this.set("stale_pass_at", String(now));
+    const names = await this.names(), handles = await this.handles();
+    for (const e of due.slice(0, STALE_PER_PASS)) {
+      this.set(`stale_nudge:${e.id}`, String(now));
+      const who = handles[e.owner] ?? (names[e.owner] ?? e.owner.split("@")[0]).split(/\s+/)[0];
+      this.addMessage(e.id, "ai", this.en
+        ? `@${who} this thread has been stalled for 3 days: mark it done, cancel it, or keep going?`
+        : `@${who} essa thread está parada há 3 dias: marcar como feita, cancelar ou continuar?`);
+    }
+    await this.syncThreadWaits().catch((e) => console.error("thread waits", String(e)));
+    return due.length > STALE_PER_PASS ? now + STALE_PASS_GAP_MS : next;
   }
   /** "O que precisa de mim aqui" (Gui #3011): asked by a person, answered by their own Claude (brief_reply). Never a
    *  room message: only that person's sockets and their Claudes' read_room ever see it. Last 48h, ≤20. */
@@ -2816,7 +2943,7 @@ export class Book extends DurableObject<Env> {
       const members = await this.members();
       // Kick sockets of anyone no longer a member.
       // The call's recorder has no row in the members and stays.
-      for (const ws of this.sockets()) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
+      for (const ws of this.sockets(undefined, true)) if (!members.includes(this.ctx.getTags(ws)[0]) && !isRecorder(this.ctx.getTags(ws)[0])) ws.close(4003, "removed");
       // The docs' live editors too (the room's doc and each epic's), or a removed person keeps typing in them.
       const id = this.get("book_id");
       if (id) await Promise.all([undefined, ...this.epics().map((e) => e.id)].map((ep) => docRoomStub(this.env, id, ep).kickAll().catch(() => {})));
@@ -2829,6 +2956,12 @@ export class Book extends DurableObject<Env> {
     const bookId = url.searchParams.get("book");
     if (!email || !bookId) return new Response("bad request", { status: 400 });
     if (!this.get("book_id")) this.set("book_id", bookId);
+    if (url.searchParams.get("call") === "1") {
+      const { 0: client, 1: server } = new WebSocketPair();
+      this.ctx.acceptWebSocket(server, [email, CALL_SOCKET]);
+      this.sendTo([server], this.callEvent());
+      return new Response(null, { status: 101, webSocket: client });
+    }
     // Rooms from before the D1 epic index fill it the first time someone opens them.
     if (!this.get("epics_indexed")) {
       this.set("epics_indexed", "1");
@@ -2913,6 +3046,9 @@ export class Book extends DurableObject<Env> {
       try { ws.send(frame(call.id)); } catch {} // socket already gone
     };
     if (!call.command) return reply((id) => encodeError(id, call.error));
+    // The call's socket carries the call's commands only.
+    if (this.ctx.getTags(ws)[1] === CALL_SOCKET && !call.command.t.startsWith("call."))
+      return reply((id) => encodeError(id, { code: RpcErrorCode.REFUSED, message: "call socket" }));
     let out: unknown;
     try {
       out = await this.runCommand(ws, email, call.command);
@@ -3167,9 +3303,10 @@ export class Book extends DurableObject<Env> {
     try { ws.close(); } catch {}
     try {
       this.broadcast({ t: "online", online: this.online().filter((e) => this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === e)) }, ws);
-      // The call lives on the room's socket: with no tab of this room left, the person is out of it.
+      // The call lives on the room's sockets and the call's own (isCallSocket): with none of them left, the person
+      // is out of it. Leaving the room's view keeps the call's socket, so the call goes on.
       const gone = this.ctx.getTags(ws)[0];
-      if (!this.sockets(ws).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
+      if (!this.sockets(ws, true).some((s) => this.ctx.getTags(s)[0] === gone)) this.callLeave(gone);
     } catch (e) {
       console.error("book webSocketClose", String(e)); // see DocRoom.webSocketClose
     }
@@ -3341,6 +3478,7 @@ export class Book extends DurableObject<Env> {
     await this.sendDueMail().catch((e) => console.error("mention mail", String(e)));
     await this.grade().catch((e) => console.error("grade", String(e)));
     try { const next = this.nudgeUnanswered(); if (next) await this.wakeAt(next); } catch (e) { console.error("answer nudge", String(e)); }
+    try { const next = await this.nudgeStale(); if (next) await this.wakeAt(next); } catch (e) { console.error("stale nudge", String(e)); }
     const since = Number(this.get("classified_at_id") ?? 0);
     // Only people's own messages count: @vibe and agent posts don't make a room "talked about".
     const fresh = this.sql.exec(`SELECT count(*) AS n FROM messages WHERE id > ? AND author != 'ai' AND kind IS NULL`, since).one().n as number;

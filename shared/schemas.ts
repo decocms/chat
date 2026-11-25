@@ -579,7 +579,8 @@ export type MeFriendRequest = z.infer<typeof MeFriendRequest>;
 export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
-  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you. */
+  /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -640,6 +641,8 @@ export const InboxResult = z.object({
   waits: z.array(MeWait),
   mentions: z.array(InboxMention),
   tasks: z.array(InboxTask),
+  /** Every open thread you own (waits e<epic>), quiet ones too: the Inbox's "Suas threads". */
+  threads: z.optional(z.array(MeWait)),
 });
 export type InboxResult = z.infer<typeof InboxResult>;
 

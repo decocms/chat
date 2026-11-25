@@ -30,7 +30,7 @@
     send,
     request,
     onopen,
-    ondonechange,
+    onviewchange,
     navigation,
     pins,
     onopenpinfile,
@@ -237,7 +237,7 @@
           {thread}
           session={navigation}
           mutations={owner}
-          {ondonechange}
+          {onviewchange}
           onopen={open}
           vb={{
             t: vb.t,

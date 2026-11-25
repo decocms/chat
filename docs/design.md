@@ -9,7 +9,7 @@ The room screen has five areas, from left to right.
 | Area | Component | Contents |
 |---|---|---|
 | Rail | `AppNavigation` | Your rooms, the Inbox (`/?inbox`, while something waits on you), search, new room. |
-| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics and the people. At the bottom: the user center (`UserCenter`). |
+| Sidebar | `Sidebar` (room-sidebar) | The room's name (`SidebarHeader`), which is also the main thread, then the epics in three tabs (Mine, Open, Done; `EpicTree`) and the people. At the bottom: the user center (`UserCenter`). |
 | Top bar | `RoomHeader` (room-shell) | The name of the view, the controls of the view, the pane tabs. |
 | Main view | `RoomScene` | The chat of a thread. |
 | Pane | `DocumentToolbar` and the pane | The doc, the files, the apps, beside the main view. |

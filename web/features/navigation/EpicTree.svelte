@@ -14,6 +14,7 @@
   import TabsList from "../../lib/studio/TabsList.svelte";
   import TabsTrigger from "../../lib/studio/TabsTrigger.svelte";
   import { cn } from "../../lib/studio/utils";
+  import EmptyState from "../../lib/components/EmptyState.svelte";
   import WaitBadge from "../waits/WaitBadge.svelte";
   import { waitCount, type WaitReference } from "../waits/model";
   import Tooltip from "../../lib/studio/Tooltip.svelte";
@@ -29,12 +30,18 @@
     doneEpics,
     activeEpics,
     epicForest,
+    mineEpics,
     reorderEpics,
     sidebarEpics,
     visibleEpics,
     EPIC_PAGE,
+    type ThreadView,
   } from "./model";
-  import { enterNavigationThread, type NavigationSession } from "./session";
+  import {
+    enterNavigationThread,
+    setNavigationView,
+    type NavigationSession,
+  } from "./session";
   import { roomVisits } from "./recent";
 
   let {
@@ -43,7 +50,7 @@
     session,
     mutations,
     onopen,
-    ondonechange,
+    onviewchange,
     selectionDisabled = false,
     onBeforeOpen,
     vb,
@@ -53,7 +60,7 @@
     session: NavigationSession;
     mutations: RoomMutations;
     onopen: (id: string) => void;
-    ondonechange: (done: boolean) => void;
+    onviewchange: (view: ThreadView) => void;
     selectionDisabled?: boolean;
     onBeforeOpen?: () => boolean;
     vb: {
@@ -147,16 +154,18 @@
     return () => observer.disconnect();
   });
   const done = $derived(doneEpics(orderedEpics, room.messages));
-  // Two tabs (Gimenes #3989): open threads (to do, doing, requires action,
-  // then @vibe's proposals: open one to see it, start it to make it a thread)
-  // and done (the archive).
-  const mode = $derived(
-    $navigation.done && done.length > 0 ? "done" : "active",
-  );
+  /** The Open list's threads that are yours, in the same order. */
+  const mine = $derived(mineEpics(active, room.me));
+  // Three tabs (Viktor): Mine (the open threads you own), Open (to do, doing,
+  // requires action, then @vibe's proposals: open one to see it, start it to
+  // make it a thread) and Done (the archive). An empty tab says so.
+  const mode = $derived($navigation.view);
   /** The list is flat: sub-epics are plain rows, with no branches to open. */
   const flat = (list: readonly Epic[]) =>
     list.map((epic) => (epic.parent ? { ...epic, parent: undefined } : epic));
-  const forest = $derived(epicForest(flat(mode === "done" ? done : active)));
+  const forest = $derived(
+    epicForest(flat(mode === "done" ? done : mode === "mine" ? mine : active)),
+  );
   const entryForest = $derived(epicForest(room.epics));
   const workingEpics = $derived(
     new Set(
@@ -209,17 +218,13 @@
   });
 
   function switchMode(value: string) {
-    if (disposed) return;
+    const view = views.find((entry) => entry.value === value)?.value;
+    if (disposed || !view) return;
     generation++;
     requested = null;
     localOrder = null;
-    const done = value === "done";
-    navigation.update((state) => ({
-      ...state,
-      done,
-      suggestions: false,
-    }));
-    ondonechange(done);
+    setNavigationView(session, view);
+    onviewchange(view);
     error = "";
   }
   async function submit(command: Parameters<RoomMutations["run"]>[0]) {
@@ -229,9 +234,9 @@
     return success;
   }
   $effect(() => {
-    // A suggestion opened from elsewhere (a link, Back) opens the open threads, with its row.
-    if (thread.startsWith("pre:") && untrack(() => $navigation.done))
-      navigation.update((state) => ({ ...state, done: false }));
+    // A suggestion opened from elsewhere (a link, Back) opens the Open tab, with its row.
+    if (thread.startsWith("pre:") && untrack(() => $navigation.view) !== "open")
+      navigation.update((state) => ({ ...state, view: "open" }));
   });
   function siblings(id: string) {
     return groupMembers(groupOf(id));
@@ -261,7 +266,7 @@
   }
   /** A row was dropped at a new place among its siblings. */
   function sorted(move: SortMove) {
-    if (disposed || mode !== "active") return;
+    if (disposed || mode !== "open") return;
     const shown = new Set(forest.roots.map((epic) => epic.id));
     const place = landing(
       move.order,
@@ -279,7 +284,7 @@
   $effect(() => {
     const request = requested;
     if (!request) return;
-    if (request.thread !== thread || mode !== "active") {
+    if (request.thread !== thread || mode !== "open") {
       requested = null;
       localOrder = null;
       generation++;
@@ -325,14 +330,38 @@
   }
   function move(id: string, direction: -1 | 1) {
     const target = adjacent(id, direction);
-    if (mode === "active" && target) reorder(id, target.id, direction === 1);
+    if (mode === "open" && target) reorder(id, target.id, direction === 1);
   }
+  // The labels are the same English words in both languages (Viktor).
   const views = $derived([
-    { value: "active", label: vb.t("Threads abertas"), disabled: false },
     {
-      value: "done",
-      label: vb.t("Feitas"),
-      disabled: done.length === 0,
+      value: "mine" as const,
+      label: vb.t("Mine"),
+      empty: {
+        icon: "user-01" as const,
+        title: vb.t("Nenhuma thread aberta é sua"),
+        description: vb.t(
+          "As threads que você cria ou que passam para você aparecem aqui.",
+        ),
+      },
+    },
+    {
+      value: "open" as const,
+      label: vb.t("Open"),
+      empty: {
+        icon: "message-circle-01" as const,
+        title: vb.t("Nenhuma thread aberta"),
+        description: vb.t("Para abrir uma, use Criar thread numa mensagem."),
+      },
+    },
+    {
+      value: "done" as const,
+      label: vb.t("Done"),
+      empty: {
+        icon: "check-circle" as const,
+        title: vb.t("Nenhuma thread feita ainda"),
+        description: vb.t("Uma thread marcada como feita vem para cá."),
+      },
     },
   ]);
 </script>
@@ -345,11 +374,12 @@
     "m-0 box-border flex shrink-0 flex-col p-0 text-sm leading-5 text-sidebar-foreground max-md:min-h-0 max-md:shrink",
   )}
 >
-  {#snippet panel(value: string)}
+  {#snippet panel(view: (typeof views)[number])}
+    {@const value = view.value}
     {#if value === mode}
       <ul
         bind:this={list}
-        aria-label={value === "done" ? vb.t("Feitas") : vb.t("Threads abertas")}
+        aria-label={view.label}
         class="m-0 flex list-none flex-col gap-1 p-0"
       >
         <SortableList
@@ -368,7 +398,7 @@
               index={siblingIndex.get(epic.id) ?? 0}
               group={groupOf(epic.id)}
               disabled={mutationBusy ||
-                value !== "active" ||
+                value !== "open" ||
                 row.hasChildren ||
                 !epic.pinned}
               id={rowIds.get(epic.id)}
@@ -399,15 +429,11 @@
                             "text-muted-foreground group-hover/row:text-sidebar-foreground",
                         )}
                         data-epic-thread={epic.id}
-                        aria-keyshortcuts={value === "active" && epic.pinned
+                        aria-keyshortcuts={value === "open" && epic.pinned
                           ? "Alt+ArrowUp Alt+ArrowDown"
                           : undefined}
                         onkeydown={(event) => {
-                          if (
-                            value !== "active" ||
-                            !event.altKey ||
-                            !epic.pinned
-                          )
+                          if (value !== "open" || !event.altKey || !epic.pinned)
                             return;
                           if (
                             event.key === "ArrowUp" ||
@@ -441,7 +467,7 @@
                               >({vb.t("Feito")})</span
                             >{/if}</span
                         >
-                        {#if epic.pinned && value === "active"}<span
+                        {#if epic.pinned && value !== "done"}<span
                             role="img"
                             data-epic-pinned
                             aria-label={vb.t("Fixado")}
@@ -504,7 +530,12 @@
           {/each}
         </SortableList>
       </ul>
-      {#if value === "active" && room.suggestions.length}
+      {#if !rows.length && !(value === "open" && room.suggestions.length)}<div
+          data-epics-empty={value}
+        >
+          <EmptyState {...view.empty} />
+        </div>{/if}
+      {#if value === "open" && room.suggestions.length}
         <div
           role="group"
           aria-label={vb.t("Sugestões do @vibe")}
@@ -568,14 +599,14 @@
     <TabsList aria-label={vb.t("Threads")} class="h-8 w-full shrink-0">
       {#each views as view (view.value)}<TabsTrigger
           value={view.value}
-          disabled={view.disabled}
+          data-threads-tab={view.value}
           class="h-6 flex-1 text-xs">{view.label}</TabsTrigger
         >{/each}
     </TabsList>
     {#each views as view (view.value)}<TabsContent
         value={view.value}
         class="flex h-auto flex-col max-md:min-h-0 max-md:overflow-y-auto max-md:overscroll-contain"
-        >{@render panel(view.value)}</TabsContent
+        >{@render panel(view)}</TabsContent
       >{/each}
   </Tabs>
   <p role="status" aria-live="polite" class="sr-only">{announcement}</p>
