@@ -88,12 +88,16 @@ export function mentionPicks(
     if (
       agent.email === room.me &&
       typeof agent.name === "string" &&
-      agent.name.trim()
+      agent.name.trim() &&
+      !people.some((p) => p.agent && p.handle === agent.name)
     )
       people.push({
         email: agent.email,
         handle: agent.name,
-        label: "seu agent no sandbox",
+        label:
+          agent.sandbox === false
+            ? "seu agent nesta sala"
+            : "seu agent no sandbox",
         agent: true,
       });
   // @room calls everyone in the room (the server reads @sala/@todos the same way).

@@ -1181,7 +1181,17 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
                     }
                   },
                 },
-                agents: data?.sandboxes ?? [],
+                // Your sandboxes and your Claudes here by @name (#290): `@claude-2` calls that one.
+                agents: [
+                  ...(data?.sandboxes ?? []),
+                  ...(data?.agents ?? [])
+                    .filter((agent) => agent.id && agent.name)
+                    .map((agent) => ({
+                      name: agent.name!,
+                      email: agent.email,
+                      sandbox: false,
+                    })),
+                ],
                 rooms: mentionRooms(me()?.books ?? []),
                 navigate: (id) => {
                   if (owned()) navigateMessage(id, thread);
