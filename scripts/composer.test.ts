@@ -23,6 +23,18 @@ import {
   matchingMessage,
 } from "../web/features/composer/model";
 import {
+  linkEdit,
+  shortcutFor,
+  toggleCodeBlock,
+  toggleMark,
+  asUrl,
+  toggleLink,
+  toggleQuote,
+  urlLabel,
+  type MarkEdit,
+  type MarkdownMark,
+} from "../web/features/composer/markdownShortcuts";
+import {
   createSpeechController,
   type SpeechRecognizer,
 } from "../web/features/composer/speech";
@@ -983,4 +995,208 @@ test("# picks rooms (folded, capped) then open threads of this room, and writes 
   expect(roomReference(picks.items[1]!)).toBe(`${origin}/b/abcdef12?t=e1`);
   expect(roomPicks("#", 1, rooms, room, origin)?.items).toHaveLength(3);
   expect(roomPicks("#nada", 5, rooms, room, origin)).toBeNull();
+});
+
+const applyMark = (text: string, edit: MarkEdit) => ({
+  text: text.slice(0, edit.from) + edit.insert + text.slice(edit.to),
+  selected: [edit.selectionStart, edit.selectionEnd],
+});
+
+test("a Markdown shortcut wraps the selection and keeps the words selected", () => {
+  const text = "1. Preview\nStatus";
+  const edit = toggleMark(text, 11, 17, "**");
+  expect(applyMark(text, edit)).toEqual({
+    text: "1. Preview\n**Status**",
+    selected: [13, 19],
+  });
+});
+
+test("a Markdown shortcut leaves the spaces at the ends of the selection outside", () => {
+  expect(applyMark("say hi now", toggleMark("say hi now", 3, 7, "_"))).toEqual({
+    text: "say _hi_ now",
+    selected: [5, 7],
+  });
+});
+
+test("a second Markdown shortcut removes the marks, inside or outside the selection", () => {
+  expect(applyMark("a **b** c", toggleMark("a **b** c", 4, 5, "**"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+  expect(applyMark("a ~~b~~ c", toggleMark("a ~~b~~ c", 2, 7, "~~"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+});
+
+test("a Markdown shortcut with no selection puts the caret between the marks", () => {
+  expect(applyMark("x ", toggleMark("x ", 2, 2, "`"))).toEqual({
+    text: "x ``",
+    selected: [3, 3],
+  });
+});
+
+test("Markdown shortcuts use Cmd on a Mac and Ctrl elsewhere", () => {
+  const key = (key: string, patch: Partial<KeyboardEvent> = {}) => ({
+    key,
+    code: "",
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...patch,
+  });
+  const mark = (value: MarkdownMark) => ({
+    kind: "mark" as const,
+    mark: value,
+  });
+  expect(shortcutFor(key("b", { metaKey: true }), true)).toEqual(mark("**"));
+  expect(shortcutFor(key("i", { metaKey: true }), true)).toEqual(mark("_"));
+  expect(shortcutFor(key("u", { metaKey: true }), true)).toEqual(mark("__"));
+  expect(shortcutFor(key("e", { metaKey: true }), true)).toEqual(mark("`"));
+  expect(
+    shortcutFor(key("X", { metaKey: true, shiftKey: true }), true),
+  ).toEqual(mark("~~"));
+  expect(
+    shortcutFor(key("E", { metaKey: true, shiftKey: true }), true),
+  ).toEqual({ kind: "codeBlock" });
+  // ⇧9 is "(" on most layouts: the physical key counts.
+  expect(
+    shortcutFor(
+      key("(", { code: "Digit9", metaKey: true, shiftKey: true }),
+      true,
+    ),
+  ).toEqual({ kind: "quote" });
+  expect(
+    shortcutFor(key("K", { metaKey: true, shiftKey: true }), true),
+  ).toEqual({ kind: "link" });
+  // Ctrl+B and Ctrl+E move the caret on a Mac.
+  expect(shortcutFor(key("b", { ctrlKey: true }), true)).toBeNull();
+  expect(shortcutFor(key("b", { ctrlKey: true }), false)).toEqual(mark("**"));
+  expect(shortcutFor(key("b", { metaKey: true }), false)).toBeNull();
+  expect(shortcutFor(key("k", { metaKey: true }), true)).toBeNull();
+  expect(shortcutFor(key("b"), true)).toBeNull();
+});
+
+test("italic does not take one underscore of an underline", () => {
+  expect(applyMark("a __b__ c", toggleMark("a __b__ c", 4, 5, "_"))).toEqual({
+    text: "a ___b___ c",
+    selected: [5, 6],
+  });
+  expect(applyMark("a __b__ c", toggleMark("a __b__ c", 4, 5, "__"))).toEqual({
+    text: "a b c",
+    selected: [2, 3],
+  });
+});
+
+test("a code block shortcut fences the selected lines, and a second press removes the fences", () => {
+  const text = "antes\nlet x = 1\nlet y = 2\ndepois";
+  const fenced = applyMark(text, toggleCodeBlock(text, 8, 20));
+  expect(fenced.text).toBe("antes\n```\nlet x = 1\nlet y = 2\n```\ndepois");
+  const [from, to] = fenced.selected;
+  expect(fenced.text.slice(from, to)).toBe("let x = 1\nlet y = 2");
+  expect(
+    applyMark(fenced.text, toggleCodeBlock(fenced.text, from!, to!)).text,
+  ).toBe(text);
+  expect(applyMark("", toggleCodeBlock("", 0, 0))).toEqual({
+    text: "```\n\n```",
+    selected: [4, 4],
+  });
+});
+
+test("a quote shortcut puts > on each selected line, and a second press removes it", () => {
+  const text = "um\ndois\n\ntrês";
+  const quoted = applyMark(text, toggleQuote(text, 1, text.length));
+  expect(quoted.text).toBe("> um\n> dois\n>\n> três");
+  expect(applyMark(quoted.text, toggleQuote(quoted.text, 0, 3)).text).toBe(
+    "um\n> dois\n>\n> três",
+  );
+  expect(
+    applyMark(quoted.text, toggleQuote(quoted.text, 0, quoted.text.length))
+      .text,
+  ).toBe("um\ndois\n\ntrês");
+});
+
+test("a URL pasted over selected text makes a Markdown link", () => {
+  expect(
+    applyMark(
+      "veja o doc",
+      linkEdit("veja o doc", 7, 10, " https://x.org/a ")!,
+    ),
+  ).toEqual({ text: "veja o [doc](https://x.org/a)", selected: [29, 29] });
+  expect(linkEdit("veja", 0, 0, "https://x.org")).toBeNull();
+  expect(linkEdit("veja", 0, 4, "não é url")).toBeNull();
+  expect(linkEdit("https://a.org", 0, 13, "https://x.org")).toBeNull();
+  expect(linkEdit("a\nb", 0, 3, "https://x.org")).toBeNull();
+});
+
+test("a link gets a name from its URL only", () => {
+  expect(urlLabel("https://github.com/decocms/chat/pull/447")).toBe(
+    "decocms/chat #447",
+  );
+  expect(
+    urlLabel(
+      "https://www.figma.com/design/AbC123xyz/Stone-Migration?node-id=1",
+    ),
+  ).toBe("Stone Migration (figma.com)");
+  expect(
+    urlLabel(
+      "https://www.notion.so/deco/Plano-de-lancamento-0123456789abcdef0123456789abcdef",
+    ),
+  ).toBe("Plano de lancamento (notion.so)");
+  expect(urlLabel("https://docs.google.com/document/d/1AbCdEf123/edit")).toBe(
+    "Document (docs.google.com)",
+  );
+  expect(urlLabel("https://chat.decocms.com/b/f94aedb83899")).toBe(
+    "chat.decocms.com",
+  );
+  expect(urlLabel("https://example.org/blog/meu_post.html")).toBe(
+    "Meu post (example.org)",
+  );
+});
+
+test("⌘⇧K turns a selected URL into a named link, and a second press turns it back", () => {
+  const text = "veja https://github.com/decocms/chat/pull/447 hoje";
+  const linked = applyMark(text, toggleLink(text, 5, 45)!);
+  expect(linked.text).toBe(
+    "veja [decocms/chat #447](https://github.com/decocms/chat/pull/447) hoje",
+  );
+  const [from, to] = linked.selected;
+  // The name is selected: typing replaces it.
+  expect(linked.text.slice(from, to)).toBe("decocms/chat #447");
+  expect(applyMark(linked.text, toggleLink(linked.text, 5, 66)!).text).toBe(
+    text,
+  );
+});
+
+test("⌘⇧K on text waits for the URL, and does nothing on several lines", () => {
+  expect(applyMark("o doc", toggleLink("o doc", 2, 5)!)).toEqual({
+    text: "o [doc]()",
+    selected: [8, 8],
+  });
+  expect(applyMark("", toggleLink("", 0, 0)!)).toEqual({
+    text: "[]()",
+    selected: [1, 1],
+  });
+  expect(toggleLink("a\nb", 0, 3)).toBeNull();
+});
+
+test("⌘⇧K takes an address with no https://, and a paste needs https:// or www.", () => {
+  expect(
+    applyMark("www.decocms.com", toggleLink("www.decocms.com", 0, 15)!),
+  ).toEqual({
+    text: "[decocms.com](https://www.decocms.com)",
+    selected: [1, 12],
+  });
+  expect(asUrl("decocms.com/blog/meu-post")).toBe(
+    "https://decocms.com/blog/meu-post",
+  );
+  expect(asUrl("www.decocms.com", false)).toBe("https://www.decocms.com");
+  expect(asUrl("file.ts", false)).toBeNull();
+  expect(asUrl("não é url")).toBeNull();
+  expect(linkEdit("Deco", 0, 4, "www.decocms.com")!.insert).toBe(
+    "[Deco](https://www.decocms.com)",
+  );
+  // A selected address is the URL, not the name: pasting over it is a normal paste.
+  expect(linkEdit("www.decocms.com", 0, 15, "https://x.org")).toBeNull();
 });

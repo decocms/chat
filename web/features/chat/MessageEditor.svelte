@@ -8,6 +8,10 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import EmojiPicker from "../composer/EmojiPicker.svelte";
+  import {
+    markdownPaste,
+    markdownShortcut,
+  } from "../composer/markdownShortcuts";
   import { stopEditing } from "./editing";
   let {
     message,
@@ -62,6 +66,7 @@
   }
   function keydown(event: KeyboardEvent) {
     if (event.isComposing) return;
+    if (markdownShortcut(event)) return;
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -99,7 +104,8 @@
       aria-busy={busy || undefined}
       readonly={busy}
       class="my-1 block max-h-64 min-h-6 min-w-0 flex-1 resize-none border-0 bg-transparent p-0 font-sans text-[0.875rem] leading-6 break-words text-foreground outline-none [field-sizing:content] pointer-coarse:text-[16px] focus-visible:outline-none"
-      onkeydown={keydown}></textarea>
+      onkeydown={keydown}
+      onpaste={markdownPaste}></textarea>
     <IconButton
       label={vb.t("Emoji")}
       data-message-editor-emoji
