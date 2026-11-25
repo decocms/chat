@@ -196,13 +196,15 @@ export interface ApiServices {
   saveSecret(table: "freestyle_keys" | "claude_tokens", value: string): Promise<void>;
   /** Ask freestyle whether this API key works: null = it does, else freestyle's reason. */
   checkFreestyleKey(key: string): Promise<string | null>;
+  /** The person's deco Studio connection (Studio agents, src/studioSandbox.ts). */
+  studio: { disconnect(): Promise<void> };
   /** How recent a listener's last call must be to count as listening (ms). */
   listenFresh: number;
   /** The signed-in person's own sandboxes (by id + email); room membership is checked by the route. */
   sandboxes: {
     list(roomId: string): Promise<SandboxesResult>;
     /** Throws an Error whose message is user-facing. */
-    create(roomId: string, name: string): Promise<{ id: string; vm_id: string; name: string }>;
+    create(roomId: string, name: string, studio?: { org: string; project?: string }): Promise<{ id: string; vm_id: string; name: string }>;
     /** null = done; "not_found"; else freestyle's error. */
     power(sid: string, act: "pause" | "start"): Promise<string | null>;
     /** Throws freestyle's error. */
@@ -752,6 +754,11 @@ export const keysApi = homeApi
     await c.get("svc").sql(`DELETE FROM freestyle_keys WHERE email = ?`, c.get("email"));
     return c.json(ok, 200);
   })
+  // The person's deco Studio connection (Studio agents). Connecting is a browser sign-in: GET /api/studio/signin.
+  .delete("/api/studio", async (c) => {
+    await c.get("svc").studio.disconnect();
+    return c.json(ok, 200);
+  })
   // The person's Claude subscription token (from `claude setup-token` in their own terminal): sandboxes start logged in.
   .post("/api/claude-token", body(ClaudeTokenBody), async (c) => {
     const svc = c.get("svc");
@@ -881,7 +888,8 @@ export const sandboxApi = agentsApi
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
     try {
-      const r = await svc.sandboxes.create(id, c.req.valid("json").name ?? "");
+      const input = c.req.valid("json");
+      const r = await svc.sandboxes.create(id, input.name ?? "", input.studio);
       return c.json({ ok: true as const, ...r } satisfies CreateSandboxResult, 200);
     } catch (e) {
       return c.json(failed(e), 400);
