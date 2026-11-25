@@ -187,7 +187,7 @@ What the recorder had before it stopped is lost: the file goes to Grain only at 
 
 ### Noise suppression
 
-The microphone goes through RNNoise (`web/features/call/denoise.ts`) before it goes to the call. It takes out the noise that the browser's own noise suppression lets through (construction, a keyboard, a voice in the back). It runs in the browser: no audio goes to a server for this. It is on by default. A person can turn it off in "Mais opções" ("Supressão de ruído"); the choice stays on that device (`localStorage`, `vb-call-denoise`). Mute and the speaking mark use the raw microphone. If RNNoise does not start, the raw microphone goes to the call.
+The microphone goes through RNNoise (`web/features/call/denoise.ts`) before it goes to the call. It takes out the noise that the browser's own noise suppression lets through (construction, a keyboard, a voice in the back). A gain (+6 dB) and a limiter after it give back the level that RNNoise takes from the voice. It runs in the browser: no audio goes to a server for this. It is on by default. A person can turn it off in "Mais opções" ("Supressão de ruído"); the choice stays on that device (`localStorage`, `vb-call-denoise`). Mute and the speaking mark use the raw microphone. If RNNoise does not start, the raw microphone goes to the call.
 
 ### Background blur
 
