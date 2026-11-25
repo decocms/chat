@@ -68,10 +68,19 @@
   const errors = $derived({
     "": "",
     mic: t("Não consegui usar o microfone. Libere o acesso no navegador."),
-    failed: t("A call falhou. Tente entrar de novo."),
+    failed: t("A call falhou."),
     dropped: t(
       "Você saiu da call (a conexão caiu ou você entrou por outra aba).",
     ),
+  });
+  // A failed join shows as a toast for a few seconds, not as a line in the room.
+  let toast = $state<"" | "mic" | "failed" | "dropped">("");
+  $effect(() => {
+    const error = $view.error;
+    toast = error;
+    if (!error) return;
+    const timer = setTimeout(() => (toast = ""), 6000);
+    return () => clearTimeout(timer);
   });
   const notices = $derived({
     "": "",
@@ -492,12 +501,9 @@
         >
       </div>
     </section>
-  </div>{:else if peers.length || $view.error}<div
+  </div>{:else if peers.length}<div
     data-call-bar
-    class={[
-      "flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 font-sans text-xs text-muted-foreground",
-      !$view.error && "md:hidden",
-    ]}
+    class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 font-sans text-xs text-muted-foreground md:hidden"
   >
     {#if peers.length}<span
         class="flex size-6 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground"
@@ -518,9 +524,28 @@
         onclick={() => call.join()}
         ><Icon icon="phone" size={14} />{t("Entrar na call")}</Button
       >{/if}
-    {#if $view.error}<p role="alert" class="m-0 basis-full text-destructive">
-        {errors[$view.error]}
-      </p>{/if}
+  </div>{/if}
+{#if toast}<div
+    data-call-toast
+    role="alert"
+    class="fixed bottom-24 left-1/2 z-50 flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-3.5 font-sans text-sm text-background shadow-lg"
+  >
+    <Icon icon="alert-circle" size={16} class="shrink-0 text-destructive" />
+    <p class="m-0 min-w-0 flex-1">{errors[toast]}</p>
+    {#if toast !== "mic"}<Button
+        size="sm"
+        variant="secondary"
+        class="shrink-0 rounded-full"
+        onclick={() => {
+          toast = "";
+          call.join();
+        }}>{t("Tentar de novo")}</Button
+      >{/if}
+    <IconButton
+      label={t("Fechar")}
+      class="size-8 shrink-0 rounded-full text-background hover:bg-background/15 hover:text-background"
+      onclick={() => (toast = "")}><Icon icon="x" size={14} /></IconButton
+    >
   </div>{/if}
 <CameraDialog
   bind:open={cameraOpen}

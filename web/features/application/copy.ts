@@ -832,7 +832,7 @@ const EN: Readonly<Record<string, string>> = {
   "Sua tela, como os outros veem": "Your screen, as the others see it",
   "Não consegui usar o microfone. Libere o acesso no navegador.":
     "I could not use the microphone. Allow it in the browser.",
-  "A call falhou. Tente entrar de novo.": "The call failed. Try to join again.",
+  "A call falhou.": "The call failed.",
   "Você saiu da call (a conexão caiu ou você entrou por outra aba).":
     "You left the call (the connection dropped, or you joined from another tab).",
   "O limite de tela deste mês acabou. Abra um Google Meet, cole o link aqui e todo mundo da call recebe.":
