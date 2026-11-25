@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -171,6 +171,52 @@ try {
     await desk.screenshot({ path: join(out, "picker-1440.png") });
     shots.push("picker-1440.png");
     await desk.keyboard.press("Escape");
+  }
+  if (flag("marks")) {
+    // Markdown shortcuts in the composer (Pedro): the keys write the marks, and a person's message renders them.
+    const field = desk.locator("textarea").first();
+    const shortcut = async (
+      text: string,
+      select: [number, number],
+      keys: string,
+      shown: string,
+    ) => {
+      await field.click();
+      await field.fill(text);
+      await field.evaluate(
+        (node: HTMLTextAreaElement, [from, to]) =>
+          node.setSelectionRange(from, to),
+        select,
+      );
+      await desk.keyboard.press(keys);
+      await desk.keyboard.press("Enter");
+      await desk.locator(`[data-chat-message] ${shown}`).last().waitFor();
+    };
+    await shortcut("Status do projeto", [0, 6], "ControlOrMeta+b", "strong");
+    await shortcut("Prazo de entrega", [9, 16], "ControlOrMeta+u", "u");
+    await shortcut(
+      "Veja www.decocms.com",
+      [5, 20],
+      "ControlOrMeta+Shift+k",
+      "a",
+    );
+    await shortcut("bun run check", [0, 13], "ControlOrMeta+Shift+e", "pre");
+    await shortcut(
+      "Uma citação de outra pessoa",
+      [0, 27],
+      "ControlOrMeta+Shift+Digit9",
+      "blockquote",
+    );
+    await field.click();
+    await field.fill(
+      "Também _itálico_, ~~riscado~~ e `código`. Fica como texto: snake_case_nome, 2*3*4.",
+    );
+    await desk.keyboard.press("Enter");
+    await desk.locator("[data-chat-message] del").last().waitFor();
+    await desk.mouse.move(0, 0);
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "marks-1440.png") });
+    shots.push("marks-1440.png");
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens

@@ -2093,3 +2093,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
 - Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
 - Status: open
+
+### 2026-11-25 · feat/composer-markdown-shortcuts · Shortcuts write marks, and person messages show them
+
+- Agent: Claude Opus 5.5
+- Context: Pedro asked for shortcuts that put Markdown marks on the selected text, and the message must show the result (bold after "command + *"). A person's message was plain text: only agent messages rendered Markdown.
+- Decision:
+  - ⌘B / Ctrl+B is bold (`**`), ⌘I italic (`_`), ⌘E code (`` ` ``), ⌘⇧X strikethrough (`~~`), as in Slack, Discord and Notion. A second press removes the marks. On a Mac only ⌘ counts, because Ctrl+B and Ctrl+E move the caret. No link shortcut: ⌘K opens the search.
+  - The edit goes through `document.execCommand("insertText")`, so ⌘Z undoes it. This API is deprecated, but it is the only one that keeps the undo history of a textarea. A fallback uses `setRangeText`.
+  - Pedro found the bold too thin. `strong` is now `font-bold` (600 in this theme), not `font-semibold` (500). This also changes the bold in agent messages, so the two stay the same.
+  - The `human` mode renders only these four marks, on one line. `_` and `*` count only between words, so `snake_case` and `2*3*4` stay text. Headings, lists and tables stay text, so "1. Preview" does not become a list.
+  - Pedro then selected four more: ⌘U underline, a URL pasted over selected text makes `[text](url)`, ⌘⇧E code block and ⌘⇧9 quote. Underline is `__x__`, as in Discord: Markdown has no underline. In agent messages (full Markdown), `__x__` stays bold. An underline has the text's color, because a link is blue with no underline. ⌘⇧9 uses the physical key (`Digit9`), because ⇧9 writes "(" on most layouts.
+  - Pedro asked for ⌘⇧K: a selected URL becomes `[name](url)`. The name comes from the URL only (GitHub "org/repo #42", else the last word-like path part and the host, else the host). The app does not open the page to read its title: that is a server call to a third party (rule 1), and the browser cannot read another site (CORS). In a field, ⌘⇧K stops the event, because the ⌘K search does not look at ⇧.
+  - The `message` event gets `marks: true` when the text has a mark or a code block (`shared/inlineMarks.ts`), so we can see if people use them.
+- Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
+- Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
+- Undo: Revert this commit.
+- Status: open
