@@ -48,11 +48,12 @@ This file contains only the global rules. Read the specific document before you 
 3. Make a branch from `main`. Do not commit to `main` directly.
 4. Make the change. Keep it small.
 5. Run `bun run check`. If it fails, fix the cause. Do not skip a check.
-6. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)). Do not commit `dist/`.
-7. If a person can see the change, tell the room in the release message.
-8. If you made a deliberate decision, add an entry to `docs/agents_deliberate_decisions.md`.
-9. If your change makes a document wrong, update that document in the same commit.
-10. Release it with the release procedure in [docs/workflow.md](docs/workflow.md): rebase, automerge, then watch `main`.
+6. If a person can see the change, test it on local development and take screens (`bun run screens`, see [docs/workflow.md](docs/workflow.md), "Screens"). Look at them. Put them in the pull request before you enable automerge. A visible change without screens does not merge.
+7. Build and commit the generated files that the change affects (see [docs/workflow.md](docs/workflow.md)). Do not commit `dist/`.
+8. If a person can see the change, tell the room in the release message.
+9. If you made a deliberate decision, add an entry to `docs/agents_deliberate_decisions.md`.
+10. If your change makes a document wrong, update that document in the same commit.
+11. Release it with the release procedure in [docs/workflow.md](docs/workflow.md): rebase, automerge, then watch `main`.
 
 **Warning: Never leave `main` red.** If a check fails on `main`, fix it with a new pull request before you do other work.
 
