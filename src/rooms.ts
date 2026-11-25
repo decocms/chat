@@ -160,6 +160,8 @@ export async function storeFile(env: Env, bookId: string, email: string, type: s
     throw new Error(published.status === 403 ? "forbidden" : "file publication failed");
   }
   if (rem) return { ...meta, reminder: await bookStub(env, bookId).reminderFile(bookId, email, rem[1].trim(), text, meta.id) };
+  // agents/<role>.md with a role frontmatter defines a role in the room (shared/roles.ts); a sandbox's CLAUDE.md doesn't.
+  if (agentMd) await bookStub(env, bookId).roleFile(bookId, name, text);
   return meta;
 }
 

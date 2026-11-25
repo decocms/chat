@@ -13,6 +13,10 @@ const cases: [string, ReturnType<typeof rule>, string][] = [
   ["Gui in Gimenes's epic", rule({ ...base, author: G, epic_owner: M }, M), "model"],
   ["someone else's Claude talking", rule({ ...base, author: G, agent: true }, M), "skip"],
   ["your reminder", rule({ ...base, author: "ai", tag: "reminder", for_who: M }, M), "wake"],
+  // Calling one of your agents by @name (src/agentNames.ts) wakes with no model; someone else's @claude doesn't.
+  ["you call @claude-2, your agent", rule({ ...base, author: M, to_own_agent: true }, M), "wake"],
+  ["your message, no agent named", rule({ ...base, author: M, to_own_agent: false }, M), "model"],
+  ["Gui calls @claude (his)", rule({ ...base, author: G, to_own_agent: true }, M), "model"],
 ];
 let bad = 0;
 for (const [name, got, want] of cases) { const ok = d(got) === want; bad += +!ok; console.log(`${ok ? "ok " : "BAD"} ${name}: ${d(got)}${ok ? "" : ` (want ${want})`}`); }
