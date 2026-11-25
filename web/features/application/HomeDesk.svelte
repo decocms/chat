@@ -2,6 +2,7 @@
   import { onMount, tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import AgentMark from "../../lib/components/AgentMark.svelte";
+  import VibeCube from "../home/VibeCube.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import Snapshot from "../../lib/components/Snapshot.svelte";
@@ -993,8 +994,7 @@
       {lang}
       size="xs"
       surface="background"
-    />{:else if row.author === "ai"}<AgentMark
-      mark="✦"
+    />{:else if row.author === "ai"}<VibeCube
       class="text-xs text-foreground"
     />{:else if row.author}<PersonAvatar
       data-avatar="person"

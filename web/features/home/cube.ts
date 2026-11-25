@@ -1,3 +1,4 @@
+import { readable } from "svelte/store";
 import { CUBE } from "./cubeShader";
 
 // Draws the agent's cube on a canvas with WebGL. The home's big cube leans
@@ -52,7 +53,7 @@ function darkTheme() {
   );
 }
 
-type Paint = (rotation: Matrix, seconds: number) => void;
+type Paint = (rotation: Matrix, seconds: number, dark?: boolean) => void;
 /** Compiles the cube's shader on the canvas; null without WebGL. */
 function cubePainter(canvas: HTMLCanvasElement): Paint | null {
   const gl = canvas.getContext("webgl", {
@@ -82,12 +83,12 @@ function cubePainter(canvas: HTMLCanvasElement): Paint | null {
   gl.enableVertexAttribArray(at);
   gl.vertexAttribPointer(at, 2, gl.FLOAT, false, 0, 0);
   const u = (name: string) => gl.getUniformLocation(program, name);
-  return (rotation, seconds) => {
+  return (rotation, seconds, dark = darkTheme()) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform2f(u("uRes"), canvas.width, canvas.height);
     gl.uniformMatrix3fv(u("uRot"), false, rotation);
     gl.uniform1f(u("uSpread"), 1);
-    gl.uniform1f(u("uDark"), darkTheme() ? 1 : 0);
+    gl.uniform1f(u("uDark"), dark ? 1 : 0);
     gl.uniform1f(u("uTime"), seconds);
     gl.uniform2f(u("uTrip"), 0, 1);
     gl.uniform1f(u("uScale"), 1);
@@ -214,3 +215,46 @@ export function mountRailCube(canvas: HTMLCanvasElement): RailCube {
     },
   };
 }
+
+// @vibe's face: the rail's cube at rest, drawn once per theme on one shared
+// canvas and handed out as a picture. A WebGL context per avatar would run out
+// fast in a long channel (browsers keep about sixteen); a picture costs nothing.
+const PICTURE_PX = 96;
+let pictureCanvas: HTMLCanvasElement | null = null,
+  picturePaint: Paint | null | undefined;
+const pictures = new Map<boolean, string | null>();
+/** The cube at rest as a PNG data URL for the theme; null without WebGL. */
+function cubePicture(dark: boolean): string | null {
+  const cached = pictures.get(dark);
+  if (cached !== undefined) return cached;
+  if (picturePaint === undefined) {
+    pictureCanvas = document.createElement("canvas");
+    pictureCanvas.width = pictureCanvas.height = PICTURE_PX;
+    picturePaint = cubePainter(pictureCanvas);
+  }
+  let url: string | null = null;
+  if (picturePaint && pictureCanvas) {
+    picturePaint(CUBE.rest, 0, dark);
+    url = pictureCanvas.toDataURL("image/png");
+  }
+  pictures.set(dark, url);
+  return url;
+}
+/** @vibe's cube picture for the current theme (null without WebGL or a DOM); follows theme changes. */
+export const vibeCube = readable<string | null>(null, (set) => {
+  if (typeof document === "undefined" || typeof matchMedia !== "function")
+    return;
+  const update = () => set(cubePicture(darkTheme()));
+  update();
+  const scheme = matchMedia("(prefers-color-scheme: dark)");
+  const observer = new MutationObserver(update);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "data-theme"],
+  });
+  scheme.addEventListener("change", update);
+  return () => {
+    observer.disconnect();
+    scheme.removeEventListener("change", update);
+  };
+});
