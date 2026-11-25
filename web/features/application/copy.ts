@@ -696,6 +696,12 @@ const EN: Readonly<Record<string, string>> = {
   "Quem entra com email @{domain} vê o título e as pessoas, e entra sem pedir.":
     "Anyone signed in with an @{domain} email sees the title and people, and joins without asking.",
   "Só quem você convida entra.": "Only people you invite can join.",
+  "Salas da empresa": "Company rooms",
+  "Você está aqui": "You're here",
+  "Nenhuma sala aberta pra sua empresa ainda.":
+    "No rooms open to your company yet.",
+  "Não deu pra carregar as salas.": "Couldn't load the rooms.",
+  "Não deu pra entrar. Tente de novo.": "Couldn't join. Try again.",
   "pediu {ago}": "asked {ago} ago",
   "Liberar: entra na sala e recebe o link por email":
     "Let in: joins the room and gets the link by email",

@@ -3,6 +3,7 @@ import {
   AccessRequestResult,
   AvatarResult,
   OrgRoomsResult,
+  OrgDirectoryResult,
   ConnectResult,
   ErrorBody,
   LoginsResult,
@@ -80,6 +81,11 @@ export function createAccountApi(fetcher?: FetchLike) {
       api.org.rooms
         .$get({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OrgRoomsResult)),
+    /** Every room open to your company domain, the ones you are in marked (the rail's "Salas da empresa"). */
+    orgDirectory: (signal: AbortSignal) =>
+      api.org.directory
+        .$get({}, { init: { signal, cache: "no-store" } })
+        .then((response) => read(response, OrgDirectoryResult)),
     /** Join a room open to your company: asking lets you in at once (src/orgRooms.ts requestAccess). */
     joinOrg: (room: string, signal: AbortSignal) =>
       api.books[":id"].request

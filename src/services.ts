@@ -25,7 +25,7 @@ import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
 import { resolveLink } from "./linkTarget";
-import { orgRooms, requestAccess, roomOrg, setRoomOrg } from "./orgRooms";
+import { orgDirectory, orgRooms, requestAccess, roomOrg, setRoomOrg } from "./orgRooms";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -300,6 +300,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     roomOrg: (roomId) => roomOrg(env.DB, roomId, email),
     setRoomOrg: (roomId, open) => setRoomOrg(env.DB, roomId, email, open),
     orgRooms: () => orgRooms(env.DB, email),
+    orgDirectory: () => orgDirectory(env.DB, email),
     decideRequest: async (roomId, who, approve) => {
       if (isDmId(roomId)) return false;
       const req = await env.DB.prepare(`SELECT email FROM access_requests WHERE book_id = ? AND email = ? AND denied = 0`).bind(roomId, who).first<{ email: string }>();

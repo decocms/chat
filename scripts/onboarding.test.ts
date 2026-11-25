@@ -45,6 +45,7 @@ async function fixture(
         answerInvite: async () => ({ ok: true as const }),
         orgRooms: async () => ({ domain: null, rooms: [] }),
         joinOrg: async () => ({ ok: true as const, member: true as const }),
+        orgDirectory: async () => ({ domain: null, rooms: [] }),
         ...options.profile,
       },
       timer.clock,

@@ -9,7 +9,11 @@ import { createNewRoomSession } from "../home/session";
 import { createSearchSession } from "./search";
 import { authClock, type AuthClock } from "../auth/owner";
 import { corporateDomain } from "../../../shared/dm";
-import type { OrgRoom, OrgRoomsResult } from "../../../shared/schemas";
+import type {
+  OrgDirectoryResult,
+  OrgRoom,
+  OrgRoomsResult,
+} from "../../../shared/schemas";
 export type AppNavigationCallbacks = {
   navigate: (target: RoomTarget) => void;
   home: () => void;
@@ -29,6 +33,8 @@ export type AppNavigationCallbacks = {
   orgRooms?: (signal: AbortSignal) => Promise<OrgRoomsResult>;
   /** Joins a room open to your company and opens it. */
   joinOrg?: (room: string) => Promise<void>;
+  /** Every room open to your company domain, yours marked (GET /api/org/directory): the rail's "Salas da empresa". */
+  orgDirectory?: (signal: AbortSignal) => Promise<OrgDirectoryResult>;
 };
 /** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
 export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;

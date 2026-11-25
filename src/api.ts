@@ -95,6 +95,7 @@ import {
   RoomOrgBody,
   type RoomOrgResult,
   type OrgRoomsResult,
+  type OrgDirectoryResult,
   type UploadFileResult,
   type LoginContext,
   LoginContextQuery,
@@ -184,6 +185,8 @@ export interface ApiServices {
   setRoomOrg(roomId: string, open: boolean): Promise<"dm" | "no_domain" | { org: string | null }>;
   /** The rooms open to your company domain where you are not a member yet (the home's "Da sua empresa"). */
   orgRooms(): Promise<OrgRoomsResult>;
+  /** Every room open to your company domain, the ones you are in marked (the rail's "Salas da empresa"). */
+  orgDirectory(): Promise<OrgDirectoryResult>;
   /** A member approves (invites) or denies a pending request; false = no such pending request. */
   decideRequest(roomId: string, email: string, ok: boolean): Promise<boolean>;
   createRoom(title?: string): Promise<string>;
@@ -417,6 +420,11 @@ export const api = roomPosts
     const svc = c.get("svc"), out = await svc.orgRooms();
     if (out.rooms.length) svc.track("org_rooms_listed", { n: out.rooms.length });
     return c.json(out satisfies OrgRoomsResult, 200);
+  })
+  // The rail's "Salas da empresa": every room open to your domain, the ones you are in marked. Covers only.
+  .get("/api/org/directory", async (c) => {
+    const svc = c.get("svc");
+    return c.json((await svc.orgDirectory()) satisfies OrgDirectoryResult, 200);
   })
   // Archive is per person; archived: false restores.
   .post("/api/books/:id/archive", body(ArchiveBody), async (c) => {
