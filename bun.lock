@@ -11,6 +11,7 @@
         "@mediapipe/tasks-vision": "1.2.3",
         "@modelcontextprotocol/ext-apps": "1.7.4",
         "@openrouter/ai-sdk-provider": "^3.1.0",
+        "@sapphi-red/web-noise-suppressor": "0.4.2",
         "@xterm/addon-fit": "0.10.0",
         "@xterm/xterm": "5.5.0",
         "ai": "^7.0.153",
@@ -323,6 +324,8 @@
     "@rolldown/binding-win32-x64-msvc": ["@rolldown/binding-win32-x64-msvc@1.2.19", "", { "os": "win32", "cpu": "x64" }, "sha512-y/sqRRc6d7hECzOFc5n3LSeqctmIp9mMjY1Kq4s14uLPd/LZ4z7i1zrW6fMtp2mPeuQIC4e6ULMcwQzMomqQag=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.1.0", "", {}, "sha512-K+NU2HDCEem4sClgHH4ZZXwdJeNFkJo+hRk479DIwdIviAPN2hFJH1KHHwg8CxHQXvi0M5XY4deTXINfIiSG6w=="],
+
+    "@sapphi-red/web-noise-suppressor": ["@sapphi-red/web-noise-suppressor@0.4.2", "", {}, "sha512-1JXsxjW3nJpLo4Kndk2IupmSlEFNOC2qvUPKt/U4F65UFoERoBAMJF3RKinmTC2jyCfeHQWkVBO3VZDTfPWDPg=="],
 
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 

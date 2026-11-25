@@ -1953,3 +1953,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The resume path now runs in production for the first time. A bug in it shows wrong messages until the next full open.
 - Undo: Revert this commit. Opens then send the whole room again.
 - Status: open
+
+### 2026-11-25 · JonasJesus42/call-audio-test · RNNoise noise suppression in the call, on by default
+
+- Agent: Claude Opus 5.5
+- Context: In the first team call, the other side heard the construction behind Leandro (Grain bedd8d31). Jonas asked for a noise suppression like Discord's, on for all when the result is good, and a local test that captures the audios (#4961).
+- Decision:
+  - Add `@sapphi-red/web-noise-suppressor` 0.4.2 (MIT, exact version) and use its RNNoise worklet. The browser's own noise suppression is not enough for this noise.
+  - It is on by default. A switch in "Mais opções" turns it off on that device, and changes the track of the call with `replaceTrack`, without a new negotiation.
+  - The raw microphone stays for mute and for the speaking mark.
+- Measure (`scripts/call-audio-test.ts`, the fixture with construction, keys and a voice): noise floor -49.7 dB off, -70.4 dB on; gap 36.9 dB off, 51.2 dB on. The speech is about 6 dB lower with RNNoise.
+- Other options: DeepFilterNet (better, about 10 times the CPU and a larger model). GTCRN from the same package (newer, not measured yet). Krisp (paid, a key in the browser).
+- Risk: medium. RNNoise can cut a quiet voice. Each person can turn it off. It uses one more AudioContext and some CPU on each device in a call.
+- Undo: Revert this commit. The `vb-call-denoise` key in `localStorage` stays and is not read.
+- Status: open

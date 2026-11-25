@@ -11,12 +11,13 @@
   import DropdownMenu from "../../lib/studio/DropdownMenu.svelte";
   import DropdownMenuContent from "../../lib/studio/DropdownMenuContent.svelte";
   import DropdownMenuItem from "../../lib/studio/DropdownMenuItem.svelte";
+  import DropdownMenuCheckboxItem from "../../lib/studio/DropdownMenuCheckboxItem.svelte";
   import DropdownMenuTrigger from "../../lib/studio/DropdownMenuTrigger.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import { meetLink, meetMessage } from "./meet";
   import CameraDialog from "./CameraDialog.svelte";
   import { isRecorder } from "../../../shared/call";
-  import type { CallSession } from "./session";
+  import { denoiseOn, type CallSession } from "./session";
   import { callColors, callGrid } from "./layout";
   import { cn } from "../../lib/studio/utils";
   /** How long a recorded room's call can be without its recorder before the warning shows. */
@@ -58,6 +59,7 @@
     t(text: string, vars?: Record<string, string | number>): string;
   } = $props();
   const view = $derived(call.state);
+  const denoise = denoiseOn;
   const name = (email: string) =>
     (room.names?.[email] ?? email.split("@")[0] ?? "").split(/\s+/)[0];
   // The recorder is in the call's list and is not a person: it shows as the "recording" mark.
@@ -503,6 +505,12 @@
               align="center"
               class="w-56 font-sans"
             >
+              <DropdownMenuCheckboxItem
+                data-call-denoise
+                checked={$denoise}
+                onCheckedChange={() => void call.toggleDenoise()}
+                >{t("Supressão de ruído")}</DropdownMenuCheckboxItem
+              >
               <DropdownMenuItem
                 data-call-camera-settings
                 onSelect={() => {

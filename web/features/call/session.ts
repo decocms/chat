@@ -6,6 +6,21 @@ import type { CallPeer } from "../../../shared/room";
 import type { SendRoomCommand } from "../../../shared/commands";
 import type { CallApi } from "./callApi";
 import { isRecorder } from "../../../shared/call";
+import type { Denoiser } from "./denoise";
+
+// The noise suppression (RNNoise, denoise.ts) is on unless the person turned it off on this device.
+const DENOISE_KEY = "vb-call-denoise";
+const denoiseStored = () => {
+  try {
+    return localStorage.getItem(DENOISE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+};
+/** Is the noise suppression on? It stays between calls, on this device. */
+export const denoiseOn = writable(
+  typeof localStorage === "undefined" ? true : denoiseStored(),
+);
 
 export type CallView = {
   phase: "idle" | "joining" | "in";
@@ -138,6 +153,9 @@ export function createCallSession(
   let pc: RTCPeerConnection | null = null,
     session = "",
     mic: MediaStream | null = null,
+    // What goes to the call in place of the microphone when the noise suppression is on, and the sender of it.
+    denoiser: Denoiser | null = null,
+    micSender: RTCRtpSender | null = null,
     screen: MediaStream | null = null,
     screenMid = "",
     cam: MediaStream | null = null,
@@ -228,8 +246,19 @@ export function createCallSession(
     sdp: pc?.localDescription?.sdp ?? "",
   });
 
+  async function cleaned(microphone: MediaStream) {
+    try {
+      return await (await import("./denoise")).denoise(microphone);
+    } catch (error) {
+      console.error("call noise suppression", error);
+      return null;
+    }
+  }
   function teardown(error: CallView["error"] = "") {
     epoch++;
+    denoiser?.stop();
+    denoiser = null;
+    micSender = null;
     if (error === "mic" || error === "failed") stayOut = true;
     clearInterval(usageTimer);
     clearInterval(speakTimer);
@@ -261,6 +290,8 @@ export function createCallSession(
     const conn = pc;
     if (!conn) return "";
     const transceiver = conn.addTransceiver(track, { direction: "sendonly" });
+    // The noise suppression switches the microphone's track on this sender.
+    if (name === "mic") micSender = transceiver.sender;
     await conn.setLocalDescription(await conn.createOffer());
     const mid = transceiver.mid ?? "";
     const out = await api.tracks(roomId, {
@@ -488,7 +519,11 @@ export function createCallSession(
           pc.ontrack = received;
           const [track] = mic.getAudioTracks();
           if (track) track.enabled = !muted;
-          const mid = track ? await push(track, "mic") : "";
+          // The call gets the cleaned microphone; the raw one stays for mute and for the speaking mark. If the
+          // cleaning does not start (an old browser), the raw microphone goes.
+          if (track && get(denoiseOn)) denoiser = await cleaned(mic);
+          if (at !== epoch) return leaveServer(joined);
+          const mid = track ? await push(denoiser?.track ?? track, "mic") : "";
           if (at !== epoch) return leaveServer(joined);
           if (!mid) return teardown("failed");
           usageTimer = setInterval(() => void reportUsage(), USAGE_MS);
@@ -514,6 +549,26 @@ export function createCallSession(
       if (session) leaveServer(session);
       stayOut = true;
       teardown();
+    },
+    /** Noise suppression on or off: in the call now, and in the next calls on this device. */
+    async toggleDenoise() {
+      const on = !get(denoiseOn);
+      denoiseOn.set(on);
+      try {
+        localStorage.setItem(DENOISE_KEY, on ? "1" : "0");
+      } catch {
+        // Private mode: it lasts until the page closes.
+      }
+      const [track] = mic?.getAudioTracks() ?? [];
+      if (!micSender || !mic || !track) return;
+      if (on && !denoiser) denoiser = await cleaned(mic);
+      await micSender
+        .replaceTrack(on && denoiser ? denoiser.track : track)
+        .catch(() => {});
+      if (!on) {
+        denoiser?.stop();
+        denoiser = null;
+      }
     },
     toggleMute() {
       const muted = !get(state).muted;

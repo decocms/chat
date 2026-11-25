@@ -185,6 +185,10 @@ What a person sees when the recording fails:
 
 What the recorder had before it stopped is lost: the file goes to Grain only at the end. Grain's summary does not run by itself on an upload: a person clicks "Run Intelligence" there.
 
+### Noise suppression
+
+The microphone goes through RNNoise (`web/features/call/denoise.ts`) before it goes to the call. It takes out the noise that the browser's own noise suppression lets through (construction, a keyboard, a voice in the back). It runs in the browser: no audio goes to a server for this. It is on by default. A person can turn it off in "Mais opções" ("Supressão de ruído"); the choice stays on that device (`localStorage`, `vb-call-denoise`). Mute and the speaking mark use the raw microphone. If RNNoise does not start, the raw microphone goes to the call.
+
 ### Background blur
 
 The camera dialog (`CameraDialog`) shows the picture before it goes to the call. The person can put the background out of focus (`web/features/call/blur.ts`). A model finds the person in each frame, in the browser: no picture goes to a server for this. The runtime (`@mediapipe/tasks-vision`, 15 MB) loads only when the person turns the blur on.
