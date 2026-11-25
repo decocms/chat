@@ -133,7 +133,8 @@ test("expired doing statuses become task-owner waiting or idle while blocked not
     kind: "waiting",
     owners: ["owner@test"],
   });
-  expect(result.get(2)?.statuses[0].kind).toBe("idle");
+  // Idle (here a "doing" older than 20 minutes) is not a line under the message, only a read receipt.
+  expect(result.get(2)?.statuses ?? []).toEqual([]);
   expect(result.get(3)?.statuses[0].ack.note).toBe("<script>hostile</script>");
 });
 test("worker state excludes branched origins, respects latest completion and falls back to recent epic agent activity", () => {

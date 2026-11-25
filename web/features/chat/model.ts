@@ -141,7 +141,6 @@ export function messageFooters(
     if (latest.has(key)) continue;
     latest.add(key);
     if (ack.status === "dismissed") continue;
-    seen.add(key);
     const owners = [
       ...new Set(
         room.epics
@@ -163,6 +162,10 @@ export function messageFooters(
             : owners.length
               ? "waiting"
               : "idle";
+    // An agent that looked and did nothing (a router passing, or work that went quiet) is not a line under the
+    // message: it shows only as a read receipt, so a run of messages has no gaps between them.
+    if (kind === "idle") continue;
+    seen.add(key);
     at(ack.msg_id).statuses.push({ ack, kind, owners });
   }
   const list = room.messages.filter(
