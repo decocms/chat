@@ -5,7 +5,11 @@
   import CallControls from "../../features/call/CallControls.svelte";
   import CallSidebarRow from "../../features/call/CallSidebarRow.svelte";
   import CallPanel from "../../features/call/CallPanel.svelte";
-  import type { CallSession, CallView } from "../../features/call/session";
+  import {
+    denoiseOn,
+    type CallSession,
+    type CallView,
+  } from "../../features/call/session";
   import type { CallPeer, Room } from "../../../shared/room";
   import { recorderEmail } from "../../../shared/call";
   // The call's stage with no SFU: a fake session whose state comes from the URL, for screenshots and design
@@ -125,6 +129,7 @@
     join: () => patch({ phase: "in" }),
     leave: () => patch({ phase: "idle" }),
     toggleMute: () => store.update((view) => ({ ...view, muted: !view.muted })),
+    toggleDenoise: async () => denoiseOn.update((on) => !on),
     share: () => patch({ notice: "alone" }),
     stopShare: () => patch({ sharing: false }),
     startCamera: (stream) => patch({ camera: true, ownCam: stream }),

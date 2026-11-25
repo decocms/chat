@@ -837,6 +837,7 @@ const EN: Readonly<Record<string, string>> = {
   "Voltar para a call": "Back to the call",
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
+  "Supressão de ruído": "Noise suppression",
   "Tela de {name}": "{name}'s screen",
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",

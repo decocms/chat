@@ -141,6 +141,17 @@ To test the recorder too:
 5. Run `TEST_RECORDER=1 bun scripts/call-browser.ts`. Read the container's log with `docker logs rec`: it shows who it saw, the transcript lines and each step. With a fake Grain token, the last step fails at the upload, as expected.
 6. Remove the container: `docker rm -f rec`.
 
+## Test the call's audio
+
+Each change to the microphone path of the call (`web/features/call/session.ts`, `denoise.ts`) gets this test. Put its numbers in the pull request.
+
+1. Do steps 1 and 2 of "Test the call locally".
+2. Run `TEST_DENOISE=0 TEST_LABEL=off bun scripts/call-audio-test.ts`, then `TEST_DENOISE=1 TEST_LABEL=on bun scripts/call-audio-test.ts`.
+   - Ana speaks `scripts/fixtures/call-noise.wav` through a fake microphone: Portuguese speech with pauses (macOS `say`, voice Luciana), mixed with brown noise, a hammer, keys and a voice in the back. Bia records what arrives.
+   - The audios, and a screen of Ana's "Mais opções" menu, go to `/tmp/vibebook-call-audio` (`TEST_OUTPUT_DIR`).
+   - The script prints the noise floor (the quietest 10% of 100 ms windows), the speech level (the loudest 10%) and the gap, in dB. A better noise suppression gives a lower noise floor and a bigger gap. Listen to the audios too: the numbers do not show a voice that is cut.
+3. To test with real noise, run `TEST_LIVE=1 TEST_SECONDS=30 bun scripts/call-audio-test.ts`. Open the two links that it prints in your browser, start the call and speak. The script records what Bia hears.
+
 ## The call recorder
 
 The recorder (`recorder/`) is a Worker of its own, `chat-recorder`, with a container. Workers Builds does not deploy it.
