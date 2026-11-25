@@ -258,3 +258,16 @@ test("the Home Inbox's look at an item (peek) is not being here: what arrives st
   await settle();
   expect(f.refs()).toEqual([`m${r.id}`]);
 });
+
+test("answering from the Home Inbox reads your post but keeps the room's other asks (PO #5569)", async () => {
+  const f = fixture();
+  for (const ref of ["m5", "m6", "m7"]) f.wait(ref);
+  // You are not in the room (you answer from the Inbox's look at it): your read point moves, the asks stay.
+  f.book.online = () => [];
+  await f.book.readOnPost(voce, true, 8);
+  expect(f.refs()).toEqual(["m5", "m6", "m7"]);
+  // With the room open, posting reads it as before.
+  f.book.online = () => [voce];
+  await f.book.readOnPost(voce, true, 8);
+  expect(f.refs()).toEqual([]);
+});
