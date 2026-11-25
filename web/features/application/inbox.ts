@@ -62,7 +62,9 @@ export function createApplicationInbox(
   };
   // A reply that failed keeps its client_id: replying again with the same text is the same send.
   const sends = createSendIds();
-  const waitsKey = (wait: Wait) => `${wait.book_id}/${wait.ref}`;
+  /** What a ✓ clears: a wait, or a held @mention as d<message id> (the server's /api/waits/resolve). */
+  type Cleared = Pick<Wait, "book_id" | "ref">;
+  const waitsKey = (wait: Cleared) => `${wait.book_id}/${wait.ref}`;
   const empty = (): InboxResult => ({ waits: [], mentions: [], tasks: [] });
   const state = writable<InboxSnapshot>({
     binding: null,
@@ -76,8 +78,8 @@ export function createApplicationInbox(
   });
   const timers = clock ?? clientClock;
   // The Undo window: asks the person resolved, sent when it closes (or at once when the Inbox closes).
-  let later: { waits: Wait[]; timer: unknown } | null = null;
-  async function send(waits: Wait[]) {
+  let later: { waits: Cleared[]; timer: unknown } | null = null;
+  async function send(waits: Cleared[]) {
     try {
       await (waits.length === 1
         ? services.personal.api.resolve(waits[0]!.book_id, waits[0]!.ref)
@@ -205,7 +207,7 @@ export function createApplicationInbox(
   /** One command to the wait's room over a short-lived socket; on success the wait leaves the list at once. */
   async function command(
     binding: InboxBinding,
-    wait: Wait,
+    wait: Pick<Wait, "book_id" | "ref" | "thread">,
     message: RoomCommand,
   ) {
     const path = `/ws/${encodeURIComponent(wait.book_id)}?t=${encodeURIComponent(wait.thread)}`;
@@ -399,17 +401,28 @@ export function createApplicationInbox(
       );
     },
     /** "Resolve" with Undo: the asks leave the list now and go to the server after INBOX_UNDO_MS. */
-    resolveLater(binding: InboxBinding, waits: readonly Wait[]) {
+    resolveLater(
+      binding: InboxBinding,
+      waits: readonly Wait[],
+      mentions: readonly InboxMention[] = [],
+    ) {
       if (!owns(binding)) return;
-      const data = get(state).data.waits,
+      const data = get(state).data,
         hidden = new Set(get(state).hidden);
-      const picked = waits.filter(
-        (wait) =>
-          /^[mr]/.test(wait.ref) &&
-          data.includes(wait) &&
-          canonical(wait) &&
-          !hidden.has(waitsKey(wait)),
-      );
+      const picked: Cleared[] = [
+        ...waits.filter(
+          (wait) =>
+            /^(?:[mabr]\d|t)/.test(wait.ref) &&
+            data.waits.includes(wait) &&
+            canonical(wait),
+        ),
+        ...mentions
+          .filter((mention) => data.mentions.includes(mention))
+          .map((mention) => ({
+            book_id: mention.book_id,
+            ref: `d${mention.msg_id}`,
+          })),
+      ].filter((item) => !hidden.has(waitsKey(item)));
       if (!picked.length) return;
       flush();
       later = {
@@ -517,6 +530,19 @@ export function createApplicationInbox(
         id: wait.ref.slice(1),
         status: "done",
       });
+    },
+    /** ✓ on one of your open tasks (Tarefas): it is done, as the board's status menu sets it. */
+    async completeTask(binding: InboxBinding, task: InboxTask) {
+      if (!owns(binding) || !get(state).data.tasks.includes(task)) return false;
+      return command(
+        binding,
+        {
+          book_id: task.book_id,
+          ref: `t${task.task_id}`,
+          thread: task.epic_id,
+        },
+        { t: "task.status", id: task.task_id, status: "done" },
+      );
     },
     /** "Reprovar" on your task in review: back to doing, as the board's status menu sets it; the wait goes too. */
     async reject(binding: InboxBinding, wait: Wait) {

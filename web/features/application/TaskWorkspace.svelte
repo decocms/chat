@@ -8,10 +8,10 @@
   import Chat from "../chat/Chat.svelte";
   import Composer from "../composer/Composer.svelte";
   import RichContent from "../rich-text/RichContent.svelte";
-  import SideFilePanel from "../file-viewer/SideFilePanel.svelte";
+  import FileViewer from "../file-viewer/FileViewer.svelte";
   import { createSideFileSession } from "../file-viewer/side";
   import { createFileViewer } from "../file-viewer/session";
-  import { knownViewerFiles } from "../file-viewer/model";
+  import { externalFileURL, knownViewerFiles } from "../file-viewer/model";
   import { paneFocus } from "../room-layout/focus";
   import { itemArtifacts, type ItemArtifact } from "./itemArtifact";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
@@ -33,16 +33,17 @@
   import type { ComposerUpload } from "../composer/types";
   import type { BrowserApplicationServices } from "./browser";
   /**
-   * The Home as the place you work: the open Inbox item is its thread (the
-   * conversation with the asked message marked, the item's own actions
-   * `itemActions` and the room's composer). When the item is about a thing
+   * The Home as the place you work: the open Inbox item is its thread, cut to
+   * the stretch around the ask (EXCERPT messages before and after; "Ver a
+   * conversa inteira na sala" goes to the room), with the item's own actions
+   * (`itemActions`) and the room's composer. When the item is about a thing
    * (a file, a room app such as a presentation, the thread's doc: see
-   * itemArtifacts for the rule), that thing is shown big and the thread
-   * becomes a column beside it; a row of names switches between the thread's
-   * other artifacts. It is the room itself, over a socket of its own (the
-   * same /ws a room opens, reduced by reduceRoom), and the room's own file
-   * viewer (SideFilePanel), so nothing here is a copy. "Abrir na sala" is the
-   * one way into the room.
+   * itemArtifacts for the rule) that thing is shown big, the thread a column
+   * beside it (under it when the pane is narrow), with one bar for the
+   * thread's artifacts as tabs and the shown one's actions. It is the room
+   * itself, over a socket of its own (the same /ws a room opens, reduced by
+   * reduceRoom), and the room's file viewer (FileViewer, embedded), so nothing
+   * here is a copy.
    */
   let {
     services,
@@ -259,6 +260,22 @@
       !room.full?.includes(selected) &&
       list.length > 0,
   );
+  // The stretch around the ask: EXCERPT messages before and after it (with no asked message, the last 2×EXCERPT).
+  const EXCERPT = 10;
+  const range = $derived.by(() => {
+    const at = focus ? list.findIndex((message) => message.id === focus) : -1;
+    return at >= 0
+      ? {
+          from: Math.max(0, at - EXCERPT),
+          to: Math.min(list.length, at + EXCERPT + 1),
+        }
+      : { from: Math.max(0, list.length - EXCERPT * 2), to: list.length };
+  });
+  const excerpt = $derived(list.slice(range.from, range.to));
+  const cut = $derived({
+    before: range.from,
+    after: list.length - range.to,
+  });
   const doc = $derived(
     room ? (selected === "main" ? room.doc : room.docs?.[selected]) : undefined,
   );
@@ -355,14 +372,6 @@
       {#if header.thread}<span class="shrink-0 text-subtle-foreground">›</span
         ><span class="min-w-0 truncate font-medium">{header.thread}</span>{/if}
     </h2>
-    <Button
-      data-task-open-room
-      size="sm"
-      variant="ghost"
-      class="h-8 shrink-0 px-2.5 text-xs text-muted-foreground"
-      onclick={onopen}
-      ><Icon icon="link-external-01" size={13} />{t("Abrir na sala")}</Button
-    >
     <IconButton
       data-task-close
       label={t("Fechar")}
@@ -379,60 +388,102 @@
           data-task-artifact={shown.kind}
           class="flex min-h-0 min-w-0 flex-1 flex-col border-t border-border @[960px]:border-r"
         >
-          {#if artifacts.all.length > 1}<div
-              data-task-artifacts
-              class="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-3"
-            >
+          <!-- One bar, as high as the list's tabs: the thread's artifacts as tabs, the shown one's actions. -->
+          <div
+            data-task-artifacts
+            class="flex h-11 shrink-0 items-stretch gap-1 border-b border-border pr-2 pl-4"
+          >
+            <div class="flex min-w-0 flex-1 items-stretch overflow-x-auto">
               {#each artifacts.all as item (item.key)}<button
                   type="button"
                   data-task-artifact-pick={item.key}
                   aria-pressed={item.key === shown.key}
+                  title={item.kind === "file" ? item.file.name : item.name}
                   class={cn(
-                    "h-7 shrink-0 cursor-pointer truncate rounded-md border-0 px-2.5 font-sans text-xs",
+                    "-mb-px flex max-w-56 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-2.5 font-sans text-sm whitespace-nowrap outline-none first:pl-0 focus-visible:ring-2 focus-visible:ring-ring",
                     item.key === shown.key
-                      ? "bg-secondary-hover font-medium text-foreground"
-                      : "bg-transparent text-muted-foreground hover:text-foreground",
+                      ? "border-foreground font-medium text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
-                  onclick={() => (chosen = item.key)}>{item.name}</button
+                  onclick={() => (chosen = item.key)}
+                  ><Icon
+                    icon={item.kind === "doc" ? "align-left" : "file-02"}
+                    size={14}
+                    class="shrink-0"
+                  /><span class="truncate">{item.name}</span></button
                 >{/each}
-            </div>{/if}
-          {#if shown.kind === "file"}<div class="min-h-0 flex-1">
-              <SideFilePanel
-                owner={side}
+            </div>
+            <span class="flex shrink-0 items-center gap-0.5">
+              {#if shown.kind === "file"}<IconButton
+                  label={t("Abrir em outra aba")}
+                  size="icon-sm"
+                  tooltipSide="bottom"
+                  class="text-muted-foreground hover:text-foreground"
+                  href={externalFileURL(
+                    { roomId, id: shown.file.id },
+                    location.origin,
+                    false,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  ><Icon icon="link-external-01" size={16} /></IconButton
+                ><IconButton
+                  label={t("Baixar")}
+                  size="icon-sm"
+                  tooltipSide="bottom"
+                  class="text-muted-foreground hover:text-foreground"
+                  href={fileUrl(shown.file)}
+                  download={shown.file.name}
+                  ><Icon icon="download-01" size={16} /></IconButton
+                ><IconButton
+                  label={$paneFocus ? t("Sair da tela cheia") : t("Expandir")}
+                  size="icon-sm"
+                  tooltipSide="bottom"
+                  aria-pressed={$paneFocus}
+                  class="text-muted-foreground hover:text-foreground"
+                  onclick={() => paneFocus.update((on) => !on)}
+                  ><Icon
+                    icon={$paneFocus ? "minimize-01" : "expand-01"}
+                    size={16}
+                  /></IconButton
+                >{/if}<IconButton
+                label={t("Fechar")}
+                size="icon-sm"
+                tooltipSide="bottom"
+                class="text-muted-foreground hover:text-foreground"
+                onclick={() => {
+                  paneFocus.set(false);
+                  chosen = "none";
+                }}><Icon icon="x" size={16} /></IconButton
+              >
+            </span>
+          </div>
+          {#if shown.kind === "file"}<div
+              class="flex min-h-0 flex-1 flex-col overflow-auto p-4"
+            >
+              <FileViewer
+                controller={side.viewer}
                 {lang}
                 actions={richActions}
-                current={() => active}
-                fullscreen={() => {}}
-                close={() => (chosen = "none")}
+                inline
+                onselect={(id) => {
+                  const target = side.target();
+                  if (active && target) side.select(target, id);
+                }}
+                onclose={() => (chosen = "none")}
               />
-            </div>{:else}<section
+            </div>{:else}<div
               data-task-doc
-              class="flex min-h-0 flex-1 flex-col"
+              class="min-h-0 flex-1 overflow-auto px-6 py-5"
             >
-              <header
-                class="flex h-12 shrink-0 items-center gap-1 border-b border-border pr-2 pl-4"
-              >
-                <h2 class="m-0 flex-1 truncate text-sm font-semibold">
-                  {shown.name}
-                </h2>
-                <IconButton
-                  label={t("Fechar")}
-                  size="icon"
-                  class="text-muted-foreground hover:text-foreground"
-                  onclick={() => (chosen = "none")}
-                  ><Icon icon="x" size={18} /></IconButton
-                >
-              </header>
-              <div class="min-h-0 flex-1 overflow-auto px-6 py-5">
-                <RichContent
-                  text={doc ?? ""}
-                  {room}
-                  actions={richActions}
-                  names={bridge.knownNames}
-                  {t}
-                />
-              </div>
-            </section>{/if}
+              <RichContent
+                text={doc ?? ""}
+                {room}
+                actions={richActions}
+                names={bridge.knownNames}
+                {t}
+              />
+            </div>{/if}
         </div>{/if}
       <!-- The thread: the whole pane, or a column beside the artifact (hidden while the artifact is expanded). -->
       <div
@@ -447,6 +498,26 @@
             : "min-w-0 flex-1",
         )}
       >
+        <!-- Only the stretch of the conversation around the ask; the whole of it is in the room. -->
+        <div
+          class="flex h-11 shrink-0 items-center gap-2 border-b border-border pr-2 pl-6"
+        >
+          <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+            >{#if cut.before}{t("{n} mensagens antes", {
+                n: cut.before,
+              })}{/if}</span
+          >
+          <Button
+            data-task-open-room
+            size="sm"
+            variant="ghost"
+            class="h-8 shrink-0 px-2.5 text-xs text-muted-foreground"
+            onclick={onopen}
+            ><Icon icon="link-external-01" size={13} />{t(
+              "Ver a conversa inteira na sala",
+            )}</Button
+          >
+        </div>
         <div
           bind:this={scroller}
           data-task-body
@@ -476,12 +547,12 @@
           {:else}<Chat
               {room}
               thread={selected}
-              {list}
-              {more}
+              list={excerpt}
+              more={false}
               vb={bridge}
               {actions}
               onloadolder={() => {
-                const first = list[0]?.id;
+                const first = excerpt[0]?.id;
                 if (first)
                   connection.send({
                     t: "older",
@@ -489,7 +560,14 @@
                     before: first,
                   });
               }}
-            />{/if}
+            />{#if cut.after}<button
+                type="button"
+                class="block w-full cursor-pointer border-0 bg-transparent py-3 text-center font-sans text-xs text-muted-foreground hover:text-foreground"
+                onclick={onopen}
+                >{t("{n} mensagens depois", { n: cut.after })} · {t(
+                  "Ver a conversa inteira na sala",
+                )}</button
+              >{/if}{/if}
         </div>
         {#if room}<div data-task-answer class="shrink-0 pt-2">
             {#if itemActions}<div

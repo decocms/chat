@@ -89,9 +89,10 @@ export const PushUnsubscribeBody = z.object({
 });
 export const ResolveWaitBody = z.object({
   book_id: z.string().check(z.minLength(1)),
-  ref: z.string().check(z.regex(/^[mr]\d+$/)),
+  /** A wait (m, a, b, r a message; t a task in review) or, as d<message id>, a held @mention (digest_items). */
+  ref: z.string().check(z.regex(/^(?:[mabrd]\d+|t[\w-]+)$/)),
 });
-/** Many asks at once (the Inbox's "Resolve all"): asks only, at most 200. */
+/** Many at once (the Inbox's "Resolve all"), each as ResolveWaitBody: at most 200. */
 export const ResolveWaitsBody = z.object({
   items: z.array(ResolveWaitBody).check(z.minLength(1), z.maxLength(200)),
 });

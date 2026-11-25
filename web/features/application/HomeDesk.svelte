@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
+  import { get } from "svelte/store";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
@@ -29,6 +30,7 @@
   } from "../home/model";
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import TaskWorkspace from "./TaskWorkspace.svelte";
+  import { paneFocus } from "../room-layout/focus";
   import type { ComposerDrafts } from "../composer/drafts";
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
@@ -104,6 +106,11 @@
   const hidden = $derived(new Set($inbox.hidden));
   const visible = (wait?: Wait) =>
     !wait || !hidden.has(`${wait.book_id}/${wait.ref}`);
+  /** A held @mention (no wait) and an open task leave the list the same way, by their own key. */
+  const shownMessage = (message: RoomInboxMessage) =>
+    visible(message.wait) &&
+    (!message.mention ||
+      !hidden.has(`${message.mention.book_id}/d${message.mention.msg_id}`));
   const summaries = $derived(
     new Map(($personal.me?.books ?? []).map((room) => [room.id, room])),
   );
@@ -134,9 +141,7 @@
   // questions and your tasks in review, in one feed.
   const feed = $derived(
     [
-      ...model.messages
-        .filter((message) => visible(message.wait))
-        .map(fromMessage),
+      ...model.messages.filter(shownMessage).map(fromMessage),
       ...model.oks.filter(visible).map((wait): Card => ({
         key: `w:${wait.book_id}:${wait.ref}`,
         kind: "review",
@@ -202,21 +207,23 @@
   // Tarefas: your open tasks (the ones in review are in Pra você).
   const tasks = $derived(
     model.groups.flatMap((group) =>
-      group.tasks.map((task): Card => ({
-        key: `t:${task.book_id}:${task.task_id}`,
-        kind: "task",
-        book: task.book_id,
-        room: roomName(task.book_id, task.room),
-        thread: task.epic_id,
-        where: group.epic || "",
-        author: "",
-        authorName: null,
-        text: task.title,
-        about: "",
-        ts: 0,
-        task,
-        summary: summaries.get(task.book_id),
-      })),
+      group.tasks
+        .filter((task) => !hidden.has(`${task.book_id}/t${task.task_id}`))
+        .map((task): Card => ({
+          key: `t:${task.book_id}:${task.task_id}`,
+          kind: "task",
+          book: task.book_id,
+          room: roomName(task.book_id, task.room),
+          thread: task.epic_id,
+          where: group.epic || "",
+          author: "",
+          authorName: null,
+          text: task.title,
+          about: "",
+          ts: 0,
+          task,
+          summary: summaries.get(task.book_id),
+        })),
     ),
   );
   const lists = $derived({
@@ -315,9 +322,13 @@
   /** The text as the chat draws it: one line of Markdown-free text, @mentions as chips. */
   const segments = (text: string) =>
     mentionSegments(inboxPreview(text), () => true);
-  const canDone = (card: Card) =>
-    ((card.kind === "ask" || card.kind === "reply") && !!card.wait) ||
-    card.kind === "room";
+  /** Everything in the Inbox can leave it: what ✓ says on each. */
+  const doneLabel = (card: Card) =>
+    card.kind === "room"
+      ? t("Marcar como lida")
+      : card.kind === "task"
+        ? t("Concluir")
+        : t("Ciente");
 
   // The current card (keyboard), the selection (asks), the inline reply.
   let cursor = $state<string | null>(null),
@@ -482,7 +493,7 @@
       }
     }
   }
-  /** ✓: asks and answers leave with Undo (resolveLater); a room is marked read here. */
+  /** ✓ on anything: what waits on you leaves with Undo (resolveLater), a room is marked read, a task is done. */
   function done(cards: Card[]) {
     if (!current()) return;
     const gone = new Set(cards.map((card) => card.key));
@@ -499,16 +510,38 @@
           Math.max(card.summary.last_human_id, card.summary.last_agent_id),
         );
     if (read.length) say(t("Marcada como lida"));
+    // Your open tasks: ✓ is Concluir (the task is done in its room).
+    for (const card of cards)
+      if (card.kind === "task" && card.task) {
+        const task = card.task;
+        leaving[card.key] = true;
+        void owner.completeTask(opening, task).then((ok) => {
+          delete leaving[card.key];
+          if (current())
+            say(
+              ok
+                ? t("Tarefa concluída")
+                : t("Não deu pra enviar. Tente de novo."),
+            );
+        });
+      }
+    // Everything else that waits on you leaves with Undo: a wait, or a held @mention.
     const waits = cards.flatMap((card) =>
-      (card.kind === "ask" || card.kind === "reply") && card.wait
+      card.kind !== "room" && card.kind !== "task" && card.wait
         ? [card.wait]
         : [],
     );
-    if (!waits.length) return;
-    for (const card of cards) leaving[card.key] = true;
+    const mentions = cards.flatMap((card) =>
+      !card.wait && card.message?.mention ? [card.message.mention] : [],
+    );
+    if (!waits.length && !mentions.length) return;
+    const leave = cards.filter(
+      (card) => card.kind !== "room" && card.kind !== "task",
+    );
+    for (const card of leave) leaving[card.key] = true;
     setTimeout(() => {
-      for (const card of cards) delete leaving[card.key];
-      if (current()) owner.resolveLater(opening, waits);
+      for (const card of leave) delete leaving[card.key];
+      if (current()) owner.resolveLater(opening, waits, mentions);
     }, exit());
   }
   /** Responder: the item opens beside the list and its composer takes the keyboard. */
@@ -581,6 +614,12 @@
     }
     if (event.key === "Escape" && hints) {
       hints = false;
+      return;
+    }
+    // Esc: out of the artifact's full screen first, then the open item closes.
+    if (event.key === "Escape" && get(paneFocus)) {
+      event.preventDefault();
+      paneFocus.set(false);
       return;
     }
     if (event.key === "Escape" && working) {
@@ -781,14 +820,7 @@
             else leaveFor(working.card);
           }}
           onclose={close}
-          itemActions={working.key.startsWith("x:") ||
-          !(
-            canDone(working.card) ||
-            buttons(working.card).length ||
-            (working.card.kind === "review" && working.card.wait)
-          )
-            ? undefined
-            : itemActions}
+          itemActions={working.key.startsWith("x:") ? undefined : itemActions}
         />{/key}
     {:else if !loading && !($inbox.error && !order.length)}{@render empty(
         order.length
@@ -868,7 +900,21 @@
 <!-- Who wrote it: a person, @vibe, your Claude, a task (in review or open), a room. -->
 {#snippet face(row: Card)}{#if yourClaude(row)}<AgentMark
       class="text-xs"
-    />{:else if row.kind === "review" || row.kind === "task"}<span
+    />{:else if row.kind === "task"}<IconButton
+      data-inbox-resolve
+      label={t("Concluir")}
+      size="icon-xs"
+      tooltipSide="right"
+      class="group/done relative z-10 size-5 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
+      onclick={(event) => {
+        if (live(event)) done([row]);
+      }}
+      ><Icon icon="circle" size={18} class="group-hover/done:hidden" /><Icon
+        icon="check-circle"
+        size={18}
+        class="hidden group-hover/done:block"
+      /></IconButton
+    >{:else if row.kind === "review"}<span
       class="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
       ><Icon icon="check-circle" size={14} /></span
     >{:else if row.kind === "room"}<RoomAvatar
@@ -944,9 +990,10 @@
                       data-home-fresh
                       aria-label={t("Novo")}
                       class="size-1.5 rounded-full bg-destructive"
-                    ></span>{/if}{#if row.kind === "task"}{t(
-                      statusLabel(row.task?.status ?? ""),
-                    )}{:else if row.ts}{since(row.ts)}{/if}
+
+                    ></span>{/if}{#if row.kind === "task"}{#if row.task?.status && row.task.status !== "todo"}{t(
+                        statusLabel(row.task.status),
+                      )}{/if}{:else if row.ts}{since(row.ts)}{/if}
                 </span>
               </span>
               <span
@@ -963,9 +1010,9 @@
                   )}{/if}</span
               >
             </button>
-            {#if canDone(row)}<IconButton
+            {#if row.kind !== "task"}<IconButton
                 data-inbox-resolve
-                label={t(row.kind === "room" ? "Marcar como lida" : "Ciente")}
+                label={doneLabel(row)}
                 size="icon-xs"
                 tooltipSide="left"
                 class="absolute top-2 right-2 z-10 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-background [@media(hover:none)]:opacity-100"
@@ -1015,15 +1062,12 @@
           if (live(event)) void choose(row, option);
         }}><span class="truncate">{option}</span></Button
       >{/each}
-    {#if canDone(row)}<Button
-        data-inbox-ack
-        size="sm"
-        variant="outline"
-        class="h-8 px-3"
-        onclick={(event) => {
-          if (live(event)) done([row]);
-        }}
-        ><Icon icon="check" size={14} />{t(
-          row.kind === "room" ? "Marcar como lida" : "Ciente",
-        )}</Button
-      >{/if}{/if}{/snippet}
+    <Button
+      data-inbox-ack
+      size="sm"
+      variant="outline"
+      class="h-8 px-3"
+      onclick={(event) => {
+        if (live(event)) done([row]);
+      }}><Icon icon="check" size={14} />{doneLabel(row)}</Button
+    >{/if}{/snippet}
