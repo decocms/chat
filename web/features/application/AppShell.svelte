@@ -51,6 +51,13 @@
   const calls = callHub(),
     liveCall = calls.live;
   $effect(() => calls.setMe($personal.me?.email ?? ""));
+  // The panel takes me to the call's room with the stage open (the room's view takes the ask: hub.openStage).
+  function openLiveCall(camera: boolean) {
+    const live = get(liveCall);
+    if (!current() || !live) return;
+    calls.openStage(live.room, camera);
+    services.actions.navigate(`/b/${live.room}`);
+  }
   const inbox = untrack(() => createApplicationInbox(services)),
     inboxView = inbox.state;
   const openInbox = (trigger?: HTMLElement) =>
@@ -333,14 +340,8 @@
         {#snippet liveCallPanel()}{#if $liveCall}<CallPanel
               call={$liveCall.session}
               title={$liveCall.title}
-              onopen={() => {
-                if (current() && $liveCall)
-                  services.actions.navigate(`/b/${$liveCall.room}`);
-              }}
-              oncamera={() => {
-                if (current() && $liveCall)
-                  services.actions.navigate(`/b/${$liveCall.room}`);
-              }}
+              onopen={() => openLiveCall(false)}
+              oncamera={() => openLiveCall(true)}
               t={services.t}
             />{/if}{/snippet}
         <UserCenter above={$liveCall ? liveCallPanel : undefined}

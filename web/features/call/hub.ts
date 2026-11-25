@@ -72,7 +72,10 @@ export function createCallHub(options: CallHubOptions = {}) {
   const live = writable<LiveCall | null>(null);
   const entries = new Map<string, Entry>();
   let me = "",
-    socket: CallSocket | null = null;
+    socket: CallSocket | null = null,
+    // One click asked for the stage of this room's call (the panel on another screen, Atender): the room's view takes
+    // it once it is up. `camera`: and the camera's dialog.
+    stage: { room: string; camera: boolean } | null = null;
   function closeSocket() {
     socket?.dispose();
     socket = null;
@@ -105,6 +108,7 @@ export function createCallHub(options: CallHubOptions = {}) {
     if (get(live)?.session !== entry.session) return;
     closeSocket();
     live.set(null);
+    if (stage?.room === room) stage = null;
     if (entry.released) forget(room, entry);
   }
   return {
@@ -144,6 +148,18 @@ export function createCallHub(options: CallHubOptions = {}) {
       });
       return entry.session;
     },
+    /** Show this room's call on its stage when its view is up (the click comes from another screen, before the
+     *  room's view exists). */
+    openStage(room: string, camera = false) {
+      stage = { room, camera };
+    },
+    /** The room's view takes the stage asked for it, once. */
+    takeStage(room: string) {
+      if (stage?.room !== room) return null;
+      const taken = stage;
+      stage = null;
+      return { camera: taken.camera };
+    },
     /** Is this session the call I am in? */
     isLive(session: CallSession) {
       return get(live)?.session === session;
@@ -174,4 +190,8 @@ export type CallHub = ReturnType<typeof createCallHub>;
 let shared: CallHub | null = null;
 export function callHub() {
   return (shared ??= createCallHub());
+}
+/** Tests: the app's hub is this one (null: a new one next time). */
+export function setCallHub(hub: CallHub | null) {
+  shared = hub;
 }
