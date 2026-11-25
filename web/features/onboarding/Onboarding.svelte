@@ -14,6 +14,7 @@
   import Textarea from "../../lib/studio/Textarea.svelte";
   import { registerDialog } from "../../lib/studio/dialogController";
   import SetupInstructions from "../agents/SetupInstructions.svelte";
+  import OnboardingArt from "./OnboardingArt.svelte";
   import { avatarImage } from "../account/image";
   import { createApplicationCopy } from "../application/copy";
   import { homeIssue } from "../home/copy";
@@ -104,22 +105,18 @@
     }}
     class={[
       studioType,
-      "flex max-h-[90dvh] flex-col gap-5 overflow-auto bg-card backdrop-blur-none text-sm leading-6 text-foreground",
+      "flex max-h-[90dvh] flex-col gap-6 overflow-auto bg-card backdrop-blur-none text-sm leading-6 text-foreground",
     ].join(" ")}
   >
-    <DialogHeader class="gap-2 pr-8 text-left">
-      <div class="flex items-center gap-2 text-xs text-muted-foreground">
-        <span class="flex gap-1" aria-hidden="true"
-          >{#each [1, 2, 3] as step (step)}<span
-              class={[
-                "h-1 w-5 rounded-full",
-                step <= $view.step ? "bg-primary" : "bg-border",
-              ]}
-            ></span>{/each}</span
-        ><span data-onboarding-progress
-          >{t("Passo {n} de 3", { n: $view.step })}</span
-        >
-      </div>
+    <!-- One skeleton for every step: picture, title, short description, content, footer. -->
+    <OnboardingArt
+      step={$view.step}
+      email={$account.me?.email}
+      avatar={$account.me?.avatar}
+      name={$view.name}
+      placeholder={t("Seu nome")}
+    />
+    <DialogHeader class="gap-1.5 px-2 text-center md:text-center">
       <DialogTitle class="text-xl md:text-2xl"
         >{t(
           $view.step === 1
@@ -129,7 +126,7 @@
               : "Sua primeira sala",
         )}</DialogTitle
       >
-      <DialogDescription
+      <DialogDescription class="text-sm text-muted-foreground"
         >{t(
           $view.step === 1
             ? "O pessoal e os agents vão te chamar assim."
@@ -263,25 +260,41 @@
           </p>{/if}
       </form>
     {/if}
-    <DialogFooter class="items-stretch md:items-center">
-      {#if $view.step !== 1}<Button
-          variant="ghost"
-          class="md:mr-auto"
-          onclick={back}>{t("Voltar")}</Button
-        >{/if}
-      <!-- Step 2 has no primary: it moves on by itself when the agent connects. -->
-      <Button variant="ghost" onclick={skip}>{t("Pular")}</Button>
-      {#if $view.step === 1}<Button
-          type="submit"
-          form="onboarding-name"
-          disabled={busyProfile || !$view.profileBinding}
-          >{t("Continuar")}</Button
-        >{:else if $view.step === 3}<Button
-          type="submit"
-          form="onboarding-room"
-          disabled={$creator.busy || !$view.creatorBinding}
-          >{t($creator.busy ? "Criando…" : "Criar a sala")}</Button
-        >{/if}
+    <!-- Where you are on the left (small dots, the current one longer), the actions on the right. -->
+    <DialogFooter
+      class="flex-row flex-wrap items-center justify-between gap-y-2 md:justify-between"
+    >
+      <span class="flex items-center gap-1.5" data-onboarding-progress>
+        {#each [1, 2, 3] as step (step)}<span
+            aria-hidden="true"
+            class={[
+              "h-1.5 rounded-full",
+              step === $view.step
+                ? "w-5 bg-primary"
+                : "w-1.5 bg-muted-foreground",
+            ]}
+          ></span>{/each}<span class="sr-only"
+          >{t("Passo {n} de 3", { n: $view.step })}</span
+        >
+      </span>
+      <span class="flex flex-wrap items-center justify-end gap-2">
+        {#if $view.step !== 1}<Button variant="ghost" onclick={back}
+            >{t("Voltar")}</Button
+          >{/if}
+        <!-- Step 2 has no primary: it moves on by itself when the agent connects. -->
+        <Button variant="ghost" onclick={skip}>{t("Pular")}</Button>
+        {#if $view.step === 1}<Button
+            type="submit"
+            form="onboarding-name"
+            disabled={busyProfile || !$view.profileBinding}
+            >{t("Continuar")}</Button
+          >{:else if $view.step === 3}<Button
+            type="submit"
+            form="onboarding-room"
+            disabled={$creator.busy || !$view.creatorBinding}
+            >{t($creator.busy ? "Criando…" : "Criar a sala")}</Button
+          >{/if}
+      </span>
     </DialogFooter>
   </DialogContent>
 </Dialog>
