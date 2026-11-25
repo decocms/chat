@@ -379,6 +379,8 @@ export const SandboxCard = z.object({
   cost_unknown: z.optional(z.boolean()),
   /** "studio" = a deco Studio agent (src/studioSandbox.ts): no VM to pause, price or open a terminal on. */
   provider: z.optional(z.literal("studio")),
+  /** A Studio agent's name in Studio (a project's title, or the organization's agent); `name` is its @handle. */
+  title: z.optional(z.string()),
 });
 export const SandboxesResult = z.object({
   connected: z.boolean(),

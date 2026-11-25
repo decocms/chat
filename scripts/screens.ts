@@ -280,12 +280,12 @@ try {
     await shot("studio-connected-1440.png");
     await cloud.locator("[data-studio-create]").click();
     await cloud
-      .locator("[data-sandbox-id]", { hasText: "studio-org-example" })
+      .locator("[data-sandbox-id]", { hasText: "org-example-agent" })
       .waitFor();
     await cloud.waitForTimeout(1500);
     await shot("studio-agent-1440.png");
     // The owner names the agent in the room: the mock must receive that one message.
-    await send(desk, "@studio-org-example liste as tarefas abertas.");
+    await send(desk, "@org-example-agent liste as tarefas abertas.");
     await desk.waitForTimeout(1500);
     const sent = (
       (await (

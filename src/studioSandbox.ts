@@ -31,7 +31,7 @@ export async function studioAuth(env: Env, origin: string, email: string, org: s
   return token ? { token, org } : null;
 }
 /** What a Studio sandbox row keeps in `sandboxes.target`: the chat's agent and the sandbox address. */
-export const StudioTarget = z.object({ org: z.string(), agent: z.string(), branch: z.string() });
+export const StudioTarget = z.object({ org: z.string(), agent: z.string(), branch: z.string(), title: z.optional(z.string()) });
 export type StudioTarget = z.infer<typeof StudioTarget>;
 
 const Started = z.object({ threadId: z.string().check(z.minLength(1)) });
@@ -71,6 +71,13 @@ export async function studioOrgs(env: Env, origin: string, email: string) {
   } catch (e) {
     throw new Error(caughtMessage(e));
   }
+}
+
+const AgentItem = z.object({ item: z.nullable(z.object({ id: z.string(), title: z.string() })) });
+/** The name a Studio agent has in Studio: a project's title. null = no such agent for this person. */
+export async function studioAgentTitle(env: StudioEnv, s: StudioAuth, id: string) {
+  const { item } = await tool(env, s, "COLLECTION_VIRTUAL_MCP_GET", { id }, AgentItem);
+  return item ? item.title.trim().slice(0, 60) : null;
 }
 
 /** A new Studio chat with its sandbox booting. `project` = a Studio agent id; none = the organization's agent. */

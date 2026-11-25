@@ -51,6 +51,8 @@ Bun.serve({
       });
     const body: unknown = await request.json().catch(() => null);
     log.push({ path, body });
+    if (path.endsWith("/tools/COLLECTION_VIRTUAL_MCP_GET"))
+      return json({ item: { id: "mock-project", title: "Example Store" } });
     if (path.endsWith("/tools/THREAD_SANDBOX_START"))
       return json(
         body && typeof body === "object" && "threadId" in body

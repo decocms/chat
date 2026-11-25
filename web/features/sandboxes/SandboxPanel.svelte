@@ -324,14 +324,14 @@
         <div class="flex items-start gap-3">
           <div class="min-w-0 flex-1">
             <strong class="block break-words"
-              >☁ {card.name ?? text("unnamed")}</strong
+              >☁ {card.title ?? card.name ?? text("unnamed")}</strong
             >
             {#if card.provider === "studio"}<p
                 class="m-0 text-xs text-muted-foreground"
               >
                 {text("studioAgent")} · {card.ready
                   ? `${text("studioReady")}${card.name ?? ""}`
-                  : text("studioPreparing")}
+                  : `@${card.name ?? ""} · ${text("studioPreparing")}`}
               </p>{:else}<p class="m-0 text-xs text-muted-foreground">
                 {sandboxStateText(card.state, lang)} · {new Intl.NumberFormat(
                   lang,

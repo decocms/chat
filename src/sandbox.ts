@@ -17,7 +17,7 @@ import { track as trackEvent } from "./track";
 // - Pause keeps memory and processes (freestyle bills only disk while paused); start resumes them.
 import type { Env } from "./index";
 import { bookStub, storeFile } from "./rooms";
-import { OrgSlug, StudioTarget, startStudioChat, studioAuth, studioConnected, studioExec, studioOrgs, studioSetupCommand } from "./studioSandbox";
+import { OrgSlug, StudioTarget, startStudioChat, studioAgentTitle, studioAuth, studioConnected, studioExec, studioOrgs, studioSetupCommand } from "./studioSandbox";
 
 let API = "https://api.freestyle.sh"; // FREESTYLE_API overrides it in local dev (a mock)
 const enc = new TextEncoder();
@@ -253,14 +253,21 @@ async function createStudioAgent(env: Env, email: string, bookId: string, rawNam
   if (!auth) throw new Error(en ? "Connect your deco Studio account first." : "Conecte sua conta do deco Studio primeiro.");
   const n = await env.DB.prepare(`SELECT count(*) AS n FROM sandboxes WHERE book_id = ? AND email = ?`).bind(bookId, email).first<{ n: number }>();
   if ((n?.n ?? 0) >= MAX_PER_ROOM) throw new Error(en ? `At most ${MAX_PER_ROOM} sandboxes of yours per room.` : `No máximo ${MAX_PER_ROOM} sandboxes seus por sala.`);
-  const name = slug(rawName || `studio-${org.data}`);
+  // It is called in the room as it is called in Studio: a project's agent by the project's title, the organization's
+  // own agent by the organization (every organization's agent has the same title in Studio).
+  const project = o.project?.trim() || undefined;
+  const projectTitle = project ? await studioAgentTitle(env, auth, project) : null;
+  if (project && !projectTitle) throw new Error(en ? "Studio has no agent with that ID in this organization." : "O Studio não tem agent com esse ID nesta organização.");
+  const orgName = project ? null : (await studioOrgs(env, origin, email).catch(() => null))?.find((x) => x.slug === org.data)?.name;
+  const title = projectTitle ?? orgName ?? org.data; // no language in it: the card says "agent do Studio" next to it
+  const name = slug(rawName || projectTitle || `${org.data}-agent`);
   const taken = await env.DB.prepare(`SELECT 1 FROM sandboxes WHERE book_id = ? AND email = ? AND name = ?`).bind(bookId, email, name).first();
   if (taken) throw new Error(en ? `You already have an agent called ${name} in this room.` : `Você já tem um agent chamado ${name} nesta sala.`);
-  const chat = await startStudioChat(env, auth, o.project?.trim() || undefined);
+  const chat = await startStudioChat(env, auth, project);
   await studioExec(env, auth, chat.threadId, chat.target, studioSetupCommand({ roomId: bookId, login: await vibebookLogin(env, email, origin, name, bookId) }), 30);
   const sid = crypto.randomUUID().slice(0, 8);
   await env.DB.prepare(`INSERT INTO sandboxes (id, email, book_id, name, vm_id, identity_id, ready, created_at, state, checked_at, provider, target) VALUES (?, ?, ?, ?, ?, NULL, 0, ?, 'studio', ?, 'studio', ?)`)
-    .bind(sid, email, bookId, name, chat.threadId, Date.now(), Date.now(), JSON.stringify(chat.target)).run();
+    .bind(sid, email, bookId, name, chat.threadId, Date.now(), Date.now(), JSON.stringify({ ...chat.target, title })).run();
   return { id: sid, vm_id: chat.threadId, name };
 }
 /** The Studio agents of this person that a message of theirs names (`@<name>`), with what is needed to reach them. */
@@ -339,7 +346,7 @@ export function sandboxOps(env: Env, ctx: { waitUntil(p: Promise<unknown>): void
           } catch (e) {
             error = e instanceof Error ? e.message : String(e);
           }
-          return { id: r.id, name: r.name, vm_id: r.vm_id, ready: !!r.ready, state: "studio", provider: "studio" as const, ...(error ? { error } : {}), ...(log ? { log } : {}), created_at: r.created_at, rate: 0, cost: 0 };
+          return { id: r.id, name: r.name, vm_id: r.vm_id, ready: !!r.ready, state: "studio", provider: "studio" as const, ...(st.success && st.data.title ? { title: st.data.title } : {}), ...(error ? { error } : {}), ...(log ? { log } : {}), created_at: r.created_at, rate: 0, cost: 0 };
         }
         try {
           if (!k) throw new Error(en ? "freestyle disconnected" : "freestyle desconectado");

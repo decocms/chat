@@ -7,6 +7,7 @@ mock.module("cloudflare:workers", () => ({
 const {
   STUDIO_CLI,
   startStudioChat,
+  studioAgentTitle,
   studioExec,
   studioSend,
   studioSetupCommand,
@@ -97,6 +98,19 @@ test("a new Studio chat is started for the project and its sandbox address is re
   expect(calls[0].body).toEqual({ wait: false, virtualMcpId: "project-9" });
   expect(calls[1].body).toEqual({ threadId: "thrd_fixture" });
   expect(calls[0].auth).toBe("Bearer token-fixture");
+});
+
+test("an agent's title in Studio is read by its ID; an unknown ID is null", async () => {
+  const calls = studio(
+    { item: { id: "project-9", title: "  Example Store  ", extra: 1 } },
+    { item: null },
+  );
+  expect(await studioAgentTitle(env, auth, "project-9")).toBe("Example Store");
+  expect(await studioAgentTitle(env, auth, "missing")).toBeNull();
+  expect(calls[0].url).toBe(
+    "https://studio.invalid/api/org-example/tools/COLLECTION_VIRTUAL_MCP_GET",
+  );
+  expect(calls[0].body).toEqual({ id: "project-9" });
 });
 
 test("a command runs in the chat's sandbox with Studio's timeout cap", async () => {
