@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { readable } from "svelte/store";
+  import { get, readable } from "svelte/store";
   import type { ConnectionMode } from "./directTypes";
   import Badge from "../../lib/studio/Badge.svelte";
   import type { Connection } from "../../../shared/schemas";
@@ -27,7 +27,7 @@
   import PaneLoading from "../../lib/components/PaneLoading.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
-  import { paneFocus } from "../room-layout/focus";
+  import { appFocusRequest, paneFocus } from "../room-layout/focus";
   let { props }: { props: AppsProps } = $props();
   const owner = untrack(() => props.owner),
     view = untrack(() => owner.state),
@@ -84,6 +84,20 @@
     if (!target) paneFocus.set(false);
   });
   $effect(() => () => paneFocus.set(false));
+  // The chat's app card asked for this app expanded: turn Expand on after this frame's pane switch.
+  // No cleanup: clearing the request re-runs this effect, and that must not cancel the frame.
+  $effect(() => {
+    const wanted = $appFocusRequest,
+      opened = target;
+    if (!wanted || !opened) return;
+    appFocusRequest.set(null);
+    if (opened.connection !== "room" || opened.tool !== wanted) return;
+    requestAnimationFrame(() => {
+      const now = get(view).target;
+      if (current() && now?.connection === "room" && now.tool === wanted)
+        paneFocus.set(true);
+    });
+  });
   const escape = (event: KeyboardEvent) => {
     if (event.key === "Escape" && $paneFocus && !event.defaultPrevented)
       paneFocus.set(false);

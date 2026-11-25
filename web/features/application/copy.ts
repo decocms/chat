@@ -210,7 +210,8 @@ const EN: Readonly<Record<string, string>> = {
   "Sem dono": "No owner",
   "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
     "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
-  "app da sala": "room app",
+  "App · {who}": "App · {who}",
+  "Abrir ao lado": "Open beside",
   arquivo: "file",
   "Não deu pra abrir agora. Tente de novo.": "Couldn't open it now. Try again.",
   "Buscando a mensagem…": "Finding the message…",

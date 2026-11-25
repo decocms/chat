@@ -28,6 +28,7 @@ import type { FilesProps } from "../web/features/files/types";
 import type { PeopleAction } from "../web/features/people/model";
 import { createComposerDrafts } from "../web/features/composer/drafts";
 import { editingMessage, startEditing } from "../web/features/chat/editing";
+import { appFocusRequest } from "../web/features/room-layout/focus";
 
 // Compile the real components, then run their DOM events with the browser Svelte
 // runtime. Run with: bun test --conditions=browser scripts/ui-panels.test.ts
@@ -2810,21 +2811,79 @@ describe("chat", () => {
     const attachments = target.querySelector<HTMLElement>(
       "#m8 [data-message-attachments]",
     )!;
-    attachments
-      .querySelector<HTMLAnchorElement>('a[href$="old-version"]')!
-      .click();
+    // Every file is the same card as a room app: same block, tile, name, "EXT · size" meta and quiet icons.
+    const fileCard =
+      attachments.querySelector<HTMLElement>("[data-file-card]")!;
+    const appLike = attachments.querySelector<HTMLElement>(
+      "[data-room-app-card]",
+    )!;
+    expect(fileCard.className).toBe(appLike.className);
+    expect(fileCard.querySelector("[data-card-icon]")!.className).toBe(
+      appLike.querySelector("[data-card-icon]")!.className,
+    );
+    expect(fileCard.querySelector("[data-card-name]")!.textContent).toBe(
+      "report.html",
+    );
+    expect(fileCard.querySelector("[data-card-meta]")!.textContent).toBe(
+      "HTML · 1 KB",
+    );
+    expect(
+      fileCard.querySelector("[data-file-expand]")!.getAttribute("aria-label"),
+    ).toBe("Abrir em tela cheia");
+    expect(
+      fileCard.querySelector("[data-file-download]")!.getAttribute("download"),
+    ).toBe("report.html");
+    fileCard.querySelector<HTMLButtonElement>("[data-file-open]")!.click();
     expect(opened).toEqual(["old-version"]);
+    attachments
+      .querySelector<HTMLAnchorElement>(
+        'a[data-file-expand][href$="old-version"]',
+      )!
+      .click();
+    expect(opened).toEqual(["old-version", "old-version"]);
     expect(attachments.querySelector("audio")?.getAttribute("src")).toContain(
       "/audio",
     );
     expect(attachments.querySelector("img")?.getAttribute("src")).toContain(
       "/image",
     );
-    const appRow = attachments.querySelector("[data-room-app-row]")!;
-    expect(appRow.textContent).toContain("demo");
-    expect(appRow.querySelector("iframe,a")).toBeNull();
-    appRow.querySelector<HTMLButtonElement>("button")!.click();
+    const appCard = attachments.querySelector<HTMLElement>(
+      '[data-room-app-card="demo"]',
+    )!;
+    expect(appCard.className).toContain("max-w-md");
+    expect(appCard.className).toContain("bg-secondary-hover");
+    expect(appCard.className).toContain("rounded-2xl");
+    expect(appCard.className).not.toMatch(/\/\d|border|shadow/);
+    expect(appCard.querySelector("[data-card-icon] svg")).not.toBeNull();
+    expect(appCard.textContent).toContain("demo");
+    expect(appCard.querySelector("[data-card-meta]")!.textContent!.trim()).toBe(
+      "App · you@test",
+    );
+    expect(appCard.querySelector("iframe,a")).toBeNull();
+    expect(
+      appCard
+        .querySelector("[data-room-app-beside]")!
+        .getAttribute("aria-label"),
+    ).toBe("Abrir ao lado");
+    expect(
+      appCard
+        .querySelector("[data-room-app-expand]")!
+        .getAttribute("aria-label"),
+    ).toBe("Expandir");
+    appFocusRequest.set(null);
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-open]")!.click();
     expect(apps).toEqual([{ connection: "room", tool: "demo" }]);
+    expect(get(appFocusRequest)).toBeNull();
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-expand]")!.click();
+    expect(apps).toHaveLength(2);
+    expect(get(appFocusRequest)).toBe("demo");
+    appCard.querySelector<HTMLButtonElement>("[data-room-app-beside]")!.click();
+    expect(apps).toEqual([
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+      { connection: "room", tool: "demo" },
+    ]);
+    expect(get(appFocusRequest)).toBeNull();
     expect(attachments.querySelectorAll("iframe")).toHaveLength(1);
     const iframe = attachments.querySelector("iframe")!;
     expect(mountedEmbeds).toHaveLength(1);
