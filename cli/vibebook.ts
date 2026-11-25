@@ -1522,7 +1522,34 @@ async function main() {
           log("warn", "plugin", `could not install the vibebook plugin: ${String((e as Error).message ?? e).split("\n")[0].slice(0, 100)}`);
         }
       }
-      if (RUN_AGENT === "codex") log("info", "start", "opens Codex in each room (--agent codex); the vibebook plugin for Codex: codex plugin marketplace add decocms/chat && codex plugin add vibebook@vibebook");
+      if (RUN_AGENT === "codex") {
+        log("info", "start", "opens Codex in each room (--agent codex)");
+        // Codex's sandbox has no network and can't write ~/.vibebook: in a folder it doesn't trust, vibebook said
+        // "fetch failed" and the room's Codex never listened (Viktor, 25/11). A rule that allows only the vibebook
+        // command runs it outside the sandbox, as the Claude Code plugin approves vibebook commands. Its own file,
+        // so the person's rules stay untouched. Codex loads rules when it starts.
+        try {
+          const rules = join(homedir(), ".codex", "rules"), f = join(rules, "vibebook.rules");
+          const rule = 'prefix_rule(pattern=["vibebook"], decision="allow")\n';
+          if (!existsSync(f) || !readFileSync(f, "utf8").includes('pattern=["vibebook"]')) {
+            mkdirSync(rules, { recursive: true });
+            writeFileSync(f, `# vibebook herdr --agent codex: the room's Codex runs the vibebook CLI outside the sandbox (network, ~/.vibebook).\n${rule}`);
+            log("info", "codex", "allowed the vibebook command outside the Codex sandbox (~/.codex/rules/vibebook.rules)");
+          }
+        } catch (e) {
+          log("warn", "codex", `could not write ~/.codex/rules/vibebook.rules: ${String((e as Error).message ?? e).split("\n")[0].slice(0, 100)}`);
+        }
+        // The vibebook plugin (skill and hooks) for Codex, from the same marketplace as Claude Code's.
+        try {
+          if (!/vibebook@vibebook\s+installed/.test(execFileSync("codex", ["plugin", "list"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 60_000 }))) {
+            try { execFileSync("codex", ["plugin", "marketplace", "add", "decocms/chat"], { stdio: "ignore", timeout: 120_000 }); } catch {} // already added
+            execFileSync("codex", ["plugin", "add", "vibebook@vibebook"], { stdio: "ignore", timeout: 120_000 });
+            log("info", "codex", "installed the vibebook plugin in Codex");
+          }
+        } catch (e) {
+          log("warn", "codex", `could not install the vibebook plugin in Codex: ${String((e as Error).message ?? e).split("\n")[0].slice(0, 100)}`);
+        }
+      }
       else log("info", "start", pluginVersion() ? `vibebook plugin ${pluginVersion()}` : "vibebook plugin is not installed in Claude Code: Claudes get the listen prompt in words. To install it: claude plugin marketplace add decocms/chat && claude plugin install vibebook@vibebook");
       const tools = await listTools(agent);
       log("debug", "start", `${tools.length} room tools`, { claude_rooms: !!tools.find((t) => t.name === "claude_rooms") });
