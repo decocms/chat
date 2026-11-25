@@ -141,7 +141,8 @@ export function createRoomsSession(
         `read:${id}`,
         (signal) => personal.api.read(id, signal),
         (me) =>
-          (me.books.find((room) => room.id === id)?.read_id ?? upto) >= upto,
+          (me.books.find((room) => room.id === id)?.read_id ?? upto) >= upto &&
+          !me.waits.some((wait) => wait.book_id === id),
         id,
       );
     },

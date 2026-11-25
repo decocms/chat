@@ -578,10 +578,15 @@ test("room and wait mutations validate inputs and scope writes to the signed-in 
     ],
   ] as const)
     expect((await f.json(path, value)).status).toBe(200);
-  expect(f.writes).toHaveLength(8);
+  expect(f.writes).toHaveLength(9);
   expect(
     f.writes.every((write) => write.values.includes("test@example.com")),
   ).toBe(true);
+  // Marking a room read also clears what waited on you there, only there.
+  expect(
+    f.writes.find((write) => write.query.startsWith("DELETE FROM waits"))
+      ?.values,
+  ).toEqual(["room", "test@example.com"]);
 });
 
 test("freestyle key and Claude token: validated, checked, sealed, never echoed back", async () => {
