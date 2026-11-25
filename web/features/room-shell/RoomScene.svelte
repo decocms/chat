@@ -115,25 +115,19 @@
   // The chat column beside the stage: the person can hide it, so the call has all the width.
   let chatHidden = $state(false);
   // What entering the call changed in the layout, to put it back on leaving.
-  let closedPane = false,
-    collapsedSidebar = false;
+  let closedPane = false;
   $effect(() => {
     const inCall = $callView.phase !== "idle";
     if (inCall && !staged && !layout.read().mobile) {
       closedPane = layout.read().documentVisible;
       if (closedPane) layout.toggleDocument();
-      // The threads list goes to its narrow rail too.
-      collapsedSidebar = !layout.read().sidebarCollapsed;
-      if (collapsedSidebar) layout.toggleSidebar();
     }
     if (!inCall && staged) {
       chatHidden = false;
       if (callFull) void document.exitFullscreen();
       // Out of the call: the room looks as it did before.
-      if (collapsedSidebar && layout.read().sidebarCollapsed)
-        layout.toggleSidebar();
       if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
-      closedPane = collapsedSidebar = false;
+      closedPane = false;
     }
     staged = inCall;
   });

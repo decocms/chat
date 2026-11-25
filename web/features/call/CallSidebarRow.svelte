@@ -7,7 +7,7 @@
   import { isRecorder } from "../../../shared/call";
   import type { CallSession } from "./session";
   /** The room's call in the sidebar, while a call is on: one row "Na call · n" with the faces and the way in or
-   * out. The narrow rail: one green phone with the count. */
+   * out. The narrow rail: one green phone with the count, gone while I am in the call (the stage hangs up). */
   let {
     call,
     peers = [],
@@ -29,20 +29,18 @@
   const who = $derived(people.map((peer) => name(peer.email)).join(", "));
 </script>
 
-{#if people.length}{#if collapsed}<IconButton
-      data-call-row
-      label={inCall
-        ? t("Sair da call")
-        : t("Entrar na call: {people}", { people: who })}
-      tooltipSide="right"
-      variant={inCall ? "destructive" : "success"}
-      class="relative size-8 rounded-full"
-      onclick={() => (inCall ? call.leave() : call.join())}
-      ><Icon icon={inCall ? "phone-hang-up" : "phone"} size={16} /><span
-        class="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-foreground text-2xs font-semibold text-background tabular-nums"
-        >{people.length}</span
-      ></IconButton
-    >{:else}<div
+{#if people.length}{#if collapsed}{#if !inCall}<IconButton
+        data-call-row
+        label={t("Entrar na call: {people}", { people: who })}
+        tooltipSide="right"
+        variant="success"
+        class="relative size-8 rounded-full"
+        onclick={() => call.join()}
+        ><Icon icon="phone" size={16} /><span
+          class="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-foreground text-2xs font-semibold text-background tabular-nums"
+          >{people.length}</span
+        ></IconButton
+      >{/if}{:else}<div
       data-call-row
       class="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-sidebar-accent px-2 text-sidebar-foreground"
       title={who}
