@@ -2061,4 +2061,34 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Let the browser copy each selection (the names, marks and reaction chips come back, Gimenes #3955). Keep the full text for each message that the selection takes in (the bug).
 - Risk: low. A partly selected Markdown message gives its shown text, not its Markdown source.
 - Undo: Revert this commit.
+
+### 2026-11-25 · viktor/stable-room-nav · A room reopens your thread; recent threads first
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked that a room you come back to opens the thread you left, and that the sidebar lists your last 3 opened threads first. He did not say what happens when you open a thread that is already among the 3, where the pinned threads go, which kinds of navigation restore the thread, or where the visits are kept.
+- Decision:
+  - When you open a thread that is already among the 3 recent ones, the list does not change order. The row under the cursor does not move. Only a thread outside the 3 goes to the top and pushes out the oldest.
+  - The pinned threads stay above the recent ones. Their order is shared by the room and set by drag.
+  - The thread is restored only when a room opens without a target (a `RoomTarget` with only `roomId`: the rail, the home, search). A link to a thread, a message, a file or a pane goes where it says. A click on the room that is already open goes to main.
+  - The visits are kept in device storage (`localStorage`, key `vb.visits.<account>`), one entry per room. They are not synced to other devices. Without storage they last until the tab closes.
+- Other options: Move a thread to the top each time it opens (the rows jump under the cursor). Put the recent threads above the pinned ones. Restore the thread on each navigation to the room, also from links. Keep the visits on the server, so they follow you to other devices (a new write on each thread change, and more data per person).
+- Risk: low. It changes only which thread opens first and the order of the open threads in the sidebar.
+- Undo: Revert the commit. The `vb.visits.*` keys stay in `localStorage`, unused.
+- Status: open
+
+### 2026-11-25 · feat/composer-markdown-shortcuts · Shortcuts write marks, and person messages show them
+
+- Agent: Claude Opus 5.5
+- Context: Pedro asked for shortcuts that put Markdown marks on the selected text, and the message must show the result (bold after "command + *"). A person's message was plain text: only agent messages rendered Markdown.
+- Decision:
+  - ⌘B / Ctrl+B is bold (`**`), ⌘I italic (`_`), ⌘E code (`` ` ``), ⌘⇧X strikethrough (`~~`), as in Slack, Discord and Notion. A second press removes the marks. On a Mac only ⌘ counts, because Ctrl+B and Ctrl+E move the caret. No link shortcut: ⌘K opens the search.
+  - The edit goes through `document.execCommand("insertText")`, so ⌘Z undoes it. This API is deprecated, but it is the only one that keeps the undo history of a textarea. A fallback uses `setRangeText`.
+  - Pedro found the bold too thin. `strong` is now `font-bold` (600 in this theme), not `font-semibold` (500). This also changes the bold in agent messages, so the two stay the same.
+  - The `human` mode renders only these four marks, on one line. `_` and `*` count only between words, so `snake_case` and `2*3*4` stay text. Headings, lists and tables stay text, so "1. Preview" does not become a list.
+  - Pedro then selected four more: ⌘U underline, a URL pasted over selected text makes `[text](url)`, ⌘⇧E code block and ⌘⇧9 quote. Underline is `__x__`, as in Discord: Markdown has no underline. In agent messages (full Markdown), `__x__` stays bold. An underline has the text's color, because a link is blue with no underline. ⌘⇧9 uses the physical key (`Digit9`), because ⇧9 writes "(" on most layouts.
+  - Pedro asked for ⌘⇧K: a selected URL becomes `[name](url)`. The name comes from the URL only (GitHub "org/repo #42", else the last word-like path part and the host, else the host). The app does not open the page to read its title: that is a server call to a third party (rule 1), and the browser cannot read another site (CORS). In a field, ⌘⇧K stops the event, because the ⌘K search does not look at ⇧.
+  - The `message` event gets `marks: true` when the text has a mark or a code block (`shared/inlineMarks.ts`), so we can see if people use them.
+- Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
+- Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
+- Undo: Revert this commit.
 - Status: open
