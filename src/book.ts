@@ -70,6 +70,10 @@ export const epicDocSeed = (title: string, why = "") =>
 const epicKey = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^[\s\d.)\-–—:#]+/, "").replace(/\s+/g, " ").trim();
 
 const DEFAULT_TITLE = "Nova sala";
+/** A short hash of a wire value (djb2 + length): the epics' change detection and a reconnect's `eh`. */
+const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
+/** A reconnect resumes (cache plan PR 2) only from a state at most this old, with at most this many changed rows. */
+const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 
 const CLASSIFY_DELAY_MS = 30_000;
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
@@ -197,8 +201,7 @@ export class Book extends DurableObject<Env> {
    * don't). No record yet = the whole list. */
   pushEpics(all: ReturnType<Book["epics"]>, roomTasks: ReturnType<Book["roomTasks"]>) {
     const epics = this.wireEpics(all);
-    const h = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i++) a = (a * 33 + x.charCodeAt(i)) | 0; return (a >>> 0).toString(36) + x.length.toString(36); };
-    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, h(JSON.stringify(e))]));
+    const now: Record<string, string> = Object.fromEntries(epics.map((e) => [e.id, wireHash(JSON.stringify(e))]));
     const raw = this.get("epics_sent");
     this.set("epics_sent", JSON.stringify(now));
     if (!raw) return this.broadcast({ t: "epics", epics, roomTasks });
@@ -330,6 +333,21 @@ export class Book extends DurableObject<Env> {
       ? this.sql.exec(`SELECT * FROM messages WHERE thread = ? ORDER BY id DESC LIMIT ?`, thread, limit)
       : this.sql.exec(`SELECT * FROM messages ORDER BY id DESC LIMIT ?`, limit);
     return this.messageRows(rows.toArray()).reverse();
+  }
+  /** A reconnect resumes (cache plan PR 2, Gimenes #4638): 51% of room opens were reconnects (code 1006) that got the
+   * whole state again (390 KB in the product room). A socket that already has the room sends `since` (its newest
+   * message id), `at` (its last state's time) and `eh` (the hash of the threads it got). Nothing is kept per client.
+   * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
+   * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
+   * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
+  resumeOf(url: URL, open: string, window: Msg[], eh: string) {
+    const since = Number(url.searchParams.get("since")), at = Number(url.searchParams.get("at")), now = Date.now();
+    if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
+    const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
+    if (rows.length > RESUME_MAX_ROWS) return null;
+    const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
+    for (const m of this.messageRows(rows)) messages.set(m.id, m);
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: url.searchParams.get("eh") === eh };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -2628,6 +2646,8 @@ export class Book extends DurableObject<Env> {
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
     const win = this.roomWindow(url.searchParams.get("t") || "main", email);
+    const epics = this.wireEpics(this.epics(), url.searchParams.get("t") || ""), eh = wireHash(JSON.stringify(epics));
+    const resume = this.resumeOf(url, url.searchParams.get("t") || "main", win.messages, eh);
     const state: Extract<RoomEvent, {t:"state"}> = {
         t: "state",
         me: email,
@@ -2637,10 +2657,14 @@ export class Book extends DurableObject<Env> {
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
         docs: this.epicDocs(url.searchParams.get("t") || ""),
-        epics: this.wireEpics(this.epics(), url.searchParams.get("t") || ""),
+        epics: resume?.epicsSame ? [] : epics,
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
         ...win,
+        // A reconnect that resumes gets only what changed; the app merges it into the room it has.
+        ...(resume ? { messages: resume.messages, resume: true, ...(resume.epicsSame ? { epicsSame: true } : {}) } : {}),
+        at: Date.now(),
+        eh,
         complete: false,
         // The newest 12 and the pinned ones; the whole list (~100 KB in the product room) when Arquivos opens ("files.get").
         files: storedFileRows(this.sql.exec(`SELECT * FROM files WHERE deleted IS NULL AND (id IN (SELECT id FROM files WHERE deleted IS NULL ORDER BY ts DESC LIMIT 12) OR id IN (SELECT ref FROM pins WHERE kind = 'file')) ORDER BY ts DESC`).toArray(), (kind) => console.warn("book stored projection", kind)),
@@ -2672,7 +2696,7 @@ export class Book extends DurableObject<Env> {
     // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
     const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
     const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
     this.broadcast({ t: "online", online: this.online() });
     return new Response(null, { status: 101, webSocket: client });
   }

@@ -26,7 +26,12 @@ export type RootRoomTransition = {
   snapshot: RootRoomSnapshot;
 };
 export function createRootRoomSession(options: {
-  url(roomId: string, thread: string, lastCloseCode: string): string;
+  url(
+    roomId: string,
+    thread: string,
+    lastCloseCode: string,
+    resume?: { since: number; at: number; eh?: string },
+  ): string;
   /** Temporary host thread adapter; callers can instead use selectThread. */
   thread?: () => string;
   acceptIdentity(account: string): boolean;
@@ -186,10 +191,14 @@ export function createRootRoomSession(options: {
       const connection = (options.connection ?? createRoomConnection)({
         url: (code) => {
           const current = options.thread?.() ?? read().thread;
+          // The room this socket already has (a reconnect, or a cached room opened again) resumes from it.
+          const had = read().roomId === roomId ? read().room : null;
+          const since = had?.messages.at(-1)?.id;
           return options.url(
             roomId,
             current.startsWith("pre:") ? "main" : current,
             code,
+            had?.at && since ? { since, at: had.at, eh: had.eh } : undefined,
           );
         },
         onEvent: (event) => receive(event, roomId, ticket, connection),

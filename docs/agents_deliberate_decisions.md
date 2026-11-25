@@ -1828,3 +1828,17 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. The composer looks different on a computer: an extra button. The send path changes only by the text that it joins.
 - Undo: Revert this commit. An app's reference then goes in the field as text, and the mic and send share one cell again.
 - Status: open
+
+### 2026-11-25 · feat/reconnect-resume · A reconnect resumes on the socket, before GET /room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved the 5-PR cache plan (#4638, #4653, "vai, seu objetivo e ter tudo em main"). The plan's PR 2 was `GET /room` plus a light socket (`?lite=1`). The measurement (PR 0, #4649) showed that 51% of room opens are reconnects (code 1006) that get the whole `state` again (390 KB in the product room), and that the threads (192 KB) and the 5 messages of each other thread (144 KB) are most of it. Moving the same state to `GET /room` sends the same bytes.
+- Decision:
+  - A reconnect resumes on the socket. The app sends what it has: `since` (its newest message id), `at` (the time of its last state) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client.
+  - The answer is a `state` with `resume: true`: the open thread's window and every message newer than `since`, or edited or deleted since `at`. The threads are left out (`epicsSame`) when their hash is the same. All other fields are sent whole, as before. The app merges messages and acks into the room it has.
+  - The whole state comes when there are no params, the state is older than 6 hours, or more than 200 rows changed. A cached room that opens again (the 12-room cache) also resumes.
+  - `ws_state` records `resume` (`same`, `epics` or `full`), so the next measure shows the effect.
+- Other options: `GET /room` with `?lite=1` first, as in the plan (the same bytes until IndexedDB and ETag come). A change log in the Book (rejected before, #4553).
+- Risk: medium. A reaction or a card that changed on an older message during the gap shows only after the next full state or live event. Any bug in the merge shows old or missing messages until a reload.
+- Undo: Revert this commit. The app then does not send `since`, and the Book sends the whole state.
+- Status: open

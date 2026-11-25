@@ -134,9 +134,13 @@ export function createApplicationServices<Pwa extends ApplicationPwa>(options: {
     onUnauthorized: denySession,
   });
   const root = createRootRoomSession({
-    url: (id, thread, code) =>
+    url: (id, thread, code, resume) =>
       browser.socketUrl(
-        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}`,
+        `/ws/${id}?t=${encodeURIComponent(thread)}${code ? `&rc=${encodeURIComponent(code)}` : ""}${
+          resume
+            ? `&since=${resume.since}&at=${resume.at}${resume.eh ? `&eh=${encodeURIComponent(resume.eh)}` : ""}`
+            : ""
+        }`,
       ),
     connection: options.roomConnection,
     ...(options.messagesApi
