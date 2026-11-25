@@ -2001,7 +2001,7 @@ export class Book extends DurableObject<Env> {
     await this.readWaits(emails, upto);
   }
   /** Reading a message clears the notifications it made (PO #5172), like opening the thread and seeing it: what it
-   *  asked of you (waits m<id>) and the mention held back for the Inbox and the digest (digest_items). Work stays until
+   *  asked of you (waits m<id>, a mention or your own agent's message) and the mention held back for the Inbox and the digest (digest_items). Work stays until
    *  done: tasks in review (t), your Claude's questions (a/b). */
   async readWaits(emails: string[], upto: number) {
     const id = this.get("book_id");
@@ -2285,6 +2285,8 @@ export class Book extends DurableObject<Env> {
     // A hook's question with buttons is the person's Claude waiting on them: an "a<id>" wait (orange in the app, not
     // the yellow of people waiting), gone once they answer in the room or it goes to the terminal (closeAsk).
     if (choices && ASK_OPENER.test(text)) this.ctx.waitUntil(this.askWait(email, m.id, thread, text));
+    // Anything else it says is for its human, like a mention (Gimenes #5427): a number on the room until they read it.
+    else this.ctx.waitUntil(this.ownAgentWait(email, m));
     // The delivery puts the thread in review: it waits on a person, who marks it done (Gimenes #4249).
     if (thread !== "main" && done && this.delivered(thread)) this.epicsChanged();
     // A done post closes the person's doing acks; any other post is activity that keeps them live (the app greys
@@ -2399,6 +2401,23 @@ export class Book extends DurableObject<Env> {
       .bind(bookId, `b${msgId}`, email, m?.thread ?? "main", topic, `${blocked(en)}: ${text}`, Date.now())
       .run();
     await poke(this.env, [email], { t: "me" });
+  }
+  /** A message your own agent posted (its reply, answer, report) waits on you like a message that mentions you
+   *  (Gimenes #5427): an m<id> wait, the room's red number, gone once you read it (readWaits) or write in the thread
+   *  (answeredHere). Nothing when you have the room open or already read past it: you are looking at it. Its question
+   *  with buttons is an a<id> instead (askWait). Other people's agents never make one for you: their "você" is their
+   *  human (findWaits). */
+  async ownAgentWait(email: string, m: Pick<Msg, "id" | "thread" | "text" | "ts">) {
+    const bookId = this.get("book_id");
+    if (!bookId || !m.text.trim() || this.online().includes(email)) return;
+    const topic = m.thread === "main" ? "" : (this.epics().find((e) => e.id === m.thread)?.title ?? "");
+    const r = await this.env.DB.prepare(
+      `INSERT OR IGNORE INTO waits (book_id, ref, email, thread, topic, author, text, ts) SELECT ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (SELECT 1 FROM human_reads WHERE email = ? AND book_id = ? AND last_id >= ?)`,
+    )
+      .bind(bookId, `m${m.id}`, email, m.thread, topic, email, m.text.slice(0, 280), m.ts, email, bookId, m.id)
+      .run();
+    if (r.meta.changes) await poke(this.env, [email], { t: "me" });
   }
   /** The wait row for an open hook question (ref a<msg>), or its removal (text null). */
   async askWait(email: string, msgId: number, thread: string, text: string | null) {
@@ -3426,7 +3445,7 @@ export class Book extends DurableObject<Env> {
         break;
       }
       if (m.author !== "ai" && m.text.trim() && Date.now() - m.ts < 7 * 864e5 && others.length) {
-        const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author).all<{ ref: string; text: string }>()).results;
+        const open = (await DB.prepare(`SELECT ref, text FROM waits WHERE book_id = ? AND thread = ? AND email = ? AND author <> ? AND ref LIKE 'm%' LIMIT 8`).bind(bookId, m.thread, m.author, m.author).all<{ ref: string; text: string }>()).results;
         const q: Record<string, Question> = {};
         // Each person here talks to their own Claude in the room: a bare ask ("faz um gráfico", "quantas pessoas…") is
         // for the author's Claude, and an agent's "você" is its own human. Read as asks of everyone else, those filled
