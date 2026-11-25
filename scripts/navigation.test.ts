@@ -510,7 +510,8 @@ test("room visits: the room reopens the thread you left, and the recent three ke
   expect(visits.last("me@x.com", "room1")).toBe("e1");
   expect(recordRecent(["a"], "call")).toEqual(["a"]);
   const old = createRoomVisits({
-    getItem: () => JSON.stringify({ room1: { last: "call", recent: [], at: 1 } }),
+    getItem: () =>
+      JSON.stringify({ room1: { last: "call", recent: [], at: 1 } }),
     setItem: () => {},
   });
   expect(old.last("me@x.com", "room1")).toBeNull();
