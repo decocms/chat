@@ -126,7 +126,8 @@
         >{emoji}</span
       ></button
     >{/each}
-  <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). -->
+  <!-- Every other emoji, in a popover next to this button (like Discord's and Slack's "add reaction"). Only on hover,
+       also when the message has chips (Gimenes #5477); phones react from the long press. -->
   <Popover bind:open>
     <PopoverTrigger>
       {#snippet child({ props })}<button
@@ -135,9 +136,7 @@
           aria-label={vb.t("Reagir a esta mensagem")}
           title={vb.t("Reagir a esta mensagem")}
           data-add-reaction
-          class="{all.length
-            ? ''
-            : HOVER_ONLY} inline-flex h-6 cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[state=open]:border-border data-[state=open]:text-foreground"
+          class="{HOVER_ONLY} inline-flex h-6 pointer-coarse:hidden cursor-pointer items-center justify-center rounded-full border border-solid border-transparent bg-muted px-2 text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[state=open]:border-border data-[state=open]:text-foreground"
           ><Icon icon="face-smile" size={16} /></button
         >{/snippet}
     </PopoverTrigger>
