@@ -1986,3 +1986,54 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. The model is 16 MB (was 250 KB): the first blur takes longer to start, then the browser keeps it in its cache. On a slow computer or phone the frame rate can go down.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · feat/dm-same-domain · Colleagues by company email domain in "Nova mensagem"
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that people with the same company email find each other when they start a DM, with no change to the UI (Gimenes #5006, after the corporate rooms mockup). The details below were not specified.
+- Decision:
+  - A company domain is the domain of the email, except a list of free providers (gmail.com, hotmail.com, outlook.com, icloud.com, uol.com.br and others, `shared/dm.ts`).
+  - A colleague is a person with an account (a `users` row) on your company domain. The picker shows up to 200 of them after the people from your rooms, with "pelo seu e-mail @domínio".
+  - You can DM a colleague without a message request (`canDm`), the same as a person from your rooms.
+  - Nothing changes for rooms. A colleague does not see your rooms.
+- Other options: Let a company turn this on (a list of domains). Show colleagues only after you type. Keep the message request for colleagues.
+- Risk: medium. On a shared domain that is not in the list (a university, an ISP), strangers see each other's email, name and picture and can DM without a request.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/dm-record-consent · How a DM asks for the recording
+
+- Agent: Claude Opus 5.5
+- Context: Jonas: "DM tem que ter o aviso e só grava se aceitar". A room's call stays recorded always, with the notice.
+- Decision:
+  - Each new DM call asks both people on the stage ("Gravar esta call no Grain?", Gravar / Não gravar). The recorder starts only after both said yes.
+  - One "Não gravar" ends the question for that call: a later yes does not record it. The next call asks again.
+  - The answer is stored in the Book's meta for the current call only (`call_consent`), and it counts from a stage that shows before the room has the person in the call.
+- Other options: Only the person who starts the call asks, and the other sees a notice. A setting per DM that stays between calls. Never record a DM.
+- Risk: low. A room's call does not change. A DM call where nobody answers is not recorded.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · JonasJesus42/grain-share-participants · A recording is shared with the people of the call
+
+- Agent: Claude Opus 5.5
+- Context: The recordings that the recorder sends to Grain stay in the account of the token (deco@deco.cx), with `workspace_shared` off: they are not in the teammates' meeting lists. Jonas chose to share each recording with the people who were in the call. He will look for a Grain setting that shares every recording with the workspace.
+- Decision:
+  - The chat keeps the emails of everyone who joined the call (`call_people`). `POST /api/calls/recorded` answers them.
+  - The recorder matches them with the Grain users (`POST /users`, by email) and shares the recording with each match (`PUT /recordings/:id/users`).
+  - A person without a Grain account with the same email is skipped. A failure to share leaves the recording where it was.
+- Other options: Share with the whole workspace (the Grain API has no field for `workspace_shared`). A Grain team for the recordings (the workspace has no teams).
+- Risk: low. It adds readers to a recording; it removes nothing.
+- Undo: Revert this commit and deploy the recorder again. The shares that were made stay.
+- Status: open
+
+
+### 2026-11-25 · JonasJesus42/grain-workspace-playlist · The recordings reach the workspace through a playlist
+
+- Agent: Claude Opus 5.5
+- Context: Jonas turned on every Grain setting to share recordings with the workspace, and the calls still did not show there. Those settings apply to Grain's bot and desktop recordings, not to uploads. The API reads `workspace_shared` and cannot write it. Jonas: "bora fazer o que tiver no nosso alcance para aparecer no workspace".
+- Decision: The recorder puts each recording in the playlist "Calls do deco.chat", with `share_state` "workspace". It finds the playlist by title, and makes it the first time. No new variable: the title is the key.
+- Other options: A Grain team with everyone, and each recording shared with that team (a team to keep up to date). A `GRAIN_PLAYLIST_ID` variable (a Cloudflare change for each environment).
+- Risk: low. A failure leaves the recording where it was, shared with the people of the call. A workspace token (not personal) cannot make the playlist: the log says so.
+- Undo: Revert this commit. The playlist stays in Grain.
+- Status: open

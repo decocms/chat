@@ -551,6 +551,8 @@ export const MePerson = z.object({
   avatar: num,
   /** The rooms you share, newest first (≤2 titles). */
   rooms: z.array(z.string()),
+  /** A colleague: your company email domain, with no room shared (Gimenes #5006). */
+  domain: z.optional(z.boolean()),
 });
 export type MePerson = z.infer<typeof MePerson>;
 /** Writing to someone: `id` = the DM, open now; no id = it went as a message request. */

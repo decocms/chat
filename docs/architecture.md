@@ -144,6 +144,7 @@ A send can become "not confirmed" (a timeout, a dropped socket, a server error) 
 - A person who opens a room with a call on joins that call, with the microphone off. A person who leaves the call stays out until the call ends.
 - Calls are off until `REALTIME_SFU_APP_ID` and `REALTIME_SFU_APP_SECRET` exist (Worker secrets). Then the room state has `call`, and the app shows the call.
 - A call is recorded only in the rooms of `CALL_RECORD_ROOMS`, and only while the recorder is in it (see "The recorder").
+- A DM's call is recorded only after both people accept (`Book.callConsent`, meta `call_consent`, command `call.consent`). The stage asks each person ("Gravar esta call no Grain?"). One "Não gravar" stops the recording for that call. Each new call asks again.
 
 ### What a call costs
 
@@ -164,7 +165,7 @@ The limit uses the larger of two counts. The first is the account's real traffic
 
 The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one container for each start. It is apart from the chat so that a problem in it never stops a deploy of the chat.
 
-1. The first person joins a call. The call is the room's, not a thread's. A person alone in a call is not recorded. When a second person joins, if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
+1. The first person joins a call. The call is the room's, not a thread's. A person alone in a call is not recorded. When a second person joins (in a DM: when both people accepted), if the room is in `CALL_RECORD_ROOMS` (room ids, or `*`), the chat asks the recorder to start (`startRecorder`, `POST <RECORDER_URL>/start`). The two Workers share `RECORDER_SECRET`.
 2. The request has the recording's title: the room's name (`Book.callTitle`). The title has no date: Grain shows it. The request also has a link that the chat signed for that room, good for 5 minutes (`recorderLink`). The link gives a session for the room's recorder identity (`shared/call.ts`, `recorderEmail`). That identity is not a person. It is a member of its one room, with no row in `members` (`isMember`).
 3. In the container, a Chromium opens the link, and the room's page joins the call as it does for a person, with the microphone off (`recorder/container/main.ts`) The recorder needs the call's screen open, because it records that screen and counts the people on it. The page can close it by itself, so the recorder opens it again. If it cannot see the call for 15 seconds, or saw nobody, it tells the room that the recording failed.
 4. The recorder is in the call's list, so each person sees "Gravando". It does not show as a person, and nobody receives its tracks.
@@ -172,7 +173,7 @@ The recorder is a Worker of its own, `chat-recorder` (`recorder/`), with one con
 6. When no person is in the call for 15 seconds, ffmpeg makes the mp4 that Grain takes.
 7. The container sends the audio in parts of 5 minutes to the recorder Worker's speech-to-text (`POST /transcribe`, Workers AI, Whisper). Each piece of text gets the name of the person who spoke the most while it lasted (`recorder/container/attribute.ts`). The model's own filter for parts with no voice is on (`vad_filter`): without it, the model writes words for silence.
 8. The container sends the video and that transcript to Grain (`GRAIN_API_TOKEN`). With our transcript, Grain shows each person's name. Without it (the speech-to-text failed), Grain transcribes by itself and names nobody.
-9. The container tells the chat (`POST /api/calls/recorded`). The room's call chat gets a message (`CALL_THREAD`, `call`: one chat for every call of the room, seen beside the call and never listed as a thread; a DM uses its own conversation) with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
+9. The container tells the chat (`POST /api/calls/recorded`). The chat answers the emails of everyone who was in the call (`Book.callPeople`), and the container shares the recording in Grain with each of them who has a Grain account (`recorder/container/share.ts`). Grain shows it in their meetings. The container also puts the recording in the playlist "Calls do deco.chat" (made the first time, open to the whole workspace). Grain's settings to share with the workspace apply only to Grain's own recordings, not to uploads, and its API cannot set them on a recording. The room's call chat gets a message (`CALL_THREAD`, `call`: one chat for every call of the room, seen beside the call and never listed as a thread; a DM uses its own conversation) with a summary (`MODEL_FAST`), the Grain link and the transcript as a Markdown file. The agents read that file as each other file. A transcript with a secret in it does not enter the room.
 
 What a person sees when the recording fails:
 

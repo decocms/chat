@@ -92,6 +92,7 @@ export const RoomCommandSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("call.leave") }),
   z.object({ t: z.literal("call.usage"), bytes: num }),
   z.object({ t: z.literal("call.mute"), muted: z.boolean() }),
+  z.object({ t: z.literal("call.consent"), yes: z.boolean() }),
   z.object({ t: z.literal("epic.rename"), id, title: z.string() }),
   z.object({ t: z.literal("epic.del"), id }),
   z.object({

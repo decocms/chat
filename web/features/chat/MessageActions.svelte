@@ -34,6 +34,7 @@
     canReact = false,
     me = "",
     onthread,
+    threadOpen = false,
     canEdit = false,
     canDelete = false,
     history,
@@ -54,6 +55,8 @@
     /** "Criar thread" (Gimenes #4310): makes the thread from this message and opens it. None: the message cannot
      *  start one. */
     onthread?: () => void;
+    /** The message already has a thread: the action opens it ("Abrir thread"). */
+    threadOpen?: boolean;
     /** Your own message (Gui #4276): you can change its text, in place (MessageEditor). */
     canEdit?: boolean;
     /** Yours, or any message when you own the room. */
@@ -178,8 +181,9 @@
         }}><Icon icon="reverse-left" size={16} /></IconButton
       >
       {#if onthread}<IconButton
-          label={vb.t("Criar thread")}
-          data-start-thread={message.id}
+          label={threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread")}
+          data-start-thread={threadOpen ? undefined : message.id}
+          data-open-thread={threadOpen ? message.id : undefined}
           class={floating
             ? "rounded-full text-muted-foreground hover:text-foreground"
             : ""}
@@ -339,7 +343,7 @@
       )}
       {#if onthread}{@render sheetRow(
           "git-branch-01",
-          vb.t("Criar thread"),
+          threadOpen ? vb.t("Abrir thread") : vb.t("Criar thread"),
           () => onthread?.(),
           { "data-sheet-thread": message.id },
         )}{/if}

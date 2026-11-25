@@ -7,7 +7,7 @@ import { storedMessageRows, storedChoices, storedCard, storedQuote, storedFileRe
 import { cachedTools } from "./mcpTools";
 import { MESSAGE_TEXT_LIMIT, MESSAGE_FILE_LIMIT, POLL_QUESTION_LIMIT, POLL_OPTION_LIMIT, POLL_MIN_OPTIONS, POLL_MAX_OPTIONS } from "../shared/composition";
 import { reorderEpics } from "./epic-order";
-import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, type CallPeer, type Ring } from "../shared/room";
+import { EPIC_STATUSES, TASK_STATUSES, AttachmentSchema, CallPeerSchema, RingSchema, CallConsentSchema, type CallConsent, type CallPeer, type Ring } from "../shared/room";
 import { isMarkDone } from "../shared/epicStatus";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
@@ -773,7 +773,33 @@ export class Book extends DurableObject<Env> {
     this.broadcastCall();
   }
   private broadcastCall() {
-    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState() });
+    this.broadcast({ t: "call", call: this.callPeers(), thread: this.liveCallThread(), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) });
+  }
+  /** A DM's call: who said yes or no to the recording, for this call only (Jonas, 2026-11-25: a DM has the notice,
+   *  and is recorded only if both accept). A room's call is always recorded, with the notice on the stage. */
+  callConsent(): CallConsent {
+    const parsed = CallConsentSchema.safeParse(JSON.parse(this.get("call_consent") || "{}"));
+    return parsed.success ? parsed.data : { yes: [], no: [] };
+  }
+  /** May these people's call be recorded? A room's: yes. A DM's: everyone in it said yes, and nobody said no. */
+  private recordAllowed(peers: CallPeer[]) {
+    if (!this.isDm) return true;
+    const { yes, no } = this.callConsent();
+    return !no.length && peers.filter((p) => !isRecorder(p.email)).every((p) => yes.includes(p.email));
+  }
+  /** Someone in a DM's call says yes or no to the recording. Answers true when this yes makes the call one to
+   *  record (the last yes of two people in the call, no recorder yet): the caller asks the recorder to come. */
+  callConsentAnswer(email: string, yes: boolean): boolean {
+    const peers = this.callPeers();
+    // Only the DM's two people reach this (the room's socket). The answer counts while a call is on, also from a
+    // stage that shows before the room has its person in the call.
+    if (!this.isDm || !peers.some((p) => !isRecorder(p.email))) return false;
+    const now = this.callConsent();
+    // Once the call is recorded, or someone said no, the answer stays for this call.
+    if (now.no.length || peers.some((p) => isRecorder(p.email))) return false;
+    this.set("call_consent", JSON.stringify(yes ? { yes: [...new Set([...now.yes, email])], no: [] } : { yes: now.yes, no: [email] }));
+    this.broadcastCall();
+    return yes && peers.filter((p) => !isRecorder(p.email)).length >= 2 && this.recordAllowed(peers);
   }
   /** One session per person: joining again (another tab or device) replaces the earlier one.
    *  Answers true when this join makes the call one to record: a second person is in it now and no recorder is
@@ -786,6 +812,7 @@ export class Book extends DurableObject<Env> {
       this.set("call_origin", origin);
       this.set("call_rec_n", "0");
       this.callStarted(email);
+      this.set("call_people", "[]");
     } else if (!isRecorder(email) && !before.some((p) => p.email === email)) {
       // Someone besides its starter came: the call was answered.
       this.set("call_many", "1");
@@ -793,7 +820,9 @@ export class Book extends DurableObject<Env> {
     }
     const after = [...before.filter((p) => p.email !== email), { email, session, tracks: [] }];
     this.setCall(after);
-    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email));
+    // Everyone who was in this call, for the recording: Grain shares it with them (recorder/container/main.ts).
+    if (!isRecorder(email)) this.set("call_people", JSON.stringify([...new Set([...this.callPeople(), email])].slice(0, 200)));
+    return !isRecorder(email) && after.filter((p) => !isRecorder(p.email)).length >= 2 && !after.some((p) => isRecorder(p.email)) && this.recordAllowed(after);
   }
   /** The chat of the call that is on (beside the stage); none while nobody is in a call. */
   liveCallThread(): string | undefined {
@@ -813,6 +842,11 @@ export class Book extends DurableObject<Env> {
   async callTitle(bookId: string): Promise<string> {
     this.bind(bookId);
     return (await this.env.DB.prepare(`SELECT title FROM books WHERE id = ?`).bind(bookId).first<{ title: string }>())?.title || "deco.chat";
+  }
+  /** The emails of everyone who was in the call that is on (or in the last one). */
+  callPeople(): string[] {
+    const parsed = z.array(z.string()).safeParse(JSON.parse(this.get("call_people") ?? "[]"));
+    return parsed.success ? parsed.data : [];
   }
   /** The recorder says the call is in Grain: the room gets a summary, the link and the transcript as a file. */
   async callRecorded(bookId: string, call: { url: string; minutes: number; people: string[]; transcript: string; withheld: boolean; file: FileMeta | null }) {
@@ -854,6 +888,7 @@ export class Book extends DurableObject<Env> {
   /** A call starts: its line in main ("📞 iniciou uma call.", by who started it), and a DM rings the other person.
    *  quiet: the line is no unread message, wakes no listener and plays no chime (the ring is what calls). */
   private callStarted(email: string) {
+    this.set("call_consent", "");
     const m = this.addMessage("main", email, callLineText({ state: "on" }, this.en), { tag: "call", quiet: true });
     this.set("call_line", String(m.id));
     this.set("call_at", String(m.ts));
@@ -863,6 +898,7 @@ export class Book extends DurableObject<Env> {
   /** The last person left: the line says how it went, in the same message (a DM nobody answered: missed). */
   private callEnded() {
     this.stopRing();
+    this.set("call_consent", "");
     const id = Number(this.get("call_line") ?? 0);
     if (!id) return;
     this.set("call_line", "");
@@ -2525,6 +2561,22 @@ export class Book extends DurableObject<Env> {
       const e = this.epics().find((x) => x.id === made.id);
       return { ok: true, epic_id: made.id, thread: made.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: "this question was already an answer epic, opened in your human's tabs: write the answer into its doc (update_doc with this epic_id)" };
     }
+    // One thread per message (Gimenes #5068): a message that already has a thread gets that one back, with the new
+    // tasks (a done one opens again), and the agent writes there instead of starting a second.
+    const had = src && !backlog ? this.epicsFrom(Number(src))[0] : undefined;
+    if (had) {
+      this.reopenIfDone(had.id);
+      const have = new Set(this.sql.exec<{ title: string }>(`SELECT title FROM tasks WHERE epic_id = ?`, had.id).toArray().map((x) => x.title));
+      for (const title of tasks.slice(0, 12)) {
+        if (have.has(title.trim())) continue;
+        const task = this.addTask(had.id, title);
+        if (task && !answer) this.sql.exec(`UPDATE tasks SET owner = ? WHERE id = ?`, email.toLowerCase(), task);
+      }
+      this.epicsChanged();
+      if (agent) this.agentAck(bookId, agent, email, via || "agent", Number(src));
+      const e = this.epics().find((x) => x.id === had.id);
+      return { ok: true, epic_id: had.id, thread: had.id, tasks: e?.tasks.map((x) => ({ id: x.id, title: x.title, status: x.status })) ?? [], note: `message ${src} already has this thread ("${e?.title ?? ""}"): write there (thread = ${had.id}); a message never gets a second thread.` };
+    }
     // The agent took the work, so its human owns the tasks (self-assign).
     const id = this.createEpic(t, (tasks.length ? tasks : [t]).slice(0, 12).map((title) => ({ title, owner: backlog || answer ? undefined : email })), [email.toLowerCase()], why); // an answer's task is unowned: nothing waits on the person who asked
     // An answer (Gui #2735): its doc's task list goes last, and the doc opens in its human's tabs right now (below).
@@ -2818,7 +2870,7 @@ export class Book extends DurableObject<Env> {
         avatars,
         online: this.online(),
         // Present only where calls are set up: the app draws the call button from it.
-        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState() } : {}),
+        ...(callsOn(this.env) ? { call: this.callPeers(), callThread: this.liveCallThread(), callRecorded: recorderOn(this.env, bookId), ring: this.ringState(), ...(this.isDm ? { consent: this.callConsent() } : {}) } : {}),
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
@@ -2947,6 +2999,8 @@ export class Book extends DurableObject<Env> {
           const same = this.sql.exec<{ owner: string | null }>(`SELECT owner FROM epics WHERE id = ?`, m.id).toArray()[0]?.owner === owner;
           return same ? undefined : new Refused("epic id in use");
         }
+        // One thread per message (Gimenes #5068): the app offers "Abrir thread" then; this is a race with someone else.
+        if (from !== undefined && this.epicsFrom(from).length) return new Refused("this message already has a thread");
         const id = this.createEpic(title, [], [], "", m.id);
         this.sql.exec(`UPDATE epics SET owner = ?, from_msg = ? WHERE id = ?`, owner, this.threadOrigin({ author: email }, from, title), id);
         this.epicsChanged();
@@ -3019,6 +3073,12 @@ export class Book extends DurableObject<Env> {
         return void (await this.assignTask(String(m.id), m.owner === undefined ? undefined : String(m.owner), m.due === undefined ? undefined : String(m.due)));
       case "call.leave":
         return this.callLeave(email);
+      case "call.consent": {
+        const bookId = this.get("book_id") ?? "";
+        if (this.callConsentAnswer(email, m.yes) && recorderOn(this.env, bookId))
+          this.ctx.waitUntil(startRecorder(this.env, this.get("call_origin") ?? publicOrigin(this.env), bookId));
+        return;
+      }
       case "call.mute":
         return this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, muted: m.muted } : p)));
       case "call.usage":

@@ -7,3 +7,10 @@ import { writable } from "svelte/store";
  * pane's own button puts the room back.
  */
 export const paneFocus = writable(false);
+
+/**
+ * A room app asked to open straight into Expand (the chat's app card): the
+ * apps pane turns Expand on once that app is its open target, after the pane
+ * switch has settled (switching panes ends Expand).
+ */
+export const appFocusRequest = writable<string | null>(null);

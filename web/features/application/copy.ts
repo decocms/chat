@@ -210,7 +210,8 @@ const EN: Readonly<Record<string, string>> = {
   "Sem dono": "No owner",
   "{n} Claudes seus ouvindo esta sala: cada um pode pegar o mesmo pedido. Feche os que sobram.":
     "{n} of your Claudes are listening to this room: each can take the same request. Close the extras.",
-  "app da sala": "room app",
+  "App · {who}": "App · {who}",
+  "Abrir ao lado": "Open beside",
   arquivo: "file",
   "Não deu pra abrir agora. Tente de novo.": "Couldn't open it now. Try again.",
   "Buscando a mensagem…": "Finding the message…",
@@ -597,6 +598,7 @@ const EN: Readonly<Record<string, string>> = {
     "It saw this in the conversation and thinks it's worth a thread, with the tasks below.",
   "Tarefas propostas": "Proposed tasks",
   "Criar thread": "Create thread",
+  "Abrir thread": "Open thread",
   "Thread criada": "Thread created",
   "Não deu pra criar a thread.": "Couldn't create the thread.",
   "Pedir pro meu agent": "Ask my agent",
@@ -841,6 +843,13 @@ const EN: Readonly<Record<string, string>> = {
   "Entrar na call: {people}": "Join the call: {people}",
   "Câmera e desfoque": "Camera and blur",
   "Supressão de ruído": "Noise suppression",
+  "Gravar esta call no Grain? Só grava se as duas pessoas aceitarem.":
+    "Record this call to Grain? It records only if both of you accept.",
+  Gravar: "Record",
+  "Não gravar": "Don't record",
+  "Esta call não vai ser gravada": "This call will not be recorded",
+  "Gravação: esperando a outra pessoa aceitar":
+    "Recording: waiting for the other person to accept",
   "Tela de {name}": "{name}'s screen",
   "Ver a tela de {name}": "See {name}'s screen",
   "Tela cheia": "Full screen",

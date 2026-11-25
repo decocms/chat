@@ -79,15 +79,21 @@ export const newThreadId = () =>
 /** A message can start a thread: not in a DM, not a status line, and not the start of a thread already, either
  *  itself or through the line in main that replies to it (a thread from inside a thread). The room's `origins`
  *  carry every live thread's origin, so a thread view knows main's lines without loading main. */
-export const canStartThread = (room: Room, m: ChatMessage) => {
-  if (room.book.dm || m.tag || m.author === "ai") return false;
-  const starts = new Set(room.epics.map((epic) => epic.from_msg));
-  if (starts.has(m.id)) return false;
-  return ![...room.messages, ...(room.origins ?? [])].some(
-    (line) =>
-      line.reply_to === m.id && line.thread === "main" && starts.has(line.id),
+/** The thread this message already started, if any: from it, or from the line in main that links it (a request
+ *  inside a thread). One thread per message (Gimenes #5068). */
+export const threadFrom = (room: Room, m: ChatMessage) => {
+  const direct = room.epics.find((epic) => epic.from_msg === m.id);
+  if (direct) return direct.id;
+  const lines = new Set(
+    [...room.messages, ...(room.origins ?? [])]
+      .filter((line) => line.reply_to === m.id && line.thread === "main")
+      .map((line) => line.id),
   );
+  return room.epics.find((epic) => epic.from_msg && lines.has(epic.from_msg))
+    ?.id;
 };
+export const canStartThread = (room: Room, m: ChatMessage) =>
+  !room.book.dm && !m.tag && m.author !== "ai" && !threadFrom(room, m);
 /** Your own message (Gui #4276): you can change its text. */
 export const canEditMessage = (room: Room, m: ChatMessage) =>
   m.author === room.me && m.kind !== "agent" && !m.deleted && !!m.text;
