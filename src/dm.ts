@@ -23,7 +23,7 @@ const key = (secret: string) => {
   return k;
 };
 
-import { isDmId, MUTUAL, pairKey } from "../shared/dm";
+import { corporateDomain, isDmId, MUTUAL, pairKey } from "../shared/dm";
 export { isDmId, pairKey };
 
 /** The DM room id for two people (the same whichever asks); `dmId(env, me, me)` is your own. */
@@ -87,12 +87,16 @@ export async function dmTitle(
   return u?.name || other;
 }
 
-/** Who you can DM without asking: yourself, a connection (you accepted each other's message), or anyone you share a
- *  room with (both joined: an invite you haven't answered doesn't count). Everyone else gets a message request. */
+/** Who you can DM without asking: yourself, a connection (you accepted each other's message), anyone you share a
+ *  room with (both joined: an invite you haven't answered doesn't count), or a colleague: someone with an account and
+ *  your company email domain (not a free provider, shared/dm.ts). Everyone else gets a message request. */
 export async function canDm(db: D1Database, a: string, b: string) {
   a = a.toLowerCase();
   b = b.toLowerCase();
   if (a === b) return true;
+  const domain = corporateDomain(a);
+  if (domain && domain === corporateDomain(b) && (await db.prepare(`SELECT 1 FROM users WHERE email = ?`).bind(b).first()))
+    return true;
   return !!(await db
     .prepare(
       `SELECT 1 WHERE EXISTS (SELECT 1 FROM friends f WHERE f.a = ?1 AND f.b = ?2 AND ${MUTUAL})
@@ -173,13 +177,15 @@ export async function openDm(
     return !!(await openDmWith(env, me, pair.find((e) => e !== me) ?? me));
   }
   if ((await dmId(env, me, me)) === id) return !!(await openDmWith(env, me, me));
-  // Not made yet: find who it's with among the people you can DM (connections, then people in your rooms).
+  // Not made yet: find who it's with among the people you can DM (connections, people in your rooms, colleagues).
+  const domain = corporateDomain(me);
   const peers = await env.DB.prepare(
     `SELECT f.b AS e FROM friends f WHERE f.a = ?1 AND ${MUTUAL}
      UNION SELECT y.email FROM members x JOIN members y ON y.book_id = x.book_id JOIN books k ON k.id = x.book_id AND k.dm IS NULL
-      WHERE x.email = ?1 AND y.email != ?1`,
+      WHERE x.email = ?1 AND y.email != ?1
+     UNION SELECT u.email FROM users u WHERE ?2 IS NOT NULL AND u.email LIKE '%@' || ?2 AND u.email != ?1`,
   )
-    .bind(me)
+    .bind(me, domain)
     .all<{ e: string }>();
   const ids = await Promise.all(peers.results.map(({ e }) => dmId(env, me, e)));
   const peer = peers.results[ids.indexOf(id)]?.e;
