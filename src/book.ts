@@ -1535,6 +1535,8 @@ export class Book extends DurableObject<Env> {
     const now = Date.now();
     if (text === null) {
       if (!author && (by.agent || !(await this.isOwner(by.email)))) return { ok: false, error: "only its author or the room owner can delete a message" };
+      // A thread started from this message keeps its origin (Gimenes #4621): delete the thread first.
+      if (this.sql.exec(`SELECT 1 FROM epics WHERE from_msg = ?`, id).toArray().length) return { ok: false, error: "a thread started from this message; it cannot be deleted" };
       this.sql.exec(`INSERT INTO message_edits (msg_id, kind, text, files, card, by, ts) VALUES (?, 'delete', ?, ?, ?, ?, ?)`, id, row.text, row.files, row.card, by.agent ? `${by.email}#agent` : by.email, now);
       this.sql.exec(`UPDATE messages SET text = '', files = NULL, card = NULL, choices = NULL, poll = NULL, deleted = ? WHERE id = ?`, now, id);
       // Its files leave the room too (Files tab, links, get_file): only the owner still opens them, from the history.
