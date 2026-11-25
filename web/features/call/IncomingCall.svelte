@@ -61,7 +61,6 @@
     // Joined inside the click (the microphone wants the gesture), wherever I am; the DM's view, when it opens, shows
     // the call's stage.
     hub.session(value.book, { title: () => value.name }).join();
-    hub.openStage(value.book);
     navigate(`/b/${value.book}`);
   }
   function decline() {

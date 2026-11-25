@@ -156,28 +156,14 @@
     if (closedPane && !layout.read().documentVisible) layout.toggleDocument();
     closedPane = false;
   }
-  // Joining opens the stage; leaving closes it. A view that opens on a call already on (I came back from another
-  // screen) opens the stage only when a click asked for it (hub.openStage, taken below).
-  let wasInCall = untrack(() => inCall);
+  // Joining opens the stage; leaving closes it.
+  let wasInCall = false;
   $effect(() => {
     const now = inCall;
     untrack(() => {
       if (now && !wasInCall) openStage();
       if (!now && wasInCall) closeStage();
       wasInCall = now;
-    });
-  });
-  // The stage asked for from another screen (the call's panel, Atender): opened once the room is up and this view's
-  // first look at its thread and panes is done. Opened before, that first look took it for a move away and closed it
-  // (Jonas, 2026-11-25: the panel brought him back to the room's chat).
-  $effect(() => {
-    if (!$view?.header.room || !inCall) return;
-    void tick().then(() => {
-      if (!active || !inCall) return;
-      const asked = hub.takeStage(captured.roomId);
-      if (!asked) return;
-      openStage();
-      if (asked.camera) cameraOpen = true;
     });
   });
   // Another thread (the sidebar, a link, Back) closes the stage; the call's chat keeps it. The call chat is only
@@ -239,13 +225,8 @@
   const elsewhere = $derived(
     $liveCall && $liveCall.room !== captured.roomId ? $liveCall : null,
   );
-  function openLiveCall(camera = false) {
-    if (!elsewhere) {
-      openStage();
-      if (camera) cameraOpen = true;
-      return;
-    }
-    hub.openStage(elsewhere.room, camera);
+  function openLiveCall() {
+    if (!elsewhere) return openStage();
     services.actions.navigate(`/b/${elsewhere.room}`);
   }
   // "Iniciar call" shows while the room has no call. With a call on, the stage or its one-line bar has the controls.
@@ -435,8 +416,8 @@
     call={elsewhere?.session ?? call}
     title={elsewhere?.title ?? callTitle}
     {collapsed}
-    onopen={() => openLiveCall()}
-    oncamera={() => openLiveCall(true)}
+    onopen={openLiveCall}
+    oncamera={() => (elsewhere ? openLiveCall() : (cameraOpen = true))}
     t={services.t}
   />{/snippet}
 {#snippet callRow(collapsed: boolean)}{#if $view}<CallSidebarRow
