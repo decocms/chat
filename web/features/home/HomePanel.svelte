@@ -41,6 +41,7 @@
   import { mountCube } from "./cube";
   import { byImportance, fanClasses, inFan } from "./deskHand";
   import Onboarding from "../onboarding/Onboarding.svelte";
+  import NewMessage from "../app-navigation/NewMessage.svelte";
   import { createOnboardingSession } from "../onboarding/session";
   let {
     pwa,
@@ -59,6 +60,8 @@
     onsearch,
     onjoin,
     onanswer,
+    onconnect,
+    ondismiss,
   }: HomeBridge = $props();
   const account = $derived(personal.state),
     draft = $derived(personal.draft);
@@ -429,15 +432,26 @@
       {onjoin}
       {onanswer}
     />
-    <Button
-      variant="brand"
-      data-home-new
-      aria-label={text("new")}
-      class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
-      onclick={(event) => {
-        if (event.currentTarget.isConnected) onnew(event.currentTarget);
-      }}><Icon icon="plus" class="size-6" /></Button
-    >
+    <!-- The + makes a DM (people from your rooms, or an email) or a room (Gui #4572: it only made rooms). -->
+    {#if $account.me}<NewMessage
+        me={$account.me}
+        {lang}
+        {onconnect}
+        {ondismiss}
+        side="top"
+        onroom={(trigger) => {
+          if (trigger?.isConnected) onnew(trigger);
+          else onnew();
+        }}
+        >{#snippet trigger({ props })}<Button
+            {...props}
+            variant="brand"
+            data-home-new
+            aria-label={text("newMessage")}
+            class="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 size-14 rounded-2xl shadow-lg"
+            ><Icon icon="plus" class="size-6" /></Button
+          >{/snippet}</NewMessage
+      >{/if}
   </main>
 {:else}
   <!-- The desk home: the agent's cube, one sentence on what waits on you, the
