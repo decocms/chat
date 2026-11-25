@@ -2109,4 +2109,20 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Other options: Full Markdown for person messages (it changes many existing messages). Only the shortcut, with no render (the person sees the marks). `<u>x</u>` for underline (hard to type and read).
 - Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
 - Undo: Revert this commit.
+
+### 2026-11-25 · feat/lite-socket · How the light socket gets the room
+
+- Agent: Claude Opus 5.5
+- Context: Gimenes approved "socket leve": the room's `state` goes over HTTP (`GET /api/books/:id/room`), and the socket sends `hello`. He did not say what happens around the edges.
+- Decision:
+  - The HTTP read is a new method (`room`) on the existing root-room API (`createMessagesApi`), not a new API object. Thus `browser.ts` and the services need no new option.
+  - The route does not do the side effects of a room open (mark read, `online`, the epic index, the classify alarm). The socket still does them, because it always opens first.
+  - When the HTTP read fails, that room open uses a socket without `lite` until you open the room again. It does not try `lite` again on each reconnect. The events in the queue are dropped, because the `state` of the new socket has them.
+  - When a second `hello` comes before the first answer (a reconnect), the first answer is dropped and only the new read applies.
+  - `hello` counts as "let in" in `web/app/roomConnection.ts`: a drop after it reconnects, as after a `state`.
+  - `room_state.bytes` is the JSON length before compression (the Worker cannot see the compressed size). The route serializes the state one more time to count it.
+  - The product report (`src/reports.ts`) leaves the `hello` frames out of the average of `ws_state`, and adds one line for `room_state`.
+- Other options: A separate `RoomApi`. Try `lite` again on each reconnect. Count bytes in the Book. Leave the report as it was (its average then falls to the size of `hello`).
+- Risk: low. A socket without `lite` works as before, and each failure goes back to it.
+- Undo: Revert this commit. Old apps and the CLI never send `lite`.
 - Status: open

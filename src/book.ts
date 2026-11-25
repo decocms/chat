@@ -13,7 +13,7 @@ import { STALE_THREAD_MS, threadWaitText } from "../shared/threadWait";
 import { notificationFrom, notificationTitle } from "../shared/notificationTitle";
 import type { PostMessageResponse } from "../shared/rpc";
 import type { RoomEvent, Room, BookMeta, Attachment, Message, Poll, Suggestion, EpicStatus } from "../shared/room";
-import { RoomEventSchemas } from "../shared/events";
+import { RoomEventSchemas, type RoomStateEvent } from "../shared/events";
 import { parseRoomCall } from "../shared/validation";
 import { encodeCall, encodeError, encodeResult, RpcErrorCode, type RpcId } from "../shared/jsonRpc";
 import type { RoomCommand } from "../shared/commands";
@@ -417,14 +417,15 @@ export class Book extends DurableObject<Env> {
    * The answer: the open thread's window, every message newer than since or edited or deleted since at, and the
    * threads only when their hash differs. null = send the whole state (no params, too old, or too much changed).
    * Not caught up: a reaction or a card changed on an older message during the gap (live events carry those after). */
-  resumeOf(url: URL, open: string, window: Msg[], eh: string) {
-    const since = Number(url.searchParams.get("since")), at = Number(url.searchParams.get("at")), now = Date.now();
+  resumeOf(params: URL | URLSearchParams, open: string, window: Msg[], eh: string) {
+    const q = params instanceof URL ? params.searchParams : params;
+    const since = Number(q.get("since")), at = Number(q.get("at")), now = Date.now();
     if (!(Number.isSafeInteger(since) && since > 0 && at > now - RESUME_MAX_AGE_MS && at <= now)) return null;
     const rows = this.sql.exec(`SELECT * FROM messages WHERE id > ? OR edited >= ? OR deleted >= ? ORDER BY id LIMIT ?`, since, at, at, RESUME_MAX_ROWS + 1).toArray();
     if (rows.length > RESUME_MAX_ROWS) return null;
     const messages = new Map(window.filter((m) => m.thread === open).map((m) => [m.id, m]));
     for (const m of this.messageRows(rows)) messages.set(m.id, m);
-    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: url.searchParams.get("eh") === eh };
+    return { messages: [...messages.values()].sort((a, b) => a.id - b.id), epicsSame: q.get("eh") === eh };
   }
   /** What a room open sends: the newest 60 messages of the open thread and the newest 5 of every other one (enough for
    * the sidebar, thread cards and the ✻); the app pages the rest with "older" when a thread opens. Apart, in origins
@@ -2992,18 +2993,44 @@ export class Book extends DurableObject<Env> {
 
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server, [email]);
+    // A light socket (lite=1) gets only hello, before anything else, and reads the room over HTTP (roomState): every
+    // event after hello is newer than that read, so the app can apply it after the snapshot.
+    const lite = url.searchParams.get("lite") === "1";
+    if (lite) {
+      const body = this.sendTo([server], { t: "hello", at: Date.now() } satisfies RoomEvent);
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, lite: true, rc: url.searchParams.get("rc") ?? undefined } }));
+    }
     if (this.autoReview()) this.epicsChanged();
     this.ctx.waitUntil(this.markRead([email], (this.sql.exec(`SELECT max(id) AS id FROM messages`).one().id as number) ?? 0));
+    if (!lite) {
+      const { state, resume, win } = await this.roomSnapshot(email, bookId, url.searchParams);
+      const body = this.sendTo([server], state);
+      // What opening a room costs on the wire (the biggest share of the zone's bandwidth in Nov 2026): total + the 3
+      // fattest fields, read by the product report.
+      const top = Object.entries(state).map(([k, v]) => [k, JSON.stringify(v)?.length ?? 0] as const).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
+      const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
+      const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
+      this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
+    }
+    this.broadcast({ t: "online", online: this.online() });
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** The room as one person opens it: the `state` event. The socket sends it (without lite) and GET
+   *  /api/books/:id/room answers it (roomState). q = the socket's params: t = the open thread; since, at, eh = resume. */
+  async roomSnapshot(email: string, bookId: string, q: URLSearchParams) {
     // The D1 reads in parallel (each is a round trip): opening a room waited on six of them in a row.
     const [book, people, requests, names, avatars, handles] = await Promise.all([
       this.env.DB.prepare(`SELECT title, folder, summary, owner, dm FROM books WHERE id = ?`).bind(bookId).first<Omit<BookMeta, "dm"> & { dm: string | null }>(),
       this.people(), this.requests(), this.names(), this.avatars(), this.handles(),
     ]);
     const { dm, ...meta } = book ?? { title: DEFAULT_TITLE, owner: email, dm: null };
-    const win = this.roomWindow(url.searchParams.get("t") || "main", email);
-    const epics = this.wireEpics(this.epics(), url.searchParams.get("t") || ""), eh = wireHash(JSON.stringify(epics));
-    const resume = this.resumeOf(url, url.searchParams.get("t") || "main", win.messages, eh);
-    const state: Extract<RoomEvent, {t:"state"}> = {
+    const open = q.get("t") || "main";
+    const win = this.roomWindow(open, email);
+    const epics = this.wireEpics(this.epics(), q.get("t") || ""), eh = wireHash(JSON.stringify(epics));
+    const resume = this.resumeOf(q, open, win.messages, eh);
+    const state: RoomStateEvent = {
         t: "state",
         me: email,
         // A DM is named for each side: the other person, or "You" in your own.
@@ -3011,7 +3038,7 @@ export class Book extends DurableObject<Env> {
         doc: this.get("doc") ?? "",
         docNotes: this.docNotes(),
         // Only the open epic's doc; the app asks for another with "doc.get" when that epic opens (all of them were 70 KB).
-        docs: this.epicDocs(url.searchParams.get("t") || ""),
+        docs: this.epicDocs(q.get("t") || ""),
         epics: resume?.epicsSame ? [] : epics,
         roomTasks: this.roomTasks(),
         // The newest of each thread; full = threads sent whole, counts = real totals (the sidebar's numbers).
@@ -3044,16 +3071,18 @@ export class Book extends DurableObject<Env> {
         receipts: this.receiptsList(),
         acks: this.acksList([...win.messages, ...win.origins].map((m) => m.id)),
       };
-    const body = this.sendTo([server], state);
-    // What opening a room costs on the wire (the biggest share of the zone's bandwidth in Nov 2026): total + the 3
-    // fattest fields, read by the product report.
-    const top = Object.entries(state).map(([k, v]) => [k, JSON.stringify(v)?.length ?? 0] as const).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    // messages split (18/11, to decide what to cut next): the open thread's window, the other threads' 5 each, and cards.
-    const open = url.searchParams.get("t") || "main", kb = (xs: unknown[]) => Math.round(JSON.stringify(xs).length / 1000);
-    const msgs = `open ${kb(win.messages.filter((m) => m.thread === open))}k, other ${kb(win.messages.filter((m) => m.thread !== open))}k, cards ${kb(win.messages.map((m) => m.card).filter(Boolean))}k`;
-    this.ctx.waitUntil(track(this.env, "ws_state", { user: email, dims: { book: bookId, bytes: body.length, top: top.map(([k, n]) => `${k} ${Math.round(n / 1000)}k`).join(", "), msgs, rc: url.searchParams.get("rc") ?? undefined, resume: resume ? (resume.epicsSame ? "same" : "epics") : url.searchParams.has("since") ? "full" : undefined } })); // rc: close code of the socket this one replaces (a reconnect)
-    this.broadcast({ t: "online", online: this.online() });
-    return new Response(null, { status: 101, webSocket: client });
+    return { state, resume, win };
+  }
+  /** GET /api/books/:id/room (a light socket's first read). The route checks membership first. */
+  async roomState(bookId: string, email: string, query: { t: string; since?: number; at?: number; eh?: string }): Promise<RoomStateEvent> {
+    this.bind(bookId);
+    const q = new URLSearchParams({ t: query.t });
+    if (query.since && query.at) {
+      q.set("since", String(query.since));
+      q.set("at", String(query.at));
+      if (query.eh) q.set("eh", query.eh);
+    }
+    return (await this.roomSnapshot(email, bookId, q)).state;
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {

@@ -91,7 +91,11 @@ export function createRoomConnection(options: RoomConnectionOptions) {
         settle(received.id, received.outcome);
         return;
       }
-      if (received.event.t === (options.snapshot ?? "state"))
+      // hello: a light socket was let in; its state comes over HTTP (root-room/session.ts).
+      if (
+        received.event.t === (options.snapshot ?? "state") ||
+        received.event.t === "hello"
+      )
         hasSnapshot = true;
       options.onEvent(received.event);
     };

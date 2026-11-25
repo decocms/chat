@@ -179,6 +179,15 @@ export const MessagesPage = z.object({
   more: z.boolean(),
 });
 export type MessagesPage = z.infer<typeof MessagesPage>;
+/** GET /api/books/:id/room: the room's snapshot over HTTP (a light socket's first read). The same params as the room
+ *  socket's: t = the open thread; since, at, eh = the room the app already has (Book.resumeOf, which checks them). */
+export const RoomStateQuery = z.object({
+  t: z._default(z.string().check(z.minLength(1), z.maxLength(64)), "main"),
+  since: z.optional(z.coerce.number().check(z.positive())),
+  at: z.optional(z.coerce.number().check(z.positive())),
+  eh: z.optional(z.string().check(z.maxLength(64), z.regex(/^[\w-]*$/))),
+});
+export type RoomStateQuery = z.infer<typeof RoomStateQuery>;
 /** GET /api/books/:id/link: where a link to this app goes (a chip in the chat, web/features/rich-text/AppLinkChip).
  *  m = a message (#m), t = a thread (?t=, #e, #doc:); neither = the room. */
 export const LinkQuery = z.object({
