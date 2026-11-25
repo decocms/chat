@@ -21,3 +21,14 @@ export function rule(m: RuleMsg, email: string): { arm: "rule"; decision: "ignor
   return null;
 }
 
+/**
+ * The ack the router writes for the Claude on a message it handled, or null for none. Only messages someone could expect
+ * an ack on: your own, and ones that mention you. Not your own message that it ignored: that one stays in read_room's
+ * `unacked`, so the Claude sees it at its next wake. A wrong ignore then costs a delay, not a lost message (Viktor #5192,
+ * Gimenes #5373).
+ */
+export function routerAck(m: { author: string; mentions_you?: boolean }, email: string, decision: "ignore" | "answer" | "wake"): "done" | "idle" | null {
+  if (decision === "wake") return null;
+  if (decision === "answer") return m.author === email || m.mentions_you ? "done" : null;
+  return m.mentions_you && m.author !== email ? "idle" : null;
+}
