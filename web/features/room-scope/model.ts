@@ -1,6 +1,7 @@
 import type { Room, Message } from "../../../shared/room";
 import type { MeResult } from "../../../shared/schemas";
 import { fold } from "../composer/model";
+import type { ComposerRoom } from "../composer/types";
 import { newestVersion, personVersion } from "../home/model";
 export function roomMessages(room: Room): Message[] {
   return [
@@ -58,4 +59,17 @@ export function roomMention(room: Room, me: MeResult | null, handle: string) {
         .includes(key);
     }) ?? null
   );
+}
+/** The rooms `#` suggests in the composer: your rooms (not DMs), the ones you opened last first. */
+export function mentionRooms(books: MeResult["books"]): ComposerRoom[] {
+  const seen = (book: MeResult["books"][number]) =>
+    book.opened_at ?? book.updated_at ?? 0;
+  return books
+    .filter((book) => !book.dm && !!book.title?.trim())
+    .sort((a, b) => seen(b) - seen(a))
+    .map((book) => ({
+      id: book.id,
+      title: book.title ?? "",
+      icon: book.icon ?? 0,
+    }));
 }

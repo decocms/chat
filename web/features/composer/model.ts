@@ -5,7 +5,7 @@ import {
 } from "../../../shared/composition";
 import { EMOJI } from "../../../shared/emoji";
 import type { Attachment, Message, Room } from "../../../shared/room";
-import type { ComposerAgent, ComposerQuote } from "./types";
+import type { ComposerAgent, ComposerQuote, ComposerRoom } from "./types";
 export const AUDIO_EXT: Readonly<Record<string, string>> = {
   m4a: "audio/x-m4a",
   mp3: "audio/mpeg",
@@ -358,3 +358,73 @@ export const composedText = (s: {
   [...s.quotes.map((quote) => quote.text.trim()), s.text.trim()]
     .filter(Boolean)
     .join("\n\n");
+/** `#par` in the draft suggests rooms you are in (not DMs), then this room's open threads (`room › thread`), like
+ *  Discord's channels. Picking writes the room's link (roomReference). */
+export function roomPicks(
+  text: string,
+  caret: number,
+  rooms: readonly ComposerRoom[],
+  room: Pick<Room, "id" | "book" | "epics">,
+  origin: string,
+) {
+  const match = /(^|[\s(])#([\p{L}\p{N}._-]*)$/u.exec(text.slice(0, caret));
+  if (!match) return null;
+  const query = fold(match[2]);
+  const matches = (title: string) => !query || fold(title).includes(query);
+  const here = rooms.find((item) => item.id === room.id);
+  const roomTitle = here?.title || room.book.title;
+  const items: RoomPick[] = rooms
+    .filter((item) => matches(item.title))
+    .slice(0, 8)
+    .map((item) => ({
+      kind: "room",
+      id: item.id,
+      title: item.title,
+      icon: item.icon,
+      url: `${origin}/b/${item.id}`,
+    }));
+  for (const epic of room.epics) {
+    if (items.length >= 12) break;
+    if (epic.done || !epic.title.trim() || !matches(epic.title)) continue;
+    items.push({
+      kind: "thread",
+      id: epic.id,
+      title: epic.title,
+      room: roomTitle,
+      icon: here?.icon ?? 0,
+      url: `${origin}/b/${room.id}?t=${encodeURIComponent(epic.id)}`,
+    });
+  }
+  return items.length ? { start: caret - match[2].length - 1, items } : null;
+}
+export type RoomPick =
+  | {
+      kind: "room";
+      id: string;
+      title: string;
+      icon: number;
+      url: string;
+    }
+  | {
+      kind: "thread";
+      id: string;
+      title: string;
+      /** The room the thread is in (this one). */
+      room: string;
+      icon: number;
+      url: string;
+    };
+/** The text a picked room or thread writes into the draft: its plain link. The chat already draws a link to this app
+ *  as its chip (rich-text/AppLinkChip: the room's mark and name, or "Sala privada" for someone who can't see it), and
+ *  an agent reading the plain text gets the room id (and the thread id). */
+export function roomReference(pick: RoomPick) {
+  switch (pick.kind) {
+    case "room":
+    case "thread":
+      return pick.url;
+    default: {
+      const unreachable: never = pick;
+      return unreachable;
+    }
+  }
+}

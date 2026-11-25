@@ -542,6 +542,7 @@ const EN: Readonly<Record<string, string>> = {
   "Anexar arquivo": "Attach file",
   "ou Cmd+V": "or Cmd+V",
   "Mencionar alguém": "Mention someone",
+  "Mencionar sala": "Mention a room",
   "Criar votação": "Create poll",
   "Mensagem…": "Message…",
   "Marcar como concluída": "Mark as done",

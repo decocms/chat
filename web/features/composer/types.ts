@@ -14,6 +14,12 @@ export type ComposerAgent = Pick<
   AgentsResult["sandboxes"][number],
   "name" | "email"
 >;
+/** A room you can mention with `#` (your rooms from /api/me, not DMs). */
+export type ComposerRoom = Readonly<{
+  id: string;
+  title: string;
+  icon: number;
+}>;
 export type ComposerProps = {
   room: Room;
   thread: string;
@@ -23,6 +29,8 @@ export type ComposerProps = {
   upload: ComposerUpload;
   navigate: (id: number) => void;
   agents?: readonly ComposerAgent[];
+  /** The rooms `#` suggests. */
+  rooms?: readonly ComposerRoom[];
   hidden?: boolean;
   speechFactory?: SpeechFactory | null;
   mediaFactory?: FireCaptureFactory | null;
