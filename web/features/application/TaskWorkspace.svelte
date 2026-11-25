@@ -38,12 +38,12 @@
    * conversa inteira na sala" goes to the room), with the item's own actions
    * (`itemActions`) and the room's composer. When the item is about a thing
    * (a file, a room app such as a presentation, the thread's doc: see
-   * itemArtifacts for the rule) that thing is shown big, the thread a column
-   * beside it (under it when the pane is narrow), with one bar for the
-   * thread's artifacts as tabs and the shown one's actions. It is the room
-   * itself, over a socket of its own (the same /ws a room opens, reduced by
-   * reduceRoom), and the room's file viewer (FileViewer, embedded), so nothing
-   * here is a copy.
+   * itemArtifacts for the rule), a button opens it full screen, with what you
+   * are answering and the thread's composer at its foot; the thread's own
+   * "Abrir" on an app or a file does the same. Esc or ✕ comes back. It is the
+   * room itself, over a socket of its own (the same /ws a room opens, reduced
+   * by reduceRoom), and the room's file viewer (FileViewer, embedded), so
+   * nothing here is a copy.
    */
   let {
     services,
@@ -57,7 +57,6 @@
     onopen,
     onclose,
     itemActions,
-    onartifact,
   }: {
     services: BrowserApplicationServices;
     drafts: ComposerDrafts;
@@ -75,8 +74,6 @@
     onclose: () => void;
     /** What the open item asks of you, above the composer: Ciente, Aprovar / Reprovar, your Claude's choices. */
     itemActions?: Snippet;
-    /** Whether a thing is shown beside the thread: the Home gives it the room (the list goes slim). */
-    onartifact?: (shown: boolean) => void;
   } = $props();
   const roomId = untrack(() => book),
     selected = untrack(() => thread),
@@ -87,7 +84,7 @@
 
   let room = $state.raw<Room | null>(null),
     phase = $state<"loading" | "live" | "gone">("loading"),
-    // The artifact shown: null follows the rule; "none" is the thread alone (closed).
+    // The artifact open full screen (its key); it shows while paneFocus is on.
     chosen = $state<string | null>(null),
     active = true,
     pulls = 0,
@@ -304,13 +301,18 @@
         })
       : { primary: null, all: [] },
   );
-  const shown = $derived.by((): ItemArtifact | null => {
-    if (chosen === "none") return null;
-    const picked = chosen
-      ? artifacts.all.find((item) => item.key === chosen)
-      : undefined;
-    return picked ?? artifacts.primary;
-  });
+  const shown = $derived.by((): ItemArtifact | null =>
+    chosen ? (artifacts.all.find((item) => item.key === chosen) ?? null) : null,
+  );
+  /** Open a thing of the thread full screen, the thread's composer at its foot. */
+  function expand(item: ItemArtifact) {
+    chosen = item.key;
+    paneFocus.set(true);
+  }
+  const full = $derived(!!room && !!shown && $paneFocus);
+  const askedMessage = $derived(
+    focus ? list.find((message) => message.id === focus) : undefined,
+  );
   // The viewer follows the room and opens the shown file (a new version of it too).
   $effect(() => {
     if (room) side.sync(room, request);
@@ -323,10 +325,23 @@
     });
   });
   const richActions = { navigate: actions.navigate, openFile };
-  $effect(() => {
-    const on = !!(room && shown);
-    untrack(() => onartifact?.(on));
-  });
+  // The thread's own "Abrir" on a room app or a file opens it full screen here too.
+  actions.openApp = (target) => {
+    const item = artifacts.all.find(
+      (other) =>
+        other.kind === "file" &&
+        target.connection === "room" &&
+        other.file.name === `apps/${target.tool}.html`,
+    );
+    if (item) expand(item);
+  };
+  actions.openSideFile = (file) => {
+    const item = artifacts.all.find(
+      (other) => other.kind === "file" && other.file.name === file.name,
+    );
+    if (item) expand(item);
+    else openFile(file);
+  };
   /** Enter on the Inbox: the composer takes the keyboard. */
   export function focusComposer() {
     if (room) entry().focus();
@@ -399,193 +414,211 @@
       onclick={onclose}><Icon icon="x" size={16} /></IconButton
     >
   </header>
-  <!-- The artifact and the thread, always side by side. -->
-  <div class="flex min-h-0 flex-1">
-    <div class="flex min-h-0 min-w-0 flex-1">
-      {#if room && shown}<div
-          data-task-artifact={shown.kind}
-          class="flex min-h-0 min-w-0 flex-1 flex-col border-r border-border"
-        >
-          <!-- One bar, as high as the list's tabs: the thread's artifacts as tabs, the shown one's actions. -->
-          <div
-            data-task-artifacts
-            class="flex h-11 shrink-0 items-stretch gap-1 border-b border-border pr-2 pl-4"
+  <!-- The thread: the stretch around the ask, the item's actions, the composer. -->
+  <div data-task-thread class="flex min-h-0 flex-1 flex-col">
+    <div
+      bind:this={scroller}
+      data-task-body
+      class="min-h-0 flex-1 overflow-auto [&_[data-inbox-target]]:bg-muted"
+    >
+      {#if !room}{#if phase === "gone"}<p
+            class="m-0 p-8 text-center text-sm text-muted-foreground"
           >
-            <div class="flex min-w-0 flex-1 items-stretch overflow-x-auto">
-              {#each artifacts.all as item (item.key)}<button
-                  type="button"
-                  data-task-artifact-pick={item.key}
-                  aria-pressed={item.key === shown.key}
-                  title={item.kind === "file" ? item.file.name : item.name}
-                  class={cn(
-                    "-mb-px flex max-w-56 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-2.5 font-sans text-sm whitespace-nowrap outline-none first:pl-0 focus-visible:ring-2 focus-visible:ring-ring",
-                    item.key === shown.key
-                      ? "border-foreground font-medium text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                  onclick={() => (chosen = item.key)}
-                  ><Icon
-                    icon={item.kind === "doc" ? "align-left" : "file-02"}
-                    size={14}
-                    class="shrink-0"
-                  /><span class="truncate">{item.name}</span></button
-                >{/each}
-            </div>
-            <span class="flex shrink-0 items-center gap-0.5">
-              {#if shown.kind === "file"}<IconButton
-                  label={t("Abrir em outra aba")}
-                  size="icon-sm"
-                  tooltipSide="bottom"
-                  class="text-muted-foreground hover:text-foreground"
-                  href={externalFileURL(
-                    { roomId, id: shown.file.id },
-                    location.origin,
-                    false,
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  ><Icon icon="link-external-01" size={16} /></IconButton
-                ><IconButton
-                  label={t("Baixar")}
-                  size="icon-sm"
-                  tooltipSide="bottom"
-                  class="text-muted-foreground hover:text-foreground"
-                  href={fileUrl(shown.file)}
-                  download={shown.file.name}
-                  ><Icon icon="download-01" size={16} /></IconButton
-                ><IconButton
-                  label={$paneFocus ? t("Sair da tela cheia") : t("Expandir")}
-                  size="icon-sm"
-                  tooltipSide="bottom"
-                  aria-pressed={$paneFocus}
-                  class="text-muted-foreground hover:text-foreground"
-                  onclick={() => paneFocus.update((on) => !on)}
-                  ><Icon
-                    icon={$paneFocus ? "minimize-01" : "expand-01"}
-                    size={16}
-                  /></IconButton
-                >{/if}<IconButton
-                label={t("Fechar")}
-                size="icon-sm"
-                tooltipSide="bottom"
-                class="text-muted-foreground hover:text-foreground"
-                onclick={() => {
-                  paneFocus.set(false);
-                  chosen = "none";
-                }}><Icon icon="x" size={16} /></IconButton
+            {t("Não foi possível abrir esta conversa.")}
+          </p>{:else}<div
+            role="status"
+            aria-label={t("Carregando…")}
+            class="grid gap-5 p-6"
+          >
+            {#each [0, 1, 2] as index (index)}<div
+                class="grid grid-cols-[32px_minmax(0,1fr)] gap-3"
               >
-            </span>
-          </div>
-          {#if shown.kind === "file"}<div
-              class="flex min-h-0 flex-1 flex-col overflow-auto p-4"
-            >
-              <FileViewer
-                controller={side.viewer}
-                {lang}
-                actions={richActions}
-                inline
-                onselect={(id) => {
-                  const target = side.target();
-                  if (active && target) side.select(target, id);
-                }}
-                onclose={() => (chosen = "none")}
-              />
-            </div>{:else}<div
-              data-task-doc
-              class="min-h-0 flex-1 overflow-auto px-6 py-5"
-            >
-              <RichContent
-                text={doc ?? ""}
-                {room}
-                actions={richActions}
-                names={bridge.knownNames}
-                {t}
-              />
-            </div>{/if}
-        </div>{/if}
-      <!-- The thread: the whole pane, or a column beside the artifact (hidden while the artifact is expanded). -->
-      <div
-        data-task-thread
-        class={cn(
-          "flex min-h-0 flex-col",
-          room && shown
-            ? cn("w-[360px] shrink-0", $paneFocus && "hidden")
-            : "min-w-0 flex-1",
-        )}
-      >
-        <div
-          bind:this={scroller}
-          data-task-body
-          class="min-h-0 flex-1 overflow-auto [&_[data-inbox-target]]:bg-muted"
-        >
-          {#if !room}{#if phase === "gone"}<p
-                class="m-0 p-8 text-center text-sm text-muted-foreground"
-              >
-                {t("Não foi possível abrir esta conversa.")}
-              </p>{:else}<div
-                role="status"
-                aria-label={t("Carregando…")}
-                class="grid gap-5 p-6"
-              >
-                {#each [0, 1, 2] as index (index)}<div
-                    class="grid grid-cols-[32px_minmax(0,1fr)] gap-3"
-                  >
-                    <Skeleton class="size-8 rounded-full" />
-                    <div class="grid gap-2">
-                      <Skeleton class="h-3 w-1/4" />
-                      <Skeleton
-                        class={cn("h-3.5", index % 2 ? "w-2/3" : "w-11/12")}
-                      />
-                    </div>
-                  </div>{/each}
-              </div>{/if}
-          {:else}{#if cut.before}<p
-                class="m-0 pt-3 text-center text-xs text-muted-foreground"
-              >
-                {t("{n} mensagens antes", { n: cut.before })}
-              </p>{/if}<Chat
-              {room}
-              thread={selected}
-              list={excerpt}
-              more={false}
-              vb={bridge}
-              {actions}
-              onloadolder={() => {
-                const first = excerpt[0]?.id;
-                if (first)
-                  connection.send({
-                    t: "older",
-                    thread: selected,
-                    before: first,
-                  });
-              }}
-            />{#if cut.after}<button
-                type="button"
-                class="block w-full cursor-pointer border-0 bg-transparent py-3 text-center font-sans text-xs text-muted-foreground hover:text-foreground"
-                onclick={onopen}
-                >{t("{n} mensagens depois", { n: cut.after })} · {t(
-                  "Ver a conversa inteira na sala",
-                )}</button
-              >{/if}{/if}
-        </div>
-        {#if room}<div data-task-answer class="shrink-0 pt-2">
-            {#if itemActions}<div
-                data-task-item-actions
-                class="flex flex-wrap items-center gap-1.5 px-4 pb-1"
-              >
-                {@render itemActions()}
-              </div>{/if}
-            <Composer
-              {room}
-              thread={selected}
-              vb={bridge}
-              {drafts}
-              request={composerRequest}
-              {upload}
-              navigate={(id) => actions.navigate(id)}
-            />
+                <Skeleton class="size-8 rounded-full" />
+                <div class="grid gap-2">
+                  <Skeleton class="h-3 w-1/4" />
+                  <Skeleton
+                    class={cn("h-3.5", index % 2 ? "w-2/3" : "w-11/12")}
+                  />
+                </div>
+              </div>{/each}
           </div>{/if}
-      </div>
+      {:else}{#if cut.before}<p
+            class="m-0 pt-3 text-center text-xs text-muted-foreground"
+          >
+            {t("{n} mensagens antes", { n: cut.before })}
+          </p>{/if}<Chat
+          {room}
+          thread={selected}
+          list={excerpt}
+          more={false}
+          vb={bridge}
+          {actions}
+          onloadolder={() => {
+            const first = excerpt[0]?.id;
+            if (first)
+              connection.send({
+                t: "older",
+                thread: selected,
+                before: first,
+              });
+          }}
+        />{#if cut.after}<button
+            type="button"
+            class="block w-full cursor-pointer border-0 bg-transparent py-3 text-center font-sans text-xs text-muted-foreground hover:text-foreground"
+            onclick={onopen}
+            >{t("{n} mensagens depois", { n: cut.after })} · {t(
+              "Ver a conversa inteira na sala",
+            )}</button
+          >{/if}{/if}
     </div>
+    {#if room && !full}<div data-task-answer class="shrink-0 pt-2">
+        {#if itemActions || artifacts.primary}<div
+            data-task-item-actions
+            class="flex flex-wrap items-center gap-1.5 px-4 pb-1"
+          >
+            {#if artifacts.primary}{@const primary = artifacts.primary}<Button
+                data-task-open-artifact
+                size="sm"
+                class="h-7 max-w-64 px-2.5 text-xs"
+                onclick={() => expand(primary)}
+                ><Icon icon="expand-01" size={13} /><span class="truncate"
+                  >{t("Abrir {name}", { name: primary.name })}</span
+                ></Button
+              >{/if}
+            {@render itemActions?.()}
+          </div>{/if}
+        <Composer
+          {room}
+          thread={selected}
+          vb={bridge}
+          {drafts}
+          request={composerRequest}
+          {upload}
+          navigate={(id) => actions.navigate(id)}
+        />
+      </div>{/if}
   </div>
+  <!-- A thing of the thread, full screen: its bar (the thread's things as tabs, new tab, download, close),
+       the thing, and under it what you are answering and the thread's composer. Esc or ✕ comes back. -->
+  {#if full && shown && room}<div
+      data-task-full={shown.kind}
+      role="dialog"
+      aria-modal="true"
+      aria-label={shown.name}
+      class="fixed inset-0 z-50 flex flex-col bg-background font-sans text-sm text-foreground"
+    >
+      <div
+        data-task-artifacts
+        class="flex h-12 shrink-0 items-stretch gap-1 border-b border-border pr-3 pl-5"
+      >
+        <div class="flex min-w-0 flex-1 items-stretch overflow-x-auto">
+          {#each artifacts.all as item (item.key)}<button
+              type="button"
+              data-task-artifact-pick={item.key}
+              aria-pressed={item.key === shown.key}
+              title={item.kind === "file" ? item.file.name : item.name}
+              class={cn(
+                "-mb-px flex max-w-64 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-2.5 font-sans text-sm whitespace-nowrap outline-none first:pl-0 focus-visible:ring-2 focus-visible:ring-ring",
+                item.key === shown.key
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+              onclick={() => (chosen = item.key)}
+              ><Icon
+                icon={item.kind === "doc" ? "align-left" : "file-02"}
+                size={14}
+                class="shrink-0"
+              /><span class="truncate">{item.name}</span></button
+            >{/each}
+        </div>
+        <span class="flex shrink-0 items-center gap-0.5">
+          {#if shown.kind === "file"}<IconButton
+              label={t("Abrir em outra aba")}
+              size="icon-sm"
+              tooltipSide="bottom"
+              class="text-muted-foreground hover:text-foreground"
+              href={externalFileURL(
+                { roomId, id: shown.file.id },
+                location.origin,
+                false,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              ><Icon icon="link-external-01" size={16} /></IconButton
+            ><IconButton
+              label={t("Baixar")}
+              size="icon-sm"
+              tooltipSide="bottom"
+              class="text-muted-foreground hover:text-foreground"
+              href={fileUrl(shown.file)}
+              download={shown.file.name}
+              ><Icon icon="download-01" size={16} /></IconButton
+            >{/if}<IconButton
+            data-task-full-close
+            label={t("Fechar")}
+            size="icon-sm"
+            tooltipSide="bottom"
+            class="text-muted-foreground hover:text-foreground"
+            onclick={() => paneFocus.set(false)}
+            ><Icon icon="x" size={16} /></IconButton
+          >
+        </span>
+      </div>
+      {#if shown.kind === "file"}<div
+          class="flex min-h-0 flex-1 flex-col overflow-auto p-4"
+        >
+          <FileViewer
+            controller={side.viewer}
+            {lang}
+            actions={richActions}
+            inline
+            onselect={(id) => {
+              const target = side.target();
+              if (active && target) side.select(target, id);
+            }}
+            onclose={() => paneFocus.set(false)}
+          />
+        </div>{:else}<div
+          data-task-doc
+          class="min-h-0 flex-1 overflow-auto px-8 py-6"
+        >
+          <div class="mx-auto max-w-3xl">
+            <RichContent
+              text={doc ?? ""}
+              {room}
+              actions={richActions}
+              names={bridge.knownNames}
+              {t}
+            />
+          </div>
+        </div>{/if}
+      <div data-task-answer class="shrink-0 border-t border-border pt-3">
+        <div class="mx-auto w-full max-w-3xl">
+          {#if askedMessage}<p
+              data-task-asked
+              class="m-0 truncate px-4 pb-2 text-xs text-muted-foreground"
+            >
+              <b class="font-medium text-foreground"
+                >{name(askedMessage.author)}</b
+              >
+              {askedMessage.text}
+            </p>{/if}
+          {#if itemActions}<div
+              data-task-item-actions
+              class="flex flex-wrap items-center gap-1.5 px-4 pb-1"
+            >
+              {@render itemActions()}
+            </div>{/if}
+          <Composer
+            {room}
+            thread={selected}
+            vb={bridge}
+            {drafts}
+            request={composerRequest}
+            {upload}
+            navigate={(id) => actions.navigate(id)}
+          />
+        </div>
+      </div>
+    </div>{/if}
 </section>

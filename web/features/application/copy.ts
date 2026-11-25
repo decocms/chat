@@ -569,6 +569,7 @@ const EN: Readonly<Record<string, string>> = {
   "Doc da sala": "Room doc",
   "Doc da thread": "Thread doc",
   Concluir: "Complete",
+  "Abrir {name}": "Open {name}",
   "Tarefa concluída": "Task completed",
   "Ver a conversa inteira na sala": "See the whole conversation in the room",
   "{n} mensagens antes": "{n} earlier messages",

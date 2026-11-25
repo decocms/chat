@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { get } from "svelte/store";
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import ErrorState from "../../lib/components/ErrorState.svelte";
@@ -31,7 +31,6 @@
   import RoomAvatar from "../rooms/RoomAvatar.svelte";
   import TaskWorkspace from "./TaskWorkspace.svelte";
   import { paneFocus } from "../room-layout/focus";
-  import { homeArtifactOpen } from "./homeLayout";
   import type { ComposerDrafts } from "../composer/drafts";
   import type { BrowserApplicationServices } from "./browser";
   import type { ApplicationInbox, InboxBinding } from "./inbox";
@@ -442,13 +441,6 @@
     closed = false;
     sent = null;
   }
-  // A thing open beside the thread (an app, a file, the doc): the shell folds the DM list away for it
-  // (homeArtifactOpen); Expandir hides the Inbox list too.
-  let wide = $state(false);
-  $effect(() => {
-    homeArtifactOpen.set(wide);
-  });
-  onDestroy(() => homeArtifactOpen.set(false));
   function close() {
     closed = true;
     sent = null;
@@ -624,7 +616,7 @@
       hints = false;
       return;
     }
-    // Esc: out of the artifact's full screen first, then the open item closes.
+    // Esc: out of the full-screen thing first, then the open item closes.
     if (event.key === "Escape" && get(paneFocus)) {
       event.preventDefault();
       paneFocus.set(false);
@@ -680,10 +672,7 @@
 >
   <div
     data-home-list
-    class={cn(
-      "flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border",
-      $paneFocus && "hidden",
-    )}
+    class="flex min-h-0 w-[420px] shrink-0 flex-col border-r border-border"
   >
     <!-- The ask box on top of the list (16px above it, 20px under it), as high as the open item's header:
          the two rows of tabs line up. -->
@@ -832,7 +821,6 @@
           }}
           onclose={close}
           itemActions={working.key.startsWith("x:") ? undefined : itemActions}
-          onartifact={(on) => (wide = on)}
         />{/key}
     {:else if !loading && !($inbox.error && !order.length)}{@render empty(
         order.length
