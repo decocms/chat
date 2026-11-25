@@ -670,6 +670,117 @@ test("routed send uses the canonical posted thread and clears only its unchanged
   personal.dispose();
 });
 
+test("the ask's file and poll go to the chosen room: uploaded there, posted with the message, once", async () => {
+  const timer = manualClock(),
+    uploads: string[] = [],
+    posts: unknown[] = [];
+  let fail = true;
+  const personal = createPersonalSession(
+    homeApi({
+      upload: async (id, file) => {
+        uploads.push(`${id}:${file.name}`);
+        return {
+          id: `up-${uploads.length}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          author: "a@test.com",
+          ts: 1,
+        };
+      },
+      post: async (...args) => {
+        posts.push(args.slice(0, 2).concat(args[4]));
+        if (fail) {
+          fail = false;
+          throw Error("offline");
+        }
+        return { ok: true, id: 9, thread: "main" };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const navigated: unknown[] = [],
+    session = createHomeSession(
+      personal,
+      (target) => navigated.push(target),
+      timer.clock,
+    );
+  session.addFiles([
+    new File(["%PDF"], "plano.pdf", { type: "application/pdf" }),
+    new File(["x"], "virus.exe", { type: "application/x-msdownload" }),
+  ]);
+  expect(get(session.state).files.map((f) => f.name)).toEqual(["plano.pdf"]);
+  expect(get(session.state).fileError).toContain("virus.exe");
+  session.setPoll({ question: "Qual?", options: ["A", "B"], multi: false });
+  session.edit("veja isto");
+  await session.suggest();
+  await session.send();
+  expect(get(session.state).error).toBe("offline");
+  await session.send();
+  // The retry posts again but does not upload the file to the room again.
+  expect(uploads).toEqual(["aaaaaa:plano.pdf"]);
+  expect(posts).toEqual([
+    [
+      "aaaaaa",
+      "veja isto",
+      {
+        routed: true,
+        files: ["up-1"],
+        poll: { question: "Qual?", options: ["A", "B"], multi: false },
+      },
+    ],
+    [
+      "aaaaaa",
+      "veja isto",
+      {
+        routed: true,
+        files: ["up-1"],
+        poll: { question: "Qual?", options: ["A", "B"], multi: false },
+      },
+    ],
+  ]);
+  expect(navigated).toEqual([{ roomId: "aaaaaa", thread: undefined }]);
+  expect(get(session.state).files).toEqual([]);
+  expect(get(session.state).poll).toBe(null);
+  session.dispose();
+  personal.dispose();
+});
+
+test("a poll alone is routed by its question and posted to the chosen room", async () => {
+  const timer = manualClock(),
+    routes: string[] = [],
+    posts: unknown[] = [];
+  const personal = createPersonalSession(
+    homeApi({
+      route: async (text) => {
+        routes.push(text);
+        return suggestion;
+      },
+      post: async (...args) => {
+        posts.push([args[0], args[1], args[4]?.poll]);
+        return { ok: true, id: 3, thread: "main" };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const session = createHomeSession(personal, () => {}, timer.clock);
+  session.setPoll({ question: "Pizza?", options: ["Sim", "Não"], multi: true });
+  await session.suggest();
+  await session.send();
+  expect(routes).toEqual(["Pizza?"]);
+  expect(posts).toEqual([
+    [
+      "aaaaaa",
+      "",
+      { question: "Pizza?", options: ["Sim", "Não"], multi: true },
+    ],
+  ]);
+  session.dispose();
+  personal.dispose();
+});
+
 test("remote restoration before HTTP rejection is authoritative and obsoletes its pending callback", async () => {
   const timer = manualClock(),
     ack = deferred<{ ok: true }>();

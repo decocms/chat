@@ -947,6 +947,8 @@ const EN: Readonly<Record<string, string>> = {
   "{done} de {total} tarefas feitas": "{done} of {total} tasks done",
   "Cancelar resposta": "Cancel reply",
   "Remover trecho": "Remove passage",
+  "Votação: {question}": "Poll: {question}",
+  "Remover votação": "Remove poll",
   "Essa mensagem está mais acima: role o chat pra carregar.":
     "That message is further up: scroll the chat to load it.",
   "pensando…": "thinking…",

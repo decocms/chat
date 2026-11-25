@@ -1004,6 +1004,61 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
   await flush();
   expect(opened).toEqual([more]);
 });
+test("the ask's + menu is the composer's menu plus New room, and a picked file shows as the composer's card", async () => {
+  const { personal, rooms, pwa, profile, creator } = await setup();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        onlanguage: () => {},
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const box = target.querySelector<HTMLFormElement>("[data-chat-box]")!;
+  box.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
+  await flush();
+  expect(
+    [...box.querySelectorAll('[role="menuitem"]')].map((item) =>
+      item.textContent?.replace(/\s+/g, " ").trim(),
+    ),
+  ).toEqual([
+    "New room",
+    "Attach file or Cmd+V",
+    "Mention someone",
+    "Create poll",
+  ]);
+  const input = target.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File(["%PDF"], "plan.pdf", { type: "application/pdf" })],
+  });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await flush();
+  const card = target.querySelector("[data-composer-attachment]");
+  expect(card?.textContent).toContain("plan.pdf");
+});
 test("detached tile link/settings actions cannot navigate after canonical row replacement", async () => {
   const navigation: unknown[] = [],
     settings: unknown[] = [],

@@ -3,6 +3,12 @@
 import * as z from "zod/mini";
 import { ClientIdSchema } from "./commands";
 import { AckSchema, MessageSchema } from "./room";
+import {
+  MESSAGE_FILE_LIMIT,
+  POLL_MAX_OPTIONS,
+  POLL_OPTION_LIMIT,
+  POLL_QUESTION_LIMIT,
+} from "./composition";
 
 export const PostMessageBody = z.object({
   text: z.string(),
@@ -11,6 +17,18 @@ export const PostMessageBody = z.object({
   client_id: z.optional(ClientIdSchema),
   /** Sent from the Home's ask box (the router): a later answer by someone else comes back to the Home (r<msg> waits). */
   routed: z.optional(z.boolean()),
+  /** Files already uploaded to this room (POST /api/books/:id/files) that go with the message. */
+  files: z.optional(z.array(z.string()).check(z.maxLength(MESSAGE_FILE_LIMIT))),
+  /** A poll posted with the message, after it (the composer's poll.create, over HTTP). */
+  poll: z.optional(
+    z.object({
+      question: z.string().check(z.maxLength(POLL_QUESTION_LIMIT)),
+      options: z
+        .array(z.string().check(z.maxLength(POLL_OPTION_LIMIT)))
+        .check(z.maxLength(POLL_MAX_OPTIONS)),
+      multi: z.optional(z.boolean()),
+    }),
+  ),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 

@@ -77,6 +77,8 @@ const wireHash = (x: string) => { let a = 5381; for (let i = 0; i < x.length; i+
 const RESUME_MAX_AGE_MS = 6 * 3600_000, RESUME_MAX_ROWS = 200;
 
 const CLASSIFY_DELAY_MS = 30_000;
+/** A poll's options as stored: trimmed, cut to their limit, the empty ones dropped, at most POLL_MAX_OPTIONS. */
+const pollOptions = (options: string[]) => options.map((o) => o.trim().slice(0, POLL_OPTION_LIMIT)).filter(Boolean).slice(0, POLL_MAX_OPTIONS);
 // An answer epic still empty this long after its question gets one reminder for the person who asked (Gui #4210).
 const ANSWER_NUDGE_MS = 10 * 60_000;
 /** A person undoes what the router did within this time (opens again a thread it closed, deletes a reply thread it
@@ -1353,8 +1355,9 @@ export class Book extends DurableObject<Env> {
     this.epicsChanged();
     return { ok: true };
   }
-  createPoll(thread: string, author: string, question: string, options: string[], multi: boolean) {
-    const opts = options.map((o) => o.trim().slice(0, POLL_OPTION_LIMIT)).filter(Boolean).slice(0, POLL_MAX_OPTIONS);
+  /** The poll's message, or null when the question or the options don't make a poll. */
+  createPoll(thread: string, author: string, question: string, options: string[], multi: boolean, clientId?: string) {
+    const opts = pollOptions(options);
     if (!question.trim() || opts.length < POLL_MIN_OPTIONS) return null;
     const id = rid();
     this.sql.exec(
@@ -1367,8 +1370,7 @@ export class Book extends DurableObject<Env> {
       Date.now(),
     );
     this.broadcast({ t: "poll", poll: this.polls([id])[id] });
-    this.addMessage(thread, author, "", { poll: id });
-    return id;
+    return this.addMessage(thread, author, "", { poll: id, clientId });
   }
   vote(pollId: string, email: string, opt: number) {
     const p = this.polls([pollId])[pollId];
@@ -2439,22 +2441,40 @@ export class Book extends DurableObject<Env> {
   /** `en`: the poster reads English (the Worker's reqLang), for the refusals they see as a toast.
    *  `send`: a person's own send over HTTP (POST /api/books/:id/post), which a retry can repeat; the server's own
    *  posts in their name (a DM's first message, a started room) leave it out and are never matched. */
-  async humanPost(bookId: string, email: string, raw: string, thread = "main", en = false, send?: { clientId?: string; routed?: boolean }): Promise<PostMessageResponse> {
+  async humanPost(
+    bookId: string,
+    email: string,
+    raw: string,
+    thread = "main",
+    en = false,
+    send?: { clientId?: string; routed?: boolean; files?: string[]; poll?: { question: string; options: string[]; multi?: boolean } },
+  ): Promise<PostMessageResponse> {
     this.bind(bookId);
     const clientId = send?.clientId;
     const text = raw.trim().slice(0, MESSAGE_TEXT_LIMIT);
-    if (!text) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
+    // Files must already be this room's (uploaded here by a member); a poll needs a question and two options.
+    const ids = (send?.files ?? []).slice(0, MESSAGE_FILE_LIMIT);
+    const files = ids.length ? this.files().filter((f) => ids.includes(f.id)) : [];
+    if (files.length < new Set(ids).size) return { ok: false, error: en ? "A file is no longer available." : "Um arquivo não está mais disponível." };
+    const poll = send?.poll;
+    if (poll && (!poll.question.trim() || pollOptions(poll.options).length < POLL_MIN_OPTIONS)) return { ok: false, error: en ? "A poll needs a question and at least 2 options." : "A votação precisa de uma pergunta e pelo menos 2 opções." };
+    if (!text && !files.length && !poll) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
     if (!this.knownThread(thread)) thread = "main";
     const secret = findSecret(text);
     if (secret) return { ok: false, error: en ? `Not sent: it looks like a secret (${secretName(secret)}). Secrets don't go in the room.` : `Não enviei: parece ${secret}. Segredo não entra na sala.` };
     if (send && !clientId) this.noClientId(email, "http");
-    const repeat = !send ? null : clientId ? this.byClientId(email, null, clientId, text) : this.recentRepeat(email, null, { thread, text });
+    const repeat = !send ? null : clientId ? this.byClientId(email, null, clientId, text) : files.length || poll ? null : this.recentRepeat(email, null, { thread, text });
     if (repeat instanceof Refused) return { ok: false, error: repeat.error };
     if (repeat) return { ok: true, id: repeat.id, thread: repeat.thread };
-    const m = this.addMessage(thread, email, text, { clientId });
+    // The text and files are one message; a poll goes after it as its own (as the composer posts them). With no text
+    // nor files, the poll's message carries the send's client_id, so a retry finds it.
+    const said = text || files.length ? this.addMessage(thread, email, text, { files, clientId }) : null;
+    const polled = poll ? this.createPoll(thread, email, poll.question, poll.options, !!poll.multi, said ? undefined : clientId) : null;
+    const m = said ?? polled;
+    if (!m) return { ok: false, error: en ? "Empty message." : "Mensagem vazia." };
     // Sent from the Home's ask box: an answer here by someone else comes back to the sender's Home (routedReply).
-    if (send?.routed) this.sql.exec(`INSERT OR REPLACE INTO routed (msg_id, thread, author, text) VALUES (?, ?, ?, ?)`, m.id, m.thread, email, text.slice(0, 280));
-    this.personWrote(thread, text, { id: m.id, author: email });
+    if (send?.routed) this.sql.exec(`INSERT OR REPLACE INTO routed (msg_id, thread, author, text) VALUES (?, ?, ?, ?)`, m.id, m.thread, email, (text || poll?.question.trim() || files.map((f) => f.name).join(", ")).slice(0, 280));
+    if (text) this.personWrote(thread, text, { id: m.id, author: email });
     this.ctx.waitUntil(track(this.env, "message", { user: email, dims: { book: bookId, thread: thread === "main" ? "main" : "epic", via: "home" } }));
     this.ctx.waitUntil(bumpStat(this.env.DB, email, "messages"));
     await this.wakeAt(Date.now() + CLASSIFY_DELAY_MS);

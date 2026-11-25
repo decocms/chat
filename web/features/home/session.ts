@@ -5,6 +5,14 @@ import { destinations, type RoomTarget } from "./model";
 import { createAccountPageOwner } from "./ownership";
 import { authClock, createAuthOwner, type AuthClock } from "../auth/owner";
 import { createSendIds } from "../../lib/client/sendIds";
+import { MESSAGE_FILE_LIMIT } from "../../../shared/composition";
+import {
+  fileIssue,
+  mediaType,
+  normalizeFile,
+  type PendingAttachment,
+} from "../composer/model";
+import type { CleanPoll } from "../composer/drafts";
 const issue = (error: unknown) =>
   error instanceof Error ? error.message : "network";
 const roomId = (value: string) => {
@@ -17,20 +25,70 @@ export function createHomeSession(
   navigate: (target: RoomTarget) => void,
   clock: AuthClock = authClock,
 ) {
-  const state = writable({
+  const blank = () => ({
     busy: "" as "" | "route" | "send",
     error: "",
     result: null as RouteResult | null,
     selected: 0,
     source: "",
+    /** Files held in the ask (the composer's cards): uploaded to the chosen room when the ask is sent there. */
+    files: [] as PendingAttachment[],
+    /** Why a file was not added (the composer's errors: file-type:, file-size:, attachments-limit). */
+    fileError: "",
+    /** A poll held in the ask, posted to the chosen room after the text. */
+    poll: null as CleanPoll | null,
   });
+  const state = writable(blank());
   // A send that failed keeps its client_id: sending the same text there again is the same send.
   const sends = createSendIds();
+  // A file already uploaded to a room is not uploaded again on a retry there: "<room>:<file>" → its id in that room.
+  const uploaded = new Map<string, string>();
+  let nextFile = 0;
   const owner = createAccountPageOwner(personal, clock, () => {
-    state.set({ busy: "", error: "", result: null, selected: 0, source: "" });
+    uploaded.clear();
+    state.set(blank());
   });
+  /** What the ask is about: its text, or the held poll's question when only a poll is there. */
+  const subject = (text: string, poll: CleanPoll | null) =>
+    text || poll?.question || "";
+  async function uploadAll(
+    room: string,
+    files: readonly PendingAttachment[],
+    signal: AbortSignal,
+  ) {
+    const ids: string[] = [];
+    for (const item of files) {
+      const key = `${room}:${item.id}`;
+      let id = uploaded.get(key);
+      if (!id && item.file) {
+        state.update((s) => ({
+          ...s,
+          files: s.files.map((f) =>
+            f.id === item.id ? { ...f, phase: "uploading" } : f,
+          ),
+        }));
+        id = (await personal.api.upload(room, item.file, signal)).id;
+        uploaded.set(key, id);
+        state.update((s) => ({
+          ...s,
+          files: s.files.map((f) =>
+            f.id === item.id ? { ...f, phase: "ready" } : f,
+          ),
+        }));
+      }
+      if (id) ids.push(id);
+    }
+    return ids;
+  }
   const failure = (error: unknown) =>
-    state.update((s) => ({ ...s, busy: "", error: issue(error) }));
+    state.update((s) => ({
+      ...s,
+      busy: "",
+      error: issue(error),
+      files: s.files.map((f) =>
+        f.phase === "uploading" ? { ...f, phase: "ready" } : f,
+      ),
+    }));
   return {
     state,
     edit(text: string) {
@@ -44,9 +102,65 @@ export function createHomeSession(
         error: "",
       }));
     },
+    /** Files picked or pasted into the ask: checked as the composer checks them, held until the send. */
+    addFiles(input: readonly File[]) {
+      if (!owner.active() || get(state).busy === "send") return;
+      for (const raw of input) {
+        if (get(state).files.length >= MESSAGE_FILE_LIMIT) {
+          state.update((s) => ({ ...s, fileError: "attachments-limit" }));
+          break;
+        }
+        const file = normalizeFile(raw),
+          problem = fileIssue(file);
+        if (problem) {
+          state.update((s) => ({
+            ...s,
+            fileError: `file-${problem}: ${file.name}`,
+          }));
+          continue;
+        }
+        const item: PendingAttachment = {
+          id: ++nextFile,
+          name: file.name,
+          type: mediaType(file.type),
+          size: file.size,
+          file,
+          phase: "ready",
+        };
+        state.update((s) => ({
+          ...s,
+          files: [...s.files, item],
+          fileError: "",
+        }));
+      }
+    },
+    removeFile(id: number) {
+      if (!owner.active() || get(state).busy === "send") return;
+      state.update((s) => ({
+        ...s,
+        files: s.files.filter((f) => f.id !== id),
+        fileError: "",
+      }));
+    },
+    /** The poll the dialog made, held in the ask (null takes it out). */
+    setPoll(poll: CleanPoll | null) {
+      if (!owner.active() || get(state).busy === "send") return;
+      const before = get(state);
+      const text = get(personal.draft).ask.trim();
+      // With no text, the poll's question is what was routed: a new question needs a new suggestion.
+      const stale =
+        (!!before.result || before.busy === "route") &&
+        subject(text, poll) !== subject(text, before.poll);
+      if (stale) owner.cancel();
+      state.update((s) => ({
+        ...s,
+        poll,
+        ...(stale ? { result: null, busy: "" as const } : {}),
+      }));
+    },
     suggest() {
       if (!owner.active() || get(state).busy) return;
-      const text = get(personal.draft).ask.trim();
+      const text = subject(get(personal.draft).ask.trim(), get(state).poll);
       if (!text) return;
       state.update((s) => ({
         ...s,
@@ -80,8 +194,15 @@ export function createHomeSession(
     },
     send() {
       const s = get(state),
-        text = get(personal.draft).ask.trim();
-      if (!owner.active() || s.busy || !s.result || text !== s.source) return;
+        text = get(personal.draft).ask.trim(),
+        { files, poll } = s;
+      if (
+        !owner.active() ||
+        s.busy ||
+        !s.result ||
+        subject(text, poll) !== s.source
+      )
+        return;
       const destination = destinations(s.result)[s.selected];
       if (!destination) return;
       if (
@@ -97,24 +218,48 @@ export function createHomeSession(
       return owner.run(
         async (signal) => {
           if (!destination.book_id) {
-            const created = await personal.api.startRoom(text, signal);
-            return {
-              id: roomId(created.id),
-              unknown: created.unknown,
-              thread: undefined,
-            };
+            const created = await personal.api.startRoom(
+              subject(text, poll),
+              signal,
+            );
+            const id = roomId(created.id);
+            // The new room starts from the text; the files and the poll go in right after, in its main thread.
+            if (files.length || poll) {
+              const key = JSON.stringify([
+                id,
+                "main",
+                files.map((f) => f.id),
+                poll,
+              ]);
+              const posted = await personal.api.post(
+                id,
+                "",
+                "main",
+                sends.take(key),
+                {
+                  files: await uploadAll(id, files, signal),
+                  poll: poll ?? undefined,
+                },
+              );
+              if (!posted.ok) throw Error(posted.error);
+              sends.done(key);
+            }
+            return { id, unknown: created.unknown, thread: undefined };
           }
           const key = JSON.stringify([
             destination.book_id,
             destination.epic_id ?? "main",
             text,
+            files.map((f) => f.id),
+            poll,
           ]);
+          const ids = await uploadAll(destination.book_id, files, signal);
           const posted = await personal.api.post(
             destination.book_id,
             text,
             destination.epic_id ?? "main",
             sends.take(key),
-            true,
+            { routed: true, files: ids, poll: poll ?? undefined },
           );
           if (!posted.ok) throw Error(posted.error);
           sends.done(key);
@@ -126,6 +271,14 @@ export function createHomeSession(
         },
         (result) => {
           if (get(personal.draft).ask.trim() === text) personal.editAsk("");
+          uploaded.clear();
+          state.update((v) => ({
+            ...v,
+            files: v.files.filter(
+              (f) => !files.some((sent) => sent.id === f.id),
+            ),
+            poll: v.poll === poll ? null : v.poll,
+          }));
           if (result.unknown.length) personal.notice(result.id, result.unknown);
           navigate({ roomId: result.id, thread: result.thread });
         },

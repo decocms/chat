@@ -1,11 +1,25 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from "svelte";
+  import { get, writable } from "svelte/store";
   import { MediaQuery } from "svelte/reactivity";
   import { MOBILE_QUERY } from "../../lib/breakpoints";
   import Button from "../../lib/studio/Button.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
+  import IconButton from "../../lib/studio/IconButton.svelte";
+  import Chip from "../../lib/studio/Chip.svelte";
   import ChatField from "../composer/ChatField.svelte";
+  import ComposerMenuItems from "../composer/ComposerMenuItems.svelte";
+  import AttachmentCards from "../composer/AttachmentCards.svelte";
+  import PollCreateDialog, {
+    type PollForm,
+  } from "../composer/PollCreateDialog.svelte";
+  import {
+    FILE_ACCEPT,
+    composerError,
+    type PendingAttachment,
+  } from "../composer/model";
+  import { blankPoll, cleanPoll, type ComposerPhase } from "../composer/drafts";
   import { createApplicationCopy } from "../application/copy";
   import type { PersonalSession } from "./personal";
   import { createHomeSession } from "./session";
@@ -47,13 +61,107 @@
         if (sendButton?.isConnected) sendButton.focus();
       });
   });
+  // Images show as the composer shows them: a preview of the picked file, revoked when it leaves the ask.
+  const previews = new Map<number, string>();
+  function preview(item: PendingAttachment) {
+    if (!item.file || !item.type.startsWith("image/")) return undefined;
+    let url = previews.get(item.id);
+    if (!url) previews.set(item.id, (url = URL.createObjectURL(item.file)));
+    return url;
+  }
+  $effect(() => {
+    const held = $view.files;
+    untrack(() => {
+      for (const [id, url] of previews)
+        if (!held.some((item) => item.id === id)) {
+          URL.revokeObjectURL(url);
+          previews.delete(id);
+        }
+    });
+  });
+  onDestroy(() => {
+    for (const url of previews.values()) URL.revokeObjectURL(url);
+  });
+  let fileInput = $state<HTMLInputElement | null>(null),
+    pollOpen = $state(false);
+  // The poll dialog edits a poll the ask holds (the room's composer posts it at once; here it waits for the send).
+  const pollState = writable({
+    poll: blankPoll(),
+    pollPhase: "idle" as ComposerPhase,
+    pollError: "",
+    notice: "",
+  });
+  const pollForm: PollForm = {
+    state: pollState,
+    editPoll(patch) {
+      pollState.update((s) => ({
+        ...s,
+        poll: { ...s.poll, ...patch, revision: s.poll.revision + 1 },
+        pollError: "",
+      }));
+    },
+    createPoll() {
+      const poll = cleanPoll(get(pollState).poll);
+      if (!poll) {
+        pollState.update((s) => ({ ...s, pollError: "poll-invalid" }));
+        return;
+      }
+      session.setPoll(poll);
+      pollOpen = false;
+    },
+    reviewPoll() {},
+  };
+  function openPoll() {
+    const held = $view.poll;
+    pollState.set({
+      poll: held
+        ? {
+            question: held.question,
+            options: [...held.options, ""],
+            multi: held.multi,
+            revision: 0,
+          }
+        : blankPoll(),
+      pollPhase: "idle",
+      pollError: "",
+      notice: "",
+    });
+    pollOpen = true;
+  }
+  const pasted = (event: ClipboardEvent) => {
+    let files = [...(event.clipboardData?.files || [])];
+    if (!files.length)
+      files = [...(event.clipboardData?.items || [])]
+        .filter((item) => item.kind === "file")
+        .flatMap((item) => {
+          const file = item.getAsFile();
+          return file ? [file] : [];
+        });
+    if (!files.length) return;
+    event.preventDefault();
+    session.addFiles(files);
+  };
   const place = (choice: ReturnType<typeof destinations>[number]) =>
     choice.book_id
       ? choice.book_title + (choice.epic_title ? " › " + choice.epic_title : "")
       : text("newDestination", { title: choice.book_title });
 </script>
 
-<div class="w-full">
+<!-- Paste and drop files into the ask, as into a room's composer. -->
+<div
+  class="w-full"
+  role="presentation"
+  onpaste={pasted}
+  ondragover={(event) => {
+    if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
+  }}
+  ondrop={(event) => {
+    const files = [...(event.dataTransfer?.files || [])];
+    if (!files.length) return;
+    event.preventDefault();
+    session.addFiles(files);
+  }}
+>
   <ChatField
     id="home-ask"
     maxlength={2000}
@@ -67,25 +175,74 @@
     disabled={$view.busy === "send"}
     busy={!!$view.busy}
     pending={$view.busy === "route"}
-    sendDisabled={!$draft.ask.trim()}
+    ready={!!$draft.ask.trim() || !!$view.poll}
+    sendDisabled={!$draft.ask.trim() && !$view.poll}
   >
-    {#snippet menu(close, trigger)}<Button
-        variant="menu"
-        role="menuitem"
-        onclick={() => {
-          close();
-          onnew(trigger ?? undefined);
-        }}><Icon icon="plus" />{text("new")}</Button
-      ><Button
-        variant="menu"
-        role="menuitem"
-        onclick={() => {
-          close();
+    {#snippet above()}
+      {#if $view.poll}<div data-home-ask-poll class="flex px-2 pt-2">
+          <Chip title={$view.poll.question} class="max-w-full pr-0.5"
+            ><Icon icon="bar-chart-square-02" size={12} /><button
+              type="button"
+              class="min-w-0 cursor-pointer truncate text-foreground"
+              onclick={openPoll}
+              >{t("Votação: {question}", {
+                question: $view.poll.question,
+              })}</button
+            ><IconButton
+              label={t("Remover votação")}
+              size="icon-xs"
+              class="size-5 shrink-0 rounded-full text-muted-foreground hover:bg-secondary-hover hover:text-foreground"
+              disabled={$view.busy === "send"}
+              onclick={() => session.setPoll(null)}
+              ><Icon icon="x" size={12} /></IconButton
+            ></Chip
+          >
+        </div>{/if}
+      <AttachmentCards
+        items={$view.files}
+        {preview}
+        {t}
+        onremove={(id) => session.removeFile(id)}
+      />
+    {/snippet}
+    {#snippet menu(close, trigger)}<ComposerMenuItems
+        {t}
+        {close}
+        onattach={() => fileInput?.click()}
+        onmention={() => {
           const ask = $draft.ask;
           session.edit(ask && !/\s$/.test(ask) ? `${ask} @` : `${ask}@`);
-        }}><Icon icon="at-sign" />{t("Mencionar alguém")}</Button
+        }}
+        onpoll={openPoll}
+        >{#snippet before()}<Button
+            variant="menu"
+            role="menuitem"
+            onclick={() => {
+              close();
+              onnew(trigger ?? undefined);
+            }}><Icon icon="plus" />{text("new")}</Button
+          >{/snippet}</ComposerMenuItems
       >{/snippet}
   </ChatField>
+  <input
+    bind:this={fileInput}
+    type="file"
+    class="hidden"
+    accept={FILE_ACCEPT}
+    multiple
+    hidden
+    onchange={(event) => {
+      session.addFiles([...(event.currentTarget.files || [])]);
+      event.currentTarget.value = "";
+    }}
+  />
+  {#if $view.fileError}<p
+      role="alert"
+      class="m-0 mt-1 break-words text-xs text-destructive"
+    >
+      {composerError($view.fileError, t)}
+    </p>{/if}
+  <PollCreateDialog form={pollForm} {t} bind:open={pollOpen} />
 </div>
 <!-- Where the ask goes: one line with the destination and its two buttons, the
      reason under it, and the other places as chips. -->

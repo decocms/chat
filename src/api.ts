@@ -127,7 +127,7 @@ export interface ApiServices {
   callLeave(roomId: string, session: string): Promise<void>;
   /** A DM's call rings me: I say no (the ring stops; the caller stays in the call). */
   callDecline(roomId: string): Promise<void>;
-  humanPost(roomId: string, text: string, thread: string, clientId?: string, routed?: boolean): Promise<PostMessageResult>;
+  humanPost(roomId: string, text: string, thread: string, clientId?: string, extra?: { routed?: boolean; files?: string[]; poll?: PostMessageBody["poll"] }): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
   /** Where a link to this app goes (GET /api/books/:id/link): `private` unless you are a member (src/linkTarget.ts). */
@@ -294,8 +294,8 @@ const roomPosts = new Hono<ApiCtx>()
     async (c) => {
       const svc = c.get("svc"), id = c.req.param("id");
       if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" } satisfies PostMessageResult, 403);
-      const { text, thread, client_id, routed } = c.req.valid("json");
-      const out = await svc.humanPost(id, text, thread || "main", client_id, routed);
+      const { text, thread, client_id, routed, files, poll } = c.req.valid("json");
+      const out = await svc.humanPost(id, text, thread || "main", client_id, { routed, files, poll });
       if (!out.ok) return c.json({ ok: false as const, error: out.error } satisfies PostMessageResult, 400);
       svc.track("home_route_sent", { book: id, epic: out.thread !== "main" });
       return c.json({ ok: true as const, id: out.id, thread: out.thread } satisfies PostMessageResult, 200);
