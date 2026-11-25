@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import type { ComponentProps, Snippet } from "svelte";
   import Separator from "../../lib/studio/Separator.svelte";
   import RoomBarTitle from "./RoomBarTitle.svelte";
   import { tabTitle } from "../notifications/title";
+  import { setFaviconBadge } from "../notifications/favicon";
   import type { ThreadHeaderProps } from "../room-sidebar/types";
   import DocumentToolbar from "../documents/DocumentToolbar.svelte";
   import type { DocumentPane } from "../documents/types";
@@ -53,6 +54,9 @@
     event.currentTarget instanceof HTMLElement &&
     event.currentTarget.isConnected;
   const waits = $derived($personal.me?.waits ?? []);
+  // The tab's icon carries a red dot while the title shows "(n)".
+  $effect(() => setFaviconBadge(waits.length > 0));
+  onDestroy(() => setFaviconBadge(false));
   // A DM's face stands for it, the same as in your DM list.
   const peer = $derived(dmPeer(header.room));
   // Phone, a room: the other people, online first; two faces, then "+N".
