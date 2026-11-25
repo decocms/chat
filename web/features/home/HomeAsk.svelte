@@ -37,12 +37,15 @@
     onnavigate,
     onnew,
     onsearch,
+    compact = false,
   }: {
     personal: PersonalSession;
     lang: HomeLanguage;
     onnavigate: (target: RoomTarget) => void;
     onnew: (trigger?: HTMLElement) => void;
     onsearch: () => void;
+    /** A narrow column (the Inbox's list): the short placeholder, on one line. */
+    compact?: boolean;
   } = $props();
   const draft = $derived(personal.draft);
   const mobile = new MediaQuery(MOBILE_QUERY);
@@ -166,7 +169,9 @@
     id="home-ask"
     maxlength={2000}
     label={text("ask")}
-    placeholder={mobile.current ? text("deskAskShort") : text("deskAsk")}
+    placeholder={mobile.current || compact
+      ? text("deskAskShort")
+      : text("deskAsk")}
     value={$draft.ask}
     onedit={(value) => session.edit(value)}
     onsubmit={() => void session.suggest()}

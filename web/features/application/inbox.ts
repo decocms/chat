@@ -518,6 +518,21 @@ export function createApplicationInbox(
         status: "done",
       });
     },
+    /** "Reprovar" on your task in review: back to doing, as the board's status menu sets it; the wait goes too. */
+    async reject(binding: InboxBinding, wait: Wait) {
+      if (
+        !owns(binding) ||
+        !/^t./.test(wait.ref) ||
+        !get(state).data.waits.includes(wait) ||
+        !canonical(wait)
+      )
+        return false;
+      return command(binding, wait, {
+        t: "task.status",
+        id: wait.ref.slice(1),
+        status: "doing",
+      });
+    },
     async resolve(binding: InboxBinding, wait: Wait) {
       if (
         !owns(binding) ||

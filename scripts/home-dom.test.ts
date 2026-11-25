@@ -1518,7 +1518,7 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  // Your tasks are in the desktop Home's "Tarefas" tab; a task row is the button that opens it.
+  // Your tasks are in the desktop Home's "Tarefas" tab; a task row's open button opens it.
   const find = () => {
     h.target
       .querySelector<HTMLButtonElement>(
@@ -1527,7 +1527,7 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
       ?.click();
     return [
       ...h.target.querySelectorAll<HTMLButtonElement>(
-        'button[data-room-inbox-message][data-kind="task"]',
+        '[data-room-inbox-message][data-kind="task"] [data-inbox-open]',
       ),
     ].find((node) => node.textContent?.includes(task.title));
   };

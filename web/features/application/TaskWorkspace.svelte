@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick, untrack } from "svelte";
+  import { onDestroy, onMount, tick, untrack, type Snippet } from "svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Button from "../../lib/studio/Button.svelte";
@@ -29,13 +29,13 @@
   import type { ComposerUpload } from "../composer/types";
   import type { BrowserApplicationServices } from "./browser";
   /**
-   * The Home as the place you work: one task (a thread of a room) beside the
-   * Inbox, with every view of it that matters — its conversation, its doc,
-   * its tasks and its files — and what you need to dispatch from there: the
-   * room's own composer (attach, mention, poll), a prompt for @vibe, a task,
-   * the thread marked done. It is the room itself, over a socket of its own
-   * (the same /ws a room opens, reduced by reduceRoom), so nothing here is a
-   * copy. "Abrir na sala" is the one way into the room.
+   * The Home as the place you work: the open Inbox item (a thread of a room)
+   * beside the list, with the views of it that matter (its conversation, doc,
+   * tasks and files), the item's own actions (`itemActions`: Ciente, Aprovar
+   * / Reprovar, your Claude's choices) and the room's composer to answer. It
+   * is the room itself, over a socket of its own (the same /ws a room opens,
+   * reduced by reduceRoom), so nothing here is a copy. "Abrir na sala" is
+   * the one way into the room.
    */
   type View = "chat" | "doc" | "tasks" | "files";
   let {
@@ -49,6 +49,7 @@
     onchanged,
     onopen,
     onclose,
+    itemActions,
   }: {
     services: BrowserApplicationServices;
     drafts: ComposerDrafts;
@@ -64,6 +65,8 @@
     /** "Abrir na sala": leave the Home for the room, on this thread. */
     onopen: () => void;
     onclose: () => void;
+    /** What the open item asks of you, above the composer: Ciente, Aprovar / Reprovar, your Claude's choices. */
+    itemActions?: Snippet;
   } = $props();
   const roomId = untrack(() => book),
     selected = untrack(() => thread),
@@ -231,15 +234,6 @@
     openThread: (id) => leave(undefined, id),
     openFile,
   };
-  /** A dispatch: what to say goes in the composer, ready to send (you still press Enter). */
-  async function dispatch(text: string) {
-    if (!room) return;
-    view = "chat";
-    await tick();
-    const draft = entry();
-    draft.edit(text);
-    draft.focus();
-  }
 
   const list = $derived(room ? visibleChatMessages(room, selected) : []);
   const more = $derived(
@@ -321,72 +315,60 @@
   aria-label={header.thread ? `${header.room} › ${header.thread}` : header.room}
   class="flex h-full min-h-0 min-w-0 flex-col bg-background"
 >
-  <header class="flex shrink-0 flex-col gap-3 border-b border-border px-6 pt-4">
-    <div class="flex min-w-0 items-center gap-2">
-      <RoomAvatar
-        title={header.room}
-        icon={summary ? roomIcon(summary) : null}
-        {lang}
-        size="xs"
-        surface="background"
-      />
-      <span class="min-w-0 truncate text-xs text-muted-foreground"
-        >{header.room}</span
-      >
-      <span class="ml-auto flex shrink-0 items-center gap-1">
-        {#if epic && !epic.done}<Button
-            data-task-done
-            size="sm"
-            variant="outline"
-            class="h-7 px-2.5 text-xs"
-            onclick={() => send({ t: "epic.done", id: epic.id, done: true })}
-            ><Icon icon="check" size={13} />{t("Concluir")}</Button
-          >{:else if epic?.done}<span
-            class="rounded-md bg-muted px-2 text-[11px] leading-6 font-medium text-muted-foreground"
-            >{t("Concluída")}</span
-          >{/if}
-        <Button
-          data-task-open-room
-          size="sm"
-          variant="ghost"
-          class="h-7 px-2.5 text-xs"
-          onclick={onopen}
-          ><Icon icon="link-external-01" size={13} />{t(
-            "Abrir na sala",
-          )}</Button
-        >
-        <IconButton
-          data-task-close
-          label={t("Fechar")}
-          size="icon-sm"
-          tooltipSide="bottom"
-          onclick={onclose}><Icon icon="x" size={16} /></IconButton
-        >
-      </span>
-    </div>
-    <h2 class="m-0 truncate text-lg font-medium tracking-tight">
-      {header.thread || header.room}
+  <!-- One row, as high as the ask box on the list's side, so the two rows of tabs line up. -->
+  <header class="flex h-16 shrink-0 items-center gap-2.5 px-6">
+    <RoomAvatar
+      title={header.room}
+      icon={summary ? roomIcon(summary) : null}
+      {lang}
+      size="xs"
+      surface="background"
+    />
+    <h2 class="m-0 flex min-w-0 flex-1 items-baseline gap-1.5 text-sm">
+      <span class="shrink-0 text-muted-foreground">{header.room}</span>
+      {#if header.thread}<span class="shrink-0 text-subtle-foreground">›</span
+        ><span class="min-w-0 truncate font-medium">{header.thread}</span>{/if}
     </h2>
-    <div role="tablist" aria-label={t("Visões da tarefa")} class="-mb-px flex">
-      {#each views as item (item.id)}<button
-          type="button"
-          role="tab"
-          data-task-view={item.id}
-          aria-selected={view === item.id}
-          class={cn(
-            "flex h-9 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 font-sans text-sm whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            view === item.id
-              ? "border-foreground font-medium text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground",
-          )}
-          onclick={() => (view = item.id)}
-          >{item.label}{#if item.count}<span
-              class="text-xs font-normal text-muted-foreground tabular-nums"
-              >{item.count}</span
-            >{/if}</button
-        >{/each}
-    </div>
+    <Button
+      data-task-open-room
+      size="sm"
+      variant="ghost"
+      class="h-8 shrink-0 px-2.5 text-xs text-muted-foreground"
+      onclick={onopen}
+      ><Icon icon="link-external-01" size={13} />{t("Abrir na sala")}</Button
+    >
+    <IconButton
+      data-task-close
+      label={t("Fechar")}
+      size="icon-sm"
+      tooltipSide="bottom"
+      class="text-muted-foreground"
+      onclick={onclose}><Icon icon="x" size={16} /></IconButton
+    >
   </header>
+  <div
+    role="tablist"
+    aria-label={t("Visões da tarefa")}
+    class="flex h-10 shrink-0 border-b border-border px-6"
+  >
+    {#each views as item (item.id)}<button
+        type="button"
+        role="tab"
+        data-task-view={item.id}
+        aria-selected={view === item.id}
+        class={cn(
+          "-mb-px flex cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-3 font-sans text-sm whitespace-nowrap outline-none first:pl-0 focus-visible:ring-2 focus-visible:ring-ring",
+          view === item.id
+            ? "border-foreground font-medium text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground",
+        )}
+        onclick={() => (view = item.id)}
+        >{item.label}{#if item.count}<span
+            class="text-xs font-normal text-muted-foreground tabular-nums"
+            >{item.count}</span
+          >{/if}</button
+      >{/each}
+  </div>
 
   <div
     bind:this={scroller}
@@ -430,33 +412,18 @@
             connection.send({ t: "older", thread: selected, before: first });
         }}
       />
-    {:else if view === "doc"}<div data-task-doc class="px-8 py-6">
+    {:else if view === "doc"}<div data-task-doc class="px-6 py-6">
         {#if doc?.trim()}<RichContent
             text={doc}
             {room}
             actions={{ navigate: actions.navigate, openFile }}
             names={bridge.knownNames}
             {t}
-          />{:else}<div class="flex flex-col items-start gap-3 py-6">
-            <p class="m-0 text-sm text-muted-foreground">
-              {t("Esta tarefa ainda não tem doc.")}
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onclick={() =>
-                void dispatch(
-                  t(
-                    "@vibe escreve o doc desta thread: objetivo, o que já foi decidido e próximos passos.",
-                  ),
-                )}
-              ><Icon icon="stars-01" size={13} />{t(
-                "Pedir o doc pro @vibe",
-              )}</Button
-            >
-          </div>{/if}
+          />{:else}<p class="m-0 py-6 text-sm text-muted-foreground">
+            {t("Esta tarefa ainda não tem doc.")}
+          </p>{/if}
       </div>
-    {:else if view === "tasks"}<div data-task-tasks class="px-4 py-4">
+    {:else if view === "tasks"}<div data-task-tasks class="px-3 py-4">
         <TaskList
           {room}
           thread={selected}
@@ -465,7 +432,10 @@
           waits={$personal.me?.waits ?? []}
         />
       </div>
-    {:else if view === "files"}<div data-task-files class="grid gap-1 p-4">
+    {:else if view === "files"}<div
+        data-task-files
+        class="grid gap-1 px-3 py-4"
+      >
         {#each files as item (item.file.id)}<a
             href={fileUrl(item.file)}
             target="_blank"
@@ -483,34 +453,13 @@
     {/if}
   </div>
 
-  {#if room}<div data-task-dispatch class="shrink-0 border-t border-border">
-      <div class="flex flex-wrap items-center gap-1.5 px-6 pt-3">
-        <span class="mr-1 text-xs text-muted-foreground">{t("Despachar")}</span>
-        <Button
-          data-dispatch="vibe"
-          size="sm"
-          variant="outline"
-          class="h-7 rounded-full px-3 text-xs"
-          onclick={() => void dispatch("@vibe ")}
-          ><Icon icon="stars-01" size={13} />{t("Pedir pro @vibe")}</Button
-        ><Button
-          data-dispatch="summary"
-          size="sm"
-          variant="outline"
-          class="h-7 rounded-full px-3 text-xs"
-          onclick={() =>
-            void dispatch(
-              t("@vibe resume onde isto está e o que falta pra fechar."),
-            )}>{t("Resumir")}</Button
-        ><Button
-          data-dispatch="task"
-          size="sm"
-          variant="outline"
-          class="h-7 rounded-full px-3 text-xs"
-          onclick={() => (view = "tasks")}
-          ><Icon icon="plus" size={13} />{t("Nova tarefa")}</Button
+  {#if room}<div data-task-answer class="shrink-0 pt-2">
+      {#if itemActions}<div
+          data-task-item-actions
+          class="flex flex-wrap items-center gap-2 px-6 pb-1"
         >
-      </div>
+          {@render itemActions()}
+        </div>{/if}
       <Composer
         {room}
         thread={selected}
