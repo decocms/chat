@@ -2,6 +2,7 @@
   { "note": "own request to own agent", "own": true, "name": "Ana", "sender": "Ana", "text": "pode corrigir o bug do upload de áudio e subir?", "expected": "wake" },
   { "note": "own message asking a person", "own": true, "name": "Ana", "sender": "Ana", "text": "@bruno o que falta pro svelte? bora pra frente", "expected": "ignore" },
   { "note": "own one-word report", "own": true, "name": "Ana", "sender": "Ana", "text": "bug", "expected": "wake" },
+  { "note": "own UX observation in main, nobody called (Viktor #5192, reworded)", "own": true, "name": "Bruno", "sender": "Bruno", "text": "a lista de threads pula pro topo toda vez que eu abro uma, fica difícil achar onde eu tava", "expected": "wake" },
   { "note": "own request for a recap", "own": true, "name": "Ana", "sender": "Ana", "text": "você pode fazer um recap do que falta nos épicos aqui? tá muito bagunçado", "expected": "wake" },
   { "note": "own agent called by name (Codex)", "own": true, "name": "Bruno", "sender": "Bruno", "text": "E aí Codex, como você tá na migração? Me dá um status", "expected": "wake" },
   { "note": "own message: wants a person, not the agent", "own": true, "name": "Bruno", "sender": "Bruno", "text": "agora quero pedir a opinião da @ana, não que o meu Codex responda", "expected": "ignore" },

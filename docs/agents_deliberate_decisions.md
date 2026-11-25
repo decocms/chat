@@ -2110,3 +2110,15 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: low. An old message that has `**x**` or `_x_` now shows the mark.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · fix/router-own-unacked · Your ignored message stays unacked; `@agent` calls your own agent
+- Agent: Claude Opus 5.5
+- Context: Viktor's agent never saw his #5192: the router ignored it and acked it for him, so `unacked` was empty. Gimenes (#5362, #5373) asked for no hard-coded router rule, but for: (1) the ignored message staying visible to the agent, (2) the feedback cases in the bench, (3) `@agent` to force a message to your agent.
+- Decision:
+  - The router no longer acks your own message when it ignores it. It stays in `read_room.unacked` and the "Fila do seu Claude" until an agent of yours acks it. A message that mentions you is still acked when ignored.
+  - The tag is `@agent`. It wakes only the author's own agents: another person's `@agent` does not wake yours. No one can take `agent` as an @handle (`setHandle` answers "taken").
+  - The bench already runs the `router_feedback` cases from D1 (`--d1`); one reworded repo case is added for an own observation in main (no real text: the repo is public).
+- Other options: A fixed rule "your message in a room where you are the only person always wakes" (Viktor's agent, #5284; Gimenes said no). `@meu-agent` or the bot's name (longer, and a bot name can collide with a person's).
+- Risk: low. An ignored message of yours shows as pending until your agent's next wake. An old account whose handle is already `agent` keeps it, and `@agent` then also mentions that person.
+- Undo: Revert this commit.
+- Status: open

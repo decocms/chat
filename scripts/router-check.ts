@@ -13,6 +13,11 @@ const cases: [string, ReturnType<typeof rule>, string][] = [
   ["Gui in Gimenes's epic", rule({ ...base, author: G, epic_owner: M }, M), "model"],
   ["someone else's Claude talking", rule({ ...base, author: G, agent: true }, M), "skip"],
   ["your reminder", rule({ ...base, author: "ai", tag: "reminder", for_who: M }, M), "wake"],
+  ["your own @agent (Gimenes #5325)", rule({ ...base, author: M, text: "@agent olha o deploy" }, M), "wake"],
+  ["your own @agent mid-sentence", rule({ ...base, author: M, text: "isso aqui, @agent, pode fazer?" }, M), "wake"],
+  ["your own message without @agent: Jev decides", rule({ ...base, author: M, text: "a sidebar tá pulando" }, M), "model"],
+  ["an email or a longer tag is not @agent", rule({ ...base, author: M, text: "manda pra x@agent.dev ou @agentes" }, M), "model"],
+  ["Gui's @agent is for Gui's agent, not Gimenes's", rule({ ...base, author: G, text: "@agent faz isso", epic_owner: G }, M), "ignore"],
 ];
 let bad = 0;
 for (const [name, got, want] of cases) { const ok = d(got) === want; bad += +!ok; console.log(`${ok ? "ok " : "BAD"} ${name}: ${d(got)}${ok ? "" : ` (want ${want})`}`); }
