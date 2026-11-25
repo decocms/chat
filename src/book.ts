@@ -830,10 +830,12 @@ export class Book extends DurableObject<Env> {
   callTracks(email: string, add: string[], drop: string[]) {
     this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, tracks: [...new Set([...p.tracks, ...add])].filter((t) => !drop.includes(t)) } : p)));
   }
-  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back. */
-  callLeave(email: string) {
+  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back.
+   *  `session`: only that session leaves (a hang-up, or a session the SFU no longer has); the person's newer
+   *  session (another tab joined since) stays. */
+  callLeave(email: string, session?: string) {
     const peers = this.callPeers();
-    if (!peers.some((p) => p.email === email)) return;
+    if (!peers.some((p) => p.email === email && (session === undefined || p.session === session))) return;
     const left = peers.filter((p) => p.email !== email);
     this.setCall(left);
     const bookId = this.get("book_id") ?? "";

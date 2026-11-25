@@ -899,6 +899,8 @@ export const CallCloseBody = z.object({
   mids: z.array(z.string().check(z.maxLength(16))).check(z.maxLength(64)),
   names: z.optional(z.array(callName)),
 });
+/** Hanging up (POST /api/books/:id/call/leave): this session leaves the call, and no other session of the person. */
+export const CallLeaveBody = z.object({ session: callId });
 /** What the SFU answers to a tracks request. A pull comes with an offer the browser must answer at once. */
 export const CallSfuResult = z.object({
   sessionDescription: z.optional(z.nullable(CallDescription)),

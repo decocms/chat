@@ -154,6 +154,10 @@ export function createCallSession(
     speakTimer: ReturnType<typeof setInterval> | undefined,
     // Left on purpose, or the microphone or the call failed: no automatic join until the call ends.
     stayOut = false,
+    // Each teardown (a hang-up, a drop, a failure) starts a new epoch. A step of the SFU that was on its way when
+    // the call ended belongs to the old one: what it does or fails afterwards is no error of the call (a hang-up
+    // showed "A call falhou", 2026-11-25).
+    epoch = 0,
     queue: Promise<unknown> = Promise.resolve();
   /** key → mid of what this tab receives; mid → whose track it is; mid → the element that plays it. */
   const pulled = new Map<string, string>(),
@@ -205,17 +209,27 @@ export function createCallSession(
   const patch = (next: Partial<CallView>) =>
     state.update((value) => ({ ...value, ...next }));
   // The SFU takes one change to a session at a time: every negotiation waits for the one before it.
-  const enqueue = (job: () => Promise<void>) =>
-    (queue = queue.then(job).catch((error) => {
-      console.error("call", error);
-      if (pc) patch({ error: "failed" });
-    }));
+  const enqueue = (job: () => Promise<void>) => {
+    const at = epoch;
+    return (queue = queue
+      .then(() => (at === epoch ? job() : undefined))
+      .catch((error) => {
+        if (at !== epoch) return;
+        console.error("call", error);
+        if (pc) patch({ error: "failed" });
+      }));
+  };
+  /** This session leaves the room's call on the server. The route names the session, so a newer one of mine (another
+   *  tab) stays; without the route, the room's socket says it. */
+  const leaveServer = (gone: string) =>
+    void api.leave(roomId, gone).catch(() => send({ t: "call.leave" }));
   const wire = (type: "offer" | "answer") => ({
     type,
     sdp: pc?.localDescription?.sdp ?? "",
   });
 
   function teardown(error: CallView["error"] = "") {
+    epoch++;
     if (error === "mic" || error === "failed") stayOut = true;
     clearInterval(usageTimer);
     clearInterval(speakTimer);
@@ -243,9 +257,11 @@ export function createCallSession(
     state.set({ ...IDLE, error });
   }
   async function push(track: MediaStreamTrack, name: string) {
-    if (!pc) return "";
-    const transceiver = pc.addTransceiver(track, { direction: "sendonly" });
-    await pc.setLocalDescription(await pc.createOffer());
+    // The connection of this call: a hang-up while the SFU answers closes it, and the steps after fail on it.
+    const conn = pc;
+    if (!conn) return "";
+    const transceiver = conn.addTransceiver(track, { direction: "sendonly" });
+    await conn.setLocalDescription(await conn.createOffer());
     const mid = transceiver.mid ?? "";
     const out = await api.tracks(roomId, {
       session,
@@ -253,10 +269,10 @@ export function createCallSession(
       push: [{ mid, name }],
     });
     if (out === "limit" || !out.sessionDescription) {
-      await pc.setLocalDescription({ type: "rollback" });
+      await conn.setLocalDescription({ type: "rollback" });
       return out === "limit" ? ("limit" as const) : "";
     }
-    await pc.setRemoteDescription({
+    await conn.setRemoteDescription({
       type: out.sessionDescription.type,
       sdp: withDtx(out.sessionDescription.sdp),
     });
@@ -444,14 +460,24 @@ export function createCallSession(
       const media = navigator.mediaDevices.getUserMedia({
         audio: MIC_CLEANUP,
       });
+      const at = epoch;
+      let joined = "";
       void (async () => {
+        let stream: MediaStream;
         try {
-          mic = await media;
+          stream = await media;
         } catch {
-          return teardown("mic");
+          if (at === epoch) teardown("mic");
+          return;
         }
+        // Hung up before the microphone came.
+        if (at !== epoch) return stream.getTracks().forEach((t) => t.stop());
+        mic = stream;
         try {
-          session = await api.join(roomId, thread());
+          joined = await api.join(roomId, thread());
+          // Hung up while the room let me in: that session leaves at once, the room does not keep me in the call.
+          if (at !== epoch) return leaveServer(joined);
+          session = joined;
           // ponytail: STUN only. A network that blocks UDP needs Cloudflare TURN credentials here.
           pc = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }],
@@ -460,7 +486,9 @@ export function createCallSession(
           pc.ontrack = received;
           const [track] = mic.getAudioTracks();
           if (track) track.enabled = !muted;
-          if (!track || !(await push(track, "mic"))) return teardown("failed");
+          const mid = track ? await push(track, "mic") : "";
+          if (at !== epoch) return leaveServer(joined);
+          if (!mid) return teardown("failed");
           usageTimer = setInterval(() => void reportUsage(), USAGE_MS);
           listen("mic", self, mic);
           speakTimer = setInterval(measure, SPEAK_MS);
@@ -469,6 +497,10 @@ export function createCallSession(
           send({ t: "call.mute", muted });
           void enqueue(sync);
         } catch (error) {
+          if (at !== epoch) {
+            if (joined) leaveServer(joined);
+            return;
+          }
           console.error("call", error);
           teardown("failed");
         }
@@ -476,7 +508,8 @@ export function createCallSession(
     },
     leave() {
       if (get(state).phase === "idle") return;
-      if (session) send({ t: "call.leave" });
+      // Still joining with no session yet: the join, when the room answers, leaves that session (join).
+      if (session) leaveServer(session);
       stayOut = true;
       teardown();
     },

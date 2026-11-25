@@ -1,7 +1,7 @@
 import { AgentDbRow, MachineDbRow, UploadHeaders } from "./apiServerSchemas";
 import { DELIVERS, deliveryJoins, MACHINE_FRESH, sandboxMachine } from "./delivery";
 import { requestBytes, RequestBytesError } from "./requestBytes";
-import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
+import { SttQuery, SttResult, CallJoinResult, CallTracksBody, CallAnswerBody, CallCloseBody, CallLeaveBody, CALL_LIMIT, type CallSfuResult, type CallDescription, type CallTracksBody as CallTracksBodyType, type SttQuery as SttQueryType } from "../shared/schemas";
 import { speechAudio } from "./speechToText";
 import { roomSandbox } from "./sandboxRows";
 import { isDmId } from "../shared/dm";
@@ -123,6 +123,8 @@ export interface ApiServices {
   callTracks(roomId: string, body: CallTracksBodyType): Promise<CallSfuResult | "forbidden" | "limit">;
   callAnswer(roomId: string, session: string, answer: CallDescription): Promise<boolean>;
   callClose(roomId: string, session: string, mids: string[], names: string[]): Promise<boolean>;
+  /** Hang up: this session leaves the room's call at once (the socket's call.leave can be lost on a reconnect). */
+  callLeave(roomId: string, session: string): Promise<void>;
   humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
@@ -506,7 +508,7 @@ export const roomApi = accountApi
     svc.track(on ? "delivery_on" : "delivery_off", { book: id, which: all ? "all" : machine ? "machine" : "agent" });
     return c.json({ ok: true as const } satisfies DeliveryResult, 200);
   })
-  // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these four routes.
+  // The room's call (src/calls.ts): the browser negotiates WebRTC with the SFU through these routes.
   .post("/api/books/:id/call/join", validator("query", (value) => ({ thread: (Array.isArray(value.thread) ? value.thread[0] : value.thread) ?? "main" })), async (c) => {
     const svc = c.get("svc"), id = c.req.param("id");
     if (!(await svc.isMember(id))) return c.json(forbidden, 403);
@@ -555,6 +557,12 @@ export const roomApi = accountApi
     } catch (error) {
       return c.json(sfuDown(error), 502);
     }
+  })
+  .post("/api/books/:id/call/leave", body(CallLeaveBody), async (c) => {
+    const svc = c.get("svc"), id = c.req.param("id");
+    if (!svc.callsOn || !(await svc.isMember(id))) return c.json(forbidden, 403);
+    await svc.callLeave(id, c.req.valid("json").session);
+    return c.json(ok, 200);
   })
   .post("/api/books/:id/stt", validator("query",(value,c)=>{
     const r=SttQuery.safeParse({lang:Array.isArray(value.lang)?value.lang[0]:value.lang,prompt:Array.isArray(value.prompt)?value.prompt[0]:value.prompt});

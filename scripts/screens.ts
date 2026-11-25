@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -73,6 +73,19 @@ try {
     await desk.waitForTimeout(400);
     await desk.screenshot({ path: join(out, "hover-1440.png") });
     shots.push("hover-1440.png");
+  }
+  if (flag("react")) {
+    // The first reaction offered on hover, clicked: it should turn into a chip under the message.
+    await target.hover();
+    await target.locator("[data-offer-react]").first().click();
+    await target
+      .locator('[data-message-reactions] [aria-pressed="true"]')
+      .first()
+      .waitFor();
+    await target.hover();
+    await desk.waitForTimeout(400);
+    await desk.screenshot({ path: join(out, "react-1440.png") });
+    shots.push("react-1440.png");
   }
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
