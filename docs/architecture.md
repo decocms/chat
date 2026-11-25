@@ -68,7 +68,7 @@ Rules:
 
 ### A reconnect resumes
 
-- A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`).
+- A socket that already has the room (a reconnect, or a cached room that opens again) sends `since` (its newest message id), `at` (the time of its last `state`) and `eh` (the hash of the threads that it got). The Book keeps nothing for each client (`Book.resumeOf`). The worker passes the three values on to the Book (`src/bookSocket.ts`).
 - The Book then sends a `state` with `resume: true`. It has the open thread's window and each message that is newer than `since`, or edited or deleted since `at`. When the threads have the same hash, it leaves them out (`epicsSame`). The app merges the messages and acks into the room that it has (`web/app/roomStore.ts`).
 - The Book sends the whole state when there are no params, the state is older than 6 hours, or more than 200 rows changed.
 
