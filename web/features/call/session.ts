@@ -247,6 +247,8 @@ export function createCallSession(
   });
 
   async function cleaned(microphone: MediaStream) {
+    // No Web Audio (an old browser, the unit tests): the raw microphone goes.
+    if (typeof AudioContext === "undefined") return null;
     try {
       return await (await import("./denoise")).denoise(microphone);
     } catch (error) {
