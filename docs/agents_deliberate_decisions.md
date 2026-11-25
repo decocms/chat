@@ -2048,3 +2048,31 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. One more socket per person in a call. A stale view of the room no longer feeds the live call: only the call's socket does.
 - Undo: Revert this commit.
 - Status: open
+
+### 2026-11-25 · viktor/forward-messages · Forward: one quote block, files copied
+
+- Agent: claude-opus-5-5
+- Context: Viktor asked for a WhatsApp-like "Encaminhar": select N messages, pick a room or thread, and land in its composer with the timestamp, names, texts and attachments, not sent. He did not say the text format, where the selection bar goes, or how attachments move to another room.
+- Decision:
+  - The package is one quote block (`forwardText`): a line "Encaminhado de {room} › {thread}", then for each message "> {name} · {time}, {date}", its text lines with "> ", and "> Anexo: {name}". A person's message draws "> " lines as one quote (rich-text `human`); `**bold**` would show its stars there. The text is in the app's language.
+  - Attachments: the browser downloads each file of the source room (`readFileBlob`) and puts a copy in the destination composer (`addFiles`), so the destination room stores its own copy. A file id of one room is not valid in another room, and the server gets no new copy path.
+  - The forward goes through memory (`forward/pending.ts`), not localStorage: the destination room scope takes it on its first sync of that thread. A reload in between drops it.
+  - The bar (count, Cancelar, Encaminhar) takes the composer's place while selection mode is on, as in WhatsApp, with the composer's shape (`composer/shape.ts`). `docs/design.md` puts a bar for selected items "above the list" (a rule written for the Inbox). In the chat, a bar at the top covered the message that was just picked, or pushed the messages when it took height, because the chat keeps its scroll at the bottom. In the composer's place, no message moves. Phones show Cancelar as an x.
+  - Shift+click gives the range the state of the last message clicked (Gmail-like), so it selects a range after a click that selected.
+  - Selection mode only picks people's and agents' messages with text or files (not notices, issues, reminders, deleted messages or the thread's origin). While it is on, a click on a message picks it: links, files and buttons inside do nothing, the hover toolbar and the swipe do not show.
+  - The picker (`CommandDialog`) lists the open room's main thread and its 30 newest open threads, your rooms and your DMs (`me.books`, as Cmd+K), and, from 2 characters, the threads of other rooms from the room search. It does not list another room's threads without a query, because the browser has no list of them.
+  - Mentions in a forwarded text are not changed: "@name" in the package can notify that person when the forward is sent. The person sees the text before Enter.
+- Other options: A WhatsApp-style text per message ("[time] name: text", as the copy of many messages makes); the bar at the top of the chat (tried: it hid or moved messages); links to the files instead of copies (a person of the destination often cannot open the source room).
+- Risk: low. Nothing is sent without Enter.
+- Undo: Revert the commit.
+- Status: open
+
+### 2026-11-25 · viktor/forward-messages · A Worker route for the forward event
+
+- Agent: claude-opus-5-5
+- Context: AGENTS.md rule 9 asks for a `track()` event from each new surface, and Viktor asked for one. The browser app has no event path (see the earlier entries that skipped `track()` for this reason), and a forward sends nothing to the server by itself.
+- Decision: A typed route `POST /api/books/:id/forwarded` (`ForwardedBody`) that writes the `messages_forwarded` event with counts only: `n`, `files`, `to` (`same`, `room`, `dm`), `thread`, `range`. Members of the source room only. The browser sends it after the destination is picked and ignores a failure.
+- Other options: No event (against rule 9 and the request). A general client event route (more surface than one feature needs). An event when the forwarded message is sent (the server cannot tell a forward from a typed message).
+- Risk: low. One D1 row per forward. No text leaves the browser.
+- Undo: Remove the route, `ForwardedBody` and `reportForward`.
+- Status: open

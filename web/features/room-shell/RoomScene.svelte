@@ -52,6 +52,12 @@
   import { viewerText } from "../file-viewer/copy";
   import { createDeferredModule } from "../deferred-view/module";
   import DeferredViewStatus from "../deferred-view/DeferredViewStatus.svelte";
+  import ForwardBar from "../forward/ForwardBar.svelte";
+  import {
+    forwardPicking,
+    forwardSelection,
+    stopForward,
+  } from "../forward/selection";
   let {
     presentation,
     resources,
@@ -98,6 +104,12 @@
     view = owner.state,
     geometry = layout.state;
   scoped = owner;
+  // Selection mode of "Encaminhar" in this thread: its bar takes the composer's place, as in WhatsApp.
+  const forwarding = $derived(
+    !!$view?.chat?.actions.forward &&
+      $forwardSelection?.room === $view.chat.room.id &&
+      $forwardSelection.thread === $view.chat.thread,
+  );
   // The room's call (voice and screen). It lives with this view, so threads, panes and pins keep it on; leaving
   // the room leaves the call (the room's socket closes, and the room takes the person out of the call:
   // Book.webSocketClose).
@@ -559,9 +571,14 @@
         me={$personal.me.email}
         vb={$view.chat.vb}
       />{/if}{/snippet}
-  {#snippet composer()}{#if $view?.composer}<Composer
+  {#snippet composer()}{#if $view?.composer}{#if forwarding}<ForwardBar
+          count={$forwardSelection?.ids.length ?? 0}
+          vb={$view.composer.vb}
+          oncancel={stopForward}
+          onforward={() => forwardPicking.set(true)}
+        />{/if}<Composer
         {...$view.composer}
-        hidden={$view.composer.hidden}
+        hidden={$view.composer.hidden || forwarding}
         onsend={() => services.pwa.offerOnSend()}
       />{/if}{/snippet}
   <!-- Desktop pane tabs live in the room header now (one top bar). -->
