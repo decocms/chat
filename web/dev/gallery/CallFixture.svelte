@@ -120,6 +120,8 @@
     error: "",
     limit: false,
     notice: "",
+    // `silenced=i`: the i-th person is muted for me only.
+    silenced: emails.filter((_, index) => index + 1 === number("silenced")),
   });
   const patch = (next: Partial<CallView>) =>
     store.update((view) => ({ ...view, ...next }));
@@ -129,6 +131,13 @@
     join: () => patch({ phase: "in" }),
     leave: () => patch({ phase: "idle" }),
     toggleMute: () => store.update((view) => ({ ...view, muted: !view.muted })),
+    toggleSilence: (email) =>
+      store.update((view) => ({
+        ...view,
+        silenced: view.silenced.includes(email)
+          ? view.silenced.filter((one) => one !== email)
+          : [...view.silenced, email],
+      })),
     toggleDenoise: async () => denoiseOn.update((on) => !on),
     share: () => patch({ notice: "alone" }),
     stopShare: () => patch({ sharing: false }),
