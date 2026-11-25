@@ -32,6 +32,7 @@
   import { roomAvatarVersion } from "../room-scope/model";
   import CallControls from "../call/CallControls.svelte";
   import CallStage from "../call/CallStage.svelte";
+  import CallSidebarRow from "../call/CallSidebarRow.svelte";
   import { createCallApi } from "../call/callApi";
   import { createCallSession } from "../call/session";
   import { isRecorder } from "../../../shared/call";
@@ -142,6 +143,14 @@
       !$view.header.room.call.some((peer) => !isRecorder(peer.email)) &&
       $callView.phase === "idle",
   );
+  // The top bar's call button: the room has calls, and this tab is not in one (the stage has its own controls).
+  const callReady = $derived(
+    !!$view?.header.room.call && $callView.phase === "idle",
+  );
+  const personName = (email: string) =>
+    ($view?.header.room.names?.[email] ?? email.split("@")[0] ?? "").split(
+      /\s+/,
+    )[0] ?? "";
   provideRichFileIndex(owner.richFiles);
   function back(expectedThread: string) {
     const value = get(owner.state);
@@ -322,7 +331,21 @@
 
 <svelte:document {onfullscreenchange} />
 <!-- Outside RoomLayout, so they are not taken for its snippets. -->
-{#snippet callControls()}<CallControls {call} t={services.t} />{/snippet}
+{#snippet callControls()}<CallControls
+    {call}
+    peers={$view?.header.room.call}
+    name={personName}
+    t={services.t}
+  />{/snippet}
+{#snippet callRow(collapsed: boolean)}{#if $view}<CallSidebarRow
+      {call}
+      peers={$view.header.room.call}
+      {collapsed}
+      avatar={(email) =>
+        roomAvatarVersion($view?.header.room, $personal.me, email)}
+      name={personName}
+      t={services.t}
+    />{/if}{/snippet}
 {#snippet callStage(fill: boolean)}{#if $view}<CallStage
       room={$view.header.room}
       {call}
@@ -330,6 +353,9 @@
       open={browser.openExternal}
       avatar={(email) =>
         roomAvatarVersion($view?.header.room, $personal.me, email)}
+      title={$view.header.thread === "main"
+        ? ""
+        : (threadTitle($view.header.room, $view.header.thread) ?? "")}
       {fill}
       chatHidden={fill ? chatHidden : undefined}
       onchat={() => (chatHidden = !chatHidden)}
@@ -347,7 +373,11 @@
   onChatSurface={owner.attachChat}
   onCells={edgeBack}
 >
-  {#snippet sidebar()}{#if $view}<Sidebar {...$view.sidebar} hideSheetHandle>
+  {#snippet sidebar()}{#if $view}<Sidebar
+        {...$view.sidebar}
+        hideSheetHandle
+        call={$view.header.room.call?.length ? callRow : undefined}
+      >
         <!-- Phones: the drawer keeps the tabs that the strip under the top bar and the people avatars do not show (Apps, Agents; A2, Gimenes #4331). -->
         {#snippet phoneMenu()}{#if $view && $geometry.mobile}<div
               data-phone-menu
@@ -398,7 +428,7 @@
         {current}
         {back}
         tabs={$view.toolbar}
-        viewControls={callIdle ? callControls : undefined}
+        viewControls={callReady ? callControls : undefined}
         onPane={(pane) => {
           if (current()) owner.actions.setPane(pane, { open: true });
         }}

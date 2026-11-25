@@ -5,6 +5,7 @@ import { egressFrom, monthDays, overScreenLimit, recordsRoom, usageMonth } from 
 import { isRecorder, isRecorderOf, isRoomMember, recorderEmail } from "../shared/call";
 import { addMark, attribute, speakerOf, type Turn } from "../recorder/container/attribute";
 import { transcriptMarkdown, transcriptName } from "../src/callText";
+import { callColors, callGrid } from "../web/features/call/layout";
 
 const peers = [
   { email: "me@x.test", session: "s-me", tracks: ["mic", "screen"] },
@@ -143,4 +144,19 @@ test("the room's transcript file keeps one paragraph for each turn, with the tim
     ]),
   ).toBe("# Call · 2026-11-24\n\n**ana** (00:00): Bom dia. Vamos começar.\n\n**bia** (01:05): Concordo.\n");
   expect(transcriptName(Date.UTC(2026, 10, 24, 23, 5))).toBe("call-2026-11-24-23-05.md");
+});
+
+test("the call's grid: one person fills the stage, two side by side or stacked by shape, then 2x2", () => {
+  expect(callGrid(1, 1200, 700).columns).toBe(1);
+  expect(callGrid(2, 1200, 700).columns).toBe(2);
+  expect(callGrid(2, 360, 500).columns).toBe(1);
+  expect(callGrid(4, 1200, 700)).toMatchObject({ columns: 2, rows: 2, scroll: false });
+  expect(callGrid(20, 1200, 700)).toMatchObject({ columns: 4, scroll: true, height: "h-40" });
+});
+
+test("each person in a call has a color of their own while there are colors left", () => {
+  const emails = ["a", "b", "c", "d", "e", "f"].map((n) => `${n}@x.test`);
+  expect(new Set(Object.values(callColors(emails))).size).toBe(6);
+  // The same person, the same color, as long as nobody before them has it.
+  expect(callColors(["a@x.test"])["a@x.test"]).toBe(callColors(["a@x.test", "zz@x.test"])["a@x.test"]);
 });

@@ -39,6 +39,20 @@
   --vb-team-3: oklch(39.8% 0.07 227.392);
   --vb-team-4: oklch(82.8% 0.189 84.429);
   --vb-team-5: oklch(76.9% 0.188 70.08);
+  /* The call's stage (web/features/call): a dark surface in both themes, like a video app. Each person's tile
+     has one calm solid color (callColor), the name sits on a dark chip, the controls are round buttons. */
+  --vb-call-stage: oklch(19% 0.005 270);
+  --vb-call-foreground: oklch(97% 0 0);
+  --vb-call-muted-foreground: oklch(75% 0.01 270);
+  --vb-call-chip: oklch(14% 0.005 270);
+  --vb-call-button: oklch(29% 0.008 270);
+  --vb-call-button-hover: oklch(35% 0.008 270);
+  --vb-call-1: oklch(40% 0.055 255);
+  --vb-call-2: oklch(40% 0.05 195);
+  --vb-call-3: oklch(41% 0.055 150);
+  --vb-call-4: oklch(42% 0.055 60);
+  --vb-call-5: oklch(40% 0.06 20);
+  --vb-call-6: oklch(39% 0.06 305);
   --vb-background: #fefdfb;
   --vb-foreground: #0a0a09;
   --vb-card: #fffffd;
@@ -447,6 +461,18 @@
   --color-team-3: var(--vb-team-3);
   --color-team-4: var(--vb-team-4);
   --color-team-5: var(--vb-team-5);
+  --color-call-stage: var(--vb-call-stage);
+  --color-call-foreground: var(--vb-call-foreground);
+  --color-call-muted-foreground: var(--vb-call-muted-foreground);
+  --color-call-chip: var(--vb-call-chip);
+  --color-call-button: var(--vb-call-button);
+  --color-call-button-hover: var(--vb-call-button-hover);
+  --color-call-1: var(--vb-call-1);
+  --color-call-2: var(--vb-call-2);
+  --color-call-3: var(--vb-call-3);
+  --color-call-4: var(--vb-call-4);
+  --color-call-5: var(--vb-call-5);
+  --color-call-6: var(--vb-call-6);
   --color-background: var(--vb-background);
   --color-foreground: var(--vb-foreground);
   --color-card: var(--vb-card);
