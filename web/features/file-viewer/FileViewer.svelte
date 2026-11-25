@@ -13,7 +13,7 @@
   import Icon from "../../lib/studio/Icon.svelte";
   import ViewerMedia from "./ViewerMedia.svelte";
   import VersionPicker from "./VersionPicker.svelte";
-  import { csvData, externalFileURL, fileURL } from "./model";
+  import { csvData, externalFileURL, fileURL, viewerKind } from "./model";
   import { viewerText } from "./copy";
   let {
     controller,
@@ -57,6 +57,34 @@
     void $view.content?.operation;
     csvPage = 0;
   });
+  /** An image opens in the design system's own small dialog, sized to the image (Gimenes #5599); other files keep the large viewer. Known from the file's metadata, so the size does not jump when the content arrives. */
+  const image = $derived(
+    ($view.file
+      ? viewerKind($view.file.type, $view.file.name)
+      : $view.content?.kind) === "image",
+  );
+  const locale = $derived(lang === "en" ? "en" : "pt-BR");
+  const sent = $derived.by(() => {
+    const file = $view.file;
+    if (!file) return "";
+    const who = $view.room?.names?.[file.author] ?? file.author.split("@")[0];
+    const when = new Date(file.ts).toLocaleString(locale, {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    return `${who} · ${when}`;
+  });
+  const size = $derived.by(() => {
+    const bytes = $view.file?.size;
+    if (!bytes) return "";
+    const mega = bytes >= 1_000_000;
+    return new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: mega ? "megabyte" : "kilobyte",
+      maximumFractionDigits: 1,
+    }).format(bytes / (mega ? 1_000_000 : 1_000));
+  });
+  let content = $state<HTMLElement | null>(null);
   const pinned = $derived(
     $view.room?.pins?.some(
       (pin) => pin.kind === "file" && pin.ref === $view.target?.id,
@@ -272,11 +300,21 @@
     }}
   >
     <DialogContent
-      class="inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"
+      bind:ref={content}
+      data-image-preview={image || undefined}
+      class={image
+        ? "flex max-h-[90dvh] w-full max-w-[90vw] flex-col gap-3 overflow-auto p-4 md:max-w-xl font-sans text-sm text-foreground"
+        : "inset-2 top-2 left-2 flex w-auto max-w-none translate-x-0 translate-y-0 flex-col overflow-auto md:max-w-none font-sans text-sm text-foreground"}
+      closeButtonClassName={image ? "top-4 right-4" : undefined}
       closeLabel={text("close")}
       preventScroll={false}
       preventBodyPointerEvents={false}
       preventOverflowTextSelection={false}
+      onOpenAutoFocus={(event) => {
+        // The dialog itself, not its first button: that button's tooltip would open and take the first Esc (Gimenes #5585).
+        event.preventDefault();
+        content?.focus();
+      }}
       onCloseAutoFocus={(event) => {
         const target = controller.returnFocus();
         if (target?.isConnected) {
@@ -292,6 +330,11 @@
         {@render tools()}
       </DialogHeader>
       {@render preview()}
+      {#if image && sent}<p
+          class="m-0 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"
+        >
+          <span>{sent}</span>{#if size}<span>{size}</span>{/if}
+        </p>{/if}
     </DialogContent>
   </Dialog>{/if}
 
