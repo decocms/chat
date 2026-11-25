@@ -3078,8 +3078,8 @@ describe("chat", () => {
     const footer = target.querySelector<HTMLElement>(
       "#m1 [data-message-footer]",
     )!;
-    expect(footer.querySelectorAll("[data-reader-read]")).toHaveLength(5);
-    expect(footer.textContent).toContain("+2");
+    expect(footer.querySelectorAll("[data-reader-read]")).toHaveLength(3);
+    expect(footer.textContent).toContain("+4");
     expect(footer.querySelector("script") === null).toBe(true);
     expect(footer.textContent).toContain("<script>unsafe()</script>");
     const seen = footer.querySelector<HTMLButtonElement>(

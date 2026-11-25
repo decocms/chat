@@ -212,7 +212,7 @@ export async function searchRooms(env: Env, email: string, q: string, room?: str
   const per = await Promise.all(
     rooms.map(async (r) => {
       try {
-        const out = await bookStub(env, r.id).search(r.id, q, room ? 20 : 8);
+        const out = await bookStub(env, r.id).search(r.id, q, room ? 20 : 8, email);
         return { ...out, room: r };
       } catch {
         return { messages: [], epics: [], room: r, failed: true };

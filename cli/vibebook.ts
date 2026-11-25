@@ -10,7 +10,7 @@ import { homedir, hostname, tmpdir } from "node:os";
 import { basename, delimiter, dirname, join } from "node:path";
 import { scanTranscripts } from "./backfill";
 
-const VERSION = "1.7.10";
+const VERSION = "1.7.11";
 const HOME = process.env.VIBEBOOK_HOME || join(homedir(), ".vibebook");
 const SESSION = join(HOME, "session.json");
 const AGENTS = join(HOME, "agents.json");
@@ -522,6 +522,23 @@ function pluginVersion() {
     return "";
   }
 }
+/** What a running Claude cannot pick up without a restart: the plugin's hooks (hooks.json and the scripts beside it).
+ *  A release that only changes skill or rule text no longer restarts anyone: each restart rang herdr's sound on every
+ *  Claude of the machine, one after the other (Gui #5539). "" when the plugin or its hooks are not found. */
+function pluginHooks() {
+  try {
+    const j = JSON.parse(readFileSync(join(homedir(), ".claude", "plugins", "installed_plugins.json"), "utf8"));
+    const dir = join(String((j.plugins ?? j)["vibebook@vibebook"]?.[0]?.installPath ?? ""), "hooks");
+    const h = createHash("sha256");
+    for (const f of readdirSync(dir).sort()) h.update(f).update(readFileSync(join(dir, f)));
+    return `hooks:${h.digest("hex").slice(0, 16)}`;
+  } catch {
+    return "";
+  }
+}
+/** When the runner last closed a Claude to reopen it on new hooks: one at a time, RESTART_GAP_MS apart. */
+let lastPluginRestart = 0;
+const RESTART_GAP_MS = 3 * 60_000;
 type Pane = { pane_id: string; workspace_id: string; tab_id: string; cwd: string; foreground_cwd?: string; agent?: string; agent_status?: string; agent_session?: { value?: string } };
 const herdr = (...args: string[]) => JSON.parse(execFileSync("herdr", args, { stdio: ["ignore", "pipe", "pipe"] }).toString()).result;
 const PROJECTS = join(homedir(), "Projects");
@@ -871,7 +888,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
       if (inWs.length && !inWs.some((x) => x.agent === RUN_AGENT) && Date.now() - (e.prompted_at ?? 0) > 2 * 60_000) {
         e.prompted_at = Date.now();
         e.listening = true;
-        e.plugin_v = pluginVersion();
+        e.plugin_v = pluginHooks();
         const updating = !!e.restarting_at;
         delete e.deaf_since;
         delete e.restarting_at;
@@ -889,7 +906,9 @@ async function herdrSync(agent: string, tools: Tool[]) {
       }
       // Plugin updated since this Claude opened: once it's free, end it with /exit (its session kept) and the branch
       // above reopens it with --resume on the next pass. Never while it works or waits on a prompt.
-      const pv = RUN_AGENT === "claude" ? pluginVersion() : ""; // Codex: no Claude Code plugin to restart on
+      const pv = RUN_AGENT === "claude" ? pluginHooks() : ""; // Codex: no Claude Code plugin to restart on
+      // A room recorded by an older CLI (a version, not a hooks stamp): take the current hooks as its own, no restart.
+      if (pv && e.plugin_v && !e.plugin_v.startsWith("hooks:")) e.plugin_v = pv;
       const live0 = inWs.find((x) => x.agent === RUN_AGENT);
       // /exit with its listener running asks "Background work is running": option 1 (exit and stop tasks) is selected.
       // Only that dialog gets an Enter (checked by its text), never a permission prompt.
@@ -905,7 +924,10 @@ async function herdrSync(agent: string, tools: Tool[]) {
         e.plugin_v = pv;
         log("warn", "plugin", `${title}: could not restart its Claude on the new plugin; it updates when it reopens`, { room });
       }
-      if (pv && live0 && e.plugin_v !== pv && !e.restarting_at && (live0.agent_status === "idle" || live0.agent_status === "done") && live0.agent_session?.value) {
+      // One Claude at a time, RESTART_GAP_MS apart, and none while another is still reopening.
+      const another = Object.entries(map).some(([r, x]) => r !== room && x.restarting_at);
+      if (pv && live0 && e.plugin_v !== pv && !e.restarting_at && !another && Date.now() - lastPluginRestart > RESTART_GAP_MS && (live0.agent_status === "idle" || live0.agent_status === "done") && live0.agent_session?.value) {
+        lastPluginRestart = Date.now();
         e.session = live0.agent_session.value;
         e.restarting_at = Date.now();
         e.prompted_at = 0; // reopen on the next pass, no grace
@@ -970,7 +992,7 @@ async function herdrSync(agent: string, tools: Tool[]) {
     const args = ["agent", "start", `vb-${room}`, "--kind", RUN_AGENT, "--pane", w.root_pane.pane_id, "--timeout", "60000", "--"];
     if (e.session) args.push("--resume", e.session);
     e.listening = true; // started with /vibebook:listen as its first prompt
-    e.plugin_v = pluginVersion();
+    e.plugin_v = pluginHooks();
     e.prompted_at = Date.now();
     writePrivate(HERDR_FILE, map); // the workspace exists now: never open a second one if the start below fails
     try {

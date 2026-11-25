@@ -21,6 +21,7 @@
   import { isPanelToggleKey, phoneStripPanes } from "./panelViews";
   import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import PresenceDot from "../../lib/components/PresenceDot.svelte";
+  import AvatarStack from "../../lib/components/AvatarStack.svelte";
   import { roomSearchQuery } from "../chat/roomSearch";
   let {
     presentation,
@@ -302,24 +303,20 @@
         aria-label={t("Pessoas na sala")}
         class="flex h-10 shrink-0 cursor-pointer items-center rounded-full border-0 bg-transparent px-1 focus-visible:outline-2 focus-visible:outline-ring md:hidden"
         onclick={() => onPane?.("people")}
-        >{#each phonePeople.faces as email, i (email)}<span
-            class={["relative flex", i > 0 && "-ml-2"]}
-            ><PersonAvatar
-              {email}
-              version={roomAvatarVersion(header.room, $personal.me, email)}
-              class="size-7 ring-2 ring-background"
-            />{#if phonePeople.online.includes(email)}<PresenceDot
-                online
-                class="size-2.5 ring-background"
-              />{/if}</span
-          >{:else}<Icon
-            icon="user-plus-01"
-            size={20}
-          />{/each}{#if phonePeople.more}<span
-            data-phone-people-more
-            class="relative z-10 -ml-2 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground ring-2 ring-background"
-            >+{phonePeople.more}</span
-          >{/if}</button
+        >{#if phonePeople.faces.length || phonePeople.more}<AvatarStack
+            class="items-center"
+            items={phonePeople.faces}
+            key={(email) => email}
+            more={phonePeople.more}
+            >{#snippet face(email)}<PersonAvatar
+                {email}
+                version={roomAvatarVersion(header.room, $personal.me, email)}
+                class="size-7 ring-2 ring-background"
+              />{#if phonePeople.online.includes(email)}<PresenceDot
+                  online
+                  class="size-2.5 ring-background"
+                />{/if}{/snippet}</AvatarStack
+          >{:else}<Icon icon="user-plus-01" size={20} />{/if}</button
       >{:else if $personal.me}<span
         data-phone-account
         class="contents md:hidden"

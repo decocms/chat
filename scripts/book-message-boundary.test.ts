@@ -293,7 +293,7 @@ test("actual closeAsk rejects malformed choices before mutation and preserves te
         return { toArray: () => [{ choices: raw }] };
       },
     },
-    broadcast: (value: unknown) => events.push(value),
+    broadcastAbout: (_id: number, value: unknown) => events.push(value),
     ctx: { waitUntil: () => {} },
     askWait: async () => {},
   };
