@@ -3,12 +3,32 @@
 import * as z from "zod/mini";
 import { ClientIdSchema } from "./commands";
 import { AckSchema, MessageSchema } from "./room";
+import {
+  MESSAGE_FILE_LIMIT,
+  POLL_MAX_OPTIONS,
+  POLL_OPTION_LIMIT,
+  POLL_QUESTION_LIMIT,
+} from "./composition";
 
 export const PostMessageBody = z.object({
   text: z.string(),
   thread: z.optional(z.string()),
   // The send's random id, the same on each retry: the server answers a retry with the first message (Book.byClientId).
   client_id: z.optional(ClientIdSchema),
+  /** Sent from the Home's ask box (the router): a later answer by someone else comes back to the Home (r<msg> waits). */
+  routed: z.optional(z.boolean()),
+  /** Files already uploaded to this room (POST /api/books/:id/files) that go with the message. */
+  files: z.optional(z.array(z.string()).check(z.maxLength(MESSAGE_FILE_LIMIT))),
+  /** A poll posted with the message, after it (the composer's poll.create, over HTTP). */
+  poll: z.optional(
+    z.object({
+      question: z.string().check(z.maxLength(POLL_QUESTION_LIMIT)),
+      options: z
+        .array(z.string().check(z.maxLength(POLL_OPTION_LIMIT)))
+        .check(z.maxLength(POLL_MAX_OPTIONS)),
+      multi: z.optional(z.boolean()),
+    }),
+  ),
 });
 export type PostMessageBody = z.infer<typeof PostMessageBody>;
 
@@ -69,9 +89,10 @@ export const PushUnsubscribeBody = z.object({
 });
 export const ResolveWaitBody = z.object({
   book_id: z.string().check(z.minLength(1)),
-  ref: z.string().check(z.startsWith("m")),
+  /** A wait (m, a, b, r a message; t a task in review) or, as d<message id>, a held @mention (digest_items). */
+  ref: z.string().check(z.regex(/^(?:[mabrd]\d+|t[\w-]+)$/)),
 });
-/** Many asks at once (the Inbox's "Resolve all"): asks only, at most 200. */
+/** Many at once (the Inbox's "Resolve all"), each as ResolveWaitBody: at most 200. */
 export const ResolveWaitsBody = z.object({
   items: z.array(ResolveWaitBody).check(z.minLength(1), z.maxLength(200)),
 });
@@ -580,7 +601,9 @@ export const MeWait = z.object({
   book_id: z.string(),
   room: z.string(),
   /** m<msg> an ask to you, t<task> your task in review, a/b<msg> your Claude waiting on you, e<epic> an open thread
-   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts). */
+   *  you own (text status|done/total, author "ai" once @vibe called you about it: shared/threadWait.ts), r<msg> an
+   *  answer to what you sent from the Home's ask box (msg = your request; text = the answer, about = your request).
+   *  An a<msg> wait's about is the question's choices (the message's JSON: {options, multi}). */
   ref: z.string(),
   thread: z.string(),
   topic: str,
@@ -588,6 +611,7 @@ export const MeWait = z.object({
   author_name: str,
   text: z.string(),
   ts: z.number(),
+  about: z.optional(str),
 });
 export const MeData = z.object({
   email: z.string(),

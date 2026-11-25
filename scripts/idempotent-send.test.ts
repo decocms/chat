@@ -487,3 +487,73 @@ test("the agent's read cursor never moves back", async () => {
   );
   expect(cursor()).toBe(42);
 });
+
+test("the Home's ask: a routed post carries the room's files and a poll, once", async () => {
+  const f = fixture();
+  f.db.run(
+    `INSERT INTO files (id, name, type, size, author, ts) VALUES ('file1', 'plano.pdf', 'application/pdf', 3, ?, 1)`,
+    [email],
+  );
+  const poll = {
+    question: "Qual cruzeiro?",
+    options: ["Norte", " Sul ", ""],
+    multi: false,
+  };
+  const send = { clientId: id1, routed: true, files: ["file1"], poll };
+  const a = await f.book.humanPost(room, email, "veja", "main", false, send);
+  const b = await f.book.humanPost(room, email, "veja", "main", false, send);
+  expect(a.ok && b.ok && a.id === b.id).toBe(true);
+  const messages = f.db
+    .query(`SELECT id, text, files, poll, client_id FROM messages ORDER BY id`)
+    .all() as {
+    id: number;
+    text: string;
+    files: string | null;
+    poll: string | null;
+    client_id: string | null;
+  }[];
+  expect(messages).toHaveLength(2);
+  expect(messages[0]!.text).toBe("veja");
+  expect(JSON.parse(messages[0]!.files!)[0].id).toBe("file1");
+  const stored = f.db.query(`SELECT * FROM polls`).all() as {
+    id: string;
+    question: string;
+    options: string;
+  }[];
+  expect(stored).toHaveLength(1);
+  expect(messages[1]!.poll).toBe(stored[0]!.id);
+  expect(JSON.parse(stored[0]!.options)).toEqual(["Norte", "Sul"]);
+  // The answer to the routed message comes back to the Home (r<msg>).
+  expect(
+    f.db.query(`SELECT msg_id FROM routed`).all() as { msg_id: number }[],
+  ).toEqual([{ msg_id: messages[0]!.id }]);
+});
+
+test("the Home's ask: a poll alone is one message, and a file not in the room is refused", async () => {
+  const f = fixture();
+  const poll = { question: "Quando?", options: ["Hoje", "Amanhã"] };
+  const a = await f.book.humanPost(room, email, "", "main", false, {
+    clientId: id2,
+    routed: true,
+    poll,
+  });
+  const b = await f.book.humanPost(room, email, "", "main", false, {
+    clientId: id2,
+    routed: true,
+    poll,
+  });
+  expect(a.ok && b.ok && a.id === b.id).toBe(true);
+  expect(f.db.query(`SELECT * FROM polls`).all()).toHaveLength(1);
+  expect(f.rows()).toHaveLength(1);
+  const missing = await f.book.humanPost(room, email, "anexo", "main", false, {
+    clientId: id1,
+    files: ["nope"],
+  });
+  expect(missing.ok).toBe(false);
+  const bad = await f.book.humanPost(room, email, "", "main", false, {
+    clientId: id1,
+    poll: { question: "Só uma?", options: ["Sim"] },
+  });
+  expect(bad.ok).toBe(false);
+  expect(f.rows()).toHaveLength(1);
+});

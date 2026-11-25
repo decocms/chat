@@ -129,7 +129,7 @@ export interface ApiServices {
   callLeave(roomId: string, session: string): Promise<void>;
   /** A DM's call rings me: I say no (the ring stops; the caller stays in the call). */
   callDecline(roomId: string): Promise<void>;
-  humanPost(roomId: string, text: string, thread: string, clientId?: string): Promise<PostMessageResult>;
+  humanPost(roomId: string, text: string, thread: string, clientId?: string, extra?: { routed?: boolean; files?: string[]; poll?: PostMessageBody["poll"] }): Promise<PostMessageResult>;
   /** One page of a thread (GET /api/books/:id/messages). The route checks membership first. */
   roomMessages(roomId: string, query: MessagesQuery): Promise<MessagesPage>;
   /** The room's snapshot, the socket's `state` (GET /api/books/:id/room). The route checks membership first. */
@@ -300,8 +300,8 @@ const roomPosts = new Hono<ApiCtx>()
     async (c) => {
       const svc = c.get("svc"), id = c.req.param("id");
       if (!(await svc.isMember(id))) return c.json({ ok: false as const, error: "forbidden" } satisfies PostMessageResult, 403);
-      const { text, thread, client_id } = c.req.valid("json");
-      const out = await svc.humanPost(id, text, thread || "main", client_id);
+      const { text, thread, client_id, routed, files, poll } = c.req.valid("json");
+      const out = await svc.humanPost(id, text, thread || "main", client_id, { routed, files, poll });
       if (!out.ok) return c.json({ ok: false as const, error: out.error } satisfies PostMessageResult, 400);
       svc.track("home_route_sent", { book: id, epic: out.thread !== "main" });
       return c.json({ ok: true as const, id: out.id, thread: out.thread } satisfies PostMessageResult, 200);
@@ -359,19 +359,23 @@ export const api = roomPosts
     svc.track("push_test", { sent, device: endpoint ? 1 : 0 });
     return c.json({ ok: true as const, sent } satisfies PushTestResult, 200);
   })
-  // ✓ on a wait: "I answered elsewhere / not for me" (asks only).
+  // ✓ on anything in the Inbox: "seen, nothing to do" (a wait, or a held @mention as d<message id>). A task in review
+  // comes back when its room's board changes (Book.epicsChanged) while it is still in review.
   .post("/api/waits/resolve", body(ResolveWaitBody), async (c) => {
     const { book_id, ref } = c.req.valid("json"), svc = c.get("svc");
-    await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
+    if (ref.startsWith("d")) await svc.sql(`DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?`, book_id, Number(ref.slice(1)), c.get("email"));
+    else await svc.sql(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, book_id, ref, c.get("email"));
     svc.pokeMe(); // your other tabs and devices
-    svc.waitCleared(book_id, ref);
+    if (!ref.startsWith("d")) svc.waitCleared(book_id, ref);
     svc.track("wait_resolved", { book: book_id });
     return c.json(ok, 200);
   })
   // "Resolve all" in the Inbox: many asks in one request, each scoped to the signed-in person.
   .post("/api/waits/resolve-many", body(ResolveWaitsBody), async (c) => {
     const { items } = c.req.valid("json"), svc = c.get("svc"), email = c.get("email");
-    await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, items.map((item) => [item.book_id, item.ref, email]));
+    const held = items.filter((item) => item.ref.startsWith("d")), waits = items.filter((item) => !item.ref.startsWith("d"));
+    if (waits.length) await svc.sqlBatch(`DELETE FROM waits WHERE book_id = ? AND ref = ? AND email = ?`, waits.map((item) => [item.book_id, item.ref, email]));
+    if (held.length) await svc.sqlBatch(`DELETE FROM digest_items WHERE book_id = ? AND msg_id = ? AND email = ?`, held.map((item) => [item.book_id, Number(item.ref.slice(1)), email]));
     svc.pokeMe();
     svc.track("wait_resolved", { n: items.length, many: 1 });
     return c.json(ok, 200);

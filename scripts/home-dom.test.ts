@@ -1005,6 +1005,61 @@ test("Home ask box is the room's chat box: emoji, + menu and dictation that keep
   await flush();
   expect(opened).toEqual([more]);
 });
+test("the ask's + menu is the composer's menu plus New room, and a picked file shows as the composer's card", async () => {
+  const { personal, rooms, pwa, profile, creator } = await setup();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const component = flushSync(() =>
+    mount(Home, {
+      target,
+      props: {
+        pwa,
+        personal,
+        rooms,
+        profile,
+        creator,
+        onlanguage: () => {},
+        lang: "en",
+        ago: () => "now",
+        onnavigate: () => {},
+        onhome: () => {},
+        onarchived: () => {},
+        onnew: () => {},
+        onsettings: () => {},
+        onroommenu: () => {},
+        onsearch: () => {},
+      },
+    }),
+  );
+  cleanups.push(() =>
+    flushSync(() => {
+      void unmount(component);
+    }),
+  );
+  await flush();
+  const box = target.querySelector<HTMLFormElement>("[data-chat-box]")!;
+  box.querySelector<HTMLButtonElement>("[data-composer-more]")!.click();
+  await flush();
+  expect(
+    [...box.querySelectorAll('[role="menuitem"]')].map((item) =>
+      item.textContent?.replace(/\s+/g, " ").trim(),
+    ),
+  ).toEqual([
+    "New room",
+    "Attach file or Cmd+V",
+    "Mention someone",
+    "Create poll",
+  ]);
+  const input = target.querySelector<HTMLInputElement>('input[type="file"]')!;
+  Object.defineProperty(input, "files", {
+    configurable: true,
+    value: [new File(["%PDF"], "plan.pdf", { type: "application/pdf" })],
+  });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await flush();
+  const card = target.querySelector("[data-composer-attachment]");
+  expect(card?.textContent).toContain("plan.pdf");
+});
 test("detached tile link/settings actions cannot navigate after canonical row replacement", async () => {
   const navigation: unknown[] = [],
     settings: unknown[] = [],
@@ -1497,20 +1552,18 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   h.inbox.open();
   await flush();
   await waitForView(h.target, "[data-room-inbox] button");
-  // Your tasks are behind the Inbox's "Suas tarefas" chip; a row's first button opens it.
+  // Your tasks are in the desktop Home's "Tarefas" tab; a task row's open button opens it.
   const find = () => {
     h.target
       .querySelector<HTMLButtonElement>(
-        '[data-inbox-filter="task"][aria-pressed="false"]',
+        '[data-home-tab="tasks"][aria-selected="false"]',
       )
       ?.click();
     return [
-      ...h.target.querySelectorAll<HTMLElement>(
-        '[data-room-inbox-message][data-kind="task"]',
+      ...h.target.querySelectorAll<HTMLButtonElement>(
+        '[data-room-inbox-message][data-kind="task"] [data-inbox-open]',
       ),
-    ]
-      .find((node) => node.textContent?.includes(task.title))
-      ?.querySelector<HTMLButtonElement>("button");
+    ].find((node) => node.textContent?.includes(task.title));
   };
   for (let i = 0; i < 20 && !find(); i++) await flush();
   const old = find()!;
@@ -1527,7 +1580,13 @@ test("home Inbox rejects connected old-opening task controls before DOM flush", 
   const fresh = find()!;
   expect(!!fresh).toBe(true);
   expect(fresh !== old).toBe(true);
+  // A click opens the task's workspace beside the list: the Home stays; "Abrir na sala" leaves for the room.
   fresh.click();
+  await flush();
+  expect(h.href()).toBe(before);
+  const workspace = h.target.querySelector("[data-task-workspace]");
+  expect(!!workspace).toBe(true);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
   expect(get(h.inbox.state).binding === null).toBe(true);
 });
@@ -1598,6 +1657,10 @@ test("home Inbox old connected question controls cannot act on a same-ID canonic
   h.target
     .querySelector<HTMLButtonElement>("[data-room-inbox-message] button")!
     .click();
+  await flush();
+  // A click opens the message's thread beside the list; "Abrir na sala" leaves for the room on it.
+  expect(h.href()).toBe(before);
+  h.target.querySelector<HTMLButtonElement>("[data-task-open-room]")!.click();
   expect(h.href() !== before).toBe(true);
 });
 

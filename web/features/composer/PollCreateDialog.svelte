@@ -1,3 +1,20 @@
+<script module lang="ts">
+  import type { Readable } from "svelte/store";
+  import type { ComposerPhase, PollDraft } from "./drafts";
+  /** What the dialog edits: the room composer's entry posts the poll; the Home's ask holds it until it is sent. */
+  export type PollForm = {
+    state: Readable<{
+      poll: PollDraft;
+      pollPhase: ComposerPhase;
+      pollError: string;
+      notice: string;
+    }>;
+    editPoll(patch: Partial<Omit<PollDraft, "revision">>): void;
+    createPoll(): unknown;
+    reviewPoll(): void;
+  };
+</script>
+
 <script lang="ts">
   import {
     POLL_QUESTION_LIMIT,
@@ -6,8 +23,6 @@
     POLL_MAX_OPTIONS,
   } from "../../../shared/composition";
   import { untrack, onDestroy, tick } from "svelte";
-  import type { ComposerEntry } from "./drafts";
-  import type { ChatBridge } from "../../app/chatTypes";
   import Dialog from "../../lib/studio/Dialog.svelte";
   import DialogContent from "../../lib/studio/DialogContent.svelte";
   import DialogHeader from "../../lib/studio/DialogHeader.svelte";
@@ -20,12 +35,16 @@
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   let {
-    entry,
-    vb,
+    form: entry,
+    t,
     open = $bindable(false),
-  }: { entry: ComposerEntry; vb: ChatBridge; open?: boolean } = $props();
+  }: {
+    form: PollForm;
+    t: (text: string, vars?: Record<string, string | number>) => string;
+    open?: boolean;
+  } = $props();
   let active = true,
-    form = $state<HTMLFormElement | null>(null);
+    formElement = $state<HTMLFormElement | null>(null);
   onDestroy(() => {
     active = false;
   });
@@ -33,7 +52,7 @@
     return (
       active &&
       open &&
-      !!form?.isConnected &&
+      !!formElement?.isConnected &&
       (!event ||
         (event.currentTarget instanceof HTMLElement &&
           event.currentTarget.isConnected))
@@ -72,7 +91,7 @@
     if (!allowed() || !canAdd) return;
     entry.editPoll({ options: [...$draft.poll.options, ""] });
     await tick();
-    const inputs = form?.querySelectorAll<HTMLInputElement>(
+    const inputs = formElement?.querySelectorAll<HTMLInputElement>(
       "[data-poll-option] input",
     );
     inputs?.[inputs.length - 1]?.focus();
@@ -91,7 +110,7 @@
     event.preventDefault();
     if (last) void add();
     else
-      form
+      formElement
         ?.querySelectorAll<HTMLInputElement>("[data-poll-option] input")
         [index + 1]?.focus();
   }
@@ -100,16 +119,16 @@
 <Dialog bind:open>
   <DialogContent
     class="font-sans text-sm text-foreground"
-    closeLabel={vb.t("Fechar")}
+    closeLabel={t("Fechar")}
     preventScroll={false}
     preventBodyPointerEvents={false}
     preventOverflowTextSelection={false}
   >
     <DialogHeader>
-      <DialogTitle class="font-sans">{vb.t("Nova votação")}</DialogTitle>
+      <DialogTitle class="font-sans">{t("Nova votação")}</DialogTitle>
     </DialogHeader>
     <form
-      bind:this={form}
+      bind:this={formElement}
       class="grid gap-4"
       onsubmit={(event) => {
         event.preventDefault();
@@ -117,7 +136,7 @@
       }}
     >
       <Label class="grid gap-2"
-        >{vb.t("Pergunta (ex.: Qual cruzeiro?)")}<Input
+        >{t("Pergunta (ex.: Qual cruzeiro?)")}<Input
           required
           maxlength={POLL_QUESTION_LIMIT}
           value={$draft.poll.question}
@@ -131,8 +150,7 @@
       <fieldset
         class="m-0 grid min-w-0 gap-2 border-0 border-t border-solid border-border p-0 pt-4"
       >
-        <legend class="float-left p-0 text-sm font-medium"
-          >{vb.t("Opções")}</legend
+        <legend class="float-left p-0 text-sm font-medium">{t("Opções")}</legend
         >
         {#each $draft.poll.options as value, index}<div
             data-poll-option
@@ -140,15 +158,15 @@
           >
             <Input
               class="flex-1"
-              aria-label={vb.t("Opção {n}", { n: index + 1 })}
-              placeholder={vb.t("Opção {n}", { n: index + 1 })}
+              aria-label={t("Opção {n}", { n: index + 1 })}
+              placeholder={t("Opção {n}", { n: index + 1 })}
               maxlength={POLL_OPTION_LIMIT}
               {value}
               disabled={busy}
               oninput={(event) => option(index, event.currentTarget.value)}
               onkeydown={(event) => enter(index, event)}
             /><IconButton
-              label={vb.t("Remover opção")}
+              label={t("Remover opção")}
               data-poll-remove={index}
               class="text-muted-foreground"
               disabled={!canRemove}
@@ -165,12 +183,12 @@
           disabled={!canAdd}
           onclick={(event) => {
             if (allowed(event)) void add();
-          }}><Icon icon="plus" size={16} />{vb.t("Adicionar opção")}</Button
+          }}><Icon icon="plus" size={16} />{t("Adicionar opção")}</Button
         >
       </fieldset>
       <label
         class="flex cursor-pointer items-center justify-between gap-3 border-t border-solid border-border pt-4"
-        ><span>{vb.t("Permitir várias respostas")}</span><Switch
+        ><span>{t("Permitir várias respostas")}</span><Switch
           checked={$draft.poll.multi}
           disabled={busy}
           onCheckedChange={(multi) => {
@@ -183,9 +201,9 @@
           class="m-0 text-sm text-destructive"
         >
           {$draft.pollError === "poll-invalid"
-            ? vb.t("Coloque pelo menos 2 opções.")
+            ? t("Coloque pelo menos 2 opções.")
             : $draft.pollPhase === "unconfirmed"
-              ? vb.t(
+              ? t(
                   "Ainda sem confirmação. Confira a sala antes de enviar novamente.",
                 )
               : $draft.pollError}
@@ -193,22 +211,22 @@
       {#if $draft.pollPhase === "unconfirmed"}<p
           class="m-0 text-xs text-muted-foreground"
         >
-          {vb.t("Confira a votação na sala antes de tentar novamente.")}
+          {t("Confira a votação na sala antes de tentar novamente.")}
         </p>
         <Button
           variant="outline"
           onclick={(event) => {
             if (allowed(event)) entry.reviewPoll();
-          }}>{vb.t("Conferi a sala; manter rascunho")}</Button
+          }}>{t("Conferi a sala; manter rascunho")}</Button
         >{/if}
       <div class="flex justify-end gap-2">
         <Button variant="outline" onclick={() => (open = false)}
-          >{vb.t("Cancelar")}</Button
+          >{t("Cancelar")}</Button
         ><Button
           type="submit"
           disabled={busy}
           aria-busy={$draft.pollPhase === "pending" || undefined}
-          >{#if $draft.pollPhase === "pending"}<Spinner size="2xs" />{/if}{vb.t(
+          >{#if $draft.pollPhase === "pending"}<Spinner size="2xs" />{/if}{t(
             "Criar votação",
           )}</Button
         >

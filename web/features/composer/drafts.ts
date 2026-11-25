@@ -48,12 +48,28 @@ export type ComposerState = {
   pollError: string;
   pollCandidate?: string;
 };
-const blankPoll = (): PollDraft => ({
+export const blankPoll = (): PollDraft => ({
   question: "",
   options: ["", ""],
   multi: false,
   revision: 0,
 });
+/** The poll as it is sent: trimmed, the empty options dropped; null when it can't be one (the dialog's "poll-invalid"). */
+export function cleanPoll(raw: PollDraft) {
+  const form = {
+    question: raw.question.trim(),
+    options: raw.options.map((value) => value.trim()).filter(Boolean),
+    multi: raw.multi,
+  };
+  return !form.question ||
+    form.question.length > POLL_QUESTION_LIMIT ||
+    form.options.length < POLL_MIN_OPTIONS ||
+    form.options.length > POLL_MAX_OPTIONS ||
+    form.options.some((value) => value.length > POLL_OPTION_LIMIT)
+    ? null
+    : form;
+}
+export type CleanPoll = NonNullable<ReturnType<typeof cleanPoll>>;
 const blank = (): ComposerState => ({
   text: "",
   quotes: [],
@@ -749,21 +765,12 @@ export function createComposerDrafts(
       async createPoll() {
         if (!valid() || !request || pollOperation) return;
         const raw = get(state).poll,
-          form = {
-            ...raw,
-            question: raw.question.trim(),
-            options: raw.options.map((value) => value.trim()).filter(Boolean),
-          };
-        if (
-          !form.question ||
-          form.question.length > POLL_QUESTION_LIMIT ||
-          form.options.length < POLL_MIN_OPTIONS ||
-          form.options.length > POLL_MAX_OPTIONS ||
-          form.options.some((value) => value.length > POLL_OPTION_LIMIT)
-        ) {
+          clean = cleanPoll(raw);
+        if (!clean) {
           state.update((s) => ({ ...s, pollError: "poll-invalid" }));
           return;
         }
+        const form = { ...clean, revision: raw.revision };
         const op: PollOperation = {
           token: Symbol(),
           form,

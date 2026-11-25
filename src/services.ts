@@ -172,7 +172,7 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
     callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
     callDecline: (roomId) => bookStub(env, roomId).callDecline(roomId, email),
-    humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
+    humanPost: (roomId, text, thread, clientId, extra) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId, ...extra }),
     roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query, email),
     roomState: (roomId, query) => bookStub(env, roomId).roomState(roomId, email, query),
     linkTarget: (roomId, query) =>

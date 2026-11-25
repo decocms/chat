@@ -1,7 +1,9 @@
 import { CUBE } from "./cubeShader";
 
-// Draws the home's cube on a canvas with WebGL: it leans toward the pointer,
-// sways a little, and turns once when clicked. Ported from the Studio prototype.
+// Draws the agent's cube on a canvas with WebGL. The home's big cube leans
+// toward the pointer, sways a little, and turns once when clicked (mountCube);
+// the rail's small one stands still and turns slowly while an agent works
+// (mountRailCube). Ported from the Studio prototype.
 const VERTEX =
   "attribute vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }";
 type Matrix = readonly number[];
@@ -36,14 +38,28 @@ const rotY = (t: number) => [
   0,
   Math.cos(t),
 ];
+const TURN = Math.PI * 2;
+const reducedMotion = () =>
+  matchMedia("(prefers-reduced-motion: reduce)").matches;
+function darkTheme() {
+  const root = document.documentElement;
+  return (
+    root.classList.contains("dark") ||
+    root.dataset.theme === "dark" ||
+    (root.dataset.theme !== "light" &&
+      !root.classList.contains("light") &&
+      matchMedia("(prefers-color-scheme: dark)").matches)
+  );
+}
 
-/** Starts drawing; returns a function that stops it and removes its listeners. No WebGL: draws nothing. */
-export function mountCube(canvas: HTMLCanvasElement): () => void {
+type Paint = (rotation: Matrix, seconds: number) => void;
+/** Compiles the cube's shader on the canvas; null without WebGL. */
+function cubePainter(canvas: HTMLCanvasElement): Paint | null {
   const gl = canvas.getContext("webgl", {
     premultipliedAlpha: true,
     alpha: true,
   });
-  if (!gl) return () => {};
+  if (!gl) return null;
   const compile = (type: number, source: string) => {
     const shader = gl.createShader(type)!;
     gl.shaderSource(shader, source);
@@ -54,7 +70,7 @@ export function mountCube(canvas: HTMLCanvasElement): () => void {
   gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
   gl.attachShader(program, compile(gl.FRAGMENT_SHADER, CUBE.fragment));
   gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return () => {};
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
   gl.useProgram(program);
   gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
   gl.bufferData(
@@ -66,7 +82,26 @@ export function mountCube(canvas: HTMLCanvasElement): () => void {
   gl.enableVertexAttribArray(at);
   gl.vertexAttribPointer(at, 2, gl.FLOAT, false, 0, 0);
   const u = (name: string) => gl.getUniformLocation(program, name);
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (rotation, seconds) => {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(u("uRes"), canvas.width, canvas.height);
+    gl.uniformMatrix3fv(u("uRot"), false, rotation);
+    gl.uniform1f(u("uSpread"), 1);
+    gl.uniform1f(u("uDark"), darkTheme() ? 1 : 0);
+    gl.uniform1f(u("uTime"), seconds);
+    gl.uniform2f(u("uTrip"), 0, 1);
+    gl.uniform1f(u("uScale"), 1);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+}
+
+/** Starts drawing; returns a function that stops it and removes its listeners. No WebGL: draws nothing. */
+export function mountCube(canvas: HTMLCanvasElement): () => void {
+  const paint = cubePainter(canvas);
+  if (!paint) return () => {};
+  const still = reducedMotion();
   const pointer = { x: innerWidth / 2, y: innerHeight / 2 },
     tilt = { x: 0, y: 0 },
     twirl = { angle: 0, goal: 0 };
@@ -78,8 +113,7 @@ export function mountCube(canvas: HTMLCanvasElement): () => void {
   const onClick = (event: MouseEvent) => {
     if (still) return;
     const box = canvas.getBoundingClientRect();
-    twirl.goal +=
-      (event.clientX >= box.left + box.width / 2 ? -1 : 1) * Math.PI * 2;
+    twirl.goal += (event.clientX >= box.left + box.width / 2 ? -1 : 1) * TURN;
   };
   addEventListener("pointermove", onMove, { passive: true });
   canvas.addEventListener("click", onClick);
@@ -113,26 +147,70 @@ export function mountCube(canvas: HTMLCanvasElement): () => void {
     if (Math.abs(twirl.goal - twirl.angle) < 0.002)
       twirl.angle = twirl.goal = 0;
     const sway = rotY((still ? 0 : Math.sin(now / 2000) * 0.105) + twirl.angle);
-    const rotation = mul(mul(rotX(tilt.x), rotY(tilt.y)), mul(sway, CUBE.rest));
-    const root = document.documentElement;
-    const dark =
-      root.classList.contains("dark") ||
-      root.dataset.theme === "dark" ||
-      (root.dataset.theme !== "light" &&
-        !root.classList.contains("light") &&
-        matchMedia("(prefers-color-scheme: dark)").matches);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.uniform2f(u("uRes"), canvas.width, canvas.height);
-    gl.uniformMatrix3fv(u("uRot"), false, rotation);
-    gl.uniform1f(u("uSpread"), 1);
-    gl.uniform1f(u("uDark"), dark ? 1 : 0);
-    gl.uniform1f(u("uTime"), still ? 0 : (now - started) / 1000);
-    gl.uniform2f(u("uTrip"), 0, 1);
-    gl.uniform1f(u("uScale"), 1);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    paint(
+      mul(mul(rotX(tilt.x), rotY(tilt.y)), mul(sway, CUBE.rest)),
+      still ? 0 : (now - started) / 1000,
+    );
   };
   frame = requestAnimationFrame(draw);
   return stop;
+}
+
+export type RailCube = {
+  /** Turning slowly while true; when it goes false the cube finishes its turn and rests. */
+  spin(on: boolean): void;
+  stop(): void;
+};
+/** The rail's small cube: one frame at rest, frames only while it turns (never with reduced motion). */
+export function mountRailCube(canvas: HTMLCanvasElement): RailCube {
+  const paint = cubePainter(canvas);
+  if (!paint) return { spin() {}, stop() {} };
+  const SPEED = TURN / 6; // one turn every 6 s
+  let angle = 0,
+    spinning = false,
+    frame = 0,
+    last = 0;
+  const render = () => paint(mul(rotY(angle), CUBE.rest), 0);
+  const draw = (now: number) => {
+    frame = 0;
+    if (!canvas.isConnected) return;
+    const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
+    last = now;
+    angle += SPEED * dt;
+    // Stopping finishes the turn it is in, so the cube rests in its pose.
+    if (!spinning && angle >= TURN) {
+      angle = 0;
+      last = 0;
+      return render();
+    }
+    render();
+    frame = requestAnimationFrame(draw);
+  };
+  const run = () => {
+    if (!frame) frame = requestAnimationFrame(draw);
+  };
+  // The cube's colours follow the theme: a still cube repaints when it changes.
+  const scheme = matchMedia("(prefers-color-scheme: dark)");
+  const repaint = () => {
+    if (!frame) render();
+  };
+  const observer = new MutationObserver(repaint);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "data-theme"],
+  });
+  scheme.addEventListener("change", repaint);
+  render();
+  return {
+    spin(on) {
+      spinning = on && !reducedMotion();
+      if (spinning) run();
+    },
+    stop() {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      observer.disconnect();
+      scheme.removeEventListener("change", repaint);
+    },
+  };
 }

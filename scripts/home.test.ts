@@ -15,6 +15,10 @@ type PersonalSocketFixture = {
 };
 import { createHomeApi } from "../web/features/home/api";
 import {
+  AROUND_BEFORE,
+  itemArtifacts,
+} from "../web/features/application/itemArtifact";
+import {
   byImportance,
   fanClasses,
   fanSize,
@@ -666,6 +670,120 @@ test("routed send uses the canonical posted thread and clears only its unchanged
   await session.send();
   expect(navigated).toEqual([{ roomId: "aaaaaa", thread: "canonical-epic" }]);
   expect(get(personal.draft).ask).toBe("");
+  // The Home stays (the destination opens beside it): the sent suggestion is gone.
+  expect(get(session.state).busy).toBe("");
+  expect(get(session.state).result).toBe(null);
+  session.dispose();
+  personal.dispose();
+});
+
+test("the ask's file and poll go to the chosen room: uploaded there, posted with the message, once", async () => {
+  const timer = manualClock(),
+    uploads: string[] = [],
+    posts: unknown[] = [];
+  let fail = true;
+  const personal = createPersonalSession(
+    homeApi({
+      upload: async (id, file) => {
+        uploads.push(`${id}:${file.name}`);
+        return {
+          id: `up-${uploads.length}`,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          author: "a@test.com",
+          ts: 1,
+        };
+      },
+      post: async (...args) => {
+        posts.push(args.slice(0, 2).concat(args[4]));
+        if (fail) {
+          fail = false;
+          throw Error("offline");
+        }
+        return { ok: true, id: 9, thread: "main" };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const navigated: unknown[] = [],
+    session = createHomeSession(
+      personal,
+      (target) => navigated.push(target),
+      timer.clock,
+    );
+  session.addFiles([
+    new File(["%PDF"], "plano.pdf", { type: "application/pdf" }),
+    new File(["x"], "virus.exe", { type: "application/x-msdownload" }),
+  ]);
+  expect(get(session.state).files.map((f) => f.name)).toEqual(["plano.pdf"]);
+  expect(get(session.state).fileError).toContain("virus.exe");
+  session.setPoll({ question: "Qual?", options: ["A", "B"], multi: false });
+  session.edit("veja isto");
+  await session.suggest();
+  await session.send();
+  expect(get(session.state).error).toBe("offline");
+  await session.send();
+  // The retry posts again but does not upload the file to the room again.
+  expect(uploads).toEqual(["aaaaaa:plano.pdf"]);
+  expect(posts).toEqual([
+    [
+      "aaaaaa",
+      "veja isto",
+      {
+        routed: true,
+        files: ["up-1"],
+        poll: { question: "Qual?", options: ["A", "B"], multi: false },
+      },
+    ],
+    [
+      "aaaaaa",
+      "veja isto",
+      {
+        routed: true,
+        files: ["up-1"],
+        poll: { question: "Qual?", options: ["A", "B"], multi: false },
+      },
+    ],
+  ]);
+  expect(navigated).toEqual([{ roomId: "aaaaaa", thread: undefined }]);
+  expect(get(session.state).files).toEqual([]);
+  expect(get(session.state).poll).toBe(null);
+  session.dispose();
+  personal.dispose();
+});
+
+test("a poll alone is routed by its question and posted to the chosen room", async () => {
+  const timer = manualClock(),
+    routes: string[] = [],
+    posts: unknown[] = [];
+  const personal = createPersonalSession(
+    homeApi({
+      route: async (text) => {
+        routes.push(text);
+        return suggestion;
+      },
+      post: async (...args) => {
+        posts.push([args[0], args[1], args[4]?.poll]);
+        return { ok: true, id: 3, thread: "main" };
+      },
+    }),
+    { clock: timer.clock },
+  );
+  await personal.refresh();
+  const session = createHomeSession(personal, () => {}, timer.clock);
+  session.setPoll({ question: "Pizza?", options: ["Sim", "Não"], multi: true });
+  await session.suggest();
+  await session.send();
+  expect(routes).toEqual(["Pizza?"]);
+  expect(posts).toEqual([
+    [
+      "aaaaaa",
+      "",
+      { question: "Pizza?", options: ["Sim", "Não"], multi: true },
+    ],
+  ]);
   session.dispose();
   personal.dispose();
 });
@@ -1394,4 +1512,87 @@ test("the phone's chat list: newest first, and who wrote last before the line", 
       self: false,
     }),
   ).toBe("Pronto");
+});
+
+const artifactFile = (id: string, name: string, ts = 1) => ({
+  id,
+  name,
+  type: name.endsWith(".html") ? "text/html" : "application/pdf",
+  size: 10,
+  author: "a@test.com",
+  ts,
+});
+const artifactMessage = (
+  id: number,
+  text: string,
+  files?: ReturnType<typeof artifactFile>[],
+) => ({ id, thread: "e", author: "b@test.com", ts: id, text, files });
+
+test("an Inbox item opens on the thing it is about: the asked message's file or room app first", () => {
+  const deck = artifactFile("f2", "apps/apresentacao.html", 2),
+    old = artifactFile("f1", "apps/apresentacao.html", 1),
+    plan = artifactFile("f3", "plano.pdf");
+  const messages = [
+    artifactMessage(1, "o plano", [plan]),
+    artifactMessage(
+      2,
+      "@leo olha a apresentação nova [[app:room/apresentacao]]",
+    ),
+  ];
+  const result = itemArtifacts({
+    messages,
+    known: [old, deck, plan],
+    focus: 2,
+    doc: "",
+    docName: "Doc",
+  });
+  // The name in the text opens the newest version of the app; the thread's other file is in the switcher.
+  expect(result.primary).toEqual({
+    kind: "file",
+    key: "file:apps/apresentacao.html",
+    name: "apresentacao",
+    file: deck,
+  });
+  expect(result.all.map((item) => item.key)).toEqual([
+    "file:apps/apresentacao.html",
+    "file:plano.pdf",
+  ]);
+});
+
+test("an Inbox item with nothing of its own takes the newest artifact around the ask, else the doc it names, else none", () => {
+  const plan = artifactFile("f3", "plano.pdf");
+  const around = itemArtifacts({
+    messages: [
+      artifactMessage(1, "segue", [plan]),
+      artifactMessage(2, "@leo o que acha?"),
+    ],
+    known: [plan],
+    focus: 2,
+    docName: "Doc",
+  });
+  expect(around.primary?.key).toBe("file:plano.pdf");
+  // Far from the ask (more than AROUND_BEFORE messages back), a file is in the switcher but is not the item's.
+  const far = itemArtifacts({
+    messages: [
+      artifactMessage(1, "segue", [plan]),
+      ...Array.from({ length: AROUND_BEFORE + 1 }, (_, index) =>
+        artifactMessage(index + 2, "conversa"),
+      ),
+      artifactMessage(20, "@leo revisa o doc?"),
+    ],
+    known: [plan],
+    focus: 20,
+    doc: "# Plano",
+    docName: "Doc",
+  });
+  expect(far.primary?.key).toBe("doc");
+  expect(far.all.map((item) => item.key)).toEqual(["doc", "file:plano.pdf"]);
+  const none = itemArtifacts({
+    messages: [artifactMessage(1, "@leo agrupa por thread ou por tipo?")],
+    known: [],
+    focus: 1,
+    doc: "# Plano",
+    docName: "Doc",
+  });
+  expect(none.primary).toBe(null);
 });
