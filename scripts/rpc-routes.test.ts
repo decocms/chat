@@ -116,6 +116,7 @@ function fixture(overrides: Partial<ApiServices> = {}) {
     sqlAll: async () => [],
     search: async () => ({ rooms: 0, epics: [], messages: [] }),
     inbox: async () => ({ waits: [], mentions: [], tasks: [] }),
+    threadDone: async () => true,
     isEmail: (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
     connect: async (email) =>
       email === "member@test.com"

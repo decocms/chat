@@ -108,6 +108,14 @@ export function createHomeApi(fetcher?: FetchLike) {
       api.waits.resolve
         .$post({ json: { book_id, ref } }, { init: { signal } })
         .then((response) => read(response, OkResult)),
+    /** "Marcar como feita" on an open thread of yours, from the Inbox. */
+    threadDone: (book_id: string, epic: string, signal?: AbortSignal) =>
+      room.threads[":epic"].done
+        .$post(
+          { param: { ...param(book_id), epic: encodeURIComponent(epic) } },
+          { init: { signal } },
+        )
+        .then((response) => read(response, OkResult)),
     resolveMany: (
       items: { book_id: string; ref: string }[],
       signal?: AbortSignal,
