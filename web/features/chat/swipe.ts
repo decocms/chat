@@ -163,8 +163,8 @@ export function swipeMessage(
     start.dx = Math.max(0, dx);
     node.classList.remove(...STEPS);
     node.classList.add(STEPS[Math.round(swipeOffset(start.dx) / 4)]);
-    // The swipe shows what letting go does (Gui #2668): the reply icon past the left edge grows, and fills at the
-    // point where letting go replies, with one short vibration when it gets there (like WhatsApp).
+    // The swipe shows what letting go does (Gui #2668): "Reply →" past the left edge turns strong at the point where
+    // letting go replies, with one short vibration when it gets there (like WhatsApp).
     const ready = start.dx > REPLY_DX;
     if (ready && !start.ready) navigator.vibrate?.(8);
     start.ready = ready;

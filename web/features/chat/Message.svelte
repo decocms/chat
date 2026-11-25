@@ -27,7 +27,6 @@
   import AgentMark from "../../lib/components/AgentMark.svelte";
   import { AGENT_NAMES, agentProvider } from "../../lib/components/agent";
   import Badge from "../../lib/studio/Badge.svelte";
-  import Icon from "../../lib/studio/Icon.svelte";
   import MessageActions from "./MessageActions.svelte";
   import MessageFooter from "./MessageFooter.svelte";
   import MessageReactions from "./MessageReactions.svelte";
@@ -263,13 +262,12 @@
       : "",
   ]}
 >
-  <!-- What letting go of a swipe does (Gui #2668): the reply icon comes out past the message's left edge as it slides,
-       grows, and fills where letting go replies, like WhatsApp (Gimenes #4533). The rest is in the sheet a long press
-       opens (Gimenes #4440). -->
+  <!-- What letting go of a swipe does (Gui #2668), drawn past the message's left edge as it slides: Reply →. Gimenes
+       kept the text, not an icon (#4547). The rest is in the sheet a long press opens (Gimenes #4440). -->
   <span
     aria-hidden="true"
-    class="pointer-events-none absolute top-1/2 right-[calc(100%+8px)] grid size-8 -translate-y-1/2 scale-50 place-items-center rounded-full bg-muted text-muted-foreground opacity-0 transition-[opacity,scale,background-color,color] duration-150 ease-out in-data-[swipe=reply]:scale-100 in-data-[swipe=reply]:bg-foreground in-data-[swipe=reply]:text-background in-data-[swipe=reply]:opacity-100 in-data-[swipe=tracking]:scale-75 in-data-[swipe=tracking]:opacity-70 motion-reduce:transition-none"
-    ><Icon icon="reverse-left" size={16} /></span
+    class="pointer-events-none absolute top-1/2 right-[calc(100%+12px)] hidden -translate-y-1/2 text-xs font-semibold whitespace-nowrap text-muted-foreground in-data-[swipe-dir=right]:block in-data-[swipe=reply]:text-foreground"
+    >{vb.t("Responder")} →</span
   >
   {#if m.reply_to}<!-- The message it answers, one line above the header (like Discord): a spine from the avatar
        curls up into a small picture, the author and the start of their message; a click jumps there. -->
