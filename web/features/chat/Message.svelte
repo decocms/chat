@@ -30,6 +30,7 @@
   import Badge from "../../lib/studio/Badge.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import MessageActions from "./MessageActions.svelte";
+  import { cn } from "../../lib/studio/utils";
   import MessageFooter from "./MessageFooter.svelte";
   import MessageReactions from "./MessageReactions.svelte";
   import Attachments from "./Attachments.svelte";
@@ -162,6 +163,10 @@
   // A reply always opens with its own header (and the quote line above it), like Discord.
   const continuous = $derived(!m.reply_to && continues(previous, m));
   const kind = $derived(messageKind(m));
+  // Reactions go on people's and agents' messages, not on @vibe notices, issues or reminders.
+  const reactable = $derived(
+    !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder",
+  );
   const quote = $derived(
     m.reply_to
       ? [...room.messages, ...(room.origins || [])].find(
@@ -483,10 +488,15 @@
       <!-- One bar under the message (Gui #2761): reactions on the left, acks and seen on the right. Only when there
            is something in it: an empty bar spread a run of messages from the same person apart. Not selectable:
            copying a conversation takes the messages, not ✓ ⏳ ✻ and the reaction chips (Gimenes #3622). -->
-      {#if (footer && !origin) || (!origin && Object.values(m.reactions ?? {}).some((who) => who.length))}<div
-          class="flex flex-wrap items-center justify-between gap-x-3 select-none"
+      {#if !origin && (footer || reactable || Object.values(m.reactions ?? {}).some((who) => who.length))}<div
+          class={cn(
+            "flex flex-wrap items-center justify-between gap-x-3 select-none",
+            !footer &&
+              !Object.values(m.reactions ?? {}).some((who) => who.length) &&
+              "hidden pointer-fine:group-hover:flex pointer-fine:group-has-focus-visible:flex",
+          )}
         >
-          {#if !origin && kind !== "issue" && kind !== "notice" && kind !== "reminder"}<MessageReactions
+          {#if reactable}<MessageReactions
               message={m}
               me={room.me}
               {actions}
