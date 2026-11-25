@@ -28,6 +28,7 @@ const REPEAT_SCAN_ROWS = 50;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
+import type { LinkPeek } from "./linkTarget";
 import { dropBlock, parseBlock, reconcile, renderBlock } from "./taskblock";
 import { asLang, type Lang } from "./lang";
 import { DurableObject } from "cloudflare:workers";
@@ -1613,6 +1614,18 @@ export class Book extends DurableObject<Env> {
   roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
     this.bind(bookId);
     return this.messagesPage(q);
+  }
+  /** What a link to this room names (src/linkTarget.ts decides what the viewer may see). The route checks membership. */
+  linkPeek(bookId: string, q: { message?: number; thread?: string }): LinkPeek {
+    this.bind(bookId);
+    const epic = (id: string) => this.sql.exec<{ title: string | null; owner: string | null }>(`SELECT title, owner FROM epics WHERE id = ?`, id).toArray()[0];
+    const row = q.message === undefined ? undefined : this.sql.exec<{ thread: string | null; author: string; kind: string | null; tag: string | null; for_who: string | null; head: string | null }>(`SELECT thread, author, kind, tag, for_who, substr(text, 1, 16) AS head FROM messages WHERE id = ?`, Math.trunc(q.message)).toArray()[0];
+    const thread = q.thread ? epic(q.thread) : undefined;
+    const messageThread = row ? (row.thread ?? "main") : "main";
+    return {
+      message: row ? { thread: messageThread, author: row.author, kind: row.kind, tag: row.tag, forWho: row.for_who, ask: /^(⏸ Seu Claude|❓ Seu Claude)/.test(row.head ?? ""), threadTitle: messageThread === "main" ? null : (epic(messageThread)?.title ?? null) } : null,
+      thread: thread ? { title: thread.title ?? "", owner: thread.owner } : null,
+    };
   }
   /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
    *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está

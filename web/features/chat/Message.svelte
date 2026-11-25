@@ -225,6 +225,7 @@
     names={vb.knownNames}
     pageUrl={vb.pageUrl}
     fileLabel={vb.t("arquivo")}
+    t={vb.t}
   />{/snippet}
 <article
   id={origin ? undefined : `m${m.id}`}

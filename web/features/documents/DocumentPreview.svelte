@@ -94,6 +94,9 @@
     openFileReference: (file) => {
       if (current()) props.actions.openFileReference?.(file);
     },
+    openAppLink: (link) => {
+      if (current()) props.actions.openAppLink?.(link);
+    },
     ensureFileIndex: () => {
       if (current()) props.actions.ensureFileIndex?.();
     },
