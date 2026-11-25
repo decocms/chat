@@ -231,17 +231,6 @@
             editing = true;
           }}><Icon icon="pencil-01" size={16} /></IconButton
         >{/if}
-      {#if canDelete}<IconButton
-          label={vb.t("Apagar mensagem")}
-          data-delete-message={message.id}
-          class={floating
-            ? "rounded-full text-muted-foreground hover:text-foreground"
-            : ""}
-          onclick={() => {
-            error = "";
-            deleting = true;
-          }}><Icon icon="trash-01" size={16} /></IconButton
-        >{/if}
       {#if history !== undefined}<IconButton
           label={vb.t("Ver histórico da mensagem")}
           data-message-history={message.id}
@@ -265,6 +254,22 @@
             icon={copied === "link" ? "check" : "link-01"}
             size={16}
           /></IconButton
+        >{/if}
+      <!-- Delete is last, red, after a divider: far from the actions people click often (Gimenes #4591). -->
+      {#if canDelete}<div
+          aria-hidden="true"
+          class="mx-0.5 h-4 w-px shrink-0 bg-border"
+        ></div>
+        <IconButton
+          label={vb.t("Apagar mensagem")}
+          data-delete-message={message.id}
+          class={floating
+            ? "rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+            : "text-destructive hover:text-destructive"}
+          onclick={() => {
+            error = "";
+            deleting = true;
+          }}><Icon icon="trash-01" size={16} /></IconButton
         >{/if}
     </TooltipProvider>
   </div>

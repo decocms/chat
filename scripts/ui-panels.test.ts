@@ -2285,6 +2285,23 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
+  test("the message toolbar puts delete last, red, after a divider (Gimenes #4591)", () => {
+    const mine = { ...message(8, "My message"), author: "me@test" };
+    const { target } = renderChat({ ...fixture(), messages: [mine] });
+    hoverMessages(target);
+    const del = target.querySelector<HTMLElement>(
+      '#m8 [data-delete-message="8"]',
+    );
+    expect(del).not.toBeNull();
+    expect(del!.className).toContain("text-destructive");
+    const buttons = [...del!.parentElement!.children].filter(
+      (el) => el.tagName === "BUTTON",
+    );
+    expect(buttons.at(-1)?.getAttribute("data-delete-message")).toBe("8");
+    expect(del!.previousElementSibling?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+  });
   test("quotes, actions and origin survive chat refresh; @vibe notices are hidden", () => {
     const origin = message(7, "Original request");
     const reply = { ...message(8, "A response"), reply_to: 7 };
