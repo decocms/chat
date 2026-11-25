@@ -162,7 +162,7 @@ export class Book extends DurableObject<Env> {
     const epicCols = this.sql.exec<{ name: string }>(`PRAGMA table_info(epics)`).toArray().map((c) => c.name);
     if (epicCols.includes("archived") && !epicCols.includes("done")) this.sql.exec(`ALTER TABLE epics RENAME COLUMN archived TO done`);
     // Columns added after launch; ALTER fails harmlessly once they exist.
-    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"]]) {
+    for (const [table, col] of [["messages", "files TEXT"], ["messages", "poll TEXT"], ["messages", "kind TEXT"], ["messages", "via TEXT"], ["messages", "tag TEXT"], ["messages", "reply_to INTEGER"], ["messages", "choices TEXT"], ["messages", "card TEXT"], ["messages", "viewing TEXT"], ["tasks", "owner TEXT"], ["tasks", "due TEXT"], ["tasks", "status TEXT"], ["epics", "done INTEGER"], ["epics", "from_msg INTEGER"], ["epics", "prod TEXT"], ["epics", "pos INTEGER"], ["epics", "owner TEXT"], ["epics", "pinned INTEGER"], ["epics", "status TEXT"], ["messages", "for_who TEXT"], ["acks", "note TEXT"], ["reminders", "name TEXT"], ["reminders", "enabled INTEGER DEFAULT 1"], ["reminders", "error TEXT"], ["reminders", "every TEXT"], ["reminders", "file_id TEXT"], ["messages", "reactions TEXT"], ["messages", "client_id TEXT"], ["messages", "edited INTEGER"], ["messages", "deleted INTEGER"], ["files", "deleted INTEGER"], ["decisions", "msg INTEGER"], ["decisions", "email TEXT"], ["decisions", "via TEXT"]]) {
       try {
         this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
       } catch {}
@@ -399,15 +399,16 @@ export class Book extends DurableObject<Env> {
   /** Decisions and approvals, oldest first: what the room agreed and who said yes. */
   decisions() {
     return this.sql
-      .exec<{ id: number; text: string; who: string; kind: string; ts: number; msg: number | null }>(`SELECT * FROM (SELECT * FROM decisions ORDER BY id DESC LIMIT 100) ORDER BY id`)
+      .exec<{ id: number; text: string; who: string; kind: string; ts: number; msg: number | null; email: string | null; via: string | null }>(`SELECT * FROM (SELECT * FROM decisions ORDER BY id DESC LIMIT 100) ORDER BY id`)
       .toArray()
-      .map(({ msg, ...d }) => (msg ? { ...d, msg } : d));
+      .map(({ msg, email, via, ...d }) => ({ ...d, ...(msg ? { msg } : {}), ...(email ? { email } : {}), ...(via ? { via } : {}) }));
   }
-  /** msg: the message the decision came from, so the Decisions pane can jump to it. */
-  logDecision(text: string, who: string, kind: "decision" | "approval" = "decision", msg?: number | null) {
+  /** msg: the message the decision came from, so the Decisions pane can jump to it. by: whose it is (their avatar)
+   * and, when an agent logged it, the agent's model (its mark on the avatar). */
+  logDecision(text: string, who: string, kind: "decision" | "approval" = "decision", msg?: number | null, by?: { email: string; via?: string }) {
     const t = text.trim().slice(0, 400);
     if (!t) return null;
-    const id = this.sql.exec(`INSERT INTO decisions (text, who, kind, ts, msg) VALUES (?, ?, ?, ?, ?) RETURNING id`, t, who.slice(0, 200), kind, Date.now(), msg || null).one().id as number;
+    const id = this.sql.exec(`INSERT INTO decisions (text, who, kind, ts, msg, email, via) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`, t, who.slice(0, 200), kind, Date.now(), msg || null, by?.email || null, by?.via?.slice(0, 80) || null).one().id as number;
     this.broadcast({ t: "decisions", decisions: this.decisions() });
     return id;
   }
@@ -1887,7 +1888,7 @@ export class Book extends DurableObject<Env> {
       })),
       // The room's own tasks ("## Tarefas" in the room doc): add_task with epic_id "main".
       room_tasks: this.roomTasks().map((t) => ({ id: t.id, title: t.title, status: t.status, done: !!t.done, owner: t.owner ? who(t.owner) : null, due: t.due })),
-      decisions: this.decisions().map((d) => ({ text: d.text, who: d.who, kind: d.kind, at: new Date(d.ts).toISOString(), message_id: "msg" in d ? d.msg : undefined })),
+      decisions: this.decisions().map((d) => ({ text: d.text, who: d.who, kind: d.kind, at: new Date(d.ts).toISOString(), message_id: d.msg })),
       pins: this.pins().map((p) => ({ id: p.id, kind: p.kind, ref: p.ref, title: p.title })),
       messages,
       // Reminders your human set that fired in the last 7 days and no agent of theirs closed with ack done yet.
@@ -2259,7 +2260,7 @@ export class Book extends DurableObject<Env> {
     this.bind(bookId);
     return this.pinDel(id);
   }
-  async agentDecision(bookId: string, email: string, text: string, kind: "decision" | "approval", messageId?: number) {
+  async agentDecision(bookId: string, email: string, text: string, kind: "decision" | "approval", messageId?: number, via?: string) {
     this.bind(bookId);
     const names = await this.names();
     const secret = findSecret(text);
@@ -2269,7 +2270,7 @@ export class Book extends DurableObject<Env> {
         ? (this.sql.exec<{ id: number }>(`SELECT id FROM messages WHERE id = ? AND coalesce(deleted, 0) = 0`, messageId).toArray()[0]?.id ?? null)
         : null;
     if (messageId !== undefined && !msg) return { ok: false, error: `no message ${messageId} in this room` };
-    const id = this.logDecision(text, `${names[email] ?? email.split("@")[0]} · via agent`, kind, msg);
+    const id = this.logDecision(text, `${names[email] ?? email.split("@")[0]} · via agent`, kind, msg, { email, via: via || "agent" });
     return id ? { ok: true, id } : { ok: false, error: "empty" };
   }
 

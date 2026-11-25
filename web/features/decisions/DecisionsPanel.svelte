@@ -10,6 +10,8 @@
     type DecisionKind,
   } from "./model";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
+  import AgentMark from "../../lib/components/AgentMark.svelte";
+  import PersonAvatar from "../../lib/components/PersonAvatar.svelte";
   import IconButton from "../../lib/studio/IconButton.svelte";
   import Icon from "../../lib/studio/Icon.svelte";
   import PaneEmpty from "../../lib/components/PaneEmpty.svelte";
@@ -104,10 +106,30 @@
   <span class="block text-sm leading-5 whitespace-pre-wrap break-words">
     {decision.text}
   </span>
-  <span class="block mt-0.5 text-xs leading-4 text-muted-foreground">
-    {vb.t(kindLook(decisionKind(decision.kind)).label)} ·
-    <span class="break-words">{decision.who}</span>
-    ·
+  <span
+    class="mt-1 flex flex-wrap items-center gap-x-1 text-xs leading-4 text-muted-foreground"
+  >
+    <span>{vb.t(kindLook(decisionKind(decision.kind)).label)} ·</span>
+    {#if decision.email}<span
+        data-decision-avatar
+        class="relative mr-0.5 inline-flex shrink-0"
+        ><PersonAvatar
+          data-avatar="person"
+          size="2xs"
+          class="size-4 shadow-[0_0_0_1.5px_var(--vb-background)]"
+          email={decision.email}
+          version={vb.avatarVersion(decision.email)}
+        />{#if decision.via}<AgentMark
+            size="3xs"
+            tint
+            via={decision.via}
+            class="absolute -right-1 -bottom-1 rounded-full text-[7px] shadow-[0_0_0_1.5px_var(--vb-background)]"
+          />{/if}</span
+      ><span class="break-words"
+        >{vb.name(decision.email)}{decision.via
+          ? ` · ${vb.t("via agent")}`
+          : ""} ·</span
+      >{:else}<span class="break-words">{decision.who} ·</span>{/if}
     <time datetime={new Date(decision.ts).toISOString()}
       >{clock.format(decision.ts)}</time
     >

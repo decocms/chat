@@ -1008,6 +1008,33 @@ describe("room panels", () => {
       .click();
     expect(jumps).toEqual([42]);
   });
+  test("a decision with its person shows their avatar, the agent's mark and their name", () => {
+    const room = fixture();
+    room.decisions = [
+      {
+        id: 7,
+        kind: "decision",
+        text: "a",
+        who: "me · via agent",
+        ts: 1,
+        email: "ana@test",
+        via: "claude-opus-5-5",
+      },
+      { id: 8, kind: "decision", text: "b", who: "Old text", ts: 2 },
+    ];
+    const { target } = render("decisions", room);
+    const withPerson = target.querySelector('[data-decision-id="7"]')!;
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-avatar]"),
+    ).not.toBeNull();
+    expect(
+      withPerson.querySelector("[data-decision-avatar] [data-agent-tile]"),
+    ).not.toBeNull();
+    expect(withPerson.textContent).toContain("ana@test · via agent");
+    const legacy = target.querySelector('[data-decision-id="8"]')!;
+    expect(legacy.querySelector("[data-decision-avatar]")).toBeNull();
+    expect(legacy.textContent).toContain("Old text");
+  });
   test("decision deletion requires confirmation, restores cancellation focus and waits for canonical removal", async () => {
     const room = fixture();
     room.decisions = [
