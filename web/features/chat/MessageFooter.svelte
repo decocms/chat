@@ -13,10 +13,33 @@
   const shown = $derived(!dismissed && (opened || hovered || focused));
   const ids = $props.id();
   const read = $derived(footer.readers.filter((r) => r.read).length);
+  // Readers and the agents that looked and passed, one face each.
+  const faces = $derived([
+    ...footer.readers.map((r) => ({
+      who: r.receipt.who,
+      email: r.receipt.email,
+      read: r.read as boolean | undefined,
+    })),
+    ...footer.passed
+      .filter(
+        (p) =>
+          !footer.readers.some(
+            (r) =>
+              r.receipt.who === p.ack.who && r.receipt.email === p.ack.email,
+          ),
+      )
+      .map((p) => ({
+        who: p.ack.who,
+        email: p.ack.email,
+        read: undefined as boolean | undefined,
+      })),
+  ]);
   const label = $derived(
-    read === footer.readers.length
-      ? vb.t("visto por {n}", { n: read })
-      : vb.t("visto por {n} de {m}", { n: read, m: footer.readers.length }),
+    !footer.readers.length
+      ? vb.t("Agents que olharam")
+      : read === footer.readers.length
+        ? vb.t("visto por {n}", { n: read })
+        : vb.t("visto por {n} de {m}", { n: read, m: footer.readers.length }),
   );
   const who = (model: string, email: string) =>
     vb.t("{via} de {who}", { via: prettyModel(model), who: vb.name(email) });
@@ -58,7 +81,7 @@
         >{/if}
     </span>
   {/each}
-  {#if footer.readers.length}
+  {#if faces.length}
     <div
       role="group"
       aria-label={label}
@@ -99,29 +122,30 @@
           }
         }}
       >
-        {#each footer.readers.slice(0, 5) as reader (`${reader.receipt.who}|${reader.receipt.email}`)}
+        {#each faces.slice(0, 5) as face (`${face.who}|${face.email}`)}
           <span
-            data-reader-read={reader.read}
+            data-reader-read={face.read}
             class="relative inline-flex not-first:ml-1"
           >
             <PersonAvatar
               data-avatar="person"
               size="xs"
               class="size-[18px] shadow-[0_0_0_1.5px_var(--vb-card)]"
-              email={reader.receipt.email}
-              version={vb.avatarVersion(reader.receipt.email)}
+              email={face.email}
+              version={vb.avatarVersion(face.email)}
             /><AgentMark
               size="3xs"
               tint
-              via={reader.receipt.who}
+              via={face.who}
               class="absolute -right-1 -bottom-1 rounded-full text-[7px] shadow-[0_0_0_1.5px_var(--vb-card)]"
             />
           </span>
         {/each}
-        {#if footer.readers.length > 5}<span>+{footer.readers.length - 5}</span
-          >{/if}<span aria-hidden="true" class="ml-0.5 text-[11px]"
-          >{read ? "✓✓" : "✓"}</span
-        >
+        {#if faces.length > 5}<span>+{faces.length - 5}</span
+          >{/if}{#if footer.readers.length}<span
+            aria-hidden="true"
+            class="ml-0.5 text-[11px]">{read ? "✓✓" : "✓"}</span
+          >{/if}
       </Button>
       {#if shown}<div
           id={`${ids}-readers`}
@@ -139,6 +163,23 @@
               /><span class="min-w-0 flex-1 break-words"
                 >{who(reader.receipt.who, reader.receipt.email)}</span
               ><span>{vb.t(reader.read ? "leu" : "recebeu")}</span>
+            </div>{/each}{#each footer.passed as status (`${status.ack.who}|${status.ack.email}`)}<div
+              data-ack-state="idle"
+              class="flex items-center gap-2"
+            >
+              <PersonAvatar
+                data-avatar="person"
+                size="xs"
+                email={status.ack.email}
+                version={vb.avatarVersion(status.ack.email)}
+              /><span class="min-w-0 flex-1 break-words"
+                >{who(status.ack.who, status.ack.email)}</span
+              ><span
+                >{vb.t("parou")} ·
+                <time title={vb.dateTime?.(status.ack.ts)}
+                  >{vb.ago(status.ack.ts)}</time
+                ></span
+              >
             </div>{/each}
         </div>{/if}
     </div>

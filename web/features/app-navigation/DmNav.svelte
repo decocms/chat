@@ -44,6 +44,7 @@
   import HomeRow from "./HomeRow.svelte";
   import InboxRow from "./InboxRow.svelte";
   import RoomLink from "./RoomLink.svelte";
+  import { roomMenuTrigger } from "./roomMenuTrigger";
   import SidebarHeader from "../../lib/components/SidebarHeader.svelte";
   /**
    * Your home's own sidebar, built like a room's: "Mensagens diretas" names
@@ -71,7 +72,12 @@
 {#snippet dm(entry: DmEntry)}
   <!-- You are always online to yourself: this page is connected. -->
   {@const online = entry.self || $personal.online[entry.email] === true}
-  <li data-dm={entry.room.id} data-presence={online ? "online" : "offline"}>
+  <li
+    data-dm={entry.room.id}
+    data-presence={online ? "online" : "offline"}
+    use:roomMenuTrigger={(trigger, point) =>
+      controller.openMenu(entry.room.id, trigger, point)}
+  >
     <RoomLink
       room={entry.room}
       dm={entry}

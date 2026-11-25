@@ -179,6 +179,53 @@ export const MessagesPage = z.object({
   more: z.boolean(),
 });
 export type MessagesPage = z.infer<typeof MessagesPage>;
+/** GET /api/books/:id/link: where a link to this app goes (a chip in the chat, web/features/rich-text/AppLinkChip).
+ *  m = a message (#m), t = a thread (?t=, #e, #doc:); neither = the room. */
+export const LinkQuery = z.object({
+  t: z.optional(z.string().check(z.minLength(1), z.maxLength(64))),
+  m: z.optional(z.coerce.number().check(z.positive())),
+});
+export type LinkQuery = z.infer<typeof LinkQuery>;
+/** Only for a member, and only what the chip draws. Everything else (not a member, no such room, thread or message,
+ *  a message hidden from you) is the same `private`, so the answer never tells which one it was. */
+export const LinkResolution = z.union([
+  z.object({
+    kind: z.literal("message"),
+    room: z.string(),
+    id: z.number(),
+    thread: z.string(),
+    author: z.string(),
+    name: z.string(),
+    avatar: z.nullable(z.number()),
+    /** The message's thread title; null = main (the chip shows the room's title) or the call chat. */
+    threadTitle: z.nullable(z.string()),
+    roomTitle: z.string(),
+  }),
+  z.object({
+    kind: z.literal("thread"),
+    room: z.string(),
+    thread: z.string(),
+    /** Empty for the call chat (the chip says "Chat da call"). */
+    title: z.string(),
+    owner: z.nullable(z.string()),
+    ownerName: z.nullable(z.string()),
+  }),
+  z.object({
+    kind: z.literal("room"),
+    room: z.string(),
+    title: z.string(),
+    icon: z.nullable(z.number()),
+  }),
+  z.object({
+    kind: z.literal("dm"),
+    room: z.string(),
+    email: z.string(),
+    name: z.string(),
+    avatar: z.nullable(z.number()),
+  }),
+  z.object({ kind: z.literal("private") }),
+]);
+export type LinkResolution = z.infer<typeof LinkResolution>;
 
 // Your name, new rooms and the home's router.
 export const SetNameBody = z.object({ name: z.optional(z.string()) });
@@ -852,6 +899,8 @@ export const CallCloseBody = z.object({
   mids: z.array(z.string().check(z.maxLength(16))).check(z.maxLength(64)),
   names: z.optional(z.array(callName)),
 });
+/** Hanging up (POST /api/books/:id/call/leave): this session leaves the call, and no other session of the person. */
+export const CallLeaveBody = z.object({ session: callId });
 /** What the SFU answers to a tracks request. A pull comes with an offer the browser must answer at once. */
 export const CallSfuResult = z.object({
   sessionDescription: z.optional(z.nullable(CallDescription)),

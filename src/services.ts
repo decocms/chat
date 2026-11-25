@@ -24,6 +24,7 @@ import { consentContext, grantOps } from "./connect";
 import { routerStats } from "./router";
 import { setHandle, setProfilePublic } from "./profile";
 import { aiSpend, infraMonitor } from "./reports";
+import { resolveLink } from "./linkTarget";
 
 // The app shell's version, per isolate (a deploy is a new isolate): open tabs compare it to reload.
 let appVersion: string | undefined;
@@ -158,8 +159,24 @@ export function services(env: Env, ctx: { waitUntil(p: Promise<unknown>): void }
     callTracks: (roomId, body) => callTracks(env, roomId, email, body),
     callAnswer: (roomId, session, answer) => callAnswer(env, roomId, email, session, answer),
     callClose: (roomId, session, mids, names) => callClose(env, roomId, email, session, mids, names),
+    callLeave: (roomId, session) => bookStub(env, roomId).callLeave(email, session),
     humanPost: (roomId, text, thread, clientId) => bookStub(env, roomId).humanPost(roomId, email, text, thread, en, { clientId }),
     roomMessages: (roomId, query) => bookStub(env, roomId).roomMessages(roomId, query),
+    linkTarget: (roomId, query) =>
+      resolveLink(
+        {
+          isMember: () => isMember(env.DB, roomId, email),
+          book: () => env.DB.prepare(`SELECT title, dm, icon FROM books WHERE id = ?`).bind(roomId).first<{ title: string | null; dm: string | null; icon: number | null }>().then((b) => (b ? { title: b.title ?? "", dm: b.dm, icon: b.icon } : null)),
+          peek: (q) => bookStub(env, roomId).linkPeek(roomId, q),
+          people: async (emails) =>
+            Object.fromEntries(
+              (await env.DB.prepare(`SELECT email, name, avatar FROM users WHERE email IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(emails)).all<{ email: string; name: string | null; avatar: number | null }>()).results.map((u) => [u.email, { name: u.name, avatar: u.avatar }]),
+            ),
+        },
+        roomId,
+        email,
+        query,
+      ),
     storeFile: (roomId, type, body, name) => storeFile(env, roomId, email, type, body, name, { requireMember: true }, en),
     fileTypes: FILE_TYPES,
     maxBytes,

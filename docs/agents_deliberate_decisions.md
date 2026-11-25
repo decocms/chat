@@ -1868,3 +1868,77 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Risk: medium. Room content stays on the device until a sign-out or 7 days, so a person who uses your browser profile while you are signed in can read it in the browser's storage. A bug in the merge shows old messages until the server answers.
 - Undo: Revert this commit. The app then keeps rooms in memory only, and old saved rooms stay unused in IndexedDB.
 - Status: open
+
+### 2026-11-25 · feat/link-chips · Link chips: new component, own endpoint, page cache
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked that a link to this app in a message show as a one-line chip of where it goes, and "Sala privada" when the viewer can't see it. The details below were not specified.
+- Decision:
+  - A new component `AppLinkChip.svelte` (no existing component draws an inline place: `Chip` is a control, the file and GitHub chips are part of `RichNodes`). It uses `PersonAvatar`, `RoomMark` and `Icon`.
+  - A new route `GET /api/books/:id/link` answers 200 with `{kind:"private"}` for a non-member, a missing room, thread or message, and a message the chat hides from the viewer, so the answer never tells them apart. The rules are in `src/linkTarget.ts`.
+  - Only a link whose text is the bare URL becomes a chip. A link with its own text stays a link, and a click opens it in the app.
+  - A file link (`#f`), an app link and `#doc` without a thread stay links.
+  - The open room's messages and threads come from its state. A link to the open room itself still asks the server, because only the server has the room's icon version.
+  - Answers are kept for the page's life, `private` too: a person who joins a room sees its chips after a reload. A failed request is not kept.
+  - One request per place, not one batched request for all links.
+- Other options: A batched endpoint for all links of a page. A chip for labelled links too. No cache for `private`.
+- Risk: low. A chip can show an old title until a reload.
+- Undo: Revert this commit.
+- Status: open
+
+### 2026-11-25 · feat/one-room-memory · Memory keeps only the open room, and DMs are saved too
+
+- Agent: Claude Opus 5.5
+- Context: The cache plan's PR 4 ("Só a sala aberta em memória: sai o cache de 12 salas"), approved by Gimenes (#4653, #4670). PR 3 (#420) saved rooms in IndexedDB but not DMs ("no DMs at first"). Gimenes: "Dms sao rooms como qualquer outras, nao? tem do, tem tudo" (#4804).
+- Decision:
+  - IndexedDB saves DMs like other rooms. `/api/me` lists DMs that have messages, so the prune keeps them.
+  - With IndexedDB, memory keeps only the open room. A room that you open again draws from IndexedDB (at most 300 ms), then resumes.
+  - Without IndexedDB (a private window), memory keeps the 12 newest rooms, as before.
+- Other options: Keep DMs out of IndexedDB and in memory (the first version of this PR).
+- Risk: low. DM content now also stays on the device until a sign-out or 7 days, as room content does. A switch back to a room waits for IndexedDB (usually a few milliseconds) instead of memory.
+
+### 2026-11-25 · feat/room-context-menu · Room settings dialog becomes one context menu
+
+- Agent: Claude Opus 5.5
+- Context: The product owner asked for a Discord-like context menu on a room in place of the "Settings for <room>" dialog, with Mark as read, Invite people, Notifications, Color, Icon, Rename, Move, Copy link and Archive.
+- Decision:
+  - One menu for the whole app (`RoomMenu.svelte`, mounted by `AppNavigation`). It is the studio `DropdownMenu` anchored at the pointer (`customAnchor`), not one bits-ui `ContextMenu` per row. The rail, the phone's grid and list, and the DM rows only call `controller.openMenu(id, trigger, point)` through one action (`roomMenuTrigger.ts`): a right-click, a 500 ms touch long press, or Shift+F10 / the ContextMenu key.
+  - "Mark as read" got a small new path: `POST /api/books/:id/read` writes `human_reads` up to the room's last message. The dot goes at once in the client.
+  - Left out: "Invite people" (the invite form lives in the room's People panel; no route opens it from outside the room) and "Notifications" (the app has no per-room mute).
+  - "Rename room" shows only for the room that is open, as before: the rename goes through that room's socket.
+  - A DM gets "Mark as read" and "Copy conversation link" only. Archive is left out for a DM, because an archived DM would hide new messages from that person.
+  - Errors of a change and "Copied" show for 2.5 s in a small notice at the foot of the screen.
+- Other options: One `ContextMenu` per row (like the pins); keep the dialog and add a menu beside it; send the person to the room and open its People panel for "Invite people".
+- Risk: low. The same mutations as the dialog, from a different surface.
+- Undo: Revert this commit.
+||||||| parent of 7a68e433 (feat(cli): Codex wakes from the room through codex queue; the plugin works in Codex; herdr installs the plugin (1.7.9))
+
+### 2026-11-25 · viktor/codex-setup · Codex listens through codex queue
+
+- Agent: Claude Opus 5.5
+- Context: A person set up deco.chat in Codex with the prompt from `llms.txt`. Codex could read and post, but no room message ever woke it: `vibebook listen` prints one line and exits, and only Claude Code starts a turn when a background command ends. Codex also stopped the listen at the end of its turn. The same person asked for a setup that works for Codex and for new people. Codex 0.172 has `codex queue --thread <id> --message <text> --resume`, which starts a turn in a thread, and it sets `CODEX_THREAD_ID` in the env of each command.
+- Decision:
+  - Inside Codex (`CODEX_THREAD_ID` set, no `CLAUDE_CODE_SESSION_ID`), the agent is the Codex thread, as a Claude Code session is.
+  - `vibebook listen` in Codex starts itself detached with `--codex-wake <thread>` and returns at once. On news, the child queues one message into the thread with `codex queue --resume`. The same news within 10 minutes is not sent again. `--once` keeps the old one-shot listen.
+  - The child stops 15 minutes after no Codex window is open (the app-server daemon does not count, because it stays up). When the CLI file changes, it starts the new CLI itself.
+  - The Claude Code plugin is also the Codex plugin (`codex plugin add vibebook@vibebook` reads the same marketplace). The session hook detects Codex by its rollout `transcript_path` and gives Codex its own listen step. The permission hook names the agent after the Codex thread.
+  - The herdr runner installs the Claude Code plugin when it is missing. Without the plugin, the Claude it opens gets the listen prompt in words, not `/vibebook:listen`.
+  - `vibebook herdr --agent codex` opens Codex in each room. It installs the plugin in Codex and writes `~/.codex/rules/vibebook.rules`, a rule that runs only the `vibebook` command outside the Codex sandbox (Codex's sandbox has no network and cannot write `~/.vibebook`). Not `--dangerously-bypass-approvals-and-sandbox`: a room agent reads other people's messages, and that flag removes every approval for every command.
+- Other options: A Codex `Stop` hook that blocks until the room has news (it holds the turn open and the person cannot type). A separate Codex plugin folder (two copies of the same skill and hooks). Let the waker run while Codex is closed (queued turns then run in the daemon with nobody watching, on the person's plan).
+- Risk: medium. A queued turn starts while the person types in Codex. The process check can miss a Codex started in an unusual way; then the child stops after 15 minutes and the person runs listen again.
+- Undo: Revert this commit. Codex then reads and posts but is not woken, and the runner opens Claude with `/vibebook:listen` again.
+- Status: open
+
+### 2026-11-25 · fix/link-reveal · A message link survives the live room and an old bottom intent
+
+- Agent: Claude Opus 5.5
+- Context: A copied link to a message (`#m<id>`) still opened the room at the bottom after #434 (Gimenes #4843). Two causes:
+  - The room opens from IndexedDB, and the link search asks for an older page. Then the live room replaces the saved one (a new connection), the page of the old connection is dropped, and the search stopped.
+  - A render measured with bottom intent before the jump applied it during the jump.
+- Decision:
+  - When the same room and thread are replaced while a link search runs, the search starts again on the new connection.
+  - During a jump, a bottom intent of a render does not move the chat. A real bottom intent (own send, "latest") ends the jump first.
+- Other options: Keep the page of the old connection. Start the link search only when the room is live.
+- Risk: low. A search that starts again sends up to 15 more page requests.
+- Undo: Revert this commit.
+- Status: open

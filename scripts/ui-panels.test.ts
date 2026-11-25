@@ -2352,6 +2352,76 @@ describe("chat", () => {
       owner.dispose();
     }
   }, 30_000);
+  test("quick reactions never move a message, show an emoji given once, and the picker is a popover next to them", async () => {
+    const sent: RoomCommand[] = [];
+    const reacted = {
+      ...message(9, "Has a reaction"),
+      author: "me@test",
+      kind: null,
+      reactions: { "👍": ["ana@test"] },
+    };
+    const bare = { ...message(10, "Nothing under it"), kind: null };
+    const { target } = renderChat(
+      { ...fixture(), messages: [reacted, bare] },
+      {
+        actions: {
+          request: async (command: RoomCommand): Promise<CommandOutcome> => {
+            sent.push(command);
+            return { ok: true };
+          },
+          draftReply: () => {},
+          reply: () => {},
+          navigate: () => {},
+          openFile: () => {},
+        },
+      },
+    );
+    hoverMessages(target);
+    flushSync();
+    // An emoji already given is its chip only, never also a suggestion (it showed twice on hover).
+    const offered = (id: number) =>
+      [
+        ...target.querySelectorAll<HTMLElement>(`#m${id} [data-offer-react]`),
+      ].map((el) => el.getAttribute("data-offer-react"));
+    expect(offered(9)).toEqual(["❤️", "😂", "🎉"]);
+    // The hover-only buttons keep their place while hidden (invisible, never display: none): hovering moves nothing.
+    for (const el of target.querySelectorAll<HTMLElement>(
+      "[data-offer-react]",
+    )) {
+      expect(el.className).toContain("invisible");
+      expect(el.className.split(/\s+/)).not.toContain("hidden");
+    }
+    // A message with nothing under it gets the bar over the space it keeps, out of the flow.
+    const bar = target.querySelector<HTMLElement>(
+      '#m10 [data-reaction-bar="10"]',
+    );
+    expect(bar?.className).toContain("absolute");
+    expect(
+      target.querySelectorAll("#m10 [data-message-reactions]"),
+    ).toHaveLength(1);
+    expect(target.querySelector("#m9 [data-reaction-bar]")).toBeNull();
+    // 🙂 opens the picker in a popover next to it; the four quick ones stay where they were.
+    const before = offered(10);
+    expect(before).toEqual(["👍", "❤️", "😂", "🎉"]);
+    target.querySelector<HTMLElement>("#m10 [data-add-reaction]")!.click();
+    flushSync();
+    await tick();
+    const popover = document.querySelector<HTMLElement>(
+      '[data-emoji-popover="10"]',
+    );
+    expect(popover?.getAttribute("data-slot")).toBe("popover-content");
+    expect(document.querySelector("[data-slot=dialog-content]")).toBeNull();
+    expect(offered(10)).toEqual(before);
+    expect(
+      target
+        .querySelector("#m10 [data-message-reactions]")
+        ?.hasAttribute("data-picking"),
+    ).toBe(true);
+    popover!.querySelector<HTMLElement>("[data-emoji-grid] button")!.click();
+    flushSync();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ t: "react", id: 10 });
+  }, 30_000);
   test("the message toolbar puts delete last, red, after a divider (Gimenes #4591)", () => {
     const mine = { ...message(8, "My message"), author: "me@test" };
     const { target } = renderChat({ ...fixture(), messages: [mine] });

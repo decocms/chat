@@ -553,7 +553,12 @@
 {#if toast}<div
     data-call-toast
     role={toast.error ? "alert" : "status"}
-    class="fixed bottom-24 left-1/2 z-[60] flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-3.5 font-sans text-sm text-background shadow-lg"
+    class={[
+      // Low, just over the composer: the chat stays readable. Phones keep it over their composer; on the stage it
+      // stays over the round controls.
+      staged && $view.phase === "in" ? "bottom-24" : "bottom-24 md:bottom-6",
+      "fixed left-1/2 z-[60] flex w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl bg-foreground py-2 pr-2 pl-3.5 font-sans text-sm text-background shadow-lg",
+    ]}
   >
     <Icon
       icon={toast.error ? "alert-circle" : "info-circle"}

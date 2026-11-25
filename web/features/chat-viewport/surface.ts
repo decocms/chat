@@ -20,8 +20,14 @@ function hoverOnly(record: MutationRecord) {
     )
   );
 }
+/** How far from the chat's middle a revealed message may sit and still count as centered (px). */
+const CENTER_SLACK = 24;
 /** Scroll/measurement interop only: no first-party style or DOM presentation builder. */
 export function createChatSurface(element: HTMLElement): ChatSurface {
+  const reducedMotion = () =>
+    !!element.ownerDocument.defaultView?.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
   const visible = () =>
     element.isConnected &&
     element.clientHeight > 0 &&
@@ -40,9 +46,26 @@ export function createChatSurface(element: HTMLElement): ChatSurface {
       const target = element.querySelector<HTMLElement>(`#m${id}`);
       return target
         ? {
-            reveal() {
+            reveal(instant = false) {
               if (visible() && target.isConnected && element.contains(target))
-                target.scrollIntoView({ block: "center", behavior: "smooth" });
+                target.scrollIntoView({
+                  block: "center",
+                  behavior: instant || reducedMotion() ? "instant" : "smooth",
+                });
+            },
+            centered() {
+              if (!visible() || !target.isConnected) return true;
+              const box = target.getBoundingClientRect(),
+                frame = element.getBoundingClientRect(),
+                offset =
+                  box.top + box.height / 2 - (frame.top + frame.height / 2),
+                room = element.scrollHeight - element.clientHeight;
+              // As close as the scroll goes: a message near either end of the history cannot reach the middle.
+              return (
+                Math.abs(offset) <= CENTER_SLACK ||
+                (offset < 0 && element.scrollTop <= 0) ||
+                (offset > 0 && element.scrollTop >= room - 1)
+              );
             },
             highlight() {
               if (visible() && target.isConnected && element.contains(target))

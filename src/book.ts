@@ -28,6 +28,7 @@ const REPEAT_SCAN_ROWS = 50;
 import { type Card, cardText } from "./card";
 import { poke } from "./person";
 import { dmTitle, isDmId } from "./dm";
+import type { LinkPeek } from "./linkTarget";
 import { dropBlock, parseBlock, reconcile, renderBlock } from "./taskblock";
 import { asLang, type Lang } from "./lang";
 import { DurableObject } from "cloudflare:workers";
@@ -326,7 +327,22 @@ export class Book extends DurableObject<Env> {
   }
   messageRows(rows: readonly unknown[]): Msg[] {
     let files: Map<string, FileMeta> | undefined;
-    return storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind));
+    return this.withReplyThreads(storedMessageRows(rows, this.get("book_id") ?? "", (id) => { files ??= new Map(this.files().map((file) => [file.id, file])); return files.get(id); }, (kind) => console.warn("book stored projection", kind)));
+  }
+  /** reply_thread on replies to a message of another thread: the quote's click goes there even when the quoted message
+   *  isn't loaded (one indexed lookup per page; same-thread replies, the common case, carry nothing). */
+  private withReplyThreads(messages: Msg[]): Msg[] {
+    const ids = [...new Set(messages.flatMap((m) => (m.reply_to ? [m.reply_to] : [])))];
+    if (!ids.length) return messages;
+    const threads = new Map<number, string>();
+    for (let i = 0; i < ids.length; i += 90) {
+      const chunk = ids.slice(i, i + 90);
+      for (const r of this.sql.exec<{ id: number; thread: string }>(`SELECT id, thread FROM messages WHERE id IN (${chunk.map(() => "?").join(",")})`, ...chunk).toArray()) threads.set(r.id, r.thread);
+    }
+    return messages.map((m) => {
+      const thread = m.reply_to ? threads.get(m.reply_to) : undefined;
+      return thread && thread !== m.thread ? { ...m, reply_thread: thread } : m;
+    });
   }
   messages(thread?: string, limit = 500): Msg[] {
     const rows = thread
@@ -832,10 +848,12 @@ export class Book extends DurableObject<Env> {
   callTracks(email: string, add: string[], drop: string[]) {
     this.setCall(this.callPeers().map((p) => (p.email === email ? { ...p, tracks: [...new Set([...p.tracks, ...add])].filter((t) => !drop.includes(t)) } : p)));
   }
-  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back. */
-  callLeave(email: string) {
+  /** A recorder that leaves a call that goes on (Grain's 3 hours, or it stopped) is asked to come back.
+   *  `session`: only that session leaves (a hang-up, or a session the SFU no longer has); the person's newer
+   *  session (another tab joined since) stays. */
+  callLeave(email: string, session?: string) {
     const peers = this.callPeers();
-    if (!peers.some((p) => p.email === email)) return;
+    if (!peers.some((p) => p.email === email && (session === undefined || p.session === session))) return;
     const left = peers.filter((p) => p.email !== email);
     this.setCall(left);
     const bookId = this.get("book_id") ?? "";
@@ -914,7 +932,8 @@ export class Book extends DurableObject<Env> {
   // ---- mutations (shared by humans over WS and by AI tools) ----
   addMessage(thread: string, author: string, text: string, extra: { files?: FileMeta[]; poll?: string; kind?: "agent"; via?: string; tag?: "done" | "reminder" | "issue" | "notice" | "fire"; replyTo?: number; choices?: { options: string[]; multi: boolean }; forWho?: string; card?: Card; quiet?: boolean; clientId?: string } = {}): Msg {
     // A reply points at a message of this room; anything else is dropped rather than refused.
-    const replyTo = extra.replyTo && this.sql.exec(`SELECT 1 FROM messages WHERE id = ?`, extra.replyTo).toArray().length ? extra.replyTo : null;
+    const replied = extra.replyTo ? this.sql.exec<{ thread: string }>(`SELECT thread FROM messages WHERE id = ?`, extra.replyTo).toArray()[0] : undefined;
+    const replyTo = replied ? extra.replyTo! : null;
     const ts = Date.now();
     const files = extra.files ?? [];
     const id = this.sql
@@ -936,7 +955,7 @@ export class Book extends DurableObject<Env> {
         extra.clientId ?? null,
       )
       .one().id as number;
-    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
+    const m: Msg = { id, thread, author, text, ts, files, poll: extra.poll ?? null, kind: extra.kind ?? null, via: extra.via ?? null, tag: extra.tag ?? null, reply_to: replyTo, ...(replied && replied.thread !== thread ? { reply_thread: replied.thread } : {}), choices: extra.choices ? JSON.stringify(extra.choices) : null, for_who: extra.forWho ?? null, card: extra.card ? JSON.stringify(extra.card) : null, ...(extra.clientId ? { client_id: extra.clientId } : {}) };
     // quiet: @vibe's routine lines (done/reopened, nudges, the issue feed): drawn in the thread, but no unread dot,
     // no listener wake, no chime and no mention e-mail; the morning/evening catch-up carries them.
     this.broadcast({ t: "msg", m: extra.quiet ? { ...m, quiet: true } : m });
@@ -1616,6 +1635,18 @@ export class Book extends DurableObject<Env> {
   roomMessages(bookId: string, q: { thread: string; before?: number; after?: number; limit: number }) {
     this.bind(bookId);
     return this.messagesPage(q);
+  }
+  /** What a link to this room names (src/linkTarget.ts decides what the viewer may see). The route checks membership. */
+  linkPeek(bookId: string, q: { message?: number; thread?: string }): LinkPeek {
+    this.bind(bookId);
+    const epic = (id: string) => this.sql.exec<{ title: string | null; owner: string | null }>(`SELECT title, owner FROM epics WHERE id = ?`, id).toArray()[0];
+    const row = q.message === undefined ? undefined : this.sql.exec<{ thread: string | null; author: string; kind: string | null; tag: string | null; for_who: string | null; head: string | null }>(`SELECT thread, author, kind, tag, for_who, substr(text, 1, 16) AS head FROM messages WHERE id = ?`, Math.trunc(q.message)).toArray()[0];
+    const thread = q.thread ? epic(q.thread) : undefined;
+    const messageThread = row ? (row.thread ?? "main") : "main";
+    return {
+      message: row ? { thread: messageThread, author: row.author, kind: row.kind, tag: row.tag, forWho: row.for_who, ask: /^(⏸ Seu Claude|❓ Seu Claude)/.test(row.head ?? ""), threadTitle: messageThread === "main" ? null : (epic(messageThread)?.title ?? null) } : null,
+      thread: thread ? { title: thread.title ?? "", owner: thread.owner } : null,
+    };
   }
   /** The answer_thread router action (Gui #2767): a question or analysis asked in main becomes an answer epic right
    *  away (title = the question), linked under the message, with its doc open in the author's tabs, where "Claude está

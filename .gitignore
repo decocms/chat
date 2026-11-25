@@ -13,3 +13,6 @@ migration-dump/
 dist
 dist-gallery
 .screens/
+# Local secrets: every copy of .dev.vars stays out of git, except the example.
+.dev.vars.*
+!.dev.vars.example

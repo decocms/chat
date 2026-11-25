@@ -74,6 +74,7 @@ import {
 import { agentMarkLabel } from "../agents/roomCopy";
 import type { RoomAgentSession } from "../agents/room";
 import type { RichActions, RichNavigation } from "../rich-text/types";
+import type { AppLink } from "../rich-text/appLinks";
 import type { ComposerUpload } from "../composer/types";
 import type { ComposerEntry } from "../composer/drafts";
 import type { DocumentPane } from "../documents/types";
@@ -507,8 +508,22 @@ export function createRoomScope(options: RoomScopeOptions): RoomScope {
     if (thread !== selected()) pickThread(thread);
     if (target.kind === "document" && current()) setPane("doc", { open: true });
   }
+  /** A link to this app in a message (rich-text/AppLinkChip): this room's own places open like its links do; another
+   *  room is a navigation in this tab. */
+  function openAppLink(link: AppLink) {
+    const captured = { ...link };
+    if (!current() || defer(() => openAppLink(captured))) return;
+    if (captured.room !== scope.roomId)
+      services.actions.navigate(captured.path, layout.takeSheetEntry());
+    else if (captured.message !== undefined)
+      navigateMessage(captured.message, captured.thread);
+    else if (captured.thread)
+      richNavigate({ kind: "thread", id: captured.thread });
+    else if (selected() !== "main") pickThread("main");
+  }
   const rich: RichActions = {
     navigate: navigateMessage,
+    openAppLink,
     openFile,
     navigateRich: richNavigate,
     openFileReference: (file) => {

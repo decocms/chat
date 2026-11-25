@@ -3,6 +3,7 @@ import { decodeHTML } from "entities";
 import type { Attachment } from "../../../shared/room";
 import type { LinkTarget, RichContext } from "./types";
 import { collectRoomFiles, roomFileFingerprint } from "./roomFiles";
+import { appLink } from "./appLinks";
 const protocols = new Set(
   "http: https: ftp: ftps: mailto: tel: callto: sms: cid: xmpp:".split(" "),
 );
@@ -85,6 +86,14 @@ export function linkTarget(
     return { kind: "document", id: href.split(":")[1], href };
   const file = fileTarget(href, label, context);
   if (file) return file;
+  const app = appLink(href, context.pageUrl);
+  if (app)
+    return {
+      kind: "app",
+      href,
+      link: app,
+      chip: !label || label === href || label === decodeHTML(value).trim(),
+    };
   const gh =
     /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)(?:\/(pull|issues|commit)\/(\w+))?\/?(?:[?#].*)?$/.exec(
       href,

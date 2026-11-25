@@ -57,7 +57,7 @@
     onhome,
     onarchived,
     onnew,
-    onroomsettings,
+    onroommenu,
     onsearch,
     onjoin,
     onanswer,
@@ -435,6 +435,7 @@
       {lang}
       {ago}
       {onnavigate}
+      onmenu={onroommenu}
       {onjoin}
       {onanswer}
     />
@@ -621,7 +622,7 @@
                 seen={$account.seen[room.id] ?? 0}
                 waits={me.waits.filter((wait) => wait.book_id === room.id)}
                 {onnavigate}
-                onsettings={onroomsettings}
+                onmenu={onroommenu}
               />{/each}
             {#if gridRooms.length > GRID}<button
                 type="button"

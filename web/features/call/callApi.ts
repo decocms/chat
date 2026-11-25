@@ -37,6 +37,14 @@ export function createCallApi(fetcher?: FetchLike) {
       });
       if (!response.ok) throw fail("answer", response.status);
     },
+    /** Hang up: this session leaves the room's call. */
+    async leave(roomId: string, session: string) {
+      const response = await api.leave.$post({
+        param: param(roomId),
+        json: { session },
+      });
+      if (!response.ok) throw fail("leave", response.status);
+    },
     async close(
       roomId: string,
       session: string,

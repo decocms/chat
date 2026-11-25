@@ -8,7 +8,6 @@
   import Label from "../../lib/studio/Label.svelte";
   import Spinner from "../../lib/studio/Spinner.svelte";
   import Textarea from "../../lib/studio/Textarea.svelte";
-  import { TINTS } from "../../../shared/schemas";
   import { homeText, homeIssue, type HomeLanguage } from "../home/copy";
   import { roomIcon, type RoomSummary } from "../home/model";
   import { roomIconPng } from "../rooms/images";
@@ -48,11 +47,7 @@
     key: Parameters<typeof homeText>[1],
     vars?: Record<string, string | number>,
   ) => homeText(lang, key, vars);
-  const settingsIdentity = $derived($bindings.settings),
-    renameIdentity = $derived($bindings.rename);
-  const selectedRoom = $derived(
-    $personal.me?.books.find((room) => room.id === $nav.settingsId),
-  );
+  const renameIdentity = $derived($bindings.rename);
   const archiveRoom = $derived(
     $personal.me?.books.find((room) => room.id === $nav.archiveId),
   );
@@ -67,7 +62,6 @@
     imageBusy = $state(false),
     imageError = $state("");
   $effect(() => {
-    void settingsIdentity;
     void renameIdentity;
     imageSequence++;
     imageBusy = false;
@@ -80,9 +74,9 @@
     mounted = false;
     imageSequence++;
   });
-  /** The room the settings or the rename dialog edits. */
+  /** The room the rename dialog edits. */
   const dialogRoom = (intent: NavigationDialogIntent) =>
-    intent.kind === "rename" ? $nav.renameId : $nav.settingsId;
+    intent.kind === "rename" ? $nav.renameId : null;
   async function upload(
     file: File,
     event: Event,
@@ -133,11 +127,10 @@
   }
 </script>
 
-<!-- The room's icon: click or drop on it to change it, and remove. The settings and the rename dialogs share it. -->
+<!-- The room's icon in the rename dialog: click or drop on it to change it, and remove. -->
 {#snippet iconField(room: RoomSummary, intent: NavigationDialogIntent)}
   {@const pending = !!$mutations.pending[`icon:${room.id}`]}
-  {@const inputId =
-    intent.kind === "settings" ? "room-icon" : `room-icon-${intent.kind}`}
+  {@const inputId = `room-icon-${intent.kind}`}
   <div class="space-y-2">
     <div class="flex flex-wrap items-center gap-3">
       <ImagePicker
@@ -288,70 +281,6 @@
                 </TitledDialog>
               {/snippet}</Snapshot
             >{/key}{/if}
-      {:else if intent.kind === "settings"}
-        <TitledDialog
-          open={!!selectedRoom}
-          title={text("roomSettings", { title: selectedRoom?.title ?? "" })}
-          closeLabel={text("close")}
-          onOpenChange={(open) => {
-            if (!open && current(intent)) controller.closeSettings();
-          }}
-          returnFocus={() => focusBack(intent)}
-        >
-          {#if selectedRoom}{@const room = selectedRoom}
-            <fieldset class="m-0 space-y-2 border-0 p-0">
-              <legend>{text("tint")}</legend>
-              <div class="flex flex-wrap gap-2">
-                {#each [null, ...TINTS] as tint}<Button
-                    size="sm"
-                    variant={room.tint === tint ? "secondary" : "outline"}
-                    aria-pressed={room.tint === tint}
-                    disabled={!!$mutations.pending[`tint:${room.id}`]}
-                    onclick={(event) => {
-                      if (current(intent) && event.currentTarget.isConnected)
-                        controller.rooms.tint(room.id, tint);
-                    }}>{text(tint ?? "none")}</Button
-                  >{/each}
-              </div>
-            </fieldset>
-            {@render iconField(room, intent)}
-            <div class="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                disabled={!!$mutations.pending.order}
-                onclick={(event) => {
-                  if (current(intent) && event.currentTarget.isConnected)
-                    controller.move(room.id, -1);
-                }}>{text("moveUp")}</Button
-              ><Button
-                variant="outline"
-                disabled={!!$mutations.pending.order}
-                onclick={(event) => {
-                  if (current(intent) && event.currentTarget.isConnected)
-                    controller.move(room.id, 1);
-                }}>{text("moveDown")}</Button
-              >{#if $nav.roomId === room.id && controller.callbacks.rename}<Button
-                  variant="outline"
-                  onclick={(event) => {
-                    if (current(intent) && event.currentTarget.isConnected)
-                      controller.askRename(room.id);
-                  }}>{text("rename")}</Button
-                >{/if}<Button
-                variant="destructive"
-                onclick={(event) => {
-                  if (current(intent) && event.currentTarget.isConnected)
-                    controller.askArchive(room.id);
-                }}>{text("archiveAction")}</Button
-              >
-            </div>
-            {#each [`tint:${room.id}`, "order"] as key}{#if $mutations.issues[key]}<p
-                  role="alert"
-                  class="break-words text-destructive"
-                >
-                  {homeIssue(lang, $mutations.issues[key]!)}
-                </p>{/if}{/each}
-          {/if}
-        </TitledDialog>
       {:else if intent.kind === "archive"}
         <TitledDialog
           open={!!archiveRoom}

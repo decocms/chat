@@ -66,6 +66,7 @@ export function homeApi(overrides: Partial<HomeApi> = {}): HomeApi {
     post: async () => ({ ok: true, id: 1, thread: "main" }),
     archive: async () => ({ ok: true }),
     tint: async () => ({ ok: true }),
+    read: async () => ({ ok: true }),
     icon: async () => ({ ok: true, icon: 1 }),
     order: async () => ({ ok: true }),
     resolve: async () => ({ ok: true }),

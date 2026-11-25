@@ -24,6 +24,8 @@ export type AppNavigationCallbacks = {
   /** Cancels your message request to someone. */
   dismiss?: (email: string) => Promise<void>;
 };
+/** Where a room's menu opens (the pointer, or under the row from the keyboard) and for which room. */
+export type RoomMenuAnchor = Readonly<{ id: string; x: number; y: number }>;
 export function createAppNavigationSession(
   personal: PersonalSession,
   rooms: RoomsSession,
@@ -34,7 +36,8 @@ export function createAppNavigationSession(
     roomId: null as string | null,
     /** The home shows your Inbox (`/?inbox`). */
     inbox: false,
-    settingsId: null as string | null,
+    /** The room (or DM) whose context menu is open. */
+    menu: null as RoomMenuAnchor | null,
     archiveId: null as string | null,
     renameId: null as string | null,
     renameDraft: "",
@@ -53,7 +56,7 @@ export function createAppNavigationSession(
   const close = () =>
     state.update((s) => ({
       ...s,
-      settingsId: null,
+      menu: null,
       archiveId: null,
       renameId: null,
       renameBusy: false,
@@ -100,16 +103,37 @@ export function createAppNavigationSession(
       trigger = element ?? null;
       creator.open();
     },
-    openSettings(id: string, element?: HTMLElement) {
-      if (!get(personal.state).me?.books.some((room) => room.id === id)) return;
+    /** Opens a room's menu: at `point` (a right-click or a long press), else under `element` (the keyboard). */
+    openMenu(
+      id: string,
+      element?: HTMLElement,
+      point?: { x: number; y: number },
+    ) {
+      if (
+        !active ||
+        !get(personal.state).me?.books.some((room) => room.id === id)
+      )
+        return;
       trigger = element ?? null;
-      state.update((s) => ({ ...s, settingsId: id }));
+      const box = point ? null : element?.getBoundingClientRect();
+      const at = point ?? (box ? { x: box.left + 12, y: box.bottom } : null);
+      state.update((s) => ({
+        ...s,
+        menu: Object.freeze({ id, x: at?.x ?? 0, y: at?.y ?? 0 }),
+      }));
+    },
+    closeMenu() {
+      state.update((s) => (s.menu ? { ...s, menu: null } : s));
     },
     closeSettings() {
       close();
     },
     askArchive(id: string) {
-      state.update((s) => ({ ...s, settingsId: null, archiveId: id }));
+      state.update((s) => ({ ...s, menu: null, archiveId: id }));
+    },
+    /** The room's dot goes now; the server keeps it for your other tabs and devices. */
+    markRead(id: string) {
+      if (active) void rooms.read(id);
     },
     confirmArchive() {
       const id = get(state).archiveId;
@@ -140,7 +164,7 @@ export function createAppNavigationSession(
       if (!room || get(state).roomId !== id || !callbacks.rename) return;
       state.update((s) => ({
         ...s,
-        settingsId: null,
+        menu: null,
         renameId: id,
         renameDraft: room.title ?? "",
         renameError: "",

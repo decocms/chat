@@ -11,7 +11,12 @@ input=$(cat)
 # The CLI names its agent after CLAUDE_CODE_SESSION_ID, which a hook's environment doesn't carry: without it a hook's
 # call became a second agent of the same Claude (the folder's id), listed twice in the sidebar (Gui #3181).
 sid=$(printf %s "$input" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{process.stdout.write(String(JSON.parse(d).session_id||""))}catch{}})')
-[ -n "$sid" ] && [ -z "$CLAUDE_CODE_SESSION_ID" ] && export CLAUDE_CODE_SESSION_ID="$sid"
+# In Codex (its input names a rollout file) the session id is the Codex thread, which the CLI reads from CODEX_THREAD_ID.
+if printf %s "$input" | grep -q '"transcript_path":"[^"]*/rollout-'; then
+  [ -n "$sid" ] && [ -z "$CODEX_THREAD_ID" ] && export CODEX_THREAD_ID="$sid"
+else
+  [ -n "$sid" ] && [ -z "$CLAUDE_CODE_SESSION_ID" ] && export CLAUDE_CODE_SESSION_ID="$sid"
+fi
 q=$(printf %s "$input" | node -e '
 let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
   let j={};try{j=JSON.parse(d)}catch{}

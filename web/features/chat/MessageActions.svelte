@@ -23,7 +23,7 @@
   import SheetContent from "../../lib/studio/SheetContent.svelte";
   import SheetTitle from "../../lib/studio/SheetTitle.svelte";
   import type { MessageVersion } from "../../../shared/room";
-  import { QUICK_REACTIONS, TOOLBAR_REACTIONS } from "./reactions";
+  import { QUICK_REACTIONS } from "./reactions";
   let {
     message,
     roomId,
@@ -157,28 +157,18 @@
     class={cn(
       "flex items-center gap-0.5",
       floating &&
-        "pointer-events-none absolute top-full left-17 z-10 -mt-1.5 origin-top-left translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
+        "pointer-events-none absolute -top-2.5 right-3 z-10 in-data-continuous:-top-7.5 origin-top-right translate-y-0.5 scale-[.98] rounded-full bg-card p-0.5 opacity-0 shadow-[var(--vb-shadow-edge),0_2px_8px_rgb(0_0_0/0.06)] transition-[opacity,translate,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-has-focus-visible:pointer-events-auto group-has-focus-visible:translate-y-0 group-has-focus-visible:scale-100 group-has-focus-visible:opacity-100 motion-reduce:transition-none pointer-coarse:hidden",
     )}
   >
     <TooltipProvider>
-      {#if canReact}{#each floating ? TOOLBAR_REACTIONS : QUICK_REACTIONS as emoji (emoji)}<IconButton
+      <!-- The hover bar has no reactions (Gui #4716, #4726): they are offered in the reaction row under the message. -->
+      {#if canReact && !floating}{#each QUICK_REACTIONS as emoji (emoji)}<IconButton
             label={vb.t("Reagir com {emoji}", { emoji })}
             data-quick-react={emoji}
             aria-pressed={mine(emoji)}
-            class={cn(
-              "text-base leading-none",
-              floating && "rounded-full",
-              mine(emoji) && "bg-accent",
-            )}
+            class={cn("text-base leading-none", mine(emoji) && "bg-accent")}
             onclick={() => react(emoji)}>{emoji}</IconButton
           >{/each}
-        {#if floating}<IconButton
-            label={vb.t("Mais reações")}
-            data-more-reactions={message.id}
-            class="rounded-full text-muted-foreground hover:text-foreground"
-            onclick={() => (picking = true)}
-            ><Icon icon="face-smile" size={16} /></IconButton
-          >{/if}
         <div
           aria-hidden="true"
           class="mx-0.5 h-4 w-px shrink-0 bg-border"
