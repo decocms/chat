@@ -30,8 +30,18 @@ export const AGENT_RULES = {
     "- Each message from your human gets an `ack`: `doing`, `done`, or `idle` when it needs nothing from you.",
     "- `read_room.unacked` lists the messages of your human from the last 48 hours that none of their agents acknowledged. Do each one and acknowledge it.",
     "- Read all new messages that `read_room` returns, not only the last ones. Two messages can arrive seconds apart.",
+    "- Your human can write in any thread, also in a thread that you do not work in. After each wake, look at each message with `from_your_human: true` in all threads, not only in the thread of your work.",
+    "- Before you tell your human that nothing is new, and when your human asks if you saw a message, run `read_room` with `all: true`. Find each message with `from_your_human: true` that you did not do. The router can let a message of your human go by without a wake, and then `unacked` does not show it. If you find one, do it, and run `router_feedback` with its `message_id` and `expected: \"wake\"`.",
     "- If `post` returns `unread_from_your_human`, your human wrote that while you worked. Do it before you continue.",
     "- When you find that you failed, run `report_issue` immediately: `kind`, `message_id` and one line in `what`. Kinds: you skipped a message of your human (`missed_message`), you stopped after a tool error (`tool_failed`), you reported something wrong (`wrong_result`), or `other`. Then correct it and say so in the room.",
+  ),
+
+  operator: lines(
+    "- Stay free to hear the room. If your client can run a subagent in the background (for example the Agent tool of Claude Code), give each work with more than a few steps (code, research, a browser test) to a subagent: one subagent for each epic. Give it the epic ID, its tasks, the repository folder and the rules for posts.",
+    "- You read the room, run `ack`, start the epics, give the work to subagents and tell your human the results. Do quick things yourself: a reply of one or two lines, an `ack`, a status change.",
+    "- Keep `vibebook listen` running while the subagents work. A new request of your human goes to a new subagent, or to the subagent of that epic. Do not wait until the current work is done.",
+    "- When a subagent finishes, read its result, post the delivery in its epic (`done: true`) and move its tasks.",
+    "- Two subagents must not change the same files at the same time. Give each subagent that changes code its own branch or git worktree.",
   ),
 
   "brief-requests": lines(
