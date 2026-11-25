@@ -42,6 +42,8 @@ export const DecisionSchema = z.object({
   who: str,
   kind: str,
   ts: num,
+  /** The message it was decided in, when the agent that logged it said so. */
+  msg: opt(num),
 });
 export type Decision = z.infer<typeof DecisionSchema>;
 /** Someone in the room's call: their SFU session and the names of the tracks they publish ("mic", "screen"). */

@@ -1158,6 +1158,11 @@ const TOOLS = [
           enum: ["approval", "decision"],
           description: "default approval",
         },
+        message_id: {
+          type: "number",
+          description:
+            "optional: the id of the message where it was decided or approved; the room's Decisions pane links to it",
+        },
       },
       required: ["room_id", "text"],
     },
@@ -2853,6 +2858,7 @@ async function call(
         me.email,
         str(a.text),
         a.kind === "decision" ? "decision" : "approval",
+        a.message_id === undefined ? undefined : Number(a.message_id),
       );
     }
     case "notify_url": {
