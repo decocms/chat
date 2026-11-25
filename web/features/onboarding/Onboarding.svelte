@@ -116,7 +116,7 @@
       name={$view.name}
       placeholder={t("Seu nome")}
     />
-    <DialogHeader class="gap-1.5 px-2 text-center md:text-center">
+    <DialogHeader class="gap-1.5 text-left md:text-left">
       <DialogTitle class="text-xl md:text-2xl"
         >{t(
           $view.step === 1
