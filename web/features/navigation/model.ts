@@ -3,6 +3,20 @@ import type { Epic, Message } from "../../../shared/room";
 export const activeEpics = (epics: readonly Epic[], thread: string) =>
   epics.filter((epic) => !epic.done || epic.id === thread);
 
+/** The sidebar's thread tabs, in their order. "open" was "Threads abertas", "done" was "Feitas". */
+export const THREAD_VIEWS = ["mine", "open", "done"] as const;
+export type ThreadView = (typeof THREAD_VIEWS)[number];
+export const isThreadView = (value: unknown): value is ThreadView =>
+  THREAD_VIEWS.some((view) => view === value);
+
+/** Mine: the threads of a list (the Open tab's) whose owner is you. The server stores owners in lower case. */
+export const mineEpics = (epics: readonly Epic[], me: string) => {
+  const email = me.trim().toLowerCase();
+  return epics.filter(
+    (epic) => !!email && epic.owner?.trim().toLowerCase() === email,
+  );
+};
+
 export type EpicForest = {
   roots: Epic[];
   byId: Map<string, Epic>;

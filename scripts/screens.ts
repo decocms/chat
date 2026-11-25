@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -49,6 +49,83 @@ async function send(page: Page, text: string) {
     .locator("[data-chat-message]", { hasText: text.split("\n").at(-1)! })
     .first()
     .waitFor();
+}
+
+/** Room commands over the room's own socket (JSON-RPC, shared/jsonRpc.ts), from the page: it has the session. */
+async function commands(page: Page, room: string, list: object[]) {
+  await page.evaluate(
+    async ({ room, list }) => {
+      const ws = new WebSocket(
+        `${location.origin.replace(/^http/, "ws")}/ws/${room}`,
+      );
+      await new Promise((ok, fail) => {
+        ws.onopen = ok;
+        ws.onerror = fail;
+      });
+      for (const [id, command] of list.entries()) {
+        const { t, ...params } = command as { t: string };
+        const answer = new Promise<void>((ok, fail) => {
+          const listen = (event: MessageEvent) => {
+            const frame = JSON.parse(String(event.data)) as {
+              id?: number;
+              error?: { message: string };
+            };
+            if (frame.id !== id) return;
+            ws.removeEventListener("message", listen);
+            if (frame.error) fail(new Error(`${t}: ${frame.error.message}`));
+            else ok();
+          };
+          ws.addEventListener("message", listen);
+        });
+        ws.send(JSON.stringify({ jsonrpc: "2.0", id, method: t, params }));
+        await answer;
+      }
+      ws.close();
+    },
+    { room, list },
+  );
+}
+/** A room with test threads: `mine` are the test email's, `theirs` a colleague's (a member of the room); `done` are marked done. */
+async function threadRoom(
+  title: string,
+  threads: {
+    id: string;
+    title: string;
+    theirs?: boolean;
+    done?: boolean;
+    status?: string;
+    pinned?: boolean;
+  }[],
+  page: Page,
+  colleague: string,
+) {
+  const made = await fetch(`${base}/api/books`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: base },
+    body: JSON.stringify({ title }),
+  });
+  if (!made.ok) throw new Error(`create room: ${made.status}`);
+  const { id } = (await made.json()) as { id: string };
+  await $`bunx wrangler d1 execute chat --local --command ${`INSERT OR IGNORE INTO members (book_id, email) VALUES ('${id}', '${colleague}')`}`.quiet();
+  await page.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+  await commands(
+    page,
+    id,
+    threads.flatMap((thread) => [
+      { t: "epic", title: thread.title, id: thread.id },
+      ...(thread.theirs
+        ? [{ t: "epic.owner", id: thread.id, owner: colleague }]
+        : []),
+      ...(thread.status
+        ? [{ t: "epic.status", id: thread.id, status: thread.status }]
+        : []),
+      ...(thread.pinned
+        ? [{ t: "epic.pin", id: thread.id, pinned: true }]
+        : []),
+      ...(thread.done ? [{ t: "epic.done", id: thread.id, done: true }] : []),
+    ]),
+  );
+  return id;
 }
 
 const browser = await chromium.launch();
@@ -128,6 +205,92 @@ try {
     await home.waitForTimeout(300);
     await home.screenshot({ path: join(out, "dm-390.png") });
     shots.push("dm-390.png");
+  }
+  if (flag("threads")) {
+    // The sidebar's tabs Mine, Open and Done (Viktor): one room with threads of each kind, one where none is yours and
+    // none is done. Each tab at 1440 px, and in the phone's drawer at 390 px.
+    const domain =
+      ((await me.clone().json()) as { email: string }).email.split("@")[1] ??
+      "";
+    const colleague = `bia@${domain}`;
+    await $`bunx wrangler d1 execute chat --local --command ${`INSERT OR IGNORE INTO users (email, name) VALUES ('${colleague}', 'Bia de Teste')`}`.quiet();
+    const full = await threadRoom(
+      "Sala com threads",
+      [
+        { id: "a0000001", title: "Revisar o fluxo de cadastro", pinned: true },
+        {
+          id: "a0000002",
+          title: "Atualizar a página de preços",
+          theirs: true,
+          status: "doing",
+        },
+        { id: "a0000003", title: "Preparar a demo de sexta", status: "doing" },
+        {
+          id: "a0000004",
+          title: "Escrever o guia de onboarding",
+          theirs: true,
+        },
+        {
+          id: "a0000005",
+          title: "Corrigir o upload de imagens",
+          status: "review",
+        },
+        { id: "a0000006", title: "Configurar o domínio de teste", done: true },
+        {
+          id: "a0000007",
+          title: "Migrar os testes antigos",
+          theirs: true,
+          done: true,
+        },
+      ],
+      desk,
+      colleague,
+    );
+    const none = await threadRoom(
+      "Sala sem threads suas",
+      [
+        {
+          id: "b0000001",
+          title: "Atualizar a página de preços",
+          theirs: true,
+          status: "doing",
+        },
+      ],
+      desk,
+      colleague,
+    );
+    const phone = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    for (const [id, tabs] of [
+      [full, ["mine", "open", "done"]],
+      [none, ["mine", "done"]],
+    ] as const) {
+      const empty = id === none ? "-empty" : "";
+      await desk.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+      await phone.goto(`${base}/b/${id}`, { waitUntil: "networkidle" });
+      for (const tab of tabs) {
+        await desk.locator(`[data-threads-tab=${tab}]`).click();
+        await desk.mouse.move(0, 0);
+        await desk.waitForTimeout(400);
+        await desk.screenshot({
+          path: join(out, `threads-${tab}${empty}-1440.png`),
+        });
+        shots.push(`threads-${tab}${empty}-1440.png`);
+        // The drawer keeps the tab: the desktop's pick is stored per room on this device, the phone's is its own.
+        await phone.locator("[data-phone-title]").tap();
+        await phone.locator(`[data-threads-tab=${tab}]`).tap();
+        await phone.waitForTimeout(400);
+        await phone.screenshot({
+          path: join(out, `threads-${tab}${empty}-390.png`),
+        });
+        shots.push(`threads-${tab}${empty}-390.png`);
+        await phone.keyboard.press("Escape");
+        await phone.waitForTimeout(300);
+      }
+    }
   }
   for (const [path, file] of [
     [`/b/${room}`, "room-390.png"],
