@@ -576,6 +576,12 @@ async function forwardScreens(
 
   await filled(desk);
   await shot(desk, "forward-composer-1440.png");
+  // Only the person sends it (Enter): how the forward reads in the destination room.
+  await desk.locator("[data-composer] textarea").first().press("End");
+  await desk.keyboard.press("Enter");
+  await row(desk, "Encaminhado de").waitFor();
+  await desk.mouse.move(0, 0);
+  await shot(desk, "forward-sent-1440.png");
   await context.close();
   const recorded = await desk.video()?.path();
   if (recorded) {
