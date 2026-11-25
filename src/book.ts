@@ -1884,6 +1884,10 @@ export class Book extends DurableObject<Env> {
       due.push({ id: e.id, owner: e.owner, title: e.title });
     }
     if (!due.length) return next;
+    // The alarm runs for many reasons (a message, a board change): the pass gap holds however often it fires.
+    const passed = Number(this.get("stale_pass_at") ?? 0);
+    if (now - passed < STALE_PASS_GAP_MS) return passed + STALE_PASS_GAP_MS;
+    this.set("stale_pass_at", String(now));
     const names = await this.names(), handles = await this.handles();
     for (const e of due.slice(0, STALE_PER_PASS)) {
       this.set(`stale_nudge:${e.id}`, String(now));

@@ -282,6 +282,11 @@ test("done and answer threads are never called about, and a pass calls about at 
   );
   expect(called).toHaveLength(3);
   expect(next).toBe(later + 3600_000); // the fourth one in the next pass
+  // The alarm fires again sooner (a message, a board change): still no one more until the pass gap.
+  expect(await f.book.nudgeStale(later + 600_000)).toBe(later + 3600_000);
+  expect(
+    open.filter((id) => f.messages(id).some((m) => m.author === "ai")),
+  ).toHaveLength(3);
   await f.book.nudgeStale(later + 3600_000);
   expect(
     open.filter((id) => f.messages(id).some((m) => m.author === "ai")),
