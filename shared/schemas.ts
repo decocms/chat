@@ -397,6 +397,11 @@ export const SandboxesResult = z.object({
   sandboxes: z.array(SandboxCard),
 });
 export type SandboxesResult = z.infer<typeof SandboxesResult>;
+/** The projects of one deco Studio organization, for the project picker of "Criar agent do Studio". */
+export const StudioProjectsResult = z.object({
+  projects: z.array(z.object({ id: z.string(), title: z.string() })),
+});
+export type StudioProjectsResult = z.infer<typeof StudioProjectsResult>;
 export const CreateSandboxBody = z.object({
   name: z.optional(z.string()),
   /** A Studio agent instead of a freestyle sandbox: the organization, and a project's agent id (none = the organization's agent). */

@@ -2216,6 +2216,22 @@ The ID is the date and the branch, not a number. Thus, two agents on different b
 - Undo: Revert the commit. Delete the rows `provider = 'studio'` in `sandboxes` and the rows of `mcp_grants` whose `resource` is the Studio URL. The columns `provider` and `target` can stay.
 - Status: open
 
+### 2026-11-25 · viktor/settings-cloud-studio · Cloud agents: stable panel, Studio pickers with projects
+
+- Agent: claude-opus-5-5
+- Context: Viktor said that Settings › Cloud agents drew itself again while he used it, and asked for a searchable organization picker that lists the organization's projects right after, so that nobody types a project ID. He did not say the details below.
+- Decision:
+  - The cause of the redraw: `CloudSettings` made its cloud scope in an `$effect` that read the `account` prop. The parent passes it as `$view.binding.account`, a getter that reads the whole account store, so each update of that store (each `/api/me` refresh) made a new scope, which redrew `SandboxPanel` and read the sandboxes again. The effect now reads `$derived` values only. Also, the room that is shown stays while it is in the list. Before, the default room followed "the room you opened last", which changes when a room opens in another tab.
+  - The projects are read like the organizations: by the Worker, with the Studio grant that the person already gave (`GET /api/studio/orgs/:org/projects`, Studio tool `COLLECTION_VIRTUAL_MCP_LIST`, active projects only, sorted by title, 500 at most). This is a read of the same kind as the organizations and the project title, which the Studio agent feature already does. `README.md` (Security model) now names these reads. The exception text in `AGENTS.md` (rule 1) still says "It makes no other call to Studio": a human must decide if that text changes.
+  - The two pickers are the existing `Combobox` (`web/lib/studio/`). Its search matches each typed word in the name, without case or accents (`nameMatch`), not its fuzzy default, which matches scattered letters.
+  - With one organization, it is picked at once. With more, the picker starts empty, so that the server does not read the projects of an organization that the person did not choose.
+  - The project picker starts on "Agent da organização" (the organization's agent). "Criar agent do Studio" is disabled while the projects load and when the read failed. It does not silently fall back to the organization's agent. The error has "Tentar de novo".
+  - The organizations still come with the sandbox read, as before. Their read error still shows as "Não deu para listar suas organizações do Studio".
+- Other options: Fix the redraw in the parent only (`AccountSettings`), which leaves the same trap for the next parent. Read the projects in the browser (the browser has no Studio token). A `Select` with a second text field for search (two controls for one task). A list of radio rows for the projects (long with dozens of projects).
+- Risk: low. If Studio changes or removes `COLLECTION_VIRTUAL_MCP_LIST`, the project picker shows its error and no Studio agent can be made until this read is fixed.
+- Undo: Revert the commit.
+- Status: open
+
 ### 2026-11-25 · feat/agent-roles · Every agent has an @name in the room; one Primary per person
 - Agent: Claude Opus 5.5
 - Context: Gimenes (#5472, #5506, #5547): with two agents of his in a room, both woke for the same message (duplicate PRs #481/#482, #490/#492), and there was no way to call one of them. Gui's roles POC (#290) already had `@role` and a Primary.

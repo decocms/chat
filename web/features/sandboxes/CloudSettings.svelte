@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import SandboxPanel from "./SandboxPanel.svelte";
   import TerminalDialog from "./TerminalDialog.svelte";
   import Label from "../../lib/studio/Label.svelte";
@@ -31,14 +32,27 @@
   const text = (key: Parameters<typeof sandboxText>[1]) =>
     sandboxText(lang, key);
   let picked = $state<string | null>(null);
-  const roomId = $derived(
-    [picked, room, rooms[0]?.id].find(
-      (id) => id && rooms.some((r) => r.id === id),
-    ) ?? null,
-  );
+  // The room on screen stays while it is in the list. "The one you opened last" is only the first choice: the
+  // list is sorted again at each /api/me refresh (opening a room in another tab), and following that order
+  // changed the room, and so the whole panel, while the person used it.
+  let shown: string | null = null;
+  const roomId = $derived.by(() => {
+    const id =
+      [picked, room, shown, rooms[0]?.id].find(
+        (id) => id && rooms.some((r) => r.id === id),
+      ) ?? null;
+    shown = id;
+    return id;
+  });
+  // The scope depends on the account and room values only. A parent passes `account` as a getter that reads its
+  // whole account store (`$view.binding.account`), so the effect read the store: each update of it (a /api/me
+  // refresh) made a new scope and drew the panel again while the person used it.
+  const email = $derived(account);
   let scope = $state.raw<ReturnType<AgentsService["cloud"]>>(null);
   $effect(() => {
-    const next = roomId ? agents.cloud(account, roomId) : null;
+    const who = email,
+      id = roomId;
+    const next = id ? untrack(() => agents.cloud(who, id)) : null;
     scope = next;
     return () => next?.dispose();
   });

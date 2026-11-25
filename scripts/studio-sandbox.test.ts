@@ -8,6 +8,7 @@ const {
   STUDIO_CLI,
   startStudioChat,
   studioAgentTitle,
+  studioProjectList,
   studioExec,
   studioSend,
   studioSetupCommand,
@@ -148,4 +149,37 @@ test("a message becomes one user turn for the chat's agent, and Studio's refusal
   expect(
     studioSend(env, auth, "thrd_fixture", target, "again"),
   ).rejects.toThrow("studio 403: not_thread_owner");
+});
+
+test("the project picker lists the organization's active projects by title, with the person's grant", async () => {
+  const calls = studio({
+    items: [
+      { id: "vir_1", title: "  Example Store ", status: "active" },
+      { id: "vir_2", title: "", status: "active" },
+    ],
+    totalCount: 2,
+    hasMore: false,
+  });
+  expect(await studioProjectList(env, auth)).toEqual([
+    { id: "vir_1", title: "Example Store" },
+    { id: "vir_2", title: "vir_2" },
+  ]);
+  expect(calls).toHaveLength(1);
+  expect(calls[0]!.url).toBe(
+    "https://studio.invalid/api/org-example/tools/COLLECTION_VIRTUAL_MCP_LIST",
+  );
+  expect(calls[0]!.auth).toBe("Bearer token-fixture");
+  expect(calls[0]!.body).toMatchObject({
+    where: { field: ["status"], operator: "eq", value: "active" },
+    orderBy: [{ field: ["title"], direction: "asc" }],
+  });
+});
+
+test("the project picker fails when Studio refuses or answers something else", async () => {
+  studio(Response.json({ error: "forbidden" }, { status: 403 }));
+  await expect(studioProjectList(env, auth)).rejects.toThrow("studio 403");
+  studio({ nope: true });
+  await expect(studioProjectList(env, auth)).rejects.toThrow(
+    "unexpected answer",
+  );
 });

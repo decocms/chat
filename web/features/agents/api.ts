@@ -15,6 +15,7 @@ import {
   SandboxesResult,
   SandboxSetupResult,
   SandboxTerminalResult,
+  StudioProjectsResult,
 } from "../../../shared/schemas";
 export class AgentsFailure extends Error {
   constructor(
@@ -160,6 +161,14 @@ export function createAgentsApi(fetcher?: FetchLike) {
       api.freestyle
         .$delete({}, { init: { signal, cache: "no-store" } })
         .then((response) => read(response, OkResult)),
+    /** The projects of one of your deco Studio organizations (the project picker of a Studio agent). */
+    studioProjects: (org: string, signal?: AbortSignal) =>
+      api.studio.orgs[":org"].projects
+        .$get(
+          { param: { org: encodeURIComponent(org) } },
+          { init: { signal, cache: "no-store" } },
+        )
+        .then((response) => read(response, StudioProjectsResult)),
     removeStudio: (signal?: AbortSignal) =>
       api.studio
         .$delete({}, { init: { signal, cache: "no-store" } })

@@ -3,17 +3,18 @@
   import Heading from "../../lib/ui/Heading.svelte";
   import Button from "../../lib/studio/Button.svelte";
   import Input from "../../lib/studio/Input.svelte";
-  import Select from "../../lib/studio/Select.svelte";
-  import SelectContent from "../../lib/studio/SelectContent.svelte";
-  import SelectItem from "../../lib/studio/SelectItem.svelte";
-  import SelectTrigger from "../../lib/studio/SelectTrigger.svelte";
-  import SelectValue from "../../lib/studio/SelectValue.svelte";
+  import Combobox from "../../lib/studio/Combobox.svelte";
+  import Icon from "../../lib/studio/Icon.svelte";
+  import Label from "../../lib/studio/Label.svelte";
+  import Skeleton from "../../lib/studio/Skeleton.svelte";
+  import OrgAvatar from "../../lib/components/OrgAvatar.svelte";
   import ConfirmDialog from "../../lib/components/ConfirmDialog.svelte";
   import { sandboxIdentity, type SandboxSession } from "./session";
   import type { SandboxCredentials } from "./credentials";
   import type { TerminalSession } from "./terminalSession";
   import { sandboxText, sandboxStateText, type SandboxLocale } from "./copy";
   import { sandboxLog } from "./log";
+  import { createStudioProjects, nameMatch } from "./studioProjects";
   let {
     owner,
     credentials,
@@ -30,14 +31,38 @@
   let apiKey = $state(""),
     token = $state(""),
     notice = $state("");
-  // A deco Studio agent: the organization picked (the first one until then) and, optionally, a project's agent.
+  // A deco Studio agent: an organization picked in a searchable list (the only one, when there is one), then the
+  // organization's own agent or one of its projects, listed as soon as the organization is picked.
+  const ORG_AGENT = "@org";
   let studioOrg = $state(""),
-    studioProject = $state("");
+    studioProject = $state(ORG_AGENT);
   const studioOrgs = $derived($view.data?.studio_orgs ?? []);
   const studioPick = $derived(
     studioOrgs.some((org) => org.slug === studioOrg)
       ? studioOrg
-      : (studioOrgs[0]?.slug ?? ""),
+      : studioOrgs.length === 1
+        ? studioOrgs[0]!.slug
+        : "",
+  );
+  const projects = untrack(() => createStudioProjects(owner.studioProjects)),
+    projectView = projects.state;
+  // The list follows the organization on screen: a pick, the only one, or none after a disconnect.
+  $effect(() => {
+    const org = $credentialView.studio ? studioPick : "";
+    untrack(() => {
+      if (org !== $projectView.org) {
+        studioProject = ORG_AGENT;
+        projects.pick(org);
+      }
+    });
+  });
+  const studioProjects = $derived(
+    $projectView.org === studioPick ? $projectView.projects : [],
+  );
+  const projectPick = $derived(
+    studioProjects.some((project) => project.id === studioProject)
+      ? studioProject
+      : ORG_AGENT,
   );
   /** Studio's consent comes back to this same settings page. */
   const studioSignIn = () =>
@@ -134,6 +159,7 @@
     }
   }
   onDestroy(() => {
+    projects.dispose();
     active = false;
     copyTicket++;
     apiKey = "";
@@ -243,52 +269,126 @@
       {#if $credentialView.studio}
         {#if studioOrgs.length}
           <form
-            class="flex flex-wrap gap-2"
+            class="flex flex-col gap-3 pt-2"
             onsubmit={(event) => {
               event.preventDefault();
-              if (!busy && studioPick)
+              if (
+                !busy &&
+                studioPick &&
+                $projectView.org === studioPick &&
+                $projectView.phase === "ready"
+              )
                 void owner.create("", {
                   org: studioPick,
-                  ...(studioProject.trim()
-                    ? { project: studioProject.trim() }
+                  ...(projectPick !== ORG_AGENT
+                    ? { project: projectPick }
                     : {}),
                 });
             }}
           >
-            <Select
-              items={studioOrgs.map((org) => ({
-                value: org.slug,
-                label: org.name,
-              }))}
-              bind:value={() => studioPick, (value) => (studioOrg = value)}
-            >
-              <SelectTrigger
-                data-studio-org
-                aria-label={text("studioOrg")}
-                class="min-w-40 flex-1"
+            <div data-studio-org class="flex flex-col gap-1.5">
+              <Label id="studio-org-label">{text("studioOrg")}</Label>
+              <Combobox
+                options={studioOrgs.map((org) => ({
+                  value: org.slug,
+                  label: org.name,
+                }))}
+                value={studioPick}
+                onChange={(value) => {
+                  if (value) studioOrg = value;
+                }}
+                width="w-full"
+                triggerClassName={studioPick
+                  ? "font-normal"
+                  : "font-normal text-muted-foreground"}
+                ariaLabel={text("studioOrg")}
+                placeholder={text("studioOrgPick")}
+                searchPlaceholder={text("studioOrgSearch")}
+                emptyMessage={text("studioOrgNone")}
+                filter={nameMatch}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent class="font-sans">
-                {#each studioOrgs as org (org.slug)}<SelectItem
-                    value={org.slug}
-                    label={org.name}>{org.name}</SelectItem
-                  >{/each}
-              </SelectContent>
-            </Select>
-            <Input
-              bind:value={studioProject}
-              aria-label={text("studioProject")}
-              placeholder={text("studioProject")}
-              autocomplete="off"
-              disabled={busy}
-              class="min-w-40 flex-1"
-            />
+                {#snippet renderItem(option, selected)}<OrgAvatar
+                    name={option.label}
+                    size="2xs"
+                  /><span class="min-w-0 flex-1 truncate">{option.label}</span
+                  ><Icon
+                    icon="check"
+                    class={selected ? "opacity-100" : "opacity-0"}
+                  />{/snippet}
+              </Combobox>
+            </div>
+            {#if studioPick}<div
+                data-studio-projects
+                class="flex flex-col gap-1.5"
+              >
+                <Label>{text("studioProject")}</Label>
+                {#if $projectView.phase === "loading" || $projectView.org !== studioPick}<div
+                    role="status"
+                    aria-label={text("studioProjectsLoading")}
+                    class="flex h-9 items-center gap-2 rounded-[var(--vb-studio-control-radius,0.625rem)] border border-border px-3"
+                  >
+                    <Skeleton class="size-4 rounded-full" /><Skeleton
+                      class="h-3 w-40"
+                    />
+                  </div>{:else if $projectView.phase === "error"}<div
+                    role="alert"
+                    class="flex flex-wrap items-center gap-2 rounded-[var(--vb-studio-control-radius,0.625rem)] border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+                  >
+                    <Icon icon="alert-circle" class="size-4 shrink-0" /><span
+                      class="min-w-0 flex-1"
+                      >{text("studioProjectsFailed")}</span
+                    ><Button
+                      variant="outline"
+                      size="sm"
+                      onclick={() => projects.retry()}>{text("retry")}</Button
+                    >
+                  </div>{:else}<Combobox
+                    options={[
+                      { value: ORG_AGENT, label: text("studioOrgAgent") },
+                      ...studioProjects.map((project) => ({
+                        value: project.id,
+                        label: project.title,
+                      })),
+                    ]}
+                    value={projectPick}
+                    onChange={(value) => {
+                      if (value) studioProject = value;
+                    }}
+                    width="w-full"
+                    triggerClassName="font-normal"
+                    ariaLabel={text("studioProject")}
+                    placeholder={text("studioOrgAgent")}
+                    searchPlaceholder={text("studioProjectSearch")}
+                    emptyMessage={text("studioProjectNone")}
+                    filter={nameMatch}
+                  >
+                    {#snippet renderItem(option, selected)}<Icon
+                        icon={option.value === ORG_AGENT
+                          ? "users-01"
+                          : "cube-01"}
+                        class="text-muted-foreground"
+                      /><span class="min-w-0 flex-1 truncate"
+                        >{option.label}</span
+                      ><Icon
+                        icon="check"
+                        class={selected ? "opacity-100" : "opacity-0"}
+                      />{/snippet}
+                  </Combobox>
+                  {#if !studioProjects.length}<p
+                      class="m-0 text-xs text-muted-foreground"
+                    >
+                      {text("studioProjectsEmpty")}
+                    </p>{/if}{/if}
+              </div>{/if}
             <Button
               type="submit"
               data-studio-create
-              disabled={busy || !studioPick || $view.data.sandboxes.length >= 3}
-              >{text("studioCreate")}</Button
+              class="self-start"
+              disabled={busy ||
+                !studioPick ||
+                $projectView.org !== studioPick ||
+                $projectView.phase !== "ready" ||
+                $view.data.sandboxes.length >= 3}>{text("studioCreate")}</Button
             >
           </form>
         {:else}<p class="m-0 text-xs text-destructive">

@@ -3,7 +3,7 @@
 // takes the room and the home at 1440 and 390 px, and a hovered message. With --publish it pushes the files to the
 // orphan branch `pr-screens` (no workflow runs there) and prints the Markdown to paste in the pull request.
 //
-//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--name <folder>]
+//   bun scripts/screens.ts [--publish] [--hover] [--react] [--link] [--dm] [--threads] [--resume] [--marks] [--studio] [--settings] [--name <folder>]
 import { chromium, type Page } from "playwright";
 import { mkdir, cp, mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -278,6 +278,10 @@ try {
     await card.locator('a[href^="/api/studio/signin"]').click();
     await cloud.locator("[data-studio-create]").waitFor();
     await shot("studio-connected-1440.png");
+    // The organization is picked in its searchable list; its projects load right after.
+    await cloud.locator("[data-studio-org] button").click();
+    await cloud.getByRole("option", { name: "Example Org" }).click();
+    await cloud.locator("[data-studio-projects] button").waitFor();
     await cloud.locator("[data-studio-create]").click();
     await cloud
       .locator("[data-sandbox-id]", { hasText: "org-example-agent" })
@@ -301,7 +305,8 @@ try {
     if (sent !== 1)
       throw new Error(`the Studio mock received ${sent} messages, not 1`);
     // A project's agent: it takes the project's title in Studio as its name and @handle.
-    await card.locator("input").fill("mock-project");
+    await cloud.locator("[data-studio-projects] button").click();
+    await cloud.getByRole("option", { name: "Example Store" }).click();
     await cloud.locator("[data-studio-create]").click();
     const project = cloud.locator("[data-sandbox-id]", {
       hasText: "example-store",
@@ -344,6 +349,165 @@ try {
     await phone.screenshot({ path: join(out, "studio-390.png") });
     shots.push("studio-390.png");
     await phone.close();
+  }
+  if (flag("settings")) {
+    // Settings › Cloud agents: the section stays drawn while /api/me refreshes, and each state of the Studio
+    // pickers. The Studio reads go through the Worker with the person's grant, so the page's own routes are
+    // stubbed here with fake test organizations and projects: no Studio (or its mock) is needed.
+    const orgs = [
+      "Example Org",
+      "Exemplo Testes",
+      "Demo Org Alpha",
+      "Demo Org Beta",
+      "Fixture Labs",
+      "Sample Agency",
+      "Test Org Empty",
+      "Test Org Error",
+      "Test Org Slow",
+      "Placeholder Co",
+      "Org de Exemplo",
+      "Mock Studio Team",
+    ].map((title) => ({
+      slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      name: title,
+    }));
+    const projects = Array.from({ length: 24 }, (_, i) => ({
+      id: `vir_test_${i + 1}`,
+      title: [
+        "Example Store",
+        "Example Blog",
+        "Test Landing Page",
+        "Demo Checkout",
+        "Sample Docs",
+        "Fixture Dashboard",
+      ][i % 6]!.concat(i < 6 ? "" : ` ${Math.floor(i / 6) + 1}`),
+    }));
+    let release = () => {};
+    const stub = async (page: Page) => {
+      await page.route("**/api/books/*/sandboxes", (route) =>
+        route.request().method() === "GET"
+          ? route.fulfill({
+              json: {
+                connected: false,
+                claude: false,
+                studio: true,
+                studio_orgs: orgs,
+                sandboxes: [],
+              },
+            })
+          : route.fallback(),
+      );
+      await page.route("**/api/studio/orgs/*/projects", async (route) => {
+        const org = new URL(route.request().url()).pathname.split("/")[4];
+        if (org === "test-org-error")
+          return route.fulfill({
+            status: 502,
+            json: { error: "studio unavailable (test)" },
+          });
+        if (org === "test-org-slow")
+          await new Promise<void>((resolve) => (release = resolve));
+        return route.fulfill({
+          json: { projects: org === "test-org-empty" ? [] : projects },
+        });
+      });
+    };
+    for (const [width, height, tag] of [
+      [1440, 900, "1440"],
+      [390, 844, "390"],
+    ] as const) {
+      const page = await browser.newPage({
+        viewport: { width, height },
+        ...(width < 800 ? { isMobile: true, hasTouch: true } : {}),
+      });
+      await stub(page);
+      const studio = page.locator("[data-studio-connection]");
+      // Puts a part at the top of its scrolled page, under the phone's bar.
+      const top = (at: typeof studio) =>
+        at.evaluate((node) => {
+          node.scrollIntoView({ block: "start" });
+          let box = node.parentElement;
+          while (box && box.scrollHeight <= box.clientHeight)
+            box = box.parentElement;
+          (box ?? document.scrollingElement)?.scrollBy(0, -72);
+        });
+      const shot = async (file: string, at = studio) => {
+        await top(at);
+        await page.mouse.move(0, 0);
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(out, `${file}-${tag}.png`) });
+        shots.push(`${file}-${tag}.png`);
+      };
+      const closed = () =>
+        page.getByRole("option").first().waitFor({ state: "detached" });
+      const pick = async (org: string) => {
+        await page.locator("[data-studio-org] button").click();
+        await page.getByRole("option", { name: org, exact: true }).click();
+        await closed();
+      };
+      await page.goto(`${base}/settings?room=${room}#cloud`, {
+        waitUntil: "networkidle",
+      });
+      const section = page.locator("#cloud");
+      await studio.waitFor();
+      // The cloud agents section, then a /api/me refresh: it must keep the same panel and the typed text.
+      const field = page
+        .locator("[data-sandboxes] input[type=password]")
+        .first();
+      await field.fill("texto de teste");
+      await page.evaluate(() => {
+        const panel = document.querySelector("[data-sandboxes]");
+        (window as unknown as { panel: Element | null }).panel = panel;
+      });
+      // Opening a room in another tab makes this page read /api/me again.
+      const refreshed = page.waitForRequest(
+        (request) => new URL(request.url()).pathname === "/api/me",
+      );
+      const other = await browser.newPage();
+      await other.goto(`${base}/b/${room}`, { waitUntil: "networkidle" });
+      await refreshed;
+      await page.waitForTimeout(1500);
+      await other.close();
+      const kept = await page.evaluate(
+        () =>
+          (window as unknown as { panel: Element | null }).panel ===
+          document.querySelector("[data-sandboxes]"),
+      );
+      if (!kept || (await field.inputValue()) !== "texto de teste")
+        throw new Error("the cloud agents panel was drawn again");
+      await field.fill("");
+      await field.blur();
+      await shot("cloud", section);
+      await shot("studio-org-closed");
+      await page.locator("[data-studio-org] button").click();
+      await page.keyboard.type("demo");
+      await page.getByRole("option", { name: "Demo Org Beta" }).waitFor();
+      await shot("studio-org-search");
+      await page.keyboard.press("Escape");
+      await closed();
+      await pick("Test Org Slow");
+      await page.locator('[data-studio-projects] [role="status"]').waitFor();
+      await shot("studio-projects-loading");
+      release();
+      await pick("Example Org");
+      // The card at the top of the page, so the list opens under the field and the organization stays in view.
+      await top(studio);
+      await page.locator("[data-studio-projects] button").click();
+      await page.getByRole("option", { name: "Fixture Dashboard 4" }).waitFor();
+      await shot("studio-projects");
+      await page.keyboard.press("Escape");
+      await closed();
+      await pick("Test Org Empty");
+      await page
+        .locator("[data-studio-projects]", {
+          hasText: /no projects|não tem projetos/,
+        })
+        .waitFor();
+      await shot("studio-projects-empty");
+      await pick("Test Org Error");
+      await page.locator('[data-studio-projects] [role="alert"]').waitFor();
+      await shot("studio-projects-error");
+      await page.close();
+    }
   }
   if (flag("link")) {
     // A copied link to an old message (Gimenes #4843): more than one window of messages after it, then the link opens
