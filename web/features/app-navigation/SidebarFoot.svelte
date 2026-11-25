@@ -22,7 +22,7 @@
   {#if above}<div class="pb-2">{@render above()}</div>{/if}
   <div
     data-sidebar-self
-    class="flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
+    class="flex flex-col gap-0.5 rounded-xl bg-user-area p-1"
   >
     {@render children()}
   </div>

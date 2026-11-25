@@ -135,9 +135,7 @@
             {/each}
           </div>
         </div>{/if}
-      <div
-        class="mt-auto flex flex-col gap-0.5 rounded-xl bg-sidebar-accent/50 p-1"
-      >
+      <div class="mt-auto flex flex-col gap-0.5 rounded-xl bg-user-area p-1">
         <div class="flex h-11 items-center gap-2.5 px-2.5">
           <Skeleton class="size-7 shrink-0 rounded-full" />
           {@render line("w-28", "h-2.5")}

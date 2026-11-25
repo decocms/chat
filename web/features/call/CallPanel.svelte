@@ -43,7 +43,7 @@
       onclick={onopen}><Icon icon="phone" size={16} /></IconButton
     >{:else}<div
       data-call-panel
-      class="flex flex-col gap-2 rounded-xl bg-sidebar-accent/50 p-2 font-sans text-sidebar-foreground"
+      class="flex flex-col gap-2 rounded-xl bg-user-area p-2 font-sans text-sidebar-foreground"
     >
       <div class="flex items-center gap-1">
         <button

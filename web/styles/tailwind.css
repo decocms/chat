@@ -102,6 +102,14 @@
   --vb-sidebar-ring: #0a0a09;
   --vb-sidebar-primary: #0a0a09;
   --vb-sidebar-primary-foreground: #fff;
+  /* Semantic surfaces: the message box (ChatField) and the user area at the sidebar's foot (SidebarFoot,
+     CallPanel). They follow the theme through the tokens they point at. */
+  --vb-composer: var(--vb-muted);
+  --vb-user-area: color-mix(
+    in oklab,
+    var(--vb-sidebar-accent) 50%,
+    transparent
+  );
   --vb-chart-1: oklch(73% 0.15 289);
   --vb-chart-2: oklch(60% 0.18 150);
   --vb-chart-3: oklch(61% 0.2 6.81);
@@ -519,6 +527,8 @@
   --color-sidebar: var(--vb-sidebar);
   --color-sidebar-foreground: var(--vb-sidebar-foreground);
   --color-sidebar-accent: var(--vb-sidebar-accent);
+  --color-composer: var(--vb-composer);
+  --color-user-area: var(--vb-user-area);
   --color-sidebar-accent-foreground: var(--vb-sidebar-accent-foreground);
   --color-sidebar-border: var(--vb-sidebar-border);
   --color-sidebar-ring: var(--vb-sidebar-ring);

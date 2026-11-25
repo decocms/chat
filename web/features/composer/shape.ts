@@ -10,7 +10,7 @@ export const COMPOSER_SLOT = "mr-2 px-2";
 export const COMPOSER_FRAME = "px-3 pt-1 pb-3 md:px-2 md:pb-2";
 
 /** The box: its corners and its fill. */
-export const COMPOSER_BOX = "rounded-3xl bg-muted md:rounded-xl";
+export const COMPOSER_BOX = "rounded-3xl bg-composer md:rounded-xl";
 
 /** The box's row of controls: 56px tall with one line (12px + a 32px control + 12px). */
 export const COMPOSER_ROW = "min-h-14 px-1.5 py-3";
