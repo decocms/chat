@@ -46,8 +46,9 @@ try {
   await Promise.all([dismiss(ana), dismiss(bia)]);
 
   await ana.getByRole("button", { name: /Iniciar call/ }).first().click();
-  // Bia has the room open: she joins by herself, microphone off.
-  await bia.getByRole("button", { name: "Ativar o microfone" }).first().waitFor({ timeout: 30_000 });
+  // Bia has the room open: she is not pulled in. She joins with a click.
+  await bia.locator("[data-call-start]").first().click();
+  await bia.getByRole("button", { name: /Desativar o microfone|Ativar o microfone/ }).first().waitFor({ timeout: 30_000 });
   if (withRecorder) {
     
     
