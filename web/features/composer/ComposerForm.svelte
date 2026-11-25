@@ -508,9 +508,11 @@
             >{#if item.kind === "thread"}<span
                 class="min-w-12 shrink-[999] truncate font-medium text-muted-foreground"
                 >{item.room}</span
-              ><span class="-mx-1 shrink-0 font-medium text-muted-foreground"
-                >›</span
-              >{/if}<span class="min-w-0 truncate font-medium"
+              ><Icon
+                icon="chevron-right"
+                size={14}
+                class="-mx-0.5 shrink-0 text-muted-foreground"
+              />{/if}<span class="min-w-0 truncate font-medium"
               >{item.title}</span
             ></button
           >{/each}{:else}
