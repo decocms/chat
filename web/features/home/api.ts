@@ -80,6 +80,10 @@ export function createHomeApi(fetcher?: FetchLike) {
       room.archive
         .$post({ param: param(id), json: { archived } }, { init: { signal } })
         .then((response) => read(response, OkResult)),
+    read: (id: string, signal?: AbortSignal) =>
+      room.read
+        .$post({ param: param(id) }, { init: { signal } })
+        .then((response) => read(response, OkResult)),
     order: (ids: string[], signal?: AbortSignal) =>
       api.rooms.order
         .$post({ json: { ids } }, { init: { signal } })

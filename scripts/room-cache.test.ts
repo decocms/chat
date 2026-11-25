@@ -112,7 +112,7 @@ const tick = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
 
-test("the store saves in batches, reads back only this account's rooms, expires, skips DMs, prunes and clears", async () => {
+test("the store saves in batches (DMs too), reads back only this account's rooms, expires, prunes and clears", async () => {
   const { idb, rows } = fakeIndexedDb();
   let now = 1_000_000_000;
   const timers: (() => void)[] = [];
@@ -130,7 +130,8 @@ test("the store saves in batches, reads back only this account's rooms, expires,
   expect(timers).toHaveLength(1);
   timers.shift()!();
   await tick();
-  expect([...rows.keys()].sort()).toEqual(["r1", "r2"]);
+  // A DM is a room like any other: it is saved too.
+  expect([...rows.keys()].sort()).toEqual(["dm", "r1", "r2"]);
   const saved = await cache.load("a@test", "r1");
   expect(saved?.at).toBe(200);
   expect(saved?.typing).toEqual({});
@@ -233,5 +234,69 @@ test("after a reload, once the account is known, a room not in memory draws from
   expect(started).toBe(1);
   expect(urls.at(-1)).toBe("aaaaaa/main?since=9&at=500&eh=h9");
   expect(callbacks).toBeDefined();
+  session.dispose();
+});
+
+test("with IndexedDB, memory keeps only the open room: going back to a room reads it from IndexedDB (cache plan PR 4)", async () => {
+  const loads: string[] = [];
+  const sockets: RoomConnectionOptions[] = [];
+  const session = createRootRoomSession({
+    url: (id) => id,
+    acceptIdentity: () => false,
+    onOpen: () => {},
+    onTransition: () => {},
+    onTerminal: () => {},
+    schedule: () => 0,
+    persist: {
+      load: async (account, id) => {
+        loads.push(`${account}/${id}`);
+        return room(id, account, {
+          messages: [
+            {
+              id: 1,
+              author: account,
+              text: `saved ${id}`,
+              ts: 1,
+              thread: "main",
+            },
+          ],
+        });
+      },
+      save: () => {},
+      drop: () => {},
+      keep: () => {},
+      clear: () => {},
+    },
+    connection: (options) => {
+      sockets.push(options);
+      return {
+        start() {},
+        dispose() {},
+        resync() {},
+        send: () => true,
+        request: async () => ({ ok: true }),
+      };
+    },
+  });
+  const dm = room("dmdmdm", "a@test", {
+    book: { title: "dm", owner: "a@test", dm: true },
+  });
+  session.open("dmdmdm");
+  sockets.at(-1)!.onEvent({ t: "state", ...dm } as never);
+  session.open("aaaaaa");
+  sockets.at(-1)!.onEvent({ t: "state", ...room("aaaaaa") } as never);
+  session.open("bbbbbb");
+  sockets.at(-1)!.onEvent({ t: "state", ...room("bbbbbb") } as never);
+  // A DM is a room like any other: it is not kept in memory either, and comes back from IndexedDB.
+  session.open("dmdmdm");
+  expect(session.read().room).toBeNull();
+  await tick();
+  expect(loads.at(-1)).toBe("a@test/dmdmdm");
+  session.open("aaaaaa");
+  expect(session.read().room).toBeNull();
+  await tick();
+  expect(loads.at(-1)).toBe("a@test/aaaaaa");
+  expect(session.read().phase).toBe("cached");
+  expect(session.read().room?.messages[0]?.text).toBe("saved aaaaaa");
   session.dispose();
 });

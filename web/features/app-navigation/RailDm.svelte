@@ -6,6 +6,7 @@
   import TooltipTrigger from "../../lib/studio/TooltipTrigger.svelte";
   import { homeText, type HomeLanguage } from "../home/copy";
   import { targetHref, type DmEntry, type RoomTarget } from "../home/model";
+  import { roomMenuTrigger, type MenuPoint } from "./roomMenuTrigger";
   /**
    * A DM with something new, under Home in the rail (like Discord): the
    * person's picture with the new messages as the one number at its top
@@ -17,18 +18,28 @@
     count,
     lang,
     onnavigate,
+    onmenu,
   }: {
     entry: DmEntry;
     count: number;
     lang: HomeLanguage;
     onnavigate: (target: RoomTarget) => void;
+    /** Opens the DM's menu (a right-click, a long press, Shift+F10). */
+    onmenu?: (id: string, trigger: HTMLElement, point?: MenuPoint) => void;
   } = $props();
   const label = $derived(
     homeText(lang, "dmUnread", { name: entry.name, n: count }),
   );
 </script>
 
-<div role="listitem" data-rail-dm={entry.room.id} class="relative">
+<div
+  role="listitem"
+  data-rail-dm={entry.room.id}
+  class="relative"
+  use:roomMenuTrigger={onmenu
+    ? (trigger, point) => onmenu(entry.room.id, trigger, point)
+    : undefined}
+>
   <Tooltip>
     <TooltipTrigger>
       {#snippet child({ props })}

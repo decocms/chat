@@ -76,8 +76,9 @@ Rules:
 
 - The app saves each room that you open in IndexedDB (`web/features/room-cache/store.ts`): the newest 400 messages and the rest of the room, without typing and edit history. It writes one time for each quiet second, and only on durable events.
 - A room that is not in memory (after a reload, or a 13th room) draws from IndexedDB first. Then its socket resumes from it (see "A reconnect resumes"). The read waits at most 300 ms. Then the socket starts anyway.
-- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are not saved. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
+- A saved room draws only for the account that saved it, when that account is known (`/api/me`, or a `state`). DMs are saved too. A saved room is deleted after 7 days, when you leave or are removed from the room, and when `/api/me` does not list it. A sign-out, a refused session or another account deletes all saved rooms.
 - If the browser blocks IndexedDB (a private window), rooms stay in memory only.
+- Memory keeps only the open room. Another room that you open again comes from IndexedDB. Without IndexedDB, memory keeps the 12 newest rooms.
 
 ### One send, one message
 
