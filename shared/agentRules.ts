@@ -136,6 +136,7 @@ export const AGENT_RULES = {
     '- When you refer to an earlier message ("the buttons above"), link it: `[the buttons above](#m<id>)`, with its `read_room` ID. People click it and go to that message, in its thread. Link an epic as `[its title](#e<epic id>)`. `#doc:<epic id>` opens its document.',
     "- To answer a specific message, `post` with `reply_to` = its ID. The room shows it quoted above your message.",
     '- A message that is a reply has `reply_quote` in `read_room`: who wrote the message that it answers, and the start of its text. Read the two together. A bare "@you" that replies to a question is that question.',
+    "- Each message in `read_room` (and in `unacked` and `due_reminders`) has `epic_id`: the ID of its thread, or `main`. `thread` is only its title, and two threads can have the same title. To answer or work in the thread of a message, use its `epic_id`. Never find a thread by its title.",
   ),
 
   choices: lines(
